@@ -109,16 +109,16 @@ public final class MapSystem {
      * The use path's creation (EmptyMapItem.startUsing lines 15-22): the
      * allocated id, the scale 0, the centering on the player, the
      * dimension row — registered in the dimension's table (the reference's
-     * setSavedData).
+     * setSavedData). Answers the new map's id.
      */
-    public MapData createMap(int dimension, double x, double z) {
+    public int createMapAt(int dimension, double x, double z) {
         int id = allocateId(dimension);
         MapData data = new MapData();
         data.scale = 0;
         data.updateCenter(x, z, 0);
         data.dimension = (byte) dimension;
         dataOf(dimension).put(id, data);
-        return data;
+        return id;
     }
 
     /**
@@ -128,7 +128,11 @@ public final class MapSystem {
      * carried.
      */
     public MapData createScaledCopy(int dimension, MapData source) {
-        int id = allocateId(dimension);
+        return createScaledAt(dimension, allocateId(dimension), source);
+    }
+
+    /** The creation body over an explicit id (the onResult walk's own form). */
+    private MapData createScaledAt(int dimension, int id, MapData source) {
         MapData data = new MapData();
         data.scale = (byte) Math.min(MapData.MAX_SCALE, source.scale + 1);
         data.updateCenter(source.centerX, source.centerZ, data.scale);
@@ -474,6 +478,150 @@ public final class MapSystem {
                 }
             }
         }
+    }
+
+    // ---------------------------------------------------------- the crafting
+
+    /**
+     * The clone recipe's match (CloneMapRecipe.matches lines 10-34): ONE
+     * filled map plus one or more empty maps — nothing else. A second
+     * filled map refuses; any other item refuses.
+     */
+    public boolean cloneMatches(ItemStack[] grid, int cols) {
+        int empties = 0;
+        ItemStack map = null;
+        for (int j = 0; j < grid.length; j++) {
+            ItemStack at = grid[j];
+            if (at.isEmpty()) {
+                continue;
+            }
+            if (at.type().equals(BuiltinItems.FILLED_MAP)) {
+                if (map != null) {
+                    return false;
+                }
+                map = at;
+            } else if (at.type().equals(BuiltinItems.EMPTY_MAP)) {
+                empties++;
+            } else {
+                return false;
+            }
+        }
+        return map != null && empties > 0;
+    }
+
+    /**
+     * The clone recipe's result (CloneMapRecipe.getResult lines 37-70): the
+     * copies share the source's map id — a stack of (empties + 1) maps of
+     * the SAME id (the multi-copy quirk the stack-64 filled map keeps
+     * representable) — with the source's hover name carried.
+     */
+    public ItemStack cloneResult(ItemStack[] grid, int cols) {
+        int empties = 0;
+        ItemStack map = null;
+        for (int j = 0; j < grid.length; j++) {
+            ItemStack at = grid[j];
+            if (at.isEmpty()) {
+                continue;
+            }
+            if (at.type().equals(BuiltinItems.FILLED_MAP)) {
+                if (map != null) {
+                    return ItemStack.EMPTY;
+                }
+                map = at;
+            } else if (at.type().equals(BuiltinItems.EMPTY_MAP)) {
+                empties++;
+            } else {
+                return ItemStack.EMPTY;
+            }
+        }
+        if (map == null || empties < 1) {
+            return ItemStack.EMPTY;
+        }
+        ItemStack copies = ItemStack.of(BuiltinItems.FILLED_MAP, empties + 1)
+                .withDamage(map.damage())
+                .withMapScaling(map.mapScaling())
+                .withMapDecorations(map.mapDecorations());
+        if (map.displayName() != null) {
+            copies = copies.withName(map.displayName());
+        }
+        return copies;
+    }
+
+    /**
+     * The scale-up recipe's match (UpscaleMapRecipe.matches lines 31-51):
+     * the eight-paper ring around the filled map (the reference's shaped
+     * 3x3 — the bounding-box matcher answers the ring at every offset, the
+     * empty cells outside the footprint demanded empty), AND the source
+     * map's scale below 4 (a fully zoomed map never upscales).
+     */
+    public boolean upscaleMatches(ItemStack[] grid, int cols, int dimension) {
+        // The shaped ring over the grid (the reference's ShapedRecipe
+        // pattern: paper at every cell of the 3x3 ring, the map at the
+        // center, the pattern matching at its one 3x3 offset — the grid
+        // itself).
+        int rows = grid.length / cols;
+        if (cols < 3 || rows < 3) {
+            return false;
+        }
+        ItemStack map = null;
+        for (int row = 0; row < 3; row++) {
+            for (int col = 0; col < 3; col++) {
+                ItemStack at = grid[row * cols + col];
+                if (row == 1 && col == 1) {
+                    if (at.isEmpty() || !at.type().equals(BuiltinItems.FILLED_MAP)) {
+                        return false;
+                    }
+                    map = at;
+                } else if (at.isEmpty() || !at.type().equals(BuiltinItems.PAPER)) {
+                    return false;
+                }
+            }
+        }
+        // The scale gate (line 49-50): the source map's data must exist
+        // and sit below the ceiling.
+        MapData data = map == null ? null : mapDataOf(dimension, map.damage());
+        return data != null && data.scale < MapData.MAX_SCALE;
+    }
+
+    /**
+     * The scale-up recipe's result (UpscaleMapRecipe.getResult lines 54-72):
+     * the source map's own stack at size 1 with the map_is_scaling marker
+     * — the take's onCrafted walk then allocates the new id and the
+     * scale+1 data.
+     */
+    public ItemStack upscaleResult(ItemStack[] grid, int cols) {
+        ItemStack map = null;
+        for (int j = 0; j < grid.length && map == null; j++) {
+            ItemStack at = grid[j];
+            if (!at.isEmpty() && at.type().equals(BuiltinItems.FILLED_MAP)) {
+                map = at;
+            }
+        }
+        if (map == null) {
+            return ItemStack.EMPTY;
+        }
+        return map.withCount(1).withMapScaling(true);
+    }
+
+    /**
+     * The craft take's onResult walk (FilledMapItem.onResult lines 195-209):
+     * a scaling-flagged result allocates its own new map id (the count
+     * law) and registers the scale+1 data centered on the source's center
+     * (the same center re-snapped at the finer grid), the dimension
+     * carried. The returned stack carries the new id; the flag stays set
+     * (the reference's own quirk — the row is never cleared).
+     */
+    public ItemStack applyScaleUp(int dimension, ItemStack crafted) {
+        if (!crafted.mapScaling()) {
+            return crafted;
+        }
+        MapData source = mapDataOf(dimension, crafted.damage());
+        if (source == null) {
+            return crafted;
+        }
+        int newId = allocateId(dimension);
+        createScaledAt(dimension, newId, source);
+        return crafted.withDamage(newId);
     }
 
     // ------------------------------------------------------------- helpers
