@@ -11885,3 +11885,52 @@ patches/lakes/dungeons), assigned to the parallel wave's instance 2
 local-difficulty completion (the inhabited-time and moon-phase terms
 currently zeroed, MobManager 3520's ledger) split between the
 coordinator and instance 9.
+
+**8e8dcc6d — Slice S6: the player store's save-walk arm (the save
+walk's last synchronous store).** The Phase-5 persistence wave's own
+named follow-up — "the save walk's remaining stores stay synchronous
+(S4+ adopts them)" — completed. Phase 0's census of the actual walks:
+every `saveAllNow` store already rode the named path (S1 deltas, S2
+containers, S3 board/border, S4 tiles, S5 the config/tile-extra/
+entity families, VI4 the scheduled ticks, VIII10 the villages); the
+remaining synchronous store was the SHUTDOWN walk's step-2 arm —
+`persistPlayerNow`'s capture + serialize + file write all on the tick
+lane. The dragon store is event-driven only (its stale javadoc's
+`saveAllNow` claim corrected: the defeated flag transitions once at
+the death event and the event write persists it immediately — no
+save-walk arm needed).
+
+The split (the established S1-S5 shape): `PlayerDataStore.save`
+composes `writeSerialized(uuid, serialize(snapshot))` — the pure
+serializer over the immutable snapshot (the ZPD v11 byte walk
+verbatim), the file half (temp write + atomic move) with the store's
+own loud `IllegalStateException` 1:1; the input contract already
+immutable-on-handoff (`snapshotOf`'s fresh slot lists, the stats deep
+map copies, the fresh command-stat pairs). The wiring:
+`persistPlayerNow`'s tick-lane submit captures and rides the pipeline
+under the PER-PLAYER named sequence (`player-<uuid>` — each player's
+file gates independently); the caller drains the capture latch (2s,
+the walk's own bound) AND the publication latch (10s, the stores'
+own bound — a shutdown never loses a submitted save; the tick loop's
+compute + I/O drains, still running until the simulation stop,
+deliver it); the un-pipelined fallback keeps the sync form. The quit
+arm is untouched (its own law): `clientDisconnected`'s
+`persistPlayer` stays synchronous — the tick-queue ordering after
+pending inventory work.
+
+The measurement (the S6 harness, a 12-slot worked inventory, 500
+rounds): the capture 6.7us stays on the tick lane, the serialization
+97.6us and the file half 394.8us leave it — the per-save tick-lane
+cost 499.0us -> 6.7us (98.7% off the lane).
+
+Evidence: PlayerSaveSplitTest 5/0 (the byte-identity of the rich and
+plain shapes against the historical walk replicated verbatim + the
+round-trips through the unchanged loader; the per-player named path
+through the real lanes with the telemetry; the §15 gate — the blocked
+older snapshot drops when the newer landed while the other player's
+lower-sequence save still lands, the superseded latch releasing; the
+failed publication's latch release + the lane's loud failure) +
+PlayerDataPersistenceTest 5/5 (the real-boot shutdown walk through
+the live pipeline) + the regression sweep green (world 208/0, entity
+438/0, village/weather/gamerule/endcrystal/block 232/0, the S4
+tile-family batch 93/0, player+command-stats persistence 61/0).
