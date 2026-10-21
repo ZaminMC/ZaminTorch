@@ -11287,3 +11287,101 @@ sweep green (one SchedulerApi timing flake under batch load, green in
 isolation and on the batch's re-run). The EntityFamilySaveSplitTest's
 embedded historical walk grew the v13 tail byte — the byte-identity
 proof rides the new format.
+
+## 2026-10-21 — VIII6: the achievement family (the twenty-eight gameplay award sites)
+
+The Wave VIII audit's sixth row. The engine's stat store carried the whole
+34-row model (Slice 90's table + command + broadcast + 0x37 wire + login
+sync) with exactly six gameplay award sites (OPEN_INVENTORY, GET_LOG,
+KILL_COW, GET_DIAMOND, GIVE_DIAMOND, GET_BLAZE_ROD); this slice lands the
+remaining twenty-eight rows, each driven from the reference's own award
+walk:
+
+- **The craft ladder** — CraftingResultSlot.checkAchievements lines 50-97
+  over BOTH take paths (the single pickup's onItemRemoved and the
+  quick-move's onQuickMoved): the table, any pickaxe, the furnace, any hoe
+  (the achievement's wooden name notwithstanding — the reference's
+  instanceof check), the bread, the cake, the better-than-wood tier gate,
+  any sword, the enchanting table, the bookshelf, and the enchanted golden
+  apple's CRAFT-SITE QUIRK — "overpowered" is named EAT but 1.8.8 awards
+  it on CRAFT (lines 93-95), the reference's own bug kept 1:1.
+- **The smelt pair** — FurnaceResultSlot.checkAchievements lines 69-79:
+  the iron ingot's acquire and the cooked fish (the item id covers both
+  fish metas — the reference's Item equality) over the output take's
+  shared seam (pickup, quick-move, and drop).
+- **The brew row** — BrewingStandMenu's potion-slot onItemRemoved lines
+  148-154: a potion leaving a bottle slot with metadata past the water
+  bottle (damage > 0) awards; the water bottle never does.
+- **The overkill** — PlayerEntity.attack line 1011's pre-armor f >= 18 on
+  both melee paths (the mob attack and the player-vs-player attack, the
+  reference's own walk position before the armor consult).
+- **The kill rows** — PlayerEntity.onKill's Monster gate (the hostile
+  band) at the death walk, and WitherEntity.dropItems lines 452-458: the
+  wither's death box grown(50, 100, 50) carries EVERY player watching the
+  fall, not the killer alone.
+- **The snipe** — SkeletonEntity.die lines 156-165: an arrow's killing
+  blow with the shooter 50+ blocks out (the horizontal pair's squared
+  2500), the positions read at the death itself inside the synchronous
+  sink call.
+- **The ghast reflect** — GhastEntity.takeDamage lines 60-66: a
+  PLAYER-sourced fireball (the deflection's own new shooter) strikes the
+  ghast for the flat 1000.0 and awards the row — the
+  deflected-blast-kills-the-ghast trick's own damage law, previously the
+  plain 6.0 fireball bruise.
+- **The dimension pair** — ServerPlayerEntity.changeDimension lines
+  443-462: ENTER_THE_END, LEAVE_THE_END, and the ENTER_THE_NETHER
+  BOTH-WAYS QUIRK (any crossing that is not the End pair awards the
+  portal row — nether -> overworld included, the reference's own else
+  arm).
+- **The summon box** — SkullBlock lines 197-199: every player in the
+  newborn wither's shape grown(50, 50, 50) earns the summon.
+- **The full beacon** — BeaconBlockEntity.update lines 158-167: the
+  levels-4-from-below transition's own census over the beacon column
+  grown(10, 5, 10), the transition edge captured before the recompute.
+- **The breed row** — AnimalBreedGoal.breed lines 82-89: the CAUSE player
+  (the parent's love player first, the mate's as the fallback) earns the
+  animals-bred counter and the cow's breed row. The engine's deferred
+  breed flush fired the listener AFTER resetLove cleared the rows — the
+  cause now rides a new cause-carrying onMobBred overload captured before
+  the reset.
+- **The pig fall** — PigEntity.takeFallDamage lines 162-168: a fall past
+  five blocks with a rider aboard (the strict >), through a new
+  manager-injected playerStatAward seam (the removal-hook pattern) so the
+  body-side award site can reach the session's stat store.
+- **The cart kilometre** — PlayerEntity.checkMovementStatistics lines
+  1355-1370: the per-tick seat-anchor delta counts minecartOneCm, the
+  start cell arms on the ride's FIRST move, and the squared-1,000,000
+  displacement (the euclidean 1000 blocks) awards onARail; the window
+  resets on dismount (line 280's null-vehicle reset).
+- **ENTER_ALL_BIOMES** — ServerPlayerEntity.updateExploredBiomes lines
+  336-368 1:1: the every-20-ticks census (the reference's `ticks % 20 * 5
+  == 0` PRECEDENCE QUIRK — % and * bind left to right, so the check fires
+  every second, the "every 100 ticks" comment notwithstanding), the
+  AchievementProgress set model (new on PlayerStats with the ZPD v11
+  persistence tail), the Biome display names (the reference's setName
+  strings — "Deep Ocean" with the space, "Hell"), the explorable band
+  (the engine's six overworld biomes, HELL excluded by the reference's
+  own remove), and the coverage gate (the copy-remove walk's empty-set
+  end condition).
+
+The slice's own catches, both found by the new acceptance suite:
+
+1. **The gold-surround family was missing from the recipe table whole** —
+   CraftingManager lines 276-279: the golden apple's BOTH metas (the
+   eight-ingot plain form and the eight-block ENCHANTED form — the craft
+   that carries the "overpowered" award site), the golden carrot, and the
+   speckled melon. Four shaped rows added; the count pin 205 -> 209.
+2. **The deferred breed flush double-bred a same-tick pair** — both cows'
+   goals request the breed in the same tick, and the post-loop flush
+   executed BOTH pairs (two babies from one breed). The reference's
+   GoalSelector order prevents it (A's breed resets both loves before B's
+   own goal walk runs); the flush now re-verifies the love gate before
+   each execution — one child per breed, the reference's shape.
+
+Evidence: AchievementFamilyTest 12 — the craft ladder's parent-gate
+refusal then award, the pickaxe pair's tier gate, the apple quirk, the
+smelt pair, the brew gate's water-bottle refusal, the overkill + kill
+rows, the wither's death box, the summon box, the full beacon, the breed
+cause, the pig fall's strict five-block refusal, the cart kilometre, the
+all-biomes cover. The crafting/stat/beacon/breeding/vehicle/furnace/player
+regression suites green (182/0 after the count pin's update).
