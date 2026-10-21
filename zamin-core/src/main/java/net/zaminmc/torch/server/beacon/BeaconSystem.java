@@ -65,6 +65,15 @@ public final class BeaconSystem implements WorldChangeListener {
     /** The beacon update broadcast (the adapter's 0x35 action-3 republish). */
     public interface Listener {
         void onBeaconUpdated(BlockPosition position, BeaconBlockEntity beacon);
+
+        /**
+         * The full-power transition (VIII6 — BeaconBlockEntity.update lines
+         * 158-167: the levels REACHED 4 from below — the pyramid's
+         * completion): the engine's award walk runs over the beacon's own
+         * grown box, the reference's player census.
+         */
+        default void onBeaconFullyPowered(BlockPosition position) {
+        }
     }
 
     public void addListener(Listener listener) {
@@ -194,7 +203,16 @@ public final class BeaconSystem implements WorldChangeListener {
 
     /** update() lines 51-54: the levels recompute + the effect spread. */
     public void update(BlockPosition position, BeaconBlockEntity beacon) {
+        // VIII6 — the full-power transition (update lines 158-162: the
+        // levels == 4 while the PREVIOUS value was below): the award's own
+        // edge, read before the recompute writes the new level.
+        int previousLevels = beacon.levels();
         updateLevels(position, beacon);
+        if (beacon.levels() == 4 && previousLevels < 4) {
+            for (Listener listener : listeners) {
+                listener.onBeaconFullyPowered(position);
+            }
+        }
         spreadEffects(position, beacon);
         for (Listener listener : listeners) {
             listener.onBeaconUpdated(position, beacon);

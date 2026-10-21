@@ -18,6 +18,7 @@ public final class PlayerStats {
 
     private final Map<String, Integer> counters = new HashMap<>();
     private final Map<String, Integer> dirty = new LinkedHashMap<>();
+    private final Map<String, java.util.Set<String>> progress = new HashMap<>();
     private int ticksSinceDeath;
     private Listener listener;
 
@@ -144,6 +145,50 @@ public final class PlayerStats {
             if (get(key) > 0) {
                 out.put(key, get(key));
                 dirty.remove(key);
+            }
+        }
+        return out;
+    }
+
+    // ------------------------------------------------ the progress model (VIII6)
+
+    /**
+     * PlayerStats.getProgress 1:1 (the reference's StatCounter carriage —
+     * the all-biomes row's own set): the progress strings of a stat, null
+     * when never written. The returned set is the LIVE store — callers add
+     * through {@link #progressOf} exactly like the reference's
+     * {@code achievementprogress.add(s)} over the shared counter.
+     */
+    public java.util.Set<String> getProgress(String stat) {
+        return progress.get(stat);
+    }
+
+    /**
+     * PlayerStats.setProgress 1:1 — creates the progress row when absent
+     * (the reference's null-then-construct arm) and answers it.
+     */
+    public java.util.Set<String> progressOf(String stat) {
+        return progress.computeIfAbsent(stat, key -> java.util.Collections
+                .synchronizedSet(new java.util.LinkedHashSet<>()));
+    }
+
+    /**
+     * The persistence load (ServerPlayerStats.deserialize's progress arm):
+     * the rows land without dirty marking, exactly like the counters.
+     */
+    public void loadProgress(Map<String, java.util.Set<String>> rows) {
+        for (Map.Entry<String, java.util.Set<String>> row : rows.entrySet()) {
+            progress.put(row.getKey(), java.util.Collections.synchronizedSet(
+                    new java.util.LinkedHashSet<>(row.getValue())));
+        }
+    }
+
+    /** The persistence snapshot (serialize's progress arm — every row). */
+    public Map<String, java.util.Set<String>> progressSnapshot() {
+        Map<String, java.util.Set<String>> out = new LinkedHashMap<>();
+        for (Map.Entry<String, java.util.Set<String>> row : progress.entrySet()) {
+            synchronized (row.getValue()) {
+                out.put(row.getKey(), new java.util.LinkedHashSet<>(row.getValue()));
             }
         }
         return out;

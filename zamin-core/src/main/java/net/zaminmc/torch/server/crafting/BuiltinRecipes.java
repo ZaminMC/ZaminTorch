@@ -656,6 +656,19 @@ public final class BuiltinRecipes {
         storagePair(recipes, "minecraft:slime_block", "minecraft:slime_ball");
         // The gold ingot/nugget pair (MineralRecipes lines 24-27).
         storagePair(recipes, "minecraft:gold_ingot", "minecraft:gold_nugget");
+        // The gold-surround family (VIII6's catch — CraftingManager lines
+        // 276-279, the "###", "#X#", "###" ring): the golden apple's BOTH
+        // metas (the eight-ingot plain form and the eight-block ENCHANTED
+        // form — the craft that carries the "overpowered" achievement's
+        // award site), the golden carrot, and the speckled melon.
+        goldSurround(recipes, "minecraft:gold_ingot", "minecraft:apple",
+                "minecraft:golden_apple", 0);
+        goldSurround(recipes, "minecraft:gold_block", "minecraft:apple",
+                "minecraft:golden_apple", 1);
+        goldSurround(recipes, "minecraft:gold_nugget", "minecraft:carrot",
+                "minecraft:golden_carrot", 0);
+        goldSurround(recipes, "minecraft:gold_nugget", "minecraft:melon",
+                "minecraft:speckled_melon", 0);
         // The 2x2 masonries (CraftingManager lines 140-141: clay and
         // bricks; line 142: the quartz block; BlockRecipes line 83: the
         // nether bricks).
@@ -695,6 +708,24 @@ public final class BuiltinRecipes {
                 { ing(block, false, 0) }
         },
                 res(material, 9, 0)));
+    }
+
+    /**
+     * The gold-surround shape (CraftingManager lines 276-279's own
+     * {@code "###", "#X#", "###"} ring): the ring item in the eight outer
+     * cells around the center — the golden apple's both metas, the golden
+     * carrot, the speckled melon.
+     */
+    private static void goldSurround(List<CraftingRecipe> recipes, String ring,
+                                     String center, String result, int damage) {
+        Ingredient mat = ing(ring, false, 0);
+        Ingredient mid = ing(center, false, 0);
+        recipes.add(CraftingRecipe.shaped(new Ingredient[][] {
+                { mat, mat, mat },
+                { mat, mid, mat },
+                { mat, mat, mat }
+        },
+                res(result, 1, damage)));
     }
 
     /**

@@ -1883,6 +1883,29 @@ public final class EngineServer implements Server, EngineBridge {
                 world.addChangeListener(beaconSystem);
                 redstoneSystem.addNeighborListener(beaconSystem::neighborHeard);
                 beaconSystem.setPlayers(() -> new java.util.ArrayList<>(players.all()));
+                // The full-power award (VIII6 — BeaconBlockEntity.update
+                // lines 162-167: the pyramid's completion census over the
+                // beacon's own column grown(10, 5, 10) — the box
+                // Box(x, y-4, z, x, y, z).grown(10, 5, 10), the player
+                // boxes intersecting it).
+                beaconSystem.addListener(
+                        new net.zaminmc.torch.server.beacon.BeaconSystem.Listener() {
+                            @Override
+                            public void onBeaconUpdated(
+                                    BlockPosition position,
+                                    net.zaminmc.torch.server.beacon.BeaconBlockEntity beacon) {
+                            }
+
+                            @Override
+                            public void onBeaconFullyPowered(BlockPosition position) {
+                                awardPlayersInBox(
+                                        EngineAchievements.ACTIVATE_MAX_BEACON.key(),
+                                        position.x() - 10.0, position.y() - 9.0,
+                                        position.z() - 10.0,
+                                        position.x() + 10.0, position.y() + 5.0,
+                                        position.z() + 10.0);
+                            }
+                        });
                 beaconStore = new net.zaminmc.torch.server.beacon.BeaconDataStore(
                         config.worldDataDir().resolve("beacons.bin"));
                 beaconSystem.restoreAll(beaconStore.load());
@@ -2033,6 +2056,15 @@ public final class EngineServer implements Server, EngineBridge {
                 // The game-rule read (Slice 24a): doMobLoot gates the
                 // death loot walk (LivingEntity.die).
                 mobs.setMobLootRead(() -> gameRules.getBoolean("doMobLoot"));
+                // The body-side award seam (VIII6 — the pig's rider fall):
+                // the engine resolves the earning player's session by id
+                // and increments the stat store.
+                mobs.setPlayerStatAward((engineId, statKey) -> {
+                    PlayerSession earned = sessionByEngineId(engineId);
+                    if (earned != null && earned.state() == PlayerState.PLAYING) {
+                        earned.stats().increment(statKey, 1);
+                    }
+                });
                 // The leashes (Slice 11c): the knots + the per-tick walk.
                 leadSystem = new net.zaminmc.torch.server.leash.LeadSystem(
                         new LeadSurface(), KNOT_ID_BASE);
@@ -2615,6 +2647,14 @@ public final class EngineServer implements Server, EngineBridge {
                                     wither.witherSummoned();
                                 }
                                 fxManager.poof(new Position(at.x(), at.y() - 1.5, at.z()));
+                                // The summon row (VIII6 — SkullBlock lines
+                                // 197-199: every player whose body box
+                                // intersects the newborn's own shape grown
+                                // (50, 50, 50) earns the wither's summon —
+                                // the builders around the pattern, whatever
+                                // their distance to the last skull placed).
+                                awardPlayersInBox(EngineAchievements.SUMMON_WITHER.key(),
+                                        at, 0.9, 3.5, 50.0, 50.0, 50.0);
                             }
                         });
                 // The tile NBT projections (Slice 89 — the reference's
@@ -4472,6 +4512,16 @@ public final class EngineServer implements Server, EngineBridge {
             session.stats().increment(
                     net.zaminmc.torch.server.stat.EngineStats.MINUTES_PLAYED, 1);
             session.stats().tickTimeSinceDeath();
+            // The biome census (VIII6 — ServerPlayerEntity.tick lines
+            // 325-327: the unearned gate first, then the walk — the
+            // reference's own cadence expression `this.ticks % 20 * 5 ==
+            // 0` carries the precedence quirk: % and * bind left to right,
+            // so the check fires every TWENTY ticks, the "every 100 ticks"
+            // comment notwithstanding — kept 1:1).
+            if (world.totalTicks() % 20 == 0 && !session.stats()
+                    .hasAchievement(EngineAchievements.ENTER_ALL_BIOMES.key())) {
+                updateExploredBiomes(session);
+            }
             // The vanilla void: below the kill plane the out-of-world damage
             // lands every tick (the historical outOfWorld rate) until death —
             // and it pierces creative invulnerability, the historical rule.
@@ -4602,6 +4652,53 @@ public final class EngineServer implements Server, EngineBridge {
             }
         }
         session.captureBodyDelta(at.x(), at.y(), at.z(), session.onGround());
+    }
+
+    /**
+     * The biome census walk (VIII6 — ServerPlayerEntity.updateExploredBiomes
+     * lines 336-368 1:1): the column's biome joins the all-biomes progress
+     * set (the reference's {@code AchievementProgress.add(biome.name)} — the
+     * display name string, byte-identical to a vanilla stats file's rows),
+     * and when the parent chain is satisfied and the set covers every
+     * explorable biome (the reference's copy-remove walk's empty-set end
+     * condition) the row itself lands. The Hell column never joins the band
+     * (the reference's EXPLORABLE.remove(HELL) — a nether cell adds its
+     * name to the set but the name is not on the target list).
+     */
+    private void updateExploredBiomes(PlayerSession session) {
+        String column = world.biomeAt(new BlockPosition(
+                (int) Math.floor(session.position().x()), 0,
+                (int) Math.floor(session.position().z())));
+        net.zaminmc.torch.server.world.Biome biome;
+        try {
+            biome = net.zaminmc.torch.server.world.Biome.valueOf(
+                    column.toUpperCase(java.util.Locale.ROOT));
+        } catch (IllegalArgumentException unknown) {
+            biome = net.zaminmc.torch.server.world.Biome.PLAINS;
+        }
+        String name = biome.displayName();
+        java.util.Set<String> progress = session.stats()
+                .progressOf(EngineAchievements.ENTER_ALL_BIOMES.key());
+        progress.add(name);
+        if (session.stats().hasParentAchievement(EngineAchievements.ENTER_ALL_BIOMES.key())
+                && progress.size()
+                        >= net.zaminmc.torch.server.world.Biome.explorable().length) {
+            // The coverage check (the reference's iterator-remove walk: the
+            // set earns only when EVERY explorable name is present — stale
+            // rows from a shrunken list never carry the award).
+            boolean covered = true;
+            for (net.zaminmc.torch.server.world.Biome explorable
+                    : net.zaminmc.torch.server.world.Biome.explorable()) {
+                if (!progress.contains(explorable.displayName())) {
+                    covered = false;
+                    break;
+                }
+            }
+            if (covered) {
+                session.stats().increment(
+                        EngineAchievements.ENTER_ALL_BIOMES.key(), 1);
+            }
+        }
     }
 
     /** The bow's draw clock: charge advances while the use gesture holds
@@ -5398,6 +5495,13 @@ public final class EngineServer implements Server, EngineBridge {
                 attacker.stats().increment(
                         net.zaminmc.torch.server.stat.EngineStats.DAMAGE_DEALT,
                         Math.round(damage * 10.0f));
+                // The overkill row (VIII6 — PlayerEntity.attack line 1011:
+                // the PRE-ARMOR f >= 18.0F check, the crit and enchantment
+                // included, the armor never consulted).
+                if (damage >= 18.0f) {
+                    attacker.stats().increment(
+                            EngineAchievements.DEAL_OVERKILL_DAMAGE.key(), 1);
+                }
                 mob.setPlayerKiller(attacker);
                 // LivingEntity.takeDamage lines 678-680: a player's landed
                 // wound arms the 100-tick hit window (dropRareItem's gate).
@@ -5573,6 +5677,10 @@ public final class EngineServer implements Server, EngineBridge {
                 preIgnited = true;
                 igniteWithFireProtection(victim, FIRE_ASPECT_PRESET_TICKS / TICKS_PER_SECOND);
             }
+            // The attack walk's own f (VIII6 — the overkill check's input:
+            // the full damage BEFORE the hurt window and the armor, the
+            // reference's line-1011 position inside PlayerEntity.attack).
+            final float attackDamage = damage;
             if (victim.hurtInvulnerable()) {
                 if (damage <= victim.lastHurtDamage()) {
                     if (preIgnited) {
@@ -5601,6 +5709,13 @@ public final class EngineServer implements Server, EngineBridge {
                 nvzExtra = Math.cos(yawRadians) * knockback * 0.5;
             }
             attacker.addExhaustion(ATTACK_EXHAUSTION);
+            // The overkill row (VIII6 — PlayerEntity.attack line 1011: the
+            // pre-armor damage f >= 18.0F; the check rides the attack walk
+            // whatever the target family).
+            if (attackDamage >= 18.0f) {
+                attacker.stats().increment(
+                        EngineAchievements.DEAL_OVERKILL_DAMAGE.key(), 1);
+            }
             if (net.zaminmc.torch.server.item.Tools.specOf(held.type()).isPresent()) {
                 int wearBefore = held.damage();
                 attacker.inventory().damageHeld(1, gameplayRandom);
@@ -6673,6 +6788,50 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /**
+     * The box-band award (VIII6 — the reference's
+     * {@code world.getEntitiesOfType(PlayerEntity.class, box)} walks over a
+     * grown shape): every playing player whose own body box (0.6 x 1.8, the
+     * feet anchor) intersects the anchor's box — the anchor's own width and
+     * height grown by the per-axis amounts (Box.grown's min-minus / max-plus
+     * shape) — earns the stat. The summon (grown(50,50,50)), the wither's
+     * fall (grown(50,100,50)) and the beacon's full power (the 1x1 column
+     * grown(10,5,10)) all ride the one walk. Tick-thread context.
+     */
+    private void awardPlayersInBox(String statKey, Position anchor,
+                                   double anchorWidth, double anchorHeight,
+                                   double growX, double growY, double growZ) {
+        double half = anchorWidth / 2.0;
+        awardPlayersInBox(statKey,
+                anchor.x() - half - growX, anchor.y() - growY, anchor.z() - half - growZ,
+                anchor.x() + half + growX, anchor.y() + anchorHeight + growY,
+                anchor.z() + half + growZ);
+    }
+
+    /**
+     * The explicit-box form: every playing player whose body box intersects
+     * the given bounds earns the stat — the raw
+     * getEntitiesOfType(PlayerEntity.class, box) walk both forms build on.
+     */
+    private void awardPlayersInBox(String statKey,
+                                   double minX, double minY, double minZ,
+                                   double maxX, double maxY, double maxZ) {
+        for (PlayerSession online : players.all()) {
+            if (online.state() != PlayerState.PLAYING) {
+                continue;
+            }
+            Position at = online.position();
+            // The player's box: the feet anchor + 0.6 wide + 1.8 tall; the
+            // boxes intersect when they overlap on every axis.
+            boolean hit = at.x() + 0.6 > minX && at.x() < maxX
+                    && at.y() + 1.8 > minY && at.y() < maxY
+                    && at.z() + 0.6 > minZ && at.z() < maxZ;
+            if (hit) {
+                online.stats().increment(statKey, 1);
+            }
+        }
+    }
+
+    /**
      * The open-inventory achievement arm (Client Status 0x16 action 2 —
      * ServerPlayNetworkHandler's OPEN_INVENTORY_ACHIEVEMENT row): the
      * session's own increment, the standard ride and toast path following.
@@ -7246,6 +7405,17 @@ public final class EngineServer implements Server, EngineBridge {
 
     /** Pays the recipe XP for a removed output stack (Set Experience syncs). */
     private void awardSmeltStackXp(PlayerSession session, net.zaminmc.torch.item.ItemStack taken) {
+        // The smelt ladder (VIII6 — FurnaceResultSlot.checkAchievements
+        // lines 69-79): the taken output's identity consults the two smelt
+        // rows — the iron ingot's acquire and the cooked fish (the item id
+        // covers BOTH fish metas, the reference's own Item equality).
+        String id = taken.type().identifier().value();
+        if (id.equals("iron_ingot")) {
+            session.stats().increment(EngineAchievements.GET_IRON_INGOT.key(), 1);
+        }
+        if (id.equals("cooked_fish")) {
+            session.stats().increment(EngineAchievements.COOK_FISH.key(), 1);
+        }
         double xp = net.zaminmc.torch.server.furnace.FurnaceRecipes.takeExperienceOf(taken.type())
                 * taken.count();
         int points = (int) Math.floor(xp);
@@ -8107,7 +8277,8 @@ public final class EngineServer implements Server, EngineBridge {
         switch (mode) {
             case 0 -> {
                 if (wireSlot >= 0 && wireSlot <= BREWING_WIRE_SLOT_LAST) {
-                    container.clickSlot(wireSlot, button, inventory);
+                    awardBrewingTake(session, container, wireSlot,
+                            () -> container.clickSlot(wireSlot, button, inventory));
                     return true;
                 }
                 int engineSlot = brewingEngineSlotOf(wireSlot);
@@ -8119,7 +8290,8 @@ public final class EngineServer implements Server, EngineBridge {
             }
             case 1 -> {
                 if (wireSlot >= 0 && wireSlot <= BREWING_WIRE_SLOT_LAST) {
-                    container.quickMoveToInventory(wireSlot, inventory);
+                    awardBrewingTake(session, container, wireSlot,
+                            () -> container.quickMoveToInventory(wireSlot, inventory));
                     return true;
                 }
                 int engineSlot = brewingEngineSlotOf(wireSlot);
@@ -8156,10 +8328,8 @@ public final class EngineServer implements Server, EngineBridge {
             }
             case 4 -> {
                 if (wireSlot >= 0 && wireSlot <= BREWING_WIRE_SLOT_LAST) {
-                    net.zaminmc.torch.item.ItemStack dropped = container.dropFromSlot(wireSlot, button != 0);
-                    if (!dropped.isEmpty()) {
-                        throwFromPlayer(session, dropped);
-                    }
+                    awardBrewingTake(session, container, wireSlot,
+                            () -> container.dropFromSlot(wireSlot, button != 0));
                     return true;
                 }
                 int engineSlot = brewingEngineSlotOf(wireSlot);
@@ -8176,6 +8346,37 @@ public final class EngineServer implements Server, EngineBridge {
             default -> {
                 return false; // drag painting (5) / unknown mode: rejected
             }
+        }
+    }
+
+    /**
+     * The brew row (VIII6 — BrewingStandMenu's potion-slot onItemRemoved,
+     * lines 148-154): a potion leaving one of the three bottle slots with
+     * metadata past the water bottle (the brewed form — damage &gt; 0)
+     * awards the potion row. Every take path rides it (the pickup, the
+     * quick-move, the drop); the before/after delta over the slot's stack
+     * is the removal test — the water bottle's meta 0 never awards, the
+     * reference's own {@code item.getMetadata() &gt; 0} gate.
+     */
+    private void awardBrewingTake(PlayerSession session,
+                                  net.zaminmc.torch.server.brewing.BrewingStandBlockEntity container,
+                                  int wireSlot, Runnable click) {
+        net.zaminmc.torch.item.ItemStack before = wireSlot <= 2
+                ? container.getItem(wireSlot) : net.zaminmc.torch.item.ItemStack.EMPTY;
+        click.run();
+        net.zaminmc.torch.item.ItemStack after = wireSlot <= 2
+                ? container.getItem(wireSlot) : net.zaminmc.torch.item.ItemStack.EMPTY;
+        if (before.isEmpty()) {
+            return; // nothing to remove (a placement into the empty slot)
+        }
+        boolean unchanged = !after.isEmpty()
+                && after.type().equals(before.type())
+                && after.count() == before.count();
+        if (unchanged) {
+            return; // the refused click: nothing left the slot
+        }
+        if (before.type().identifier().value().equals("potion") && before.damage() > 0) {
+            session.stats().increment(EngineAchievements.BREW_POTION.key(), 1);
         }
     }
 
@@ -8215,8 +8416,73 @@ public final class EngineServer implements Server, EngineBridge {
         if (!inventory.takeResultToCursor(wanted)) {
             return false;
         }
+        awardCraftAchievements(session, result);
         grid.consumeOne();
         return true;
+    }
+
+    /**
+     * The craft ladder (VIII6 — CraftingResultSlot.checkAchievements lines
+     * 50-97, the exact arm order): every craft event consults the result's
+     * identity — the table, any pickaxe, the furnace, any hoe, the bread,
+     * the cake, the better-than-wood pickaxe, any sword, the enchanting
+     * table, the bookshelf, and the enchanted golden apple's OWN row (the
+     * reference's famous craft-site quirk — the "overpowered" achievement
+     * is named EAT but awards on CRAFT, CraftingResultSlot line 93-95, the
+     * only place 1.8.8 awards it). Both take paths ride it (the single
+     * pickup's onItemRemoved and the quick-move's onQuickMoved — the
+     * reference's checkAchievements call sites).
+     */
+    private void awardCraftAchievements(PlayerSession session,
+                                        net.zaminmc.torch.item.ItemStack crafted) {
+        String id = crafted.type().identifier().value();
+        var spec = net.zaminmc.torch.server.item.Tools.specOf(crafted.type());
+        boolean pickaxe = spec.isPresent()
+                && spec.get().toolClass() == net.zaminmc.torch.server.item.ToolClass.PICKAXE;
+        boolean hoe = spec.isPresent()
+                && spec.get().toolClass() == net.zaminmc.torch.server.item.ToolClass.HOE;
+        boolean sword = spec.isPresent()
+                && spec.get().toolClass() == net.zaminmc.torch.server.item.ToolClass.SWORD;
+        if (id.equals("crafting_table")) {
+            session.stats().increment(EngineAchievements.CRAFT_CRAFTING_TABLE.key(), 1);
+        }
+        if (pickaxe) {
+            session.stats().increment(EngineAchievements.CRAFT_PICKAXE.key(), 1);
+        }
+        if (id.equals("furnace")) {
+            session.stats().increment(EngineAchievements.CRAFT_FURNACE.key(), 1);
+        }
+        if (hoe) {
+            // HoeItem instanceof — every material's hoe (the reference's
+            // own check, the achievement's wooden name notwithstanding).
+            session.stats().increment(EngineAchievements.CRAFT_WOODEN_HOE.key(), 1);
+        }
+        if (id.equals("bread")) {
+            session.stats().increment(EngineAchievements.CRAFT_BREAD.key(), 1);
+        }
+        if (id.equals("cake")) {
+            session.stats().increment(EngineAchievements.CRAFT_CAKE.key(), 1);
+        }
+        if (pickaxe && spec.get().material()
+                != net.zaminmc.torch.server.item.ToolMaterial.WOOD) {
+            session.stats().increment(EngineAchievements.CRAFT_BETTER_PICKAXE.key(), 1);
+        }
+        if (sword) {
+            session.stats().increment(EngineAchievements.CRAFT_SWORD.key(), 1);
+        }
+        if (id.equals("enchanting_table")) {
+            session.stats().increment(EngineAchievements.CRAFT_ENCHANTING_TABLE.key(), 1);
+        }
+        if (id.equals("bookshelf")) {
+            session.stats().increment(EngineAchievements.CRAFT_BOOKSHELF.key(), 1);
+        }
+        if (id.equals("golden_apple") && crafted.damage() == 1) {
+            // The craft-site quirk (line 93-95): the enchanted apple's
+            // meta-1 form crafts into "overpowered" — EAT's name, CRAFT's
+            // site, the reference's own bug kept 1:1.
+            session.stats().increment(
+                    EngineAchievements.EAT_ENCHANTED_GOLDEN_APPLE.key(), 1);
+        }
     }
 
     /** The preview over a grid of either shape (2x2 player window, 3x3 table). */
@@ -8249,6 +8515,10 @@ public final class EngineServer implements Server, EngineBridge {
             session.stats().increment(
                     net.zaminmc.torch.server.stat.EngineStats.craftItemOf(
                             result.type().identifier()), result.count());
+            // The craft ladder (onQuickMoved's own checkAchievements call —
+            // one walk per quick-move, the achievement rows consult the
+            // result's identity exactly like the single take).
+            awardCraftAchievements(session, result);
             net.zaminmc.torch.item.ItemStack remainder = inventory.pickUp(result);
             if (!remainder.isEmpty()) {
                 throwFromPlayer(session, remainder);
@@ -14296,6 +14566,9 @@ public final class EngineServer implements Server, EngineBridge {
             PlayerSession rider = sessionByEngineId(riderEngineId);
             if (rider != null) {
                 rider.setRidingVehicleId(-1);
+                // The cart-ride window closes (VIII6 — PlayerEntity line
+                // 280: the null vehicle resets the onARail anchor).
+                rider.setMinecartTravelStart(null);
                 // The body steps out beside the vehicle (the re-anchor rides
                 // the wire listener's position-and-look).
                 rider.applyMovement(riderExit, rider.rotation(), true);
@@ -14419,6 +14692,7 @@ public final class EngineServer implements Server, EngineBridge {
                 if (vehicle instanceof net.zaminmc.torch.server.entity.vehicle.BoatEntity boat) {
                     boat.followRiderLook(rider.rotation());
                 }
+                Position beforeSeat = rider.position();
                 // The seat anchor (the reference's updateRiderPositon line
                 // 1353): the player's body lands at the seat law — the
                 // mount height plus the rider's own -035 (PlayerEntity's
@@ -14428,6 +14702,41 @@ public final class EngineServer implements Server, EngineBridge {
                 rider.applyMovement(
                         vehicle.seatAnchor(net.zaminmc.torch.server.entity.vehicle.RiderSeatLaw.PLAYER_RIDE_HEIGHT),
                         rider.rotation(), vehicle.onGround());
+                // The cart-ride travel walk (VIII6 — PlayerEntity
+                // .checkMovementStatistics lines 1355-1370: the per-tick
+                // horizontal delta over the seat's own movement, the
+                // minecartOneCm counter, and the onARail displacement —
+                // the start cell set on the ride's FIRST move, the award
+                // at the squared 1,000,000 — the whole cart family,
+                // whatever the car's own cargo).
+                if (vehicle.kind()
+                        != net.zaminmc.torch.server.entity.vehicle.VehicleEntity.Kind.BOAT) {
+                    double rideDx = rider.position().x() - beforeSeat.x();
+                    double rideDz = rider.position().z() - beforeSeat.z();
+                    int movedCm = (int) Math.round(
+                            Math.sqrt(rideDx * rideDx + rideDz * rideDz) * 100.0);
+                    if (movedCm > 0) {
+                        rider.stats().increment(
+                                net.zaminmc.torch.server.stat.EngineStats.CM_MINECART,
+                                movedCm);
+                        if (rider.minecartTravelStart() == null) {
+                            rider.setMinecartTravelStart(new net.zaminmc.torch.block.BlockPosition(
+                                    (int) Math.floor(rider.position().x()),
+                                    (int) Math.floor(rider.position().y()),
+                                    (int) Math.floor(rider.position().z())));
+                        } else {
+                            net.zaminmc.torch.block.BlockPosition start =
+                                    rider.minecartTravelStart();
+                            double dx = start.x() - Math.floor(rider.position().x());
+                            double dy = start.y() - Math.floor(rider.position().y());
+                            double dz = start.z() - Math.floor(rider.position().z());
+                            if (dx * dx + dy * dy + dz * dz >= 1_000_000.0) {
+                                rider.stats().increment(
+                                        EngineAchievements.TRAVEL_KILOMETER_BY_MINECART.key(), 1);
+                            }
+                        }
+                    }
+                }
                 continue;
             }
             // The non-session rider follow (the reference's rideTick →
@@ -16194,6 +16503,27 @@ public final class EngineServer implements Server, EngineBridge {
                     }
                 }
             }
+            // The ghast's fireball reflect (VIII6 — GhastEntity.takeDamage
+            // lines 60-66: a PLAYER-sourced fireball — the deflection's own
+            // new shooter, the reference's "fireball" source with the
+            // player attacker — strikes the ghast for the flat 1000.0 and
+            // awards the row; the deflected-blast-kills-the-ghast trick's
+            // own damage law).
+            if (projectile.kind()
+                    == net.zaminmc.torch.server.entity.projectile.ProjectileEntity.Kind.LARGE_FIREBALL
+                    && mob.type() == net.zaminmc.torch.server.entity.MobType.GHAST) {
+                PlayerSession shooter = sessionByEngineId(projectile.throwerId());
+                if (shooter != null && shooter.state() == PlayerState.PLAYING) {
+                    boolean landed = mobManager.hurt(mob, 1000.0f, kbYaw,
+                            net.zaminmc.torch.event.DamageCause.PROJECTILE,
+                            false, false, null);
+                    if (landed) {
+                        shooter.stats().increment(
+                                EngineAchievements.KILL_GHAST_WITH_FIREBALL.key(), 1);
+                    }
+                    return landed;
+                }
+            }
             // The enderman's dodge and the wither's gates share the walk:
             // the dodge (the legacy path above) consults no source; the
             // wither's gates run inside the manager's full overload with
@@ -16203,7 +16533,25 @@ public final class EngineServer implements Server, EngineBridge {
                         net.zaminmc.torch.event.DamageCause.PROJECTILE,
                         false, arrow, shooterMob);
             }
-            return mobHit(mob, damage, kbYaw, projectile.throwerId());
+            boolean landed = mobHit(mob, damage, kbYaw, projectile.throwerId());
+            // The snipe (VIII6 — SkeletonEntity.die lines 156-165: the
+            // ARROW's kill with the shooter 50+ blocks out — the horizontal
+            // pair's squared 2500, the positions read at the death itself,
+            // the reference's die(source) reading the killing blow's
+            // source).
+            if (landed && arrow && mob.dead()
+                    && mob.type() == net.zaminmc.torch.server.entity.MobType.SKELETON) {
+                PlayerSession shooter = sessionByEngineId(projectile.throwerId());
+                if (shooter != null && shooter.state() == PlayerState.PLAYING) {
+                    double dx = shooter.position().x() - mob.position().x();
+                    double dz = shooter.position().z() - mob.position().z();
+                    if (dx * dx + dz * dz >= 2500.0) {
+                        shooter.stats().increment(
+                                EngineAchievements.KILL_SKELETON_FROM_DISTANCE.key(), 1);
+                    }
+                }
+            }
+            return landed;
         }
 
         @Override
@@ -16524,12 +16872,26 @@ public final class EngineServer implements Server, EngineBridge {
             if (killer != null && killer.state() == PlayerState.PLAYING) {
                 killer.stats().increment(
                         net.zaminmc.torch.server.stat.EngineStats.MOBS_KILLED, 1);
+                // The first-hostile row (VIII6 — PlayerEntity.onKill lines
+                // 1399-1403: the Monster gate over the victim family).
+                if (mob.type().hostile) {
+                    killer.stats().increment(
+                            EngineAchievements.KILL_ENEMY.key(), 1);
+                }
                 String entityKey = net.zaminmc.torch.server.stat.EngineStats
                         .entityKeyOf(mob.type().name());
                 if (entityKey != null) {
                     killer.stats().increment(
                             net.zaminmc.torch.server.stat.EngineStats.killEntityOf(entityKey), 1);
                 }
+            }
+            // The wither's death row (VIII6 — WitherEntity.dropItems lines
+            // 452-458: every player whose body box intersects the wither's
+            // own shape grown(50, 100, 50) earns the nether-star kill —
+            // not the killer alone, everyone watching the fall).
+            if (mob.type() == net.zaminmc.torch.server.entity.MobType.WITHER) {
+                awardPlayersInBox(EngineAchievements.KILL_WITHER.key(),
+                        mob.position(), 0.9, 3.5, 50.0, 100.0, 50.0);
             }
             // §27.7: the public death observation — the health reached zero
             // and the death animation starts; the loot and the experience
@@ -17524,9 +17886,25 @@ public final class EngineServer implements Server, EngineBridge {
         }
 
         @Override
-        public void onMobBred(MobEntity parent, MobEntity mate, MobEntity baby) {
+        public void onMobBred(MobEntity parent, MobEntity mate, MobEntity baby,
+                              int causePlayerId) {
             for (MobManager.Listener listener : mobListeners) {
-                listener.onMobBred(parent, mate, baby);
+                listener.onMobBred(parent, mate, baby, causePlayerId);
+            }
+            // The breed rows (VIII6 — AnimalBreedGoal.breed lines 82-89: the
+            // CAUSE player — the parent's own love player first, the mate's
+            // as the fallback, both captured before the reset — earns the
+            // animals-bred counter, and the parent's own cow family earns
+            // the breed row).
+            if (causePlayerId > 0) {
+                PlayerSession cause = sessionByEngineId(causePlayerId);
+                if (cause != null && cause.state() == PlayerState.PLAYING) {
+                    cause.stats().increment(
+                            net.zaminmc.torch.server.stat.EngineStats.ANIMALS_BRED, 1);
+                    if (parent.type() == net.zaminmc.torch.server.entity.MobType.COW) {
+                        cause.stats().increment(EngineAchievements.BREED_COW.key(), 1);
+                    }
+                }
             }
             // The breed reward (AnimalBreedGoal.breed under doMobLoot —
             // Slice 24a: the rule gates this burst too):
@@ -17536,6 +17914,12 @@ public final class EngineServer implements Server, EngineBridge {
             }
             experienceOrbs.spawnBurst(parent.position(),
                     1 + gameplayRandom.nextInt(7), 1);
+        }
+
+        @Override
+        public void onMobBred(MobEntity parent, MobEntity mate, MobEntity baby) {
+            // The cause-carrying override owns the award walk; the plain
+            // form stays for the source-compat default chain alone.
         }
 
         @Override
@@ -19297,6 +19681,10 @@ public final class EngineServer implements Server, EngineBridge {
                 session.rotation().pitch());
         session.setGraceTicks(100);
         session.consumeFallDistance();
+        // The End row (VIII6 — ServerPlayerEntity.changeDimension lines
+        // 451-455: the overworld -> End pair's own increment, the reference
+        // consulting the teleport before the forced spawn).
+        session.stats().increment(EngineAchievements.ENTER_THE_END.key(), 1);
         publishDimensionChanged(session, arrival, 1);
         LOGGER.info(() -> "Player " + session.name()
                 + " crossed to the End (arrival " + arrival + ")");
@@ -19334,6 +19722,9 @@ public final class EngineServer implements Server, EngineBridge {
         // The reference's order (lines 446-449): the stat, the world
         // removal, the flag, the win screen.
         session.markLeavingTheEnd();
+        // The exit row (VIII6 — line 447's own increment, first in the
+        // walk: LEAVE_THE_END lands before the credits' GameEvent-4).
+        session.stats().increment(EngineAchievements.LEAVE_THE_END.key(), 1);
         publishEndCredits(session); // the removeEntity wire (the observers)
         session.link().playGameState(GAME_STATE_END_CREDITS, 0.0f);
         LOGGER.info(() -> "Player " + session.name()
@@ -19381,6 +19772,12 @@ public final class EngineServer implements Server, EngineBridge {
         session.applyDimensionArrival(to, arrivalPosition,
                 arrival.yaw(), session.rotation().pitch());
         session.setGraceTicks(100);
+        // The portal row (VIII6 — ServerPlayerEntity.changeDimension lines
+        // 456-462's ELSE arm: every crossing that is not the End pair —
+        // overworld -> nether AND nether -> overworld — increments the
+        // nether row, the reference's own shape, the famous both-ways
+        // quirk kept 1:1).
+        session.stats().increment(EngineAchievements.ENTER_THE_NETHER.key(), 1);
 
         // The wire's respawn sequence re-points at the new dimension (the
         // reference's PlayerRespawnS2CPacket + the teleport + the world info
@@ -23617,6 +24014,12 @@ public final class EngineServer implements Server, EngineBridge {
         // ZPD v9: the statistics return with the player (the stats slice —
         // an empty map in older files).
         session.stats().load(snapshot.stats());
+        // ZPD v11: the achievement-progress rows return with the player
+        // (VIII6 — the all-biomes set, the reference's deserialize progress
+        // arm; no rows in older files).
+        if (!snapshot.progress().isEmpty()) {
+            session.stats().loadProgress(snapshot.progress());
+        }
         // ZPD v10: the command-stat bindings return with the player (Slice 90 —
         // the reference's Entity.readNbt line 1195).
         if (!snapshot.commandStats().isEmpty()) {
@@ -23671,7 +24074,8 @@ public final class EngineServer implements Server, EngineBridge {
                 session.rotation(), session.inventory().heldSlot(), filled,
                 session.health(), session.food(), session.saturation(),
                 session.gamemode().legacyId(), session.totalXp(), session.bedSpawn(), ender,
-                session.stats().snapshot(), commandStatsOf(session));
+                session.stats().snapshot(), commandStatsOf(session),
+                session.stats().progressSnapshot());
     }
 
     /**
