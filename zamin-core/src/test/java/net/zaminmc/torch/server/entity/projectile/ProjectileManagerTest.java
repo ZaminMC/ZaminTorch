@@ -125,11 +125,11 @@ class ProjectileManagerTest {
         });
         ProjectileEntity shard = manager.launch(ProjectileEntity.Kind.SNOWBALL, 42,
                 new Position(0, 10, 0), 0, 0, 1.5);
-        manager.tick(); // one tick at 1.5 blocks does not reach the wall at x=5
+        manager.tick(java.util.List.of()); // one tick at 1.5 blocks does not reach the wall at x=5
         assertEquals(0, destroyed.size(), "still airborne after one tick");
         assertTrue(shard.age() >= 1, "the shard aged");
         for (int i = 0; i < 10 && destroyed.isEmpty(); i++) {
-            manager.tick();
+            manager.tick(java.util.List.of());
         }
         assertEquals(1, destroyed.size(), "the shard shattered on the wall");
         assertNull(manager.byId(shard.entityId()), "removed from the world");
@@ -161,15 +161,15 @@ class ProjectileManagerTest {
             public void onProjectileRemoved(ProjectileEntity projectile, String reason) {
             }
         });
-        manager.tick();
+        manager.tick(java.util.List.of());
         assertEquals(1, landed.size(), "the arrow landed in the first tick");
         assertTrue(arrow.inGround(), "the arrow is stuck");
         // The stick clock: 1199 more ticks stay alive, the 1200th removes.
         for (int i = 0; i < ProjectileManager.ARROW_GROUND_TICKS - 1; i++) {
-            manager.tick();
+            manager.tick(java.util.List.of());
         }
         assertNotNull(manager.byId(arrow.entityId()), "still stuck inside its minute");
-        manager.tick();
+        manager.tick(java.util.List.of());
         assertNull(manager.byId(arrow.entityId()), "expired after 1200 ground ticks");
     }
 
@@ -227,10 +227,10 @@ class ProjectileManagerTest {
         assertEquals(0.0, stuck.velocityY(), "the saved velocity stays as loaded "
                 + "(the reference's stuck arm never integrates it)");
         for (int i = 0; i < 199; i++) {
-            manager.tick();
+            manager.tick(java.util.List.of());
         }
         assertNotNull(manager.byId(stuck.entityId()), "the restored clock holds the remaining span");
-        manager.tick();
+        manager.tick(java.util.List.of());
         assertNull(manager.byId(stuck.entityId()), "the resumed clock expires on time");
     }
 
@@ -245,7 +245,7 @@ class ProjectileManagerTest {
         hits.mob = zombie;
         manager.launch(ProjectileEntity.Kind.ARROW, -1, new Position(0, 12, 0),
                 0, 45, 3.0); // aimed down at the mob
-        manager.tick();
+        manager.tick(java.util.List.of());
         assertEquals(List.of("mob"), combat.events, "the mob took the arrow");
         float damage = combat.damages.get(0);
         assertTrue(damage >= 1.0f, "arrows always wound at least one heart");
@@ -263,7 +263,7 @@ class ProjectileManagerTest {
         hits.player = victim;
         manager.launch(ProjectileEntity.Kind.SNOWBALL, 9_003,
                 new Position(0, 11, 0), 90, 0, 1.5);
-        manager.tick();
+        manager.tick(java.util.List.of());
         assertEquals(List.of("player:Victim"), combat.events,
                 "the snowball reached the victim");
         assertEquals(0.0f, combat.damages.get(0), 0.0001f, "shards bruise, never wound");
@@ -281,7 +281,7 @@ class ProjectileManagerTest {
         manager.launch(ProjectileEntity.Kind.SNOWBALL, 9_010,
                 new Position(0, 11, 0), 90, 0, 1.5);
         for (int i = 0; i < 5; i++) {
-            manager.tick(); // ages 1..10: the first five ticks are immune
+            manager.tick(java.util.List.of()); // ages 1..10: the first five ticks are immune
         }
         assertTrue(combat.events.isEmpty() || combat.damages.get(0) >= 0,
                 "the launch overlap window ran before any self-hit");
@@ -291,10 +291,10 @@ class ProjectileManagerTest {
                 (x, y, z) -> false, hits, fresh, FX, new Random(16), 5_500);
         cleanManager.launch(ProjectileEntity.Kind.SNOWBALL, 9_010,
                 new Position(0, 11, 0), 90, 0, 1.5);
-        cleanManager.tick();
-        cleanManager.tick();
-        cleanManager.tick();
-        cleanManager.tick();
+        cleanManager.tick(java.util.List.of());
+        cleanManager.tick(java.util.List.of());
+        cleanManager.tick(java.util.List.of());
+        cleanManager.tick(java.util.List.of());
         assertTrue(fresh.events.isEmpty(), "the launch overlap never hits the thrower");
     }
 
@@ -312,7 +312,7 @@ class ProjectileManagerTest {
         for (int i = 0; i < 16 && combat.chickenHatches == 0; i++) {
             manager.launch(ProjectileEntity.Kind.EGG, -1,
                     new Position(0, 11, 0), 90, 0, 1.5);
-            manager.tick();
+            manager.tick(java.util.List.of());
         }
         assertTrue(combat.chickenHatches > 0, "the chick roll hatched within two cycles");
     }
@@ -327,7 +327,7 @@ class ProjectileManagerTest {
                 new Random(8), 7_000);
         manager.launch(ProjectileEntity.Kind.SNOWBALL, -1,
                 new Position(0, 10, 0), 0, 90, 1.5);
-        manager.tick();
+        manager.tick(java.util.List.of());
         boolean poof = fx.stream().anyMatch(e -> e instanceof FxManager.Poof);
         boolean glass = fx.stream().anyMatch(e ->
                 e instanceof FxManager.Sound s && s.name().equals("random.glass"));
@@ -343,7 +343,7 @@ class ProjectileManagerTest {
         ProjectileEntity shard = manager.launch(ProjectileEntity.Kind.SNOWBALL, -1,
                 new Position(0, 100, 0), 90, 45, 0.1); // flies into the void
         for (int i = 0; i < ProjectileManager.THROWABLE_AGE_TICKS; i++) {
-            manager.tick();
+            manager.tick(java.util.List.of());
         }
         assertNull(manager.byId(shard.entityId()),
                 "the airborne shard expired at the age cap");
@@ -357,7 +357,7 @@ class ProjectileManagerTest {
         ProjectileEntity shard = manager.launch(ProjectileEntity.Kind.SNOWBALL, -1,
                 new Position(0, 100, 0), 0, 0, 2.0);
         double first = shard.launchSpeed();
-        manager.tick(); // two substeps of drag + gravity
+        manager.tick(java.util.List.of()); // two substeps of drag + gravity
         double second = shard.launchSpeed();
         assertTrue(second < first * 0.999, "drag bled speed across the tick");
         assertFalse(shard.inGround(), "no block in the void");
@@ -405,7 +405,7 @@ class ProjectileManagerTest {
         assertNotNull(plain, "the control entered the world");
 
         for (int i = 0; i < 20; i++) {
-            manager.tick();
+            manager.tick(java.util.List.of());
         }
         assertTrue(burning.inGround(), "the burning arrow stuck on the TNT face");
         assertTrue(plain.inGround() == false, "the control keeps falling past its plain cell");
