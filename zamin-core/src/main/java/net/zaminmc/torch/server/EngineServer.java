@@ -2470,6 +2470,11 @@ public final class EngineServer implements Server, EngineBridge {
                 world.attachRedstoneView(
                         new net.zaminmc.torch.server.redstone.RedstoneSignalViews(
                                 redstoneSystem));
+                // The public §27.3 growth-family view (the VIII2/VII7/VIII8
+                // exposure): the stage/age/survival consults over the
+                // engine's own static tables + the live light reads.
+                world.attachGrowthView(
+                        new net.zaminmc.torch.server.block.GrowthViews(world));
                 // The public §27.3 primed-TNT view: the live fuse bodies.
                 world.attachPrimedTntView(tntSystem::primedBodies);
                 ticker.setTickHandler(() -> {

@@ -117,6 +117,10 @@ public final class EngineWorld implements World {
     private volatile net.zaminmc.torch.block.RedstoneSignals redstoneView
             = net.zaminmc.torch.block.RedstoneSignals.EMPTY;
 
+    /** The public growth-family view (the stage/age/survival consults; boot wiring). */
+    private volatile net.zaminmc.torch.block.Growth growthView
+            = net.zaminmc.torch.block.Growth.EMPTY;
+
     /** The public primed-TNT view (§27.3): attached at boot. */
     private volatile java.util.function.Supplier<
             java.util.List<? extends net.zaminmc.torch.entity.PrimedTnt>> primedTntView;
@@ -344,6 +348,11 @@ public final class EngineWorld implements World {
         this.redstoneView = java.util.Objects.requireNonNull(view, "view");
     }
 
+    /** Wires the public growth-family view (the boot path — §27.3). */
+    public void attachGrowthView(net.zaminmc.torch.block.Growth view) {
+        this.growthView = java.util.Objects.requireNonNull(view, "view");
+    }
+
     /** Attaches the public primed-TNT view (the TNT family's boot
      *  wiring; §27.3). */
     public void attachPrimedTntView(java.util.function.Supplier<
@@ -455,6 +464,11 @@ public final class EngineWorld implements World {
     @Override
     public net.zaminmc.torch.block.RedstoneSignals redstone() {
         return redstoneView;
+    }
+
+    @Override
+    public net.zaminmc.torch.block.Growth growth() {
+        return growthView;
     }
 
     @Override
