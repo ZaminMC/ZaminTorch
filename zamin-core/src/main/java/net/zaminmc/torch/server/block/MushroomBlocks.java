@@ -271,15 +271,15 @@ public final class MushroomBlocks {
      * height {@code nextInt(3) + 4}; the fit walk — every cell of the
      * shaft-and-cap band must be AIR or LEAVES (the bottom four rows a 1x1
      * column, the rows above the 7x7 box) and the base must be DIRT, GRASS
-     * or MYCELIUM; then the cap band — the brown's own full 3-row cap (half
-     * 3) against the red's flat 1-row cap over the 3-row skirt ({@code k2 =
-     * y + i - 3}), the variant lattice ({@code j2 = 5} shifted -1/+1 along
-     * the x edges and -3/+3 along the z edges), the skipped corners (the
-     * brown every row, the red below the top row), the corner-adjacent
-     * NORTH_WEST/NORTH_EAST/SOUTH_WEST/SOUTH_EAST overrides, the CENTER
-     * interior's ALL_INSIDE flip below the top, and the opaque-refusing
-     * write; then the STEM column ({@code height} tall, the same opaque
-     * refusal).
+     * or MYCELIUM; then the cap band — the brown's own single 7x7 top row
+     * (half 3, the corners skipped) against the red's four-row cap (the
+     * top 3x3 full over three 5x5 skirt rows, the corners skipped below
+     * the top, {@code k2 = y + i - 3}), the variant lattice ({@code j2 = 5}
+     * shifted -1/+1 along the x edges and -3/+3 along the z edges), the
+     * corner-adjacent NORTH_WEST/NORTH_EAST/SOUTH_WEST/SOUTH_EAST overrides,
+     * the CENTER interior's ALL_INSIDE flip below the top, and the
+     * opaque-refusing write; then the STEM column ({@code height} tall, the
+     * same opaque refusal).
      */
     static boolean placeHuge(net.zaminmc.torch.server.world.EngineWorld world,
             net.zaminmc.torch.block.BlockPosition pos, String family, java.util.Random random) {
