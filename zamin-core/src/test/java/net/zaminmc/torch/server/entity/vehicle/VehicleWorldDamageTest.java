@@ -104,7 +104,7 @@ class VehicleWorldDamageTest {
         // established speed-scaled formula — ceil(3.0 * 2.0) = 6).
         ProjectileEntity arrow = manager.launch(ProjectileEntity.Kind.ARROW, -1,
                 new Position(0, 64, 0), 0, 0, 3.0);
-        manager.tick(); // the flight's first pass lands inside the cart
+        manager.tick(java.util.List.of()); // the flight's first pass lands inside the cart
         assertEquals(1, combat.vehicleDamages.size(),
                 "the arrow's hit reached the vehicle arm");
         assertEquals(6.0f, combat.vehicleDamages.get(0), 1e-6,
@@ -130,7 +130,7 @@ class VehicleWorldDamageTest {
         ProjectileEntity arrow = manager.launch(ProjectileEntity.Kind.ARROW, -1,
                 new Position(0, 64, 0), 0, 0, 3.0);
         arrow.setOnFireFor(100); // the Flame release: the whole flight burns
-        manager.tick();
+        manager.tick(java.util.List.of());
         assertEquals(1, detonations.size(), "the burning arrow detonated the cart");
         // The power band: 4.0 + rand * 1.5 * min(sqrt(3.0^2), 5.0).
         double d0 = Math.min(3.0, TntMinecartEntity.BLAST_SPEED_CLAMP);

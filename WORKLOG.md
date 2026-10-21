@@ -11386,6 +11386,124 @@ cause, the pig fall's strict five-block refusal, the cart kilometre, the
 all-biomes cover. The crafting/stat/beacon/breeding/vehicle/furnace/player
 regression suites green (182/0 after the count pin's update).
 
+## The bone-meal remainder + the mushroom spread (VIII7/VIII8 — the
+## grass-mushroom slice, 2026-10-21)
+
+The parallel wave's plant-growth lane (feature/grass-mushroom-growth), the
+three-way split's own chunk: the bone-meal dispatcher's missing arms, the
+mushroom pair's whole plant surface, and the engine's first fixed-seed
+noise field.
+
+**The noise ports** — SimplexNoise/PerlinSimplexNoise 1:1 from the
+reference's gen/noise pair: the permutation shuffle, the three-corner
+skewed-grid walk, the halving-amplitude octave stack. The reader is the
+reference's own FOLIAGE_NOISE (Biome.java line 595: new
+PerlinSimplexNoise(new Random(2345L), 1)) — a FIXED seed,
+world-seed-independent, so every world's tulip patches sit at the same
+coordinates (the scan's own answer: the first band cell (0,1050) reads
+-0.835; ~2.2% of the domain sits under -0.8 — the scattered tulip-field
+rarity vanilla carries).
+
+**The grass arm** (GrassBlocks.growGrass — GrassBlock.grow lines 91-122):
+the 128 attempts, the i/16 radius ladder, the four-roll step form with the
+grass-below/not-solid whole-attempt abort, the 1-in-8 flower against the
+7-in-8 tall grass. The flower pick: the plains' own override (the tulip
+band's four-tulip ladder, the poppy/houstonia/oxeye-daisy ladder, the
+dandelion tail) over the base law (dandelion 2-in-3, poppy 1-in-3) — the
+birch-forest's blue-orchid walk and the swamp's always-blue-orchid named
+as VIII14's biome rows (the engine shades neither today).
+
+**The mushroom surface** — the survival law (the MYCELIUM bypass at any
+light — the mushroom island's law — the PODZOL row named unshipped, the
+light-under-13-and-opaque-below gate), riding the neighbor bus (the
+unsupported pop with the plant item) AND the placement gate (the lit-grass
+refusal); the spread (the 1-in-25 pick, the 9x3x9 same-family five-cap,
+the four-step walk with the triangular y form); the giant forms
+(HugeMushroomFeature lines 27-158 whole: the air-or-leaves fit walk, the
+dirt/grass/mycelium base gate, the brown's single 7x7-minus-corners cap
+against the red's four-row cap — the full 3x3 top over three 5x5 skirt
+rings with the ALL_INSIDE interior never writing — the corner-adjacent
+pore overrides, the stem through the skirt centers, the refused
+placement's plant restore).
+
+**The dispatcher arms** — the grass always-pays/always-grows, the mushroom
+always-pays with the 0.4 roll owning the giant alone, the cocoa AGE-band
+single step (the mature pod's use never consumes), the stems RETIRED with
+the evidence (the crops arm already carries StemBlock.grow's own
+expression).
+
+**The slice's own catches:**
+1. **The red's skirt rows count thirteen, not twelve** — the stem column
+   runs y=5..top-1, so every skirt row's center IS a stem cell: 12 ring +
+   1 stem. The first test draft asserted 12 with an air center; the
+   reference's own loop order (cap band, then the stem column overwriting
+   the centers) is the correct shape.
+2. **A single opaque lid does not darken a cell** — the skylight bleeds
+   horizontally at the historical -1-per-step (a 1-lid nook reads 14,
+   still refusing the < 13 gate); the vanilla nook needs the 7x7 width
+   (its center reads 11). The engine's LightEngine carries the vanilla
+   propagation — the first test draft's setup was wrong, not the law.
+3. **The ledger's VIII8 "mycelium's surface spawn" phrase corrected
+   against the reference** — 1.8.8's MyceliumBlock carries no
+   mushroom-plant arm; the mycelium's mushroom law IS the survival bypass
+   (spreadTick's consult passes on mycelium at any light). The island's
+   own decoration rides the biome family's VIII14 slice.
+
+Evidence: GrassMushroomGrowthTest 10 + BonemealArmsAcceptanceTest 6 (the
+await-based flake guard — the first cold-boot run's 150ms window raced the
+tick thread once; the paid asserts now poll to their counts).
+
+**The sweep:** the core's three batches green (the block families +
+interaction/use path 256/0, the entity/world/spawn 638/0, the remaining
+packages + root 1066/0 — 1960/0 cumulative) + the protocol 115/0 + the
+bukkit 38/0 + the launcher 47/0 + the api 19/0. Every module green on
+feature/grass-mushroom-growth.
+
+## The arrow pickup flag (the VIII14 backlog's first retired row, 2026-10-21)
+
+The pickup slice on feature/arrow-pickup — the second lane of the
+coordinator's own work while the parallel instances fly.
+
+**The band** — ProjectileEntity's pickup int (ArrowEntity line 35: 0 the
+mob shooters' default, 1 the collectable, 2 the creative-only): the
+player bow's 1 set in the shared launch helper (the player-shooter ctors'
+lines 61/85), the Infinity/creative OVERRIDE to 2 in releaseBow
+(BowItem.stopUsing lines 52-56 — the find of the slice: the reference
+overrides the ctor's own 1 for the free arrows, so a survival walker
+never scoops an Infinity bow's shot), the dispenser's 1 (Bootstrap line
+70 — the second find: the dispensed arrow IS collectable), the mob
+shooters' 0.
+
+**The walk** — the manager's arrowPickupPass (onPlayerCollision lines
+427-440, 1:1): the inGround gate (the shake row structural — the point
+model derives it away), the flag law with the pickup-1 inventory consult
+(a full inventory leaves the arrow — the walk tries the next player, the
+reference's own per-player collision shape), the creative-only band's
+no-inventory collect, the player box grown 1.0/0.5 over the arrow's 0.5
+box (the orb pickup's exact shape), the 0x0D Collect Item + Destroy pair
+(the orb's own wire shape) + the pop sound at the collector (line 436's
+pitch band).
+
+**The import** — the anvil projectile walk's pickup row (readCustomNbt
+lines 420-424: the modern byte whole, the legacy player boolean's 1/0) —
+the VII1 counted note's pickup sub-row RETIRED (the isolation message and
+the hasUnlandedFamilyRows consult both drop the row).
+
+**The stale-row retirement** — the VIII14 item-frame comparator arm was
+already whole (Slice 28a's frameReader seam wired at EngineServer L1647,
+DecorationSystemTest L251-259 pins it): retired with the evidence, no
+code.
+
+**The tick signature** — ProjectileManager.tick() → tick(players): the
+projectile package's tests + the vehicle damage test updated to the new
+shape (the fireworks system's own no-arg tick untouched).
+
+Evidence: ArrowPickupTest 7 (the walk-over collect, the mob arrow's stay,
+the full-inventory refusal, the creative-only band both ways, the flying
+refusal, the distance band); the projectile package 38/0; the affected
+batch (the vehicle/anvil/dispenser/item-pickup/orbs/spawn-event) 137/0;
+the protocol module 115/0.
+
 ## 2026-10-21 — VIII9 + VIII10: the zombie's attributes + the village detection (one slice)
 
 The Wave VIII audit's ninth and tenth rows, landed as one slice on
