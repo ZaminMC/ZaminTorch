@@ -203,6 +203,7 @@ public final class BlockLightTable {
             // The flora passes light fully (dataset filterLight 0: the plants
             // shade nothing); sandstone is a full opaque cube (filter 15).
             Map.entry(Identifier.parse("minecraft:tall_grass"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:fern"), new LightData(0, 0)),
             Map.entry(Identifier.parse("minecraft:sign"), new LightData(0, 0)),
             Map.entry(Identifier.parse("minecraft:sign_west"), new LightData(0, 0)),
             Map.entry(Identifier.parse("minecraft:sign_north"), new LightData(0, 0)),
