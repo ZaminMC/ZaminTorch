@@ -652,7 +652,13 @@ final class Protocol18 {
     static final int VILLAGER_WINDOW_GUI_SLOTS = 3;
     static final String PLUGIN_CHANNEL_TRADE_LIST = "MC|TrList";
     static final String PLUGIN_CHANNEL_TRADE_SELECT = "MC|TrSel";
-    static final String PLUGIN_CHANNEL_CHANNEL_LABEL = "MC|BEdit"; // (unused label guard)
+    // The book channels (VIII12 — the reference ServerPlayNetworkHandler
+    // lines 948-1008: MC|BEdit carries the book & quill's saved pages,
+    // MC|BSign the signing conversion — each payload ONE wire item (the
+    // PacketByteBuf.readItem form: the legacy short id, the count byte,
+    // the damage short, then the slot NBT compound)).
+    static final String PLUGIN_CHANNEL_BOOK_EDIT = "MC|BEdit";
+    static final String PLUGIN_CHANNEL_BOOK_SIGN = "MC|BSign";
 
     // Enchanting-table container window (protocol 47, "minecraft:enchanting_table"):
     // 0 the item (max 1), 1 the lapis, 2-28 main, 29-37 hotbar — 38 slots.

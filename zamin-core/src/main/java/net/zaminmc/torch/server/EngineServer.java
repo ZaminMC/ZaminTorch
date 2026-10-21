@@ -6380,6 +6380,42 @@ public final class EngineServer implements Server, EngineBridge {
                 useFishingRod(session);
                 return;
             }
+            // The book & quill's in-air use (VIII12 —
+            // BookAndQuillItem.startUsing lines 15-19): the client opens
+            // its own edit screen over the held stack — the server's own
+            // arm is the item-use stat alone (the pages ride the MC|BEdit
+            // channel when the screen closes).
+            if (held.type().equals(BuiltinItems.WRITABLE_BOOK)) {
+                session.stats().increment(net.zaminmc.torch.server.stat.EngineStats
+                        .useItemOf(held.type().identifier()), 1);
+                return;
+            }
+            // The written book's read gate (VIII12 —
+            // WrittenBookItem.startUsing lines 68-77): the resolve walk
+            // over the held stack (the once-only marker + the page
+            // normalization — the SERVER's own knowledge, the client's
+            // copy is stale until the resync) and the item-use stat. NEVER
+            // an edit flow: a signed book opens read-only for everyone,
+            // its own author included (the edit channels gate on the held
+            // WRITABLE_BOOK alone — the structural refusal the reference's
+            // read gate embodies).
+            if (held.type().equals(BuiltinItems.WRITTEN_BOOK)) {
+                net.zaminmc.torch.item.ItemStack resolved =
+                        net.zaminmc.torch.server.item.Books.resolvePages(held);
+                if (resolved != held) {
+                    session.inventory().setSlot(session.inventory().heldSlot(), resolved);
+                    // The reference's resync is ONE Set Slot for the held
+                    // slot (InventoryMenuSlotContentS2CPacket window 0);
+                    // the engine's standing convention for a post-mutation
+                    // inventory resync is the whole-window publish (the
+                    // same call the anvil family makes) — the client's end
+                    // state identical, the shape the engine's own.
+                    publishInventoryChanged(session);
+                }
+                session.stats().increment(net.zaminmc.torch.server.stat.EngineStats
+                        .useItemOf(held.type().identifier()), 1);
+                return;
+            }
             // Food: the eat timer.
             if (Foods.nutritionOf(held.type(), held.damage()).isEmpty()) {
                 return;
@@ -13324,6 +13360,95 @@ public final class EngineServer implements Server, EngineBridge {
             }
         }
         return cleaned.toString();
+    }
+
+    /**
+     * The MC|BEdit landing (the reference ServerPlayNetworkHandler lines
+     * 948-976 — the book &amp; quill's edit-screen save): the payload stack
+     * must BE a writable book whose pages pass
+     * {@link net.zaminmc.torch.server.item.Books#validWritableBook} (the
+     * reference's own {@code BookAndQuillItem.isValid} gate — an invalid
+     * tag lands nothing, the IOException refusal), and the player's
+     * selected slot must hold a writable book; then the payload's
+     * {@code pages} list lands on the HELD stack (the reference's
+     * {@code addToNbt("pages", ...)}). SILENT by the reference's own shape
+     * — the sending client already predicted its own edit, so no resync
+     * fires. Safe from any thread; the application runs on the tick thread.
+     */
+    public void bookEdit(PlayerSession session, net.zaminmc.torch.item.ItemStack payload) {
+        Objects.requireNonNull(session, "session");
+        ticker.submit(() -> {
+            if (session.state() != PlayerState.PLAYING || session.dead()) {
+                return;
+            }
+            if (!net.zaminmc.torch.server.item.Books.validWritableBook(payload)) {
+                return; // "Invalid book tag!": the payload lands nowhere
+            }
+            net.zaminmc.torch.item.ItemStack held = session.inventory().held();
+            if (held.isEmpty() || !held.type().equals(
+                    net.zaminmc.torch.server.item.BuiltinItems.WRITABLE_BOOK)) {
+                return; // the held-item gate: only a book & quill takes pages
+            }
+            session.inventory().setSlot(session.inventory().heldSlot(),
+                    held.withBookPages(payload.bookPages()));
+            // No publish: the reference sends nothing after the edit (the
+            // client's own book already carries its pages).
+        });
+    }
+
+    /**
+     * The MC|BSign landing (the reference ServerPlayNetworkHandler lines
+     * 977-1008 — the signing conversion): the payload stack must BE a
+     * written book whose tag passes
+     * {@link net.zaminmc.torch.server.item.Books#validWrittenBook} (the
+     * pages row + the title STRING at most 32 characters + the author
+     * row's presence), and the player's selected slot must hold a book
+     * &amp; quill; then the held stack becomes the SIGNED FORM —
+     * {@code author} = the signing player's own name (SERVER-AUTHORITATIVE,
+     * never the payload's claim), {@code title} = the payload's title row,
+     * {@code pages} = the payload's pages list, and the item itself swaps
+     * to minecraft:written_book (the reference's {@code setItem}). The
+     * signed book is UNEDITABLE thereafter — the edit channel above gates
+     * on the held WRITABLE_BOOK alone, so a written book (its own author
+     * included) never re-opens the edit flow: that structural refusal IS
+     * the reference's read gate. SILENT by the reference's own shape — the
+     * client predicted its own signed form. Safe from any thread; the
+     * application runs on the tick thread.
+     */
+    public void bookSign(PlayerSession session, net.zaminmc.torch.item.ItemStack payload) {
+        Objects.requireNonNull(session, "session");
+        ticker.submit(() -> {
+            if (session.state() != PlayerState.PLAYING || session.dead()) {
+                return;
+            }
+            if (!net.zaminmc.torch.server.item.Books.validWrittenBook(payload)) {
+                return; // "Invalid book tag!": the conversion lands nowhere
+            }
+            net.zaminmc.torch.item.ItemStack held = session.inventory().held();
+            if (held.isEmpty() || !held.type().equals(
+                    net.zaminmc.torch.server.item.BuiltinItems.WRITABLE_BOOK)) {
+                return; // the held-item gate: only a book & quill converts
+            }
+            // The signed form over the HELD stack's own identity (the count
+            // and damage ride along; the reference mutates the same stack).
+            net.zaminmc.torch.item.ItemStack signed = held
+                    .withBookAuthor(session.name())
+                    .withBookTitle(payload.bookTitle())
+                    .withBookPages(payload.bookPages());
+            session.inventory().setSlot(session.inventory().heldSlot(),
+                    new net.zaminmc.torch.item.ItemStack(
+                            net.zaminmc.torch.server.item.BuiltinItems.WRITTEN_BOOK,
+                            signed.count(), signed.damage(), signed.displayName(),
+                            signed.enchantments(), signed.unbreakable(), signed.repairCost(),
+                            signed.hideFlags(), signed.lore(), signed.blockEntityTag(),
+                            signed.canDestroy(), signed.canPlaceOn(), signed.displayColor(),
+                            signed.attributeModifiers(), signed.skullOwner(),
+                            signed.fireworks(), signed.bookPages(), signed.bookAuthor(),
+                            signed.bookTitle(), signed.bookResolved(),
+                            signed.bookGeneration()));
+            // No publish: the reference sends nothing after the swap (the
+            // client predicted its own signed form).
+        });
     }
 
     public void tradeSelect(PlayerSession player, int offerIndex) {
