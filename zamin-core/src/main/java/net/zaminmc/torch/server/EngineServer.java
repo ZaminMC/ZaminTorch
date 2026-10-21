@@ -2748,6 +2748,16 @@ public final class EngineServer implements Server, EngineBridge {
                         return net.zaminmc.torch.server.block.WorldSolidity.isSolid(
                                 world.getBlock(target.offset(0, -1, 0)));
                     }
+                    if (name.equals("brown_mushroom") || name.equals("red_mushroom")) {
+                        // The mushroom pair's own gate (VIII8 —
+                        // MushroomPlantBlock.canBePlaced lines 69-73 over
+                        // canSurvive): the mycelium bypass at any light,
+                        // the light-under-13-and-opaque-below law — a
+                        // placement on lit grass refuses, the mushroom
+                        // island's daylight shrooms pass on mycelium.
+                        return net.zaminmc.torch.server.block.MushroomBlocks
+                                .canPlantSurviveAt(world, target);
+                    }
                     return true;
                 });
                 // The double-plant pair arm (Slice 45 —
