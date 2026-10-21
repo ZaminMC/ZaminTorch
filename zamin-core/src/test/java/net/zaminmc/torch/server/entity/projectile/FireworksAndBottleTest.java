@@ -126,7 +126,7 @@ class FireworksAndBottleTest {
                 new Position(0.5, 10.0, 0.5), 1.0, 0.0, 0.0, 0.7, 1.0);
         assertTrue(bottle != null, "the unit harness has no admission gate");
         for (int i = 0; i < 30 && sink.bursts.isEmpty(); i++) {
-            manager.tick();
+            manager.tick(java.util.List.of());
         }
         assertEquals(1, sink.bursts.size(), "the burst landed at the wall");
         assertTrue(sink.bursts.get(0).x() >= 4.0, "the burst sits at the impact");
@@ -153,7 +153,7 @@ class FireworksAndBottleTest {
         manager.launchVector(ProjectileEntity.Kind.EXPERIENCE_BOTTLE, 4242,
                 new Position(0.5, 10.0, 0.5), 0.0, -1.0, 0.0, 0.7, 1.0);
         for (int i = 0; i < 30 && sink.bursts.isEmpty(); i++) {
-            manager.tick();
+            manager.tick(java.util.List.of());
         }
         assertEquals(1, sink.bursts.size(), "the burst landed");
         assertTrue(events.removals.contains("hit"), "the bottle died at the body");

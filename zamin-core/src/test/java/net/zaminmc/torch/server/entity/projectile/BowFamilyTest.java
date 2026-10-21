@@ -99,7 +99,7 @@ class BowFamilyTest {
             ProjectileEntity arrow = manager.launch(ProjectileEntity.Kind.ARROW, -1,
                     new Position(0, 12, 0), 0, 0, 3.0);
             arrow.setCritical(true);
-            manager.tick();
+            manager.tick(java.util.List.of());
         }
         int maxDamage = combat.damages.stream().mapToInt(Float::intValue).max().orElse(0);
         assertTrue(maxDamage > 7, "the crit roll pushed past the plain cap, saw " + maxDamage);
@@ -120,7 +120,7 @@ class BowFamilyTest {
         ProjectileEntity arrow = manager.launch(ProjectileEntity.Kind.ARROW, -1,
                 new Position(0, 12, 0), 0, 0, 3.0);
         arrow.setPunchLevel(2);
-        manager.tick();
+        manager.tick(java.util.List.of());
         assertEquals(List.of("hit"), combat.order, "the hit landed");
         double horizontal = Math.sqrt(arrow.velocityX() * arrow.velocityX()
                 + arrow.velocityZ() * arrow.velocityZ());
@@ -156,7 +156,7 @@ class BowFamilyTest {
         ProjectileEntity arrow = manager.launch(ProjectileEntity.Kind.ARROW, -1,
                 new Position(0, 12, 0), 0, 0, 3.0);
         arrow.setPunchLevel(2);
-        manager.tick();
+        manager.tick(java.util.List.of());
         assertEquals(0.0, zombie.velocityX(), 1.0E-9,
                 "the refused hit carries no punch impulse");
         assertEquals(0.0, zombie.velocityY(), 1.0E-9, "the refused hit carries no rise");
@@ -174,7 +174,7 @@ class BowFamilyTest {
         ProjectileEntity arrow = manager.launch(ProjectileEntity.Kind.ARROW, -1,
                 new Position(0, 12, 0), 0, 0, 3.0);
         arrow.setOnFireFor(2_000);
-        manager.tick();
+        manager.tick(java.util.List.of());
         assertEquals(List.of("ignite", "hit"), combat.order,
                 "the ignite precedes the damage (the reference's setOnFireFor(5) arm)");
         assertTrue(zombie.burning(), "the target caught fire");

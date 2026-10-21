@@ -1350,6 +1350,16 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                 }
             }
 
+            /** The grounded arrow's collect (the pickup slice — the
+             *  Collect Item pair over the projectile's engine id). */
+            @Override
+            public void onProjectileCollected(net.zaminmc.torch.server.entity.projectile.ProjectileEntity projectile,
+                                              net.zaminmc.torch.server.player.PlayerSession collector) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendProjectileCollected(projectile.entityId(), collector);
+                }
+            }
+
             /** The deflected fireball (Slice 25b — the velocity re-publish). */
             @Override
             public void onProjectileDeflected(net.zaminmc.torch.server.entity.projectile.ProjectileEntity projectile) {
