@@ -78,13 +78,22 @@ import java.util.regex.Pattern;
  * {@code restorePainting} for the item frames and paintings (the
  * anchor/facing/motive/display rows, the legacy {@code Direction}
  * offset quirk included), and {@code ExperienceOrbManager}
- * .spawnRestored for the XP orbs (the {@code Value}/{@code Age} rows).
- * What still has no engine surface isolates LOUDLY with its exact id
- * (§31.6's counted refusal, never a silent drop): the riding chains
- * (the non-session rider attach publication + the server-side rider
- * follow — the reference's updateRidden — have no surface yet), the
- * firework/eye-of-ender/leash-knot families, and every per-family row
- * whose engine model derives it differently (the ledger names each).
+ * .spawnRestored for the XP orbs (the {@code Value}/{@code Age} rows),
+ * {@code FireworksSystem.launchRestored} for the firework rockets (the
+ * {@code Life}/{@code LifeTime}/{@code FireworksItem} rows — the import-
+ * families slice, VII3), {@code EnderEyeSystem.launchRestored} for the
+ * eyes of ender (the base rows alone — the reference's own readCustomNbt
+ * is empty), and {@code LeadSystem.restoreKnot} for the leash knots (the
+ * {@code TileX}/{@code TileY}/{@code TileZ} anchor). What still has no
+ * engine surface isolates LOUDLY with its exact id (§31.6's counted
+ * refusal, never a silent drop): the fishing-bobber row (the reference's
+ * own census never registers the family — no vanilla region file carries
+ * it; a modded row isolates through the walk's generic arm, VII4's own
+ * evidence), the riding chains' seatless families (the hanging
+ * decorations and the leash knots carry no position provider to follow
+ * with — the §31.6 convention's own named exception), and every
+ * per-family row whose engine model derives it differently (the ledger
+ * names each).
  * A skipped (already-loaded) chunk's content rows ride the skip whole,
  * with a counted note naming what did not apply.</p>
  *
@@ -463,10 +472,13 @@ public final class AnvilWorldImport {
      * Pos/Rotation/Motion/UUID/custom walks are the reference's own
      * Entity.readNbt — and the dropped items restore through the exact
      * position spawn with their Age/PickupDelay/Thrower/Owner rows. The
-     * families with no engine surface (the fireworks rocket, the eye of
-     * ender, the leash knot) isolate with their exact id — §31.6's counted
-     * refusal; the riding chains walk the shared importRidingChain (the
-     * mob and vehicle seatings land, the exotic shapes isolate loudly).
+     * firework/eye-of-ender/leash-knot families landed with VII3 (the
+     * {@code FireworksSystem}/{@code EnderEyeSystem}/{@code LeadSystem}
+     * restored forms); a family with no engine surface isolates with its
+     * exact id — §31.6's counted refusal (the fishing-bobber row the
+     * current example); the riding chains walk the shared
+     * importRidingChain (the mob and vehicle seatings land, the exotic
+     * shapes isolate loudly where a side carries no seat surface).
      */
     private void applyEntities(List<Map<String, Snbt.Tag>> entities) {
         if (content == null) {
@@ -1066,10 +1078,12 @@ public final class AnvilWorldImport {
 
     /**
      * The reference's projectile wire ids (Entities.register's own
-     * names) through the engine's Kind table. The families the engine
-     * does not model (EyeOfEnderSignal, the fireworks rocket, the
-     * fishing bobber, the leash knot) stay on the generic
-     * not-importable isolation.
+     * names) through the engine's Kind table. The families the import
+     * walks through their own arms instead (the fireworks rocket, the eye
+     * of ender, the leash knot — VII3) and the families the reference
+     * itself never writes (the fishing bobber — its census registers no
+     * body; a modded row isolates through the generic not-importable arm)
+     * stay off this table.
      */
     private static ProjectileEntity.Kind projectileKindOf(String id) {
         return switch (id) {

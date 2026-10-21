@@ -206,4 +206,25 @@ class ArrowPickupTest {
                 "the walker beyond the grown box never collects");
         assertTrue(manager.all().contains(arrow), "the arrow stays");
     }
+
+    /**
+     * The band's public read (§27.10 — the pickup slice's exposure): the
+     * api {@code Projectile} handle answers the band through the
+     * interface alone (no engine cast), the launch sites' own sets —
+     * the mob shooter's 0, the player bow's 1, the Infinity creative
+     * override's 2 — and the non-arrow families answer the 0 default.
+     */
+    @Test
+    void thePickupBandReadsThroughThePublicHandle() {
+        ProjectileManager manager = manager();
+        net.zaminmc.torch.entity.Projectile mobArrow = stuckArrow(manager, 0);
+        net.zaminmc.torch.entity.Projectile playerArrow = stuckArrow(manager, 1);
+        net.zaminmc.torch.entity.Projectile infinityArrow = stuckArrow(manager, 2);
+        net.zaminmc.torch.entity.Projectile shard = manager.launch(
+                ProjectileEntity.Kind.SNOWBALL, -1, new Position(0.6, 4.2, 0.5), 0, 0, 0.0);
+        assertEquals(0, mobArrow.pickupStatus(), "the mob shooter's band");
+        assertEquals(1, playerArrow.pickupStatus(), "the player bow's band");
+        assertEquals(2, infinityArrow.pickupStatus(), "the Infinity creative override");
+        assertEquals(0, shard.pickupStatus(), "the non-arrow families answer 0");
+    }
 }

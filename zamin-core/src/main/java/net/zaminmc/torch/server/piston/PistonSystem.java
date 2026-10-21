@@ -136,6 +136,13 @@ public final class PistonSystem implements WorldChangeListener {
         /** The slime-block fling (MovingBlockEntity lines 94-107): the
          *  velocity SET along the facing axis to the facing offset. */
         void flingAxis(double axisX, double axisY, double axisZ);
+
+        /**
+         * The body's public api handle (§27.5: the engine object IS the
+         * handle — the VIII13 exposure's §27.7 observation row; the
+         * post-commit PistonPushEvent carries it).
+         */
+        net.zaminmc.torch.entity.Entity apiEntity();
     }
 
     private final EngineWorld world;
@@ -674,13 +681,28 @@ public final class PistonSystem implements WorldChangeListener {
             d5 -= off[2] * flipped;
         }
         boolean slime = block.movedType().identifier().value().equals("slime_block");
+        var bus = eventBus;
         for (Pushable body : surface.pushablesIn(d0, d1, d2, d3, d4, d5)) {
-            if (slime && block.extending()) {
+            boolean flung = slime && block.extending();
+            if (flung) {
                 // The fling (lines 94-107): the velocity SET along the
                 // facing axis (the switch's own per-axis form).
                 body.flingAxis(off[0], off[1], off[2]);
             } else {
                 body.pushBy(amount * off[0], amount * off[1], amount * off[2]);
+            }
+            // The §27.7 post-commit observation (the VIII13 exposure):
+            // the pushed body's public handle + the displacement's own
+            // rows, fired AFTER the push — the event observes the
+            // committed result, never a prospective one (the pre-commit
+            // PistonMoveEvent owns the observe/cancel gate; the null bus
+            // of the unwired window fires nothing).
+            if (bus != null) {
+                bus.fire(new net.zaminmc.torch.event.block.PistonPushEvent(
+                        world.name(), pos,
+                        net.zaminmc.torch.block.Direction.byId(block.facing()),
+                        block.extending(), block.movedType(), amount, flung,
+                        body.apiEntity()));
             }
         }
     }

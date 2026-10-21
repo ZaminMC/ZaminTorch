@@ -111,8 +111,17 @@ public final class Village {
         return golems;
     }
 
-    /** @return the door rows (the census's own snapshot shape). */
-    public List<VillageDoor> doors() {
+    /**
+     * The door rows' read. Synchronized (the §27.6 any-thread snapshot
+     * protocol the public view carries): the census mutates the list on
+     * the tick lane (the staleness removal + the pending adds) while the
+     * view may copy from any thread — the monitor keeps the copy
+     * tear-free; the tick thread is uncontended, the protocol costs
+     * nothing on the lane.
+     *
+     * @return the door rows (the census's own snapshot shape).
+     */
+    public synchronized List<VillageDoor> doors() {
         return doors;
     }
 
@@ -158,11 +167,12 @@ public final class Village {
     }
 
     /**
-     * addDoor (lines 225-230): the row lands, the combined sum grows,
-     * the center walk runs, and the village's own stability clock takes
-     * the door's tick.
+     * The reference's addDoor (lines 225-230): the row lands, the combined
+     * sum grows, the center walk runs, and the village's own stability
+     * clock takes the door's tick. Synchronized per the §27.6 snapshot
+     * protocol (the doors list shares the monitor with the read side).
      */
-    public void addDoor(VillageDoor door) {
+    public synchronized void addDoor(VillageDoor door) {
         doors.add(door);
         combinedDoorX += door.x();
         combinedDoorY += door.y();
@@ -209,10 +219,12 @@ public final class Village {
     }
 
     /**
-     * updateReputation (lines 345-350): the clamp band −30..10 over the
-     * running sum.
+     * The reference's updateReputation (lines 345-350): the clamp band
+     * −30..10 over the running sum. Synchronized per the §27.6 snapshot
+     * protocol — the mob walks mutate the table outside the census tick
+     * while the view copies it from any thread.
      */
-    public int updateReputation(String playerName, int delta) {
+    public synchronized int updateReputation(String playerName, int delta) {
         int current = reputation(playerName);
         int updated = Math.max(-30, Math.min(current + delta, 10));
         playerReputations.put(playerName, updated);
@@ -225,26 +237,30 @@ public final class Village {
     }
 
     /** updateAllReputations (lines 445-449): the cured-zombie bonus walk. */
-    public void updateAllReputations(int delta) {
+    public synchronized void updateAllReputations(int delta) {
         for (String name : playerReputations.keySet()) {
             updateReputation(name, delta);
         }
     }
 
-    /** The reputation table's own snapshot (the persistence read). */
-    public Map<String, Integer> reputations() {
+    /**
+     * The reputation table's own snapshot (the persistence read).
+     * Synchronized per the §27.6 snapshot protocol (the TreeMap copy the
+     * public view takes from any thread).
+     */
+    public synchronized Map<String, Integer> reputations() {
         return playerReputations;
     }
 
     // ------------------------------------------------------------ the mating window
 
     /** stopMating (lines 437-439): a monster kill closes the window. */
-    public void stopMating() {
+    public synchronized void stopMating() {
         lastMatingTicks = ticks;
     }
 
     /** canMate (lines 441-443): the 3600-tick window after the close. */
-    public boolean canMate() {
+    public synchronized boolean canMate() {
         return lastMatingTicks == 0 || ticks - lastMatingTicks >= 3600;
     }
 
@@ -258,7 +274,7 @@ public final class Village {
      * @param mobName the attacker's mob name (the creeper exclusion's own
      *                read; null for players)
      */
-    public void addOrUpdateAttacker(int engineId, boolean player, String mobName) {
+    public synchronized void addOrUpdateAttacker(int engineId, boolean player, String mobName) {
         for (Attacker attacker : attackers) {
             if (attacker.engineId == engineId) {
                 attacker.lastUpdateTick = ticks;
@@ -380,9 +396,11 @@ public final class Village {
      * clean-up, the %20 population census (the reputation table clears
      * when the village empties), the %30 golem census, and the
      * iron-golem spawn roll — {@code golems < pop/10 && doors > 20 &&
-     * nextInt(7000) == 0} — the reference's own band.
+     * nextInt(7000) == 0} — the reference's own band. Synchronized per
+     * the §27.6 snapshot protocol (the doors list + the censuses share
+     * the monitor with the public view's copies).
      */
-    void tick(VillageSystem.Surface surface, java.util.Random random, int ticks) {
+    synchronized void tick(VillageSystem.Surface surface, java.util.Random random, int ticks) {
         this.ticks = ticks;
         removeInvalidDoors(surface, random);
         cleanUpAttackers(surface);

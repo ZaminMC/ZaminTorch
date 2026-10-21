@@ -151,6 +151,19 @@ public interface World {
     }
 
     /**
+     * The growth-family outcome reads (§27.3's block-behavior family —
+     * the VIII2/VIII7/VIII8 exposure): the crops'/stems' stage bands,
+     * the sapling family's variant + readiness + light gate, the cocoa
+     * pod's age band, and the mushroom plant's survival law — the same
+     * consults the bonemeal arms themselves run, so a plugin can
+     * predict the arms' outcomes. Type consults are pure (any thread);
+     * position consults read the live world best-effort (§27.6).
+     */
+    default net.zaminmc.torch.block.Growth growth() {
+        return net.zaminmc.torch.block.Growth.EMPTY;
+    }
+
+    /**
      * The primed TNT bodies in flight (§27.3's TNT family): a
      * point-in-time population view — simulation context, inspect it
      * inside {@link #execute}. Worlds without the family answer empty.

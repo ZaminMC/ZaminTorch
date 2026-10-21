@@ -45,6 +45,19 @@ public interface Projectile extends Entity {
      */
     boolean inGround();
 
+    /**
+     * The ARROW family's pickup band (the reference's {@code pickup}
+     * row, ArrowEntity line 35 — the pickup slice's exposure): 0 = a
+     * mob shooter's arrow never collects; 1 = a player's or a
+     * dispenser's arrow collects when a body walks it over (an
+     * inventory-owning player picks it up); 2 = an Infinity bow's
+     * creative-only band (only a creative player collects). The
+     * non-arrow families answer 0. Simulation context.
+     */
+    default int pickupStatus() {
+        return 0;
+    }
+
     /** Whether an arrow carries the critical-hit flag. Simulation context. */
     boolean critical();
 

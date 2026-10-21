@@ -292,7 +292,8 @@ class AnvilImportAcceptanceTest {
         // reference's own save shape), a NO-family tile row over the
         // stone floor (the loud isolation), a named zombie, a three-stack
         // of diamonds on the ground (the item entity with its Age row),
-        // and a fireworks rocket — a family with no engine surface.
+        // and a fireworks rocket (the import-families slice's restored
+        // form — the no-surface example moved to the fishing bobber).
         byte[] blocks = new byte[4096];
         for (int z = 0; z < 16; z++) {
             for (int x = 0; x < 16; x++) {
@@ -314,12 +315,32 @@ class AnvilImportAcceptanceTest {
         zombie.put("CustomName", "Anvil Zombie");
         // The firework rocket (the import-families slice — the engine's own
         // fireworks system, the restored form): a mid-flight Life 5 with a
-        // 40-tick fuse (the scene asserts within the remaining 35).
+        // 40-tick fuse (the scene asserts within the remaining 35) and the
+        // SAVED FireworksItem compound — the reference's own synced slot-8
+        // row (writeCustomNbt lines 137-143), the payload's whole boxed
+        // tree with the explosion compound riding the tag (the burst's
+        // own render reads it).
+        Map<String, Object> explosion = AnvilFixture.compound();
+        explosion.put("Type", (byte) 1);
+        explosion.put("Colors", new int[]{0x00FF00});
+        explosion.put("FadeColors", new int[]{0xFF0000});
+        explosion.put("Trail", (byte) 1);
+        Map<String, Object> fireworksTag = AnvilFixture.compound();
+        fireworksTag.put("Flight", (byte) 2);
+        fireworksTag.put("Explosions", List.of(explosion));
+        Map<String, Object> payloadTag = AnvilFixture.compound();
+        payloadTag.put("Fireworks", fireworksTag);
+        Map<String, Object> fireworksItem = AnvilFixture.compound();
+        fireworksItem.put("id", "minecraft:fireworks");
+        fireworksItem.put("Count", (byte) 1);
+        fireworksItem.put("Damage", (short) 0);
+        fireworksItem.put("tag", payloadTag);
         Map<String, Object> firework = AnvilFixture.entityRow("FireworksRocketEntity", 134.5, 1.0, 134.5);
         firework.put("Life", 5);
         firework.put("LifeTime", 40);
         firework.put("Motion", List.of(0.0, 0.04, 0.0));
         firework.put("Rotation", List.of(0.0f, 0.0f));
+        firework.put("FireworksItem", fireworksItem);
         // The fishing bobber — the new no-surface example (the engine's
         // fishing system models the bobbers natively; the import family has
         // no arm — the loud isolation stays).
@@ -425,6 +446,22 @@ class AnvilImportAcceptanceTest {
             assertTrue(rockets.get(0).velocityY() >= 0.04,
                     "the loaded Motion lands whole (the flight only grows it): "
                             + rockets.get(0).velocityY());
+            // The SAVED payload compound landed on the rocket's synced
+            // slot-8 stack (the reference's readCustomNbt row): the item
+            // identity, the count, and the whole boxed Fireworks tree —
+            // the Flight byte naming the fuse band and the explosion
+            // compound riding the tag verbatim (the burst's render row).
+            var payload = rockets.get(0).payload();
+            assertFalse(payload.isEmpty(), "the FireworksItem row became the payload");
+            assertEquals("fireworks", payload.type().identifier().value(),
+                    "the payload's item identity");
+            assertEquals(1, payload.count(), "the payload's count row");
+            var tree = payload.fireworks();
+            assertNotNull(tree, "the payload's Fireworks tree rode the tag");
+            assertEquals((byte) 2, tree.get("Flight"), "the Flight byte rides verbatim");
+            assertTrue(tree.get("Explosions") instanceof List<?> explosions
+                            && explosions.size() == 1,
+                    "the explosion compound rides the tree: " + tree.get("Explosions"));
             assertTrue(report.contains("firework's Rotation row has no per-rocket surface"),
                     "the Rotation row's counted note: " + report);
             assertTrue(report.contains("entity family not importable"),
@@ -559,10 +596,15 @@ class AnvilImportAcceptanceTest {
         boatRider.put("Riding", cartMount);
 
         // The eye of ender (the import-families slice — the restored form;
-        // the transient rows' counted note names the load quirk) and the
-        // leash knot (the Tile row IS the anchor; the survival poll owns the
-        // unsupported-anchor drop — the knot lands over the stone floor).
+        // the reference's own readCustomNbt is EMPTY: the base Pos/Motion/
+        // Rotation rows are the whole saved shape, the saved Motion landing
+        // with the ±10 clamp, the transient rows' counted note names the
+        // load quirk) and the leash knot (the Tile row IS the anchor; the
+        // survival poll owns the unsupported-anchor drop — the knot lands
+        // over the stone floor).
         Map<String, Object> eye = AnvilFixture.entityRow("EyeOfEnderSignal", 137.5, 2.0, 137.5);
+        eye.put("Motion", List.of(0.05, 0.02, 0.0));
+        eye.put("Rotation", List.of(-90.0f, 20.0f));
         Map<String, Object> knot = AnvilFixture.entityRow("LeashKnot", 138, 1, 138);
         knot.put("TileX", 138);
         knot.put("TileY", 1);
@@ -709,12 +751,27 @@ class AnvilImportAcceptanceTest {
             assertTrue(report.contains("eye's transient target and drops rows"),
                     "the eye's transient rows' counted note: " + report);
             // The eye family landed: the imported eye flies (the origin
-            // quirk — the transient target) until its 80 ticks end; the
+            // quirk — the transient target (0, 0, 0), never the +8 lift:
+            // the descent the counted note names) until its 80 ticks end
+            // — the SAVED Motion landing whole (the vertical approach only
+            // walks it down toward the origin's y band), the counted notes
+            // carrying the transient rows and the derived Rotation; the
             // knot landed at its Tile anchor (the stone floor — the
             // survival poll owns the unsupported drop).
             var importedEyes = server.eyes().all();
             assertEquals(1, importedEyes.size(),
                     "the eye of ender imported through the restored form");
+            assertTrue(importedEyes.get(0).velocityY() <= 0.02 && importedEyes.get(0).velocityY() > -0.5,
+                    "the saved Motion landed whole (the origin quirk's descent band — "
+                            + "the approach walks the vertical down, never away): "
+                            + importedEyes.get(0).velocityY());
+            assertTrue(importedEyes.get(0).position().y() > 0.0
+                            && importedEyes.get(0).position().y() < 2.05,
+                    "the transient origin target drives the descent band (never the "
+                            + "live use's +8 lift toward 10 — the load quirk): "
+                            + importedEyes.get(0).position().y());
+            assertTrue(report.contains("eye's Rotation row has no per-eye surface"),
+                    "the eye's derived Rotation counted note: " + report);
             var importedKnots = server.leads().allKnots();
             assertEquals(1, importedKnots.size(),
                     "the leash knot imported at its Tile anchor");
