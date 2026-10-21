@@ -7,6 +7,7 @@ import net.zaminmc.torch.bukkit.block.MaterialMap;
 import net.zaminmc.torch.bukkit.block.TorchBlock;
 import net.zaminmc.torch.bukkit.block.TorchBlockState;
 import net.zaminmc.torch.bukkit.command.TorchCommandBridge;
+import net.zaminmc.torch.bukkit.entity.TorchMob;
 import net.zaminmc.torch.bukkit.entity.TorchOfflinePlayer;
 import net.zaminmc.torch.bukkit.entity.TorchPlayer;
 import net.zaminmc.torch.bukkit.event.TorchEventBridge;
@@ -17,6 +18,7 @@ import net.zaminmc.torch.bukkit.server.TorchConsoleSender;
 import net.zaminmc.torch.bukkit.server.TorchServer;
 import net.zaminmc.torch.bukkit.world.TorchWorld;
 import net.zaminmc.torch.server.EngineServer;
+import net.zaminmc.torch.server.entity.MobEntity;
 import net.zaminmc.torch.server.player.PlayerSession;
 import net.zaminmc.torch.util.Identifier;
 
@@ -73,6 +75,9 @@ public final class BukkitAdapter {
     private final Map<PlayerSession, TorchPlayer> players = new ConcurrentHashMap<>();
     private final Map<World, TorchWorld> worlds = new ConcurrentHashMap<>();
     private final Map<BlockPosition, TorchBlock> blocks = new ConcurrentHashMap<>();
+    // The entity-view family's own caches (slice 3 — the live mob views;
+    // the pending spawn views are per-event snapshots and never cached).
+    private final Map<MobEntity, TorchMob> mobViews = new ConcurrentHashMap<>();
     private volatile boolean attached;
 
     public BukkitAdapter(EngineServer engine) {
@@ -218,6 +223,48 @@ public final class BukkitAdapter {
 
     public TorchOfflinePlayer offlineView(UUID uuid) {
         return new TorchOfflinePlayer(this, "uuid:" + uuid, uuid);
+    }
+
+    // ------------------------------------------------------------------ the entity views (the slice-3 object adapters)
+
+    /**
+     * The identity-stable live view over one engine mob (§27.5: one
+     * view per body — the player views' own caching law). The damage
+     * and death bridges and the thrower resolutions ride it.
+     */
+    public TorchMob mobView(MobEntity mob) {
+        return mobViews.computeIfAbsent(mob, fresh -> new TorchMob(this, fresh));
+    }
+
+    /**
+     * The engine-id resolution over the adapter's own entity views (the
+     * projectile family's thrower row): an online session answers the
+     * player view, a live mob answers the mob view, anything else
+     * answers null — never an invented body.
+     */
+    public org.bukkit.entity.Entity entityByEngineId(int entityId) {
+        if (entityId < 0) {
+            return null;
+        }
+        for (PlayerSession session : sessions()) {
+            if (session.engineEntityId() == entityId) {
+                return player(session);
+            }
+        }
+        MobEntity mob = engine.mobs().byId(entityId);
+        return mob != null ? mobView(mob) : null;
+    }
+
+    /**
+     * The {@link org.bukkit.projectiles.ProjectileSource} resolution for
+     * the pending projectile views' shooter row: the same id walk as
+     * {@link #entityByEngineId} narrowed to the sources (players and
+     * living mobs — both views implement the interface).
+     */
+    public org.bukkit.projectiles.ProjectileSource projectileSourceByEngineId(int entityId) {
+        org.bukkit.entity.Entity resolved = entityByEngineId(entityId);
+        return resolved instanceof org.bukkit.projectiles.ProjectileSource source
+                ? source : null;
     }
 
     public TorchWorld worldFor(PlayerSession session) {
