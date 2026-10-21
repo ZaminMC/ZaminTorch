@@ -11789,3 +11789,67 @@ kind-gating at canUse). The whole-module sweep green:
 world 179/0, the mid packages 414/0, the server-root batches 393/0, the
 small packages 346/0); :zamin-protocol-v1_8_8:test 115/0;
 :zamin-bukkit:compileJava + :zamin-api:compileJava green.
+
+## The GenLayer layout (VIII14's second slice, 2026-10-21)
+
+The coordinator's lane on feature/biome-genlayer — the ~30-layer
+transformation stack whole (the reference's world/biome/layer package,
+21 classes ported verbatim) and the generator wired to it.
+
+**The stack** — Layer's LCG scrambling (the 6364136223846793005 /
+1442695040888963407 pair, three flavors: ctor salt, world-seed mix,
+chunk-seed walk) + the init chain: Island (the 1-in-10 land roll with
+the origin pin), FuzzyZoom, the AddIsland ladder, RemoveTooMuchOcean,
+AddSnow (the 1/3/4 temperature bands), the three AddEdge modes (the
+COOL_WARM blend, the HEAT_ICE lift, the SPECIAL 4-bit marker that
+dispatches the mesa pair / jungle / mega taiga), the zooms,
+MushroomIsland (the 1-in-100 isle), DeepOcean (the cross census),
+RiverInit (the 299999 markers), BiomeInit (the four tables), BiomeEdge
+(the hills' temperature validity, the mesa/mega-taiga strict edges, the
+desert-against-ice EXTREME_HILLS+, the swamp's flips), RegionHills (the
+hills table + the +128 mutation band + the 3-neighbor census), River
+(the parity curve), Smooth, the sunflower 1-in-57, Shore (the five
+shore laws), OceanRiverMixer (the river draw), VoronoiZoom (the ±1.8
+corner jitter — the block-level grain).
+
+**The wiring** — biomeAt answers the block-level voronoi map (the
+chunk-aligned bounded cache, the reference's BiomeCache shape);
+heightAt couples to the 1:4 grid biome's registration height pair (the
+NAMED ADAPTATION: the engine's fbm stands in for the reference's
+4-noise density stack — the land/ocean coherence the law, the
+block/grid boundary warp the vanilla shore fuzz itself); the surface
+materials consult the registration table's surfaceLegacyId (the sand
+family skin, the stone beach, the mycelium isle, the spikes' snow, the
+mesa's red sand); the spawn scan rides the reference's 7-row allowlist
+(BiomeSource.biomesForSpawnPoint).
+
+**The slice's own catch** — the reference's IntCache two-band pool
+LEAKS the small band (tcache feeds only from the large band's
+discards, and the large pool is always drained by the next query's own
+pushes before pop ever sees it): harmless at the reference's query
+volume (the BiomeCache's 30-second hit window serves most reads) but
+fatal at the engine's per-chunk sampling (the sweep's 16k queries leak
+~200k arrays and OOM the worker — found by the standalone probe after
+the executor died wordlessly twice). The engine's unified size-aware
+pool recycles every array: 245 total allocations across the whole
+16k-query sweep. The adaptation is named in the javadoc with the full
+why.
+
+**The find on the way** — the voronoi boundary warp: the block biome
+and the terrain height derive from the same 1:4 grid but the jitter
+warps the block answers across cell boundaries (~20% of ocean-answering
+blocks sit dry at cell edges; the river band's wet core is ~21% of its
+block extent) — the vanilla shape itself (vanilla's rivers famously
+read dashed at block level), pinned with the coherence tests' majority
+bands rather than false absolutes.
+
+Evidence: GenLayerLayoutTest 8 (the island pin, every temperature
+family + ocean + rivers + mutated forms generating, the coherence, the
+deep-ocean depth, the height bands, the voronoi grain, the per-seed
+determinism, the surface skins) + the worldgen suites 77/0 + the
+world/spawn/entity 632/0 + the block families 462/0 + the named
+packages 385/0 + the root classes 399 (one documented await-flake,
+isolated-green) + protocol 117 (one donkey await-flake, isolated-green)
++ bukkit 38/0 + launcher 47/0 + api 19/0 + the standalone distribution
+probe (plains 1841 / forest 2988 / desert 53 / ocean 1447 / other 10055
+over a 2048² sweep — the whole table generating).
