@@ -549,6 +549,19 @@ public final class BuiltinRecipes {
                     ing("minecraft:paper", false, 0),
                     ing("minecraft:paper", false, 0)),
                     res("minecraft:book", 1, 0)),
+            // The empty map (the map item family — CraftingManager line
+            // 308's own shaped row, 1:1): the eight-paper ring around the
+            // compass. The CLONE and SCALE-UP rows are dynamic-result
+            // recipes (the result carries the source map's id) — they ride
+            // the engine's map consult (MapSystem's crafting family), the
+            // same dynamic family the reference's CloneBookRecipe walks,
+            // never this static table.
+            CraftingRecipe.shaped(new Ingredient[][] {
+                    { ing("minecraft:paper", false, 0), ing("minecraft:paper", false, 0), ing("minecraft:paper", false, 0) },
+                    { ing("minecraft:paper", false, 0), ing("minecraft:compass", false, 0), ing("minecraft:paper", false, 0) },
+                    { ing("minecraft:paper", false, 0), ing("minecraft:paper", false, 0), ing("minecraft:paper", false, 0) }
+            },
+                    res("minecraft:empty_map", 1, 0)),
             // The dye-mix pairs (DyeRecipes.java lines 36-99 — the
             // reference's own registerShapeless set, 1:1): two dyes in the
             // crafting grid yield two of the mixed color. The ingredient

@@ -6588,6 +6588,20 @@ public final class EngineServer implements Server, EngineBridge {
                         .useItemOf(held.type().identifier()), 1);
                 return;
             }
+            // The empty map's use (the map item family —
+            // EmptyMapItem.startUsing lines 14-34): the filled map with
+            // the ALLOCATED id is created at the player's position (scale
+            // 0, the grid snap of updateCenter), one unit leaves the hand
+            // in survival (the creative restore is the interaction
+            // manager's own arm — the engine's established convention),
+            // the stack-of-one replaces the hand outright while a
+            // many-stack adds the copy or drops it, and the use stat
+            // lands on the empty map's own row (the 1.8.8 registry name
+            // "map" — the stat table's own divergence).
+            if (held.type().equals(BuiltinItems.EMPTY_MAP)) {
+                useEmptyMap(session);
+                return;
+            }
             // Food: the eat timer.
             if (Foods.nutritionOf(held.type(), held.damage()).isEmpty()) {
                 return;
@@ -8636,7 +8650,7 @@ public final class EngineServer implements Server, EngineBridge {
      */
     private boolean takeCraftingResult(PlayerSession session, net.zaminmc.torch.server.player.CraftingGrid grid,
                                        net.zaminmc.torch.server.player.PlayerInventory inventory, int button) {
-        net.zaminmc.torch.item.ItemStack result = craftingResultOf(grid);
+        net.zaminmc.torch.item.ItemStack result = craftingResultOf(session, grid);
         if (result.isEmpty()) {
             return true; // nothing crafted: an accepted no-op, the resync realigns
         }
@@ -8647,6 +8661,15 @@ public final class EngineServer implements Server, EngineBridge {
         }
         if (!inventory.takeResultToCursor(wanted)) {
             return false;
+        }
+        // The map family's craft-take walk (FilledMapItem.onResult lines
+        // 195-209 — CraftingResultSlot.checkAchievements' own onResult
+        // call): a scaling-flagged result allocates its own new map id
+        // and the scale+1 data; the CURSOR stack carries the new id (the
+        // reference's stack.setDamage after the take).
+        if (maps != null && wanted.mapScaling()) {
+            inventory.placeOnCursor(
+                    maps.applyScaleUp(session.dimension(), inventory.cursor()));
         }
         awardCraftAchievements(session, result);
         grid.consumeOne();
@@ -8718,8 +8741,31 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /** The preview over a grid of either shape (2x2 player window, 3x3 table). */
-    private net.zaminmc.torch.item.ItemStack craftingResultOf(net.zaminmc.torch.server.player.CraftingGrid grid) {
+    private net.zaminmc.torch.item.ItemStack craftingResultOf(
+            net.zaminmc.torch.server.player.CraftingGrid grid) {
+        return craftingResultOf(null, grid);
+    }
+
+    /**
+     * The preview consult with the crafter's dimension (the map family's
+     * dynamic results — the clone's id-sharing copies and the upscale's
+     * flagged stack — ride AHEAD of the static list: both are the
+     * reference's size-9 recipes, the shaped-first order's own head, and
+     * their ingredient sets (filled_map + empty_map / paper) are disjoint
+     * from every static row so the position never crosses a static match).
+     */
+    private net.zaminmc.torch.item.ItemStack craftingResultOf(
+            PlayerSession session, net.zaminmc.torch.server.player.CraftingGrid grid) {
         var snapshot = grid.snapshotArray();
+        if (session != null && maps != null) {
+            int dimension = session.dimension();
+            if (maps.upscaleMatches(snapshot, grid.cols(), dimension)) {
+                return maps.upscaleResult(snapshot, grid.cols());
+            }
+            if (maps.cloneMatches(snapshot, grid.cols())) {
+                return maps.cloneResult(snapshot, grid.cols());
+            }
+        }
         return (grid.cols() == 3
                         ? crafting.resultOf3x3(snapshot)
                         : crafting.resultOf(snapshot))
@@ -8737,9 +8783,15 @@ public final class EngineServer implements Server, EngineBridge {
     private void craftAllIntoInventory(PlayerSession session, net.zaminmc.torch.server.player.CraftingGrid grid,
                                        net.zaminmc.torch.server.player.PlayerInventory inventory) {
         for (int craft = 0; craft < VANILLA_CRAFT_ALL_BOUND; craft++) {
-            net.zaminmc.torch.item.ItemStack result = craftingResultOf(grid);
+            net.zaminmc.torch.item.ItemStack result = craftingResultOf(session, grid);
             if (result.isEmpty()) {
                 return;
+            }
+            // The map family's craft-take walk (the onResult call before
+            // the absorption — the quick-move's own checkAchievements
+            // site): each upscale iteration allocates its own new map id.
+            if (maps != null && result.mapScaling()) {
+                result = maps.applyScaleUp(session.dimension(), result);
             }
             grid.consumeOne();
             // The crafted-item stat (ContainerWorkbench.onTake's own
@@ -8762,12 +8814,12 @@ public final class EngineServer implements Server, EngineBridge {
     /**
      * The crafting preview for wire sync (window slot 0). Call on the tick
      * thread or before a session's first grid mutation (both call sites of the
-     * adapter qualify); the read is a pure match over a snapshot.
+     * adapter qualify); the read is a pure match over a snapshot (the map
+     * family's dynamic consults ride ahead of the static list).
      */
     public net.zaminmc.torch.item.ItemStack craftingResult(PlayerSession session) {
         Objects.requireNonNull(session, "session");
-        return crafting.resultOf(session.crafting().snapshotArray())
-                .orElse(net.zaminmc.torch.item.ItemStack.EMPTY);
+        return craftingResultOf(session, session.crafting());
     }
 
     /**
@@ -8780,8 +8832,7 @@ public final class EngineServer implements Server, EngineBridge {
         if (session.openContainerWindowId() < 0) {
             return net.zaminmc.torch.item.ItemStack.EMPTY;
         }
-        return crafting.resultOf3x3(session.tableCrafting().snapshotArray())
-                .orElse(net.zaminmc.torch.item.ItemStack.EMPTY);
+        return craftingResultOf(session, session.tableCrafting());
     }
 
     /**
@@ -10872,6 +10923,54 @@ public final class EngineServer implements Server, EngineBridge {
             session.inventory().consumeHeld(1);
             publishInventoryChanged(session);
         }
+    }
+
+    /**
+     * The empty map's use (the map item family — EmptyMapItem.startUsing
+     * lines 14-34, 1:1): the filled map with the id the count law allocates
+     * (the dimension's own table — the reference's per-world
+     * getSavedDataCount("map")), the map data created at scale 0 centered
+     * on the player's position (updateCenter's grid snap), the dimension
+     * row, one unit of the hand in survival (the stack-of-one REPLACES the
+     * held slot outright — the reference's own return — while a many-stack
+     * adds the copy to the inventory or drops it at the player), and the
+     * use stat on the empty map's own row. Tick-thread context.
+     */
+    private void useEmptyMap(PlayerSession session) {
+        if (maps == null) {
+            return;
+        }
+        int dimension = session.dimension();
+        int mapId = maps.createMapAt(dimension,
+                session.position().x(), session.position().z());
+        ItemStack filledMap = ItemStack.of(BuiltinItems.FILLED_MAP, 1).withDamage(mapId);
+        int heldSlot = session.inventory().heldSlot();
+        boolean single = session.inventory().held().count() == 1;
+        if (session.gamemode() != GameMode.CREATIVE) {
+            session.inventory().consumeHeld(1);
+        }
+        if (single || session.gamemode() == GameMode.CREATIVE) {
+            // The creative spare keeps the empty map (the interaction
+            // manager's own restore arm) — the filled map ADDS instead of
+            // replacing.
+            if (session.gamemode() == GameMode.CREATIVE) {
+                ItemStack leftover = session.inventory().pickUp(filledMap);
+                if (!leftover.isEmpty()) {
+                    throwFromPlayer(session, leftover);
+                }
+            } else {
+                session.inventory().setSlot(heldSlot, filledMap);
+            }
+        } else {
+            ItemStack leftover = session.inventory().pickUp(filledMap);
+            if (!leftover.isEmpty()) {
+                throwFromPlayer(session, leftover);
+            }
+        }
+        session.stats().increment(
+                net.zaminmc.torch.server.stat.EngineStats.useItemOf(
+                        BuiltinItems.EMPTY_MAP.identifier()), 1);
+        publishInventoryChanged(session);
     }
 
     /**
