@@ -331,7 +331,7 @@ public final class TorchMob extends TorchEntityView
     }
 
     /** The bridge's own stash (the dispatch walk files the legacy form here). */
-    void lastDamageCause(EntityDamageEvent event) {
+    public void lastDamageCause(EntityDamageEvent event) {
         this.lastDamageCause = event;
         this.lastDamage = event.getDamage();
     }
