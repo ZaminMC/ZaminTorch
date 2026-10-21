@@ -445,6 +445,28 @@ public final class BlockUpdateSystem implements WorldChangeListener {
             }
             return;
         }
+        // The mushroom pair's survival read (VIII8 — MushroomPlantBlock's
+        // canSurviveOrBreak over PlantBlock.neighborChanged lines 60-71, the
+        // same bus the flora family rides): the plant re-reads its own
+        // canSurvive — the mycelium bypass, the podzol row (unshipped — the
+        // counted note), the light-under-13-and-opaque-below law — and pops
+        // with its own item when it fails (PlantBlock.dropItems' default
+        // ItemMultiplied's getItemFromBlock form: the plant item itself).
+        if (MushroomBlocks.isMushroomPlant(type)) {
+            if (MushroomBlocks.canPlantSurviveAt(world, position)) {
+                return; // supported
+            }
+            world.setBlock(position, world.airType());
+            net.zaminmc.torch.item.ItemStack plantDrop = new net.zaminmc.torch.item.ItemStack(
+                    type.identifier().value().equals("brown_mushroom")
+                            ? net.zaminmc.torch.server.item.BuiltinItems.BROWN_MUSHROOM
+                            : net.zaminmc.torch.server.item.BuiltinItems.RED_MUSHROOM,
+                    1);
+            itemEntities.spawnDropAtBlock(
+                    new Position(position.x(), position.y(), position.z()),
+                    plantDrop, ItemEntity.PICKUP_DELAY_DROP_TICKS);
+            return;
+        }
         // The double-plant family's support rules (Slice 45 —
         // DoublePlantBlock.canSurviveOrBreak lines 65-88: the UPPER pops
         // to air when the cell below stops being the family's own lower
