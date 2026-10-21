@@ -145,6 +145,8 @@ public class QueryResponseHandler extends RconBase {
                         this.reply(datastreamhelper.bytes(), packet);
                         this.log("Status [" + socketaddress + "]");
                     }
+                // fall through — the reference's own shape (case 0 falls
+                // into the shared `default: return true` arm, line 115)
                 default:
                     return true;
                 case 9:
