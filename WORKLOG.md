@@ -11452,3 +11452,9 @@ expression).
 Evidence: GrassMushroomGrowthTest 10 + BonemealArmsAcceptanceTest 6 (the
 await-based flake guard — the first cold-boot run's 150ms window raced the
 tick thread once; the paid asserts now poll to their counts).
+
+**The sweep:** the core's three batches green (the block families +
+interaction/use path 256/0, the entity/world/spawn 638/0, the remaining
+packages + root 1066/0 — 1960/0 cumulative) + the protocol 115/0 + the
+bukkit 38/0 + the launcher 47/0 + the api 19/0. Every module green on
+feature/grass-mushroom-growth.
