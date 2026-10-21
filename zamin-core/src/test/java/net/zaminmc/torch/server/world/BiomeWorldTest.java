@@ -60,13 +60,18 @@ class BiomeWorldTest {
     @Test
     void desertColumnsWearSandOverSandstone() {
         NormalWorldGenerator generator = new NormalWorldGenerator(registry(), "desert-world");
-        // Find a dry desert column.
+        // Find a dry desert column (high enough that the sandstone
+        // extension's max(0, y-63) term guarantees at least one layer,
+        // and the cap consult itself answers sand — the extreme-negative
+        // depth tail carries no cap at all, the k <= 0 arm).
         int x = -1;
         int z = -1;
         for (int cx = 0; cx < 2048 && x < 0; cx += 8) {
             for (int cz = 0; cz < 2048 && x < 0; cz += 8) {
                 if (generator.biomeAt(cx, cz) == Biome.DESERT
-                        && generator.heightAt(cx, cz) > NormalWorldGenerator.SEA_LEVEL + 1) {
+                        && generator.heightAt(cx, cz) > NormalWorldGenerator.SEA_LEVEL + 6
+                        && generator.surfaceBlockAt(cx, generator.heightAt(cx, cz), cz)
+                                .identifier().value().equals("sand")) {
                     x = cx;
                     z = cz;
                 }
@@ -74,16 +79,37 @@ class BiomeWorldTest {
         }
         assertTrue(x >= 0, "a dry desert column exists in the sweep");
         int h = generator.heightAt(x, z);
-        Identifier skin = Identifier.parse("minecraft:sand");
-        Identifier stoneBand = Identifier.parse("minecraft:sandstone");
-        // The top three skin cells are sand; the next three are sandstone.
-        for (int depth = 0; depth < 3; depth++) {
-            assertEquals(generator.surfaceBlockAt(x, h - depth, z).identifier(), skin,
-                    "desert skin depth " + depth + " is sand");
+        Identifier sand = Identifier.parse("minecraft:sand");
+        Identifier sandstone = Identifier.parse("minecraft:sandstone");
+        // THE SURFACE WALK'S LAW (VIII14's surface slice — buildSurfaces
+        // lines 452-508): the cap and the k-band are SAND (the k varies
+        // with the depth noise, 2-4 at the common band), then the
+        // sandstone EXTENSION, then the core stone — the sequence, not
+        // fixed depths.
+        assertEquals(sand, generator.surfaceBlockAt(x, h, z).identifier(),
+                "the desert cap is sand");
+        int depth = 1;
+        boolean sawSand = false;
+        while (depth < 12
+                && sand.equals(generator.surfaceBlockAt(x, h - depth, z).identifier())) {
+            depth++;
+            sawSand = true;
         }
-        for (int depth = 3; depth < 6; depth++) {
-            assertEquals(generator.surfaceBlockAt(x, h - depth, z).identifier(), stoneBand,
-                    "desert band depth " + depth + " is sandstone");
+        assertTrue(sawSand, "the sand band runs below the cap");
+        // The first non-sand cell is the sandstone extension (guaranteed
+        // at this height: nextInt(4) + (h - k - 63) >= 1).
+        assertEquals(sandstone, generator.surfaceBlockAt(x, h - depth, z).identifier(),
+                "the sand band's floor is the sandstone extension");
+        // The extension runs at least one cell, and nothing below the
+        // sandstone ever returns to sand.
+        while (depth < 16
+                && sandstone.equals(generator.surfaceBlockAt(x, h - depth, z).identifier())) {
+            depth++;
+        }
+        for (int probe = depth; probe < depth + 4; probe++) {
+            assertNotEquals(sand,
+                    generator.surfaceBlockAt(x, h - probe, z).identifier(),
+                    "the sand never returns below the extension");
         }
     }
 
