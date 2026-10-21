@@ -66,9 +66,49 @@ public final class NormalWorldGenerator implements WorldGenerator {
     private final BlockType sugarCane;
     private final BlockType cactus;
 
+    /** The 1:4 biome grid (Layer.init's first answer — the terrain consult). */
+    private final net.zaminmc.torch.server.world.layer.Layer gridLayer;
+    /** The block-level biome map (Layer.init's second answer — the wire array). */
+    private final net.zaminmc.torch.server.world.layer.Layer voronoiLayer;
+    /**
+     * The voronoi sample cache: 16x16-block chunks of the block-level
+     * map (the reference's BiomeCache shape — the values pure in the
+     * seed, the eviction transparent). Bounded, eldest-out.
+     */
+    private final java.util.LinkedHashMap<Long, int[]> blockBiomeCache =
+            new java.util.LinkedHashMap<>(64, 0.75f, true) {
+                @Override
+                protected boolean removeEldestEntry(
+                        java.util.Map.Entry<Long, int[]> eldest) {
+                    return size() > 1024;
+                }
+            };
+    /**
+     * The 1:4 grid cache: 64x64-block regions (16x16 grid cells) of the
+     * terrain's own biome consult — the height bands read this map.
+     */
+    private final java.util.LinkedHashMap<Long, int[]> gridBiomeCache =
+            new java.util.LinkedHashMap<>(64, 0.75f, true) {
+                @Override
+                protected boolean removeEldestEntry(
+                        java.util.Map.Entry<Long, int[]> eldest) {
+                    return size() > 512;
+                }
+            };
+
     public NormalWorldGenerator(BlockRegistry registry, String worldName) {
         this.registry = Objects.requireNonNull(registry, "registry");
         this.seed = 0x5A4D494E5C00L ^ worldName.hashCode() * 0x9E3779B97F4L;
+        // The biome layout (VIII14's second slice — Layer.init 1:1, the
+        // DEFAULT type's chain): grid[0] answers the 1:4 biome grid the
+        // terrain's height bands consult, voronoi[1] answers the
+        // block-level biome map the chunk's wire array carries. The
+        // caches hold the last regions sampled (bounded LRU — the
+        // values are pure functions of the seed, eviction transparent).
+        net.zaminmc.torch.server.world.layer.Layer[] layers =
+                net.zaminmc.torch.server.world.layer.Layer.init(this.seed);
+        this.gridLayer = layers[0];
+        this.voronoiLayer = layers[1];
         this.mineshafts = new net.zaminmc.torch.server.world.structure.MineshaftStructure(this.seed);
         this.villages = new net.zaminmc.torch.server.world.structure.VillageStructure(this.seed);
         this.structurePalette = net.zaminmc.torch.server.world.structure.StructurePalette.of(registry);
@@ -136,36 +176,80 @@ public final class NormalWorldGenerator implements WorldGenerator {
         this.sandstone = registry.require(Identifier.parse("minecraft:sandstone"));
         this.sugarCane = registry.require(Identifier.parse("minecraft:sugar_cane"));
         this.cactus = registry.require(Identifier.parse("minecraft:cactus"));
+        // The spawn scan LAST (the layers and the structures are up; the
+        // scan consults biomeAt and heightAt over the layout).
+        this.spawnColumnHeight = scanSpawnColumn();
     }
 
     /**
-     * The column's biome: the ocean bands over the pure surface height (the
-     * water body where the terrain sits below the sea — the deep band five
-     * below, Slice 12e's monument gate), then the low-frequency climate pair
-     * (temperature decides desert-ness, moisture decides forest-ness) with
-     * the plains remainder — the historical climate-noise shape the
-     * community generators use.
+     * The column's biome (VIII14's second slice — the vanilla layout):
+     * the block-level voronoi map over the ~30-layer chain, the chunk
+     * cache answering (the reference's BiomeCache shape —
+     * BiomeSource.getBiome over alayer[1]). The old climate-noise
+     * shading is retired: every biome the reference's DEFAULT chain
+     * produces can now generate, the mutated forms included (the
+     * RegionHills +128 band, the sunflower roll).
      */
     public Biome biomeAt(int x, int z) {
-        int surface = heightAt(x, z);
-        if (surface < SEA_LEVEL - 4) {
-            return Biome.DEEP_OCEAN;
+        long key = (long) (x >> 4) | ((long) (z >> 4) << 32);
+        int[] cell;
+        synchronized (blockBiomeCache) {
+            cell = blockBiomeCache.get(key);
+            if (cell == null) {
+                cell = sampleArea(voronoiLayer, (x >> 4) << 4,
+                        (z >> 4) << 4, 16, 16);
+                blockBiomeCache.put(key, cell);
+            }
         }
-        if (surface < SEA_LEVEL) {
-            return Biome.OCEAN;
+        int id = cell[(x & 15) + (z & 15) * 16] & 0xFF;
+        Biome biome = Biome.byLegacyId(id);
+        return biome == null ? Biome.PLAINS : biome;
+    }
+
+    /**
+     * The terrain's own biome consult: the 1:4 grid sample (the
+     * reference's getNoiseBiomes — the height-band input the generator's
+     * own 5x5 kernel walk reads).
+     */
+    private Biome gridBiomeAt(int x, int z) {
+        int cellX = x >> 2;
+        int cellZ = z >> 2;
+        long key = (long) (cellX >> 4) | ((long) (cellZ >> 4) << 32);
+        int[] region;
+        synchronized (gridBiomeCache) {
+            region = gridBiomeCache.get(key);
+            if (region == null) {
+                region = sampleArea(gridLayer, (cellX >> 4) << 4,
+                        (cellZ >> 4) << 4, 16, 16);
+                gridBiomeCache.put(key, region);
+            }
         }
-        double temperature = fbm2(x * 0.0016 + 4_000, z * 0.0016 - 4_000, 2);
-        double moisture = fbm2(x * 0.0022 - 8_000, z * 0.0022 + 8_000, 2);
-        if (temperature > 0.66 && moisture < 0.42) {
-            return Biome.DESERT;
+        int id = region[(cellX & 15) + (cellZ & 15) * 16] & 0xFF;
+        Biome biome = Biome.byLegacyId(id);
+        return biome == null ? Biome.PLAINS : biome;
+    }
+
+    /**
+     * The shared sampling lock: the grid and voronoi chains share their
+     * layers (the voronoi's parent IS the grid layer), and every layer
+     * carries mutable seed state — the reference's own single-threaded
+     * discipline, the engine's lock.
+     */
+    private final Object layerLock = new Object();
+
+    /**
+     * One top-level area query: the reference's IntCache discipline
+     * (pop the previous query's arrays back to the reuse pool, push the
+     * new one) with the result CLONED out — the cached array must never
+     * ride the reuse pool (a later query would overwrite it).
+     */
+    private int[] sampleArea(
+            net.zaminmc.torch.server.world.layer.Layer layer,
+            int x, int z, int sizeX, int sizeZ) {
+        synchronized (layerLock) {
+            net.zaminmc.torch.server.world.layer.IntCache.pop();
+            return layer.getArea(x, z, sizeX, sizeZ).clone();
         }
-        if (temperature > 0.68 && moisture > 0.64) {
-            return Biome.JUNGLE;
-        }
-        if (moisture > 0.56) {
-            return Biome.FOREST;
-        }
-        return Biome.PLAINS;
     }
 
     @Override
@@ -181,14 +265,26 @@ public final class NormalWorldGenerator implements WorldGenerator {
     /** The first dry column on the +x diagonal (deterministic spawn anchor). */
     private int spawnX;
     private int spawnZ;
-    private int spawnColumnHeight = scanSpawnColumn();
+    private int spawnColumnHeight;
 
+    /**
+     * The spawn column scan (the reference's own allowlist —
+     * BiomeSource.biomesForSpawnPoint: FOREST, PLAINS, TAIGA,
+     * TAIGA_HILLS, FOREST_HILLS, JUNGLE, JUNGLE_HILLS): the first dry
+     * column on the +x diagonal inside one of the seven, the (0,0)
+     * land pin guaranteeing the search starts on a continent.
+     */
     private int scanSpawnColumn() {
-        for (int r = 0; r < 64; r += 4) {
+        for (int r = 0; r < 256; r += 4) {
             int x = r;
             int z = r;
+            Biome biome = biomeAt(x, z);
+            boolean allowed = biome == Biome.FOREST || biome == Biome.PLAINS
+                    || biome == Biome.TAIGA || biome == Biome.TAIGA_HILLS
+                    || biome == Biome.FOREST_HILLS || biome == Biome.JUNGLE
+                    || biome == Biome.JUNGLE_HILLS;
             int h = heightAt(x, z);
-            if (h > SEA_LEVEL + 1 && h < 100) {
+            if (allowed && h > SEA_LEVEL + 1 && h < 100) {
                 spawnX = x;
                 spawnZ = z;
                 return h;
@@ -394,10 +490,11 @@ public final class NormalWorldGenerator implements WorldGenerator {
             return air;
         }
         int skinDepth = h - y;
-        if (biome == Biome.DESERT && !underwater) {
-            // The desert's skin: three sand over a sandstone band, the
-            // historical sand-sandstone column shape.
-            if (skinDepth == 0 || skinDepth <= 2) {
+        if (surfaceIsSandFamily(biome) && !underwater) {
+            // The sand family's skin (the registration table's own
+            // surface pair — the desert/beach bands): three sand over a
+            // sandstone band, the historical sand-sandstone column shape.
+            if (skinDepth <= 2) {
                 return sand;
             }
             if (skinDepth <= 6) {
@@ -405,16 +502,55 @@ public final class NormalWorldGenerator implements WorldGenerator {
             }
             return oreOrStone(x, y, z);
         }
+        if (biome == Biome.STONE_BEACH && !underwater && skinDepth <= 3) {
+            // The stone beach's skin (the registration pair: stone/stone).
+            return stone;
+        }
         if (skinDepth == 0) {
             if (underwater) {
                 return seaFloor(x, z);
             }
-            return h <= SEA_LEVEL + 1 ? sand : grass; // the beach band
+            return surfaceMaterialOf(biome, h);
         }
         if (skinDepth <= 3) {
             return underwater ? sand : dirt;
         }
         return oreOrStone(x, y, z);
+    }
+
+    /**
+     * The sand-surface family (the registration table's surface pair:
+     * the desert pair, the beach pair, and their mutated forms).
+     */
+    private static boolean surfaceIsSandFamily(Biome biome) {
+        return biome.surfaceLegacyId() == 12;
+    }
+
+    /**
+     * The surface material (the registration table's surfaceLegacyId —
+     * the first slice's own consult): grass on the temperate band, the
+     * mycelium on the mushroom isle, the snow on the spikes, the red
+     * sand on the mesa family; the height band's own beach sand stays
+     * the near-sea fallback.
+     */
+    private BlockType surfaceMaterialOf(Biome biome, int h) {
+        if (h <= SEA_LEVEL + 1) {
+            return sand; // the near-sea band's own beach
+        }
+        return switch (biome.surfaceLegacyId()) {
+            case 1 -> stone;
+            case 12 -> sand;
+            case 80 -> Objects.requireNonNull(
+                    registry.lookup(Identifier.parse("minecraft:snow"))
+                            .orElse(grass), "snow"); // the ice spikes' surface
+            case 110 -> Objects.requireNonNull(
+                    registry.lookup(Identifier.parse("minecraft:mycelium"))
+                            .orElse(grass), "mycelium");
+            case 179 -> Objects.requireNonNull(
+                    registry.lookup(Identifier.parse("minecraft:red_sand"))
+                            .orElse(sand), "red sand");
+            default -> grass; // the grass/dirt temperate default
+        };
     }
 
     private BlockType seaFloor(int x, int z) {
@@ -442,14 +578,29 @@ public final class NormalWorldGenerator implements WorldGenerator {
         return stone;
     }
 
-    /** The column height: fBm plains plus a squared mountain octave. */
+    /**
+     * The column height (VIII14's second slice — the biome-band
+     * coupling): the 1:4 grid biome's own registration height pair
+     * (the baseHeight/heightVariation the registration table carries)
+     * names the band — {@code 64 + baseHeight * 17} over the engine's
+     * own fbm variation scaled by the biome's variation band (the
+     * named adaptation: the reference's own 4-noise density stack
+     * interpolates the same bands through its 5x5 kernel — the engine's
+     * column model answers the same ordering and magnitudes, its fbm
+     * standing in for the perlin stack). The land/ocean coherence is
+     * the law: ocean cells sit below the sea, land cells above, rivers
+     * carve (the river band's -0.5 base), the plateaus tower.
+     */
     public int heightAt(int x, int z) {
+        Biome biome = gridBiomeAt(x, z);
         double rolling = fbm2(x * 0.0085, z * 0.0085, 3);
         double mountains = fbm2(x * 0.0035 + 1_000, z * 0.0035 - 1_000, 2);
-        double hill = (rolling - 0.5) * 12.0;
-        double ridge = Math.max(0.0, mountains - 0.58) * 90.0; // only the high band rises
-        int h = 60 + (int) Math.round(hill + ridge);
-        return Math.max(24, Math.min(120, h));
+        int base = 64 + Math.round(biome.baseHeight() * 17.0f);
+        double hill = (rolling - 0.5) * (6.0 + biome.heightVariation() * 17.0);
+        double ridge = Math.max(0.0, mountains - 0.58) * 90.0
+                * (0.5 + biome.heightVariation());
+        int h = base + (int) Math.round(hill + ridge);
+        return Math.max(8, Math.min(120, h));
     }
 
     /**
