@@ -697,7 +697,8 @@ public final class TorchEventBridge {
                 + "cancellable in the legacy forms (the 1.8.8 shapes; the native gates "
                 + "keep their own cancel arms), each dispatch logged; the container "
                 + "family rides the inventory group below (the slice-4 lane)");
-                + "inventory slice's own lane)");
+    }
+
     // ------------------------------------------------------------------ the inventory group (slice 4 — this lane's third group)
 
     /**
