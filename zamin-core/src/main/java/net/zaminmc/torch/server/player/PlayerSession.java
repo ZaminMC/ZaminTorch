@@ -48,6 +48,13 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
     private volatile int ridingVehicleId = -1;
     /** The mob mount this body rides (engine id, -1 = on foot; the horse/pig slice). */
     private volatile int ridingMobId = -1;
+    /**
+     * The minecart travel window (VIII6 — PlayerEntity.minecartTravelStartPos
+     * line 107): the block cell where the CURRENT cart ride began, null on
+     * foot (line 280's reset) — the onARail displacement anchor. Tick-lane
+     * owned like the ride ids' writers.
+     */
+    private net.zaminmc.torch.block.BlockPosition minecartTravelStart;
     private volatile boolean onGround = true;
     /** The open container window id (crafting table, furnace), or -1 when none. Tick-thread written, volatile-read by the adapter's sync. */
     private volatile int containerWindowId = -1;
@@ -1084,6 +1091,16 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
     /** @return whether the body sits in any seat (vehicle or mob mount). */
     public boolean ridingAny() {
         return ridingVehicleId >= 0 || ridingMobId >= 0;
+    }
+
+    /** The cart-ride window's anchor (VIII6 — null when the ride has not begun). */
+    public net.zaminmc.torch.block.BlockPosition minecartTravelStart() {
+        return minecartTravelStart;
+    }
+
+    /** Sets the cart-ride window's anchor (the first move of a cart ride). */
+    public void setMinecartTravelStart(net.zaminmc.torch.block.BlockPosition start) {
+        this.minecartTravelStart = start;
     }
 
     public boolean onGround() {

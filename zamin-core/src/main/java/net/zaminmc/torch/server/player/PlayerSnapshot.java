@@ -31,6 +31,9 @@ import java.util.UUID;
  *                   the player never slept)
  * @param enderSlots the non-empty ender chest slots (ZPD v8+; slot 0-26,
  *                   the player's private grid)
+ * @param progress   the achievement progress rows (ZPD v11; the all-biomes
+ *                   row's string set — the reference's AchievementProgress
+ *                   carriage over the stats file's progress arm)
  */
 public record PlayerSnapshot(UUID uuid, String name, Position position, Rotation rotation,
                              int heldSlot, List<SlotStack> slots,
@@ -38,7 +41,19 @@ public record PlayerSnapshot(UUID uuid, String name, Position position, Rotation
                              int gamemodeId, long totalXp, Position bedSpawn,
                              List<SlotStack> enderSlots,
                              Map<String, Integer> stats,
-                             Map<String, String> commandStats) {
+                             Map<String, String> commandStats,
+                             Map<String, java.util.Set<String>> progress) {
+
+    /** The pre-progress shape (ZPD v1-v10 readers and engine callers without one). */
+    public PlayerSnapshot(UUID uuid, String name, Position position, Rotation rotation,
+                          int heldSlot, List<SlotStack> slots,
+                          float health, int food, float saturation,
+                          int gamemodeId, long totalXp, Position bedSpawn,
+                          List<SlotStack> enderSlots, Map<String, Integer> stats,
+                          Map<String, String> commandStats) {
+        this(uuid, name, position, rotation, heldSlot, slots, health, food, saturation,
+                gamemodeId, totalXp, bedSpawn, enderSlots, stats, commandStats, Map.of());
+    }
 
     /** The pre-command-stats shape (ZPD v1-v9 readers and engine callers without one). */
     public PlayerSnapshot(UUID uuid, String name, Position position, Rotation rotation,
@@ -47,7 +62,7 @@ public record PlayerSnapshot(UUID uuid, String name, Position position, Rotation
                           int gamemodeId, long totalXp, Position bedSpawn,
                           List<SlotStack> enderSlots, Map<String, Integer> stats) {
         this(uuid, name, position, rotation, heldSlot, slots, health, food, saturation,
-                gamemodeId, totalXp, bedSpawn, enderSlots, stats, Map.of());
+                gamemodeId, totalXp, bedSpawn, enderSlots, stats, Map.of(), Map.of());
     }
     /** The pre-stats shape (ZPD v1-v8 readers and engine callers without one). */
     public PlayerSnapshot(UUID uuid, String name, Position position, Rotation rotation,

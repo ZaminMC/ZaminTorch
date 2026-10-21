@@ -371,6 +371,18 @@ public final class MobManager {
         }
 
         /**
+         * The breed's cause-carrying form (VIII6 — AnimalBreedGoal.breed
+         * lines 84-89: the love-causing player's engine id, captured before
+         * the reset clears the rows; -1 when nature alone paired them).
+         * The default hands off to the plain form (source compatibility
+         * for the observers that never consult the cause).
+         */
+        default void onMobBred(MobEntity parent, MobEntity mate, MobEntity baby,
+                               int causePlayerId) {
+            onMobBred(parent, mate, baby);
+        }
+
+        /**
          * The witch's drinking flag flipped (the index-21 metadata byte —
          * the client raises the drinking pose and the held potion).
          */
@@ -548,6 +560,21 @@ public final class MobManager {
     /** Wires the {@code doMobLoot} read (the game-rule table's loot gate). */
     public void setMobLootRead(java.util.function.BooleanSupplier mobLootRead) {
         this.mobLootRead = java.util.Objects.requireNonNull(mobLootRead, "mobLootRead");
+    }
+
+    /**
+     * The player-stat award seam (VIII6 — the body-side award sites whose
+     * walks live inside a body's own tick, the reference's
+     * {@code playerentity.incrementStat} calls): given the earning player's
+     * engine id and the stat key, the engine resolves the session and
+     * increments. Injected into every spawned body (the spawn walk); null
+     * keeps the sites no-ops.
+     */
+    private volatile java.util.function.BiConsumer<Integer, String> playerStatAward;
+
+    /** Wires the player-stat award seam (the engine's own resolution walk). */
+    public void setPlayerStatAward(java.util.function.BiConsumer<Integer, String> award) {
+        this.playerStatAward = java.util.Objects.requireNonNull(award, "award");
     }
 
     /** @return whether mob loot may drop (the doMobLoot rule's view). */
@@ -751,6 +778,11 @@ public final class MobManager {
         }
         mob.setBreedFinder(this::scanForMate);
         mob.setRemovalHook(() -> remove(mob, "api")); // the public despawn path
+        if (playerStatAward != null) {
+            // VIII6: the body-side award sites' seam (the pig's rider fall —
+            // the engine resolves the rider session by id at the award).
+            mob.setPlayerStatAward(playerStatAward);
+        }
         var detacher = leashDetacher;
         if (detacher != null) {
             mob.setLeashDetacher(drop -> detacher.accept(mob, drop)); // the public unleash path
@@ -1715,8 +1747,14 @@ public final class MobManager {
         }
 
         // The deferred breeds land after the iteration (the loop is closed).
+        // The love re-verification (VIII6's diag catch — the reference's
+        // GoalSelector order: A's breed resets BOTH loves before B's own
+        // goal walk runs, so a same-tick double request lands ONE child;
+        // the deferred flush re-reads the love gate for the same shape).
         for (MobEntity[] pair : pendingBreeds) {
-            breed(pair[0], pair[1]);
+            if (pair[0].isInLove() && pair[1].isInLove()) {
+                breed(pair[0], pair[1]);
+            }
         }
         // The deferred slime splits land after the iteration too.
         for (MobEntity parent : pendingSlimeSplits) {
@@ -3366,6 +3404,13 @@ public final class MobManager {
         if (parent.dead() || mate.dead()) {
             return;
         }
+        // The CAUSE player (VIII6 — AnimalBreedGoal.breed lines 84-89's own
+        // read: the parent's love player first, the mate's as the fallback,
+        // captured BEFORE the reset clears the rows).
+        int causePlayerId = parent.lovePlayerId();
+        if (causePlayerId <= 0) {
+            causePlayerId = mate.lovePlayerId();
+        }
         MobEntity baby = spawnAt(childTypeOf(parent, mate), parent.position());
         baby.setHorseSubtype(childSubtypeOf(parent, mate));
         if (baby.type() == MobType.RABBIT) {
@@ -3384,7 +3429,7 @@ public final class MobManager {
         mate.resetLove();
         baby.setBreedingAge(MobEntity.CHILDHOOD_TICKS);
         for (Listener listener : listeners) {
-            listener.onMobBred(parent, mate, baby);
+            listener.onMobBred(parent, mate, baby, causePlayerId);
             listener.onMobLoveBurst(parent); // the celebration hearts
         }
     }

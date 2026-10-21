@@ -37,7 +37,10 @@ import java.util.logging.Logger;
  * experience total and v7 the bed spawn (absent-marker first), so
  * experience total (varlong) after the game mode; v5 files load with 0 XP;
  * v9 appends the statistics map (varint count of key(string) + value(varint)
- * pairs) after the ender tail; v8 files load with empty stats.</p>
+ * pairs) after the ender tail; v8 files load with empty stats; v11 appends
+ * the achievement-progress rows (varint count of stat key(string) + set
+ * size(varint) + the strings) after the command-stat tail; v10 files load
+ * with no progress.</p>
  *
  * <p>The same durability rules as the world store: writes are atomic (temp file
  * then atomic move), corrupt files load as absent and are preserved beside the
@@ -49,7 +52,7 @@ public final class PlayerDataStore {
     private static final int MAGIC_0 = 'Z';
     private static final int MAGIC_1 = 'P';
     private static final int MAGIC_2 = 'D';
-    private static final int FORMAT_VERSION = 10;
+    private static final int FORMAT_VERSION = 11;
 
     private final Path directory;
 
@@ -122,6 +125,18 @@ public final class PlayerDataStore {
                 for (java.util.Map.Entry<String, String> pair : snapshot.commandStats().entrySet()) {
                     writeString(out, pair.getKey());
                     writeString(out, pair.getValue());
+                }
+                // ZPD v11: the achievement-progress tail (VIII6 — the
+                // reference's ServerPlayerStats.serialize progress arm: the
+                // all-biomes row's string set, one row per carrying stat).
+                writeVarInt(out, snapshot.progress().size());
+                for (java.util.Map.Entry<String, java.util.Set<String>> row
+                        : snapshot.progress().entrySet()) {
+                    writeString(out, row.getKey());
+                    writeVarInt(out, row.getValue().size());
+                    for (String value : row.getValue()) {
+                        writeString(out, value);
+                    }
                 }
             }
             Files.move(temp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
@@ -216,9 +231,30 @@ public final class PlayerDataStore {
                     commandStats.put(readString(in), readString(in));
                 }
             }
+            // Version 11 appends the achievement-progress rows (the
+            // all-biomes set); older saves load none.
+            java.util.Map<String, java.util.Set<String>> progress = new java.util.LinkedHashMap<>();
+            if (version >= 11) {
+                int rowCount = readVarInt(in);
+                if (rowCount < 0 || rowCount > 64) {
+                    throw new IOException("Implausible progress row count: " + rowCount);
+                }
+                for (int i = 0; i < rowCount; i++) {
+                    String key = readString(in);
+                    int size = readVarInt(in);
+                    if (size < 0 || size > 1024) {
+                        throw new IOException("Implausible progress set size: " + size);
+                    }
+                    java.util.Set<String> values = new java.util.LinkedHashSet<>();
+                    for (int j = 0; j < size; j++) {
+                        values.add(readString(in));
+                    }
+                    progress.put(key, values);
+                }
+            }
             return Optional.of(new PlayerSnapshot(uuid, name, position, rotation, heldSlot,
                     stacks, health, food, saturation, gamemodeId, totalXp, bedSpawn, enderSlots,
-                    stats, commandStats));
+                    stats, commandStats, progress));
         } catch (IOException | RuntimeException corrupt) {
             // A malformed value (bad identifier, out-of-range slot) is corruption
             // just as much as a broken header: quarantine, then treat as absent.

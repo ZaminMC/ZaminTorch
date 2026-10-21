@@ -972,6 +972,21 @@ public final class MobEntity implements LivingEntity {
     private boolean pendingAmbientHearts;
     private boolean grewUpThisTick;
 
+    /**
+     * The player-stat award seam (VIII6 — the body-side award sites whose
+     * walks live inside the entity's own tick, the reference's
+     * {@code playerentity.incrementStat} calls): given the earning player's
+     * ENGINE id and the stat key, the engine resolves the session and
+     * increments. Injected by the manager at spawn (the removal-hook
+     * pattern); null keeps the sites no-ops (the manager-less test bodies).
+     */
+    private java.util.function.BiConsumer<Integer, String> playerStatAward;
+
+    /** Wires the player-stat award seam (the manager's own spawn walk). */
+    public void setPlayerStatAward(java.util.function.BiConsumer<Integer, String> award) {
+        this.playerStatAward = award;
+    }
+
     /** The mate scanner ({@code World.getEntitiesOfType} in the goal). */
     public interface BreedFinder {
         MobEntity findMate(MobEntity seeker);
@@ -8203,6 +8218,13 @@ public final class MobEntity implements LivingEntity {
      * at {@code fuseTime - 5}.
      */
     public void takeFallDamage(float distance, float damageMultiplier) {
+        // The pig's rider fall (VIII6 — PigEntity.takeFallDamage lines
+        // 162-168: the super walk runs whole, then a fall past five blocks
+        // with a rider aboard earns the flyPig row — the rider's own stat
+        // store, the manager-injected award seam resolving the engine id).
+        if (type == MobType.PIG && distance > 5.0f && riderId >= 0 && playerStatAward != null) {
+            playerStatAward.accept(riderId, "achievement.flyPig");
+        }
         if (type == MobType.IRON_GOLEM || type == MobType.SNOW_GOLEM
                 || type == MobType.GHAST || type == MobType.MAGMA_CUBE
                 || type == MobType.BAT || type == MobType.BLAZE
