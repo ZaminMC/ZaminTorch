@@ -330,6 +330,10 @@ public final class EngineServer implements Server, EngineBridge {
     private net.zaminmc.torch.server.block.ScheduledTickDataStore scheduledTickStore;
     /** The village surface (VIII10 — SavedVillageData over the engine's per-system shape). */
     private net.zaminmc.torch.server.village.VillageSystem villageSystem;
+
+    /** The public §27.3 village-census view (null until the world boots). */
+    private volatile net.zaminmc.torch.village.Villages villagesView
+            = net.zaminmc.torch.village.Villages.EMPTY;
     /** The village census's own persistence (the ZVI store). */
     private net.zaminmc.torch.server.village.VillageDataStore villageStore;
     /** The redstone signal engine (Slice 9a): the wire cascade + the family dispatch + the delayed reactions. */
@@ -1005,6 +1009,11 @@ public final class EngineServer implements Server, EngineBridge {
                         new VillageSurface(), new java.util.Random(worldSeed ^ 0x56534947L));
                 var loadedVillages = villageStore.load();
                 villageSystem.restore(loadedVillages.rows(), loadedVillages.ticks());
+                // The public §27.3 query view (the VIII10 exposure): the
+                // census's own reads dressed as the api's snapshot surface
+                // (the copied door rows + reputation tables, any thread).
+                villagesView = new net.zaminmc.torch.server.village.VillageViews(
+                        villageSystem);
                 // The manager's own consults ride the same system (the
                 // villager's markForUpdate cadence, the mating gate, the
                 // golem's defense consult, the reputation hooks).
@@ -2529,6 +2538,11 @@ public final class EngineServer implements Server, EngineBridge {
                 world.attachRedstoneView(
                         new net.zaminmc.torch.server.redstone.RedstoneSignalViews(
                                 redstoneSystem));
+                // The public §27.3 growth-family view (the VIII2/VII7/VIII8
+                // exposure): the stage/age/survival consults over the
+                // engine's own static tables + the live light reads.
+                world.attachGrowthView(
+                        new net.zaminmc.torch.server.block.GrowthViews(world));
                 // The public §27.3 primed-TNT view: the live fuse bodies.
                 world.attachPrimedTntView(tntSystem::primedBodies);
                 ticker.setTickHandler(() -> {
@@ -16771,10 +16785,16 @@ public final class EngineServer implements Server, EngineBridge {
 
     /**
      * The village surface (VIII10 — the door census, the golem spawn, the
-     * reputation table, the mating window): the public consult.
+     * reputation table, the mating window): the public §27.3 query view
+     * (the census snapshot rows — villages(), nearest()). The raw engine
+     * accessor the slice landed with (the same name returning the engine
+     * system) had no callers and retired with the api's exposure — core
+     * tests reach the system through its own package.
      */
-    public net.zaminmc.torch.server.village.VillageSystem villages() {
-        return villageSystem;
+    @Override
+    public net.zaminmc.torch.village.Villages villages() {
+        var view = villagesView;
+        return view == null ? net.zaminmc.torch.village.Villages.EMPTY : view;
     }
 
     /**
@@ -25016,6 +25036,11 @@ public final class EngineServer implements Server, EngineBridge {
             implements net.zaminmc.torch.server.piston.PistonSystem.Pushable {
 
         @Override
+        public net.zaminmc.torch.entity.Entity apiEntity() {
+            return mob; // the engine object IS the handle (§27.5)
+        }
+
+        @Override
         public void pushBy(double dx, double dy, double dz) {
             mob.pushBy(dx, dy, dz);
         }
@@ -25035,6 +25060,11 @@ public final class EngineServer implements Server, EngineBridge {
             implements net.zaminmc.torch.server.piston.PistonSystem.Pushable {
 
         @Override
+        public net.zaminmc.torch.entity.Entity apiEntity() {
+            return item; // the engine object IS the handle (§27.5)
+        }
+
+        @Override
         public void pushBy(double dx, double dy, double dz) {
             item.pushBy(items.ground(), dx, dy, dz);
         }
@@ -25051,6 +25081,11 @@ public final class EngineServer implements Server, EngineBridge {
     private record PistonVehiclePush(
             net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle)
             implements net.zaminmc.torch.server.piston.PistonSystem.Pushable {
+
+        @Override
+        public net.zaminmc.torch.entity.Entity apiEntity() {
+            return vehicle; // the engine object IS the handle (§27.5)
+        }
 
         @Override
         public void pushBy(double dx, double dy, double dz) {
