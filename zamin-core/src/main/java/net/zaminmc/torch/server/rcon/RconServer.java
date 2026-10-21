@@ -25,7 +25,11 @@ import java.util.Map;
  *   <li>{@link #stop()} closes the listener AND every live client socket
  *       and interrupts the client threads — a stopped engine server must
  *       not keep blocked remote-admin threads alive (the launcher's
- *       idempotent shutdown law; the reference had no stop verb).</li>
+ *       idempotent shutdown law; the reference had no stop verb). To make
+ *       that walk airtight the map seat is taken BEFORE the client thread
+ *       starts (the reference's own order runs one instruction the other
+ *       way — a live-but-unmapped client would leak a parked thread past
+ *       a racing stop).</li>
  * </ul>
  */
 public class RconServer extends RconBase {
@@ -106,8 +110,14 @@ public class RconServer extends RconBase {
                     Socket socket = this.listener.accept();
                     socket.setSoTimeout(500);
                     RconClient rconclient = new RconClient(this.server, socket);
-                    rconclient.start();
+                    // The engine's stop-verb reorder (the reference starts
+                    // the thread BEFORE the map seat, lines 72-74 — a stop
+                    // racing the accept could then miss a live client whose
+                    // thread is already parked in the infinite read): the
+                    // seat goes in first so the stop walk always closes
+                    // every accepted connection.
                     this.clients.put(socket.getRemoteSocketAddress(), rconclient);
+                    rconclient.start();
                     this.removeStoppedClients();
                 } catch (SocketTimeoutException sockettimeoutexception) {
                     this.removeStoppedClients();

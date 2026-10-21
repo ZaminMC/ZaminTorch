@@ -143,11 +143,17 @@ public abstract class RconBase implements Runnable {
         this.forceClose(false);
     }
 
-    /** The reference lines 115-136. */
+    /**
+     * The reference lines 115-136. The engine's stop verb made this walk
+     * cross-thread (the run loop's own finally calls it from the listener
+     * thread while a shutdown-thread stop can be mid-walk), so each loop
+     * iterates a SNAPSHOT of its list — both callers then close idempotently
+     * (closeSocket consults isClosed) and the clears are safe to run twice.
+     */
     protected void forceClose(boolean warn) {
         int i = 0;
 
-        for (DatagramSocket datagramsocket : this.sockets) {
+        for (DatagramSocket datagramsocket : new ArrayList<>(this.sockets)) {
             if (this.closeSocket(datagramsocket, false)) {
                 i++;
             }
@@ -155,7 +161,7 @@ public abstract class RconBase implements Runnable {
 
         this.sockets.clear();
 
-        for (ServerSocket serversocket : this.closeableSockets) {
+        for (ServerSocket serversocket : new ArrayList<>(this.closeableSockets)) {
             if (this.closeSocket(serversocket, false)) {
                 i++;
             }
