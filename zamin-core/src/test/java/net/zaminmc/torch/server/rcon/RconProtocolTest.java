@@ -308,6 +308,54 @@ class RconProtocolTest {
     }
 
     @Test
+    void theRestartedListenerRebindsTheSamePort() throws Exception {
+        // The engine-side SO_REUSEADDR law (RconServer.start's named
+        // difference): stop()'s server-side close parks the accepted
+        // connection's shared local port in TIME_WAIT for ~60s; without the
+        // flag a restarted engine could not rebind its own rcon.port and
+        // the degrade law would silently disable the listener — the
+        // restart hazard the engine's shutdown law forbids. The rebind
+        // retries with a drain beat: the just-closed connection first
+        // spends a few milliseconds in FIN_WAIT (the in-flight close
+        // handshake, which NO socket flag bypasses — a bind racing it
+        // answers EADDRINUSE; every real restart drains those beats for
+        // free), and then SO_REUSEADDR alone owns the port — the 60s
+        // TIME_WAIT tail the retry window (5s) deliberately cannot wait
+        // out, so the flag stays load-bearing for the pin.
+        int port = RconTestHarness.ephemeralTcpPort();
+        startServer("torch-secret", port);
+        try (Socket socket = RconTestHarness.connect(port)) {
+            auth(socket, 3, "torch-secret");
+            server.stop(); // the SERVER side closes first -> TIME_WAIT on the port
+        }
+        assertFalse(server.isRunning());
+        RconServer restarted = new RconServer(access);
+        long deadline = System.currentTimeMillis() + 5_000;
+        do {
+            restarted.start(); // a failed bind stays degraded; start() retries
+            if (restarted.isRunning()) {
+                break;
+            }
+            Thread.sleep(50); // the FIN-WAIT drain beat
+        } while (System.currentTimeMillis() < deadline);
+        try {
+            assertTrue(restarted.isRunning(),
+                    "the same port rebinds after a stop closed a live connection: "
+                            + access.warnings);
+            try (Socket socket = RconTestHarness.connect(port)) {
+                auth(socket, 5, "torch-secret");
+                RconTestHarness.send(socket,
+                        RconTestHarness.rconPacket(6, SERVERDATA_EXECCOMMAND, "list"));
+                RconTestHarness.Response response =
+                        RconTestHarness.readResponse(socket.getInputStream());
+                assertEquals(6, response.id(), "the restarted listener executes again");
+            }
+        } finally {
+            restarted.stop();
+        }
+    }
+
+    @Test
     void theAuthPasswordCompareSurvivesTheNullTerminator() throws Exception {
         // BufferHelper.getString stops at the NUL (lines 8-17): the client's
         // trailing terminator never leaks into the compared password.
