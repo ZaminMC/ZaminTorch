@@ -2748,6 +2748,16 @@ public final class EngineServer implements Server, EngineBridge {
                         return net.zaminmc.torch.server.block.WorldSolidity.isSolid(
                                 world.getBlock(target.offset(0, -1, 0)));
                     }
+                    if (name.equals("brown_mushroom") || name.equals("red_mushroom")) {
+                        // The mushroom pair's own gate (VIII8 —
+                        // MushroomPlantBlock.canBePlaced lines 69-73 over
+                        // canSurvive): the mycelium bypass at any light,
+                        // the light-under-13-and-opaque-below law — a
+                        // placement on lit grass refuses, the mushroom
+                        // island's daylight shrooms pass on mycelium.
+                        return net.zaminmc.torch.server.block.MushroomBlocks
+                                .canPlantSurviveAt(world, target);
+                    }
                     return true;
                 });
                 // The double-plant pair arm (Slice 45 —
@@ -11089,6 +11099,62 @@ public final class EngineServer implements Server, EngineBridge {
                 publishInventoryChanged(session);
                 return true; // a growing canGrow target consumed the use
             }
+            // The grass arm (VIII7 — GrassBlock's Fertilizable pair +
+            // ItemDye.fertilize's own law): canGrow is always true (line
+            // 253), so the stack ALWAYS pays; canBeFertilized is always
+            // true too (line 257), so the grow ALWAYS runs — the
+            // 128-attempt walk (GrassBlocks.growGrass, the biome's flower
+            // pick at 1-in-8 against the tall grass's 7-in-8).
+            if (world.getBlock(clicked).equals(BuiltinBlocks.GRASS_BLOCK)) {
+                net.zaminmc.torch.server.block.GrassBlocks.growGrass(
+                        world, clicked, gameplayRandom);
+                session.inventory().consumeHeld(1);
+                fxManager.itemShatter(new Position(clicked.x() + 0.5, clicked.y() + 0.5, clicked.z() + 0.5),
+                        session.inventory().held());
+                publishInventoryChanged(session);
+                return true;
+            }
+            // The mushroom arm (VIII7 — MushroomPlantBlock's Fertilizable
+            // pair): canGrow is always true (line 93), so the stack ALWAYS
+            // pays — even the space-refused restore pays; canBeFertilized's
+            // 0.4 roll (line 97) gates the giant form alone (the
+            // remove-place-restore walk inside growHuge).
+            if (net.zaminmc.torch.server.block.MushroomBlocks
+                    .isMushroomPlant(world.getBlock(clicked))) {
+                if (gameplayRandom.nextFloat() < 0.4F) {
+                    net.zaminmc.torch.server.block.MushroomBlocks.growHuge(
+                            world, clicked, world.getBlock(clicked), gameplayRandom);
+                }
+                session.inventory().consumeHeld(1);
+                fxManager.itemShatter(new Position(clicked.x() + 0.5, clicked.y() + 0.5, clicked.z() + 0.5),
+                        session.inventory().held());
+                publishInventoryChanged(session);
+                return true;
+            }
+            // The cocoa arm (VIII7 — CocoaBlock's Fertilizable pair):
+            // canGrow is the AGE < 2 band (line 198) — the stack pays only
+            // under age 2, the mature pod's use is NOT consumed; grow is
+            // the single AGE + 1 step (line 202).
+            if (net.zaminmc.torch.server.block.CocoaBlocks.isCocoa(world.getBlock(clicked))) {
+                int cocoaAge = net.zaminmc.torch.server.block.CocoaBlocks
+                        .ageOf(world.getBlock(clicked));
+                if (cocoaAge < 2) {
+                    world.setBlock(clicked, net.zaminmc.torch.server.block.CocoaBlocks
+                            .withAge(world.getBlock(clicked), cocoaAge + 1));
+                    session.inventory().consumeHeld(1);
+                    fxManager.itemShatter(new Position(clicked.x() + 0.5, clicked.y() + 0.5, clicked.z() + 0.5),
+                            session.inventory().held());
+                    publishInventoryChanged(session);
+                    return true;
+                }
+                return false; // the mature pod: canGrow false — the use is not consumed
+            }
+            // (The stems ride the crops arm above whole — cropStageOf's
+            // family switch carries the pumpkin/melon stems, and the
+            // reference's two grow laws are the identical shape:
+            // StemBlock.grow line 128's AGE + MathHelper.nextInt(random,
+            // 2, 5) clamp 7 against WheatBlock's own — verified 1:1, the
+            // VIII7 stem sub-row retired with the evidence.)
             return false; // not a growing crop: the historical no-op
         }
         return false;

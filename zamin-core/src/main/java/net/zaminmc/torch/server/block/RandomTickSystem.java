@@ -268,6 +268,14 @@ public final class RandomTickSystem {
             SaplingBlocks.randomTick(world, position, type, random);
             return;
         }
+        // The mushroom pair's spread (VIII8 — MushroomPlantBlock.tick lines
+        // 43-68, the reference's randomTick → tick delegation): the 1-in-25
+        // pick, the 9x3x9 same-family density gate, and the four-step walk
+        // that plants a copy on surviving ground.
+        if (MushroomBlocks.isMushroomPlant(type)) {
+            MushroomBlocks.spreadTick(world, position, type, random);
+            return;
+        }
         // The lit redstone ore's revert (Slice 33 — RedstoneOreBlock.tick
         // lines 59-63 over the default Block.randomTick delegation lines
         // 434-436): the LIT variant is setTicksRandomly(true), so the
