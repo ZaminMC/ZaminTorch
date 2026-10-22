@@ -159,7 +159,14 @@ public final class ServerLayout {
         }
     }
 
-    /** The default {@code server.properties} (the historical vanilla key set). */
+    /**
+     * The default {@code server.properties} (the historical vanilla key
+     * set). The remote-admin rows carry the reference's resolved defaults —
+     * {@code rcon.port} as the server port + 10 (RconServer lines 29-31) and
+     * {@code query.port} as the server port (QueryResponseHandler lines
+     * 67-69) — the engine's stand-in for the reference's first-boot
+     * setProperty/saveProperties write-back.
+     */
     public static void ensureServerProperties(Path root) throws IOException {
         Path file = root.resolve("server.properties");
         if (Files.exists(file)) {
@@ -176,6 +183,7 @@ public final class ServerLayout {
                 gamemode=%d
                 broadcast-console-to-ops=true
                 enable-query=false
+                query.port=%d
                 player-idle-timeout=0
                 difficulty=1
                 spawn-monsters=true
@@ -204,10 +212,14 @@ public final class ServerLayout {
                 level-seed=
                 motd=%s
                 enable-rcon=false
+                rcon.password=
+                rcon.port=%d
                 """.formatted(LocalDate.now().toString(),
-                d.gamemode().legacyId(), d.pvp(), d.levelType(), d.maxPlayers(),
-                d.port(), d.host().equals("0.0.0.0") ? "" : d.host(),
-                d.worldName(), d.viewDistance(), d.whiteList(), d.regionSizeChunks(), d.motd());
+                d.gamemode().legacyId(), d.port(), d.pvp(), d.levelType(), d.maxPlayers(),
+                d.port(),
+                d.host().equals("0.0.0.0") ? "" : d.host(),
+                d.worldName(), d.viewDistance(), d.whiteList(), d.regionSizeChunks(), d.motd(),
+                d.rconPort());
         Files.writeString(file, text, StandardCharsets.UTF_8);
     }
 }

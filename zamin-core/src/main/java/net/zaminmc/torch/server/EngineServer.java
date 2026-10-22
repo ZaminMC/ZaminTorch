@@ -514,6 +514,25 @@ public final class EngineServer implements Server, EngineBridge {
     /** The fishing bobbers (Slice 67); created at boot, tick-thread owned. */
     private volatile net.zaminmc.torch.server.fishing.FishingSystem fishing;
 
+    /**
+     * The remote-control TCP listener (the reference DedicatedServer's
+     * {@code rconServer}, reference line 40): null before the boot's start
+     * window or while {@code enable-rcon} is off. Owned by its own listener
+     * thread (§6's law — never the tick lane); commands hop the ticker.
+     */
+    private volatile net.zaminmc.torch.server.rcon.RconServer rconServer;
+
+    /**
+     * The GS4 UDP responder (the reference's {@code queryResponseHandler}):
+     * null before the boot's start window or while {@code enable-query} is
+     * off. Owned by its own listener thread; the status reads ride the
+     * engine's public snapshot surfaces (the same reads the ping performs).
+     */
+    private volatile net.zaminmc.torch.server.rcon.QueryResponseHandler queryResponseHandler;
+
+    /** The engine adapter handed both remote-admin listeners (lazily built once). */
+    private volatile net.zaminmc.torch.server.rcon.RconServerAccess rconAccessRef;
+
     /** The FX pitch/jitter source (cosmetic rolls only, never gameplay rules). */
     private final java.util.Random fxRandom = new java.util.Random();
     /** The next engine-global player entity id (the projectile thrower band). */
@@ -3100,6 +3119,15 @@ public final class EngineServer implements Server, EngineBridge {
                             "The plugin discovery wave failed — the boot continues", discoveryFailure);
                 }
                 worldReady.countDown();
+                // The remote-admin listeners (the reference DedicatedServer
+                // lines 203-216: the world-ready moment — the reference's own
+                // "Done (...)!" line — then enable-query → "Starting GS4
+                // status listener" → QueryResponseHandler.start(), and
+                // enable-rcon → "Starting remote control listener" →
+                // RconServer.start()). A failed bind warns and degrades
+                // inside start() itself (the reference's own refusal law) —
+                // the boot never dies on a listener.
+                startRemoteAdminListeners();
                 simulationDomain.enter();
                 netherDomain.enter(); // the second dimension rides the same loop
                 endDomain.enter(); // the third dimension rides it too (Slice 64)
@@ -3234,6 +3262,13 @@ public final class EngineServer implements Server, EngineBridge {
             }
         }
 
+        // 1b. the remote-admin listeners close first (the launcher's
+        // idempotent-shutdown law): no remote intake may race the player
+        // cleanup or the save walk. Idempotent — and swept a second time
+        // at step 4b below (the boot thread's listener-start window races
+        // a shutdown that won the state gate mid-boot).
+        closeRemoteAdminListeners();
+
         // 2. engine-side player cleanup (each leaving player's state is persisted
         //    so a restart continues their survival exactly where it stopped)
         for (PlayerSession session : players.all()) {
@@ -3299,6 +3334,11 @@ public final class EngineServer implements Server, EngineBridge {
                 Thread.currentThread().interrupt();
             }
         }
+
+        // 4b. the listener race sweep: past awaitStop the boot thread is
+        // guaranteed past its listener-start window, so this pass closes
+        // anything the early call could not see (and is a no-op otherwise).
+        closeRemoteAdminListeners();
 
         state.set(ServerState.STOPPED);
         shutdownLatch.countDown();
@@ -3625,6 +3665,24 @@ public final class EngineServer implements Server, EngineBridge {
     public double tps(int windowSeconds) {
         EngineTicker running = ticker;
         return running == null ? 20.0 : running.averageTps(windowSeconds);
+    }
+
+    /**
+     * The remote-control TCP listener (the reference DedicatedServer's
+     * {@code rconServer}): null before the boot's start window, while
+     * {@code enable-rcon} is off, or after the shutdown close.
+     */
+    public net.zaminmc.torch.server.rcon.RconServer rconServer() {
+        return rconServer;
+    }
+
+    /**
+     * The GS4 UDP responder (the reference's {@code queryResponseHandler}):
+     * null before the boot's start window, while {@code enable-query} is
+     * off, or after the shutdown close.
+     */
+    public net.zaminmc.torch.server.rcon.QueryResponseHandler queryResponseHandler() {
+        return queryResponseHandler;
     }
 
     /** The command dispatcher (public: the wire layer's tab completion reads it). */
@@ -23348,6 +23406,113 @@ public final class EngineServer implements Server, EngineBridge {
         // the dispatcher speaks slash intents, so the console form gets one.
         String line = raw.startsWith("/") ? raw : "/" + raw;
         ticker.submit(() -> chatService.dispatchCommand(new ConsoleSender(), line));
+    }
+
+    /**
+     * The remote console's synchronous command route (the reference
+     * DedicatedServer.runRconCommand, reference line 531): the dispatch
+     * rides the SAME console route {@link #consoleCommand} submits — §30's
+     * one-command-path law; a remote console is just another
+     * ConsoleSender-shaped source (RconConsoleSender, operator level 4,
+     * the reference Console's own always-true permission law) — and the
+     * remote thread blocks OFF the tick lane waiting for the captured
+     * buffer (§6.1's ownership law: the remote thread never touches world
+     * state; the enqueue-and-wait is vanilla's own shape — the reference
+     * DedicatedServer runs the RCON command through the server's command
+     * queue and joins the result).
+     *
+     * <p>Safe from any thread (the RCON client threads); the execution
+     * itself runs on the tick thread. A shutdown interrupt or a stopped
+     * scheduler surfaces as the thrown exception — the caller closes the
+     * connection on it (RconClient.run's catch, reference lines 89-96).</p>
+     *
+     * @return the captured feedback text (the reference Console's buffer —
+     *         lines appended with no separator, RconConsoleSender's law)
+     */
+    public String runRconCommand(String command) throws Exception {
+        String line = command.startsWith("/") ? command : "/" + command;
+        net.zaminmc.torch.server.rcon.RconConsoleSender sender =
+                new net.zaminmc.torch.server.rcon.RconConsoleSender();
+        java.util.concurrent.FutureTask<String> task =
+                new java.util.concurrent.FutureTask<>(() -> {
+                    chatService.dispatchCommand(sender, line);
+                    return sender.chatBuffer();
+                });
+        ticker.submit(task);
+        return task.get(); // the remote thread waits here — never the tick lane
+    }
+
+    /**
+     * The boot's remote-admin start window (the reference DedicatedServer
+     * lines 203-216, cited at the call site): construct + start each
+     * enabled listener. Degrade loudly on a construction failure — the
+     * reference's own posture (the bind arms warn inside start()).
+     */
+    private void startRemoteAdminListeners() {
+        if (config.enableQuery()) {
+            LOGGER.info("Starting GS4 status listener");
+            try {
+                net.zaminmc.torch.server.rcon.QueryResponseHandler query =
+                        new net.zaminmc.torch.server.rcon.QueryResponseHandler(rconAccess());
+                query.start();
+                queryResponseHandler = query;
+            } catch (RuntimeException startupFailure) {
+                LOGGER.log(java.util.logging.Level.SEVERE,
+                        "The GS4 query listener failed to start — the boot continues",
+                        startupFailure);
+            }
+        }
+        if (config.enableRcon()) {
+            LOGGER.info("Starting remote control listener");
+            try {
+                net.zaminmc.torch.server.rcon.RconServer rcon =
+                        new net.zaminmc.torch.server.rcon.RconServer(rconAccess());
+                rcon.start();
+                rconServer = rcon;
+            } catch (RuntimeException startupFailure) {
+                LOGGER.log(java.util.logging.Level.SEVERE,
+                        "The RCON listener failed to start — the boot continues",
+                        startupFailure);
+            }
+        }
+    }
+
+    /** The engine adapter for both listeners (built once, then reused). */
+    private net.zaminmc.torch.server.rcon.RconServerAccess rconAccess() {
+        net.zaminmc.torch.server.rcon.RconServerAccess access = rconAccessRef;
+        if (access == null) {
+            access = net.zaminmc.torch.server.rcon.RconServerAccess.forEngine(this);
+            rconAccessRef = access;
+        }
+        return access;
+    }
+
+    /**
+     * The shutdown's listener close (the engine's lifecycle addition — the
+     * reference has no stop verb; a stopped engine server must not keep
+     * blocked remote-admin threads alive). Idempotent; called twice by
+     * {@link #shutdown} (the early intake stop and the post-park race
+     * sweep — the boot thread starts the listeners after the world-ready
+     * latch, so a shutdown that won the state gate mid-boot may see them
+     * only on the second pass).
+     */
+    private void closeRemoteAdminListeners() {
+        net.zaminmc.torch.server.rcon.RconServer rcon = rconServer;
+        if (rcon != null) {
+            try {
+                rcon.stop();
+            } catch (RuntimeException e) {
+                LOGGER.warning("RCON listener close problem: " + e);
+            }
+        }
+        net.zaminmc.torch.server.rcon.QueryResponseHandler query = queryResponseHandler;
+        if (query != null) {
+            try {
+                query.stop();
+            } catch (RuntimeException e) {
+                LOGGER.warning("Query listener close problem: " + e);
+            }
+        }
     }
 
     /**
