@@ -167,8 +167,14 @@ exposure, then concurrency phases, then standing deferrals.
 14. The generic-mount seat rows (the exotic pairs' api read beside
     `Vehicle.riderEntityId()`).
 15. `world.decorations()` — the hanging bodies + armor-stand read surface.
-16. `block.BiomeData` — the registration datums (temperature/downfall/height/
-    isRainy law) beside `World.biomeAt`'s display name.
+16. ~~`block.BiomeData` — the registration datums (temperature/downfall/height/
+    isRainy law) beside `World.biomeAt`'s display name~~ — LANDED 2026-10-22
+    (d3116d6f): `World.biomes()` enumerates the 61-row census in id order and
+    `World.biomeDataAt` answers the column's row through the same
+    chunk-stored-row resolution `World.biomeAt` rides — every row carrying the
+    display name, the temperature/downfall pair, the height pair, the snowy
+    flag, and the isRainy read law (`BiomeDataApiAcceptanceTest`); the
+    worldgen consults stay worldgen-side (§27.2).
 17. `Server.fishing()` — the fishing system's api surface (the engine accessor
     is diagnostics-only today).
 18. The door-break arming read (VIII9's builtin-goal arming + progress, the

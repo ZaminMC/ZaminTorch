@@ -12653,3 +12653,83 @@ Work Log:
 Stage Summary:
 - The wave-2 lane map published; the coordinator's own rows 8 + 10 start on
   the owner's continue.
+---
+Task ID: biome-data-api (the README TODO's row 16)
+Agent: instance (feature/biome-data-api)
+Task: `block.BiomeData` — the biome registration table's api read (the
+§9 audit row's demand: the display names, the temperature/downfall
+pairs, the height pairs, the isRainy read law) beside `World.biomeAt`'s
+display name; the worldgen packages themselves untouched (§27.2's layer
+separation — the DO-NOT-TOUCH lane).
+
+Work Log:
+- Oriented on the established surfaces: the engine's Biome.java (the
+  61-row census — 40 base ids 0-39 + 21 mutated ids 129-167; the
+  reference's registration lines 70-234 + the static block's mutations;
+  the isRainy READ law = the reference's isRainy() lines 393-395
+  `!isCold() && rainy` — the frozen family's field stays true, the read
+  refuses), EngineWorld.biomeAt/biomeValueAt (the position resolution:
+  the chunk's own stored row through Biome.byLegacyId, the plains
+  default outside loaded chunks), and the villages()/VillageViews
+  exposure pattern (Server default method + the engine-side view class).
+- Landed the api type `block.BiomeData` (a pure datum record — the
+  display name, the temperature/downfall pair, the height pair, the
+  snowy flag, the isRainy READ law, plus the two address keys: the 1.8
+  wire id and the stable name `biomeAt` itself answers) with the
+  reference citations + the threading law in the javadoc (the immutable
+  table, any thread, no snapshot discipline).
+- Landed the read surface beside `World.biomeAt` (additive defaults):
+  `World.biomes()` (the whole 61-row census, id order — the same census
+  every world answers, world-independent) and `World.biomeDataAt(pos)`
+  (the column's row riding the SAME `biomeValueAt` resolution the stable
+  name rides — never a parallel one; the implicit plains default's OWN
+  datums outside loaded chunks, never a gap).
+- Landed the engine facade: EngineWorld's two additive @Override
+  methods over `server/world/BiomeDataViews` (the immutable-table view —
+  every datum the engine row's OWN consult, `rainy` filled from
+  Biome.rainy() never re-derived view-side; the view builds once at
+  class init, the villages()/VillageViews snapshot copying not needed —
+  nothing to copy against).
+- Wrote `BiomeDataApiAcceptanceTest` 4 (§27.10 — through zamin-api
+  alone, no engine casts): the 61-row census (the exact id order, both
+  name keys unique, the pinned rows incl. the mutation law's custom
+  shapes — the fresh-ctor Sunflower Plains with no bump, the ice
+  spikes' +0.3/+0.4 overwrite quirk, the mega spruce's 0.25 band, the
+  savanna's shattered laws, the standard +0.1/+0.2 bump), the
+  by-position agreement (the loaded flat column and the unloaded
+  default both answering the plains row — the chunk constructor's own
+  fill; the stored frozen-ocean + cold-taiga columns proving the read
+  is the chunk's OWN stored row), the isRainy law rows (the frozen
+  family refuses, the disableRain family refuses, the census-wide
+  law), and the §27.6 any-thread hammer over the immutable table.
+- THE LANE'S OWN FIND (ledgered for the coordinator, not this lane's to
+  fix — strictly additive): the mutated band's ids (129-167) exceed the
+  SIGNED byte the chunk's biome array stores — `EngineWorld
+  .biomeValueAt`'s `Biome.byLegacyId(chunk.biome(...))` widens a stored
+  160 to -96 and the out-of-band arm answers OCEAN, so an imported
+  mutated-band column would name itself "ocean" server-side today (the
+  wire form rides the raw byte array, which the CLIENT decodes
+  unsigned — the api `biomeAt` display-name read is the only surface
+  that sees the edge). The by-position proof in this lane's test rides
+  the positive band; the mutated rows' datums answer through the
+  census reads. The unsigned decode repair belongs to the shared read
+  path's owner, not an additive api-exposure lane.
+- Verified by package batch under --no-daemon: BiomeDataApiAcceptanceTest
+  4/4, the zamin-api module suite, the world package batch whole
+  (BiomeRegistrationTest + the GenLayer/surface/spawn families green —
+  the DO-NOT-TOUCH lane untouched), the root-package letter chunks
+  (A-B, C, D-E, F-H, I-L, M-P, P-R, S, T-Z) + the world-surface
+  neighbors (WorldApiAcceptanceTest, VillageApiAcceptanceTest,
+  CauldronAcceptanceTest — the cauldron being the isRainy law's own
+  consumer) + RangedCombatAcceptanceTest isolated-green (the known
+  flake class).
+- Ledgered: the §9 audit row closed (the PARTIAL demand-named row now
+  EXPOSED), the README TODO's row 16 retired with the landing hash,
+  this WORKLOG entry.
+
+Stage Summary:
+- README TODO row 16 LANDED (d3116d6f + 7b1feb24): `block.BiomeData` +
+  `World.biomes()`/`World.biomeDataAt` over the immutable registration
+  table, the §27.10 capability test whole, all batches green. PR opened
+  against develop (not self-merged). The mutated-band signed-byte edge
+  ledgered above for the coordinator.
