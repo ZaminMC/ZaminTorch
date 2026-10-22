@@ -122,8 +122,14 @@ exposure, then concurrency phases, then standing deferrals.
    SwimGoal's 0.8 roll, the jump block's flat +0.04, the +0.06 steady
    rise), the wading walk's steady state verified equal (0.1 blocks/tick
    both models).
-5. The explosion resistance table (the charged skull's 0.8 blast-resistance
-   cap family — "not yet modeled" in the wither row).
+5. ~~The explosion resistance table (the charged skull's 0.8 blast-resistance
+   cap family — "not yet modeled" in the wither row)~~ — LANDED 2026-10-22:
+   the reference's own READ values (the hardness proxy retired — stone 6
+   not 1.5, bedrock 3600000, barrier 3600000.6, water 100), the cost form
+   `(f2 + 0.3) * 0.3` over the source consult, the destroy gate (the
+   unaffordable cell never looted), and the SOURCE family whole: the
+   charged skull's 0.8 cap over canDestroy + the primed cart's
+   rail-sparing rule. The census test walks the registry's 896 rows.
 6. The explosion × decoration interplay (explosions do not yet ring the
    decoration sweep — the frame/painting instant-drop arms of
    `DecorationSystem`).
