@@ -12653,3 +12653,39 @@ Work Log:
 Stage Summary:
 - The wave-2 lane map published; the coordinator's own rows 8 + 10 start on
   the owner's continue.
+---
+Task ID: row-8-thorns-mob-arm (in flight — the coordinator's own lane, wave 2)
+Agent: main (Abasing session — the coordinator)
+Task: README TODO row 8 — the thorns wildcard's mob-victim arm. The reference
+law verified: applyProtectionWildcard fires from the ATTACKER's walk on every
+LANDED hit (PlayerEntity.attack 1016, the base Entity.damageEntity at
+MonsterEntity/IronGolem/Slime/Wolf melee + Fireball/WitherSkull/SmallFireball
+impacts, ArrowEntity 264) — the helper's attacker = the VICTIM (the thorns
+wearer), the helper's target = the retaliation target. MobEntity.getEquipment
+returns the FIVE-slot array (the held piece rides with the armor); the wear
+(takeDamageAndBreak: the Unbreaking per-unit walk, break at damage >
+maxDurability, the count-- on break) lands on the FIRST thorns piece.
+
+Work Log (investigation complete, implementation starting):
+- The landed engine form covers every PLAYER victim (4 sites: attackPlayer
+  6111, the arrow sink 17591, the mob-melee walk 17874, the guardian's magic
+  half 18809). The missing arm = the MOB victim: (a) player melee ->
+  attackEntity's landed block, (b) arrow/fireball/skull -> ProjectileCombatSink
+  (variant 2 delegates to variant 1 — ONE wiring covers all projectile kinds;
+  the wither-victim and ghast-reflect arms restructured to land-then-fire),
+  (c) mob melee -> hurtByMob's landed block (through a new ThornsRetaliation
+  seam wired from EngineServer — the same shape as localDifficultyRead).
+- The mob walk reads the five-slot row (equipment(0..4)); the wear rides a
+  new wearMobEquipmentStack (the wearArmorStack shape over setEquipment +
+  equipmentChanged re-publish; a broken piece leaves the slot EMPTY).
+- The retaliation forms per target: a PLAYER target -> damageOnTick with the
+  applyArmor/applyEnchantProtection ladder ("was slain by " + titledMobName);
+  a MOB target -> mobManager.hurt(target, amount, the wearer's look yaw) with
+  the wearer's held LOOTING riding the victim's death loot (the 17874
+  precedent); the kill-score for a mob wearer is structurally absent (mobs
+  carry no stats) — recorded as the boundary.
+
+Stage Summary:
+- In flight; the next commits land the walk + the four wirings, the tests,
+  then Row 10 (the doEvent 64-block radius — the engine's own
+  beyondFeedbackRange precedent + the fan in V18ProtocolServer).
