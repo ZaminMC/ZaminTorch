@@ -90,6 +90,10 @@ class Protocol18ConformanceTest {
         m.put("S2C_TAB_COMPLETE", 0x3A);
         m.put("S2C_PLUGIN_MESSAGE", 0x3F);
         m.put("S2C_UPDATE_SIGN", 0x33);
+        // Map Data: #53 in the same registration order (NetworkProtocol
+        // line 174 — after SignUpdate 0x33, before BlockEntityUpdate
+        // 0x35): the map item family's terrain + icon send.
+        m.put("S2C_MAP_DATA", 0x34);
         // Update Block Entity: #54 in the same registration order
         // (NetworkProtocol line 173 — after MapData 0x34, before
         // OpenSignEditor 0x36): the spawner's spinning body rides it.
