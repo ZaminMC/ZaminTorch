@@ -448,7 +448,8 @@ public final class MapColors {
         }
         // The flora: the plants' FOLIAGE material band; the dead bush's
         // WOOD override; the lily pad's FOLIAGE.
-        for (String plant : new String[] {"tall_grass", "dandelion", "poppy",
+        for (String plant : new String[] {"tall_grass", "fern",
+                "dandelion", "poppy",
                 "blue_orchid", "allium", "houstonia", "red_tulip", "orange_tulip",
                 "pink_tulip", "white_tulip", "oxeye_daisy", "sugar_cane",
                 "waterlily", "brown_mushroom", "red_mushroom", "cactus",
