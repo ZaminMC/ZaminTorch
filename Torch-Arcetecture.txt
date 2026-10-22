@@ -3280,11 +3280,63 @@ own tests. Order is by vanilla visibility and dependency, not size.
       family's in-wall suffocation row (unported — a squeezed body ends
       inside the block; the damage walk is baseTick's isInWall, a
       living-family slice). PistonEntityPushTest 4.
-- [ ] VIII14+ — (the demand-named backlog, ordered by visibility):
+- [x] VIII14+ — (the demand-named backlog, ordered by visibility):
       the biome family (the engine's 7-biome subset vs the
       reference's ~61 — the taiga/swamp/savanna/mesa/ice/extreme-
       hills bands with their surface builders + feature sets + spawn
       tables), the ambient-sound cadence, the local-difficulty model.
+      (THE AMBIENT-SOUND CADENCE LANDED 2026-10-22, 7329a3f9 — the
+      wave's LAST OPEN ROW, the reference's MobEntity.baseTick lines
+      151-159 verbatim: the named adaptation's 160+nextInt(320) idle
+      timer RETIRED — the reference's own clock instead (the
+      ambientSoundDelay field, 0 at construction, the ctor's own
+      draw GONE; the every-tick roll nextInt(1000) < delay++ with the
+      hit's reset to -getAmbientSoundInterval(); the dead-body
+      short-circuit; the play bundle in the reference's own consult
+      order — the name first, the volume/pitch pair only when a voice
+      exists); the family table whole (the interval band: the base 80,
+      the animal 120 with the tameable children, the water mob 120,
+      the golem 120, the guardian's 160, the horse's 400; the volume
+      overrides: ghast 10.0, dragon 5.0, horse 0.8, cow 0.4 with the
+      mooshroom's inherit, ocelot/wolf/squid 0.4, bat 0.1, slime
+      0.4*size, the base 1.0; the pitch's two-draw jitter around 1.5
+      for a baby / 1.0 for a grown body); the idle-name repairs (cow
+      'say' — was the hurt name, chicken 'say' — was the hurt name,
+      villager 'haggle' — was 'idle'); the enderman's angry arm
+      (isAngry ? scream : idle, lines 241-244); the villager arms
+      (trade()'s unconditional reset at the real trade site,
+      updateOffer's 20-tick gate with the 'no' voice at the
+      tradeSelect moment — the MC|TrSel walk's own named adaptation,
+      the display-only merchant window's structurally-empty input
+      slots); the play fan switched to the volume/pitch-carrying
+      onMobSoundAt (the egg-spawn site too). THE SLICE'S OWN FIND, THE
+      BRIDGE REPAIR: EngineServer's MobEventDispatch carried only 52
+      of the Listener interface's 64 events — the seventeen missing
+      ones (onMobSoundAt, onEndermanStare, onGuardianStateChanged,
+      onHorseInventoryOpened, onMobBlazeFireChanged,
+      onMobGhastChargingChanged, onMobPostureChanged,
+      onMobStatusEvent, onMobWitchAura, onMobWitchDrinkingChanged,
+      onSheepFleeceChanged, onTradeSelected, onVillagerTradeOpened,
+      onWolfShakeSplash, onWolfStateChanged, onWorldEventAt,
+      onZombieStateChanged) fired on the MobManager and DIED at the
+      bridge — a real boot never heard them (every volume/pitch mob
+      sound, the guardian/witch/blaze/ghast/zombie state metadata, the
+      door-knock world event); the package tests never caught it
+      because their harnesses register directly on the MobManager —
+      all seventeen re-fans landed, proven through the REAL boot path
+      (MobEventBridgeAcceptanceTest: the ambient voice crossing the
+      dispatch to an addMobListener listener). The re-pins the ctor
+      draw's removal forced (the construction stream shifted one
+      nextInt): BlazeEntityTest's melee seed 82 -> 2, the guardian
+      seabed seed 7 -> 1, MobEntityTest's cadence re-pinned to the 1:1
+      bands (first play [2,1001], gaps [interval+1, interval+1000]).
+      Evidence: AmbientSoundCadenceTest 11 + MobEventBridgeAcceptance
+      Test 2 + the full sweep (the entity batch 453, world/spawn/
+      village, block/physics/redstone/piston, the root A-D/E-L/M-Z
+      chunks, the misc package batches whole, protocol 117 —
+      ChestIntegrationTest one timing flake 4/4 isolated-green, the
+      known load-flake class) + api + bukkit + launcher green.)
+      WAVE VIII IS COMPLETE — the backlog holds NOTHING further.
       (THE LOCAL-DIFFICULTY MODEL LANDED 2026-10-22 — the VIII14
       completion on feature/local-difficulty: LocalDifficulty 1:1
       (the reference's calculate verbatim — the peaceful zero, the
