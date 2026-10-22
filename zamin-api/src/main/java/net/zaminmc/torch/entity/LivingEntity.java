@@ -88,6 +88,23 @@ public interface LivingEntity extends Entity {
     GoalRegistration goals();
 
     /**
+     * The built-in door-break read (VIII9 — the zombie's BREAK_DOOR
+     * goal's arming + progress, the §27.10 row beside the custom-goal
+     * registration family): the {@code CanBreakDoors} arming flag, and
+     * — while the walk owns a door — the door target and the 240-tick
+     * progress toward the break, resolving to the live walk state
+     * (§27.5 — the goal walk is tick-lane; the reads are consistent on
+     * the simulation context, best-effort off-lane, see
+     * {@link net.zaminmc.torch.entity.ai.DoorBreak}). Empty on every
+     * non-zombie body (the goal never arms on another kind); a zombie
+     * answers the view armed or not — the unarmed state is itself the
+     * read.
+     */
+    default java.util.Optional<net.zaminmc.torch.entity.ai.DoorBreak> doorBreak() {
+        return java.util.Optional.empty();
+    }
+
+    /**
      * Whether the mob carries a live lead (the reference's
      * {@code isLeashed}). Simulation context.
      */
