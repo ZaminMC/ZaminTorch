@@ -2218,6 +2218,16 @@ public final class EngineServer implements Server, EngineBridge {
                 mobs.setLocalDifficultyRead((spawnAt, spawnDim) ->
                         worldFor(spawnDim).localDifficulty(
                                 spawnAt.toBlockPosition(), difficulty));
+                // README TODO row 8 — the thorns retaliation consult (the
+                // mob melee walks' landed block, hurtByMob): the victim's
+                // five-slot equipment row is read at the seam (the deferred
+                // death-loot law keeps the pieces on the body until the
+                // animation's loot walk) and the bitten attacker rides the
+                // mob-target retaliation — the same engine-side walk the
+                // player melee and the projectile arms fire.
+                mobs.setThornsRetaliation((wearer, biter) ->
+                        applyThornsWildcardMob(wearer, mobEquipmentRow(wearer),
+                                thornsBitesMob(biter)));
                 // The game-rule read (Slice 24a): doMobLoot gates the
                 // death loot walk (LivingEntity.die).
                 mobs.setMobLootRead(() -> gameRules.getBoolean("doMobLoot"));
@@ -5815,6 +5825,12 @@ public final class EngineServer implements Server, EngineBridge {
             }
             // VIII9: the attacking player rides the walk (the zombie's
             // reinforcement ladder resolves the wound's living attacker).
+            // The mob's equipment row is captured before the damage lands:
+            // the reference fires the thorns wildcard in the attacker's
+            // walk after the verdict (PlayerEntity.attack line 1016), so a
+            // killing blow still retaliates through the worn pieces before
+            // the death animation's loot walk reads them.
+            ItemStack[] thornsRow = mobEquipmentRow(mob);
             boolean landed = mobManager.hurt(mob, damage, kbYaw,
                     net.zaminmc.torch.event.DamageCause.MELEE,
                     false, false, null, attacker);
@@ -5892,6 +5908,13 @@ public final class EngineServer implements Server, EngineBridge {
                 if (enchantDamage > 0.0F) {
                     publishMobAnimation(mob, ANIMATION_MAGIC_CRIT);
                 }
+                // The thorns wildcard's mob-victim arm (the README TODO's
+                // row 8 — the reference's PlayerEntity.attack line 1016
+                // after the crit bursts: the landed hit's attacker is
+                // bitten back through the mob's worn pieces; the player's
+                // own takeDamage walk applies the armor and the protection
+                // ladder over the roll).
+                applyThornsWildcardMob(mob, thornsRow, thornsBitesPlayer(attacker));
             } else if (preIgnited) {
                 mob.extinguish(); // the reference's missed-swing quirk
             }
@@ -6358,12 +6381,12 @@ public final class EngineServer implements Server, EngineBridge {
      * guardian spike records); the wearer's held LOOTING rides the victim's
      * death loot through the target impls. Tick-thread context.
      */
-    private void applyThornsWildcardMob(MobEntity victim, MobThornsTarget target) {
+    private void applyThornsWildcardMob(MobEntity victim, ItemStack[] row,
+                                        MobThornsTarget target) {
         // The five-slot row (the reference's MobEntity.getEquipment array):
-        // the held piece at 0, the armor family at 1..4.
-        ItemStack[] row = {
-                victim.equipment(0), victim.equipment(1), victim.equipment(2),
-                victim.equipment(3), victim.equipment(4)};
+        // the held piece at 0, the armor family at 1..4 — captured by the
+        // caller before the damage lands (the same capture law the player
+        // walk's armorStacks read rides).
         ItemStack first = EnchantmentHelper.equipmentWithEnchantment(
                 Enchantments.THORNS.id, row);
         int wear = 0;
@@ -6393,6 +6416,78 @@ public final class EngineServer implements Server, EngineBridge {
         if (first != null && wear > 0 && firstSlot >= 0) {
             wearMobEquipmentStack(victim, firstSlot, wear);
         }
+    }
+
+    /**
+     * The mob's five-slot equipment row snapshot (the reference's
+     * {@code MobEntity.getEquipment()} array): the held piece at 0, the
+     * armor family at 1..4. The callers capture the row before the damage
+     * lands so a killing blow still retaliates through the worn pieces
+     * (the same capture law the player walk's {@code armorStacks()} read
+     * rides); the hurtByMob seam reads it at the landed block instead —
+     * the deferred death-loot law keeps the pieces on the body until the
+     * animation's loot walk, so the post-land read carries the same row.
+     */
+    private ItemStack[] mobEquipmentRow(MobEntity mob) {
+        return new ItemStack[] {
+                mob.equipment(0), mob.equipment(1), mob.equipment(2),
+                mob.equipment(3), mob.equipment(4)};
+    }
+
+    /**
+     * The thorns retaliation when the bitten body is a PLAYER (the player
+     * melee walk over a thorns-wearing mob, the player shooter's landed
+     * projectile, the deflected fireball's ghast strike): the reference's
+     * {@code target.takeDamage(DamageSource.thorns(wearer), amount)} rides
+     * the player's own damage walk — thorns is an ordinary entity source,
+     * so the armor and the enchantment-protection ladder still apply —
+     * with the mob wearer's titled death row. The kill score for a mob
+     * wearer is structurally absent (mobs carry no kill stats — the same
+     * boundary the guardian spike records). Tick-thread context.
+     */
+    private MobThornsTarget thornsBitesPlayer(PlayerSession biter) {
+        return new MobThornsTarget() {
+            @Override
+            public void takeThornsDamage(int amount, MobEntity wearer) {
+                damageOnTick(biter,
+                        applyEnchantProtection(biter, applyArmor(biter, amount),
+                                DamageKind.MELEE),
+                        "was slain by " + titledMobName(wearer), DamageKind.MELEE);
+            }
+
+            @Override
+            public Position position() {
+                return biter.position();
+            }
+        };
+    }
+
+    /**
+     * The thorns retaliation when the bitten body is a MOB (the mob melee
+     * walks and the mob shooters' landed projectiles): the reference's
+     * {@code target.takeDamage(DamageSource.thorns(wearer), amount)} rides
+     * the mob's own hurt walk with the wearer's look yaw for the knockback
+     * direction, and the wearer's held LOOTING rides the bitten mob's
+     * death loot (the mob-melee walk's own precedent). No player-hit
+     * window arms: the thorns source's body is the wearing mob, not a
+     * player. Tick-thread context.
+     */
+    private MobThornsTarget thornsBitesMob(MobEntity biter) {
+        return new MobThornsTarget() {
+            @Override
+            public void takeThornsDamage(int amount, MobEntity wearer) {
+                if (mobManager != null) {
+                    biter.setLootingLevel(EnchantmentHelper.lootingLevel(
+                            wearer.equipment(0)));
+                    mobManager.hurt(biter, amount, wearer.rotation().yaw());
+                }
+            }
+
+            @Override
+            public Position position() {
+                return biter.position();
+            }
+        };
     }
 
     /**
@@ -17419,6 +17514,20 @@ public final class EngineServer implements Server, EngineBridge {
                 }
             }
             mob.setLootingLevel(looting);
+            // The mob shooter resolves beside the player (the thorns walk's
+            // biter — the reference's gate is `shooter instanceof
+            // LivingEntity`, so a skeleton's arrow bites its skeleton
+            // shooter back too, not only the player family).
+            MobEntity shooterMob = null;
+            if (!playerShooter && shooterId > 0) {
+                for (MobEntity candidate : mobManager.all()) {
+                    if (!candidate.dead()
+                            && candidate.entityId() == shooterId) {
+                        shooterMob = candidate;
+                        break;
+                    }
+                }
+            }
             // The enderman's projectile dodge (EndermanEntity.takeDamage
             // lines 299-309): the projectile NEVER lands — 64 teleport
             // attempts instead, and no damage either way.
@@ -17430,6 +17539,11 @@ public final class EngineServer implements Server, EngineBridge {
                 }
                 return false;
             }
+            // The mob's equipment row is captured before the damage lands
+            // (the thorns wildcard's capture law — the reference fires the
+            // walk on the verdict, ArrowEntity line 264, so a killing shot
+            // still retaliates through the worn pieces).
+            ItemStack[] thornsRow = mobEquipmentRow(mob);
             boolean landedArrow = mobManager.hurt(mob, damage, kbYaw,
                     net.zaminmc.torch.event.DamageCause.PROJECTILE,
                     false, false, null,
@@ -17447,6 +17561,19 @@ public final class EngineServer implements Server, EngineBridge {
                 // takeDamage lines 678-680: the player shooter's landed
                 // arrow arms the 100-tick hit window.
                 mob.markPlayerHit();
+            }
+            // The thorns wildcard's mob-victim arm (the README TODO's row 8
+            // — the reference's ArrowEntity line 264 inside the landed
+            // verdict: the projectile's LIVING shooter is bitten back
+            // through the hit mob's worn pieces; a shooterless projectile
+            // — the dispenser's — carries no living body and never bites).
+            if (landedArrow) {
+                MobThornsTarget biter = playerShooter
+                        ? thornsBitesPlayer(shooter)
+                        : shooterMob != null ? thornsBitesMob(shooterMob) : null;
+                if (biter != null) {
+                    applyThornsWildcardMob(mob, thornsRow, biter);
+                }
             }
             return landedArrow;
         }
@@ -17481,12 +17608,18 @@ public final class EngineServer implements Server, EngineBridge {
                     && mob.type() == net.zaminmc.torch.server.entity.MobType.GHAST) {
                 PlayerSession shooter = sessionByEngineId(projectile.throwerId());
                 if (shooter != null && shooter.state() == PlayerState.PLAYING) {
+                    // The ghast's equipment row rides the same capture law
+                    // (the thorns wildcard's row 8 arm — the reference's
+                    // FireballEntity line 29 damageEntity pair-walk).
+                    ItemStack[] thornsRow = mobEquipmentRow(mob);
                     boolean landed = mobManager.hurt(mob, 1000.0f, kbYaw,
                             net.zaminmc.torch.event.DamageCause.PROJECTILE,
                             false, false, null);
                     if (landed) {
                         shooter.stats().increment(
                                 EngineAchievements.KILL_GHAST_WITH_FIREBALL.key(), 1);
+                        applyThornsWildcardMob(mob, thornsRow,
+                                thornsBitesPlayer(shooter));
                     }
                     return landed;
                 }
@@ -17496,9 +17629,23 @@ public final class EngineServer implements Server, EngineBridge {
             // wither's gates run inside the manager's full overload with
             // the source pair (arrow, shooter body).
             if (mob.type() == net.zaminmc.torch.server.entity.MobType.WITHER) {
-                return mobManager.hurt(mob, damage, kbYaw,
+                // The wither's equipment row rides the same capture law
+                // (the thorns wildcard's row 8 arm — the reference's
+                // WitherSkullEntity line 62 damageEntity pair-walk).
+                ItemStack[] thornsRow = mobEquipmentRow(mob);
+                boolean landed = mobManager.hurt(mob, damage, kbYaw,
                         net.zaminmc.torch.event.DamageCause.PROJECTILE,
                         false, arrow, shooterMob);
+                if (landed) {
+                    PlayerSession shooter = sessionByEngineId(projectile.throwerId());
+                    MobThornsTarget biter = shooter != null
+                            ? thornsBitesPlayer(shooter)
+                            : shooterMob != null ? thornsBitesMob(shooterMob) : null;
+                    if (biter != null) {
+                        applyThornsWildcardMob(mob, thornsRow, biter);
+                    }
+                }
+                return landed;
             }
             boolean landed = mobHit(mob, damage, kbYaw, projectile.throwerId());
             // The snipe (VIII6 — SkeletonEntity.die lines 156-165: the
