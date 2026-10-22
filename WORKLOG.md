@@ -12654,6 +12654,572 @@ Stage Summary:
 - The wave-2 lane map published; the coordinator's own rows 8 + 10 start on
   the owner's continue.
 ---
+Task ID: biome-data-api (the README TODO's row 16)
+Agent: instance (feature/biome-data-api)
+Task: `block.BiomeData` — the biome registration table's api read (the
+§9 audit row's demand: the display names, the temperature/downfall
+pairs, the height pairs, the isRainy read law) beside `World.biomeAt`'s
+display name; the worldgen packages themselves untouched (§27.2's layer
+separation — the DO-NOT-TOUCH lane).
+
+Work Log:
+- Oriented on the established surfaces: the engine's Biome.java (the
+  61-row census — 40 base ids 0-39 + 21 mutated ids 129-167; the
+  reference's registration lines 70-234 + the static block's mutations;
+  the isRainy READ law = the reference's isRainy() lines 393-395
+  `!isCold() && rainy` — the frozen family's field stays true, the read
+  refuses), EngineWorld.biomeAt/biomeValueAt (the position resolution:
+  the chunk's own stored row through Biome.byLegacyId, the plains
+  default outside loaded chunks), and the villages()/VillageViews
+  exposure pattern (Server default method + the engine-side view class).
+- Landed the api type `block.BiomeData` (a pure datum record — the
+  display name, the temperature/downfall pair, the height pair, the
+  snowy flag, the isRainy READ law, plus the two address keys: the 1.8
+  wire id and the stable name `biomeAt` itself answers) with the
+  reference citations + the threading law in the javadoc (the immutable
+  table, any thread, no snapshot discipline).
+- Landed the read surface beside `World.biomeAt` (additive defaults):
+  `World.biomes()` (the whole 61-row census, id order — the same census
+  every world answers, world-independent) and `World.biomeDataAt(pos)`
+  (the column's row riding the SAME `biomeValueAt` resolution the stable
+  name rides — never a parallel one; the implicit plains default's OWN
+  datums outside loaded chunks, never a gap).
+- Landed the engine facade: EngineWorld's two additive @Override
+  methods over `server/world/BiomeDataViews` (the immutable-table view —
+  every datum the engine row's OWN consult, `rainy` filled from
+  Biome.rainy() never re-derived view-side; the view builds once at
+  class init, the villages()/VillageViews snapshot copying not needed —
+  nothing to copy against).
+- Wrote `BiomeDataApiAcceptanceTest` 4 (§27.10 — through zamin-api
+  alone, no engine casts): the 61-row census (the exact id order, both
+  name keys unique, the pinned rows incl. the mutation law's custom
+  shapes — the fresh-ctor Sunflower Plains with no bump, the ice
+  spikes' +0.3/+0.4 overwrite quirk, the mega spruce's 0.25 band, the
+  savanna's shattered laws, the standard +0.1/+0.2 bump), the
+  by-position agreement (the loaded flat column and the unloaded
+  default both answering the plains row — the chunk constructor's own
+  fill; the stored frozen-ocean + cold-taiga columns proving the read
+  is the chunk's OWN stored row), the isRainy law rows (the frozen
+  family refuses, the disableRain family refuses, the census-wide
+  law), and the §27.6 any-thread hammer over the immutable table.
+- THE LANE'S OWN FIND (ledgered for the coordinator, not this lane's to
+  fix — strictly additive): the mutated band's ids (129-167) exceed the
+  SIGNED byte the chunk's biome array stores — `EngineWorld
+  .biomeValueAt`'s `Biome.byLegacyId(chunk.biome(...))` widens a stored
+  160 to -96 and the out-of-band arm answers OCEAN, so an imported
+  mutated-band column would name itself "ocean" server-side today (the
+  wire form rides the raw byte array, which the CLIENT decodes
+  unsigned — the api `biomeAt` display-name read is the only surface
+  that sees the edge). The by-position proof in this lane's test rides
+  the positive band; the mutated rows' datums answer through the
+  census reads. The unsigned decode repair belongs to the shared read
+  path's owner, not an additive api-exposure lane.
+- Verified by package batch under --no-daemon: BiomeDataApiAcceptanceTest
+  4/4, the zamin-api module suite, the world package batch whole
+  (BiomeRegistrationTest + the GenLayer/surface/spawn families green —
+  the DO-NOT-TOUCH lane untouched), the root-package letter chunks
+  (A-B, C, D-E, F-H, I-L, M-P, P-R, S, T-Z) + the world-surface
+  neighbors (WorldApiAcceptanceTest, VillageApiAcceptanceTest,
+  CauldronAcceptanceTest — the cauldron being the isRainy law's own
+  consumer) + RangedCombatAcceptanceTest isolated-green (the known
+  flake class).
+- Ledgered: the §9 audit row closed (the PARTIAL demand-named row now
+  EXPOSED), the README TODO's row 16 retired with the landing hash,
+  this WORKLOG entry.
+
+Stage Summary:
+- README TODO row 16 LANDED (d3116d6f + 7b1feb24): `block.BiomeData` +
+  `World.biomes()`/`World.biomeDataAt` over the immutable registration
+  table, the §27.10 capability test whole, all batches green. PR opened
+  against develop (not self-merged). The mutated-band signed-byte edge
+  ledgered above for the coordinator.
+
+
+---
+Task ID: equipment-api (the README TODO's row 11 — the wave-2 lane)
+Agent: main (Abasing session — the VIII4 api-exposure lane)
+Task: The mob equipment read/set on entity.LivingEntity — the five-slot
+family, VIII4's engine surface exposed per §27.3's complete-exposure law.
+
+Work Log:
+- Studied the exposure precedents before writing a line: §27.3/§27.5/§27.6/
+  §27.10; the villages() lane's shape; the entity-family variant
+  (Projectile.pickupStatus — the engine object IS the handle);
+  PlayerInventory's §27.3 adapter section (armorAt's forgiving read, the
+  null-EMPTY mapping); Vehicle.Cargo's slot-family conventions (out-of-range
+  reads empty, out-of-range writes ignored); the unleash detacher seam
+  (EngineServer wiring: requireMutationContext + the system walk); the
+  Manager's equipmentChanged publication (Slice 78b).
+- Audited the engine surface's riders: MobEntity.equipment/setEquipment/
+  heldEquipment carry the reference's five-slot model (MobEntity lines 60/
+  549/559/564) with the ENGINE's null-form bare slots — the spawn dice
+  (rollSpawnEquipment), the NBT Equipment rows (EntityNbt 209-219/653-675,
+  the ZVD walk + the anvil import's per-mob fan-out) and the null-check
+  walks (MobManager 3664, EntityNbt 666) all ride it. Conclusion: the
+  engine methods keep their null-form semantics; the api family takes its
+  OWN names with forgiving adapters (the armorAt precedent) — never a
+  semantic change to existing surface.
+- The api family (entity.LivingEntity, additive defaults): equipmentSlotCount
+  (the reference's own five), equipmentAt (the forgiving read — EMPTY for
+  bare + out-of-band), equipmentStacks (the five-row copy), setEquipmentAt
+  (the write arm — an empty stack clears, out-of-band/null writes ignored,
+  the band guard never letting a stray slot touch the held stack through
+  the engine's clamped form). Javadoc cites the reference lines and the
+  threading law (the riderEntityId form).
+- The engine side: MobEntity's §27.3 adapter section (the EMPTY-null
+  mapping both directions — the engine's bare-slot invariant preserved:
+  a clear restores null, never an EMPTY-stuffed cell) + the write-path
+  hook (the removalHook/leashDetacher family); MobManager's
+  EquipmentWritePath seam (a 3-arg @FunctionalInterface — the
+  SkullExplosionSink precedent) with the retro-wiring setter (the boot
+  order restores mobs before the wiring) + the spawnAt wiring;
+  EngineServer's wiring beside the leash detacher: requireMutationContext
+  ("setEquipmentAt") → the one authoritative setEquipment →
+  equipmentChanged (the Entity Equipment re-publish). The bare-harness
+  fallback (no wiring) is the raw authoritative write (the unleash
+  pattern's own bare form).
+- The test (EquipmentApiAcceptanceTest, 6 cases through zamin-api): the
+  fresh bodies' band (a cow's five EMPTY slots; the skeleton's spawn bow
+  at slot 0 — the armor dice stay unasserted, the dice are
+  nondeterministic for the monster family); the write arm (the live-object
+  proof — the SAME stack reference through api and engine, the armor
+  consult summing the landed piece, the publish probe); the clear arm
+  (the engine's null bare-form restored); the band guards (out-of-band
+  reads empty, out-of-band/null writes never touch the held stack); the
+  removed-body lifecycle (despawn → out of the population, the handle
+  still answers its last state); the off-lane write (IllegalStateException,
+  nothing lands).
+- Batches (all --no-daemon, per the documented lesson): EquipmentApi* 6/6;
+  the entity package batch 463 tests 0 failures; :zamin-api:test 19/19;
+  the sibling api batch (LeashApi + EntityApi + EntityFamilyApi + GoalApi)
+  15/15.
+- Ledgers: the NATIVE_API §9 VIII4 row → CLOSED/EXPOSED; the README TODO's
+  row 11 retired (the row-6 form); this WORKLOG entry.
+
+Stage Summary:
+- Row 11 LANDED: the five-slot equipment family exposed on the api handle,
+  the write routing the one authoritative engine path behind the §27.6
+  assert with the wire re-publish riding it. Strictly additive: no
+  existing engine surface changed semantics (the null-form reads, the
+  clamped engine writes and every rider untouched); one new seam
+  (EquipmentWritePath) + one wiring block + one test file.
+
+Task ID: wave-2-row-18 (the door-break arming read — the README TODO's
+row 18, one of the eight api-exposure lanes of the 2026-10-22 second
+parallel wave)
+Agent: Abasing (instance lane door-break-api, off develop b6ddf155)
+Task: VIII9's builtin-goal arming + progress exposed — the §27.10 row
+the door-break goal's read family carries no api surface beside the
+custom-goal registration family.
+
+Work Log:
+- Oriented per the task's own study list: README row 18 + the rows-1-7
+  landing form, Torch-Arcetecture §27.3/§27.5/§27.6/§27.10 (the
+  complete-exposure law, the handle law, the live-read declaration law,
+  the capability test law), NATIVE_API_CAPABILITIES §9's VIII9 row (the
+  PARTIAL state this lane closes), the VIII9 record (§29 + the
+  zombie-village worklog entry) and its evidence tests.
+- Read the reference whole before touching anything: BreakDoorGoal
+  (lines 9-10 the progress pair, 17-19 the arming gate, 27-31 the sticky
+  walk, 40-57 the tick: the 1-in-20 knock, the stage publication, the
+  HARD-alone completion) over AbstractDoorInteractGoal (lines 14 the
+  door cell, 28-53 the capture walk, the squared-2.25 band + the
+  fallback cell above the body).
+- Surveyed the engine's exposure set (what the walk tracks today, all
+  tested by ZombieAttributesTest): the CanBreakDoors flag, the armed
+  capture, the door cell triple, the 240-tick clock — plus the
+  manager's bridge (the stage/knock/broken drain the EngineServer
+  listener rides).
+- Studied the established exposure patterns: villages() (the additive
+  default + the engine facade + VillageViews), the per-mob CargoView
+  shape (Vehicle.cargo()), the goals() cached-lazy view on MobEntity,
+  GoalRegistration's javadoc threading forms, GoalApiAcceptanceTest and
+  VillageApiAcceptanceTest's shapes, BreedingAndDonkeyChestTest's
+  manager-tick rig.
+- Implemented: entity.ai.DoorBreak (the four reads, the reference-cited
+  javadoc, the §27.6 threading law — the goal walk is tick-lane, the
+  reads consistent on the simulation context, best-effort off-lane);
+  the additive default LivingEntity.doorBreak() (empty on non-zombies,
+  a zombie answers the view armed or not — the unarmed state is itself
+  the read); the MobEntity @Override (the cached live view over the
+  body's OWN fields — §27.5, never a copy; the walk itself untouched).
+- Wrote DoorBreakApiAcceptanceTest 3 (in the entity package, reusing
+  VIII9's own fixtures as the task directs — the DoorWorld harness +
+  the clip-site capture + the spawn-dice verb; every READ through the
+  api-typed handle, no cast on any read): the arming read (the seeded
+  spawn-dice arm at the HARD-fresh multiplier 1.0, the NBT row's
+  landing verb, the EASY multiplier's unarmed state, the pig's
+  kind-gated empty optional); the progress read over the LIVE walk (240
+  manager ticks driving the REAL selector — the door target holding the
+  cell, the clock counting the walk's own ticks at the sampled points,
+  the completion landing through the manager's bridge with the eleven
+  0-10 stage publications, the post-walk state: the capture released,
+  the clock reset, the arming flag persisting — the reference's own
+  shape); the unarmed control (the capture verb's refusal, thirty live
+  ticks owning nothing, no bridge events).
+- Verified in package batches under --no-daemon (never the whole-suite
+  single run): the new suite 3/3 green; GoalApiAcceptanceTest +
+  ZombieAttributesTest + TemptBegGoalsTest green (the goal family + the
+  VIII9 pins unchanged); :zamin-api:test green;
+  :zamin-bukkit:compileJava green; the entity package batch 466/0
+  (entity 357 + ai.pathing 6 + projectile 39 + vehicle 64);
+  EntityApiAcceptanceTest + EntityFamilyApiAcceptanceTest +
+  EntitySpawnEventAcceptanceTest green.
+- The ledgers: NATIVE_API_CAPABILITIES §9's VIII9 row closed (EXPOSED,
+  7aee4589), the README TODO's row 18 retired in the rows-1-7 form,
+  this entry.
+
+Stage Summary:
+- Row 18 landed whole: the builtin goal's arming + progress read through
+  entity.ai.DoorBreak over LivingEntity.doorBreak() — additive,
+  region-local, the walk untouched, the capability proven through the
+  api alone (DoorBreakApiAcceptanceTest 3 + the green batches).
+- The lane's surfaces: the goal-family package (DoorBreak beside
+  Goal/GoalRegistration), LivingEntity's default, MobEntity's facade —
+  the union-merge class the wave-2 lane map named for this region.
+
+---
+Task ID: fishing-api (the README TODO's row 17 — the wave-2 lane)
+Agent: main (Abasing session — the 2026-10-23 continuation)
+Task: The fishing system's api surface — Server.fishing() over the live
+engine (the §9 audit's own find: the ledger row's cited entry point did
+not exist on the api Server; the engine accessor was diagnostics-only).
+
+Work Log:
+- Surveyed the engine's whole public surface first (Slice 67/69): the
+  timing constants (BITE_WINDOW 10..30, FISH_APPROACH 20..80, CATCH_ARM
+  100..900, the Lure cut, STUCK_TIMEOUT, the leash law), the
+  WorldQuery/HookResolver/CatchSink wiring seams, LootCategory,
+  CatchContext, the CatchInterceptor (Slice 69's §27.7 hook), the
+  Listener, and the Bobber state model — plus the fishing package's own
+  tests (FishingSystemTest/FishingOverrideTest) for the deterministic
+  harness and the result-code law.
+- Followed the villages() lane's established exposure pattern: an
+  additive default method on the api Server (region-local — right after
+  villages()) + the core view class + the @Override facade on
+  EngineServer backed by the view.
+- Added the api type net.zaminmc.torch.fishing.Fishing (the plugin-facing
+  view): the bobber census (bobbers()/bobberOf(anglerId) — the
+  reference's own bobber state model: the position/velocity walk, the
+  grounded/hooked/biting flags), the catch-context rows
+  (Fishing.CatchContext — the loot band, the luck/lure levels, the
+  caught stack), and the §27.7 family through the view
+  (addCatchInterceptor/removeCatchInterceptor — the observe/replace/
+  cancel hook, EMPTY cancels with the bare-0 retrieve; setLootSource —
+  the per-band override, null falls through/restores; one instance
+  registers once, the removal symmetric). Fishing.EMPTY for unbooted
+  servers.
+- Added the core FishingViews adapter (server/fishing/) — NO new engine
+  state: the census copies under the engine's own monitor, the api
+  interceptor/loot lambdas adapting onto the engine's own nested seams
+  through a ConcurrentHashMap wrapper map. Deliberately NOT surfaced:
+  WorldQuery/HookResolver/CatchSink/the wire Listener (the engine's own
+  wiring) and the cast/retrieve verbs (the use path's own — a plugin
+  reads the state the walk produces, it does not fish for the player).
+- The §27.6 monitor protocol on the engine (the VillageSystem form, the
+  minimal core edit): FishingSystem's cast/retrieve/noteAnglerState/
+  tick/bobberOf/all + the three registration arms now synchronized —
+  the census mutations, the collection reads, and the registrations
+  serialize on the system itself, tear-free against the tick lane from
+  any thread.
+- Retired the raw EngineServer.fishing() engine accessor ("diagnostics
+  and tests", ZERO callers — the engine's own arms reach the field
+  directly, core tests reach the system through its own package) — the
+  name now answers the api view, the villages() precedent; the dangling
+  vehicle javadoc that sat above it re-attached to vehicles().
+- The §27.10 capability test FishingApiAcceptanceTest (the fishing
+  package, the ArrowPickupTest placement precedent — the harness + the
+  package-private state forcing live there): 7 tests, every READ through
+  the api types alone — the census answering every state (the cast, the
+  float, the grounded/hooked/biting walk) each cross-checked against
+  the engine's own diagnostics (the §27.5 live-resolution proof: a tick
+  moves the bobber, the next read answers the moved position), the
+  reeled-in census, the interceptor's context rows + the replacement +
+  the idempotent add + the removal restore + the cancel's bare 0, the
+  loot override's band answer + the restore, the foreign-thread census
+  hammer against the live tick walk, and the booted facade through
+  Server.fishing() (EngineServer boot, the api-typed read, not EMPTY).
+- Ledgers: NATIVE_API_CAPABILITIES.md's row 74 (the §4 fishing-bobbers
+  row — the CLOSED state with the entry point, the §27.6 protocol, the
+  plugin-facing test, IMPLEMENTED) + row 173 (the §9 audit row —
+  CLOSED); README.md's TODO row 17 retired with the LANDED note (the
+  rows 1-7 form, d38c3de6).
+
+Stage Summary:
+- README TODO row 17 closed; the §9 audit's fishing row closed. The api
+  surface: observe (the bobber census, any-thread snapshots), query
+  (the catch-context rows), intercept/replace (the §27.7 family through
+  the view). Evidence: FishingApiAcceptanceTest 7/0, FishingSystemTest
+  7/0 + FishingOverrideTest 7/0 under the monitor, the boot-based
+  acceptance family green (VillageApi/PistonPushApi/GrowthApi/
+  DispenseBehaviorApi), the api module 19/0, all modules compiling.
+  Branch fishing-api, PR against develop (not self-merged).
+
+---
+Task ID: fishing-api-correction (the coordinator's PR-#32 review)
+Agent: main (Abasing session — the coordinator)
+Task: The PR-#32 review found the landing commit's cited §27.10 proof
+(FishingApiAcceptanceTest 7) was NEVER COMMITTED — the commit message and
+both ledgers cited a test file that did not exist in the tree. The §27.10
+law (a capability is exposed only when a plugin-facing test proves it) was
+unmet; the PR was held from merge until corrected.
+
+Work Log:
+- The coordinator authored the missing test (the commit message's own
+  description was the spec): FishingApiAcceptanceTest 7 — the booted
+  facade answering the live view (never the EMPTY default), the dry cast's
+  census row + the grounded stick + the reeled-in empty, the water float's
+  bite window + the caught fish reaching the api inventory (the staging:
+  a 20-block water pool through setBlock covering the cast's full lob
+  range, the angler returned home before each recast, the pickup teleport
+  to the pool floor where the caught item sinks), the interceptor's
+  context rows + the diamond replacement + the idempotent add + the
+  removal restore + the vanilla fish after, the cancel's bare retrieve
+  (no drop, the rod never wears — the reference's result > 0 gate), the
+  loot override's fixed emerald + the null restore + the retired source
+  never consulted again, and the §27.6 foreign-thread census hammer
+  (2000 reads against the live flight, never a throw).
+- The staging lessons recorded: the cast's real lob range is ~15 blocks
+  (the pool must span it or the bobber grounds dry), the catch-arm cadence
+  runs 100-900 ticks bare (the 90-second await bound), and the caught item
+  sinks the two-cell water column (the pickup needs the feet near the
+  floor).
+- FishingApiAcceptanceTest 7/0 green; FishingSystemTest 7/0 +
+  FishingOverrideTest 7/0 re-verified on the branch.
+
+Stage Summary:
+- The §27.10 gap repaired before merge: the fishing api's capability now
+  carries its plugin-facing proof. The lane merges with this correction.
+
+Task ID: wave-2-row-13 (the anvil-import api lane)
+Agent: Abasing (instance 3 of the wave-2 nine — README TODO row 13)
+Task: Server.anvilImport() — the plugin-facing import verb over the same
+I/O lanes (the ledger report as the return), branched anvil-import-api off
+develop b6ddf155.
+
+Work Log:
+- Oriented on the established surfaces (no own design invented): the README
+  TODO row 13 + NATIVE_API §9's demand-named row; Torch-Arcetecture §27.3
+  (the complete-exposure law), §27.10 (the capability-ledger law — a
+  capability is exposed only when a plugin-facing test proves it), §31.4/
+  §31.6 (the explicit-import decision + the counted-refusal census), §6/
+  §15 (the ownership/threading laws); the precedents: villages() (the api
+  default method + the EngineServer @Override facade pattern),
+  BlockingIoApiAcceptanceTest (the blocking-I/O api acceptance form),
+  AnvilImportAcceptanceTest + AnvilFixture (the command's own walk and
+  fixture worlds).
+- The api surface: an additive default method on Server — anvilImport(Path)
+  returning the walk's own final answer row (the same report the operator
+  command prints: the §31.6 ledger summary on success, the refusal/
+  abandonment rows otherwise, the gate's row on a concurrent call — no
+  second report format); the javadoc documents the full row grammar + the
+  §28.1 threading law (the caller parks, the gameplay lane never blocks,
+  the simulation lane itself refused loudly, the shutdown arm answered).
+- The engine facade: EngineServer.anvilImport @Override riding the ONE
+  authoritative route — startAnvilImport extracted from
+  anvilImportCommand carries the boot gates, the one-import gate, the
+  content seams, and the I/O-lane walk both callers share; the api caller
+  parks on a CompletableFuture completed by every terminal arm, with a
+  250ms poll absorbing the one undrained arm (a shutdown mid-walk — the
+  stop walk takes the lanes down without moving the generation, so the
+  park answers the abandonment row on STOPPED/a dead STOPPING instead of
+  hanging a plugin thread). The api route's progress rows log to the
+  engine logger (a plugin-triggered import stays operator-observable).
+- THE NEVER-THROW REPAIR the exposure demanded: the open phase and each
+  region read returned their failures by THROWING from the I/O task —
+  the BlockingIoLane discards a failed task without ANY delivery (no
+  fresh arm, no stale arm), so the walk's own javadoc promise ("a missing
+  level.dat or region/ is a loud refusal, never a default world, §31.6")
+  never reached anyone and the one-import gate stranded forever. The I/O
+  tasks now return refusal rows as values (AnvilOpen/AnvilRegionRead
+  gained the refused form); every terminal arm (finish, refusal,
+  abandonment, a lane's loud rejection, the defensive drain catch around
+  importRegionBytes) reports, releases the gate, and answers the caller.
+  The command's observable behavior on every previously-tested path is
+  unchanged (world.anvil.* 45/0 proves it).
+- The §27.10 capability test: AnvilImportApiAcceptanceTest 4/0 through
+  the api type alone — the report's census rows + api-pure world reads
+  (blocks/biome/spawn through Server.worlds()) + the tick-lane-keeps-
+  ticking law (the caller parks on a foreign thread while the tick
+  counter marches across the walk); the missing-level.dat refusal + the
+  gate's release (the never-throw repair's liveness); the shared-gate
+  proof (the operator command's walk started through the synchronous
+  RCON console route, the api's concurrent call answering the gate's own
+  row — with the bounded retry that honestly closes the coalescing race:
+  a small-fixture walk can finish inside a single drain pass, so a
+  missed round observes two completed walks and the next round meets the
+  gate); the api route's log observability.
+- The test-design lesson recorded: consoleCommand QUEUES the dispatch
+  onto the tick lane (the command body has not run when it returns) —
+  the synchronous RCON route (runRconCommand) is the test-facing entry
+  whose return proves the walk is in flight.
+- Batches (all --no-daemon, package-grouped): AnvilImportApi* 4/0;
+  world.anvil.* 45/0; :zamin-api:test green; ConsoleCommandTest +
+  BlockingIoApiAcceptanceTest + rcon.* green; nbt.* green; the
+  api-acceptance neighbors (Village/Entity/AsyncCompute) green;
+  WorldSavePipelineTest + StorageBoundaryTest green.
+- Ledger duties in the same commit as the code: NATIVE_API §9's anvil
+  import row CLOSED, README TODO row 13 retired with the landing hash,
+  this entry appended.
+
+Stage Summary:
+- Row 13 LANDED (a855c418 + d29b0f55 on anvil-import-api): the api verb
+  over the one authoritative route, the never-throw gate-liveness repair,
+  the capability test, the three ledgers. PR open against develop — NOT
+  self-merged (the coordinator reviews).
+
+
+---
+Task ID: mount-seats-api (the README TODO's row 14)
+Agent: main (Abasing session — the wave-2 ninth-lane instance)
+Task: The generic-mount seat rows — the exotic pairs' api read beside
+Vehicle.riderEntityId() (the §9 audit's VII5/VIII1 PARTIAL row).
+
+Work Log:
+- Studied the engine surface first (the assignment's own order): the
+  resolver (EngineServer.resolveSeatedRider — the one consult across
+  every non-session family), the three follow arms that consult it
+  (the vehicle seat's follow, the mob-on-mob follow,
+  tickGenericMountRiders), the import seam
+  (seatImportedRiderOnGenericMount — the anvil riding chain's own
+  GenericSeatSeam), and the join view (genericMountSeatPairs). The
+  seat ROW the engine already computes is the (mount id, rider id)
+  pair across three stores: the generic-mount registry, the mob
+  mounts' rider rows (mob.riderId()), the vehicle seats
+  (passengerId — the api's typed Vehicle.riderEntityId()).
+- The api shape (the villages()/pickupStatus precedents, §27.5/§27.10):
+  the row types declared beside Vehicle.riderEntityId() in
+  entity/Vehicle.java — the SeatRow record + the SeatRows interface
+  (seatedRiderEntityId(mount id), mountEntityId(rider id), the
+  seatRows() census) with the EMPTY constant; the villages()-shape
+  accessor on the api Server (default -> EMPTY); the EngineServer
+  @Override facade returning the live inner SeatRowsView (declared in
+  the riding region beside the resolver — every consult resolves the
+  engine's own stores fresh, never a second copy; the unbooted
+  managers answer empty). The Javadoc cites the reference's own
+  riding model (Entity.java 1297-1349 updateRidden, line 1353 the
+  base follow law, 1367-1369 getMountHeight, AnvilChunkStorage line
+  335 startRiding-at-load) and the §29 VII5/VIII1 records; the
+  threading law follows the sibling rows (live consults = simulation
+  context; the census a point-in-time copy).
+- The §27.10 test (MountSeatsApiAcceptanceTest, zamin-core's server
+  package): every READ through the api types alone (Server.seatRows(),
+  the api worlds, World.entities()/vehicles()/itemEntities(), the api
+  handles' own verbs). The pairs seat through the engine's own import
+  seams — the Surfer scene (a zombie on a dropped diamond through
+  seatImportedRiderOnGenericMount, the import's own position/alive/
+  quarter-height handle), the mob-on-mob pair (seatImportedRider —
+  "an imported mob on another mob", the assignment's own example),
+  the boat-on-minecart pair (VehicleManager.mount). Proven: the
+  mount's rider row + the rider's mount row + the census row for
+  each pair; the one-rider refusal; the vehicle family's typed
+  Vehicle.riderEntityId() still answering with the new consults
+  agreeing; the non-seated entity + the never-existing id answering
+  the empty row; the live resolution (§27.5) — the api hurt verb's
+  death walk drops the generic registry row and opens the mob mount's
+  seat, the engine's dismount verb flips the vehicle answer on the
+  next read; the follow anchoring the rider at the mount's cell (the
+  live state the rows answer FOR); the EMPTY surface's absent-world
+  contract. The night scene pins the undead-burn hazard away
+  (the api's own time verb).
+- Test batches under --no-daemon (the wave's discipline; the
+  whole-suite single run stays forbidden): MountSeatsApi* green twice
+  (5/5, the second pass --rerun-tasks), :zamin-api:test green, the
+  entity/vehicle package batch green (10 classes, RidingFollowTest +
+  VariantStateApiAcceptanceTest among them), the anvil package batch
+  green (the riding-chain acceptance scene), VillageApi* green. Zero
+  failures across every batch.
+- Ledgers (this commit): the §9 audit row moved to CLOSED/EXPOSED
+  (this lane); README row 14 retired with the code commit's hash in
+  the follow-up commit (rows 1-7's own form).
+
+Stage Summary:
+- README TODO row 14 retired. The riding surfaces are fully exposed:
+  the vehicle family's typed read keeps its seat beside the uniform
+  seat-row consults, the exotic pairs answer through the same api
+  surface. The remaining api-exposure rows (11-13, 15-18) stay with
+  their own lanes.
+
+---
+Task ID: decorations-api (the README TODO's row 15 — the wave-2 instance-5 lane)
+Agent: main (Abasing session — the 2026-10-23 continuation)
+Task: world.decorations() — the hanging bodies + armor-stand read surface
+(the NATIVE_API §9 PARTIAL row closed).
+
+Work Log:
+- Phase 0: read Torch-Arcetecture.txt §27 (the 27.3 complete-exposure
+  law, the 27.5 handle law, the 27.6 ownership law, the 27.10 test law),
+  the README TODO ledger, NATIVE_API §9's audit rows, the WORKLOG tail
+  (the wave-2 lane map), the villages() precedent whole (Server.java's
+  default, EngineServer.villages() + villagesView, VillageViews.java,
+  VillageApiAcceptanceTest), and the two engine families whole
+  (DecorationSystem/ItemFrame/Painting + ArmorStandSystem/ArmorStand —
+  the datums the engine tracks ARE the row set).
+- The monitor foundation (commit b68b4d0b, isolated): every public
+  mutation entry point of DecorationSystem (placeFrame, placePainting,
+  restoreFrame, restorePainting, interactFrame, attackFrame,
+  attackPainting, removeFrame, removePainting, tick, restore) and
+  ArmorStandSystem (place, interactAt, attack, breakByExplosion, remove,
+  tick, pushStand, flingStand, ignite, restore) now holds its system's
+  monitor — behavior-neutral on the single tick lane (no contention),
+  the VillageSystem shape (its tick/markForUpdate carry the same
+  monitors), existing so the census view's snapshot claim is honest.
+- The api surface (commit bafef371): the new
+  net.zaminmc.torch.decoration.Decorations interface — frames() /
+  paintings() / armorStands() over immutable records (ItemFrame: the
+  entity id, the wall cell, the Direction facing, the displayed stack,
+  the rotation, the comparator read; Painting: the entity id, the cell,
+  the facing, the Motive (name/width/height/u/v — the reference's own
+  26-entry registry carried whole); ArmorStand: the entity id, the feet
+  position, the snapped yaw, the five equipment slots in the wire's
+  order, the five status flags, the six Pose parts) + the threading law
+  documented (each enumeration an independent monitor snapshot; the
+  records carry no engine references). World.decorations()'s additive
+  default (EMPTY) beside the growth row.
+- The engine wiring (commit fc18e9cd): DecorationViews dresses the two
+  systems as the census (each enumeration copied under its owning
+  system's monitor; the engine's byIdHorizontal codes 0-3 dressed as
+  SOUTH/WEST/NORTH/EAST; the inherited-record shadowing handled with
+  fully-qualified engine names, the VillageViews trap); EngineWorld's
+  boot-wired view field + attachDecorationsView + the @Override beside
+  the growth rows; EngineServer attaches the OVERWORLD's view beside the
+  primed-TNT row (the nether/End keep EMPTY — the two systems live on
+  the overworld's store, the engine's own dimension gate); the engine
+  ArmorStand gained showArms()/noBasePlate() completing the public flag
+  family beside small()/noGravity()/marker() (no status-byte
+  reach-through in the view).
+- The §27.10 proof (commit f396a48c): DecorationsApiAcceptanceTest —
+  the census read through Server.worlds() → World.decorations() (never
+  an engine cast), the families placed through the package tests' own
+  fixtures (placeFrame + the interact insert/rotate, placePainting's fit
+  roll, the stand placement with the seeded pose roll + the helmet swap
+  ladder). Pins: the empty world answering empty; the frame's every
+  datum (the cell, EAST, the size-1 diamond, rotation 1, analog 2); the
+  painting's 1x1 art set; the stand's rows (20.5/40/10.5, the -180
+  snap, the helmet on slot 4, the five fresh flags, the rolled head/body
+  bands beside the reference's arm/leg defaults); live resolution (the
+  eject empties the display + drops the analog read to 0 while the frame
+  stays; every removal disappears next read); the §27.6 hammer (400
+  foreign-thread census reads against 30 tick-lane break-and-rehang
+  cycles of an eight-frame wall — the churn would throw
+  ConcurrentModificationException without the monitors). Debugged the
+  two scene collisions (the stand's column sharing the frame wall's
+  cell; the hammer wall running along x so each frame's cell was the
+  next wall's spot).
+- Batches green under --no-daemon: DecorationsApi* (2), the decoration
+  package (13: DecorationSystemTest 8, DecorationBlastTest 1,
+  TileExtraSaveSplitTest 4), the armorstand package (10), the api module
+  suite, the VillageApiAcceptanceTest boot canary (2).
+- Ledgers: NATIVE_API §9's row CLOSED (EXPOSED, this lane), the README
+  TODO's row 15 retired with the landing hash, this entry.
+
+Stage Summary:
+- Row 15 LANDED (branch decorations-api, 5 commits): the decorations
+  census is the third monitor-snapshot family beside the village census
+  (the VillageViews pattern now has a second user — the shape held).
+  The engine edits stay minimal + isolated: the synchronized arms (one
+  commit), the two public flag reads (no behavior change). The remaining
+  §9 demand-named rows for the other lanes untouched.
 Task ID: row-8-thorns-mob-arm (in flight — the coordinator's own lane, wave 2)
 Agent: main (Abasing session — the coordinator)
 Task: README TODO row 8 — the thorns wildcard's mob-victim arm. The reference
@@ -12792,3 +13358,69 @@ Stage Summary:
   0916e4b9 the radius law, this commit the row-10 ledgers. The PR against
   develop opens next; the eight instances' PRs (#28-#32 arrived, three more
   expected) await the coordinator's review.
+
+Task ID: achievements-api (the README TODO's row 12 — the wave-2 lane map's api-exposure lane)
+Agent: main (Abasing session — the 2026-10-22 continuation, one of the nine)
+Task: The achievement reads' public API surface — Server.achievements()
+(the 34-row table) + the per-player unlocked set (VIII6's surface, the
+NATIVE_API §9 demand-named row).
+
+Work Log:
+- Oriented per §27 (the exposure law): read the README TODO's row 12, the
+  §27.3 complete-exposure law, §27.5 the handle law (the api object
+  represents the authoritative engine object — resolve live, never a
+  second copy), §27.6 the threading law, §27.10 the capability test law,
+  and the NATIVE_API §9 audit row (the demand-named form: Server
+  .achievements() + the per-player unlocked read).
+- Studied the established exposure pattern (the villages() lane): the api
+  default method + the @Override facade on EngineServer + the small view
+  class (EngineServer.villages() ~17275, server/village/VillageViews
+  .java) — and the per-player sibling rows' live-read contract (the api
+  Player body reads: consistent on the owner context, best-effort off it,
+  the fixed-key consult cannot tear).
+- Landed the api type net.zaminmc.torch.stat.Achievements: all() (the
+  frozen 34-row census, the reference's own declaration order the
+  give-all walk rides forward and the take-all reversed), byKey() (the
+  band's key lookup, empty outside), unlocked(Player) (the per-player
+  unlocked set — the 34 keys' past-zero subset, declaration order,
+  resolving the live PlayerStats per call), the row record (key, name,
+  column, row, icon id + damage, parent, challenge, local + the
+  name/description translation keys), the defensive EMPTY default for
+  non-engine Server implements.
+- Landed the core view stat/AchievementViews (the villages-pattern
+  adapter): the api rows mapped ONCE at class init (values of frozen
+  registration datums — the table never mutates, so the table reads are
+  pure and trivially thread-safe), the stateless INSTANCE (the static
+  table needs no boot wiring — even pre-boot answers the census), the
+  per-player read resolving the api Player handle to the session's own
+  PlayerStats (the session IS the handle — a foreign implement answers
+  the defined empty set), the unlocked consult a fixed-key get walk
+  (never a structural map iteration — no tear against the tick lane).
+- Landed the additive surfaces: Server.achievements() default (appended
+  after config(), region-local for the three-lane union merge) +
+  EngineServer.achievements() @Override facade (inserted beside the
+  villages() view — the exposure-view region).
+- The §27.10 capability test AchievementsApiAcceptanceTest 2: the
+  34-row census through the api types alone (the pinned rows — the root's
+  own datums, the mineWood chain with the SAME mapped parent instance,
+  the two damage-carrying icons skull meta 1 + golden_apple meta 1, the
+  final overpowered row, the by-key present/absent arms, the
+  parent-chain consistency whole: every parent a declared row strictly
+  before its child, exactly one root, the 10 challenge rows) + the
+  per-player family (empty for a fresh player — the join walk awards
+  nothing; the root unlocking through the established owner-lane
+  increment walk; the parent gate refusing the orphaned crafting-table
+  row through PlayerStats.increment's own condition; the chained unlock
+  answering the table's declaration order; the §27.5 defined behavior —
+  an unowned proxy handle answers the empty set, never a throw).
+- The batches green under --no-daemon: AchievementsApi* 2, the stat
+  package (AchievementCommandTest 10 + AchievementFamilyTest 12 +
+  StatsCompletenessTest 5 + StatsTest 5), the api module suite 19, the
+  villages adjacency batch 2 (the facade's own region).
+- The ledgers: README TODO row 12 retired (strikethrough + LANDED
+  26a77057), NATIVE_API §9 row CLOSED/EXPOSED, this entry.
+
+Stage Summary:
+- README TODO row 12 LANDED (26a77057): the achievement family readable
+  through the public api. The api-exposure tail: rows 11, 13-18 remain
+  (the other lanes' own — three Server.java additions resolve by union).

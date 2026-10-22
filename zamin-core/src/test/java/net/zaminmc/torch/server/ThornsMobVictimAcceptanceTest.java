@@ -62,14 +62,15 @@ class ThornsMobVictimAcceptanceTest {
         boolean proc = false;
         int landed = 0;
         for (int i = 0; i < 24 && !proc && !pig.dead(); i++) {
-            // The pig flees after every hit: the attacker teleports to the
-            // body's live position each swing.
+            Thread.sleep(600); // the previous hit's i-frame decay, first
+            // The pig flees after every hit (the panic goal's own ~7
+            // blocks a second): the read-teleport-swing sequence runs
+            // tight so the drift inside it stays a fraction of the reach.
             Position at = pig.position();
             server.teleportPlayer(attacker,
                     new Position(at.x(), at.y(), at.z() + 0.8));
             await(() -> attacker.position().z() == at.z() + 0.8,
                     "the stand " + i + " landed");
-            Thread.sleep(600); // the previous hit's i-frame decay
             float pigStart = pig.health();
             server.attackEntity(attacker, pig.entityId());
             await(() -> pig.health() < pigStart, "the swing " + i + " landed");

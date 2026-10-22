@@ -139,6 +139,11 @@ public final class EngineWorld implements World,
     private volatile net.zaminmc.torch.block.Growth growthView
             = net.zaminmc.torch.block.Growth.EMPTY;
 
+    /** The public decoration-census view (the hanging bodies + the
+     * stands' family rows; boot wiring — the README TODO's row 15). */
+    private volatile net.zaminmc.torch.decoration.Decorations decorationsView
+            = net.zaminmc.torch.decoration.Decorations.EMPTY;
+
     /** The public primed-TNT view (§27.3): attached at boot. */
     private volatile java.util.function.Supplier<
             java.util.List<? extends net.zaminmc.torch.entity.PrimedTnt>> primedTntView;
@@ -376,6 +381,13 @@ public final class EngineWorld implements World,
         this.growthView = java.util.Objects.requireNonNull(view, "view");
     }
 
+    /** Wires the public decoration-census view (the boot path — §27.3,
+     *  the README TODO's row 15: the frames + the paintings + the
+     *  stands' family rows, each enumeration a monitor snapshot). */
+    public void attachDecorationsView(net.zaminmc.torch.decoration.Decorations view) {
+        this.decorationsView = java.util.Objects.requireNonNull(view, "view");
+    }
+
     /** Attaches the public primed-TNT view (the TNT family's boot
      *  wiring; §27.3). */
     public void attachPrimedTntView(java.util.function.Supplier<
@@ -492,6 +504,11 @@ public final class EngineWorld implements World,
     @Override
     public net.zaminmc.torch.block.Growth growth() {
         return growthView;
+    }
+
+    @Override
+    public net.zaminmc.torch.decoration.Decorations decorations() {
+        return decorationsView;
     }
 
     @Override
@@ -667,6 +684,29 @@ public final class EngineWorld implements World,
     public String biomeAt(BlockPosition position) {
         return biomeValueAt(position.x(), position.z())
                 .name().toLowerCase(java.util.Locale.ROOT);
+    }
+
+    /**
+     * @return the whole registration census as api rows (the VIII14
+     * slice-1 exposure beside {@link #biomeAt} — 61 rows, id order; the
+     * immutable world-independent table, any thread; every world answers
+     * the same census).
+     */
+    @Override
+    public java.util.List<net.zaminmc.torch.block.BiomeData> biomes() {
+        return BiomeDataViews.all();
+    }
+
+    /**
+     * @return the registration row's api view at the column (the VIII14
+     * slice-1 exposure beside {@link #biomeAt}) — the SAME resolution
+     * {@link #biomeAt} rides ({@link #biomeValueAt}: the chunk's own
+     * stored row; the plains row outside loaded chunks, the implicit
+     * default's own datums).
+     */
+    @Override
+    public net.zaminmc.torch.block.BiomeData biomeDataAt(BlockPosition position) {
+        return BiomeDataViews.of(biomeValueAt(position.x(), position.z()));
     }
 
     /**
