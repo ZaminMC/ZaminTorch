@@ -711,6 +711,40 @@ public final class MobManager {
     }
 
     /**
+     * The public equipment write path (§27.3's VIII4 exposure — the
+     * {@code LivingEntity.setEquipmentAt} handle's wired route): the
+     * §27.6 owner-context assert, the one authoritative
+     * {@link MobEntity#setEquipment}, then the {@link #equipmentChanged}
+     * re-publish. The three-argument seam follows the SkullExplosionSink
+     * precedent (no standard shape carries a body + a slot + a stack).
+     */
+    @FunctionalInterface
+    public interface EquipmentWritePath {
+        /**
+         * @param stack the engine's own bare form — {@code null} clears
+         *              the slot (the mapping the api adapter makes from
+         *              the canonical empty stack)
+         */
+        void equip(MobEntity mob, int slot, ItemStack stack);
+    }
+
+    /** The equipment write path (null until the server wires it). */
+    private EquipmentWritePath equipmentWritePath;
+
+    /**
+     * Wires the public equipment write path behind the §27.6 owner-context
+     * assert. Called once by the server — the setter retro-wires every
+     * already-spawned body too (the boot order restores mobs before the
+     * write path is wired), and {@code spawnAt} wires fresh spawns.
+     */
+    public void setEquipmentWritePath(EquipmentWritePath path) {
+        this.equipmentWritePath = path;
+        for (MobEntity mob : mobs) {
+            mob.setEquipmentWritePath((slot, stack) -> path.equip(mob, slot, stack));
+        }
+    }
+
+    /**
      * Wires the public event bus (§27.7): every spawn fires
      * {@link net.zaminmc.torch.event.entity.MobSpawnEvent} before the entity
      * joins the world; a cancelled spawn returns null and consumes no id.
@@ -838,6 +872,13 @@ public final class MobManager {
         }
         mob.setBreedFinder(this::scanForMate);
         mob.setRemovalHook(() -> remove(mob, "api")); // the public despawn path
+        // The public equipment write path (the VIII4 exposure): fresh
+        // spawns carry the wired route (assert + write + re-publish) —
+        // the leash detacher's own spawn-wiring form.
+        EquipmentWritePath equipPath = equipmentWritePath;
+        if (equipPath != null) {
+            mob.setEquipmentWritePath((slot, stack) -> equipPath.equip(mob, slot, stack));
+        }
         if (playerStatAward != null) {
             // VIII6: the body-side award sites' seam (the pig's rider fall —
             // the engine resolves the rider session by id at the award).
