@@ -128,6 +128,22 @@ were read line-by-line. Adjudication:
   — submitted read probes with 2s bounds (40 ticks of headroom on a
   next-tick read).
 
+## The loopback-delivery family (the landing's own catch)
+
+The conversion sweep's first protocol-suite run caught a real distinction
+the census now records: a wait that follows `client.send*` /
+`consoleCommand` guards the LOOPBACK NETTY DELIVERY of that frame — a
+thread that is not the tick lane — so `awaitTicks` does not order it
+(`HorseIntegrationTest`'s wheat ladder failed exactly this way: four
+engine ticks elapsed before the `/give` frame reached the command walk).
+Disposition: the dig-DURATION waits are tick-cadence and stay converted
+(a dig FINISH can only arrive late enough — the floor is a minimum); the
+give/chat/slot/position delivery waits (23 sites across 8 protocol
+integration tests) are REVERTED to their wall sleeps and reclassified
+C-C — loopback delivery, no engine-visible tick ordering (where a clean
+engine condition exists, the conversion awaits it instead: the wheat
+ladder now awaits the wheat reaching the inventory).
+
 ## The shared utility's contract (ML-002)
 
 `zamin-core/src/testFixtures/java/net/zaminmc/torch/testing/EngineAwaits.java`
