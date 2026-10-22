@@ -29,6 +29,12 @@ import java.util.function.Consumer;
  * <p>The stands stay where they land (the engine's static-entity model
  * — the reference's gravity walk is ledgered); the equipment, the pose
  * and the flags ride the wire through the listener family.</p>
+ *
+ * <p>Threading (§27.6, the VillageSystem shape): every public mutation
+ * entry point holds this system's monitor, so a reader holding the same
+ * monitor — the public census view — copies a tear-free snapshot against
+ * the tick lane from any thread. The engine's own single tick lane never
+ * contends (no behavior change); the monitor exists for the api read.</p>
  */
 public final class ArmorStandSystem {
 
@@ -147,7 +153,7 @@ public final class ArmorStandSystem {
      *
      * @return whether a stand landed (the stack consumes one unit).
      */
-    public boolean place(BlockPosition clicked, int face, float playerYaw, Random random) {
+    public synchronized boolean place(BlockPosition clicked, int face, float playerYaw, Random random) {
         if (face == 0) {
             return false; // DOWN: the reference's own refusal
         }
@@ -224,8 +230,8 @@ public final class ArmorStandSystem {
      * @return whether the interact landed (the marker refusal answers
      * false — the click falls through).
      */
-    public boolean interactAt(ArmorStand stand, ItemStack held, double offsetY,
-                              boolean creative, Consumer<ItemStack> handSetter) {
+    public synchronized boolean interactAt(ArmorStand stand, ItemStack held, double offsetY,
+                                           boolean creative, Consumer<ItemStack> handSetter) {
         Objects.requireNonNull(stand, "stand");
         if ((stand.status() & ArmorStand.FLAG_MARKER) != 0) {
             return false; // the marker's hitbox-less refusal
@@ -325,7 +331,7 @@ public final class ArmorStandSystem {
      *
      * @return true when the hit was consumed.
      */
-    public boolean attack(ArmorStand stand, boolean creative) {
+    public synchronized boolean attack(ArmorStand stand, boolean creative) {
         Objects.requireNonNull(stand, "stand");
         if (stand.marker()) {
             // The reference's takeDamage gate (lines 376-380, the marker
@@ -378,7 +384,7 @@ public final class ArmorStandSystem {
     }
 
     /** The explosion arm (takeDamage lines 382-386): the equipment drops, the stand item does NOT. */
-    public void breakByExplosion(ArmorStand stand) {
+    public synchronized void breakByExplosion(ArmorStand stand) {
         if (stand.marker()) {
             return; // the same hitbox-less gate — a marker never breaks
         }
@@ -387,7 +393,7 @@ public final class ArmorStandSystem {
     }
 
     /** The removal (the registry drop + the wire destroy). */
-    public void remove(ArmorStand stand) {
+    public synchronized void remove(ArmorStand stand) {
         stands.remove(stand.entityId());
         for (Listener listener : listeners) {
             listener.onStandRemoved(stand);
@@ -406,7 +412,7 @@ public final class ArmorStandSystem {
      * The stand walk and the minecart push run first (the reference's
      * per-tick order: the movement, then the damage clock).
      */
-    public void tick() {
+    public synchronized void tick() {
         walkStands();
         pushRideableCarts();
         List<ArmorStand> burned = null;
@@ -568,7 +574,7 @@ public final class ArmorStandSystem {
      * context (the push surface's walk runs inside the moving blocks'
      * own tick).
      */
-    public void pushStand(ArmorStand stand, double dx, double dy, double dz) {
+    public synchronized void pushStand(ArmorStand stand, double dx, double dy, double dz) {
         if (stand.marker()) {
             return; // the zero box (updateSize(0, 0)): never a body in the box walk
         }
@@ -629,7 +635,7 @@ public final class ArmorStandSystem {
      * integration carries the set components out (the ground friction
      * and the 0.91 air decay the family's tick applies).
      */
-    public void flingStand(ArmorStand stand, double axisX, double axisY, double axisZ) {
+    public synchronized void flingStand(ArmorStand stand, double axisX, double axisY, double axisZ) {
         if (stand.marker()) {
             return; // the zero box: never a body in the box walk
         }
@@ -697,7 +703,7 @@ public final class ArmorStandSystem {
     }
 
     /** The ignite (the standing-in-fire contact, takeDamage lines 388-395). */
-    public void ignite(ArmorStand stand) {
+    public synchronized void ignite(ArmorStand stand) {
         if (stand.fireTicks() <= 0) {
             stand.setFireTicks(ArmorStand.IGNITE_TICKS);
         } else {
@@ -736,7 +742,7 @@ public final class ArmorStandSystem {
     }
 
     /** The restore: the saved stands land back through the spawn listener. */
-    public void restore(List<StandRecord> records) {
+    public synchronized void restore(List<StandRecord> records) {
         for (StandRecord record : records) {
             ArmorStand stand = new ArmorStand(nextId++, record.x(), record.y(), record.z(),
                     record.yaw());
