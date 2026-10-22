@@ -13461,3 +13461,55 @@ Stage Summary:
   develop + main alone. The pending tail itself is unchanged: the wither
   exemptions tracker, the §22-gated concurrency Phases 5-8, the Phase-0
   audit, the §27.1-deferred §28.7 adapter.
+
+---
+Task ID: cycle-3
+Agent: Abasing (the coordinator)
+Task: The owner's full engineering-cycle order — the fresh 1.8.8 parity
+audit, the real-client playtest of the latest release, the performance
+baseline, and the ranked backlog; fixes only where the root cause was
+established.
+
+Work Log:
+- Phase 0: develop verified at 48b91574, clean, synced; the release
+  pipeline found RED — #361 failed the full suite on 228019a2 (the
+  wave-2 head), torch-1.8.8-127 the last published release (the 128
+  bump never shipped). The exact failure pair pulled from the CI logs.
+- The failure pair reproduced-GREEN in isolation (bukkit 2m23s, fishing
+  5m20s, --no-daemon): both load flakes. Root causes: the bridge's
+  racy MONITOR assert + the fishing retrieve racing the 10-30-tick
+  bite window. Both hardened (5b20386e); fishing 7/7 green (3m42s),
+  bukkit green; two helper iterations (the cast-in-flight grace, the
+  home-cell re-cast) before green.
+- Phase 2: torch-1.8.8-127 unpacked and driven with mineflayer (the
+  established harness; the Mojang-client limit stated in the record).
+  Two full validator runs + focused probes: 27/28 checks green through
+  login/chat/dig/chest/furnace/smelting/mobs/AI/combat/loot/death/
+  respawn/day-cycle on the unopped run; the teleport FAIL root-caused
+  to the harness's un-opped bot (the engine's permission masking, op
+  lifecycle, and ops.json persistence verified vanilla-correct); the
+  op-offline parity gap verified against the reference OpCommand; the
+  chest slot-27 rejection investigated to state-dependence (not
+  reproduced deterministically — diagnostic-first plan recorded); the
+  0x0C metadata PartialReadError found with four mutual players (HIGH,
+  open); the respawn-kill storm survived clean (stress pass); graceful
+  stop <1s with world + .zpd persistence verified.
+- Phase 3: the measured baseline — 20.0 TPS idle and under 4 walking
+  bots, 18.0 with the 100-zombie horde, 12.0 under the composite
+  respawn-storm worst case (2477 ticks / 150s traced). Attribution
+  blocked by the missing /debug section table (recorded as B-7); NO
+  concurrency wiring recommended before the attribution pass.
+- Phase 4: the deduplicated severity-ranked backlog written into
+  docs/CYCLE3_AUDIT.md (release-blocking A-1 verification; high B-5
+  0x0C audit + B-2 diagnostics; medium B-3/B-7/attribution/B-1; low
+  papercuts; the 25 ledgered family tails untouched; Minestom closed,
+  the §28.7 adapter deferred, Phases 5-8 gated per standing orders).
+- PR #37 opened against develop (test hardening + the audit record;
+  no engine behavior changed).
+
+Stage Summary:
+- The cycle's deliverable: PR #37 — the release pipeline's flake fixes
+  (full-suite proof on CI) + the audit record with the measured
+  baseline and the ranked backlog. The next cycle's order: verify CI
+  green + the 128 release, then the 0x0C metadata audit (B-5) paired
+  with the attribution pass (B-7 + Phase-3 rerun).
