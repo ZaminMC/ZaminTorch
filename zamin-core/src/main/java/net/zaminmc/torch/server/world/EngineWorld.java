@@ -809,6 +809,67 @@ public final class EngineWorld implements World,
         this.rawTimeOfDay = timeOfDay;
     }
 
+    /**
+     * The /time add arm (the reference's own: TimeCommand's addTo arm adds
+     * to the RAW clock — {@code data.setTimeOfDay(data.getTimeOfDay() +
+     * value)} — the wrapped sky clock derives). Runs on the owning tick
+     * context like the set arm.
+     */
+    public void addTimeOfDay(long delta) {
+        requireOwnership("addTimeOfDay");
+        this.timeOfDay = Math.floorMod(this.timeOfDay + delta, DAY_LENGTH_TICKS);
+        this.rawTimeOfDay += delta;
+    }
+
+    /**
+     * The inhabited-time credit walk (VIII14 — the reference's ChunkMap
+     * batches collapsed to the per-tick credit, the named adaptation):
+     * every watched chunk — a chunk inside at least one player's view
+     * square — accrues exactly one tick. The reference's
+     * {@code updateInhabitedTime} credits {@code world.getTime() -
+     * holder.lastUpdateTime} per holder in ~8000-tick batches and at the
+     * last watcher's departure: the same union-of-watched-spans law, the
+     * per-tick credit one batch fresher (a fresh chunk's first credit
+     * never lags 8000 ticks). The caller deduplicates the squares (two
+     * watchers share one credit — the holder's span, never per-player).
+     * Owner-thread (the tick lane).
+     *
+     * @param watchedKeys the packed chunk positions inside this tick's
+     *                    union of player view squares (the same square the
+     *                    tracker sends — the caller's own walk)
+     */
+    public void accrueInhabitedTime(java.util.Set<Long> watchedKeys) {
+        requireOwnership("accrueInhabitedTime");
+        for (Long key : watchedKeys) {
+            EngineChunk watched = chunks.get(key);
+            if (watched != null) {
+                watched.setInhabitedTime(watched.inhabitedTime() + 1L);
+            }
+        }
+    }
+
+    /**
+     * The local-difficulty consult (the reference's World
+     * .getLocalDifficulty 1:1): the chunk's inhabited row + the moon size
+     * read ONLY when the chunk is loaded — an unloaded position answers
+     * 0/0.0 for both (the reference's own gate), while the raw day clock
+     * and the base difficulty always carry (the world-global reads). The
+     * spawn dice's multiplier consult rides it.
+     *
+     * @param at           the position (the mob's own)
+     * @param difficultyId the world's difficulty id (0 peaceful .. 3 hard —
+     *                     the engine's one shared table)
+     */
+    public LocalDifficulty localDifficulty(net.zaminmc.torch.block.BlockPosition at,
+                                           int difficultyId) {
+        EngineChunk chunk = chunks.get(at.chunkPosition().packed());
+        if (chunk == null) {
+            return new LocalDifficulty(difficultyId, rawTimeOfDay, 0L, 0.0F);
+        }
+        return new LocalDifficulty(difficultyId, rawTimeOfDay,
+                chunk.inhabitedTime(), moonSize());
+    }
+
     private void requireOwnership(String operation) {
         net.zaminmc.torch.server.concurrent.OwnershipDomain attached = domain;
         if (attached != null) {

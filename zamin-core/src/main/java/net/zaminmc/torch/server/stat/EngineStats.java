@@ -199,6 +199,13 @@ public final class EngineStats {
         names.put("nether_portal_z", "portal");
         // The flora's old spellings (31/32/37/38's own names).
         names.put("tall_grass", "tallgrass");
+        // The fern (31's variant 2 — the VIII14 decorators slice's row):
+        // the family's own id keeps the tallgrass row.
+        names.put("fern", "tallgrass");
+        // The dirt variants (3's damage band — the VIII14 surface slice's
+        // register-only pair): the family's own id keeps the dirt row.
+        names.put("coarse_dirt", "dirt");
+        names.put("podzol", "dirt");
         names.put("dead_bush", "deadbush");
         names.put("dandelion", "yellow_flower");
         names.put("poppy", "red_flower");
@@ -387,6 +394,13 @@ public final class EngineStats {
         names.put("nether_portal_z", "portal");
         // The flora's old spellings (31/32/37/38's own names).
         names.put("tall_grass", "tallgrass");
+        // The fern (31's variant 2 — the VIII14 decorators slice's row):
+        // the family's own id keeps the tallgrass row.
+        names.put("fern", "tallgrass");
+        // The dirt variants (3's damage band — the VIII14 surface slice's
+        // register-only pair): the family's own id keeps the dirt row.
+        names.put("coarse_dirt", "dirt");
+        names.put("podzol", "dirt");
         names.put("dead_bush", "deadbush");
         names.put("dandelion", "yellow_flower");
         names.put("poppy", "red_flower");
