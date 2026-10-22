@@ -191,7 +191,16 @@ I=infra/CI/release, S=security/boundary.
   B-7; command path re-read this cycle).
 - Acceptance: /debug stop prints the reference-shaped section table (name,
   count, avg, total); a test pins the report contents.
-- Status: confirmed gap. Confidence: high.
+- Resolution (2026-10-23, the coordinator's wave-3 lane): LANDED on
+  feature/debug-attribution. The profiler gained the visit-count face
+  (sectionCountsSnapshot beside the undecayed nanos face); /debug stop
+  prints the reference-shaped table to the console (header verbatim from
+  DebugCommand.buildReport; rows: name, count, avg/visit, total, % of
+  root, total-descending), built from frozen UNDECAYED snapshots taken
+  before the file report's decay walk; the file report and the reply stay
+  reference-1:1. Tests: DebugSectionTableTest 3/0 + the three existing
+  profiler tests green unmodified (12/0 over the family).
+- Status: RESOLVED (landed).
 
 ### ML-007 — performance attribution pass (baseline retained, attribution missing)
 - Category: performance work (evidence-gated). Layers: T.
@@ -206,7 +215,20 @@ I=infra/CI/release, S=security/boundary.
   evaluate Phase 5/6 lanes against §22.
 - Acceptance: an attribution report naming the top subsystems under the
   horde + respawn-storm loads, with the capture methodology recorded.
-- Dependencies: ML-006. Status: confirmed gap (tooling), gated sequencing.
+- Dependencies: ML-006.
+- Resolution (2026-10-23, the coordinator's wave-3 lane): LANDED —
+  docs/ATTRIBUTION_REPORT.md + docs/ATTRIBUTION_RUN_EVIDENCE.txt over the
+  committed harness AttributionLoadTest (real-wire, the cycle-3 shapes
+  in-process, whole-fan window deltas + GC beans + heap + JFR
+  ObjectAllocationSample). The findings: randomTicks 3.6-3.9ms/tick
+  load-INDEPENDENT (the top subsystem); mobs 715us -> 2.4-4.2ms at the
+  ~120-body hostile census (~20-34us/body, no superlinear signature); the
+  composite 7.2ms/tick whole-fan vs the 50ms budget — 19.9-20.0 TPS
+  through every window (the cycle-3 12.0 lived in the wire/bot-side
+  envelope the harness excludes, recorded). VERDICT: no concurrency phase
+  justified; the §22 discipline holds. GAP FOUND: the re-stream's chunk
+  serialization has no dedicated profiler section — NEW ROW ML-024 below.
+- Status: RESOLVED (landed).
 
 ## Low / papercuts (carried from cycle 3, verified standing)
 
@@ -306,8 +328,22 @@ I=infra/CI/release, S=security/boundary.
 - Acceptance: the captured frame + a pinned protocol test over the
   reference form; if mineflayer's parser is at fault, the exoneration is
   recorded with evidence and this row closes as not-a-defect.
-- Status: suspected gap (bounded diagnostic). Confidence: low-medium
-  (single observation, no bytes).
+- Resolution (2026-10-23, the coordinator's wave-3 lane): CLOSED as a REAL
+  ENGINE DEFECT, root-caused with captured bytes. Phase one: the botless
+  pin (DataWatcherWirePinTest 4/0 — an independent reference-form parser,
+  every watched type pinned to its exact boundary). Phase two: the four-
+  bot capture against the release jar REPRODUCED the PartialReadError (24
+  stacks, all packet_named_entity_spawn -> entityMetadataItem); a
+  socket-level tee captured the failing frames' bytes pre-parse. ROOT
+  CAUSE: trackPlayer wrote the 0x0C's uuid as a length-prefixed STRING
+  (varint + 36 chars) where 1.8.8's wire form is the reference's
+  writeUuid — 16 RAW BYTES (two longs) — 21 extra bytes per 0x0C; every
+  strict client entered the metadata walk 21 bytes early; the
+  intermittence was the luck of the garbage walk landing on 0x7f. The
+  tab list already used writeUuid — the defect was this ONE site. FIXED
+  (ByteBufOps.writeUuid, the one-line change) + pinned (the boundary
+  assert is the regression guard); mineflayer's parser was RIGHT.
+- Status: RESOLVED (defect fixed and pinned).
 
 ### ML-022 — EnumProtocol specialized-packets registry: no caller established (KigPaper N4)
 - Category: fork-audit bounded verification. Layers: P (candidate).
@@ -324,6 +360,21 @@ I=infra/CI/release, S=security/boundary.
 - Resolution (increment 3): grep across all 533 patches found NO caller —
   the registry is inert infrastructure; no extra clientbound wire surface.
   CLOSED as verified/NA-infra (no defect, no debt).
+
+### ML-024 — the wire-publish walk has no dedicated profiler section
+- Category: observability gap (found by the ML-007 pass). Layers: T, P.
+- Severity: L.
+- Evidence: the attribution pass's storm window (17 full re-streams of the
+  view-distance set) shows NO new section and no single-section jump beyond
+  the census's variance band — the chunk serialization runs inside the
+  publish walk, which no profiled() section covers; the JFR capture
+  (byte[] 4.15GB + String 2.72GB sampled) is consistent with the
+  serialization buffers plus the profiler's own per-section string churn.
+- Direction: a dedicated wire-publish section around the chunk
+  serialization/publication path so the next attribution pass is exact.
+- Acceptance: the section visible in sectionNanosSnapshot; the harness
+  re-run shows the re-stream's cost in its own row.
+- Status: open (proposed by the ML-007 pass, 2026-10-23).
 
 ## KigPaper increment 2 (the supplied patched-1.8.8-server audit)
 
