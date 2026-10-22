@@ -40,6 +40,12 @@ import java.util.Map;
  * {@code tag.resolved} (the read gate's once-only byte) and
  * {@code tag.generation} (the copy counter — the reference's
  * CloneBookRecipe row, round-tripped verbatim).
+ * <b>The map family</b> lands the tracker walk's own two rows —
+ * {@code tag.map_is_scaling} (UpscaleMapRecipe's marker byte, read by
+ * FilledMapItem.onResult at the craft take) and {@code tag.Decorations}
+ * (the TAG_LIST of TAG_COMPOUND {id, type, x, z, rot} rows
+ * SavedMapData.tickHolder materializes into map icons — carried verbatim
+ * in the boxed form, the BlockEntityTag convention).
  */
 public final class ItemNbt {
 
@@ -88,12 +94,15 @@ public final class ItemNbt {
         boolean hasBookPages = stack.bookPages() != null && !stack.bookPages().isEmpty();
         boolean hasBookAuthor = stack.bookAuthor() != null;
         boolean hasBookTitle = stack.bookTitle() != null;
+        boolean hasMapDecorations = stack.mapDecorations() != null
+                && !stack.mapDecorations().isEmpty();
         if (hasName || hasLore || hasEnch || unbreakable || repairCost > 0 || hideFlags > 0
                 || hasBlockEntityTag || hasCanDestroy || hasCanPlaceOn
                 || stack.displayColor() != null || hasAttributeModifiers
                 || stack.skullOwner() != null || hasFireworks
                 || hasBookPages || hasBookAuthor || hasBookTitle
-                || stack.bookResolved() || stack.bookGeneration() != 0) {
+                || stack.bookResolved() || stack.bookGeneration() != 0
+                || stack.mapScaling() || hasMapDecorations) {
             Map<String, Snbt.Tag> tag = new java.util.LinkedHashMap<>();
             if (hasName || hasLore || stack.displayColor() != null) {
                 Map<String, Snbt.Tag> display = new java.util.LinkedHashMap<>();
@@ -206,6 +215,23 @@ public final class ItemNbt {
             }
             if (stack.bookGeneration() != 0) {
                 NbtOps.putInt(tag, "generation", stack.bookGeneration());
+            }
+            // The map family's rows (the map item family — the reference's
+            // own shapes): map_is_scaling the BYTE marker (UpscaleMapRecipe
+            // line 70's putBoolean — written only when carried, the
+            // absent-means-default convention; the reference never clears
+            // it after the craft), Decorations the TAG_LIST of TAG_COMPOUND
+            // rows carried verbatim in the boxed form.
+            if (stack.mapScaling()) {
+                NbtOps.putBoolean(tag, "map_is_scaling", true);
+            }
+            if (hasMapDecorations) {
+                java.util.List<Snbt.Tag> decorationWrite = new java.util.ArrayList<>(
+                        stack.mapDecorations().size());
+                for (Map<String, Object> row : stack.mapDecorations()) {
+                    decorationWrite.add(Snbt.Tag.ofCompound(NbtOps.fromBoxed(row)));
+                }
+                NbtOps.putList(tag, "Decorations", decorationWrite);
             }
             NbtOps.putCompound(rows, "tag", tag);
         }
@@ -377,6 +403,29 @@ public final class ItemNbt {
         int generation = NbtOps.getInt(tag, "generation");
         if (generation > 0) {
             stack = stack.withBookGeneration(generation);
+        }
+        // The map family's rows (the map item family — the reference's own
+        // reads: FilledMapItem.onResult line 196's getBoolean("map_is_scaling")
+        // + SavedMapData.tickHolder lines 121-137's getList("Decorations", 10)
+        // walk — an element-family mismatch answers empty, the reference's
+        // own refusal gate).
+        if (NbtOps.getBoolean(tag, "map_is_scaling")) {
+            stack = stack.withMapScaling(true);
+        }
+        java.util.List<Snbt.Tag> decorationRows = NbtOps.getList(tag, "Decorations",
+                Snbt.Tag.Type.COMPOUND);
+        if (!decorationRows.isEmpty()) {
+            java.util.List<Map<String, Object>> decorations = new java.util.ArrayList<>(
+                    decorationRows.size());
+            for (Snbt.Tag row : decorationRows) {
+                Map<String, Snbt.Tag> compound = row != null ? row.asCompound() : null;
+                if (compound != null && !compound.isEmpty()) {
+                    decorations.add(NbtOps.toBoxed(compound));
+                }
+            }
+            if (!decorations.isEmpty()) {
+                stack = stack.withMapDecorations(decorations);
+            }
         }
         // The adventure gates' lists (Wave I — getList(...,8): an
         // element-family mismatch answers empty, the reference's own gate).
