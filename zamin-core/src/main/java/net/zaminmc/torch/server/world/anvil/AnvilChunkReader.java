@@ -70,10 +70,12 @@ import java.util.Map;
  * {@code Entities}/{@code TileEntities}/{@code TileTicks} lists are
  * carried for the seams (each counted by the ledger's imported rows);
  * a blocks-only session (no content seams) counts them as
- * not-imported — the loud answer, never a silent drop. The
- * level rows ({@code LastUpdate}, {@code TerrainPopulated}, {@code
- * LightPopulated}, {@code InhabitedTime}) are generation bookkeeping with
- * no engine surface yet.</p>
+ * not-imported — the loud answer, never a silent drop. Of the level
+ * rows, {@code LastUpdate}/{@code TerrainPopulated}/{@code LightPopulated}
+ * are generation bookkeeping with no engine surface;
+ * {@code InhabitedTime} IS imported (VIII14 — the local-difficulty
+ * completion: the engine's chunk carries the row, the local difficulty's
+ * own inhabited term reads it at the mob's position).</p>
  */
 public final class AnvilChunkReader {
 
@@ -208,6 +210,18 @@ public final class AnvilChunkReader {
                     }
                 }
             }
+        }
+
+        // The inhabited row (VIII14 — the local-difficulty completion):
+        // the reference's AnvilChunkStorage round trip writes
+        // {@code InhabitedTime} beside the blocks (line 183) and reads it
+        // back (line 283); the engine's chunk carries the same row now,
+        // the local difficulty's own inhabited term reads it. The absent
+        // row keeps the fresh 0 (the reference's getLong default's own
+        // shape — a never-watched chunk).
+        if (level.containsKey("InhabitedTime")
+                && level.get("InhabitedTime").type() == Snbt.Tag.Type.LONG) {
+            chunk.setInhabitedTime(NbtOps.getLong(level, "InhabitedTime"));
         }
 
         return new ReadChunk(chunk, entities, tileEntities, tileTicks);

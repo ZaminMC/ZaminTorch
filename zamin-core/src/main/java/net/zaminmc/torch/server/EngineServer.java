@@ -2150,6 +2150,13 @@ public final class EngineServer implements Server, EngineBridge {
                 // The difficulty reads (Slice 19e): the peaceful sweep
                 // (MonsterEntity.tick) + the spawn gate (canSpawn).
                 mobs.setDifficultyRead(() -> difficulty);
+                // VIII14 — the local-difficulty consult (the reference's
+                // World.getLocalDifficulty): the spawn dice's multiplier
+                // reads the spawn dimension's own clock + the position's
+                // chunk's inhabited row + the moon.
+                mobs.setLocalDifficultyRead((spawnAt, spawnDim) ->
+                        worldFor(spawnDim).localDifficulty(
+                                spawnAt.toBlockPosition(), difficulty));
                 // The game-rule read (Slice 24a): doMobLoot gates the
                 // death loot walk (LivingEntity.die).
                 mobs.setMobLootRead(() -> gameRules.getBoolean("doMobLoot"));
@@ -2610,6 +2617,12 @@ public final class EngineServer implements Server, EngineBridge {
                     });
                     profiled("itemEntities", () -> itemEntities.tick(players.all()));
                     profiled("experienceOrbs", () -> experienceOrbs.tick(players.all())); // the XP bodies pay out
+                    // VIII14 — the inhabited-time credit (the reference's
+                    // ChunkMap batches collapsed to the per-tick credit):
+                    // every online player's view square, per dimension, each
+                    // loaded chunk inside the union credited once (the same
+                    // square the tracker sends).
+                    profiled("inhabitedTime", this::tickInhabitedTime);
                     profiled("mobs", () -> mobs.tick(players.all(), world.timeOfDay()));
                     profiled("vehicleRiders", () -> tickVehicleRiders(vehicles)); // the seat anchor AFTER the mobs' own walk
                     profiled("mobRiders", this::tickMobRiders);          // the horse/pig seats (the same law)
@@ -3146,6 +3159,45 @@ public final class EngineServer implements Server, EngineBridge {
             for (int dz = -radius; dz <= radius; dz++) {
                 engineWorld.getOrGenerate(new net.zaminmc.torch.block.ChunkPosition(center.x() + dx, center.z() + dz));
             }
+        }
+    }
+
+    /**
+     * The inhabited-time credit walk (VIII14 — the reference's ChunkMap
+     * {@code updateInhabitedTime} law, the engine's derived form): the
+     * union of every playing player's view square per dimension, each
+     * loaded chunk inside it credited exactly one tick. The derived
+     * per-tick scan needs no holder state — a departing player's square
+     * stops crediting the very next tick (the reference's holder dies at
+     * the last watcher's departure, the same union of watched spans); a
+     * chunk two players share credits once (the holder's span, never
+     * per-player — the dedup the set carries). Tick-thread (the fan's
+     * own lane).
+     */
+    private void tickInhabitedTime() {
+        int view = config.viewDistance();
+        java.util.Set<Long> overworldKeys = new java.util.HashSet<>();
+        java.util.Set<Long> netherKeys = new java.util.HashSet<>();
+        java.util.Set<Long> endKeys = new java.util.HashSet<>();
+        for (PlayerSession player : players.all()) {
+            if (player.state() != net.zaminmc.torch.entity.PlayerState.PLAYING) {
+                continue; // a disconnecting/limbo session watches nothing
+            }
+            java.util.Set<Long> target = player.dimension() == -1 ? netherKeys
+                    : player.dimension() == 1 ? endKeys : overworldKeys;
+            ChunkPosition center = player.position().toBlockPosition().chunkPosition();
+            for (int dx = -view; dx <= view; dx++) {
+                for (int dz = -view; dz <= view; dz++) {
+                    target.add(new ChunkPosition(center.x() + dx, center.z() + dz).packed());
+                }
+            }
+        }
+        world.accrueInhabitedTime(overworldKeys);
+        if (netherWorld != null) {
+            netherWorld.accrueInhabitedTime(netherKeys);
+        }
+        if (endWorld != null) {
+            endWorld.accrueInhabitedTime(endKeys);
         }
     }
 
@@ -23543,9 +23595,14 @@ public final class EngineServer implements Server, EngineBridge {
             } catch (NumberFormatException e) {
                 return "Not a time: " + args[1];
             }
-            world.setTimeOfDay(world.timeOfDay() + add);
+            // VIII14 — the raw-clock-aware add: the reference's arm adds
+            // to the UNWRAPPED clock (the day count rides the sum, the
+            // moon moves); the wrapped sky clock derives. The old
+            // setTimeOfDay(wrapped + add) form folded the raw clock at
+            // the day boundary — a /time add 24000 reset the moon.
+            world.addTimeOfDay(add);
             if (netherWorld != null) {
-                netherWorld.setTimeOfDay(netherWorld.timeOfDay() + add);
+                netherWorld.addTimeOfDay(add);
             }
             publishTimeChanged();
             return "Added " + add + " to the time";

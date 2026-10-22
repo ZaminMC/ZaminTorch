@@ -535,6 +535,22 @@ public final class MobManager {
     private volatile java.util.function.Consumer<Runnable> goalAdmission;
     /** The difficulty read (0 peaceful .. 3 hard); null until wired. */
     private volatile java.util.function.IntSupplier difficultyRead;
+    /**
+     * The local-difficulty consult (VIII14 — the reference's
+     * World.getLocalDifficulty over the engine's worlds): position + the
+     * spawn dimension -> the {@link net.zaminmc.torch.server.world
+     * .LocalDifficulty} read. Null until wired (the bare test boots ride
+     * the historical zeroed stand-in).
+     */
+    private volatile java.util.function.BiFunction<Position, Integer,
+            net.zaminmc.torch.server.world.LocalDifficulty> localDifficultyRead;
+    /**
+     * The dimension the current spawn walk lands in (VIII14 — the
+     * consult's own context: the natural cycle's overworld default, the
+     * nether cycle's arm, the reinforcement callee's caller dimension).
+     * Tick-lane only (the spawn walks own it).
+     */
+    private int spawnDimension;
 
     /**
      * The village system (VIII10 — the villager's mating gate + scan
@@ -580,6 +596,18 @@ public final class MobManager {
      */
     public void setDifficultyRead(java.util.function.IntSupplier difficultyRead) {
         this.difficultyRead = java.util.Objects.requireNonNull(difficultyRead, "difficultyRead");
+    }
+
+    /**
+     * Wires the local-difficulty consult (VIII14 — the engine's boot: the
+     * spawn dice's multiplier reads the real clock/inhabited/moon terms
+     * at the spawn position).
+     */
+    public void setLocalDifficultyRead(
+            java.util.function.BiFunction<Position, Integer,
+                    net.zaminmc.torch.server.world.LocalDifficulty> localDifficultyRead) {
+        this.localDifficultyRead = java.util.Objects.requireNonNull(
+                localDifficultyRead, "localDifficultyRead");
     }
 
     /**
@@ -838,14 +866,14 @@ public final class MobManager {
             // line 399 — the pigman inherits the zombie's own walk):
             // setCanPickupLoot(nextFloat() < 0.55F * the local difficulty
             // multiplier).
-            mob.setCanPickUpLoot(random.nextFloat() < 0.55F * localDifficultyMultiplier());
+            mob.setCanPickUpLoot(random.nextFloat() < 0.55F * localDifficultyMultiplier(position));
         }
         if (type == MobType.ZOMBIE) {
             // VIII9 — initialize line 430: the door-break arming roll
             // ({@code nextFloat() < f * 0.1F}, f the local difficulty
             // multiplier), BEFORE the equipment dice exactly as the
             // reference orders the initialize walk.
-            rollZombieCanBreakDoors(mob, random, localDifficultyMultiplier());
+            rollZombieCanBreakDoors(mob, random, localDifficultyMultiplier(position));
         }
         if (type == MobType.SKELETON || type == MobType.ZOMBIE) {
             // The armor family's spawn dice (VIII4 — MobEntity
@@ -855,7 +883,7 @@ public final class MobManager {
             // walk with the golden sword alone, so it never rolls here).
             // The nether's wither arm REPLACES the walk (initialize's
             // if/else — the variant strip rides the nether spawn below).
-            rollSpawnEquipment(mob, random, localDifficultyMultiplier(),
+            rollSpawnEquipment(mob, random, localDifficultyMultiplier(position),
                     difficultyId());
         }
         if (type == MobType.ZOMBIE) {
@@ -863,7 +891,7 @@ public final class MobManager {
             // equipment dice (the reference's own order). The leader gains
             // the reinforcement bonus, the 40..100 health band, and the
             // forced door-break.
-            rollZombieLeader(mob, random, localDifficultyMultiplier());
+            rollZombieLeader(mob, random, localDifficultyMultiplier(position));
         }
         if (type == MobType.VILLAGER) {
             // VillagerEntity's own constructor arm (line 322): the
@@ -2916,10 +2944,23 @@ public final class MobManager {
                     || world.inFluid(i1 + 0.5, j1 + 0.5, k1 + 0.5)) {
                 continue;
             }
-            MobEntity callee = spawnAt(MobType.ZOMBIE, new Position(i1 + 0.5, j1, k1 + 0.5));
+            // VIII14 — the callee spawns in the CALLER's world (the
+            // reference's own spawnEntity over this.world): the dice read
+            // the caller's dimension clock + the flank chunk's inhabited
+            // row, and the body itself carries the caller's dimension
+            // (a nether zombie's reinforcement is a nether zombie).
+            int priorDimension = spawnDimension;
+            spawnDimension = caller.dimension();
+            MobEntity callee;
+            try {
+                callee = spawnAt(MobType.ZOMBIE, new Position(i1 + 0.5, j1, k1 + 0.5));
+            } finally {
+                spawnDimension = priorDimension;
+            }
             if (callee == null) {
                 continue; // the public spawn gate refused the body
             }
+            callee.setDimension(caller.dimension());
             // setAttackTarget (line 218): the callee chases the caller's
             // own fight — the mob arm or the forced player hunt.
             if (targetMob != null && !targetMob.dead()) {
@@ -3508,16 +3549,24 @@ public final class MobManager {
     }
 
     /**
-     * The regional difficulty's own multiplier (Slice 92 —
-     * LocalDifficulty.calculate + getMultiplier, 1:1 with the
-     * inhabited-time and moon-phase terms ZEROED: the engine models
-     * neither — the fresh-chunk, new-moon read, ledgered): the peaceful
-     * reads 0 outright; the rest walk the time-of-day term
-     * ({@code clamp((timeOfDay - 72000) / 1440000, 0, 1) * 0.25}, the
-     * easy band's own 0.5 shave on the bonus) over the difficulty's own
-     * weight, then the {@code (regional - 2) / 2} clamp into 0..1.
+     * The regional difficulty's own multiplier (VIII14 — the
+     * local-difficulty completion): the wired consult's
+     * {@link net.zaminmc.torch.server.world.LocalDifficulty#getMultiplier()}
+     * at the SPAWN POSITION and the spawn dimension (the reference's
+     * World.getLocalDifficulty — the raw day clock's time term, the
+     * chunk's inhabited row, the moon term capped by the time term, the
+     * easy shave, the (regional - 2) / 2 clamp into 0..1). Unwired (the
+     * bare test boots' own shape), the historical stand-in answers: the
+     * same law with the inhabited + moon terms zeroed and the time term
+     * over the WRAPPED clock — the fresh-chunk, new-moon read the
+     * pre-VIII14 engine always carried.
      */
-    private float localDifficultyMultiplier() {
+    private float localDifficultyMultiplier(Position position) {
+        java.util.function.BiFunction<Position, Integer,
+                net.zaminmc.torch.server.world.LocalDifficulty> consult = localDifficultyRead;
+        if (consult != null) {
+            return consult.apply(position, spawnDimension).getMultiplier();
+        }
         java.util.function.IntSupplier difficultyAt = difficultyRead;
         int difficulty = difficultyAt != null ? difficultyAt.getAsInt() : 1;
         if (difficulty <= 0) {
@@ -3525,7 +3574,7 @@ public final class MobManager {
         }
         float timeTerm = Math.max(0.0F, Math.min(1.0F,
                 (lastTimeOfDay - 72000.0F) / 1440000.0F)) * 0.25F;
-        float bonus = 0.0F; // the inhabited + moon terms: zeroed (ledgered)
+        float bonus = 0.0F; // the inhabited + moon terms: zeroed (the unwired fallback)
         if (difficulty == 1) {
             bonus *= 0.5F;
         }
@@ -4061,7 +4110,18 @@ public final class MobManager {
      */
     public MobEntity spawnNaturalNether(MobType type, Position position, boolean baby,
                                         float yaw) {
-        MobEntity mob = spawnNatural(type, position, baby, yaw);
+        // VIII14 — the spawn-dimension context: the dice inside spawnAt
+        // consult the local difficulty at the NETHER's own reads (the
+        // callee clock, the nether chunk's inhabited row, the shared
+        // moon).
+        int priorDimension = spawnDimension;
+        spawnDimension = -1;
+        MobEntity mob;
+        try {
+            mob = spawnNatural(type, position, baby, yaw);
+        } finally {
+            spawnDimension = priorDimension;
+        }
         if (mob != null) {
             mob.setDimension(-1); // the body lives in the nether (Slice 25d)
             if (type == MobType.SKELETON && random.nextInt(5) > 0) {
