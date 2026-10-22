@@ -10,7 +10,8 @@ this audit:
 | Audit summary + methodology (this file) | `docs/CYCLE4_EXHAUSTIVE_AUDIT.md` | Ground truth, contract matrix, coverage counts, critical findings, sequence |
 | Master implementation ledger | `docs/MASTER_LEDGER.md` | The authoritative ranked backlog, stable IDs, all required fields |
 | Vanilla parity matrix | `docs/VANILLA_PARITY_MATRIX.md` | Reference-derived coverage by subsystem and family |
-| Patch-accounting index | `docs/FOLIA_PATCH_ACCOUNTING.md` | Every supplied-fork patch, lineage, classification, ledger links |
+| Patch-accounting index (Folia) | `docs/FOLIA_PATCH_ACCOUNTING.md` | Every supplied-fork patch, lineage, classification, ledger links |
+| Patch-accounting index (KigPaper — the supplied patched 1.8.8 server) | `docs/KIGPAPER_PATCH_ACCOUNTING.md` | Increment 2: identity/lineage/layer model + 533-patch census + nms-layer classification + the honest remainder (ML-023) |
 | Compatibility matrix | `docs/COMPATIBILITY_MATRIX.md` | Vanilla / Bukkit / Spigot / Paper / fork / Torch-native scope and status |
 | Test coverage matrix | `docs/TEST_COVERAGE_MATRIX.md` | Requirements mapped to existing tests, missing evidence |
 
@@ -323,3 +324,33 @@ supplied-fork tree (24/24) and for the contract/continuity/CI dimensions;
 it is INCREMENT-COMPLETE for the vanilla dimension (census-level
 verification + the named gaps + the quantified R-1..R-9 remainder). The
 remainder list is the honest boundary of this cycle's claims.
+
+## Increment 2 (2026-10-23, post-reset session) — ground-truth delta and the KigPaper re-anchor
+
+- **PR #37 handled per owner instruction** ("handle the PR yourself"):
+  squash-merged into develop as b7a6917c (5 commits → 1, author Abasing).
+  The branch itself was NOT modified; it remains an owner call whether to
+  delete it (not done during the audit).
+- Develop moved 48b91574 → 94f1fed3 (**owner supplies
+  `KigPaper-ver-1.8.8.zip`** at repo root) → b7a6917c (PR #37). Release
+  runs: #361/#362 red at the suite step (recorded, ML-001/ML-002); **#363
+  in_progress at increment time** (triggered by 94f1fed3); outcome to be
+  recorded when it finishes — no pipeline fixes made during the audit.
+- **The fork target is re-anchored**: the audit's Phase-3 primary is now
+  KigPaper (a real patched 1.8.8 server, owner-supplied), per the mission
+  statement's target #2. Folia stays as tree #1 (lessons-only, accounting
+  complete and unchanged). Identity established from source, not the name:
+  ProjectKig/KigPaper, fork of 1.8.8 Paper; lineage Bukkit→CraftBukkit→
+  Spigot→Paper→KigPaper; 533 patches across 5 stacks; submodules
+  (upstream Bukkit/CraftBukkit sources) empty in the archive — scope
+  boundary recorded. Full detail: `KIGPAPER_PATCH_ACCOUNTING.md` +
+  `docs/kigpaper-census.json` (census script `scripts/kigpaper_census.py`).
+- Audit-remainder state: ML-023 tracks the per-patch deep classification of
+  the two server stacks (418 patches; nms layer done 8/8; API stacks closed
+  as a DEC-002-deferred layer with full enumeration). The audit is NOT
+  end-to-end done until ML-023 closes; this increment reports exact
+  coverage, never a partial scan as complete.
+- **No production code, tests, patches, or implementation behavior were
+  changed in this increment.** Artifacts: the KigPaper accounting doc, the
+  census JSON + script, ledger rows ML-022/023 + DEC-003, compatibility
+  matrix fork row, this section, WORKLOG entry.

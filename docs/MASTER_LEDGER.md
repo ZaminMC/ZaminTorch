@@ -309,6 +309,26 @@ I=infra/CI/release, S=security/boundary.
 - Status: suspected gap (bounded diagnostic). Confidence: low-medium
   (single observation, no bytes).
 
+### ML-022 — EnumProtocol specialized-packets registry: no caller established (KigPaper N4)
+- Category: fork-audit bounded verification. Layers: P (candidate).
+- Severity: L. Impact: if any shipped KigPaper patch registers a clientbound
+  packet class outside the protocol bimap, that is an extra wire surface
+  Torch would never emit; if none, the registry is inert infrastructure.
+- Evidence: `nms-patches/EnumProtocol.patch` (full read, this increment) adds
+  `registerSpecializedPacket` + the `specializedPackets` map consulted on
+  CLIENTBOUND id lookup; the caller set was not established (see
+  KIGPAPER_PATCH_ACCOUNTING.md N4).
+- Verification: grep the four git-format stacks for
+  `registerSpecializedPacket`; if no caller, close as NA-infra; if callers
+  exist, name the packets and fold them into the wire-gap census.
+- Status: unverified (bounded). Confidence: high that the check is decisive.
+
+## KigPaper increment 2 (the supplied patched-1.8.8-server audit)
+
+The fork target is re-anchored on KigPaper (owner-supplied at 94f1fed3);
+Folia remains lessons-only. New rows are fork-derived; the audit's own
+increment state lives in KIGPAPER_PATCH_ACCOUNTING.md's coverage statement.
+
 ## Family-owned standing tails (referenced, not re-enumerated)
 
 ### ML-100 — the compat ledger's 25 "Ledgered:" standing tails
@@ -324,8 +344,22 @@ I=infra/CI/release, S=security/boundary.
 ## Deferred / not-applicable (recorded to prevent re-litigation)
 
 - DEC-001 (=ML-020): online-mode scope decision — owner.
+- DEC-003: **fork-divergence adoption policy (KigPaper family)** — KigPaper's
+  stated policy is that vanilla-gameplay alterations are config-gated (bed
+  action-bar messages N1, `doWaterFreezing` N5, plus the ~95 census-counted
+  "Configurable-*" knobs across the two server stacks). Torch's default is
+  the reference 1.8.8 behavior (§17); each knob is recorded as a fork
+  divergence, never auto-owed. The ONE decision: whether the owner ever wants
+  a KigPaper-style configuration surface for these (a config family), and if
+  so at which maturity point. Until answered: `Different by design / not
+  owed`; the per-patch deep classification lists each knob under this ID.
+- ML-023 (tracking row): the KigPaper per-patch deep classification of the
+  two server stacks (418 patches, enumerated in `docs/kigpaper-census.json`)
+  — the audit increment itself; tracked here so waves cannot start before it
+  closes. Not an implementation gap; it gates fork-derived rows only.
 - DEC-002: adapter-era surfaces (Bukkit Timings API stub-or-implement,
-  plugin gating manifest) — decide when §28.7 activates; Folia A1/A3.
+  plugin gating manifest) — decide when §28.7 activates; Folia A1/A3; KigPaper
+  API stacks (107 patches, enumeration in the census).
 - §28.7 Bukkit adapter: deferred per §27.1 (README row); prerequisites
   inventoried in COMPATIBILITY_MATRIX.md; NOT activated by this audit.
 - Concurrency Phases 5-8: gated on §22 measured evidence (ML-006/ML-007
