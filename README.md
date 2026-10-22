@@ -164,8 +164,17 @@ exposure, then concurrency phases, then standing deferrals.
     per-player unlocked set (VIII6's surface).
 13. `Server.anvilImport()` — the plugin-facing import verb over the same I/O
     lanes (the ledger report as the return).
-14. The generic-mount seat rows (the exotic pairs' api read beside
-    `Vehicle.riderEntityId()`).
+14. ~~The generic-mount seat rows (the exotic pairs' api read beside
+    `Vehicle.riderEntityId()`)~~ — LANDED 2026-10-23 (a756643): the
+    `Vehicle.SeatRows` surface declared beside the typed read — the
+    mount's rider row, the rider's mount row, and the live census
+    across the three seat stores (the generic-mount registry, the mob
+    mounts' rows, the vehicle seats), reached through
+    `Server.seatRows()` as live §27.5 consults;
+    `MountSeatsApiAcceptanceTest` proves the rows through the api
+    alone (the exotic pairs seated through the anvil riding chain's
+    own seams, the live resolution flipping on dismount, the vehicle
+    family's typed read still answering beside the new rows).
 15. `world.decorations()` — the hanging bodies + armor-stand read surface.
 16. `block.BiomeData` — the registration datums (temperature/downfall/height/
     isRainy law) beside `World.biomeAt`'s display name.
