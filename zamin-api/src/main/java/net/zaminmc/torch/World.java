@@ -173,6 +173,25 @@ public interface World {
     }
 
     /**
+     * The decoration census (§27.3's family — the README TODO's row 15,
+     * the Wave IX exposure): the hanging bodies (the item frames with
+     * their displayed stacks, rotations and comparator reads; the
+     * paintings with their art) and the armor stands' family-specific
+     * rows (the five equipment slots, the status flags, the six-part
+     * pose) — the reference 1.8.8's own reads over the engine's
+     * decoration and armor-stand systems (the compat ledger's Slice
+     * 28a/28b/28c rows). Every answer is an immutable point-in-time
+     * snapshot copied under the owning system's monitor — freely
+     * consumable from any thread, never a torn mid-tick state (§27.6;
+     * see {@link net.zaminmc.torch.decoration.Decorations} for the
+     * snapshot law). Worlds without the family answer empty
+     * enumerations.
+     */
+    default net.zaminmc.torch.decoration.Decorations decorations() {
+        return net.zaminmc.torch.decoration.Decorations.EMPTY;
+    }
+
+    /**
      * The experience orbs (§27.3's XP family): a point-in-time
      * population view — simulation context, inspect it inside
      * {@link #execute}. Worlds without the family answer empty.
