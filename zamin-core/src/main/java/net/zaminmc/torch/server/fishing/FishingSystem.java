@@ -40,6 +40,20 @@ import java.util.Random;
  * otherwise — the weighted tables) and the XP orb (1-6) rides the
  * catch — result 1; a grounded bobber answers 2; anything else 0. The
  * rod wears by the result code (FishingRodItem.startUsing line 23).</p>
+ *
+ * <p><b>Threading (§27.6 — the monitor protocol, the VillageSystem
+ * form):</b> the census-mutating arms ({@code cast}/{@code retrieve}/
+ * {@code noteAnglerState}/{@code tick}) and the collection reads
+ * ({@code bobberOf}/{@code all}) synchronize on the system itself —
+ * the monitor the public view ({@code FishingViews} —
+ * {@code Server.fishing()}'s answer) copies the census under,
+ * tear-free against the tick lane from any thread. The registration
+ * arms ({@code addCatchInterceptor}/{@code removeCatchInterceptor}/
+ * {@code setLootSource}) share the same monitor, so a registration
+ * from any thread lands between ticks — never inside a retrieve (the
+ * walk the registered callbacks ride). The whole walk stays
+ * tick-lane-owned: the engine's own consults ({@code tickFishing}/
+ * {@code useFishingRod}) are same-thread, uncontended.</p>
  */
 public final class FishingSystem {
 
@@ -347,13 +361,17 @@ public final class FishingSystem {
         listeners.add(Objects.requireNonNull(listener, "listener"));
     }
 
-    /** @return the angler's live bobber, or null. */
-    public Bobber bobberOf(int throwerId) {
+    /** @return the angler's live bobber, or null. §27.6: the monitor
+     *         protocol — the read the public view's snapshot copies
+     *         ride (safe from any thread under the monitor). */
+    public synchronized Bobber bobberOf(int throwerId) {
         return byAngler.get(throwerId);
     }
 
-    /** @return every live bobber (diagnostics). */
-    public List<Bobber> all() {
+    /** @return every live bobber (diagnostics). §27.6: the monitor
+     *         protocol — the copy the public view's snapshot rides
+     *         (safe from any thread under the monitor). */
+    public synchronized List<Bobber> all() {
         return List.copyOf(byAngler.values());
     }
 
@@ -372,28 +390,33 @@ public final class FishingSystem {
      *
      * @param source the override, or null to restore the vanilla roll
      */
-    public void setLootSource(LootSource source) {
+    public synchronized void setLootSource(LootSource source) {
         this.lootSource = source;
     }
 
     /**
      * The catch intercept (§27.7): registration order; an interceptor
      * may pass through, replace, or cancel the catch (EMPTY).
+     * §27.6: the monitor protocol — safe from any thread (a
+     * registration lands between ticks, never inside a retrieve).
      */
-    public void addCatchInterceptor(CatchInterceptor interceptor) {
+    public synchronized void addCatchInterceptor(CatchInterceptor interceptor) {
         interceptors.add(Objects.requireNonNull(interceptor, "interceptor"));
     }
 
-    /** @return whether the interceptor was registered. */
-    public boolean removeCatchInterceptor(CatchInterceptor interceptor) {
+    /** @return whether the interceptor was registered. §27.6: the
+     *         monitor protocol — safe from any thread. */
+    public synchronized boolean removeCatchInterceptor(CatchInterceptor interceptor) {
         return interceptors.remove(interceptor);
     }
 
     /**
      * The held-rod gate (tick lines 181-189): the angler gone, the rod
-     * un-held, or the leash broken ends the cast.
+     * un-held, or the leash broken ends the cast. §27.6: the monitor
+     * protocol (the engine's per-tick consult is same-thread,
+     * uncontended).
      */
-    public void noteAnglerState(int throwerId, boolean alive, boolean heldRod,
+    public synchronized void noteAnglerState(int throwerId, boolean alive, boolean heldRod,
                                 Position anglerAt) {
         Bobber bobber = byAngler.get(throwerId);
         if (bobber == null) {
@@ -416,8 +439,10 @@ public final class FishingSystem {
      * pulled back 0.16 along the look, the 0.4-power direction scaled
      * 1.5 with the gaussian 0.0075 scatter. One bobber per angler (the
      * reference's own field shape — a second cast is unreachable).
+     * §27.6: the monitor protocol (the census mutation the public
+     * view's snapshot copies serialize against).
      */
-    public Bobber cast(int throwerId, Position eye, float yaw, float pitch) {
+    public synchronized Bobber cast(int throwerId, Position eye, float yaw, float pitch) {
         Bobber existing = byAngler.get(throwerId);
         if (existing != null) {
             return existing;
@@ -453,8 +478,12 @@ public final class FishingSystem {
      * The retrieve (retrieve lines 435-475): the hooked drag (result 3),
      * the bite-window catch with its loot + XP (result 1), the grounded
      * answer (2), nothing (0). Removes the bobber either way.
+     * §27.6: the monitor protocol — the registered callbacks run
+     * inside the retrieve on the tick lane, under the monitor (a
+     * blocking callback stalls the census reads, never the walk's
+     * own lane order).
      */
-    public int retrieve(int throwerId, Position anglerAt) {
+    public synchronized int retrieve(int throwerId, Position anglerAt) {
         Bobber bobber = byAngler.get(throwerId);
         if (bobber == null) {
             return 0;
@@ -575,9 +604,12 @@ public final class FishingSystem {
      * The tick walk (tick lines 174-430, the server arm, 1:1): every
      * angler's bobber moves, floats, and runs the catchable cycle. The
      * held-rod gate rides the engine's per-angler noteAnglerState consult
-     * before the walk (the same tick's own order).
+     * before the walk (the same tick's own order). §27.6: the monitor
+     * protocol — the walk holds the census monitor, so a foreign
+     * snapshot read reflects the census between ticks, never a
+     * half-written walk.
      */
-    public void tick() {
+    public synchronized void tick() {
         for (Bobber bobber : List.copyOf(byAngler.values())) {
             tickOne(bobber);
         }

@@ -242,6 +242,26 @@ exposure, then concurrency phases, then standing deferrals.
     target + the counter + the completion through the bridge; the
     unarmed control).
 
+17. ~~`Server.fishing()` — the fishing system's api surface (the engine accessor
+    is diagnostics-only today).~~ — LANDED 2026-10-23 (d38c3de6): the new
+    `net.zaminmc.torch.fishing.Fishing` view over the LIVE system (the §27.5
+    handle law) — the bobber census (`bobbers()`/`bobberOf(anglerId)`:
+    whose bobber is where in which state — the position/velocity walk, the
+    grounded/hooked/biting flags, immutable point-in-time snapshots safe
+    from any thread), the catch-context rows (the loot band, the rod's
+    luck/lure levels, the caught stack), and the §27.7 family through the
+    view (the catch interceptor's observe/replace/cancel — EMPTY cancels
+    the whole catch with the bare-0 retrieve so the rod never wears; the
+    per-band loot override with the null fall-through/restore). The
+    engine's census/registration arms now carry the §27.6 monitor protocol
+    (the VillageSystem form), the diagnostics-only `EngineServer.fishing()`
+    accessor retired with zero callers (the name answers the api view, the
+    villages() precedent), and the §27.10 capability test
+    `FishingApiAcceptanceTest` proves every read through the api types
+    alone, cross-checked against the engine's own diagnostics.
+18. The door-break arming read (VIII9's builtin-goal arming + progress, the
+    §27.10 row).
+
 ### D. Concurrency phases (Torch-Arcetecture.txt §22 — the gated lanes)
 
 19. Phase 5: the lighting batch's parallel wiring (the gate is answered with
