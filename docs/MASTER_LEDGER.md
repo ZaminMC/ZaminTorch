@@ -286,6 +286,29 @@ I=infra/CI/release, S=security/boundary.
   (record as intentional difference) or schedule online-mode as a wave.
 - Status: decision item + confirmed absence. Confidence: high.
 
+### ML-021 — 0x0C Named Entity Spawn metadata chokes an independent parser (cycle-3 lead, unresolved)
+- Category: suspected wire defect. Layers: P.
+- Severity: H (candidate). Impact: strict clients may reject player-spawn
+  metadata; observed once with four mutual players (mineflayer protodef
+  `PartialReadError` inside `entityMetadataItem`).
+- Evidence: cycle-3 B-5 record; no engine change since; the raw 0x0C frames
+  were never captured, so localization is open — a Torch encoding defect
+  and a mineflayer parser quirk remain both possible (the addendum's own
+  rule: an independent parser failure is not proof Torch is wrong).
+- Observation/repro/localization split (addendum §3): observation = the
+  PartialReadError; reproduction = 4-bot mutual-visibility run (not yet
+  re-run); localization = NONE yet (bytes uncaptured); root cause = open.
+- Direction: capture the raw 0x0C frames (`bot.on('raw')` hex dump) from a
+  4-bot run; pin the engine's DataWatcher encoding against the reference
+  `SyncedData` wire form for every watched type (byte/short/int/float/
+  string/item/optional-position-specifically); whichever side mismatches
+  gets the fix.
+- Acceptance: the captured frame + a pinned protocol test over the
+  reference form; if mineflayer's parser is at fault, the exoneration is
+  recorded with evidence and this row closes as not-a-defect.
+- Status: suspected gap (bounded diagnostic). Confidence: low-medium
+  (single observation, no bytes).
+
 ## Family-owned standing tails (referenced, not re-enumerated)
 
 ### ML-100 — the compat ledger's 25 "Ledgered:" standing tails

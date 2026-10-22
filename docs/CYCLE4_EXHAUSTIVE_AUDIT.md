@@ -146,7 +146,7 @@ applicable. Each links to its master-ledger ID (ML-*) in
 |---|---|---|---|
 | A-1: full-suite load flakes (bukkit MONITOR assert + fishing bite-window race) — fix landed on PR #37 (5b20386e) | Fix commits present on `cycle3-audit`; PR open, **no CI run for the branch** (release workflow = develop-push only); run #362 at develop head still red with the same step | Confirmed test-infrastructure defect; fix staged but CI-unverified | ML-001 |
 | #362 verdict: the wall-clock-deadline test *population* (fishing awaits, RCON FIN-WAIT drain, bukkit harness awaits) trips a different member per loaded run | Generalization stands (three distinct timing tests across runs #361/#362); no further runs since; population audit not yet done | Confirmed test-infrastructure defect (systemic) | ML-002 |
-| B-5 (HIGH): 0x0C Named Entity Spawn metadata `PartialReadError` in mineflayer's protodef with four mutual players | No engine change since; not reproduced beyond the cycle-3 observation; wire bytes never captured | Suspected defect (wire-conformance candidate; evidence insufficient to localize — could be a Torch encoding defect OR a mineflayer parser quirk) | ML-003 |
+| B-5 (HIGH): 0x0C Named Entity Spawn metadata `PartialReadError` in mineflayer's protodef with four mutual players | No engine change since; not reproduced beyond the cycle-3 observation; wire bytes never captured | Suspected defect (wire-conformance candidate; evidence insufficient to localize — could be a Torch encoding defect OR a mineflayer parser quirk) | ML-021 |
 | B-2: chest window slot-27 (wire) transaction rejection, state-dependent, once | Not reproduced deterministically; cycle-3 record preserves the sequence; no rejection-reason instrumentation exists yet | Unverified behavior (bounded diagnostic item) | ML-004 |
 | B-3: `/op` refuses offline players (reference ops via GameProfile cache) | Reference walk verified in cycle 3 (`OpCommand.java` lines 30-39); engine unchanged since | Confirmed defect (parity, low-medium) | ML-005 |
 | B-7: `/debug stop` prints no per-section table | `EngineProfiler.sectionNanosSnapshot()` exists; the report arm still doesn't print sections (verified by reading the command path this cycle — see ML-006) | Confirmed defect (observability; blocks perf attribution) | ML-006 |
@@ -181,3 +181,145 @@ commitment (§27/§28/§29/§30/§31/§32), or (c) a documented decision says
 Torch reproduces it. Everything else is recorded as a decision item or
 not-applicable, never silently mandatory. Ambiguities become ledger
 decision-items (see MASTER_LEDGER DEC-* rows).
+
+## Phase 2 — vanilla audit method and result (this cycle's increment)
+
+Method: mechanical reference-derived censuses (entity/block/item/packet/
+effect class enumerations from `reference/1.8.8/`) reconciled against the
+engine source by targeted reads, plus protocol-47 ID verification of every
+packet constant. Result: `VANILLA_PARITY_MATRIX.md` — census-level
+VERIFIED-EQ on the entity/mob/projectile/vehicle/effect/block-state
+inventories (32/32 mobs, 9/9 projectiles, 9/9 vehicles, 23/23 effects,
+896 block states), S2C 67/77 with every absence named, and three fresh
+confirmed wire gaps the census surfaced:
+
+1. **0x36 Sign Editor Open never sent** (ML-003, H) — `SignManager`'s own
+   doc expects the client editor to close; the reference's
+   `ServerPlayerEntity.openSignEditor` (lines 547-550) proves the server
+   must OPEN it. Real clients cannot type sign text; bot clients masked it.
+2. **0x20 Entity Properties never sent** (ML-011, H) — the attribute
+   engine (Wave J) has no wire face; equipment attribute modifiers are
+   invisible to tracking clients.
+3. **0x0A Use Bed never sent + no multiplayer sleep walk** (ML-010) — the
+   engine honestly declares "the single-player sleep contract"; the
+   vanilla all-sleepers walk and pose broadcast are absent.
+
+Plus the medium rows (0x41 difficulty live-sync ML-012; resource-pack
+end-to-end ML-017; spectator camera ML-018) and the quantified remainder
+R-1..R-8 (item id diff, compression exchange, keepalive timeout, worldgen
+determinism run, per-command diff, fuzz pass, family tails) — the next
+increment's queue, honestly scoped.
+
+## Phase 3 — fork audit
+
+Complete for the supplied archive: 24/24 patch files examined and
+classified, layer model verified from the paperweight config, two-layer
+feature pairs reconstructed. See `FOLIA_PATCH_ACCOUNTING.md`. The
+upstream Paper/Spigot/CraftBukkit/Bukkit stacks are not in the archive —
+recorded as a scope boundary, never silently audited.
+
+## Phase 4 — Torch-native audit (this cycle's increment)
+
+- API-vs-engine wiring: the §29 Wave IX exposure audit + the API
+  capability ledger stand as the record; this cycle's fresh native rows
+  are the watchdog (ML-013), the /debug section table (ML-006), the
+  resource-pack surface (ML-017), and the login-bound verification
+  (ML-014).
+- `zamin-bukkit`: 10 classes / 52 tests, honest shims + event bridges,
+  not runtime-activated — consistent with the README's deferred row and
+  §27.1's order (verified consistent this cycle; the cycle-3 "mismatch"
+  question is disproved — see Continuity).
+- Read-and-discarded packet handlers found: C2S Spectate (reads two
+  longs, no-op) and C2S Resource Pack Status (reads varint, no-op) — both
+  ledgered (ML-018/ML-017).
+- Deeper stub/TODO sweeps across zamin-core were NOT run this cycle
+  (quantified remainder R-9); the prior slices' honesty records + the
+  census method stand in.
+
+## Phase 5 — test audit
+
+`TEST_COVERAGE_MATRIX.md`: 440 classes / 2533 tests censused; the
+release-workflow retry list vs the actual 2026-10-22 failure members;
+the cycle-3 leads dispositioned in test terms; the honest scope of a
+green suite. No tests were modified, weakened, or added in this run.
+
+## Phase 6 — performance, concurrency, reliability
+
+- `EngineProfiler` exists with the Phase-7 `sectionNanosSnapshot()` face;
+  the /debug stop report does not print the section table (ML-006,
+  re-verified by reading the command path) — the attribution blocker.
+- The cycle-3 baseline (20.0 idle/bots, 18.0 horde, 12.0 respawn-storm,
+  single container, loopback, /tps + /debug methodology) is retained as a
+  historical observation only. No new measurements were taken this cycle
+  (audit-only run); ML-007 defines the attribution pass.
+- Concurrency ownership enforcement stands as implemented (§22 Phase 1-2
+  records, ownership tests green); no violations found this cycle, no
+  changes made. Phases 5-8 stay gated per §22 — no wiring recommended
+  until ML-006+ML-007 deliver attribution.
+
+## Phase 10 — the recommended implementation sequence
+
+Waves, dependency-ordered, sized for parallel agents without unsafe
+overlap (shared-file risks named):
+
+1. **Wave R (release)**: ML-001 + ML-002 — merge PR #37 (owner), run the
+   deadline census + conversions, land the green pipeline + 128 release.
+   Everything else ships behind it. Shared-file risk: test-tree-wide but
+   mechanical; no engine files.
+2. **Wave W1 (wire conformance, three files' blast radius)**: ML-003
+   (0x36 — Protocol18 + the sign-placement arm), ML-011 (0x20 — Protocol18
+   + equipment/attribute publish sites), ML-012 (0x41 — Protocol18 + the
+   /difficulty arm). Independent rows, same module: sequential or
+   three-agent with protocol-module coordination.
+3. **Wave W2 (gameplay gaps)**: ML-010 (sleep walk + 0x0A) and ML-018
+   (spectator camera) — independent of W1, both touch PlayerSession +
+   protocol writers; two agents, disjoint features.
+4. **Wave D (diagnostics first, per the evidence rules)**: ML-004 (slot-27
+   rejection-reason instrumentation then repro), ML-006 (/debug table),
+   ML-013 (watchdog decision + implementation), ML-014/015/016 (the three
+   bounded verifications). All independent; instrumentation precedes any
+   behavior claim.
+5. **Wave V (parity verifications)**: R-1..R-7 remainder items + ML-005
+   (/op offline) + ML-008/009 (decisions + papercuts). Each is a bounded
+   read/test task; parallelizable as written.
+6. **Wave P (attribution)**: ML-007 after ML-006 — the §22 gate evaluation
+   on real numbers. Explicitly NOT implementation of any concurrency
+   phase.
+7. Standing: ML-100 family tails ride their families' slices; §28.7
+   adapter stays deferred (owner); DEC-001/002 are owner decisions.
+
+## Final report (this cycle)
+
+- Repository audited: develop @ 48b91574 (clean, synced); branch
+  `cycle4-exhaustive-audit` carries the artifacts.
+- Supplied fork: PaperMC/Folia ver/26.2.x (mcVersion 26.2, paperRef
+  5d4f9bd0, BETA) — NOT a 1.8.8 server; 24/24 patches classified.
+- Vanilla coverage: census-verified families listed in the parity matrix
+  (32 mobs, 9 projectiles, 9 vehicles, 8 specials, 4 decorations, 23
+  effects, 896 block states, 27/28 C2S + 67/77 S2C constants); remainder
+  R-1..R-9 quantified.
+- Counts: confirmed gaps 14 (ML-001..006, 009..013, 017, 018 + the three
+  fresh wire rows counted within), unverified 5 (ML-004, 014, 015, 016,
+  008-decision), suspected 1 (ML-021 — the 0x0C metadata lead), intentional differences 3
+  (offline-mode DEC-001, batching ML-019, /give pending decision),
+  deferred/not-applicable per the compatibility matrix.
+- CI/release: pipeline red at #362 (suite step), 127 published, 128
+  committed-not-published, PR #37 open/CI-less.
+- Rechecked completed items: sleep family (found Partial — single-player
+  contract only, honestly declared), spectator (Partial), sign family
+  (found the editor-open gap), attributes (engine yes / wire no). No
+  regressed rows found; the four Partials above are incompleteness
+  findings, not regression findings.
+- Could not be conclusively audited (and why): the upstream Paper→Bukkit
+  stacks (not in the archive), real-Mojang-client behavior (no client in
+  the container), item-registry id-level diff / per-command diff / fuzz /
+  determinism run (time-scoped to the next increment, R-1..R-9).
+- **No production code, tests, patches, or implementation behavior were
+  changed during this run.** Artifacts added: this file + 5 matrix/ledger
+  docs + WORKLOG entry, all on `cycle4-exhaustive-audit`.
+
+Audit completeness statement: the exhaustive audit is COMPLETE for the
+supplied-fork tree (24/24) and for the contract/continuity/CI dimensions;
+it is INCREMENT-COMPLETE for the vanilla dimension (census-level
+verification + the named gaps + the quantified R-1..R-9 remainder). The
+remainder list is the honest boundary of this cycle's claims.

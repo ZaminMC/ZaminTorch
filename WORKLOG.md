@@ -13513,3 +13513,86 @@ Stage Summary:
   baseline and the ranked backlog. The next cycle's order: verify CI
   green + the 128 release, then the 0x0C metadata audit (B-5) paired
   with the attribution pass (B-7 + Phase-3 rerun).
+
+---
+Task ID: cycle-4
+Agent: the coordinator (exhaustive-audit session, 2026-10-23)
+Task: The exhaustive 1.8.8 compatibility and implementation gap audit —
+ground truth, contract matrix, vanilla parity census, complete Folia
+patch accounting, test/perf/concurrency evidence, and the authoritative
+master ledger. Audit-only: no production code, tests, or behavior
+changed.
+
+Work Log:
+- Phase 0 ground truth re-established after the environment reset:
+  develop 48b91574 (local == GitHub, verified via API), PR #37 OPEN
+  unmerged mergeable-clean 5 commits with NO CI runs (the release
+  workflow = develop-push only), release run #362 RED at the suite step,
+  torch-1.8.8-127 the last published release (128 bump committed, never
+  shipped), feature/save-s4-stores found stale-and-merged (87 behind, 0
+  ahead), the owner's §33/§34 additions to the architecture file
+  confirmed present (15de9398).
+- The supplied patched-server tree identified FROM SOURCE: PaperMC/Folia
+  ver/26.2.x (mcVersion 26.2, paperRef 5d4f9bd0, channel BETA, paperweight
+  2.0.0-beta.21, Java 25) — NOT a 1.8.8 server; the archive carries only
+  Folia's delta over Paper (24 patch files); the upstream Paper/Spigot/
+  CraftBukkit/Bukkit stacks are NOT in the archive — recorded as a scope
+  boundary, never silently audited.
+- Phase 3 complete: all 24 patches read and classified (10
+  different-by-design, 9 not-applicable, 2 missing-as-Torch-native
+  [watchdog pair], 3 unverified with bounded procedures) —
+  docs/FOLIA_PATCH_ACCOUNTING.md, building on the prior cycle's 460-path
+  inventory without duplicating it.
+- Phase 2 census method executed: reference-derived inventories (192
+  entity classes, 153 block classes, 74 item classes, 28+77 packet
+  classes, 23 effects, 21 enchantment classes) reconciled against the
+  engine — mobs 32/32 exact, projectiles 9/9, vehicles 9/9, specials 8/8,
+  decorations 4/4, effects 23/23, block-state registry 896 test-pinned,
+  C2S 27/28 (KeyC2S absent = offline-mode), S2C 67/77 with every absence
+  named.
+- Three FRESH confirmed wire gaps found by the census (each verified
+  against the reference source, not just constant absence): 0x36 Sign
+  Editor Open never sent (ServerPlayerEntity.openSignEditor lines 547-550
+  proves the obligation; SignManager's doc expects an editor nothing
+  opens — real clients cannot type sign text, bots masked it), 0x20
+  Entity Properties never sent (Wave J's attribute engine has no wire
+  face), 0x0A Use Bed never sent (the sleep flow's own doc declares the
+  single-player contract — no multiplayer all-sleepers walk, no pose
+  broadcast). Medium: 0x41 difficulty live-sync, 0x48 resource pack
+  end-to-end (the C2S status handler is read-and-discard), spectator
+  camera (C2S Spectate read-and-discard, V18Connection:566-569).
+- Phases 4-6: zamin-bukkit state verified CONSISTENT with the docs (the
+  cycle-3 mismatch question disproved); the wall-clock-deadline test
+  population generalization carried (ML-002); the perf baseline retained
+  as historical observation; /debug's missing section table re-verified;
+  the watchdog absence verified; concurrency phases stay gated.
+- The deliverables written: docs/CYCLE4_EXHAUSTIVE_AUDIT.md (ground
+  truth, continuity carry-forward with every cycle-3 lead classified, the
+  Phase-1 contract matrix, the method + final report), docs/
+  MASTER_LEDGER.md (20+1 evidence-backed rows with the required fields:
+  the two release blockers, the wire rows, the carried items, the
+  fork-audit rows, the decision block), docs/VANILLA_PARITY_MATRIX.md
+  (the census + the R-1..R-8 honest remainder), docs/
+  FOLIA_PATCH_ACCOUNTING.md, docs/COMPATIBILITY_MATRIX.md,
+  docs/TEST_COVERAGE_MATRIX.md (440 classes / 2533 tests censused).
+- Branch cycle4-exhaustive-audit pushed; PR opened against develop.
+  PR #37 untouched and unmerged, per the audit's own boundary.
+
+Stage Summary:
+- The next implementation queue is now the MASTER_LEDGER's, ordered by
+  the dependency-aware sequence: Wave R (release pipeline + the deadline
+  population), Wave W1 (the three wire rows 0x36/0x20/0x41 — the
+  smallest blast radius with the highest client-visible payoff), Wave W2
+  (sleep walk + spectator camera), Wave D (diagnostics: slot-27
+  instrumentation, /debug table, watchdog, the three bounded
+  verifications), Wave V (the R-remainder + /op offline + decisions),
+  Wave P (attribution after ML-006 — the §22 gate evaluation, explicitly
+  not concurrency wiring).
+- The audit is COMPLETE for the supplied-fork tree (24/24), the contract,
+  continuity, and CI dimensions; INCREMENT-COMPLETE for vanilla (census
+  level + named gaps + the quantified R-1..R-9 remainder — the honest
+  boundary). No completed ledger row was reopened without new evidence;
+  four families were found Partial (sleep, spectator, sign editor,
+  attributes-wire) — incompleteness findings, not regressions.
+- Owner decisions requested: DEC-001 (online-mode scope), ML-008 (/give
+  form), PR #37 merge (the release verification path), ML-013 (watchdog).
