@@ -13256,6 +13256,109 @@ Stage Summary:
   then Row 10 (the doEvent 64-block radius — the engine's own
   beyondFeedbackRange precedent + the fan in V18ProtocolServer).
 
+---
+Task ID: row-8-thorns-mob-arm (landed — the coordinator's own lane, wave 2)
+Agent: main (Abasing session — the coordinator)
+Task: README TODO row 8 — the thorns wildcard's mob-victim arm, the reference's
+applyProtectionWildcard over MobEntity's five-slot equipment row.
+
+Work Log:
+- The engine walk landed (EngineServer.applyThornsWildcardMob): the captured
+  five-slot row [held, feet, legs, chest, head], the 15%-per-level proc walk
+  per carrying piece, the 1-4 roll (level-10 elbow) through the biter's own
+  damage walk, the damage.thorns sound at the biter, and the 3/1 wear
+  accumulated per visited piece landing on the FIRST thorns stack —
+  wearMobEquipmentStack mirrors the landed wearArmorStack shape (the G1
+  unbreakable gate, the Unbreaking per-unit roll, the break leaving the slot
+  EMPTY, the equipmentChanged re-publish riding the change).
+- The two retaliation adapters: thornsBitesPlayer (damageOnTick + the armor/
+  enchant-protection ladder, "was slain by " + titledMobName — the mob-wearer
+  kill score structurally absent, mobs carry no stats) and thornsBitesMob
+  (mobManager.hurt with the wearer's look yaw + the wearer's held LOOTING
+  riding the biter's death loot — the 17874 precedent).
+- The four wirings: (a) attackEntity's landed block after the crit bursts
+  (PlayerEntity.attack 1016) with the row captured before the hurt; (b) the
+  ProjectileCombatSink's three arms — the generic variant (the mob shooter
+  resolved beside the player, ArrowEntity 264's LivingEntity gate), the
+  ghast-reflect and wither arms restructured land-then-fire (the fireball
+  trio's damageEntity pair-walk); (c) the MobManager.ThornsRetaliation seam
+  fired from hurtByMob's landed block (the same seam shape as
+  localDifficultyRead), the row read at the seam under the deferred
+  death-loot law (the pieces stay on the body until the animation's loot
+  walk — the post-land read carries the reference's own row).
+- ThornsMobVictimAcceptanceTest 5/0: the player's melee over a dressed pig
+  (the bite + the chest-first wear quirk — the mob row's own order), the
+  archer's vertical arrow over a dressed zombie (the living-shooter bite, a
+  killing shot still retaliating through the captured row), the zombie's
+  hurtByMob melee over a dressed sheep (the seam's bite, staged through the
+  public setMobAttackTarget), the break law (the near-end piece leaves the
+  slot EMPTY), the plain negative (a thornless piece never bites nor wears).
+- Regression batches green (--no-daemon): ThornsAcceptanceTest 5/0,
+  MobCombatAcceptanceTest 5/0, MobManagerTest 8/0, MobArmorFamilyTest 13/0,
+  GolemEntityTest 4/0, RangedCombatAcceptanceTest 10/0, the projectile
+  package 35/0 (ArrowPickup 8, BowFamily 6, FireballDeflection 4,
+  FireworksAndBottle 6, ProjectileManager 11).
+- The ledgers: README row 8 retired (strikethrough + LANDED + 921b58ad),
+  NATIVE_API §9 audit row recorded (EXPOSED-ADEQUATE — the bite on a player
+  rides the existing PlayerDamageEvent; no new surface demanded).
+
+Stage Summary:
+- Row 8 LANDED on thorns-and-world-events (487ce084 the wip, c47408da the
+  walk + the wirings, 921b58ad the test, this commit the ledgers). Next:
+  Row 10 (the doEvent 64-block world-event radius — the V18Connection
+  chunk-gated stand-ins + the wither 1012/1014 fan in V18ProtocolServer).
+
+---
+Task ID: row-10-world-event-radius (landed — the coordinator's own lane, wave 2)
+Agent: main (Abasing session — the coordinator)
+Task: README TODO row 10 — the doEvent family's 64-block world-event radius, the
+reference's PlayerManager.sendPacket fan over the chunk-gated stand-in.
+
+Work Log:
+- The reference law verified: ServerWorldEventListener.doEvent fires
+  sendPacket(source, x, y, z, 64.0, dimension, packet) — PlayerManager walks
+  the players, the same-dimension gate, the squared Euclidean under 4096
+  (strict less-than), the source excluded only when non-null (the engine's
+  doEvent callers all pass null). 17 doEvent(null, ...) callers censused
+  across the reference (doors 1003/1006, the eye 1002/2003, the music disc
+  1005, the ghast pair 1007/1008, the blaze 1009, the wither 1012/1014, the
+  bat 1015, the villager 1016/1017, the bottle 2002).
+- The stand-in retired (V18Connection.sendWorldEvent): the chunk-tracker
+  gate replaced by the radius law; the signature gained the event's
+  dimension.
+- The dimension threaded through every listener chain: MobManager.Listener
+  .onWorldEventAt + EngineServer's ProjectileListener.onWorldEventAt gained
+  the dimension param; the mob family passes mob.dimension() at all five
+  fire sites (the wither 1012/1014, the zombie door knock 1010, the
+  zombie's door-break 1012, the villager's 1016/1017); the bottle's
+  XpBottleSink gained the throwerId (the burst world resolved through the
+  thrower — the engine's projectile system is dimension-blind, the boundary
+  the hit resolver records); the eye family fires the overworld id with the
+  boundary noted (the eye entity carries no thrower, no world).
+- The harness: TestClient18 gained readWorldEvent (the 0x28 reader with the
+  packed-position decode) + sendUseItemInAir (the 0x08 -1 sentinel form).
+- WorldEventRadiusAcceptanceTest 1/0 over the real wire: three scripted
+  clients — the thrower, a 55-block observer (inside), a 75-block observer
+  (outside with the event's chunk STILL inside the view-distance-4 window,
+  the exact case the old gate answered wrong); the thrower + the inside
+  observer hear the 2002 splash, the outside observer hears nothing inside
+  a bounded silence window.
+- Regression batches green (--no-daemon): ZombieVillagerConversionTest 10/0,
+  FireworksAndBottleTest 6/0 (the sink's thrower row asserted), WitherBoss
+  8/0, WitherSkeleton 6/0, EnderEyeSystem 4/0, WoodDoorFamily 5/0,
+  Protocol18Conformance 2/0, ParticleDisplay 1/0, MobIntegration 2/0.
+- The ledgers: README row 10 retired (strikethrough + LANDED + 0916e4b9);
+  no NATIVE_API §9 row (a wire-distribution law, not an api capability —
+  the protocol acceptance test is the proof surface).
+
+Stage Summary:
+- Rows 8 + 10 BOTH LANDED on thorns-and-world-events (the coordinator's
+  wave-2 lane complete): 487ce084 the wip, c47408da the thorns walk +
+  wirings, 921b58ad the thorns family, 35b2a5fc the row-8 ledgers,
+  0916e4b9 the radius law, this commit the row-10 ledgers. The PR against
+  develop opens next; the eight instances' PRs (#28-#32 arrived, three more
+  expected) await the coordinator's review.
+
 Task ID: achievements-api (the README TODO's row 12 — the wave-2 lane map's api-exposure lane)
 Agent: main (Abasing session — the 2026-10-22 continuation, one of the nine)
 Task: The achievement reads' public API surface — Server.achievements()

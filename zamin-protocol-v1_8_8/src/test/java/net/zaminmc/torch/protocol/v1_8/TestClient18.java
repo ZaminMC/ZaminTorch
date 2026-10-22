@@ -620,6 +620,22 @@ final class TestClient18 implements AutoCloseable {
         sendPacket(bodyToBytes(body));
     }
 
+    /**
+     * Player Block Placement (0x08) with the -1 sentinel position — the
+     * "use the held item in air" form (the raw -1 long routes to the
+     * engine's useItem: the bottle's throw, the eye's launch). The held
+     * summary carries the empty marker: the engine reads its own
+     * authoritative inventory for the walk.
+     */
+    void sendUseItemInAir() throws IOException {
+        ByteBuf body = Unpooled.buffer(16);
+        ByteBufOps.writeVarInt(body, Protocol18.C2S_PLAYER_BLOCK_PLACEMENT);
+        body.writeLong(-1L);      // the sentinel: no clicked block
+        body.writeByte(255);      // face: also the in-air marker
+        body.writeShort(-1);      // the held slot's empty marker
+        sendPacket(bodyToBytes(body));
+    }
+
     /** Set Creative Slot (0x10) with the damage field (the family items). */
     void sendCreativeSlot(int wireSlot, int legacyId, int damage) throws IOException {
         ByteBuf body = Unpooled.buffer(12);
@@ -1058,6 +1074,33 @@ final class TestClient18 implements AutoCloseable {
             }
         }
         throw new IOException("Timed out waiting for particle " + particleId);
+    }
+
+    /**
+     * Reads an Effect / world event packet (0x28), returning
+     * {eventId, x, y, z, data, global} — the position decoded from the
+     * packed long; other event ids arriving first are skipped (the
+     * deadline bounds the wait).
+     */
+    int[] readWorldEvent(int eventId, long timeoutMs) throws IOException {
+        long deadline = System.currentTimeMillis() + timeoutMs;
+        while (System.currentTimeMillis() < deadline) {
+            byte[] payload = readPacketOfType(Protocol18.S2C_WORLD_EVENT,
+                    Math.max(1, deadline - System.currentTimeMillis()));
+            ByteBuf buffer = Unpooled.wrappedBuffer(payload);
+            ByteBufOps.readVarInt(buffer); // packet id
+            int id = buffer.readInt();
+            long packed = buffer.readLong();
+            int x = (int) (packed >> 38);
+            int y = (int) (packed << 52 >> 52);
+            int z = (int) (packed << 26 >> 38);
+            int data = buffer.readInt();
+            boolean global = buffer.readBoolean();
+            if (eventId < 0 || id == eventId) {
+                return new int[]{id, x, y, z, data, global ? 1 : 0};
+            }
+        }
+        throw new IOException("Timed out waiting for world event " + eventId);
     }
 
     /** Reads a Time Update packet, returning {age, timeOfDay}. */

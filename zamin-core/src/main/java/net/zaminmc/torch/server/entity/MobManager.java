@@ -481,9 +481,12 @@ public final class MobManager {
          * A world event fired at a position (Slice 25a — the reference's
          * {@code world.doEvent(null, id, pos, 0)}: the zombie villager's
          * infect 1016 and un-infect 1017 events, the sounds the client
-         * plays from the Effect packet itself).
+         * plays from the Effect packet itself; the zombie door family's
+         * 1010 knock beside them). The event's DIMENSION rides beside the
+         * position (the reference's PlayerManager.sendPacket dimension
+         * gate — the README TODO's row 10 radius law).
          */
-        default void onWorldEventAt(Position position, int eventId) {
+        default void onWorldEventAt(Position position, int eventId, int dimension) {
         }
 
         /**
@@ -608,6 +611,30 @@ public final class MobManager {
                     net.zaminmc.torch.server.world.LocalDifficulty> localDifficultyRead) {
         this.localDifficultyRead = java.util.Objects.requireNonNull(
                 localDifficultyRead, "localDifficultyRead");
+    }
+
+    /**
+     * The thorns retaliation consult (the README TODO's row 8 — the
+     * reference's Entity.damageEntity base method over a MOB victim:
+     * MonsterEntity.attack / IronGolemEntity.tryDamage / SlimeEntity /
+     * WolfEntity's melee walks fire it on every landed hit): the VICTIM's
+     * worn thorns bite the attacking mob back. Wired from the engine
+     * (EngineServer owns the walk — the same shape as the player-victim
+     * sites). Null until the engine wires it; the unwired boot keeps the
+     * historical no-retaliation behavior (the same fallback law as the
+     * local-difficulty seam).
+     */
+    public interface ThornsRetaliation {
+        /** The reference's {@code damageEntity(source, entity)} pair. */
+        void biteBack(MobEntity victim, MobEntity attacker);
+    }
+
+    private volatile ThornsRetaliation thornsRetaliation;
+
+    /** Wires the thorns retaliation consult (the engine's own boot). */
+    public void setThornsRetaliation(ThornsRetaliation thornsRetaliation) {
+        this.thornsRetaliation = java.util.Objects.requireNonNull(
+                thornsRetaliation, "thornsRetaliation");
     }
 
     /**
@@ -1901,7 +1928,7 @@ public final class MobManager {
                 for (Listener listener : listeners) {
                     listener.onWorldEventAt(new Position(
                             mob.zombieBreakDoorX() + 0.5, mob.zombieBreakDoorY() + 0.5,
-                            mob.zombieBreakDoorZ() + 0.5), 1010);
+                            mob.zombieBreakDoorZ() + 0.5), 1010, mob.dimension());
                 }
             }
             if (mob.consumeZombieDoorBroken()) {
@@ -2486,6 +2513,18 @@ public final class MobManager {
                     listener.onMobSoundAt(attacker, "mob.irongolem.throw", 1.0F, 1.0F);
                 }
             }
+            // The thorns wildcard's mob-victim arm (the README TODO's row 8
+            // — the reference's Entity.damageEntity(source, entity) at the
+            // mob melee walks: IronGolemEntity.tryDamage line 159,
+            // MonsterEntity.attack line 101, SlimeEntity line 202, WolfEntity
+            // line 277 — the victim's worn thorns bite the attacking mob
+            // back on every landed hit, the same walk the player victims
+            // already carry). The seam consults the engine-side walk; an
+            // unwired boot keeps the historical no-retaliation behavior.
+            ThornsRetaliation thorns = thornsRetaliation;
+            if (thorns != null) {
+                thorns.biteBack(victim, attacker);
+            }
             if (!victim.dead()) {
                 applyRevenge(victim, attacker);
             } else if (attacker.type() == MobType.ZOMBIE
@@ -2609,7 +2648,7 @@ public final class MobManager {
             }
         }
         for (Listener listener : listeners) {
-            listener.onWorldEventAt(at, 1016);
+            listener.onWorldEventAt(at, 1016, zombie != null ? zombie.dimension() : 0);
         }
     }
 
@@ -2647,7 +2686,7 @@ public final class MobManager {
             }
         }
         for (Listener listener : listeners) {
-            listener.onWorldEventAt(at, 1017);
+            listener.onWorldEventAt(at, 1017, villager != null ? villager.dimension() : 0);
         }
     }
 

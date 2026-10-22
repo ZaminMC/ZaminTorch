@@ -117,8 +117,8 @@ class ZombieVillagerConversionTest {
         }
 
         @Override
-        public void onWorldEventAt(Position position, int eventId) {
-            worldEvents.add(new int[] {eventId});
+        public void onWorldEventAt(Position position, int eventId, int dimension) {
+            worldEvents.add(new int[] {eventId, dimension});
         }
 
         @Override

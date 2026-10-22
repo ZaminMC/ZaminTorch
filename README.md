@@ -147,14 +147,36 @@ exposure, then concurrency phases, then standing deferrals.
    on the portal. A ritual would be a post-1.8.8 feature — out of scope
    for the 1.8.8 target unless the owner alone asks for it (the
    DragonDataStore javadoc carries the same boundary).
-8. The thorns wildcard's mob-victim arm (an armored mob's retaliation — the
+8. ~~The thorns wildcard's mob-victim arm (an armored mob's retaliation — the
    walk reads only the player rows today; verify against VIII4's equipment
-   family and wire the mob arm).
+   family and wire the mob arm)~~ — LANDED 2026-10-22 (921b58ad): the
+   engine-side walk over MobEntity's five-slot equipment row, 1:1 with the
+   reference's applyProtectionWildcard (the 15%-per-level proc, the 1-4
+   roll, the 3/1 first-stack wear, the break leaving the slot empty) wired
+   at every MOB-victim site — the player's landed melee, the living
+   shooter's projectiles (arrow + the fireball trio, the wither and
+   ghast-reflect arms restructured land-then-fire), the mob melee walks
+   through a hurtByMob seam — proven by
+   `ThornsMobVictimAcceptanceTest` (5/0: all three sites, the break law,
+   the plain negative).
 9. The wither's conditional exemption arms (spawner/cobweb/fall-damage/
    light-level/armor-protection/no-riding — each rides its own family's
    slice; track each as that family lands).
-10. The global world-event radius (1012/1014 ride the chunk-gated stand-in
-    today; the reference's 64-block radius is the 1:1 form).
+10. ~~The global world-event radius (1012/1014 ride the chunk-gated stand-in
+    today; the reference's 64-block radius is the 1:1 form)~~ — LANDED
+    2026-10-22 (0916e4b9): the stand-in retired — every doEvent-family
+    event (the wither's 1012/1014, the zombie door's 1010/1012, the
+    villager's 1016/1017, the bottle's 2002, the eye's 1002/2003) now
+    fans through the reference's PlayerManager.sendPacket form — the
+    same-dimension observers within the squared 4096, NOT the loaded-chunk
+    window (a 75-block-out observer with the chunk loaded hears nothing; a
+    60-block-out observer with the chunk cold hears it). The event's
+    dimension rides the listener chains honestly (the mob family's
+    mob.dimension(); the bottle's thrower-resolved burst world; the eye's
+    dimension-blind boundary recorded — the overworld id until the system
+    carries its own world) — proven by `WorldEventRadiusAcceptanceTest`
+    (1/0 over the real wire: the thrower + the 55-block observer hear the
+    splash, the 75-block chunk-loaded observer does not).
 
 ### C. Native API exposure (the Wave IX demand-named tail — NATIVE_API_CAPABILITIES.md §9)
 

@@ -51,10 +51,12 @@ class FireworksAndBottleTest {
     /** The bottle's recording sink: the burst points. */
     private static final class BottleSink implements ProjectileManager.XpBottleSink {
         final List<Position> bursts = new ArrayList<>();
+        final List<Integer> throwers = new ArrayList<>();
 
         @Override
-        public void burst(double x, double y, double z) {
+        public void burst(double x, double y, double z, int throwerId) {
             bursts.add(new Position(x, y, z));
+            throwers.add(throwerId);
         }
     }
 
@@ -130,6 +132,7 @@ class FireworksAndBottleTest {
         }
         assertEquals(1, sink.bursts.size(), "the burst landed at the wall");
         assertTrue(sink.bursts.get(0).x() >= 4.0, "the burst sits at the impact");
+        assertEquals(4242, sink.throwers.get(0), "the burst carries the thrower's id");
         assertTrue(events.removals.contains("hit"), "the bottle died at the block");
         assertEquals(0, manager.all().size(), "the registry emptied");
     }
