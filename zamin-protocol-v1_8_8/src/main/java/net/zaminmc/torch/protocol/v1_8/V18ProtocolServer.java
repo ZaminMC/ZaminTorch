@@ -1224,6 +1224,41 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                 }
             }
         });
+        // The spectator camera (ML-018 — the reference's setCamera wire
+        // pair, ServerPlayerEntity lines 916-923 + broadcastTo line 472):
+        // the attach spawns the target for the spectator then publishes
+        // the Camera 0x43 and hides the spectating body from every other
+        // view; the detach restores the spectator's own camera, re-anchors
+        // its body, and re-enters the others' tracking windows (the
+        // reference's updatePlayer arm — the re-track is the same range
+        // walk every movement broadcast rides).
+        server.addSpectatorListener(new net.zaminmc.torch.server.EngineServer.SpectatorListener() {
+            @Override
+            public void onCameraAttached(net.zaminmc.torch.server.player.PlayerSession spectator,
+                                          net.zaminmc.torch.server.player.PlayerSession target) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    if (connection.currentSession() == spectator) {
+                        connection.spectateCameraAttached(target);
+                    } else {
+                        connection.untrackPlayer(spectator.uuid());
+                    }
+                }
+            }
+
+            @Override
+            public void onCameraDetached(net.zaminmc.torch.server.player.PlayerSession spectator) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    if (connection.currentSession() == spectator) {
+                        connection.spectateCameraDetached();
+                    }
+                }
+                // The restored body re-enters the other observers' views:
+                // the same spawn-or-drop range walk the movement broadcast
+                // runs for the mover (the reference's TrackedEntity
+                // updatePlayer consult when updateVisibility flips).
+                broadcastMovement(spectator);
+            }
+        });
         // Experience orbs: engine decides lifecycle, adapter renders Spawn
         // Experience Orb 0x11 / Collect / Destroy — the item-entity shape.
         server.addOrbListener(new net.zaminmc.torch.server.experience.ExperienceOrbManager.Listener() {
@@ -1849,6 +1884,17 @@ public final class V18ProtocolServer implements ProtocolAdapter {
 
     /** Broadcasts a remote player's authoritative position to observers in range. */
     void broadcastMovement(PlayerSession mover) {
+        // The spectating spectator publishes nothing of its own (the
+        // reference's broadcastTo law — the camera-following body is gated
+        // out of every other view) and drops out of any view it still
+        // held: its follow anchors the body silently on the tick lane, the
+        // target's own stream carries the camera.
+        if (mover.spectatorCamera() != null) {
+            for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                connection.untrackPlayer(mover.uuid());
+            }
+            return;
+        }
         var moverChunk = mover.position().toBlockPosition().chunkPosition();
         long viewSq = (long) engine.engineConfig().viewDistance() * engine.engineConfig().viewDistance();
         for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {

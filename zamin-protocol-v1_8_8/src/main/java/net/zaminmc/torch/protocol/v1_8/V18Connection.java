@@ -564,8 +564,18 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                 // index (frames are length-delimited, so this is exact).
             }
             case Protocol18.C2S_SPECTATE -> {
-                packet.readLong();
-                packet.readLong();
+                // The spectate hotbar's player pick (the reference's
+                // PlayerSpectateC2SPacket — readUuid's two-long form, msb
+                // then lsb; handlePlayerSpectate lines 516-551): the two
+                // longs resolve to the target player's uuid and the engine
+                // arms the camera-follow (the audit's ruling over the
+                // reference's one-shot teleport — the packet that used to
+                // discard here). The gates (isSpectator, the live-player
+                // resolution, the self-target exit) live in the engine's own
+                // walk.
+                java.util.UUID targetUuid =
+                        new java.util.UUID(packet.readLong(), packet.readLong());
+                engine.spectateCamera(player, targetUuid);
             }
             case Protocol18.C2S_RESOURCE_PACK_STATUS -> ByteBufOps.readVarInt(packet);
             default -> {
@@ -2768,6 +2778,15 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         if (dimensionOfSession() != other.dimension() || other.leavingTheEnd()) {
             return;
         }
+        // The spectating spectator never spawns for anyone else (the
+        // reference's broadcastTo law, ServerPlayerEntity line 472: the
+        // camera-following body is gated out of every other view — the
+        // tracker's updatePlayer arm removes it when the gate flips). The
+        // spectator's OWN view is untouched: it keeps receiving every
+        // other body while its camera rides the target.
+        if (other.spectatorCamera() != null) {
+            return;
+        }
         if (!visibleRemotePlayers.add(other.uuid())) {
             return; // already tracked
         }
@@ -2846,6 +2865,82 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeVarInt(out, 1);
         ByteBufOps.writeVarInt(out, entityId);
         channel.writeAndFlush(out);
+    }
+
+    /**
+     * The spectate attach's own wire (the reference's setCamera(target),
+     * ServerPlayerEntity lines 916-923): the target must exist in this
+     * client's world BEFORE the camera points at it — the client's
+     * handleCamera consults its own entity map and drops the packet on an
+     * unknown id (ClientPlayNetworkHandler lines 1174-1181) — so the
+     * tracker's own spawn comes first, then the Camera 0x43 carrying the
+     * target's wire id, then the world stream re-centers on the target
+     * (the teleport's PlayerManager.move arm). Any thread (the listener's
+     * tick-thread fan-out); writeAndFlush is the channel's own ordering.
+     */
+    void spectateCameraAttached(PlayerSession target) {
+        trackPlayer(target);
+        Integer wireId = remoteEntityIds.get(target.uuid());
+        if (wireId != null) {
+            sendCameraPacket(wireId);
+        }
+        recenterChunkView(target.position());
+    }
+
+    /**
+     * The leave-spectate restore (the reference's setCamera(this)): the
+     * Camera 0x43 re-points at the client's own join-game id, then the
+     * authoritative Position-and-Look re-anchors the freed body where the
+     * follow left it (the reference's teleport to {@code this.x/y/z}), the
+     * teleport window arming exactly like the reference's teleport().
+     * Any thread.
+     */
+    void spectateCameraDetached() {
+        sendCameraPacket(ownEntityId);
+        resyncPosition();
+    }
+
+    /**
+     * Spectator Camera (0x43 — the reference's CameraS2CPacket.write, ONE
+     * varint: the camera entity's id). Any thread.
+     */
+    private void sendCameraPacket(int wireEntityId) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(8);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_CAMERA);
+        ByteBufOps.writeVarInt(out, wireEntityId);
+        channel.writeAndFlush(out);
+    }
+
+    /**
+     * The follow's chunk re-center: the tracker's center fields belong to
+     * the movement lane (submitMovement runs on the channel's own loop), so
+     * the tick-thread follow hops lanes before it moves them. Any thread.
+     */
+    private void recenterChunkView(Position at) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive()) {
+            return;
+        }
+        channel.eventLoop().execute(() -> {
+            if (chunkTracker != null) {
+                chunkTracker.updateCenter(at.toBlockPosition().chunkPosition());
+            }
+        });
+    }
+
+    /**
+     * The spectating camera's world-stream anchor (the engine's per-tick
+     * follow — the spectating client sends no movement of its own, so the
+     * target's position re-centers this observer's chunk stream every
+     * tick). Any thread.
+     */
+    @Override
+    public void spectateCameraFollow(Position targetPosition) {
+        recenterChunkView(targetPosition);
     }
 
     /**
