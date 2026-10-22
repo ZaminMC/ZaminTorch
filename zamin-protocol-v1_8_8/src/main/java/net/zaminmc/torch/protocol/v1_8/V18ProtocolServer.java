@@ -1223,6 +1223,41 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                     connection.sendPostureMetadata(player);
                 }
             }
+
+            @Override
+            public void onPlayerSleeping(net.zaminmc.torch.server.player.PlayerSession player,
+                                         net.zaminmc.torch.block.BlockPosition bedHead) {
+                // The sleep pose (the reference's ServerPlayerEntity.trySleep
+                // wire arm, lines 491-501): the Use Bed 0x0A to every
+                // tracking observer (the EntityMap.sendPacket fan) AND the
+                // sleeper's own client (the trailing self send).
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    if (connection.currentSession() == player) {
+                        connection.sendSelfUseBed(bedHead);
+                    } else {
+                        connection.sendRemotePlayerUseBed(player.uuid(), bedHead);
+                    }
+                }
+            }
+
+            @Override
+            public void onPlayerWake(net.zaminmc.torch.server.player.PlayerSession player) {
+                // The leave-bed walk's wire arm (ServerPlayerEntity.wakeUp
+                // lines 503-513): the Animation 0x0B code 2 to every
+                // observer INCLUDING the sleeper (EntityMap.sendPacketToAll
+                // fans to the trackers plus the entity itself), and the
+                // sleeper's own position anchor — the reference's trailing
+                // networkHandler.teleport, the packet that closes the
+                // client's sleep screen.
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    if (connection.currentSession() == player) {
+                        connection.sendSelfAnimation(2);
+                        connection.resyncPosition();
+                    } else {
+                        connection.sendRemotePlayerAnimation(player.uuid(), 2);
+                    }
+                }
+            }
         });
         // Experience orbs: engine decides lifecycle, adapter renders Spawn
         // Experience Orb 0x11 / Collect / Destroy — the item-entity shape.
