@@ -12729,3 +12729,39 @@ Stage Summary:
   acceptance family green (VillageApi/PistonPushApi/GrowthApi/
   DispenseBehaviorApi), the api module 19/0, all modules compiling.
   Branch fishing-api, PR against develop (not self-merged).
+
+---
+Task ID: fishing-api-correction (the coordinator's PR-#32 review)
+Agent: main (Abasing session — the coordinator)
+Task: The PR-#32 review found the landing commit's cited §27.10 proof
+(FishingApiAcceptanceTest 7) was NEVER COMMITTED — the commit message and
+both ledgers cited a test file that did not exist in the tree. The §27.10
+law (a capability is exposed only when a plugin-facing test proves it) was
+unmet; the PR was held from merge until corrected.
+
+Work Log:
+- The coordinator authored the missing test (the commit message's own
+  description was the spec): FishingApiAcceptanceTest 7 — the booted
+  facade answering the live view (never the EMPTY default), the dry cast's
+  census row + the grounded stick + the reeled-in empty, the water float's
+  bite window + the caught fish reaching the api inventory (the staging:
+  a 20-block water pool through setBlock covering the cast's full lob
+  range, the angler returned home before each recast, the pickup teleport
+  to the pool floor where the caught item sinks), the interceptor's
+  context rows + the diamond replacement + the idempotent add + the
+  removal restore + the vanilla fish after, the cancel's bare retrieve
+  (no drop, the rod never wears — the reference's result > 0 gate), the
+  loot override's fixed emerald + the null restore + the retired source
+  never consulted again, and the §27.6 foreign-thread census hammer
+  (2000 reads against the live flight, never a throw).
+- The staging lessons recorded: the cast's real lob range is ~15 blocks
+  (the pool must span it or the bobber grounds dry), the catch-arm cadence
+  runs 100-900 ticks bare (the 90-second await bound), and the caught item
+  sinks the two-cell water column (the pickup needs the feet near the
+  floor).
+- FishingApiAcceptanceTest 7/0 green; FishingSystemTest 7/0 +
+  FishingOverrideTest 7/0 re-verified on the branch.
+
+Stage Summary:
+- The §27.10 gap repaired before merge: the fishing api's capability now
+  carries its plugin-facing proof. The lane merges with this correction.
