@@ -19,6 +19,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The spawn egg family's own law (Slice 20a — the reference's
@@ -266,7 +267,7 @@ class SpawnEggTest {
 
             // spawnEntity's containsKey gate: no body, no payment.
             server.useItemOnBlock(player, stone, 1, java.util.Optional.empty(), ignored -> { });
-            Thread.sleep(150); // a few ticks: nothing may arrive late
+            EngineAwaits.awaitTicks(server.world(), 3, "a few ticks: nothing may arrive late");
             assertEquals(before, mobsNearUsePoint(server, stone), "no body ever spawned");
             assertEquals(1, player.inventory().held().count(), "the unknown id never pays");
         } finally {

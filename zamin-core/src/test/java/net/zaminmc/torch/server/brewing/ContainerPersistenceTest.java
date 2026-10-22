@@ -15,6 +15,7 @@ import java.util.function.BooleanSupplier;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The container persistence round trip (Slice 11f — the ledgered ZDD/ZBD
@@ -60,7 +61,7 @@ class ContainerPersistenceTest {
                         && one.brewingStands().peek(standAt) != null,
                 "the containers' state materialized");
         // Let a few ticks run (the brewing cycle arms), then save.
-        Thread.sleep(300);
+        EngineAwaits.awaitTicks(one.world(), 6, "a few ticks run (the brewing cycle arms)");
         int armed = one.brewingStands().peek(standAt).timer();
         assertTrue(armed > 0, "the brew cycle armed in the first life: " + armed);
         one.saveAllNow();

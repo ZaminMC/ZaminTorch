@@ -21,6 +21,7 @@ import java.util.function.BooleanSupplier;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The ender chest family (Slice 29a — the reference port of
@@ -66,12 +67,8 @@ class EnderChestAcceptanceTest {
         throw new AssertionError("Condition not met in time: " + description);
     }
 
-    private static void settle() {
-        try {
-            Thread.sleep(300);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
+    private void settle(EngineServer server) throws InterruptedException {
+        EngineAwaits.awaitTicks(server.world(), 6, "the settle");
     }
 
     @Test
@@ -105,18 +102,18 @@ class EnderChestAcceptanceTest {
             server.ticker().submit(() -> session.inventory().setSlot(
                     session.inventory().heldSlot(),
                     net.zaminmc.torch.item.ItemStack.of(BuiltinItems.DIAMOND, 7)));
-            settle();
+            settle(server);
             server.windowClick(session, opened.get(),
                     54 + session.inventory().heldSlot(), 0, 0, ok -> { });
-            settle();
+            settle(server);
             server.windowClick(session, opened.get(), 2, 0, 0, ok -> { });
-            settle();
+            settle(server);
             assertEquals(7, session.enderChest().getItem(2).count(),
                     "the clicked stack landed in the private grid");
             assertEquals(BuiltinItems.DIAMOND, session.enderChest().getItem(2).type());
             assertNull(server.chests().peek(at), "the world chest store stayed empty");
             server.closeWindow(session, opened.get());
-            settle();
+            settle(server);
             assertEquals(7, session.enderChest().getItem(2).count(),
                     "closing the door keeps the grid");
 
@@ -125,10 +122,10 @@ class EnderChestAcceptanceTest {
             server.ticker().submit(() -> server.world().setBlock(
                     at.offset(0, 1, 0),
                     net.zaminmc.torch.server.block.BuiltinBlocks.STONE));
-            settle();
+            settle(server);
             AtomicInteger refused = new AtomicInteger(-1);
             server.useItemOnBlock(session, at, 1, Optional.empty(), 0, refused::set);
-            settle();
+            settle(server);
             assertEquals(-1, refused.get(), "the solid lid refused the open");
         } finally {
             server.shutdown(null);
@@ -158,12 +155,12 @@ class EnderChestAcceptanceTest {
         first.ticker().submit(() -> player.inventory().setSlot(
                 player.inventory().heldSlot(),
                 net.zaminmc.torch.item.ItemStack.of(BuiltinItems.EMERALD, 12)));
-        settle();
+        settle(first);
         first.windowClick(player, opened.get(),
                 54 + player.inventory().heldSlot(), 0, 0, ok -> { });
-        settle();
+        settle(first);
         first.windowClick(player, opened.get(), 5, 0, 0, ok -> { });
-        settle();
+        settle(first);
         assertEquals(12, player.enderChest().getItem(5).count(),
                 "the emerald stack landed in the grid");
         first.clientDisconnected(player, "test leave");

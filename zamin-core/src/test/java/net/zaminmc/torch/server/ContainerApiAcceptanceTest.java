@@ -16,6 +16,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The container-family API wave (§27.3's block-entity read surface over
@@ -49,7 +50,7 @@ class ContainerApiAcceptanceTest {
                         .setSlot(3, ItemStack.of(BuiltinItems.DIAMOND, 5));
             });
             // The public lookup + reads (the owner-lane walk ran above).
-            awaitSettled();
+            awaitSettled(server);
             World world = server.world();
             Optional<net.zaminmc.torch.container.Containers.Chest> chest =
                     world.containers().chestAt(at);
@@ -89,7 +90,7 @@ class ContainerApiAcceptanceTest {
                 server.hopper().getOrCreate(hopperAt)
                         .setItem(2, ItemStack.of(BuiltinItems.EMERALD, 7));
             });
-            awaitSettled();
+            awaitSettled(server);
             World world = server.world();
             var furnace = world.containers().furnaceAt(furnaceAt);
             assertTrue(furnace.isPresent(), "the placed furnace answers");
@@ -114,11 +115,7 @@ class ContainerApiAcceptanceTest {
     }
 
     /** The submit drains at the head of the next tick (<= 100 ms). */
-    private static void awaitSettled() {
-        try {
-            Thread.sleep(300);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
+    private void awaitSettled(EngineServer server) throws InterruptedException {
+        EngineAwaits.awaitTicks(server.world(), 6, "the submit drains at the head of the next tick");
     }
 }

@@ -19,6 +19,7 @@ import java.util.function.BooleanSupplier;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The weather family's own law (Slice 20b — the reference's
@@ -324,7 +325,7 @@ class WeatherSystemTest {
         java.nio.file.Files.write(store, new byte[]{9, 9, 9, 9, 1, 2, 3, 4, 5, 6, 7, 8});
         EngineServer third = boot();
         try {
-            Thread.sleep(300); // a few ticks run
+            EngineAwaits.awaitTicks(third.world(), 6, "a few ticks run");
             assertFalse(third.raining(),
                     "the corrupt store booted the fresh clear defaults");
             assertTrue(java.nio.file.Files.exists(
