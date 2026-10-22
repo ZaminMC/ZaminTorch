@@ -39,7 +39,8 @@ public final class DeltaWorldStorage implements WorldStorage {
     private static final int MAGIC_0 = 'Z';
     private static final int MAGIC_1 = 'W';
     private static final int MAGIC_2 = 'D';
-    private static final int FORMAT_VERSION = 1;
+    /** The written version (the serializer's own v2 — VIII14; the load walk accepts v1 and v2). */
+    private static final int FORMAT_VERSION = 2;
 
     private final Path file;
     private final java.util.function.Function<Identifier, BlockType> typeResolver;
@@ -92,11 +93,15 @@ public final class DeltaWorldStorage implements WorldStorage {
                 throw new IOException("Not a ZWD file");
             }
             int version = in.readByte();
-            if (version != FORMAT_VERSION) {
+            if (version != 1 && version != 2) {
                 throw new IOException("Unsupported ZWD version: " + version);
             }
             long totalTicks = in.readLong();
             long timeOfDay = in.readLong();
+            // v2 carries the raw day clock (VIII14); a v1 file migrates it
+            // as the wrapped value — day 0, the historical fresh-moon read
+            // the pre-VIII14 engine always carried.
+            long rawTimeOfDay = version >= 2 ? in.readLong() : timeOfDay;
 
             int paletteSize = in.readInt();
             Identifier[] palette = new Identifier[paletteSize];
@@ -118,7 +123,17 @@ public final class DeltaWorldStorage implements WorldStorage {
                 }
                 deltas.put(chunkKey, entries);
             }
-            return Optional.of(new WorldDeltaSnapshot(totalTicks, timeOfDay, deltas));
+            // The inhabited tail (v2 — VIII14): chunkKey long + value long
+            // each, the count an int like the delta section's own head.
+            Map<Long, Long> inhabitedTimes = new HashMap<>();
+            if (version >= 2) {
+                int inhabitedCount = in.readInt();
+                for (int i = 0; i < inhabitedCount; i++) {
+                    inhabitedTimes.put(in.readLong(), in.readLong());
+                }
+            }
+            return Optional.of(new WorldDeltaSnapshot(
+                    totalTicks, timeOfDay, rawTimeOfDay, inhabitedTimes, deltas));
         } catch (IOException corrupt) {
             // Preserve the unreadable data beside the storage path; the world
             // regenerates from its generator. Losing deltas beats corrupting more.
