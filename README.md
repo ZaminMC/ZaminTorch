@@ -162,8 +162,21 @@ exposure, then concurrency phases, then standing deferrals.
 9. The wither's conditional exemption arms (spawner/cobweb/fall-damage/
    light-level/armor-protection/no-riding — each rides its own family's
    slice; track each as that family lands).
-10. The global world-event radius (1012/1014 ride the chunk-gated stand-in
-    today; the reference's 64-block radius is the 1:1 form).
+10. ~~The global world-event radius (1012/1014 ride the chunk-gated stand-in
+    today; the reference's 64-block radius is the 1:1 form)~~ — LANDED
+    2026-10-22 (0916e4b9): the stand-in retired — every doEvent-family
+    event (the wither's 1012/1014, the zombie door's 1010/1012, the
+    villager's 1016/1017, the bottle's 2002, the eye's 1002/2003) now
+    fans through the reference's PlayerManager.sendPacket form — the
+    same-dimension observers within the squared 4096, NOT the loaded-chunk
+    window (a 75-block-out observer with the chunk loaded hears nothing; a
+    60-block-out observer with the chunk cold hears it). The event's
+    dimension rides the listener chains honestly (the mob family's
+    mob.dimension(); the bottle's thrower-resolved burst world; the eye's
+    dimension-blind boundary recorded — the overworld id until the system
+    carries its own world) — proven by `WorldEventRadiusAcceptanceTest`
+    (1/0 over the real wire: the thrower + the 55-block observer hear the
+    splash, the 75-block chunk-loaded observer does not).
 
 ### C. Native API exposure (the Wave IX demand-named tail — NATIVE_API_CAPABILITIES.md §9)
 

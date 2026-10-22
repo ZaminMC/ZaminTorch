@@ -12741,3 +12741,54 @@ Stage Summary:
   walk + the wirings, 921b58ad the test, this commit the ledgers). Next:
   Row 10 (the doEvent 64-block world-event radius — the V18Connection
   chunk-gated stand-ins + the wither 1012/1014 fan in V18ProtocolServer).
+
+---
+Task ID: row-10-world-event-radius (landed — the coordinator's own lane, wave 2)
+Agent: main (Abasing session — the coordinator)
+Task: README TODO row 10 — the doEvent family's 64-block world-event radius, the
+reference's PlayerManager.sendPacket fan over the chunk-gated stand-in.
+
+Work Log:
+- The reference law verified: ServerWorldEventListener.doEvent fires
+  sendPacket(source, x, y, z, 64.0, dimension, packet) — PlayerManager walks
+  the players, the same-dimension gate, the squared Euclidean under 4096
+  (strict less-than), the source excluded only when non-null (the engine's
+  doEvent callers all pass null). 17 doEvent(null, ...) callers censused
+  across the reference (doors 1003/1006, the eye 1002/2003, the music disc
+  1005, the ghast pair 1007/1008, the blaze 1009, the wither 1012/1014, the
+  bat 1015, the villager 1016/1017, the bottle 2002).
+- The stand-in retired (V18Connection.sendWorldEvent): the chunk-tracker
+  gate replaced by the radius law; the signature gained the event's
+  dimension.
+- The dimension threaded through every listener chain: MobManager.Listener
+  .onWorldEventAt + EngineServer's ProjectileListener.onWorldEventAt gained
+  the dimension param; the mob family passes mob.dimension() at all five
+  fire sites (the wither 1012/1014, the zombie door knock 1010, the
+  zombie's door-break 1012, the villager's 1016/1017); the bottle's
+  XpBottleSink gained the throwerId (the burst world resolved through the
+  thrower — the engine's projectile system is dimension-blind, the boundary
+  the hit resolver records); the eye family fires the overworld id with the
+  boundary noted (the eye entity carries no thrower, no world).
+- The harness: TestClient18 gained readWorldEvent (the 0x28 reader with the
+  packed-position decode) + sendUseItemInAir (the 0x08 -1 sentinel form).
+- WorldEventRadiusAcceptanceTest 1/0 over the real wire: three scripted
+  clients — the thrower, a 55-block observer (inside), a 75-block observer
+  (outside with the event's chunk STILL inside the view-distance-4 window,
+  the exact case the old gate answered wrong); the thrower + the inside
+  observer hear the 2002 splash, the outside observer hears nothing inside
+  a bounded silence window.
+- Regression batches green (--no-daemon): ZombieVillagerConversionTest 10/0,
+  FireworksAndBottleTest 6/0 (the sink's thrower row asserted), WitherBoss
+  8/0, WitherSkeleton 6/0, EnderEyeSystem 4/0, WoodDoorFamily 5/0,
+  Protocol18Conformance 2/0, ParticleDisplay 1/0, MobIntegration 2/0.
+- The ledgers: README row 10 retired (strikethrough + LANDED + 0916e4b9);
+  no NATIVE_API §9 row (a wire-distribution law, not an api capability —
+  the protocol acceptance test is the proof surface).
+
+Stage Summary:
+- Rows 8 + 10 BOTH LANDED on thorns-and-world-events (the coordinator's
+  wave-2 lane complete): 487ce084 the wip, c47408da the thorns walk +
+  wirings, 921b58ad the thorns family, 35b2a5fc the row-8 ledgers,
+  0916e4b9 the radius law, this commit the row-10 ledgers. The PR against
+  develop opens next; the eight instances' PRs (#28-#32 arrived, three more
+  expected) await the coordinator's review.
