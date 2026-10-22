@@ -12653,3 +12653,79 @@ Work Log:
 Stage Summary:
 - The wave-2 lane map published; the coordinator's own rows 8 + 10 start on
   the owner's continue.
+---
+Task ID: fishing-api (the README TODO's row 17 — the wave-2 lane)
+Agent: main (Abasing session — the 2026-10-23 continuation)
+Task: The fishing system's api surface — Server.fishing() over the live
+engine (the §9 audit's own find: the ledger row's cited entry point did
+not exist on the api Server; the engine accessor was diagnostics-only).
+
+Work Log:
+- Surveyed the engine's whole public surface first (Slice 67/69): the
+  timing constants (BITE_WINDOW 10..30, FISH_APPROACH 20..80, CATCH_ARM
+  100..900, the Lure cut, STUCK_TIMEOUT, the leash law), the
+  WorldQuery/HookResolver/CatchSink wiring seams, LootCategory,
+  CatchContext, the CatchInterceptor (Slice 69's §27.7 hook), the
+  Listener, and the Bobber state model — plus the fishing package's own
+  tests (FishingSystemTest/FishingOverrideTest) for the deterministic
+  harness and the result-code law.
+- Followed the villages() lane's established exposure pattern: an
+  additive default method on the api Server (region-local — right after
+  villages()) + the core view class + the @Override facade on
+  EngineServer backed by the view.
+- Added the api type net.zaminmc.torch.fishing.Fishing (the plugin-facing
+  view): the bobber census (bobbers()/bobberOf(anglerId) — the
+  reference's own bobber state model: the position/velocity walk, the
+  grounded/hooked/biting flags), the catch-context rows
+  (Fishing.CatchContext — the loot band, the luck/lure levels, the
+  caught stack), and the §27.7 family through the view
+  (addCatchInterceptor/removeCatchInterceptor — the observe/replace/
+  cancel hook, EMPTY cancels with the bare-0 retrieve; setLootSource —
+  the per-band override, null falls through/restores; one instance
+  registers once, the removal symmetric). Fishing.EMPTY for unbooted
+  servers.
+- Added the core FishingViews adapter (server/fishing/) — NO new engine
+  state: the census copies under the engine's own monitor, the api
+  interceptor/loot lambdas adapting onto the engine's own nested seams
+  through a ConcurrentHashMap wrapper map. Deliberately NOT surfaced:
+  WorldQuery/HookResolver/CatchSink/the wire Listener (the engine's own
+  wiring) and the cast/retrieve verbs (the use path's own — a plugin
+  reads the state the walk produces, it does not fish for the player).
+- The §27.6 monitor protocol on the engine (the VillageSystem form, the
+  minimal core edit): FishingSystem's cast/retrieve/noteAnglerState/
+  tick/bobberOf/all + the three registration arms now synchronized —
+  the census mutations, the collection reads, and the registrations
+  serialize on the system itself, tear-free against the tick lane from
+  any thread.
+- Retired the raw EngineServer.fishing() engine accessor ("diagnostics
+  and tests", ZERO callers — the engine's own arms reach the field
+  directly, core tests reach the system through its own package) — the
+  name now answers the api view, the villages() precedent; the dangling
+  vehicle javadoc that sat above it re-attached to vehicles().
+- The §27.10 capability test FishingApiAcceptanceTest (the fishing
+  package, the ArrowPickupTest placement precedent — the harness + the
+  package-private state forcing live there): 7 tests, every READ through
+  the api types alone — the census answering every state (the cast, the
+  float, the grounded/hooked/biting walk) each cross-checked against
+  the engine's own diagnostics (the §27.5 live-resolution proof: a tick
+  moves the bobber, the next read answers the moved position), the
+  reeled-in census, the interceptor's context rows + the replacement +
+  the idempotent add + the removal restore + the cancel's bare 0, the
+  loot override's band answer + the restore, the foreign-thread census
+  hammer against the live tick walk, and the booted facade through
+  Server.fishing() (EngineServer boot, the api-typed read, not EMPTY).
+- Ledgers: NATIVE_API_CAPABILITIES.md's row 74 (the §4 fishing-bobbers
+  row — the CLOSED state with the entry point, the §27.6 protocol, the
+  plugin-facing test, IMPLEMENTED) + row 173 (the §9 audit row —
+  CLOSED); README.md's TODO row 17 retired with the LANDED note (the
+  rows 1-7 form, d38c3de6).
+
+Stage Summary:
+- README TODO row 17 closed; the §9 audit's fishing row closed. The api
+  surface: observe (the bobber census, any-thread snapshots), query
+  (the catch-context rows), intercept/replace (the §27.7 family through
+  the view). Evidence: FishingApiAcceptanceTest 7/0, FishingSystemTest
+  7/0 + FishingOverrideTest 7/0 under the monitor, the boot-based
+  acceptance family green (VillageApi/PistonPushApi/GrowthApi/
+  DispenseBehaviorApi), the api module 19/0, all modules compiling.
+  Branch fishing-api, PR against develop (not self-merged).
