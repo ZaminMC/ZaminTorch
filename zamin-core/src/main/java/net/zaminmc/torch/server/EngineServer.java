@@ -2192,10 +2192,17 @@ public final class EngineServer implements Server, EngineBridge {
                 // 2002 splash event at the impact plus the experience
                 // burst — 3 + rand(5) + rand(5) points through the
                 // roundSize ladder. No damage ever lands.
-                projectiles.setXpBottleSink((x, y, z) -> {
+                projectiles.setXpBottleSink((x, y, z, throwerId) -> {
+                    // The burst world resolves through the thrower (the
+                    // reference's projectile carries its world; the engine's
+                    // projectile system is dimension-blind — the boundary
+                    // the hit resolver records — so the thrower's dimension
+                    // stands in until the system carries its own).
+                    PlayerSession thrower = sessionByEngineId(throwerId);
+                    int burstDimension = thrower != null ? thrower.dimension() : 0;
                     for (ProjectileListener listener : projectileListeners) {
                         listener.onWorldEventAt(new Position(x, y, z),
-                                WORLD_EVENT_BOTTLE_SPLASH);
+                                WORLD_EVENT_BOTTLE_SPLASH, burstDimension);
                     }
                     if (experienceOrbs != null) {
                         int points = 3 + gameplayRandom.nextInt(5)
@@ -15256,9 +15263,11 @@ public final class EngineServer implements Server, EngineBridge {
         /**
          * The reference's own world event from a projectile's impact
          * (Slice 65 — the bottle o' enchanting's doEvent(2002, pos, 0):
-         * the splash-particle Effect packet, the color value 0).
+         * the splash-particle Effect packet, the color value 0). The
+         * event's dimension rides beside the position (the row-10 radius
+         * law — the reference's PlayerManager.sendPacket dimension gate).
          */
-        default void onWorldEventAt(Position position, int eventId) {
+        default void onWorldEventAt(Position position, int eventId, int dimension) {
         }
     }
 
@@ -18276,9 +18285,9 @@ public final class EngineServer implements Server, EngineBridge {
         }
 
         @Override
-        public void onWorldEventAt(Position position, int eventId) {
+        public void onWorldEventAt(Position position, int eventId, int dimension) {
             for (MobManager.Listener listener : mobListeners) {
-                listener.onWorldEventAt(position, eventId);
+                listener.onWorldEventAt(position, eventId, dimension);
             }
         }
 
@@ -18991,7 +19000,7 @@ public final class EngineServer implements Server, EngineBridge {
             doorSiblingCleanup(at);
             Position center = new Position(x + 0.5, y + 0.5, z + 0.5);
             for (MobManager.Listener listener : mobListeners) {
-                listener.onWorldEventAt(center, 1012);
+                listener.onWorldEventAt(center, 1012, mob.dimension());
             }
             fxManager.blockShatter(center, type);
         }

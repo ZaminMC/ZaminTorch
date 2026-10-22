@@ -4941,22 +4941,35 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
 
     /**
      * The Effect packet (0x28) for the reference's own world events —
-     * the zombie villager's infect 1016 and un-infect 1017
-     * ({@code world.doEvent(null, id, pos, 0)}): the client plays the
-     * event's sound itself from the id (WorldRenderer lines 1957-1961,
-     * the volume-2.0 mob.zombie pair). Chunk-gated like the spawner's
-     * own 2004. Any thread.
+     * the zombie villager's infect 1016 and un-infect 1017, the wither's
+     * 1012/1014, the zombie door family's 1010/1012 ({@code
+     * world.doEvent(null, id, pos, 0)}): the client plays the event's
+     * sound itself from the id (WorldRenderer lines 1957-1961, the
+     * volume-2.0 mob.zombie pair). The fan is the reference's own radius
+     * law (README TODO's row 10 — ServerWorldEventListener.doEvent →
+     * PlayerManager.sendPacket(source, x, y, z, 64.0, dimension, ...)):
+     * the SAME-DIMENSION observers within the squared 4096 — NOT the
+     * loaded-chunk window the stand-in gated on (a player 70 blocks out
+     * with the chunk loaded hears nothing; a player 60 blocks out with
+     * the chunk cold hears the event). Any thread.
      */
-    void sendWorldEvent(net.zaminmc.torch.util.Position at, int eventId) {
+    void sendWorldEvent(net.zaminmc.torch.util.Position at, int eventId,
+                        int dimension) {
         Channel channel = adapter.channelOf(this);
-        if (channel == null || !channel.isActive() || state != WireState.PLAY
-                || chunkTracker == null) {
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
             return;
         }
-        var blockPos = at.toBlockPosition();
-        if (!chunkTracker.hasChunk(blockPos.chunkPosition().packed())) {
-            return; // the observer cannot see that event
+        PlayerSession observer = currentSession();
+        if (observer == null || observer.dimension() != dimension) {
+            return; // another world's event
         }
+        double dx = at.x() - observer.position().x();
+        double dy = at.y() - observer.position().y();
+        double dz = at.z() - observer.position().z();
+        if (dx * dx + dy * dy + dz * dz >= 64.0 * 64.0) {
+            return; // beyond the reference's event radius
+        }
+        var blockPos = at.toBlockPosition();
         ByteBuf out = Unpooled.buffer(20);
         ByteBufOps.writeVarInt(out, Protocol18.S2C_WORLD_EVENT);
         out.writeInt(eventId);
@@ -5109,8 +5122,12 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         channel.writeAndFlush(velocity);
         if (withThrowEvent) {
             // The throw's 1002 (the fire-charge smoke at the player's own
-            // position — the eye's spawn point).
-            sendWorldEvent(eye.position(), Protocol18.WORLD_EVENT_FIRE_CHARGE_SMOKE);
+            // position — the eye's spawn point). The eye system is
+            // dimension-blind (the pre-existing boundary the hit resolver
+            // records): the event rides the overworld's id until the eye
+            // carries its own world.
+            sendWorldEvent(eye.position(),
+                    Protocol18.WORLD_EVENT_FIRE_CHARGE_SMOKE, 0);
         }
     }
 

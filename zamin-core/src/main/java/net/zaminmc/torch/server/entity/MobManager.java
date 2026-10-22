@@ -481,9 +481,12 @@ public final class MobManager {
          * A world event fired at a position (Slice 25a — the reference's
          * {@code world.doEvent(null, id, pos, 0)}: the zombie villager's
          * infect 1016 and un-infect 1017 events, the sounds the client
-         * plays from the Effect packet itself).
+         * plays from the Effect packet itself; the zombie door family's
+         * 1010 knock beside them). The event's DIMENSION rides beside the
+         * position (the reference's PlayerManager.sendPacket dimension
+         * gate — the README TODO's row 10 radius law).
          */
-        default void onWorldEventAt(Position position, int eventId) {
+        default void onWorldEventAt(Position position, int eventId, int dimension) {
         }
 
         /**
@@ -1884,7 +1887,7 @@ public final class MobManager {
                 for (Listener listener : listeners) {
                     listener.onWorldEventAt(new Position(
                             mob.zombieBreakDoorX() + 0.5, mob.zombieBreakDoorY() + 0.5,
-                            mob.zombieBreakDoorZ() + 0.5), 1010);
+                            mob.zombieBreakDoorZ() + 0.5), 1010, mob.dimension());
                 }
             }
             if (mob.consumeZombieDoorBroken()) {
@@ -2604,7 +2607,7 @@ public final class MobManager {
             }
         }
         for (Listener listener : listeners) {
-            listener.onWorldEventAt(at, 1016);
+            listener.onWorldEventAt(at, 1016, zombie != null ? zombie.dimension() : 0);
         }
     }
 
@@ -2642,7 +2645,7 @@ public final class MobManager {
             }
         }
         for (Listener listener : listeners) {
-            listener.onWorldEventAt(at, 1017);
+            listener.onWorldEventAt(at, 1017, villager != null ? villager.dimension() : 0);
         }
     }
 

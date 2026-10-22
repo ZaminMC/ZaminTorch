@@ -442,7 +442,7 @@ public final class V18ProtocolServer implements ProtocolAdapter {
             @Override
             public void onWitherBlockBreakSound(net.zaminmc.torch.server.entity.MobEntity mob) {
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
-                    connection.sendWorldEvent(mob.position(), 1012);
+                    connection.sendWorldEvent(mob.position(), 1012, mob.dimension());
                 }
             }
 
@@ -450,7 +450,7 @@ public final class V18ProtocolServer implements ProtocolAdapter {
             @Override
             public void onWitherShootSound(net.zaminmc.torch.server.entity.MobEntity mob) {
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
-                    connection.sendWorldEvent(mob.position(), 1014);
+                    connection.sendWorldEvent(mob.position(), 1014, mob.dimension());
                 }
             }
 
@@ -472,9 +472,10 @@ public final class V18ProtocolServer implements ProtocolAdapter {
 
             /** The reference's own world events (1016 infect, 1017 un-infect). */
             @Override
-            public void onWorldEventAt(net.zaminmc.torch.util.Position position, int eventId) {
+            public void onWorldEventAt(net.zaminmc.torch.util.Position position, int eventId,
+                                       int dimension) {
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
-                    connection.sendWorldEvent(position, eventId);
+                    connection.sendWorldEvent(position, eventId, dimension);
                 }
             }
 
@@ -1383,9 +1384,10 @@ public final class V18ProtocolServer implements ProtocolAdapter {
 
             /** The bottle's splash event (Slice 65 — the 2002 Effect). */
             @Override
-            public void onWorldEventAt(net.zaminmc.torch.util.Position position, int eventId) {
+            public void onWorldEventAt(net.zaminmc.torch.util.Position position, int eventId,
+                                       int dimension) {
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
-                    connection.sendWorldEvent(position, eventId);
+                    connection.sendWorldEvent(position, eventId, dimension);
                 }
             }
         });
@@ -1474,8 +1476,12 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                 public void onEyeSmokeEnded(net.zaminmc.torch.server.endereye.EnderEyeEntity eye) {
                     // The 1-in-5 end (the reference's world.doEvent(2003,
                     // pos, 0)): the wire's world event at the eye's rest.
+                    // The eye system is dimension-blind (the pre-existing
+                    // boundary the hit resolver records): the event rides
+                    // the overworld's id until the eye carries its own world.
                     for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
-                        connection.sendWorldEvent(eye.position(), Protocol18.WORLD_EVENT_ENDER_EYE_END);
+                        connection.sendWorldEvent(eye.position(),
+                                Protocol18.WORLD_EVENT_ENDER_EYE_END, 0);
                     }
                 }
 
