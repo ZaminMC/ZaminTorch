@@ -80,7 +80,7 @@ work" ledger for the pending tail).
 | Remote admin: RCON (TCP) + GS4 Query (UDP), vanilla 1.8.8 1:1 | implemented |
 | Biome family: 61-row registration, GenLayer layout, surface builders, decorators, spawn tables | implemented |
 | Local difficulty (the reference's calculate whole, raw day clock, inhabited time, ZWD v2) | implemented |
-| Minestom integration | deferred (see ADR in plan) |
+| Minestom integration | not planned — abandoned (ADR-0001 closed 2026-10-22, the owner's final decision) |
 
 This table reflects tested behavior only; nothing is marked implemented without an
 automated test proving it.
@@ -169,7 +169,12 @@ exposure, then concurrency phases, then standing deferrals.
 24. The §28.7 Bukkit/Spigot/Paper compatibility adapter (deferred by §27.1's
     order: after the 1.8.8 implementation is polished into a playable,
     maintainable server).
-25. Minestom integration (deferred — see the ADR in the plan).
+
+    Minestom integration was retired from this ledger on 2026-10-22: the
+    owner's final decision is to abandon it outright (ADR-0001 closed —
+    not deferred, not trigger-armed, not planned). It is no longer pending
+    work of any kind and must not re-enter any plan, ledger, or TODO list
+    unless the owner alone reverses it with a new ADR.
 
 ## Downloading a dev build (no build tools needed)
 
