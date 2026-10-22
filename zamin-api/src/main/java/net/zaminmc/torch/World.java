@@ -237,4 +237,37 @@ public interface World {
      *         chunks (the implicit default). Safe from any thread.
      */
     String biomeAt(BlockPosition position);
+
+    /**
+     * The biome registration table's read surface (§27.3's
+     * world-generation family — the VIII14 slice-1 exposure): every
+     * registered row's own datums as {@link
+     * net.zaminmc.torch.block.BiomeData} — the reference 1.8.8's whole
+     * 61-row census in id order (the 40 base ids 0-39 + the 21 mutated
+     * ids 129-167): the display names, the temperature/downfall pairs,
+     * the height pairs, and the isRainy read law. The table is immutable
+     * and world-independent — every world answers the same census, safe
+     * from any thread (§27.6: no owner context, no snapshot discipline).
+     * The worldgen consults (the layout, the spawn tables, the surface
+     * builders) stay worldgen-side — §27.2's layer separation. Worlds
+     * without the family answer empty.
+     */
+    default java.util.List<net.zaminmc.torch.block.BiomeData> biomes() {
+        return java.util.List.of();
+    }
+
+    /**
+     * The registration row at the column (the §27.3 exposure beside
+     * {@link #biomeAt}): the SAME resolution the stable name rides —
+     * the chunk's own stored biome row, and the plains row outside
+     * loaded chunks (the implicit default's own datums, not a gap) — so
+     * the row's {@code name} is always the string {@code biomeAt}
+     * answers at the same position. Best-effort read, safe from any
+     * thread; the registration table behind it is immutable. Worlds
+     * without the family answer null (the lookup family's own gap
+     * shape).
+     */
+    default net.zaminmc.torch.block.BiomeData biomeDataAt(BlockPosition position) {
+        return null;
+    }
 }
