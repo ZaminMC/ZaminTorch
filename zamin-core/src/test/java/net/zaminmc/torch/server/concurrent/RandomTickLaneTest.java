@@ -28,6 +28,7 @@ import java.util.function.BooleanSupplier;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The Phase-6 lane's proof obligation (the random-tick compute-then-apply
@@ -191,7 +192,8 @@ class RandomTickLaneTest {
             // across several 4-chunk regions — the dispatch engages.
             for (int i = 0; i < 40; i++) {
                 server.ticker().submit(() -> { });
-                Thread.sleep(10);
+                EngineAwaits.awaitTicks(server.world(), 1,
+                        "the pacing tick drains the submitted probe");
             }
             assertTrue(server.randomTicks() != null
                             && server.randomTicks().parallelDispatchTicks() > 0,
