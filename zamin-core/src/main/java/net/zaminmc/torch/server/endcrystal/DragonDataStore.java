@@ -15,8 +15,14 @@ import java.util.logging.Logger;
  * deterministically on every boot, so the chunk-(0,0) decorate would
  * re-spawn the dragon each restart — vanilla's own entity ledger keeps the
  * kill; this store carries the same verdict. (A RESPAWN of the dragon —
- * the four end-crystal fountain ritual — is its own future slice; the
- * store grows its arm then.)
+ * the four end-crystal fountain ritual — is NOT a 1.8.8 mechanic: the
+ * reference carries no ritual (EnderCrystalEntity is the simple 1.8.8
+ * form, the heal link living on the dragon side; the
+ * DragonRespawnAnimation fountain came with 1.9). The engine already
+ * matches 1.8.8 exactly here — no respawn, the defeated mark, the egg on
+ * the portal. A respawn ritual would be a post-1.8.8 feature, out of
+ * scope for the 1.8.8 target unless the owner alone asks for it; the
+ * store grows its arm only then.)
  *
  * <p>Writes are atomic (temp file then atomic move), corrupt files load as
  * the fresh {@code false} and are preserved beside the storage path. The
