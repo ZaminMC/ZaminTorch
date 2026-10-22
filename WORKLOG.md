@@ -13529,3 +13529,17 @@ Stage Summary:
 - ML-001 landed on the branch and pushed (3 commits). The census's own refinement catch: the window heuristic misclassified sleeps after closed loops and condition-poll intervals — the brace-depth walk replaced it; the extractor's two regex bugs (newline-eating string class, DOTALL line-comment over-blank) fixed and both re-validated against known sites.
 - The conversion set is final and documented: 285 sites (275 sleeps + 9 dispenser windows + the RCON drain). The keeps are reasoned per family in the census doc.
 - Known flake context for the verification runs: the workflow's retry list carries LifecycleEvent/HopperSystem/HopperWindow; PR #37's hardenings cover fishing + the bukkit MONITOR await; the RCON drain converts in this lane.
+
+---
+Task ID: ML-001+ML-002 (cont.)
+Agent: main (the test-deadline census + release-pipeline lane, session 2)
+Task: the ML-002 landing + the verification runs (continuation of the entry above).
+
+Work Log:
+- ML-002 LANDED (e87d8d7 + 0b30836 + a580990 + 323b732): EngineAwaits (zamin-core testFixtures, java-test-fixtures wiring + protocol/bukkit consumer deps) — awaitTicks on the world's own volatile totalTicks clock with a stalled-engine backstop (60x nominal, floor 30s), awaitCondition with a tick-scaled deadline; 246 swept fixed sleeps + 7 settle/awaitSettled helper signatures (43 call sites) + 16 manual in-method sites + the RCON FIN-WAIT bound 5s->30s + DispenserSystemTest's three true negative windows + RandomTickLaneTest's pacing loop; the census's loop-membership walk gained the multiline-header brace fix.
+- THE LANDING'S OWN CATCH (323b732): the first protocol-suite run failed HorseIntegrationTest's wheat ladder — a wait after client.sendChat guards LOOPBACK NETTY DELIVERY, not tick progress; the 23 give/chat/slot/position delivery sites across 8 protocol tests reverted to wall sleeps + census-reclassified C-C (loopback delivery, no tick ordering), the dig-duration conversions stayed (the finish floor is a minimum — late is always safe), and the wheat ladder now awaits the engine-visible condition (the wheat in the tamer's inventory). The touched protocol batch green in 34s.
+- Verification run 1 progress: zamin-api + zamin-launcher + zamin-bukkit + zamin-protocol-v1_8_8 full suites GREEN together (BUILD SUCCESSFUL in 2m41s, --no-daemon --max-workers=1); zamin-core remaining — the server-root package alone exceeds the 10-minute tool window, run it in alphabetical chunks (then the sub-packages), then repeat everything for run 2.
+
+Stage Summary:
+- All code + docs landed and pushed on feature/test-deadline-census (HEAD 323b732). Remaining for the PR: zamin-core's chunked suite runs x2, the runs' numbers recorded, the §22 next-work line, and the PR itself (title: ML-001+ML-002: the test-deadline census and conversions + the green release pipeline).
+- The loopback-delivery distinction is the lane's own engineering finding — recorded in the census doc, it is the rule any future conversion must apply: tick-clock awaits only for tick-lane work; netty delivery waits stay wall-bounded (or await an engine-visible condition).
