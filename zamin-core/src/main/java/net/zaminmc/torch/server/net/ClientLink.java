@@ -358,4 +358,27 @@ public interface ClientLink {
                              int minX, int minY, int width, int height, byte[] colors,
                              long gateChunk) {
     }
+
+    /**
+     * Server Difficulty (0x41 — the reference's DifficultyS2CPacket, the
+     * single difficulty id byte 0..3): the runtime difficulty's change-time
+     * fan-out after {@code /difficulty} (the reference's own send set: the
+     * join walk's packet, PlayerManager.onLogin line 128, and the change
+     * re-sync), so tracking clients drop the join-time byte before their
+     * next respawn. Safe from any thread; default no-op for engine-internal
+     * links.
+     */
+    default void updateDifficulty(int difficultyId) {
+    }
+
+    /**
+     * Resource Pack Send (0x48 — the reference's ResourcePackS2CPacket: the
+     * url string then the hash string, the ctor's own 40-character hash
+     * law): the join walk's own send (PlayerManager.onLogin lines 148-150 —
+     * only ever called when the configured url is non-empty, the reference's
+     * own gate). Safe from any thread; default no-op for engine-internal
+     * links.
+     */
+    default void sendResourcePack(String url, String hash) {
+    }
 }

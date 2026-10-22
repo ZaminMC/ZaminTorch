@@ -145,6 +145,14 @@ final class Protocol18 {
     // 0x1D is Entity Effect — writing a 1.9-style unload there killed real
     // clients with "Packet 0/29 (ib), 3 bytes extra" (29 decimal = 0x1D).
     static final int S2C_DISCONNECT = 0x40;
+    /**
+     * Server Difficulty (0x41, protocol 47 — DifficultyS2CPacket's own
+     * write): the single difficulty id byte (0 peaceful .. 3 hard). The
+     * reference's {@code locked} flag rides the packet's constructor and
+     * the client handler's getter only — the 1.8.8 wire carries the byte
+     * alone (the locked boolean joined the wire in 1.9).
+     */
+    static final int S2C_SERVER_DIFFICULTY = 0x41;
     static final int S2C_COMBAT_EVENT = 0x42;
     /** Combat event 2 = entity died (playerId varint, entityId i32, message). */
     static final int COMBAT_EVENT_ENTITY_DIED = 2;
@@ -210,6 +218,14 @@ final class Protocol18 {
      * the engine exposes the wire through the native API surface.
      */
     static final int S2C_PLAYER_LIST_HEADER_FOOTER = 0x47;
+
+    /**
+     * Resource Pack Send (0x48, protocol 47 — ResourcePackS2CPacket's own
+     * write): the url string then the hash string, nothing else. The
+     * packet's own constructor law caps the hash at 40 characters; the
+     * 1.9+ varint request-id field never rides this protocol.
+     */
+    static final int S2C_RESOURCE_PACK_SEND = 0x48;
 
     // Serverbound play packet ids (protocol 47) — cross-checked against the
     // community protocol.json (PrismarineJS/minecraft-data) mapping. The

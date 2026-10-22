@@ -55,7 +55,9 @@ public final class ConfigLoader {
                 string(properties, "rcon.password", ""),
                 intOf(properties, "rcon.port", UNSET_REMOTE_PORT_FALLBACK),
                 boolOf(properties, "enable-query", false),
-                intOf(properties, "query.port", UNSET_REMOTE_PORT_FALLBACK));
+                intOf(properties, "query.port", UNSET_REMOTE_PORT_FALLBACK),
+                string(properties, "resource-pack", ""),
+                string(properties, "resource-pack-hash", ""));
     }
 
     /**
