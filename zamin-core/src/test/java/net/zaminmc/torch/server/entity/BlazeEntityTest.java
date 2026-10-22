@@ -119,7 +119,11 @@ class BlazeEntityTest {
         ScriptedWorld world = new ScriptedWorld();
         // A block away: squared 1 — inside the melee band (d0 < 4).
         world.target = new Position(1.5, 8.0, 0.5);
-        MobEntity blaze = blazeIn(world, 82L);
+        // The VIII14 cadence slice's re-pin: the ctor's idle-timer draw is
+        // gone (the reference has none), so the construction stream shifted
+        // one nextInt — seed 2 keeps the body inside the band for the whole
+        // walk (the old seed 82's in-band drift was stream-coupled accident).
+        MobEntity blaze = blazeIn(world, 2L);
 
         int melees = 0;
         for (int tick = 1; tick <= 61; tick++) {
