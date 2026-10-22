@@ -11,6 +11,7 @@ import org.junit.jupiter.api.TestInstance;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * PvP over the wire: two live clients at spawn, the attacker swings with Use
@@ -147,7 +148,7 @@ class PvpIntegrationTest extends ProtocolTestBase {
                     aliceSession.position().y(), aliceSession.position().z(), true);
             bob.walkTo(bobSession.position().x() + 10,
                     bobSession.position().y(), bobSession.position().z(), true);
-            Thread.sleep(200); // let the server accept the moves before combat
+            EngineAwaits.awaitTicks(server.world(), 4, "let the server accept the moves before combat");
 
             // Sword kill (7 damage: 20 -> dead inside the swing loop), with
             // the hurt-window spacing the melee test already established.

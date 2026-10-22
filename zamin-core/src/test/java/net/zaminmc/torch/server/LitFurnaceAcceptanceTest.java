@@ -22,6 +22,7 @@ import java.util.function.BooleanSupplier;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The lit furnace visual: the burn drives the historical block swap — a
@@ -117,7 +118,7 @@ class LitFurnaceAcceptanceTest {
         server.ticker().submit(() -> smelter.applyMovement(
                 new Position(0.5, 65.5, 1.5),
                 net.zaminmc.torch.util.Rotation.ZERO, true));
-        Thread.sleep(150);
+        EngineAwaits.awaitTicks(server.world(), 3, "engine progress (a 150 wall settle)");
 
         // The lit variant is a furnace: the use dispatch opens its window.
         int[] windowId = {-1};

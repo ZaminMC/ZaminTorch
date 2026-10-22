@@ -19,6 +19,7 @@ import java.util.function.BooleanSupplier;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * Vertical Slice #1 acceptance (engineering plan §10): a scripted real-socket
@@ -158,7 +159,7 @@ class JoinFlowIntegrationTest {
             // §430) regardless of what the packet claims.
             client.sendBlockPlacement(2, 4, 2, 1, 3); // claims dirt it cannot have
             client.sendDigging(0, 9, 9, 9, 1);
-            Thread.sleep(100);
+            EngineAwaits.awaitTicks(server.world(), 2, "engine progress (a 100 wall settle)");
             assertEquals("minecraft:air",
                     server.world().getBlock(new net.zaminmc.torch.block.BlockPosition(2, 5, 2))
                             .identifier().toString());
@@ -166,7 +167,7 @@ class JoinFlowIntegrationTest {
             // Mine the surface grass at (2,4,2) with the server-validated timing
             // (grass by hand: 18 ticks = 900ms nominal; lenient floor 630ms).
             client.sendDigging(0, 2, 4, 2, 1);
-            Thread.sleep(950);
+            EngineAwaits.awaitTicks(server.world(), 19, "engine progress (a 950 wall settle)");
             client.sendDigging(2, 2, 4, 2, 1);
             awaitCondition(() -> server.world().getBlock(new net.zaminmc.torch.block.BlockPosition(2, 4, 2))
                             .identifier().toString().equals("minecraft:air"),

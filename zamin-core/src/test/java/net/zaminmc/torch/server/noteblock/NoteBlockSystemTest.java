@@ -18,6 +18,7 @@ import java.util.function.BooleanSupplier;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The note block family on the live engine (Slice 27a) — the reference
@@ -213,7 +214,7 @@ class NoteBlockSystemTest {
             // Power OFF: the falling edge stays silent.
             server.ticker().submit(() -> server.redstone().useLever(
                     new BlockPosition(x + 2, y + 1, z)));
-            Thread.sleep(300);
+            EngineAwaits.awaitTicks(server.world(), 6, "engine progress (a 300 wall settle)");
             assertEquals(1, actions.size(), "the falling edge never replays");
 
             // Power ON again: the re-rise plays again (the reference's own
@@ -248,7 +249,7 @@ class NoteBlockSystemTest {
                     .identifier().value().equals("stone"), "the cover landed");
             server.ticker().submit(() -> server.noteBlocks().useFromTick(
                     new BlockPosition(x, y + 1, z)));
-            Thread.sleep(300);
+            EngineAwaits.awaitTicks(server.world(), 6, "engine progress (a 300 wall settle)");
             assertTrue(actions.isEmpty(), "a covered note block never plays");
             // The tune still happened (the reference tunes regardless).
             assertEquals(1, server.noteBlocks().tileAt(new BlockPosition(x, y + 1, z)).note());

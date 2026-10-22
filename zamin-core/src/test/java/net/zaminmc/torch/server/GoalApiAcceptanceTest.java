@@ -24,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The public goal-registration API (Slice 15a — §27.3's mob-AI family over
@@ -151,7 +152,7 @@ class GoalApiAcceptanceTest {
         // claim: while the built-in lives, the counter never fires.
         CountingGoal below = new CountingGoal(6);
         pig.goals().register(below);
-        Thread.sleep(600); // ~12 ticks
+        EngineAwaits.awaitTicks(server.world(), 12, "~12 ticks");
         assertEquals(0, below.ticks.get(),
                 "the exclusive stroll claim blocks every goal below it");
 
@@ -165,7 +166,7 @@ class GoalApiAcceptanceTest {
         pig.goals().restoreBuiltIn("stroll");
         await(holdsStroll(pig), "the stroll returned to the mind");
         int frozen = below.ticks.get();
-        Thread.sleep(500);
+        EngineAwaits.awaitTicks(server.world(), 10, "engine progress (a 500 wall settle)");
         assertEquals(frozen, below.ticks.get(),
                 "the restored stroll claim blocks the lower band again");
         server.shutdown(null);
@@ -189,7 +190,7 @@ class GoalApiAcceptanceTest {
 
         claim.gate.set(true);
         int frozen = below.ticks.get();
-        Thread.sleep(500);
+        EngineAwaits.awaitTicks(server.world(), 10, "engine progress (a 500 wall settle)");
         assertEquals(frozen, below.ticks.get(),
                 "the willing exclusive goal at 5 blocks the band below it");
 
@@ -200,7 +201,7 @@ class GoalApiAcceptanceTest {
         pig.goals().remove(below);
         await(() -> !pig.goals().goals().contains(below), "the goal left by identity");
         int afterRemove = below.ticks.get();
-        Thread.sleep(400);
+        EngineAwaits.awaitTicks(server.world(), 8, "engine progress (a 400 wall settle)");
         assertEquals(afterRemove, below.ticks.get(), "the removed goal never ticks again");
         server.shutdown(null);
     }

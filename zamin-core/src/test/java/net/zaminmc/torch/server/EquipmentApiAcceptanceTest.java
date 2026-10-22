@@ -23,6 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The mob equipment family's public API surface (§27.3 — the VIII4 row,
@@ -215,7 +216,7 @@ class EquipmentApiAcceptanceTest {
                 ItemStack.of(BuiltinItems.DIAMOND_CHESTPLATE, 1)));
         server.world().execute(() -> body.setEquipmentAt(-3,
                 ItemStack.of(BuiltinItems.DIAMOND_HELMET, 1)));
-        Thread.sleep(300); // the lane drains the ignored writes; nothing may land
+        EngineAwaits.awaitTicks(server.world(), 6, "the lane drains the ignored writes; nothing may land");
         assertSame(sword, body.equipmentAt(0),
                 "the out-of-band write never touched the held stack");
         assertEquals(ItemStack.EMPTY, body.equipmentAt(3), "slot 3 stayed bare");
@@ -224,7 +225,7 @@ class EquipmentApiAcceptanceTest {
         // The null write is ignored too (the api never carries null
         // stacks; a null is a plugin bug, not a clear).
         server.world().execute(() -> body.setEquipmentAt(2, null));
-        Thread.sleep(300);
+        EngineAwaits.awaitTicks(server.world(), 6, "engine progress (a 300 wall settle)");
         assertEquals(ItemStack.EMPTY, body.equipmentAt(2), "the null write was ignored");
     }
 

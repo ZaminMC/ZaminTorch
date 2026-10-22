@@ -28,6 +28,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The event bridge's second group over the live engine (§28.7's inventory:
@@ -77,7 +78,7 @@ class BukkitEventBridgeGroupTwoTest {
         harness.server.damage(tank, 20.0f);
         harness.await(() -> harness.probeLogContains("cancel:damage"),
                 "the legacy listener cancelled the big hit");
-        Thread.sleep(300); // the cancelled hit certainly settled
+        EngineAwaits.awaitTicks(harness.server.world(), 6, "the cancelled hit certainly settled");
         assertEquals(19.0f, tank.health(), 1e-6f,
                 "the cancelled damage landed nothing (the mapped-back cancel)");
     }
@@ -140,7 +141,8 @@ class BukkitEventBridgeGroupTwoTest {
         // sideways spread (the neighbor takes the water).
         harness.await(() -> FluidBlocks.isFluid(blockType(harness, sideways).identifier()),
                 "the sideways spread landed (the cancelled cell behaved as blocked ground)");
-        Thread.sleep(300); // the whole settle cycle, then the standing assertion
+        EngineAwaits.awaitTicks(harness.server.world(), 6,
+                "the whole settle cycle, then the standing assertion");
         assertFalse(FluidBlocks.isFluid(blockType(harness, below).identifier()),
                 "the legacy cancel kept the below cell dry");
         assertTrue(harness.probeLogContains("cancel:flow-below"),

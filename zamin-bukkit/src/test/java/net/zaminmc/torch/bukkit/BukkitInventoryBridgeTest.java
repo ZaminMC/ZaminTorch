@@ -26,6 +26,7 @@ import java.util.function.BooleanSupplier;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The event bridge's inventory family over the live engine (§28.7 — the
@@ -174,7 +175,7 @@ class BukkitInventoryBridgeTest {
                 "the emerald push event dispatched");
         harness.await(() -> harness.probeLogContains("cancel:move-item"),
                 "the legacy listener cancelled the emerald transfer");
-        Thread.sleep(400); // several retry cadences, all cancelled
+        EngineAwaits.awaitTicks(harness.server.world(), 8, "several retry cadences, all cancelled");
         assertEquals(5, hopperSlot(harness, hopper, 0).count(),
                 "the cancelled transfer kept the emeralds in the hopper");
         var chest = harness.server.chests().peek(below);
@@ -234,7 +235,7 @@ class BukkitInventoryBridgeTest {
         dispenseFixture(harness, new BlockPosition(86, 40, 86), "minecraft:emerald", 2);
         harness.await(() -> harness.probeLogContains("cancel:dispense"),
                 "the legacy listener cancelled the emerald dispense");
-        Thread.sleep(300); // the reaction settled
+        EngineAwaits.awaitTicks(harness.server.world(), 6, "the reaction settled");
         assertEquals(2, dispenserSlot(harness, new BlockPosition(86, 40, 86), 0).count(),
                 "the cancelled dispense kept the stack in its slot");
         assertFalse(itemEntityNear(harness, 86, 41, 86, "emerald"),
@@ -355,7 +356,7 @@ class BukkitInventoryBridgeTest {
         } finally {
             nativeSub.unsubscribe();
         }
-        Thread.sleep(400); // any wrongly-bridged dispatch would have landed
+        EngineAwaits.awaitTicks(harness.server.world(), 8, "any wrongly-bridged dispatch would have landed");
         assertFalse(harness.probeLogContains("type=WORKBENCH"),
                 "the crafting-table open never dispatched the legacy form");
         // The hopper's SUCK arm: the engine's own surface works (the whole
@@ -377,7 +378,7 @@ class BukkitInventoryBridgeTest {
                         net.zaminmc.torch.server.entity.ItemEntity.PICKUP_DELAY_DROP_TICKS));
         harness.await(() -> hopperSlot(harness, hopper, 0).count() == 10,
                 "the engine's own suck surface swallowed the whole stack");
-        Thread.sleep(300); // the wrongly-bridged dispatch would have landed
+        EngineAwaits.awaitTicks(harness.server.world(), 6, "the wrongly-bridged dispatch would have landed");
         assertFalse(harness.probeLogContains("item=GOLD_INGOTx10"),
                 "the SUCK arm never dispatched the legacy move form (the"
                         + " item-entity source has no Inventory view)");

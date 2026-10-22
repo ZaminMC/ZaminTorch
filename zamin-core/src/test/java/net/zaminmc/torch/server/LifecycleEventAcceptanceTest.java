@@ -28,6 +28,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The lifecycle & damage event wave (Slice 14c — the §27.7 second family)
@@ -123,7 +124,7 @@ class LifecycleEventAcceptanceTest {
             }
         });
         server.damage(player, 5.0f);
-        Thread.sleep(300);
+        EngineAwaits.awaitTicks(server.world(), 6, "engine progress (a 300 wall settle)");
         assertEquals(20.0f, player.health(), 1e-6f,
                 "the cancelled damage never landed");
 

@@ -8,6 +8,7 @@ import java.io.IOException;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The riding contract over the real wire: the boat item spawns the vehicle
@@ -57,7 +58,7 @@ class VehicleIntegrationTest extends ProtocolTestBase {
 
             // The boat item into the held slot (the default hotbar slot 0).
             client.sendChat("/give minecraft:boat 1");
-            Thread.sleep(200);
+            EngineAwaits.awaitTicks(server.world(), 4, "engine progress (a 200 wall settle)");
 
             // The placement: use the boat on the water block's top face.
             client.sendBlockPlacement(bx, by, bz, 1, 333);
@@ -107,9 +108,9 @@ class VehicleIntegrationTest extends ProtocolTestBase {
             var session = server.playerRegistry().byName("RailRider").orElseThrow();
             server.ticker().submit(() -> session.setGamemode(
                     net.zaminmc.torch.GameMode.CREATIVE));
-            Thread.sleep(200);
+            EngineAwaits.awaitTicks(server.world(), 4, "engine progress (a 200 wall settle)");
             client.sendCreativeSlot(36, 328); // wire slot 36 = hotbar 0 (held)
-            Thread.sleep(200);
+            EngineAwaits.awaitTicks(server.world(), 4, "engine progress (a 200 wall settle)");
 
             // A straight east-west rail line in the feet cells beside spawn.
             var anchor = server.playerRegistry().byName("RailRider").orElseThrow().position();
@@ -186,9 +187,9 @@ class VehicleIntegrationTest extends ProtocolTestBase {
             var session = server.playerRegistry().byName("ChestCartRider").orElseThrow();
             server.ticker().submit(() -> session.setGamemode(
                     net.zaminmc.torch.GameMode.CREATIVE));
-            Thread.sleep(200);
+            EngineAwaits.awaitTicks(server.world(), 4, "engine progress (a 200 wall settle)");
             client.sendCreativeSlot(36, 342); // the chest minecart item
-            Thread.sleep(200);
+            EngineAwaits.awaitTicks(server.world(), 4, "engine progress (a 200 wall settle)");
 
             var anchor = session.position();
             int bx = (int) Math.floor(anchor.x()) + 2;

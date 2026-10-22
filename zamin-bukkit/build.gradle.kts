@@ -38,6 +38,9 @@ dependencies {
     // plugin host, §27.7 bus, §27.3 scheduler): implementation, not api —
     // the adapter's own face is org.bukkit.*, never the engine's.
     implementation(project(":zamin-core"))
+    // The shared engine-condition awaits (ML-002) ride zamin-core's test
+    // fixtures — see docs/TEST_DEADLINE_CENSUS.md.
+    testImplementation(testFixtures(project(":zamin-core")))
     // API only, never a server implementation (§27.2). compileOnly: the
     // adapter's jar must not redistribute the API artifact.
     compileOnly(libs.spigot.api)

@@ -17,6 +17,7 @@ import java.util.function.BooleanSupplier;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The collision-shape slice's placement contracts over the real engine: the
@@ -80,7 +81,7 @@ class SlabStairsAcceptanceTest {
             throws InterruptedException {
         server.useItemOnBlock(player, at, face, java.util.Optional.empty(), cursorY,
                 windowId -> { });
-        Thread.sleep(120);
+        EngineAwaits.awaitTicks(server.world(), 3, "engine progress (a 120 wall settle)");
     }
 
     private BlockPosition anchorNear(PlayerSession player) {
@@ -172,7 +173,7 @@ class SlabStairsAcceptanceTest {
         // Breaking yields the item form (the facing suffix never leaks): a
         // survival dig — creative breaks drop nothing (the vanilla rule).
         server.blockInteraction().submitMiningStart(builder, above);
-        Thread.sleep(4_000); // oak stairs by hand: 2.0 hardness wood, 3s nominal
+        EngineAwaits.awaitTicks(server.world(), 80, "oak stairs by hand: 2.0 hardness wood, 3s nominal");
         server.blockInteraction().submitMiningFinished(builder, above);
         await(() -> world.getBlock(above).equals(BuiltinBlocks.AIR), "the stairs broke");
         await(() -> server.itemEntities().all().stream()

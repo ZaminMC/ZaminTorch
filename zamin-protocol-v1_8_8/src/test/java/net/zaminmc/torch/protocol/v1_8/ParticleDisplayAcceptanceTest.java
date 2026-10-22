@@ -5,6 +5,7 @@ import org.junit.jupiter.api.TestInstance;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The particle display arms over the real wire (Slice 30a): the ambient
@@ -74,7 +75,7 @@ class ParticleDisplayAcceptanceTest extends ProtocolTestBase {
             // Wheat in hand, one use: the cow enters love (the feeding arm
             // consumes the stack, the event-18 burst rides Entity Status).
             client.sendChat("/give minecraft:wheat 8");
-            Thread.sleep(200);
+            EngineAwaits.awaitTicks(server.world(), 4, "engine progress (a 200 wall settle)");
             client.sendUseEntity(cowId, Protocol18.USE_ENTITY_INTERACT);
             awaitCondition(() -> server.mobs().byId(cowId).isInLove(),
                     "the wheat fed the cow into love");

@@ -20,6 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The legacy command surface over the live engine (§28.7's commands
@@ -75,7 +76,7 @@ class BukkitCommandBridgeTest {
         harness.await(() -> heard.stream().anyMatch(
                 line -> line.contains("You lack the greeting permit.")),
                 "the plugin.yml permission-message reached the refused player");
-        Thread.sleep(300); // the dispatch certainly settled
+        EngineAwaits.awaitTicks(harness.server.world(), 6, "the dispatch certainly settled");
         assertEquals(dispatchedBefore, countOf(harness.probeLogLines(), "cmd:hello by=Peon"),
                 "the refused dispatch never reached the plugin's executor");
         // The engine's own operator gate is untouched: an op-2 engine
@@ -229,7 +230,7 @@ class BukkitCommandBridgeTest {
         // refusal — the executor is unreachable.
         int dispatchedBefore = countOf(harness.probeLogLines(), "cmd:hello by=Console");
         harness.server.consoleCommand("hello Retired");
-        Thread.sleep(300); // the dispatch certainly settled on the ticker
+        EngineAwaits.awaitTicks(harness.server.world(), 6, "the dispatch certainly settled on the ticker");
         assertEquals(dispatchedBefore, countOf(harness.probeLogLines(), "cmd:hello by=Console"),
                 "the retired command never reached the plugin");
         // The re-enable re-parses and re-registers through the fresh scope

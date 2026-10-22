@@ -18,6 +18,7 @@ import java.util.UUID;
 import java.util.function.BooleanSupplier;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * Behavioral scenarios for survival mining (§93/§614): the client proposes
@@ -93,7 +94,7 @@ class SurvivalMiningAcceptanceTest {
 
         server.blockInteraction().submitMiningStart(player, target);
         // dirt by hand: 15 ticks nominal (750ms); lenient floor 70% (525ms). Wait past it.
-        Thread.sleep(900);
+        EngineAwaits.awaitTicks(server.world(), 18, "engine progress (a 900 wall settle)");
         server.blockInteraction().submitMiningFinished(player, target);
         await(() -> server.world().getBlock(target).equals(BuiltinBlocks.AIR),
                 "survival dig commits break");
@@ -111,7 +112,7 @@ class SurvivalMiningAcceptanceTest {
         assertEquals(BuiltinBlocks.GRASS_BLOCK, server.world().getBlock(grass));
 
         server.blockInteraction().submitMiningStart(player, grass);
-        Thread.sleep(900); // grass by hand: 18 ticks nominal, floor 546ms
+        EngineAwaits.awaitTicks(server.world(), 18, "grass by hand: 18 ticks nominal, floor 546ms");
         server.blockInteraction().submitMiningFinished(player, grass);
         await(() -> server.world().getBlock(grass).equals(BuiltinBlocks.AIR), "grass broken");
 
@@ -132,7 +133,7 @@ class SurvivalMiningAcceptanceTest {
 
         server.blockInteraction().submitMiningStart(player, stone);
         // Stone by hand is not harvestable: 150 ticks nominal (7.5s), floor 5.25s.
-        Thread.sleep(5_400);
+        EngineAwaits.awaitTicks(server.world(), 108, "engine progress (a 5_400 wall settle)");
         server.blockInteraction().submitMiningFinished(player, stone);
         await(() -> server.world().getBlock(stone).equals(BuiltinBlocks.AIR),
                 "stone breaks (slowly) even without a tool");
@@ -169,9 +170,9 @@ class SurvivalMiningAcceptanceTest {
         seedBlock(player, target, BuiltinBlocks.DIRT);
 
         server.blockInteraction().submitMiningStart(player, target);
-        Thread.sleep(100);
+        EngineAwaits.awaitTicks(server.world(), 2, "engine progress (a 100 wall settle)");
         server.blockInteraction().submitMiningAborted(player);
-        Thread.sleep(700); // longer than the full nominal duration
+        EngineAwaits.awaitTicks(server.world(), 14, "longer than the full nominal duration");
         server.blockInteraction().submitMiningFinished(player, target);
         // The dig commit would produce air; a grass random tick may still
         // claim the exposed dirt, so the invariant is "never air", not "still dirt".
@@ -203,7 +204,7 @@ class SurvivalMiningAcceptanceTest {
         assertEquals(BuiltinBlocks.BEDROCK, server.world().getBlock(bedrock));
 
         server.blockInteraction().submitMiningStart(player, bedrock);
-        Thread.sleep(200);
+        EngineAwaits.awaitTicks(server.world(), 4, "engine progress (a 200 wall settle)");
         server.blockInteraction().submitMiningFinished(player, bedrock);
         await(() -> server.world().getBlock(bedrock).equals(BuiltinBlocks.BEDROCK),
                 "bedrock survives a dig attempt");
@@ -226,7 +227,7 @@ class SurvivalMiningAcceptanceTest {
         server.blockInteraction().submitMiningStart(player, stone);
         // Stone with a wooden pickaxe: 1.5 * 30 / 2 = 23 ticks nominal (1.15s),
         // lenient floor 70% (805ms). Historically a third of the hand time.
-        Thread.sleep(1_200);
+        EngineAwaits.awaitTicks(server.world(), 24, "engine progress (a 1_200 wall settle)");
         server.blockInteraction().submitMiningFinished(player, stone);
         await(() -> server.world().getBlock(stone).equals(BuiltinBlocks.AIR),
                 "pickaxe dig commits break");
@@ -254,7 +255,7 @@ class SurvivalMiningAcceptanceTest {
         // The wooden pickaxe class-matches (2x speed) but cannot harvest iron ore:
         // 3 * 100 / 2 = 150 ticks nominal (7.5s), floor 5.25s - the full slow dig.
         server.blockInteraction().submitMiningStart(wooden, ore);
-        Thread.sleep(5_400);
+        EngineAwaits.awaitTicks(server.world(), 108, "engine progress (a 5_400 wall settle)");
         server.blockInteraction().submitMiningFinished(wooden, ore);
         await(() -> server.world().getBlock(ore).equals(BuiltinBlocks.AIR),
                 "breakable even with the wrong tier");
@@ -269,7 +270,7 @@ class SurvivalMiningAcceptanceTest {
         BlockPosition ore2 = new BlockPosition(2, 5, 3); // within 4.5 survival reach of spawn
         seedBlock(stoned, ore2, BuiltinBlocks.IRON_ORE);
         server.blockInteraction().submitMiningStart(stoned, ore2);
-        Thread.sleep(1_200);
+        EngineAwaits.awaitTicks(server.world(), 24, "engine progress (a 1_200 wall settle)");
         server.blockInteraction().submitMiningFinished(stoned, ore2);
         await(() -> server.world().getBlock(ore2).equals(BuiltinBlocks.AIR), "stone-tier dig commits");
 
@@ -293,7 +294,8 @@ class SurvivalMiningAcceptanceTest {
         BlockPosition stone = new BlockPosition(2, 5, 2); // within 4.5 survival reach of spawn
         seedBlock(player, stone, BuiltinBlocks.STONE);
         server.blockInteraction().submitMiningStart(player, stone);
-        Thread.sleep(1_200); // golden pickaxe on stone: 1.5 * 30 / 12 = 4 ticks, floor 140ms
+        EngineAwaits.awaitTicks(server.world(), 24,
+                "golden pickaxe on stone: 1.5 * 30 / 12 = 4 ticks, floor 140ms");
         server.blockInteraction().submitMiningFinished(player, stone);
         await(() -> server.world().getBlock(stone).equals(BuiltinBlocks.AIR), "dig commits");
 

@@ -18,6 +18,7 @@ import java.util.function.BooleanSupplier;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The stairs' HALF bit (Slice L1 — StairsBlock's upside-down forms): the
@@ -74,7 +75,7 @@ class StairsHalfBitTest {
                        float cursorY) throws InterruptedException {
         server.useItemOnBlock(player, at, face, java.util.Optional.empty(),
                 0.5f, cursorY, 0.5f, windowId -> { });
-        Thread.sleep(120);
+        EngineAwaits.awaitTicks(server.world(), 3, "engine progress (a 120 wall settle)");
     }
 
     @Test

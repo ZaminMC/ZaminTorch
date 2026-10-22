@@ -22,6 +22,7 @@ import java.util.function.BooleanSupplier;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * Wave L6 — the double-plant family's per-variant replaceability
@@ -105,7 +106,7 @@ class DoublePlantReplaceableAcceptanceTest {
 
     private void useOn(PlayerSession player, BlockPosition at, int face) throws InterruptedException {
         server.useItemOnBlock(player, at, face, java.util.Optional.empty(), windowId -> { });
-        Thread.sleep(150);
+        EngineAwaits.awaitTicks(server.world(), 3, "engine progress (a 150 wall settle)");
     }
 
     @Test
