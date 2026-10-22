@@ -3592,6 +3592,15 @@ public final class EngineServer implements Server, EngineBridge {
         return crafting;
     }
 
+    /**
+     * The map item family's system (the map data tables, the crafting
+     * consults — the tests' read surface). Null before the boot reaches
+     * the map family's construction.
+     */
+    public net.zaminmc.torch.server.map.MapSystem maps() {
+        return maps;
+    }
+
     /** The recipe view mapping (§27.5: the engine object dressed as a value). */
     private static final class RecipesFacade {
         static net.zaminmc.torch.crafting.Recipes.RecipeView viewOf(
@@ -8668,8 +8677,10 @@ public final class EngineServer implements Server, EngineBridge {
         // and the scale+1 data; the CURSOR stack carries the new id (the
         // reference's stack.setDamage after the take).
         if (maps != null && wanted.mapScaling()) {
+            // The cursor swap (placeOnCursor refuses a loaded cursor): the
+            // take-then-place pair over the taken stack.
             inventory.placeOnCursor(
-                    maps.applyScaleUp(session.dimension(), inventory.cursor()));
+                    maps.applyScaleUp(session.dimension(), inventory.takeCursor()));
         }
         awardCraftAchievements(session, result);
         grid.consumeOne();
