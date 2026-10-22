@@ -112,7 +112,7 @@ class FishingApiAcceptanceTest {
         // The float rides the water (the 5-band buoyancy): the row is
         // neither grounded nor hooked, and the bite window opens inside
         // the approach + window cadence (20-80 + 10-30 ticks).
-        awaitBite(fishing, angler, "the splash opened the bite window");
+        awaitBite(server, fishing, angler, "the splash opened the bite window");
         Fishing.Bobber biting = fishing.bobberOf(angler.engineEntityId()).orElseThrow();
         assertFalse(biting.grounded(), "the water float never grounds");
         assertEquals(angler.engineEntityId(), biting.anglerId(),
@@ -190,7 +190,7 @@ class FishingApiAcceptanceTest {
 
         fishing.addCatchInterceptor(context -> ItemStack.EMPTY); // the cancel
         server.useItem(angler); // the cast
-        awaitBite(fishing, angler, "the bite window opened");
+        awaitBite(server, fishing, angler, "the bite window opened");
         server.teleportPlayer(angler, poolFloor(
                 fishing.bobberOf(angler.engineEntityId()).orElseThrow().at()));
         server.useItem(angler); // the retrieve inside the window
@@ -397,20 +397,20 @@ class FishingApiAcceptanceTest {
     /**
      * The bite window's own await: the catch arm rolls 100-900 ticks
      * (the Lure-cut cadence — up to 45 seconds bare) before the approach
-     * (20-80) opens the 10-30-tick window; the 90-second deadline bounds
-     * the whole cadence at the bare rod.
+     * (20-80) opens the 10-30-tick window. The bound is TICK-SCALED, not
+     * wall: the 90s wall form (PR #37's raise) still tripped under a
+     * loaded runner in this lane's own verification batch — the cadence
+     * is 930 ticks worst-case, and a slow engine spends more wall time
+     * per tick, so the budget counts ENGINE ticks (1500 = cadence +
+     * slack) and never expires by wall time alone (EngineAwaits keeps a
+     * stalled-engine backstop).
      */
-    private void awaitBite(Fishing fishing, PlayerSession angler, String description)
-            throws InterruptedException {
-        long deadline = System.currentTimeMillis() + 90_000;
-        while (System.currentTimeMillis() < deadline) {
-            if (fishing.bobberOf(angler.engineEntityId())
-                    .map(Fishing.Bobber::biting).orElse(false)) {
-                return;
-            }
-            Thread.sleep(50);
-        }
-        throw new AssertionError("Condition not met in time: " + description);
+    private void awaitBite(EngineServer server, Fishing fishing, PlayerSession angler,
+            String description) throws InterruptedException {
+        EngineAwaits.awaitCondition(server.world(),
+                () -> fishing.bobberOf(angler.engineEntityId())
+                        .map(Fishing.Bobber::biting).orElse(false),
+                1_500, description);
     }
 
     /**
@@ -444,7 +444,7 @@ class FishingApiAcceptanceTest {
                 await(() -> fishing.bobberOf(angler.engineEntityId()).isPresent(),
                         "the cast registered (attempt " + attempt + ")");
             }
-            awaitBite(fishing, angler,
+            awaitBite(server, fishing, angler,
                     "the bite window opened (attempt " + attempt + ")");
             server.teleportPlayer(angler, poolFloor(
                     fishing.bobberOf(angler.engineEntityId()).orElseThrow().at()));
