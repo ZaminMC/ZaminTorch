@@ -12655,6 +12655,77 @@ Stage Summary:
   the owner's continue.
 
 ---
+Task ID: mount-seats-api (the README TODO's row 14)
+Agent: main (Abasing session — the wave-2 ninth-lane instance)
+Task: The generic-mount seat rows — the exotic pairs' api read beside
+Vehicle.riderEntityId() (the §9 audit's VII5/VIII1 PARTIAL row).
+
+Work Log:
+- Studied the engine surface first (the assignment's own order): the
+  resolver (EngineServer.resolveSeatedRider — the one consult across
+  every non-session family), the three follow arms that consult it
+  (the vehicle seat's follow, the mob-on-mob follow,
+  tickGenericMountRiders), the import seam
+  (seatImportedRiderOnGenericMount — the anvil riding chain's own
+  GenericSeatSeam), and the join view (genericMountSeatPairs). The
+  seat ROW the engine already computes is the (mount id, rider id)
+  pair across three stores: the generic-mount registry, the mob
+  mounts' rider rows (mob.riderId()), the vehicle seats
+  (passengerId — the api's typed Vehicle.riderEntityId()).
+- The api shape (the villages()/pickupStatus precedents, §27.5/§27.10):
+  the row types declared beside Vehicle.riderEntityId() in
+  entity/Vehicle.java — the SeatRow record + the SeatRows interface
+  (seatedRiderEntityId(mount id), mountEntityId(rider id), the
+  seatRows() census) with the EMPTY constant; the villages()-shape
+  accessor on the api Server (default -> EMPTY); the EngineServer
+  @Override facade returning the live inner SeatRowsView (declared in
+  the riding region beside the resolver — every consult resolves the
+  engine's own stores fresh, never a second copy; the unbooted
+  managers answer empty). The Javadoc cites the reference's own
+  riding model (Entity.java 1297-1349 updateRidden, line 1353 the
+  base follow law, 1367-1369 getMountHeight, AnvilChunkStorage line
+  335 startRiding-at-load) and the §29 VII5/VIII1 records; the
+  threading law follows the sibling rows (live consults = simulation
+  context; the census a point-in-time copy).
+- The §27.10 test (MountSeatsApiAcceptanceTest, zamin-core's server
+  package): every READ through the api types alone (Server.seatRows(),
+  the api worlds, World.entities()/vehicles()/itemEntities(), the api
+  handles' own verbs). The pairs seat through the engine's own import
+  seams — the Surfer scene (a zombie on a dropped diamond through
+  seatImportedRiderOnGenericMount, the import's own position/alive/
+  quarter-height handle), the mob-on-mob pair (seatImportedRider —
+  "an imported mob on another mob", the assignment's own example),
+  the boat-on-minecart pair (VehicleManager.mount). Proven: the
+  mount's rider row + the rider's mount row + the census row for
+  each pair; the one-rider refusal; the vehicle family's typed
+  Vehicle.riderEntityId() still answering with the new consults
+  agreeing; the non-seated entity + the never-existing id answering
+  the empty row; the live resolution (§27.5) — the api hurt verb's
+  death walk drops the generic registry row and opens the mob mount's
+  seat, the engine's dismount verb flips the vehicle answer on the
+  next read; the follow anchoring the rider at the mount's cell (the
+  live state the rows answer FOR); the EMPTY surface's absent-world
+  contract. The night scene pins the undead-burn hazard away
+  (the api's own time verb).
+- Test batches under --no-daemon (the wave's discipline; the
+  whole-suite single run stays forbidden): MountSeatsApi* green twice
+  (5/5, the second pass --rerun-tasks), :zamin-api:test green, the
+  entity/vehicle package batch green (10 classes, RidingFollowTest +
+  VariantStateApiAcceptanceTest among them), the anvil package batch
+  green (the riding-chain acceptance scene), VillageApi* green. Zero
+  failures across every batch.
+- Ledgers (this commit): the §9 audit row moved to CLOSED/EXPOSED
+  (this lane); README row 14 retired with the code commit's hash in
+  the follow-up commit (rows 1-7's own form).
+
+Stage Summary:
+- README TODO row 14 retired. The riding surfaces are fully exposed:
+  the vehicle family's typed read keeps its seat beside the uniform
+  seat-row consults, the exotic pairs answer through the same api
+  surface. The remaining api-exposure rows (11-13, 15-18) stay with
+  their own lanes.
+
+---
 Task ID: decorations-api (the README TODO's row 15 — the wave-2 instance-5 lane)
 Agent: main (Abasing session — the 2026-10-23 continuation)
 Task: world.decorations() — the hanging bodies + armor-stand read surface
