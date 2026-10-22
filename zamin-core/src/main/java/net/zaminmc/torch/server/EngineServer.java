@@ -531,6 +531,9 @@ public final class EngineServer implements Server, EngineBridge {
     private volatile net.zaminmc.torch.server.entity.vehicle.VehicleManager vehicleManager;
     /** The fishing bobbers (Slice 67); created at boot, tick-thread owned. */
     private volatile net.zaminmc.torch.server.fishing.FishingSystem fishing;
+    /** The public §27.3 fishing view (the empty answer until the world boots). */
+    private volatile net.zaminmc.torch.fishing.Fishing fishingView
+            = net.zaminmc.torch.fishing.Fishing.EMPTY;
 
     /**
      * The remote-control TCP listener (the reference DedicatedServer's
@@ -2568,6 +2571,11 @@ public final class EngineServer implements Server, EngineBridge {
                 fishingSystem.setEnchantReads(
                         throwerId -> heldRodLevel(throwerId, Enchantments.LUCK_OF_THE_SEA.id),
                         throwerId -> heldRodLevel(throwerId, Enchantments.LURE.id));
+                // The public §27.3 fishing view (the Slice 67/69 exposure):
+                // the live census snapshots + the §27.7 interception family
+                // dressed as the api surface (the engine's monitor protocol).
+                fishingView = new net.zaminmc.torch.server.fishing.FishingViews(
+                        fishingSystem);
                 // The public §27.3 entity-family views: the five engine
                 // populations captured as stable point-in-time copies (the
                 // managers' all() contract) behind the World interface.
@@ -15237,12 +15245,21 @@ public final class EngineServer implements Server, EngineBridge {
         }
     }
 
-    /** @return the vehicle system (diagnostics and tests). */
-    /** @return the fishing system (diagnostics and tests). */
-    public net.zaminmc.torch.server.fishing.FishingSystem fishing() {
-        return fishing;
+    /**
+     * The fishing surface (Slice 67/69 — the bobber census, the
+     * catch-context rows, the §27.7 interception family): the public
+     * §27.3 view (the live census snapshots, any thread). The raw engine
+     * accessor the slice landed with (the same name returning the
+     * engine system, "diagnostics and tests") had no callers and retired
+     * with the api's exposure — the engine's own arms reach the field
+     * directly, and core tests reach the system through its own package.
+     */
+    @Override
+    public net.zaminmc.torch.fishing.Fishing fishing() {
+        return fishingView;
     }
 
+    /** @return the vehicle system (diagnostics and tests). */
     public net.zaminmc.torch.server.entity.vehicle.VehicleManager vehicles() {
         return vehicleManager;
     }
