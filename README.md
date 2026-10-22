@@ -113,8 +113,15 @@ exposure, then concurrency phases, then standing deferrals.
    water/lava pool-exit law, the canMove consult over doesNotCollide (the
    dry-ledge requirement named with it), the point-consult and rise-pace
    named differences recorded.
-4. The water branch's own travel model (the reference's `travel` water arm vs
-   the engine's established clamp — the named standing envelope).
+4. ~~The water branch's own travel model (the reference's `travel` water arm vs
+   the engine's established clamp — the named standing envelope)~~ — LANDED
+   2026-10-22: the standing clamp (`max(v - 0.04, -0.05) * 0.8`) retired at
+   both sites (the walker and the mount walk) for the reference's own water
+   arm (`v = v * 0.8 - 0.02` — the -0.10 terminal sink, the geometric
+   plunge), the FLOAT goal's swim input carried whole with it (the
+   SwimGoal's 0.8 roll, the jump block's flat +0.04, the +0.06 steady
+   rise), the wading walk's steady state verified equal (0.1 blocks/tick
+   both models).
 5. The explosion resistance table (the charged skull's 0.8 blast-resistance
    cap family — "not yet modeled" in the wither row).
 6. The explosion × decoration interplay (explosions do not yet ring the

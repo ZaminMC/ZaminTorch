@@ -197,18 +197,35 @@ class LavaWalkTest {
                 "the lava keeps a positive remainder mid-descent: " + lavaStore);
         assertTrue(lavaStore < 1.5f,
                 "the halving eats the accumulated drop: " + lavaStore);
-        // The water's full zero (checkWaterCollisions' own family): the
-        // same drop into a water column never carries a store (the read
-        // sits a block past the surface so the mid-band consult has
-        // flipped).
+        // The water's full zero (checkWaterCollisions' own family — line
+        // 771, the base tick's zero BEFORE the move; checkFallDamage line
+        // 731's accumulate AFTER it): the same drop into a water column
+        // never carries the AIR's accumulated store — the per-tick read
+        // is the CURRENT tick's descent alone (the zero-then-accumulate
+        // order, the reference's own sequence). The band: with the water
+        // arm's own model the plunge decays geometrically (-0.388 the
+        // first submerged tick, then less), so mid-descent the store sits
+        // in (0, 0.55) — never the six-block air fall. (The retired
+        // clamp's era: the instant -0.04 floor bobbed the body up before
+        // it ever reached the band — this read was vacuous then; the
+        // water arm's descent reaches it honestly now.)
         MobEntity inWater = cow(new StubWorld(DEEP, 64.0, DEEP));
         inWater.teleport(new Position(1.5, 70.0, 2.5));
+        int waterReads = 0;
         for (int i = 0; i < 60; i++) {
             inWater.tick(false);
             if (inWater.position().y() < 63.0 && inWater.velocityY() < 0.0) {
-                assertEquals(0.0f, inWater.fallDistance(), 1e-6f);
+                waterReads++;
+                assertTrue(inWater.fallDistance() > 0.0f,
+                        "the current tick's descent accumulates after the zero: "
+                                + inWater.fallDistance());
+                assertTrue(inWater.fallDistance() < 0.55f,
+                        "the water's zero ate the air's accumulation: "
+                                + inWater.fallDistance());
             }
         }
+        assertTrue(waterReads > 0,
+                "the water arm's descent reaches the band (the read is not vacuous)");
         // The air's accumulation (the control): the dry fall's store
         // grows past five blocks.
         MobEntity inAir = cow(new StubWorld(DEEP, DEEP, DEEP));

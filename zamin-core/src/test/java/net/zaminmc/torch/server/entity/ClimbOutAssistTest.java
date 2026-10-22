@@ -177,21 +177,26 @@ class ClimbOutAssistTest {
         // The start inside the hop's window (the mid-band submerged at
         // 65.65 < 66 AND the exit box clearing the water: preY 65.45 + 0.6
         // > 66): the hop re-fires every tick while the body pushes, each
-        // hop carrying ~0.2 up; once the mid-band clears the surface
-        // (y > 65.8) the engine's POINT fluid consult ends the arm (the
-        // reference's box-level water read would carry one more hop — the
-        // named difference this slice records).
+        // hop carrying ~0.25 up (the water arm's own model: the hop's 0.3
+        // rewrite + the FLOAT input's +0.04, then the arm's drag
+        // (0.3 + 0.04) * 0.8 - 0.02 = 0.252 per tick — the retired
+        // composite crawled at 0.032/tick, the clamp's own pace); once
+        // the mid-band clears the surface (y > 65.8) the engine's POINT
+        // fluid consult ends the arm (the reference's box-level water
+        // read would carry one more hop — the named difference this slice
+        // records). Three hops carry the body from 65.45 past the surface
+        // band; the fourth tick's consult has flipped (mid-band 66.17 >
+        // 66), the land arm takes over, and the climb-out window closes.
         MobEntity body = new MobEntity(92, MobType.COW,
                 new Position(0.55, 65.45, 0.5), new Random(7), world);
         body.setBodyYaw(-90.0f);
         body.setVelocity(0.1, 0.0, 0.0);
         // The honest choreography pin: the hop re-fires every tick while
-        // the window holds (velocityY 0.3 at every tick's end) and the
-        // body rises through it. The RISE'S PACE is the engine's composite
-        // water model (the pre-move drag order + the float-up band —
-        // 0.032/tick here) against the reference's move-first hop
-        // (~0.2/tick): the F1 slice's ledgered order difference's own
-        // material consequence, recorded with this slice.
+        // the window holds (velocityY 0.3 at every in-window tick's end)
+        // and the body rises through it at the water arm's own pace. The
+        // RISE'S PACE is the reference's water-arm form now (the F1 order
+        // note still phases it one tick — the drag lands before the move,
+        // the ledger's own standing note).
         double firstY = body.position().y();
         int hopArmed = 0;
         for (int i = 0; i < 6; i++) {
@@ -201,7 +206,8 @@ class ClimbOutAssistTest {
                 hopArmed++;
             }
         }
-        assertEquals(6, hopArmed, "the hop re-armed every tick in the window");
+        assertEquals(3, hopArmed,
+                "the hop re-armed every in-window tick; the POINT consult ends it at the surface band");
         assertTrue(body.position().y() > firstY + 0.1,
                 "the body rose through the window: " + body.position().y());
         assertTrue(body.position().y() > 65.6,
