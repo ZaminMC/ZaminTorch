@@ -13513,3 +13513,80 @@ Stage Summary:
   baseline and the ranked backlog. The next cycle's order: verify CI
   green + the 128 release, then the 0x0C metadata audit (B-5) paired
   with the attribution pass (B-7 + Phase-3 rerun).
+
+---
+Task ID: ML-003
+Agent: Abasing (the sign-editor-open lane)
+Task: ML-003 — Sign Editor Open (0x36) never sent (the cycle-4 ranked
+audit's H-severity wire row): a real 1.8.8 client places a sign and the
+editor never opens (the sign stays blank); bot clients writing Update
+Sign (0x12) directly masked the bug. Port the reference's openSignEditor
+law 1:1, additive only.
+
+Work Log:
+- Studied the reference first: SignItem.useOn lines 21-56 (place ->
+  consume -> openSignEditor the moment the block entity lands),
+  ServerPlayerEntity.openSignEditor lines 547-550 (the editing-player
+  mark + OpenSignEditorS2CPacket — the client's editor opens ONLY on
+  it), the packet's write (writeBlockPos -> one packed position long),
+  ServerPlayNetworkHandler.handleSignUpdate lines 881-907 (the
+  editing-player gate — Torch's existing 0x12 reach gate stands in,
+  the wire's close path already worked), and NetworkProtocol line 176
+  (the #55 registration slot, between BlockEntityUpdate 0x35 and Stats
+  0x37).
+- Implementation (strictly additive): S2C_OPEN_SIGN_EDITOR 0x36 in
+  Protocol18; sendOpenSignEditor in V18Connection (the established
+  sendX form — PLAY gate, id varint + the 0x33 packing style); the
+  engine's SignEditorListener surface (onSignEditorOpened(editor,
+  position)) in EngineServer fired from placeSignOnTick's standing AND
+  wall arms after the block lands and the survival consume (the
+  reference's place-consume-open order); V18ProtocolServer's per-player
+  fan (currentSession() == editor — the observer's client stays closed).
+- Tests (all NEW files): SignEditorOpenWireTest 3 — the placer's socket
+  receives 0x36 byte-identical to the reference packet's write form
+  (9 bytes, no tail) naming the placed cell; the observer crosses the
+  whole placement-and-edit window bounded by the 0x33 replay marker
+  without ever seeing a 0x36; the codec pin across the coordinate band
+  (negatives included). SignEditorOpenAcceptanceTest 4 — through the
+  real use dispatch: the standing and wall placements open the editor
+  at the placed cell for the placer alone (a second joined session
+  never appears), the survival arm still consumes its item, the
+  client-claimed creative arm opens it too, a stone placement never
+  does (tick-lane latch marker — no wall-clock sleeps). Found and fixed
+  in my own wire pair: the shared per-class world collided my two
+  tests' sign columns (each test now owns its own column, +2/+4).
+- The conformance table caught the new constant on the whole-module run
+  (the Unload Chunk class of bug it exists for): the 0x36 row added from
+  NetworkProtocol line 176 — the table's own add-the-row step, not a
+  loosening.
+- Verification (--max-workers=1, --no-daemon, per-package batches — the
+  sandbox wedges whole detached suite runs): all 5 modules assemble
+  (jars produced); zamin-core 2205/2205 green in 14 package batches
+  (root A-D 115, E-H 91, I-N 77, O-R 58, S-Z 106, entity 466, block
+  210, world 231, nbt+concurrent 213, the a-e/e-m/n-r/s-w package
+  groups 174+124+226+103, sign 7); zamin-protocol-v1_8_8 121/121 green
+  whole-module; zamin-api 19/19; zamin-bukkit 52/52; zamin-launcher
+  47/47 — 2444 tests total. Two one-off test races during batching,
+  both pre-existing and unrelated to this lane (no sign path touches
+  them): RangedCombatAcceptanceTest's arrow wound await (the documented
+  known flake) and SpawnEggTest's consume await (green on rerun x2 in
+  batch + isolation + a clean-develop S-Z batch); ChestIntegrationTest
+  (the documented known flake) appeared once on the protocol module's
+  first whole run, green on the rerun run and isolated.
+- Docs: Torch-Arcetecture.txt §29's Wave ML row (the landed record) +
+  §22 Phase 4's next-work line; VANILLA_1_8_8_COMPATIBILITY.md left
+  alone — no Ledgered: row matches signs (the spawner row's
+  "before OpenSignEditor 0x36" prose is registration order, not a
+  ledger row); the master ledger (docs/MASTER_LEDGER.md) untouched
+  (coordinator-owned).
+
+Stage Summary:
+- ML-003 closed whole: the sign placement now hands the placing player
+  the editing screen (0x36, the reference's openSignEditor 1:1) while
+  every other client stays closed, and the editor's close flows the
+  existing 0x12 write path. Branch feature/sign-editor-open, commits
+  f90b0880 + bb4f9e0b + 2b29487d + this docs tail. 2444 tests green
+  (core 2205 batched, protocol 121, api 19, bukkit 52, launcher 47);
+  the two documented test races and the chest flake are pre-existing,
+  reproduced outside this lane. PR opened against develop, not
+  self-merged — the coordinator reviews.
