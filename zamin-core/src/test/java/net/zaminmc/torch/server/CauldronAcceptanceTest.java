@@ -23,6 +23,7 @@ import java.util.function.BooleanSupplier;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The cauldron family (Slice 23i — the reference port of
@@ -128,7 +129,7 @@ class CauldronAcceptanceTest {
         await(() -> farmer.inventory().held().type().equals(BuiltinItems.WATER_BUCKET),
                 "the second bucket held");
         server.useItemOnBlock(farmer, at, 1, Optional.empty(), windowId -> { });
-        Thread.sleep(300);
+        EngineAwaits.awaitTicks(server.world(), 6, "engine progress (a 300 wall settle)");
         assertEquals(3, CauldronBlocks.levelOf(server.world().getBlock(at)),
                 "the full cauldron stays 3");
         assertEquals(BuiltinItems.WATER_BUCKET, farmer.inventory().held().type(),

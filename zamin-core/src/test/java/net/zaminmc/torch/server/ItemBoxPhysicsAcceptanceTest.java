@@ -16,6 +16,7 @@ import java.util.function.BooleanSupplier;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The item box-footprint physics (the vanilla-shape slice): the item's
@@ -93,7 +94,7 @@ class ItemBoxPhysicsAcceptanceTest {
             // And it STAYS: a second later the same item is still there
             // (the pre-fix point test fell through the funnel to the
             // ground; the box holds the rim).
-            Thread.sleep(1000);
+            EngineAwaits.awaitTicks(server.world(), 20, "engine progress (a 1000 wall settle)");
             boolean stillThere = false;
             for (var item : server.itemEntities().all()) {
                 if (item.stack().type().identifier().equals(BuiltinItems.EMERALD.identifier())

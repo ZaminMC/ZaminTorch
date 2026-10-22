@@ -23,6 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The biome registration table's public API surface (§27.3 — the VIII14
@@ -297,7 +298,7 @@ class BiomeDataApiAcceptanceTest {
         }, "biome-census-hammer");
         hammer.start();
         // Let the tick lane work against the hammer's reads.
-        Thread.sleep(750);
+        EngineAwaits.awaitTicks(server.world(), 15, "engine progress (a 750 wall settle)");
         hammer.join(30_000);
         assertTrue(done.getCount() == 0, "the hammer finished");
         RuntimeException caught = failure.get();

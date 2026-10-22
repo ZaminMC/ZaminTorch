@@ -9,6 +9,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /** The console command path: bare console lines execute through the dispatcher. */
 class ConsoleCommandTest {
@@ -27,7 +28,7 @@ class ConsoleCommandTest {
             long deadline = System.currentTimeMillis() + 5_000;
             while (System.currentTimeMillis() < deadline
                     && BanStore.load(dataDir.resolve("banned-players.json")).entries().isEmpty()) {
-                Thread.sleep(50);
+                EngineAwaits.awaitTicks(server.world(), 1, "engine progress (a 50 wall settle)");
             }
             assertTrue(Files.exists(dataDir.resolve("banned-players.json")), "the store file exists");
             assertTrue(!BanStore.load(dataDir.resolve("banned-players.json")).entries().isEmpty(),

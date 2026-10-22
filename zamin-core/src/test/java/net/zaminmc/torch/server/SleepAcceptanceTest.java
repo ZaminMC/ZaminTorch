@@ -18,6 +18,7 @@ import java.util.function.BooleanSupplier;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * Behavioral scenarios for the sleep loop: beds place as foot/head pairs,
@@ -80,7 +81,7 @@ class SleepAcceptanceTest {
     private void useOn(PlayerSession player, BlockPosition at, int face) throws InterruptedException {
         server.useItemOnBlock(player, at, face, java.util.Optional.empty(),
                 windowId -> { });
-        Thread.sleep(120);
+        EngineAwaits.awaitTicks(server.world(), 3, "engine progress (a 120 wall settle)");
     }
 
     @Test
@@ -122,7 +123,7 @@ class SleepAcceptanceTest {
         // the morning clock keeps advancing, never jumping back.
         long before = world.timeOfDay();
         useOn(sleeper, footCell, 1);
-        Thread.sleep(150);
+        EngineAwaits.awaitTicks(server.world(), 3, "engine progress (a 150 wall settle)");
         assertTrue(world.timeOfDay() >= before, "the day right-click does nothing");
         server.shutdown(null);
     }

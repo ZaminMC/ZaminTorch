@@ -22,6 +22,7 @@ import java.util.function.BooleanSupplier;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * Behavioral scenarios for the farming loop: the hoe tills, seeds take on
@@ -79,7 +80,7 @@ class FarmingAcceptanceTest {
     private void useOn(PlayerSession player, BlockPosition at) throws InterruptedException {
         server.useItemOnBlock(player, at, 1, java.util.Optional.empty(),
                 windowId -> { });
-        Thread.sleep(150); // the tick-thread application window
+        EngineAwaits.awaitTicks(server.world(), 3, "the tick-thread application window");
     }
 
     /** Sets one block through the tick thread (the world's ownership rule). */
@@ -92,7 +93,7 @@ class FarmingAcceptanceTest {
     private void probe(net.zaminmc.torch.server.block.RandomTickSystem ticks,
                        BlockPosition at) throws InterruptedException {
         server.ticker().submit(() -> ticks.randomTick(at));
-        Thread.sleep(60);
+        EngineAwaits.awaitTicks(server.world(), 2, "engine progress (a 60 wall settle)");
     }
 
     @Test
@@ -107,7 +108,7 @@ class FarmingAcceptanceTest {
         server.ticker().submit(() -> farmer.applyMovement(
                 new Position(0.5, 65.5, 1.5),
                 net.zaminmc.torch.util.Rotation.ZERO, true));
-        Thread.sleep(150);
+        EngineAwaits.awaitTicks(server.world(), 3, "engine progress (a 150 wall settle)");
 
         hold(farmer, item("minecraft:iron_hoe"), 1);
         int before = farmer.inventory().held().damage();
@@ -133,7 +134,7 @@ class FarmingAcceptanceTest {
         server.ticker().submit(() -> farmer.applyMovement(
                 new Position(2.5, 65.5, 2.5),
                 net.zaminmc.torch.util.Rotation.ZERO, true));
-        Thread.sleep(150);
+        EngineAwaits.awaitTicks(server.world(), 3, "engine progress (a 150 wall settle)");
 
         // On plain dirt the seeds refuse (the historical gate).
         hold(farmer, item("minecraft:wheat_seeds"), 4);
@@ -199,7 +200,7 @@ class FarmingAcceptanceTest {
         server.ticker().submit(() -> farmer.applyMovement(
                 new Position(0.5, 65.5, 1.5),
                 net.zaminmc.torch.util.Rotation.ZERO, true));
-        Thread.sleep(150);
+        EngineAwaits.awaitTicks(server.world(), 3, "engine progress (a 150 wall settle)");
 
         hold(farmer, item("minecraft:bone_meal"), 2);
         useOn(farmer, soil.offset(0, 1, 0));

@@ -25,6 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The inventory API wave (§27.3's player-inventory + container-write
@@ -237,9 +238,9 @@ class InventoryApiAcceptanceTest {
     }
 
     /** The submit drains at the head of the next tick (<= 100 ms). */
-    private static void awaitSettled() {
+    private void awaitSettled() {
         try {
-            Thread.sleep(300);
+            EngineAwaits.awaitTicks(server.world(), 6, "engine progress (a 300 wall settle)");
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }

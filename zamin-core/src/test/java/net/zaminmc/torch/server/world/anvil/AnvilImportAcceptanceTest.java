@@ -21,6 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The Anvil canvas' live-engine acceptance (the task's own named case): a
@@ -133,7 +134,7 @@ class AnvilImportAcceptanceTest {
             long deadline = System.currentTimeMillis() + 20_000;
             while (System.currentTimeMillis() < deadline
                     && console.stream().noneMatch(line -> line.startsWith("Anvil import finished"))) {
-                Thread.sleep(50);
+                EngineAwaits.awaitTicks(server.world(), 1, "engine progress (a 50 wall settle)");
             }
             String report = console.stream()
                     .filter(line -> line.startsWith("Anvil import finished"))
@@ -256,7 +257,7 @@ class AnvilImportAcceptanceTest {
             while (System.currentTimeMillis() < deadline
                     && console.stream().filter(line -> line.startsWith("Anvil import finished")).count() < 1
                     && console.stream().noneMatch(line -> line.contains("already running"))) {
-                Thread.sleep(50);
+                EngineAwaits.awaitTicks(server.world(), 1, "engine progress (a 50 wall settle)");
             }
             assertTrue(console.stream().anyMatch(line -> line.startsWith("Anvil import finished"))
                             || console.stream().anyMatch(line -> line.contains("already running")),
@@ -385,7 +386,7 @@ class AnvilImportAcceptanceTest {
             long deadline = System.currentTimeMillis() + 20_000;
             while (System.currentTimeMillis() < deadline
                     && console.stream().noneMatch(line -> line.startsWith("Anvil import finished"))) {
-                Thread.sleep(50);
+                EngineAwaits.awaitTicks(server.world(), 1, "engine progress (a 50 wall settle)");
             }
             String report = console.stream()
                     .filter(line -> line.startsWith("Anvil import finished"))
@@ -649,7 +650,7 @@ class AnvilImportAcceptanceTest {
             long deadline = System.currentTimeMillis() + 20_000;
             while (System.currentTimeMillis() < deadline
                     && console.stream().noneMatch(line -> line.startsWith("Anvil import finished"))) {
-                Thread.sleep(50);
+                EngineAwaits.awaitTicks(server.world(), 1, "engine progress (a 50 wall settle)");
             }
             String report = console.stream()
                     .filter(line -> line.startsWith("Anvil import finished"))
@@ -965,7 +966,7 @@ class AnvilImportAcceptanceTest {
             long deadline = System.currentTimeMillis() + 20_000;
             while (System.currentTimeMillis() < deadline
                     && console.stream().noneMatch(line -> line.startsWith("Anvil import finished"))) {
-                Thread.sleep(50);
+                EngineAwaits.awaitTicks(server.world(), 1, "engine progress (a 50 wall settle)");
             }
             long ticksAfter = server.world().totalTicks();
             String report = console.stream()
@@ -1140,7 +1141,7 @@ class AnvilImportAcceptanceTest {
             long deadline = System.currentTimeMillis() + 20_000;
             while (System.currentTimeMillis() < deadline
                     && console.stream().noneMatch(line -> line.startsWith("Anvil import finished"))) {
-                Thread.sleep(50);
+                EngineAwaits.awaitTicks(server.world(), 1, "engine progress (a 50 wall settle)");
             }
             String report = console.stream()
                     .filter(line -> line.startsWith("Anvil import finished"))

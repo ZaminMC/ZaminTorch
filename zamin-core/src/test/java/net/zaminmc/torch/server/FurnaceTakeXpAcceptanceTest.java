@@ -20,6 +20,7 @@ import java.util.function.BooleanSupplier;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The furnace-take XP (the historical SlotFurnaceOutput rule): taking a
@@ -113,7 +114,7 @@ class FurnaceTakeXpAcceptanceTest {
             long xpBefore = smelter.totalXp();
             // A click on the empty output slot (wire 2): nothing leaves, nothing pays.
             server.windowClick(smelter, windowId.get(), 2, 0, 0, accepted -> { });
-            Thread.sleep(200);
+            EngineAwaits.awaitTicks(server.world(), 4, "engine progress (a 200 wall settle)");
             assertEquals(xpBefore, smelter.totalXp(), "an empty take never pays");
         } finally {
             server.shutdown(null);

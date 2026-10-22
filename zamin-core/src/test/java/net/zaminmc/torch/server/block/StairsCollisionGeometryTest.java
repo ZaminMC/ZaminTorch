@@ -19,6 +19,7 @@ import java.util.function.BooleanSupplier;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The stairs' true two-box collision geometry (the two-box slice — the
@@ -337,7 +338,7 @@ class StairsCollisionGeometryTest {
             // And they STAY (the pre-two-box model had the tall side
             // open above the base slab — the emerald fell through to
             // 64.625 like the diamond).
-            Thread.sleep(1000);
+            EngineAwaits.awaitTicks(server.world(), 20, "engine progress (a 1000 wall settle)");
             double emeraldStill = Double.NaN;
             double diamondStill = Double.NaN;
             for (var item : server.itemEntities().all()) {

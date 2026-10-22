@@ -30,6 +30,7 @@ import java.util.function.BooleanSupplier;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The public event API (§27.7) over the live engine: a plugin-style consumer
@@ -108,7 +109,7 @@ class EventApiAcceptanceTest {
         });
 
         server.blockInteraction().submitCreativeBreak(player, target);
-        Thread.sleep(300); // let the cancelled intent land
+        EngineAwaits.awaitTicks(server.world(), 6, "let the cancelled intent land");
 
         assertTrue(server.world().getBlock(target).equals(BuiltinBlocks.STONE),
                 "the cancelled break left the stone in place");
@@ -149,7 +150,7 @@ class EventApiAcceptanceTest {
 
         server.blockInteraction().submitPlace(player, new BlockPosition(2, 5, 2), 1,
                 BuiltinBlocks.COBBLESTONE);
-        Thread.sleep(300);
+        EngineAwaits.awaitTicks(server.world(), 6, "engine progress (a 300 wall settle)");
 
         assertTrue(!server.world().getBlock(above).equals(BuiltinBlocks.COBBLESTONE),
                 "the cancelled place never mutated the cell");
@@ -219,7 +220,7 @@ class EventApiAcceptanceTest {
         local.submitChat(speaker, "this is censored text");
 
         await(() -> delivered.get() >= 1, "the uncensored message delivered");
-        Thread.sleep(200); // the censored intent certainly landed too
+        EngineAwaits.awaitTicks(server.world(), 4, "the censored intent certainly landed too");
         assertEquals(1, delivered.get(),
                 "exactly one message reached the audience: the cancelled one dropped");
         sub.unsubscribe();

@@ -27,6 +27,7 @@ import java.util.function.BooleanSupplier;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * THE PLACEMENT HANDLER'S OWN GATES (ServerPlayNetworkHandler.handlePlayerUse
@@ -122,7 +123,7 @@ class PlacementHandlerGatesAcceptanceTest {
         await(() -> Math.abs(player.position().x() - at.x()) < 0.01
                         && Math.abs(player.position().z() - at.z()) < 0.01,
                 "the player stood at " + at);
-        Thread.sleep(200); // the movement settles before the use submissions
+        EngineAwaits.awaitTicks(server.world(), 4, "the movement settles before the use submissions");
     }
 
     /** Seeds a block on the tick lane (the test's own authoritative commit). */
@@ -398,7 +399,7 @@ class PlacementHandlerGatesAcceptanceTest {
         hold(ItemStack.of(BuiltinItems.STONE, 5));
 
         use(WALL, 4);
-        Thread.sleep(400);
+        EngineAwaits.awaitTicks(server.world(), 8, "engine progress (a 400 wall settle)");
         assertTrue(server.world().getBlock(TARGET).equals(server.world().airType()),
                 "the beyond-eight-blocks placement still refuses");
         assertEquals(5, player.inventory().held().count(),

@@ -21,6 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * THE WRITTEN-BOOK FLOW (§29's Wave VIII row VIII12 — the reference's
@@ -281,14 +282,14 @@ class WrittenBookFlowTest {
             // The invalid payload (an over-length page): lands nothing.
             server.bookEdit(scribe, ItemStack.of(BuiltinItems.WRITABLE_BOOK)
                     .withBookPages(List.of("x".repeat(ItemStack.MAX_BOOK_PAGE_CHARS + 1))));
-            Thread.sleep(150);
+            EngineAwaits.awaitTicks(server.world(), 3, "engine progress (a 150 wall settle)");
             assertEquals(2, scribe.inventory().held().bookPages().size(),
                     "the invalid payload never lands");
 
             // The wrong payload item (a written book claiming pages):
             // lands nothing.
             server.bookEdit(scribe, signed("Scribe", "T", "\"P\""));
-            Thread.sleep(150);
+            EngineAwaits.awaitTicks(server.world(), 3, "engine progress (a 150 wall settle)");
             assertTrue(scribe.inventory().held().type().equals(BuiltinItems.WRITABLE_BOOK),
                     "the written-book payload never edits a quill");
 
@@ -301,7 +302,7 @@ class WrittenBookFlowTest {
             await(() -> scribe.inventory().held().type().equals(BuiltinItems.WRITTEN_BOOK),
                     "the signed book held");
             server.bookEdit(scribe, writable("hijack"));
-            Thread.sleep(150);
+            EngineAwaits.awaitTicks(server.world(), 3, "engine progress (a 150 wall settle)");
             assertEquals(List.of("\"P\""), scribe.inventory().held().bookPages(),
                     "the edit channel refuses a held written book");
         } finally {
@@ -342,7 +343,7 @@ class WrittenBookFlowTest {
             // The once-only edit refusal: a held WRITTEN book never
             // converts again (the sign channel gates on the held quill).
             server.bookSign(scribe, signed("Mallory", "Again", "\"P\""));
-            Thread.sleep(150);
+            EngineAwaits.awaitTicks(server.world(), 3, "engine progress (a 150 wall settle)");
             assertEquals("My Book", scribe.inventory().held().bookTitle(),
                     "the signed book never re-signs");
 
@@ -350,7 +351,7 @@ class WrittenBookFlowTest {
             server.ticker().submit(() -> scribe.inventory().setSlot(0, ItemStack.EMPTY));
             await(() -> scribe.inventory().held().isEmpty(), "the hand emptied");
             server.bookSign(scribe, signed("Mallory", "T", "\"P\""));
-            Thread.sleep(150);
+            EngineAwaits.awaitTicks(server.world(), 3, "engine progress (a 150 wall settle)");
             assertTrue(scribe.inventory().held().isEmpty(), "the empty hand converts nothing");
 
             // The invalid payload: the missing author row refuses.
@@ -359,7 +360,7 @@ class WrittenBookFlowTest {
             await(() -> !scribe.inventory().held().isEmpty(), "the quill held again");
             server.bookSign(scribe, ItemStack.of(BuiltinItems.WRITTEN_BOOK)
                     .withBookTitle("T").withBookPages(List.of("\"P\"")));
-            Thread.sleep(150);
+            EngineAwaits.awaitTicks(server.world(), 3, "engine progress (a 150 wall settle)");
             assertTrue(scribe.inventory().held().type().equals(BuiltinItems.WRITABLE_BOOK),
                     "the authorless payload never converts");
         } finally {

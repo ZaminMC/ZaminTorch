@@ -24,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The fishing api's §27.10 capability proof (the coordinator's PR-#32
@@ -198,7 +199,7 @@ class FishingApiAcceptanceTest {
         // wears nothing (the reference's own result > 0 gate).
         await(() -> fishing.bobberOf(angler.engineEntityId()).isEmpty(),
                 "the cancelled retrieve still reeled the line in");
-        Thread.sleep(500); // the pickup's own grace
+        EngineAwaits.awaitTicks(server.world(), 10, "the pickup's own grace");
         assertEquals(0, angler.inventory().countOf(BuiltinItems.FISH),
                 "the cancelled catch dropped no fish");
         assertEquals(rodDamageBefore, angler.inventory().held().damage(),
