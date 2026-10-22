@@ -20330,6 +20330,42 @@ public final class EngineServer implements Server, EngineBridge {
             }
         }
 
+        // DECORATION WOUNDS (the reference's damageEntities walk over the
+        // entity family — the frames and paintings in the blast box take
+        // the damage: DecorationEntity.takeDamage lines 137-146, any damage
+        // beyond the invulnerable gate removes the body and drops it through
+        // onAttack). The reference's Explosion consults every entity in the
+        // [power*2+1] box — the engine's walk here rings the same family:
+        // the frame's EXPLOSIVE arm (the loaded frame does not get the
+        // eject-keep treatment — the blast breaks the frame off the wall,
+        // the frame item + the loaded item both dropping through the
+        // null-attacker arm, exactly the survival poll's own sweep), the
+        // painting the same. The move/addVelocity instant-drop arms
+        // (DecorationEntity lines 153-165) stay ledgered with the piston
+        // family — the engine's pistons carry no decoration consult yet.
+        if (dimension == 0 && decorations != null) {
+            for (net.zaminmc.torch.server.decoration.ItemFrame frame : decorations.allFrames()) {
+                Position p = frame.hangingPosition();
+                double dx = p.x() - cx;
+                double dy = p.y() - cy;
+                double dz = p.z() - cz;
+                if (dx * dx + dy * dy + dz * dz > injuryRadius * injuryRadius) {
+                    continue;
+                }
+                decorations.attackFrame(frame, false, true);
+            }
+            for (net.zaminmc.torch.server.decoration.Painting painting : decorations.allPaintings()) {
+                net.zaminmc.torch.block.BlockPosition p = painting.pos();
+                double dx = p.x() - cx;
+                double dy = p.y() - cy;
+                double dz = p.z() - cz;
+                if (dx * dx + dy * dy + dz * dz > injuryRadius * injuryRadius) {
+                    continue;
+                }
+                decorations.attackPainting(painting, false);
+            }
+        }
+
         // The wire: one Explosion packet per observer, motion included —
         // the adapter's own dimension gate reads the carried field.
         ExplosionEvent event = new ExplosionEvent(cx, cy, cz, power,

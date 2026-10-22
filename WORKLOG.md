@@ -12556,3 +12556,30 @@ Stage Summary:
 - README TODO row 5 retired. Remaining vanilla rows: the explosion x
   decoration interplay (6), the dragon respawn (7), the thorns mob arm
   (8), the wither exemptions (9), the world-event radius (10).
+---
+Task ID: decoration-blast (the README TODO's row 6)
+Agent: main (Abasing session — the 2026-10-22 continuation)
+Task: The explosion × decoration interplay — the blast's entity walk rings
+the hanging family.
+
+Work Log:
+- Added the DECORATION WOUNDS walk to detonateAtIn (after the vehicle
+  wounds): every frame and painting in the injury-radius band gets the
+  attack treatment — attackFrame(frame, false, true) (the EXPLOSIVE arm:
+  the loaded frame does not get the eject-keep treatment) +
+  attackPainting(painting, false) — the same-tick instant sweep (the
+  survival poll's 100-tick grace never applies), the overworld-only
+  dimension gate.
+- The drops land through the null-attacker arm (the frame item + the
+  loaded item + the painting item).
+- Test: DecorationBlastTest (the live-engine walk) — the instant sweep
+  vs the poll's grace, the drops beside the bodies, the far frame
+  surviving. Debugged the drop-settling band (the drops bounce off the
+  blast scene; the band is two blocks).
+
+Stage Summary:
+- README TODO row 6 retired. Remaining vanilla rows: the dragon respawn
+  (7), the thorns mob arm (8), the wither exemptions (9), the
+  world-event radius (10). The piston half of the interplay stays
+  ledgered with the piston family (no decoration consult in the engine's
+  pistons yet).

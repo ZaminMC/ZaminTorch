@@ -130,9 +130,14 @@ exposure, then concurrency phases, then standing deferrals.
    unaffordable cell never looted), and the SOURCE family whole: the
    charged skull's 0.8 cap over canDestroy + the primed cart's
    rail-sparing rule. The census test walks the registry's 896 rows.
-6. The explosion × decoration interplay (explosions do not yet ring the
+6. ~~The explosion × decoration interplay (explosions do not yet ring the
    decoration sweep — the frame/painting instant-drop arms of
-   `DecorationSystem`).
+   `DecorationSystem`)~~ — LANDED 2026-10-22: the blast's entity walk rings
+   the hanging family (the reference's damageEntities box) — the frames
+   and paintings in the injury band take the attack treatment the same
+   tick (the poll's 100-tick grace never applies), the frame item + the
+   loaded item + the painting item dropping through the null-attacker arm.
+   The piston half stays ledgered with the piston family.
 7. The ender dragon's respawn ritual (the four-end-crystal fountain —
    `DragonDataStore`'s own javadoc names it "its own future slice").
 8. The thorns wildcard's mob-victim arm (an armored mob's retaliation — the
