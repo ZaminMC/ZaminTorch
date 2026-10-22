@@ -306,6 +306,18 @@ public interface ClientLink {
     }
 
     /**
+     * The spectating camera's world-stream anchor (the reference's
+     * PlayerManager.move arm over the per-tick follow,
+     * ServerPlayerEntity.tick lines 274-281): the spectator's own client
+     * sends no movement while its camera rides another body
+     * (LocalClientPlayerEntity.sendMovementToServer's isCamera gate), so
+     * the target's position re-centers the observer's world stream each
+     * tick. Safe from any thread; default no-op for engine-internal links.
+     */
+    default void spectateCameraFollow(net.zaminmc.torch.util.Position targetPosition) {
+    }
+
+    /**
      * Spawn Position (0x05): the world spawn re-anchor (the reference's
      * PlayerManager.sendPacket on /setworldspawn; the join burst carries
      * the same packet). Safe from any thread; default no-op for
