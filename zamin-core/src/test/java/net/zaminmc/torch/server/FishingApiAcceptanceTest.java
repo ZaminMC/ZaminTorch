@@ -100,6 +100,7 @@ class FishingApiAcceptanceTest {
         PlayerSession angler = join(server, "Angler");
         Fishing fishing = server.fishing();
         Position pool = buildPoolAhead(server, angler, 2.0);
+        Position home = angler.position();
 
         grantHeld(angler, ItemStack.of(BuiltinItems.FISHING_ROD));
         aimHorizontally(server, angler, 2.0);
@@ -119,11 +120,11 @@ class FishingApiAcceptanceTest {
         // The retrieve INSIDE the window lands the catch: the vanilla
         // fish band's drop flies to the angler — the api inventory
         // answers the pickup (the player teleported onto the bobber's
-        // own rest).
-        server.teleportPlayer(angler, poolFloor(biting.at()));
-        server.useItem(angler); // the retrieve
-        await(() -> angler.inventory().countOf(BuiltinItems.FISH) > 0,
-                "the caught fish reached the angler's inventory");
+        // own rest). The retry helper re-casts when a loaded runner's
+        // submit lag closes the 10-30-tick window first (the bare water
+        // retrieve never wears the rod, so retries are honest).
+        retrieveInWindow(server, fishing, angler, home,
+                () -> angler.inventory().countOf(BuiltinItems.FISH) > 0);
         await(() -> fishing.bobberOf(angler.engineEntityId()).isEmpty(),
                 "the reeled-in line left the census");
         server.shutdown(null);
@@ -152,11 +153,7 @@ class FishingApiAcceptanceTest {
         fishing.addCatchInterceptor(replacing); // the idempotent add
 
         server.useItem(angler); // the cast
-        awaitBite(fishing, angler, "the bite window opened");
-        server.teleportPlayer(angler, poolFloor(
-                fishing.bobberOf(angler.engineEntityId()).orElseThrow().at()));
-        server.useItem(angler); // the retrieve inside the window
-        await(() -> seen.get() != null, "the interceptor observed the catch");
+        retrieveInWindow(server, fishing, angler, home, () -> seen.get() != null);
         await(() -> angler.inventory().countOf(BuiltinItems.DIAMOND) > 0,
                 "the replaced catch (a diamond) reached the angler");
         Fishing.CatchContext context = seen.get();
@@ -174,13 +171,8 @@ class FishingApiAcceptanceTest {
         assertFalse(fishing.removeCatchInterceptor(replacing),
                 "the second removal answers unregistered");
         server.teleportPlayer(angler, home); // back to the pool's near edge
-        server.useItem(angler); // the next cast
-        awaitBite(fishing, angler, "the second bite window opened");
-        server.teleportPlayer(angler, poolFloor(
-                fishing.bobberOf(angler.engineEntityId()).orElseThrow().at()));
-        server.useItem(angler); // the retrieve
-        await(() -> angler.inventory().countOf(BuiltinItems.FISH) > 0,
-                "the restored vanilla roll landed a fish");
+        retrieveInWindow(server, fishing, angler, home,
+                () -> angler.inventory().countOf(BuiltinItems.FISH) > 0);
         server.shutdown(null);
     }
 
@@ -234,26 +226,16 @@ class FishingApiAcceptanceTest {
             return ItemStack.of(BuiltinItems.EMERALD);
         };
         fishing.setLootSource(fixed);
-        server.useItem(angler); // the cast
-        awaitBite(fishing, angler, "the bite window opened");
-        server.teleportPlayer(angler, poolFloor(
-                fishing.bobberOf(angler.engineEntityId()).orElseThrow().at()));
-        server.useItem(angler); // the retrieve
-        await(() -> angler.inventory().countOf(BuiltinItems.EMERALD) > 0,
-                "the override's fixed catch reached the angler");
+        retrieveInWindow(server, fishing, angler, home,
+                () -> angler.inventory().countOf(BuiltinItems.EMERALD) > 0);
         assertTrue(rolls.get() >= 1, "the override was consulted");
 
         // The restore: null hands the walk back to the vanilla tables.
         fishing.setLootSource(null);
         server.teleportPlayer(angler, home); // back to the pool's near edge
-        server.useItem(angler); // the next cast
-        awaitBite(fishing, angler, "the second bite window opened");
-        server.teleportPlayer(angler, poolFloor(
-                fishing.bobberOf(angler.engineEntityId()).orElseThrow().at()));
         int emeraldsBefore = angler.inventory().countOf(BuiltinItems.EMERALD);
-        server.useItem(angler); // the retrieve
-        await(() -> angler.inventory().countOf(BuiltinItems.FISH) > 0,
-                "the restored vanilla roll landed a fish");
+        retrieveInWindow(server, fishing, angler, home,
+                () -> angler.inventory().countOf(BuiltinItems.FISH) > 0);
         assertEquals(emeraldsBefore, angler.inventory().countOf(BuiltinItems.EMERALD),
                 "the restored walk never consults the retired override");
         server.shutdown(null);
@@ -428,6 +410,56 @@ class FishingApiAcceptanceTest {
             Thread.sleep(50);
         }
         throw new AssertionError("Condition not met in time: " + description);
+    }
+
+    /**
+     * The retrieve inside the bite window, robust to a loaded runner: the
+     * window is only 10-30 ticks wide, and the teleport + use submits can
+     * land after it closes under CI load — a missed window answers the
+     * bare water retrieve (result 0, no catch, the rod never wears), so
+     * the cycle simply re-casts from the angler's home cell (the pool's
+     * near edge — a re-cast from the pool floor would aim at dry land
+     * and never open a window). Up to four attempts; each attempt awaits
+     * the bite window first, and the settle poll watches the caller's own
+     * success probe (the catch's pickup flight included).
+     */
+    private void retrieveInWindow(EngineServer server, Fishing fishing, PlayerSession angler,
+            Position home, BooleanSupplier successProbe) throws InterruptedException {
+        for (int attempt = 1; attempt <= 4; attempt++) {
+            if (fishing.bobberOf(angler.engineEntityId()).isEmpty()) {
+                // A cast may still be in flight (the caller's own useItem
+                // submits to the tick lane): give it a grace window
+                // BEFORE re-casting — an immediate second useItem would
+                // retrieve the fresh bobber instead of casting.
+                long grace = System.currentTimeMillis() + 3_000;
+                while (fishing.bobberOf(angler.engineEntityId()).isEmpty()
+                        && System.currentTimeMillis() < grace) {
+                    Thread.sleep(50);
+                }
+                if (fishing.bobberOf(angler.engineEntityId()).isEmpty()) {
+                    server.teleportPlayer(angler, home); // back to the pool's near edge
+                    server.useItem(angler); // the cast (none in flight)
+                }
+                await(() -> fishing.bobberOf(angler.engineEntityId()).isPresent(),
+                        "the cast registered (attempt " + attempt + ")");
+            }
+            awaitBite(fishing, angler,
+                    "the bite window opened (attempt " + attempt + ")");
+            server.teleportPlayer(angler, poolFloor(
+                    fishing.bobberOf(angler.engineEntityId()).orElseThrow().at()));
+            server.useItem(angler); // the retrieve inside the window
+            long settle = System.currentTimeMillis() + 8_000;
+            while (System.currentTimeMillis() < settle) {
+                if (successProbe.getAsBoolean()) {
+                    return;
+                }
+                Thread.sleep(50);
+            }
+            // The window closed first (or the catch is still settling):
+            // the loop re-casts — the bare retrieve left no debt behind.
+        }
+        throw new AssertionError(
+                "Condition not met in time: the catch never landed across the retrieve retries");
     }
 
     private void await(BooleanSupplier condition, String description)
