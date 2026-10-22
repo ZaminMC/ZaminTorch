@@ -4877,14 +4877,33 @@ public final class EngineServer implements Server, EngineBridge {
             // count times the rate — plus the jump charges (0.2, 0.8
             // sprinting). Climbing charges nothing (the historical arm).
             tickMovementExhaustion(session);
-            // The world-border damage walk (LivingEntity.baseTick lines
-            // 196-202): a player whose box left the border takes
-            // max(1, floor(-depth * rate)) per tick — IN_WALL (bypasses
-            // armor, exhaustion 0.3, the reference's own source).
-            double bx = session.position().x();
-            double bz = session.position().z();
-            if (!worldBorder.containsBox(bx - 0.3, bz - 0.3, bx + 0.3, bz + 0.3)) {
-                double depth = worldBorder.getDistanceFrom(bx, bz)
+            // The in-wall suffocation + the world-border damage — the
+            // reference's own else-if pair (LivingEntity.baseTick lines
+            // 194-202): the eye-band survey FIRST (the in-wall slice — a
+            // walled body never takes the border wound in the same tick),
+            // the border arm the else.
+            if (playerIsInWall(session)) {
+                // The in-wall arm (isInWall -> takeDamage(IN_WALL, 1.0):
+                // bypasses armor, exhaustion 0.3) at the hurt-i-frame
+                // cadence — the 10-tick window the reference's
+                // invulnerableTicks/2 carries (a stronger hit out-damages
+                // the frame exactly like the melee window's own rule).
+                if (!session.hurtInvulnerable() || session.lastHurtDamage() < 1.0f) {
+                    float applied = session.hurtInvulnerable()
+                            ? 1.0f - session.lastHurtDamage() : 1.0f;
+                    damageOnTick(session, applied,
+                            0.3f, "suffocated in a wall", DamageKind.IN_WALL);
+                    session.beginHurtInvulnerability(1.0f);
+                }
+            } else if (!worldBorder.containsBox(
+                    session.position().x() - 0.3, session.position().z() - 0.3,
+                    session.position().x() + 0.3, session.position().z() + 0.3)) {
+                // The world-border damage walk (LivingEntity.baseTick lines
+                // 196-202): a player whose box left the border takes
+                // max(1, floor(-depth * rate)) per tick — IN_WALL (bypasses
+                // armor, exhaustion 0.3, the reference's own source).
+                double depth = worldBorder.getDistanceFrom(
+                                session.position().x(), session.position().z())
                         + worldBorder.getSafeZone();
                 if (depth < 0.0) {
                     damageOnTick(session,
@@ -6304,6 +6323,43 @@ public final class EngineServer implements Server, EngineBridge {
         for (SurvivalListener listener : survivalListeners) {
             listener.onKnockback(victim, vx, vy, vz);
         }
+    }
+
+    /**
+     * The player's in-wall consult (the in-wall slice — Entity.isInWall
+     * lines 1267-1287 over the player's 0.6-wide body and the 1.62 eye):
+     * the eight-point survey around the eye — the y pair at eye
+     * {@literal +/-} 0.05, the x/z pairs at {@literal +/-} 0.4 * width —
+     * each distinct cell read once, the cell view-blocking (the full-cube
+     * consult over the movement-blocking material). The dead body answers
+     * false (the reference's isAlive gate around the whole arm).
+     */
+    private boolean playerIsInWall(PlayerSession session) {
+        if (session.dead()) {
+            return false;
+        }
+        double w = 0.6; // PlayerEntity's width — the 0.8 share in the survey
+        int lastJ = Integer.MIN_VALUE;
+        int lastK = Integer.MIN_VALUE;
+        int lastL = Integer.MIN_VALUE;
+        for (int i = 0; i < 8; i++) {
+            // MathHelper.floor(y + ((i >> 0) % 2 - 0.5F) * 0.1F + 1.62)
+            int j = (int) Math.floor(session.position().y() + ((i & 1) - 0.5) * 0.1 + 1.62);
+            // MathHelper.floor(x + ((i >> 1) % 2 - 0.5F) * 0.6 * 0.8F)
+            int k = (int) Math.floor(session.position().x() + (((i >> 1) & 1) - 0.5) * w * 0.8);
+            // MathHelper.floor(z + ((i >> 2) % 2 - 0.5F) * 0.6 * 0.8F)
+            int l = (int) Math.floor(session.position().z() + (((i >> 2) & 1) - 0.5) * w * 0.8);
+            if (lastK != k || lastL != l || lastJ != j) {
+                lastJ = j;
+                lastK = k;
+                lastL = l;
+                if (CollisionShapes.isFullCube(
+                        world.getBlock(new BlockPosition(k, j, l)))) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private void damageOnTick(PlayerSession session, float amount) {
@@ -19144,6 +19200,21 @@ public final class EngineServer implements Server, EngineBridge {
                     x, y, z, dimensionProbe(x, y, z));
         }
 
+        /**
+         * The in-wall suffocation's view-blocking consult (the in-wall
+         * slice): the reference's {@code Block.isViewBlocking()} — the
+         * movement-blocking material over the full cube ({@code Collision
+         * Shapes.isFullCube}); the dimension-aware read like the solid pair.
+         */
+        private boolean viewBlockingInDimension(double x, double y, double z) {
+            if (y < net.zaminmc.torch.block.BlockPosition.MIN_Y
+                    || y > net.zaminmc.torch.block.BlockPosition.MAX_Y) {
+                return false;
+            }
+            return net.zaminmc.torch.server.block.CollisionShapes.isFullCube(
+                    activeWorld().getBlock(blockAt(x, y, z)));
+        }
+
         private double supportYInDimension(double x, double y, double z) {
             if (y < net.zaminmc.torch.block.BlockPosition.MIN_Y
                     || y > net.zaminmc.torch.block.BlockPosition.MAX_Y) {
@@ -19197,6 +19268,11 @@ public final class EngineServer implements Server, EngineBridge {
         @Override
         public boolean isSolidAt(double x, double y, double z) {
             return solidAtPointInDimension(x, y, z);
+        }
+
+        @Override
+        public boolean viewBlockingAt(double x, double y, double z) {
+            return viewBlockingInDimension(x, y, z);
         }
 
         @Override

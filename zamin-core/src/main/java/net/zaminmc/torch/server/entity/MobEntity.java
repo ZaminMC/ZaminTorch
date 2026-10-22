@@ -132,6 +132,14 @@ public final class MobEntity implements LivingEntity {
     public static final float LAVA_DAMAGE_PER_WOUND = 4.0f;
     /** The lava wound's cadence (the hurt-i-frame window, 10 ticks). */
     public static final int LAVA_WOUND_CADENCE_TICKS = 10;
+    /**
+     * The in-wall wound (the reference's takeDamage(IN_WALL, 1.0F) —
+     * DamageSource.setBypassesArmor, "suffocated in a wall") at the
+     * hurt-i-frame cadence (the same 10-tick window the lava arm rides).
+     */
+    public static final float IN_WALL_DAMAGE_PER_WOUND = 1.0f;
+    /** The in-wall wound's cadence (the hurt-i-frame window, 10 ticks). */
+    public static final int SUFFOCATION_CADENCE_TICKS = 10;
 
     /**
      * Minimal world query the mob needs (tick-thread context only). The
@@ -149,6 +157,17 @@ public final class MobEntity implements LivingEntity {
          * semantics.
          */
         default boolean isSolidAt(double x, double y, double z) {
+            return isSolid(x, y, z);
+        }
+
+        /**
+         * The view-blocking read (the in-wall suffocation slice — the
+         * reference's {@code Block.isViewBlocking()} over the cell:
+         * {@code material.blocksMovement() && isCube()}); the stub worlds
+         * fold to the boolean plane, the live query maps the full-cube
+         * consult.
+         */
+        default boolean viewBlockingAt(double x, double y, double z) {
             return isSolid(x, y, z);
         }
 
@@ -566,6 +585,7 @@ public final class MobEntity implements LivingEntity {
     // The lava wound's cadence clock (Slice 93/D2 — the reference's
     // hurt-i-frame window: one 4.0 wound per 10 submerged ticks).
     private int lavaDamageTimer;
+    private int suffocationTimer;
 
     // The goal layer (the community PathfinderGoal architecture).
     private final GoalSelector goals = MobGoals.standard();
@@ -8526,6 +8546,52 @@ public final class MobEntity implements LivingEntity {
     }
 
     /**
+     * The noClip family (Entity.noClip — the dragon's own body, the flight
+     * model's Slice-63 arm): a noClip body never registers a collision and
+     * {@link #isInWall()} answers false for it exactly like the reference's
+     * first line.
+     */
+    public boolean noClipBody() {
+        return type == MobType.ENDER_DRAGON;
+    }
+
+    /**
+     * The in-wall consult, 1:1 (Entity.isInWall lines 1267-1287): the
+     * eight-point survey around the eye — the y pair at eye {@literal +/-}
+     * 0.05, the x/z pairs at {@literal +/-} 0.4 * width — each DISTINCT cell
+     * read once (the mutable-position dedup), the cell view-blocking
+     * (isCube over the movement-blocking material). A noClip body answers
+     * false outright.
+     */
+    public boolean isInWall() {
+        if (noClipBody()) {
+            return false;
+        }
+        double eye = eyeHeight();
+        double w = bodyWidth();
+        int lastJ = Integer.MIN_VALUE;
+        int lastK = Integer.MIN_VALUE;
+        int lastL = Integer.MIN_VALUE;
+        for (int i = 0; i < 8; i++) {
+            // MathHelper.floor(y + ((i >> 0) % 2 - 0.5F) * 0.1F + eyeHeight)
+            int j = (int) Math.floor(position.y() + ((i & 1) - 0.5) * 0.1 + eye);
+            // MathHelper.floor(x + ((i >> 1) % 2 - 0.5F) * width * 0.8F)
+            int k = (int) Math.floor(position.x() + (((i >> 1) & 1) - 0.5) * w * 0.8);
+            // MathHelper.floor(z + ((i >> 2) % 2 - 0.5F) * width * 0.8F)
+            int l = (int) Math.floor(position.z() + (((i >> 2) & 1) - 0.5) * w * 0.8);
+            if (lastK != k || lastL != l || lastJ != j) {
+                lastJ = j;
+                lastK = k;
+                lastL = l;
+                if (world.viewBlockingAt(k + 0.5, j + 0.5, l + 0.5)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
      * The pinned body's own decay (Slice 92 — the reference's
      * non-controlled arm, LivingEntity lines 1415-1419: {@code velocity
      * *= 0.98} per component while the mind and the movement stay gated).
@@ -8695,6 +8761,20 @@ public final class MobEntity implements LivingEntity {
                 lavaDamageTimer = 0;
                 hurt(LAVA_DAMAGE_PER_WOUND);
             }
+        }
+        // The in-wall suffocation (LivingEntity.baseTick lines 195-197:
+        // isInWall() -> takeDamage(IN_WALL, 1.0) — the bypasses-armor source
+        // at the hurt-i-frame cadence, the reference's invulnerableTicks/2
+        // = 10 window; the engine's own timer convention the lava arm rides,
+        // the first wound one window deep). The dead body and the noClip
+        // families exempt; the wall consult is the eight-point eye survey.
+        if (!dead && !noClipBody() && isInWall()) {
+            if (++suffocationTimer >= SUFFOCATION_CADENCE_TICKS) {
+                suffocationTimer = 0;
+                hurt(IN_WALL_DAMAGE_PER_WOUND);
+            }
+        } else {
+            suffocationTimer = 0;
         }
         // Cactus contact pricks at the hurt-i-frame rhythm (10 ticks).
         if (!dead && world.touchingCactus(position.x(), position.y(), position.z())
