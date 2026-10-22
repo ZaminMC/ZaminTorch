@@ -8617,6 +8617,53 @@ public final class MobEntity implements LivingEntity {
      * @return the move's outcome, or null when the world provides no
      * collision surface (the caller takes its legacy walk)
      */
+    /**
+     * The climb-out assist's consult (the reference's {@code canMove(velocityX,
+     * velocityY + 0.6F - y + d1, velocityZ)} over Entity.canMove lines
+     * 381-384 and doesNotCollide lines 386-387): whether the body's own box,
+     * offset to the exit ledge — the pre-move y + 0.6 band, carried along the
+     * current velocity terms — collides with NO block (the engine's collision
+     * gather over the offset box) and holds NO liquid (the span cells'
+     * fluid reads). The body hops out only onto a dry, free ledge.
+     */
+    private boolean canOccupyClimbOut(double preMoveY, double appliedX, double appliedZ) {
+        double dy = velocityY + 0.6 - position.y() + preMoveY;
+        double w = bodyWidth() / 2.0;
+        double h = bodyHeight();
+        net.zaminmc.torch.server.physics.Aabb box =
+                new net.zaminmc.torch.server.physics.Aabb(
+                        position.x() - w + appliedX, position.y() + dy, position.z() - w + appliedZ,
+                        position.x() + w + appliedX, position.y() + h + dy, position.z() + w + appliedZ);
+        // doesNotCollide's block side — the engine's own gather (an empty
+        // result means the offset box clips nothing).
+        net.zaminmc.torch.server.physics.EntityCollisionWorld surface = world.collisionWorld();
+        if (surface == null) {
+            return false; // no collision surface: the stub worlds' walks
+        }
+        if (!net.zaminmc.torch.server.physics.EntityCollisions
+                .gatherBlockBoxes(surface, box, true).isEmpty()) {
+            return false;
+        }
+        // doesNotCollide's liquid side (containsLiquid): any fluid cell in
+        // the offset box's span blocks the exit.
+        int minX = (int) Math.floor(box.minX);
+        int maxX = (int) Math.floor(box.maxX);
+        int minY = (int) Math.floor(box.minY);
+        int maxY = (int) Math.floor(box.maxY);
+        int minZ = (int) Math.floor(box.minZ);
+        int maxZ = (int) Math.floor(box.maxZ);
+        for (int x = minX; x <= maxX; x++) {
+            for (int y = minY; y <= maxY; y++) {
+                for (int z = minZ; z <= maxZ; z++) {
+                    if (world.inFluid(x + 0.5, y + 0.5, z + 0.5)) {
+                        return false;
+                    }
+                }
+            }
+        }
+        return true;
+    }
+
     private net.zaminmc.torch.server.physics.EntityMoveSolver.Result solverMove(
             double moveX, double moveY, double moveZ, double stepHeight) {
         net.zaminmc.torch.server.physics.EntityCollisionWorld collisionWorld =
@@ -8928,6 +8975,10 @@ public final class MobEntity implements LivingEntity {
         // restores the reference's cycle for the solver path.
         double standingDrift = wasOnGround && velocityY == 0.0
                 ? (0.0 - GRAVITY_PER_TICK) * 0.98 : velocityY;
+        // The climb-out assist's pre-move anchor (LivingEntity.travel's
+        // d1/d0: the y captured before the move — the exit ledge sits
+        // 0.6 above IT, not above the post-move body).
+        double preMoveY = position.y();
         net.zaminmc.torch.server.physics.EntityMoveSolver.Result swept =
                 solverMove(moveX, standingDrift, moveZ, WALK_STEP_HEIGHT);
         if (swept != null) {
@@ -8967,6 +9018,21 @@ public final class MobEntity implements LivingEntity {
                 if (swept.dy() < 0.0) {
                     fallDistance = (float) (fallDistance - swept.dy());
                 }
+            }
+            // THE CLIMB-OUT ASSIST (LivingEntity.travel lines 1210/1238 —
+            // the water and lava arms' SHARED pool-exit law, the step
+            // model's own slice): a body in fluid pushing against a wall
+            // (the move's collidingHorizontally) that CAN occupy the ledge
+            // 0.6 above its pre-move position hops out — velocityY = 0.3
+            // (the reference's canMove consult over doesNotCollide: no
+            // block collision in the offset box, no liquid in its span).
+            // The engine writes it AFTER its move like the reference (the
+            // next tick's travel carries the 0.3 up; the engine's
+            // drag-before-move order phases it one tick, the F1 ledger's
+            // own note).
+            if (swept.collidingHorizontally() && (inLava || inFluid)
+                    && canOccupyClimbOut(preMoveY, swept.dx(), swept.dz())) {
+                velocityY = 0.3f;
             }
             return;
         }
