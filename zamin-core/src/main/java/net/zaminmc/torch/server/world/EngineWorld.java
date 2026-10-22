@@ -71,6 +71,23 @@ public final class EngineWorld implements World,
     private volatile Position spawnPosition;
     private volatile long timeOfDay;
     private volatile long totalTicks;
+    /**
+     * The RAW day clock (VIII14 — the reference's unwrapped
+     * WorldData.timeOfDay): the day count rides its high bits (the moon
+     * phase's own {@code / 24000 % 8}), so unlike {@link #timeOfDay} it
+     * never folds at the day length. Walks beside the wrapped clock under
+     * the same doDaylightCycle gate; {@link #setTimeOfDay} writes it
+     * verbatim (the /time arms' own surface).
+     */
+    private volatile long rawTimeOfDay;
+    /**
+     * The restored inhabited rows for chunks not yet published (VIII14 —
+     * the ZWD v2 tail): {@link #installGenerated} applies a chunk's row
+     * at publication, the same pending shape the block-delta overlay
+     * carries. Owner-thread; rows persist idempotently (the published
+     * chunk's live value is authoritative in the snapshot walk).
+     */
+    private final Map<Long, Long> pendingInhabited = new HashMap<>();
 
     /**
      * The public entity view (§27.5): the live population supplier, attached
@@ -152,6 +169,11 @@ public final class EngineWorld implements World,
     @Override
     public long timeOfDay() {
         return timeOfDay;
+    }
+
+    /** The raw day clock (the moon phase's + the local difficulty's own read). */
+    public long rawTimeOfDay() {
+        return rawTimeOfDay;
     }
 
     @Override
@@ -544,6 +566,13 @@ public final class EngineWorld implements World,
         }
         // Persisted deltas override freshly generated terrain at the same positions.
         applyPersistedDeltas(generated);
+        // The restored inhabited row rides the same install (VIII14): a
+        // chunk the previous life never published picks its accrued time
+        // up at publication — idempotent, the same shape the overlay carries.
+        Long restoredInhabited = pendingInhabited.get(key);
+        if (restoredInhabited != null) {
+            generated.setInhabitedTime(restoredInhabited);
+        }
         // Chunk-load hooks run before publication (§344): the chunk becomes
         // visible only fully generated AND fully lit. Listeners must not
         // re-enter generation (they peek neighbors, never create chunks).
@@ -666,6 +695,22 @@ public final class EngineWorld implements World,
         }
         this.totalTicks = snapshot.totalTicks();
         this.timeOfDay = snapshot.timeOfDay();
+        // VIII14 — the raw day clock + the inhabited rows ride the same
+        // restore: the clock takes the v2 row (a v1 file's migration reads
+        // it as the wrapped value — day 0, the historical behavior), and
+        // each inhabited row lands both in the pending map (chunks the
+        // boot has not generated yet pick it up at install) and on any
+        // chunk already published (the restore-before-pregen order keeps
+        // this the empty case in practice; the idempotent write is the
+        // same shape the delta overlay carries).
+        this.rawTimeOfDay = snapshot.rawTimeOfDay();
+        for (Map.Entry<Long, Long> row : snapshot.inhabitedTimes().entrySet()) {
+            pendingInhabited.put(row.getKey(), row.getValue());
+            EngineChunk live = chunks.get(row.getKey());
+            if (live != null) {
+                live.setInhabitedTime(row.getValue());
+            }
+        }
     }
 
     /** Consistent delta view for persistence. Owner-thread only. */
@@ -673,7 +718,19 @@ public final class EngineWorld implements World,
         requireOwnership("snapshotDeltas");
         Map<Long, Map<Integer, BlockType>> copy = new HashMap<>();
         deltas.forEach((chunkKey, entries) -> copy.put(chunkKey, Map.copyOf(entries)));
-        return new WorldDeltaSnapshot(totalTicks, timeOfDay, Map.copyOf(copy));
+        // The inhabited rows: the pending map's never-loaded rows survive
+        // (the round trip must not lose them) with every published chunk's
+        // live value overlaying its own stale pending row — the chunk is
+        // the authoritative holder once installed.
+        Map<Long, Long> inhabitedRows = new HashMap<>(pendingInhabited);
+        for (Map.Entry<Long, EngineChunk> entry : chunks.entrySet()) {
+            long value = entry.getValue().inhabitedTime();
+            if (value > 0L) {
+                inhabitedRows.put(entry.getKey(), value);
+            }
+        }
+        return new WorldDeltaSnapshot(totalTicks, timeOfDay, rawTimeOfDay,
+                Map.copyOf(inhabitedRows), Map.copyOf(copy));
     }
 
     public int deltaCount() {
@@ -696,11 +753,43 @@ public final class EngineWorld implements World,
         totalTicks++;
         if (advanceDaylight) {
             timeOfDay = (timeOfDay + 1) % DAY_LENGTH_TICKS;
+            // VIII14 — the RAW day clock walks beside the wrapped one: the
+            // reference's WorldData.timeOfDay never wraps (the moon phase
+            // and the local difficulty's own time term read the DAY COUNT
+            // in its high bits; the wrapped clock the sky cycle reads loses
+            // it). doDaylightCycle=false freezes both day clocks together —
+            // the reference's own pair.
+            rawTimeOfDay++;
         }
     }
 
     /** Historical day length in ticks (the world's own cycle). */
     public static final long DAY_LENGTH_TICKS = 24_000;
+
+    /**
+     * The moon phase sizes (Dimension.MOON_PHASE_TO_SIZE 1:1): phase 0 the
+     * full moon, phase 4 the new moon, the waning/waxing pair around them.
+     */
+    public static final float[] MOON_PHASE_TO_SIZE =
+            {1.0F, 0.75F, 0.5F, 0.25F, 0.0F, 0.25F, 0.5F, 0.75F};
+
+    /**
+     * The current moon phase 0..7 (Dimension.getMoonPhase 1:1 — the raw day
+     * clock's own {@code (time / 24000 % 8 + 8) % 8} walk, the +8 band the
+     * negative-clock guard). Phase 0 = full moon.
+     */
+    public int moonPhase() {
+        return (int) (rawTimeOfDay / DAY_LENGTH_TICKS % 8L + 8L) % 8;
+    }
+
+    /**
+     * The moon's size 1.0..0.0 at the raw day clock (World.getMoonSize 1:1 —
+     * the local difficulty's own moon term reads it; the client derives the
+     * same phase from the 0x03 day-time field's high bits).
+     */
+    public float moonSize() {
+        return MOON_PHASE_TO_SIZE[moonPhase()];
+    }
 
     /**
      * Moves the day clock (the /time command). Runs on the owning tick context
@@ -713,6 +802,72 @@ public final class EngineWorld implements World,
         // The clock wraps on the day length (floorMod keeps the /time add
         // arm's negative sums walking forward, never to a negative clock).
         this.timeOfDay = Math.floorMod(timeOfDay, DAY_LENGTH_TICKS);
+        // VIII14 — the RAW clock takes the value verbatim (the reference's
+        // own /time write: WorldData.timeOfDay never folds — a /time set
+        // past a day boundary moves the moon, the wrapped clock above keeps
+        // the sky cycle's own within-day read).
+        this.rawTimeOfDay = timeOfDay;
+    }
+
+    /**
+     * The /time add arm (the reference's own: TimeCommand's addTo arm adds
+     * to the RAW clock — {@code data.setTimeOfDay(data.getTimeOfDay() +
+     * value)} — the wrapped sky clock derives). Runs on the owning tick
+     * context like the set arm.
+     */
+    public void addTimeOfDay(long delta) {
+        requireOwnership("addTimeOfDay");
+        this.timeOfDay = Math.floorMod(this.timeOfDay + delta, DAY_LENGTH_TICKS);
+        this.rawTimeOfDay += delta;
+    }
+
+    /**
+     * The inhabited-time credit walk (VIII14 — the reference's ChunkMap
+     * batches collapsed to the per-tick credit, the named adaptation):
+     * every watched chunk — a chunk inside at least one player's view
+     * square — accrues exactly one tick. The reference's
+     * {@code updateInhabitedTime} credits {@code world.getTime() -
+     * holder.lastUpdateTime} per holder in ~8000-tick batches and at the
+     * last watcher's departure: the same union-of-watched-spans law, the
+     * per-tick credit one batch fresher (a fresh chunk's first credit
+     * never lags 8000 ticks). The caller deduplicates the squares (two
+     * watchers share one credit — the holder's span, never per-player).
+     * Owner-thread (the tick lane).
+     *
+     * @param watchedKeys the packed chunk positions inside this tick's
+     *                    union of player view squares (the same square the
+     *                    tracker sends — the caller's own walk)
+     */
+    public void accrueInhabitedTime(java.util.Set<Long> watchedKeys) {
+        requireOwnership("accrueInhabitedTime");
+        for (Long key : watchedKeys) {
+            EngineChunk watched = chunks.get(key);
+            if (watched != null) {
+                watched.setInhabitedTime(watched.inhabitedTime() + 1L);
+            }
+        }
+    }
+
+    /**
+     * The local-difficulty consult (the reference's World
+     * .getLocalDifficulty 1:1): the chunk's inhabited row + the moon size
+     * read ONLY when the chunk is loaded — an unloaded position answers
+     * 0/0.0 for both (the reference's own gate), while the raw day clock
+     * and the base difficulty always carry (the world-global reads). The
+     * spawn dice's multiplier consult rides it.
+     *
+     * @param at           the position (the mob's own)
+     * @param difficultyId the world's difficulty id (0 peaceful .. 3 hard —
+     *                     the engine's one shared table)
+     */
+    public LocalDifficulty localDifficulty(net.zaminmc.torch.block.BlockPosition at,
+                                           int difficultyId) {
+        EngineChunk chunk = chunks.get(at.chunkPosition().packed());
+        if (chunk == null) {
+            return new LocalDifficulty(difficultyId, rawTimeOfDay, 0L, 0.0F);
+        }
+        return new LocalDifficulty(difficultyId, rawTimeOfDay,
+                chunk.inhabitedTime(), moonSize());
     }
 
     private void requireOwnership(String operation) {

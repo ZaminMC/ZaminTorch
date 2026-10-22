@@ -45,11 +45,18 @@ public final class WorldDeltaSerializer {
     public static final int MAGIC_0 = 'Z';
     public static final int MAGIC_1 = 'W';
     public static final int MAGIC_2 = 'D';
-    public static final int FORMAT_VERSION = 1;
+    /**
+     * v2 (VIII14): the raw day clock after the two wrapped clocks, and the
+     * inhabited tail — {@code int count + (chunkKey long + value long)*} —
+     * after the delta section. v1 files load through the storage's own
+     * migration (raw = wrapped, no tail).
+     */
+    public static final int FORMAT_VERSION = 2;
 
     /**
-     * Serializes the snapshot to the ZWD v1 bytes — the historical
-     * {@code DeltaWorldStorage.save} body, pure. Byte-identical to the
+     * Serializes the snapshot to the ZWD v2 bytes — the historical
+     * {@code DeltaWorldStorage.save} body plus the VIII14 rows (the raw day
+     * clock, the inhabited tail), pure. Byte-identical to the
      * on-tick path by construction (the same code, moved).
      */
     public static byte[] serialize(WorldDeltaSnapshot snapshot) {
@@ -62,6 +69,7 @@ public final class WorldDeltaSerializer {
             out.writeByte(FORMAT_VERSION);
             out.writeLong(snapshot.totalTicks());
             out.writeLong(snapshot.timeOfDay());
+            out.writeLong(snapshot.rawTimeOfDay());
 
             Map<Identifier, Integer> paletteIds = new HashMap<>();
             for (Map<Integer, BlockType> entries : snapshot.deltas().values()) {
@@ -86,6 +94,14 @@ public final class WorldDeltaSerializer {
                     out.writeInt(entry.getKey());
                     writeVarInt(out, paletteIds.get(entry.getValue().identifier()));
                 }
+            }
+            // The inhabited tail (v2 — VIII14): the per-chunk accrued rows,
+            // chunkKey long + value long each, the count an int like the
+            // delta section's own head.
+            out.writeInt(snapshot.inhabitedTimes().size());
+            for (Map.Entry<Long, Long> row : snapshot.inhabitedTimes().entrySet()) {
+                out.writeLong(row.getKey());
+                out.writeLong(row.getValue());
             }
         } catch (IOException impossible) {
             // A ByteArrayOutputStream has no physical failure mode; the

@@ -120,6 +120,35 @@ class AnvilChunkReaderTest {
     }
 
     @Test
+    void theInhabitedTimeRowCarriesIntoTheChunk() {
+        // VIII14 — the local-difficulty completion: the reference's
+        // AnvilChunkStorage round trip writes the row beside the blocks
+        // (line 183); the engine's chunk carries the same row, the local
+        // difficulty's own inhabited term reads it at the mob's position.
+        byte[] blocks = new byte[4096];
+        byte[] data = new byte[2048];
+        blocks[AnvilFixture.cellIndex(0, 0, 0)] = 1; // stone
+        Map<String, Object> chunkNbt = AnvilFixture.chunkNbt(0, 0,
+                List.of(AnvilFixture.section(0, blocks, data, null)), null);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> level = (Map<String, Object>) chunkNbt.get("Level");
+        level.put("InhabitedTime", 1_234_567L); // a lived-in vanilla chunk
+        EngineChunk chunk = read(chunkNbt);
+        assertEquals(1_234_567L, chunk.inhabitedTime(),
+                "the inhabited row rides the imported chunk (the local difficulty's own term)");
+
+        // The absent row keeps the fresh 0 (the reference's getLong
+        // default's own shape — a never-watched chunk).
+        Map<String, Object> absentNbt = AnvilFixture.chunkNbt(0, 0,
+                List.of(AnvilFixture.section(0, blocks, data, null)), null);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> absentLevel = (Map<String, Object>) absentNbt.get("Level");
+        absentLevel.remove("InhabitedTime");
+        EngineChunk absent = read(absentNbt);
+        assertEquals(0L, absent.inhabitedTime(), "the absent row reads as the fresh 0");
+    }
+
+    @Test
     void theFluidAndRedstoneLaddersResolve() {
         byte[] blocks = new byte[4096];
         byte[] data = new byte[2048];
