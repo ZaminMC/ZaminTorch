@@ -171,8 +171,18 @@ exposure, then concurrency phases, then standing deferrals.
     isRainy law) beside `World.biomeAt`'s display name.
 17. `Server.fishing()` — the fishing system's api surface (the engine accessor
     is diagnostics-only today).
-18. The door-break arming read (VIII9's builtin-goal arming + progress, the
-    §27.10 row).
+18. ~~The door-break arming read (VIII9's builtin-goal arming + progress,
+    the §27.10 row)~~ — LANDED 2026-10-23 (7aee4589): the builtin goal's
+    arming + progress read whole — `entity.LivingEntity.doorBreak()` →
+    the `entity.ai.DoorBreak` view (the CanBreakDoors row, the armed
+    capture, the UPPER-half door target, the 240-tick clock — a live
+    view over the body's own walk state, §27.5, the goal-family package
+    beside the custom-goal registration surface; the walk itself
+    untouched), proven through the api alone (`DoorBreakApiAcceptanceTest`
+    3: the spawn-dice arm + the NBT-row verb + the EASY unarmed state +
+    the kind gate; the live walk over the manager's own tick — the
+    target + the counter + the completion through the bridge; the
+    unarmed control).
 
 ### D. Concurrency phases (Torch-Arcetecture.txt §22 — the gated lanes)
 
