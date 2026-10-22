@@ -226,6 +226,22 @@ public record EngineConfig(
                 "normal", false, WHOLE_WORLD_REGION_SIZE, false);
     }
 
+    /**
+     * A copy with a different bind port (ML-009a — the CLI override's
+     * own shape; the dedicated server's precedence CLI &gt; properties
+     * &gt; default). The compact constructor re-validates the range
+     * (0-65535), so an out-of-range override fails boot loudly. The
+     * remote-admin ports keep their already-resolved values: they
+     * follow their OWN rows and the first-boot write-back law recorded
+     * above — the same envelope as a properties-only port change.
+     */
+    public EngineConfig withPort(int port) {
+        return new EngineConfig(host, port, worldName, motd, maxPlayers, viewDistance,
+                tickRateHz, dataDir, gamemode, pvp, levelType, whiteList, regionSizeChunks,
+                enableCommandBlocks, spawnProtectionRadius, enableRcon, rconPassword,
+                rconPort, enableQuery, queryPort);
+    }
+
     /** The world folder (the historical {@code world/} of the Paper layout). */
     public Path worldDir() {
         return Path.of(dataDir, worldName);

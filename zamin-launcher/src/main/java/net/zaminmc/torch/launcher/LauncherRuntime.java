@@ -74,7 +74,13 @@ final class LauncherRuntime {
 
     private EngineConfig loadConfig() throws IOException {
         try {
-            return ConfigLoader.loadOrDefault(EngineConfig.DEFAULT_FILE);
+            // ML-009a (the audit's B-4 row): the dedicated server's own
+            // precedence, CLI > properties > default — the --port flag
+            // overrides the properties-loaded value for THIS boot (never
+            // written back); the effective port lands in the boot log here
+            // and again on the "Server ready" line below.
+            return StartupArguments.parse(args)
+                    .applyTo(ConfigLoader.loadOrDefault(EngineConfig.DEFAULT_FILE));
         } catch (IllegalArgumentException e) {
             LOGGER.log(Level.SEVERE, "Configuration invalid: " + e.getMessage(), e);
             throw e;
