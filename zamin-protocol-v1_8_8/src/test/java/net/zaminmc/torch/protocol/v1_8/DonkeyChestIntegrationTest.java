@@ -74,7 +74,7 @@ class DonkeyChestIntegrationTest extends ProtocolTestBase {
 
             // The tame ladder (wheat +3 temper, the same flow the horse test drives).
             client.sendChat("/give minecraft:wheat 64");
-            EngineAwaits.awaitTicks(server.world(), 4, "engine progress (a 200 wall settle)");
+            Thread.sleep(200);
             for (int i = 0; i < 100 && server.mobs().byId(horseId).temper() < 100; i++) {
                 client.sendUseEntity(horseId, Protocol18.USE_ENTITY_INTERACT);
                 Thread.sleep(60);
@@ -82,9 +82,9 @@ class DonkeyChestIntegrationTest extends ProtocolTestBase {
             awaitCondition(() -> server.mobs().byId(horseId).temper() >= 100,
                     "the wheat ladder filled the temper");
             server.consoleCommand("op PackMule");
-            EngineAwaits.awaitTicks(server.world(), 3, "engine progress (a 150 wall settle)");
+            Thread.sleep(150);
             client.sendChat("/clear");
-            EngineAwaits.awaitTicks(server.world(), 4, "engine progress (a 200 wall settle)");
+            Thread.sleep(200);
             client.sendUseEntity(horseId, Protocol18.USE_ENTITY_INTERACT);
             awaitCondition(() -> server.mobs().byId(horseId).tamed(),
                     "the full-temper attempt tamed the donkey");
@@ -92,7 +92,7 @@ class DonkeyChestIntegrationTest extends ProtocolTestBase {
 
             // The chest equips from the hand (the HorseBaseEntity chest arm).
             client.sendChat("/give minecraft:chest 1");
-            EngineAwaits.awaitTicks(server.world(), 4, "engine progress (a 200 wall settle)");
+            Thread.sleep(200);
             client.sendUseEntity(horseId, Protocol18.USE_ENTITY_INTERACT);
             awaitCondition(() -> server.mobs().byId(horseId).chested(),
                     "the chest equipped on the donkey");
@@ -102,9 +102,9 @@ class DonkeyChestIntegrationTest extends ProtocolTestBase {
             // The sneak-open: the 53-slot EntityHorse window. A fresh wheat
             // stack rides along (the /clear emptied the ladder's stack).
             client.sendChat("/give minecraft:wheat 64");
-            EngineAwaits.awaitTicks(server.world(), 4, "engine progress (a 200 wall settle)");
+            Thread.sleep(200);
             client.sendEntityAction(0); // start sneaking
-            EngineAwaits.awaitTicks(server.world(), 3, "engine progress (a 150 wall settle)");
+            Thread.sleep(150);
             client.sendUseEntity(horseId, Protocol18.USE_ENTITY_INTERACT);
             Object[] window = client.readOpenWindow(20_000);
             int windowId = (Integer) window[0];

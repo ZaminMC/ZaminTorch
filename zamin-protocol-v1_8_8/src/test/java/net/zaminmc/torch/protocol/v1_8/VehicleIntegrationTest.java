@@ -58,7 +58,7 @@ class VehicleIntegrationTest extends ProtocolTestBase {
 
             // The boat item into the held slot (the default hotbar slot 0).
             client.sendChat("/give minecraft:boat 1");
-            EngineAwaits.awaitTicks(server.world(), 4, "engine progress (a 200 wall settle)");
+            Thread.sleep(200);
 
             // The placement: use the boat on the water block's top face.
             client.sendBlockPlacement(bx, by, bz, 1, 333);
@@ -108,9 +108,9 @@ class VehicleIntegrationTest extends ProtocolTestBase {
             var session = server.playerRegistry().byName("RailRider").orElseThrow();
             server.ticker().submit(() -> session.setGamemode(
                     net.zaminmc.torch.GameMode.CREATIVE));
-            EngineAwaits.awaitTicks(server.world(), 4, "engine progress (a 200 wall settle)");
+            Thread.sleep(200);
             client.sendCreativeSlot(36, 328); // wire slot 36 = hotbar 0 (held)
-            EngineAwaits.awaitTicks(server.world(), 4, "engine progress (a 200 wall settle)");
+            Thread.sleep(200);
 
             // A straight east-west rail line in the feet cells beside spawn.
             var anchor = server.playerRegistry().byName("RailRider").orElseThrow().position();
@@ -187,9 +187,9 @@ class VehicleIntegrationTest extends ProtocolTestBase {
             var session = server.playerRegistry().byName("ChestCartRider").orElseThrow();
             server.ticker().submit(() -> session.setGamemode(
                     net.zaminmc.torch.GameMode.CREATIVE));
-            EngineAwaits.awaitTicks(server.world(), 4, "engine progress (a 200 wall settle)");
+            Thread.sleep(200);
             client.sendCreativeSlot(36, 342); // the chest minecart item
-            EngineAwaits.awaitTicks(server.world(), 4, "engine progress (a 200 wall settle)");
+            Thread.sleep(200);
 
             var anchor = session.position();
             int bx = (int) Math.floor(anchor.x()) + 2;

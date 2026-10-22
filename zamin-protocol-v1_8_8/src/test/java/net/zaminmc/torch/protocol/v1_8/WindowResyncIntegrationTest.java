@@ -191,13 +191,13 @@ class WindowResyncIntegrationTest extends ProtocolTestBase {
                     new net.zaminmc.torch.util.Position(
                             HOPPER_C.x() - 1.5, HOPPER_C.y() + 0.5,
                             HOPPER_C.z() + 0.5));
-            EngineAwaits.awaitTicks(server.world(), 6, "engine progress (a 300 wall settle)");
+            Thread.sleep(300);
             // The teleport window's acknowledgment (Slice N5): the real
             // client answers the re-anchor Position And Look with its own
             // position at the anchor — the use gate opens.
             client.sendPosition(HOPPER_C.x() - 1.5, HOPPER_C.y() + 0.5,
                     HOPPER_C.z() + 0.5, true);
-            EngineAwaits.awaitTicks(server.world(), 3, "engine progress (a 150 wall settle)");
+            Thread.sleep(150);
             client.sendBlockPlacement(HOPPER_C.x(), HOPPER_C.y(), HOPPER_C.z(), 1, -1);
             Object[] open = client.readOpenWindow(10_000);
             int windowId = (Integer) open[0];
@@ -243,11 +243,11 @@ class WindowResyncIntegrationTest extends ProtocolTestBase {
                     new net.zaminmc.torch.util.Position(
                             DISPENSER_D.x() - 1.5, DISPENSER_D.y() + 0.5,
                             DISPENSER_D.z() + 0.5));
-            EngineAwaits.awaitTicks(server.world(), 6, "engine progress (a 300 wall settle)");
+            Thread.sleep(300);
             // The teleport window's acknowledgment (Slice N5).
             client.sendPosition(DISPENSER_D.x() - 1.5, DISPENSER_D.y() + 0.5,
                     DISPENSER_D.z() + 0.5, true);
-            EngineAwaits.awaitTicks(server.world(), 3, "engine progress (a 150 wall settle)");
+            Thread.sleep(150);
             client.sendBlockPlacement(DISPENSER_D.x(), DISPENSER_D.y(), DISPENSER_D.z(), 1, -1);
             Object[] open = client.readOpenWindow(10_000);
             int windowId = (Integer) open[0];

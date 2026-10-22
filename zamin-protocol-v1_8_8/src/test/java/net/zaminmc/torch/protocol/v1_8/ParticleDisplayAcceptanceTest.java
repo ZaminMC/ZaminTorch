@@ -75,7 +75,7 @@ class ParticleDisplayAcceptanceTest extends ProtocolTestBase {
             // Wheat in hand, one use: the cow enters love (the feeding arm
             // consumes the stack, the event-18 burst rides Entity Status).
             client.sendChat("/give minecraft:wheat 8");
-            EngineAwaits.awaitTicks(server.world(), 4, "engine progress (a 200 wall settle)");
+            Thread.sleep(200);
             client.sendUseEntity(cowId, Protocol18.USE_ENTITY_INTERACT);
             awaitCondition(() -> server.mobs().byId(cowId).isInLove(),
                     "the wheat fed the cow into love");

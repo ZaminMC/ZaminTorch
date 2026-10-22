@@ -71,7 +71,7 @@ class DyeFamilyAcceptanceTest extends ProtocolTestBase {
             // row of the ink-sac family) and use it on the sheep. The fleece
             // becomes BLUE — DyeColor id 11 (byMetadata(4) = BLUE).
             client.sendChat("/give minecraft:dye 8 4");
-            EngineAwaits.awaitTicks(server.world(), 4, "engine progress (a 200 wall settle)");
+            Thread.sleep(200);
             client.sendUseEntity(sheepId, Protocol18.USE_ENTITY_INTERACT);
             awaitCondition(() -> server.mobs().byId(sheepId).sheepFleeceColor() == 11,
                     "the lapis dyed the fleece blue (id 11)");
@@ -86,9 +86,9 @@ class DyeFamilyAcceptanceTest extends ProtocolTestBase {
             // The shears land in the first empty hotbar slot (1 — the dye
             // holds slot 0); select it, then use it on the coat.
             client.sendChat("/give minecraft:shears 1");
-            EngineAwaits.awaitTicks(server.world(), 4, "engine progress (a 200 wall settle)");
+            Thread.sleep(200);
             client.sendHeldItemChange(1);
-            EngineAwaits.awaitTicks(server.world(), 3, "engine progress (a 150 wall settle)");
+            Thread.sleep(150);
             client.sendUseEntity(sheepId, Protocol18.USE_ENTITY_INTERACT);
             awaitCondition(() -> server.mobs().byId(sheepId).sheared(),
                     "the shears stripped the coat");

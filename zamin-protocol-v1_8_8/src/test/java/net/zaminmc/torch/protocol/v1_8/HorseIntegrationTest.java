@@ -7,7 +7,6 @@ import java.io.IOException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The mount contract over the real wire: the horse spawns with the 1.8
@@ -90,7 +89,14 @@ class HorseIntegrationTest extends ProtocolTestBase {
 
             // The feeding ladder: wheat in hand, every use +3 temper.
             client.sendChat("/give minecraft:wheat 64");
-            EngineAwaits.awaitTicks(server.world(), 4, "engine progress (a 200 wall settle)");
+            // The chat frame's delivery rides the loopback netty lane, not
+            // the tick clock — the honest wait is the engine-visible one:
+            // the wheat actually reaching the tamer's inventory (the
+            // census doc's loopback-delivery note).
+            awaitCondition(() -> server.playerRegistry().byName("HorseTamer")
+                            .orElseThrow().inventory()
+                            .countOf(net.zaminmc.torch.server.item.BuiltinItems.WHEAT) > 0,
+                    "the /give delivered the wheat to the tamer's hotbar");
             for (int i = 0; i < 100 && server.mobs().byId(horseId).temper() < 100; i++) {
                 client.sendUseEntity(horseId, Protocol18.USE_ENTITY_INTERACT);
                 Thread.sleep(60);
@@ -103,9 +109,9 @@ class HorseIntegrationTest extends ProtocolTestBase {
             // wheat lasts); the bare hand falls through to the seat. /clear
             // is op level 2, so the console op grants it first.
             server.consoleCommand("op HorseTamer");
-            EngineAwaits.awaitTicks(server.world(), 3, "engine progress (a 150 wall settle)");
+            Thread.sleep(150);
             client.sendChat("/clear");
-            EngineAwaits.awaitTicks(server.world(), 4, "engine progress (a 200 wall settle)");
+            Thread.sleep(200);
             client.sendUseEntity(horseId, Protocol18.USE_ENTITY_INTERACT);
             awaitCondition(() -> server.mobs().byId(horseId).tamed(),
                     "the full-temper attempt tamed the horse");
@@ -116,7 +122,7 @@ class HorseIntegrationTest extends ProtocolTestBase {
             // The saddle goes on from the hand (the rider stays seated; the
             // vanilla right-click ladder equips before it seats).
             client.sendChat("/give minecraft:saddle 1");
-            EngineAwaits.awaitTicks(server.world(), 4, "engine progress (a 200 wall settle)");
+            Thread.sleep(200);
             client.sendUseEntity(horseId, Protocol18.USE_ENTITY_INTERACT);
             awaitCondition(() -> server.mobs().byId(horseId).saddled(),
                     "the saddle equipped from the hand");
@@ -145,7 +151,7 @@ class HorseIntegrationTest extends ProtocolTestBase {
             // id, the saddle sitting in slot 0. The saddle was consumed from
             // the hand above, so the window's slot 0 shows the mounted row.
             client.sendEntityAction(0); // start sneaking
-            EngineAwaits.awaitTicks(server.world(), 3, "engine progress (a 150 wall settle)");
+            Thread.sleep(150);
             client.sendUseEntity(horseId, Protocol18.USE_ENTITY_INTERACT);
             Object[] window = client.readOpenWindow(20_000);
             int windowId = (Integer) window[0];
