@@ -3276,10 +3276,15 @@ own tests. Order is by vanilla visibility and dependency, not size.
       PistonFluidEventAcceptanceTest 6 + the bukkit pinned expectation
       updated moved=0 -> moved=1), and THE PHASE-7 MERGE BUCKETING'S
       LANDING RECORDED in §22's Phase-7 row with the fresh re-measured
-      relief numbers. The crush itself rides the living
-      family's in-wall suffocation row (unported — a squeezed body ends
-      inside the block; the damage walk is baseTick's isInWall, a
-      living-family slice). PistonEntityPushTest 4.
+      relief numbers. THE CRUSH LANDED 2026-10-22 with the in-wall
+      suffocation row (efea3091): the living family's baseTick arm whole —
+      the eight-point eye survey (Entity.isInWall lines 1267-1287), the
+      view-blocking consult (isCube over the movement-blocking material,
+      WorldQuery.viewBlockingAt + CollisionShapes.isFullCube public), the
+      10-tick wound cadence the lava arm rides on the mob side, the
+      hurt-i-frame on the player side, and the border arm demoted to the
+      reference's own else-if. InWallSuffocationTest 5 +
+      InWallPlayerAcceptanceTest 2. PistonEntityPushTest 4.
 - [x] VIII14+ — (the demand-named backlog, ordered by visibility):
       the biome family (the engine's 7-biome subset vs the
       reference's ~61 — the taiga/swamp/savanna/mesa/ice/extreme-
