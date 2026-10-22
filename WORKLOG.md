@@ -13513,3 +13513,19 @@ Stage Summary:
   baseline and the ranked backlog. The next cycle's order: verify CI
   green + the 128 release, then the 0x0C metadata audit (B-5) paired
   with the attribution pass (B-7 + Phase-3 rerun).
+
+---
+Task ID: ML-001+ML-002
+Agent: main (Z.ai session — the test-deadline census + release-pipeline lane, docs/MASTER_LEDGER.md's two release blockers)
+Task: ML-001 the wall-clock-deadline census over every module test tree + ML-002 the conversions (engine-condition awaits / tick-scaled deadlines) + the release verification (3 green full-suite runs, torch-1.8.8-128+).
+
+Work Log:
+- Branched feature/test-deadline-census off origin/develop (b7a6917, PR #37's merge), identity Abasing <abasing@zaminmc.github.io>.
+- ML-001 LANDED (fd1cf23 + 49df469 + c2ef63f): scripts/test_deadline_census.py (the extractor: every deadline-poll delta, standalone fixed sleep, poll interval, latch/future timeout, @Timeout, nanoTime budget across all five test trees — loop membership by a brace-depth walk, strings/comments blanked, do-while handled) + scripts/test_deadline_census_doc.py (the renderer) + scripts/census_raw.tsv (the raw evidence) + docs/TEST_DEADLINE_CENSUS.md (644 independent sites: 272 deadline polls — 245 generous liveness keeps, 27 hand-audited short bounds; 277 fixed sleeps — 275 C-B conversions over 110 files, 2 no-engine launcher keeps; 94 delivery-bound latches; 3 elapsed-time product assertions; 1 adversarial @Timeout; the #361/#362 trio's dispositions: fishing + bukkit hardened by #37, the RCON 5s FIN-WAIT drain converts in ML-002; the dispenser negative windows convert).
+- ML-002 IN PROGRESS — the plan: (1) the ONE shared utility EngineAwaits (awaitTicks(EngineWorld, ticks, what) — the volatile world.totalTicks() clock, wall backstop 60x nominal floored 30s as a stalled-engine liveness guard only; awaitCondition(world, cond, tickBudget, what) — fails when the engine COMPLETED tickBudget ticks without the condition, the honest tick-scaled deadline) as a zamin-core testFixtures class (java-test-fixtures plugin; protocol + bukkit take testImplementation(testFixtures(project(":zamin-core")))); (2) the RCON FIN-WAIT drain bound 5s -> 30s (detection unchanged, the #362 evidence in the comment); (3) the 9 dispenser negative windows -> awaitTicks; (4) the 275 fixed sleeps across 110 files -> awaitTicks(ceil(ms/50), annotated tick counts win) — scripted conversion with the compiler in the loop (the unique-variable-name rule for the in-scope clock, harness.server for bukkit, stragglers manual); (5) RandomTickLaneTest's pacing loop manual (submit + awaitTicks(1) x40).
+- Release verification NOT YET RUN (needs the conversions landed first): ./gradlew build green, then all five module suites --max-workers=1 twice consecutively, numbers recorded; then the develop-push release runs + torch-1.8.8-128+ publish.
+
+Stage Summary:
+- ML-001 landed on the branch and pushed (3 commits). The census's own refinement catch: the window heuristic misclassified sleeps after closed loops and condition-poll intervals — the brace-depth walk replaced it; the extractor's two regex bugs (newline-eating string class, DOTALL line-comment over-blank) fixed and both re-validated against known sites.
+- The conversion set is final and documented: 285 sites (275 sleeps + 9 dispenser windows + the RCON drain). The keeps are reasoned per family in the census doc.
+- Known flake context for the verification runs: the workflow's retry list carries LifecycleEvent/HopperSystem/HopperWindow; PR #37's hardenings cover fishing + the bukkit MONITOR await; the RCON drain converts in this lane.
