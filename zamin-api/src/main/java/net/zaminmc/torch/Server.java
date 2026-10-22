@@ -164,6 +164,22 @@ public interface Server {
     }
 
     /**
+     * The riding seat-row query surface (§27.3's riding family — the
+     * §29 VII5/VIII1 exposure): the exotic pairs' seat reads beside the
+     * vehicle family's own typed {@code Vehicle.riderEntityId()} — a
+     * mount's seated-rider row, a rider's mount row, and the live seat
+     * census, answering whichever store carries the seat (the
+     * generic-mount registry, the mob mounts' rows, the vehicle seats).
+     * The per-id consults are live reads — simulation context (§27.6,
+     * the documented owner path is {@code World.execute(runnable)});
+     * the census answers a point-in-time copy, consumable from any
+     * thread once obtained. Worlds without live seats answer empty.
+     */
+    default net.zaminmc.torch.entity.Vehicle.SeatRows seatRows() {
+        return net.zaminmc.torch.entity.Vehicle.SeatRows.EMPTY;
+    }
+
+    /**
      * The validated server configuration (§27.3's server-lifecycle read
      * surface): the frozen boot-time settings as an immutable value
      * snapshot. Safe from any thread; the configuration never changes
@@ -213,5 +229,20 @@ public interface Server {
     default String anvilImport(java.nio.file.Path worldFolder) {
         java.util.Objects.requireNonNull(worldFolder, "worldFolder");
         return "The anvil import verb is not implemented by this server";
+    }
+
+    /**
+     * The achievement-table query surface (§27.3's progression family —
+     * the VIII6 exposure): the reference 1.8.8's own 34-row table (every
+     * row's key, name, page column/row, icon, parent chain, challenge
+     * flag and local row — the give-all walk's own declaration order)
+     * plus the per-player unlocked read over the live stats store. The
+     * table is a frozen registration — those reads are pure, safe from
+     * any thread; the per-player read is live-authoritative, consistent
+     * on the player's own simulation context (the same contract as the
+     * {@link Player} body reads).
+     */
+    default net.zaminmc.torch.stat.Achievements achievements() {
+        return net.zaminmc.torch.stat.Achievements.EMPTY;
     }
 }

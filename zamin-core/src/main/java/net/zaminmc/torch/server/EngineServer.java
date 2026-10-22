@@ -334,6 +334,13 @@ public final class EngineServer implements Server, EngineBridge {
     /** The public §27.3 village-census view (null until the world boots). */
     private volatile net.zaminmc.torch.village.Villages villagesView
             = net.zaminmc.torch.village.Villages.EMPTY;
+    /**
+     * The public §27.3 seat-rows view (the VII5/VIII1 exposure): every
+     * consult resolves the engine's own seat stores live (the handle law,
+     * §27.5 — never a second copy), so the view serves from boot; the
+     * unbooted stores answer empty.
+     */
+    private final net.zaminmc.torch.entity.Vehicle.SeatRows seatRowsView = new SeatRowsView();
     /** The village census's own persistence (the ZVI store). */
     private net.zaminmc.torch.server.village.VillageDataStore villageStore;
     /** The redstone signal engine (Slice 9a): the wire cascade + the family dispatch + the delayed reactions. */
@@ -2614,6 +2621,16 @@ public final class EngineServer implements Server, EngineBridge {
                         new net.zaminmc.torch.server.block.GrowthViews(world));
                 // The public §27.3 primed-TNT view: the live fuse bodies.
                 world.attachPrimedTntView(tntSystem::primedBodies);
+                // The public §27.3 decoration-census view (the README
+                // TODO's row 15): the hanging bodies + the stands'
+                // family rows — each enumeration a monitor snapshot over
+                // its own system (the VillageViews shape). The nether
+                // and the End keep the default empty view (the two
+                // systems live on the overworld's store — the engine's
+                // own dimension gate).
+                world.attachDecorationsView(
+                        new net.zaminmc.torch.server.decoration.DecorationViews(
+                                decorations, armorStands));
                 ticker.setTickHandler(() -> {
                     // The /debug profiler's head (MinecraftServer.tick lines
                     // 489-494 + 497): the delayed activation — a profiling
@@ -15726,6 +15743,108 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /**
+     * The live seat-rows view (the api's {@link net.zaminmc.torch.entity.Vehicle.SeatRows}
+     * — the VII5/VIII1 exposure, the exotic pairs' api read beside the
+     * vehicle family's own typed Vehicle.riderEntityId()): every consult
+     * resolves the engine's own seat stores fresh — the generic-mount
+     * registry, the mob mounts' rider rows, the vehicle seats — the
+     * same fields the three follow arms consult each tick (§27.5's
+     * handle law: live state, never a second copy). The stores are
+     * tick-lane-confined; the manager walks copy at query time
+     * ({@code List.copyOf} — the between-ticks instant, never a
+     * half-written walk), and the unbooted managers answer empty.
+     */
+    private final class SeatRowsView
+            implements net.zaminmc.torch.entity.Vehicle.SeatRows {
+
+        @Override
+        public int seatedRiderEntityId(int mountEngineId) {
+            // The generic-mount registry first (the exotic pairs' own
+            // store), then the mob mounts' rows, then the vehicle seats —
+            // whichever store carries the mount's seat answers.
+            java.util.List<GenericMountSeat> seats =
+                    java.util.List.copyOf(genericMountSeats);
+            for (GenericMountSeat seat : seats) {
+                if (seat.mountId() == mountEngineId) {
+                    return seat.riderId();
+                }
+            }
+            if (mobManager != null) {
+                MobEntity mob = mobManager.byId(mountEngineId);
+                if (mob != null && mob.hasRider()) {
+                    return mob.riderId();
+                }
+            }
+            if (vehicleManager != null) {
+                net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle =
+                        vehicleManager.byId(mountEngineId);
+                if (vehicle != null && vehicle.hasPassenger()) {
+                    return vehicle.passengerId();
+                }
+            }
+            return -1;
+        }
+
+        @Override
+        public int mountEntityId(int riderEngineId) {
+            // The rider side (VIII1): the same three stores scanned from
+            // the rider's end — the seat row answered from whichever side
+            // carries it.
+            java.util.List<GenericMountSeat> seats =
+                    java.util.List.copyOf(genericMountSeats);
+            for (GenericMountSeat seat : seats) {
+                if (seat.riderId() == riderEngineId) {
+                    return seat.mountId();
+                }
+            }
+            if (mobManager != null) {
+                for (MobEntity mob : mobManager.all()) {
+                    if (mob.hasRider() && mob.riderId() == riderEngineId) {
+                        return mob.entityId();
+                    }
+                }
+            }
+            if (vehicleManager != null) {
+                for (net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle
+                        : vehicleManager.all()) {
+                    if (vehicle.hasPassenger() && vehicle.passengerId() == riderEngineId) {
+                        return vehicle.entityId();
+                    }
+                }
+            }
+            return -1;
+        }
+
+        @Override
+        public java.util.List<net.zaminmc.torch.entity.Vehicle.SeatRow> seatRows() {
+            java.util.List<net.zaminmc.torch.entity.Vehicle.SeatRow> rows =
+                    new java.util.ArrayList<>(genericMountSeats.size() + 8);
+            for (GenericMountSeat seat : java.util.List.copyOf(genericMountSeats)) {
+                rows.add(new net.zaminmc.torch.entity.Vehicle.SeatRow(
+                        seat.mountId(), seat.riderId()));
+            }
+            if (mobManager != null) {
+                for (MobEntity mob : mobManager.all()) {
+                    if (mob.hasRider()) {
+                        rows.add(new net.zaminmc.torch.entity.Vehicle.SeatRow(
+                                mob.entityId(), mob.riderId()));
+                    }
+                }
+            }
+            if (vehicleManager != null) {
+                for (net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle
+                        : vehicleManager.all()) {
+                    if (vehicle.hasPassenger()) {
+                        rows.add(new net.zaminmc.torch.entity.Vehicle.SeatRow(
+                                vehicle.entityId(), vehicle.passengerId()));
+                    }
+                }
+            }
+            return java.util.List.copyOf(rows);
+        }
+    }
+
+    /**
      * The generic-mount riders' follow (the exotic shapes' arm — the
      * reference's rideTick → updateRiderPositon over the BASE Entity's
      * law, Entity.java line 1353): the seated rider's body — a MOB or any
@@ -17275,6 +17394,34 @@ public final class EngineServer implements Server, EngineBridge {
     public net.zaminmc.torch.village.Villages villages() {
         var view = villagesView;
         return view == null ? net.zaminmc.torch.village.Villages.EMPTY : view;
+    }
+
+    /**
+     * The riding seat-row surface (VII5/VIII1 — the exotic pairs' api
+     * read beside the vehicle family's own typed
+     * {@code Vehicle.riderEntityId()}): the live §27.5 view over the
+     * engine's own seat stores — the generic-mount registry, the mob
+     * mounts' rider rows, the vehicle seats. The per-id consults
+     * resolve live (simulation context, the resolver's own tick-lane
+     * law); the census answers a point-in-time copy.
+     */
+    @Override
+    public net.zaminmc.torch.entity.Vehicle.SeatRows seatRows() {
+        return seatRowsView;
+    }
+
+    /**
+     * The achievement surface (VIII6 — the 34-row table + the per-player
+     * unlocked read): the public §27.3 query view (the frozen table
+     * rows, the by-key lookup, the live per-player unlocked set). The
+     * view is stateless — the table is a static registration and the
+     * per-player read resolves the session's own PlayerStats per call
+     * (§27.5) — so unlike the census view it needs no boot wiring: even
+     * a pre-boot server answers the frozen table.
+     */
+    @Override
+    public net.zaminmc.torch.stat.Achievements achievements() {
+        return net.zaminmc.torch.server.stat.AchievementViews.INSTANCE;
     }
 
     /**
