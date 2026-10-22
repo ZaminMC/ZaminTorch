@@ -72,6 +72,14 @@ final class Protocol18 {
     static final int S2C_TAB_COMPLETE = 0x3A;
     /** Update Sign: packed position long, then the four UTF lines (protocol 47). */
     static final int S2C_UPDATE_SIGN = 0x33;
+    /**
+     * Open Sign Editor (0x36, OpenSignEditorS2CPacket — #55 in the PLAY
+     * registration order, right after Update Block Entity 0x35): the
+     * packed position long alone, the sign placement editor's own trigger
+     * (the reference's ServerPlayerEntity.openSignEditor lines 547-550 —
+     * the client's editor opens ONLY on this packet).
+     */
+    static final int S2C_OPEN_SIGN_EDITOR = 0x36;
     static final int S2C_NAMED_SPAWN = 0x0C;
     /** Attach Entity (0x1B, protocol 47): i32 rider, i32 vehicle, u8 leash/riding. */
     static final int S2C_ATTACH_ENTITY = 0x1B;
