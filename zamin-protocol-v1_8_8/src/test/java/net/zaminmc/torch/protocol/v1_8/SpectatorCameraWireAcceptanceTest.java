@@ -78,10 +78,15 @@ class SpectatorCameraWireAcceptanceTest extends ProtocolTestBase {
             // THE POSITION STREAM: Alice walks, her honest steps stream to
             // every in-range observer — the spectating Bob included (the
             // reference's own tracking: the target's entity stream IS the
-            // camera's motion).
+            // camera's motion). The stream is netty-immediate but the body
+            // follow is tick-aligned, so the engine's own state is awaited
+            // before the exit drives the re-anchor.
             alice.walkTo(8.5, 5.0, 3.5, true);
             readUntilMovementOf(bob, aliceWireIdAtBob,
                     "the target's movement streams to the spectator");
+            awaitCondition(() -> bobSession.position().x() == 8.5
+                            && bobSession.position().z() == 3.5,
+                    "the follow anchored the spectator's body at the walked position");
 
             // THE INVISIBILITY LAW: Carol's view of Bob dies the moment the
             // camera attaches (the reference's broadcastTo + the tracker's
