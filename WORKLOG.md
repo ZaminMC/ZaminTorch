@@ -13596,3 +13596,46 @@ Stage Summary:
   attributes-wire) — incompleteness findings, not regressions.
 - Owner decisions requested: DEC-001 (online-mode scope), ML-008 (/give
   form), PR #37 merge (the release verification path), ML-013 (watchdog).
+
+---
+Task ID: cycle-4-increment-2
+Agent: the coordinator (post-reset session, 2026-10-23)
+Task: Re-establish ground truth after the environment reset; handle PR #37
+per the owner's instruction; re-anchor the exhaustive audit's fork target on
+the owner-supplied KigPaper 1.8.8 tree and run the audit increment.
+
+Work Log:
+- Ground truth re-verified: cycle4-exhaustive-audit was clean/synced at
+  a55aefb2 (6 commits from the pre-reset session); develop had moved
+  48b91574 -> 94f1fed3 (owner supplies KigPaper-ver-1.8.8.zip) ;
+  PR #37 open/clean/CI-less; release #361/#362 red, #363 in_progress.
+- PR #37 squash-merged into develop as b7a6917c (owner instruction
+  "handle the PR yourself"; author Abasing); cycle4 rebased onto it
+  (WORKLOG conflict unioned: cycle-3 entry + cycle-4 entry, --- separator);
+  pushed as 66d94f9b.
+- Architecture re-read (owner's "readit"): laws 1-17, §17, §22 snapshot,
+  §27.9-27.12, §28.7, Standing list; no KigPaper mention anywhere (the zip
+  was the change).
+- KigPaper extracted and identified FROM SOURCE: ProjectKig/KigPaper
+  (README verbatim), fork of 1.8.8 Paper; layer model from applyPatches.sh
+  (Bukkit-Patches=Spigot API delta 29, CraftBukkit-Patches=Spigot server
+  delta 160, Spigot-API-Patches=Paper API delta 78, Spigot-Server-Patches=
+  Paper+KigPaper server delta 258, nms-patches=KigPaper NMS delta 8);
+  submodules empty = upstream sources not in archive (scope boundary).
+- Census: scripts/kigpaper_census.py -> docs/kigpaper-census.json; 533/533
+  enumerated (subject/files/diffstat). nms layer: all 8 read in full and
+  classified (N1 bed action-bar + N5 doWaterFreezing = different-by-design
+  config-gated divergences -> DEC-003; N4 EnumProtocol specialized-packets
+  registry -> ML-022 unverified; N2/N3/N6/N7/N8 Guava-hygiene NA).
+- Deliverables landed (commit a842e782): KIGPAPER_PATCH_ACCOUNTING.md,
+  kigpaper-census.json + script (repo-relative), MASTER_LEDGER rows
+  ML-022/ML-023 + DEC-003, COMPATIBILITY_MATRIX fork row #2,
+  CYCLE4_EXHAUSTIVE_AUDIT increment-2 section.
+
+Stage Summary:
+- The fork target is re-anchored on KigPaper; Folia stays lessons-only.
+- Audit NOT end-to-end done: ML-023 (per-patch deep classification of the
+  418 server-stack patches) is the quantified remainder; the census is
+  committed so any future session resumes from it.
+- No production code, tests, or behavior changed. PR #37 merged per owner
+  instruction; release run #363 outcome still pending at commit time.
