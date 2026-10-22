@@ -138,8 +138,15 @@ exposure, then concurrency phases, then standing deferrals.
    tick (the poll's 100-tick grace never applies), the frame item + the
    loaded item + the painting item dropping through the null-attacker arm.
    The piston half stays ledgered with the piston family.
-7. The ender dragon's respawn ritual (the four-end-crystal fountain —
-   `DragonDataStore`'s own javadoc names it "its own future slice").
+7. ~~The ender dragon's respawn ritual (the four-end-crystal fountain —
+   `DragonDataStore`'s own javadoc names it "its own future slice")~~ —
+   RETIRED WITH EVIDENCE 2026-10-22: NOT a 1.8.8 mechanic. The reference
+   carries no ritual (EnderCrystalEntity is the simple 1.8.8 form; the
+   DragonRespawnAnimation fountain came with 1.9) — and the engine already
+   matches 1.8.8 exactly here: no respawn, the ZDR defeated mark, the egg
+   on the portal. A ritual would be a post-1.8.8 feature — out of scope
+   for the 1.8.8 target unless the owner alone asks for it (the
+   DragonDataStore javadoc carries the same boundary).
 8. The thorns wildcard's mob-victim arm (an armored mob's retaliation — the
    walk reads only the player rows today; verify against VIII4's equipment
    family and wire the mob arm).

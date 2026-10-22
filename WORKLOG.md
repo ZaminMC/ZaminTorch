@@ -12583,3 +12583,27 @@ Stage Summary:
   world-event radius (10). The piston half of the interplay stays
   ledgered with the piston family (no decoration consult in the engine's
   pistons yet).
+---
+Task ID: dragon-respawn (the README TODO's row 7)
+Agent: main (Abasing session — the 2026-10-22 continuation)
+Task: The ender dragon's respawn ritual — the four-end-crystal fountain.
+
+Work Log:
+- Verified the reference: the 1.8.8 decompile carries NO respawn ritual —
+  EnderCrystalEntity is the simple 1.8.8 form (the render clock, the fire
+  write, the heal link living on the dragon side); the
+  DragonRespawnAnimation fountain (the four crystals on the portal edges,
+  the beam search) came with 1.9. Grep across the whole reference: no
+  RespawnAnimation, no respawnDragon, no summonDragon.
+- The engine already matches 1.8.8 exactly here: no respawn (the ZDR
+  defeated mark prevents the boot re-spawn), the egg on the portal, the
+  death walk's XP batches + the portal spawn.
+- Retired the row with the evidence: a ritual would be a post-1.8.8
+  feature — out of scope for the 1.8.8 target unless the owner alone asks
+  for it. The DragonDataStore javadoc's "its own future slice" note
+  repaired to carry the same boundary.
+
+Stage Summary:
+- README TODO row 7 retired (evidence-based, owner-reversible). Remaining
+  vanilla rows: the thorns mob arm (8), the wither exemptions (9), the
+  world-event radius (10).
