@@ -144,7 +144,11 @@ class WorldBorderTest {
         border.setSize(10.0);
         border.setSize(10.0, 20.0, 100L);
         assertTrue(border.isGrowing());
-        EngineAwaits.awaitTicks(server.world(), 2, "engine progress (a 60 wall settle)");
+        // The lerp walk is the PRODUCT's own wall-clock behavior (vanilla
+        // lerps the border over real milliseconds) — no engine is booted
+        // here and no tick clock exists; the wall sleep is the honest
+        // wait (the census's genuine-product-time family).
+        Thread.sleep(60);
         double midway = border.getLerpSize();
         assertTrue(midway > 10.0 && midway < 20.0, "the wall-clock walk advances: " + midway);
         try {
