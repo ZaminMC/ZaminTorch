@@ -12375,3 +12375,46 @@ Stage Summary:
 - SESSION DELIVERED: 9 PRs processed (six as coordinator: #19-#24 with two cross-PR/cross-slice repairs — the Pushable apiEntity() semantic gap and the slice-3/slice-4 diamond-hoarder fixture collision; three as implementer/coordinator: #25/#26/#27) + the VIII14 local-difficulty completion + the two stale-table repairs
 - Wave VIII's ledger after the session: VIII14's backlog holds ONLY the ambient-sound cadence (the decorators record's own assignment — instance 9's lane); the map family (Wave X per #26's docs) and the remote-admin protocols landed whole
 - The VIII9 reinforcement callee's dimension gap closed as part of #27 (the callee body carries caller.dimension(), the reference's own world)
+---
+Task ID: ambient-cadence (VIII14 — the wave's last open row)
+Agent: main (Abasing session — the 2026-10-22 continuation, the environment-reset resync)
+Task: The VIII14 ambient-sound cadence 1:1 — the last open Wave VIII row — plus the
+README pending-work ledger and the session resync after the environment reset.
+
+Work Log:
+- Resynced after the environment reset: recloned, identity Abasing set, the working tree
+  clean at 58dcae00; audited every pending-work source (Torch-Arcetecture §22/§29, the
+  compat ledger's section 10, NATIVE_API_CAPABILITIES §9, the WORKLOG tail) and verified
+  each named gap against the code — the definitive pending list landed as README.md's
+  "Remaining work" TODO ledger (25 rows, 9e742e01): the VIII14 ambient cadence, the
+  vanilla-grade gaps (in-wall suffocation, climb-out assist, water travel model, the
+  explosion resistance table, explosion x decorations, the dragon respawn ritual, the
+  thorns mob arm, the wither exemptions, the 64-block world events), the Wave IX api tail,
+  the gated concurrency phases, the standing deferrals. The stale rows repaired (the
+  anvil import IS implemented; the milestone line).
+- Landed the ambient-sound cadence whole (7329a3f9): the reference's baseTick law
+  verbatim (the named adaptation's 160+nextInt(320) RETIRED — the ctor's own draw gone,
+  every mob's construction stream shifted one nextInt), the family table (intervals,
+  volumes, the baby/adult pitch), the idle-name repairs (cow/chicken 'say', villager
+  'haggle'), the enderman angry arm, the villager trade arms (the reset + the 20-tick
+  gate with the 'no' voice at tradeSelect).
+- THE BRIDGE REPAIR (the slice's own find): EngineServer's MobEventDispatch carried only
+  52 of the Listener interface's 64 events — the seventeen missing ones fired on the
+  MobManager and DIED at the bridge; a real boot never heard them (every volume/pitch
+  mob sound, the guardian/witch/blaze/ghast/zombie state metadata, the door-knock world
+  event). The package tests never caught it — their harnesses register directly on the
+  manager. All seventeen re-fans landed, proven through the REAL boot path
+  (MobEventBridgeAcceptanceTest).
+- The re-pins the ctor-draw removal forced: BlazeEntityTest's melee seed 82->2,
+  MobSolverWalkTest's guardian seabed 7->1, MobEntityTest's cadence bands (the old
+  2-8-in-1200 window re-pinned to the 1:1 law: first play [2,1001], gaps [121,1120]).
+- Verified by package group: the entity batch 453 (the two stream-coupled failures
+  seed-hunted and re-pinned), world/spawn/village, block/physics/redstone/piston, the
+  root A-D/E-L/M-Z chunks, the misc package batches whole, noteblock, protocol 117
+  (ChestIntegrationTest one timing flake, 4/4 isolated-green, the known load-flake
+  class), api, bukkit, launcher — all green.
+
+Stage Summary:
+- WAVE VIII IS COMPLETE — the backlog holds NOTHING further; the README TODO's item 1
+  retired. The next rows in the pending ledger: the living family's in-wall suffocation
+  (the piston-crush tail), the climb-out assist, the Wave IX api-exposure tail.

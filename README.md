@@ -94,19 +94,13 @@ pending tail, verified against the code on 2026-10-22. Architecture-file rows
 (`Torch-Arcetecture.txt`) come first, then vanilla-grade 1:1 gaps, then API
 exposure, then concurrency phases, then standing deferrals.
 
-### A. Architecture ledger (Torch-Arcetecture.txt §29 Wave VIII14+ — the last open row)
+### A. Architecture ledger (Torch-Arcetecture.txt §29 Wave VIII)
 
-1. The ambient-sound cadence, 1:1 (the ONLY remaining Wave VIII row): replace
-   the engine's named-adaptation idle clock (`160 + nextInt(320)`) with the
-   reference's exact law — `MobEntity.baseTick` lines 151-159
-   (`random.nextInt(1000) < ambientSoundDelay++`, reset to
-   `-getAmbientSoundInterval()`), the per-family interval band (default 80,
-   AnimalEntity 120, WaterMobEntity 120, GolemEntity 120, GuardianEntity 160,
-   HorseBaseEntity 400), the play pair through `getSoundVolume()`/`getSoundPitch()`
-   (ghast 10.0, horse 0.8, cow/ocelot/wolf/squid 0.4, bat 0.1, slime 0.4*size;
-   baby `(r-r)*0.2+1.5` vs adult `(r-r)*0.2+1.0`), the volume/pitch-carrying
-   fan (`onMobSoundAt`), and the villager's trade arms
-   (`VillagerEntity.trade`'s delay reset + `updateOffer`'s 20-tick yes/no gate).
+1. ~~The ambient-sound cadence, 1:1~~ — LANDED 2026-10-22 (7329a3f9): the
+   reference's baseTick law whole, the family table, the idle-name repairs,
+   the villager trade arms, and THE BRIDGE REPAIR (MobEventDispatch's
+   seventeen missing event re-fans — a real boot never heard them before).
+   Wave VIII is complete.
 
 ### B. Vanilla-grade 1:1 gaps (named in the ledgers, verified unported in the code)
 
