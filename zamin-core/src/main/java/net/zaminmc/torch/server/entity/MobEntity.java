@@ -591,6 +591,13 @@ public final class MobEntity implements LivingEntity {
     private final GoalSelector goals = MobGoals.standard();
     // The registration surface built on first use (the public goals() view).
     private net.zaminmc.torch.entity.ai.GoalRegistration goalRegistration;
+
+    /**
+     * The door-break read's live view (created once, on first use — the
+     * same lazy shape {@link #goals()} carries; stateless over the body's
+     * own fields, so one view serves every read, §27.5).
+     */
+    private net.zaminmc.torch.entity.ai.DoorBreak doorBreakView;
     // The owner-lane admission for mind mutations (wired by the manager at
     // spawn; null in bare harnesses — the caller then owns the context).
     private java.util.function.Consumer<Runnable> goalAdmission;
@@ -951,6 +958,55 @@ public final class MobEntity implements LivingEntity {
             goalRegistration = surface;
         }
         return surface;
+    }
+
+    /**
+     * The built-in door-break read (VIII9 — the BREAK_DOOR band's arming
+     * + progress, the §27.10 exposure beside {@link #goals()}): the live
+     * view over the body's own walk state — the {@code CanBreakDoors}
+     * flag, the armed capture, the door cell, the 240-tick clock. Present
+     * on the zombie family alone (the goal never arms on another kind —
+     * {@link #setZombieCanBreakDoors}'s own gate); every other body
+     * answers the api's empty default. Read-only: the walk itself stays
+     * exactly as tested (the selector's own band-1 law).
+     */
+    @Override
+    public java.util.Optional<net.zaminmc.torch.entity.ai.DoorBreak> doorBreak() {
+        if (type != MobType.ZOMBIE) {
+            return java.util.Optional.empty();
+        }
+        net.zaminmc.torch.entity.ai.DoorBreak view = doorBreakView;
+        if (view == null) {
+            view = new DoorBreakView();
+            doorBreakView = view;
+        }
+        return java.util.Optional.of(view);
+    }
+
+    /**
+     * The live door-break view (§27.5 — the engine object IS the handle:
+     * every read resolves to the body's own state at the call, never a
+     * copy; the per-call {@link net.zaminmc.torch.block.BlockPosition}
+     * answer is the immutable cell value).
+     */
+    private final class DoorBreakView implements net.zaminmc.torch.entity.ai.DoorBreak {
+
+        @Override public boolean canBreakDoors() {
+            return zombieCanBreakDoors;
+        }
+
+        @Override public boolean breaking() {
+            return zombieDoorBreakArmed;
+        }
+
+        @Override public net.zaminmc.torch.block.BlockPosition doorPosition() {
+            return new net.zaminmc.torch.block.BlockPosition(
+                    zombieBreakDoorX, zombieBreakDoorY, zombieBreakDoorZ);
+        }
+
+        @Override public int progress() {
+            return zombieBreakDoorProgress;
+        }
     }
 
     @Override

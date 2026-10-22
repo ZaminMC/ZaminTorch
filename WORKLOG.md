@@ -12723,6 +12723,80 @@ Stage Summary:
   clamped engine writes and every rider untouched); one new seam
   (EquipmentWritePath) + one wiring block + one test file.
 
+Task ID: wave-2-row-18 (the door-break arming read — the README TODO's
+row 18, one of the eight api-exposure lanes of the 2026-10-22 second
+parallel wave)
+Agent: Abasing (instance lane door-break-api, off develop b6ddf155)
+Task: VIII9's builtin-goal arming + progress exposed — the §27.10 row
+the door-break goal's read family carries no api surface beside the
+custom-goal registration family.
+
+Work Log:
+- Oriented per the task's own study list: README row 18 + the rows-1-7
+  landing form, Torch-Arcetecture §27.3/§27.5/§27.6/§27.10 (the
+  complete-exposure law, the handle law, the live-read declaration law,
+  the capability test law), NATIVE_API_CAPABILITIES §9's VIII9 row (the
+  PARTIAL state this lane closes), the VIII9 record (§29 + the
+  zombie-village worklog entry) and its evidence tests.
+- Read the reference whole before touching anything: BreakDoorGoal
+  (lines 9-10 the progress pair, 17-19 the arming gate, 27-31 the sticky
+  walk, 40-57 the tick: the 1-in-20 knock, the stage publication, the
+  HARD-alone completion) over AbstractDoorInteractGoal (lines 14 the
+  door cell, 28-53 the capture walk, the squared-2.25 band + the
+  fallback cell above the body).
+- Surveyed the engine's exposure set (what the walk tracks today, all
+  tested by ZombieAttributesTest): the CanBreakDoors flag, the armed
+  capture, the door cell triple, the 240-tick clock — plus the
+  manager's bridge (the stage/knock/broken drain the EngineServer
+  listener rides).
+- Studied the established exposure patterns: villages() (the additive
+  default + the engine facade + VillageViews), the per-mob CargoView
+  shape (Vehicle.cargo()), the goals() cached-lazy view on MobEntity,
+  GoalRegistration's javadoc threading forms, GoalApiAcceptanceTest and
+  VillageApiAcceptanceTest's shapes, BreedingAndDonkeyChestTest's
+  manager-tick rig.
+- Implemented: entity.ai.DoorBreak (the four reads, the reference-cited
+  javadoc, the §27.6 threading law — the goal walk is tick-lane, the
+  reads consistent on the simulation context, best-effort off-lane);
+  the additive default LivingEntity.doorBreak() (empty on non-zombies,
+  a zombie answers the view armed or not — the unarmed state is itself
+  the read); the MobEntity @Override (the cached live view over the
+  body's OWN fields — §27.5, never a copy; the walk itself untouched).
+- Wrote DoorBreakApiAcceptanceTest 3 (in the entity package, reusing
+  VIII9's own fixtures as the task directs — the DoorWorld harness +
+  the clip-site capture + the spawn-dice verb; every READ through the
+  api-typed handle, no cast on any read): the arming read (the seeded
+  spawn-dice arm at the HARD-fresh multiplier 1.0, the NBT row's
+  landing verb, the EASY multiplier's unarmed state, the pig's
+  kind-gated empty optional); the progress read over the LIVE walk (240
+  manager ticks driving the REAL selector — the door target holding the
+  cell, the clock counting the walk's own ticks at the sampled points,
+  the completion landing through the manager's bridge with the eleven
+  0-10 stage publications, the post-walk state: the capture released,
+  the clock reset, the arming flag persisting — the reference's own
+  shape); the unarmed control (the capture verb's refusal, thirty live
+  ticks owning nothing, no bridge events).
+- Verified in package batches under --no-daemon (never the whole-suite
+  single run): the new suite 3/3 green; GoalApiAcceptanceTest +
+  ZombieAttributesTest + TemptBegGoalsTest green (the goal family + the
+  VIII9 pins unchanged); :zamin-api:test green;
+  :zamin-bukkit:compileJava green; the entity package batch 466/0
+  (entity 357 + ai.pathing 6 + projectile 39 + vehicle 64);
+  EntityApiAcceptanceTest + EntityFamilyApiAcceptanceTest +
+  EntitySpawnEventAcceptanceTest green.
+- The ledgers: NATIVE_API_CAPABILITIES §9's VIII9 row closed (EXPOSED,
+  7aee4589), the README TODO's row 18 retired in the rows-1-7 form,
+  this entry.
+
+Stage Summary:
+- Row 18 landed whole: the builtin goal's arming + progress read through
+  entity.ai.DoorBreak over LivingEntity.doorBreak() — additive,
+  region-local, the walk untouched, the capability proven through the
+  api alone (DoorBreakApiAcceptanceTest 3 + the green batches).
+- The lane's surfaces: the goal-family package (DoorBreak beside
+  Goal/GoalRegistration), LivingEntity's default, MobEntity's facade —
+  the union-merge class the wave-2 lane map named for this region.
+
 ---
 Task ID: fishing-api (the README TODO's row 17 — the wave-2 lane)
 Agent: main (Abasing session — the 2026-10-23 continuation)
