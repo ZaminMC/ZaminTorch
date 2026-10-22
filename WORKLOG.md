@@ -12418,3 +12418,28 @@ Stage Summary:
 - WAVE VIII IS COMPLETE — the backlog holds NOTHING further; the README TODO's item 1
   retired. The next rows in the pending ledger: the living family's in-wall suffocation
   (the piston-crush tail), the climb-out assist, the Wave IX api-exposure tail.
+---
+Task ID: in-wall-suffocation (the README TODO's row 2)
+Agent: main (Abasing session — the 2026-10-22 continuation)
+Task: The living family's in-wall suffocation 1:1 — mobs and players — closing
+the VIII13 piston-crush tail with it.
+
+Work Log:
+- Landed the whole arm (efea3091): Entity.isInWall's eight-point survey
+  (the y pair at eye +/- 0.05, the x/z pairs at +/- 0.4*width, the
+  distinct-cell dedup), the view-blocking consult (WorldQuery.viewBlockingAt
+  default + the live dimension-aware override over CollisionShapes.isFullCube
+  made public), the mob arm (the 10-tick timer convention the lava arm rides),
+  the player arm (the hurt-i-frame through beginHurtInvulnerability), and the
+  border arm demoted to the reference's own else-if.
+- Debugged the test harness: the BandWorld needed a ground plane (the body
+  fell through the open world taking fall damage), the dead-body assertion
+  re-shaped (isInWall itself carries no gate — the reference's isAlive wraps
+  the arm, not the survey), the player join needed joinCompleted.
+- Verified: InWallSuffocationTest 5 + InWallPlayerAcceptanceTest 2 + the
+  entity batch + BodySurvival + root B-D + world/spawn green + protocol 117
+  (SurvivalFlow one timing flake, isolated-green, the known class).
+
+Stage Summary:
+- README TODO row 2 retired; the next rows: the climb-out assist (3), the
+  water travel model (4), the explosion family (5-6).

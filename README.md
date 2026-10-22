@@ -104,10 +104,11 @@ exposure, then concurrency phases, then standing deferrals.
 
 ### B. Vanilla-grade 1:1 gaps (named in the ledgers, verified unported in the code)
 
-2. The living family's in-wall suffocation (`LivingEntity.baseTick` lines
-   195-197: `isInWall()` → `IN_WALL` 1.0 damage; `Entity.isInWall`'s 8-point
-   eye-band view-blocking consult) — mobs AND players; also closes the
-   piston-crush tail named in Wave VIII13.
+2. ~~The living family's in-wall suffocation~~ — LANDED 2026-10-22
+   (efea3091): the eight-point eye survey, the view-blocking consult
+   (isCube over the movement-blocking material), the 10-tick cadence on
+   mobs + the hurt-i-frame on players, the border arm demoted to the
+   reference's else-if. The VIII13 piston-crush tail closed with it.
 3. The climb-out assist (the lava/water pool-exit:
    `collidingHorizontally && canMove(+0.6)` → `velocityY = 0.3`, the step
    model's own slice named in the lava-drag row).
