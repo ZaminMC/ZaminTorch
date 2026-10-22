@@ -12766,6 +12766,83 @@ Stage Summary:
 - The §27.10 gap repaired before merge: the fishing api's capability now
   carries its plugin-facing proof. The lane merges with this correction.
 
+Task ID: wave-2-row-13 (the anvil-import api lane)
+Agent: Abasing (instance 3 of the wave-2 nine — README TODO row 13)
+Task: Server.anvilImport() — the plugin-facing import verb over the same
+I/O lanes (the ledger report as the return), branched anvil-import-api off
+develop b6ddf155.
+
+Work Log:
+- Oriented on the established surfaces (no own design invented): the README
+  TODO row 13 + NATIVE_API §9's demand-named row; Torch-Arcetecture §27.3
+  (the complete-exposure law), §27.10 (the capability-ledger law — a
+  capability is exposed only when a plugin-facing test proves it), §31.4/
+  §31.6 (the explicit-import decision + the counted-refusal census), §6/
+  §15 (the ownership/threading laws); the precedents: villages() (the api
+  default method + the EngineServer @Override facade pattern),
+  BlockingIoApiAcceptanceTest (the blocking-I/O api acceptance form),
+  AnvilImportAcceptanceTest + AnvilFixture (the command's own walk and
+  fixture worlds).
+- The api surface: an additive default method on Server — anvilImport(Path)
+  returning the walk's own final answer row (the same report the operator
+  command prints: the §31.6 ledger summary on success, the refusal/
+  abandonment rows otherwise, the gate's row on a concurrent call — no
+  second report format); the javadoc documents the full row grammar + the
+  §28.1 threading law (the caller parks, the gameplay lane never blocks,
+  the simulation lane itself refused loudly, the shutdown arm answered).
+- The engine facade: EngineServer.anvilImport @Override riding the ONE
+  authoritative route — startAnvilImport extracted from
+  anvilImportCommand carries the boot gates, the one-import gate, the
+  content seams, and the I/O-lane walk both callers share; the api caller
+  parks on a CompletableFuture completed by every terminal arm, with a
+  250ms poll absorbing the one undrained arm (a shutdown mid-walk — the
+  stop walk takes the lanes down without moving the generation, so the
+  park answers the abandonment row on STOPPED/a dead STOPPING instead of
+  hanging a plugin thread). The api route's progress rows log to the
+  engine logger (a plugin-triggered import stays operator-observable).
+- THE NEVER-THROW REPAIR the exposure demanded: the open phase and each
+  region read returned their failures by THROWING from the I/O task —
+  the BlockingIoLane discards a failed task without ANY delivery (no
+  fresh arm, no stale arm), so the walk's own javadoc promise ("a missing
+  level.dat or region/ is a loud refusal, never a default world, §31.6")
+  never reached anyone and the one-import gate stranded forever. The I/O
+  tasks now return refusal rows as values (AnvilOpen/AnvilRegionRead
+  gained the refused form); every terminal arm (finish, refusal,
+  abandonment, a lane's loud rejection, the defensive drain catch around
+  importRegionBytes) reports, releases the gate, and answers the caller.
+  The command's observable behavior on every previously-tested path is
+  unchanged (world.anvil.* 45/0 proves it).
+- The §27.10 capability test: AnvilImportApiAcceptanceTest 4/0 through
+  the api type alone — the report's census rows + api-pure world reads
+  (blocks/biome/spawn through Server.worlds()) + the tick-lane-keeps-
+  ticking law (the caller parks on a foreign thread while the tick
+  counter marches across the walk); the missing-level.dat refusal + the
+  gate's release (the never-throw repair's liveness); the shared-gate
+  proof (the operator command's walk started through the synchronous
+  RCON console route, the api's concurrent call answering the gate's own
+  row — with the bounded retry that honestly closes the coalescing race:
+  a small-fixture walk can finish inside a single drain pass, so a
+  missed round observes two completed walks and the next round meets the
+  gate); the api route's log observability.
+- The test-design lesson recorded: consoleCommand QUEUES the dispatch
+  onto the tick lane (the command body has not run when it returns) —
+  the synchronous RCON route (runRconCommand) is the test-facing entry
+  whose return proves the walk is in flight.
+- Batches (all --no-daemon, package-grouped): AnvilImportApi* 4/0;
+  world.anvil.* 45/0; :zamin-api:test green; ConsoleCommandTest +
+  BlockingIoApiAcceptanceTest + rcon.* green; nbt.* green; the
+  api-acceptance neighbors (Village/Entity/AsyncCompute) green;
+  WorldSavePipelineTest + StorageBoundaryTest green.
+- Ledger duties in the same commit as the code: NATIVE_API §9's anvil
+  import row CLOSED, README TODO row 13 retired with the landing hash,
+  this entry appended.
+
+Stage Summary:
+- Row 13 LANDED (a855c418 + d29b0f55 on anvil-import-api): the api verb
+  over the one authoritative route, the never-throw gate-liveness repair,
+  the capability test, the three ledgers. PR open against develop — NOT
+  self-merged (the coordinator reviews).
+
 
 ---
 Task ID: mount-seats-api (the README TODO's row 14)
