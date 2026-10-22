@@ -44,6 +44,10 @@ class Protocol18ConformanceTest {
         m.put("S2C_RESPAWN", 0x07);
         m.put("S2C_PLAYER_POSITION_AND_LOOK", 0x08);
         m.put("S2C_HELD_ITEM_CHANGE", 0x09);
+        // Use Bed: #11 in the client's registration order (NetworkProtocol
+        // line 132 — between SelectSlot 0x09 and Animation 0x0B): the
+        // multiplayer sleep pose (ML-010, PlayerSleepS2CPacket).
+        m.put("S2C_USE_BED", 0x0A);
         m.put("S2C_ANIMATION", 0x0B);
         m.put("S2C_NAMED_SPAWN", 0x0C);
         m.put("S2C_COLLECT_ITEM", 0x0D);

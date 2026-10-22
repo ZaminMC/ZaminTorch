@@ -5310,6 +5310,47 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     }
 
     /**
+     * Use Bed (0x0A) aimed at this observer's own body: the sleep pose at
+     * the bed head cell — the reference's ServerPlayerEntity.trySleep self
+     * arm (the trailing {@code networkHandler.sendPacket(packet)} after the
+     * tracker fan, lines 491-501). Any thread.
+     */
+    void sendSelfUseBed(net.zaminmc.torch.block.BlockPosition bedHead) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(16);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_USE_BED);
+        ByteBufOps.writeVarInt(out, ownEntityId);
+        ByteBufOps.writePackedBlockPosition(out, bedHead.x(), bedHead.y(), bedHead.z());
+        channel.writeAndFlush(out);
+    }
+
+    /**
+     * Use Bed (0x0A) for a tracked remote player (the reference's
+     * EntityMap.sendPacket arm over the trackers — the sleeping pose the
+     * observers render at the bed head cell), the entity id resolved
+     * through this observer's own id space. Any thread.
+     */
+    void sendRemotePlayerUseBed(java.util.UUID remoteUuid,
+                                net.zaminmc.torch.block.BlockPosition bedHead) {
+        Integer entityId = remoteEntityIds.get(remoteUuid);
+        if (entityId == null) {
+            return; // not visible to this observer
+        }
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(16);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_USE_BED);
+        ByteBufOps.writeVarInt(out, entityId);
+        ByteBufOps.writePackedBlockPosition(out, bedHead.x(), bedHead.y(), bedHead.z());
+        channel.writeAndFlush(out);
+    }
+
+    /**
      * Explosion (0x27, community-verified layout: f32 xyz, f32 radius, i32
      * count of i8-triplet block offsets, f32 playerMotion xyz — the client
      * applies its own vector and plays the sound + particles itself). Any
