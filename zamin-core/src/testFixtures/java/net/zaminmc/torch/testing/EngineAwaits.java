@@ -46,8 +46,7 @@ public final class EngineAwaits {
             throws InterruptedException {
         long start = world.totalTicks();
         long target = start + ticks;
-        long stalled = System.currentTimeMillis()
-                + Math.max(30_000L, ticks * 50L * 60L);
+        long stalled = System.currentTimeMillis() + backstopMillis(ticks);
         while (world.totalTicks() < target) {
             if (System.currentTimeMillis() > stalled) {
                 throw new AssertionError("The engine stalled mid-wait: " + what
@@ -56,6 +55,15 @@ public final class EngineAwaits {
             }
             Thread.sleep(25);
         }
+    }
+
+    /**
+     * The stalled-engine backstop: 10x the nominal window, floored at 30s
+     * and capped at 5 minutes — a liveness guard for a dead engine, never
+     * a performance assertion, and never an unbounded hang.
+     */
+    private static long backstopMillis(long ticks) {
+        return Math.max(30_000L, Math.min(ticks * 50L * 10L, 300_000L));
     }
 
     /**
@@ -76,8 +84,7 @@ public final class EngineAwaits {
             long tickBudget, String what) throws InterruptedException {
         long start = world.totalTicks();
         long tickDeadline = start + tickBudget;
-        long stalled = System.currentTimeMillis()
-                + Math.max(30_000L, tickBudget * 50L * 60L);
+        long stalled = System.currentTimeMillis() + backstopMillis(tickBudget);
         while (!condition.getAsBoolean()) {
             if (world.totalTicks() >= tickDeadline) {
                 throw new AssertionError("Condition not met within " + tickBudget
