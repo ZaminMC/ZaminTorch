@@ -164,6 +164,22 @@ public interface Server {
     }
 
     /**
+     * The riding seat-row query surface (§27.3's riding family — the
+     * §29 VII5/VIII1 exposure): the exotic pairs' seat reads beside the
+     * vehicle family's own typed {@code Vehicle.riderEntityId()} — a
+     * mount's seated-rider row, a rider's mount row, and the live seat
+     * census, answering whichever store carries the seat (the
+     * generic-mount registry, the mob mounts' rows, the vehicle seats).
+     * The per-id consults are live reads — simulation context (§27.6,
+     * the documented owner path is {@code World.execute(runnable)});
+     * the census answers a point-in-time copy, consumable from any
+     * thread once obtained. Worlds without live seats answer empty.
+     */
+    default net.zaminmc.torch.entity.Vehicle.SeatRows seatRows() {
+        return net.zaminmc.torch.entity.Vehicle.SeatRows.EMPTY;
+    }
+
+    /**
      * The validated server configuration (§27.3's server-lifecycle read
      * surface): the frozen boot-time settings as an immutable value
      * snapshot. Safe from any thread; the configuration never changes
