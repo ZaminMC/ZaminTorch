@@ -13513,3 +13513,86 @@ Stage Summary:
   baseline and the ranked backlog. The next cycle's order: verify CI
   green + the 128 release, then the 0x0C metadata audit (B-5) paired
   with the attribution pass (B-7 + Phase-3 rerun).
+
+---
+Task ID: ml-005-ml-009
+Agent: Abasing (the ops-papercuts lane)
+Task: The cycle-3 audit's ML-005 + ML-009 rows — /op offline profiles
+through the persisted-player cache (B-3), the --port CLI precedence and
+the unclean-exit disconnect noise (B-4, first two items); branch
+feature/ops-papercuts off b7a6917c.
+
+Work Log:
+- Phase 0: read the reference whole (the dedicated OpCommand lines 30-39
+  + DeOpCommand lines 29-38 + GameProfileCache — the cache resolution
+  law and its lowercase keys; Connection.exceptionCaught lines 110-119 +
+  ServerPlayNetworkHandler.onDisconnect line 573 — the quiet
+  "Internal Exception" walk), OpStore/PlayerDataStore (the .zpd header
+  carries the name), the /op//deop commands, LauncherRuntime (args dead
+  since the first boot), and V18Connection's exceptionCaught. The
+  1.8.8 en_US.lang lines verified against the period assets:
+  commands.op.failed = "Could not op %s".
+- ML-005: server/ops/PlayerProfileCache — the reference's
+  GameProfileCache role over ONLY persisted identities (the .zpd census
+  through PlayerDataStore's new persistedNames() header read, ops.json's
+  own rows, this run's joins through the accept-site add);
+  case-insensitive over the canonical case, no expiry (no usercache
+  file — a deliberate boundary), concurrent-map thread-safety. /op's
+  offline arm writes through OpStore at level 4, answers the engine's
+  established success line, and refuses an unknown name with the
+  reference's commands.op.failed line. /deop studied and left alone:
+  its own offline walk already resolves over ops.json (the reference's
+  getOps().getProfile shape) — no defect to fix.
+- ML-009a: launcher/StartupArguments — the dedicated server's
+  precedence CLI > properties > default (--port <n> and --port=<n>,
+  last wins, malformed flags fail boot loudly, the range law stays
+  EngineConfig's compact constructor through the new withPort copy);
+  the override logged at config time, the effective port on the
+  standing "Server ready" line, the properties file never written back;
+  the remote-admin ports keep their own rows' resolved values.
+- ML-009b: V18Connection.exceptionCaught classifies the IOException
+  family (reset / broken pipe / EOF) to the reference's one quiet
+  disconnect line — the engine's own "Player disconnected" record
+  carrying the vanilla "Internal Exception: <cause>" reason (the cause
+  stays, the stacktrace goes), a pre-session reset one connection-side
+  INFO line, genuinely unexpected failures unchanged-loud (WARNING +
+  the throwable).
+- Tests: OpOfflineProfileAcceptanceTest 2 (the same-run arm: the
+  join-quit-op + the unknown refusal + the unchanged online arm; the
+  restart arm: the boot census + the ops.json-only seed + the returning
+  player entering already opped), StartupArgumentsTest 6 (the
+  precedence ladder, both flag forms, the loud malformed failures, the
+  no-write-back proof, the out-of-range refusal),
+  DisconnectClassificationTest 2 (the real-wire RST: zero WARNING
+  records, zero thrown-bearing records, exactly one quiet line with
+  "Internal Exception"; the malformed chat frame: the WARNING with its
+  throwable + the "protocol error" walk; both leave the server
+  RUNNING). TestClient18 gained the additive resetAbruptly()
+  (SO_LINGER(0) + close — the RST shape). Two rig lessons recorded in
+  the test bodies: the scripted client must keep draining the socket
+  after login (the join burst otherwise overflows the receive buffer
+  and RSTs before the frame is read), and the login helper must ride
+  the CALLER's client (a helper-internal client leaves the real one
+  unread — the same RST family, found the hard way through an
+  EmbeddedChannel probe).
+- Verification (all --no-daemon --max-workers=1): assemble green
+  (every module compiled + jarred); :zamin-core:test 2199/0 over 370
+  classes (run in five snapshot-chunked batches — the whole-module run
+  exceeds the ten-minute window); :zamin-launcher:test 53/0;
+  :zamin-protocol-v1_8_8:test 120/0; :zamin-api:test 19/0;
+  :zamin-bukkit:test 52/0. Zero failures, zero errors everywhere.
+- Ledgers: Torch-Arcetecture.txt §29 Wave ML (the two rows' landed
+  records) + §22 Phase 0's audit line (the backlog worked down: B-3 +
+  the first two B-4 rows landed, the next cycle's order unchanged);
+  VANILLA_1_8_8_COMPATIBILITY.md untouched (no "Ledgered:" row matches
+  these mechanics — verified against the ledger's own rows); README +
+  docs/ audit files the coordinator's per the lane order.
+
+Stage Summary:
+- /op now pre-ops joined-but-offline players exactly like the reference
+  (the persisted-identity cache, no new persistence format); --port
+  wins over server.properties with the boot log saying so; an abrupt
+  client reset answers one quiet vanilla-shaped line instead of a
+  WARNING + stacktrace while real protocol failures stay loud.
+  Branch: feature/ops-papercuts; PR opened against develop (not
+  merged).
