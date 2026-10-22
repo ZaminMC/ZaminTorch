@@ -162,8 +162,24 @@ exposure, then concurrency phases, then standing deferrals.
     VIII4's engine surface has no api handle).
 12. The achievement reads: `Server.achievements()` (the 34-row table) + the
     per-player unlocked set (VIII6's surface).
-13. `Server.anvilImport()` — the plugin-facing import verb over the same I/O
-    lanes (the ledger report as the return).
+13. ~~`Server.anvilImport()` — the plugin-facing import verb over the same I/O
+    lanes (the ledger report as the return)~~ — LANDED 2026-10-23 (a855c418):
+    the additive api method (the world-folder `Path`, the return being the
+    walk's own final report row — the §31.6 counted-refusal ledger summary,
+    no second format) + the EngineServer facade over the ONE shared route
+    (`startAnvilImport` — the same boot gates, one-import gate, content
+    seams, and I/O lanes as `/anvilimport`, never a parallel import path);
+    the caller parks off the tick lane while the gameplay lane keeps
+    ticking (the §28.1 law documented on the method, the simulation lane
+    itself refused loudly, the shutdown arm answered). The exposure
+    demanded the never-throw repair: the open/region I/O tasks returned
+    failures by throwing, which the lane discards without any delivery —
+    the promised loud refusal never reached anyone and the gate stranded;
+    the refusals now return as values, every terminal arm reports +
+    releases. `AnvilImportApiAcceptanceTest` 4/0 through the api type
+    alone (the census rows, the api-pure world reads, the ticking law,
+    the missing-level.dat refusal + the gate's release, the shared-gate
+    proof with the operator command's walk).
 14. The generic-mount seat rows (the exotic pairs' api read beside
     `Vehicle.riderEntityId()`).
 15. `world.decorations()` — the hanging bodies + armor-stand read surface.
