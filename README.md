@@ -11,19 +11,19 @@
 | Module | Java LOC | ± 24h | ± 7d | ± since start |
 |---|---|---|---|---|
 | zamin-api | 8,081 | +769 | +3,020 | +8,081 |
-| zamin-core | 251,151 | +29,084 | +119,138 | +251,151 |
+| zamin-core | 251,151 | +29,084 | +118,030 | +251,151 |
 | zamin-launcher | 2,669 | +0 | +2,194 | +2,669 |
 | zamin-protocol-v1_8_8 | 22,233 | +388 | +5,547 | +22,233 |
 | tools | 0 | — | — | — |
-| **Total** | **284,134** | **+30,241** | **+129,899** | **+284,134** |
+| **Total** | **284,134** | **+30,241** | **+128,791** | **+284,134** |
 
 ```diff
 + added 30,241 lines vs 24 hours ago
-+ added 129,899 lines vs 7 days ago
++ added 128,791 lines vs 7 days ago
 + added 284,134 lines vs 30 days ago (since start)
 ```
 
-*954 Java files · tracked modules: `zamin-api`, `zamin-core`, `zamin-launcher`, `zamin-protocol-v1_8_8`, `tools` · dates in PKT (UTC+5) · auto-updated on every push to `develop` and every 6 hours · last update 2026-10-22 11:45 PKT. `tools` currently contains no Java code; it is counted automatically once it does.*
+*954 Java files · tracked modules: `zamin-api`, `zamin-core`, `zamin-launcher`, `zamin-protocol-v1_8_8`, `tools` · dates in PKT (UTC+5) · auto-updated on every push to `develop` and every 6 hours · last update 2026-10-22 15:55 PKT. `tools` currently contains no Java code; it is counted automatically once it does.*
 
 <details>
 <summary>📜 Past stats — 15 recorded days</summary>
