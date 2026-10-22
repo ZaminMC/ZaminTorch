@@ -314,3 +314,24 @@ repro path, and its fix shape (a pinned protocol test over the
 DataWatcher form) is exactly the house style. Pair it with B-7 + the
 attribution pass so the following cycle can make the Phase 5/6 call on
 real numbers.
+
+## Post-PR addendum — the #362 verdict arrived mid-cycle
+
+Release run #362 (48b91574, docs-only push) ALSO failed, twice over:
+attempt 1 — `FishingApiAcceptanceTest.theLootOverrideAnswersTheBandAndTheRestore`
+(the SAME missed-window race family, a different method — the retry
+helper landed in 5b20386e covers BOTH of its cycles); attempt 2 —
+`RconProtocolTest.theEmptyOutputAnswersOneEmptyPacket` (a 5-second
+wall-clock FIN-WAIT drain loop at RconProtocolTest.java:333-340 — the
+same timing-sensitive family on a different surface).
+
+The generalization the three failures force: the full suite carries a
+POPULATION of wall-clock-deadline tests (fishing awaits, rcon drains,
+bukkit harness awaits), and each loaded CI run trips a different
+member. Fixing them one-by-one as they fail will take many red
+pipelines. The systematic fix belongs in the backlog as its own row:
+an audit of every `System.currentTimeMillis` deadline in the test
+tree, hardening each against tick-vs-wall-clock drift (scale with
+observed tick rate, or await engine-visible conditions instead of
+deadlines). The two landed fixes cover the two OBSERVED failures; the
+population audit prevents the whack-a-mole.
