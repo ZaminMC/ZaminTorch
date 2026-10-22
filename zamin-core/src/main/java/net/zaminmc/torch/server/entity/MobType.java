@@ -40,13 +40,13 @@ public enum MobType {
     COW(92, 0.9, 1.3, 10.0f, 0.035, false, Traits.NONE,
             List.of(new ItemRoll(BuiltinItems.BEEF, 1, 3),
                     new ItemRoll(BuiltinItems.LEATHER, 0, 2)),
-            "mob.cow.hurt", "mob.cow.hurt", "mob.cow.hurt"),
+            "mob.cow.say", "mob.cow.hurt", "mob.cow.hurt"),
 
     /** Small wanderer; flees when hurt. Drops raw chicken + feathers. */
     CHICKEN(93, 0.4, 0.7, 4.0f, 0.035, false, Traits.NONE,
             List.of(new ItemRoll(BuiltinItems.RAW_CHICKEN, 1, 1),
                     new ItemRoll(BuiltinItems.FEATHER, 0, 2)),
-            "mob.chicken.hurt", "mob.chicken.hurt", "mob.chicken.hurt"),
+            "mob.chicken.say", "mob.chicken.hurt", "mob.chicken.hurt"),
 
     /** Passive wanderer; shearable for wool (the bed material). */
     SHEEP(91, 0.9, 1.3, 8.0f, 0.035, false, new Traits(false, false, false, true),
@@ -148,7 +148,7 @@ public enum MobType {
     /** The trading villager: profession carries its offer table (the trading slice). */
     VILLAGER(120, 0.6, 1.95, 20.0f, 0.035, false, Traits.NONE,
             List.of(),
-            "mob.villager.idle", "mob.villager.hit", "mob.villager.death"),
+            "mob.villager.haggle", "mob.villager.hit", "mob.villager.death"),
 
     /** The mineshaft's spawner mob (Slice 12g): the small venomous spider. */
     CAVE_SPIDER(59, 0.7, 0.5, 12.0f, 0.055, true, new Traits(false, false, true, false),

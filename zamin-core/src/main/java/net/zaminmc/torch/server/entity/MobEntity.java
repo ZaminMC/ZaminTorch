@@ -509,7 +509,14 @@ public final class MobEntity implements LivingEntity {
     private int panicTicks;
     private int hurtFlash;
     private int attackCooldown;
-    private int idleSoundTimer;
+    /**
+     * The reference's {@code ambientSoundDelay} (MobEntity line 46): the
+     * plain field, 0 at construction, climbing one per alive baseTick, reset
+     * to {@code -getAmbientSoundInterval()} on every play — the VIII14
+     * ambient-sound cadence's own clock (the named adaptation's idle timer
+     * it replaces never matched the reference's law).
+     */
+    private int ambientSoundDelay;
     private boolean dead;
     private int deathTicks;
     /** The killer's Looting level (the reference reads it at death from the killer entity). */
@@ -1040,7 +1047,6 @@ public final class MobEntity implements LivingEntity {
         this.navigation = new net.zaminmc.torch.server.entity.ai.pathing.MobNavigation(
                 new PathBody(), new PathWorldView(), (float) AGGRO_RANGE);
         this.modeTicks = random.nextInt(IDLE_TICKS);
-        this.idleSoundTimer = 160 + random.nextInt(320); // first chatter 8-24 s out
         // The herd look — the reference's own initialize dice
         // (HorseBaseEntity.initialize lines 1262-1280): 1 in 10 the donkey,
         // otherwise the horse coat = the color nextInt(7) | the marking
@@ -5625,22 +5631,113 @@ public final class MobEntity implements LivingEntity {
         return tick(false);
     }
 
-    /** @return true when the mob produced an idle chatter sound this tick.
-     * The roll re-arms itself; call exactly once per tick after {@link #tick()}.
+    /**
+     * The reference's ambient-sound play bundle — the three consults
+     * {@code playAmbientSound} evaluates, in the reference's own order
+     * (MobEntity lines 143-149: the name first, then the volume/pitch pair
+     * ONLY when a name exists).
      */
-    public boolean idleSoundDue() {
-        if (idleSoundTimer > 0) {
-            idleSoundTimer--;
-            return false;
+    public record AmbientSound(String name, float volume, float pitch) {
+    }
+
+    /**
+     * The ambient-sound cadence, 1:1 (the VIII14 row — the reference's
+     * {@code MobEntity.baseTick} lines 151-159): a live body rolls
+     * {@code random.nextInt(1000) < ambientSoundDelay++} every tick — the
+     * delay climbs from its 0 field default, so the first play's hazard
+     * grows with age; a hit resets the clock to
+     * {@code -getAmbientSoundInterval()} (the negative reset guarantees the
+     * per-family silence window) and plays. Call exactly once per tick
+     * after {@link #tick()} (the reference's own baseTick position).
+     *
+     * @return the play bundle when the roll hit and the kind has an idle
+     *         voice (the reference's {@code getAmbientSound() != null} gate —
+     *         the engine's empty-string idle is the same silence), else null
+     */
+    public AmbientSound ambientSoundDue() {
+        if (dead || random.nextInt(1000) >= ambientSoundDelay++) {
+            return null;
         }
-        if (!dead && !effectiveIdleSound().isEmpty()) {
-            // The guardian's own cadence (getAmbientSoundInterval line
-            // 197): 160 ticks flat — no random spread.
-            idleSoundTimer = type == MobType.GUARDIAN
-                    ? 160 : 160 + random.nextInt(320); // 8-24 s
-            return true;
+        ambientSoundDelay = -ambientSoundInterval();
+        String name = effectiveIdleSound();
+        if (name.isEmpty()) {
+            return null; // playAmbientSound: a null voice never plays
         }
-        return false;
+        return new AmbientSound(name, ambientSoundVolume(), ambientSoundPitch());
+    }
+
+    /**
+     * The per-family silence window — the reference's
+     * {@code getAmbientSoundInterval} overrides: the base 80 (MobEntity
+     * lines 138-140), the animal band 120 (AnimalEntity lines 138-140 — the
+     * tameable wolf/ocelot children with it), the water mob 120
+     * (WaterMobEntity), the golem 120 (GolemEntity), the guardian's own 160
+     * (GuardianEntity line 197), the horse family's 400 (HorseBaseEntity
+     * lines 570-572).
+     */
+    public int ambientSoundInterval() {
+        return switch (type) {
+            case PIG, COW, CHICKEN, SHEEP, RABBIT, WOLF, OCELOT, MOOSHROOM,
+                    SQUID, IRON_GOLEM, SNOW_GOLEM -> 120;
+            case GUARDIAN -> 160;
+            case HORSE -> 400;
+            default -> 80;
+        };
+    }
+
+    /**
+     * The play volume — the reference's {@code getSoundVolume} overrides:
+     * the base 1.0 (LivingEntity lines 1056-1058), the ghast's 10.0 (line
+     * 120), the dragon's 5.0 (line 617), the horse's 0.8 (line 572), the
+     * cow's 0.4 (line 65 — the mooshroom inherits it), the ocelot/wolf 0.4
+     * (OcelotEntity line 134, WolfEntity line 159), the squid's 0.4 (line
+     * 64), the bat's 0.1 (line 29), the slime's {@code 0.4 * size} (line
+     * 262 — the size-1 body 0.4).
+     */
+    public float ambientSoundVolume() {
+        return switch (type) {
+            case GHAST -> 10.0f;
+            case ENDER_DRAGON -> 5.0f;
+            case HORSE -> 0.8f;
+            case COW, MOOSHROOM, OCELOT, WOLF, SQUID -> 0.4f;
+            case BAT -> 0.1f;
+            case SLIME, MAGMA_CUBE -> 0.4f * slimeSize();
+            default -> 1.0f;
+        };
+    }
+
+    /**
+     * The play pitch — the reference's {@code getSoundPitch} (LivingEntity
+     * lines 1060-1064): the two-draw jitter {@code (r - r) * 0.2} around
+     * 1.5 for a baby, around 1.0 for a grown body.
+     */
+    public float ambientSoundPitch() {
+        float jitter = random.nextFloat() - random.nextFloat();
+        return isBaby() ? jitter * 0.2f + 1.5f : jitter * 0.2f + 1.0f;
+    }
+
+    /**
+     * The villager's trade-arm clock reset — the reference's
+     * {@code VillagerEntity.trade} line 600 writes the clock before its
+     * "mob.villager.yes" (unconditional), and {@code updateOffer} lines
+     * 626-635 resets under its own 20-tick gate.
+     */
+    public void resetAmbientSoundDelay() {
+        ambientSoundDelay = -ambientSoundInterval();
+    }
+
+    /**
+     * The villager's {@code updateOffer} gate (VillagerEntity line 627):
+     * the clock must have climbed past {@code -interval + 20} before the
+     * next offer sound may fire (the anti-spam window).
+     */
+    public boolean ambientOfferSoundGateOpen() {
+        return ambientSoundDelay > -ambientSoundInterval() + 20;
+    }
+
+    /** @return the current cadence clock (the tests' own read). */
+    int ambientSoundDelay() {
+        return ambientSoundDelay;
     }
 
     /**
@@ -5657,6 +5754,12 @@ public final class MobEntity implements LivingEntity {
     public String effectiveIdleSound() {
         if (type == MobType.GUARDIAN) {
             return guardianSoundKind() + "idle";
+        }
+        if (type == MobType.ENDERMAN) {
+            // EndermanEntity.getAmbientSound lines 241-244: the screaming
+            // body's own voice — the stare's angry flag swaps the idle hum
+            // for the scream.
+            return endermanAngry() ? "mob.endermen.scream" : "mob.endermen.idle";
         }
         if (type == MobType.WOLF) {
             if (wolfAngry()) {

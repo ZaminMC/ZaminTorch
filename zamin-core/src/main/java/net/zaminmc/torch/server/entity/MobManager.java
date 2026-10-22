@@ -975,11 +975,14 @@ public final class MobManager {
             float facing = wrapDegrees(random.nextFloat() * 360.0f);
             spawned.setBodyYaw(facing);
             // playAmbientSound: getAmbientSound() == null never plays — the
-            // engine's empty-string idle is the same silence.
+            // engine's empty-string idle is the same silence. The play pair
+            // rides the volume/pitch consults (the VIII14 cadence slice):
+            // getSoundVolume then getSoundPitch, the reference's own order.
             String ambient = spawned.effectiveIdleSound();
             if (!ambient.isEmpty()) {
                 for (Listener listener : listeners) {
-                    listener.onMobSound(spawned, ambient);
+                    listener.onMobSoundAt(spawned, ambient,
+                            spawned.ambientSoundVolume(), spawned.ambientSoundPitch());
                 }
             }
         }
@@ -1889,9 +1892,11 @@ public final class MobManager {
                     listener.onMobMoved(mob, rider);
                 }
             }
-            if (mob.idleSoundDue()) {
+            MobEntity.AmbientSound ambient = mob.ambientSoundDue();
+            if (ambient != null) {
                 for (Listener listener : listeners) {
-                    listener.onMobSound(mob, mob.effectiveIdleSound());
+                    listener.onMobSoundAt(mob, ambient.name(),
+                            ambient.volume(), ambient.pitch());
                 }
             }
         }

@@ -146,16 +146,30 @@ class MobEntityTest {
 
     @Test
     void idleChatterReArmsWithinItsWindow() {
+        // The VIII14 cadence law (MobEntity.baseTick lines 151-159): the
+        // delay climbs from 0, the first play lands by tick 1001 at the
+        // LATEST (a roll of nextInt(1000) always succeeds once the delay
+        // reaches 1000), and every gap after a play sits inside
+        // [interval + 1, interval + 1000] — the cow's band [121, 1120].
         MobEntity cow = spawn(MobType.COW, new Position(0.5, 4.0, 0.5), 23, worldAt(null));
-        int sounds = 0;
-        for (int i = 0; i < 1_200; i++) {
-            if (cow.idleSoundDue()) {
-                sounds++;
+        java.util.List<Integer> plays = new java.util.ArrayList<>();
+        for (int i = 1; i <= 4_000; i++) {
+            if (cow.ambientSoundDue() != null) {
+                plays.add(i);
             }
-            cow.tick();
         }
-        // Window is 8-24 s; 60 s must produce at least two and at most eight.
-        assertTrue(sounds >= 2 && sounds <= 8, "ambient chatter cadence, got " + sounds);
+        assertFalse(plays.isEmpty(), "the hazard guarantees a play by tick 1001");
+        int first = plays.get(0);
+        assertTrue(first >= 2 && first <= 1001,
+                "the first play's hard band [2, 1001], got " + first);
+        for (int i = 1; i < plays.size(); i++) {
+            int gap = plays.get(i) - plays.get(i - 1);
+            assertTrue(gap >= 121 && gap <= 1120,
+                    "the cow's inter-play band [121, 1120] at gap " + gap);
+        }
+        // A 4000-tick walk at the 1:1 cadence: the expected ~25 plays (the
+        // old named adaptation's 8-24 s window would starve this floor).
+        assertTrue(plays.size() >= 12, "the cadence's density, got " + plays.size());
     }
 
     /** Open air everywhere: the pure falling body, the void included. */

@@ -13860,6 +13860,20 @@ public final class EngineServer implements Server, EngineBridge {
                 return; // stale window or a rogue index: the preview stays empty
             }
             player.setSelectedTrade(offerIndex);
+            // The selection's offer sound (the reference's MC|TrSel walk:
+            // ServerPlayNetworkHandler lines 1009-1017 -> TraderMenu
+            // setRecipeIndex -> TraderInventory.setOffer line 175-178 ->
+            // updateOffer): the engine's merchant window carries display-only
+            // pseudo-slots, so the input slots are structurally empty and the
+            // reference's updateOffer(null) arm is the "no" voice — gated by
+            // the 20-tick anti-spam window (VillagerEntity line 627: the
+            // clock must have climbed past -interval + 20) and carrying the
+            // clock reset with it.
+            if (villager.ambientOfferSoundGateOpen()) {
+                villager.resetAmbientSoundDelay();
+                fxManager.sound(villager.position(), "mob.villager.no", 1.0f,
+                        1.0f / (gameplayRandom.nextFloat() * 0.4f + 0.8f));
+            }
             ItemStack result = villager.offers()[offerIndex].result();
             for (MobManager.Listener listener : mobListeners) {
                 listener.onTradeSelected(player, player.openContainerWindowId(), result);
@@ -13911,6 +13925,10 @@ public final class EngineServer implements Server, EngineBridge {
         // customer's NAME rides the trade (the level-up's +1 reputation
         // arm reads it).
         int xp = villager.villagerTrade(index, session.name());
+        // VillagerEntity.trade line 600: the trade itself resets the ambient
+        // clock BEFORE the yes (unconditional — no 20-tick gate on this arm),
+        // so a fresh trade silences the haggle cadence for a full interval.
+        villager.resetAmbientSoundDelay();
         fxManager.sound(villager.position(), "mob.villager.yes", 1.0f,
                 1.0f / (gameplayRandom.nextFloat() * 0.4f + 0.8f));
         experienceOrbs.spawnOrb(new Position(villager.position().x(),
@@ -17814,6 +17832,141 @@ public final class EngineServer implements Server, EngineBridge {
         public void onMobSound(MobEntity mob, String soundName) {
             for (MobManager.Listener listener : mobListeners) {
                 listener.onMobSound(mob, soundName);
+            }
+        }
+
+        // THE BRIDGE REPAIR (the VIII14 ambient-sound slice's own find): the
+        // dispatch carried only 52 of the Listener interface's 64 events —
+        // the seventeen below fired on the MobManager and DIED at this
+        // bridge, so a real boot (MobManager -> MobEventDispatch ->
+        // mobListeners -> the protocol adapter) never heard them: every
+        // volume/pitch mob sound (the ghast's charge, the wolf's shake, the
+        // pigman's angry grunt, the slime's squish pair, the ambient
+        // cadence itself), the guardian/witch/blaze/ghast/zombie state
+        // metadata, the wolf state, the sheep fleece, the enderman stare,
+        // the doEntityEvent status fan, the door-knock world event, and the
+        // window-open/trade-selected pairs the manager itself fires. The
+        // package tests never caught it — their harnesses register directly
+        // on the MobManager, bypassing this bridge.
+
+        @Override
+        public void onMobSoundAt(MobEntity mob, String soundName,
+                                 float volume, float pitch) {
+            for (MobManager.Listener listener : mobListeners) {
+                listener.onMobSoundAt(mob, soundName, volume, pitch);
+            }
+        }
+
+        @Override
+        public void onEndermanStare(MobEntity mob) {
+            for (MobManager.Listener listener : mobListeners) {
+                listener.onEndermanStare(mob);
+            }
+        }
+
+        @Override
+        public void onGuardianStateChanged(MobEntity mob) {
+            for (MobManager.Listener listener : mobListeners) {
+                listener.onGuardianStateChanged(mob);
+            }
+        }
+
+        @Override
+        public void onHorseInventoryOpened(PlayerSession player, MobEntity mob, int windowId) {
+            for (MobManager.Listener listener : mobListeners) {
+                listener.onHorseInventoryOpened(player, mob, windowId);
+            }
+        }
+
+        @Override
+        public void onMobBlazeFireChanged(MobEntity mob) {
+            for (MobManager.Listener listener : mobListeners) {
+                listener.onMobBlazeFireChanged(mob);
+            }
+        }
+
+        @Override
+        public void onMobGhastChargingChanged(MobEntity mob) {
+            for (MobManager.Listener listener : mobListeners) {
+                listener.onMobGhastChargingChanged(mob);
+            }
+        }
+
+        @Override
+        public void onMobPostureChanged(MobEntity mob) {
+            for (MobManager.Listener listener : mobListeners) {
+                listener.onMobPostureChanged(mob);
+            }
+        }
+
+        @Override
+        public void onMobStatusEvent(MobEntity mob, int status) {
+            for (MobManager.Listener listener : mobListeners) {
+                listener.onMobStatusEvent(mob, status);
+            }
+        }
+
+        @Override
+        public void onMobWitchAura(MobEntity mob) {
+            for (MobManager.Listener listener : mobListeners) {
+                listener.onMobWitchAura(mob);
+            }
+        }
+
+        @Override
+        public void onMobWitchDrinkingChanged(MobEntity mob, boolean drinking) {
+            for (MobManager.Listener listener : mobListeners) {
+                listener.onMobWitchDrinkingChanged(mob, drinking);
+            }
+        }
+
+        @Override
+        public void onSheepFleeceChanged(MobEntity mob) {
+            for (MobManager.Listener listener : mobListeners) {
+                listener.onSheepFleeceChanged(mob);
+            }
+        }
+
+        @Override
+        public void onTradeSelected(PlayerSession player, int windowId, ItemStack result) {
+            for (MobManager.Listener listener : mobListeners) {
+                listener.onTradeSelected(player, windowId, result);
+            }
+        }
+
+        @Override
+        public void onVillagerTradeOpened(PlayerSession player, MobEntity villager, int windowId) {
+            for (MobManager.Listener listener : mobListeners) {
+                listener.onVillagerTradeOpened(player, villager, windowId);
+            }
+        }
+
+        @Override
+        public void onWolfShakeSplash(MobEntity mob, Position at,
+                                      double vx, double vy, double vz) {
+            for (MobManager.Listener listener : mobListeners) {
+                listener.onWolfShakeSplash(mob, at, vx, vy, vz);
+            }
+        }
+
+        @Override
+        public void onWolfStateChanged(MobEntity mob) {
+            for (MobManager.Listener listener : mobListeners) {
+                listener.onWolfStateChanged(mob);
+            }
+        }
+
+        @Override
+        public void onWorldEventAt(Position position, int eventId) {
+            for (MobManager.Listener listener : mobListeners) {
+                listener.onWorldEventAt(position, eventId);
+            }
+        }
+
+        @Override
+        public void onZombieStateChanged(MobEntity mob) {
+            for (MobManager.Listener listener : mobListeners) {
+                listener.onZombieStateChanged(mob);
             }
         }
 
