@@ -48,6 +48,28 @@ import java.util.Objects;
  *                        may not use blocks — armed only while at least
  *                        one operator exists (the reference's own
  *                        {@code getOps().isEmpty() -> false}); 0 disables.
+ * @param enableRcon     the {@code enable-rcon} property (DedicatedServer
+ *                        line 210: {@code getBoolean("enable-rcon", false)})
+ *                        — whether the remote-control TCP listener boots.
+ * @param rconPassword   the {@code rcon.password} property (RconServer line
+ *                        26: {@code getString("rcon.password", "")}); an
+ *                        empty password is the listener's own refusal law
+ *                        (RconServer.start lines 91-92: "No rcon password
+ *                        set ..., rcon disabled!").
+ * @param rconPort       the {@code rcon.port} property; the compact
+ *                        constructor resolves the reference's default law
+ *                        (RconServer lines 29-31: {@code 0 -> serverPort +
+ *                        10}). Out-of-range values are carried as-is — the
+ *                        listener's start() warn-and-disable law owns them
+ *                        (RconServer.start lines 93-94), never a boot
+ *                        failure.
+ * @param enableQuery    the {@code enable-query} property (DedicatedServer
+ *                        line 203: {@code getBoolean("enable-query", false)})
+ *                        — whether the GS4 UDP responder boots.
+ * @param queryPort      the {@code query.port} property; resolves the
+ *                        reference's default law (QueryResponseHandler
+ *                        lines 67-69: {@code 0 -> serverPort}). Range law
+ *                        owned by start() (lines 244-249), like rconPort.
  */
 public record EngineConfig(
         String host,
@@ -64,7 +86,12 @@ public record EngineConfig(
         boolean whiteList,
         int regionSizeChunks,
         boolean enableCommandBlocks,
-        int spawnProtectionRadius
+        int spawnProtectionRadius,
+        boolean enableRcon,
+        String rconPassword,
+        int rconPort,
+        boolean enableQuery,
+        int queryPort
 ) {
 
     /**
@@ -81,6 +108,13 @@ public record EngineConfig(
      * reference's own {@code getOps().isEmpty() -> false}).
      */
     public static final int DEFAULT_SPAWN_PROTECTION = 16;
+
+    /**
+     * The unset marker every compatibility constructor passes for the two
+     * remote-admin ports: both resolve through the reference's own default
+     * laws in the compact constructor (never a boot failure).
+     */
+    public static final int UNSET_REMOTE_PORT = 0;
 
     /** Compatibility constructor for callers that do not care about mode/type. */
     public EngineConfig(String host, int port, String worldName, String motd,
@@ -125,6 +159,21 @@ public record EngineConfig(
                 enableCommandBlocks, DEFAULT_SPAWN_PROTECTION);
     }
 
+    /**
+     * Compatibility constructor for the pre-remote-admin canonical shape
+     * (both listeners disabled; the ports resolve through their reference
+     * default laws — port+10 for RCON, the server port for the query).
+     */
+    public EngineConfig(String host, int port, String worldName, String motd,
+                        int maxPlayers, int viewDistance, int tickRateHz, String dataDir,
+                        GameMode gamemode, boolean pvp, String levelType, boolean whiteList,
+                        int regionSizeChunks, boolean enableCommandBlocks,
+                        int spawnProtectionRadius) {
+        this(host, port, worldName, motd, maxPlayers, viewDistance, tickRateHz, dataDir,
+                gamemode, pvp, levelType, whiteList, regionSizeChunks, enableCommandBlocks,
+                spawnProtectionRadius, false, "", UNSET_REMOTE_PORT, false, UNSET_REMOTE_PORT);
+    }
+
     public EngineConfig {
         Objects.requireNonNull(host, "host");
         Objects.requireNonNull(worldName, "worldName");
@@ -158,6 +207,17 @@ public record EngineConfig(
         if (dataDir.isBlank()) {
             throw new IllegalArgumentException("dataDir must not be blank");
         }
+        Objects.requireNonNull(rconPassword, "rconPassword");
+        // The remote-admin ports' default laws, resolved where the reference
+        // resolves them (RconServer lines 29-31, QueryResponseHandler lines
+        // 67-69) — but at the engine's one validation site, because the
+        // engine's config is an immutable load-once record: the reference's
+        // setProperty/saveProperties write-back becomes ServerLayout's
+        // first-boot rows (rcon.port = port+10, query.port = port). Out-of-
+        // range values stay unvalidated here on purpose — the listeners'
+        // start() warn-and-disable laws own them (never a boot failure).
+        rconPort = rconPort <= 0 ? port + 10 : rconPort;
+        queryPort = queryPort <= 0 ? port : queryPort;
     }
 
     public static EngineConfig defaults() {

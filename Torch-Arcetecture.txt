@@ -3798,3 +3798,138 @@ Torch's migration contract:
 - The complete engine, native API, persistence, protocol, and real-client regression suites must remain green. Add before/after persistence correctness and I/O latency measurements, but do not claim speedups without reproducible workloads.
 
 **Acceptance gate:** the modern layout is not supported until the backend can load, save, recover and migrate the complete declared source/destination formats. Until then, the existing Torch format remains the default and migration remains explicitly unsupported. The native API's capability goal in §27 is not reduced by this storage decision; it stays the obligation to expose all real supported capabilities through safe, documented contracts.
+
+---
+
+# 32. REMOTE-ADMIN PROTOCOLS — RCON (TCP) + GS4 QUERY (UDP), VANILLA 1.8.8 1:1
+
+The two wire doors an operator opens from outside the process: the
+Source RCON remote console (TCP) and the GS4 query responder (UDP),
+both 1:1 with the reference `net.minecraft.server.rcon` family
+(RconServer 105L, RconClient 138L, RconBase 137L, BufferHelper 34L,
+DataStreamHelper 40L, QueryResponseHandler 316L; the boot site
+DedicatedServer lines 203-216, the command site line 531). Landed on
+`feature/rcon-query` (395ff53d the config rows, 77faa3c2 the package
+whole, b2a3a2f5 the engine wiring, 3ad70165 the wire-law tests,
+ff616fc0 the engine-route integration + the restart law). This
+section is the standing record of the five decisions the slice owns;
+the code carries the line citations.
+
+## 32.1 The one-command-path law reaches the remote console
+
+A remote console is just another ConsoleSender-shaped source. The
+§30 law — one dispatch route — is not weakened by the wire: the
+RCON exec arm routes through `EngineServer.runRconCommand`, which
+submits the SAME `ChatService.dispatchCommand` walk
+`consoleCommand` submits, riding a `FutureTask` through
+`ticker.submit` with the remote thread blocking in `task.get()`.
+The reference's own shape (DedicatedServer line 531 runs the remote
+command through the server's queue and joins the result); the
+remote source answers every permission gate at operator level 4
+(the reference Console's always-true `canUseCommand`). No second
+command path exists for the wire, and none may grow: a future
+remote-admin surface (a REST door, say) must reuse this route or
+come back and amend this section.
+
+## 32.2 The remote sink is per-call, never the reference's singleton
+
+The reference captures command output in a static
+`Console.getInstance()` buffer reset before each command — safe only
+because vanilla serializes remote commands. Two concurrent RCON
+connections would interleave into one buffer; §6.4's no-shared-
+mutable-state law forbids that here. The engine hands every
+`runRconCommand` call a fresh `RconConsoleSender` (name "Rcon", op
+4, append-no-separator — the reference Console.java laws, the named
+adaptation in the class javadoc). The capture semantics stay 1:1:
+lines appended with no separator, the reference's own quirk the
+4096-split framing is written around.
+
+## 32.3 Threading and ownership (§6's law, the wire form)
+
+The listeners never touch world state and never ride the tick lane.
+The reference's own thread-per-listener model is kept: RconBase
+starts one counted named thread per listener, RconClient one per
+accepted connection, and the query handler parks in its own UDP
+read. Engine-state reads cross the boundary exactly two ways: the
+command path (a FutureTask onto the tick lane — the enqueue-and-wait
+the reference itself uses), and the GS4 status reads, which consult
+the same public snapshot surfaces the server-list ping reads (the
+live census, the immutable config rows) through the
+`RconServerAccess` port — the reference's `DedicatedServerAccess`,
+all 22 methods, mirrored 1:1. No listener thread holds a world
+reference; none may.
+
+## 32.4 The refusal laws: no listener failure may kill a boot
+
+The reference's own posture, kept verbatim: an empty rcon password
+warns and disables; an invalid port warns and disables; a bind
+failure warns and degrades; the server keeps running in every arm.
+The engine adds the shutdown mirror (the reference has no stop verb
+— a stopped vanilla server simply dies): `stop()` flips a volatile
+running flag, interrupts, and closes the sockets (the only thing
+that unblocks Java reads), and `EngineServer.shutdown` sweeps the
+listeners twice — the early intake stop (step 1b: no remote command
+may race the player cleanup or the save walk) and the post-park
+sweep (step 4b: a shutdown that won the state gate mid-boot may see
+the boot thread's just-started listeners only past `awaitStop`) —
+both idempotent. The one named engine-side start() difference:
+SO_REUSEADDR before the bind (the reference binds directly, line 97;
+the engine's own net convention). Without it a restarted engine
+could not rebind its rcon.port for a full minute after a shutdown
+closed live connections — TIME_WAIT on the port — and the degrade
+law would silently disable the listener; the restart law is pinned
+by test (FIN_WAIT drains in beats, TIME_WAIT outlasts every restart
+that does not set the flag).
+
+## 32.5 The configuration rows and their default laws
+
+Five keys flow through the engine's established config path:
+`enable-rcon` / `rcon.password` / `rcon.port` / `enable-query` /
+`query.port`. The reference's default laws resolve in EngineConfig's
+compact constructor (the immutable-record adaptation of the
+reference's setProperty/saveProperties write-back): rconPort 0 ->
+serverPort + 10 (RconServer lines 29-31), queryPort 0 -> serverPort
+(QueryResponseHandler lines 67-69). ServerLayout's first-boot
+template carries the resolved defaults as standing rows. Out-of-range
+ports stay unvalidated at load ON PURPOSE — the listeners' own
+start() warn-and-disable laws own them, never a boot failure.
+
+## 32.6 Tests — the acceptance evidence (all landed)
+
+The rcon package whole 38/0 (ff616fc0):
+RconProtocolTest 17 — the auth accept (the exact 14-byte frame
+byte-for-byte), the wrong password (id -1, a following command
+refused without reaching the route), the empty auth, the exec
+capture (id echo, type 0), the error arm's reference sentence, the
+unknown type's hex law, the 4096-CHARACTER split with both edge
+laws (exactly-4096 -> ONE packet; empty output -> ONE empty packet,
+the broadcast quirk), the length-mismatch and short-read closes, the
+three start() refusal laws, idempotent stop, and the restart law
+(the FIN_WAIT drain beats, the TIME_WAIT tail only SO_REUSEADDR
+bypasses — the flag load-bearing: the 5s retry window cannot
+outlast the 60s tail).
+QueryResponseHandlerTest 10 — the handshake token law (the 24-bit
+decimal band, the charset round-trip quirk), the basic and full
+stats replies byte-for-byte, the silences (wrong challenge, missing
+handshake, unknown type), the 5-second cached rules reply with the
+stale-numplayers window, the invalid-port refusal, idempotent stop.
+RconQueryConfigTest 5 — the round trip, the missing-row defaults,
+the 0-row default laws, the legacy constructors, the template
+census.
+RconEngineRouteIntegrationTest 6 — the remote console through a
+REAL booted engine: /list answers the engine's own sentence over
+the wire, the remote ban lands in banned-players.json exactly like
+the console ban (the one-command-path law's proof), the
+unknown-command refusal rides the capture buffer, a level-4
+command's usage answers (the op-4 gate), and GS4 answers from the
+engine's own surfaces — the basic-stats reply byte-for-byte, the
+no-handshake silence.
+
+Neighboring evidence (ff616fc0's verification pass): the concurrent
+package 97/0, the ops package 4/0, the coupled root batch 55/0 (the
+console route, config load/API, lifecycle events, ticker router,
+player sessions, persistence, the command census), the launcher
+module 47/0, the protocol module 116/117 — the one failure
+pre-existing on plain develop (the block-census pin staled by the
+parallel wave's merged rows; reproduced on develop in a worktree,
+out of this slice's blast radius).

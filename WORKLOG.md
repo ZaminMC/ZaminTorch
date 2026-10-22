@@ -12181,3 +12181,97 @@ Stage Summary:
 - feature/local-difficulty: the VIII14 completion whole — the local-difficulty model is no longer zeroed (MobManager 3520's stand-in retired to the unwired-test-boot fallback), the raw day clock + the moon + the inhabited rows persist (ZWD v2) and import (anvil)
 - The VIII14 backlog after this slice: the ambient-sound cadence alone (instance 9's lane per the decorators record)
 - The parallel wave's other in-flight lanes: feature/map-item + feature/rcon-query (untouched)
+## 2026-10-22 — the remote-admin protocols whole: RCON (TCP) + GS4 Query (UDP)
+
+**The RCON/GS4 slice, four commits on `feature/rcon-query`.** The two
+missing remote-admin doors, 1:1 with the reference
+`net.minecraft.server.rcon` family, threaded per §6's law and routed
+per §30's law (the full decision record is §32 in
+Torch-Arcetecture.txt):
+
+**395ff53d — the config rows.** The five keys the reference reads flow
+through the engine's established config path: ServerLayout's
+first-boot template gains rcon.password/rcon.port (the port+10 law,
+RconServer 29-31) and query.port (the server-port law,
+QueryResponseHandler 67-69); ConfigLoader reads enable-rcon,
+rcon.password, rcon.port, enable-query, query.port (DedicatedServer
+210 + 203); EngineConfig grows the five fields with a pre-remote-admin
+compatibility constructor (every existing caller compiles unchanged,
+both listeners off). The port default laws resolve in the compact
+constructor; RANGE stays unvalidated on purpose — the listeners' own
+start() warn-and-disable laws own a bad port, never a boot failure.
+
+**77faa3c2 — the package whole.** The reference family ported into
+`net.zaminmc.torch.server.rcon`: BufferHelper (the NUL-terminated
+UTF-8 getString, the LE/BE reads, the negative-length crash shape),
+DataStreamHelper (the low-byte writeBytes + trailing NUL, the LE
+short), RconBase (the counted named thread per listener, the socket
+registries), RconServer (the 500ms accept cadence, the three start()
+refusal laws verbatim), RconClient (the 1460-byte single-read
+framing, the k != i-4 length law, the auth gate's plain equals with
+the id -1 failure law, the 'Error executing: ...' arm, the
+4096-CHARACTER split do-while with the trailing-packet quirk), and
+QueryResponseHandler (the FE FD magic, the type-9 handshake's
+decimal-ASCII challenge echoed and validated as the BE int at
+offset 7, the exact 15-byte full-stats request length, the basic and
+full stats byte shapes, the 5-second cached rules reply with the
+session patch, the 30-second challenge sweep). RconServerAccess
+mirrors DedicatedServerAccess 1:1 (all 22 methods). The named
+adaptations: running volatile + stop verbs (the reference has none),
+concurrent client map (the shutdown-thread walk), the per-call
+RconConsoleSender (name "Rcon", op 4, append-no-separator — the
+reference Console.java laws) instead of the reference's static
+singleton buffer (concurrent connections must never interleave one
+buffer, §6.4).
+
+**b2a3a2f5 — the engine wiring.** EngineServer boots the listeners at
+the reference's own spot (DedicatedServer 203-216 — the world-ready
+moment, past the worldReady latch) with the degrade-on-failure
+posture; `runRconCommand` lands beside `consoleCommand` as the
+remote console's SYNCHRONOUS route: the SAME ChatService.dispatchCommand
+walk, the remote source just another ConsoleSender-shaped sender at
+operator level 4, riding a FutureTask through ticker.submit with the
+remote thread blocking in task.get() OFF the tick lane. Shutdown grows
+the two listener sweeps (the early intake stop at step 1b, the
+race sweep at step 4b — a shutdown that won the state gate mid-boot
+sees the boot thread's just-started listeners only past awaitStop),
+both idempotent.
+
+**3ad70165 + ff616fc0 — the tests.** The rcon package whole 38/0:
+RconProtocolTest 17 (the wire laws byte-for-byte — the auth accept's
+exact 14-byte frame, the wrong password's id -1 with the follow-up
+command refused without reaching the route, the 4096 split with both
+edge laws, the refusal laws, the restart law: FIN_WAIT drains in
+beats while the 60s TIME_WAIT tail only SO_REUSEADDR bypasses — the
+flag load-bearing, found live when two of three runs answered
+'Address already in use' mid-handshake and pinned with the
+drain-beat window), QueryResponseHandlerTest 10 (the token law, the
+byte-exact replies, the silences, the 5-second cached window with
+the stale-numplayers pin, the >0x7F session-byte charset quirk),
+RconQueryConfigTest 5 (the round trip, the default laws, the legacy
+constructors), RconEngineRouteIntegrationTest 6 (the remote console
+through a REAL booted engine on ephemeral ports: /list over the
+wire, the remote ban persisting exactly like the console ban — the
+one-command-path law's proof, the level-4 gate answering its usage
+line, GS4 answering from the engine's own surfaces, the
+no-handshake silence). The runs' own catches along the way: the
+query splice's off-by-one (the LE port word owns [portAt-2, portAt)
+— the max-players NUL the first draft dropped), the forceClose
+snapshot-iteration fix (the cross-thread stop racing the run loop's
+own finally walk — a ConcurrentModificationException the
+magic-prefix test caught), and the /save-to-anvilimport swap for the
+op-4 gate pin (saveAllNow's ~10s first-save durability is the
+engine's own cost — the shutdown walk already exercises it; the GATE
+is the law, not the save).
+
+Evidence: the rcon package whole 38/0 (three consecutive whole-class
+runs stable for the protocol suite) + the concurrent package 97/0 +
+the ops package 4/0 + the coupled root batch 55/0 (ConsoleCommandTest,
+ConfigLoaderTest, ConfigApiAcceptanceTest, CommandSuggestionTest,
+LifecycleEventAcceptanceTest, EngineTickerRouterTest,
+PlayerSessionTest, PersistenceAcceptanceTest,
+MissingCommandsWaveOneTest, ScheduledTickPersistenceTest) + the
+launcher module 47/0 + the protocol module 116/117 (the one failure
+pre-existing on plain develop — the block-census pin staled by the
+parallel wave's merged rows, reproduced on develop in a throwaway
+worktree, out of this slice's blast radius).
