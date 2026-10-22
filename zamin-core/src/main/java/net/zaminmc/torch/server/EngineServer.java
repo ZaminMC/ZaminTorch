@@ -467,6 +467,7 @@ public final class EngineServer implements Server, EngineBridge {
     private final java.util.List<InventoryListener> inventoryListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     private final java.util.List<FurnaceViewListener> furnaceViewListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     private final java.util.List<SurvivalListener> survivalListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
+    private final java.util.List<SpectatorListener> spectatorListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     private final java.util.List<TimeListener> timeListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     private final java.util.List<SignListener> signListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     private final java.util.List<RelightListener> relightListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
@@ -4765,6 +4766,51 @@ public final class EngineServer implements Server, EngineBridge {
         }
     }
 
+    /**
+     * The spectator camera's engine events (the reference
+     * ServerPlayerEntity.setCamera's own wire arms — the Camera 0x43 pair
+     * and the broadcastTo visibility flip): the protocol adapter answers
+     * both by driving its per-connection tracking (the attach spawns the
+     * target for the spectator then publishes the camera, the detach
+     * re-anchors the spectator's own view and re-enters the others'
+     * tracking windows).
+     */
+    public interface SpectatorListener {
+
+        /**
+         * The spectate walk attached the camera (the reference's
+         * setCamera(target) — Camera 0x43(target) + the teleport to the
+         * target's position, plus the broadcastTo flip that hides the
+         * spectating body from every other view).
+         */
+        void onCameraAttached(PlayerSession spectator, PlayerSession target);
+
+        /**
+         * The camera returned to self (the reference's setCamera(this) —
+         * Camera 0x43(self) + the teleport back to the body's own
+         * position): the sneak exit, the target's departure, and the
+         * game-mode change away from spectator all land here.
+         */
+        void onCameraDetached(PlayerSession spectator);
+    }
+
+    /** Registers the spectator camera observer (the protocol adapter's sync). */
+    public void addSpectatorListener(SpectatorListener listener) {
+        spectatorListeners.add(listener);
+    }
+
+    private void publishCameraAttached(PlayerSession spectator, PlayerSession target) {
+        for (SpectatorListener listener : spectatorListeners) {
+            listener.onCameraAttached(spectator, target);
+        }
+    }
+
+    private void publishCameraDetached(PlayerSession spectator) {
+        for (SpectatorListener listener : spectatorListeners) {
+            listener.onCameraDetached(spectator);
+        }
+    }
+
     /** Registers an internal survival observer (e.g. the protocol adapter's sync). */
     public void addSurvivalListener(SurvivalListener listener) {
         survivalListeners.add(listener);
@@ -4991,6 +5037,30 @@ public final class EngineServer implements Server, EngineBridge {
                         scoreboard.getScore(session.name(), objective)
                                 .set((int) Math.ceil(health));
                     }
+                }
+            }
+            // The spectator's camera walk (the reference's ServerPlayerEntity.tick
+            // camera arm, lines 273-285): an attached camera follows its target
+            // every tick — a dead-or-gone target and the sneak exit both restore
+            // the camera to self (setCamera(this)), a live target anchors the
+            // body at the target's position (the reference's
+            // updatePositionAndAngles + getPlayerManager().move pair — the
+            // spectating body publishes nothing of its own, the broadcastTo
+            // law keeps it out of every other view).
+            UUID cameraTarget = session.spectatorCamera();
+            if (cameraTarget != null) {
+                PlayerSession followed = players.byUuid(cameraTarget).orElse(null);
+                if (followed == null || followed.state() != PlayerState.PLAYING
+                        || followed.leavingTheEnd() || session.sneaking()) {
+                    detachSpectatorCamera(session);
+                } else {
+                    session.applyMovement(followed.position(), followed.rotation(), false);
+                    // The world stream follows the camera (the reference's
+                    // PlayerManager.move arm — the spectator's chunk view
+                    // re-centers on the target while the client itself sends
+                    // no movement, LocalClientPlayerEntity's own isCamera
+                    // gate lines 160-166).
+                    session.link().spectateCameraFollow(followed.position());
                 }
             }
         }
@@ -24338,6 +24408,13 @@ public final class EngineServer implements Server, EngineBridge {
             return;
         }
         session.setGamemode(mode);
+        // The reference's setGameMode else-arm (ServerPlayerEntity lines
+        // 823-826: {@code else this.setCamera(this)}): leaving spectator
+        // restores the camera to self BEFORE the abilities sync — the
+        // detach walk sends the Camera(self) pair and re-anchors the body.
+        if (mode != GameMode.SPECTATOR) {
+            detachSpectatorCamera(session);
+        }
         session.link().updateGamemode(mode.legacyId());
         // The tab-list gamemode broadcast (ServerPlayerInteractionManager
         // .setGameMode line 44: UPDATE_GAME_MODE to everyone including the
@@ -24364,6 +24441,82 @@ public final class EngineServer implements Server, EngineBridge {
         publishBodyChanged(session);
         LOGGER.info("Game mode of " + session.name() + " set to "
                 + mode.name().toLowerCase(java.util.Locale.ROOT));
+    }
+
+    /**
+     * The C2S Spectate entry (the reference's handlePlayerSpectate,
+     * ServerPlayNetworkHandler lines 516-551, over the audit's camera
+     * ruling — the packet arms the camera-follow instead of the reference's
+     * one-shot teleport): resolves the uuid against the live registry and
+     * attaches the spectator's camera to the target player. Safe from any
+     * thread; the walk runs on the tick thread.
+     */
+    public void spectateCamera(PlayerSession session, java.util.UUID targetUuid) {
+        java.util.Objects.requireNonNull(session, "session");
+        java.util.Objects.requireNonNull(targetUuid, "targetUuid");
+        ticker.submit(() -> spectateCameraOnTick(session, targetUuid));
+    }
+
+    /**
+     * The spectate walk's own gates, the reference's order 1:1: the
+     * isSpectator refusal first (line 518 — a non-spectator's packet is
+     * discarded), then the uuid resolution across the live registry (the
+     * reference's per-world walk answering null for an absent body), then
+     * the self-target arm (the reference's setCamera(this.player) — an
+     * attached camera returns to self). Tick-thread context.
+     */
+    private void spectateCameraOnTick(PlayerSession session, java.util.UUID targetUuid) {
+        if (session.state() != PlayerState.PLAYING
+                || session.gamemode() != GameMode.SPECTATOR
+                || session.leavingTheEnd()) {
+            return;
+        }
+        if (targetUuid.equals(session.uuid())) {
+            // Spectating self is the exit (the reference's own camera
+            // reset before the teleport): an attached camera detaches.
+            detachSpectatorCamera(session);
+            return;
+        }
+        PlayerSession target = players.byUuid(targetUuid).orElse(null);
+        if (target == null || target.state() != PlayerState.PLAYING || target.leavingTheEnd()) {
+            return; // the reference's entity==null arm: nothing happens
+        }
+        // The reference's cross-dimension walk (the respawn-packet move
+        // across worlds) is NOT ported here: the engine's dimension
+        // change rides the changeDimension machinery and the tracker's
+        // per-dimension gates would strand the camera on an unspawned
+        // body. Same-dimension targets only — the honest bound.
+        if (target.dimension() != session.dimension()) {
+            return;
+        }
+        if (java.util.Objects.equals(session.spectatorCamera(), target.uuid())) {
+            return; // already following this player
+        }
+        session.setSpectatorCamera(target.uuid());
+        // The body anchors at the target immediately (the reference's
+        // setCamera teleport arm — the client renders from the target the
+        // moment its camera attaches); the per-tick walk keeps it there.
+        // A spectator is never on the ground (PlayerEntity.tick lines
+        // 190-192: {@code if (this.isSpectator()) this.onGround = false}).
+        session.applyMovement(target.position(), target.rotation(), false);
+        publishCameraAttached(session, target);
+        LOGGER.fine(() -> session.name() + " spectates " + target.name());
+    }
+
+    /**
+     * The leave-spectate walk (the reference's setCamera(this), lines
+     * 916-923): clears the camera target and hands the restore to the
+     * wire (Camera 0x43(self) + the position re-anchor). The body stays
+     * where the follow left it — the reference's own teleport target is
+     * {@code this.x/y/z}, the followed position. Tick-thread context.
+     */
+    private void detachSpectatorCamera(PlayerSession session) {
+        if (session.spectatorCamera() == null) {
+            return;
+        }
+        session.setSpectatorCamera(null);
+        publishCameraDetached(session);
+        LOGGER.fine(() -> session.name() + " leaves the spectate camera");
     }
 
     /**
@@ -26364,7 +26517,24 @@ public final class EngineServer implements Server, EngineBridge {
         // snapped back to the authoritative position — the historical
         // "moved wrongly" behavior. The grace window (teleports, knockback,
         // join bursts) suspends the speed caps for honest bursts.
+        //
+        // The spectator's no-clip (the reference's own walk,
+        // PlayerEntity.tick line 191: {@code this.noClip =
+        // this.isSpectator()} + ServerPlayNetworkHandler.handlePlayerMove's
+        // {@code if (!this.player.noClip)} band, line 335): a spectator's
+        // flight never meets the guard — its client-side envelope is the
+        // free camera (through blocks, at flight speed), so the pushback
+        // would fight an honest spectator every fast tick. The wire-side
+        // sanity band (isSaneMovement's finiteness + coordinate bounds,
+        // the reference's isInvalidMove/"Illegal position" pair) still
+        // bounds spectators exactly like every other mode — only the
+        // guard's pushback is gated out, and never for any other gamemode.
         Position from = session.position();
+        if (session.gamemode() == GameMode.SPECTATOR) {
+            session.applyMovement(position, rotation, onGround);
+            session.acknowledgeTeleportIfAtAnchor(position);
+            return;
+        }
         if (!MovementGuard.permits(session, from, position, onGround,
                 fluidAt(from.x(), from.y(), from.z())
                         || ladderAt(from.x(), from.y(), from.z()))) {
