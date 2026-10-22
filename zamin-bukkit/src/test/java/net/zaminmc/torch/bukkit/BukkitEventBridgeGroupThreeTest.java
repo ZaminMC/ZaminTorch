@@ -18,7 +18,6 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -139,7 +138,12 @@ class BukkitEventBridgeGroupThreeTest {
         harness.server.ticker().submit(() ->
                 harness.server.mobs().hurt(cow.get(), 1000.0f, 0.0));
         harness.await(() -> cow.get().dead(), "the body died");
-        assertNotNull(nativeSeen.get(), "the native MONITOR observed the death");
+        // The MONITOR dispatch lands at-or-after the dead flag inside the
+        // engine's own death walk — awaiting the observer (never asserting
+        // the instant the flag flips) keeps a loaded runner from losing
+        // the sub-tick race the old immediate assertNotNull could.
+        harness.await(() -> nativeSeen.get() != null,
+                "the native MONITOR observed the death");
         monitor.unsubscribe();
         // The honest shims: the health row reads the dead body's own 0.0,
         // the drops view is the unmodifiable empty shim (the native event
