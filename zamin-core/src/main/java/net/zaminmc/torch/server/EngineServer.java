@@ -17408,7 +17408,9 @@ public final class EngineServer implements Server, EngineBridge {
     @Override
     public net.zaminmc.torch.entity.Vehicle.SeatRows seatRows() {
         return seatRowsView;
+    }
 
+    /**
      * The achievement surface (VIII6 — the 34-row table + the per-player
      * unlocked read): the public §27.3 query view (the frozen table
      * rows, the by-key lookup, the live per-player unlocked set). The
