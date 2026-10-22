@@ -2787,6 +2787,11 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeByte(Protocol18.METADATA_TERMINATOR); // no metadata entries (0x7F, protocol 47)
         channel.writeAndFlush(out);
 
+        // The track-time attribute pair (the reference's updatePlayer
+        // order — the attributes ride BEFORE the equipment, TrackedEntity
+        // lines 322-328 ahead of the equipment arm at 348-355).
+        sendPlayerAttributes(other);
+
         // The remote body's gear (held + the armor row) rides Entity
         // Equipment right after the spawn — the 1.8 rendering path.
         sendPlayerEquipment(other);
@@ -2830,6 +2835,175 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         writeSlot(out, stack);
         channel.writeAndFlush(out);
     }
+
+    // --- the attribute wire (ML-011 — Entity Properties 0x20, the
+    // reference's EntityAttributesS2CPacket over the tracker's two send
+    // sites: TrackedEntity.updatePlayer lines 322-328 at track time,
+    // sendDataAndAttributes lines 260-274 on the change walk). ---
+
+    /**
+     * One 0x20 row: the attribute's own name, its base and the
+     * equipment-applied modifier rows — the reference packet's Entry
+     * (EntityAttributesS2CPacket lines 84-106: id, baseValue, modifiers).
+     */
+    private record WireAttribute(String name, double base,
+            java.util.List<net.zaminmc.torch.item.AttributeModifier> modifiers) {
+    }
+
+    /**
+     * The trackable pair the engine's bodies answer (the reference's own
+     * isTrackable law — EntityAttributes lines 12-21: maxHealth and
+     * movementSpeed ARE trackable, attackDamage is NOT, so only the
+     * first two ever ride the 0x20): the two registrations every living
+     * body carries, so the track-time send is never empty — exactly the
+     * reference's getTrackable() walk over LivingEntity's registered
+     * attribute map.
+     */
+    private static java.util.List<WireAttribute> playerWireAttributes(PlayerSession player) {
+        return java.util.List.of(
+                new WireAttribute(Protocol18.ATTRIBUTE_MAX_HEALTH,
+                        net.zaminmc.torch.server.player.PlayerSession.MAX_HEALTH,
+                        equipmentModifiers(Protocol18.ATTRIBUTE_MAX_HEALTH,
+                                playerEquipment(player))),
+                new WireAttribute(Protocol18.ATTRIBUTE_MOVEMENT_SPEED, 0.1,
+                        // PlayerEntity line 141: the player's own registered
+                        // movement-speed base.
+                        equipmentModifiers(Protocol18.ATTRIBUTE_MOVEMENT_SPEED,
+                                playerEquipment(player))));
+    }
+
+    /** The mob's trackable pair: the body's own health model + the walk consult (the override included). */
+    private static java.util.List<WireAttribute> mobWireAttributes(
+            net.zaminmc.torch.server.entity.MobEntity mob) {
+        return java.util.List.of(
+                new WireAttribute(Protocol18.ATTRIBUTE_MAX_HEALTH, mob.maxHealth(),
+                        equipmentModifiers(Protocol18.ATTRIBUTE_MAX_HEALTH,
+                                mobEquipment(mob))),
+                new WireAttribute(Protocol18.ATTRIBUTE_MOVEMENT_SPEED, mob.walkSpeed(),
+                        equipmentModifiers(Protocol18.ATTRIBUTE_MOVEMENT_SPEED,
+                                mobEquipment(mob))));
+    }
+
+    /**
+     * The player body's five equipment slots (the held slot + the armor
+     * family) in the reference's getEquipment() order — held first, then
+     * feet, legs, chest, head (the five-slot scan of LivingEntity.tick
+     * lines 1289-1304 reads the same order).
+     */
+    private static net.zaminmc.torch.item.ItemStack[] playerEquipment(PlayerSession player) {
+        var inventory = player.inventory();
+        return new net.zaminmc.torch.item.ItemStack[] {
+                inventory.held(), inventory.armorAt(3), inventory.armorAt(2),
+                inventory.armorAt(1), inventory.armorAt(0)};
+    }
+
+    /** The mob body's five equipment slots — the same getEquipment() order (slot 0 held, 1..4 feet..head). */
+    private static net.zaminmc.torch.item.ItemStack[] mobEquipment(
+            net.zaminmc.torch.server.entity.MobEntity mob) {
+        return new net.zaminmc.torch.item.ItemStack[] {
+                mob.heldEquipment(), mob.equipment(1), mob.equipment(2),
+                mob.equipment(3), mob.equipment(4)};
+    }
+
+    /**
+     * The equipment rows naming ONE attribute (LivingEntity's equipment
+     * scan applies every row to the attribute it names): held slot
+     * first, the armor family after — a present-but-empty list (the
+     * attribute-wipe) contributes nothing, exactly the fold's own law.
+     */
+    private static java.util.List<net.zaminmc.torch.item.AttributeModifier> equipmentModifiers(
+            String attributeName, net.zaminmc.torch.item.ItemStack... equipment) {
+        java.util.List<net.zaminmc.torch.item.AttributeModifier> modifiers =
+                new java.util.ArrayList<>();
+        for (net.zaminmc.torch.item.ItemStack stack : equipment) {
+            if (stack == null || stack.isEmpty()) {
+                continue;
+            }
+            var rows = stack.attributeModifiers();
+            if (rows == null) {
+                continue; // the tagless fall-back: no rows ride the wire
+            }
+            for (var row : rows) {
+                if (attributeName.equals(row.attributeName())) {
+                    modifiers.add(row);
+                }
+            }
+        }
+        return modifiers;
+    }
+
+    /**
+     * The Entity Properties body (EntityAttributesS2CPacket.write lines
+     * 55-70, 1:1): VarInt entity id, Int property count, per property:
+     * the name string, the Double base, the VarInt modifier count, per
+     * modifier: the UUID (two big-endian longs), the Double amount, the
+     * Byte operation.
+     */
+    private static void writeEntityProperties(Channel channel, int entityId,
+            java.util.List<WireAttribute> attributes) {
+        ByteBuf out = Unpooled.buffer(64);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_ENTITY_PROPERTIES);
+        ByteBufOps.writeVarInt(out, entityId);
+        out.writeInt(attributes.size());
+        for (WireAttribute attribute : attributes) {
+            ByteBufOps.writeString(out, attribute.name());
+            out.writeDouble(attribute.base());
+            ByteBufOps.writeVarInt(out, attribute.modifiers().size());
+            for (net.zaminmc.torch.item.AttributeModifier modifier : attribute.modifiers()) {
+                ByteBufOps.writeUuid(out, modifier.uuid());
+                out.writeDouble(modifier.amount());
+                out.writeByte(modifier.operation());
+            }
+        }
+        channel.writeAndFlush(out);
+    }
+
+    /**
+     * The remote player's Entity Properties (0x20 — the reference's
+     * track-time arm, TrackedEntity.updatePlayer lines 322-328): the
+     * trackable pair with the equipment-applied rows, resolved through
+     * this observer's id space. A no-op when this client does not track
+     * the player — a player never tracks its own body (the reference's
+     * own updatePlayer gate). Any thread.
+     */
+    void sendPlayerAttributes(PlayerSession other) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY
+                || other == session || !visibleRemotePlayers.contains(other.uuid())) {
+            return;
+        }
+        Integer entityId = remoteEntityIds.get(other.uuid());
+        if (entityId == null) {
+            return;
+        }
+        writeEntityProperties(channel, entityId, playerWireAttributes(other));
+    }
+
+    /**
+     * The mob's Entity Properties (0x20) re-publish (the reference's
+     * change-time arm, sendDataAndAttributes lines 260-274 — the whole
+     * trackable pair rides, the engine's whole-block re-publish
+     * convention over the reference's dirty-set): the body's own health
+     * + walk consult with the equipment rows. Chunk-gated like every
+     * mob packet. Any thread.
+     */
+    void sendMobAttributes(net.zaminmc.torch.server.entity.MobEntity mob) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY
+                || chunkTracker == null) {
+            return;
+        }
+        // The mob's own dimension gates the observer (the same law as the
+        // spawn: a nether body's attributes never reach an overworld view).
+        if (dimensionOfSession() != mob.dimension()) {
+            return;
+        }
+        if (!chunkTracker.hasChunk(chunkKeyOf(mob.position()))) {
+            return; // observer cannot see that chunk yet
+        }
+        writeEntityProperties(channel, mob.entityId(), mobWireAttributes(mob));
+    }
+
 
     /** Removes a remote player entity from this client (logout or move-away). */
     void untrackPlayer(UUID remoteUuid) {
@@ -4481,6 +4655,12 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         }
         out.writeByte(Protocol18.METADATA_TERMINATOR);
         channel.writeAndFlush(out);
+
+        // The track-time attribute pair (the reference's updatePlayer walk:
+        // the attributes ride before the equipment, TrackedEntity lines
+        // 322-328 ahead of the equipment arm at 348-355) — the same gates
+        // this spawn already passed hold it (chunk + dimension).
+        writeEntityProperties(channel, mob.entityId(), mobWireAttributes(mob));
 
         // The mob's gear rides Entity Equipment right after the spawn —
         // VIII4's five-slot family (the reference's TrackedEntity

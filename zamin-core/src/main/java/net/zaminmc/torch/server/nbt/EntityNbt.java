@@ -108,6 +108,20 @@ public final class EntityNbt {
             Map<String, Snbt.Tag> nbt,
             PotionSystem potions,
             Runnable equipmentChanged) {
+        readNbt(mob, nbt, potions, equipmentChanged, null);
+    }
+
+    /**
+     * The full read with BOTH change wakes (ML-011): the equipment wake
+     * (Slice 78b) beside the attributes wake — the /summon and /entitydata
+     * rows that land a trackable attribute base fire the Entity Properties
+     * (0x20) re-publish (the reference's setBase → the tracked-set walk).
+     */
+    public static void readNbt(MobEntity mob,
+            Map<String, Snbt.Tag> nbt,
+            PotionSystem potions,
+            Runnable equipmentChanged,
+            Runnable attributesChanged) {
         List<Snbt.Tag> pos = NbtOps.getList(nbt, "Pos", Snbt.Tag.Type.DOUBLE);
         List<Snbt.Tag> motion = NbtOps.getList(nbt, "Motion", Snbt.Tag.Type.DOUBLE);
         List<Snbt.Tag> rotation = NbtOps.getList(nbt, "Rotation", Snbt.Tag.Type.FLOAT);
@@ -157,7 +171,7 @@ public final class EntityNbt {
         mob.setCustomNameVisible(NbtOps.getBoolean(nbt, "CustomNameVisible"));
         mob.commandResults().readNbt(nbt);
         mob.setSilent(NbtOps.getBoolean(nbt, "Silent"));
-        readCustomNbt(mob, nbt, potions, equipmentChanged);
+        readCustomNbt(mob, nbt, potions, equipmentChanged, attributesChanged);
         // The reference's shouldSetPositionOnLoad arm: the position is set
         // again after the custom walk (the engine's plain form).
         mob.teleport(mob.position());
@@ -568,7 +582,8 @@ public final class EntityNbt {
     private static void readCustomNbt(MobEntity mob,
             Map<String, Snbt.Tag> nbt,
             PotionSystem potions,
-            Runnable equipmentChanged) {
+            Runnable equipmentChanged,
+            Runnable attributesChanged) {
         // LivingEntity.readCustomNbt (line 418 — the FIRST row the walk
         // reads): the absorption hearts install ungated; the
         // ActiveEffects rows below ride put (no modifier walk) — the
@@ -577,6 +592,11 @@ public final class EntityNbt {
         // LivingEntity.readCustomNbt.
         // Attributes (the reference's contains(key, 9) list gate): the
         // {Name, Base} walk — the engine honors the two consult names.
+        // The change wake fires ONLY for the trackable name (the
+        // reference's dirty set: setBase → markDirty → the container's
+        // track() adds the instance only when isTrackable — movementSpeed
+        // yes, attackDamage never; the wire never rides the damage row).
+        boolean trackableBaseLanded = false;
         List<Snbt.Tag> attributes = NbtOps.getList(nbt, "Attributes", Snbt.Tag.Type.COMPOUND);
         for (Snbt.Tag row : attributes) {
             Map<String, Snbt.Tag> compound = row != null ? row.asCompound() : null;
@@ -590,9 +610,13 @@ public final class EntityNbt {
             }
             if ("generic.movementSpeed".equals(name)) {
                 mob.setMovementSpeedOverride(base);
+                trackableBaseLanded = true;
             } else if ("generic.attackDamage".equals(name)) {
                 mob.setAttackDamageOverride((float) base);
             }
+        }
+        if (trackableBaseLanded && attributesChanged != null) {
+            attributesChanged.run();
         }
         // ActiveEffects (the reference's fromNbt: the BY_ID gate, the
         // ShowParticles BYTE-only gate).

@@ -65,6 +65,10 @@ class Protocol18ConformanceTest {
         m.put("S2C_REMOVE_ENTITY_EFFECT", 0x1E);
         m.put("S2C_ATTACH_ENTITY", 0x1B);
         m.put("S2C_SET_EXPERIENCE", 0x1F);
+        // Entity Properties 0x20 (ML-011 — the attribute wire): #31 in the
+        // registration order (NetworkProtocol line 154, between PlayerXp
+        // 0x1F and WorldChunk 0x21) — EntityAttributesS2CPacket's own slot.
+        m.put("S2C_ENTITY_PROPERTIES", 0x20);
         m.put("S2C_CHUNK_DATA", 0x21);
         m.put("S2C_BLOCK_CHANGE", 0x23);
         m.put("S2C_BLOCK_ACTION", 0x24);
