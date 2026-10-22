@@ -227,6 +227,21 @@ exposure, then concurrency phases, then standing deferrals.
     the empty world, the tear-free foreign-thread hammer).
 16. `block.BiomeData` — the registration datums (temperature/downfall/height/
     isRainy law) beside `World.biomeAt`'s display name.
+17. `Server.fishing()` — the fishing system's api surface (the engine accessor
+    is diagnostics-only today).
+18. ~~The door-break arming read (VIII9's builtin-goal arming + progress,
+    the §27.10 row)~~ — LANDED 2026-10-23 (7aee4589): the builtin goal's
+    arming + progress read whole — `entity.LivingEntity.doorBreak()` →
+    the `entity.ai.DoorBreak` view (the CanBreakDoors row, the armed
+    capture, the UPPER-half door target, the 240-tick clock — a live
+    view over the body's own walk state, §27.5, the goal-family package
+    beside the custom-goal registration surface; the walk itself
+    untouched), proven through the api alone (`DoorBreakApiAcceptanceTest`
+    3: the spawn-dice arm + the NBT-row verb + the EASY unarmed state +
+    the kind gate; the live walk over the manager's own tick — the
+    target + the counter + the completion through the bridge; the
+    unarmed control).
+
 17. ~~`Server.fishing()` — the fishing system's api surface (the engine accessor
     is diagnostics-only today).~~ — LANDED 2026-10-23 (d38c3de6): the new
     `net.zaminmc.torch.fishing.Fishing` view over the LIVE system (the §27.5
