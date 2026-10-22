@@ -13672,3 +13672,23 @@ Stage Summary:
 - The audit's standing remainder is unchanged: the R-1..R-9 vanilla
   verifications (Wave V in the Phase-10 plan) + the pending release runs
   (#363 in_progress, #364 queued on the PR #37 merge).
+
+---
+Task ID: wave3-lane1-ledger
+Agent: Instance 1 (the coordinator — Abasing session)
+Task: The master-ledger row updates for the lane's three rows (this
+audit branch carries the ledger until PR #38 merges).
+
+Work Log:
+- ML-006 -> RESOLVED (landed, feature/debug-attribution).
+- ML-007 -> RESOLVED (landed — the report + the evidence file + the
+  committed harness; the verdict: no concurrency phase justified).
+- ML-021 -> RESOLVED (defect fixed and pinned — the uuid string-form
+  root cause, the one-line writeUuid fix).
+- ML-024 OPENED (new): the wire-publish walk has no dedicated profiler
+  section — the attribution pass's own finding, proposed for the next
+  pass.
+
+Stage Summary:
+- The ledger now reflects the lane; PR #38 carries these updates
+  automatically (no new PR needed).
