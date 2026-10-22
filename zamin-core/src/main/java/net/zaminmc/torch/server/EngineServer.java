@@ -2614,6 +2614,16 @@ public final class EngineServer implements Server, EngineBridge {
                         new net.zaminmc.torch.server.block.GrowthViews(world));
                 // The public §27.3 primed-TNT view: the live fuse bodies.
                 world.attachPrimedTntView(tntSystem::primedBodies);
+                // The public §27.3 decoration-census view (the README
+                // TODO's row 15): the hanging bodies + the stands'
+                // family rows — each enumeration a monitor snapshot over
+                // its own system (the VillageViews shape). The nether
+                // and the End keep the default empty view (the two
+                // systems live on the overworld's store — the engine's
+                // own dimension gate).
+                world.attachDecorationsView(
+                        new net.zaminmc.torch.server.decoration.DecorationViews(
+                                decorations, armorStands));
                 ticker.setTickHandler(() -> {
                     // The /debug profiler's head (MinecraftServer.tick lines
                     // 489-494 + 497): the delayed activation — a profiling
