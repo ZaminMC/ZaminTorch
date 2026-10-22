@@ -164,6 +164,25 @@ public interface Server {
     }
 
     /**
+     * The fishing system's surface (§27.3's mechanics family — the
+     * Slice 67/69 exposure over {@code server/fishing/}): the live
+     * bobber census (whose bobber is where in which state — the
+     * reference 1.8.8's own bobber model: the flight, the water float,
+     * the grounded/hooked/biting flags), the catch-context rows (the
+     * loot band, the rod's luck and lure levels, the caught stack), and
+     * the §27.7 catch interception family (the observe/replace/cancel
+     * hook between the loot roll and the drop, plus the per-band loot
+     * override). The census answers immutable point-in-time snapshots
+     * safe from any thread; the registration verbs are safe from any
+     * thread (the monitor protocol — a registration lands between
+     * ticks); the hooks fire on the simulation owner's lane inside the
+     * retrieve.
+     */
+    default net.zaminmc.torch.fishing.Fishing fishing() {
+        return net.zaminmc.torch.fishing.Fishing.EMPTY;
+    }
+
+    /**
      * The riding seat-row query surface (§27.3's riding family — the
      * §29 VII5/VIII1 exposure): the exotic pairs' seat reads beside the
      * vehicle family's own typed {@code Vehicle.riderEntityId()} — a
