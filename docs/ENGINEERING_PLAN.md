@@ -14,7 +14,7 @@ Status: living document. Updated when reality changes; never documents planned w
 - **Gradle (Kotlin DSL)**, single build, small multi-module setup. Modules are added only when a real dependency boundary exists.
 - Dependencies (justified per rule §31): **Netty 4.2** (proven async transport; writing our own NIO layer would be a replacement of proven infrastructure with no benefit), **JUnit 5** (tests). Nothing else for Slice #1.
 
-## 3. Minestom boundary (ADR-0001 — deferred, with evidence)
+## 3. Minestom boundary (ADR-0001 — ABANDONED, owner's final decision)
 
 The vision expects Minestom as foundational infrastructure. Current finding:
 
@@ -25,6 +25,8 @@ The vision expects Minestom as foundational infrastructure. Current finding:
 
 **ADR-0001 revisit (2026-10-20, the §22 roadmap pass): DEFER STANDS, the triggers made explicit.** The re-evaluation examined the current tree and found: (a) the engine still serves exactly one protocol (zamin-protocol-v1_8_8, protocol 47) with no second protocol consumer, no operator request for modern-client support on record, and no Bukkit-adapter capability gap that Minestom would fill (the §28.7 adapter's first slice landed on the pinned spigot-api lineage and covers the legacy plugin surface); (b) the two original blockers are unchanged — upstream Minestom's codec/connection/registries remain hard-wired to one modern protocol line, and adopting its instance/chunk model would still birth a second authoritative world representation against the one-source-of-truth rule; (c) the modern-protocol milestone — ADR-0001's own revisit condition — has not itself been started by any demand, so the condition is not "reached", it is "not yet armed". The revisit therefore records the explicit triggers that WOULD arm the milestone, so a future session cannot start `zamin-minestom` speculatively (the machinery-without-a-workload rule, §31): **Trigger A** — an operator/user requirement for modern Java clients (1.20+) to join a Torch world; **Trigger B** — the Bukkit/Paper adapter roadmap hits a capability the spigot-api lineage cannot bridge and Minestom demonstrably can; **Trigger C** — a multi-protocol shared-world requirement (1.8.8 and modern clients in one world). When any trigger fires, the module follows the pattern the Bukkit adapter just proved: a standalone integration module, the upstream pinned by actually-resolved version evidence, ONE minimal engine-side interface (an accessor in the existing pattern, no engine redesign), honest §27.9-style limitations from day one.
 
+**ADR-0001 CLOSED (2026-10-22): ABANDONED — the owner's final decision. It is not planned.** The owner (Abasing) has the final say on this boundary, and the decision is: the Minestom integration is abandoned outright — not deferred, not trigger-armed, not on the roadmap. The engine has come a long way on its own legs: the dedicated 1.8.8 protocol adapter (protocol 47) is real-client-proven, the Zamin world model is the single source of truth with its own persistence family (ZWD v2/ZPD v7/ZMD/ZCD/ZFD/ZMP), the concurrency lanes are gated on their own evidence, and the §28.7 Bukkit adapter runs on the pinned spigot-api lineage. Hooking into Minestom now would buy nothing the engine does not already own, and would re-introduce the second-authoritative-world-representation problem the one-source-of-truth rule (§834) forbids. The 2026-10-20 revisit's three triggers (A/B/C) are RETIRED with this closure — no trigger can arm a `zamin-minestom` module again. Any future session that finds this ADR must treat `zamin-minestom` as permanently out of scope; reopening it is the owner's call alone, recorded as a new ADR superseding this one — until then, the module does not exist in any plan, ledger, or TODO list. The README's status table and pending-work ledger carry the same verdict.
+
 ## 3b. Community reuse (ADR-0002 — evaluated per the reuse rule)
 
 Standing rule: before building anything, search for community solutions and
@@ -33,7 +35,7 @@ ecosystem index and related candidates, against the current slices:
 
 | Candidate | Verdict | Trigger to revisit |
 | --- | --- | --- |
-| Minestom | Deferred (ADR-0001 stands; networking single-version 1.21.x, second world model) | Modern-protocol milestone |
+| Minestom | Abandoned (ADR-0001 closed 2026-10-22 — the owner's final decision; not planned, triggers retired) | Owner reversal only, as a new ADR |
 | hollow-cube/polar | Not now: ZWD v1 persistence implemented + test-proven; Polar stores modern flattened data needing 1.8 conversion | Multi-world / format milestone |
 | mworzala/canvas | Exact fit at Anvil import (§541) | Anvil milestone |
 | BlueDragonMC/SteelWorldGen | Real terrain gen is a later slice; flat gen is the deterministic fixture | Terrain-gen slice |
