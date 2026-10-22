@@ -128,6 +128,18 @@ import java.util.Objects;
  * @param bookGeneration the tag's generation int (CloneBookRecipe's copy
  *                    counter, 0 = the reference's absent-row default
  *                    "Original"); carried verbatim for the round trip
+ * @param mapScaling the tag's map_is_scaling byte (the map family —
+ *                    UpscaleMapRecipe's own marker, set on the crafting
+ *                    result and read by FilledMapItem.onResult at the
+ *                    take: the new id's allocation + the scale+1 data):
+ *                    false = absent. The reference never clears the row
+ *                    after the craft (the vanilla quirk kept — the flag
+ *                    rides the stack forever)
+ * @param mapDecorations the tag's Decorations list (the map family —
+ *                    SavedMapData.tickHolder lines 121-137's own read:
+ *                    a TAG_LIST of TAG_COMPOUND {id, type, x, z, rot}
+ *                    the reference round-trips verbatim and the tracker
+ *                    walk materializes into map icons): null = absent
  */
 public record ItemStack(ItemType type, int count, int damage, String displayName,
                         Map<Integer, Integer> enchantments,
@@ -140,7 +152,8 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
                         SkullProfile skullOwner,
                         Map<String, Object> fireworks,
                         List<String> bookPages, String bookAuthor, String bookTitle,
-                        boolean bookResolved, int bookGeneration) {
+                        boolean bookResolved, int bookGeneration,
+                        boolean mapScaling, List<Map<String, Object>> mapDecorations) {
 
     /** The wire's i16 damage/metadata ceiling (the historical field width). */
     public static final int MAX_DAMAGE = 0x7FFF;
@@ -179,7 +192,8 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
                     || displayColor != null || attributeModifiers != null
                     || skullOwner != null || fireworks != null
                     || bookPages != null || bookAuthor != null || bookTitle != null
-                    || bookResolved || bookGeneration != 0) {
+                    || bookResolved || bookGeneration != 0
+                    || mapScaling || mapDecorations != null) {
                 throw new IllegalArgumentException("A stack without a type must be empty (count "
                         + count + ", damage " + damage + ")");
             }
@@ -226,6 +240,7 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
             if (bookGeneration < 0) {
                 bookGeneration = 0;
             }
+            mapDecorations = sanitizeMapDecorations(mapDecorations);
         }
     }
 
@@ -317,6 +332,25 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
                 null, null, null, false, 0);
     }
 
+    /** The pre-map twenty-one-arg shape (the map family's compatibility constructor). */
+    public ItemStack(ItemType type, int count, int damage, String displayName,
+                     Map<Integer, Integer> enchantments, boolean unbreakable,
+                     int repairCost, int hideFlags, List<String> lore,
+                     Map<String, Object> blockEntityTag,
+                     List<String> canDestroy, List<String> canPlaceOn,
+                     Integer displayColor,
+                     List<AttributeModifier> attributeModifiers,
+                     SkullProfile skullOwner,
+                     Map<String, Object> fireworks,
+                     List<String> bookPages, String bookAuthor, String bookTitle,
+                     boolean bookResolved, int bookGeneration) {
+        this(type, count, damage, displayName, enchantments, unbreakable,
+                repairCost, hideFlags, lore, blockEntityTag, canDestroy, canPlaceOn,
+                displayColor, attributeModifiers, skullOwner, fireworks,
+                bookPages, bookAuthor, bookTitle, bookResolved, bookGeneration,
+                false, null);
+    }
+
     /** A fresh stack with no damage and no custom name. */
     public ItemStack(ItemType type, int count) {
         this(type, count, 0, null);
@@ -355,7 +389,9 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         }
         return new ItemStack(type, newCount, damage, displayName, enchantments,
                 unbreakable, repairCost, hideFlags, lore, blockEntityTag, canDestroy, canPlaceOn,
-                displayColor, attributeModifiers, skullOwner, fireworks);
+                displayColor, attributeModifiers, skullOwner, fireworks,
+                bookPages, bookAuthor, bookTitle, bookResolved, bookGeneration,
+                mapScaling, mapDecorations);
     }
 
     /**
@@ -371,7 +407,9 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         }
         return new ItemStack(type, count, newDamage, displayName, enchantments,
                 unbreakable, repairCost, hideFlags, lore, blockEntityTag, canDestroy, canPlaceOn,
-                displayColor, attributeModifiers, skullOwner, fireworks);
+                displayColor, attributeModifiers, skullOwner, fireworks,
+                bookPages, bookAuthor, bookTitle, bookResolved, bookGeneration,
+                mapScaling, mapDecorations);
     }
 
     /** @return the same stack carrying {@code newName} (null clears the name). */
@@ -381,7 +419,9 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         }
         return new ItemStack(type, count, damage, newName, enchantments,
                 unbreakable, repairCost, hideFlags, lore, blockEntityTag, canDestroy, canPlaceOn,
-                displayColor, attributeModifiers, skullOwner, fireworks);
+                displayColor, attributeModifiers, skullOwner, fireworks,
+                bookPages, bookAuthor, bookTitle, bookResolved, bookGeneration,
+                mapScaling, mapDecorations);
     }
 
     /**
@@ -394,7 +434,9 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         }
         return new ItemStack(type, count, damage, displayName, newEnchantments,
                 unbreakable, repairCost, hideFlags, lore, blockEntityTag, canDestroy, canPlaceOn,
-                displayColor, attributeModifiers, skullOwner, fireworks);
+                displayColor, attributeModifiers, skullOwner, fireworks,
+                bookPages, bookAuthor, bookTitle, bookResolved, bookGeneration,
+                mapScaling, mapDecorations);
     }
 
     // ---------------------------------------------------------------
@@ -408,7 +450,9 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         }
         return new ItemStack(type, count, damage, displayName, enchantments,
                 flag, repairCost, hideFlags, lore, blockEntityTag,
-                canDestroy, canPlaceOn, displayColor, attributeModifiers, skullOwner, fireworks);
+                canDestroy, canPlaceOn, displayColor, attributeModifiers, skullOwner, fireworks,
+                bookPages, bookAuthor, bookTitle, bookResolved, bookGeneration,
+                mapScaling, mapDecorations);
     }
 
     /** @return the same stack carrying the anvil's RepairCost (0 clears). */
@@ -418,7 +462,9 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         }
         return new ItemStack(type, count, damage, displayName, enchantments,
                 unbreakable, Math.max(0, cost), hideFlags, lore, blockEntityTag,
-                canDestroy, canPlaceOn, displayColor, attributeModifiers, skullOwner, fireworks);
+                canDestroy, canPlaceOn, displayColor, attributeModifiers, skullOwner, fireworks,
+                bookPages, bookAuthor, bookTitle, bookResolved, bookGeneration,
+                mapScaling, mapDecorations);
     }
 
     /** @return the same stack carrying the tooltip's HideFlags mask (0 clears). */
@@ -428,7 +474,9 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         }
         return new ItemStack(type, count, damage, displayName, enchantments,
                 unbreakable, repairCost, Math.max(0, flags), lore, blockEntityTag,
-                canDestroy, canPlaceOn, displayColor, attributeModifiers, skullOwner, fireworks);
+                canDestroy, canPlaceOn, displayColor, attributeModifiers, skullOwner, fireworks,
+                bookPages, bookAuthor, bookTitle, bookResolved, bookGeneration,
+                mapScaling, mapDecorations);
     }
 
     /** @return the same stack carrying the display.Lore lines (null clears). */
@@ -438,7 +486,9 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         }
         return new ItemStack(type, count, damage, displayName, enchantments,
                 unbreakable, repairCost, hideFlags, lines, blockEntityTag,
-                canDestroy, canPlaceOn, displayColor, attributeModifiers, skullOwner, fireworks);
+                canDestroy, canPlaceOn, displayColor, attributeModifiers, skullOwner, fireworks,
+                bookPages, bookAuthor, bookTitle, bookResolved, bookGeneration,
+                mapScaling, mapDecorations);
     }
 
     /**
@@ -452,7 +502,9 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         }
         return new ItemStack(type, count, damage, displayName, enchantments,
                 unbreakable, repairCost, hideFlags, lore, rows, canDestroy, canPlaceOn,
-                displayColor, attributeModifiers, skullOwner, fireworks);
+                displayColor, attributeModifiers, skullOwner, fireworks,
+                bookPages, bookAuthor, bookTitle, bookResolved, bookGeneration,
+                mapScaling, mapDecorations);
     }
 
     /**
@@ -465,7 +517,9 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         }
         return new ItemStack(type, count, damage, displayName, enchantments,
                 unbreakable, repairCost, hideFlags, lore, blockEntityTag,
-                keys, canPlaceOn, displayColor, attributeModifiers, skullOwner, fireworks);
+                keys, canPlaceOn, displayColor, attributeModifiers, skullOwner, fireworks,
+                bookPages, bookAuthor, bookTitle, bookResolved, bookGeneration,
+                mapScaling, mapDecorations);
     }
 
     /**
@@ -478,7 +532,9 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         }
         return new ItemStack(type, count, damage, displayName, enchantments,
                 unbreakable, repairCost, hideFlags, lore, blockEntityTag,
-                canDestroy, keys, displayColor, attributeModifiers, skullOwner, fireworks);
+                canDestroy, keys, displayColor, attributeModifiers, skullOwner, fireworks,
+                bookPages, bookAuthor, bookTitle, bookResolved, bookGeneration,
+                mapScaling, mapDecorations);
     }
 
     /**
@@ -491,7 +547,9 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         }
         return new ItemStack(type, count, damage, displayName, enchantments,
                 unbreakable, repairCost, hideFlags, lore, blockEntityTag,
-                canDestroy, canPlaceOn, color, attributeModifiers);
+                canDestroy, canPlaceOn, color, attributeModifiers, skullOwner, fireworks,
+                bookPages, bookAuthor, bookTitle, bookResolved, bookGeneration,
+                mapScaling, mapDecorations);
     }
 
     /**
@@ -508,7 +566,9 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         }
         return new ItemStack(type, count, damage, displayName, enchantments,
                 unbreakable, repairCost, hideFlags, lore, blockEntityTag,
-                canDestroy, canPlaceOn, displayColor, modifiers, skullOwner, fireworks);
+                canDestroy, canPlaceOn, displayColor, modifiers, skullOwner, fireworks,
+                bookPages, bookAuthor, bookTitle, bookResolved, bookGeneration,
+                mapScaling, mapDecorations);
     }
 
     /**
@@ -522,7 +582,9 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         }
         return new ItemStack(type, count, damage, displayName, enchantments,
                 unbreakable, repairCost, hideFlags, lore, blockEntityTag,
-                canDestroy, canPlaceOn, displayColor, attributeModifiers, profile, fireworks);
+                canDestroy, canPlaceOn, displayColor, attributeModifiers, profile, fireworks,
+                bookPages, bookAuthor, bookTitle, bookResolved, bookGeneration,
+                mapScaling, mapDecorations);
     }
 
     /**
@@ -538,7 +600,8 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         return new ItemStack(type, count, damage, displayName, enchantments,
                 unbreakable, repairCost, hideFlags, lore, blockEntityTag,
                 canDestroy, canPlaceOn, displayColor, attributeModifiers, skullOwner,
-                compound, bookPages, bookAuthor, bookTitle, bookResolved, bookGeneration);
+                compound, bookPages, bookAuthor, bookTitle, bookResolved, bookGeneration,
+                mapScaling, mapDecorations);
     }
 
     /**
@@ -552,7 +615,8 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         return new ItemStack(type, count, damage, displayName, enchantments,
                 unbreakable, repairCost, hideFlags, lore, blockEntityTag,
                 canDestroy, canPlaceOn, displayColor, attributeModifiers, skullOwner,
-                fireworks, pages, bookAuthor, bookTitle, bookResolved, bookGeneration);
+                fireworks, pages, bookAuthor, bookTitle, bookResolved, bookGeneration,
+                mapScaling, mapDecorations);
     }
 
     /**
@@ -566,7 +630,8 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         return new ItemStack(type, count, damage, displayName, enchantments,
                 unbreakable, repairCost, hideFlags, lore, blockEntityTag,
                 canDestroy, canPlaceOn, displayColor, attributeModifiers, skullOwner,
-                fireworks, bookPages, author, bookTitle, bookResolved, bookGeneration);
+                fireworks, bookPages, author, bookTitle, bookResolved, bookGeneration,
+                mapScaling, mapDecorations);
     }
 
     /** @return the same stack carrying the tag's title row. */
@@ -577,7 +642,8 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         return new ItemStack(type, count, damage, displayName, enchantments,
                 unbreakable, repairCost, hideFlags, lore, blockEntityTag,
                 canDestroy, canPlaceOn, displayColor, attributeModifiers, skullOwner,
-                fireworks, bookPages, bookAuthor, title, bookResolved, bookGeneration);
+                fireworks, bookPages, bookAuthor, title, bookResolved, bookGeneration,
+                mapScaling, mapDecorations);
     }
 
     /**
@@ -591,7 +657,8 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         return new ItemStack(type, count, damage, displayName, enchantments,
                 unbreakable, repairCost, hideFlags, lore, blockEntityTag,
                 canDestroy, canPlaceOn, displayColor, attributeModifiers, skullOwner,
-                fireworks, bookPages, bookAuthor, bookTitle, resolved, bookGeneration);
+                fireworks, bookPages, bookAuthor, bookTitle, resolved, bookGeneration,
+                mapScaling, mapDecorations);
     }
 
     /** @return the same stack carrying the tag's generation int (the copy counter). */
@@ -602,7 +669,41 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         return new ItemStack(type, count, damage, displayName, enchantments,
                 unbreakable, repairCost, hideFlags, lore, blockEntityTag,
                 canDestroy, canPlaceOn, displayColor, attributeModifiers, skullOwner,
-                fireworks, bookPages, bookAuthor, bookTitle, bookResolved, generation);
+                fireworks, bookPages, bookAuthor, bookTitle, bookResolved, generation,
+                mapScaling, mapDecorations);
+    }
+
+    /**
+     * @return the same stack carrying the tag's map_is_scaling byte (the
+     *         map family — UpscaleMapRecipe's marker; FilledMapItem.onResult
+     *         reads it at the craft take: the new map id's allocation + the
+     *         scale+1 data with the carried center).
+     */
+    public ItemStack withMapScaling(boolean scaling) {
+        if (isEmpty()) {
+            return this;
+        }
+        return new ItemStack(type, count, damage, displayName, enchantments,
+                unbreakable, repairCost, hideFlags, lore, blockEntityTag,
+                canDestroy, canPlaceOn, displayColor, attributeModifiers, skullOwner,
+                fireworks, bookPages, bookAuthor, bookTitle, bookResolved, bookGeneration,
+                scaling, mapDecorations);
+    }
+
+    /**
+     * @return the same stack carrying the tag's Decorations list (the map
+     *         family — the {id, type, x, z, rot} rows the tracker walk
+     *         materializes into icons); null or empty clears.
+     */
+    public ItemStack withMapDecorations(List<Map<String, Object>> decorations) {
+        if (isEmpty()) {
+            return this;
+        }
+        return new ItemStack(type, count, damage, displayName, enchantments,
+                unbreakable, repairCost, hideFlags, lore, blockEntityTag,
+                canDestroy, canPlaceOn, displayColor, attributeModifiers, skullOwner,
+                fireworks, bookPages, bookAuthor, bookTitle, bookResolved, bookGeneration,
+                mapScaling, decorations);
     }
 
     /**
@@ -681,7 +782,7 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         return new ItemStack(type, taken, damage, displayName, enchantments,
                 unbreakable, repairCost, hideFlags, lore, blockEntityTag, canDestroy, canPlaceOn,
                 displayColor, attributeModifiers, skullOwner, fireworks,
-                bookPages, bookAuthor, bookTitle, bookResolved, bookGeneration);
+                bookPages, bookAuthor, bookTitle, bookResolved, bookGeneration, mapScaling, mapDecorations);
     }
 
     /**
@@ -718,7 +819,9 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
                 && Objects.equals(a.bookAuthor, b.bookAuthor)
                 && Objects.equals(a.bookTitle, b.bookTitle)
                 && a.bookResolved == b.bookResolved
-                && a.bookGeneration == b.bookGeneration;
+                && a.bookGeneration == b.bookGeneration
+                && a.mapScaling == b.mapScaling
+                && mapDecorationsEqual(a.mapDecorations, b.mapDecorations);
     }
 
     /**
@@ -909,6 +1012,51 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
             return null;
         }
         return (Map<String, Object>) sanitizeBoxedValue(input, "Fireworks");
+    }
+
+    /**
+     * The map family's Decorations sanitize (the tag's TAG_LIST of
+     * TAG_COMPOUND rows): null or empty parses to absent, every element a
+     * deep-copied boxed compound (the BlockEntityTag convention — carried
+     * VERBATIM, never interpreted at the item layer), the order kept, the
+     * answer immutable.
+     */
+    private static List<Map<String, Object>> sanitizeMapDecorations(
+            List<Map<String, Object>> input) {
+        if (input == null || input.isEmpty()) {
+            return null;
+        }
+        java.util.List<Map<String, Object>> cleaned = new java.util.ArrayList<>(input.size());
+        for (Map<String, Object> row : input) {
+            if (row == null || row.isEmpty()) {
+                continue; // a null/empty compound row drops (never a valid icon)
+            }
+            cleaned.add((Map<String, Object>) sanitizeBoxedValue(row, "Decorations"));
+        }
+        return cleaned.isEmpty() ? null : List.copyOf(cleaned);
+    }
+
+    /**
+     * The Decorations lists' deep equality (the reference's whole-tag
+     * compare): same order, deep boxed values — {@code List#equals} over
+     * the deep-copied immutable rows already answers element-wise, but the
+     * {@code int[]} NBT INT_ARRAY rows compare by VALUE inside the boxed
+     * trees, so the walk goes through {@link #blockEntityTagEqual} per row.
+     */
+    private static boolean mapDecorationsEqual(List<Map<String, Object>> a,
+                                               List<Map<String, Object>> b) {
+        if (a == null || b == null) {
+            return a == b;
+        }
+        if (a.size() != b.size()) {
+            return false;
+        }
+        for (int i = 0; i < a.size(); i++) {
+            if (!blockEntityTagEqual(a.get(i), b.get(i))) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**

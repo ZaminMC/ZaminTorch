@@ -335,4 +335,27 @@ public interface ClientLink {
                                 float offsetX, float offsetY, float offsetZ,
                                 float particleData, int count, int[] params) {
     }
+
+    /**
+     * One map icon row (the map item family — the reference's
+     * MapDecoration): the type byte, the -128..127 canvas coordinates,
+     * and the sixteen-step rotation byte.
+     */
+    record MapIcon(byte type, byte x, byte y, byte rotation) {
+    }
+
+    /**
+     * Map Data (0x34 — the reference's MapDataS2CPacket, the wire form the
+     * holder's update consult answers): the map id (the stack's damage
+     * field, never an entity id), the scale byte, the icon rows, and the
+     * dirty rectangle (width 0 = the decorations-only resend — no color
+     * payload follows on the wire). The gate chunk is the framed-maps'
+     * visibility gate (the packed chunk key the adapter checks against its
+     * observer's loaded window — the reference's tracking-player set);
+     * {@link Long#MIN_VALUE} means no gate (the held-map path).
+     */
+    default void sendMapData(int mapId, byte scale, java.util.List<MapIcon> icons,
+                             int minX, int minY, int width, int height, byte[] colors,
+                             long gateChunk) {
+    }
 }

@@ -2229,6 +2229,52 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         channel.writeAndFlush(out);
     }
 
+    /**
+     * Map Data (0x34 — the map item family, the reference's
+     * MapDataS2CPacket.write lines 64-82, 1:1): the varint MAP id (the
+     * stack's damage field — the client indexes its map item renderer by
+     * it, never an entity id), the scale byte, the varint-counted icon
+     * rows (the packed {@code (type & 15) << 4 | rotation & 15} byte +
+     * the x/y pair), the columns byte, and — when the columns byte is
+     * nonzero — the rows/minX/minY bytes + the varint-length colors
+     * payload. The framed-maps' gate chunk (the reference's
+     * tracking-player set): a non-sentinel key skips observers whose
+     * loaded window lacks the frame's chunk. Any thread.
+     */
+    @Override
+    public void sendMapData(int mapId, byte scale,
+                            java.util.List<net.zaminmc.torch.server.net.ClientLink.MapIcon> icons,
+                            int minX, int minY, int width, int height, byte[] colors,
+                            long gateChunk) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        if (gateChunk != Long.MIN_VALUE && chunkTracker != null
+                && !chunkTracker.hasChunk(gateChunk)) {
+            return; // outside this observer's loaded window (the frame gate)
+        }
+        ByteBuf out = Unpooled.buffer(32 + Math.max(0, colors.length));
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_MAP_DATA);
+        ByteBufOps.writeVarInt(out, mapId);
+        out.writeByte(scale);
+        ByteBufOps.writeVarInt(out, icons.size());
+        for (net.zaminmc.torch.server.net.ClientLink.MapIcon icon : icons) {
+            out.writeByte((icon.type() & 15) << 4 | icon.rotation() & 15);
+            out.writeByte(icon.x());
+            out.writeByte(icon.y());
+        }
+        out.writeByte(width);
+        if (width > 0) {
+            out.writeByte(height);
+            out.writeByte(minX);
+            out.writeByte(minY);
+            ByteBufOps.writeVarInt(out, colors.length);
+            out.writeBytes(colors);
+        }
+        channel.writeAndFlush(out);
+    }
+
     @Override
     public void playGameState(int reason, float value) {
         Channel channel = adapter.channelOf(this);

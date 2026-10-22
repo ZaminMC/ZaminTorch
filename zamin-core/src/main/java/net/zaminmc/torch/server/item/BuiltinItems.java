@@ -677,6 +677,18 @@ public final class BuiltinItems {
             Identifier.parse("minecraft:ender_pearl"), "Ender Pearl", 16);
     public static final EngineItemType EMPTY_MAP = new EngineItemType(
             Identifier.parse("minecraft:empty_map"), "Empty Map", 64);
+    // The filled map (the map item family — Item.java line 644:
+    // register(358, "filled_map", new FilledMapItem().setKey("map"))): the
+    // stack's damage field carries the MAP ID (the hasCustomData flag's own
+    // double duty — a stack's variant is significant, so two maps of
+    // different ids never merge), and the stack ceiling stays the default
+    // 64 (the reference's setHasCustomData touches the subtype flag alone,
+    // never the stack size — the clone recipe's multi-copy result depends
+    // on it). The item's existence also makes the stat table's filled_map
+    // row honest (the client's statistics screen resolves
+    // stat.useItem.minecraft.filled_map only for registered items).
+    public static final EngineItemType FILLED_MAP = new EngineItemType(
+            Identifier.parse("minecraft:filled_map"), "Map", 64);
     public static final EngineItemType COMPASS = new EngineItemType(
             Identifier.parse("minecraft:compass"), "Compass", 64);
     // The iron door item (legacy 330 — the prison's pair, the block's
@@ -1116,7 +1128,7 @@ public final class BuiltinItems {
                 BRICK_BLOCK_ITEM, CLAY_ITEM, SLIME_ITEM, END_STONE_ITEM,
                 PACKED_ICE_ITEM, REDSTONE_LAMP_ITEM,
                 ITEM_FRAME, PAINTING, ARMOR_STAND,
-                ENDER_PEARL, EMPTY_MAP, COMPASS, IRON_DOOR,
+                ENDER_PEARL, EMPTY_MAP, FILLED_MAP, COMPASS, IRON_DOOR,
                 NETHER_BRICKS, NETHER_BRICK_FENCE, NETHER_BRICK_STAIRS,
                 PRISMARINE, PRISMARINE_CRYSTALS, PRISMARINE_SHARD, SEA_LANTERN,
                 SPONGE, GOLD_BLOCK,
