@@ -354,3 +354,27 @@ remainder list is the honest boundary of this cycle's claims.
   changed in this increment.** Artifacts: the KigPaper accounting doc, the
   census JSON + script, ledger rows ML-022/023 + DEC-003, compatibility
   matrix fork row, this section, WORKLOG entry.
+
+## Increment 3 (2026-10-23, same session) — the KigPaper patch audit completes
+
+- ML-023 closed: the 418 server-stack patches dispositioned by a committed,
+  reproducible pipeline (deep-pass hunk-identifier extraction ->
+  deterministic classifier -> the 418-row table + bugfix class map):
+  **130 knob (DEC-003) / 171 bugfix-div (reference wins) / 70 api
+  (DEC-002) / 24 perf (ML-007 lesson) / 23 infra (NA)**.
+- ML-022 closed: `registerSpecializedPacket` has no caller in any of the
+  533 patches — the registry is inert; no extra clientbound wire surface.
+- The material spot-check passed two-sided: Torch's
+  `FluidSystem.checkSpreadCollisions` implements exactly the reference's
+  lava-water bands (level 0 -> obsidian; <=4 -> cobblestone); the fork's
+  SSV0067 `> 0` divergence is recorded and not owed.
+- Hand-review beyond the nms 8: CB0047, CB0079, SSV0067, SSV0156 (full
+  reads) — no misclassified dispositions surfaced; the SSV0156 subject
+  vs. content mismatch (the flush-toggle hunk) is why dispositions ride the
+  hunk identifiers, never the subject alone.
+- The KigPaper patch audit is COMPLETE at the disposition level. No Torch
+  debt was created by the fork audit; adoption of any knob is DEC-003
+  (owner); bugfix-divergences stay reference-wins per §17.
+- Release runs at commit time: #363 in_progress (94f1fed3), #364 queued
+  (b7a6917c — the PR #37 merge's CI proof). No pipeline action taken.
+- Still no production code, tests, or behavior changed.

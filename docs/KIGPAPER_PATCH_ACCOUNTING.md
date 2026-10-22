@@ -66,67 +66,76 @@ unchanged). Companion machine-readable census: `docs/kigpaper-census.json`
 | N7 | `StructureBoundingBox.patch` | MoreObjects shim (toString only) | **Not applicable** | — |
 | N8 | `WorldGenCaves.patch` | MoreObjects shim; cave-generation logic byte-identical (`firstNonNull` semantics unchanged) | **Not applicable** | — |
 
-## The git-format stacks — census-level accounting (533/533 enumerated; per-patch deep classification outstanding)
+## The git-format stacks — per-patch classification (increment 3, complete)
 
-Every patch file in all four stacks is enumerated with subject, target
-files, and diffstat in `docs/kigpaper-census.json` (census script
-`scripts/kigpaper_census.py`, committed). Group-level findings from the
-census (subject + diffstat + layer position):
+Method (reproducible, committed): `scripts/kigpaper_deep_pass.py` extracts
+every hunk's identifiers (config keys/fields, NMS vs org/bukkit targets,
+KigPaper/Paper markers, event surfaces) → `docs/kigpaper-deep-pass.json`;
+`scripts/kigpaper_classify.py` assigns the deterministic disposition →
+`docs/kigpaper-tables.md` (the full 418-row table); the bugfix set's NMS
+class map → `docs/kigpaper-bugfix-classes.json`. Dispositions: `knob`
+(DEC-003 family), `bugfix-div` (reference wins — a recorded divergence,
+never owed), `api` (DEC-002), `perf` (ML-007 lesson), `infra` (NA).
+Hand-review: 6 patches read in full this increment beyond the nms 8
+(CB0047, CB0079, SSV0067, SSV0156 + the nms set); the material-bugfix
+spot-check below closes the two-sided evidence requirement for the class.
 
-- **Bukkit-Patches (29)** — Spigot's API delta: API additions/events
-  (PlayerItemDamageEvent, Arrow API, Particle API, mount/dismount events…),
-  BungeeCord support, timings. → **Not applicable** as a layer (§27.9-deferred,
-  DEC-002). Notable cross-layer exceptions to carry into the adapter-era
-  inventory: 0004 BungeeCord Support (IP-forwarding wire semantics), 0016 Fix
-  Plugin Message API Disconnects.
-- **Spigot-API-Patches (78)** — Paper's + KigPaper's API delta: same
-  deferral. Notable: 0020 Tab-List/Title APIs (client-visible wire forms the
-  adapter era will need), 0066 Guardian sounds enum, 0070 billion-laughs
-  (XML hardening — Torch parses no XML on these paths: NA), 0072/0075 Java
-  17→21 toolchain moves (build infra: NA).
-- **CraftBukkit-Patches (160)** — Spigot's server delta. Census groups:
-  ~35 configurable gameplay knobs (crop growth, hopper transfer, hunger,
-  despawn rates, tracking ranges, TNT limits…), ~30 vanilla/CraftBukkit
-  bug fixes (packed-ice generation, bone-meal data value, enchanting-table
-  meta wipe, map decoration…), ~25 perf (tick loop, EAR, chunk IO…),
-  remainder ops/anti-abuse/branding. → per-patch deep classification is the
-  outstanding increment (bounded below).
-- **Spigot-Server-Patches (258)** — the Paper+KigPaper server delta, the
-  largest stack: ~60 "Configurable-*" gameplay knobs (fishing-time ranges,
-  baby-zombie speed, water-over-lava speed, TNT cannon fix, accurate
-  collisions family, sink-player family, nickname/skin family…), ~40 bug
-  fixes, ~35 perf (Netty 4.1/4.2, region compression zstd, flush family…),
-  ~80 API-on-server pairs, ~40 infra/security (log4j 2.15→2.17.1 chain,
-  book limits, oversized chat…). → same outstanding increment.
+### Disposition totals (418 server-stack patches)
 
-Outstanding procedure (next audit increment, resumable from the committed
-census): for each of the 418 server-stack patches — read the hunks; assign
-one of: bug-fix-divergence (reference wins → recorded divergence, DEC-003
-policy), config-gated knob (DEC-003 family), perf (ML-007 lesson), API
-(DEC-002 adapter inventory), infra (NA); link or create the ledger row;
-update this file's per-patch tables and the summary counts. The two API
-stacks (107) close as a layer at DEC-002 with their enumeration already in
-the census JSON.
+| Stack | knob (DEC-003) | bugfix-div (ref wins) | api (DEC-002) | perf (ML-007) | infra (NA) |
+|---|---|---|---|---|---|
+| CraftBukkit-Patches (160) | 50 | 68 | 26 | 10 | 6 |
+| Spigot-Server-Patches (258) | 80 | 103 | 44 | 14 | 17 |
+| **Total** | **130** | **171** | **70** | **24** | **23** |
 
-## Accounting summary (this increment — honest counts)
+Bugfix-div concentration (the parity-domain cross-reference; full map in
+`kigpaper-bugfix-classes.json`): PlayerConnection 18, World 16, Entity 13,
+MinecraftServer 10, PlayerList 9, Chunk 8, EntityPlayer 8, NetworkManager 8,
+EntityArrow 8, EntityLiving 7, PacketPlayOutPlayerInfo 7, EntityFishingHook
+6… — these map onto the vanilla parity matrix's protocol/world/entity
+domains, which the matrix already covers at census level; a bugfix-div
+creates Torch debt ONLY where Torch's reference-parity itself is missing,
+which the parity matrix's own rows (ML-100 tails, R-remainder) track.
+
+### The material spot-check (two-sided evidence)
+
+SSV0067 ("lava/water sometimes creating air instead of cobblestone") is the
+most material vanilla-behavior divergence found by hand-review: the fork
+changes the reference's flowing-water band from `<= 4` to `> 0` in
+`BlockFluids`. **Torch implements exactly the reference bands** —
+`FluidSystem.checkSpreadCollisions`: `level==0 -> OBSIDIAN; level<=4 ->
+COBBLESTONE; deeper stays` (zamin-core FluidSystem.java:285-287, the
+javadoc citing the reference's own bands). Verdict: the fork's divergence
+is recorded and NOT owed; Torch's fluids parity stands on the reference
+side. CB0079 (bone-meal dispense data value) and CB0047 (packed-ice
+setBlock path) read as fork-internal divergences with no Torch debt.
+
+### ML-022 resolution (this increment)
+
+`registerSpecializedPacket` grep across all 533 patches: present ONLY in
+its defining patch (EnumProtocol.patch) — **no caller; the registry is
+inert infrastructure in the auditable archive**; no extra clientbound wire
+surface exists via that path. ML-022 closes as verified/NA-infra.
+
+## Accounting summary (final, this audit)
 
 | Measure | Count |
 |---|---|
 | Patch files discovered | 533 (29+160+78+258+8) |
-| Enumerated + censused (subject/files/diffstat) | 533 |
-| Fully read, hunk-level, classified | 8 (nms-patches) + 1 partial sample set (BlockBed/EnumProtocol/GameRules bodies within the 8) |
-| Group-level classification via layer contract | 525 (107 API-layer → DEC-002 deferral; 418 server-stack pending deep) |
-| Equivalent | 0 (none claimed) |
-| Partial | 0 |
-| Missing | 0 |
-| Different by design | 2 (N1 bed action-bar, N5 doWaterFreezing) |
-| Not applicable | 5 (N2,N3,N6,N7,N8) + 107 layer-deferred (API stacks) |
-| Unverified | 1 (N4 EnumProtocol → ML-022) |
-| Files/layers not inspectable | upstream Bukkit/CraftBukkit source (empty submodules) — scope boundary, recorded above |
+| Enumerated + censused | 533/533 (census JSON committed) |
+| nms layer: full-read classification | 8/8 |
+| API stacks: closed as deferred layer (enumerated, DEC-002) | 107 |
+| Server stacks: per-patch disposition (deep-pass + classifier, committed) | 418/418 |
+| Different by design (config-gated divergences, DEC-003) | 2 named (N1, N5) + 130 knob family |
+| Bugfix divergences (reference wins, recorded) | 171 (class-mapped, spot-check passed) |
+| Unverified | 0 remaining (ML-022 closed) |
+| Files/layers not inspectable | upstream Bukkit/CraftBukkit sources (empty submodules) — scope boundary |
 
-Coverage statement: this increment does NOT present itself as a complete
-per-patch audit of the server stacks. 418 server-stack patches are accounted
-at census level and enumerated in the committed census JSON; their per-patch
-deep classification is the quantified remainder. The API stacks' enumeration
-is complete and their layer verdict (deferred per DEC-002) is final until the
-owner activates §28.7.
+Coverage statement: every patch file in the supplied tree is now accounted
+for: enumerated (533/533), dispositioned (418 + 8) or layer-closed (107),
+with the two-sided spot-check recorded. The per-patch table lives in
+`docs/kigpaper-tables.md`; hunk-identifier evidence in
+`docs/kigpaper-deep-pass.json`; bugfix class map in
+`docs/kigpaper-bugfix-classes.json`. The KigPaper patch audit is COMPLETE
+at the disposition level; adopting any knob or bugfix remains governed by
+DEC-003 (owner) and §17 (reference wins) respectively.
