@@ -2104,6 +2104,15 @@ public final class EngineServer implements Server, EngineBridge {
                 projectiles.setExplosionSink((at, power) -> detonateAt(
                         at.x(), at.y(), at.z(), power, 8.0f * power + 1.0f,
                         gameRules.getBoolean("mobGriefing")));
+                // The wither skull's own arm (the charged flag rides the
+                // blast's source model — WitherSkullEntity lines 43-51's
+                // 0.8 cap over canDestroy): the blue skull breaks through
+                // everything but the unbreakable band; the plain skull
+                // reads the table like every other source.
+                projectiles.setSkullExplosionSink((at, power, charged) -> detonateAtWithSource(
+                        at.x(), at.y(), at.z(), power, 8.0f * power + 1.0f,
+                        gameRules.getBoolean("mobGriefing"),
+                        charged ? net.zaminmc.torch.server.block.BlastSources.CHARGED_SKULL : net.zaminmc.torch.server.block.ExplosionService.BlastSource.PLAIN));
                 // The ender pearl's teleport arm (Slice 17c —
                 // EnderPearlEntity.onCollision lines 45-71): the 5%
                 // player-spawned endermite at the thrower's pre-teleport
@@ -2378,9 +2387,10 @@ public final class EngineServer implements Server, EngineBridge {
                 // item-use spawn, so a restored cart burst nothing.
                 vehicles.setBlastSinkFactory(() ->
                         (net.zaminmc.torch.server.entity.vehicle.TntMinecartEntity.BlastSink)
-                                (x, y, z, power) -> detonateAt(
+                                (x, y, z, power, primed) -> detonateAtWithSource(
                                         x, y, z, power, 8.0f * power + 1.0f,
-                                        gameRules.getBoolean("mobGriefing")));
+                                        gameRules.getBoolean("mobGriefing"),
+                                        primed ? net.zaminmc.torch.server.block.BlastSources.PRIMED_CART : net.zaminmc.torch.server.block.ExplosionService.BlastSource.PLAIN));
                 vehicles.addListener(new VehicleEventDispatch());
                 // Vehicle persistence (Slice 25g — the ZVD store): the
                 // whole family's pre-25g gap closes — the carts (and the
@@ -16766,7 +16776,8 @@ public final class EngineServer implements Server, EngineBridge {
                     x, y, z,
                     net.zaminmc.torch.server.endcrystal.EnderCrystalSystem.BLAST_POWER,
                     net.zaminmc.torch.server.endcrystal.EnderCrystalSystem.BLAST_MAX_DAMAGE,
-                    true);
+                    true,
+                    net.zaminmc.torch.server.block.ExplosionService.BlastSource.PLAIN);
         }
 
         @Override
@@ -18233,14 +18244,10 @@ public final class EngineServer implements Server, EngineBridge {
             }
         }
 
-        /** canDestroy (lines 320-326): the unbreakable band excepts five. */
+        /** canDestroy (lines 320-326): the shared list's delegation (the
+         * sweep and the charged skull's source consult the same list). */
         private boolean witherCanDestroy(net.zaminmc.torch.block.BlockType type) {
-            String id = type.identifier().toString();
-            return !id.equals("minecraft:bedrock")
-                    && !id.equals("minecraft:end_portal")
-                    && !id.equals("minecraft:end_portal_frame")
-                    && !id.equals("minecraft:command_block")
-                    && !id.equals("minecraft:barrier");
+            return net.zaminmc.torch.server.block.BlastSources.witherCanDestroy(type);
         }
 
         /** The head Ints' dirty resend (the wire's own listener). */
@@ -20070,9 +20077,16 @@ public final class EngineServer implements Server, EngineBridge {
      * One detonation in the OVERWORLD (the generalized walk's own dimension-0
      * binding — the creeper, the TNT, the fireballs, the wither).
      */
+    private void detonateAtWithSource(double cx, double cy, double cz, float power, float maxDamage,
+                                      boolean destructive,
+                                      net.zaminmc.torch.server.block.ExplosionService.BlastSource source) {
+        detonateAtIn(world, explosionService, 0, cx, cy, cz, power, maxDamage, destructive, source);
+    }
+
     private void detonateAt(double cx, double cy, double cz, float power, float maxDamage,
                             boolean destructive) {
-        detonateAtIn(world, explosionService, 0, cx, cy, cz, power, maxDamage, destructive);
+        detonateAtIn(world, explosionService, 0, cx, cy, cz, power, maxDamage, destructive,
+                net.zaminmc.torch.server.block.ExplosionService.BlastSource.PLAIN);
     }
 
     /**
@@ -20086,7 +20100,8 @@ public final class EngineServer implements Server, EngineBridge {
      */
     private void detonateAtIn(EngineWorld blastWorld, ExplosionService service,
                               int dimension, double cx, double cy, double cz,
-                              float power, float maxDamage, boolean destructive) {
+                              float power, float maxDamage, boolean destructive,
+                              net.zaminmc.torch.server.block.ExplosionService.BlastSource source) {
         BlockPosition blockCenter = new BlockPosition(
                 (int) Math.floor(cx), (int) Math.floor(cy), (int) Math.floor(cz));
 
@@ -20129,7 +20144,7 @@ public final class EngineServer implements Server, EngineBridge {
         java.util.List<ExplosionService.Destroyed> destroyed = new java.util.ArrayList<>();
         if (destructive) {
             blastWorld.executeInRegions(scopeMin, scopeMax,
-                    () -> destroyed.addAll(service.detonate(blockCenter, power)));
+                    () -> destroyed.addAll(service.detonate(blockCenter, power, source)));
         }
         // The historical drop roll: one block in `power` survives as loot.
         java.util.List<int[]> blockOffsets = new java.util.ArrayList<>();
