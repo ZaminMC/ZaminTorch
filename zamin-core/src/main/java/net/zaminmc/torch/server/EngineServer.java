@@ -58,6 +58,7 @@ import net.zaminmc.torch.server.interaction.DropService;
 import net.zaminmc.torch.server.ops.BanStore;
 import net.zaminmc.torch.server.ops.IpBanStore;
 import net.zaminmc.torch.server.ops.OpStore;
+import net.zaminmc.torch.server.ops.PlayerProfileCache;
 import net.zaminmc.torch.server.ops.WhitelistStore;
 import net.zaminmc.torch.server.net.ClientLink;
 import net.zaminmc.torch.server.sign.SignDataStore;
@@ -417,6 +418,12 @@ public final class EngineServer implements Server, EngineBridge {
     private net.zaminmc.torch.server.entity.vehicle.VehicleDataStore vehicleStore;
     /** The operator registry (ops.json); loaded at boot, rewritten on /op and /deop. */
     private OpStore opStore = OpStore.load(java.nio.file.Path.of("ops.json"));
+    /**
+     * The /op name resolution (ML-005 — the audit's B-3 row): the
+     * persisted-identity census (the .zpd headers + ops.json's own rows
+     * + this run's joins). Null until the boot walk builds it.
+     */
+    private PlayerProfileCache profileCache;
     /** The ban registry (banned-players.json) and the whitelist roster. */
     private BanStore banStore = BanStore.load(java.nio.file.Path.of("banned-players.json"));
     private WhitelistStore whitelistStore =
@@ -646,6 +653,12 @@ public final class EngineServer implements Server, EngineBridge {
                 // Player persistence: one ZPD file per identity under world/playerdata.
                 playerStore = new PlayerDataStore(
                         config.playerDataDir());
+                // The /op profile-cache equivalent (ML-005 — the audit's B-3
+                // row): the reference's GameProfileCache role over ONLY the
+                // engine's persisted identities — the .zpd census + ops.json's
+                // own rows, both loaded above; the run's joins add live. Built
+                // before the first join can consult it.
+                profileCache = PlayerProfileCache.load(playerStore, opStore);
                 // The world-session lock (§31.6 session ownership): exactly
                 // one LIVE writer per world root. An OS-level FileLock held
                 // for the whole run — a crashed process's lock evaporates
@@ -4109,6 +4122,17 @@ public final class EngineServer implements Server, EngineBridge {
      */
     public net.zaminmc.torch.server.ops.OpStore opStore() {
         return opStore;
+    }
+
+    /**
+     * The /op name resolution (ML-005): the persisted-identity census
+     * over the .zpd headers, ops.json's own rows, and this run's joins —
+     * the reference's GameProfileCache role, minus the Mojang walk the
+     * engine deliberately does not own. Null before the boot walk
+     * builds it.
+     */
+    public PlayerProfileCache profileCache() {
+        return profileCache;
     }
 
     /** The crafting matcher (exposed for recipe tests). */
@@ -24253,7 +24277,25 @@ public final class EngineServer implements Server, EngineBridge {
         }
         PlayerSession target = players.byName(args[0]).orElse(null);
         if (target == null) {
-            return "No online player named " + args[0];
+            // ML-005 (the audit's B-3 row): the reference resolves /op
+            // through the profile cache (OpCommand lines 30-39 — the
+            // cache get, then addOp + commands.op.success), so a
+            // joined-but-currently-offline name still ops: the pre-op of
+            // returning players. The engine's cache equivalent rides
+            // ONLY persisted identities (the .zpd census, ops.json's own
+            // rows, this run's joins); an unknown name answers the
+            // reference's commands.op.failed line (1.8.8 en_US.lang:
+            // "Could not op %s"). /deop is NOT this arm's to change: its
+            // own offline walk already resolves over ops.json (the
+            // reference's own getOps().getProfile resolution).
+            PlayerProfileCache.Profile profile = profileCache == null
+                    ? null : profileCache.byName(args[0]);
+            if (profile == null) {
+                return "Could not op " + args[0];
+            }
+            opStore.op(profile.uuid(), profile.name(), 4);
+            LOGGER.info("Made " + profile.name() + " a server operator (by " + sender.name() + ")");
+            return "Made " + profile.name() + " a server operator";
         }
         opStore.op(target.uuid(), target.name(), 4);
         target.setOpLevel(4);
@@ -25982,6 +26024,13 @@ public final class EngineServer implements Server, EngineBridge {
             // from here; the wire-local ids remain the adapter's business.
             session.assignEngineEntityId(nextPlayerEntityId++);
             players.register(session);
+            // The login's own cache add (ML-005 — the reference's
+            // GameProfileCache.add at the accept site): a same-run
+            // join-then-quit name stays resolvable for /op without a
+            // restart.
+            if (profileCache != null) {
+                profileCache.add(offlineUuid, username);
+            }
             session.authenticate();
             // The personal game mode survives restarts (ZPD v4); a fresh player
             // inherits the server default (server.properties, overridden by
