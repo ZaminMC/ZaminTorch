@@ -12194,3 +12194,57 @@ Stage Summary:
 - Orientation complete; implementation begins with the color table + item
   registration, then the data model + store, the tracker + wire, the use +
   crafting family, and the test suite.
+
+---
+
+Task ID: map-item (chunk: the map item family — delivery)
+Agent: instance-4 (feature/map-item)
+Task: Deliver the whole map item family 1:1 (see the orientation record above) —
+the six implementation items, the test family, the package-group verification,
+the docs, and the PR against develop.
+
+Work Log:
+- Landed the family in four implementation commits + the test commit (see Wave X
+  in Torch-Arcetecture §29 for the per-commit citations): the color table over
+  the engine's registry, the MapData model + the per-dimension ZMP store, the
+  tracker walk + the 0x34 writer, the use + the crafting family, and MapItemTest.
+- Debugged the test family's two real failures (the interrupted session's
+  unverified state): (1) the per-call registry rebuild — the FakeSurface's
+  height walk consults block() tens of thousands of times per scan, each
+  rebuilding + re-freezing the whole registry (an apparent hang: 94s CPU in a
+  99s window, the thread dump showing TreeMap.put inside
+  BlockRegistryBuilder.freeze) — fixed with the one frozen registry (the
+  engine's own boot chain's fluid leg: BuiltinBlocks + FluidBlocks) and the
+  memoized lookups; (2) the stone column's "column k1=2 untouched" expectation
+  was WRONG vanilla — the reference's flag re-arm (b0 != b1 -> flag = true,
+  FilledMapItem line 166) keeps every column after the first write walked, so
+  the FIRST update fills the whole canvas (the vanilla map's instant first
+  draw) — the expectation re-pinned to the cascade (45 at column 2 and the far
+  corner). The water test's NoSuchElementException was the missing fluid leg.
+- Repaired the crafting take's cursor swap (placeOnCursor refuses a loaded
+  cursor: the take-then-place pair — the single pickup's cursor re-damage now
+  lands) and added the EngineServer.maps() test read surface.
+- Added the S2C_MAP_DATA conformance row (0x34, #53 in the reference's
+  NetworkProtocol registration order, line 174) — the tracker commit had
+  declared the constant without the table row.
+- Rebased onto origin/develop 6507bd09 (the WORKLOG orientation entry resolved
+  by union — the cross-lane convention); the rebase surfaced the VIII14 fern's
+  missing MapColors row (FOLIAGE — Material.REPLACEABLE_PLANT's own color,
+  TallPlantBlock's ctor) — added with the flora band.
+- Verified by package group (never the whole server suite at once): map
+  (MapColorsTest 7 + MapItemTest 12), item (Armor 5, Tools 4, WrittenBookFlow
+  9), crafting (CraftingRecipeTest 18), the protocol module whole 117/0, nbt
+  116/0, interaction, stat (the StatsCompletenessTest failure REPRODUCED ON
+  DEVELOP 6507bd09 — coarse_dirt/fern/podzol counting on stat rows the 1.8.8
+  client drops; the decorators/surface lanes' own defect, not this lane's).
+- Updated VANILLA_1_8_8_COMPATIBILITY.md §1 (the map crafting family row) + §7
+  (the map item family row) and Torch-Arcetecture.txt §29 (Wave X — the
+  incremental landing record).
+
+Stage Summary:
+- The map item family whole: filled_map 358 + empty_map 395, the MapData model
+  with the per-dimension ZMP persistence and the never-colliding allocator, the
+  terrain scan + holder walk + 0x34 wire, the use/clone/scale-up paths through
+  the real dispatch and window clicks, the 37-color table over the registry,
+  and the twelve-pin test family — all green by package group on the rebased
+  branch. PR opened against develop (not self-merged).

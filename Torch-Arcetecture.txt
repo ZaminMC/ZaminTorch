@@ -3511,6 +3511,80 @@ own tests. Order is by vanilla visibility and dependency, not size.
       44/0 (the acceptance 6/0) + the piston package 15/0 + the api
       module's tests green.
 
+## Wave X — the 2026-10-22 map item family (the engine audit's verified whole-gap, landed)
+
+- [x] X1 — THE MAP ITEM FAMILY LANDED WHOLE (instance-4, `feature/map-item`,
+      commits 1d5e3e31 + 8e90093f + 44611ab5 + eed0cab6 + 3d3e532e, rebased
+      over 6507bd09): the engine audit's verified gap — no filled_map item,
+      no MapData model, no 0x34 writer, no map recipes (empty_map 395 existed
+      loot-only; the stat table's filled_map row was dishonest until the
+      item existed). The family 1:1:
+      - THE COLOR TABLE (MapColors, 1d5e3e31): the 37-color 1.8.8 table over
+        the engine's OWN registry — every registered block resolves a row
+        (the flora band, the fluid band, the derived-state bands, the AIR
+        families), the material-color law the reference's MapColor.java owns
+        (MapColorsTest's coverage walk IS the survey; the VIII14 fern row
+        joined with the rebase, 3d3e532e's follow-up).
+      - THE DATA MODEL + STORE (MapData/MapDataStore, 8e90093f): the 128x128
+        byte canvas, the per-player trackers (the dirty region + the
+        every-5th decorations resend, createUpdatePacket lines 221-241), the
+        decorations map (the canvas law of addDecoration lines 140-181 — the
+        63-unit border, the type-6 off-map arrows, the >320 removal, the
+        nether's time spin), the per-dimension ZMP persistence riding the
+        standalone-store pattern (WeatherDataStore/VillageDataStore's own
+        shape — NOT a WorldSavePipeline restructure), and the id allocator
+        (the getSavedDataCount("map") count law, the counter persisted so a
+        reboot never collides).
+      - THE TRACKER + THE WIRE (MapSystem + V18Connection.sendMapData,
+        44611ab5): the held-map tick (FilledMapItem.tick lines 175-187) —
+        the damage-row consult with the reassign quirk (an unknown id
+        becomes the scale-3 spawn-centered overview, getSavedMapData lines
+        42-51), the terrain scan 1:1 (update lines 56-172: the 16-band
+        column rotation, the per-column multiset over the 2^scale sample,
+        the height shading, the WATER depth ripple, the nether's
+        deterministic dirt/stone noise arm, the circular write region with
+        the outer-ring parity gate, and the FLAG RE-ARM CASCADE — b0 != b1
+        keeps the flag armed so the FIRST update fills the whole canvas,
+        the vanilla map's instant first draw), the holder walk
+        (tickHolder lines 83-138: the player markers with the dimension
+        gate, the frame markers at the facing*90 rotation, the stack's
+        Decorations rows materialized once), and the 0x34 MapDataS2CPacket
+        writer (the varint map id — the stack's damage, never an entity id
+        — the scale byte, the icon rows, the columns byte with the
+        row-major colors slice; the framed-map audience gate rides the
+        frame's chunk window). The conformance row: S2C_MAP_DATA 0x34, #53
+        in the reference's registration order (NetworkProtocol line 174).
+      - THE USE + THE CRAFTING (eed0cab6): the empty map's right-click
+        (EmptyMapItem.startUsing lines 14-34 — the allocated id, the
+        player-centered scale-0 data, the stack-of-one REPLACES the held
+        slot / the many-stack adds the copy, the use stat on the 1.8.8
+        "map" name), the FILLED_MAP item (358) + the ItemStack rows
+        (map_is_scaling, Decorations), the empty-map recipe (the
+        eight-paper ring around the compass, CraftingManager line 308), the
+        clone (CloneMapRecipe lines 10-70 — ONE filled map plus empties
+        into a shared-id multi-copy stack, works on the 2x2 grid), the
+        scale-up (UpscaleMapRecipe lines 31-72 — the ring around the map
+        with the scale-below-4 gate), and the onResult walk at BOTH take
+        sites (the new id + the scale+1 data re-centered, the cursor's
+        re-damage, the never-cleared flag quirk).
+      - THE TEST FAMILY (3d3e532e): MapItemTest 12 — the hand-checked
+        color columns (stone/water-depth/nether-noise), the decoration law,
+        the holder cadence + dirty region, the 0x34 slice shape, the
+        clone/upscale match laws, and the five live flows (the use's id
+        sequence through the real use dispatch, the reassign quirk, the
+        clone + scale-up through the REAL window-click paths, the
+        persistence round-trip). The fixtures' own repair: the one frozen
+        registry with the fluids on top (a per-call rebuild spent the whole
+        budget re-freezing the table — tens of thousands of rebuilds per
+        walk).
+      Evidence: MapItemTest 12/0 + MapColorsTest 7/0 + the item group
+      (Armor 5, Tools 4, WrittenBookFlow 9) + the crafting group
+      (CraftingRecipeTest 18) + the protocol module whole 117/0 + the nbt
+      group 116/0 + the interaction group — all green on the rebased
+      branch. (Pre-existing develop defects NOT this lane's: the
+      StatsCompletenessTest row — coarse_dirt/fern/podzol counting on
+      stat rows the 1.8.8 client drops — reproduced on 6507bd09.)
+
 ## Standing (demand-named, not scheduled)
 
 - (the shared container-open event LANDED 2026-10-21: the
