@@ -109,9 +109,10 @@ exposure, then concurrency phases, then standing deferrals.
    (isCube over the movement-blocking material), the 10-tick cadence on
    mobs + the hurt-i-frame on players, the border arm demoted to the
    reference's else-if. The VIII13 piston-crush tail closed with it.
-3. The climb-out assist (the lava/water pool-exit:
-   `collidingHorizontally && canMove(+0.6)` → `velocityY = 0.3`, the step
-   model's own slice named in the lava-drag row).
+3. ~~The climb-out assist~~ — LANDED 2026-10-22 (e808159b): the shared
+   water/lava pool-exit law, the canMove consult over doesNotCollide (the
+   dry-ledge requirement named with it), the point-consult and rise-pace
+   named differences recorded.
 4. The water branch's own travel model (the reference's `travel` water arm vs
    the engine's established clamp — the named standing envelope).
 5. The explosion resistance table (the charged skull's 0.8 blast-resistance

@@ -12443,3 +12443,26 @@ Work Log:
 Stage Summary:
 - README TODO row 2 retired; the next rows: the climb-out assist (3), the
   water travel model (4), the explosion family (5-6).
+---
+Task ID: climb-out (the README TODO's row 3)
+Agent: main (Abasing session — the 2026-10-22 continuation)
+Task: The climb-out assist — the pool-exit law named in the lava-drag row.
+
+Work Log:
+- Landed the whole law (e808159b): the shared water/lava arm, the pre-move
+  anchor, the consult over the APPLIED motion (the reference's clip-zeroed
+  terms — the engine's swept dx/dz), both doesNotCollide sides (the gather +
+  the dry-span requirement).
+- Debugged with a live probe: the walk pushes nothing without a path (the
+  harness drives the push via the velocity field), the consult must read the
+  applied motion (a velocity-driven push extends the box past the wall's
+  face and blocks itself), and the sustained-swim harness must preserve
+  velocityY (setVelocity wipes it).
+- The choreography's honest pin: the hop re-arms every tick in the window;
+  the rise's pace is the engine's composite water model (the F1 order note's
+  material consequence) — both named differences recorded with the slice.
+
+Stage Summary:
+- README TODO row 3 retired. Remaining vanilla rows: the water travel model
+  (4), the explosion family (5-6), the dragon respawn (7), the thorns mob
+  arm (8), the wither exemptions (9), the world-event radius (10).
