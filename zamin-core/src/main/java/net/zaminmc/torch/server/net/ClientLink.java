@@ -318,6 +318,20 @@ public interface ClientLink {
     }
 
     /**
+     * The spectator camera's own attach/restore verb (the reference's
+     * setCamera pair, ServerPlayerEntity lines 916-923): a non-null target
+     * points this client's camera at that player — the target must exist
+     * in the client's world first (the client's handleCamera drops an
+     * unknown id), so the wire spawns it before the Camera packet; null
+     * restores the camera to the client's own body — Camera 0x43(self)
+     * then the authoritative position re-anchor, the reference's own
+     * camera-then-teleport order. Safe from any thread; default no-op
+     * for engine-internal links.
+     */
+    default void spectateCamera(UUID target) {
+    }
+
+    /**
      * Spawn Position (0x05): the world spawn re-anchor (the reference's
      * PlayerManager.sendPacket on /setworldspawn; the join burst carries
      * the same packet). Safe from any thread; default no-op for

@@ -1224,22 +1224,19 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                 }
             }
         });
-        // The spectator camera (ML-018 — the reference's setCamera wire
-        // pair, ServerPlayerEntity lines 916-923 + broadcastTo line 472):
-        // the attach spawns the target for the spectator then publishes
-        // the Camera 0x43 and hides the spectating body from every other
-        // view; the detach restores the spectator's own camera, re-anchors
-        // its body, and re-enters the others' tracking windows (the
-        // reference's updatePlayer arm — the re-track is the same range
-        // walk every movement broadcast rides).
+        // The spectator camera's visibility law (ML-018 — the reference's
+        // broadcastTo, ServerPlayerEntity line 472, answered by the
+        // tracker's own updatePlayer arm): the attach drops the spectating
+        // body from every other view (the camera's own packets ride the
+        // per-session link verb), the detach re-enters the restored body
+        // into the in-range observers' tracking windows — the same range
+        // walk every movement broadcast runs for the mover.
         server.addSpectatorListener(new net.zaminmc.torch.server.EngineServer.SpectatorListener() {
             @Override
             public void onCameraAttached(net.zaminmc.torch.server.player.PlayerSession spectator,
                                           net.zaminmc.torch.server.player.PlayerSession target) {
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
-                    if (connection.currentSession() == spectator) {
-                        connection.spectateCameraAttached(target);
-                    } else {
+                    if (connection.currentSession() != spectator) {
                         connection.untrackPlayer(spectator.uuid());
                     }
                 }
@@ -1247,15 +1244,6 @@ public final class V18ProtocolServer implements ProtocolAdapter {
 
             @Override
             public void onCameraDetached(net.zaminmc.torch.server.player.PlayerSession spectator) {
-                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
-                    if (connection.currentSession() == spectator) {
-                        connection.spectateCameraDetached();
-                    }
-                }
-                // The restored body re-enters the other observers' views:
-                // the same spawn-or-drop range walk the movement broadcast
-                // runs for the mover (the reference's TrackedEntity
-                // updatePlayer consult when updateVisibility flips).
                 broadcastMovement(spectator);
             }
         });
