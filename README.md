@@ -178,7 +178,19 @@ exposure, then concurrency phases, then standing deferrals.
     lanes (the ledger report as the return).
 14. The generic-mount seat rows (the exotic pairs' api read beside
     `Vehicle.riderEntityId()`).
-15. `world.decorations()` — the hanging bodies + armor-stand read surface.
+15. ~~`world.decorations()` — the hanging bodies + armor-stand read
+    surface.~~ — LANDED 2026-10-23 (f396a48c): the `Decorations` census
+    over the two systems — `frames()` (the wall cell, the facing, the
+    displayed stack, the eight-step rotation, the comparator read),
+    `paintings()` (the motive off the reference's own 26-entry art
+    registry), `armorStands()` (the feet position + the snapped yaw, the
+    five equipment slots in the wire's order, the status byte's five
+    flags, the six-part pose) — each enumeration an immutable
+    point-in-time snapshot under its owning system's monitor (every
+    public mutation entry point of the two systems now holds it, the
+    VillageSystem shape), proven through the api alone
+    (`DecorationsApiAcceptanceTest`: the datums, the live resolution,
+    the empty world, the tear-free foreign-thread hammer).
 16. `block.BiomeData` — the registration datums (temperature/downfall/height/
     isRainy law) beside `World.biomeAt`'s display name.
 17. `Server.fishing()` — the fishing system's api surface (the engine accessor

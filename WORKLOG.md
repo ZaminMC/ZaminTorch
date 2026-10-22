@@ -12655,6 +12655,85 @@ Stage Summary:
   the owner's continue.
 
 ---
+Task ID: decorations-api (the README TODO's row 15 — the wave-2 instance-5 lane)
+Agent: main (Abasing session — the 2026-10-23 continuation)
+Task: world.decorations() — the hanging bodies + armor-stand read surface
+(the NATIVE_API §9 PARTIAL row closed).
+
+Work Log:
+- Phase 0: read Torch-Arcetecture.txt §27 (the 27.3 complete-exposure
+  law, the 27.5 handle law, the 27.6 ownership law, the 27.10 test law),
+  the README TODO ledger, NATIVE_API §9's audit rows, the WORKLOG tail
+  (the wave-2 lane map), the villages() precedent whole (Server.java's
+  default, EngineServer.villages() + villagesView, VillageViews.java,
+  VillageApiAcceptanceTest), and the two engine families whole
+  (DecorationSystem/ItemFrame/Painting + ArmorStandSystem/ArmorStand —
+  the datums the engine tracks ARE the row set).
+- The monitor foundation (commit b68b4d0b, isolated): every public
+  mutation entry point of DecorationSystem (placeFrame, placePainting,
+  restoreFrame, restorePainting, interactFrame, attackFrame,
+  attackPainting, removeFrame, removePainting, tick, restore) and
+  ArmorStandSystem (place, interactAt, attack, breakByExplosion, remove,
+  tick, pushStand, flingStand, ignite, restore) now holds its system's
+  monitor — behavior-neutral on the single tick lane (no contention),
+  the VillageSystem shape (its tick/markForUpdate carry the same
+  monitors), existing so the census view's snapshot claim is honest.
+- The api surface (commit bafef371): the new
+  net.zaminmc.torch.decoration.Decorations interface — frames() /
+  paintings() / armorStands() over immutable records (ItemFrame: the
+  entity id, the wall cell, the Direction facing, the displayed stack,
+  the rotation, the comparator read; Painting: the entity id, the cell,
+  the facing, the Motive (name/width/height/u/v — the reference's own
+  26-entry registry carried whole); ArmorStand: the entity id, the feet
+  position, the snapped yaw, the five equipment slots in the wire's
+  order, the five status flags, the six Pose parts) + the threading law
+  documented (each enumeration an independent monitor snapshot; the
+  records carry no engine references). World.decorations()'s additive
+  default (EMPTY) beside the growth row.
+- The engine wiring (commit fc18e9cd): DecorationViews dresses the two
+  systems as the census (each enumeration copied under its owning
+  system's monitor; the engine's byIdHorizontal codes 0-3 dressed as
+  SOUTH/WEST/NORTH/EAST; the inherited-record shadowing handled with
+  fully-qualified engine names, the VillageViews trap); EngineWorld's
+  boot-wired view field + attachDecorationsView + the @Override beside
+  the growth rows; EngineServer attaches the OVERWORLD's view beside the
+  primed-TNT row (the nether/End keep EMPTY — the two systems live on
+  the overworld's store, the engine's own dimension gate); the engine
+  ArmorStand gained showArms()/noBasePlate() completing the public flag
+  family beside small()/noGravity()/marker() (no status-byte
+  reach-through in the view).
+- The §27.10 proof (commit f396a48c): DecorationsApiAcceptanceTest —
+  the census read through Server.worlds() → World.decorations() (never
+  an engine cast), the families placed through the package tests' own
+  fixtures (placeFrame + the interact insert/rotate, placePainting's fit
+  roll, the stand placement with the seeded pose roll + the helmet swap
+  ladder). Pins: the empty world answering empty; the frame's every
+  datum (the cell, EAST, the size-1 diamond, rotation 1, analog 2); the
+  painting's 1x1 art set; the stand's rows (20.5/40/10.5, the -180
+  snap, the helmet on slot 4, the five fresh flags, the rolled head/body
+  bands beside the reference's arm/leg defaults); live resolution (the
+  eject empties the display + drops the analog read to 0 while the frame
+  stays; every removal disappears next read); the §27.6 hammer (400
+  foreign-thread census reads against 30 tick-lane break-and-rehang
+  cycles of an eight-frame wall — the churn would throw
+  ConcurrentModificationException without the monitors). Debugged the
+  two scene collisions (the stand's column sharing the frame wall's
+  cell; the hammer wall running along x so each frame's cell was the
+  next wall's spot).
+- Batches green under --no-daemon: DecorationsApi* (2), the decoration
+  package (13: DecorationSystemTest 8, DecorationBlastTest 1,
+  TileExtraSaveSplitTest 4), the armorstand package (10), the api module
+  suite, the VillageApiAcceptanceTest boot canary (2).
+- Ledgers: NATIVE_API §9's row CLOSED (EXPOSED, this lane), the README
+  TODO's row 15 retired with the landing hash, this entry.
+
+Stage Summary:
+- Row 15 LANDED (branch decorations-api, 5 commits): the decorations
+  census is the third monitor-snapshot family beside the village census
+  (the VillageViews pattern now has a second user — the shape held).
+  The engine edits stay minimal + isolated: the synchronized arms (one
+  commit), the two public flag reads (no behavior change). The remaining
+  §9 demand-named rows for the other lanes untouched.
 Task ID: row-8-thorns-mob-arm (in flight — the coordinator's own lane, wave 2)
 Agent: main (Abasing session — the coordinator)
 Task: README TODO row 8 — the thorns wildcard's mob-victim arm. The reference
