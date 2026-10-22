@@ -12653,3 +12653,70 @@ Work Log:
 Stage Summary:
 - The wave-2 lane map published; the coordinator's own rows 8 + 10 start on
   the owner's continue.
+
+---
+Task ID: achievements-api (the README TODO's row 12 — the wave-2 lane map's api-exposure lane)
+Agent: main (Abasing session — the 2026-10-22 continuation, one of the nine)
+Task: The achievement reads' public API surface — Server.achievements()
+(the 34-row table) + the per-player unlocked set (VIII6's surface, the
+NATIVE_API §9 demand-named row).
+
+Work Log:
+- Oriented per §27 (the exposure law): read the README TODO's row 12, the
+  §27.3 complete-exposure law, §27.5 the handle law (the api object
+  represents the authoritative engine object — resolve live, never a
+  second copy), §27.6 the threading law, §27.10 the capability test law,
+  and the NATIVE_API §9 audit row (the demand-named form: Server
+  .achievements() + the per-player unlocked read).
+- Studied the established exposure pattern (the villages() lane): the api
+  default method + the @Override facade on EngineServer + the small view
+  class (EngineServer.villages() ~17275, server/village/VillageViews
+  .java) — and the per-player sibling rows' live-read contract (the api
+  Player body reads: consistent on the owner context, best-effort off it,
+  the fixed-key consult cannot tear).
+- Landed the api type net.zaminmc.torch.stat.Achievements: all() (the
+  frozen 34-row census, the reference's own declaration order the
+  give-all walk rides forward and the take-all reversed), byKey() (the
+  band's key lookup, empty outside), unlocked(Player) (the per-player
+  unlocked set — the 34 keys' past-zero subset, declaration order,
+  resolving the live PlayerStats per call), the row record (key, name,
+  column, row, icon id + damage, parent, challenge, local + the
+  name/description translation keys), the defensive EMPTY default for
+  non-engine Server implements.
+- Landed the core view stat/AchievementViews (the villages-pattern
+  adapter): the api rows mapped ONCE at class init (values of frozen
+  registration datums — the table never mutates, so the table reads are
+  pure and trivially thread-safe), the stateless INSTANCE (the static
+  table needs no boot wiring — even pre-boot answers the census), the
+  per-player read resolving the api Player handle to the session's own
+  PlayerStats (the session IS the handle — a foreign implement answers
+  the defined empty set), the unlocked consult a fixed-key get walk
+  (never a structural map iteration — no tear against the tick lane).
+- Landed the additive surfaces: Server.achievements() default (appended
+  after config(), region-local for the three-lane union merge) +
+  EngineServer.achievements() @Override facade (inserted beside the
+  villages() view — the exposure-view region).
+- The §27.10 capability test AchievementsApiAcceptanceTest 2: the
+  34-row census through the api types alone (the pinned rows — the root's
+  own datums, the mineWood chain with the SAME mapped parent instance,
+  the two damage-carrying icons skull meta 1 + golden_apple meta 1, the
+  final overpowered row, the by-key present/absent arms, the
+  parent-chain consistency whole: every parent a declared row strictly
+  before its child, exactly one root, the 10 challenge rows) + the
+  per-player family (empty for a fresh player — the join walk awards
+  nothing; the root unlocking through the established owner-lane
+  increment walk; the parent gate refusing the orphaned crafting-table
+  row through PlayerStats.increment's own condition; the chained unlock
+  answering the table's declaration order; the §27.5 defined behavior —
+  an unowned proxy handle answers the empty set, never a throw).
+- The batches green under --no-daemon: AchievementsApi* 2, the stat
+  package (AchievementCommandTest 10 + AchievementFamilyTest 12 +
+  StatsCompletenessTest 5 + StatsTest 5), the api module suite 19, the
+  villages adjacency batch 2 (the facade's own region).
+- The ledgers: README TODO row 12 retired (strikethrough + LANDED
+  26a77057), NATIVE_API §9 row CLOSED/EXPOSED, this entry.
+
+Stage Summary:
+- README TODO row 12 LANDED (26a77057): the achievement family readable
+  through the public api. The api-exposure tail: rows 11, 13-18 remain
+  (the other lanes' own — three Server.java additions resolve by union).
