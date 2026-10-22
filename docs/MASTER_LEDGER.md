@@ -321,7 +321,9 @@ I=infra/CI/release, S=security/boundary.
 - Verification: grep the four git-format stacks for
   `registerSpecializedPacket`; if no caller, close as NA-infra; if callers
   exist, name the packets and fold them into the wire-gap census.
-- Status: unverified (bounded). Confidence: high that the check is decisive.
+- Resolution (increment 3): grep across all 533 patches found NO caller —
+  the registry is inert infrastructure; no extra clientbound wire surface.
+  CLOSED as verified/NA-infra (no defect, no debt).
 
 ## KigPaper increment 2 (the supplied patched-1.8.8-server audit)
 
@@ -353,10 +355,13 @@ increment state lives in KIGPAPER_PATCH_ACCOUNTING.md's coverage statement.
   a KigPaper-style configuration surface for these (a config family), and if
   so at which maturity point. Until answered: `Different by design / not
   owed`; the per-patch deep classification lists each knob under this ID.
-- ML-023 (tracking row): the KigPaper per-patch deep classification of the
-  two server stacks (418 patches, enumerated in `docs/kigpaper-census.json`)
-  — the audit increment itself; tracked here so waves cannot start before it
-  closes. Not an implementation gap; it gates fork-derived rows only.
+- ML-023 (tracking row): CLOSED increment 3 — the 418 server-stack patches
+  dispositioned (130 knob/171 bugfix-div/70 api/24 perf/23 infra; scripts +
+  deep-pass JSON + 418-row table + bugfix class map committed); the
+  material spot-check (SSV0067 fluids) passed two-sided (Torch follows the
+  reference bands exactly). Fork-derived waves can now be planned; no
+  Torch debt was created by the fork audit (knobs=DEC-003, bugfix-divs
+  reference-wins, api=DEC-002, perf=ML-007-gated).
 - DEC-002: adapter-era surfaces (Bukkit Timings API stub-or-implement,
   plugin gating manifest) — decide when §28.7 activates; Folia A1/A3; KigPaper
   API stacks (107 patches, enumeration in the census).

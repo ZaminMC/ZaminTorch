@@ -1,0 +1,7554 @@
+{
+ "CraftBukkit-Patches": [
+  {
+   "config_keys": [],
+   "markers": [],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "pom.xml",
+    "src/main/java/org/bukkit/craftbukkit/util/Versioning.java"
+   ],
+   "insertions": 39,
+   "deletions": 13,
+   "patch": "0001-POM-Changes.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/AttributeRanged.java",
+    "src/main/java/net/minecraft/server/BlockAnvil.java",
+    "src/main/java/net/minecraft/server/BlockBrewingStand.java",
+    "src/main/java/net/minecraft/server/BlockFlowerPot.java",
+    "src/main/java/net/minecraft/server/BlockHopper.java",
+    "src/main/java/net/minecraft/server/BlockTNT.java",
+    "src/main/java/net/minecraft/server/CommandDispatcher.java",
+    "src/main/java/net/minecraft/server/DataWatcher.java",
+    "src/main/java/net/minecraft/server/EnchantmentManager.java",
+    "src/main/java/net/minecraft/server/FileIOThread.java",
+    "src/main/java/net/minecraft/server/GameProfileBanEntry.java",
+    "src/main/java/net/minecraft/server/GenericAttributes.java",
+    "src/main/java/net/minecraft/server/IntCache.java",
+    "src/main/java/net/minecraft/server/ItemDoor.java",
+    "src/main/java/net/minecraft/server/ItemSkull.java",
+    "src/main/java/net/minecraft/server/NBTBase.java",
+    "src/main/java/net/minecraft/server/NBTCompressedStreamTools.java",
+    "src/main/java/net/minecraft/server/NBTTagByteArray.java",
+    "src/main/java/net/minecraft/server/NBTTagIntArray.java",
+    "src/main/java/net/minecraft/server/NextTickListEntry.java",
+    "src/main/java/net/minecraft/server/NibbleArray.java",
+    "src/main/java/net/minecraft/server/OldChunkLoader.java",
+    "src/main/java/net/minecraft/server/PacketHandshakingInSetProtocol.java",
+    "src/main/java/net/minecraft/server/PacketPlayInArmAnimation.java",
+    "src/main/java/net/minecraft/server/PacketPlayInChat.java",
+    "src/main/java/net/minecraft/server/PacketPlayOutMapChunk.java",
+    "src/main/java/net/minecraft/server/PacketPlayOutMapChunkBulk.java",
+    "src/main/java/net/minecraft/server/PacketPlayOutOpenWindow.java",
+    "src/main/java/net/minecraft/server/PathfinderGoalSwell.java",
+    "src/main/java/net/minecraft/server/PersistentCollection.java",
+    "src/main/java/net/minecraft/server/RegionFileCache.java",
+    "src/main/java/net/minecraft/server/ServerConnection.java",
+    "src/main/java/net/minecraft/server/ServerStatisticManager.java",
+    "src/main/java/net/minecraft/server/StructureGenerator.java",
+    "src/main/java/net/minecraft/server/WorldGenForestTree.java",
+    "src/main/java/net/minecraft/server/WorldGenLargeFeature.java",
+    "src/main/java/net/minecraft/server/WorldGenPackedIce2.java",
+    "src/main/java/net/minecraft/server/WorldGenVillage.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/spigotmc/SneakyThrow.java"
+   ],
+   "insertions": 4771,
+   "deletions": 1,
+   "patch": "0002-mc-dev-imports.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/CraftServer.java",
+    "src/main/java/org/bukkit/craftbukkit/CraftWorld.java",
+    "src/main/java/org/bukkit/craftbukkit/entity/CraftArrow.java",
+    "src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java",
+    "src/main/java/org/bukkit/craftbukkit/entity/CraftLightningStrike.java",
+    "src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java",
+    "src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaItem.java",
+    "src/main/java/org/bukkit/craftbukkit/scoreboard/CraftScore.java"
+   ],
+   "insertions": 83,
+   "deletions": 1,
+   "patch": "0003-Skeleton-API-Implementations.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/MinecraftServer.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 6,
+   "deletions": 1,
+   "patch": "0004-Obfuscation-Helpers.patch"
+  },
+  {
+   "config_keys": [
+    "addDefault",
+    "class",
+    "config",
+    "getBoolean",
+    "getDouble",
+    "getInt",
+    "getList",
+    "getString",
+    "init",
+    "java",
+    "load",
+    "options",
+    "readConfig",
+    "registerCommands",
+    "save",
+    "set"
+   ],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/DedicatedServer.java",
+    "src/main/java/net/minecraft/server/World.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/CraftServer.java",
+    "src/main/java/org/bukkit/craftbukkit/Main.java",
+    "src/main/java/org/spigotmc/SpigotConfig.java",
+    "src/main/java/org/spigotmc/SpigotWorldConfig.java"
+   ],
+   "insertions": 238,
+   "deletions": 4,
+   "patch": "0005-Spigot-Configuration.patch"
+  },
+  {
+   "config_keys": [
+    "addDefault",
+    "chunksPerTick",
+    "clearChunksOnTick",
+    "getString",
+    "java"
+   ],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/World.java",
+    "src/main/java/net/minecraft/server/WorldServer.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/spigotmc/SpigotWorldConfig.java"
+   ],
+   "insertions": 98,
+   "deletions": 11,
+   "patch": "0006-Better-Chunk-Tick-Selection.patch"
+  },
+  {
+   "config_keys": [
+    "cactusModifier",
+    "caneModifier",
+    "java",
+    "melonModifier",
+    "mushroomModifier",
+    "pumpkinModifier",
+    "saplingModifier",
+    "wartModifier",
+    "wheatModifier"
+   ],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/Block.java",
+    "src/main/java/net/minecraft/server/BlockCactus.java",
+    "src/main/java/net/minecraft/server/BlockCrops.java",
+    "src/main/java/net/minecraft/server/BlockGrass.java",
+    "src/main/java/net/minecraft/server/BlockMushroom.java",
+    "src/main/java/net/minecraft/server/BlockMycel.java",
+    "src/main/java/net/minecraft/server/BlockNetherWart.java",
+    "src/main/java/net/minecraft/server/BlockReed.java",
+    "src/main/java/net/minecraft/server/BlockSapling.java",
+    "src/main/java/net/minecraft/server/BlockStem.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/spigotmc/SpigotWorldConfig.java"
+   ],
+   "insertions": 54,
+   "deletions": 11,
+   "patch": "0007-Crop-Growth-Rates.patch"
+  },
+  {
+   "config_keys": [
+    "expMerge",
+    "itemMerge",
+    "java"
+   ],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/EntityItem.java",
+    "src/main/java/net/minecraft/server/World.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/spigotmc/SpigotWorldConfig.java"
+   ],
+   "insertions": 43,
+   "deletions": 8,
+   "patch": "0008-Merge-tweaks-and-configuration.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/Block.java",
+    "src/main/java/net/minecraft/server/EntityLiving.java",
+    "src/main/java/net/minecraft/server/EntityTracker.java",
+    "src/main/java/net/minecraft/server/EntityTrackerEntry.java",
+    "src/main/java/net/minecraft/server/World.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/CraftWorld.java",
+    "src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java",
+    "src/main/java/org/bukkit/craftbukkit/scoreboard/CraftScoreboardManager.java",
+    "src/main/java/org/spigotmc/AsyncCatcher.java"
+   ],
+   "insertions": 36,
+   "deletions": 3,
+   "patch": "0009-Async-Operation-Catching.patch"
+  },
+  {
+   "config_keys": [
+    "java",
+    "viewDistance"
+   ],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/PlayerChunkMap.java",
+    "src/main/java/net/minecraft/server/WorldServer.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/spigotmc/SpigotWorldConfig.java"
+   ],
+   "insertions": 10,
+   "deletions": 4,
+   "patch": "0010-View-Distance.patch"
+  },
+  {
+   "config_keys": [
+    "config"
+   ],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/Chunk.java",
+    "src/main/java/net/minecraft/server/ChunkProviderServer.java",
+    "src/main/java/net/minecraft/server/ChunkRegionLoader.java",
+    "src/main/java/net/minecraft/server/DedicatedServer.java",
+    "src/main/java/net/minecraft/server/Entity.java",
+    "src/main/java/net/minecraft/server/EntityLiving.java",
+    "src/main/java/net/minecraft/server/MinecraftServer.java",
+    "src/main/java/net/minecraft/server/PlayerConnection.java",
+    "src/main/java/net/minecraft/server/TileEntity.java",
+    "src/main/java/net/minecraft/server/World.java",
+    "src/main/java/net/minecraft/server/WorldServer.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/CraftServer.java",
+    "src/main/java/org/bukkit/craftbukkit/CraftWorld.java",
+    "src/main/java/org/bukkit/craftbukkit/SpigotTimings.java",
+    "src/main/java/org/bukkit/craftbukkit/chunkio/ChunkIOProvider.java",
+    "src/main/java/org/bukkit/craftbukkit/scheduler/CraftScheduler.java",
+    "src/main/java/org/bukkit/craftbukkit/scheduler/CraftTask.java"
+   ],
+   "insertions": 314,
+   "deletions": 6,
+   "patch": "0011-Spigot-Timings.patch"
+  },
+  {
+   "config_keys": [
+    "java",
+    "mobSpawnRange",
+    "viewDistance"
+   ],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/Chunk.java",
+    "src/main/java/net/minecraft/server/SpawnerCreature.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/spigotmc/SpigotWorldConfig.java"
+   ],
+   "insertions": 75,
+   "deletions": 3,
+   "patch": "0012-Fix-Mob-Spawning-Relative-to-View-Distance.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/World.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 7,
+   "deletions": 1,
+   "patch": "0013-Handle-Null-Tile-Entities.patch"
+  },
+  {
+   "config_keys": [
+    "animalActivationRange",
+    "itemDespawnRate",
+    "itemMerge",
+    "java",
+    "miscActivationRange",
+    "monsterActivationRange",
+    "viewDistance"
+   ],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/Entity.java",
+    "src/main/java/net/minecraft/server/EntityAgeable.java",
+    "src/main/java/net/minecraft/server/EntityArrow.java",
+    "src/main/java/net/minecraft/server/EntityFireworks.java",
+    "src/main/java/net/minecraft/server/EntityItem.java",
+    "src/main/java/net/minecraft/server/EntityLiving.java",
+    "src/main/java/net/minecraft/server/World.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/SpigotTimings.java",
+    "src/main/java/org/spigotmc/ActivationRange.java",
+    "src/main/java/org/spigotmc/SpigotWorldConfig.java"
+   ],
+   "insertions": 398,
+   "deletions": 7,
+   "patch": "0014-Entity-Activation-Range.patch"
+  },
+  {
+   "config_keys": [
+    "java",
+    "yml"
+   ],
+   "markers": [],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/spigotmc/Metrics.java",
+    "src/main/java/org/spigotmc/SpigotConfig.java"
+   ],
+   "insertions": 658,
+   "deletions": 1,
+   "patch": "0015-Metrics.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/ItemStack.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 16,
+   "deletions": 3,
+   "patch": "0016-PlayerItemDamageEvent.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/block/CraftSign.java"
+   ],
+   "insertions": 6,
+   "deletions": 1,
+   "patch": "0017-Prevent-NPE-in-CraftSign.patch"
+  },
+  {
+   "config_keys": [
+    "animalTrackingRange",
+    "java",
+    "miscTrackingRange",
+    "monsterActivationRange",
+    "monsterTrackingRange",
+    "otherTrackingRange",
+    "playerTrackingRange",
+    "viewDistance"
+   ],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/EntityTracker.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/spigotmc/ActivationRange.java",
+    "src/main/java/org/spigotmc/SpigotWorldConfig.java",
+    "src/main/java/org/spigotmc/TrackingRange.java"
+   ],
+   "insertions": 71,
+   "deletions": 5,
+   "patch": "0018-Entity-Tracking-Ranges.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/scheduler/CraftScheduler.java"
+   ],
+   "insertions": 1,
+   "deletions": 2,
+   "patch": "0019-Thread-Naming-and-Tweaks.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/RegionFileCache.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/CraftServer.java"
+   ],
+   "insertions": 26,
+   "deletions": 2,
+   "patch": "0020-Close-Unloaded-Save-Files.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/PropertyManager.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 1,
+   "deletions": 2,
+   "patch": "0021-Remove-o-Option.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/IRecipe.java",
+    "src/main/java/net/minecraft/server/ShapedRecipes.java",
+    "src/main/java/net/minecraft/server/ShapelessRecipes.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 18,
+   "deletions": 3,
+   "patch": "0022-Recipe-Deconstruction.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/entity/CraftArrow.java"
+   ],
+   "insertions": 11,
+   "deletions": 1,
+   "patch": "0023-Implement-Arrow-API.patch"
+  },
+  {
+   "config_keys": [
+    "hopperAmount",
+    "hopperTransfer",
+    "java"
+   ],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/TileEntityHopper.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/spigotmc/SpigotWorldConfig.java"
+   ],
+   "insertions": 26,
+   "deletions": 11,
+   "patch": "0024-Hopper-Customisations.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [
+    "SpawnerSpawnEvent"
+   ],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/MobSpawnerAbstract.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/event/CraftEventFactory.java"
+   ],
+   "insertions": 39,
+   "deletions": 5,
+   "patch": "0025-Implement-SpawnerSpawnEvent.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaFirework.java"
+   ],
+   "insertions": 2,
+   "deletions": 3,
+   "patch": "0026-Firework-Meta-Crash-Fix.patch"
+  },
+  {
+   "config_keys": [
+    "addDefault",
+    "getDouble",
+    "java",
+    "logCommands"
+   ],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/PlayerConnection.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/spigotmc/SpigotConfig.java"
+   ],
+   "insertions": 7,
+   "deletions": 1,
+   "patch": "0027-Allow-Disabling-of-Command-Logging.patch"
+  },
+  {
+   "config_keys": [
+    "java",
+    "tabComplete"
+   ],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/CraftServer.java",
+    "src/main/java/org/spigotmc/SpigotConfig.java"
+   ],
+   "insertions": 24,
+   "deletions": 1,
+   "patch": "0028-Allow-Disabling-of-Command-TabComplete.patch"
+  },
+  {
+   "config_keys": [
+    "java",
+    "outdatedClientMessage",
+    "outdatedServerMessage",
+    "serverFullMessage",
+    "unknownCommandMessage",
+    "whitelistMessage"
+   ],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/HandshakeListener.java",
+    "src/main/java/net/minecraft/server/PlayerList.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/CraftServer.java",
+    "src/main/java/org/spigotmc/SpigotConfig.java"
+   ],
+   "insertions": 30,
+   "deletions": 10,
+   "patch": "0029-Configurable-Messages.patch"
+  },
+  {
+   "config_keys": [
+    "java",
+    "randomLightUpdates"
+   ],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/Chunk.java",
+    "src/main/java/net/minecraft/server/World.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/spigotmc/SpigotWorldConfig.java"
+   ],
+   "insertions": 9,
+   "deletions": 3,
+   "patch": "0030-Allow-Disabling-of-Random-Lighting-Updates.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/Chunk.java",
+    "src/main/java/net/minecraft/server/EntityMinecartContainer.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 30,
+   "deletions": 1,
+   "patch": "0031-Properly-Close-Inventories.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/PlayerConnection.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 7,
+   "deletions": 1,
+   "patch": "0032-Disallow-Interaction-With-Self.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/Entity.java",
+    "src/main/java/net/minecraft/server/EntityLiving.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 14,
+   "deletions": 1,
+   "patch": "0033-Entity-Mount-and-Dismount-Events.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [
+    "PlayerRespawnEvent"
+   ],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/PlayerList.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 5,
+   "deletions": 1,
+   "patch": "0034-Prevent-Ghost-Players-Caused-by-Plugins.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/BlockRedstoneTorch.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 1,
+   "deletions": 2,
+   "patch": "0035-Plug-World-Unload-Memory-Leak.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/EntityHuman.java",
+    "src/main/java/net/minecraft/server/EntityLiving.java",
+    "src/main/java/net/minecraft/server/EntityPlayer.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java"
+   ],
+   "insertions": 31,
+   "deletions": 2,
+   "patch": "0036-Player-Collision-API.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/MinecraftServer.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 2,
+   "deletions": 3,
+   "patch": "0037-Fully-Disable-Snooper-When-Not-Required.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java"
+   ],
+   "insertions": 5,
+   "deletions": 1,
+   "patch": "0038-Add-Getter-for-Entity-Invulnerability.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java"
+   ],
+   "insertions": 2,
+   "deletions": 3,
+   "patch": "0039-Cap-Minimum-Player-Speed.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/EntityHuman.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 4,
+   "deletions": 1,
+   "patch": "0040-Update-Inventory-and-Health-for-PlayerConsumeItemEve.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/BlockTNT.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 5,
+   "deletions": 1,
+   "patch": "0041-Call-EntityChangeBlockEvent-for-Fire-Arrows-hitting-.patch"
+  },
+  {
+   "config_keys": [
+    "java",
+    "saveStructureInfo"
+   ],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/StructureGenerator.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/spigotmc/SpigotWorldConfig.java"
+   ],
+   "insertions": 20,
+   "deletions": 1,
+   "patch": "0042-Allow-Disabling-of-1.6.3-Structure-Saving.patch"
+  },
+  {
+   "config_keys": [
+    "itemDespawnRate",
+    "java"
+   ],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/EntityItem.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/spigotmc/SpigotWorldConfig.java"
+   ],
+   "insertions": 8,
+   "deletions": 2,
+   "patch": "0043-Item-Despawn-Rate.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [
+    "PlayerMoveEvent"
+   ],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/PlayerConnection.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 14,
+   "deletions": 2,
+   "patch": "0044-Don-t-Special-Case-X-Move-Value.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java"
+   ],
+   "insertions": 9,
+   "deletions": 1,
+   "patch": "0045-Implement-respawn-API.patch"
+  },
+  {
+   "config_keys": [
+    "arrowDespawnRate",
+    "java"
+   ],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/EntityArrow.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/spigotmc/SpigotWorldConfig.java"
+   ],
+   "insertions": 8,
+   "deletions": 2,
+   "patch": "0046-Arrow-Despawn-Rate.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/WorldGenPackedIce2.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 3,
+   "deletions": 4,
+   "patch": "0047-Fix-packed-ice-generation.patch"
+  },
+  {
+   "config_keys": [
+    "config",
+    "java",
+    "restartMessage",
+    "restartScript"
+   ],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/DedicatedServer.java",
+    "src/main/java/net/minecraft/server/MinecraftServer.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/CraftServer.java",
+    "src/main/java/org/spigotmc/RestartCommand.java",
+    "src/main/java/org/spigotmc/SpigotConfig.java",
+    "src/main/java/org/spigotmc/WatchdogThread.java"
+   ],
+   "insertions": 263,
+   "deletions": 2,
+   "patch": "0048-Watchdog-Thread.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/BlockFlowerPot.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 1,
+   "deletions": 1,
+   "patch": "0049-Clear-Flower-Pot-on-Drop.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/Chunk.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 9,
+   "deletions": 2,
+   "patch": "0050-Fix-some-chunks-not-being-sent-to-the-client.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/PacketPlayInChat.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 18,
+   "deletions": 2,
+   "patch": "0051-Fix-Broken-Async-Chat.patch"
+  },
+  {
+   "config_keys": [
+    "antiXray",
+    "antiXrayInstance",
+    "engineMode",
+    "hiddenBlocks",
+    "java",
+    "replaceBlocks",
+    "version"
+   ],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/EntityFallingBlock.java",
+    "src/main/java/net/minecraft/server/Explosion.java",
+    "src/main/java/net/minecraft/server/PacketPlayOutMapChunk.java",
+    "src/main/java/net/minecraft/server/PacketPlayOutMapChunkBulk.java",
+    "src/main/java/net/minecraft/server/PlayerInteractManager.java",
+    "src/main/java/net/minecraft/server/World.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/spigotmc/AntiXray.java",
+    "src/main/java/org/spigotmc/SpigotWorldConfig.java"
+   ],
+   "insertions": 286,
+   "deletions": 4,
+   "patch": "0052-Orebfuscator.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/DataWatcher.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 28,
+   "deletions": 29,
+   "patch": "0053-Optimize-DataWatcher.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/LoginListener.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 58,
+   "deletions": 28,
+   "patch": "0054-Fire-PreLogin-Events-in-Offline-Mode.patch"
+  },
+  {
+   "config_keys": [
+    "bungee",
+    "java"
+   ],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [
+    "PlayerLoginEvent"
+   ],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/HandshakeListener.java",
+    "src/main/java/net/minecraft/server/LoginListener.java",
+    "src/main/java/net/minecraft/server/NetworkManager.java",
+    "src/main/java/net/minecraft/server/PacketHandshakingInSetProtocol.java",
+    "src/main/java/net/minecraft/server/PlayerList.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/CraftServer.java",
+    "src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java",
+    "src/main/java/org/spigotmc/SpigotConfig.java"
+   ],
+   "insertions": 87,
+   "deletions": 13,
+   "patch": "0055-BungeeCord-Support.patch"
+  },
+  {
+   "config_keys": [
+    "java",
+    "zombieAggressiveTowardsVillager"
+   ],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/EntityZombie.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/spigotmc/SpigotWorldConfig.java"
+   ],
+   "insertions": 9,
+   "deletions": 3,
+   "patch": "0056-Allow-Disabling-Zombie-Villager-Aggression.patch"
+  },
+  {
+   "config_keys": [
+    "java"
+   ],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/MinecraftServer.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/spigotmc/SpigotConfig.java"
+   ],
+   "insertions": 10,
+   "deletions": 4,
+   "patch": "0057-Configurable-Amount-of-Netty-Threads.patch"
+  },
+  {
+   "config_keys": [
+    "saveStructureInfo"
+   ],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/StructureGenerator.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 1,
+   "deletions": 2,
+   "patch": "0058-Prevent-Mineshaft-Saving.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/MinecraftServer.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 6,
+   "deletions": 1,
+   "patch": "0059-Log-Cause-of-Unexpected-Exceptions.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [
+    "PacketPlayOutWorldEvent"
+   ],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/CraftEffect.java",
+    "src/main/java/org/bukkit/craftbukkit/CraftWorld.java",
+    "src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java"
+   ],
+   "insertions": 134,
+   "deletions": 23,
+   "patch": "0060-Particle-API.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/Entity.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 3,
+   "deletions": 1,
+   "patch": "0061-Save-ticks-lived-to-nbttag.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/World.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 44,
+   "deletions": 17,
+   "patch": "0062-More-Efficient-GetCubes.patch"
+  },
+  {
+   "config_keys": [
+    "java",
+    "nerfSpawnerMobs"
+   ],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/Entity.java",
+    "src/main/java/net/minecraft/server/EntityInsentient.java",
+    "src/main/java/net/minecraft/server/MobSpawnerAbstract.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/spigotmc/SpigotWorldConfig.java"
+   ],
+   "insertions": 26,
+   "deletions": 1,
+   "patch": "0063-Add-Option-to-Nerf-Mobs-from-Spawner-s.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/Main.java"
+   ],
+   "insertions": 16,
+   "deletions": 1,
+   "patch": "0064-Warn-if-PermGen-may-be-insufficient.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java"
+   ],
+   "insertions": 1,
+   "deletions": 2,
+   "patch": "0065-Disable-Connected-Check-on-setScoreboard.patch"
+  },
+  {
+   "config_keys": [
+    "java",
+    "lateBind"
+   ],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/DedicatedServer.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/spigotmc/SpigotConfig.java"
+   ],
+   "insertions": 18,
+   "deletions": 1,
+   "patch": "0066-Add-Late-Bind-Option.patch"
+  },
+  {
+   "config_keys": [
+    "contains",
+    "createSection",
+    "disableStatSaving",
+    "forcedStats",
+    "getConfigurationSection",
+    "java"
+   ],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/ServerStatisticManager.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/spigotmc/SpigotConfig.java"
+   ],
+   "insertions": 39,
+   "deletions": 1,
+   "patch": "0067-Allow-statistics-to-be-disabled-forced.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/ItemStack.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 7,
+   "deletions": 2,
+   "patch": "0068-Fix-ItemStack-Unbreakable-Code.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/MinecraftServer.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 12,
+   "deletions": 1,
+   "patch": "0069-Try-and-Debug-Crash-Reports-Crashing.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/Chunk.java",
+    "src/main/java/net/minecraft/server/ChunkProviderServer.java",
+    "src/main/java/net/minecraft/server/MinecraftServer.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/CraftWorld.java"
+   ],
+   "insertions": 19,
+   "deletions": 5,
+   "patch": "0070-Improve-AutoSave-Mechanism.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/NBTTagByteArray.java",
+    "src/main/java/net/minecraft/server/NBTTagIntArray.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 2,
+   "deletions": 1,
+   "patch": "0071-Catch-stalling-on-corrupted-map-data-NBT-arrays.patch"
+  },
+  {
+   "config_keys": [
+    "doMobSpawning",
+    "enableZombiePigmenPortalSpawns",
+    "java"
+   ],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/BlockPortal.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/spigotmc/SpigotWorldConfig.java"
+   ],
+   "insertions": 8,
+   "deletions": 2,
+   "patch": "0072-Allow-toggling-of-ZombiePigmen-spawning-in-portal-bl.patch"
+  },
+  {
+   "config_keys": [
+    "java"
+   ],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/MinecraftServer.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/spigotmc/SpigotConfig.java",
+    "src/main/java/org/spigotmc/TicksPerSecondCommand.java"
+   ],
+   "insertions": 84,
+   "deletions": 26,
+   "patch": "0073-Highly-Optimized-Tick-Loop.patch"
+  },
+  {
+   "config_keys": [
+    "java",
+    "playerSample"
+   ],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/PacketStatusListener.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/spigotmc/SpigotConfig.java"
+   ],
+   "insertions": 14,
+   "deletions": 1,
+   "patch": "0074-Configurable-Ping-Sample-Size.patch"
+  },
+  {
+   "config_keys": [
+    "java",
+    "playerShuffle"
+   ],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/ServerConnection.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/spigotmc/SpigotConfig.java"
+   ],
+   "insertions": 13,
+   "deletions": 1,
+   "patch": "0075-Add-Optional-Tick-Shuffling.patch"
+  },
+  {
+   "config_keys": [
+    "java",
+    "maxBulkChunk"
+   ],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/EntityPlayer.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/spigotmc/SpigotWorldConfig.java"
+   ],
+   "insertions": 8,
+   "deletions": 2,
+   "patch": "0076-Allow-Configuring-Chunks-per-Packet.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/EntityPlayer.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java"
+   ],
+   "insertions": 7,
+   "deletions": 2,
+   "patch": "0077-Implement-Locale-Getter-for-Players.patch"
+  },
+  {
+   "config_keys": [
+    "java",
+    "maxCollisionsPerEntity"
+   ],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/Entity.java",
+    "src/main/java/net/minecraft/server/EntityLiving.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/spigotmc/SpigotWorldConfig.java"
+   ],
+   "insertions": 13,
+   "deletions": 1,
+   "patch": "0078-Cap-Entity-Collisions.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [
+    "BlockDispenseEvent"
+   ],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/DispenserRegistry.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 1,
+   "deletions": 2,
+   "patch": "0079-Fix-dispensing-bone-meal-not-having-the-correct-data.patch"
+  },
+  {
+   "config_keys": [
+    "java",
+    "spamExclusions"
+   ],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/PlayerConnection.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/spigotmc/SpigotConfig.java"
+   ],
+   "insertions": 22,
+   "deletions": 2,
+   "patch": "0080-Spam-Filter-Exclusions.patch"
+  },
+  {
+   "config_keys": [
+    "java",
+    "silentCommandBlocks"
+   ],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/CommandDispatcher.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/spigotmc/SpigotConfig.java"
+   ],
+   "insertions": 7,
+   "deletions": 2,
+   "patch": "0081-Add-Option-to-Silence-CommandBlock-Console.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java"
+   ],
+   "insertions": 12,
+   "deletions": 1,
+   "patch": "0082-Add-support-for-fetching-hidden-players.patch"
+  },
+  {
+   "config_keys": [
+    "filterCreativeItems",
+    "java"
+   ],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/PlayerConnection.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/spigotmc/SpigotConfig.java"
+   ],
+   "insertions": 7,
+   "deletions": 2,
+   "patch": "0083-Allow-Disabling-Creative-Item-Filter.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [
+    "PlayerRegisterChannelEvent"
+   ],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java"
+   ],
+   "insertions": 1,
+   "deletions": 1,
+   "patch": "0084-Cap-Channel-Registrations.patch"
+  },
+  {
+   "config_keys": [
+    "contains",
+    "getStringList",
+    "java",
+    "replaceCommands",
+    "set"
+   ],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/CraftServer.java",
+    "src/main/java/org/spigotmc/SpigotConfig.java"
+   ],
+   "insertions": 29,
+   "deletions": 4,
+   "patch": "0085-Allow-vanilla-commands-to-be-the-main-version-of-a-c.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/PlayerConnection.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 1,
+   "deletions": 2,
+   "patch": "0086-Unfinalize-the-isDisconnected-method-by-bukkit.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/EntityLightning.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/CraftWorld.java",
+    "src/main/java/org/bukkit/craftbukkit/entity/CraftLightningStrike.java"
+   ],
+   "insertions": 31,
+   "deletions": 2,
+   "patch": "0087-Implement-Silenceable-Lightning-API.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/command/ServerCommandSender.java"
+   ],
+   "insertions": 10,
+   "deletions": 2,
+   "patch": "0088-Use-one-PermissibleBase-for-all-Command-Blocks.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/TileEntityHopper.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 1,
+   "deletions": 1,
+   "patch": "0089-Prevent-hoppers-from-loading-chunks.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/World.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 31,
+   "deletions": 2,
+   "patch": "0090-Guard-Entity-List.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/World.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 2,
+   "deletions": 1,
+   "patch": "0091-Fix-ConcurrentModificationException-while-being-idle.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/EntityWitherSkull.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 7,
+   "deletions": 4,
+   "patch": "0092-Cancellable-WitherSkull-potion-effect.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/Entity.java",
+    "src/main/java/net/minecraft/server/PlayerConnection.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 3,
+   "deletions": 4,
+   "patch": "0093-Descriptive-kick-reasons-instead-of-Nope.patch"
+  },
+  {
+   "config_keys": [
+    "dragonDeathSoundRadius",
+    "java",
+    "witherSpawnSoundRadius"
+   ],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/EntityEnderDragon.java",
+    "src/main/java/net/minecraft/server/EntityWither.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/spigotmc/SpigotWorldConfig.java"
+   ],
+   "insertions": 14,
+   "deletions": 1,
+   "patch": "0094-Configurable-dragon-death-and-wither-spawn-sounds.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/MinecraftServer.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 1,
+   "deletions": 2,
+   "patch": "0095-Display-Spigot-in-client-crashes-server-lists-and-Mo.patch"
+  },
+  {
+   "config_keys": [
+    "bungee"
+   ],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/DedicatedServer.java",
+    "src/main/java/net/minecraft/server/NameReferencingFileConverter.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 9,
+   "deletions": 3,
+   "patch": "0096-Treat-Bungee-as-Online-Mode.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/DedicatedServer.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 1,
+   "deletions": 1,
+   "patch": "0097-Add-Conversion-Message.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/ItemFishingRod.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 1,
+   "deletions": 1,
+   "patch": "0098-Properly-cancel-fishing-event.-Fixes-BUKKIT-5396.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/NetworkManager.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 1,
+   "deletions": 1,
+   "patch": "0099-Print-Stack-on-InternalException.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/WorldNBTStorage.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 18,
+   "deletions": 1,
+   "patch": "0100-Use-Offline-Player-Data-Once-if-Required.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/UserCache.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 1,
+   "deletions": 2,
+   "patch": "0101-Use-Provided-Case-for-Non-Existent-Offline-Players.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/CraftServer.java"
+   ],
+   "insertions": 1,
+   "deletions": 1,
+   "patch": "0102-Check-for-blank-OfflinePlayer-Names.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/GameProfileBanEntry.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 14,
+   "deletions": 6,
+   "patch": "0103-Fix-Player-Banning.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/GameProfileBanEntry.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 1,
+   "deletions": 2,
+   "patch": "0104-Fix-ban-expire-dates.patch"
+  },
+  {
+   "config_keys": [
+    "whitelistMessage"
+   ],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/PlayerList.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 1,
+   "deletions": 2,
+   "patch": "0105-Correct-Ban-Expiration.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/EntityHorse.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 11,
+   "deletions": 1,
+   "patch": "0106-Convert-Horses-owner-to-UUID.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/scoreboard/CraftScore.java"
+   ],
+   "insertions": 3,
+   "deletions": 2,
+   "patch": "0107-Add-Score.isScoreSet-Z-API.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/TileEntity.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 8,
+   "deletions": 2,
+   "patch": "0108-Log-null-TileEntity-Owner.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/CraftServer.java"
+   ],
+   "insertions": 0,
+   "deletions": 6,
+   "patch": "0109-Don-t-special-case-invalid-usernames-for-UUIDs.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/ItemSkull.java",
+    "src/main/java/net/minecraft/server/TileEntitySkull.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaSkull.java"
+   ],
+   "insertions": 136,
+   "deletions": 23,
+   "patch": "0110-Convert-player-skulls-async.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/World.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/spigotmc/WatchdogThread.java"
+   ],
+   "insertions": 12,
+   "deletions": 1,
+   "patch": "0111-Prevent-NoClassDefError-crash-and-notify-on-crash.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/ItemSkull.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 6,
+   "deletions": 1,
+   "patch": "0112-Check-Skull-canPlace.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/NetworkManager.java",
+    "src/main/java/net/minecraft/server/ServerConnection.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 11,
+   "deletions": 1,
+   "patch": "0113-Fix-race-condition-that-could-kill-connections-befor.patch"
+  },
+  {
+   "config_keys": [
+    "java",
+    "userCacheCap"
+   ],
+   "markers": [],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/UserCache.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/spigotmc/SpigotConfig.java"
+   ],
+   "insertions": 7,
+   "deletions": 2,
+   "patch": "0114-Configurable-UserCache-cap.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [
+    "PlayerSpawnLocationEvent"
+   ],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/PlayerList.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 14,
+   "deletions": 1,
+   "patch": "0115-Implement-PlayerSpawnLocationEvent.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/scoreboard/CraftObjective.java"
+   ],
+   "insertions": 1,
+   "deletions": 1,
+   "patch": "0116-Cap-Objective-Score-Length.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/PlayerConnection.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 12,
+   "deletions": 2,
+   "patch": "0117-Process-conversation-input-on-the-main-thread.-Fixes.patch"
+  },
+  {
+   "config_keys": [
+    "java",
+    "saveUserCacheOnStopOnly"
+   ],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/MinecraftServer.java",
+    "src/main/java/net/minecraft/server/UserCache.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/spigotmc/SpigotConfig.java"
+   ],
+   "insertions": 15,
+   "deletions": 4,
+   "patch": "0118-Configurable-save-on-stop-only-for-UserCache.patch"
+  },
+  {
+   "config_keys": [
+    "intCacheLimit",
+    "java"
+   ],
+   "markers": [],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/IntCache.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/spigotmc/SpigotConfig.java"
+   ],
+   "insertions": 11,
+   "deletions": 6,
+   "patch": "0119-Prevent-Unbounded-IntCache-Growth.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [
+    "EntityDamageByBlockEvent",
+    "EntityDamageByEntityEvent"
+   ],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/event/CraftEventFactory.java"
+   ],
+   "insertions": 4,
+   "deletions": 5,
+   "patch": "0120-Add-damager-to-the-unhandled-error.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java"
+   ],
+   "insertions": 8,
+   "deletions": 2,
+   "patch": "0121-Cross-World-Entity-Teleportation.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/PacketPlayInArmAnimation.java",
+    "src/main/java/net/minecraft/server/PlayerConnection.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 23,
+   "deletions": 4,
+   "patch": "0122-Limit-block-placement-interaction-packets.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/DataWatcher.java",
+    "src/main/java/net/minecraft/server/PacketDataSerializer.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaBook.java",
+    "src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaItem.java",
+    "src/main/java/org/spigotmc/ValidateUtils.java"
+   ],
+   "insertions": 57,
+   "deletions": 6,
+   "patch": "0123-Better-item-validation.patch"
+  },
+  {
+   "config_keys": [
+    "java",
+    "largeFeatureSeed",
+    "villageSeed"
+   ],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/WorldGenLargeFeature.java",
+    "src/main/java/net/minecraft/server/WorldGenVillage.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/spigotmc/SpigotWorldConfig.java"
+   ],
+   "insertions": 11,
+   "deletions": 3,
+   "patch": "0124-Further-Seed-Customisation.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/MinecraftServer.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 1,
+   "deletions": 1,
+   "patch": "0125-Disable-ResourceLeakDetector.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/WorldNBTStorage.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 3,
+   "deletions": 4,
+   "patch": "0126-Add-More-Information-to-session.lock-Errors.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/JsonList.java",
+    "src/main/java/net/minecraft/server/UserCache.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 16,
+   "deletions": 1,
+   "patch": "0127-Safer-JSON-Loading.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/resources/log4j2.xml"
+   ],
+   "insertions": 1,
+   "deletions": 2,
+   "patch": "0128-Fix-Slow-Loading-Libraries.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/DedicatedServer.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 10,
+   "deletions": 2,
+   "patch": "0129-Add-CommandLine-EULA-Flag.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/ContainerEnchantTable.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 5,
+   "deletions": 2,
+   "patch": "0130-Fix-for-enchanting-table-wiping-meta-when-placing-st.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/EntityOcelot.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/CraftWorld.java"
+   ],
+   "insertions": 8,
+   "deletions": 2,
+   "patch": "0131-Don-t-spawn-bonus-ocelots-when-plugins-spawn-ocelots.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java"
+   ],
+   "insertions": 9,
+   "deletions": 2,
+   "patch": "0132-Prevent-a-crash-involving-attributes.patch"
+  },
+  {
+   "config_keys": [
+    "java",
+    "movedWronglyThreshold"
+   ],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/PlayerConnection.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/spigotmc/SpigotConfig.java"
+   ],
+   "insertions": 8,
+   "deletions": 2,
+   "patch": "0133-Make-moved-wrongly-limit-configurable.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/World.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 1,
+   "deletions": 1,
+   "patch": "0134-Fix-Null-Tile-Entity-Worlds.patch"
+  },
+  {
+   "config_keys": [
+    "java",
+    "movedTooQuicklyThreshold"
+   ],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/PlayerConnection.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/spigotmc/SpigotConfig.java"
+   ],
+   "insertions": 8,
+   "deletions": 2,
+   "patch": "0135-Make-moved-too-quickly-limit-configurable.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/NBTCompressedStreamTools.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/spigotmc/LimitStream.java"
+   ],
+   "insertions": 45,
+   "deletions": 1,
+   "patch": "0136-Apply-NBTReadLimiter-to-more-things.patch"
+  },
+  {
+   "config_keys": [
+    "attackDamage",
+    "java",
+    "maxHealth",
+    "movementSpeed"
+   ],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/AttributeRanged.java",
+    "src/main/java/net/minecraft/server/GenericAttributes.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/spigotmc/SpigotConfig.java"
+   ],
+   "insertions": 21,
+   "deletions": 5,
+   "patch": "0137-Allow-Attribute-Capping.patch"
+  },
+  {
+   "config_keys": [
+    "bungee"
+   ],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/CraftServer.java"
+   ],
+   "insertions": 8,
+   "deletions": 3,
+   "patch": "0138-Only-fetch-an-online-UUID-in-online-mode.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaItem.java"
+   ],
+   "insertions": 119,
+   "deletions": 1,
+   "patch": "0139-Filter-attribute-modifiers-which-cause-the-attribute.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/PersistentCollection.java",
+    "src/main/java/net/minecraft/server/World.java",
+    "src/main/java/net/minecraft/server/WorldMap.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 19,
+   "deletions": 3,
+   "patch": "0140-Plug-WorldMap-Memory-Leak.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/WorldServer.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 1,
+   "deletions": 2,
+   "patch": "0141-Fix-Corrupted-Trapped-Chest.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaItem.java"
+   ],
+   "insertions": 10,
+   "deletions": 4,
+   "patch": "0142-Remove-uneeded-validation.patch"
+  },
+  {
+   "config_keys": [
+    "combatExhaustion",
+    "java",
+    "regenExhaustion",
+    "sprintExhaustion",
+    "walkExhaustion"
+   ],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/EntityHuman.java",
+    "src/main/java/net/minecraft/server/FoodMetaData.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/spigotmc/SpigotWorldConfig.java"
+   ],
+   "insertions": 16,
+   "deletions": 5,
+   "patch": "0143-Add-Hunger-Config-Values.patch"
+  },
+  {
+   "config_keys": [
+    "Configuration",
+    "java"
+   ],
+   "markers": [],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/spigotmc/SpigotConfig.java",
+    "src/main/resources/log4j2.xml"
+   ],
+   "insertions": 28,
+   "deletions": 3,
+   "patch": "0144-Make-debug-logging-togglable.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaItem.java"
+   ],
+   "insertions": 5,
+   "deletions": 2,
+   "patch": "0145-Skip-invalid-enchants-in-CraftMetaItem.patch"
+  },
+  {
+   "config_keys": [
+    "currentPrimedTnt",
+    "java",
+    "maxTntTicksPerTick",
+    "version"
+   ],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/EntityTNTPrimed.java",
+    "src/main/java/net/minecraft/server/WorldServer.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/spigotmc/SpigotWorldConfig.java"
+   ],
+   "insertions": 13,
+   "deletions": 1,
+   "patch": "0146-Limit-TNT-Detonations-per-tick.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaItem.java"
+   ],
+   "insertions": 51,
+   "deletions": 3,
+   "patch": "0147-Added-isUnbreakable-and-setUnbreakable-to-ItemMeta.patch"
+  },
+  {
+   "config_keys": [
+    "hangingTickFrequency",
+    "java"
+   ],
+   "markers": [],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/EntityHanging.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/spigotmc/SpigotWorldConfig.java"
+   ],
+   "insertions": 7,
+   "deletions": 2,
+   "patch": "0148-Configurable-Hanging-Tick.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/ItemDoor.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 6,
+   "deletions": 5,
+   "patch": "0149-Refactor-ItemDoor-Place.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/PacketPlayOutChat.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/CraftServer.java",
+    "src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java"
+   ],
+   "insertions": 75,
+   "deletions": 1,
+   "patch": "0150-BungeeCord-Chat-API.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/Chunk.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/spigotmc/ActivationRange.java"
+   ],
+   "insertions": 8,
+   "deletions": 9,
+   "patch": "0151-Use-Standard-List-for-EntitySlices.patch"
+  },
+  {
+   "config_keys": [
+    "entityMaxTickTime",
+    "java",
+    "tileMaxTickTime"
+   ],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/World.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/spigotmc/SpigotWorldConfig.java",
+    "src/main/java/org/spigotmc/TickLimiter.java"
+   ],
+   "insertions": 51,
+   "deletions": 7,
+   "patch": "0152-Allow-Capping-Tile-Entity-Tick-Time.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/Container.java",
+    "src/main/java/net/minecraft/server/ItemStack.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 15,
+   "deletions": 2,
+   "patch": "0153-Use-FastMatches-for-ItemStack-Dirty-Check.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/MinecraftServer.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 12,
+   "deletions": 11,
+   "patch": "0154-Use-CLQ-for-main-thread-tasks.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/EntityItemFrame.java",
+    "src/main/java/net/minecraft/server/WorldMap.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/map/CraftMapRenderer.java"
+   ],
+   "insertions": 18,
+   "deletions": 12,
+   "patch": "0155-map-decoration-fix.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/PlayerList.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/spigotmc/CaseInsensitiveHashingStrategy.java",
+    "src/main/java/org/spigotmc/CaseInsensitiveMap.java"
+   ],
+   "insertions": 39,
+   "deletions": 14,
+   "patch": "0156-Use-Map-for-getPlayer-String-lookup.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/NetworkManager.java",
+    "src/main/java/net/minecraft/server/PlayerConnection.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 2,
+   "deletions": 2,
+   "patch": "0157-Clear-Packet-Queue-on-Disconnect.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/RegionFile.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 3,
+   "deletions": 3,
+   "patch": "0158-Optimize-Chunk-Saving-Memory-Allocation-and-Compress.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/RegionFile.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 4,
+   "deletions": 9,
+   "patch": "0159-More-effecient-RegionFile-zero-ing.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/FileIOThread.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 2,
+   "deletions": 2,
+   "patch": "0160-Don-t-sleep-between-chunk-saves.patch"
+  }
+ ],
+ "Spigot-Server-Patches": [
+  {
+   "config_keys": [],
+   "markers": [],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/PathfinderGoalNearestAttackableTarget.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "pom.xml",
+    "src/main/java/org/bukkit/craftbukkit/util/Versioning.java"
+   ],
+   "insertions": 35,
+   "deletions": 64,
+   "patch": "0001-POM-Changes.patch"
+  },
+  {
+   "config_keys": [
+    "addDefault",
+    "class",
+    "config",
+    "getBoolean",
+    "getDouble",
+    "getInt",
+    "getList",
+    "getString",
+    "init",
+    "java",
+    "load",
+    "options",
+    "readConfig",
+    "registerCommands",
+    "save",
+    "set"
+   ],
+   "markers": [
+    "Paper",
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/DedicatedServer.java",
+    "src/main/java/net/minecraft/server/World.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/CraftServer.java",
+    "src/main/java/org/bukkit/craftbukkit/Main.java",
+    "src/main/java/org/github/paperspigot/PaperSpigotConfig.java",
+    "src/main/java/org/github/paperspigot/PaperSpigotWorldConfig.java"
+   ],
+   "insertions": 236,
+   "deletions": 1,
+   "patch": "0002-PaperSpigot-config-files.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/BaseBlockPosition.java",
+    "src/main/java/net/minecraft/server/BiomeBase.java",
+    "src/main/java/net/minecraft/server/BiomeMesa.java",
+    "src/main/java/net/minecraft/server/BlockChest.java",
+    "src/main/java/net/minecraft/server/BlockFalling.java",
+    "src/main/java/net/minecraft/server/BlockFluids.java",
+    "src/main/java/net/minecraft/server/BlockPosition.java",
+    "src/main/java/net/minecraft/server/ChunkProviderFlat.java",
+    "src/main/java/net/minecraft/server/ChunkProviderGenerate.java",
+    "src/main/java/net/minecraft/server/ChunkProviderHell.java",
+    "src/main/java/net/minecraft/server/EntityMinecartFurnace.java",
+    "src/main/java/net/minecraft/server/ItemBlock.java",
+    "src/main/java/net/minecraft/server/ItemMilkBucket.java",
+    "src/main/java/net/minecraft/server/MobEffectAttackDamage.java",
+    "src/main/java/net/minecraft/server/NavigationAbstract.java",
+    "src/main/java/net/minecraft/server/PacketLoginInEncryptionBegin.java",
+    "src/main/java/net/minecraft/server/PacketPlayOutPlayerListHeaderFooter.java",
+    "src/main/java/net/minecraft/server/PacketPlayOutTitle.java",
+    "src/main/java/net/minecraft/server/PathfinderGoalFloat.java",
+    "src/main/java/net/minecraft/server/PathfinderNormal.java",
+    "src/main/java/net/minecraft/server/TileEntityEnderChest.java",
+    "src/main/java/net/minecraft/server/TileEntityLightDetector.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 3979,
+   "deletions": 1,
+   "patch": "0003-mc-dev-imports.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Paper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/EntityArrow.java",
+    "src/main/java/net/minecraft/server/EntityFishingHook.java",
+    "src/main/java/net/minecraft/server/EntityProjectile.java",
+    "src/main/java/net/minecraft/server/ItemBlock.java",
+    "src/main/java/net/minecraft/server/World.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 32,
+   "deletions": 2,
+   "patch": "0004-Vanished-players-don-t-have-rights.patch"
+  },
+  {
+   "config_keys": [
+    "addDefault",
+    "allowUndeadHorseLeashing",
+    "getString"
+   ],
+   "markers": [
+    "Paper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/EntityHorse.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/github/paperspigot/PaperSpigotWorldConfig.java"
+   ],
+   "insertions": 12,
+   "deletions": 1,
+   "patch": "0005-Allow-undead-horse-types-to-be-leashed.patch"
+  },
+  {
+   "config_keys": [
+    "squidMaxSpawnHeight",
+    "squidMinSpawnHeight"
+   ],
+   "markers": [
+    "Paper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/EntitySquid.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/github/paperspigot/PaperSpigotWorldConfig.java"
+   ],
+   "insertions": 11,
+   "deletions": 2,
+   "patch": "0006-Configurable-squid-spawn-ranges.patch"
+  },
+  {
+   "config_keys": [
+    "playerBlockingDamageMultiplier"
+   ],
+   "markers": [
+    "Paper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/EntityHuman.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/github/paperspigot/PaperSpigotWorldConfig.java"
+   ],
+   "insertions": 8,
+   "deletions": 2,
+   "patch": "0007-Configurable-damage-multiplier-for-PvP-blocking.patch"
+  },
+  {
+   "config_keys": [
+    "cactusMaxHeight",
+    "cactusModifier",
+    "caneModifier",
+    "reedMaxHeight"
+   ],
+   "markers": [
+    "Paper",
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/BlockCactus.java",
+    "src/main/java/net/minecraft/server/BlockReed.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/github/paperspigot/PaperSpigotWorldConfig.java"
+   ],
+   "insertions": 11,
+   "deletions": 3,
+   "patch": "0008-Configurable-cactus-and-reed-natural-growth-heights.patch"
+  },
+  {
+   "config_keys": [
+    "addDefault",
+    "babyZombieMovementSpeed",
+    "getString",
+    "java"
+   ],
+   "markers": [
+    "Paper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/EntityZombie.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/github/paperspigot/PaperSpigotConfig.java"
+   ],
+   "insertions": 7,
+   "deletions": 2,
+   "patch": "0009-Configurable-baby-zombie-movement-speed.patch"
+  },
+  {
+   "config_keys": [
+    "fishingMaxTicks",
+    "fishingMinTicks"
+   ],
+   "markers": [
+    "Paper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/EntityFishingHook.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/github/paperspigot/PaperSpigotWorldConfig.java"
+   ],
+   "insertions": 9,
+   "deletions": 2,
+   "patch": "0010-Configurable-fishing-time-ranges.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Paper",
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/EntityInsentient.java",
+    "src/main/java/net/minecraft/server/PathfinderGoalFloat.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 8,
+   "deletions": 1,
+   "patch": "0011-Allow-nerfed-mobs-to-jump.patch"
+  },
+  {
+   "config_keys": [
+    "interactLimitEnabled",
+    "java"
+   ],
+   "markers": [
+    "Paper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/PlayerConnection.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/github/paperspigot/PaperSpigotConfig.java"
+   ],
+   "insertions": 12,
+   "deletions": 2,
+   "patch": "0012-Toggle-for-player-interact-limiter.patch"
+  },
+  {
+   "config_keys": [
+    "blockBreakExhaustion",
+    "playerSwimmingExhaustion"
+   ],
+   "markers": [
+    "Paper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/Block.java",
+    "src/main/java/net/minecraft/server/EntityHuman.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/github/paperspigot/PaperSpigotWorldConfig.java"
+   ],
+   "insertions": 11,
+   "deletions": 4,
+   "patch": "0013-Player-Exhaustion-Multipliers.patch"
+  },
+  {
+   "config_keys": [
+    "hardDespawnDistance",
+    "softDespawnDistance"
+   ],
+   "markers": [
+    "Paper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/EntityInsentient.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/github/paperspigot/PaperSpigotWorldConfig.java"
+   ],
+   "insertions": 20,
+   "deletions": 4,
+   "patch": "0014-Add-configurable-despawn-distances-for-living-entiti.patch"
+  },
+  {
+   "config_keys": [
+    "entityMaxTickTime",
+    "keepSpawnInMemory",
+    "tileMaxTickTime"
+   ],
+   "markers": [
+    "Paper",
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/World.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/github/paperspigot/PaperSpigotWorldConfig.java"
+   ],
+   "insertions": 8,
+   "deletions": 1,
+   "patch": "0015-Allow-for-toggling-of-spawn-chunks.patch"
+  },
+  {
+   "config_keys": [
+    "fallingBlockHeightNerf",
+    "tntEntityHeightNerf"
+   ],
+   "markers": [
+    "Paper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/EntityFallingBlock.java",
+    "src/main/java/net/minecraft/server/EntityTNTPrimed.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/github/paperspigot/PaperSpigotWorldConfig.java"
+   ],
+   "insertions": 38,
+   "deletions": 1,
+   "patch": "0016-Drop-falling-block-and-tnt-entities-at-the-specified.patch"
+  },
+  {
+   "config_keys": [
+    "waterOverLavaFlowSpeed"
+   ],
+   "markers": [
+    "Paper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/BlockFlowing.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/github/paperspigot/PaperSpigotWorldConfig.java"
+   ],
+   "insertions": 23,
+   "deletions": 3,
+   "patch": "0017-Configurable-speed-for-water-flowing-over-lava.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Paper",
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/EntityHuman.java",
+    "src/main/java/net/minecraft/server/EntityInsentient.java",
+    "src/main/java/net/minecraft/server/MobSpawnerAbstract.java",
+    "src/main/java/net/minecraft/server/SpawnerCreature.java",
+    "src/main/java/net/minecraft/server/World.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java"
+   ],
+   "insertions": 73,
+   "deletions": 25,
+   "patch": "0018-Player-affects-spawning-API.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Paper",
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/MinecraftServer.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/spigotmc/WatchdogThread.java"
+   ],
+   "insertions": 5,
+   "deletions": 6,
+   "patch": "0019-Show-PaperSpigot-in-client-crashes-server-lists-and-.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Paper"
+   ],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/spigotmc/Metrics.java"
+   ],
+   "insertions": 1,
+   "deletions": 2,
+   "patch": "0020-Metrics.patch"
+  },
+  {
+   "config_keys": [
+    "removeInvalidMobSpawnerTEs"
+   ],
+   "markers": [
+    "Paper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/Chunk.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/github/paperspigot/PaperSpigotWorldConfig.java"
+   ],
+   "insertions": 12,
+   "deletions": 1,
+   "patch": "0021-Remove-invalid-mob-spawner-tile-entities.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Paper",
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/TileEntityChest.java",
+    "src/main/java/net/minecraft/server/TileEntityEnderChest.java",
+    "src/main/java/net/minecraft/server/World.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 96,
+   "deletions": 19,
+   "patch": "0022-Optimize-TileEntity-Ticking.patch"
+  },
+  {
+   "config_keys": [
+    "fallingBlockHeightNerf",
+    "removeUnloadedEnderPearls",
+    "removeUnloadedFallingBlocks",
+    "removeUnloadedTNTEntities"
+   ],
+   "markers": [
+    "Paper",
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/Entity.java",
+    "src/main/java/net/minecraft/server/EntityEnderPearl.java",
+    "src/main/java/net/minecraft/server/EntityFallingBlock.java",
+    "src/main/java/net/minecraft/server/EntityTNTPrimed.java",
+    "src/main/java/net/minecraft/server/World.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/github/paperspigot/PaperSpigotWorldConfig.java"
+   ],
+   "insertions": 39,
+   "deletions": 1,
+   "patch": "0023-Remove-certain-entities-that-fly-through-unloaded-ch.patch"
+  },
+  {
+   "config_keys": [
+    "java",
+    "strengthEffectModifier",
+    "weaknessEffectModifier"
+   ],
+   "markers": [
+    "Paper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/MobEffectAttackDamage.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/github/paperspigot/PaperSpigotConfig.java"
+   ],
+   "insertions": 10,
+   "deletions": 2,
+   "patch": "0024-Configurable-strength-and-weakness-effect-modifiers.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Paper",
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/MinecraftServer.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/CraftServer.java",
+    "src/main/java/org/spigotmc/TicksPerSecondCommand.java"
+   ],
+   "insertions": 99,
+   "deletions": 34,
+   "patch": "0025-Further-improve-server-tick-loop.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Paper"
+   ],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java"
+   ],
+   "insertions": 2,
+   "deletions": 2,
+   "patch": "0026-Only-refresh-abilities-if-needed.patch"
+  },
+  {
+   "config_keys": [
+    "boatsDropBoats"
+   ],
+   "markers": [
+    "Paper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/EntityBoat.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/github/paperspigot/PaperSpigotWorldConfig.java"
+   ],
+   "insertions": 25,
+   "deletions": 17,
+   "patch": "0027-Configurable-game-mechanics-changes.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Paper"
+   ],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/CraftWorld.java"
+   ],
+   "insertions": 18,
+   "deletions": 1,
+   "patch": "0028-Add-async-chunk-load-API.patch"
+  },
+  {
+   "config_keys": [
+    "dataValueAllowedItems",
+    "java"
+   ],
+   "markers": [
+    "Paper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/ItemStack.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/github/paperspigot/PaperSpigotConfig.java"
+   ],
+   "insertions": 17,
+   "deletions": 6,
+   "patch": "0029-Allow-specified-ItemStacks-to-retain-their-invalid-d.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Paper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/BlockTNT.java",
+    "src/main/java/net/minecraft/server/DispenserRegistry.java",
+    "src/main/java/net/minecraft/server/EntityTNTPrimed.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/CraftWorld.java",
+    "src/main/java/org/bukkit/craftbukkit/entity/CraftTNTPrimed.java"
+   ],
+   "insertions": 39,
+   "deletions": 7,
+   "patch": "0030-Add-TNT-source-location-API.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Paper",
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/TileEntity.java",
+    "src/main/java/net/minecraft/server/World.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 21,
+   "deletions": 11,
+   "patch": "0031-Prevent-tile-entity-and-entity-crashes.patch"
+  },
+  {
+   "config_keys": [
+    "netherVoidTopDamage"
+   ],
+   "markers": [
+    "Paper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/Entity.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/github/paperspigot/PaperSpigotWorldConfig.java"
+   ],
+   "insertions": 14,
+   "deletions": 2,
+   "patch": "0032-Configurable-top-of-nether-void-damage.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Paper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/EntityEnderman.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 7,
+   "deletions": 1,
+   "patch": "0033-Enderman-drop-the-block-they-re-holding-when-they-di.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Paper",
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/WorldNBTStorage.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 1,
+   "deletions": 2,
+   "patch": "0034-Check-online-mode-before-converting-and-renaming-pla.patch"
+  },
+  {
+   "config_keys": [
+    "tickNextTickCap",
+    "tickNextTickListCapIgnoresRedstone"
+   ],
+   "markers": [
+    "Paper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/WorldServer.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/github/paperspigot/PaperSpigotWorldConfig.java"
+   ],
+   "insertions": 33,
+   "deletions": 1,
+   "patch": "0035-Fix-redstone-lag-issues.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Paper"
+   ],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/spigotmc/ActivationRange.java"
+   ],
+   "insertions": 2,
+   "deletions": 1,
+   "patch": "0036-Always-tick-falling-blocks.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Paper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/BlockDragonEgg.java",
+    "src/main/java/net/minecraft/server/BlockFalling.java",
+    "src/main/java/net/minecraft/server/EntityFallingBlock.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/CraftWorld.java",
+    "src/main/java/org/bukkit/craftbukkit/entity/CraftFallingSand.java"
+   ],
+   "insertions": 51,
+   "deletions": 8,
+   "patch": "0037-Add-FallingBlock-source-location-API.patch"
+  },
+  {
+   "config_keys": [
+    "useAsyncLighting"
+   ],
+   "markers": [
+    "Paper",
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/Chunk.java",
+    "src/main/java/net/minecraft/server/ChunkProviderServer.java",
+    "src/main/java/net/minecraft/server/World.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/github/paperspigot/PaperSpigotWorldConfig.java"
+   ],
+   "insertions": 106,
+   "deletions": 9,
+   "patch": "0038-Configurable-async-light-updates.patch"
+  },
+  {
+   "config_keys": [
+    "antiXrayInstance"
+   ],
+   "markers": [
+    "Paper",
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/BlockFlowing.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 8,
+   "deletions": 2,
+   "patch": "0039-Optimize-draining.patch"
+  },
+  {
+   "config_keys": [
+    "disablePlayerCrits"
+   ],
+   "markers": [
+    "Paper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/EntityHuman.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/github/paperspigot/PaperSpigotWorldConfig.java"
+   ],
+   "insertions": 3,
+   "deletions": 2,
+   "patch": "0040-Toggleable-player-crits-helps-mitigate-hacked-client.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Paper"
+   ],
+   "events": [
+    "PlayerLocaleChangeEvent"
+   ],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/EntityPlayer.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/event/CraftEventFactory.java"
+   ],
+   "insertions": 15,
+   "deletions": 1,
+   "patch": "0041-Add-PlayerLocaleChangeEvent.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "pom.xml"
+   ],
+   "insertions": 1,
+   "deletions": 1,
+   "patch": "0042-Fix-jar-being-shaded-multiple-times.patch"
+  },
+  {
+   "config_keys": [
+    "disableEndCredits"
+   ],
+   "markers": [
+    "Paper"
+   ],
+   "events": [
+    "PlayerPortalEvent"
+   ],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/EntityPlayer.java",
+    "src/main/java/net/minecraft/server/PlayerList.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/github/paperspigot/PaperSpigotWorldConfig.java"
+   ],
+   "insertions": 24,
+   "deletions": 7,
+   "patch": "0043-Configurable-end-credits-when-leaving-the-end.patch"
+  },
+  {
+   "config_keys": [
+    "loadUnloadedEnderPearls",
+    "loadUnloadedFallingBlocks",
+    "loadUnloadedTNTEntities"
+   ],
+   "markers": [
+    "Paper",
+    "Spigot"
+   ],
+   "events": [
+    "ExplosionPrimeEvent"
+   ],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/ChunkProviderServer.java",
+    "src/main/java/net/minecraft/server/Entity.java",
+    "src/main/java/net/minecraft/server/EntityEnderPearl.java",
+    "src/main/java/net/minecraft/server/EntityFallingBlock.java",
+    "src/main/java/net/minecraft/server/EntityTNTPrimed.java",
+    "src/main/java/net/minecraft/server/World.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/github/paperspigot/PaperSpigotWorldConfig.java",
+    "src/main/java/org/spigotmc/ActivationRange.java"
+   ],
+   "insertions": 65,
+   "deletions": 5,
+   "patch": "0044-Force-load-chunks-for-specific-entities-that-fly-thr.patch"
+  },
+  {
+   "config_keys": [
+    "java",
+    "stackableLavaBuckets",
+    "stackableMilkBuckets",
+    "stackableWaterBuckets"
+   ],
+   "markers": [
+    "Paper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/ItemBucket.java",
+    "src/main/java/net/minecraft/server/ItemMilkBucket.java",
+    "src/main/java/net/minecraft/server/PlayerConnection.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/github/paperspigot/PaperSpigotConfig.java"
+   ],
+   "insertions": 88,
+   "deletions": 1,
+   "patch": "0045-Stackable-Buckets.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Paper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/Explosion.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 8,
+   "deletions": 2,
+   "patch": "0046-Fix-lag-from-explosions-processing-dead-entities.patch"
+  },
+  {
+   "config_keys": [
+    "generateCanyon",
+    "generateCaves",
+    "generateDungeon",
+    "generateFlatBedrock",
+    "generateFortress",
+    "generateMineshaft",
+    "generateMonument",
+    "generateStronghold",
+    "generateTemple",
+    "generateVillage"
+   ],
+   "markers": [
+    "Paper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/BiomeBase.java",
+    "src/main/java/net/minecraft/server/BiomeMesa.java",
+    "src/main/java/net/minecraft/server/ChunkProviderFlat.java",
+    "src/main/java/net/minecraft/server/ChunkProviderGenerate.java",
+    "src/main/java/net/minecraft/server/ChunkProviderHell.java",
+    "src/main/java/net/minecraft/server/StructureGenerator.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/github/paperspigot/PaperSpigotWorldConfig.java"
+   ],
+   "insertions": 59,
+   "deletions": 31,
+   "patch": "0047-Generator-Settings.patch"
+  },
+  {
+   "config_keys": [
+    "contains",
+    "fixCannons",
+    "getBoolean",
+    "getDefaults",
+    "set",
+    "version"
+   ],
+   "markers": [
+    "Paper"
+   ],
+   "events": [
+    "BlockDispenseEvent"
+   ],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/BlockDiodeAbstract.java",
+    "src/main/java/net/minecraft/server/BlockRedstoneTorch.java",
+    "src/main/java/net/minecraft/server/BlockRedstoneWire.java",
+    "src/main/java/net/minecraft/server/BlockTNT.java",
+    "src/main/java/net/minecraft/server/DispenserRegistry.java",
+    "src/main/java/net/minecraft/server/EntityFallingBlock.java",
+    "src/main/java/net/minecraft/server/EntityTNTPrimed.java",
+    "src/main/java/net/minecraft/server/Explosion.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/github/paperspigot/PaperSpigotWorldConfig.java"
+   ],
+   "insertions": 204,
+   "deletions": 5,
+   "patch": "0048-Configurable-TNT-cannon-fix.patch"
+  },
+  {
+   "config_keys": [
+    "fallingBlocksCollideWithSigns"
+   ],
+   "markers": [
+    "Paper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/World.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/github/paperspigot/PaperSpigotWorldConfig.java"
+   ],
+   "insertions": 15,
+   "deletions": 2,
+   "patch": "0049-FallingBlock-and-TNT-entities-collide-with-specific-.patch"
+  },
+  {
+   "config_keys": [
+    "optimizeExplosions"
+   ],
+   "markers": [
+    "Paper",
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/Explosion.java",
+    "src/main/java/net/minecraft/server/MinecraftServer.java",
+    "src/main/java/net/minecraft/server/World.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/github/paperspigot/PaperSpigotWorldConfig.java"
+   ],
+   "insertions": 91,
+   "deletions": 2,
+   "patch": "0050-Optimize-explosions.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Paper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/BlockFlowing.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 1,
+   "deletions": 1,
+   "patch": "0051-Stop-updating-flowing-block-if-material-has-changed.patch"
+  },
+  {
+   "config_keys": [
+    "fastDrainLava",
+    "fastDrainWater"
+   ],
+   "markers": [
+    "Paper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/BlockFlowing.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/github/paperspigot/PaperSpigotWorldConfig.java"
+   ],
+   "insertions": 58,
+   "deletions": 3,
+   "patch": "0052-Fast-draining.patch"
+  },
+  {
+   "config_keys": [
+    "lavaFlowSpeedNether",
+    "lavaFlowSpeedNormal"
+   ],
+   "markers": [],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/BlockFlowing.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/github/paperspigot/PaperSpigotWorldConfig.java"
+   ],
+   "insertions": 11,
+   "deletions": 1,
+   "patch": "0053-Configurable-lava-flow-speed.patch"
+  },
+  {
+   "config_keys": [
+    "viewDistance"
+   ],
+   "markers": [
+    "Paper",
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/EntityPlayer.java",
+    "src/main/java/net/minecraft/server/PlayerChunkMap.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java"
+   ],
+   "insertions": 56,
+   "deletions": 7,
+   "patch": "0054-Add-player-view-distance-API.patch"
+  },
+  {
+   "config_keys": [
+    "disableExplosionKnockback"
+   ],
+   "markers": [
+    "Paper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/EntityLiving.java",
+    "src/main/java/net/minecraft/server/Explosion.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/github/paperspigot/PaperSpigotWorldConfig.java"
+   ],
+   "insertions": 14,
+   "deletions": 4,
+   "patch": "0055-Disable-explosion-knockback.patch"
+  },
+  {
+   "config_keys": [
+    "disableThunder"
+   ],
+   "markers": [
+    "Paper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/WorldServer.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/github/paperspigot/PaperSpigotWorldConfig.java"
+   ],
+   "insertions": 7,
+   "deletions": 2,
+   "patch": "0056-Disable-thunder.patch"
+  },
+  {
+   "config_keys": [
+    "disableIceAndSnow"
+   ],
+   "markers": [
+    "Paper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/WorldServer.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/github/paperspigot/PaperSpigotWorldConfig.java"
+   ],
+   "insertions": 7,
+   "deletions": 2,
+   "patch": "0057-Disable-ice-and-snow.patch"
+  },
+  {
+   "config_keys": [
+    "disableMoodSounds"
+   ],
+   "markers": [
+    "Paper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/World.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/github/paperspigot/PaperSpigotWorldConfig.java"
+   ],
+   "insertions": 7,
+   "deletions": 2,
+   "patch": "0058-Disable-mood-sounds.patch"
+  },
+  {
+   "config_keys": [
+    "mobSpawnerTickRate"
+   ],
+   "markers": [
+    "Paper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/MobSpawnerAbstract.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/github/paperspigot/PaperSpigotWorldConfig.java"
+   ],
+   "insertions": 14,
+   "deletions": 4,
+   "patch": "0059-Configurable-mob-spawner-tick-rate.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Paper",
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/World.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 5,
+   "deletions": 4,
+   "patch": "0060-Optimize-getCubes.patch"
+  },
+  {
+   "config_keys": [
+    "antiXrayInstance",
+    "cacheChunkMaps"
+   ],
+   "markers": [
+    "Paper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/Chunk.java",
+    "src/main/java/net/minecraft/server/ChunkSection.java",
+    "src/main/java/net/minecraft/server/PacketPlayOutMapChunk.java",
+    "src/main/java/net/minecraft/server/PacketPlayOutMapChunkBulk.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/github/paperspigot/PaperSpigotWorldConfig.java"
+   ],
+   "insertions": 55,
+   "deletions": 3,
+   "patch": "0061-ChunkMap-caching.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Paper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/EntityTrackerEntry.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 39,
+   "deletions": 16,
+   "patch": "0062-Send-absolute-position-the-first-time-an-entity-is-s.patch"
+  },
+  {
+   "config_keys": [
+    "antiXray",
+    "antiXrayInstance"
+   ],
+   "markers": [
+    "Paper",
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/WorldServer.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/spigotmc/AntiXray.java"
+   ],
+   "insertions": 36,
+   "deletions": 1,
+   "patch": "0063-Optimize-Spigot-s-Anti-X-Ray.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Paper"
+   ],
+   "events": [
+    "BeaconEffectEvent"
+   ],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/TileEntityBeacon.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 27,
+   "deletions": 3,
+   "patch": "0064-Add-BeaconEffectEvent.patch"
+  },
+  {
+   "config_keys": [
+    "containerUpdateTickRate"
+   ],
+   "markers": [
+    "Paper",
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/EntityPlayer.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/github/paperspigot/PaperSpigotWorldConfig.java"
+   ],
+   "insertions": 14,
+   "deletions": 3,
+   "patch": "0065-Configurable-container-update-tick-rate.patch"
+  },
+  {
+   "config_keys": [
+    "tntExplosionVolume"
+   ],
+   "markers": [
+    "Paper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/Explosion.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/github/paperspigot/PaperSpigotWorldConfig.java"
+   ],
+   "insertions": 10,
+   "deletions": 2,
+   "patch": "0066-Configurable-TNT-explosion-volume.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Paper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/BlockFluids.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 1,
+   "deletions": 2,
+   "patch": "0067-Fix-lava-water-some-times-creating-air-instead-of-co.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Paper"
+   ],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaSkull.java"
+   ],
+   "insertions": 9,
+   "deletions": 2,
+   "patch": "0068-Use-UserCache-for-player-heads.patch"
+  },
+  {
+   "config_keys": [
+    "hopperCheck",
+    "useHopperCheck"
+   ],
+   "markers": [
+    "Paper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/TileEntityHopper.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/github/paperspigot/PaperSpigotWorldConfig.java"
+   ],
+   "insertions": 11,
+   "deletions": 1,
+   "patch": "0069-Re-add-Spigot-s-hopper-check-feature.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Paper",
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/World.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 5,
+   "deletions": 8,
+   "patch": "0070-Disable-spigot-tick-limiters.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Paper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/EntityArmorStand.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 2,
+   "deletions": 3,
+   "patch": "0071-Don-t-damage-already-dead-ArmorStands.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Paper"
+   ],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/chunkio/ChunkIOExecutor.java"
+   ],
+   "insertions": 1,
+   "deletions": 2,
+   "patch": "0072-Bump-thread-count-for-chunk-loading.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Paper",
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/ChunkRegionLoader.java",
+    "src/main/java/net/minecraft/server/RegionFileCache.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 8,
+   "deletions": 2,
+   "patch": "0073-Don-t-create-Region-File-s-when-checking-if-chunk-ex.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Paper"
+   ],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/CraftWorld.java"
+   ],
+   "insertions": 6,
+   "deletions": 2,
+   "patch": "0074-Don-t-create-a-chunk-just-to-unload-it.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Paper",
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/Entity.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 13,
+   "deletions": 5,
+   "patch": "0075-EAR-Fix-bug-with-teleporting-entities.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Paper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/PlayerList.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 16,
+   "deletions": 1,
+   "patch": "0076-Add-PlayerInitialSpawnEvent.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Paper",
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java"
+   ],
+   "insertions": 1,
+   "deletions": 1,
+   "patch": "0077-Process-Entity-Chunk-Registration-on-Teleport.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Paper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/EntityHuman.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 10,
+   "deletions": 1,
+   "patch": "0078-SPIGOT-1387-Resolve-bed-issues-on-unloaded-chunks.patch"
+  },
+  {
+   "config_keys": [
+    "antiXray",
+    "antiXrayInstance",
+    "config",
+    "entityMaxTickTime",
+    "java",
+    "keepSpawnInMemory",
+    "logCommands",
+    "tickNextTickListCapIgnoresRedstone",
+    "tileMaxTickTime"
+   ],
+   "markers": [
+    "Paper",
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/Block.java",
+    "src/main/java/net/minecraft/server/DedicatedServer.java",
+    "src/main/java/net/minecraft/server/Entity.java",
+    "src/main/java/net/minecraft/server/EntityLiving.java",
+    "src/main/java/net/minecraft/server/MinecraftServer.java",
+    "src/main/java/net/minecraft/server/PlayerConnection.java",
+    "src/main/java/net/minecraft/server/TileEntity.java",
+    "src/main/java/net/minecraft/server/World.java",
+    "src/main/java/net/minecraft/server/WorldServer.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/co/aikar/timings/SpigotTimings.java",
+    "src/main/java/co/aikar/timings/WorldTimingsHandler.java",
+    "src/main/java/org/bukkit/craftbukkit/CraftServer.java",
+    "src/main/java/org/bukkit/craftbukkit/SpigotTimings.java",
+    "src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java",
+    "src/main/java/org/bukkit/craftbukkit/scheduler/CraftScheduler.java",
+    "src/main/java/org/bukkit/craftbukkit/scheduler/CraftTask.java",
+    "src/main/java/org/bukkit/craftbukkit/util/CraftIconCache.java",
+    "src/main/java/org/spigotmc/ActivationRange.java",
+    "src/main/java/org/spigotmc/AntiXray.java",
+    "src/main/java/org/spigotmc/SpigotConfig.java"
+   ],
+   "insertions": 321,
+   "deletions": 256,
+   "patch": "0079-Timings-v2.patch"
+  },
+  {
+   "config_keys": [
+    "disableChestCatDetection"
+   ],
+   "markers": [
+    "Paper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/BlockChest.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/github/paperspigot/PaperSpigotWorldConfig.java"
+   ],
+   "insertions": 7,
+   "deletions": 1,
+   "patch": "0080-Disable-chest-cat-detection.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Paper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/PlayerConnection.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/CraftServer.java"
+   ],
+   "insertions": 46,
+   "deletions": 1,
+   "patch": "0081-Ensure-commands-are-not-ran-async.patch"
+  },
+  {
+   "config_keys": [
+    "allChunksAreSlimeChunks"
+   ],
+   "markers": [
+    "Paper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/EntitySlime.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/github/paperspigot/PaperSpigotWorldConfig.java"
+   ],
+   "insertions": 9,
+   "deletions": 2,
+   "patch": "0082-All-chunks-are-slime-spawn-chunks-toggle.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Paper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/BaseBlockPosition.java",
+    "src/main/java/net/minecraft/server/BlockPosition.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 43,
+   "deletions": 17,
+   "patch": "0083-Speedup-BlockPos-by-fixing-inlining.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Paper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/BlockBloodStone.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 2,
+   "deletions": 3,
+   "patch": "0084-Remove-completely-invalid-Redstone-event-for-Netherr.patch"
+  },
+  {
+   "config_keys": [
+    "allowBlockLocationTabCompletion",
+    "tabComplete"
+   ],
+   "markers": [
+    "Paper",
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/MinecraftServer.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/CraftServer.java",
+    "src/main/java/org/bukkit/craftbukkit/command/VanillaCommandWrapper.java",
+    "src/main/java/org/github/paperspigot/PaperSpigotWorldConfig.java"
+   ],
+   "insertions": 51,
+   "deletions": 6,
+   "patch": "0085-Add-Location-support-to-tab-completers-vanilla-featu.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Paper",
+    "Spigot"
+   ],
+   "events": [
+    "EntityDismountEvent"
+   ],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/Entity.java",
+    "src/main/java/net/minecraft/server/EntityLiving.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 20,
+   "deletions": 4,
+   "patch": "0086-Made-EntityDismountEvent-Cancellable.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Paper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/NavigationAbstract.java",
+    "src/main/java/net/minecraft/server/PathfinderNormal.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 19,
+   "deletions": 4,
+   "patch": "0087-Optimize-Pathfinding.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Paper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/Chunk.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 11,
+   "deletions": 1,
+   "patch": "0088-Optimize-getBlockData.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Paper",
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/Chunk.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 39,
+   "deletions": 2,
+   "patch": "0089-Avoid-hopper-searches-if-there-are-no-items.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Paper"
+   ],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/CraftServer.java"
+   ],
+   "insertions": 1,
+   "deletions": 1,
+   "patch": "0090-Expose-server-CommandMap.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Paper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/EntityMinecartFurnace.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 6,
+   "deletions": 12,
+   "patch": "0091-Fix-FurnaceMinecarts-losing-all-of-their-velocity-on.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/entity/CraftLivingEntity.java"
+   ],
+   "insertions": 3,
+   "deletions": 2,
+   "patch": "0092-Be-a-bit-more-informative-in-maxHealth-exception.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Paper"
+   ],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/CraftServer.java",
+    "src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java"
+   ],
+   "insertions": 32,
+   "deletions": 1,
+   "patch": "0093-Graduate-bungeecord-chat-API-from-spigot-subclasses.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Paper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/PacketPlayOutPlayerListHeaderFooter.java",
+    "src/main/java/net/minecraft/server/PacketPlayOutTitle.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java"
+   ],
+   "insertions": 122,
+   "deletions": 4,
+   "patch": "0094-Player-Tab-List-and-Title-APIs.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Paper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/Container.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 1,
+   "deletions": 2,
+   "patch": "0095-Ensure-inv-drag-is-in-bounds.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Paper",
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/World.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 12,
+   "deletions": 11,
+   "patch": "0096-Change-implementation-of-tile-entity-removal-list.patch"
+  },
+  {
+   "config_keys": [
+    "portalSearchRadius",
+    "viewDistance"
+   ],
+   "markers": [
+    "Paper",
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/PortalTravelAgent.java",
+    "src/main/java/net/minecraft/server/WorldServer.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/github/paperspigot/PaperSpigotWorldConfig.java"
+   ],
+   "insertions": 10,
+   "deletions": 5,
+   "patch": "0097-Add-configurable-portal-search-radius.patch"
+  },
+  {
+   "config_keys": [
+    "java",
+    "warnForExcessiveVelocity"
+   ],
+   "markers": [
+    "Paper"
+   ],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java",
+    "src/main/java/org/github/paperspigot/PaperSpigotConfig.java"
+   ],
+   "insertions": 16,
+   "deletions": 1,
+   "patch": "0098-Add-velocity-warnings.patch"
+  },
+  {
+   "config_keys": [
+    "disableTeleportationSuffocationCheck"
+   ],
+   "markers": [],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java",
+    "src/main/java/org/github/paperspigot/PaperSpigotWorldConfig.java"
+   ],
+   "insertions": 7,
+   "deletions": 2,
+   "patch": "0099-Fix-inter-world-teleportation-glitches.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Paper",
+    "Spigot"
+   ],
+   "events": [
+    "ServerExceptionEvent"
+   ],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/Chunk.java",
+    "src/main/java/net/minecraft/server/ChunkProviderServer.java",
+    "src/main/java/net/minecraft/server/NameReferencingFileConverter.java",
+    "src/main/java/net/minecraft/server/PersistentCollection.java",
+    "src/main/java/net/minecraft/server/RegionFile.java",
+    "src/main/java/net/minecraft/server/RegionFileCache.java",
+    "src/main/java/net/minecraft/server/SpawnerCreature.java",
+    "src/main/java/net/minecraft/server/TileEntity.java",
+    "src/main/java/net/minecraft/server/VillageSiege.java",
+    "src/main/java/net/minecraft/server/World.java",
+    "src/main/java/net/minecraft/server/WorldNBTStorage.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/CraftWorld.java",
+    "src/main/java/org/bukkit/craftbukkit/scheduler/CraftScheduler.java",
+    "src/main/java/org/github/paperspigot/ServerSchedulerReportingWrapper.java"
+   ],
+   "insertions": 121,
+   "deletions": 17,
+   "patch": "0100-Add-exception-reporting-event.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Paper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/PacketDataSerializer.java",
+    "src/main/java/net/minecraft/server/PacketLoginInEncryptionBegin.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 13,
+   "deletions": 4,
+   "patch": "0101-PaperMC-Paper-GH-166.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper",
+    "Paper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/EntityArrow.java",
+    "src/main/java/net/minecraft/server/EntityFishingHook.java",
+    "src/main/java/net/minecraft/server/EntityProjectile.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 11,
+   "deletions": 4,
+   "patch": "0102-Allow-hidden-player-to-be-hit-by-projectiles.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Paper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/MinecraftServer.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 1,
+   "deletions": 2,
+   "patch": "0103-This-is-KigPaper.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper",
+    "Paper",
+    "Spigot"
+   ],
+   "events": [
+    "EntityDismountEvent"
+   ],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/EntityLiving.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 5,
+   "deletions": 2,
+   "patch": "0104-Only-trigger-EntityDismountEvent-if-triggered-by-sne.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/CraftServer.java"
+   ],
+   "insertions": 7,
+   "deletions": 1,
+   "patch": "0105-Make-the-permission-message-configurable.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper",
+    "Paper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/EntityArrow.java",
+    "src/main/java/net/minecraft/server/EntityFishingHook.java",
+    "src/main/java/net/minecraft/server/EntityProjectile.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 12,
+   "deletions": 1,
+   "patch": "0106-Allow-arrows-to-fly-through-invis-armor-stands.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/MinecraftServer.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 3,
+   "deletions": 1,
+   "patch": "0107-Disable-world-saving-on-shutdown-if-auto-save-is-dis.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "Paper"
+   ],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java"
+   ],
+   "insertions": 1,
+   "deletions": 2,
+   "patch": "0108-Fix-CraftPlayer-setFlying-not-working.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaBook.java"
+   ],
+   "insertions": 6,
+   "deletions": 3,
+   "patch": "0109-Backport-from-Spigot-Enforce-proper-limits-on-books.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/PlayerConnection.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 10,
+   "deletions": 1,
+   "patch": "0110-Backport-from-Spigot-Enforce-cooldowns-on-book-edits.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [],
+   "events": [
+    "BlockPhysicsEvent"
+   ],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/BlockCactus.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 8,
+   "deletions": 5,
+   "patch": "0111-Make-cacti-physics-break-trigger-BlockPhysicsEvent.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/PlayerConnection.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 7,
+   "deletions": 1,
+   "patch": "0112-Only-trigger-PlayerConnection-disconnect-once.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/CraftServer.java"
+   ],
+   "insertions": 4,
+   "deletions": 1,
+   "patch": "0113-Allow-disabling-of-namespaced-commands.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper",
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/EntityArrow.java",
+    "src/main/java/net/minecraft/server/EntityFishingHook.java",
+    "src/main/java/net/minecraft/server/EntityProjectile.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/entity/CraftArrow.java",
+    "src/main/java/org/bukkit/craftbukkit/entity/CraftFireball.java",
+    "src/main/java/org/bukkit/craftbukkit/entity/CraftFish.java",
+    "src/main/java/org/bukkit/craftbukkit/entity/CraftProjectile.java"
+   ],
+   "insertions": 154,
+   "deletions": 17,
+   "patch": "0114-Projectile-Effects-API.patch"
+  },
+  {
+   "config_keys": [
+    "itemDespawnRate"
+   ],
+   "markers": [
+    "KigPaper",
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/EntityItem.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/CraftWorld.java",
+    "src/main/java/org/bukkit/craftbukkit/entity/CraftItem.java"
+   ],
+   "insertions": 73,
+   "deletions": 6,
+   "patch": "0115-Item-Projectile-effects.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper",
+    "Paper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/EntityPlayer.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java"
+   ],
+   "insertions": 26,
+   "deletions": 1,
+   "patch": "0116-Player-nickname-framework.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/EntityPlayer.java",
+    "src/main/java/net/minecraft/server/PacketPlayOutPlayerInfo.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java"
+   ],
+   "insertions": 273,
+   "deletions": 6,
+   "patch": "0117-Nickname-player-info-injection.patch"
+  },
+  {
+   "config_keys": [
+    "DataSourceConfig",
+    "ServerConfig",
+    "dbplatform"
+   ],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/PacketPlayOutPlayerInfo.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/dev/rocco/kig/paper/impl/skin/CraftSkinCache.java",
+    "src/main/java/org/bukkit/craftbukkit/CraftServer.java"
+   ],
+   "insertions": 58,
+   "deletions": 80,
+   "patch": "0118-Skin-cache-API.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [],
+   "events": [
+    "PlayerChatTabCompleteEvent"
+   ],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/CraftServer.java"
+   ],
+   "insertions": 2,
+   "deletions": 3,
+   "patch": "0119-Nickname-tabcomplete-integration.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java"
+   ],
+   "insertions": 7,
+   "deletions": 1,
+   "patch": "0120-Player-list-entry-self-update.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/PacketStatusListener.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 5,
+   "deletions": 2,
+   "patch": "0121-Nicknames-in-server-ping.patch"
+  },
+  {
+   "config_keys": [
+    "init",
+    "java",
+    "knockbackFriction",
+    "knockbackHorizontalMultiplier",
+    "knockbackHorizontalSprinting",
+    "knockbackVerticalMultiplier",
+    "knockbackVerticalSprinting",
+    "registerCommands"
+   ],
+   "markers": [
+    "KigPaper",
+    "Paper",
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/DedicatedServer.java",
+    "src/main/java/net/minecraft/server/EntityHuman.java",
+    "src/main/java/net/minecraft/server/EntityLiving.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/dev/rocco/kig/paper/impl/velocity/CraftKnockbackValues.java",
+    "src/main/java/org/bukkit/craftbukkit/CraftServer.java",
+    "src/main/java/org/github/paperspigot/PaperSpigotConfig.java"
+   ],
+   "insertions": 138,
+   "deletions": 9,
+   "patch": "0122-Custom-Knockback-API.patch"
+  },
+  {
+   "config_keys": [
+    "knockbackVerticalSprinting"
+   ],
+   "markers": [],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/dev/rocco/kig/paper/impl/velocity/CraftKnockbackValues.java"
+   ],
+   "insertions": 5,
+   "deletions": 1,
+   "patch": "0123-Knockback-friction-API.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper",
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/EntityArrow.java",
+    "src/main/java/net/minecraft/server/EntityLiving.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/entity/CraftLivingEntity.java"
+   ],
+   "insertions": 30,
+   "deletions": 2,
+   "patch": "0124-Allow-entities-to-be-immune-to-stuck-arrows.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/PlayerList.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/CraftServer.java"
+   ],
+   "insertions": 10,
+   "deletions": 2,
+   "patch": "0125-Dynamic-server-player-limit.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper",
+    "Paper",
+    "Spigot"
+   ],
+   "events": [
+    "EntityDismountEvent"
+   ],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/Entity.java",
+    "src/main/java/net/minecraft/server/EntityLiving.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java"
+   ],
+   "insertions": 21,
+   "deletions": 11,
+   "patch": "0126-Add-dismount-cause-to-EntityDismountEvent.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/CraftWorld.java"
+   ],
+   "insertions": 10,
+   "deletions": 1,
+   "patch": "0127-Add-World-getTileEntities.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/CraftServer.java",
+    "src/main/java/org/bukkit/craftbukkit/command/ServerCommandSender.java",
+    "src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java"
+   ],
+   "insertions": 9,
+   "deletions": 6,
+   "patch": "0128-Fix-Entity-and-Command-Block-memory-leaks.patch"
+  },
+  {
+   "config_keys": [
+    "betterVehicleHitboxes",
+    "java"
+   ],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/PlayerConnection.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/github/paperspigot/PaperSpigotConfig.java"
+   ],
+   "insertions": 22,
+   "deletions": 1,
+   "patch": "0129-Better-Player-Vehicle-Hitboxes.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [
+    "EntityDamageEvent"
+   ],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/event/CraftEventFactory.java"
+   ],
+   "insertions": 2,
+   "deletions": 2,
+   "patch": "0130-Fix-CraftLivingEntity-damage-not-calling-EntityDamag.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/EntityArrow.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 3,
+   "deletions": 2,
+   "patch": "0131-Set-last-attacked-entity-on-projectile-hit.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper",
+    "Spigot"
+   ],
+   "events": [
+    "EntityExtinguishEvent"
+   ],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/Entity.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 9,
+   "deletions": 1,
+   "patch": "0132-Add-EntityExtinguishEvent.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper",
+    "Spigot"
+   ],
+   "events": [
+    "EntityCombustByBlockEvent",
+    "EntityDamageByBlockEvent"
+   ],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/Entity.java",
+    "src/main/java/net/minecraft/server/World.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/event/CraftEventFactory.java"
+   ],
+   "insertions": 83,
+   "deletions": 18,
+   "patch": "0133-Fix-EntityCombustByBlockEvent.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [
+    "EntityExtinguishEvent"
+   ],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/Entity.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 7,
+   "deletions": 3,
+   "patch": "0134-Fix-extinguish-event-implementation.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper",
+    "Paper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/ChunkProviderServer.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/CraftWorld.java"
+   ],
+   "insertions": 50,
+   "deletions": 1,
+   "patch": "0135-Better-Async-Chunk-API.patch"
+  },
+  {
+   "config_keys": [
+    "forceChunkSaveOnUnload"
+   ],
+   "markers": [
+    "KigPaper",
+    "Paper"
+   ],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/CraftWorld.java",
+    "src/main/java/org/github/paperspigot/PaperSpigotWorldConfig.java"
+   ],
+   "insertions": 9,
+   "deletions": 2,
+   "patch": "0136-Make-forced-chunk-saving-configurable.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper",
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/map/CraftMapRenderer.java"
+   ],
+   "insertions": 10,
+   "deletions": 10,
+   "patch": "0137-Allow-disabling-cursors-in-CraftMapRenderer.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper",
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/EnchantmentManager.java",
+    "src/main/java/net/minecraft/server/EntityInsentient.java",
+    "src/main/java/net/minecraft/server/NetworkManager.java",
+    "src/main/java/net/minecraft/server/PathfinderGoalSwell.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 21,
+   "deletions": 12,
+   "patch": "0138-Fix-some-more-memory-leaks.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/PersistentCollection.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/map/CraftMapView.java"
+   ],
+   "insertions": 23,
+   "deletions": 1,
+   "patch": "0139-Add-MapView-Unload-API.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/EntityInsentient.java",
+    "src/main/java/net/minecraft/server/PersistentCollection.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 5,
+   "deletions": 4,
+   "patch": "0140-Fix-NPE-from-0138-and-logging-from-0139.patch"
+  },
+  {
+   "config_keys": [
+    "java",
+    "nettyReadTimeout"
+   ],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/ServerConnection.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/github/paperspigot/PaperSpigotConfig.java"
+   ],
+   "insertions": 7,
+   "deletions": 4,
+   "patch": "0141-Make-Netty-timeout-kick-configurable.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/ItemStack.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/inventory/CraftItemStack.java"
+   ],
+   "insertions": 44,
+   "deletions": 3,
+   "patch": "0142-ItemStack-max-stack-size-API.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/NetworkManager.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java"
+   ],
+   "insertions": 11,
+   "deletions": 1,
+   "patch": "0143-Add-Actionbar-API.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/MinecraftServer.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 4,
+   "deletions": 5,
+   "patch": "0144-Fix-tick-loop-precision.patch"
+  },
+  {
+   "config_keys": [
+    "playerShuffle"
+   ],
+   "markers": [
+    "KigPaper",
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/ServerConnection.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 13,
+   "deletions": 2,
+   "patch": "0145-Paper-0117-Better-synchronization-on-new-connections.patch"
+  },
+  {
+   "config_keys": [
+    "nettyReadTimeout"
+   ],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/ServerConnection.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 4,
+   "deletions": 2,
+   "patch": "0146-Set-traffic-class-in-Netty.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper",
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/MinecraftServer.java",
+    "src/main/java/net/minecraft/server/NetworkManager.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 75,
+   "deletions": 9,
+   "patch": "0147-Backport-NetworkManager-Tuinity-patches-0017-0018.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/ChunkProviderServer.java",
+    "src/main/java/net/minecraft/server/ChunkRegionLoader.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/CraftServer.java"
+   ],
+   "insertions": 19,
+   "deletions": 4,
+   "patch": "0148-Fix-chunk-leak-on-world-unload.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/RegionFile.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 16,
+   "deletions": 11,
+   "patch": "0149-Paper-0098-Reduce-IO-ops-opening-a-new-region-file.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/MinecraftServer.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 7,
+   "deletions": 4,
+   "patch": "0150-Paper-0321-Cleanup-allocated-favicon-ByteBuf.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/Entity.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 1,
+   "deletions": 2,
+   "patch": "0151-Paper-0344-Start-entity-IDs-at-1.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper",
+    "Paper",
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/WorldNBTStorage.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 3,
+   "deletions": 3,
+   "patch": "0152-Akarin-0001-Avoid-double-I-O-operation-on-load-playe.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper",
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/event/CraftEventFactory.java"
+   ],
+   "insertions": 8,
+   "deletions": 7,
+   "patch": "0153-Hitting-in-the-air-will-always-load-the-chunk-at-0-0.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper",
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/event/CraftEventFactory.java"
+   ],
+   "insertions": 8,
+   "deletions": 7,
+   "patch": "0153-Spigot-2380-Hitting-in-the-air-will-always-load-the-.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/NetworkManager.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 1,
+   "deletions": 2,
+   "patch": "0154-Fix-canFlush-from-0147.patch"
+  },
+  {
+   "config_keys": [
+    "java"
+   ],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/NetworkManager.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/dev/rocco/kig/paper/impl/command/KigPaperCommand.java",
+    "src/main/java/org/spigotmc/SpigotConfig.java"
+   ],
+   "insertions": 34,
+   "deletions": 3,
+   "patch": "0155-Add-experimental-conditional-auto-flush-for-regular-.patch"
+  },
+  {
+   "config_keys": [
+    "forceConditionalAutoFlush",
+    "java"
+   ],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/EntityTrackerEntry.java",
+    "src/main/java/net/minecraft/server/NetworkManager.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/dev/rocco/kig/paper/impl/command/KigPaperCommand.java",
+    "src/main/java/org/github/paperspigot/PaperSpigotConfig.java"
+   ],
+   "insertions": 13,
+   "deletions": 15,
+   "patch": "0156-Fix-rotation-packets-being-broadcasted.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/NetworkManager.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/io/netty/channel/PublicNonWakeupRunnable.java"
+   ],
+   "insertions": 26,
+   "deletions": 13,
+   "patch": "0157-Only-wakeup-when-flushing-NetworkManager.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/CraftWorld.java"
+   ],
+   "insertions": 6,
+   "deletions": 1,
+   "patch": "0158-Add-World-getEntityById-API.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/entity/CraftLivingEntity.java"
+   ],
+   "insertions": 7,
+   "deletions": 1,
+   "patch": "0159-Add-LivingEntity-clear-last-attacked-API.patch"
+  },
+  {
+   "config_keys": [
+    "Configuration",
+    "java"
+   ],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [
+    "SpawnChangeEvent"
+   ],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/World.java",
+    "src/main/java/net/minecraft/server/WorldData.java",
+    "src/main/java/net/minecraft/server/WorldServer.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/CraftWorld.java",
+    "src/main/java/org/spigotmc/SpigotConfig.java"
+   ],
+   "insertions": 38,
+   "deletions": 10,
+   "patch": "0160-Add-yaw-and-pitch-to-World-spawn-location.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [
+    "PlayerQuitEvent"
+   ],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/ContainerWorkbench.java",
+    "src/main/java/net/minecraft/server/PlayerList.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/CraftServer.java"
+   ],
+   "insertions": 17,
+   "deletions": 3,
+   "patch": "0161-Fix-CraftingManager-memory-leak.patch"
+  },
+  {
+   "config_keys": [
+    "logCommands"
+   ],
+   "markers": [
+    "KigPaper",
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/LoginListener.java",
+    "src/main/java/net/minecraft/server/PlayerConnection.java",
+    "src/main/java/net/minecraft/server/PlayerList.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 15,
+   "deletions": 8,
+   "patch": "0162-Debloat-join-leave-messages.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/CraftWorld.java"
+   ],
+   "insertions": 5,
+   "deletions": 2,
+   "patch": "0163-Add-particle-emitter-API-to-World.Spigot-playEffect.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java"
+   ],
+   "insertions": 5,
+   "deletions": 2,
+   "patch": "0164-Allow-teleporting-vehicles-when-PlayerMoveEvent-is-c.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/DedicatedServer.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/CraftServer.java"
+   ],
+   "insertions": 16,
+   "deletions": 3,
+   "patch": "0165-Add-exit-code-to-shutdown-API.patch"
+  },
+  {
+   "config_keys": [
+    "java",
+    "savePlayerFiles"
+   ],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/PlayerList.java",
+    "src/main/java/net/minecraft/server/WorldNBTStorage.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/github/paperspigot/PaperSpigotConfig.java"
+   ],
+   "insertions": 8,
+   "deletions": 2,
+   "patch": "0166-Add-option-to-disable-player-files.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/Chunk.java",
+    "src/main/java/net/minecraft/server/World.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/block/CraftBlock.java"
+   ],
+   "insertions": 17,
+   "deletions": 12,
+   "patch": "0167-Add-setType-without-lighting-update-API.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper",
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaBook.java"
+   ],
+   "insertions": 8,
+   "deletions": 5,
+   "patch": "0168-Tighter-limits-on-books.patch"
+  },
+  {
+   "config_keys": [
+    "enableBookDeserialization",
+    "java"
+   ],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/PlayerConnection.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/github/paperspigot/PaperSpigotConfig.java"
+   ],
+   "insertions": 6,
+   "deletions": 2,
+   "patch": "0169-Disable-book-deserialization-by-default.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/PlayerConnection.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 2,
+   "deletions": 1,
+   "patch": "0170-Kick-after-receiving-invalid-creative-action-packet.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaBook.java",
+    "src/main/java/org/bukkit/craftbukkit/util/CraftChatMessage.java"
+   ],
+   "insertions": 6,
+   "deletions": 6,
+   "patch": "0171-Use-better-regex-in-CraftChatMessage.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/PacketPlayInBlockPlace.java",
+    "src/main/java/net/minecraft/server/PlayerConnection.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 10,
+   "deletions": 3,
+   "patch": "0172-NBT-no-op-reader-for-block-place-packet.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/PlayerConnection.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 1,
+   "deletions": 3,
+   "patch": "0173-Block-place-item-update-fix.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/PacketPlayOutPlayerInfo.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 14,
+   "deletions": 3,
+   "patch": "0174-Add-custom-property-in-nick-skins.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper",
+    "Paper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/EntityPlayer.java",
+    "src/main/java/net/minecraft/server/PacketPlayOutNamedEntitySpawn.java",
+    "src/main/java/net/minecraft/server/PacketPlayOutPlayerInfo.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java"
+   ],
+   "insertions": 97,
+   "deletions": 15,
+   "patch": "0175-Spoof-UUID-for-nicks.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/PlayerConnection.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 1,
+   "deletions": 1,
+   "patch": "0176-Fix-update-packet-not-being-sent-on-right-click.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/PacketPlayOutPlayerInfo.java",
+    "src/main/java/net/minecraft/server/PlayerInteractManager.java",
+    "src/main/java/net/minecraft/server/PlayerList.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java"
+   ],
+   "insertions": 85,
+   "deletions": 18,
+   "patch": "0177-Send-player-info-using-real-UUID-for-self.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/PacketPlayOutPlayerInfo.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 22,
+   "deletions": 24,
+   "patch": "0178-Fix-player-info-cloning.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/PacketPlayOutPlayerInfo.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 1,
+   "deletions": 2,
+   "patch": "0179-Don-t-make-PlayerInfoData-static.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java"
+   ],
+   "insertions": 6,
+   "deletions": 1,
+   "patch": "0180-Add-Player-last-activity-API.patch"
+  },
+  {
+   "config_keys": [
+    "enableBookDeserialization",
+    "restartMessage"
+   ],
+   "markers": [
+    "KigPaper",
+    "Spigot"
+   ],
+   "events": [
+    "PlayerKickEvent"
+   ],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/PlayerConnection.java",
+    "src/main/java/net/minecraft/server/PlayerList.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java",
+    "src/main/java/org/spigotmc/RestartCommand.java"
+   ],
+   "insertions": 34,
+   "deletions": 30,
+   "patch": "0181-Add-DisconnectReason-to-PlayerKickEvent.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/EntityTracker.java",
+    "src/main/java/net/minecraft/server/EntityTrackerEntry.java",
+    "src/main/java/net/minecraft/server/PlayerChunkMap.java",
+    "src/main/java/net/minecraft/server/PlayerConnection.java",
+    "src/main/java/net/minecraft/server/PlayerList.java",
+    "src/main/java/net/minecraft/server/WorldServer.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/dev/rocco/kig/paper/impl/cheetah/SinkEntityPlayer.java",
+    "src/main/java/dev/rocco/kig/paper/impl/cheetah/SinkPlayerConnection.java",
+    "src/main/java/org/bukkit/craftbukkit/CraftServer.java",
+    "src/main/java/org/bukkit/craftbukkit/CraftWorld.java"
+   ],
+   "insertions": 150,
+   "deletions": 12,
+   "patch": "0182-Sink-player-entities.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper",
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java"
+   ],
+   "insertions": 9,
+   "deletions": 5,
+   "patch": "0183-Player-DisconnectReason-kick-API.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "paper"
+   ],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "pom.xml"
+   ],
+   "insertions": 1,
+   "deletions": 2,
+   "patch": "0184-Update-pom-to-new-Paper-repo.patch"
+  },
+  {
+   "config_keys": [
+    "accurateMoveTiming",
+    "java"
+   ],
+   "markers": [
+    "KigPaper",
+    "Spigot"
+   ],
+   "events": [
+    "PlayerMoveEvent"
+   ],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/PacketPlayInFlying.java",
+    "src/main/java/net/minecraft/server/PlayerConnection.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/github/paperspigot/PaperSpigotConfig.java"
+   ],
+   "insertions": 156,
+   "deletions": 4,
+   "patch": "0185-PlayerMoveEvent-accurate-time.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java"
+   ],
+   "insertions": 4,
+   "deletions": 1,
+   "patch": "0186-Player-register-plugin-channel-API.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper",
+    "Paper"
+   ],
+   "events": [
+    "ExpBottleEvent",
+    "ProjectileCollideEvent"
+   ],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/EntityArrow.java",
+    "src/main/java/net/minecraft/server/EntityFireball.java",
+    "src/main/java/net/minecraft/server/EntityFishingHook.java",
+    "src/main/java/net/minecraft/server/EntityProjectile.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/event/CraftEventFactory.java"
+   ],
+   "insertions": 41,
+   "deletions": 1,
+   "patch": "0187-Add-ProjectileCollideEvent.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/PlayerConnection.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 6,
+   "deletions": 1,
+   "patch": "0188-Add-compatibility-to-PlayerConnection.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/World.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 7,
+   "deletions": 1,
+   "patch": "0189-Respect-player-visibility-for-certain-sounds.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/PlayerList.java",
+    "src/main/java/net/minecraft/server/World.java",
+    "src/main/java/net/minecraft/server/WorldManager.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 44,
+   "deletions": 3,
+   "patch": "0190-Ensure-sounds-are-played-to-self.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/Chunk.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 1,
+   "deletions": 2,
+   "patch": "0191-Don-t-calculate-initial-light-if-not-requested.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/EnchantmentManager.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 5,
+   "deletions": 4,
+   "patch": "0192-Fix-more-EnchantmentManager-leaks.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/Chunk.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 9,
+   "deletions": 5,
+   "patch": "0193-Add-chunk-conditional-block-update.patch"
+  },
+  {
+   "config_keys": [
+    "betterVehicleHitboxes"
+   ],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/PlayerConnection.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 37,
+   "deletions": 17,
+   "patch": "0194-Allow-players-to-hit-others-while-being-ridden.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java"
+   ],
+   "insertions": 12,
+   "deletions": 1,
+   "patch": "0195-Add-Player-invulnerability-API.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/EntityPlayer.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 15,
+   "deletions": 1,
+   "patch": "0196-Add-fake-textures-to-skin-cache.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper",
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/LoginListener.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 12,
+   "deletions": 6,
+   "patch": "0197-Cache-User-Authenticator-Threads.patch"
+  },
+  {
+   "config_keys": [
+    "savePlayerFiles"
+   ],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/PlayerList.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 3,
+   "deletions": 3,
+   "patch": "0198-Only-save-user-cache-if-saving-player-files-is-on.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/PacketPlayOutPlayerInfo.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 22,
+   "deletions": 4,
+   "patch": "0199-Spoof-ping-for-nicked-players.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper",
+    "Paper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/Entity.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/dev/rocco/kig/paper/impl/util/SimpleMetadataStore.java",
+    "src/main/java/org/bukkit/craftbukkit/CraftOfflinePlayer.java",
+    "src/main/java/org/bukkit/craftbukkit/CraftServer.java",
+    "src/main/java/org/bukkit/craftbukkit/CraftWorld.java",
+    "src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java",
+    "src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java"
+   ],
+   "insertions": 66,
+   "deletions": 55,
+   "patch": "0200-Change-metadata-to-be-non-global.patch"
+  },
+  {
+   "config_keys": [
+    "accurateBlockCollisions",
+    "java"
+   ],
+   "markers": [
+    "KigPaper",
+    "Paper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/Entity.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/github/paperspigot/PaperSpigotConfig.java"
+   ],
+   "insertions": 10,
+   "deletions": 4,
+   "patch": "0201-Accurate-block-collisions-for-fall-damage.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/metadata/WorldMetadataStore.java",
+    "src/main/java/org/bukkit/craftbukkit/scheduler/CraftScheduler.java",
+    "src/main/java/org/spigotmc/ActivationRange.java"
+   ],
+   "insertions": 4,
+   "deletions": 5,
+   "patch": "0202-javadoc-Fix-syntax-and-outdated-refs.patch"
+  },
+  {
+   "config_keys": [
+    "accurateBlockCollisions"
+   ],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/Entity.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 8,
+   "deletions": 4,
+   "patch": "0203-Only-change-min-y-for-bounding-box-water-check.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/dev/rocco/kig/paper/impl/cheetah/SinkPlayerConnection.java"
+   ],
+   "insertions": 5,
+   "deletions": 1,
+   "patch": "0204-Reset-reader-index-for-sink-players-and-write-ID.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper",
+    "Paper",
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/World.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 7,
+   "deletions": 1,
+   "patch": "0205-Remove-sink-players-on-death.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [
+    "PlayerInteractUpdateEvent"
+   ],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/PlayerConnection.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/dev/rocco/kig/paper/impl/event/KigEvents.java"
+   ],
+   "insertions": 25,
+   "deletions": 3,
+   "patch": "0206-Add-PlayerInteractUpdateEvent.patch"
+  },
+  {
+   "config_keys": [
+    "accurateBlockCollisions"
+   ],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/Entity.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 23,
+   "deletions": 2,
+   "patch": "0207-accurate-collisions-Fix-water.patch"
+  },
+  {
+   "config_keys": [
+    "accurateBlockCollisions"
+   ],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/Entity.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 27,
+   "deletions": 9,
+   "patch": "0208-accurate-movement-Fix-collisions-for-webs.patch"
+  },
+  {
+   "config_keys": [
+    "accurateBlockCollisions"
+   ],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/Entity.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 1,
+   "deletions": 2,
+   "patch": "0209-accurate-collisions-Switch-to-Deque.patch"
+  },
+  {
+   "config_keys": [
+    "accurateBlockCollisions"
+   ],
+   "markers": [
+    "KigPaper",
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/Entity.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 17,
+   "deletions": 15,
+   "patch": "0210-accurate-collisions-Only-apply-for-players.patch"
+  },
+  {
+   "config_keys": [
+    "accurateBlockCollisions"
+   ],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/Entity.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 18,
+   "deletions": 32,
+   "patch": "0211-Better-accurate-block-detection-for-non-liquids.patch"
+  },
+  {
+   "config_keys": [
+    "accurateBlockCollisions"
+   ],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/Entity.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 13,
+   "deletions": 15,
+   "patch": "0212-accurate-collisions-Move-collision-check.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/Entity.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 1,
+   "deletions": 2,
+   "patch": "0213-accurate-collisions-Fix-collision-for-puddles.patch"
+  },
+  {
+   "config_keys": [
+    "java",
+    "regionCompressionAlgorithm"
+   ],
+   "markers": [
+    "KigPaper",
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/RegionFile.java",
+    "src/main/java/net/minecraft/server/RegionFileCache.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "pom.xml",
+    "src/main/java/org/github/paperspigot/PaperSpigotConfig.java"
+   ],
+   "insertions": 69,
+   "deletions": 8,
+   "patch": "0214-Use-alternative-region-compression.patch"
+  },
+  {
+   "config_keys": [
+    "java"
+   ],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/ChunkRegionLoader.java",
+    "src/main/java/net/minecraft/server/RegionFile.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "pom.xml",
+    "src/main/java/org/github/paperspigot/PaperSpigotConfig.java"
+   ],
+   "insertions": 39,
+   "deletions": 17,
+   "patch": "0215-Add-zstd-region-compression.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper",
+    "Paper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/Entity.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java",
+    "src/main/java/org/spigotmc/TrackingRange.java"
+   ],
+   "insertions": 39,
+   "deletions": 1,
+   "patch": "0216-Make-tracking-range-configurable-per-entity.patch"
+  },
+  {
+   "config_keys": [
+    "java"
+   ],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/github/paperspigot/PaperSpigotConfig.java"
+   ],
+   "insertions": 4,
+   "deletions": 2,
+   "patch": "0217-patch-Add-bed-message-action-option.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper",
+    "Paper",
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java"
+   ],
+   "insertions": 1,
+   "deletions": 1,
+   "patch": "0218-Update-entity-head-yaw-on-teleport.patch"
+  },
+  {
+   "config_keys": [
+    "itemDespawnRate"
+   ],
+   "markers": [
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/EntityItem.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 1,
+   "deletions": 2,
+   "patch": "0219-Fix-custom-item-despawn-rate-in-unloaded-chunks.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/dev/rocco/kig/paper/impl/util/Dictionary.java",
+    "src/main/java/org/bukkit/craftbukkit/CraftWorld.java",
+    "src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java"
+   ],
+   "insertions": 42,
+   "deletions": 28,
+   "patch": "0220-entity-Use-EnumMap-in-CraftPlayer-playEffect.patch"
+  },
+  {
+   "config_keys": [
+    "plugins"
+   ],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "pom.xml",
+    "src/main/java/org/apache/logging/log4j/core/appender/ConsoleAppender.java"
+   ],
+   "insertions": 22,
+   "deletions": 248,
+   "patch": "0221-Update-log4j-to-2.15.0.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/CraftSound.java"
+   ],
+   "insertions": 13,
+   "deletions": 1,
+   "patch": "0222-Add-Guardian-sounds-in-Sound.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "pom.xml"
+   ],
+   "insertions": 2,
+   "deletions": 3,
+   "patch": "0223-Update-log4j-to-2.16.0.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "pom.xml"
+   ],
+   "insertions": 2,
+   "deletions": 3,
+   "patch": "0224-deps-update-log4j-to-2.17.0.patch"
+  },
+  {
+   "config_keys": [
+    "java",
+    "kickChatMessageLength"
+   ],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/PacketDataSerializer.java",
+    "src/main/java/net/minecraft/server/PacketPlayInChat.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/github/paperspigot/PaperSpigotConfig.java"
+   ],
+   "insertions": 30,
+   "deletions": 3,
+   "patch": "0225-Better-handling-of-oversized-chat-messages.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "pom.xml"
+   ],
+   "insertions": 2,
+   "deletions": 3,
+   "patch": "0226-Update-log4j-to-2.17.1.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [
+    "PreSignChangeEvent",
+    "SignChangeEvent"
+   ],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/PlayerConnection.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 17,
+   "deletions": 13,
+   "patch": "0227-event-Add-PreSignChangeEvent.patch"
+  },
+  {
+   "config_keys": [
+    "entityExplosionConsistency",
+    "java"
+   ],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [
+    "ExplosionPrimeEvent"
+   ],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/EntityCreeper.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/github/paperspigot/PaperSpigotConfig.java"
+   ],
+   "insertions": 9,
+   "deletions": 3,
+   "patch": "0228-Make-creeper-explosions-consistent-with-TNTs.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/PlayerChunkMap.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 9,
+   "deletions": 2,
+   "patch": "0229-Make-ChunkCoordComparator-package-private.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/scoreboard/CraftScoreboardManager.java"
+   ],
+   "insertions": 38,
+   "deletions": 20,
+   "patch": "0230-Add-API-to-trigger-score-update.patch"
+  },
+  {
+   "config_keys": [
+    "dbplatform"
+   ],
+   "markers": [
+    "KigPaper",
+    "Paper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/BaseBlockPosition.java",
+    "src/main/java/net/minecraft/server/BlockTripwireHook.java",
+    "src/main/java/net/minecraft/server/EntitySlice.java",
+    "src/main/java/net/minecraft/server/MinecraftServer.java",
+    "src/main/java/net/minecraft/server/PacketPlayOutPlayerInfo.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "pom.xml",
+    "src/main/java/org/bukkit/craftbukkit/CraftServer.java"
+   ],
+   "insertions": 20,
+   "deletions": 17,
+   "patch": "0231-build-Update-JUnit4-and-Guava-dependencies.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "pom.xml",
+    "src/main/java/org/bukkit/craftbukkit/CraftWorld.java",
+    "src/main/java/org/bukkit/craftbukkit/metadata/SpecializedBlockMetadataStore.java",
+    "src/test/java/org/bukkit/craftbukkit/metadata/BlockMetadataTest.java"
+   ],
+   "insertions": 250,
+   "deletions": 3,
+   "patch": "0232-Add-specialized-BlockMetadataStore.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/CraftServer.java"
+   ],
+   "insertions": 10,
+   "deletions": 2,
+   "patch": "0233-craftbukkit-Prevent-billion-laughs-attacks.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/EntityPlayer.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 6,
+   "deletions": 3,
+   "patch": "0234-Use-effective-name-for-health-score-updates.patch"
+  },
+  {
+   "config_keys": [
+    "betterVehicleHitboxes"
+   ],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/PlayerConnection.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 25,
+   "deletions": 25,
+   "patch": "0235-Extend-hit-recalculation-to-intangible-entities.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/World.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 2,
+   "deletions": 2,
+   "patch": "0236-Prevent-xp-orbs-from-following-intangible-players.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/WorldServer.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 1,
+   "deletions": 2,
+   "patch": "0237-world-Add-doWaterFreezing-game-rule.patch"
+  },
+  {
+   "config_keys": [
+    "disablePlayerCrits"
+   ],
+   "markers": [
+    "KigPaper",
+    "Paper"
+   ],
+   "events": [
+    "PlayerCheckCriticalEvent"
+   ],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/EntityArrow.java",
+    "src/main/java/net/minecraft/server/EntityHuman.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 30,
+   "deletions": 4,
+   "patch": "0238-Add-PlayerCheckCriticalEvent.patch"
+  },
+  {
+   "config_keys": [
+    "java"
+   ],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/NetworkManager.java",
+    "src/main/java/net/minecraft/server/PacketDataSerializer.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "pom.xml",
+    "src/main/java/io/netty/channel/PublicNonWakeupRunnable.java",
+    "src/main/java/org/bukkit/craftbukkit/Main.java",
+    "src/main/java/org/github/paperspigot/PaperSpigotConfig.java"
+   ],
+   "insertions": 295,
+   "deletions": 25,
+   "patch": "0239-Update-Netty-to-4.1.x.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "pom.xml"
+   ],
+   "insertions": 3,
+   "deletions": 4,
+   "patch": "0240-Update-source-target-JRE-to-17.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "pom.xml"
+   ],
+   "insertions": 1,
+   "deletions": 6,
+   "patch": "0241-Don-t-use-the-Eclipse-compiler-for-J17.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/map/CraftMapView.java"
+   ],
+   "insertions": 5,
+   "deletions": 1,
+   "patch": "0242-Add-CraftMapView-getHandle.patch"
+  },
+  {
+   "config_keys": [
+    "java",
+    "kickTabCompleteSpam"
+   ],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/PlayerConnection.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/github/paperspigot/PaperSpigotConfig.java"
+   ],
+   "insertions": 22,
+   "deletions": 4,
+   "patch": "0243-Disable-kick-for-tab-complete-packet-spam.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/dev/rocco/kig/paper/impl/cheetah/SinkEntityPlayer.java"
+   ],
+   "insertions": 7,
+   "deletions": 5,
+   "patch": "0244-Do-not-use-removeQueue-for-sink-players.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/PlayerList.java",
+    "src/main/java/net/minecraft/server/WorldServer.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 29,
+   "deletions": 4,
+   "patch": "0245-Broadcast-more-packets-to-sink-players.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/World.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/block/CraftBlock.java"
+   ],
+   "insertions": 7,
+   "deletions": 6,
+   "patch": "0246-Do-not-call-onPlace-when-block-physics-are-off.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/PlayerList.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 6,
+   "deletions": 1,
+   "patch": "0247-Send-ping-and-game-mode-updates-to-sink-players.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java"
+   ],
+   "insertions": 6,
+   "deletions": 1,
+   "patch": "0248-Send-player-list-name-to-sink-players.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/CraftWorld.java"
+   ],
+   "insertions": 5,
+   "deletions": 1,
+   "patch": "0249-Send-CraftWorld-effects-to-sink-players.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper",
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/MinecraftServer.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 7,
+   "deletions": 1,
+   "patch": "0250-Send-time-updates-to-sink-players.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "pom.xml"
+   ],
+   "insertions": 4,
+   "deletions": 5,
+   "patch": "0251-Upgrade-to-Java-21-upgrade-Netty-to-4.1.119.Final.patch"
+  },
+  {
+   "config_keys": [
+    "combatLineOfSightCheck",
+    "java"
+   ],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/PlayerConnection.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/github/paperspigot/PaperSpigotConfig.java"
+   ],
+   "insertions": 6,
+   "deletions": 3,
+   "patch": "0252-Make-combat-line-of-sight-check-configurable.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/PlayerConnection.java",
+    "src/main/java/net/minecraft/server/PlayerInteractManager.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 16,
+   "deletions": 4,
+   "patch": "0253-Only-skip-interact-event-for-same-position-and-item.patch"
+  },
+  {
+   "config_keys": [
+    "attributesOnSlotChange",
+    "java"
+   ],
+   "markers": [
+    "KigPaper",
+    "Spigot"
+   ],
+   "events": [],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/EntityLiving.java",
+    "src/main/java/net/minecraft/server/PlayerConnection.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/github/paperspigot/PaperSpigotConfig.java"
+   ],
+   "insertions": 36,
+   "deletions": 20,
+   "patch": "0254-Apply-item-attributes-on-slot-change.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [],
+   "events": [],
+   "files_nms": [],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/util/CraftDamageSource.java"
+   ],
+   "insertions": 2,
+   "deletions": 3,
+   "patch": "0255-Fix-DamageSource-method-mismatch.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper",
+    "Paper"
+   ],
+   "events": [
+    "ProjectileCollideEvent",
+    "ProjectilePreHitBlockEvent",
+    "ProjectilePreHitEntityEvent"
+   ],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/EntityArrow.java",
+    "src/main/java/net/minecraft/server/EntityFireball.java",
+    "src/main/java/net/minecraft/server/EntityFishingHook.java",
+    "src/main/java/net/minecraft/server/EntityProjectile.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [
+    "src/main/java/org/bukkit/craftbukkit/event/CraftEventFactory.java"
+   ],
+   "insertions": 64,
+   "deletions": 13,
+   "patch": "0256-Better-ProjectileHitEvent-API.patch"
+  },
+  {
+   "config_keys": [],
+   "markers": [
+    "KigPaper"
+   ],
+   "events": [
+    "EntityAddToWorldEvent"
+   ],
+   "files_nms": [
+    "src/main/java/net/minecraft/server/WorldServer.java"
+   ],
+   "files_bukkit": [],
+   "files_other": [],
+   "insertions": 3,
+   "deletions": 1,
+   "patch": "0257-Backport-EntityAddToWorldEvent.patch"
+  }
+ ]
+}
