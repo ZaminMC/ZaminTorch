@@ -12357,3 +12357,21 @@ Stage Summary:
   the real dispatch and window clicks, the 37-color table over the registry,
   and the twelve-pin test family — all green by package group on the rebased
   branch. PR opened against develop (not self-merged).
+
+---
+Task ID: local-difficulty-landing
+Agent: main (Abasing session — the coordinator's close-out)
+Task: The VIII14 local-difficulty slice's landing + the final PR wave (#25/#26/#27)
+
+Work Log:
+- PR #27 opened + merged (d2b3e981): the local-difficulty completion whole, the branch deleted
+- The full-suite sweep's environment lesson: the single whole-suite run wedges the gradle daemon in this sandbox (the fork dies silently, the daemon polls its address registry forever) — the established three-batch practice extended to root-package chunks + package batches under --no-daemon, every batch green (one documented flake: RangedCombatAcceptanceTest, isolated-green, the known class)
+- The sweep's own two stale-table repairs landed with the slice: the BlockRegistryTest census re-pin 893 -> 896 (the surface slice's coarse_dirt + podzol and the decorators slice's fern — both registered without the root-batch pin moving, the parallel slices' world-package evidence never catching it) + the three stats folds (fern -> tallgrass, coarse_dirt/podzol -> dirt, the 1.8.8 family rows the StatsCompletenessTest law demands)
+- PR #25 (the remote-admin protocols — RCON + GS4 Query) reviewed + merged (48a0ed03): the config rows' default laws verified against the reference citations, the WORKLOG unioned, the rcon/config packages green
+- PR #26 (the map item family) reviewed + merged (b3c3e21e): the ItemStack record's two map fields with their compat shapes verified, the WORKLOG unioned, the map/crafting/item packages + protocol/api green
+- All branches deleted, zero open PRs; develop at b3c3e21e
+
+Stage Summary:
+- SESSION DELIVERED: 9 PRs processed (six as coordinator: #19-#24 with two cross-PR/cross-slice repairs — the Pushable apiEntity() semantic gap and the slice-3/slice-4 diamond-hoarder fixture collision; three as implementer/coordinator: #25/#26/#27) + the VIII14 local-difficulty completion + the two stale-table repairs
+- Wave VIII's ledger after the session: VIII14's backlog holds ONLY the ambient-sound cadence (the decorators record's own assignment — instance 9's lane); the map family (Wave X per #26's docs) and the remote-admin protocols landed whole
+- The VIII9 reinforcement callee's dimension gap closed as part of #27 (the callee body carries caller.dimension(), the reference's own world)
