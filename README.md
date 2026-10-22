@@ -147,9 +147,18 @@ exposure, then concurrency phases, then standing deferrals.
    on the portal. A ritual would be a post-1.8.8 feature — out of scope
    for the 1.8.8 target unless the owner alone asks for it (the
    DragonDataStore javadoc carries the same boundary).
-8. The thorns wildcard's mob-victim arm (an armored mob's retaliation — the
+8. ~~The thorns wildcard's mob-victim arm (an armored mob's retaliation — the
    walk reads only the player rows today; verify against VIII4's equipment
-   family and wire the mob arm).
+   family and wire the mob arm)~~ — LANDED 2026-10-22 (921b58ad): the
+   engine-side walk over MobEntity's five-slot equipment row, 1:1 with the
+   reference's applyProtectionWildcard (the 15%-per-level proc, the 1-4
+   roll, the 3/1 first-stack wear, the break leaving the slot empty) wired
+   at every MOB-victim site — the player's landed melee, the living
+   shooter's projectiles (arrow + the fireball trio, the wither and
+   ghast-reflect arms restructured land-then-fire), the mob melee walks
+   through a hurtByMob seam — proven by
+   `ThornsMobVictimAcceptanceTest` (5/0: all three sites, the break law,
+   the plain negative).
 9. The wither's conditional exemption arms (spawner/cobweb/fall-damage/
    light-level/armor-protection/no-riding — each rides its own family's
    slice; track each as that family lands).

@@ -12689,3 +12689,55 @@ Stage Summary:
 - In flight; the next commits land the walk + the four wirings, the tests,
   then Row 10 (the doEvent 64-block radius — the engine's own
   beyondFeedbackRange precedent + the fan in V18ProtocolServer).
+
+---
+Task ID: row-8-thorns-mob-arm (landed — the coordinator's own lane, wave 2)
+Agent: main (Abasing session — the coordinator)
+Task: README TODO row 8 — the thorns wildcard's mob-victim arm, the reference's
+applyProtectionWildcard over MobEntity's five-slot equipment row.
+
+Work Log:
+- The engine walk landed (EngineServer.applyThornsWildcardMob): the captured
+  five-slot row [held, feet, legs, chest, head], the 15%-per-level proc walk
+  per carrying piece, the 1-4 roll (level-10 elbow) through the biter's own
+  damage walk, the damage.thorns sound at the biter, and the 3/1 wear
+  accumulated per visited piece landing on the FIRST thorns stack —
+  wearMobEquipmentStack mirrors the landed wearArmorStack shape (the G1
+  unbreakable gate, the Unbreaking per-unit roll, the break leaving the slot
+  EMPTY, the equipmentChanged re-publish riding the change).
+- The two retaliation adapters: thornsBitesPlayer (damageOnTick + the armor/
+  enchant-protection ladder, "was slain by " + titledMobName — the mob-wearer
+  kill score structurally absent, mobs carry no stats) and thornsBitesMob
+  (mobManager.hurt with the wearer's look yaw + the wearer's held LOOTING
+  riding the biter's death loot — the 17874 precedent).
+- The four wirings: (a) attackEntity's landed block after the crit bursts
+  (PlayerEntity.attack 1016) with the row captured before the hurt; (b) the
+  ProjectileCombatSink's three arms — the generic variant (the mob shooter
+  resolved beside the player, ArrowEntity 264's LivingEntity gate), the
+  ghast-reflect and wither arms restructured land-then-fire (the fireball
+  trio's damageEntity pair-walk); (c) the MobManager.ThornsRetaliation seam
+  fired from hurtByMob's landed block (the same seam shape as
+  localDifficultyRead), the row read at the seam under the deferred
+  death-loot law (the pieces stay on the body until the animation's loot
+  walk — the post-land read carries the reference's own row).
+- ThornsMobVictimAcceptanceTest 5/0: the player's melee over a dressed pig
+  (the bite + the chest-first wear quirk — the mob row's own order), the
+  archer's vertical arrow over a dressed zombie (the living-shooter bite, a
+  killing shot still retaliating through the captured row), the zombie's
+  hurtByMob melee over a dressed sheep (the seam's bite, staged through the
+  public setMobAttackTarget), the break law (the near-end piece leaves the
+  slot EMPTY), the plain negative (a thornless piece never bites nor wears).
+- Regression batches green (--no-daemon): ThornsAcceptanceTest 5/0,
+  MobCombatAcceptanceTest 5/0, MobManagerTest 8/0, MobArmorFamilyTest 13/0,
+  GolemEntityTest 4/0, RangedCombatAcceptanceTest 10/0, the projectile
+  package 35/0 (ArrowPickup 8, BowFamily 6, FireballDeflection 4,
+  FireworksAndBottle 6, ProjectileManager 11).
+- The ledgers: README row 8 retired (strikethrough + LANDED + 921b58ad),
+  NATIVE_API §9 audit row recorded (EXPOSED-ADEQUATE — the bite on a player
+  rides the existing PlayerDamageEvent; no new surface demanded).
+
+Stage Summary:
+- Row 8 LANDED on thorns-and-world-events (487ce084 the wip, c47408da the
+  walk + the wirings, 921b58ad the test, this commit the ledgers). Next:
+  Row 10 (the doEvent 64-block world-event radius — the V18Connection
+  chunk-gated stand-ins + the wither 1012/1014 fan in V18ProtocolServer).
