@@ -12607,3 +12607,49 @@ Stage Summary:
 - README TODO row 7 retired (evidence-based, owner-reversible). Remaining
   vanilla rows: the thorns mob arm (8), the wither exemptions (9), the
   world-event radius (10).
+---
+Task ID: wave-2-assignment (the 2026-10-22 second parallel wave)
+Agent: main (Abasing session — the coordinator, post 37286f6d)
+Task: The second nine-instance parallel wave's assignment after the first
+wave's close-out — the README TODO ledger's actionable tail partitioned.
+
+Work Log:
+- Resynced after the environment reset: recloned, identity Abasing set, the
+  stale pre-reset stash dropped after verifying its landing (1b4baba2 is an
+  ancestor of develop), develop pulled to 37286f6d (the rows 4-7 landings +
+  the Minestom ADR close), zero open PRs, working tree clean.
+- Audited the README TODO ledger's remaining 17 rows against the code: the
+  actionable set is rows 8 + 10-18 (ten rows); row 9 (the wither exemptions)
+  stays a tracker (each arm rides its own family's slice — no such model
+  exists to exempt from), rows 19-23 stay demand-gated concurrency lanes
+  (Phase 5's wiring is landed and gated OFF; the further phases carry their
+  own evidence bars), row 24 stays deferred by the owner's §27.1 order.
+- Partitioned the ten actionable rows: the coordinator takes row 8 (the
+  thorns wildcard's mob-victim arm — the combat path, the deepest engine
+  work) + row 10 (the global world-event radius — the reference's 64-block
+  doEvent form over the chunk-gated stand-in, the protocol adapter's wire
+  family); instances 2-9 take the eight api-exposure rows 11-18 (one each):
+  11 the equipment read/set on entity.LivingEntity, 12 Server.achievements()
+  + the per-player unlocked set, 13 Server.anvilImport(), 14 the generic-
+  mount seat rows, 15 world.decorations(), 16 block.BiomeData, 17
+  Server.fishing(), 18 the door-break arming read.
+- The conflict analysis: every api lane is additive over its own region of
+  zamin-api (Server.java rows 12/13/17; entity/LivingEntity row 11;
+  entity/Vehicle row 14; World.java row 15; a fresh block/BiomeData row 16;
+  the goal family row 18) + the EngineServer facade (additive @Override
+  view per lane, the villages()/VillageViews pattern) + one new test file
+  per lane; the shared files (README TODO retirement, NATIVE_API §9 rows,
+  this WORKLOG) are append-only/different-row — the same union class the
+  first wave resolved by union.
+- The carry-over disciplines for every lane: the §27.5 handle law (the api
+  object represents the authoritative engine object, never a second copy),
+  the §27.10 test law (plugin-facing through zamin-api without casting to
+  internals), the package-batch test runs under --no-daemon (the whole-suite
+  single run wedges the daemon — the first wave's lesson), the two known
+  flakes isolated-green (RangedCombatAcceptanceTest, ChestIntegrationTest),
+  commits authored Abasing, own branch, PR against develop, never
+  self-merged.
+
+Stage Summary:
+- The wave-2 lane map published; the coordinator's own rows 8 + 10 start on
+  the owner's continue.
