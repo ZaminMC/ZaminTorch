@@ -13513,3 +13513,91 @@ Stage Summary:
   baseline and the ranked backlog. The next cycle's order: verify CI
   green + the 128 release, then the 0x0C metadata audit (B-5) paired
   with the attribution pass (B-7 + Phase-3 rerun).
+
+---
+Task ID: ML-011
+Agent: Abasing (the implementation agent)
+Task: The audit's confirmed H-severity wire gap — Entity Properties
+(0x20) never sent: the engine's attribute state (Wave J's
+tag.AttributeModifiers on equipped items, the Attributes NBT rows' base
+overrides) never reached tracking clients. Port the reference's
+EntityAttributesS2CPacket wire with its two tracker send sites (on
+track, on change), branch feature/entity-attributes-wire off b7a6917.
+
+Work Log:
+- Studied the reference: EntityAttributesS2CPacket (the packet body —
+  write lines 55-70: varint id, int count, per property string/double/
+  varint, per modifier uuid-two-longs/double/byte), TrackedEntity's
+  two send sites (updatePlayer lines 322-328 at track,
+  sendDataAndAttributes lines 260-274 on the change walk),
+  EntityAttributes lines 12-21 (the isTrackable law: maxHealth +
+  movementSpeed ride, attackDamage never does), LivingEntity.tick's
+  equipment scan lines 1289-1304 (the Wave J application site), and
+  ModifiableEntityAttributeInstance's setBase -> markDirty -> track
+  chain (the dirty-set rule).
+- The constant: S2C_ENTITY_PROPERTIES 0x20 (#31 clientbound play
+  registration, NetworkProtocol line 154) + the conformance-table row
+  (the test's own contract — no unwired id reaches the wire unnamed).
+- The writer: V18Connection.writeEntityProperties — the reference's
+  write() verbatim, over a WireAttribute view (the trackable pair with
+  the equipment rows collected in getEquipment's own five-slot order).
+- The track-time sends at both tracker hooks: trackPlayer (between the
+  Named Spawn and the equipment — the reference's own updatePlayer
+  order) and sendMobSpawn (between the spawn and the five 0x04 writes);
+  the join view and the broadcast fan ride the same writers, chunk and
+  dimension gates included.
+- The change-time sends: the equipment wake re-publishes the pair
+  beside the 0x04 batch; the NEW MobManager.attributesChanged
+  publication + Listener.onMobAttributesChanged default fired by the
+  /summon + /entitydata Attributes rows through a 5-arg
+  EntityNbt.readNbt (the 4-arg form delegates — every existing caller
+  compiles untouched), the wake gated by the isTrackable law (only the
+  movementSpeed row fires it, exactly the reference's dirty-set); the
+  player paths (the held-slot listener + the inventory observer branch)
+  re-publish beside the equipment re-render. The restore path wakes at
+  boot (a zero-connection no-op, the equipmentChanged convention).
+- Two NEW test files (existing attribute tests untouched):
+  EntityPropertiesWireConformanceTest (2 — the reference read()'s
+  field-for-field decode over the real wire: the varint head, the int
+  count, the string/double/varint triple, the uuid-long-pair/double/
+  byte rows, the trailing-bytes pin, the track-time pair for both
+  mutual observers, the equipped modifier row's exact form) +
+  MobAttributesWireTest (3 — the /summon Equipment row's modifier item
+  re-derives the pair with the derived value base+0.5; the later
+  /entitydata mutation fires the change-time send with the new base;
+  the attackDamage-only negative: no 0x20 ever rides the untrackable
+  row).
+- The wire-drain debugging this demanded: the fresh test world's own
+  animal seeding + movement syncs keep the wire busy (the quiet window
+  never truly quiets — verified PRE-EXISTING on clean develop), and
+  the unanswered keep-alive kick closes long drains mid-read; the new
+  tests' drains are packet-budget-bounded (the tick-scaled bound) with
+  the keep-alive exchange answered inline — never a wall-clock sleep,
+  and every engine state an awaitCondition. The throwaway probes that
+  found the SNBT shape (the Equipment row's item compound nests the
+  modifier rows under tag — the /give dataTag IS the tag, the summon
+  element nests it) were deleted after the fix.
+
+Stage Summary:
+- The 0x20 attribute wire whole: constant + conformance row, the writer
+  (the reference's packet body verbatim), the track-time sends at both
+  tracker hooks, the change-time sends on all four mutation surfaces
+  (mob equipment, the Attributes rows, player held, player inventory),
+  the isTrackable law held on the wire (attackDamage never rides).
+- Evidence: :zamin-protocol-v1_8_8:test whole 123/0 green
+  (--max-workers=1, 47 classes — the prior 118 plus the five new);
+  :zamin-core:test 2197/0 green (--max-workers=1, 369 classes — run as
+  eight package batches on this 3.9GiB box where the single full-suite
+  daemon OOMs; every batch green, the class count exactly the source
+  tree's 369); :zamin-api:test 19/0, :zamin-launcher:test 47/0,
+  :zamin-bukkit:test 52/0, `assemble` green. The conformance row added
+  to Protocol18ConformanceTest (the test's own additive contract);
+  AttributeMeleeIntegrationTest + every other existing test
+  UNMODIFIED.
+- Docs: this entry; Torch-Arcetecture.txt §29's Wave ML row (the landed
+  record, commit 57fb936) + §22's next-work line (the Wave ML lane
+  pointer, ML-011 landed, the audit's remaining ranked rows the
+  continuation). VANILLA_1_8_8_COMPATIBILITY.md left untouched — no
+  "Ledgered:" row matches attributes-on-the-wire (the Wave J row's
+  seams are the type-table fall-back and the per-type envelope, not
+  the wire).
