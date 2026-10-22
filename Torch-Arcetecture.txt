@@ -4064,3 +4064,66 @@ module 47/0, the protocol module 116/117 — the one failure
 pre-existing on plain develop (the block-census pin staled by the
 parallel wave's merged rows; reproduced on develop in a worktree,
 out of this slice's blast radius).
+
+---
+
+# 33. CODEBASE SCALE, CLASS COHESION, AND MAINTAINABILITY
+
+Torch's server-engine single-JAR codebase has exceeded 12,000 lines of code. This is a scale milestone, not a target for artificial restructuring.
+
+The goal is to keep the engine understandable, maintainable, and efficient as it grows without sacrificing working architecture or introducing unnecessary abstraction.
+
+1. **Do not split classes solely to reduce their line count.** A large class is not automatically a design defect. Keep closely related state, invariants, and operations together when that makes the implementation easier to understand and safer to change.
+2. **Do not consolidate unrelated responsibilities merely to reduce the number of files.** Introduce a class or module boundary when it represents a genuine responsibility, independent lifecycle, meaningful interface, or useful testing boundary.
+3. **Do not introduce pass-through classes, trivial wrappers, one-method utility classes, unnecessary interfaces, or abstraction layers without a concrete engineering benefit.** Each additional layer must justify its maintenance and comprehension costs.
+4. **Evaluate cohesion before file size.** When modifying an existing class, determine whether its responsibilities belong together. If a genuine boundary exists, consider extracting that responsibility. Otherwise, preserve the existing structure.
+5. **Preserve the engine's architecture and behavior.** Refactoring must not weaken ownership guarantees, concurrency safety, 1.8.8 compatibility, execution ordering, error handling, or established API contracts.
+6. **Avoid broad refactors during unrelated implementation work.** Make structural changes when they solve an identified problem or materially improve a necessary change, not simply because the codebase has grown.
+7. **Use evidence to justify significant restructuring.** Relevant evidence includes duplicated logic, conflicting responsibilities, difficult-to-test invariants, excessive coupling, repeated bugs, or a demonstrated obstacle to implementation. File length alone is insufficient.
+8. **Do not optimize for arbitrary LOC, class-count, or file-count targets.** Measure performance when performance is the concern. Evaluate maintainability through actual responsibilities, dependencies, change impact, and testability.
+9. **Prefer incremental structural improvements.** Preserve working behavior, make the smallest meaningful change, and verify the affected code. Do not undertake a repository-wide reorganization without a concrete need.
+
+The desired result is a cohesive engine whose structure reflects its actual mechanics and responsibilities, not an artificially fragmented codebase.
+
+---
+
+# 34. ENGINEERING AUTHENTICITY AND AI-GENERATED CODE QUALITY
+
+Torch must read and behave like a deliberately engineered software project, not a collection of generic AI-generated implementations.
+
+The objective is not to conceal AI assistance or imitate a human writing style. The objective is to eliminate shallow engineering, repetitive generated patterns, unnecessary complexity, and documentation that sounds authoritative without conveying useful information.
+
+## 34.1 Implementation standards
+
+1. **Understand before generating.** Read the relevant implementation, its callers, existing conventions, and applicable architecture requirements before introducing new code. Extend existing mechanisms when appropriate instead of creating a parallel implementation.
+2. **Prefer concrete solutions.** Use straightforward Java implementations that fit Torch's actual requirements. Do not introduce generic frameworks, speculative extension points, elaborate abstractions, or defensive layers without a demonstrated need.
+3. **Preserve meaningful differences.** Do not force unrelated subsystems into an identical structure merely to achieve stylistic consistency. Shared patterns are appropriate when the underlying responsibilities and invariants genuinely match.
+4. **Avoid generated-code repetition.** Look for duplicated validation, forwarding methods, boilerplate state holders, redundant comments, unnecessary configuration layers, and repeated algorithms. Remove duplication when doing so improves correctness or maintenance without obscuring important differences.
+5. **Write comments that explain engineering decisions.** Comments should clarify non-obvious invariants, compatibility quirks, ordering requirements, concurrency constraints, and reasons for deliberate trade-offs. Do not narrate obvious statements or repeat method names in prose.
+6. **Keep documentation specific.** Describe actual behavior, current limitations, established decisions, and verified results. Avoid generic claims about being robust, scalable, production-ready, revolutionary, or highly optimized unless concrete evidence supports them.
+7. **Do not fabricate completeness.** An unimplemented feature must remain identifiable as unimplemented. Distinguish verified behavior from assumptions, planned work, partial implementations, and unresolved compatibility questions.
+8. **Follow the repository's established voice.** Use direct technical language and existing naming conventions. Avoid unnecessary headings, repeated summaries, formulaic introductions, inflated explanations, and boilerplate documentation that adds no information.
+9. **Do not rewrite working code for stylistic conformity alone.** A less conventional implementation may be the correct choice when it preserves vanilla behavior, simplifies ownership, reduces overhead, or matches an existing subsystem better.
+10. **Keep changes reviewable.** Changes should have a clear purpose and a diff proportionate to that purpose. Do not combine unrelated cleanup, renaming, architectural redesign, and feature work merely because an agent has already inspected those areas.
+
+## 34.2 Prompting and agent behavior
+
+These requirements apply to the prompts used by coding agents as well as their output.
+
+- State the required behavior, relevant constraints, and acceptance criteria. Leave implementation details open when the architecture does not require a particular solution.
+- Do not prescribe classes, interfaces, design patterns, or file layouts before establishing that they solve the actual problem.
+- Do not repeatedly restate the same requirement in different wording. Keep critical invariants explicit, but remove redundant instructions that do not improve compliance.
+- Do not reward code volume, file count, comment count, or elaborate architecture as evidence of progress.
+- When reviewing generated work, examine the actual implementation for correctness, unnecessary complexity, duplication, and consistency with the surrounding code.
+- Do not rewrite an implementation merely because it appears AI-generated. Identify a concrete defect or meaningful maintenance problem before changing it.
+
+## 34.3 Implementation judgment
+
+Treat this document as the source of architectural constraints, not a requirement to maximize abstraction or ceremony. Follow mandatory invariants exactly. For implementation details not prescribed here, inspect the existing code and choose the simplest design that satisfies the requirements. Explain material trade-offs when they affect correctness, compatibility, concurrency, or future maintenance. Do not manufacture additional requirements.
+
+## 34.4 Acceptance standard
+
+Judge implementations by correctness, fidelity to reference behavior, concurrency safety, performance where measured, maintainability, and consistency with Torch's architecture.
+
+Do not use AI-detection scores, stylistic stereotypes, or attempts to imitate a particular author's writing as acceptance criteria. The standard is good engineering, regardless of who or what produced the code.
+

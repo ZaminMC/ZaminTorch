@@ -164,6 +164,17 @@ public final class ArmorStand {
         return (status & FLAG_SMALL) != 0;
     }
 
+    /** The show-arms flag (the synced byte's bit 2): the hand slot's
+     * interact gate (an item onto the HAND needs the arms shown). */
+    public boolean showArms() {
+        return (status & FLAG_SHOW_ARMS) != 0;
+    }
+
+    /** The no-base-plate flag (the synced byte's bit 3). */
+    public boolean noBasePlate() {
+        return (status & FLAG_NO_BASE_PLATE) != 0;
+    }
+
     /** The walk's velocity x (the reference's motionX). */
     public double velocityX() {
         return velocityX;

@@ -32,6 +32,12 @@ import java.util.Random;
  * through the listener. The reference's own survival quirk stays: a
  * broken wall leaves the body hanging for up to five seconds before
  * the poll finds it.</p>
+ *
+ * <p>Threading (§27.6, the VillageSystem shape): every public mutation
+ * entry point holds this system's monitor, so a reader holding the same
+ * monitor — the public census view — copies a tear-free snapshot against
+ * the tick lane from any thread. The engine's own single tick lane never
+ * contends (no behavior change); the monitor exists for the api read.</p>
  */
 public final class DecorationSystem {
 
@@ -158,7 +164,7 @@ public final class DecorationSystem {
      * @return whether a frame landed (the useOn's own always-true means
      * the click is eaten either way — the caller decides the consume).
      */
-    public boolean placeFrame(BlockPosition clicked, int face, int facingCode) {
+    public synchronized boolean placeFrame(BlockPosition clicked, int face, int facingCode) {
         if (face == 0 || face == 1) {
             return false; // DOWN / UP: the reference's own refusal
         }
@@ -186,7 +192,7 @@ public final class DecorationSystem {
      *
      * @return whether a painting landed.
      */
-    public boolean placePainting(BlockPosition clicked, int face, int facingCode) {
+    public synchronized boolean placePainting(BlockPosition clicked, int face, int facingCode) {
         if (face == 0 || face == 1) {
             return false; // DOWN / UP
         }
@@ -239,8 +245,8 @@ public final class DecorationSystem {
      *         anchor would silently evict the first, so the second
      *         refuses and the import isolates it loudly).
      */
-    public ItemFrame restoreFrame(BlockPosition cell, int facing,
-                                  ItemStack display, int rotation) {
+    public synchronized ItemFrame restoreFrame(BlockPosition cell, int facing,
+                                             ItemStack display, int rotation) {
         Objects.requireNonNull(cell, "cell");
         if (frames.containsKey(cell)) {
             return null; // the occupied-anchor refusal, never a silent evict
@@ -271,8 +277,8 @@ public final class DecorationSystem {
      *         a painting (the occupied-anchor refusal, as the frame's
      *         own restore arm documents).
      */
-    public Painting restorePainting(BlockPosition cell, int facing,
-                                    Painting.Motive motive) {
+    public synchronized Painting restorePainting(BlockPosition cell, int facing,
+                                                 Painting.Motive motive) {
         Objects.requireNonNull(cell, "cell");
         Objects.requireNonNull(motive, "motive");
         if (paintings.containsKey(cell)) {
@@ -442,7 +448,7 @@ public final class DecorationSystem {
      *
      * @return the arm that ran (the caller consumes one unit on INSERTED).
      */
-    public FrameInteract interactFrame(ItemFrame frame, ItemStack held) {
+    public synchronized FrameInteract interactFrame(ItemFrame frame, ItemStack held) {
         Objects.requireNonNull(frame, "frame");
         if (frame.display().isEmpty()) {
             if (held.isEmpty()) {
@@ -476,7 +482,7 @@ public final class DecorationSystem {
      *
      * @return true when the hit landed (the takeDamage's own true).
      */
-    public boolean attackFrame(ItemFrame frame, boolean creativeAttacker, boolean explosive) {
+    public synchronized boolean attackFrame(ItemFrame frame, boolean creativeAttacker, boolean explosive) {
         Objects.requireNonNull(frame, "frame");
         if (!explosive && !frame.display().isEmpty()) {
             // The item-eject arm: the frame stays on the wall.
@@ -524,7 +530,7 @@ public final class DecorationSystem {
      * body falls and the painting item drops (the creative hand spares
      * it, the doEntityDrops rule gates it).
      */
-    public void attackPainting(Painting painting, boolean creativeAttacker) {
+    public synchronized void attackPainting(Painting painting, boolean creativeAttacker) {
         Objects.requireNonNull(painting, "painting");
         removePainting(painting);
         if (surface.doEntityDrops() && !creativeAttacker) {
@@ -535,7 +541,7 @@ public final class DecorationSystem {
     }
 
     /** The removal (the registry drop + the wire destroy). */
-    public void removeFrame(ItemFrame frame) {
+    public synchronized void removeFrame(ItemFrame frame) {
         frames.remove(frame.pos());
         validationTicks.remove(frame.entityId());
         for (Listener listener : listeners) {
@@ -544,7 +550,7 @@ public final class DecorationSystem {
     }
 
     /** The removal (the registry drop + the wire destroy). */
-    public void removePainting(Painting painting) {
+    public synchronized void removePainting(Painting painting) {
         paintings.remove(painting.pos());
         validationTicks.remove(painting.entityId());
         for (Listener listener : listeners) {
@@ -586,7 +592,7 @@ public final class DecorationSystem {
      * drop (the reference's {@code remove() + onAttack(null)} — the null
      * attacker is not a creative player, the drops always land).
      */
-    public void tick() {
+    public synchronized void tick() {
         List<ItemFrame> fallenFrames = null;
         for (ItemFrame frame : frames.values()) {
             int ticks = validationTicks.getOrDefault(frame.entityId(), 0) + 1;
@@ -665,7 +671,7 @@ public final class DecorationSystem {
      * wall cannot hold it anymore still lands — the next survival poll
      * sweeps it, the reference's own readCustomNbt behavior.
      */
-    public void restore(List<FrameRecord> frameRecords, List<PaintingRecord> paintingRecords) {
+    public synchronized void restore(List<FrameRecord> frameRecords, List<PaintingRecord> paintingRecords) {
         for (FrameRecord record : frameRecords) {
             if (frames.containsKey(record.pos())) {
                 continue;

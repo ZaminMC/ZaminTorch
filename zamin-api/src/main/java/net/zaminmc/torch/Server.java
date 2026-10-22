@@ -164,10 +164,85 @@ public interface Server {
     }
 
     /**
+     * The riding seat-row query surface (§27.3's riding family — the
+     * §29 VII5/VIII1 exposure): the exotic pairs' seat reads beside the
+     * vehicle family's own typed {@code Vehicle.riderEntityId()} — a
+     * mount's seated-rider row, a rider's mount row, and the live seat
+     * census, answering whichever store carries the seat (the
+     * generic-mount registry, the mob mounts' rows, the vehicle seats).
+     * The per-id consults are live reads — simulation context (§27.6,
+     * the documented owner path is {@code World.execute(runnable)});
+     * the census answers a point-in-time copy, consumable from any
+     * thread once obtained. Worlds without live seats answer empty.
+     */
+    default net.zaminmc.torch.entity.Vehicle.SeatRows seatRows() {
+        return net.zaminmc.torch.entity.Vehicle.SeatRows.EMPTY;
+    }
+
+    /**
      * The validated server configuration (§27.3's server-lifecycle read
      * surface): the frozen boot-time settings as an immutable value
      * snapshot. Safe from any thread; the configuration never changes
      * at runtime (a change requires a restart — the historical rule).
      */
     net.zaminmc.torch.config.ServerConfig config();
+
+    /**
+     * The Anvil import verb (§31.4's explicit-import surface — the Wave IX
+     * exposure): one explicit, read-only import of an original 1.8.8 world
+     * folder ({@code level.dat} + {@code region/*.mca}) into the live
+     * world, riding the SAME one-import gate and the SAME I/O lanes as
+     * the operator's {@code /anvilimport} — the one authoritative route,
+     * never a parallel import path. Per §31.4 this is never a startup
+     * detection; the caller's explicit action is the only entry.
+     *
+     * <p><b>THE RETURN (the ledger report):</b> the walk's own final
+     * answer row, the same report the operator command prints — no second
+     * report format exists. On success: {@code "Anvil import finished: "}
+     * carrying the §31.6 counted-refusal census (the installed/skipped/
+     * unoccupied chunk rows, the imported entity/tile/tile-tick counts,
+     * every isolation by its exact reason with its first examples, the
+     * unknown block states, the present-but-not-imported format rows).
+     * On a refused folder: {@code "Anvil import refused: ..."} — a missing
+     * {@code level.dat} or {@code region/} is a loud refusal, never a
+     * default world. On a concurrent call while a walk holds the
+     * one-import gate: {@code "An Anvil import is already running; wait
+     * for its report"} — answered immediately, never queued, never racing
+     * the in-flight walk. A mid-walk simulation-generation change answers
+     * the abandonment row.</p>
+     *
+     * <p><b>THE THREADING LAW (§28.1's fourth category, the blocking-I/O
+     * discipline):</b> the calling thread BLOCKS until the walk's final
+     * drain answers. Every file read rides the blocking-I/O lane; every
+     * world mutation (the level rows' apply, the region bytes' parse and
+     * the per-chunk installs) lands on the owning lane between ticks —
+     * the gameplay lane NEVER blocks (the simulation keeps ticking while
+     * the caller waits; the walk's phases deliver at tick heads). The
+     * verb must NOT be called from the simulation lane itself (a tick
+     * body or a scheduled task — the walk's phases deliver there, so a
+     * parked tick thread would starve its own drains); that context is
+     * refused loudly instead of deadlocking. A server stop mid-walk is
+     * the one arm no drain answers (the lanes go down without a stale
+     * generation); the parked caller then receives the abandonment row
+     * rather than hanging on a dying server.</p>
+     */
+    default String anvilImport(java.nio.file.Path worldFolder) {
+        java.util.Objects.requireNonNull(worldFolder, "worldFolder");
+        return "The anvil import verb is not implemented by this server";
+    }
+
+    /**
+     * The achievement-table query surface (§27.3's progression family —
+     * the VIII6 exposure): the reference 1.8.8's own 34-row table (every
+     * row's key, name, page column/row, icon, parent chain, challenge
+     * flag and local row — the give-all walk's own declaration order)
+     * plus the per-player unlocked read over the live stats store. The
+     * table is a frozen registration — those reads are pure, safe from
+     * any thread; the per-player read is live-authoritative, consistent
+     * on the player's own simulation context (the same contract as the
+     * {@link Player} body reads).
+     */
+    default net.zaminmc.torch.stat.Achievements achievements() {
+        return net.zaminmc.torch.stat.Achievements.EMPTY;
+    }
 }
