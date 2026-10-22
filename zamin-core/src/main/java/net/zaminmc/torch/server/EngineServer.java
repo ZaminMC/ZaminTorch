@@ -24499,6 +24499,13 @@ public final class EngineServer implements Server, EngineBridge {
         // A spectator is never on the ground (PlayerEntity.tick lines
         // 190-192: {@code if (this.isSpectator()) this.onGround = false}).
         session.applyMovement(target.position(), target.rotation(), false);
+        // The camera's own wire — the reference's sendPacket(Camera) +
+        // teleport pair rides the player's own networkHandler, so the
+        // link verb owns both (the target spawns for the client before
+        // the Camera 0x43 points at it).
+        session.link().spectateCamera(target.uuid());
+        // The visibility flip (broadcastTo line 472): the spectating body
+        // drops out of every other view.
         publishCameraAttached(session, target);
         LOGGER.fine(() -> session.name() + " spectates " + target.name());
     }
@@ -24514,7 +24521,14 @@ public final class EngineServer implements Server, EngineBridge {
         if (session.spectatorCamera() == null) {
             return;
         }
+        // The state clears FIRST: the tracking gates read it (a detached
+        // body re-enters the others' views through the re-track fan-out).
         session.setSpectatorCamera(null);
+        // The restore's own wire, the reference's camera-then-teleport
+        // order (setCamera(this) lines 919-921): the Camera 0x43(self)
+        // then the authoritative Position-and-Look re-anchor where the
+        // follow left the body.
+        session.link().spectateCamera(null);
         publishCameraDetached(session);
         LOGGER.fine(() -> session.name() + " leaves the spectate camera");
     }

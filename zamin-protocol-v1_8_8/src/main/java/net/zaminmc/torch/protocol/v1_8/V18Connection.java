@@ -2944,6 +2944,27 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     }
 
     /**
+     * The spectator camera's own attach/restore verb (the reference's
+     * setCamera pair, ServerPlayerEntity lines 916-923 — the packets ride
+     * the player's own networkHandler there, the link here): the non-null
+     * arm spawns the target for this client then points the Camera 0x43 at
+     * it, the null arm restores the camera to this client's own body
+     * (0x43 self + the authoritative re-anchor). Any thread.
+     */
+    @Override
+    public void spectateCamera(UUID target) {
+        if (target == null) {
+            spectateCameraDetached();
+            return;
+        }
+        // The mid-flight departure: the target left between the engine's
+        // walk and this wire arm — nothing to point at (the engine's own
+        // per-tick liveness consult restores the camera next tick).
+        engine.playerRegistry().byUuid(target)
+                .ifPresent(this::spectateCameraAttached);
+    }
+
+    /**
      * The remote-player movement relay over the tracked-move consult (the
      * reference's TrackedEntity bands — the players carry their angles): a
      * small move rides Rel Move Look (0x17) with the byte deltas and the
