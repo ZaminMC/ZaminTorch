@@ -310,8 +310,14 @@ public final class ProjectileManager {
      * takeDamage, so the burst IS the whole hit law.
      */
     public interface XpBottleSink {
-        /** The splash event + the orb burst at the impact point. */
-        void burst(double x, double y, double z);
+        /**
+         * The splash event + the orb burst at the impact point. The
+         * thrower's engine id rides beside the point (the burst world
+         * resolves through the thrower — the reference's projectile
+         * carries its world; the engine's projectile system is
+         * dimension-blind, the boundary the hit resolver records).
+         */
+        void burst(double x, double y, double z, int throwerId);
     }
 
     private final SolidQuery solid;
@@ -338,7 +344,7 @@ public final class ProjectileManager {
     /** The dragon part's wound arm (Slice 63); optional until wired. */
     private DragonSink dragonSink = (x, y, z, damage, explosive, shooterId) -> false;
     /** The bottle o' enchanting's burst arm (Slice 65); optional until wired. */
-    private XpBottleSink xpBottleSink = (x, y, z) -> { };
+    private XpBottleSink xpBottleSink = (x, y, z, throwerId) -> { };
 
     /** Wires the fireball's fire-placement arm. */
     public void setFireSink(FireSink sink) {
@@ -1007,7 +1013,8 @@ public final class ProjectileManager {
                     && !(burstPlayer.engineEntityId() == projectile.throwerId()
                          && projectile.age() <= THROWER_IMMUNITY_TICKS);
             if (burstOnMob || burstOnPlayer || solid.solid(point.x(), point.y(), point.z())) {
-                xpBottleSink.burst(point.x(), point.y(), point.z());
+                xpBottleSink.burst(point.x(), point.y(), point.z(),
+                        projectile.throwerId());
                 remove(projectile, "hit");
                 return true;
             }

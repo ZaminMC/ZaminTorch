@@ -1,0 +1,285 @@
+package net.zaminmc.torch.server;
+
+import net.zaminmc.torch.item.ItemStack;
+import net.zaminmc.torch.util.Position;
+import net.zaminmc.torch.server.config.EngineConfig;
+import net.zaminmc.torch.server.enchantment.Enchantments;
+import net.zaminmc.torch.server.entity.MobEntity;
+import net.zaminmc.torch.server.entity.MobType;
+import net.zaminmc.torch.server.item.BuiltinItems;
+import net.zaminmc.torch.server.net.ClientLink;
+import net.zaminmc.torch.server.net.EngineBridge;
+import net.zaminmc.torch.server.player.PlayerSession;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import java.nio.file.Path;
+import java.util.UUID;
+import java.util.function.BooleanSupplier;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+/**
+ * The thorns wildcard's MOB-victim arm (the README TODO's row 8 — the
+ * reference's applyProtectionWildcard over MobEntity's five-slot equipment
+ * row, reference/1.8.8 EnchantmentHelper lines 152-161): the PLAYER victim
+ * forms landed with the original family; these prove the three MOB-victim
+ * sites — the player's landed melee (PlayerEntity.attack line 1016), the
+ * living shooter's landed projectile (ArrowEntity line 264 + the fireball
+ * trio's damageEntity pair-walk), the mob melee walks (Entity.damageEntity
+ * lines 1943-1947 over MonsterEntity.attack 101 / IronGolemEntity 159 /
+ * SlimeEntity 202 / WolfEntity 277) — beside the wear law's own rows: the
+ * wear always lands on the FIRST thorns stack of the five-slot row (3 on a
+ * proc, 1 on a miss, accumulated per visited piece), a broken piece leaves
+ * the slot EMPTY, and a plain piece never bites nor wears. The mob row's
+ * own order quirk: the row walks [held, feet, legs, CHEST, head], so a
+ * dressed chest+helmet pair wears the CHEST — the helmet contributes its
+ * proc rolls but never its wear, the same first-stack law the player
+ * family proves over its helmet-first row.
+ */
+class ThornsMobVictimAcceptanceTest {
+
+    @TempDir
+    Path dataDir;
+
+    @Test
+    void thePlayersMeleeBitesThroughTheMobWear() throws Exception {
+        EngineServer server = boot();
+        PlayerSession attacker = join(server, "Attacker");
+        server.chatService().submitChat(attacker, "/spawnmob pig 1");
+        MobEntity pig = awaitMob(server, MobType.PIG);
+        // Thorns III on the chest AND the helmet: two independent 45%
+        // rolls per landed swing (69.75% combined) — the loop ends on the
+        // first bite. The chest is the row's FIRST carrier (the mob row
+        // walks [held, feet, legs, chest, head]).
+        pig.setEquipment(3, ItemStack.of(BuiltinItems.IRON_CHESTPLATE)
+                .withEnchantment(Enchantments.THORNS.id, 3));
+        pig.setEquipment(4, ItemStack.of(BuiltinItems.IRON_HELMET)
+                .withEnchantment(Enchantments.THORNS.id, 3));
+
+        float attackerStart = attacker.health();
+        boolean proc = false;
+        int landed = 0;
+        for (int i = 0; i < 24 && !proc && !pig.dead(); i++) {
+            Thread.sleep(600); // the previous hit's i-frame decay, first
+            // The pig flees after every hit (the panic goal's own ~7
+            // blocks a second): the read-teleport-swing sequence runs
+            // tight so the drift inside it stays a fraction of the reach.
+            Position at = pig.position();
+            server.teleportPlayer(attacker,
+                    new Position(at.x(), at.y(), at.z() + 0.8));
+            await(() -> attacker.position().z() == at.z() + 0.8,
+                    "the stand " + i + " landed");
+            float pigStart = pig.health();
+            server.attackEntity(attacker, pig.entityId());
+            await(() -> pig.health() < pigStart, "the swing " + i + " landed");
+            landed++;
+            proc = attacker.health() < attackerStart;
+        }
+        assertTrue(proc, "the thorns roll bit the melee attacker through the "
+                + "mob's worn row (saw " + landed + " landed swings)");
+        assertTrue(pig.equipment(3).damage() > 0,
+                "the FIRST thorns stack (the chest) carried the wear (saw "
+                        + pig.equipment(3).damage() + " after " + landed
+                        + " landed swings)");
+        assertEquals(0, pig.equipment(4).damage(),
+                "the helmet contributes its proc rolls but never its wear "
+                        + "— the first-stack quirk over the mob's row order");
+        server.shutdown(null);
+    }
+
+    @Test
+    void theArchersArrowBitesTheShooterThroughTheMobWear() throws Exception {
+        EngineServer server = boot();
+        PlayerSession archer = join(server, "Archer");
+        server.chatService().submitChat(archer, "/spawnmob zombie 1");
+        MobEntity zombie = awaitMob(server, MobType.ZOMBIE);
+        zombie.setEquipment(3, ItemStack.of(BuiltinItems.IRON_CHESTPLATE)
+                .withEnchantment(Enchantments.THORNS.id, 3));
+        zombie.setEquipment(4, ItemStack.of(BuiltinItems.IRON_HELMET)
+                .withEnchantment(Enchantments.THORNS.id, 3));
+
+        grantHeld(archer, ItemStack.of(BuiltinItems.BOW));
+        server.chatService().submitChat(archer, "/give arrow 6");
+        await(() -> !archer.inventory().held().isEmpty()
+                && archer.inventory().held().type() == BuiltinItems.BOW, "bow held");
+
+        // Straight down from +2.9 — outside the zombie's melee vertical
+        // band (the only other writer of the archer's health); the arrows
+        // fall through the body's column. Two Thorns III carriers: 69.75%
+        // per landed arrow; a killing shot still retaliates through the
+        // captured row (the row-8 law), and four attempts push the no-bite
+        // odds under one percent.
+        Position anchor = zombie.position();
+        server.teleportPlayer(archer,
+                new Position(anchor.x(), anchor.y() + 2.9, anchor.z()));
+        await(() -> archer.position().y() == anchor.y() + 2.9, "the lift landed");
+        archer.applyMovement(archer.position(),
+                new net.zaminmc.torch.util.Rotation(archer.rotation().yaw(), 90.0f),
+                archer.onGround());
+        float archerStart = archer.health();
+        boolean proc = false;
+        for (int i = 0; i < 4 && !proc && !zombie.dead(); i++) {
+            float mobStart = zombie.health();
+            archer.beginBowCharge();
+            for (int t = 0; t < 20; t++) {
+                archer.advanceBowCharge();
+            }
+            server.releaseUsingItem(archer);
+            await(() -> zombie.health() < mobStart || zombie.dead(),
+                    "the arrow " + i + " landed on the wearer");
+            long deadline = System.currentTimeMillis() + 2_000;
+            while (System.currentTimeMillis() < deadline && !proc) {
+                Thread.sleep(50);
+                proc = archer.health() < archerStart;
+            }
+        }
+        assertTrue(proc, "the arrow shooter carried the thorns bite through "
+                + "the mob's worn row");
+        assertTrue(zombie.equipment(3).damage() > 0,
+                "the FIRST thorns stack (the chest) carried the projectile wear");
+        server.shutdown(null);
+    }
+
+    @Test
+    void theMobMeleeBitesBackThroughTheWornRow() throws Exception {
+        EngineServer server = boot();
+        PlayerSession summoner = join(server, "Summoner");
+        server.chatService().submitChat(summoner, "/spawnmob sheep 1");
+        MobEntity sheep = awaitMob(server, MobType.SHEEP);
+        sheep.setEquipment(4, ItemStack.of(BuiltinItems.IRON_HELMET)
+                .withEnchantment(Enchantments.THORNS.id, 3));
+
+        // The zombie's chase walks it onto the sheep; every landed melee
+        // rides the hurtByMob walk — the seam's bite. Nothing else writes
+        // the zombie's health (the sheep never fights back).
+        server.chatService().submitChat(summoner, "/spawnmob zombie 1");
+        MobEntity zombie = awaitSecond(server, MobType.ZOMBIE, sheep);
+        zombie.setMobAttackTarget(sheep);
+
+        float zombieStart = zombie.health();
+        float sheepStart = sheep.health();
+        await(() -> sheep.health() < sheepStart, "the zombie's melee landed");
+        // The bite rolls per landed hit (45% per swing over the single
+        // carrier); the melee keeps landing until one procs.
+        await(() -> zombie.health() < zombieStart, "the thorns roll bit the mob");
+        assertTrue(sheep.equipment(4).damage() > 0,
+                "the sole carrier (the helmet) carried the mob-melee wear");
+        server.shutdown(null);
+    }
+
+    @Test
+    void theBrokenPieceLeavesTheSlot() throws Exception {
+        EngineServer server = boot();
+        PlayerSession attacker = join(server, "Attacker");
+        server.chatService().submitChat(attacker, "/spawnmob pig 1");
+        MobEntity pig = awaitMob(server, MobType.PIG);
+        // One wear unit from the end: the next visit (proc 3 or miss 1)
+        // crosses the durability and the piece leaves the slot — the
+        // reference's own break shape over the mob's equipment row.
+        ItemStack frail = ItemStack.of(BuiltinItems.IRON_HELMET)
+                .withEnchantment(Enchantments.THORNS.id, 3)
+                .withDamage(BuiltinItems.IRON_HELMET.maxDurability() - 1);
+        pig.setEquipment(4, frail);
+
+        Position at = pig.position();
+        server.teleportPlayer(attacker,
+                new Position(at.x(), at.y(), at.z() + 0.8));
+        await(() -> attacker.position().z() == at.z() + 0.8, "the stand landed");
+        float pigStart = pig.health();
+        server.attackEntity(attacker, pig.entityId());
+        await(() -> pig.health() < pigStart, "the swing landed");
+        assertTrue(pig.equipment(4).isEmpty(),
+                "the worn-through piece left the slot EMPTY");
+        server.shutdown(null);
+    }
+
+    @Test
+    void thePlainPieceNeverBitesNorWears() throws Exception {
+        EngineServer server = boot();
+        PlayerSession attacker = join(server, "Attacker");
+        server.chatService().submitChat(attacker, "/spawnmob pig 1");
+        MobEntity pig = awaitMob(server, MobType.PIG);
+        pig.setEquipment(4, ItemStack.of(BuiltinItems.IRON_HELMET));
+
+        Position at = pig.position();
+        server.teleportPlayer(attacker,
+                new Position(at.x(), at.y(), at.z() + 0.8));
+        await(() -> attacker.position().z() == at.z() + 0.8, "the stand landed");
+        float attackerStart = attacker.health();
+        float pigStart = pig.health();
+        server.attackEntity(attacker, pig.entityId());
+        await(() -> pig.health() < pigStart, "the swing landed");
+        assertEquals(attackerStart, attacker.health(),
+                "a plain piece never bites the attacker");
+        assertEquals(0, pig.equipment(4).damage(),
+                "a plain piece carries no thorns wear (no other mob-armor "
+                        + "wear walk exists)");
+        server.shutdown(null);
+    }
+
+    // ------------------------------------------------------------------ harness
+
+    private MobEntity awaitMob(EngineServer server, MobType type)
+            throws InterruptedException {
+        await(() -> server.mobs().all().stream().anyMatch(m -> m.type() == type),
+                type + " present");
+        return server.mobs().all().stream()
+                .filter(m -> m.type() == type).findFirst().orElseThrow();
+    }
+
+    /** The SECOND body of the kind (the pair staging — the first already held). */
+    private MobEntity awaitSecond(EngineServer server, MobType type, MobEntity first)
+            throws InterruptedException {
+        await(() -> server.mobs().all().stream()
+                        .filter(m -> m.type() == type && m.entityId() != first.entityId())
+                        .anyMatch(m -> true),
+                type + " pair present");
+        return server.mobs().all().stream()
+                .filter(m -> m.type() == type && m.entityId() != first.entityId())
+                .findFirst().orElseThrow();
+    }
+
+    private void grantHeld(PlayerSession player, ItemStack stack) {
+        assertTrue(player.inventory().pickUp(stack).isEmpty(),
+                "the test grants the stack into the held hotbar slot");
+    }
+
+    private EngineServer boot() throws Exception {
+        EngineConfig config = new EngineConfig("127.0.0.1", 0, "thornsmob", "it", 20, 2, 20,
+                dataDir.toString());
+        EngineServer server = new EngineServer(config);
+        server.start();
+        return server;
+    }
+
+    private PlayerSession join(EngineServer server, String name) throws InterruptedException {
+        var accepted = server.joinRequest(link(), name, UUID.randomUUID());
+        PlayerSession session = ((EngineBridge.Accepted) accepted).session();
+        await(() -> server.playerRegistry().byName(name).isPresent(), name + " registered");
+        server.joinCompleted(session);
+        await(() -> session.state() == net.zaminmc.torch.entity.PlayerState.PLAYING,
+                name + " playing");
+        return session;
+    }
+
+    private ClientLink link() {
+        return new ClientLink() {
+            @Override public boolean isActive() { return true; }
+            @Override public void kick(String reason) { }
+        };
+    }
+
+    private void await(BooleanSupplier condition, String description)
+            throws InterruptedException {
+        long deadline = System.currentTimeMillis() + 20_000;
+        while (System.currentTimeMillis() < deadline) {
+            if (condition.getAsBoolean()) {
+                return;
+            }
+            Thread.sleep(50);
+        }
+        throw new AssertionError("Condition not met in time: " + description);
+    }
+}
