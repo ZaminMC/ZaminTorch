@@ -330,7 +330,11 @@ class RconProtocolTest {
         }
         assertFalse(server.isRunning());
         RconServer restarted = new RconServer(access);
-        long deadline = System.currentTimeMillis() + 5_000;
+        // The drain window is 30s, not the old 5s: FIN_WAIT is an OS
+        // cadence with no product bound, and run #362 tripped the 5s form
+        // on a loaded runner (docs/TEST_DEADLINE_CENSUS.md, the C-A row).
+        // The detection is unchanged — the same-port rebind MUST answer.
+        long deadline = System.currentTimeMillis() + 30_000;
         do {
             restarted.start(); // a failed bind stays degraded; start() retries
             if (restarted.isRunning()) {

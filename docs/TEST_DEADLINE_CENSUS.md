@@ -99,9 +99,15 @@ they stay as-is.
 The 27 sub-3-second poll bounds, the 3 timed assertions, and the @Timeout
 were read line-by-line. Adjudication:
 
-- **Converted (C-A)**: `DispenserSystemTest` lines 72/205/379/398/419/430/456/484
-  (re-dispense negative windows on a 4-tick cadence — the window must be
-  tick-exact, not wall-approximate) and `RconProtocolTest:333` (above).
+- **Converted (C-A)**: `DispenserSystemTest` lines 72/205/379 — the
+  three re-dispense NEGATIVE windows (a forbidden re-dispense must be
+  watched for a tick-exact window, not a wall-approximate one; converted
+  to `awaitTicks(8/6/6)`) and `RconProtocolTest:333` (above).
+- **Kept (C-C), corrected by the landing**: `DispenserSystemTest` lines
+  393/414/425/451/479 turned out on closer reading to be DELIVERY-bound
+  probe polls (`result.get() == null` / `!ran.get()` over submitted
+  reads, 1-2s bounds on next-tick deliveries — the same generous family
+  as the ArmorStand inner beats), not negative windows; they stay.
 - **Kept (C-C), with evidence**: `ArmorStandSystemTest:385`,
   `DaylightDetectorSystemTest:174`, `DecorationBlastTest:201`,
   `DecorationSystemTest:528`, `JukeboxSystemTest:356`,
