@@ -80,6 +80,20 @@ final class Protocol18 {
     static final int S2C_SPAWN_XP_ORB = 0x11;
     /** Set Experience (0x1F, protocol 47): f32 progress, short level, short total. */
     static final int S2C_SET_EXPERIENCE = 0x1F;
+    /**
+     * Entity Properties (0x20, protocol 47 — the reference's
+     * EntityAttributesS2CPacket, the #31 clientbound play registration
+     * between PlayerXp 0x1F and WorldChunk 0x21, NetworkProtocol lines
+     * 153-155): the attribute wire. VarInt entity id, Int property
+     * count, per property: String name, Double base, VarInt modifier
+     * count, per modifier: UUID (two big-endian longs), Double amount,
+     * Byte operation — the reference's write() lines 55-70 verbatim.
+     */
+    static final int S2C_ENTITY_PROPERTIES = 0x20;
+    /** The generic.maxHealth attribute name (EntityAttributes line 12 — the trackable registration). */
+    static final String ATTRIBUTE_MAX_HEALTH = "generic.maxHealth";
+    /** The generic.movementSpeed attribute name (EntityAttributes line 18 — the trackable registration). */
+    static final String ATTRIBUTE_MOVEMENT_SPEED = "generic.movementSpeed";
     /** Held Item Change (0x09, protocol 47): the i8 slot the client now holds. */
     static final int S2C_HELD_ITEM_CHANGE = 0x09;
     /** Block Action (0x24, protocol 47): i64 pos, u8 action, u8 param, u32 block. */
