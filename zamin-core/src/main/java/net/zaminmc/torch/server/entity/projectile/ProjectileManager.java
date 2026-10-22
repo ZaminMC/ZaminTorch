@@ -130,6 +130,13 @@ public final class ProjectileManager {
         void explode(Position at, float power);
     }
 
+    /** The wither skull's explosion arm — the charged flag rides (the
+     * blast's source model consults it). */
+    @FunctionalInterface
+    public interface SkullExplosionSink {
+        void explode(Position at, float power, boolean charged);
+    }
+
     /**
      * The ender pearl's landing arm (Slice 17c — EnderPearlEntity.
      * onCollision lines 45-71): the thrower's teleport verdict — the
@@ -321,6 +328,9 @@ public final class ProjectileManager {
     private PotionSink potionSink = (x, y, z, damage, directHit, throwerId) -> { };
     /** The ghast fireball's explosion arm; optional until the engine wires it. */
     private ExplosionSink explosionSink = (at, power) -> { };
+    /** The wither skull's own arm (the charged flag rides the blast's
+     * source model — the 0.8 cap family); optional until wired. */
+    private SkullExplosionSink skullExplosionSink = (at, power, charged) -> { };
     /** The ender pearl's teleport arm (Slice 17c); optional until wired. */
     private PearlSink pearlSink = (throwerId, at) -> { };
     /** The ender crystal's pop arm (Slice 62); optional until wired. */
@@ -343,6 +353,11 @@ public final class ProjectileManager {
     /** Wires the ghast fireball's explosion arm. */
     public void setExplosionSink(ExplosionSink sink) {
         this.explosionSink = Objects.requireNonNull(sink, "sink");
+    }
+
+    /** Wires the wither skull's explosion arm (the charged flag rides). */
+    public void setSkullExplosionSink(SkullExplosionSink sink) {
+        this.skullExplosionSink = Objects.requireNonNull(sink, "sink");
     }
 
     /** Wires the ender pearl's teleport arm (Slice 17c). */
@@ -1103,8 +1118,11 @@ public final class ProjectileManager {
             if (projectile.kind() == ProjectileEntity.Kind.WITHER_SKULL) {
                 // WitherSkullEntity.onHit line 83: the skull detonates where
                 // it lands — the power-1 explosion (no fire, the skull's own
-                // onHit carries no flame arm) and the body leaves.
-                explosionSink.explode(point, 1.0f);
+                // onHit carries no flame arm) and the body leaves. The
+                // charged flag rides the blast's SOURCE model (the blue
+                // skull's 0.8 cap, WitherSkullEntity.getBlastResistance
+                // lines 43-51): the skull's own arm, not the fireball's.
+                skullExplosionSink.explode(point, 1.0f, projectile.charged());
                 remove(projectile, "hit");
                 return true;
             }

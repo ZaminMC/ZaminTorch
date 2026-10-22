@@ -43,14 +43,17 @@ public class TntMinecartEntity extends MinecartEntity
     /** The impact-detonation's threshold (tick line 55: 0.01). */
     public static final double IMPACT_SPEED_SQUARED = 0.01;
 
-    /** The explosion sink (the engine's blast walk with fire). */
+    /** The explosion sink (the engine's blast walk with fire). The primed
+     * flag rides the blast's SOURCE model (TntMinecartEntity lines 142-152:
+     * a primed cart's blast reads rail cells as free but never destroys
+     * them — the rail-sparing rule's own consult). */
     public interface BlastSink {
         /** The detonation at the point with the rolled power. */
-        void detonate(double x, double y, double z, float power);
+        void detonate(double x, double y, double z, float power, boolean primed);
     }
 
     private int fuseTicks = -1;
-    private BlastSink blastSink = (x, y, z, power) -> { };
+    private BlastSink blastSink = (x, y, z, power, primed) -> { };
     /**
      * The detonation's own death mark (explode line 129's {@code remove()}):
      * the annihilated body never drops — the reference's remove path runs
@@ -115,7 +118,7 @@ public class TntMinecartEntity extends MinecartEntity
             d0 = BLAST_SPEED_CLAMP;
         }
         float power = (float) (BLAST_BASE + random().nextDouble() * BLAST_SPEED_SCALE * d0);
-        blastSink.detonate(position().x(), position().y(), position().z(), power);
+        blastSink.detonate(position().x(), position().y(), position().z(), power, primed());
     }
 
     /** The detonation + the death (the explode's own remove — no drops). */
@@ -161,7 +164,7 @@ public class TntMinecartEntity extends MinecartEntity
             d0 = BLAST_SPEED_CLAMP;
         }
         float power = (float) (BLAST_BASE + random().nextDouble() * BLAST_SPEED_SCALE * d0);
-        blastSink.detonate(position().x(), position().y(), position().z(), power);
+        blastSink.detonate(position().x(), position().y(), position().z(), power, primed());
     }
 
     /** @return whether the detonation killed this body (the drop skip). */

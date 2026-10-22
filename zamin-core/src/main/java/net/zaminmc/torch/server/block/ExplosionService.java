@@ -51,6 +51,16 @@ public final class ExplosionService {
      * every destruction commits through the world listener path.
      */
     public List<Destroyed> detonate(BlockPosition center, float radius) {
+        return detonate(center, radius, BlastSource.PLAIN);
+    }
+
+    /**
+     * Detonates with the blast's SOURCE model (the reference's
+     * {@code Entity.getBlastResistance} + {@code canExplodeBlock} consults,
+     * Explosion lines 87-93): the plain default reads the block table; the
+     * wither's charged skull caps at 0.8; the primed TNT cart spares rails.
+     */
+    public List<Destroyed> detonate(BlockPosition center, float radius, BlastSource source) {
         Set<Destroyed> destroyed = new LinkedHashSet<>();
         double cx = center.x() + 0.5;
         double cy = center.y() + 0.5;
@@ -79,12 +89,25 @@ public final class ExplosionService {
                         BlockPosition cell = new BlockPosition(
                                 (int) Math.floor(px), (int) Math.floor(py), (int) Math.floor(pz));
                         BlockType type = world.getBlock(cell);
-                        if (!type.equals(worldAir())
-                                && destroyed.add(new Destroyed(cell, type))) {
-                            float resistance = blastResistance(type);
-                            strength -= (resistance / 5.0f + 0.3f) * 0.3f;
-                            if (strength > 0.0f) {
-                                world.setBlock(cell, worldAir());
+                        if (!type.equals(worldAir())) {
+                            // THE RESISTANCE CHARGE (Explosion.damageEntities
+                            // lines 86-91, 1:1): every non-air crossing pays
+                            // the block's READ value —
+                            // {@code f -= (f2 + 0.3F) * 0.3F} — the retired
+                            // form's hardness-proxy is gone; the table's own
+                            // number stands (stone 6, not 1.5).
+                            float resistance = source.blastResistance(world, cell, type);
+                            strength -= (resistance + 0.3f) * 0.3f;
+                            // THE DESTROY GATE (line 93): the strength
+                            // surviving AND the source's own veto — a cell
+                            // the ray could not afford never joins the
+                            // destroyed list (the pre-fix engine looted
+                            // unaffordable cells; the reference collects
+                            // only what it can pay).
+                            if (strength > 0.0f && source.canExplodeBlock(world, cell, type)) {
+                                if (destroyed.add(new Destroyed(cell, type))) {
+                                    world.setBlock(cell, worldAir());
+                                }
                             }
                         }
                         strength -= 0.22500001f; // the historical per-step cost
@@ -102,6 +125,29 @@ public final class ExplosionService {
     public record Destroyed(BlockPosition position, BlockType type) {
     }
 
+    /**
+     * The detonation's source model (the reference's Entity consults,
+     * Explosion.damageEntities lines 87-93): the plain default reads the
+     * block table (the Entity default, line 1732 —
+     * {@code state.getBlock().getBlastResistance(this)}); the wither's
+     * charged skull caps destroyable blocks at 0.8 (WitherSkullEntity lines
+     * 43-51 over WitherEntity.canDestroy 320-326); the primed TNT cart
+     * reads rail cells as free but never destroys them (TntMinecartEntity
+     * lines 142-152).
+     */
+    public interface BlastSource {
+        /** The per-crossing resistance the ray pays for this block. */
+        float blastResistance(World world, BlockPosition pos, BlockType type);
+
+        /** Whether this source's blast may destroy the block at all. */
+        default boolean canExplodeBlock(World world, BlockPosition pos, BlockType type) {
+            return true; // the Entity default (line 1739)
+        }
+
+        /** The plain source: the block table's own read, no veto. */
+        BlastSource PLAIN = (world, pos, type) -> ExplosionService.blastResistance(type);
+    }
+
     private BlockType worldAir() {
         // The world's air type, read through any cell of the sky: the
         // y-255 cell of an empty column. Cached per call — the flat world's
@@ -116,6 +162,12 @@ public final class ExplosionService {
      * hole under water floods, it does not drain the ocean.
      */
     public static float blastResistance(BlockType type) {
+        // THE TABLE FIRST (the reference's own values — Block.getBlastResistance's
+        // read family): the unmapped fall through to the standing convention.
+        Float table = BlastResistanceTable.read(type.identifier());
+        if (table != null) {
+            return table;
+        }
         var behavior = net.zaminmc.torch.server.block.BlockBehaviorTable.of(type.identifier()).orElse(null);
         if (behavior == null || !behavior.diggable()) {
             return Float.MAX_VALUE; // unregistered or unbreakable: the blast yields
@@ -123,6 +175,6 @@ public final class ExplosionService {
         if (behavior.hardness() < 0) {
             return Float.MAX_VALUE;
         }
-        return (float) (behavior.hardness() * 5.0);
+        return (float) (behavior.hardness() * 5.0); // the retired approximation's last resort
     }
 }

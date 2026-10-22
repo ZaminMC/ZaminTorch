@@ -120,7 +120,7 @@ class VehicleWorldDamageTest {
         final List<float[]> detonations = new ArrayList<>();
         TntMinecartEntity cart = new TntMinecartEntity(3_200,
                 new Position(0.5, 64.0, 0.5), new Random(71L));
-        cart.setBlastSink((x, y, z, power) -> detonations.add(
+        cart.setBlastSink((x, y, z, power, primed) -> detonations.add(
                 new float[]{(float) x, (float) y, (float) z, power}));
         RiggedHits hits = new RiggedHits();
         hits.vehicle = cart;
