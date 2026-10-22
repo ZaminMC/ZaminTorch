@@ -17278,6 +17278,20 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /**
+     * The achievement surface (VIII6 — the 34-row table + the per-player
+     * unlocked read): the public §27.3 query view (the frozen table
+     * rows, the by-key lookup, the live per-player unlocked set). The
+     * view is stateless — the table is a static registration and the
+     * per-player read resolves the session's own PlayerStats per call
+     * (§27.5) — so unlike the census view it needs no boot wiring: even
+     * a pre-boot server answers the frozen table.
+     */
+    @Override
+    public net.zaminmc.torch.stat.Achievements achievements() {
+        return net.zaminmc.torch.server.stat.AchievementViews.INSTANCE;
+    }
+
+    /**
      * Registers the ender-crystal observer (the protocol adapter's Spawn
      * Object 200 + the slot-8 Int metadata + the Destroy fan-out).
      */
