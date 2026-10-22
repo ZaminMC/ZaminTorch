@@ -164,3 +164,153 @@ load harness over EngineServer — N sessions, mob population, chunk
 generation pressure — sampling tick-time distribution, section timings,
 allocation/GC via `-Xlog:gc`. No concurrency work will be recommended
 without these numbers (§22 discipline).
+
+---
+
+## Cycle-3 continued (same day, post-commit 5b20386e)
+
+## Phase 2 additions — the multiplayer playtest findings
+
+The load phase (4 walking mineflayer bots + a 100-zombie horde + an
+accidental respawn-kill storm) surfaced findings a single-bot validator
+cannot reach:
+
+### Finding B-5 (HIGH, wire conformance): Named Entity Spawn metadata chokes an independent parser
+
+With four players mutually visible, mineflayer's protodef parser threw
+`PartialReadError` while reading the **entity metadata field of the
+Named Entity Spawn (0x0C) packet** — an i32 read past the buffer end
+inside `entityMetadataItem`. Stack: `packet_named_entity_spawn` →
+`entityMetadata` → `entityMetadataItem` → `i32`.
+
+Implication: at least one 0x0C the engine writes carries a metadata
+item whose declared type implies more bytes than the item carries (or a
+terminator/index handling difference). The single-bot validator cannot
+see this (no second player to observe). The affected bot SURVIVED
+(mineflayer's error handler), so severity = conformance risk on strict
+clients, not a crash.
+
+Repro: 4+ mineflayer bots spawning at one cell; capture the raw 0x0C
+frames (`bot.on('raw')`) and hex-dump the frame the parser rejects.
+Next step: a focused protocol test comparing the engine's 0x0C metadata
+encoding against the reference's `DataWatcher` wire form for every
+watched type.
+
+### Finding B-6 (positive): the respawn-kill storm is survivable
+
+The horde killed the spawner bot at ~3 Hz for minutes (death walk +
+respawn + chunk re-stream per cycle). The server kept ticking, kept
+answering console commands, never leaked connections, and shut down
+cleanly afterward. No crash, no wedged state. This is a stress-pass
+observation worth recording.
+
+### Finding B-7 (papercut): /debug stop prints no section table
+
+The profiler traced 2477 tick events over 150s but the console report
+shows only the one-line summary. `EngineProfiler.sectionNanosSnapshot()`
+exists — the /debug stop arm should print the section table (the
+reference's own /debug report shape). This blocks per-subsystem
+attribution from the console today.
+
+### Playtest coverage summary (executed, not claimed)
+
+- Startup/shutdown/config/persistence: boot ~5s, three dimensions,
+  graceful console stop <1s, world + per-player .zpd persisted. PASS.
+- Login/disconnect/movement: 6 mineflayer logins, teleports, walking,
+  jumping, sneaking, look packets. PASS (minus B-5's parse error).
+- Blocks/inventory/crafting/containers: dig+pickup, chest
+  deposit/withdraw/reopen, furnace smelt both variants. PASS.
+- Combat/damage/death/respawn: mob melee, death animation, loot drops,
+  player death by zombie, respawn (incl. the B-6 storm). PASS.
+- Entities/AI: pig wander, zombie spawn/burnout at dawn, 100-zombie
+  pathfinding under load. PASS.
+- Chunk loading: teleport re-anchor at 72+ blocks (opped), chunk
+  re-stream through the respawn storm. PASS.
+- Network/error recovery: unclean reset logged noisy but recovered
+  (B-4); malformed-input testing NOT yet run this cycle (backlog).
+- NOT tested (honest limits): real Mojang client, multiplayer latency
+  beyond loopback, nether/end travel via portal, world-border edges,
+  zombie persistence across restart (the file evidence exists; the
+  live-restore check was cut short by the cycle window).
+
+## Phase 3 — the measured baseline (torch-1.8.8-127, this container)
+
+Method: the release jar on loopback; load = 4 walking/jumping/sneaking
+mineflayer bots (staggered chunk sets), then +100 zombies with active
+AI, then the accidental ~3 Hz respawn-kill storm (death walk + respawn
++ full chunk re-stream per cycle). TPS read from the engine's own /tps
+(1/5/15-min windows); tick count from /debug (2477 ticks / 150.025s).
+
+| Load phase | TPS (1m) |
+|---|---|
+| Idle server | 20.0 |
+| + 4 walking bots | 20.0 (no measurable cost) |
+| + zombie horde | 18.0 |
+| + respawn-kill storm (composite worst case) | 12.0 |
+
+Interpretation (within the stated limits — one container, no jstat
+attribution yet, no section table from B-7):
+
+- The single gameplay lane holds full 20 TPS through light multiplayer
+  load. The degradation to 12 TPS came from the pathological composite:
+  ~100 pathfinding zombies PLUS a per-tick chunk re-stream storm. That
+  is not a normal 20-player server's load shape, but it IS a measured
+  saturation point of the current single-lane design.
+- No concurrency phase is justified by THIS data alone: the bottleneck
+  attribution (entity AI vs chunk re-stream vs respawn walk) is unknown
+  until B-7's section table exists. The correct next step is
+  attribution tooling, not Phase 5/6 wiring. The architecture file
+  already records a measured lighting win (fff9698) and a REJECTED
+  pathfinding offload (531fc22) — the §22 evidence discipline works;
+  hold the line.
+
+## Phase 4 — the ranked backlog (deduplicated)
+
+### Release-blocking
+1. **A-1 (fix landed this cycle, 5b20386e)**: the two load flakes.
+   Verify via CI on the PR; the release pipeline should go green and
+   torch-1.8.8-128+ should publish again.
+
+### High priority
+2. **B-5**: the 0x0C metadata encoding audit (wire conformance on
+   strict clients). Repro + a pinned protocol test against the
+   reference DataWatcher form.
+3. **B-2 (open)**: the chest-window slot-27 transaction rejection
+   (state-dependent, not yet reproduced deterministically). Add
+   rejection-reason diagnostics to windowClickOnTick first (FINE log),
+   then re-run the validator until the state recurs.
+
+### Medium
+4. **B-3**: /op offline players (reference-walk verified; small fix).
+5. **B-7**: /debug stop section table (unblocks attribution).
+6. **Perf attribution pass**: re-run the Phase-3 load with the section
+   table + jstat; produce the per-subsystem breakdown the concurrency
+   gates require. THEN and only then evaluate Phase 5/6 against §22.
+7. **The validator harness op-flow** (B-1): op the bot (console pipe
+   or a test-mode flag) so the validator runs as designed end-to-end.
+
+### Low / papercuts
+8. B-4 items: --port override ignored; unclean-exit stacktrace noise;
+   console /summon + /spawnmob player-only (vanilla console can both);
+   /give form divergence (record-or-align decision).
+
+### Known-gap tails (from the compat ledger's 25 "Ledgered:" rows)
+9. The standing tails stay owned by their families (particles, stats,
+   armor-model edges, spawner NBT, CustomName rows, etc.) — no new
+   wave until the release blockers + high rows are closed.
+
+### Not opened this cycle (respecting standing orders)
+- Minestom: abandoned (ADR-0001). Out of every ledger permanently.
+- §28.7 adapter: deferred per §27.1 (the zamin-bukkit module exists and
+  is tested — 52 tests in CI — but activation stays the owner's call).
+- Concurrency Phases 5-8: gated on §22 evidence; no wiring started.
+
+## Recommendation for the next cycle
+
+Close the release pipeline (A-1 verification on CI, then the 128+
+release), then **B-5 (the 0x0C audit)** — it is the only finding that
+touches every multiplayer session on a strict client, it has a clean
+repro path, and its fix shape (a pinned protocol test over the
+DataWatcher form) is exactly the house style. Pair it with B-7 + the
+attribution pass so the following cycle can make the Phase 5/6 call on
+real numbers.
