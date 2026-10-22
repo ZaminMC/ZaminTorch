@@ -12466,3 +12466,48 @@ Stage Summary:
 - README TODO row 3 retired. Remaining vanilla rows: the water travel model
   (4), the explosion family (5-6), the dragon respawn (7), the thorns mob
   arm (8), the wither exemptions (9), the world-event radius (10).
+---
+Task ID: water-travel-model (the README TODO's row 4)
+Agent: main (Abasing session — the 2026-10-22 continuation)
+Task: The water branch's own travel model — the reference's travel water arm
+against the engine's standing clamp.
+
+Work Log:
+- Landed the whole arm at both sites: the walker's water branch and the
+  mount walk's own branch now carry the reference's form
+  `velocityY = velocityY * 0.8 - 0.02` (LivingEntity.travel's water arm,
+  lines 1215-1245) — the -0.10 terminal sink (was the clamp's instant -0.04
+  floor) and the GEOMETRIC plunge transient (a body keeps ~80% of its speed
+  each submerged tick, settling over ~5), the F1 order note riding here too
+  (the engine's drag-before-move, one tick against the reference).
+- Carried the swim input whole with it: the FLOAT goal's retired
+  +0.05/cap-0.08 approximation replaced by the reference's own cadence —
+  SwimGoal.tick's `nextFloat() < 0.8F` roll (the 20% of ticks with no
+  input), then the jump block's jumpInWater flat `+0.04` (no cap — the
+  water arm's drag is the governor, the composite's steady rise +0.06).
+  The roll lands inside the goal's own tick (no draw when the goal does
+  not claim — non-fluid scripted ladders untouched).
+- Verified the wading walk's steady state equal to the reference's
+  water-arm input model: 0.02/(1-0.8) = 0.1 blocks/tick both models (the
+  engine's *0.5 wading cut over its walk speeds is the engine-shaped
+  equivalent of the reference's 0.02 base acceleration).
+- Depth Strider named as a boundary (structurally zero on this engine's
+  bodies — no boots on the bare vanilla mob/mount set, the enchantment
+  row's own record), the base form is the whole arm.
+- Rewrote the affected tests: LavaMotionDragTest's water contrast (the
+  first submerged tick now -0.388 vs the lava's -0.25 — the water KEEPS
+  more of the plunge; the old contrast asserted the clamp's instant bite),
+  the lava equilibrium re-derived (the +0.04 input, the 0.5 drag and the
+  -0.02 gravity cancel to the exact-zero halving map); ClimbOutAssistTest's
+  hop window re-pinned (three hops at ~0.25/tick, the POINT consult closing
+  the window); LavaWalkTest's water fall-store read made honest (the
+  zero-then-accumulate order, the store = the current tick's descent in
+  (0, 0.55) — the old read was VACUOUS, the clamp's instant floor bobbed
+  the body up before the band ever fired); WitchEntityTest's submerged
+  scripted ladder shifted one seat (the FLOAT roll's draw ahead of the
+  drink arms').
+
+Stage Summary:
+- README TODO row 4 retired. Remaining vanilla rows: the explosion family
+  (5-6), the dragon respawn (7), the thorns mob arm (8), the wither
+  exemptions (9), the world-event radius (10).

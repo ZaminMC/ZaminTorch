@@ -7395,7 +7395,12 @@ public final class MobEntity implements LivingEntity {
             // ridden body's own drag triple + the weak gravity).
             velocityY = velocityY * 0.5 - 0.02;
         } else if (inFluid) {
-            velocityY = Math.max(velocityY - GRAVITY_PER_TICK, -0.05) * 0.8;
+            // And the same travel WATER arm (the water arm's own model —
+            // the walker's slice at the body tick, the clamp retired here
+            // with it): {@code v = v * 0.8 - 0.02}, the geometric
+            // transient and the -0.10 terminal sink, the reference's own
+            // form under the engine's before-move order.
+            velocityY = velocityY * 0.8 - 0.02;
         } else if (onGround) {
             velocityY = 0.0;
         } else {
@@ -7797,7 +7802,21 @@ public final class MobEntity implements LivingEntity {
     }
 
     void goalSwimUp() {
-        velocityY = Math.min(velocityY + 0.05, 0.08);
+        // THE SWIM INPUT (SwimGoal.tick, goal/SwimGoal.java lines 17-25:
+        // {@code if (random.nextFloat() < 0.8F) getJumpControl().setActive()}
+        // — the 0.8 roll, then the jump block's water consult,
+        // LivingEntity lines 1446-1453 over jumpInWater 1126-1128:
+        // {@code velocityY += 0.04F}): the reference's own cadence — the
+        // input lands on ~80% of ticks (the goal's per-tick roll), the
+        // flat add with NO cap. The water arm's drag is the governor (the
+        // composite's steady rise: v = 0.8(v + 0.04) - 0.02 → the +0.06
+        // fixed point; the retired form was the unconditional
+        // +0.05/cap-0.08 approximation, folded away with the clamp it
+        // fed).
+        if (random.nextFloat() >= 0.8F) {
+            return; // this tick's roll refused — no swim input (the 20%)
+        }
+        velocityY += 0.04;
         onGround = false;
     }
 
@@ -8867,17 +8886,38 @@ public final class MobEntity implements LivingEntity {
         if (inLava) {
             // LivingEntity.travel's lava arm (lines 1202-1214): the
             // harder drag + the weak gravity on the VERTICAL —
-            // {@code v = v * 0.5 - 0.02} (the steady sink -0.04, the same
-            // terminal the clamped water model reaches, but the TRANSIENT
-            // differs: a plunging body decelerates geometrically over ~5
-            // ticks, not instantly — Slice 93/F1's split of the shared
+            // {@code v = v * 0.5 - 0.02} (the steady sink -0.04; the water
+            // arm's own terminal is now the deeper -0.10 — the water arm
+            // slice below carries its own form); the TRANSIENT stays the
+            // lava's: a plunging body decelerates geometrically over ~5
+            // ticks — Slice 93/F1's split of the shared
             // fluid branch; the engine applies the drag before its move, a
             // one-tick phase against the reference's move-then-drag
             // order, ledgered). The HORIZONTAL drag rides the damping
             // line below (the same *0.5, applied once — not both).
             velocityY = velocityY * 0.5 - 0.02;
         } else if (inFluid) {
-            velocityY = Math.max(velocityY - GRAVITY_PER_TICK, -0.05) * 0.8;
+            // THE WATER ARM'S OWN TRAVEL MODEL (LivingEntity.travel's
+            // water arm, lines 1238-1245 — the clamp retired): the
+            // reference's form is {@code v = v * 0.8 - 0.02} — the drag
+            // (0.8, the water's own horizontal family) then the weak
+            // water gravity (-0.02, NOT the land arm's heavier term), a
+            // GEOMETRIC transient: a plunging body keeps ~80% of its
+            // speed each submerged tick and settles on the terminal sink
+            // -0.10 over ~5 ticks — never the retired clamp's instant
+            // -0.04 floor. The Depth Strider consult the reference folds
+            // into this arm's f1/f2 (0.54600006 at level 3) is
+            // structurally zero on this engine's bodies (the enchantment
+            // row's own boundary: no boots on the bare vanilla mob/mount
+            // set), so the base form is the whole arm here. The engine
+            // applies the drag before its move like the F1 lava note (a
+            // one-tick phase against the reference's move-then-drag
+            // order, ledgered with that slice). The HORIZONTAL drag rides
+            // the damping line below (the same *0.8) and the wading walk
+            // (the *0.5 walk cut) — the engine-shaped equivalents of the
+            // reference's 0.02-input water-arm walk (the steady states
+            // agree: 0.02/(1-0.8) = 0.1 blocks/tick both models).
+            velocityY = velocityY * 0.8 - 0.02;
         } else if (onGround && velocityY <= 0.0) {
             // A grounded body at rest carries no vertical speed — but a
             // POSITIVE write (the blaze's hover, an explosion's launch)

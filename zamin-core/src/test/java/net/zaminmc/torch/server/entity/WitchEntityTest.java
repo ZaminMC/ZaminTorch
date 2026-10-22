@@ -253,7 +253,10 @@ class WitchEntityTest {
     void theDrinkLadderGatesOnTheLiveStore() {
         // The water-breathing arm's hasStatusEffect clause (mobTick line
         // 107): a submerged witch already breathing water never re-drinks.
-        ScriptedRandom random = new ScriptedRandom(0.0f);
+        // The ladder's head seat: the FLOAT goal's 0.8 roll (the SwimGoal
+        // tick — the mind's goal layer runs before the body's drink arms)
+        // draws first; the second 0.0 is the water arm's own 0.15 roll.
+        ScriptedRandom random = new ScriptedRandom(0.0f, 0.0f);
         MobBodies bodies = new MobBodies();
         PotionSystem potions = new PotionSystem(bodies);
         MobManager manager = new MobManager(worldAt(null, true), random,
@@ -265,10 +268,11 @@ class WitchEntityTest {
         potions.add(witch, new StatusEffectInstance(StatusEffects.WATER_BREATHING, 400, 0));
         assertTrue(potions.hasEffect(witch, StatusEffects.WATER_BREATHING));
 
-        // The scripted ladder: the water arm's roll passes (0.0 < 0.15)
-        // and the stub world is submerged — only the live-store gate can
-        // refuse the drink. The fire/heal/speed arms and the aura all read
-        // the safe 0.5 after.
+        // The scripted ladder: the FLOAT roll passes (0.0 < 0.8, the swim
+        // input +0.04 this tick), the water arm's drink roll passes
+        // (0.0 < 0.15) and the stub world is submerged — only the
+        // live-store gate can refuse the drink. The fire/heal/speed arms
+        // and the aura all read the safe 0.5 after.
         witch.tick(false);
         assertFalse(witch.witchDrinking(),
                 "the live water breathing refused the redundant drink");

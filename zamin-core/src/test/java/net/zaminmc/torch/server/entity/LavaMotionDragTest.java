@@ -13,9 +13,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * lines 1202-1214): the harder drag triple ({@code v *= 0.5} per
  * component) plus the weak gravity ({@code v -= 0.02} on the vertical) —
  * the GEOMETRIC transient (a plunging body keeps most of its speed the
- * first submerged tick and decelerates over ~5, not the water clamp's
- * instant -0.04) and the horizontal crawl (the *0.5 damping vs the
- * water's 0.8).
+ * first submerged tick and decelerates over ~5) and the horizontal crawl
+ * (the *0.5 damping vs the water's 0.8 — the water arm now carries its
+ * own geometric form too, {@code v = v * 0.8 - 0.02}, the same slice
+ * family that retired the old instant clamp).
  */
 class LavaMotionDragTest {
 
@@ -57,11 +58,10 @@ class LavaMotionDragTest {
     @Test
     void thePlungeKeepsItsSpeedTheFirstSubmergedTick() {
         // A body ARRIVING at -0.5 (a plunge from height): the first
-        // submerged tick keeps most of the speed — the swim goal's +0.05
-        // then the drag (v = (v + 0.05) * 0.5 - 0.02 = -0.245) — the
-        // geometric transient, NOT the water clamp's instant -0.04 (the
-        // reference's move-then-drag order over ~5 ticks; the engine's
-        // one-tick-phase note rides the ledger).
+        // submerged tick keeps most of the speed — the swim input's +0.04
+        // then the drag (v = (v + 0.04) * 0.5 - 0.02 = -0.25) — the
+        // geometric transient (the reference's move-then-drag order over
+        // ~5 ticks; the engine's one-tick-phase note rides the ledger).
         StubWorld lavaWorld = new StubWorld(DEEP, 60.0, DEEP);
         MobEntity inLava = body(MobType.COW, lavaWorld);
         inLava.addVelocity(0.0, -0.5, 0.0);
@@ -72,25 +72,35 @@ class LavaMotionDragTest {
                 "the plunge keeps most of its speed the first tick: dy=" + dy);
         assertTrue(dy > -0.30,
                 "the drag is clearly active (the air fall would be -0.53): dy=" + dy);
-        // The water contrast: the clamp bites immediately (-0.04).
+        // The water contrast (the water arm's OWN model — the retired
+        // clamp's instant -0.04 floor is gone): the same geometric
+        // transient at the water's gentler 0.8 drag — the first submerged
+        // tick keeps ~80% of the plunge (v = (-0.5 + 0.04) * 0.8 - 0.02 =
+        // -0.388), so the water's first tick sinks FASTER than the lava's
+        // (the 0.5 drag bites harder than the 0.8) — both settle
+        // geometrically after (water terminal -0.10, lava -0.04).
         StubWorld waterWorld = new StubWorld(DEEP, DEEP, 60.0);
         MobEntity inWater = body(MobType.COW, waterWorld);
         inWater.addVelocity(0.0, -0.5, 0.0);
         double waterBefore = inWater.position().y();
         inWater.tick(false);
         double waterDy = inWater.position().y() - waterBefore;
-        assertTrue(waterDy > -0.10,
-                "the water clamp bites immediately: dy=" + waterDy);
-        assertTrue(waterDy > dy,
-                "the lava's first tick sinks faster than the water's");
+        assertTrue(waterDy < -0.30,
+                "the water keeps most of the plunge: dy=" + waterDy);
+        assertTrue(waterDy > -0.45,
+                "the water drag is active (the air fall would be -0.53): dy=" + waterDy);
+        assertTrue(waterDy < dy,
+                "the water's first tick sinks faster than the lava's: " + waterDy + " vs " + dy);
     }
 
     @Test
     void theSinkSettlesTowardTheDragFixedPoint() {
-        // The interplay's fixed point: the swim goal's +0.05 input against
-        // the drag settles NEAR ZERO (the bobbing equilibrium, the
-        // reference's own jumpInLava-vs-drag shape) — never the deep sink
-        // of an unswimming body, never a runaway rise.
+        // The interplay's fixed point: the swim input's +0.04 against the
+        // drag settles at EXACTLY ZERO under the new form (v = 0.5(v + 0.04)
+        // - 0.02 = 0.5v — the +0.04 input, the 0.5 drag and the -0.02
+        // gravity cancel to the halving map alone) — the bobbing
+        // equilibrium, the reference's own jumpInLava-vs-drag shape; never
+        // the deep sink of an unswimming body, never a runaway rise.
         StubWorld world = new StubWorld(DEEP, 60.0, DEEP);
         MobEntity mob = body(MobType.COW, world);
         mob.addVelocity(0.0, -0.5, 0.0);
@@ -99,7 +109,7 @@ class LavaMotionDragTest {
         }
         double settled = mob.velocityY();
         assertTrue(settled > -0.03 && settled < 0.05,
-                "the swim-vs-drag equilibrium (near zero, the slow bob): " + settled);
+                "the swim-vs-drag equilibrium (the exact-zero halving fixed point): " + settled);
     }
 
     @Test
