@@ -6285,9 +6285,9 @@ public final class EngineServer implements Server, EngineBridge {
      * ({@code getEquipmentWithEnchantment}). The row is captured by the
      * caller: the reference fires the wildcard in the attacker's walk
      * before the victim's takeDamage runs, so a killing blow still
-     * retaliates through the worn pieces. Mob victims wear no enchanted
-     * armor yet — the walk reads only the player rows, the structural zero
-     * the ledger records (the same shape as the crit walk's blindness arm).
+     * retaliates through the worn pieces. The MOB victims ride the
+     * sibling walk {@link #applyThornsWildcardMob} (the README TODO's row
+     * 8 — the same law over MobEntity's five-slot equipment row).
      * Tick-thread context.
      */
     private void applyThornsWildcard(PlayerSession victim, ItemStack[] armorRow,
@@ -6324,6 +6324,111 @@ public final class EngineServer implements Server, EngineBridge {
                 publishInventoryChanged(victim); // worn or broken pieces re-sync
             }
         }
+    }
+
+    /**
+     * The thorns retaliation target for a MOB wearer's row: the living body
+     * the wearing mob's thorns bites back at (the reference wildcard's
+     * {@code target} — the melee attacker, the arrow's shooter, the
+     * fireball's shooter).
+     */
+    private interface MobThornsTarget {
+        /** The reference's {@code target.takeDamage(DamageSource.thorns(wearer), amount)}. */
+        void takeThornsDamage(int amount, MobEntity thornsWearer);
+
+        /** The sound position (the reference plays at {@code target}). */
+        Position position();
+    }
+
+    /**
+     * The thorns wildcard's mob-victim arm (the README TODO's row 8 — the
+     * reference's {@code applyProtectionWildcard} over a MOB wearer,
+     * MobEntity.getEquipment's FIVE-slot array: the held piece rides with
+     * the armor, the reference's own equipment row). Every piece carrying
+     * Thorns rolls the 15%-per-level proc independently (the same
+     * ThornsEnchantment walk the player victims ride); a proc deals the
+     * 1-4 roll through the target's own damage walk and plays
+     * {@code damage.thorns} at the target; the wear (3 on a proc, 1 on a
+     * miss, accumulated per visited piece) lands on the FIRST thorns piece
+     * through {@link #wearMobEquipmentStack} — the Unbreaking per-unit walk,
+     * a broken piece leaves the slot (the Entity Equipment re-publish rides
+     * the change; mobs have no gamemode, the reference's creative-holder
+     * skip is player-only). The kill credit for a mob wearer is
+     * structurally absent (mobs carry no kill stats — the same boundary the
+     * guardian spike records); the wearer's held LOOTING rides the victim's
+     * death loot through the target impls. Tick-thread context.
+     */
+    private void applyThornsWildcardMob(MobEntity victim, MobThornsTarget target) {
+        // The five-slot row (the reference's MobEntity.getEquipment array):
+        // the held piece at 0, the armor family at 1..4.
+        ItemStack[] row = {
+                victim.equipment(0), victim.equipment(1), victim.equipment(2),
+                victim.equipment(3), victim.equipment(4)};
+        ItemStack first = EnchantmentHelper.equipmentWithEnchantment(
+                Enchantments.THORNS.id, row);
+        int wear = 0;
+        int firstSlot = -1;
+        if (first != null) {
+            for (int i = 0; i < row.length; i++) {
+                if (row[i] == first) {
+                    firstSlot = i;
+                    break;
+                }
+            }
+        }
+        for (ItemStack piece : row) {
+            int level = EnchantmentHelper.level(piece, Enchantments.THORNS.id);
+            if (level <= 0) {
+                continue;
+            }
+            if (EnchantmentHelper.thornsShouldDamage(level, gameplayRandom)) {
+                wear += 3;
+                target.takeThornsDamage(
+                        EnchantmentHelper.thornsDamage(level, gameplayRandom), victim);
+                fxManager.sound(target.position(), "damage.thorns", 0.5f, 1.0f);
+            } else {
+                wear += 1;
+            }
+        }
+        if (first != null && wear > 0 && firstSlot >= 0) {
+            wearMobEquipmentStack(victim, firstSlot, wear);
+        }
+    }
+
+    /**
+     * The mob equipment's own wear walk (the README TODO's row 8 — the
+     * reference's {@code ItemStack.takeDamageAndBreak} over the wearing
+     * mob's piece): the Unbreaking per-unit walk (the G1 armor gate —
+     * {@code unbreakingReducedWear(piece, amount, true, random)}), then the
+     * damage bump; a piece past its durability leaves the slot EMPTY (the
+     * reference's {@code size--} on break — the consumed piece) and the
+     * Entity Equipment re-publish rides {@link MobManager#equipmentChanged}
+     * (the /summon walk's own publication path). The holder has no
+     * gamemode (the reference's creative skip is player-only) and the
+     * break carries no sound on this engine's wear surface (the same
+     * boundary the player walk's silent break records).
+     *
+     * @return whether the slot changed (worn or broken)
+     */
+    private boolean wearMobEquipmentStack(MobEntity mob, int slot, int amount) {
+        ItemStack piece = mob.equipment(slot);
+        if (piece.isEmpty() || piece.type().maxDurability() <= 0
+                || piece.unbreakable()) {
+            return false;
+        }
+        int landing = EnchantmentHelper.unbreakingReducedWear(
+                piece, amount, true, gameplayRandom);
+        if (landing <= 0) {
+            return false; // every unit rolled away: the piece is untouched
+        }
+        int newDamage = piece.damage() + landing;
+        mob.setEquipment(slot, newDamage >= piece.type().maxDurability()
+                ? ItemStack.EMPTY // the piece breaks: the slot empties
+                : piece.withDamage(newDamage));
+        if (mobManager != null) {
+            mobManager.equipmentChanged(mob); // the Entity Equipment re-publish
+        }
+        return true;
     }
 
     private void publishKnockback(PlayerSession victim, double vx, double vy, double vz) {

@@ -611,6 +611,30 @@ public final class MobManager {
     }
 
     /**
+     * The thorns retaliation consult (the README TODO's row 8 — the
+     * reference's Entity.damageEntity base method over a MOB victim:
+     * MonsterEntity.attack / IronGolemEntity.tryDamage / SlimeEntity /
+     * WolfEntity's melee walks fire it on every landed hit): the VICTIM's
+     * worn thorns bite the attacking mob back. Wired from the engine
+     * (EngineServer owns the walk — the same shape as the player-victim
+     * sites). Null until the engine wires it; the unwired boot keeps the
+     * historical no-retaliation behavior (the same fallback law as the
+     * local-difficulty seam).
+     */
+    public interface ThornsRetaliation {
+        /** The reference's {@code damageEntity(source, entity)} pair. */
+        void biteBack(MobEntity victim, MobEntity attacker);
+    }
+
+    private volatile ThornsRetaliation thornsRetaliation;
+
+    /** Wires the thorns retaliation consult (the engine's own boot). */
+    public void setThornsRetaliation(ThornsRetaliation thornsRetaliation) {
+        this.thornsRetaliation = java.util.Objects.requireNonNull(
+                thornsRetaliation, "thornsRetaliation");
+    }
+
+    /**
      * The {@code doMobLoot} read (Slice 24a — LivingEntity.die's gate:
      * the loot rolls and the XP release both skip when the rule is
      * off). Null keeps the historical always-drop behavior.
@@ -2444,6 +2468,18 @@ public final class MobManager {
                 for (Listener listener : listeners) {
                     listener.onMobSoundAt(attacker, "mob.irongolem.throw", 1.0F, 1.0F);
                 }
+            }
+            // The thorns wildcard's mob-victim arm (the README TODO's row 8
+            // — the reference's Entity.damageEntity(source, entity) at the
+            // mob melee walks: IronGolemEntity.tryDamage line 159,
+            // MonsterEntity.attack line 101, SlimeEntity line 202, WolfEntity
+            // line 277 — the victim's worn thorns bite the attacking mob
+            // back on every landed hit, the same walk the player victims
+            // already carry). The seam consults the engine-side walk; an
+            // unwired boot keeps the historical no-retaliation behavior.
+            ThornsRetaliation thorns = thornsRetaliation;
+            if (thorns != null) {
+                thorns.biteBack(victim, attacker);
             }
             if (!victim.dead()) {
                 applyRevenge(victim, attacker);
