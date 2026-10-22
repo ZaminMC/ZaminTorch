@@ -158,8 +158,20 @@ exposure, then concurrency phases, then standing deferrals.
 
 ### C. Native API exposure (the Wave IX demand-named tail — NATIVE_API_CAPABILITIES.md §9)
 
-11. The mob equipment read/set on `entity.LivingEntity` (the five-slot family,
-    VIII4's engine surface has no api handle).
+11. ~~The mob equipment read/set on `entity.LivingEntity` (the five-slot family,
+    VIII4's engine surface has no api handle)~~ — LANDED 2026-10-22: the
+    handle carries the five-slot family whole — the forgiving reads
+    (`equipmentAt`/`equipmentStacks`, bare slots as the canonical empty
+    stack, out-of-band reads empty — never the engine's clamped
+    held-echo) + the `setEquipmentAt` write arm routing the ONE
+    authoritative `setEquipment` (the same route the spawn dice, the
+    anvil import's Equipment rows and the ZVD persistence ride) behind
+    the §27.6 owner-context assert, then the manager's Entity Equipment
+    re-publish. `EquipmentApiAcceptanceTest` proves the family through
+    zamin-api: the live-object landing (§27.5 — the same reference, no
+    copy), the armor consult seeing the write, the publish wake, the
+    clear's bare-form restore, the band guards, the removed-body
+    lifecycle, the off-lane rejection.
 12. The achievement reads: `Server.achievements()` (the 34-row table) + the
     per-player unlocked set (VIII6's surface).
 13. `Server.anvilImport()` — the plugin-facing import verb over the same I/O

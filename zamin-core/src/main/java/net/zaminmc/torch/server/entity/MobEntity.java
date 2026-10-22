@@ -4534,6 +4534,87 @@ public final class MobEntity implements LivingEntity {
         this.armorEquipment[slot - 1] = stack;
     }
 
+    // --- the public equipment family (§27.3's VIII4 exposure — the engine
+    // object IS the handle, §27.5; the forgiving api forms over the engine's
+    // own null-form reads) --------------------------------------------
+
+    /**
+     * The public write path's hook (the VIII4 exposure — the unleash
+     * detacher's own family): the wired route carries the §27.6
+     * owner-context assert, the one authoritative {@link #setEquipment},
+     * and the manager's Entity Equipment re-publish. Null in bare
+     * harnesses — {@link #setEquipmentAt} then falls back to the raw
+     * authoritative write (the state still lands, the unleash
+     * pattern's own bare form).
+     */
+    private java.util.function.BiConsumer<Integer, ItemStack> equipmentWritePath;
+
+    /** Called by the owning manager at spawn (and by the retro-wiring setter). */
+    public void setEquipmentWritePath(java.util.function.BiConsumer<Integer, ItemStack> path) {
+        this.equipmentWritePath = path;
+    }
+
+    /** The public §27.3 count: the reference's own five (line 60's array). */
+    @Override
+    public int equipmentSlotCount() {
+        return 1 + armorEquipment.length;
+    }
+
+    /**
+     * The public §27.3 five-slot read: the canonical empty stack for a
+     * bare slot (the engine's own null form never crosses the api —
+     * the PlayerInventory armorAt convention) and for a slot outside
+     * the band (the forgiving read, Vehicle.Cargo's own form — never
+     * the engine's clamped held-echo).
+     */
+    @Override
+    public ItemStack equipmentAt(int slot) {
+        if (slot < 0 || slot > armorEquipment.length) {
+            return ItemStack.EMPTY;
+        }
+        ItemStack at = equipment(slot);
+        return at == null ? ItemStack.EMPTY : at;
+    }
+
+    /**
+     * The public §27.3 band copy: the five stacks with the bare slots
+     * as the canonical empty stack (the record's immutability keeps
+     * the copy behavior-free — armorStacks' own note).
+     */
+    @Override
+    public ItemStack[] equipmentStacks() {
+        ItemStack[] copy = new ItemStack[1 + armorEquipment.length];
+        for (int slot = 0; slot < copy.length; slot++) {
+            ItemStack at = equipment(slot);
+            copy[slot] = at == null ? ItemStack.EMPTY : at;
+        }
+        return copy;
+    }
+
+    /**
+     * The public §27.3 write arm: the band guard first (an out-of-band
+     * or null write is ignored — the forgiving convention; the engine's
+     * own clamped form must never let a plugin's stray slot touch the
+     * held stack), then the canonical-empty mapping (the engine's bare
+     * slots store null — the form the spawn dice, the NBT rows and the
+     * null-check walks all ride), then the ONE authoritative route:
+     * the wired path (assert + write + the re-publish) or the bare
+     * fallback write.
+     */
+    @Override
+    public void setEquipmentAt(int slot, ItemStack stack) {
+        if (slot < 0 || slot > armorEquipment.length || stack == null) {
+            return;
+        }
+        ItemStack landing = stack.isEmpty() ? null : stack;
+        java.util.function.BiConsumer<Integer, ItemStack> path = equipmentWritePath;
+        if (path != null) {
+            path.accept(slot, landing);
+        } else {
+            setEquipment(slot, landing);
+        }
+    }
+
     /**
      * The armor-points consult (LivingEntity.getArmorProtection lines
      * 852-863): the per-piece sum over ALL FIVE equipment slots — the
