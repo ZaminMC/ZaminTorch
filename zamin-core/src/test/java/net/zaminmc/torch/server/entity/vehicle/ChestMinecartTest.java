@@ -25,6 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The chest minecart family's own law (Slice 21a — the reference's
@@ -286,7 +287,7 @@ class ChestMinecartTest {
                     "the player moved away");
             server.windowClick(player, player.openContainerWindowId(), 0, 0, 0,
                     ignored -> { });
-            Thread.sleep(300);
+            EngineAwaits.awaitTicks(server.world(), 6, "the far click refused (the settle)");
             assertEquals(heldByCart, cart.chest().snapshotSlots()[0],
                     "the far click refused: the cart kept its contents");
         } finally {

@@ -76,7 +76,7 @@ def loop_member_lines(text: str) -> set[int]:
     lines = stripped.splitlines()
     do_while = re.compile(r"[}\)]\s*while\s*\(|^\s*while\s*\(.*;\s*$")
     do_open = re.compile(r"\bdo\s*\{")
-    open_loops: list[tuple[int, int]] = []  # (header index, body depth)
+    open_loops: list[list] = []  # [header index, body depth, brace armed]
     members: set[int] = set()
     depth = 0
     for i, line in enumerate(lines):
@@ -84,12 +84,23 @@ def loop_member_lines(text: str) -> set[int]:
         if header or do_open.search(line):
             opens = line.count("{")
             # the body sits one level deeper than the header; a same-line
-            # `{` (for (...) {) already carries that brace
-            open_loops.append((i, depth + (opens if opens else 1)))
+            # `{` (for (...) {) already carries that brace, otherwise the
+            # loop stays UNARMED until its brace line arrives (multiline
+            # headers) and is never pruned below its body depth first
+            open_loops.append([i, depth + (opens if opens else 1), opens > 0])
         if open_loops:
             members.add(i)
         depth += line.count("{") - line.count("}")
-        open_loops = [(h, d) for (h, d) in open_loops if depth >= d]
+        survivors: list[list] = []
+        for entry in open_loops:
+            h, d, armed = entry
+            if depth >= d:
+                survivors.append([h, d, True])
+            elif not armed and not line.rstrip().endswith(";"):
+                # still waiting for the opening brace (or a single-statement
+                # body ends the loop here)
+                survivors.append([h, d, False])
+        open_loops = survivors
     return members
 
 

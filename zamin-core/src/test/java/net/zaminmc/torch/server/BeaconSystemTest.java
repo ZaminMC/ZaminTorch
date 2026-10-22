@@ -22,6 +22,7 @@ import java.util.function.BooleanSupplier;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The beacon family (Slice 29b — the reference port of block/BeaconBlock +
@@ -66,12 +67,8 @@ class BeaconSystemTest {
         throw new AssertionError("Condition not met in time: " + description);
     }
 
-    private void settle() {
-        try {
-            Thread.sleep(300);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
+    private void settle(EngineServer server) throws InterruptedException {
+        EngineAwaits.awaitTicks(server.world(), 6, "the settle");
     }
 
     /** Places the beacon at (x, 60, z) with a pyramid of the given depth. */
@@ -111,7 +108,7 @@ class BeaconSystemTest {
             server.ticker().submit(() -> server.world().setBlock(
                     at.offset(0, 1, 0),
                     net.zaminmc.torch.server.block.BuiltinBlocks.STONE));
-            settle();
+            settle(server);
             server.ticker().submit(() ->
                     server.beacons().update(at, server.beacons().getOrCreate(at)));
             await(() -> server.beacons().peek(at).levels() == 0,
@@ -122,7 +119,7 @@ class BeaconSystemTest {
                 server.world().setBlock(at.offset(0, 1, 0),
                         net.zaminmc.torch.server.block.BuiltinBlocks.BEDROCK);
             });
-            settle();
+            settle(server);
             server.ticker().submit(() ->
                     server.beacons().update(at, server.beacons().getOrCreate(at)));
             await(() -> server.beacons().peek(at).levels() == 1,
@@ -146,7 +143,7 @@ class BeaconSystemTest {
             server.ticker().submit(() -> player.applyMovement(
                     new net.zaminmc.torch.util.Position(114.5, 61.0, 64.5),
                     net.zaminmc.torch.util.Rotation.ZERO, true));
-            settle();
+            settle(server);
             // The manual recompute: the pyramid computes before the spread.
             server.ticker().submit(() ->
                     server.beacons().update(at, server.beacons().getOrCreate(at)));
@@ -165,12 +162,12 @@ class BeaconSystemTest {
             server.ticker().submit(() -> player.inventory().setSlot(
                     player.inventory().heldSlot(),
                     net.zaminmc.torch.item.ItemStack.of(BuiltinItems.EMERALD, 3)));
-            settle();
+            settle(server);
             server.windowClick(player, opened.get(),
                     28 + player.inventory().heldSlot(), 0, 0, ok -> { });
-            settle();
+            settle(server);
             server.windowClick(player, opened.get(), 0, 0, 0, ok -> { });
-            settle();
+            settle(server);
             assertEquals(1, player.openContainerPosition() == null ? 0
                             : server.beacons().peek(at).payment().count(),
                     "one emerald landed in the payment slot (max stack 1)");
@@ -179,19 +176,19 @@ class BeaconSystemTest {
             // The MC|Beacon confirm: one unit consumes, the choice lands
             // (the reference's effect gate keeps speed).
             server.beaconSelect(player, StatusEffects.SPEED, 0);
-            settle();
+            settle(server);
             assertEquals(StatusEffects.SPEED, server.beacons().peek(at).primary(),
                     "the primary choice landed");
             assertTrue(server.beacons().peek(at).payment().isEmpty(),
                     "the payment unit consumed");
             server.closeWindow(player, opened.get());
-            settle();
+            settle(server);
 
             // A confirm without a payment is the reference's silent no-op.
             server.useItemOnBlock(player, at, 1, Optional.empty(), 0, opened::set);
-            settle();
+            settle(server);
             server.beaconSelect(player, StatusEffects.HASTE, 0);
-            settle();
+            settle(server);
             assertEquals(StatusEffects.SPEED, server.beacons().peek(at).primary(),
                     "the unpaid confirm changed nothing");
 
@@ -231,7 +228,7 @@ class BeaconSystemTest {
             beacon.setPayment(net.zaminmc.torch.item.ItemStack.of(
                     BuiltinItems.DIAMOND, 1));
         });
-        settle();
+        settle(first);
         first.shutdown(null);
 
         EngineServer second = boot();
