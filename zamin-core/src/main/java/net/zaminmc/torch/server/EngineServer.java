@@ -25100,6 +25100,133 @@ public final class EngineServer implements Server, EngineBridge {
         if (args.length != 1) {
             return "Usage: /anvilimport <world-folder>";
         }
+        java.nio.file.Path folder = java.nio.file.Path.of(args[0]);
+        String refusal = startAnvilImport(folder, sender, null);
+        return refusal == null ? "Anvil import started: " + folder : refusal;
+    }
+
+    /**
+     * The plugin-facing anvil import (the Wave IX exposure over the
+     * §31.4 walk — README row 13): the SAME boot gates, the SAME
+     * one-import gate, the SAME content seams, and the SAME I/O-lane
+     * walk as the operator command — the one authoritative route
+     * ({@link #startAnvilImport}), never a parallel import path.
+     *
+     * <p><b>THE RETURN:</b> the walk's own final answer row — "Anvil
+     * import finished: <the §31.6 counted-refusal ledger summary>" on
+     * success, the refusal/abandonment rows on a refused or abandoned
+     * walk, the one-import gate's row on a concurrent call, and the
+     * boot-gate rows when the engine surfaces are not up. The api never
+     * invents a second report format; the operator command's rows ARE
+     * the api's rows (the javadoc on the {@code Server} method carries
+     * the full contract).</p>
+     *
+     * <p><b>THE THREADING LAW (§28.1's fourth category):</b> the calling
+     * thread parks until the walk's final drain answers — every terminal
+     * arm of the walk completes the answer, so the park is unbounded by
+     * design. The gameplay lane never blocks: the walk's file reads ride
+     * the blocking-I/O lane and its world mutations land on the owning
+     * lane between ticks, so the simulation keeps ticking while the
+     * caller waits. The verb refuses the simulation lane itself loudly
+     * (the walk's phases deliver there — a parked tick thread would
+     * starve its own drains). A shutdown mid-walk is the one arm no
+     * drain answers (the stop walk takes the lanes down without moving
+     * the generation); the park then polls the server state and answers
+     * the abandonment row once the stop is done (STOPPED, or a STOPPING
+     * outlasting the stop walk's own bounded phases), so a plugin thread
+     * never hangs on a dying server.</p>
+     */
+    @Override
+    public String anvilImport(java.nio.file.Path worldFolder) {
+        java.util.Objects.requireNonNull(worldFolder, "worldFolder");
+        // The simulation lane must not park on the walk it feeds (§27.6:
+        // the api never silently turns into a blocking cross-owner wait).
+        if (ticker != null && Thread.currentThread() == ticker.ownerThread()) {
+            return "The anvil import verb blocks for its report; the simulation"
+                    + " lane must not call it (the walk's phases deliver there)";
+        }
+        java.util.concurrent.CompletableFuture<String> answer =
+                new java.util.concurrent.CompletableFuture<>();
+        // The api route's progress sink: the walk's rows reach the engine
+        // log (a plugin-triggered import stays operator-observable); the
+        // REPORT itself returns to the caller.
+        net.zaminmc.torch.server.chat.CommandSender progress =
+                new net.zaminmc.torch.server.chat.CommandSender() {
+                    @Override
+                    public String name() {
+                        return "anvilImport";
+                    }
+
+                    @Override
+                    public void sendMessage(String message) {
+                        LOGGER.info(message);
+                    }
+
+                    @Override
+                    public int opLevel() {
+                        return 4;
+                    }
+
+                    @Override
+                    public net.zaminmc.torch.server.player.PlayerSession player() {
+                        return null;
+                    }
+                };
+        String refusal = startAnvilImport(worldFolder, progress, answer::complete);
+        if (refusal != null) {
+            return refusal;
+        }
+        int stoppingRounds = 0;
+        while (true) {
+            try {
+                return answer.get(250, java.util.concurrent.TimeUnit.MILLISECONDS);
+            } catch (java.util.concurrent.TimeoutException stillWalking) {
+                // The shutdown safety (the javadoc's one undrained arm):
+                // STOPPED is terminal — nothing delivers past it. A
+                // STOPPING outlasting sixty rounds (~15s, well past the
+                // stop walk's own bounded latches) is dead too. The
+                // getNow keeps a last-second delivery the winner.
+                ServerState now = state.get();
+                if (now == ServerState.STOPPED
+                        || (now == ServerState.STOPPING && ++stoppingRounds > 60)) {
+                    return answer.getNow("Anvil import abandoned: the server"
+                            + " stopped while the walk was in flight");
+                }
+                if (now == ServerState.RUNNING) {
+                    stoppingRounds = 0;
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return "Anvil import interrupted while waiting for its report";
+            } catch (java.util.concurrent.ExecutionException e) {
+                // Unreachable by construction (the answer consumer never
+                // throws); the defensive row keeps the park total.
+                return "Anvil import failed while waiting for its report: " + e.getCause();
+            }
+        }
+    }
+
+    /**
+     * The one authoritative import route (§31.4): the boot gates, the
+     * one-import gate, the session over the content seams, and the
+     * I/O-lane walk both the operator command and the api verb ride.
+     * Answers {@code null} when the walk started — the report reaches
+     * the sender (and the answer consumer, when the api route passed
+     * one) from the walk's final drain — or the refusal row when the
+     * walk never started.
+     *
+     * <p><b>THE NEVER-THROW LAW (the lane's own contract):</b> the I/O
+     * tasks return their failures as values. A thrown task is discarded
+     * by the lane without ANY delivery — no fresh arm, no stale arm —
+     * which would strand the one-import gate forever; the open phase
+     * and each region read therefore carry their refusal rows back as
+     * the result, and every terminal arm of the walk (finish, refusal,
+     * abandonment, a lane's loud rejection) reports, releases the gate,
+     * and answers the api caller.</p>
+     */
+    private String startAnvilImport(java.nio.file.Path folder,
+                                    net.zaminmc.torch.server.chat.CommandSender sender,
+                                    java.util.function.Consumer<String> answer) {
         EngineWorld target = world;
         net.zaminmc.torch.server.concurrent.BlockingIoLane io = blockingIoLane;
         net.zaminmc.torch.server.concurrent.OwnershipDomain domain = simulationDomain;
@@ -25117,7 +25244,6 @@ public final class EngineServer implements Server, EngineBridge {
         if (!anvilImportActive.compareAndSet(false, true)) {
             return "An Anvil import is already running; wait for its report";
         }
-        java.nio.file.Path folder = java.nio.file.Path.of(args[0]);
         // The content seams (the entities/tiles follow-up): the SAME
         // machinery the live commands use — readTile (/blockdata),
         // spawnAt + EntityNbt.readNbt (/summon), spawnRestored (the
@@ -25141,51 +25267,102 @@ public final class EngineServer implements Server, EngineBridge {
             io.submit(domain, "anvil-import-open", () -> {
                 // The folder inventory + the level bytes, all on the I/O
                 // lane: a missing level.dat or region/ is a loud refusal,
-                // never a default world (§31.6).
-                java.nio.file.Path levelDat = folder.resolve("level.dat");
-                java.nio.file.Path regionDir = folder.resolve("region");
-                if (!java.nio.file.Files.isRegularFile(levelDat)) {
-                    throw new java.io.IOException("no level.dat in " + folder);
+                // never a default world (§31.6) — the refusal RETURNS as
+                // a value per the never-throw law (a thrown task would
+                // never deliver and the gate would strand).
+                try {
+                    java.nio.file.Path levelDat = folder.resolve("level.dat");
+                    java.nio.file.Path regionDir = folder.resolve("region");
+                    if (!java.nio.file.Files.isRegularFile(levelDat)) {
+                        return AnvilOpen.refused("no level.dat in " + folder);
+                    }
+                    if (!java.nio.file.Files.isDirectory(regionDir)) {
+                        return AnvilOpen.refused("no region/ directory in " + folder);
+                    }
+                    return AnvilOpen.opened(levelDat,
+                            java.nio.file.Files.readAllBytes(levelDat),
+                            net.zaminmc.torch.server.world.anvil.AnvilWorldImport.regionFiles(regionDir));
+                } catch (java.io.IOException e) {
+                    return AnvilOpen.refused(e.getMessage());
                 }
-                if (!java.nio.file.Files.isDirectory(regionDir)) {
-                    throw new java.io.IOException("no region/ directory in " + folder);
-                }
-                return new AnvilOpen(levelDat,
-                        java.nio.file.Files.readAllBytes(levelDat),
-                        net.zaminmc.torch.server.world.anvil.AnvilWorldImport.regionFiles(regionDir));
             }, (opened, generation) -> {
                 // The owning lane (the drain): the level rows apply, the
-                // region walk starts.
+                // region walk starts. The catch is the drain's own loud
+                // refusal — a corrupt level.dat never becomes a default
+                // world, and the gate always releases.
                 try {
+                    if (opened.refused()) {
+                        throw new java.io.IOException(opened.refusal());
+                    }
                     session.applyLevelData(
                             net.zaminmc.torch.server.world.anvil.AnvilLevelData.readBytes(
                                     opened.levelDat(), opened.levelBytes()));
                     sender.sendMessage("Anvil import: level.dat applied, "
                             + opened.regionFiles().size() + " region file(s) queued");
                     if (opened.regionFiles().isEmpty()) {
-                        finishAnvilImport(sender, session);
+                        finishAnvilImport(sender, session, answer);
                         return;
                     }
-                    submitAnvilRegionFile(session, io, domain, sender, opened.regionFiles(), 0);
+                    submitAnvilRegionFile(session, io, domain, sender, answer,
+                            opened.regionFiles(), 0);
                 } catch (java.io.IOException | RuntimeException e) {
-                    sender.sendMessage("Anvil import refused: " + e.getMessage());
-                    anvilImportActive.set(false);
+                    refuseAnvilImport(sender, answer,
+                            "Anvil import refused: " + e.getMessage());
                 }
             }, () -> {
-                sender.sendMessage("Anvil import abandoned before it started"
+                refuseAnvilImport(sender, answer, "Anvil import abandoned before it started"
                         + " (the simulation generation moved)");
-                anvilImportActive.set(false);
             });
         } catch (IllegalStateException laneRefused) {
             anvilImportActive.set(false);
             return "The I/O lane refused the import: " + laneRefused.getMessage();
         }
-        return "Anvil import started: " + folder;
+        return null;
     }
 
-    /** The open phase's result: the level bytes + the region file list. */
+    /**
+     * The open phase's result: the level bytes + the region file list —
+     * or the refusal row when the folder inventory itself failed (the
+     * I/O task never throws per the never-throw law: the lane discards a
+     * failed task without any delivery, which would strand the gate).
+     */
     private record AnvilOpen(java.nio.file.Path levelDat, byte[] levelBytes,
-                             java.util.List<java.nio.file.Path> regionFiles) {
+                             java.util.List<java.nio.file.Path> regionFiles,
+                             String refusal) {
+
+        static AnvilOpen opened(java.nio.file.Path levelDat, byte[] levelBytes,
+                                java.util.List<java.nio.file.Path> regionFiles) {
+            return new AnvilOpen(levelDat, levelBytes, regionFiles, null);
+        }
+
+        static AnvilOpen refused(String row) {
+            return new AnvilOpen(null, null, java.util.List.of(), row);
+        }
+
+        boolean refused() {
+            return refusal != null;
+        }
+    }
+
+    /**
+     * One region file's read result: the bytes — or the refusal row when
+     * the file itself could not be read (the same never-throw law as the
+     * open phase: the refusal returns as a value, the gate always
+     * releases).
+     */
+    private record AnvilRegionRead(byte[] bytes, String refusal) {
+
+        static AnvilRegionRead read(byte[] bytes) {
+            return new AnvilRegionRead(bytes, null);
+        }
+
+        static AnvilRegionRead refused(String row) {
+            return new AnvilRegionRead(null, row);
+        }
+
+        boolean refused() {
+            return refusal != null;
+        }
     }
 
     /** One region file's read (I/O lane) then its walk (the owning drain). */
@@ -25194,39 +25371,88 @@ public final class EngineServer implements Server, EngineBridge {
             net.zaminmc.torch.server.concurrent.BlockingIoLane io,
             net.zaminmc.torch.server.concurrent.OwnershipDomain domain,
             net.zaminmc.torch.server.chat.CommandSender sender,
+            java.util.function.Consumer<String> answer,
             java.util.List<java.nio.file.Path> regionFiles, int index) {
         java.nio.file.Path file = regionFiles.get(index);
         try {
             io.submit(domain, "anvil-import-region-" + file.getFileName(),
-                    () -> java.nio.file.Files.readAllBytes(file),
-                    (bytes, generation) -> {
+                    () -> {
+                        // The same never-throw law: an unreadable file
+                        // returns as the refusal row (a thrown read would
+                        // never deliver and the gate would strand).
+                        try {
+                            return AnvilRegionRead.read(java.nio.file.Files.readAllBytes(file));
+                        } catch (java.io.IOException e) {
+                            return AnvilRegionRead.refused(
+                                    "could not read " + file.getFileName()
+                                            + ": " + e.getMessage());
+                        }
+                    },
+                    (read, generation) -> {
                         // The owning lane: the whole region file's parse +
                         // installs (one drain per file keeps the walk
                         // deterministic — column-major entries, sorted files).
-                        session.importRegionBytes(file, bytes);
-                        if (index + 1 < regionFiles.size()) {
-                            submitAnvilRegionFile(session, io, domain, sender, regionFiles, index + 1);
-                        } else {
-                            finishAnvilImport(sender, session);
+                        // The catch is the defensive arm: the reader counts
+                        // every format defect itself, so an escaping throw
+                        // is an engine fault — the walk stops loudly and
+                        // the gate always releases.
+                        try {
+                            if (read.refused()) {
+                                refuseAnvilImport(sender, answer, "Anvil import stopped: the I/O lane "
+                                        + read.refusal());
+                                return;
+                            }
+                            session.importRegionBytes(file, read.bytes());
+                            if (index + 1 < regionFiles.size()) {
+                                submitAnvilRegionFile(session, io, domain, sender, answer,
+                                        regionFiles, index + 1);
+                            } else {
+                                finishAnvilImport(sender, session, answer);
+                            }
+                        } catch (RuntimeException e) {
+                            refuseAnvilImport(sender, answer, "Anvil import stopped: "
+                                    + file.getFileName() + " threw " + e);
                         }
                     },
                     () -> {
-                        sender.sendMessage("Anvil import abandoned mid-walk at "
+                        refuseAnvilImport(sender, answer, "Anvil import abandoned mid-walk at "
                                 + file.getFileName() + " (the simulation generation moved)");
-                        anvilImportActive.set(false);
                     });
         } catch (IllegalStateException laneRefused) {
-            sender.sendMessage("Anvil import stopped: the I/O lane refused "
+            refuseAnvilImport(sender, answer, "Anvil import stopped: the I/O lane refused "
                     + file.getFileName() + ": " + laneRefused.getMessage());
-            anvilImportActive.set(false);
         }
     }
 
-    /** The walk's last drain: the ledger summary + the gate's release. */
-    private void finishAnvilImport(net.zaminmc.torch.server.chat.CommandSender sender,
-                                   net.zaminmc.torch.server.world.anvil.AnvilWorldImport session) {
-        sender.sendMessage("Anvil import finished: " + session.ledger().summary());
+    /**
+     * A terminal refusal/abandonment/stopped row: the row to the sender,
+     * the one-import gate's release, and the api caller's answer (when
+     * the api route rides the walk). Each terminal arm runs exactly once
+     * on the walk's own lane, so the release never double-fires.
+     */
+    private void refuseAnvilImport(net.zaminmc.torch.server.chat.CommandSender sender,
+                                   java.util.function.Consumer<String> answer, String row) {
+        sender.sendMessage(row);
         anvilImportActive.set(false);
+        if (answer != null) {
+            answer.accept(row);
+        }
+    }
+
+    /**
+     * The walk's last drain: the ledger summary + the gate's release (+
+     * the api caller's answer when the api route rides the walk — the
+     * same finished row the sender hears).
+     */
+    private void finishAnvilImport(net.zaminmc.torch.server.chat.CommandSender sender,
+                                   net.zaminmc.torch.server.world.anvil.AnvilWorldImport session,
+                                   java.util.function.Consumer<String> answer) {
+        String report = "Anvil import finished: " + session.ledger().summary();
+        sender.sendMessage(report);
+        anvilImportActive.set(false);
+        if (answer != null) {
+            answer.accept(report);
+        }
     }
 
 
