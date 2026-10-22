@@ -12511,3 +12511,48 @@ Stage Summary:
 - README TODO row 4 retired. Remaining vanilla rows: the explosion family
   (5-6), the dragon respawn (7), the thorns mob arm (8), the wither
   exemptions (9), the world-event radius (10).
+---
+Task ID: blast-table (the README TODO's row 5)
+Agent: main (Abasing session — the 2026-10-22 continuation)
+Task: The explosion resistance table — the reference's own READ values,
+the charged skull's 0.8 cap family.
+
+Work Log:
+- Built the extraction pair (committed first): scripts/extract-blast-
+  resistance.py parses the reference's Block.init() registration chains
+  (setBlastResistance x3, the setStrength x5 floor, the read /5) — 198
+  blocks, verified against the known vanilla values (stone 6, bedrock
+  3600000, obsidian 1200, planks 3, water 100, fire 0; barrier's own
+  6000001 datum → 3600000.6).
+- Landed BlastResistanceTable: the 247 exact rows (the behavior table's
+  surface) + the RENAMES (the pre-flattening bases + the state families
+  onto the reference's single-id blocks — the 5 woods, the 16 colors of
+  wool/carpet/stained glass+pane/clay, the 8 flowers, the 6 double
+  plants, the potted family, the pressure-plate powerN states, the rail
+  ascending forms) + the iterative state fold. The census test drove the
+  coverage to the registry's full 896 rows (the test-driven completion
+  loop: run, map the missing, re-run — three passes).
+- Rewired ExplosionService: the cost form (resistance + 0.3) * 0.3 over
+  the source consult, the charge on every non-air crossing, and the
+  DESTROY GATE — a cell the ray could not afford never joins the
+  destroyed list (the pre-fix engine looted unaffordable cells through
+  the caller's drop rolls).
+- Landed BlastSources: CHARGED_SKULL (min(0.8, plain) over the shared
+  canDestroy list — the wither's sweep delegates to the same list now)
+  and PRIMED_CART (the rail-sparing rule: rail cells read free, never
+  destroyed; the cell-above consult). The wiring: the skull's own sink
+  (the charged flag rides), the cart's BlastSink carrying primed,
+  detonateAtWithSource threading the source through the generalized walk
+  (the end crystal included).
+- Tests: BlastResistanceTableTest (the census + the pins), BlastSourceTest
+  (the cap, the sparing, the gate, the crater pins), the blast-adjacent
+  sweep green (CreeperRows, MinecartVariants, VehicleDamage/WorldDamage,
+  EnderCrystal, Dispenser, GameRule, WitherBoss, WitherSkull, tnt).
+- The standing shapes ledgered: the engine's FULL 4095-ray fan (the
+  reference samples only the shell), the immediate-commit interleaving,
+  the unmapped MAX convention (none remain — the census pins zero).
+
+Stage Summary:
+- README TODO row 5 retired. Remaining vanilla rows: the explosion x
+  decoration interplay (6), the dragon respawn (7), the thorns mob arm
+  (8), the wither exemptions (9), the world-event radius (10).
