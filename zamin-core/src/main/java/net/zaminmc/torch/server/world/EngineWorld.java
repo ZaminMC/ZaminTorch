@@ -687,6 +687,29 @@ public final class EngineWorld implements World,
     }
 
     /**
+     * @return the whole registration census as api rows (the VIII14
+     * slice-1 exposure beside {@link #biomeAt} — 61 rows, id order; the
+     * immutable world-independent table, any thread; every world answers
+     * the same census).
+     */
+    @Override
+    public java.util.List<net.zaminmc.torch.block.BiomeData> biomes() {
+        return BiomeDataViews.all();
+    }
+
+    /**
+     * @return the registration row's api view at the column (the VIII14
+     * slice-1 exposure beside {@link #biomeAt}) — the SAME resolution
+     * {@link #biomeAt} rides ({@link #biomeValueAt}: the chunk's own
+     * stored row; the plains row outside loaded chunks, the implicit
+     * default's own datums).
+     */
+    @Override
+    public net.zaminmc.torch.block.BiomeData biomeDataAt(BlockPosition position) {
+        return BiomeDataViews.of(biomeValueAt(position.x(), position.z()));
+    }
+
+    /**
      * @return the biome row at the column (the chunk's own stored row —
      * the reference's {@code world.getBiome(pos)} read the natural spawn
      * cycle's table consult rides): plains outside loaded chunks (the
