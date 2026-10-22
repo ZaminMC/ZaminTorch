@@ -160,8 +160,20 @@ exposure, then concurrency phases, then standing deferrals.
 
 11. The mob equipment read/set on `entity.LivingEntity` (the five-slot family,
     VIII4's engine surface has no api handle).
-12. The achievement reads: `Server.achievements()` (the 34-row table) + the
-    per-player unlocked set (VIII6's surface).
+12. ~~The achievement reads: `Server.achievements()` (the 34-row table) + the
+    per-player unlocked set (VIII6's surface).~~ — LANDED 2026-10-22
+    (26a77057): the new `net.zaminmc.torch.stat.Achievements` api type
+    over the engine's own table — the frozen 34-row census (every row's
+    stat key, short name, page column/row, icon id + damage, parent
+    chain, challenge/local flags, the translation keys, the reference's
+    own declaration order the give-all walk rides), the by-key lookup
+    (empty outside the achievement band), and the per-player unlocked
+    set resolving the live `PlayerStats` per call (§27.5 — consistent
+    on the player's simulation context, best-effort off it, the same
+    contract as the Player body reads);
+    `AchievementsApiAcceptanceTest` proves the family through the api
+    types alone (the census + the parent-chain consistency + the
+    fresh-player/unlock/orphan-refusal walk).
 13. `Server.anvilImport()` — the plugin-facing import verb over the same I/O
     lanes (the ledger report as the return).
 14. ~~The generic-mount seat rows (the exotic pairs' api read beside
@@ -176,6 +188,22 @@ exposure, then concurrency phases, then standing deferrals.
     own seams, the live resolution flipping on dismount, the vehicle
     family's typed read still answering beside the new rows).
 15. `world.decorations()` — the hanging bodies + armor-stand read surface.
+
+14. The generic-mount seat rows (the exotic pairs' api read beside
+    `Vehicle.riderEntityId()`).
+15. ~~`world.decorations()` — the hanging bodies + armor-stand read
+    surface.~~ — LANDED 2026-10-23 (f396a48c): the `Decorations` census
+    over the two systems — `frames()` (the wall cell, the facing, the
+    displayed stack, the eight-step rotation, the comparator read),
+    `paintings()` (the motive off the reference's own 26-entry art
+    registry), `armorStands()` (the feet position + the snapped yaw, the
+    five equipment slots in the wire's order, the status byte's five
+    flags, the six-part pose) — each enumeration an immutable
+    point-in-time snapshot under its owning system's monitor (every
+    public mutation entry point of the two systems now holds it, the
+    VillageSystem shape), proven through the api alone
+    (`DecorationsApiAcceptanceTest`: the datums, the live resolution,
+    the empty world, the tear-free foreign-thread hammer).
 16. `block.BiomeData` — the registration datums (temperature/downfall/height/
     isRainy law) beside `World.biomeAt`'s display name.
 17. `Server.fishing()` — the fishing system's api surface (the engine accessor

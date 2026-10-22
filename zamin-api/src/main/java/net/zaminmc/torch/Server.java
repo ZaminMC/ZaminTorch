@@ -186,4 +186,19 @@ public interface Server {
      * at runtime (a change requires a restart — the historical rule).
      */
     net.zaminmc.torch.config.ServerConfig config();
+
+    /**
+     * The achievement-table query surface (§27.3's progression family —
+     * the VIII6 exposure): the reference 1.8.8's own 34-row table (every
+     * row's key, name, page column/row, icon, parent chain, challenge
+     * flag and local row — the give-all walk's own declaration order)
+     * plus the per-player unlocked read over the live stats store. The
+     * table is a frozen registration — those reads are pure, safe from
+     * any thread; the per-player read is live-authoritative, consistent
+     * on the player's own simulation context (the same contract as the
+     * {@link Player} body reads).
+     */
+    default net.zaminmc.torch.stat.Achievements achievements() {
+        return net.zaminmc.torch.stat.Achievements.EMPTY;
+    }
 }

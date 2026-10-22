@@ -2621,6 +2621,16 @@ public final class EngineServer implements Server, EngineBridge {
                         new net.zaminmc.torch.server.block.GrowthViews(world));
                 // The public §27.3 primed-TNT view: the live fuse bodies.
                 world.attachPrimedTntView(tntSystem::primedBodies);
+                // The public §27.3 decoration-census view (the README
+                // TODO's row 15): the hanging bodies + the stands'
+                // family rows — each enumeration a monitor snapshot over
+                // its own system (the VillageViews shape). The nether
+                // and the End keep the default empty view (the two
+                // systems live on the overworld's store — the engine's
+                // own dimension gate).
+                world.attachDecorationsView(
+                        new net.zaminmc.torch.server.decoration.DecorationViews(
+                                decorations, armorStands));
                 ticker.setTickHandler(() -> {
                     // The /debug profiler's head (MinecraftServer.tick lines
                     // 489-494 + 497): the delayed activation — a profiling
@@ -17398,6 +17408,18 @@ public final class EngineServer implements Server, EngineBridge {
     @Override
     public net.zaminmc.torch.entity.Vehicle.SeatRows seatRows() {
         return seatRowsView;
+
+     * The achievement surface (VIII6 — the 34-row table + the per-player
+     * unlocked read): the public §27.3 query view (the frozen table
+     * rows, the by-key lookup, the live per-player unlocked set). The
+     * view is stateless — the table is a static registration and the
+     * per-player read resolves the session's own PlayerStats per call
+     * (§27.5) — so unlike the census view it needs no boot wiring: even
+     * a pre-boot server answers the frozen table.
+     */
+    @Override
+    public net.zaminmc.torch.stat.Achievements achievements() {
+        return net.zaminmc.torch.server.stat.AchievementViews.INSTANCE;
     }
 
     /**
