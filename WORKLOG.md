@@ -13424,3 +13424,40 @@ Stage Summary:
 - README TODO row 12 LANDED (26a77057): the achievement family readable
   through the public api. The api-exposure tail: rows 11, 13-18 remain
   (the other lanes' own — three Server.java additions resolve by union).
+
+---
+Task ID: wave-2-housekeeping
+Agent: Abasing (the coordinator)
+Task: The owner's 2026-10-23 housekeeping order — the merged PR branches
+deleted + the README's Status table reworked into the live pending-only
+TODO list (the "Remaining work" prose ledger deleted: the owner's
+correction — the table IS the todo list, implemented work never listed).
+
+Work Log:
+- The nine merged wave-2 PR branches deleted on both sides:
+  achievements-api, anvil-import-api, biome-data-api, decorations-api,
+  door-break-api, equipment-api, fishing-api, mount-seats-api,
+  thorns-and-world-events (zero open PRs verified first; develop + main
+  the only survivors, local and remote).
+- The README's Status table reworked: the 54 implemented rows retired
+  (the landed record stays with the ledgers — Torch-Arcetecture.txt
+  §22/§29, VANILLA_1_8_8_COMPATIBILITY.md, NATIVE_API_CAPABILITIES.md,
+  this file), the abandoned Minestom row retired with them (ADR-0001
+  remains the record), the seven-row pending tail now the table's whole
+  content: the wither's conditional exemption arms, concurrency Phases
+  5/6/7/8, the Phase-0 standing mutable-access audit, the §28.7 adapter
+  deferral.
+- The "Remaining work — the live TODO ledger" prose section deleted
+  whole (247 lines): it duplicated the table's job and listed the landed
+  rows the owner never wanted shown.
+- The standing discipline now written into the table's own footnote:
+  the table carries only what is NOT done; a row leaves the moment its
+  work lands; nothing leaves without an automated test proving the
+  landing. The README shrank 395 -> 102 lines.
+
+Stage Summary:
+- The README's Status table is the single live TODO list — pending only,
+  seven rows, kept current as work lands. The branch namespace is
+  develop + main alone. The pending tail itself is unchanged: the wither
+  exemptions tracker, the §22-gated concurrency Phases 5-8, the Phase-0
+  audit, the §27.1-deferred §28.7 adapter.
