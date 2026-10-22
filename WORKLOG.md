@@ -12655,6 +12655,74 @@ Stage Summary:
   the owner's continue.
 
 ---
+Task ID: equipment-api (the README TODO's row 11 — the wave-2 lane)
+Agent: main (Abasing session — the VIII4 api-exposure lane)
+Task: The mob equipment read/set on entity.LivingEntity — the five-slot
+family, VIII4's engine surface exposed per §27.3's complete-exposure law.
+
+Work Log:
+- Studied the exposure precedents before writing a line: §27.3/§27.5/§27.6/
+  §27.10; the villages() lane's shape; the entity-family variant
+  (Projectile.pickupStatus — the engine object IS the handle);
+  PlayerInventory's §27.3 adapter section (armorAt's forgiving read, the
+  null-EMPTY mapping); Vehicle.Cargo's slot-family conventions (out-of-range
+  reads empty, out-of-range writes ignored); the unleash detacher seam
+  (EngineServer wiring: requireMutationContext + the system walk); the
+  Manager's equipmentChanged publication (Slice 78b).
+- Audited the engine surface's riders: MobEntity.equipment/setEquipment/
+  heldEquipment carry the reference's five-slot model (MobEntity lines 60/
+  549/559/564) with the ENGINE's null-form bare slots — the spawn dice
+  (rollSpawnEquipment), the NBT Equipment rows (EntityNbt 209-219/653-675,
+  the ZVD walk + the anvil import's per-mob fan-out) and the null-check
+  walks (MobManager 3664, EntityNbt 666) all ride it. Conclusion: the
+  engine methods keep their null-form semantics; the api family takes its
+  OWN names with forgiving adapters (the armorAt precedent) — never a
+  semantic change to existing surface.
+- The api family (entity.LivingEntity, additive defaults): equipmentSlotCount
+  (the reference's own five), equipmentAt (the forgiving read — EMPTY for
+  bare + out-of-band), equipmentStacks (the five-row copy), setEquipmentAt
+  (the write arm — an empty stack clears, out-of-band/null writes ignored,
+  the band guard never letting a stray slot touch the held stack through
+  the engine's clamped form). Javadoc cites the reference lines and the
+  threading law (the riderEntityId form).
+- The engine side: MobEntity's §27.3 adapter section (the EMPTY-null
+  mapping both directions — the engine's bare-slot invariant preserved:
+  a clear restores null, never an EMPTY-stuffed cell) + the write-path
+  hook (the removalHook/leashDetacher family); MobManager's
+  EquipmentWritePath seam (a 3-arg @FunctionalInterface — the
+  SkullExplosionSink precedent) with the retro-wiring setter (the boot
+  order restores mobs before the wiring) + the spawnAt wiring;
+  EngineServer's wiring beside the leash detacher: requireMutationContext
+  ("setEquipmentAt") → the one authoritative setEquipment →
+  equipmentChanged (the Entity Equipment re-publish). The bare-harness
+  fallback (no wiring) is the raw authoritative write (the unleash
+  pattern's own bare form).
+- The test (EquipmentApiAcceptanceTest, 6 cases through zamin-api): the
+  fresh bodies' band (a cow's five EMPTY slots; the skeleton's spawn bow
+  at slot 0 — the armor dice stay unasserted, the dice are
+  nondeterministic for the monster family); the write arm (the live-object
+  proof — the SAME stack reference through api and engine, the armor
+  consult summing the landed piece, the publish probe); the clear arm
+  (the engine's null bare-form restored); the band guards (out-of-band
+  reads empty, out-of-band/null writes never touch the held stack); the
+  removed-body lifecycle (despawn → out of the population, the handle
+  still answers its last state); the off-lane write (IllegalStateException,
+  nothing lands).
+- Batches (all --no-daemon, per the documented lesson): EquipmentApi* 6/6;
+  the entity package batch 463 tests 0 failures; :zamin-api:test 19/19;
+  the sibling api batch (LeashApi + EntityApi + EntityFamilyApi + GoalApi)
+  15/15.
+- Ledgers: the NATIVE_API §9 VIII4 row → CLOSED/EXPOSED; the README TODO's
+  row 11 retired (the row-6 form); this WORKLOG entry.
+
+Stage Summary:
+- Row 11 LANDED: the five-slot equipment family exposed on the api handle,
+  the write routing the one authoritative engine path behind the §27.6
+  assert with the wire re-publish riding it. Strictly additive: no
+  existing engine surface changed semantics (the null-form reads, the
+  clamped engine writes and every rider untouched); one new seam
+  (EquipmentWritePath) + one wiring block + one test file.
+
 Task ID: wave-2-row-18 (the door-break arming read — the README TODO's
 row 18, one of the eight api-exposure lanes of the 2026-10-22 second
 parallel wave)

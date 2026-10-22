@@ -2252,6 +2252,19 @@ public final class EngineServer implements Server, EngineBridge {
                     world.requireMutationContext("unleash");
                     leadSystem.detachLeash(mob, dropLead);
                 });
+                // The public §27.3 equipment write path (the VIII4
+                // exposure): the handle's setEquipmentAt routes the SAME
+                // setEquipment the spawn dice and the anvil import ride,
+                // then the manager's own publication (the Slice 78b
+                // Entity Equipment re-send) — behind the §27.6
+                // owner-context assert (an off-lane write fails
+                // diagnosably, nothing lands). The setter retro-wires
+                // the restored mobs too.
+                mobs.setEquipmentWritePath((mob, slot, stack) -> {
+                    world.requireMutationContext("setEquipmentAt");
+                    mob.setEquipment(slot, stack);
+                    mobs.equipmentChanged(mob);
+                });
                 // The natural spawn cycle (Slice 11d): the 1:1 walk.
                 naturalSpawns = new net.zaminmc.torch.server.spawn.NaturalSpawnSystem(
                         new SpawnSurface(mobs, false),
