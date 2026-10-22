@@ -199,16 +199,21 @@ class SpectatorCameraAcceptanceTest {
             PlayerSession bob = spectator(server, "Bob");
 
             // The reference's isSpectator refusal: a survival player's
-            // spectate packet is discarded.
+            // spectate packet is discarded. The refusal window is
+            // tick-scaled (ten engine ticks past the walk's submit).
             PlayerSession carol = join(server, "Carol");
+            long startTick = server.world().totalTicks();
             server.spectateCamera(carol, alice.uuid());
-            Thread.sleep(150); // two engine ticks: the walk ran and refused
+            await(() -> server.world().totalTicks() >= startTick + 10,
+                    "the refusal window's ticks elapsed");
             assertNull(carol.spectatorCamera(), "the non-spectator's packet was refused");
 
             // The reference's entity==null arm: an absent target attaches
             // nothing (no crash, no state).
+            long absentTick = server.world().totalTicks();
             server.spectateCamera(bob, UUID.randomUUID());
-            Thread.sleep(150);
+            await(() -> server.world().totalTicks() >= absentTick + 10,
+                    "the absent-target window's ticks elapsed");
             assertNull(bob.spectatorCamera(), "the absent target attached nothing");
 
             // The self-target arm is the exit: attaching to self while
