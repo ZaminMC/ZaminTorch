@@ -651,7 +651,7 @@ The console and modern-storage sections are architecture proposals, not claims o
 - The Folia 26.2.x audit is documented: all 21 patches read and 460 modified Java paths inventoried in `docs/FOLIA_PATCH_INVENTORY.md`, with the subsystem analysis in `docs/FOLIA_FORENSIC_AUDIT.md`.
 - The committed `reference/1.8.8/` tree is present and is the source for reference-driven mechanics work.
 - **The requested `1.8.8 - mechanics.zip` is PRESENT** (re-added at b2ef261, 2026-10-19, at `reference/1.8.8/1.8.8 - mechanics.zip`). Inspected 2026-10-20: the archive carries 1634 `.java` files and every one of them exists in the committed `reference/1.8.8/net` tree with the same inventory — the zip is the archive form of the same source; the reference-driven work reads either.
-- Continue auditing every mutable access path and retain explicit ownership/boundary decisions. The stated input gap is closed; the per-path audit continues with the mechanics.
+- Continue auditing every mutable access path and retain explicit ownership/boundary decisions. The stated input gap is closed; the per-path audit continues with the mechanics. The cycle-3 engineering audit's ranked backlog (docs/CYCLE3_AUDIT.md Phase 4) is now being worked down alongside: its B-3 (/op offline profiles) and the first two B-4 papercuts (the --port precedence, the unclean-exit disconnect noise) LANDED 2026-10-23 (§29's Wave ML); the remaining rows stay the backlog's own, the next cycle's order unchanged (B-5 the 0x0C metadata audit + the attribution pass).
 
 ### Phase 1 — Ownership primitives — IMPLEMENTED
 
@@ -3670,6 +3670,78 @@ own tests. Order is by vanilla visibility and dependency, not size.
       branch. (Pre-existing develop defects NOT this lane's: the
       StatsCompletenessTest row — coarse_dirt/fern/podzol counting on
       stat rows the 1.8.8 client drops — reproduced on 6507bd09.)
+
+## Wave ML — the 2026-10-23 ops lane (the cycle-3 audit's B-3 + the first two B-4 papercuts, landed)
+
+- [x] ML-005 — /op OFFLINE PROFILES LANDED (the audit's B-3, the
+      playtest-verified parity gap): the reference resolves /op through
+      the profile cache (dedicated OpCommand lines 30-39:
+      GameProfileCache.get, then addOp + commands.op.success, or
+      commands.op.failed), so an operator pre-ops a joined-but-offline
+      player. The engine's cache equivalent (server/ops/
+      PlayerProfileCache) is built ONLY over identities the engine
+      already persists — the .zpd census (PlayerDataStore's new
+      persistedNames(): every <uuid>.zpd read at HEADER depth — the
+      magic, the version, the name string — the store keeping its own
+      format knowledge), ops.json's own rows (a hand-maintained
+      registry entry resolves without a .zpd), and this run's joins
+      (the accept-site add, the reference's own login-time
+      GameProfileCache.add); case-insensitive over the stored canonical
+      case (the reference's lowercase-key law); no expiry (vanilla's
+      month-long usercache expiry is the Mojang-lookup cache's own
+      policy — a file this engine deliberately does not keep); a
+      concurrent-map pair for thread-safety (joins arrive on the
+      joining channel's event loop, /op on the tick lane). /op's
+      offline arm writes through OpStore at level 4 and answers the
+      engine's established success line; an unknown name answers the
+      reference's commands.op.failed line (1.8.8 en_US.lang "Could not
+      op %s" — verified against the 1.8.8 assets). /deop left alone BY
+      DESIGN: its own offline walk already resolves over ops.json (the
+      reference's getOps().getProfile shape, DeOpCommand lines 29-38),
+      so it carries no defect. Evidence:
+      OpOfflineProfileAcceptanceTest 2 — the same-run arm (the
+      join-quit-op, the unknown-name refusal, the unchanged online
+      arm) and the restart arm (the boot census over the .zpd headers,
+      the ops.json-only seed, the returning player entering already
+      opped).
+- [x] ML-009 — THE TWO OPS PAPERCUTS LANDED (the audit's B-4, the
+      first two items): (a) THE --port OVERRIDE — the CLI flag was
+      stored and never consulted (LauncherRuntime's args dead since
+      the first boot); now the dedicated server's own precedence
+      CLI > properties > default rides launcher/StartupArguments
+      (--port <n> and --port=<n>, the last occurrence wins, a
+      malformed flag fails boot loudly with the config model's own
+      law, the range law staying EngineConfig's compact constructor
+      through the new withPort copy), the override logged at config
+      time and the effective port on the standing "Server ready"
+      line; the properties file is never written back (a one-shot
+      boot override, the reference convention). The remote-admin
+      ports keep their resolved values — their own rows and
+      first-boot write-back law (rcon.port = port+10, query.port =
+      port) own them. (b) THE UNCLEAN-EXIT STACKTRACE NOISE — an
+      abrupt client TCP reset (the IOException family: Connection
+      reset / Broken pipe / EOF mid-read) logged a WARNING + a netty
+      stacktrace where the reference answers ONE quiet disconnect line
+      (Connection.exceptionCaught lines 110-119: the "Internal
+      Exception: <cause>" reason handed to the walk;
+      ServerPlayNetworkHandler.onDisconnect line 573 the INFO line);
+      V18Connection.exceptionCaught now classifies — the IOException
+      family rides the engine's own "Player disconnected" record with
+      the vanilla reason (the cause carried, never swallowed, just
+      unstacked), a pre-session reset logs one connection-side INFO
+      line, and genuinely unexpected failures stay loud (§126/§54:
+      WARNING + the throwable for the frame that broke the
+      connection). Evidence: StartupArgumentsTest 6 (the precedence
+      ladder CLI > properties > default, both flag forms + the last
+      win, the loud malformed-flag failures, the no-write-back proof,
+      the out-of-range refusal) + DisconnectClassificationTest 2 (the
+      real-wire RST through a logged-in session: zero WARNING
+      records, zero thrown-bearing records, exactly one quiet line
+      carrying "Internal Exception"; the malformed chat frame: the
+      WARNING with its throwable + the "protocol error" walk
+      unchanged; both leave the server RUNNING). The remaining B-4
+      items (console /summon + /spawnmob player-only, the /give form
+      divergence) stay the backlog's own.
 
 ## Standing (demand-named, not scheduled)
 
