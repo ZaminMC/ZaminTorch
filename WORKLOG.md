@@ -13639,3 +13639,36 @@ Stage Summary:
   committed so any future session resumes from it.
 - No production code, tests, or behavior changed. PR #37 merged per owner
   instruction; release run #363 outcome still pending at commit time.
+
+---
+Task ID: cycle-4-increment-3
+Agent: the coordinator (same post-reset session)
+Task: Complete the KigPaper per-patch audit (ML-023) and close the fork
+dimension end-to-end.
+
+Work Log:
+- Deep pass: scripts/kigpaper_deep_pass.py -> docs/kigpaper-deep-pass.json
+  (hunk identifiers for all 418 server-stack patches: config keys/fields,
+  NMS vs Bukkit targets, fork markers, event surfaces; 133 KigPaper-marked).
+- Classifier: scripts/kigpaper_classify.py -> docs/kigpaper-tables.md
+  (418 rows) + docs/kigpaper-bugfix-classes.json (171 bugfix-divs mapped to
+  NMS classes; PlayerConnection 18, World 16, Entity 13 lead).
+- Dispositions: 130 knob (DEC-003) / 171 bugfix-div (reference wins) /
+  70 api (DEC-002) / 24 perf (ML-007) / 23 infra (NA).
+- ML-022 closed: registerSpecializedPacket has no caller in 533 patches.
+- Spot-check (two-sided): Torch FluidSystem.checkSpreadCollisions
+  implements exactly the reference's lava-water bands; the fork's SSV0067
+  divergence (> 0) recorded, not owed.
+- Hand-review: CB0047, CB0079, SSV0067, SSV0156 full reads; no
+  misclassifications surfaced; accounting doc rewritten with final summary.
+- Deliverables landed (commit a6627a35): the tables, deep-pass JSON,
+  bugfix class map, ledger ML-022/023 closures, compatibility matrix
+  completion, audit-record increment-3 section.
+
+Stage Summary:
+- The KigPaper patch audit is COMPLETE at the disposition level: 533/533
+  accounted (8 nms full-read; 107 API layer-closed; 418 dispositioned);
+  no Torch debt created by the fork audit.
+- The audit's standing remainder is unchanged: the R-1..R-9 vanilla
+  verifications (Wave V in the Phase-10 plan) + the pending release runs
+  (#363 in_progress, #364 queued on the PR #37 merge).
