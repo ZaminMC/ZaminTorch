@@ -157,8 +157,13 @@ public final class CollisionShapes {
         return boxesOf(type, probe);
     }
 
-    /** @return whether the type carries the full-cube stand-in shape. */
-    static boolean isFullCube(BlockType type) {
+    /**
+     * @return whether the type carries the full-cube stand-in shape — the
+     * reference's {@code isCube()} over the movement-blocking material (the
+     * in-wall suffocation's view-blocking consult reads it: {@code Block
+     * .isViewBlocking()} = {@code material.blocksMovement() && isCube()}).
+     */
+    public static boolean isFullCube(BlockType type) {
         if (!WorldSolidity.isSolid(type)) {
             return false;
         }
