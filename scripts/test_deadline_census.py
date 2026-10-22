@@ -55,19 +55,57 @@ def fmt(value: str) -> str:
         return value
 
 
+STRING_RE = re.compile(r'"(?:\\.|[^"\\\n])*"|\'(?:\\.|[^\'\\\n])*\'')
+COMMENT_RE = re.compile(r'//[^\n]*|/\*.*?\*/', re.DOTALL)
+
+
+def _blank(match: re.Match) -> str:
+    """Length- and line-preserving blank: every char except newlines
+    becomes a space, so brace-depth bookkeeping stays aligned."""
+    return re.sub(r"[^\n]", " ", match.group(0))
+
+
+def loop_member_lines(text: str) -> set[int]:
+    """The set of line indices INSIDE a while/for body (brace-depth walk).
+
+    String and char literals are stripped first so braces inside them do
+    not skew depth. A sleep on one of these lines is loop machinery — the
+    interval of a deadline-bounded or condition-bounded poll — never an
+    independent deadline."""
+    stripped = COMMENT_RE.sub(_blank, STRING_RE.sub(_blank, text))
+    lines = stripped.splitlines()
+    do_while = re.compile(r"[}\)]\s*while\s*\(|^\s*while\s*\(.*;\s*$")
+    do_open = re.compile(r"\bdo\s*\{")
+    open_loops: list[tuple[int, int]] = []  # (header index, body depth)
+    members: set[int] = set()
+    depth = 0
+    for i, line in enumerate(lines):
+        header = (WHILE_RE.search(line) and not do_while.search(line)) or FOR_RE.search(line)
+        if header or do_open.search(line):
+            opens = line.count("{")
+            # the body sits one level deeper than the header; a same-line
+            # `{` (for (...) {) already carries that brace
+            open_loops.append((i, depth + (opens if opens else 1)))
+        if open_loops:
+            members.add(i)
+        depth += line.count("{") - line.count("}")
+        open_loops = [(h, d) for (h, d) in open_loops if depth >= d]
+    return members
+
+
 def scan_file(path: Path, module: str, rows: list[dict]) -> None:
     text = path.read_text(encoding="utf-8", errors="replace")
     lines = text.splitlines()
     rel = str(path.relative_to(REPO)).replace("\\", "/")
+    loop_members = loop_member_lines(text)
 
     def in_guard(i: int) -> bool:
-        """A sleep at line i sits inside a deadline-bounded poll loop when a
-        while/for header and a wall-clock read appear within the 8 lines
-        above it (the repo's settle-poll idiom)."""
-        window = lines[max(0, i - 8):i]
-        return any(WHILE_RE.search(w) or FOR_RE.search(w) for w in window) and any(
-            CURRENT_MILLIS_RE.search(w) or NANO_RE.search(w) for w in window
-        )
+        """A sleep at line i is LOOP MACHINERY when it sits inside a
+        while/for body (brace-depth walk) — covering both the repo's
+        deadline-bounded settle polls and the condition-bounded polls
+        (`while (cond) { ... Thread.sleep(n); }`), whose interval is not a
+        deadline at all. Anything else is a standalone wall-clock wait."""
+        return i in loop_members
 
     for i, line in enumerate(lines):
         for m in DEADLINE_RE.finditer(line):

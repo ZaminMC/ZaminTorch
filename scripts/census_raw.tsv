@@ -65,7 +65,7 @@ zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/ChunkGenerationOffl
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/ChunkGenerationOffloadTest.java	127	poll-interval	50ms	Thread.sleep(50);
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/ConsoleCommandTest.java	27	deadline-poll	5s	long deadline = System.currentTimeMillis() + 5_000;
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/ConsoleCommandTest.java	28	wallclock-read	-	while (System.currentTimeMillis() < deadline
-zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/ConsoleCommandTest.java	30	poll-interval	50ms	Thread.sleep(50);
+zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/ConsoleCommandTest.java	30	fixed-sleep	50ms	Thread.sleep(50);
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/ContainerApiAcceptanceTest.java	119	fixed-sleep	300ms	Thread.sleep(300);
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/ContainerLockAcceptanceTest.java	61	deadline-poll	30s	long deadline = System.currentTimeMillis() + 30_000;
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/ContainerLockAcceptanceTest.java	62	wallclock-read	-	while (System.currentTimeMillis() < deadline) {
@@ -412,16 +412,16 @@ zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/TabListHeaderFooter
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/TabListServiceTest.java	243	deadline-poll	15s	long deadline = System.currentTimeMillis() + 15_000;
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/TabListServiceTest.java	245	wallclock-read	-	if (System.currentTimeMillis() > deadline) {
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/TabListServiceTest.java	248	poll-interval	50ms	Thread.sleep(50);
-zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/ThornsAcceptanceTest.java	73	fixed-sleep	20ms	Thread.sleep(20); // the previous frame's decay
-zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/ThornsAcceptanceTest.java	78	fixed-sleep	20ms	Thread.sleep(20);
-zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/ThornsAcceptanceTest.java	146	fixed-sleep	250ms	Thread.sleep(250);
+zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/ThornsAcceptanceTest.java	73	poll-interval	20ms	Thread.sleep(20); // the previous frame's decay
+zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/ThornsAcceptanceTest.java	78	poll-interval	20ms	Thread.sleep(20);
+zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/ThornsAcceptanceTest.java	146	poll-interval	250ms	Thread.sleep(250);
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/ThornsAcceptanceTest.java	185	deadline-poll	2s	long deadline = System.currentTimeMillis() + 2_000;
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/ThornsAcceptanceTest.java	186	wallclock-read	-	while (System.currentTimeMillis() < deadline && !proc) {
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/ThornsAcceptanceTest.java	187	poll-interval	50ms	Thread.sleep(50);
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/ThornsAcceptanceTest.java	324	deadline-poll	20s	long deadline = System.currentTimeMillis() + 20_000;
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/ThornsAcceptanceTest.java	325	wallclock-read	-	while (System.currentTimeMillis() < deadline) {
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/ThornsAcceptanceTest.java	329	poll-interval	50ms	Thread.sleep(50);
-zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/ThornsMobVictimAcceptanceTest.java	65	fixed-sleep	600ms	Thread.sleep(600); // the previous hit's i-frame decay, first
+zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/ThornsMobVictimAcceptanceTest.java	65	poll-interval	600ms	Thread.sleep(600); // the previous hit's i-frame decay, first
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/ThornsMobVictimAcceptanceTest.java	132	deadline-poll	2s	long deadline = System.currentTimeMillis() + 2_000;
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/ThornsMobVictimAcceptanceTest.java	133	wallclock-read	-	while (System.currentTimeMillis() < deadline && !proc) {
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/ThornsMobVictimAcceptanceTest.java	134	poll-interval	50ms	Thread.sleep(50);
@@ -580,10 +580,10 @@ zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/concurrent/Blocking
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/concurrent/BlockingIoLaneTest.java	252	wallclock-read	-	while (lane.queuedDepth() > 0 && System.nanoTime() < deadline) {
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/concurrent/ComputeSubsystemTest.java	47	deadline-poll	5s	long deadline = System.currentTimeMillis() + 5_000;
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/concurrent/ComputeSubsystemTest.java	49	wallclock-read	-	&& System.currentTimeMillis() < deadline) {
-zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/concurrent/ComputeSubsystemTest.java	50	poll-interval	20ms	Thread.sleep(20);
+zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/concurrent/ComputeSubsystemTest.java	50	fixed-sleep	20ms	Thread.sleep(20);
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/concurrent/ComputeSubsystemTest.java	77	deadline-poll	5s	long deadline = System.currentTimeMillis() + 5_000;
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/concurrent/ComputeSubsystemTest.java	79	wallclock-read	-	&& System.currentTimeMillis() < deadline) {
-zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/concurrent/ComputeSubsystemTest.java	80	poll-interval	20ms	Thread.sleep(20);
+zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/concurrent/ComputeSubsystemTest.java	80	fixed-sleep	20ms	Thread.sleep(20);
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/concurrent/ComputeSubsystemTest.java	108	latch-await	TimeUnit.SECONDS	blockCompute.await(10, TimeUnit.SECONDS);
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/concurrent/ComputeSubsystemTest.java	114	latch-await	TimeUnit.SECONDS	assertTrue(computeEntered.await(5, TimeUnit.SECONDS), "the worker took the job");
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/concurrent/ComputeSubsystemTest.java	123	deadline-poll	5s	long deadline = System.currentTimeMillis() + 5_000;
@@ -619,14 +619,14 @@ zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/concurrent/DomainWo
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/concurrent/OwnershipDomainTest.java	44	latch-await	TimeUnit.SECONDS	assertTrue(attempted.await(5, TimeUnit.SECONDS), "the probe ran");
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/concurrent/OwnershipDomainTest.java	155	latch-await	TimeUnit.SECONDS	assertTrue(attempted.await(5, TimeUnit.SECONDS), "the probe ran");
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/concurrent/OwnershipDomainTest.java	177	latch-await	TimeUnit.SECONDS	assertTrue(attempted.await(5, TimeUnit.SECONDS), "the probe ran");
-zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/concurrent/RandomTickLaneTest.java	194	fixed-sleep	10ms	Thread.sleep(10);
+zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/concurrent/RandomTickLaneTest.java	194	poll-interval	10ms	Thread.sleep(10);
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/concurrent/RandomTickLaneTest.java	279	deadline-poll	15s	long deadline = System.currentTimeMillis() + 15_000;
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/concurrent/RandomTickLaneTest.java	280	wallclock-read	-	while (System.currentTimeMillis() < deadline) {
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/concurrent/RandomTickLaneTest.java	284	poll-interval	50ms	Thread.sleep(50);
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/concurrent/RegionBoundaryTest.java	142	latch-await	TimeUnit.SECONDS	assertTrue(done.await(5, TimeUnit.SECONDS), "the writer ran");
-zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/concurrent/RegionBoundaryTest.java	162	fixed-sleep	5ms	Thread.sleep(5);
+zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/concurrent/RegionBoundaryTest.java	162	poll-interval	5ms	Thread.sleep(5);
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/concurrent/RegionBoundaryTest.java	172	latch-await	TimeUnit.SECONDS	assertTrue(entered.await(5, TimeUnit.SECONDS), "the holder entered");
-zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/concurrent/RegionBoundaryTest.java	215	fixed-sleep	5ms	Thread.sleep(5);
+zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/concurrent/RegionBoundaryTest.java	215	poll-interval	5ms	Thread.sleep(5);
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/concurrent/RegionBoundaryTest.java	225	latch-await	TimeUnit.SECONDS	assertTrue(entered.await(5, TimeUnit.SECONDS), "the holder entered");
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/concurrent/RegionBoundaryTest.java	440	deadline-poll	5s	long deadline = System.currentTimeMillis() + 5_000;
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/concurrent/RegionBoundaryTest.java	441	wallclock-read	-	while (System.currentTimeMillis() < deadline && result.get() == null) {
@@ -696,7 +696,7 @@ zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/enchantment/AnvilGu
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/enchantment/AnvilGuiTest.java	478	poll-interval	50ms	Thread.sleep(50);
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/entity/DimensionAwareMobQueryTest.java	136	deadline-poll	20s	long deadline = System.currentTimeMillis() + 20_000;
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/entity/DimensionAwareMobQueryTest.java	137	wallclock-read	-	while (System.currentTimeMillis() < deadline
-zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/entity/DimensionAwareMobQueryTest.java	140	poll-interval	50ms	Thread.sleep(50);
+zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/entity/DimensionAwareMobQueryTest.java	140	fixed-sleep	50ms	Thread.sleep(50);
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/entity/DimensionAwareMobQueryTest.java	150	deadline-poll	20s	deadline = System.currentTimeMillis() + 20_000;
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/entity/DimensionAwareMobQueryTest.java	151	wallclock-read	-	while (System.currentTimeMillis() < deadline) {
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/entity/DimensionAwareMobQueryTest.java	159	poll-interval	50ms	Thread.sleep(50);
@@ -713,7 +713,7 @@ zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/entity/GiantMobTest
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/entity/GiantMobTest.java	131	poll-interval	50ms	Thread.sleep(50);
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/entity/ItemPersistenceTest.java	236	deadline-poll	10s	long deadline = System.currentTimeMillis() + 10_000;
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/entity/ItemPersistenceTest.java	237	wallclock-read	-	while (System.currentTimeMillis() < deadline
-zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/entity/ItemPersistenceTest.java	239	poll-interval	50ms	Thread.sleep(50);
+zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/entity/ItemPersistenceTest.java	239	fixed-sleep	50ms	Thread.sleep(50);
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/entity/ItemThrowerPickupTest.java	190	deadline-poll	30s	long deadline = System.currentTimeMillis() + 30_000;
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/entity/ItemThrowerPickupTest.java	191	wallclock-read	-	while (System.currentTimeMillis() < deadline) {
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/entity/ItemThrowerPickupTest.java	195	poll-interval	50ms	Thread.sleep(50);
@@ -722,7 +722,7 @@ zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/entity/LavaWalkTest
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/entity/LavaWalkTest.java	294	poll-interval	50ms	Thread.sleep(50);
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/entity/MobArmorFamilyTest.java	725	deadline-poll	20s	long deadline = System.currentTimeMillis() + 20_000;
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/entity/MobArmorFamilyTest.java	726	wallclock-read	-	while (System.currentTimeMillis() < deadline
-zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/entity/MobArmorFamilyTest.java	729	poll-interval	50ms	Thread.sleep(50);
+zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/entity/MobArmorFamilyTest.java	729	fixed-sleep	50ms	Thread.sleep(50);
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/entity/SummonEquipmentTest.java	44	deadline-poll	30s	long deadline = System.currentTimeMillis() + 30_000;
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/entity/SummonEquipmentTest.java	45	wallclock-read	-	while (System.currentTimeMillis() < deadline) {
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/entity/SummonEquipmentTest.java	49	poll-interval	50ms	Thread.sleep(50);
@@ -832,7 +832,7 @@ zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/map/MapItemTest.jav
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/nbt/BlockEntityTagPlacementTest.java	159	deadline-poll	30s	long deadline = System.currentTimeMillis() + 30_000;
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/nbt/BlockEntityTagPlacementTest.java	160	wallclock-read	-	while (System.currentTimeMillis() < deadline) {
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/nbt/BlockEntityTagPlacementTest.java	164	poll-interval	20ms	Thread.sleep(20);
-zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/nbt/TileNbtTest.java	59	fixed-sleep	10ms	Thread.sleep(10);
+zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/nbt/TileNbtTest.java	59	poll-interval	10ms	Thread.sleep(10);
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/noteblock/NoteBlockSystemTest.java	216	fixed-sleep	300ms	Thread.sleep(300);
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/noteblock/NoteBlockSystemTest.java	251	fixed-sleep	300ms	Thread.sleep(300);
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/noteblock/NoteBlockSystemTest.java	338	deadline-poll	30s	long deadline = System.currentTimeMillis() + 30_000;
@@ -872,7 +872,7 @@ zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/player/PlayerSaveSp
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/player/PlayerSaveSplitTest.java	378	latch-await	TimeUnit.MILLISECONDS	assertTrue(done.await(0, TimeUnit.MILLISECONDS),
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/player/PlayerSaveSplitTest.java	385	deadline-poll	2s	long deadline = System.currentTimeMillis() + 2_000;
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/player/PlayerSaveSplitTest.java	387	wallclock-read	-	&& System.currentTimeMillis() < deadline) {
-zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/player/PlayerSaveSplitTest.java	388	poll-interval	10ms	Thread.sleep(10);
+zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/player/PlayerSaveSplitTest.java	388	fixed-sleep	10ms	Thread.sleep(10);
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/player/PlayerSaveSplitTest.java	402	deadline-poll	10s	long deadline = System.currentTimeMillis() + 10_000;
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/player/PlayerSaveSplitTest.java	403	wallclock-read	-	while (!allDone(done) && System.currentTimeMillis() < deadline) {
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/player/PlayerSaveSplitTest.java	412	latch-await	TimeUnit.MILLISECONDS	done[0].await(10, TimeUnit.MILLISECONDS);
@@ -899,7 +899,7 @@ zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/profiler/DenseOwner
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/profiler/DenseOwnerProfilingTest.java	297	wallclock-read	-	while (System.currentTimeMillis() < deadline) {
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/profiler/DenseOwnerProfilingTest.java	300	wallclock-read	-	if (System.currentTimeMillis() - stableSince >= 1_500) {
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/profiler/DenseOwnerProfilingTest.java	305	wallclock-read	-	stableSince = System.currentTimeMillis();
-zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/profiler/DenseOwnerProfilingTest.java	307	fixed-sleep	100ms	Thread.sleep(100);
+zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/profiler/DenseOwnerProfilingTest.java	307	poll-interval	100ms	Thread.sleep(100);
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/profiler/SystemSectionProfilingTest.java	82	deadline-poll	30s	long deadline = System.currentTimeMillis() + 30_000;
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/profiler/SystemSectionProfilingTest.java	83	wallclock-read	-	while (System.currentTimeMillis() < deadline) {
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/profiler/SystemSectionProfilingTest.java	87	poll-interval	50ms	Thread.sleep(50);
@@ -907,9 +907,9 @@ zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/profiler/SystemSect
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/profiler/SystemSectionProfilingTest.java	207	wallclock-read	-	while (System.nanoTime() < deadline) {
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/rcon/RconEngineRouteIntegrationTest.java	62	deadline-poll	10s	long deadline = System.currentTimeMillis() + 10_000;
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/rcon/RconEngineRouteIntegrationTest.java	63	wallclock-read	-	while (System.currentTimeMillis() < deadline
-zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/rcon/RconEngineRouteIntegrationTest.java	65	poll-interval	20ms	Thread.sleep(20);
+zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/rcon/RconEngineRouteIntegrationTest.java	65	fixed-sleep	20ms	Thread.sleep(20);
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/rcon/RconProtocolTest.java	333	deadline-poll	5s	long deadline = System.currentTimeMillis() + 5_000;
-zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/rcon/RconProtocolTest.java	339	fixed-sleep	50ms	Thread.sleep(50); // the FIN-WAIT drain beat
+zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/rcon/RconProtocolTest.java	339	poll-interval	50ms	Thread.sleep(50); // the FIN-WAIT drain beat
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/rcon/RconProtocolTest.java	340	wallclock-read	-	} while (System.currentTimeMillis() < deadline);
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/redstone/RedstoneComparatorTest.java	362	deadline-poll	5s	long deadline = System.currentTimeMillis() + 5_000;
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/redstone/RedstoneComparatorTest.java	363	wallclock-read	-	while (System.currentTimeMillis() < deadline && result.get() == null) {
@@ -981,7 +981,7 @@ zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/world/ContainerSave
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/world/ContainerSavePipelineTest.java	184	latch-await	TimeUnit.MILLISECONDS	assertTrue(done.await(0, TimeUnit.MILLISECONDS),
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/world/ContainerSavePipelineTest.java	191	deadline-poll	2s	long deadline = System.currentTimeMillis() + 2_000;
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/world/ContainerSavePipelineTest.java	193	wallclock-read	-	&& System.currentTimeMillis() < deadline) {
-zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/world/ContainerSavePipelineTest.java	194	poll-interval	10ms	Thread.sleep(10);
+zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/world/ContainerSavePipelineTest.java	194	fixed-sleep	10ms	Thread.sleep(10);
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/world/EffectTileSaveSplitTest.java	42	deadline-poll	10s	long deadline = System.currentTimeMillis() + 10_000;
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/world/EffectTileSaveSplitTest.java	43	latch-await	TimeUnit.MILLISECONDS	while (!done.await(10, TimeUnit.MILLISECONDS)
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/world/EffectTileSaveSplitTest.java	44	wallclock-read	-	&& System.currentTimeMillis() < deadline) {
@@ -1001,22 +1001,22 @@ zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/world/WorldSavePipe
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/world/WorldSavePipelineTest.java	229	latch-await	TimeUnit.MILLISECONDS	assertTrue(done.await(0, TimeUnit.MILLISECONDS),
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/world/anvil/AnvilImportAcceptanceTest.java	133	deadline-poll	20s	long deadline = System.currentTimeMillis() + 20_000;
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/world/anvil/AnvilImportAcceptanceTest.java	134	wallclock-read	-	while (System.currentTimeMillis() < deadline
-zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/world/anvil/AnvilImportAcceptanceTest.java	136	poll-interval	50ms	Thread.sleep(50);
+zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/world/anvil/AnvilImportAcceptanceTest.java	136	fixed-sleep	50ms	Thread.sleep(50);
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/world/anvil/AnvilImportAcceptanceTest.java	255	deadline-poll	20s	long deadline = System.currentTimeMillis() + 20_000;
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/world/anvil/AnvilImportAcceptanceTest.java	256	wallclock-read	-	while (System.currentTimeMillis() < deadline
-zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/world/anvil/AnvilImportAcceptanceTest.java	259	poll-interval	50ms	Thread.sleep(50);
+zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/world/anvil/AnvilImportAcceptanceTest.java	259	fixed-sleep	50ms	Thread.sleep(50);
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/world/anvil/AnvilImportAcceptanceTest.java	385	deadline-poll	20s	long deadline = System.currentTimeMillis() + 20_000;
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/world/anvil/AnvilImportAcceptanceTest.java	386	wallclock-read	-	while (System.currentTimeMillis() < deadline
-zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/world/anvil/AnvilImportAcceptanceTest.java	388	poll-interval	50ms	Thread.sleep(50);
+zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/world/anvil/AnvilImportAcceptanceTest.java	388	fixed-sleep	50ms	Thread.sleep(50);
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/world/anvil/AnvilImportAcceptanceTest.java	649	deadline-poll	20s	long deadline = System.currentTimeMillis() + 20_000;
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/world/anvil/AnvilImportAcceptanceTest.java	650	wallclock-read	-	while (System.currentTimeMillis() < deadline
-zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/world/anvil/AnvilImportAcceptanceTest.java	652	poll-interval	50ms	Thread.sleep(50);
+zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/world/anvil/AnvilImportAcceptanceTest.java	652	fixed-sleep	50ms	Thread.sleep(50);
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/world/anvil/AnvilImportAcceptanceTest.java	965	deadline-poll	20s	long deadline = System.currentTimeMillis() + 20_000;
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/world/anvil/AnvilImportAcceptanceTest.java	966	wallclock-read	-	while (System.currentTimeMillis() < deadline
-zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/world/anvil/AnvilImportAcceptanceTest.java	968	poll-interval	50ms	Thread.sleep(50);
+zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/world/anvil/AnvilImportAcceptanceTest.java	968	fixed-sleep	50ms	Thread.sleep(50);
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/world/anvil/AnvilImportAcceptanceTest.java	1140	deadline-poll	20s	long deadline = System.currentTimeMillis() + 20_000;
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/world/anvil/AnvilImportAcceptanceTest.java	1141	wallclock-read	-	while (System.currentTimeMillis() < deadline
-zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/world/anvil/AnvilImportAcceptanceTest.java	1143	poll-interval	50ms	Thread.sleep(50);
+zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/world/anvil/AnvilImportAcceptanceTest.java	1143	fixed-sleep	50ms	Thread.sleep(50);
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/world/light/LightBatchEquivalenceTest.java	373	wallclock-read	-	long start = System.nanoTime();
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/world/light/LightBatchEquivalenceTest.java	375	wallclock-read	-	samples[i] = System.nanoTime() - start;
 zamin-core	zamin-core/src/test/java/net/zaminmc/torch/server/world/light/LightRegionContractTest.java	341	wallclock-read	-	long start = System.nanoTime();
@@ -1035,7 +1035,7 @@ zamin-protocol-v1_8_8	zamin-protocol-v1_8_8/src/test/java/net/zaminmc/torch/prot
 zamin-protocol-v1_8_8	zamin-protocol-v1_8_8/src/test/java/net/zaminmc/torch/protocol/v1_8/ChestIntegrationTest.java	142	fixed-sleep	3800ms	Thread.sleep(3_800); // chest by hand: 75 ticks nominal (3.75 s)
 zamin-protocol-v1_8_8	zamin-protocol-v1_8_8/src/test/java/net/zaminmc/torch/protocol/v1_8/ChestLidAndHeldItemIntegrationTest.java	51	fixed-sleep	200ms	Thread.sleep(200); // the placement's fan-out window
 zamin-protocol-v1_8_8	zamin-protocol-v1_8_8/src/test/java/net/zaminmc/torch/protocol/v1_8/DonkeyChestIntegrationTest.java	76	fixed-sleep	200ms	Thread.sleep(200);
-zamin-protocol-v1_8_8	zamin-protocol-v1_8_8/src/test/java/net/zaminmc/torch/protocol/v1_8/DonkeyChestIntegrationTest.java	79	fixed-sleep	60ms	Thread.sleep(60);
+zamin-protocol-v1_8_8	zamin-protocol-v1_8_8/src/test/java/net/zaminmc/torch/protocol/v1_8/DonkeyChestIntegrationTest.java	79	poll-interval	60ms	Thread.sleep(60);
 zamin-protocol-v1_8_8	zamin-protocol-v1_8_8/src/test/java/net/zaminmc/torch/protocol/v1_8/DonkeyChestIntegrationTest.java	84	fixed-sleep	150ms	Thread.sleep(150);
 zamin-protocol-v1_8_8	zamin-protocol-v1_8_8/src/test/java/net/zaminmc/torch/protocol/v1_8/DonkeyChestIntegrationTest.java	86	fixed-sleep	200ms	Thread.sleep(200);
 zamin-protocol-v1_8_8	zamin-protocol-v1_8_8/src/test/java/net/zaminmc/torch/protocol/v1_8/DonkeyChestIntegrationTest.java	94	fixed-sleep	200ms	Thread.sleep(200);
@@ -1063,11 +1063,11 @@ zamin-protocol-v1_8_8	zamin-protocol-v1_8_8/src/test/java/net/zaminmc/torch/prot
 zamin-protocol-v1_8_8	zamin-protocol-v1_8_8/src/test/java/net/zaminmc/torch/protocol/v1_8/FurnaceIntegrationTest.java	161	wallclock-read	-	while (System.currentTimeMillis() < deadline) {
 zamin-protocol-v1_8_8	zamin-protocol-v1_8_8/src/test/java/net/zaminmc/torch/protocol/v1_8/FurnaceIntegrationTest.java	164	wallclock-read	-	Math.min(2_000, deadline - System.currentTimeMillis()), windowId);
 zamin-protocol-v1_8_8	zamin-protocol-v1_8_8/src/test/java/net/zaminmc/torch/protocol/v1_8/HorseIntegrationTest.java	92	fixed-sleep	200ms	Thread.sleep(200);
-zamin-protocol-v1_8_8	zamin-protocol-v1_8_8/src/test/java/net/zaminmc/torch/protocol/v1_8/HorseIntegrationTest.java	95	fixed-sleep	60ms	Thread.sleep(60);
+zamin-protocol-v1_8_8	zamin-protocol-v1_8_8/src/test/java/net/zaminmc/torch/protocol/v1_8/HorseIntegrationTest.java	95	poll-interval	60ms	Thread.sleep(60);
 zamin-protocol-v1_8_8	zamin-protocol-v1_8_8/src/test/java/net/zaminmc/torch/protocol/v1_8/HorseIntegrationTest.java	105	fixed-sleep	150ms	Thread.sleep(150);
 zamin-protocol-v1_8_8	zamin-protocol-v1_8_8/src/test/java/net/zaminmc/torch/protocol/v1_8/HorseIntegrationTest.java	107	fixed-sleep	200ms	Thread.sleep(200);
 zamin-protocol-v1_8_8	zamin-protocol-v1_8_8/src/test/java/net/zaminmc/torch/protocol/v1_8/HorseIntegrationTest.java	118	fixed-sleep	200ms	Thread.sleep(200);
-zamin-protocol-v1_8_8	zamin-protocol-v1_8_8/src/test/java/net/zaminmc/torch/protocol/v1_8/HorseIntegrationTest.java	127	fixed-sleep	80ms	Thread.sleep(80);
+zamin-protocol-v1_8_8	zamin-protocol-v1_8_8/src/test/java/net/zaminmc/torch/protocol/v1_8/HorseIntegrationTest.java	127	poll-interval	80ms	Thread.sleep(80);
 zamin-protocol-v1_8_8	zamin-protocol-v1_8_8/src/test/java/net/zaminmc/torch/protocol/v1_8/HorseIntegrationTest.java	129	deadline-poll	20s	long deadline = System.currentTimeMillis() + 20_000;
 zamin-protocol-v1_8_8	zamin-protocol-v1_8_8/src/test/java/net/zaminmc/torch/protocol/v1_8/HorseIntegrationTest.java	130	wallclock-read	-	while (System.currentTimeMillis() < deadline && !moved) {
 zamin-protocol-v1_8_8	zamin-protocol-v1_8_8/src/test/java/net/zaminmc/torch/protocol/v1_8/HorseIntegrationTest.java	131	wallclock-read	-	int[] rel = client.readRelMoveLook(Math.max(1, deadline - System.currentTimeMillis()));
@@ -1202,10 +1202,10 @@ zamin-protocol-v1_8_8	zamin-protocol-v1_8_8/src/test/java/net/zaminmc/torch/prot
 zamin-protocol-v1_8_8	zamin-protocol-v1_8_8/src/test/java/net/zaminmc/torch/protocol/v1_8/VanillaParityIntegrationTest.java	35	wallclock-read	-	while (System.currentTimeMillis() < deadline) {
 zamin-protocol-v1_8_8	zamin-protocol-v1_8_8/src/test/java/net/zaminmc/torch/protocol/v1_8/VanillaParityIntegrationTest.java	40	poll-interval	20ms	Thread.sleep(20);
 zamin-protocol-v1_8_8	zamin-protocol-v1_8_8/src/test/java/net/zaminmc/torch/protocol/v1_8/VehicleIntegrationTest.java	60	fixed-sleep	200ms	Thread.sleep(200);
-zamin-protocol-v1_8_8	zamin-protocol-v1_8_8/src/test/java/net/zaminmc/torch/protocol/v1_8/VehicleIntegrationTest.java	81	fixed-sleep	60ms	Thread.sleep(60);
+zamin-protocol-v1_8_8	zamin-protocol-v1_8_8/src/test/java/net/zaminmc/torch/protocol/v1_8/VehicleIntegrationTest.java	81	poll-interval	60ms	Thread.sleep(60);
 zamin-protocol-v1_8_8	zamin-protocol-v1_8_8/src/test/java/net/zaminmc/torch/protocol/v1_8/VehicleIntegrationTest.java	110	fixed-sleep	200ms	Thread.sleep(200);
 zamin-protocol-v1_8_8	zamin-protocol-v1_8_8/src/test/java/net/zaminmc/torch/protocol/v1_8/VehicleIntegrationTest.java	112	fixed-sleep	200ms	Thread.sleep(200);
-zamin-protocol-v1_8_8	zamin-protocol-v1_8_8/src/test/java/net/zaminmc/torch/protocol/v1_8/VehicleIntegrationTest.java	144	fixed-sleep	60ms	Thread.sleep(60);
+zamin-protocol-v1_8_8	zamin-protocol-v1_8_8/src/test/java/net/zaminmc/torch/protocol/v1_8/VehicleIntegrationTest.java	144	poll-interval	60ms	Thread.sleep(60);
 zamin-protocol-v1_8_8	zamin-protocol-v1_8_8/src/test/java/net/zaminmc/torch/protocol/v1_8/VehicleIntegrationTest.java	152	deadline-poll	5s	long movedDeadline = System.currentTimeMillis() + 5_000;
 zamin-protocol-v1_8_8	zamin-protocol-v1_8_8/src/test/java/net/zaminmc/torch/protocol/v1_8/VehicleIntegrationTest.java	155	wallclock-read	-	&& System.currentTimeMillis() < movedDeadline) {
 zamin-protocol-v1_8_8	zamin-protocol-v1_8_8/src/test/java/net/zaminmc/torch/protocol/v1_8/VehicleIntegrationTest.java	157	wallclock-read	-	movedDeadline - System.currentTimeMillis());
@@ -1216,9 +1216,9 @@ zamin-protocol-v1_8_8	zamin-protocol-v1_8_8/src/test/java/net/zaminmc/torch/prot
 zamin-protocol-v1_8_8	zamin-protocol-v1_8_8/src/test/java/net/zaminmc/torch/protocol/v1_8/VehicleIntegrationTest.java	319	wallclock-read	-	Math.max(1, spawnDeadline - System.currentTimeMillis()));
 zamin-protocol-v1_8_8	zamin-protocol-v1_8_8/src/test/java/net/zaminmc/torch/protocol/v1_8/VillagerTradeIntegrationTest.java	50	deadline-poll	20s	long deadline = System.currentTimeMillis() + 20_000;
 zamin-protocol-v1_8_8	zamin-protocol-v1_8_8/src/test/java/net/zaminmc/torch/protocol/v1_8/VillagerTradeIntegrationTest.java	51	wallclock-read	-	while (System.currentTimeMillis() < deadline) {
-zamin-protocol-v1_8_8	zamin-protocol-v1_8_8/src/test/java/net/zaminmc/torch/protocol/v1_8/VillagerTradeIntegrationTest.java	61	fixed-sleep	100ms	Thread.sleep(100);
-zamin-protocol-v1_8_8	zamin-protocol-v1_8_8/src/test/java/net/zaminmc/torch/protocol/v1_8/VillagerTradeIntegrationTest.java	102	fixed-sleep	120ms	Thread.sleep(120);
-zamin-protocol-v1_8_8	zamin-protocol-v1_8_8/src/test/java/net/zaminmc/torch/protocol/v1_8/VillagerTradeIntegrationTest.java	129	fixed-sleep	60ms	Thread.sleep(60);
+zamin-protocol-v1_8_8	zamin-protocol-v1_8_8/src/test/java/net/zaminmc/torch/protocol/v1_8/VillagerTradeIntegrationTest.java	61	poll-interval	100ms	Thread.sleep(100);
+zamin-protocol-v1_8_8	zamin-protocol-v1_8_8/src/test/java/net/zaminmc/torch/protocol/v1_8/VillagerTradeIntegrationTest.java	102	poll-interval	120ms	Thread.sleep(120);
+zamin-protocol-v1_8_8	zamin-protocol-v1_8_8/src/test/java/net/zaminmc/torch/protocol/v1_8/VillagerTradeIntegrationTest.java	129	poll-interval	60ms	Thread.sleep(60);
 zamin-protocol-v1_8_8	zamin-protocol-v1_8_8/src/test/java/net/zaminmc/torch/protocol/v1_8/VillagerTradeIntegrationTest.java	148	deadline-poll	20s	long deadline = System.currentTimeMillis() + 20_000;
 zamin-protocol-v1_8_8	zamin-protocol-v1_8_8/src/test/java/net/zaminmc/torch/protocol/v1_8/VillagerTradeIntegrationTest.java	151	wallclock-read	-	Math.max(1, deadline - System.currentTimeMillis()));
 zamin-protocol-v1_8_8	zamin-protocol-v1_8_8/src/test/java/net/zaminmc/torch/protocol/v1_8/VillagerTradeIntegrationTest.java	208	wallclock-read	-	long deadline = System.currentTimeMillis() + timeoutMs;
@@ -1230,16 +1230,16 @@ zamin-protocol-v1_8_8	zamin-protocol-v1_8_8/src/test/java/net/zaminmc/torch/prot
 zamin-protocol-v1_8_8	zamin-protocol-v1_8_8/src/test/java/net/zaminmc/torch/protocol/v1_8/WindowResyncIntegrationTest.java	249	fixed-sleep	150ms	Thread.sleep(150);
 zamin-launcher	zamin-launcher/src/test/java/net/zaminmc/torch/launcher/console/ConsoleRouteIntegrationTest.java	52	deadline-poll	10s	long deadline = System.currentTimeMillis() + 10_000;
 zamin-launcher	zamin-launcher/src/test/java/net/zaminmc/torch/launcher/console/ConsoleRouteIntegrationTest.java	53	wallclock-read	-	while (System.currentTimeMillis() < deadline
-zamin-launcher	zamin-launcher/src/test/java/net/zaminmc/torch/launcher/console/ConsoleRouteIntegrationTest.java	55	poll-interval	50ms	Thread.sleep(50);
+zamin-launcher	zamin-launcher/src/test/java/net/zaminmc/torch/launcher/console/ConsoleRouteIntegrationTest.java	55	fixed-sleep	50ms	Thread.sleep(50);
 zamin-launcher	zamin-launcher/src/test/java/net/zaminmc/torch/launcher/console/TerminalLogBridgeTest.java	48	wallclock-read	-	record.setMillis(System.currentTimeMillis());
 zamin-launcher	zamin-launcher/src/test/java/net/zaminmc/torch/launcher/console/TerminalLogBridgeTest.java	108	wallclock-read	-	long start = System.nanoTime();
 zamin-launcher	zamin-launcher/src/test/java/net/zaminmc/torch/launcher/console/TerminalLogBridgeTest.java	112	wallclock-read	-	long publishNanos = System.nanoTime() - start;
 zamin-launcher	zamin-launcher/src/test/java/net/zaminmc/torch/launcher/console/TorchConsoleTest.java	89	deadline-poll	5s	long deadline = System.currentTimeMillis() + 5_000;
 zamin-launcher	zamin-launcher/src/test/java/net/zaminmc/torch/launcher/console/TorchConsoleTest.java	90	wallclock-read	-	while (System.currentTimeMillis() < deadline
-zamin-launcher	zamin-launcher/src/test/java/net/zaminmc/torch/launcher/console/TorchConsoleTest.java	92	poll-interval	50ms	Thread.sleep(50);
+zamin-launcher	zamin-launcher/src/test/java/net/zaminmc/torch/launcher/console/TorchConsoleTest.java	92	fixed-sleep	50ms	Thread.sleep(50);
 zamin-launcher	zamin-launcher/src/test/java/net/zaminmc/torch/launcher/console/TorchConsoleTest.java	99	deadline-poll	5s	long deadline = System.currentTimeMillis() + 5_000;
 zamin-launcher	zamin-launcher/src/test/java/net/zaminmc/torch/launcher/console/TorchConsoleTest.java	100	wallclock-read	-	while (System.currentTimeMillis() < deadline
-zamin-launcher	zamin-launcher/src/test/java/net/zaminmc/torch/launcher/console/TorchConsoleTest.java	102	poll-interval	50ms	Thread.sleep(50);
+zamin-launcher	zamin-launcher/src/test/java/net/zaminmc/torch/launcher/console/TorchConsoleTest.java	102	fixed-sleep	50ms	Thread.sleep(50);
 zamin-launcher	zamin-launcher/src/test/java/net/zaminmc/torch/launcher/console/TorchConsoleTest.java	155	fixed-sleep	150ms	Thread.sleep(150); // the dumb terminal's echo settles first
 zamin-launcher	zamin-launcher/src/test/java/net/zaminmc/torch/launcher/console/TorchConsoleTest.java	190	fixed-sleep	200ms	Thread.sleep(200); // the loop is parked in readLine
 zamin-launcher	zamin-launcher/src/test/java/net/zaminmc/torch/launcher/console/TorchConsoleTest.java	219	deadline-poll	5s	long deadline = System.currentTimeMillis() + 5_000;
