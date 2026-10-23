@@ -98,6 +98,11 @@ class Protocol18ConformanceTest {
         // (NetworkProtocol line 173 — after MapData 0x34, before
         // OpenSignEditor 0x36): the spawner's spinning body rides it.
         m.put("S2C_UPDATE_BLOCK_ENTITY", 0x35);
+        // Open Sign Editor: #55 in the same registration order
+        // (NetworkProtocol line 176 — right after BlockEntityUpdate 0x35,
+        // before Stats 0x37): the placement editor's own trigger
+        // (ServerPlayerEntity.openSignEditor sends it on sign placement).
+        m.put("S2C_OPEN_SIGN_EDITOR", 0x36);
         m.put("S2C_OPEN_WINDOW", 0x2D);
         m.put("S2C_CLOSE_WINDOW", 0x2E);
         m.put("S2C_SET_SLOT", 0x2F);

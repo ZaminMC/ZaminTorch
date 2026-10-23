@@ -469,6 +469,7 @@ public final class EngineServer implements Server, EngineBridge {
     private final java.util.List<SurvivalListener> survivalListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     private final java.util.List<TimeListener> timeListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     private final java.util.List<SignListener> signListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
+    private final java.util.List<SignEditorListener> signEditorListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     private final java.util.List<RelightListener> relightListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     private final java.util.List<ExperienceListener> experienceListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     private final java.util.List<ExperienceOrbManager.Listener> orbListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
@@ -3915,6 +3916,7 @@ public final class EngineServer implements Server, EngineBridge {
                 session.inventory().consumeHeld(1);
                 publishInventoryChanged(session);
             }
+            openSignEditorOnPlacement(session, target);
             return;
         }
         // Standing facing: the sign fronts the placer. Yaw 0 = south (+Z),
@@ -3930,6 +3932,24 @@ public final class EngineServer implements Server, EngineBridge {
         if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE) {
             session.inventory().consumeHeld(1);
             publishInventoryChanged(session);
+        }
+        openSignEditorOnPlacement(session, target);
+    }
+
+    /**
+     * The editor open at placement (the reference's openSignEditor,
+     * ServerPlayerEntity lines 547-550, called from SignItem.useOn
+     * lines 51-54 the moment the sign block lands): the placing player
+     * alone gets the editing screen — the adapter's listener hands
+     * their connection the Open Sign Editor (0x36) send, every other
+     * player's client stays closed, and the editor's close flows back
+     * as the Update Sign (0x12) write that editSignOnTick already owns
+     * (the reach gate stands in for the reference's editing-player
+     * marker). Tick-thread context.
+     */
+    private void openSignEditorOnPlacement(PlayerSession editor, BlockPosition position) {
+        for (SignEditorListener listener : signEditorListeners) {
+            listener.onSignEditorOpened(editor, position);
         }
     }
 
@@ -4215,6 +4235,22 @@ public final class EngineServer implements Server, EngineBridge {
     /** Registers the sign-text observer (the protocol adapter's wire fan-out). */
     public void addSignListener(SignListener listener) {
         signListeners.add(listener);
+    }
+
+    /**
+     * A sign placement opened the editing screen for its placer — the
+     * reference's openSignEditor law (ServerPlayerEntity lines 547-550:
+     * the sign placement hands the placing player the editor; every
+     * other player's client stays closed). The wire send rides the
+     * protocol adapter's per-player fan (Open Sign Editor 0x36).
+     */
+    public interface SignEditorListener {
+        void onSignEditorOpened(PlayerSession editor, BlockPosition position);
+    }
+
+    /** Registers the sign-editor-open observer (the adapter's 0x36 send). */
+    public void addSignEditorListener(SignEditorListener listener) {
+        signEditorListeners.add(listener);
     }
 
     /**

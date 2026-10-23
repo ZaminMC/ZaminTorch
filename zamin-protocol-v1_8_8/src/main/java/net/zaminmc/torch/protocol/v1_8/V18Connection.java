@@ -1076,6 +1076,26 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         channel.writeAndFlush(out);
     }
 
+    /**
+     * Open Sign Editor (0x36): the placement editor's own trigger —
+     * the reference's openSignEditor (ServerPlayerEntity lines 547-550)
+     * sends it to the placing player alone; the client's editor opens
+     * only on this packet and closes into the Update Sign (0x12) write
+     * path that already works. The body is the id varint + the packed
+     * position long, the same packing the 0x33 writer carries. Safe
+     * from any thread.
+     */
+    void sendOpenSignEditor(BlockPosition position) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(16);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_OPEN_SIGN_EDITOR);
+        ByteBufOps.writePackedBlockPosition(out, position.x(), position.y(), position.z());
+        channel.writeAndFlush(out);
+    }
+
     /** Adds online players (never the asker) whose name starts the token. */
     private void completePlayerNames(PlayerSession asker, String token,
                                      java.util.List<String> completions) {

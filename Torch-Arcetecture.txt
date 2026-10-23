@@ -669,6 +669,8 @@ Torch has published development releases, so the initial artifact gate has been 
 
 The engine has substantial reference-driven mechanics and API coverage, tracked in Section 29 and `VANILLA_1_8_8_COMPATIBILITY.md`. The current ledger includes completed Waves A–K, the metadata-variant Wave L (L1–L6), the stairs' two-box geometry (L7), Wave M (the swept-box physics solver across every moving family), the first Phase-6 gameplay lane (P6), and the use/dig dispatch law family through N7 (the two-stage use law, the use handler's gates, the use packet's tail, the spawn-protection gate, the teleport window, the dig handler's own gates, and the placement reach bands' retirement — the handler's 64.0 is the only band). That is progress by mechanic, not full Minecraft 1.8.8 compatibility: keep each remaining behavior, difference, test, and status explicit. Do not replace reference behavior with modern defaults or narrow the native API to match an incomplete compatibility layer.
 
+Next work: the cycle-4 ranked audit backlog (the master ledger's demand-named rows) is now landing one row per lane — ML-003, the sign editor open (0x36 on placement), is closed (§29's Wave ML row); the remaining ranked rows stay next work, each on its own evidence-pinned lane.
+
 ### Phase 5 — Supporting parallel computation — INFRASTRUCTURE IMPLEMENTED; THE WORKLOAD ADOPTION GATES ANSWERED (PATHFINDING REJECTED WITH EVIDENCE; LIGHTING ANSWERED A MEASURED WIN — the contract, the equivalence, and the numbers landed, the wiring itself still demand-named)
 
 The bounded `ComputeSubsystem`, typed/versioned results, owner-context application, stale-result rejection/fallback, failure reporting, and shutdown are implemented. The FIRST workload adoption is LANDED: the random-tick pick computation (P6-lane) rides the domain worker pool under Phase 5's own contract shape (immutable inputs in, picked positions out, no world read). The SECOND workload adoption is LANDED: the world-delta save's serialization (Slice S1, Wave S) — the pure `WorldDeltaSerializer` leaves the tick lane for the compute pool, the publication's file half rides the blocking-I/O lane, the snapshot build stays on the tick lane, and the monotonic sequence gate keeps an older snapshot off the file when a newer one landed (the byte-identity equivalence proven by the pipeline's own test). The THIRD workload adoption is LANDED: the container trio's compute-then-publish split (Slice S2, Wave S) — furnace/chest/hopper serialize as pure functions over deep immutable captures, publish through the pipeline's named path under their own sequence gates. The FOURTH workload adoption is LANDED: the board/border pair (Slice S3, Wave S) — the scoreboard's and the border's serializations are pure functions over their S1-era snapshot contracts, the file halves normalized to the atomic-move convention, and both stores ride the pipeline's named path. The save walk's store adoptions are now COMPLETE (S4 the tile stores, S5 the config/tile-extra/entity families, VI4 the scheduled ticks, VIII10 the villages, and S6 the shutdown walk's per-player persist arm — the walk's LAST synchronous store, 8e8dcc6d: the capture stays on the tick lane, the ZPD serialization and the file half ride the named path under the PER-PLAYER sequence gate, the quit arm keeping its own synchronous law; the measured tick-lane cost 499.0us -> 6.7us per player-save, 98.7% off the lane) — every save-walk store's serialization leaves the tick lane for the compute pool and every publication rides the blocking-I/O lane under its own named sequence gate. Each proposed workload needs its own immutable-input contract, version validation, behavioral equivalence tests, and before/after measurements before it can be described as safely offloaded — THE PATHFINDING GATE ANSWERED (531fc22): REJECTED WITH EVIDENCE at the current shape (the eager capture 24-73x the on-lane search; the reopen conditions recorded — the section-palette capture, a batch AI shape, ranges beyond 16). THE LIGHTING GATE ANSWERED (fff9698): a MEASURED WIN at both shapes — the initial per-chunk compute (the fresh chunk's clear + sky fill + emitter radiate + border reconcile) over LightRegion, the immutable 3x3 capture (the fresh chunk's material grid plus every loaded neighbor's materials and current light, per SECTION — packed filter|emission bytes, wire-packed light clones, absent sections free); the same algorithms run through a LightAccess seam (the live routing one implementation, the region another — the equivalence by construction, proven cell-for-cell by the twin-world test, which caught a real 4-bit slot-packing bug the masks had folded from 9 slots into 3 bits); the numbers: single-chunk offload total 0.46-0.59x the on-lane compute (flat 5.9ms vs 9.9ms; worked 24.4ms vs 53.0ms), the pregen batch shape (81 chunks, P=4) 3.9-5.4x (804ms->204ms flat; 4,294ms->800ms worked). THE WIRING LANDED: the install hook (onChunkGenerated) now rides the measured region path — capture, the same algorithms over the region routing, the apply — synchronous on the owning lane (a routing win, not a concurrency change; the equivalence was proven first, so no gate needed); the light suite's hand-checked expectations are its acceptance, the direct sweep 355/0. THE BATCH SHAPE LANDED (306ad88 + 1b4baba, gated by torch.parallel-pregen-light, default OFF): the pregen's initial light computes leave the owning lane for the domain worker pool in WAVES — the staleness protocol the verdict demanded. The wave decomposition: the pregen area partitions into four waves by (x&1, z&1); same-wave chunks sit at least 2 apart, so no same-wave chunk is inside another's 3x3 capture neighborhood — a wave generates every chunk on the lane (the persisted delta overlay applied BEFORE the capture), captures every 3x3 read set on the lane, dispatches every pure compute to the pool, joins, then applies-and-installs in the wave's fixed order (the pipelined staleness the gate refused is structurally impossible inside a wave: every capture precedes every install). The handoff: LightEngine.stashInitial + the install hook's consult — the publication path stays the ONE route, the hook replays the precomputed writes. The equivalence evidence: the FLAT shape (the boot default's terrain) agrees with the sequential walk cell-for-cell with identical relight sets; the WORKED shape's residue is measured and pinned by the durable BRACKET — the phantom defaults' asymmetry (sky 15 the channel's max, block 0 its min) bounds every divergence: batched sky <= sequential sky and batched block >= sequential block, cell for cell (the whole measured residue is the SEQUENTIAL walk's own phantom artifact: a step-4 fallback read of never-loaded space answers sky 15 and seeds real light from nothing — the batch's wave order never performed that read, so the batch is darker exactly there, the physically correct answer); determinism: two batched runs identical including relight first-marked order. THE BUG THE BATCH MEASUREMENTS CAUGHT (a production engine bug, not a lane artifact): the light BFS's traversal explodes EXPONENTIALLY wherever it pushes into unloaded space — the write drops (the live engine's own law) but the read answers the channel default forever, so the push condition re-satisfies on every incoming edge and a re-queued unloaded cell re-floods downstream (one torch at a loaded-world edge hung the tick thread for thirty seconds; the same shape stormed the initial compute and the pregen — the sequential worked pregen itself was 19s of storm). The fix (state-identical by construction): the setters answer the landing question (LightAccess.setBlockLight/setSkyLight return boolean) and the BFS re-queues only landed writes — the pathological compute 30.8s -> 3.0ms, the sequential worked pregen 19.1s -> 279ms; UnloadedBorderStormTest 2 is the guard (both routings + the live incremental edge placement). THE HONEST POST-FIX NUMBERS (the corrected harness — the offline gate's 3.9-5.4x projection was storm-inflated compute costs): pregen(81) flat sequential 279ms vs batched 171ms (x0.61); worked 303ms vs 213ms (x0.70) — a real 1.4-1.6x wall-clock win at the production boot shape, pool startup included, gated OFF by default until the lane's evidence retires the gate.
@@ -3670,6 +3672,47 @@ own tests. Order is by vanilla visibility and dependency, not size.
       branch. (Pre-existing develop defects NOT this lane's: the
       StatsCompletenessTest row — coarse_dirt/fern/podzol counting on
       stat rows the 1.8.8 client drops — reproduced on 6507bd09.)
+
+## Wave ML — the 2026-10-23 ranked-audit wire rows (the cycle-4 master
+## ledger's demand-named lanes, one row per PR)
+
+- [x] ML-003 — THE SIGN EDITOR OPEN LANDED WHOLE (feature/sign-editor-open,
+      f90b0880 + bb4f9e0b): the cycle-4 audit's H-severity wire gap — a
+      real 1.8.8 client places a sign and the editor NEVER opens (the
+      sign stays blank), because nothing sent Open Sign Editor (0x36);
+      bot clients writing Update Sign (0x12) directly masked the bug
+      through every mineflayer playtest. The reference law ported 1:1:
+      SignItem.useOn lines 51-54 calls the player's openSignEditor the
+      moment the placed sign block lands, and ServerPlayerEntity
+      .openSignEditor lines 547-550 sends OpenSignEditorS2CPacket — the
+      client's editor opens ONLY on this packet. The additive surface:
+      the S2C_OPEN_SIGN_EDITOR 0x36 constant (Protocol18, #55 in the
+      PLAY registration order, after Update Block Entity 0x35); the
+      engine's SignEditorListener (onSignEditorOpened(editor, position))
+      fired from placeSignOnTick's standing AND wall arms after the
+      block lands and the survival consume — the reference's own
+      place-consume-open order — with the 0x12 reach gate standing in
+      for the reference's editing-player marker; V18Connection
+      .sendOpenSignEditor (the established sendX form, id varint + the
+      packed position long in the 0x33 packing style); and
+      V18ProtocolServer's per-player fan (connection.currentSession() ==
+      editor — every other player's client stays closed, their text
+      still arrives through the 0x33 replay). Evidence:
+      SignEditorOpenWireTest 3/0 — the placer's socket receives 0x36
+      byte-identical to the reference packet's write form (writeBlockPos
+      -> one packed long, 9 bytes, no tail) naming the placed cell; the
+      observer crosses the whole placement-and-edit window bounded by
+      the 0x33 replay marker without ever seeing a 0x36; the codec pin
+      across the coordinate band, negatives included — plus
+      SignEditorOpenAcceptanceTest 4/0 through the real use dispatch
+      (the standing and wall placements open the editor at the placed
+      cell for the placer alone, the survival placement still consumes
+      its item, the client-claimed creative arm opens it too, a stone
+      placement never does) — with SignIntegrationTest 2/0 and
+      SignDataStoreSplitTest 3/0 green unchanged. The compatibility
+      ledger stays untouched: no Ledgered: row matches signs (the
+      spawner row's "before OpenSignEditor 0x36" prose is registration
+      order, not a ledger row).
 
 ## Standing (demand-named, not scheduled)
 
