@@ -17462,13 +17462,15 @@ public final class EngineServer implements Server, EngineBridge {
         public void explode(double x, double y, double z) {
             // takeDamage line 77: the 6.0F destructive blast in the End's
             // own world (the reference's six-arg explode — createFire
-            // false, destructive true).
+            // false, destructive true; the crystal itself is no living
+            // source — getSource answers null, no attacker rides).
             detonateAtIn(endWorld, endExplosionService, 1,
                     x, y, z,
                     net.zaminmc.torch.server.endcrystal.EnderCrystalSystem.BLAST_POWER,
                     net.zaminmc.torch.server.endcrystal.EnderCrystalSystem.BLAST_MAX_DAMAGE,
                     true,
-                    net.zaminmc.torch.server.block.ExplosionService.BlastSource.PLAIN);
+                    net.zaminmc.torch.server.block.ExplosionService.BlastSource.PLAIN,
+                    null);
         }
 
         @Override
@@ -18065,10 +18067,14 @@ public final class EngineServer implements Server, EngineBridge {
             ItemStack[] thornsRow = mobEquipmentRow(mob);
             boolean landedArrow = mobManager.hurt(mob, damage, kbYaw,
                     net.zaminmc.torch.event.DamageCause.PROJECTILE,
-                    false, false, null,
+                    false, false, shooterMob,
                     // VIII9: the player shooter rides the walk (the zombie's
                     // reinforcement ladder resolves the wound's living
                     // attacker — a modded skeleton's arrow carries null).
+                    // The mob shooter rides it too (the reference's
+                    // ProjectileDamageSource.getAttacker — the SHOOTER, lines
+                    // 24-26 — so the victim's RevengeGoal answers the archer
+                    // and the wolf's shave rounds a mob's arrow up to half).
                     playerShooter ? shooter : null);
             if (landedArrow && playerShooter) {
                 // The wound stats (the melee arm's own rows over the arrow):
@@ -18917,7 +18923,9 @@ public final class EngineServer implements Server, EngineBridge {
          * {@code world.explode(this, x, y + getEyeHeight(), z, 7.0F, false,
          * mobGriefing)}) — wounds and knocks but never breaks blocks (the
          * fire flag false) — and the GLOBAL 1013 spawn sound rides the
-         * forward below (every connected player, every dimension).
+         * forward below (every connected player, every dimension). The
+         * wither itself is the blast's living source ({@code explode(this,
+         * ...)} — the hurt walk's attacker seat).
          */
         @Override
         public void onWitherBirth(net.zaminmc.torch.server.entity.MobEntity mob) {
@@ -18925,8 +18933,8 @@ public final class EngineServer implements Server, EngineBridge {
                 listener.onWitherBirth(mob);
             }
             double eye = mob.eyeHeightForQuery();
-            detonateAt(mob.position().x(), mob.position().y() + eye, mob.position().z(),
-                    WITHER_BIRTH_POWER, WITHER_BIRTH_POWER * 2.0f, false);
+            detonateAtWithAttacker(mob.position().x(), mob.position().y() + eye, mob.position().z(),
+                    WITHER_BIRTH_POWER, WITHER_BIRTH_POWER * 2.0f, false, mob);
         }
 
         /**
@@ -20180,6 +20188,53 @@ public final class EngineServer implements Server, EngineBridge {
         }
 
         /**
+         * The player hunt's same-team refusal ({@code
+         * MobEntityPlayerTargetGoal.shouldContinue} lines 90-94 over the
+         * player's NAME key): the nearest live player not on the given
+         * team. A null team never refuses.
+         */
+        @Override
+        public Position nearestPlayer(double x, double y, double z, double range,
+                                     String excludeTeam) {
+            PlayerSession best = null;
+            double bestDistance = range * range;
+            for (PlayerSession player : players.all()) {
+                if (player.state() != PlayerState.PLAYING || player.dead()
+                        || player.dimension() != activeDimension) {
+                    continue;
+                }
+                if (excludeTeam != null
+                        && excludeTeam.equals(teamNameOf(player.name()))) {
+                    continue; // isTarget's same-team refusal
+                }
+                Position p = player.position();
+                double dx = p.x() - x;
+                double dy = p.y() - y;
+                double dz = p.z() - z;
+                double distance = dx * dx + dy * dy + dz * dz;
+                if (distance <= bestDistance) {
+                    bestDistance = distance;
+                    best = player;
+                }
+            }
+            return best == null ? null : best.position();
+        }
+
+        /**
+         * The scoreboard team the member rides — the engine's own
+         * {@code getTeamOfMember} over the reference's key law (players by
+         * NAME, every other living body by its UUID STRING). The team's
+         * NAME is the identity (the engine's teams register one instance
+         * per name — the reference's object equality).
+         */
+        @Override
+        public String teamNameOf(String member) {
+            net.zaminmc.torch.server.scoreboard.ScoreboardTeam team =
+                    scoreboard.getTeamOfMember(member);
+            return team != null ? team.name() : null;
+        }
+
+        /**
          * The nearest live mob of the kind (ActiveTargetGoal's scan /
          * FleeEntityGoal's scare read, Slice 16b): the mob-vs-mob target
          * family's world walk over the manager's live list.
@@ -20194,6 +20249,39 @@ public final class EngineServer implements Server, EngineBridge {
                         // Slice 25d: the scan reads its own dimension's mobs.
                         || mob.dimension() != activeDimension) {
                     continue;
+                }
+                Position p = mob.position();
+                double dx = p.x() - x;
+                double dy = p.y() - y;
+                double dz = p.z() - z;
+                double distance = dx * dx + dy * dy + dz * dz;
+                if (distance <= bestDistance) {
+                    bestDistance = distance;
+                    best = mob;
+                }
+            }
+            return best;
+        }
+
+        /**
+         * The hunt scan's same-team refusal (TrackTargetGoal.isTarget
+         * lines 102-106 over the mob's UUID-STRING key): the nearest live
+         * mob of the kind NOT on the given team. A null team never refuses.
+         */
+        @Override
+        public MobEntity nearestMobOfKind(double x, double y, double z, double range,
+                                           net.zaminmc.torch.server.entity.MobType kind,
+                                           String excludeTeam) {
+            MobEntity best = null;
+            double bestDistance = range * range;
+            for (MobEntity mob : mobManager.all()) {
+                if (mob.dead() || mob.type() != kind
+                        || mob.dimension() != activeDimension) {
+                    continue;
+                }
+                if (excludeTeam != null
+                        && excludeTeam.equals(teamNameOf(mob.getUuid().toString()))) {
+                    continue; // isTarget's same-team refusal
                 }
                 Position p = mob.position();
                 double dx = p.x() - x;
@@ -20236,6 +20324,89 @@ public final class EngineServer implements Server, EngineBridge {
                 }
             }
             return best;
+        }
+
+        /**
+         * The golem's own target law over the hostile scan
+         * (IronGolemEntity.ActiveTargetGoal lines 247-283): the creeper
+         * EXCLUDED (the override's predicate, lines 256-258 — the canAttack
+         * line 137's own veto) and the same-team refusal every target goal
+         * reads (TrackTargetGoal.isTarget lines 102-106). A null kind or
+         * team folds the matching gate off (the snow golem's plain
+         * Monster.FILTER keeps the creeper in).
+         */
+        @Override
+        public MobEntity nearestHostileMob(double x, double y, double z, double range,
+                                            net.zaminmc.torch.server.entity.MobType excludeKind,
+                                            String excludeTeam) {
+            MobEntity best = null;
+            double bestDistance = range * range;
+            for (MobEntity mob : mobManager.all()) {
+                if (mob.dead() || !mob.type().hostile
+                        || mob.dimension() != activeDimension
+                        || (excludeKind != null && mob.type() == excludeKind)) {
+                    continue;
+                }
+                if (excludeTeam != null
+                        && excludeTeam.equals(teamNameOf(mob.getUuid().toString()))) {
+                    continue; // isTarget's same-team refusal
+                }
+                Position p = mob.position();
+                double dx = p.x() - x;
+                double dy = p.y() - y;
+                double dz = p.z() - z;
+                double distance = dx * dx + dy * dy + dz * dz;
+                if (distance <= bestDistance) {
+                    bestDistance = distance;
+                    best = mob;
+                }
+            }
+            return best;
+        }
+
+        /**
+         * The brightness at a cell (the reference's {@code
+         * Entity.getBrightness} — Entity.java lines 889-892 over
+         * World.getBrightness line 613's table read): the raw light
+         * {@code max(block, sky - ambientDarkness)} (WorldChunk.getLight
+         * lines 592-606 over World.calculateAmbientDarkness lines
+         * 1004-1013) through the dimension's own brightness table
+         * (Dimension.initBrightnessTable lines 39-46 — the overworld's
+         * f = 0.0, the nether's f = 0.1, NetherDimension lines 25-32; the
+         * roofed dimension carries no sky light so the ambient never
+         * lands).
+         */
+        @Override
+        public float brightness(int x, int y, int z) {
+            // The reference's own bounds law (World.getRawBrightness lines
+            // 470-486): a cell below the world answers the floor — dark —
+            // and the roof reads the top cell; the constructor's own
+            // validation never sees an out-of-bounds y (a void-falling
+            // body's eye cell).
+            if (y < BlockPosition.MIN_Y) {
+                return 0.0f;
+            }
+            y = Math.min(y, BlockPosition.MAX_Y);
+            EngineWorld target = activeWorld();
+            BlockPosition pos = new BlockPosition(x, y, z);
+            int raw;
+            if (activeDimension == -1) {
+                raw = target.blockLightAt(pos); // no sky: the ambient is moot
+            } else {
+                // The weather gradients (World.calculateAmbientDarkness's
+                // own rain/thunder shaves) — null-safe for the boot window
+                // before the weather system wires (full light, no shave).
+                net.zaminmc.torch.server.weather.WeatherSystem w = weather;
+                float rain = w != null ? w.rainGradient() : 0.0f;
+                float thunder = w != null ? w.thunderGradient() : 0.0f;
+                int ambient = net.zaminmc.torch.server.daylight.DaylightDetectorSystem
+                        .ambientDarkness(target.timeOfDay(), rain, thunder);
+                raw = Math.max(target.skyLightAt(pos) - ambient, target.blockLightAt(pos));
+            }
+            raw = Math.max(0, Math.min(15, raw));
+            float f = activeDimension == -1 ? 0.1f : 0.0f;
+            float f1 = 1.0f - raw / 15.0f;
+            return (1.0f - f1) / (f1 * 3.0f + 1.0f) * (1.0f - f) + f;
         }
 
         /**
@@ -20840,8 +21011,22 @@ public final class EngineServer implements Server, EngineBridge {
         // world's blast wounds and knocks but never breaks blocks.
         float power = creeper.creeperExplosionRadius()
                 * (creeper.creeperCharged() ? 2.0f : 1.0f);
-        detonateAt(center.x(), center.y() + 0.5, center.z(), power, BLAST_MAX_DAMAGE,
-                gameRules.getBoolean("mobGriefing"));
+        detonateAtWithAttacker(center.x(), center.y() + 0.5, center.z(), power,
+                BLAST_MAX_DAMAGE, gameRules.getBoolean("mobGriefing"), creeper);
+    }
+
+    /**
+     * One detonation in the OVERWORLD carrying the blast's ATTACKER (the
+     * reference's {@code DamageSource.explosion} over {@code Explosion
+     * .getSource} — the creeper's own blast passes itself, the creeper a
+     * LivingEntity whose getSource resolution answers its own body).
+     */
+    private void detonateAtWithAttacker(double cx, double cy, double cz, float power,
+                                        float maxDamage, boolean destructive, MobEntity attacker) {
+        detonateAtIn(world, explosionService, 0, cx, cy, cz, power, maxDamage,
+                destructive,
+                net.zaminmc.torch.server.block.ExplosionService.BlastSource.PLAIN,
+                attacker);
     }
 
     /**
@@ -20851,13 +21036,13 @@ public final class EngineServer implements Server, EngineBridge {
     private void detonateAtWithSource(double cx, double cy, double cz, float power, float maxDamage,
                                       boolean destructive,
                                       net.zaminmc.torch.server.block.ExplosionService.BlastSource source) {
-        detonateAtIn(world, explosionService, 0, cx, cy, cz, power, maxDamage, destructive, source);
+        detonateAtIn(world, explosionService, 0, cx, cy, cz, power, maxDamage, destructive, source, null);
     }
 
     private void detonateAt(double cx, double cy, double cz, float power, float maxDamage,
                             boolean destructive) {
         detonateAtIn(world, explosionService, 0, cx, cy, cz, power, maxDamage, destructive,
-                net.zaminmc.torch.server.block.ExplosionService.BlastSource.PLAIN);
+                net.zaminmc.torch.server.block.ExplosionService.BlastSource.PLAIN, null);
     }
 
     /**
@@ -20867,12 +21052,20 @@ public final class EngineServer implements Server, EngineBridge {
      * the per-power drop roll, the wound falloff to double the power with
      * the caller's easy-difficulty cap, and the wire fan-out. The wounds
      * and the wire carry the blast's OWN dimension — a body in another
-     * world never takes a same-coordinate blast. Tick-thread context.
+     * world never takes a same-coordinate blast. The attacker seat is the
+     * reference's {@code Explosion.getSource()} (lines 206-214): the
+     * living source the hurt walk's damage source carries — a creeper's
+     * or a wither's own body — so the victims' shave, revenge, and
+     * death-hook walks read the blast's author; the player-lit TNT, the
+     * fireballs, the skulls, and the crystals carry none (the engine's
+     * TntSystem holds no igniter seat — ledgered).
+     * Tick-thread context.
      */
     private void detonateAtIn(EngineWorld blastWorld, ExplosionService service,
                               int dimension, double cx, double cy, double cz,
                               float power, float maxDamage, boolean destructive,
-                              net.zaminmc.torch.server.block.ExplosionService.BlastSource source) {
+                              net.zaminmc.torch.server.block.ExplosionService.BlastSource source,
+                              MobEntity attacker) {
         BlockPosition blockCenter = new BlockPosition(
                 (int) Math.floor(cx), (int) Math.floor(cy), (int) Math.floor(cz));
 
@@ -21042,6 +21235,10 @@ public final class EngineServer implements Server, EngineBridge {
         // Mob wounds: the same falloff, through the manager's hurt path,
         // in the blast's own dimension (the mob's dimension field — the
         // nether bodies never take an overworld blast at the same spot).
+        // The attacker seat rides the walk (the reference's
+        // DamageSource.explosion — the EntityDamageSource the hurt walk's
+        // shave, revenge, and death-hook arms read when getSource()
+        // answers a living body).
         for (MobEntity mob : mobManager.all()) {
             if (mob.dimension() != dimension) {
                 continue;
@@ -21060,7 +21257,8 @@ public final class EngineServer implements Server, EngineBridge {
             }
             mobManager.hurt(mob, damage,
                     Math.toDegrees(Math.atan2(-dx, dz)), // knockback away from the blast
-                    net.zaminmc.torch.event.DamageCause.EXPLOSION);
+                    net.zaminmc.torch.event.DamageCause.EXPLOSION,
+                    false, false, attacker);
         }
 
         // Vehicle wounds (Slice 74 — the reference's damageEntities walk
