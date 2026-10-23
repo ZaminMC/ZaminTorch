@@ -150,6 +150,7 @@ class LoginCompressionWireTest {
                 Protocol18.S2C_JOIN_GAME, Protocol18.S2C_SERVER_DIFFICULTY,
                 Protocol18.S2C_SPAWN_POSITION, Protocol18.S2C_TIME_UPDATE,
                 Protocol18.S2C_CHUNK_DATA, Protocol18.S2C_PLAYER_POSITION_AND_LOOK,
+                Protocol18.S2C_CHUNK_BULK, Protocol18.S2C_MULTI_BLOCK_CHANGE,
                 Protocol18.S2C_CHAT, Protocol18.S2C_PLAYER_INFO,
                 Protocol18.S2C_PLUGIN_MESSAGE, Protocol18.S2C_WINDOW_ITEMS,
                 Protocol18.S2C_UPDATE_HEALTH, Protocol18.S2C_SET_EXPERIENCE,

@@ -52,6 +52,18 @@ final class Protocol18 {
      * the mineflayer parser tolerated; the real 1.8.8 client would not). */
     static final int S2C_WORLD_PARTICLES = 0x2A;
     static final int S2C_BLOCK_CHANGE = 0x23;
+    /**
+     * Multi Block Change (0x22, BlocksUpdateS2CPacket — protocol 47's
+     * per-chunk batched block updates): i32 chunkX, i32 chunkZ, varint
+     * record count, then per record a u16 packed cell ((localX << 12) |
+     * (localZ << 8) | y — BlocksUpdateS2CPacket.BlockUpdate.getBlockPos's
+     * own decode bands) and a varint packed block state. The batched arm of
+     * the reference's ChunkMap.ChunkHolder.sendChanges flush (ChunkMap.java
+     * lines 384-385): 2-63 pending cells batch; ONE pending cell keeps the
+     * 0x23 single (lines 360-365); a full 64-cell buffer escalates to the
+     * partial 0x21 (lines 369-372).
+     */
+    static final int S2C_MULTI_BLOCK_CHANGE = 0x22;
     static final int S2C_CHANGE_GAME_STATE = 0x2B;
     /** Change Game State reasons: 1 end rain, 2 begin rain, 3 = change gamemode. */
     static final int GAME_STATE_CHANGE_END_RAINING = 1;
@@ -89,6 +101,20 @@ final class Protocol18 {
     /** Attach Entity (0x1B, protocol 47): i32 rider, i32 vehicle, u8 leash/riding. */
     static final int S2C_ATTACH_ENTITY = 0x1B;
     static final int S2C_CHUNK_DATA = 0x21;
+    /**
+     * Map Chunk Bulk (0x26, WorldChunksS2CPacket — protocol 47's batched
+     * initial-view send): boolean skylight-present, varint column count,
+     * then per column i32 x, i32 z, u16 section bitmask, and AFTER every
+     * header every column's data array concatenated WITHOUT length
+     * prefixes (the client sizes each array from its bitmask — the
+     * reference's read, WorldChunksS2CPacket lines 36-53; the single
+     * 0x21's byte-array length prefix is the one difference). The bulk
+     * arm of the reference's per-player pending-chunk walk
+     * (ServerPlayerEntity.java lines 233-272): the walk collects at most
+     * 10 ready columns per tick — exactly 1 keeps the single 0x21, 2+
+     * ride ONE bulk (lines 257-262).
+     */
+    static final int S2C_CHUNK_BULK = 0x26;
     /** Spawn Experience Orb (0x11, protocol 47): varint id, i32 xyz (1/32), i16 count. */
     static final int S2C_SPAWN_XP_ORB = 0x11;
     /** Set Experience (0x1F, protocol 47): f32 progress, short level, short total. */

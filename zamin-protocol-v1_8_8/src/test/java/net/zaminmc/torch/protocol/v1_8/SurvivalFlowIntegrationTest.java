@@ -63,9 +63,9 @@ class SurvivalFlowIntegrationTest extends ProtocolTestBase {
             EngineAwaits.awaitTicks(server.world(), 19, "grass by hand: 18 ticks nominal (900ms)");
             client.sendDigging(2, 2, 4, 2, 1);
 
-            client.readBlockChangeAt(2, 4, 2, 0, 10_000); // the resulting state: air
-
-            // The drop arrives as a Spawn Entity (type 1 = item, objectData = dirt).
+            // ML-019's order: the immediate drop spawn + its metadata precede
+            // the deferred block-change flush (the tick's chunkMap section) —
+            // read the immediates first, the air change last.
             int[] spawn = client.readSpawnItem(10_000);
             assertEquals(Protocol18.OBJECT_ITEM, spawn[1]); // object 2 = Item (boat-era literal retired)
             assertEquals(3, spawn[5]); // objectData: legacy dirt id
@@ -77,6 +77,8 @@ class SurvivalFlowIntegrationTest extends ProtocolTestBase {
             assertEquals(itemEntityId, meta[0]);
             assertEquals(3, meta[1]); // dirt
             assertEquals(1, meta[2]); // one unit
+
+            client.readBlockChangeAt(2, 4, 2, 0, 10_000); // air: the deferred flush
 
             // --- walk onto the item and collect it ---
             walkToTheDrop(client, spawn);
@@ -93,18 +95,19 @@ class SurvivalFlowIntegrationTest extends ProtocolTestBase {
             // place into their own bounding box), then refill from spawn ---
             client.sendPosition(0.5, 5.0, 0.5, true);
             client.sendBlockPlacement(2, 3, 2, 1, 3);
-            client.readBlockChangeAt(2, 4, 2, 3, 10_000); // dirt placed
-
+            // ML-019's order: the immediate consume sync precedes the deferred
+            // broadcast flush — the window sync first, the block change after.
             int[] afterPlace = client.readWindowItems(10_000);
             assertEquals(-1, afterPlace[2]); // consumption emptied the hotbar
+            client.readBlockChangeAt(2, 4, 2, 3, 10_000); // dirt placed (the deferred flush)
 
             // --- mine again, then drop the held item with Q (status 4) ---
             client.sendDigging(0, 2, 4, 2, 1);
             EngineAwaits.awaitTicks(server.world(), 19, "dirt by hand: 15 ticks nominal (750ms)");
             client.sendDigging(2, 2, 4, 2, 1);
-            client.readBlockChangeAt(2, 4, 2, 0, 10_000); // air
-            int[] redropped = client.readSpawnItem(10_000); // drop
+            int[] redropped = client.readSpawnItem(10_000); // drop (before the deferred air change)
             client.readItemMetadata(10_000);
+            client.readBlockChangeAt(2, 4, 2, 0, 10_000); // air (the deferred flush)
             walkToTheDrop(client, redropped);
             client.readCollectItem(15_000);
             client.readWindowItems(15_000); // inventory holds 1 dirt again
@@ -153,10 +156,10 @@ class SurvivalFlowIntegrationTest extends ProtocolTestBase {
             EngineAwaits.awaitTicks(server.world(), 24, "engine progress (a 1_200 wall settle)");
             client.sendDigging(2, 2, 5, 2, 1);
 
-            client.readBlockChangeAt(2, 5, 2, 0, 10_000); // air
-
-            // Wire order mirrors the tick order: commit -> drops -> durability
-            // wear. The harvested drop is cobblestone (legacy 4), not stone.
+            // Wire order under ML-019: the immediate drop spawn -> its
+            // metadata -> the durability wear's held-slot sync -> the
+            // deferred block-change flush. The harvested drop is cobblestone
+            // (legacy 4), not stone.
             int[] spawn = client.readSpawnItem(10_000);
             assertEquals(Protocol18.OBJECT_ITEM, spawn[1]); // object 2 = Item (boat-era literal retired)
             assertEquals(4, spawn[5]);
@@ -166,6 +169,8 @@ class SurvivalFlowIntegrationTest extends ProtocolTestBase {
             int[] worn = client.readWindowItems(10_000);
             assertEquals(270, worn[3]);
             assertEquals(1, worn[5], "one dig wears the wooden pickaxe by one unit");
+
+            client.readBlockChangeAt(2, 5, 2, 0, 10_000); // air: the deferred flush, last
 
             walkToTheDrop(client, spawn);
             client.readCollectItem(15_000);
