@@ -289,6 +289,17 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                 connection.sendSignUpdate(position, lines);
             }
         });
+        // Open Sign Editor (0x36): the placement editor opens for the
+        // placing player alone (the reference's openSignEditor — every
+        // other player's client stays closed; their sign text arrives
+        // through the 0x33 replay above when the editor closes).
+        server.addSignEditorListener((editor, position) -> {
+            for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                if (connection.currentSession() == editor) {
+                    connection.sendOpenSignEditor(position);
+                }
+            }
+        });
         // The spawner's broadcasts (Slice 18e): the fired cycle's flames
         // (doEvent 2004 — the Effect packet) and the delay reroll's spin
         // reset (the block event 1 — the Block Action packet), both
