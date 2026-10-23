@@ -1044,6 +1044,14 @@ public final class MobManager {
             // the white default.
             mob.setSheepFleeceColor(pickSheepColor(random));
         }
+        if (type == MobType.HORSE) {
+            // HorseBaseEntity.initialize lines 1278-1284: the MAX_HEALTH
+            // roll (line 1278 over getChildHealthBonus line 1386 — 15 +
+            // nextInt(8) + nextInt(9)) and the MOVEMENT_SPEED roll (line
+            // 1281 over getMovementSpeedBonus line 1390 — the donkey/mule
+            // flat of line 1283 lands at walkSpeed()'s live-subtype read).
+            rollHorseSpawnAttributes(mob, random);
+        }
         mobs.add(mob);
         for (Listener listener : listeners) {
             listener.onMobSpawned(mob);
@@ -1205,6 +1213,24 @@ public final class MobManager {
             return 12; // BROWN
         }
         return roll.nextInt(500) == 0 ? 6 /* PINK */ : 0 /* WHITE */;
+    }
+
+    /**
+     * The horse's spawn-time attribute rolls (HorseBaseEntity.initialize
+     * lines 1278-1284, in the reference's own order): MAX_HEALTH first
+     * (line 1278 over getChildHealthBonus line 1386 — {@code 15 +
+     * nextInt(8) + nextInt(9)}), then MOVEMENT_SPEED (line 1281 over
+     * getMovementSpeedBonus line 1390 — {@code (0.45 + 3x nextDouble()*0.3)
+     * * 0.25}). The reference rolls the speed only on the {@code i == 0}
+     * branch; the engine rolls it for every body and lets the consult's
+     * live-subtype read take the donkey/mule flat (initialize line 1283) —
+     * the rows that overwrite the subtype after the spawn stay coherent
+     * either way. Package-private static so the tests drive the dice with
+     * their own seeded random.
+     */
+    static void rollHorseSpawnAttributes(MobEntity mob, java.util.Random random) {
+        mob.applyHorseSpawnHealth(15 + random.nextInt(8) + random.nextInt(9));
+        mob.rollHorseSpawnSpeed(random);
     }
 
     /**

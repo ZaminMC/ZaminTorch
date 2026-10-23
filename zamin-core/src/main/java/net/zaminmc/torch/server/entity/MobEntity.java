@@ -1223,6 +1223,12 @@ public final class MobEntity implements LivingEntity {
         if (zombieLeaderMaxHealth > 0.0f) {
             return zombieLeaderMaxHealth;
         }
+        // The horse's spawn-time MAX_HEALTH roll (HorseBaseEntity.initialize
+        // line 1278 over getChildHealthBonus line 1386): the rolled
+        // 15 + nextInt(8) + nextInt(9) ceiling over the kind's plain 22.
+        if (horseSpawnMaxHealth > 0.0f) {
+            return horseSpawnMaxHealth;
+        }
         return type.maxHealth;
     }
 
@@ -4489,7 +4495,26 @@ public final class MobEntity implements LivingEntity {
      * consult shape).
      */
     public double walkSpeed() {
-        return hasMovementSpeedOverride() ? movementSpeedOverride : type.walkSpeed;
+        if (hasMovementSpeedOverride()) {
+            return movementSpeedOverride;
+        }
+        // The horse's spawn-time MOVEMENT_SPEED roll (HorseBaseEntity
+        // .initialize lines 1280-1283): the horse's rolled band (line 1281
+        // over getMovementSpeedBonus line 1390) or the donkey/mule flat
+        // (line 1283) — the branch reads the LIVE subtype, so the rows that
+        // overwrite the subtype after the spawn (the seeding's group type,
+        // the /summon Type row, the breed's mule) answer coherently. The
+        // roll answers on the reference's base scale (its registered horse
+        // base is 0.225, initAttributes line 559; the roll's mean IS that
+        // base), so the consult lands it on the engine's own base (the
+        // MobType row's 0.045) by the same ratio — the pigman angry
+        // multiplier's own precedent shape.
+        if (type == MobType.HORSE && !Double.isNaN(horseSpeedRoll)) {
+            double referenceScale = horseSubtype == HORSE_SUBTYPE_HORSE
+                    ? horseSpeedRoll : HORSE_DONKEY_SPAWN_SPEED;
+            return type.walkSpeed * (referenceScale / HORSE_REFERENCE_SPAWN_SPEED);
+        }
+        return type.walkSpeed;
     }
 
     /** The attack-damage override's landing (the same refuse-non-positive gate). */
@@ -6489,6 +6514,67 @@ public final class MobEntity implements LivingEntity {
 
     public void setHorseSubtype(int subtype) {
         this.horseSubtype = subtype;
+    }
+
+    // ---------------------------------------- horse spawn attributes (the initialize rolls)
+    // (HorseBaseEntity.initialize lines 1278-1284, through getChildHealthBonus
+    // line 1386 + getMovementSpeedBonus line 1390)
+
+    /**
+     * The reference's registered horse MOVEMENT_SPEED base (initAttributes
+     * line 559): the roll's own scale — the rolled band's mean IS this
+     * base, so the consult lands it on the engine's own base by the ratio.
+     */
+    private static final double HORSE_REFERENCE_SPAWN_SPEED = 0.225;
+
+    /**
+     * The donkey/mule's spawn speed (initialize line 1283: the flat 0.175
+     * on the same 0.225 scale) — the {@code else} arm of initialize's
+     * {@code if (i == 0)} speed branch.
+     */
+    private static final double HORSE_DONKEY_SPAWN_SPEED = 0.175;
+
+    /**
+     * The horse's spawn-time MAX_HEALTH ceiling (initialize line 1278 over
+     * getChildHealthBonus line 1386: {@code 15 + nextInt(8) + nextInt(9)});
+     * 0 = no roll landed (the kind's plain row).
+     */
+    private float horseSpawnMaxHealth;
+
+    /**
+     * The horse's spawn-time speed roll (initialize line 1281 over
+     * getMovementSpeedBonus line 1390: {@code (0.45 + 3x nextDouble()*0.3)
+     * * 0.25}), on the reference's base scale; NaN = no roll landed.
+     */
+    private double horseSpeedRoll = Double.NaN;
+
+    /**
+     * Lands the rolled MAX_HEALTH ceiling (the spawn-site arm,
+     * MobManager.spawnAt's horse roll). The reference sets the
+     * attribute's BASE and never touches the current health (the
+     * LivingEntity ctor line 136's setHealth(getMaxHealth()) is the last
+     * write — a freshly spawned body carries the ctor's full-of-registered
+     * -base value above or below the rolled ceiling until the first
+     * damage/heal clamps it); the engine keeps the same law.
+     */
+    public void applyHorseSpawnHealth(float ceiling) {
+        if (type != MobType.HORSE) {
+            return;
+        }
+        this.horseSpawnMaxHealth = ceiling;
+    }
+
+    /**
+     * Lands the rolled speed (the spawn-site arm) on the reference's
+     * base scale — {@link #walkSpeed()} consults it against the LIVE
+     * subtype (the horse's rolled band or the donkey/mule flat).
+     */
+    public void rollHorseSpawnSpeed(java.util.Random roll) {
+        if (type != MobType.HORSE) {
+            return;
+        }
+        this.horseSpeedRoll = (0.45 + roll.nextDouble() * 0.3
+                + roll.nextDouble() * 0.3 + roll.nextDouble() * 0.3) * 0.25;
     }
 
     /** Sets the coat directly (the group's shared color | the re-rolled marking). */
