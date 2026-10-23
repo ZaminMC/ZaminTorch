@@ -1716,13 +1716,18 @@ final class TestClient18 implements AutoCloseable {
     /**
      * Reads Named Entity Spawn (0x0C): {entityId} — the tracked remote
      * player's observer-local id, the target space of PvP Use Entity.
+     * The uuid rides the reference's writeUuid form (16 raw bytes, two
+     * longs — PacketByteBuf lines 112-115), never a length-prefixed
+     * string: ML-021's root cause was exactly that string form, and this
+     * reader once codified it.
      */
     int[] readNamedSpawn(long timeoutMs) throws IOException {
         byte[] payload = readPacketOfType(Protocol18.S2C_NAMED_SPAWN, timeoutMs);
         ByteBuf buffer = Unpooled.wrappedBuffer(payload);
         ByteBufOps.readVarInt(buffer); // packet id
         int entityId = ByteBufOps.readVarInt(buffer);
-        ByteBufOps.readString(buffer, 64); // uuid
+        buffer.readLong(); // uuid msb
+        buffer.readLong(); // uuid lsb
         buffer.readInt();
         buffer.readInt();
         buffer.readInt();
