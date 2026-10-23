@@ -183,6 +183,16 @@ final class Protocol18 {
     static final int S2C_COMBAT_EVENT = 0x42;
     /** Combat event 2 = entity died (playerId varint, entityId i32, message). */
     static final int COMBAT_EVENT_ENTITY_DIED = 2;
+    /**
+     * Spectator Camera (s2c/play 0x43 — the reference's CameraS2CPacket,
+     * {@code buffer.writeVarInt(this.id)} line 27): ONE varint, the camera
+     * entity's id in the receiving client's own world (a Named-Spawn-tracked
+     * target while spectating, the Join Game own id when the camera returns
+     * to self — the client's handleCamera drops the packet on an unknown
+     * id, ClientPlayNetworkHandler line 1174's {@code getCamera(world)}
+     * null consult).
+     */
+    static final int S2C_CAMERA = 0x43;
 
     /**
      * Player Info (0x38, protocol 47 — PlayerInfoS2CPacket): varint action,

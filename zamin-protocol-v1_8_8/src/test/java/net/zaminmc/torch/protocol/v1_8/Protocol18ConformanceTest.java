@@ -130,6 +130,11 @@ class Protocol18ConformanceTest {
         m.put("S2C_UPDATE_SCORE", 0x3C);
         m.put("S2C_DISPLAY_SCOREBOARD", 0x3D);
         m.put("S2C_TEAMS", 0x3E);
+        // Spectator Camera 0x43 (ML-018 — the spectator's camera): the
+        // reference CameraS2CPacket's own slot, the gap between Combat
+        // Event 0x42 and World Border 0x44 (the constant's own row — the
+        // conformance walk's demand, exactly the Slice 51 precedent).
+        m.put("S2C_CAMERA", 0x43);
         // World Border 0x44 (Slice 86): after Camera 0x43, before Title 0x45
         // (the reference's WorldBorderS2CPacket registration slot).
         m.put("S2C_WORLD_BORDER", 0x44);

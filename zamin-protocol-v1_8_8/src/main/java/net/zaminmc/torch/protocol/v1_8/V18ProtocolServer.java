@@ -1289,6 +1289,29 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                 }
             }
         });
+        // The spectator camera's visibility law (ML-018 — the reference's
+        // broadcastTo, ServerPlayerEntity line 472, answered by the
+        // tracker's own updatePlayer arm): the attach drops the spectating
+        // body from every other view (the camera's own packets ride the
+        // per-session link verb), the detach re-enters the restored body
+        // into the in-range observers' tracking windows — the same range
+        // walk every movement broadcast runs for the mover.
+        server.addSpectatorListener(new net.zaminmc.torch.server.EngineServer.SpectatorListener() {
+            @Override
+            public void onCameraAttached(net.zaminmc.torch.server.player.PlayerSession spectator,
+                                          net.zaminmc.torch.server.player.PlayerSession target) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    if (connection.currentSession() != spectator) {
+                        connection.untrackPlayer(spectator.uuid());
+                    }
+                }
+            }
+
+            @Override
+            public void onCameraDetached(net.zaminmc.torch.server.player.PlayerSession spectator) {
+                broadcastMovement(spectator);
+            }
+        });
         // Experience orbs: engine decides lifecycle, adapter renders Spawn
         // Experience Orb 0x11 / Collect / Destroy — the item-entity shape.
         server.addOrbListener(new net.zaminmc.torch.server.experience.ExperienceOrbManager.Listener() {
@@ -1917,6 +1940,17 @@ public final class V18ProtocolServer implements ProtocolAdapter {
 
     /** Broadcasts a remote player's authoritative position to observers in range. */
     void broadcastMovement(PlayerSession mover) {
+        // The spectating spectator publishes nothing of its own (the
+        // reference's broadcastTo law — the camera-following body is gated
+        // out of every other view) and drops out of any view it still
+        // held: its follow anchors the body silently on the tick lane, the
+        // target's own stream carries the camera.
+        if (mover.spectatorCamera() != null) {
+            for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                connection.untrackPlayer(mover.uuid());
+            }
+            return;
+        }
         var moverChunk = mover.position().toBlockPosition().chunkPosition();
         long viewSq = (long) engine.engineConfig().viewDistance() * engine.engineConfig().viewDistance();
         for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
