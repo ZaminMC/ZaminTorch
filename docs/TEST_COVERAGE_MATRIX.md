@@ -34,11 +34,11 @@ bukkit bridge, rcon FIN-WAIT), which is the evidence behind ML-002.
 | Chest slot-27 rejection | **unverified** | ML-004: needs rejection-reason instrumentation first (no FINE log exists) |
 | RCON drain under load | **flaky member** | RconProtocolTest:333-340 5s FIN-WAIT loop — ML-002 member |
 | Fishing bite windows under load | **flaky members** | two methods — hardened on PR #37; population audit pending |
-| Item registry id-by-id | **unverified** | R-2: no census test pinning the full 1.8.8 item table |
-| Worldgen end-to-end determinism | **unverified** | R-5: slices are 1:1 but no same-seed region-level byte-compare exists |
-| Malformed-packet fuzz | **missing** | R-7: no fuzz/boundary suite in the tree |
-| Login flood | **missing** | ML-014: no test bounding concurrent login cost |
-| Per-command semantics | **partial** | R-6: individual commands tested (op/tp/give…), no systematic diff vs the vanilla set |
+| Item registry id-by-id | **pinned this cycle** | R-2 resolved: ItemRegistryParityTest 4/0 — the full table, the 17-id no-engine-item set, the dual spellings, the stack sizes; 11 wire-id defects + 16 missing rows + the bucket stack repaired first |
+| Worldgen end-to-end determinism | **pinned this cycle** | R-5 resolved: WorldgenDeterminismRunTest 1/0 (4 runs) — two engines, same derived seed, 25 columns byte-identical (serialized columns); region-level inapplicable by design (region files import-read-only; native save = delta pipeline) |
+| Malformed-packet fuzz | **pinned this cycle** | R-7 resolved: MalformedPacketFuzzWireTest 3/0 — 24-case deterministic corpus + seeded tail (Random(474747L)) + the 21-bit frame boundary (close vs wait) |
+| Login flood | **pinned (wave 3)** | ML-014 resolved: LoginFloodBoundaryTest — 100 pending at zero tick-lane cost, ReadTimeoutHandler(30) reap |
+| Per-command semantics | **surface-pinned this cycle** | R-6 resolved at the surface level: RegisteredCommandSurfaceParityTest 2/0 — the exact 74-verb set + every level vs the reference walk's 62 names; effect-level semantics stay family-owned |
 | Ownership/concurrency invariants | **tested** | the §22 Phase 1-2 records (eight ownership tests + lane gates) — standing green |
 | The §28.8 adversarial plugin set | **deferred tests** | required before any plugin-safety claim; blocked on §28.7-era work (not started by design) |
 
@@ -60,6 +60,7 @@ bukkit bridge, rcon FIN-WAIT), which is the evidence behind ML-002.
 A green full suite establishes the 2533 pinned behaviors under unloaded
 conditions plus CI-load robustness of the hardened members. It does NOT
 establish: real-Mojang-client UX, multiplayer latency beyond loopback,
-nether/end portal travel (untested in cycle 3), world-border edges,
-malformed-input resilience, or the R-1..R-8 remainder. Those limits are
-inherited from cycle 3's playtest record and this cycle's census.
+nether/end portal travel (untested in cycle 3), world-border edges.
+The R-2..R-7 remainder items closed this cycle (malformed-input resilience
+included, R-7); what remains open is R-1 (TNT lifecycle read) and R-8 (the
+25 family-owned tails), inherited from this cycle's census.
