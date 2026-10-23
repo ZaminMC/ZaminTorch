@@ -57,7 +57,43 @@ final class ChunkSerializer18 {
     }
 
     static byte[] serialize(EngineChunk chunk, boolean includeBiomes) {
-        int bitmask = sectionBitmask(chunk);
+        return serialize(chunk, includeBiomes, sectionBitmask(chunk));
+    }
+
+    /**
+     * The partial-resend mask law (the reference's own effective-mask walk,
+     * WorldChunkS2CPacket.writeChunkData lines 68-74: a requested section
+     * rides only when the chunk actually holds it — {@code worldchunksection
+     * != null} — the written mask is the intersected one, never the request).
+     * The block-change flush's full-buffer arm passes the per-chunk dirty
+     * section mask the way the reference's ChunkHolder does
+     * (ChunkMap.java line 372: {@code new WorldChunkS2CPacket(chunk, false,
+     * this.dirtySections)}).
+     *
+     * @param requested the sections the caller believes changed (bit per y>>4)
+     * @return the requested sections the chunk can actually fill
+     */
+    static int effectiveSectionMask(EngineChunk chunk, int requested) {
+        int mask = 0;
+        for (int sectionY = 0; sectionY < EngineChunk.SECTION_COUNT; sectionY++) {
+            if ((requested & (1 << sectionY)) != 0 && chunk.section(sectionY) != null) {
+                mask |= (1 << sectionY);
+            }
+        }
+        return mask;
+    }
+
+    /**
+     * The serialize over a caller-chosen section mask (the partial-resend
+     * arm): the same three-grouped arrays as the full form, sized by the
+     * mask's own population — the client computes the same size from the
+     * written mask bit-for-bit (the reference's findBufferSize, lines 55-61).
+     * The mask must be an EFFECTIVE one (see {@link #effectiveSectionMask})
+     * or the full-form {@link #sectionBitmask} — the writer and the client
+     * both trust it to name only fillable sections.
+     */
+    static byte[] serialize(EngineChunk chunk, boolean includeBiomes, int sectionMask) {
+        int bitmask = sectionMask;
         int sections = Integer.bitCount(bitmask);
         ByteArrayOutputStream out = new ByteArrayOutputStream(
                 sections * SECTION_TOTAL_BYTES + (includeBiomes ? 256 : 0));

@@ -182,9 +182,24 @@ public final class V18ProtocolServer implements ProtocolAdapter {
         serverChannel = bootstrap.bind(server.engineConfig().host(), server.engineConfig().port()).sync().channel();
         // Subscribe to committed world changes for client synchronization (§227):
         // the engine decides what changed, the adapter decides how to tell clients.
+        // ML-019: the committed change queues per connection per chunk (the
+        // reference's ChunkMap.onBlockChanged, ChunkMap.java lines 102-109 —
+        // the per-chunk accumulation the flush walk batches), NOT the immediate
+        // per-commit single. The drain itself is the registered flush below.
         server.addWorldListener((world, position, type) -> {
             for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
-                connection.sendBlockChange(position, type);
+                connection.queueBlockChange(position, type);
+            }
+        });
+        // ML-019 — the flush arm (the reference's ChunkMap.tick, driven from the
+        // engine's own chunkMap tick section): each connection's pending
+        // per-chunk buffers drain per tick — one pending cell the single 0x23,
+        // 2-63 the 0x22 batch, a full 64-cell buffer the partial 0x21 (the
+        // reference's ChunkHolder.sendChanges arms, ChunkMap.java lines
+        // 358-401).
+        server.addBlockChangeFlushListener(() -> {
+            for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                connection.flushPendingBlockChanges();
             }
         });
         // Relight transport (§475): protocol 47 has no light-only packet, so

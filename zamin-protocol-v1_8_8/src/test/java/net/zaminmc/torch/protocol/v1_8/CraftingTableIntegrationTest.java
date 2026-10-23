@@ -71,12 +71,14 @@ class CraftingTableIntegrationTest extends ProtocolTestBase {
             // --- place the table (held slot 0 = the table): click the grass top
             // face at (2,4,2) -> the table lands at (2,5,2), one above the surface
             client.sendBlockPlacement(2, 4, 2, 1, CRAFTING_TABLE);
-            int[] placed = client.readBlockChange(10_000);
+            // ML-019's order: the immediate consume sync precedes the deferred
+            // broadcast flush — the table first, the block change after.
+            client.readWindowSlotTable(10_000); // placement consumed the held table
+            int[] placed = client.readBlockChangeAt(2, 5, 2, CRAFTING_TABLE, 10_000);
             assertEquals(2, placed[0]);
             assertEquals(5, placed[1]);
             assertEquals(2, placed[2]);
             assertEquals(CRAFTING_TABLE, placed[3]);
-            client.readWindowSlotTable(10_000); // placement consumed the held table
 
             // --- right-click the table: the container window opens ---
             client.sendBlockPlacement(2, 5, 2, 1, -1);
@@ -155,12 +157,12 @@ class CraftingTableIntegrationTest extends ProtocolTestBase {
             assertEquals(OAK_PLANKS, client.readWindowSlotTable(10_000)[37][0]);
 
             client.sendBlockPlacement(-2, 4, -2, 1, CRAFTING_TABLE);
-            int[] placed = client.readBlockChange(10_000);
+            client.readWindowSlotTable(10_000); // the immediate consume sync
+            int[] placed = client.readBlockChangeAt(-2, 5, -2, CRAFTING_TABLE, 10_000);
             assertEquals(-2, placed[0]);
             assertEquals(5, placed[1]);
             assertEquals(-2, placed[2]);
             assertEquals(CRAFTING_TABLE, placed[3]);
-            client.readWindowSlotTable(10_000);
 
             client.sendBlockPlacement(-2, 5, -2, 1, -1);
             Object[] open = client.readOpenWindow(10_000);

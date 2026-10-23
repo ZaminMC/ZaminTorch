@@ -68,11 +68,15 @@ class ChestIntegrationTest extends ProtocolTestBase {
 
             // --- place the chest: top face at (2,4,2) -> lands at (2,5,2) ---
             client.sendBlockPlacement(2, 4, 2, 1, CHEST);
-            int[] placed = client.readBlockChange(10_000);
+            // ML-019's order: the immediate consume sync precedes the deferred
+            // broadcast flush — the table first, the block change after (the
+            // use walk's resync unicast may also precede both; the block-change
+            // reader routes by position so the deferred broadcast answers it).
+            client.readWindowSlotTable(10_000); // the held chest was consumed
+            int[] placed = client.readBlockChangeAt(2, 5, 2, CHEST, 10_000);
             assertEquals(2, placed[0]);
             assertEquals(5, placed[1]);
             assertEquals(CHEST, placed[3]);
-            client.readWindowSlotTable(10_000); // the held chest was consumed
 
             // --- right-click the chest: the container window opens ---
             client.sendBlockPlacement(2, 5, 2, 1, -1);
@@ -143,9 +147,8 @@ class ChestIntegrationTest extends ProtocolTestBase {
             EngineAwaits.awaitTicks(server.world(), 76, "chest by hand: 75 ticks nominal (3.75 s)");
             client.sendDigging(2, 2, 5, 2, 1);
 
-            int[] removal = client.readBlockChange(10_000);
-            assertEquals(0, removal[3], "the chest block is gone "
-                    + java.util.Arrays.toString(removal));
+            // ML-019's order: the immediate drops + metadata precede the
+            // deferred air change — the immediates first, the flush last.
             // The block's own drop comes first (chest drops itself), then the spill.
             int[] chestDrop = client.readSpawnItem(10_000);
             assertEquals(Protocol18.OBJECT_ITEM, chestDrop[1], "the block drop is an item entity");
@@ -155,6 +158,9 @@ class ChestIntegrationTest extends ProtocolTestBase {
             assertEquals(Protocol18.OBJECT_ITEM, spill[1], "the spill is an item entity");
             assertEquals(DIRT, spill[5], "the dirt spilled out");
             client.readItemMetadata(10_000);
+            int[] removal = client.readBlockChangeAt(2, 5, 2, 0, 10_000); // the deferred air
+            assertEquals(0, removal[3], "the chest block is gone "
+                    + java.util.Arrays.toString(removal));
             awaitCondition(() -> server.chests()
                             .peek(new net.zaminmc.torch.block.BlockPosition(2, 5, 2)) == null,
                     "the broken chest's state is forgotten");
@@ -175,8 +181,8 @@ class ChestIntegrationTest extends ProtocolTestBase {
             client.sendChat("/give chest 1");
             assertEquals(CHEST, client.readWindowSlotTable(10_000)[36][0]);
             client.sendBlockPlacement(2, 4, 2, 1, CHEST);
-            assertEquals(CHEST, client.readBlockChange(10_000)[3]);
-            client.readWindowSlotTable(10_000);
+            client.readWindowSlotTable(10_000); // the immediate consume sync
+            assertEquals(CHEST, client.readBlockChangeAt(2, 5, 2, CHEST, 10_000)[3]);
 
             client.sendBlockPlacement(2, 5, 2, 1, -1);
             Object[] open = client.readOpenWindow(10_000);

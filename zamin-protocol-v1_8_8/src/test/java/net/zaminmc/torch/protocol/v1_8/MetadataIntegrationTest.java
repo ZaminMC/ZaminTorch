@@ -99,26 +99,32 @@ class MetadataIntegrationTest extends ProtocolTestBase {
 
             // --- place sand on the surface: held slot 0, top face -> (2,5,2) ---
             client.sendBlockPlacement(2, 4, 2, 1, SAND);
-            // The covered grass decays to dirt the same tick; wait for the sand.
-            int[] placed = client.readBlockChangeAt(2, 5, 2, SAND, 10_000);
+            // ML-019's order: the immediate consume sync and the use walk's
+            // resync unicast precede the deferred broadcast flush; the
+            // covered grass decays to dirt the same tick, so the broadcast
+            // arrives as a 0x22 batch (the sand + the dirt) — read the table
+            // sync first, the batch-routed block change after.
             client.readWindowSlotTable(10_000); // the held sand was consumed
+            int[] placed = client.readBlockChangeAt(2, 5, 2, SAND, 10_000);
 
             // --- mine it by hand: 15 ticks nominal (750 ms) ---
             client.sendDigging(0, 2, 5, 2, 1);
             EngineAwaits.awaitTicks(server.world(), 17, "engine progress (a 850 wall settle)");
             client.sendDigging(2, 2, 5, 2, 1);
-            client.readBlockChangeAt(2, 5, 2, 0, 10_000); // the sand block is gone
+            // ML-019's order: the drop's spawn + metadata precede the deferred
+            // air change — the immediates first, the flush last.
             int[] spawn = client.readSpawnItem(10_000);
             assertEquals(SAND, spawn[5], "sand drops itself (metadata 0)");
             int[] meta = client.readItemMetadata(10_000);
             assertEquals(SAND, meta[1]);
             assertEquals(0, meta[3], "the drop carries no variant");
+            client.readBlockChangeAt(2, 5, 2, 0, 10_000); // the sand block is gone
 
             // --- glass places, then shatters to nothing ---
             client.sendHeldItemChange(1); // the glass stack
             client.sendBlockPlacement(2, 4, 2, 1, GLASS);
-            client.readBlockChangeAt(2, 5, 2, GLASS, 10_000); // the glass placed
-            client.readWindowSlotTable(10_000); // one glass consumed
+            client.readWindowSlotTable(10_000); // one glass consumed (the immediate sync)
+            client.readBlockChangeAt(2, 5, 2, GLASS, 10_000); // the glass placed (the deferred flush)
 
             client.sendDigging(0, 2, 5, 2, 1);
             EngineAwaits.awaitTicks(server.world(), 17, "glass: 9 ticks nominal; the floor keeps it honest");

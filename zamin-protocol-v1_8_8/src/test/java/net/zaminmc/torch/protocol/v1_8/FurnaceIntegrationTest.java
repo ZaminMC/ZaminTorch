@@ -73,11 +73,13 @@ class FurnaceIntegrationTest extends ProtocolTestBase {
 
             // --- place the furnace: top face at (2,4,2) -> lands at (2,5,2) ---
             client.sendBlockPlacement(2, 4, 2, 1, FURNACE);
-            int[] placed = client.readBlockChange(10_000);
+            // ML-019's order: the immediate consume sync precedes the deferred
+            // broadcast flush — the table first, the block change after.
+            client.readWindowSlotTable(10_000); // the held furnace was consumed
+            int[] placed = client.readBlockChangeAt(2, 5, 2, FURNACE, 10_000);
             assertEquals(2, placed[0]);
             assertEquals(5, placed[1]);
             assertEquals(FURNACE, placed[3]);
-            client.readWindowSlotTable(10_000); // the held furnace was consumed
 
             // --- right-click the furnace: the container window opens ---
             client.sendBlockPlacement(2, 5, 2, 1, -1);

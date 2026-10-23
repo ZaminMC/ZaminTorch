@@ -978,15 +978,20 @@ final class TestClient18 implements AutoCloseable {
 
     /** Reads a Destroy Entities packet, returning the destroyed entity ids. */
     /**
-     * Reads the next Block Change (kind 0: {0,x,y,z,state}) or Destroy
-     * Entities (kind 1: {1,id...}) — engine-driven landings interleave the
-     * two, so one drain loop must consume both without skipping either.
+     * Reads the next Block Change (kind 0: {0,x,y,z,state} — the single 0x23
+     * or one 0x22 record) or Destroy Entities (kind 1: {1,id...}) —
+     * engine-driven landings interleave the two, so one drain loop must
+     * consume both without skipping either.
      */
     int[] readBlockChangeOrDestroy(long timeoutMs) throws IOException {
+        if (!pendingMultiChanges.isEmpty()) {
+            return withKind(pendingMultiChanges.poll());
+        }
         long deadline = System.currentTimeMillis() + timeoutMs;
         while (System.currentTimeMillis() < deadline) {
             byte[] payload = readPacketOfTypes(
-                    new int[]{Protocol18.S2C_BLOCK_CHANGE, Protocol18.S2C_DESTROY_ENTITIES},
+                    new int[]{Protocol18.S2C_BLOCK_CHANGE, Protocol18.S2C_MULTI_BLOCK_CHANGE,
+                            Protocol18.S2C_DESTROY_ENTITIES},
                     Math.max(1, deadline - System.currentTimeMillis()));
             ByteBuf buffer = Unpooled.wrappedBuffer(payload);
             int packetId = ByteBufOps.readVarInt(buffer);
@@ -994,6 +999,24 @@ final class TestClient18 implements AutoCloseable {
                 int[] pos = ByteBufOps.readPackedBlockPosition(buffer);
                 int stateId = ByteBufOps.readVarInt(buffer);
                 return new int[]{0, pos[0], pos[1], pos[2], stateId >> 4};
+            }
+            if (packetId == Protocol18.S2C_MULTI_BLOCK_CHANGE) {
+                int chunkX = buffer.readInt();
+                int chunkZ = buffer.readInt();
+                int count = ByteBufOps.readVarInt(buffer);
+                for (int i = 0; i < count; i++) {
+                    short encoded = buffer.readShort();
+                    int legacy = ByteBufOps.readVarInt(buffer) >> 4;
+                    pendingMultiChanges.add(new int[]{
+                            chunkX * 16 + (encoded >> 12 & 15),
+                            encoded & 255,
+                            chunkZ * 16 + (encoded >> 8 & 15),
+                            legacy});
+                }
+                if (!pendingMultiChanges.isEmpty()) {
+                    return withKind(pendingMultiChanges.poll());
+                }
+                continue;
             }
             int count = ByteBufOps.readVarInt(buffer);
             int[] out = new int[1 + count];
@@ -1004,6 +1027,11 @@ final class TestClient18 implements AutoCloseable {
             return out;
         }
         throw new IOException("Timed out waiting for a block change or destroy");
+    }
+
+    /** The readBlockChangeOrDestroy shape over a queued 0x22 record. */
+    private static int[] withKind(int[] record) {
+        return new int[]{0, record[0], record[1], record[2], record[3]};
     }
 
     int[] readDestroyEntities(long timeoutMs) throws IOException {
@@ -1152,6 +1180,15 @@ final class TestClient18 implements AutoCloseable {
     /** Reads a Block Change packet, returning {x, y, z, legacyId}. The wire
      * carries the packed state (id << 4) | metadata; unpacked here. */
     /**
+     * The 0x22 Multi Block Change records not yet handed out (ML-019: the
+     * per-chunk batches carry several changes in ONE frame — the readers
+     * below hand them out one per call, in arrival order, so callers reading
+     * N changes see N records whether the wire framed them as N singles or
+     * one batch).
+     */
+    private final java.util.ArrayDeque<int[]> pendingMultiChanges = new java.util.ArrayDeque<>();
+
+    /**
      * Reads Block Change packets until one targets the given position, then
      * asserts its state. Engine-driven rule changes (grass decay, falling
      * conversions) share the wire with player-driven commits, so callers must
@@ -1175,18 +1212,47 @@ final class TestClient18 implements AutoCloseable {
                 + x + "," + y + "," + z + ") state " + expectedLegacy);
     }
 
+    /**
+     * Reads the next block change — the single 0x23 form OR one record of a
+     * 0x22 batch (the batch's records hand out in arrival order across
+     * successive calls). Returns {x, y, z, legacyId}; the wire's packed state
+     * (id << 4) | metadata unpacked here.
+     */
     int[] readBlockChange(long timeoutMs) throws IOException {
-        byte[] payload = readPacketOfType(Protocol18.S2C_BLOCK_CHANGE, timeoutMs);
-        ByteBuf buffer = Unpooled.wrappedBuffer(payload);
-        ByteBufOps.readVarInt(buffer); // packet id
-        int[] pos = ByteBufOps.readPackedBlockPosition(buffer);
-        int stateId = ByteBufOps.readVarInt(buffer);
-        int legacy = stateId >> 4;
-        if (WIRE_TRACE) {
-            System.out.println("[trace-client] block change parsed x=" + pos[0] + " y=" + pos[1]
-                    + " z=" + pos[2] + " legacy=" + legacy + " raw=" + java.util.Arrays.toString(payload));
+        if (!pendingMultiChanges.isEmpty()) {
+            return pendingMultiChanges.poll();
         }
-        return new int[]{pos[0], pos[1], pos[2], legacy};
+        long deadline = System.currentTimeMillis() + timeoutMs;
+        while (System.currentTimeMillis() < deadline) {
+            byte[] payload = readPacketOfTypes(
+                    new int[]{Protocol18.S2C_BLOCK_CHANGE, Protocol18.S2C_MULTI_BLOCK_CHANGE},
+                    Math.max(1, deadline - System.currentTimeMillis()));
+            ByteBuf buffer = Unpooled.wrappedBuffer(payload);
+            int packetId = ByteBufOps.readVarInt(buffer);
+            if (packetId == Protocol18.S2C_BLOCK_CHANGE) {
+                int[] pos = ByteBufOps.readPackedBlockPosition(buffer);
+                int legacy = ByteBufOps.readVarInt(buffer) >> 4;
+                return new int[]{pos[0], pos[1], pos[2], legacy};
+            }
+            // The 0x22 batch: chunk coords + varint count + per record the u16
+            // packed cell and the packed-state varint (BlocksUpdateS2CPacket).
+            int chunkX = buffer.readInt();
+            int chunkZ = buffer.readInt();
+            int count = ByteBufOps.readVarInt(buffer);
+            for (int i = 0; i < count; i++) {
+                short encoded = buffer.readShort();
+                int legacy = ByteBufOps.readVarInt(buffer) >> 4;
+                pendingMultiChanges.add(new int[]{
+                        chunkX * 16 + (encoded >> 12 & 15),
+                        encoded & 255,
+                        chunkZ * 16 + (encoded >> 8 & 15),
+                        legacy});
+            }
+            if (!pendingMultiChanges.isEmpty()) {
+                return pendingMultiChanges.poll();
+            }
+        }
+        throw new IOException("Timed out waiting for a block change (0x23 or 0x22 record)");
     }
 
     // ---- survival slice helpers -------------------------------------------------

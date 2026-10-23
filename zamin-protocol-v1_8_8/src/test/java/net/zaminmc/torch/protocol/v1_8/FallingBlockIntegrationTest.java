@@ -141,10 +141,15 @@ class FallingBlockIntegrationTest extends ProtocolTestBase {
             client.sendDigging(2, 1, 4, 1, 1);
 
             // The pop: the torch cell becomes air and a torch item entity
-            // spawns through the standard drop path (legacy id 50).
-            client.readBlockChangeAt(1, 5, 1, 0, 15_000); // the pop empties the cell
+            // spawns through the standard drop path (legacy id 50). ML-019's
+            // order: the broken grass's own dirt drop leads the torch pop
+            // (both immediate, same tick), the deferred air flush follows —
+            // consume the dirt drop, read the torch's own spawn, then the
+            // air change.
+            client.readSpawnObjectOfType(Protocol18.OBJECT_ITEM, 10_000); // the grass's dirt drop
             int[] torchItem = client.readSpawnObjectOfType(Protocol18.OBJECT_ITEM, 10_000);
             assertEquals(50, torchItem[5], "the popped torch rides the item path");
+            client.readBlockChangeAt(1, 5, 1, 0, 15_000); // the pop empties the cell (the deferred flush)
             awaitCondition(() -> server.itemEntities().all().stream()
                     .anyMatch(entity -> entity.stack().type().identifier()
                             .toString().equals("minecraft:torch")),

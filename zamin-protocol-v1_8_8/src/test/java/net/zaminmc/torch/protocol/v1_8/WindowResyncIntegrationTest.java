@@ -80,8 +80,11 @@ class WindowResyncIntegrationTest extends ProtocolTestBase {
         client.sendChat("/give chest 1");
         client.readWindowSlotTable(10_000); // the give's sync
         client.sendBlockPlacement(ground.x(), ground.y(), ground.z(), 1, CHEST);
-        client.readBlockChange(10_000); // the placement's publish
+        // ML-019's order: the immediate consume sync and the use walk's resync
+        // unicast precede the deferred broadcast flush — the table first, the
+        // block change after (the reader names the placed cell).
         client.readWindowSlotTable(10_000); // the held chest was consumed
+        client.readBlockChangeAt(chestAt.x(), chestAt.y(), chestAt.z(), CHEST, 10_000);
 
         // right-click opens the chest GUI
         client.sendBlockPlacement(chestAt.x(), chestAt.y(), chestAt.z(), 1, -1);
