@@ -255,10 +255,14 @@ public record EngineConfig(
      * above — the same envelope as a properties-only port change.
      */
     public EngineConfig withPort(int port) {
+        // The coordinator's merge repair: the copy carries EVERY loaded row
+        // through — the resource-pack pair rides beside rcon/query exactly
+        // as loaded (PR #43 branched before #39 added the pair; the 23-arg
+        // form it was written against no longer compiles post-#39).
         return new EngineConfig(host, port, worldName, motd, maxPlayers, viewDistance,
                 tickRateHz, dataDir, gamemode, pvp, levelType, whiteList, regionSizeChunks,
                 enableCommandBlocks, spawnProtectionRadius, enableRcon, rconPassword,
-                rconPort, enableQuery, queryPort);
+                rconPort, enableQuery, queryPort, resourcePackUrl, resourcePackHash);
     }
 
     /** The world folder (the historical {@code world/} of the Paper layout). */
