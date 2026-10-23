@@ -14489,3 +14489,149 @@ Stage Summary:
   liveness guard tells stalls from slowness honestly, and the
   probabilistic outcomes ride the expected-miss form. The confirming
   run for the whole pass rides the next push (release 131).
+
+## The cycle-5 wave — the CI retirement, ML-024, and the R-2..R-7 remainder
+
+Date: 2026-10-23. The wave started from develop f2da414d (release 132
+published, both release runs green, 0 open PRs) and lands as one push.
+
+- The CI defect first: the "Development Statistics (Java LOC)" workflow
+  failed on every develop push and every 6h schedule since c0121e44 (4
+  failures + 1 cancel observed). Root cause: the workflow's render step
+  runs AFTER "Checkout main branch", and the owner removed the feature
+  from main in six web-UI commits (864fcec7..e7b1669b) — so
+  .github/scripts/loc_stats.py no longer existed at render time
+  ("can't open file ... No such file or directory"). The workflow could
+  never succeed again while main lacks the script and the README
+  dropdown target; worse, its "Commit and push (as Abasing)" step would
+  re-add to main the very content the owner had just deliberately
+  removed. Retired from develop (the two files were the feature's only
+  remaining live pieces anywhere; the develop README never carried the
+  dropdown and the SVG/history were main-side only). This executes the
+  owner's demonstrated decision, not a new one — recoverable from
+  history (55226ede/0408bd65 added it) if ever wanted back.
+- ML-024 (the wire-publish profiler section): landed as root.wirePublish
+  through the profiler's new cross-thread span arm
+  (EngineProfiler.recordSectionSpan) rather than a nested push/pop —
+  the walk runs on three lanes (the netty event loop's join/movement
+  streams, the tick thread's pre-handler job drain where the respawn
+  re-stream lands outside the root section's window — exactly why the
+  ML-007 pass could not see it — and the tick thread's relightTransport
+  section), and the push/pop stack's single-caller contract excludes
+  the first lane (a torn stack answers garbage rows, worse than no
+  data). The gate field is now volatile (the event-loop lanes read it
+  with no happens-before edge from start/stop). Acceptance met on both
+  bars: the row in sectionNanosSnapshot, and the harness re-run reads
+  the re-stream's cost in its own row — 4711.2 us/tick on the
+  coordinator's independent review run (5344.6 on the author's
+  capture; 1377 visits, 0.43 ms/visit, 10.44% of root, the storm
+  window's second-largest row). Pinned by WirePublishSectionTest 2/0
+  (both real lanes driven, the stack-balance pins: the row never gains
+  a child, mobs/randomTicks/relightTransport never gain children). The
+  attribution report's gap #4 marked RESOLVED with the captured
+  evidence in ATTRIBUTION_RUN_EVIDENCE.txt.
+- R-2 (item-registry id-by-id diff): the diff vs Item.java's init() walk
+  (337 registrations) found ELEVEN wrong wire ids and SIXTEEN registered
+  items with no wire row at all, every one a demonstrated wire defect
+  with the reference's own registration cited — the hopper at the
+  prismarine crystals' 410 (the reference registers a BlockItem at 154;
+  Item.java line 493), the compass at the saddle's 329 (line 629's
+  345), the seed pair at the hoe ids 292/294 (lines 647-648's
+  361/362), the food family's missing rows (apple 260 line 539, golden
+  apple 322 lines 602-604, carrot/potato/baked potato 391/392/393
+  lines 691-693, golden carrot 396 lines 697-699, the rabbit family
+  411/412/413/415 lines 715-719 — previously serialized as
+  writeSlot's unmappable-empty arm -1 while the engine dropped, crafted
+  and fed them), the six bare <wood>_sapling BLOCK rows (without them
+  ChunkSerializer18's §147 loud fail THREW on every placed sapling,
+  killing the chunk/block-change send), and the empty bucket's stack
+  1 -> the reference's 16 (line 608). All repaired; ItemRegistryParityTest
+  4/0 pins the full table, the 17-id no-engine-item set, the dual
+  spellings, and the stack sizes.
+- R-3 (login compression exchange): RECORDED as the standing
+  intentional divergence + pinned — the engine never performs the 0x03
+  exchange (permanent threshold=-1 shape, the ENGINEERING_PLAN's own
+  slice decision); the reference's own law extracted
+  (ServerLoginNetworkHandler lines 92-101) and the byte-exact
+  no-exchange form pinned at the wire (LoginCompressionWireTest 3/0:
+  Login Success arrives as 0x02 never 0x03, FrameCodec emits exactly
+  one length varint + payload).
+- R-4 (keep-alive): the payload repaired to the reference's own
+  (int) getTimeMillis() form (ServerPlayNetworkHandler.tick lines
+  131-137 — it was a from-scratch incrementing counter, wire-legal but
+  observably foreign). The reference's own law extracted: NO
+  application-level unanswered-keep-alive kick at all (the pipeline's
+  ReadTimeoutHandler(30), ConnectionListener line 104, whose close path
+  never sends a Disconnect packet). Torch keeps its own stricter §10b
+  design (3x interval, WITH a "Timed out" Disconnect packet) — recorded
+  as the engine's own, pinned KeepAliveTimeoutWireTest 2/0.
+- R-5 (worldgen determinism): the run executed — two independent
+  engines over the same derived seed (the world-name law,
+  NormalWorldGenerator line 113), the boot-generated 5x5 spawn square
+  (25 columns), byte-identical serialized columns (WorldgenDeterminismRunTest
+  1/0, 4 runs). Region-level inapplicable BY DESIGN, recorded not
+  forced: region files are the import side only (read-only); the
+  native save path is the delta pipeline, vacuous for freshly
+  generated chunks. In-process limitation recorded: Layer.init's
+  static (line 124) — same-seed idempotent, different-seed isolation
+  needs a cross-process run.
+- R-6 (per-command surface diff): 74 engine verbs vs the reference
+  walk's 62 names (59 registrations + w/msg + the ? help alias — the
+  ledger's "~41" was the common command FILE count, not registrations).
+  Intersection 56 (50 level-matched); 6 level divergences RECORDED,
+  every one previously invisible (give 0v2, time 0v2, seed 0v2, kick
+  2v3, say 2v1, defaultgamemode 2v4); 18 extras; 6 missing (the ?
+  help alias, publish, save-all/on/off as separate verbs,
+  setidletimeout). Form divergences stay ledgered: /give ML-008 (owner
+  decision pending), /summon + /spawnmob player-only (cycle-3 papercut,
+  confirmed still current), /save collapsed, /setspawn the standing
+  verb. /op ML-005 resolved (wave 3). Pinned by
+  RegisteredCommandSurfaceParityTest 2/0 — the exact 74-name set and
+  every level. Depth limitation recorded: surface (name/alias/level/
+  grammar); effect-level semantics stay family-owned.
+- R-7 (fuzz + size boundary): the size law is the reference's own
+  SplitterHandler.java — 21-bit varint ceiling (2,097,151), wider
+  throws CorruptedFrameException; no other size cap exists in 1.8.8.
+  Torch's FrameCodec pins exactly that ceiling. MalformedPacketFuzzWireTest
+  3/0: a 24-case deterministic corpus (one fresh client per case:
+  oversized 0x7FFFFFFF string prefixes, 200-char chat, NaN positions,
+  truncated bodies, out-of-range enums/slots, unknown ids, a mismatched
+  keep-alive echo), a seeded tail (Random(474747L), 40 frames, 4 lawful
+  closes, 5 connections, engine ticked through all — the broken-pipe
+  finding handled honestly: a lawful connection death is tolerated, the
+  invariant is the ENGINE — and a fresh clean client joined after),
+  and the frame boundary (a 4-byte continuation varint closes; the
+  2,097,151-ceiling partial frame WAITS). Unknown C2S ids observed to
+  CLOSE the connection (the parity matrix's unknown-packet row
+  updated). TestClient18 gained one additive package-private
+  sendRawBytes helper (the boundary cases own the wire form).
+- Verification: the coordinator's independent review of both lanes
+  (the instance reports never arrived — the spawning harness timed
+  out; the work was reviewed from the diffs and re-run): WirePublishSectionTest
+  3x, the profiler family 12/0, the attribution harness re-run green
+  with the row visible; the R-lane blast radius — core 23 classes/181
+  tests 0F0E (TreeGrowthFamilyTest 17/0 over the repaired sapling
+  rows, HopperSystemTest 8/0, MapItemTest 12/0, FluidFlowTest 15/0),
+  protocol 24 classes/69 tests 0F0E (LegacyBlockIdsIntegrityTest green
+  unmodified over the repaired table); the full protocol module
+  157/0; the cross-lane merged-tree run — protocol 62 classes/162
+  tests 0F0E + the profiler family 12/0 + the R-6 pin 2/0, BUILD
+  SUCCESSFUL 7m4s. The full zamin-core suite rides the release
+  pipeline's own confirming run (the repo's established pattern — the
+  load-flake retirement's own record: "the confirming run for the whole
+  pass rides the next push"), monitored to conclusion.
+
+Stage Summary:
+- The wave's selected scope met and recorded: the CI retirement
+  executed, ML-024 closed on both acceptance bars, R-2..R-7 all
+  dispositioned (R-2 defects fixed + pinned, R-3 recorded + pinned,
+  R-4 payload fixed + the stricter engine kick recorded, R-5 verified +
+  pinned with the inapplicability recorded, R-6 surface-verified +
+  pinned with the level deltas named, R-7 verified + pinned). R-1 and
+  R-8 remain open by record (R-1 deliberately not picked; R-8
+  family-owned). The parity matrix, the coverage matrix, the master
+  ledger's ML-024 row, and the attribution report all updated with the
+  outcomes. The next most valuable wave, from the updated state: R-1
+  (the TNT lifecycle read, the last unclaimed remainder) or ML-004
+  (slot-27 diagnostics) — decided by the owner alongside the standing
+  ML-008 /give decision.

@@ -223,6 +223,26 @@ final class LegacyBlockIds {
             // foods (community foods.json legacy ids)
             Map.entry(Identifier.parse("minecraft:beef"), 363),
             Map.entry(Identifier.parse("minecraft:cooked_beef"), 364),
+            // The R-2 repair (the item registry's id-by-id diff vs the
+            // 1.8.8 table — the food rows the engine's slices registered
+            // but this table never carried): without a row each of these
+            // serialized as writeSlot's unmappable-empty arm (-1) while
+            // the engine dropped them, crafted them and fed them. Every
+            // id is the reference's own registration: apple 260 (Item.java
+            // line 539), the golden apple 322 (lines 602-604), carrot 391
+            // / potato 392 / baked potato 393 (lines 691-693), the golden
+            // carrot 396 (lines 697-699), the rabbit family 411/412/413/
+            // 415 (lines 715-719).
+            Map.entry(Identifier.parse("minecraft:apple"), 260),
+            Map.entry(Identifier.parse("minecraft:golden_apple"), 322),
+            Map.entry(Identifier.parse("minecraft:carrot"), 391),
+            Map.entry(Identifier.parse("minecraft:potato"), 392),
+            Map.entry(Identifier.parse("minecraft:baked_potato"), 393),
+            Map.entry(Identifier.parse("minecraft:golden_carrot"), 396),
+            Map.entry(Identifier.parse("minecraft:rabbit"), 411),
+            Map.entry(Identifier.parse("minecraft:cooked_rabbit"), 412),
+            Map.entry(Identifier.parse("minecraft:rabbit_stew"), 413),
+            Map.entry(Identifier.parse("minecraft:rabbit_hide"), 415),
             // mob loot (community items.json legacy ids)
             Map.entry(Identifier.parse("minecraft:porkchop"), 319),
             Map.entry(Identifier.parse("minecraft:cooked_porkchop"), 320),
@@ -299,10 +319,15 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:cactus"), 81),
             // farming items (community items.json)
             Map.entry(Identifier.parse("minecraft:wheat_seeds"), 295),
-            // The melon/pumpkin seed pair (Slice 21a, community items.json):
-            // the mineshaft's chest-minecart loot rows.
-            Map.entry(Identifier.parse("minecraft:melon_seeds"), 292),
-            Map.entry(Identifier.parse("minecraft:pumpkin_seeds"), 294),
+            // The melon/pumpkin seed pair (Slice 21a): the
+            // mineshaft's chest-minecart loot rows. The R-2 id diff
+            // repaired both rows — the "community items.json" source had
+            // the pair at the iron/golden hoe's own ids (292/294),
+            // colliding with those items on the wire; the reference's
+            // registrations are Item.java line 647's pumpkin 361 and line
+            // 648's melon 362.
+            Map.entry(Identifier.parse("minecraft:melon_seeds"), 362),
+            Map.entry(Identifier.parse("minecraft:pumpkin_seeds"), 361),
             Map.entry(Identifier.parse("minecraft:wheat"), 296),
             Map.entry(Identifier.parse("minecraft:bread"), 297),
             Map.entry(Identifier.parse("minecraft:bone_meal"), 351),
@@ -504,8 +529,10 @@ final class LegacyBlockIds {
             // the facing band + the metadata-8 upper), the end portal
             // frame's eight states over 120 (the facing band | the eye
             // bit), and the chest loot family's items — the ender pearl
-            // 368, the empty map 395, the compass 329 (the reference's
-            // own "compass" registry name).
+            // 368, the empty map 395, the compass 345 (the R-2 id diff
+            // repaired the row: the old 329 was the saddle's own id, a
+            // collision the reference never has — Item.java line 629's
+            // register(345, "compass")).
             Map.entry(Identifier.parse("minecraft:stone_bricks"), 98),
             Map.entry(Identifier.parse("minecraft:mossy_stone_bricks"), 98),
             Map.entry(Identifier.parse("minecraft:cracked_stone_bricks"), 98),
@@ -539,7 +566,7 @@ final class LegacyBlockIds {
             // slot write resolves the variant client-side exactly like the
             // reference's hasCustomData flag.
             Map.entry(Identifier.parse("minecraft:filled_map"), 358),
-            Map.entry(Identifier.parse("minecraft:compass"), 329),
+            Map.entry(Identifier.parse("minecraft:compass"), 345),
             Map.entry(Identifier.parse("minecraft:iron_door"), 330),
             // The fortress set (Slice 12d): the nether-brick family — the
             // bricks 112 (repaired in Slice 32), the fence 113, the stairs
@@ -949,6 +976,17 @@ final class LegacyBlockIds {
         merged.put(Identifier.parse("minecraft:leaves"), 18);
         merged.put(Identifier.parse("minecraft:leaves2"), 161);
         merged.put(Identifier.parse("minecraft:sapling"), 6);
+        // The six bare sapling BLOCK rows (the R-2 repair of the wire
+        // table's own documented gap): familyBlocks() registers the bare
+        // minecraft:<wood>_sapling types — the placement target of the
+        // sapling item's damage domain — and ChunkSerializer18's §147
+        // loud fail THREW on every one of them (the placed sapling killed
+        // the chunk/block-change send). The stage bit and the variant
+        // nibble ride the METADATA merge below (the ready band's own
+        // rows; the bare forms' variant nibbles were already there).
+        for (String wood : new String[]{"oak", "spruce", "birch", "jungle", "acacia", "dark_oak"}) {
+            merged.put(Identifier.parse("minecraft:" + wood + "_sapling"), 6);
+        }
         // The tree-growth family's derived bands (the VIII2/VIII3 slice —
         // the leaves' decay-bit states and the saplings' ready states ride
         // the family's own wire rows; the nibble lands in the METADATA map
@@ -1273,20 +1311,51 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:redstone"), 331),
             Map.entry(Identifier.parse("minecraft:repeater"), 356),
             Map.entry(Identifier.parse("minecraft:comparator"), 404),
-            // The hopper item (Slice 10b): the block family keeps legacy 154,
-            // the item form is 410 (the historical split — the same shape as
-            // the comparator's 404).
-            Map.entry(Identifier.parse("minecraft:hopper"), 410),
+            // The hopper item (Slice 10b — REPAIRED BY THE R-2 ID DIFF):
+            // the reference registers the hopper as Item.java line 493's
+            // register(Blocks.HOPPER) — a BlockItem SHARING the block id
+            // 154; the old 410 row was a misread "historical split" (the
+            // comparator's 404 is real, the hopper's is not), and 410 is
+            // the prismarine crystals' own id (line 714). The block family
+            // keeps 154 in BY_IDENTIFIER through the facing merge; the
+            // override wins the reverse map so identifierOf(154) answers
+            // the item, deterministically over the facing variants.
+            Map.entry(Identifier.parse("minecraft:hopper"), 154),
             // The tripwire hook item (Slice 10c): the block family keeps
             // legacy 131, the item form shares it.
             Map.entry(Identifier.parse("minecraft:tripwire_hook"), 131),
             // The brewing stand item (Slice 11e): the block family keeps
             // legacy 117, the item form is 379 (the same split as the
-            // hopper's 410).
+            // comparator's 404).
             Map.entry(Identifier.parse("minecraft:brewing_stand"), 379),
             // The cauldron item (Item.java line 676): legacy 380 — the
             // block family keeps 118, the item form diverges.
-            Map.entry(Identifier.parse("minecraft:cauldron"), 380));
+            Map.entry(Identifier.parse("minecraft:cauldron"), 380),
+            // The R-2 repair (the block/item id splits the table missed —
+            // every id from the reference's own registrations): the cake
+            // item 354 (Item.java line 640's PlaceableItem over
+            // Blocks.CAKE; the block keeps 92), the flower pot item 390
+            // (line 690; the block keeps 140 — Slice 48's own ledger row
+            // always claimed "the item at 390"), the five 1.7 doors
+            // 427-431 (lines 730-734 — DoorItems over blocks 193-197,
+            // the oak pair's own 64/324 split), and the bare item forms
+            // over the state-suffixed redstone families (the lever 69
+            // [line 411], the stone button 77 [line 416], the wooden
+            // button 143 [line 485], the pistons 33/29 [lines 376/372] —
+            // the identifiers EngineServer's placement arms hold; without
+            // a row every one serialized as writeSlot's empty arm).
+            Map.entry(Identifier.parse("minecraft:cake"), 354),
+            Map.entry(Identifier.parse("minecraft:flower_pot"), 390),
+            Map.entry(Identifier.parse("minecraft:spruce_door"), 427),
+            Map.entry(Identifier.parse("minecraft:birch_door"), 428),
+            Map.entry(Identifier.parse("minecraft:jungle_door"), 429),
+            Map.entry(Identifier.parse("minecraft:acacia_door"), 430),
+            Map.entry(Identifier.parse("minecraft:dark_oak_door"), 431),
+            Map.entry(Identifier.parse("minecraft:lever"), 69),
+            Map.entry(Identifier.parse("minecraft:stone_button"), 77),
+            Map.entry(Identifier.parse("minecraft:wooden_button"), 143),
+            Map.entry(Identifier.parse("minecraft:piston"), 33),
+            Map.entry(Identifier.parse("minecraft:sticky_piston"), 29));
 
     /** The damage-aware reverse map is declared after {@link #METADATA}. */
 

@@ -73,11 +73,11 @@ cycle (entity/block/item/packet/effect class censuses); engine side from
 
 | Check | State | Coverage |
 |---|---|---|
-| Unknown-packet handling | FINE log + ignore (V18Connection default case) | VERIFIED-EQ (historical form) |
-| Malformed-packet fuzzing | not run this cycle | UNVERIFIED → remainder R-7 |
-| Login flood | no bound found; path not audited end-to-end | UNVERIFIED → ML-014 |
-| Packet-size limits / rate limits | remainder check | UNVERIFIED → R-7 |
-| Compression threshold exchange | FrameCodec present; login-time 0x03 exchange unverified | UNVERIFIED → R-3 (part of ML-020) |
+| Unknown-packet handling | FINE log + ignore (V18Connection default case); unknown C2S ids CLOSE the connection (observed in R-7's tail) | VERIFIED-EQ (historical form) + R-7 pinned |
+| Malformed-packet fuzzing | R-7 run this cycle: 24-case deterministic corpus (one fresh client per case) + seeded tail (Random(474747L), 40 frames) — 4 lawful closes, engine ticked through all, clean join intact | VERIFIED-EQ (MalformedPacketFuzzWireTest 3/0) |
+| Login flood | bounded + measured (wave 3, ML-014: zero tick-lane cost at 100 pending; ReadTimeoutHandler(30) first in the pipeline) | RESOLVED (ML-014, wave 3) |
+| Packet-size limits / rate limits | the 21-bit frame ceiling (MAX_FRAME 2,097,151 = the 3-byte varint maximum) — the reference's own splitter law (SplitterHandler.java: wider-than-21-bit → CorruptedFrameException); pinned: 4-byte continuation varint closes, ceiling-length partial frame WAITS | VERIFIED-EQ (R-7, MalformedPacketFuzzWireTest) |
+| Compression threshold exchange | the engine never performs the 0x03 exchange — its permanent mode is the reference's threshold=-1 shape (the ENGINEERING_PLAN slice decision); the byte-exact no-exchange form pinned at the wire | INTENTIONAL DIVERGENCE, RECORDED + PINNED (R-3, LoginCompressionWireTest 3/0) |
 | Micro-level boundary/rounding laws | per-mechanic records in ledger (formulas pinned test-by-test) | VERIFIED-EQ where ledgered (the standing method) |
 
 ## Coverage summary and honest remainder
@@ -87,18 +87,61 @@ specials 8/8, decorations 4/4, potion effects 23/23, block-state registry
 896 (test-pinned), enchantment registry (legacy-id scheme), packet
 constants 27/28 C2S + 67/77 S2C with every absence named and ledgered.
 
-Remainder (quantified, NOT claimed complete):
-- R-1: TNT primed-entity lifecycle end-to-end read (package exists).
-- R-2: item-registry id-by-id diff vs the 1.8.8 item table.
-- R-3: login compression-threshold exchange wire check (FrameCodec).
-- R-4: keepalive timeout/disconnect behavior vs reference.
-- R-5: worldgen deterministic-seed equivalence run (same seed → same world
-  byte-compare at the region level; the slices are 1:1 but the end-to-end
-  determinism run is not recorded this cycle).
-- R-6: per-command semantic diff of the 74 registered commands vs the
-  vanilla ~41 (known: /give divergence ML-008, /op ML-005; /summon +
-  /spawnmob console-form papercut from cycle 3).
-- R-7: malformed-packet fuzz + packet-size/rate-limit boundary pass.
+Remainder (quantified, NOT claimed complete — R-2..R-7 resolved this cycle, R-1 and R-8 left):
+- R-1: TNT primed-entity lifecycle end-to-end read (package exists) — still
+  open, deliberately not picked this wave.
+- R-2: RESOLVED (defects fixed + pinned): the id-by-id diff vs Item.java's
+  init() walk (337 registrations) found 11 wrong wire ids (hopper at the
+  prismarine crystals' 410 — the reference registers a BlockItem at 154;
+  compass at the saddle's 329 → 345; the seed pair at the hoe ids 292/294
+  → 361/362) and 16 registered items with no wire row at all (the food
+  family, the lever/button/piston item forms, the oak sapling alias),
+  plus the empty bucket's stack size 1 → the reference's 16 — all repaired
+  with the reference's own registration lines cited; ItemRegistryParityTest
+  4/0 pins the full table, the no-engine-item set (17 ids), the dual
+  spellings, and the stack sizes.
+- R-3: RECORDED as the standing intentional divergence + pinned: the engine
+  never performs the login compression exchange (permanent threshold=-1
+  shape, the ENGINEERING_PLAN's own slice decision); the reference's own
+  exchange law (ServerLoginNetworkHandler lines 92-101) extracted and the
+  byte-exact no-exchange form pinned (LoginCompressionWireTest 3/0).
+- R-4: RESOLVED (payload defect fixed + the engine's own stricter kick
+  recorded): the payload now the reference's (int) getTimeMillis() form
+  (ServerPlayNetworkHandler.tick lines 131-137 — it was a from-scratch
+  counter); the reference's own law extracted (no application-level kick,
+  ReadTimeoutHandler(30) as the only silent-client drop, no Disconnect
+  packet on that path); Torch keeps its §10b design (3× interval, WITH a
+  "Timed out" Disconnect packet) — pinned KeepAliveTimeoutWireTest 2/0.
+- R-5: RESOLVED (verified + pinned): the same-seed run executed — two
+  independent engines over the same derived seed (world-name law,
+  NormalWorldGenerator line 113), 25 columns, byte-identical serialized
+  columns (bitmask AND bytes). Region-level inapplicable BY DESIGN: region
+  files are the import side only (read-only); the native save path is the
+  delta pipeline, vacuous for untouched generated chunks — recorded, not
+  forced. Known in-process limitation: Layer.init's static (same-seed
+  idempotent; different-seed isolation needs a cross-process run).
+  WorldgenDeterminismRunTest 1/0 (4 runs green).
+- R-6: RESOLVED (surface-verified + pinned): 74 engine verbs vs the
+  reference walk's 62 names (59 registrations + the w/msg tell aliases +
+  the ? help alias) — intersection 56 (50 level-matched), 6 level
+  divergences RECORDED (give 0v2, time 0v2, seed 0v2, kick 2v3, say 2v1,
+  defaultgamemode 2v4), 18 extras (the collapsed save, the gamemode
+  shortcuts, msg/w, the admin QoL family, spawnmob), 6 missing (the ?
+  help alias, publish, save-all/on/off as separate verbs, setidletimeout).
+  Form divergences stay ledgered: /give ML-008 (owner decision pending),
+  /summon + /spawnmob player-only (cycle-3 papercut), /save collapsed,
+  /setspawn the standing-form verb. /op ML-005 resolved (wave 3).
+  RegisteredCommandSurfaceParityTest 2/0 pins the exact 74-name set and
+  every level. Depth limitation recorded: name/alias/level/grammar
+  surface; per-command effect-level semantics stay family-owned.
+- R-7: RESOLVED (verified + pinned): the deterministic corpus (24 cases:
+  oversized string prefixes, NaN positions, truncated bodies, out-of-range
+  enums/slots, unknown ids, a mismatched keep-alive echo) + the seeded tail
+  (Random(474747L), 40 frames: 4 lawful closes, 5 connections, engine
+  ticked through all, clean join after) + the 21-bit frame boundary
+  (4-byte continuation varint closes; the 2,097,151-ceiling partial frame
+  WAITS — the reference's own SplitterHandler law).
+  MalformedPacketFuzzWireTest 3/0.
 - R-8: the compat ledger's per-family "Remaining (ledgered)" tails —
   25 rows (ML-100), family-owned.
 

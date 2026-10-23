@@ -85,6 +85,17 @@ final class TestClient18 implements AutoCloseable {
         out.flush();
     }
 
+    /**
+     * R-7's fuzz arm: writes RAW bytes to the socket with no framing — the
+     * caller owns the wire form (the frame-decoder boundary cases: a
+     * 4-byte continuation varint, a ceiling-length prefix that must make
+     * the decoder WAIT). Additive test-fixture helper; no behavior change.
+     */
+    void sendRawBytes(byte[] bytes) throws IOException {
+        out.write(bytes);
+        out.flush();
+    }
+
     /** Reads one framed packet, returns its payload (packet id is the first varint). */
     byte[] readPacket() throws IOException {
         int length = readVarInt(in);
