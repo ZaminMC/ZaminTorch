@@ -387,7 +387,29 @@ I=infra/CI/release, S=security/boundary.
   serialization/publication path so the next attribution pass is exact.
 - Acceptance: the section visible in sectionNanosSnapshot; the harness
   re-run shows the re-stream's cost in its own row.
-- Status: open (proposed by the ML-007 pass, 2026-10-23).
+- Resolution (2026-10-23, the cycle-5 wave): RESOLVED. The section is
+  root.wirePublish, recorded through the profiler's new cross-thread
+  span arm (EngineProfiler.recordSectionSpan) rather than a nested
+  push/pop — the walk runs on three lanes (the netty event loop's
+  join/movement streams, the tick thread's pre-handler job drain where
+  the respawn re-stream lands OUTSIDE the root section's window — which
+  is why the original pass could not see it — and the tick thread's
+  relightTransport section), and the push/pop stack's single-caller
+  contract excludes the first lane (a torn stack answers garbage rows,
+  worse than no data). The gate field is now volatile (the event-loop
+  lanes read it with no happens-before edge from start/stop); the arm
+  is zero-cost while profiling is off. Acceptance met on both bars:
+  the row appears in sectionNanosSnapshot, and the harness re-run reads
+  the re-stream's cost in its own row — 4711.2 us/tick on the
+  coordinator's independent review run (5344.6 on the author's capture,
+  1377 visits, 0.43 ms/visit, 10.44% of root — the storm window's
+  second-largest row). The attribution report's gap #4 marked RESOLVED;
+  the captured evidence in ATTRIBUTION_RUN_EVIDENCE.txt. Pinned by
+  WirePublishSectionTest 2/0 (both real lanes driven — a fresh join on
+  the netty loop + a death/respawn re-stream on the pre-handler drain,
+  count >= 2x the view columns, the stack-balance pins: the row never
+  gains a child, mobs/randomTicks/relightTransport never gain children).
+- Status: RESOLVED (landed, the cycle-5 wave).
 
 ## KigPaper increment 2 (the supplied patched-1.8.8-server audit)
 
