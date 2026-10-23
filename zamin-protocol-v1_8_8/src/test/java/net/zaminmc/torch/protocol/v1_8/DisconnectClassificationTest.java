@@ -151,8 +151,22 @@ class DisconnectClassificationTest {
             assertEquals(1, disconnects.size(),
                     "exactly one quiet disconnect line: " + disconnects);
             assertEquals(Level.INFO, disconnects.get(0).getLevel());
-            assertTrue(disconnects.get(0).getMessage().contains("Internal Exception"),
-                    "the reason carries the cause: " + disconnects.get(0).getMessage());
+            assertNull(disconnects.get(0).getThrown(), "the quiet line carries no stack");
+            // THE COORDINATOR'S REVIEW CORRECTION: the original pin demanded
+            // the reason contain "Internal Exception" — over-pinning TCP's
+            // delivery flavor. A reset (SO_LINGER 0 + close) can reach the
+            // server either way: the IOException family through
+            // exceptionCaught ("Internal Exception: <cause>" — Connection's
+            // own reason form) OR a plain channelInactive ("connection
+            // closed") when the RST lands on an idle reader. Both are the
+            // reference's own quiet vocabulary; the pinned law (the row's
+            // actual acceptance) is ONE quiet INFO line, never a WARNING,
+            // never a stacktrace — observed both ways across runs.
+            String reason = disconnects.get(0).getMessage();
+            assertTrue(reason.contains("Player disconnected: Resetter")
+                            && (reason.contains("Internal Exception")
+                                || reason.contains("connection closed")),
+                    "the quiet family's reason form: " + reason);
         } finally {
             client.close();
         }
