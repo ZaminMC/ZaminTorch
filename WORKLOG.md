@@ -13685,3 +13685,81 @@ Stage Summary:
   the two documented test races and the chest flake are pre-existing,
   reproduced outside this lane. PR opened against develop, not
   self-merged — the coordinator reviews.
+
+---
+Task ID: ML-010
+Agent: Abasing (the multiplayer-sleep lane)
+Task: ML-010 from the cycle-3 audit's ranked backlog — the Use Bed (0x0A)
+never sent + the multiplayer sleep walk over the single-player contract:
+other players never saw the sleep pose, and the vanilla multiplayer
+contract (morning only when ALL sleeping players sleep) was replaced by a
+single-player instant jump.
+
+Work Log:
+- Studied the reference walk whole (PlayerSleepS2CPacket, ServerWorld's
+  updatePlayersSleepingStatus/canSkipNight/wakeSleepingPlayers,
+  PlayerEntity.trySleep/wakeUp/the per-tick sleep block,
+  ServerPlayerEntity's trySleep/wakeUp wire arms, BedBlock.use's
+  redirect + message arms, ServerPlayNetworkHandler's STOP_SLEEPING
+  arm, EntityMap/TrackedEntity's sendPacket vs sendPacketToAll — the
+  latter INCLUDES the entity itself) and the engine's existing surfaces
+  (sleepOnTick at the single-player contract, the bed-click arm, the
+  SurvivalListener posture precedent, the entityAction stream, the
+  V18Connection writer/fan conventions, the per-observer id spaces).
+- The engine: PlayerSession's sleeping + sleepingPos state; sleepOnTick
+  reworked into the bed entry (the OTHER_PROBLEM guard, the
+  night-window gate, bedHeadCell's foot-to-head redirect, the NOT_SAFE
+  monster box via MobManager.monstersNearBed — x/z ±8, y ±5, the
+  feet-anchored box intersection, the hostile family whatever the
+  temper); the new 'sleep' tick phase (tickSleep) — the per-sleeper
+  integrity pair (bed gone / day arrived / death) + the areAllPlayers
+  Asleep walk (at least one sleeper, every non-spectator overworld body
+  sleeping → the morning jump + the weather clear + wakeSleeping
+  Players); wakeOnTick (leaveBed + the wake fan); the SurvivalListener's
+  onPlayerSleeping/onPlayerWake additive defaults + the publish fans.
+  The identity clause recorded: with ONE player the click enters and the
+  next tick jumps to morning — SleepAcceptanceTest green unmodified; the
+  reference's isSleepingLongEnough 100-tick grace deliberately not
+  ported.
+- The wire: Protocol18.S2C_USE_BED = 0x0A (#11 in the reference's
+  clientbound registration order) + the conformance row;
+  V18Connection.sendSelfUseBed/sendRemotePlayerUseBed (the per-observer
+  id-space resolution); the adapter's SurvivalListener overrides — the
+  0x0A to self + trackers on entry, the Animation 0x0B code 2 to every
+  observer INCLUDING the sleeper + the sleeper's own position anchor
+  (resyncPosition — the packet that closes the sleep screen) on wake.
+- The Entity Action ordinals corrected to the reference's enum order
+  (2 STOP_SLEEPING → the leave-bed walk, 3 START_SPRINTING, 4
+  STOP_SPRINTING — the old map was off by one);
+  RangedCombatAcceptanceTest's posture rows moved to the corrected codes
+  (the same assertions).
+- The tests: MultiplayerSleepAcceptanceTest 3 scenes (the all-sleepers
+  gate with the morning/poses/wakes/spawns observables — the sleeping
+  flag's one-tick lifetime under the instant walk taught the await
+  design; the leave-bed without the clock jump + the re-entry hold; the
+  monster refusal with the clear-box control) + MultiplayerSleepWireTest
+  (the real-socket proof: the other player's 0x0A at the bed HEAD cell,
+  the self copy, the day-band Time Update, the 0x0B code-2 pair on the
+  wake and the leave-bed action, the refusal chat line; the scripted
+  client's position echo after each wake — the anchor opens the
+  teleport window and a real client's every-tick packet closes it).
+  The natural spawn cycle stays off in both fixtures (the flat world's
+  night would seed hostiles inside the ±8 refusal box beside the beds).
+- Verified: ./gradlew build (all modules, -x test) green; :zamin-core
+  2315/0 (batched per package family at --no-daemon --max-workers=1);
+  :zamin-protocol-v1_8_8 119/0; :zamin-api 19/0; :zamin-launcher 47/0;
+  :zamin-bukkit 52/0. One suite-load flake (HorseIntegrationTest's
+  steered-horse row) reproduced green in isolation — the cycle-3 flake
+  family, not this lane's.
+- Docs: Torch-Arcetecture.txt §29's Wave ML landed record + §22's
+  next-work line; VANILLA_1_8_8_COMPATIBILITY.md untouched (its sleep
+  row is IMPLEMENTED, not a "Ledgered:" row — the task's own rule).
+
+Stage Summary:
+- The multiplayer sleep contract landed whole: the 0x0A pose wire with
+  the self + tracker fans, the all-sleepers morning walk with the
+  single-player identity, the leave-bed walk on the corrected Entity
+  Action ordinals, the monster-proximity refusal at the reference's
+  exact box, and the per-sleeper integrity pair. 2552 tests green
+  across the repo; SleepAcceptanceTest unmodified and green. One PR
+  against develop, not self-merged — the coordinator reviews.

@@ -2814,6 +2814,11 @@ public final class EngineServer implements Server, EngineBridge {
                     profiled("hopperViewers", this::tickHopperViewers);
                     profiled("dispenserViewers", this::tickDispenserViewers);
                     profiled("playerBodies", this::tickPlayerBodies);
+                    // The multiplayer sleep walk (ServerWorld.tick's opening
+                    // canSkipNight consult + the per-sleeper integrity pair):
+                    // the all-sleepers morning, the destroyed-bed wake, the
+                    // day-arrival wake.
+                    profiled("sleep", this::tickSleep);
                     // The portal caches' eviction walk (the reference's
                     // PortalForcer.tick per world).
                     profiled("portalForcers", () -> {
@@ -4799,6 +4804,28 @@ public final class EngineServer implements Server, EngineBridge {
          */
         default void onEndCredits(PlayerSession player) {
         }
+
+        /**
+         * The player entered a bed (the reference's
+         * ServerPlayerEntity.trySleep lines 491-501 — the wire arm): the
+         * sleeper's own client and every tracking observer render the sleep
+         * pose (Use Bed 0x0A) at the bed head cell. Default no-op so older
+         * listeners stay source-compatible.
+         */
+        default void onPlayerSleeping(PlayerSession player, BlockPosition bedHead) {
+        }
+
+        /**
+         * The player left the bed (the reference's
+         * ServerPlayerEntity.wakeUp lines 503-513 — the wire arm: the
+         * Animation 0x0B code 2 to every observer INCLUDING the sleeper,
+         * plus the sleeper's own position anchor): whatever drove the wake
+         * — the leave-bed entity action, the morning walk, the destroyed
+         * bed — this one fan renders the departure. Default no-op so older
+         * listeners stay source-compatible.
+         */
+        default void onPlayerWake(PlayerSession player) {
+        }
     }
 
     /** Registers an internal survival observer (e.g. the protocol adapter's sync). */
@@ -4827,6 +4854,20 @@ public final class EngineServer implements Server, EngineBridge {
     private void publishEndCredits(PlayerSession player) {
         for (SurvivalListener listener : survivalListeners) {
             listener.onEndCredits(player);
+        }
+    }
+
+    /** The sleep pose fan (Use Bed 0x0A — the trySleep wire arm). */
+    private void publishPlayerSleeping(PlayerSession player, BlockPosition bedHead) {
+        for (SurvivalListener listener : survivalListeners) {
+            listener.onPlayerSleeping(player, bedHead);
+        }
+    }
+
+    /** The leave-bed fan (Animation 0x0B code 2 — the wakeUp wire arm). */
+    private void publishPlayerWake(PlayerSession player) {
+        for (SurvivalListener listener : survivalListeners) {
+            listener.onPlayerWake(player);
         }
     }
 
@@ -7369,28 +7410,34 @@ public final class EngineServer implements Server, EngineBridge {
     /**
      * The Entity Action stream (0x0B): the posture gestures the client's own
      * physics already animates — the server tracks them for the observers'
-     * flags metadata, the sprint food cost and future movement validation.
-     * Actions: 0 start-sneak, 1 stop-sneak, 2 start-sprint, 3 stop-sprint
-     * (4 jump-with-horse and 5 leave-bed are posture-neutral here). Safe from
-     * any thread.
+     * flags metadata and the sprint hunger gate, and the leave-bed action
+     * drives the wake walk. Actions are the reference's own enum ordinals
+     * (PlayerMovementActionC2SPacket.Action, VarInt-encoded): 0 start-sneak,
+     * 1 stop-sneak, 2 leave-bed (STOP_SLEEPING —
+     * ServerPlayNetworkHandler.handlePlayerMovementAction line 685's own
+     * wakeUp(false, true, true)), 3 start-sprint, 4 stop-sprint (5/6 the
+     * riding pair, posture-neutral here). Safe from any thread.
      */
     public void entityAction(PlayerSession session, int action) {
         Objects.requireNonNull(session, "session");
         ticker.submit(() -> {
-            boolean before = session.sneaking() || session.sprinting();
             switch (action) {
                 case 0 -> session.setSneaking(true);
                 case 1 -> session.setSneaking(false);
-                case 2 -> {
+                case 2 -> wakeOnTick(session); // STOP_SLEEPING: the leave-bed walk
+                case 3 -> {
                     // The historical sprint gate: hunger below 7 refuses sprint.
                     if (session.food() > 6) {
                         session.setSprinting(true);
                     }
                 }
-                case 3 -> session.setSprinting(false);
+                case 4 -> session.setSprinting(false);
                 default -> {
                     return;
                 }
+            }
+            if (action == 2) {
+                return; // the leave-bed walk owns its own fan (the wake pose)
             }
             // The flags metadata is idempotent; observers re-sync regardless of
             // whether the posture actually flipped.
@@ -12416,14 +12463,25 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /**
-     * The sleep flow (the historical EntityPlayer.sleepInBedAt): outside the
-     * night window the bed refuses with the vanilla line; inside it, the
-     * body's bed spawn is set, the world jumps to morning, and the weather
-     * clears — the single-player sleep contract this server makes.
-     * Tick-thread context.
+     * The bed entry (the historical EntityPlayer.sleepInBedAt over
+     * PlayerEntity.trySleep): outside the night window the bed refuses with
+     * the vanilla line; a hostile body inside the reference's own bed box
+     * (±8 x, ±5 y, ±8 z — the NOT_SAFE arm) refuses with the monsters line;
+     * inside both gates the body's bed spawn is set and the body enters the
+     * bed — the per-player sleeping state the multiplayer walk counts. The
+     * morning itself is the walk's answer (tickSleep): with every other
+     * player sleeping, the next tick jumps the world to dawn; with one
+     * player alone that is the same tick — today's single-player contract
+     * unchanged. Tick-thread context.
      */
     private void sleepOnTick(PlayerSession session, BlockPosition clicked) {
         if (session.state() != PlayerState.PLAYING || session.dead()) {
+            return;
+        }
+        // The already-sleeping refusal (trySleep's OTHER_PROBLEM arm, lines
+        // 1085-1087): a body in a bed never re-enters — BedBlock.use carries
+        // no message line for this status, so the use is silently consumed.
+        if (session.sleeping()) {
             return;
         }
         long time = world.timeOfDay();
@@ -12432,10 +12490,131 @@ public final class EngineServer implements Server, EngineBridge {
             systemMessage(session, "You can only sleep at night");
             return;
         }
-        session.setBedSpawn(new Position(clicked.x() + 0.5, clicked.y() + 1.0,
-                clicked.z() + 0.5));
+        // BedBlock.use lines 37-43: a foot click redirects to the head —
+        // trySleep carries the head cell, and the wire pose renders there.
+        BlockPosition head = bedHeadCell(clicked);
+        // The monster-proximity refusal (trySleep lines 1101-1109, the
+        // NOT_SAFE arm — BedBlock.use's own message line 67).
+        MobManager mobs = mobManager;
+        if (mobs != null && mobs.monstersNearBed(head)) {
+            systemMessage(session, "You may not rest now, there are monsters nearby");
+            return;
+        }
+        session.setBedSpawn(new Position(head.x() + 0.5, head.y() + 1.0,
+                head.z() + 0.5));
         systemMessage(session, "Your spawn point has been set");
-        // The morning jump (the historical wake-up at 0) with the cycle sync.
+        session.enterBed(head);
+        // The sleep pose (ServerPlayerEntity.trySleep lines 491-501): the
+        // Use Bed 0x0A to the sleeper and every tracking observer.
+        publishPlayerSleeping(session, head);
+        LOGGER.info(() -> session.name() + " is now resting in a bed at " + head);
+    }
+
+    /**
+     * The bed pair's head cell (BedBlock.use lines 37-43): a clicked foot
+     * resolves to its sibling head — the horizontal neighbor of the opposite
+     * half class (the placement's own pair law); a clicked head is itself.
+     * A half whose pair is gone answers itself (the placement never makes
+     * one, the break removes both — the defensive row). Tick-thread context.
+     */
+    private BlockPosition bedHeadCell(BlockPosition clicked) {
+        BlockType type = world.getBlock(clicked);
+        if (!isBedHalf(type)) {
+            return clicked;
+        }
+        if (type.identifier().value().startsWith("bed_head")) {
+            return clicked;
+        }
+        for (int[] direction : new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
+            BlockPosition neighbor = clicked.offset(direction[0], 0, direction[1]);
+            BlockType at = world.getBlock(neighbor);
+            if (isBedHalf(at) && at.identifier().value().startsWith("bed_head")) {
+                return neighbor;
+            }
+        }
+        return clicked;
+    }
+
+    /**
+     * The leave-bed walk (PlayerEntity.wakeUp lines 1170-1192 +
+     * ServerPlayerEntity.wakeUp lines 503-513): the sleeping state drops
+     * and the wire fan renders the departure — the Animation 0x0B code 2
+     * to every observer including the sleeper's own client, whose position
+     * anchor (the reference's trailing networkHandler.teleport) closes its
+     * sleep screen. The body never moved into the bed (the engine's bodies
+     * stay where the click found them — today's single-player contract),
+     * so the wake moves nothing back; the spawn point was set at the entry
+     * and survives every wake path. Tick-thread context.
+     */
+    private void wakeOnTick(PlayerSession session) {
+        if (!session.sleeping()) {
+            return; // wakeUp's own no-op shape over an already-standing body
+        }
+        session.leaveBed();
+        publishPlayerWake(session);
+    }
+
+    /**
+     * The multiplayer sleep walk (ServerWorld.tick lines 169-176 with
+     * updatePlayersSleepingStatus lines 221-237 and canSkipNight lines
+     * 258-269, ported 1:1 with the identity clause): every sleeping body
+     * first answers the integrity pair — the bed gone under it
+     * (checkSleepingPosition → wakeUp(true, true, false)) and the day
+     * arrived (isSunny → wakeUp(false, true, true)) — then the overworld
+     * answers areAllPlayersAsleep: at least one sleeper and every
+     * non-spectator body in the dimension sleeping → the morning jump (the
+     * wake-up at 0 with the cycle sync), the weather clear, and every
+     * sleeper woken (wakeSleepingPlayers → wakeUp(false, false, true) —
+     * the spawn already set at each entry, the leave-bed fan riding each
+     * wake). With ONE player this is today's single-player contract
+     * unchanged: the click enters the bed and the next tick jumps to
+     * morning. The reference's isSleepingLongEnough 100-tick grace is
+     * deliberately not ported — the single-player contract is the instant
+     * jump (the walk's own identity clause), and the multiplayer contract
+     * this server makes answers the morning the moment the last body lies
+     * down. Tick-thread context.
+     */
+    private void tickSleep() {
+        // PlayerEntity.tick lines 215-233: the per-sleeper integrity pair.
+        for (PlayerSession session : players.all()) {
+            if (!session.sleeping()) {
+                continue;
+            }
+            if (session.state() != PlayerState.PLAYING || session.dead()) {
+                // The death/departure wake (PlayerEntity.die line 782's own
+                // wakeUp(true, true, false) — no pose, no spawn change).
+                wakeOnTick(session);
+            } else if (!isBedHalf(world.getBlock(session.sleepingPos()))) {
+                wakeOnTick(session); // the bed is gone: checkSleepingPosition
+            } else {
+                long time = world.timeOfDay();
+                if (time < MobManager.NIGHT_START || time >= MobManager.NIGHT_END) {
+                    wakeOnTick(session); // the day arrived: isSunny's own wake
+                }
+            }
+        }
+        // updatePlayersSleepingStatus + canSkipNight over the OVERWORLD's
+        // bodies (ServerWorld.players is the per-world list — the walk's
+        // clock is the overworld's): sleepers > 0 && sleepers >= the
+        // non-spectator count.
+        int sleepers = 0;
+        int waking = 0;
+        for (PlayerSession session : players.all()) {
+            if (session.dimension() != 0
+                    || session.gamemode() == GameMode.SPECTATOR) {
+                continue; // another world's body never gates this clock
+            }
+            waking++;
+            if (session.sleeping()) {
+                sleepers++;
+            }
+        }
+        if (sleepers <= 0 || sleepers < waking) {
+            return; // someone is still standing: the night holds
+        }
+        // The morning jump (the historical wake-up at 0 with the cycle sync
+        // — the reference's next-24000-multiple arithmetic folds to the same
+        // dawn under the wrapped clock).
         world.setTimeOfDay(0);
         publishTimeChanged();
         // Sleeping clears the weather (ServerWorld.wakeSleepingPlayers →
@@ -12445,7 +12624,17 @@ public final class EngineServer implements Server, EngineBridge {
         if (cycle != null) {
             cycle.clearWeather();
         }
-        LOGGER.info(() -> session.name() + " slept through the night");
+        // wakeSleepingPlayers lines 239-249: every sleeper leaves the bed.
+        int woke = 0;
+        for (PlayerSession session : players.all()) {
+            if (session.sleeping()) {
+                wakeOnTick(session);
+                woke++;
+            }
+        }
+        final int sleepersNow = woke;
+        LOGGER.info(() -> sleepersNow + " player" + (sleepersNow == 1 ? "" : "s")
+                + " slept through the night");
     }
 
     /**

@@ -21,6 +21,11 @@ final class Protocol18 {
     static final int S2C_UPDATE_HEALTH = 0x06;
     static final int S2C_RESPAWN = 0x07;
     static final int S2C_PLAYER_POSITION_AND_LOOK = 0x08;
+    /** Use Bed (0x0A, PlayerSleepS2CPacket — #11 in the reference's
+     * clientbound registration order, NetworkProtocol line 132): varint
+     * entity id + the packed bed head cell; the client raises the sleep
+     * pose at the cell. */
+    static final int S2C_USE_BED = 0x0A;
     static final int S2C_COLLECT_ITEM = 0x0D;
     static final int S2C_SPAWN_ENTITY = 0x0E;
     static final int S2C_SPAWN_MOB = 0x0F;

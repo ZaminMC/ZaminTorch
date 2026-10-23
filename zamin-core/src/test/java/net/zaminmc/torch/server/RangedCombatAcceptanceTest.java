@@ -321,13 +321,14 @@ class RangedCombatAcceptanceTest {
             }
         });
         net.zaminmc.torch.server.player.PlayerSession sneaky = join(server, "Sneaky");
-        server.entityAction(sneaky, 0); // start sneak
+        server.entityAction(sneaky, 0); // start sneak (START_SNEAKING, ordinal 0)
         await(() -> !postures.isEmpty() && postures.get(postures.size() - 1).equals("true/false"),
                 "the sneak action broadcast");
-        server.entityAction(sneaky, 2); // start sprint
+        server.entityAction(sneaky, 3); // start sprint (START_SPRINTING, ordinal 3 —
+        // the reference's PlayerMovementActionC2SPacket.Action order)
         await(() -> postures.get(postures.size() - 1).equals("true/true"),
                 "sprint rides beside the sneak");
-        server.entityAction(sneaky, 3); // stop sprint
+        server.entityAction(sneaky, 4); // stop sprint (STOP_SPRINTING, ordinal 4)
         await(() -> postures.get(postures.size() - 1).equals("true/false"),
                 "the sprint stop broadcast");
         server.shutdown(null);

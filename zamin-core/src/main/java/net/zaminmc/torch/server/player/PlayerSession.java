@@ -1497,6 +1497,49 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
         this.sprinting = sprinting;
     }
 
+    // --- sleep ---------------------------------------------------------------
+
+    /**
+     * True while the body lies in a bed (the reference's {@code sleeping}):
+     * the multiplayer sleep walk counts it, and the wire renders the sleep
+     * pose (Use Bed 0x0A) while it holds.
+     */
+    private volatile boolean sleeping;
+
+    /** The bed HEAD cell the body sleeps in (the reference's {@code sleepingPos}). */
+    private volatile BlockPosition sleepingPos;
+
+    /** True while the body lies in a bed. */
+    public boolean sleeping() {
+        return sleeping;
+    }
+
+    /** @return the bed head cell the body sleeps in (null when awake). */
+    public BlockPosition sleepingPos() {
+        return sleepingPos;
+    }
+
+    /**
+     * The bed entry (the reference's trySleep tail: sleeping = true,
+     * sleepingPos = pos, sleepingTime = 0 — the engine keeps no timer; the
+     * walk's identity clause answers the all-sleepers question the moment
+     * the last body lies down). Tick-thread context.
+     */
+    public void enterBed(BlockPosition bedHead) {
+        this.sleeping = true;
+        this.sleepingPos = bedHead;
+    }
+
+    /**
+     * The bed departure (the reference's wakeUp: sleeping = false — the
+     * sleepingPos drops with it, the spawn already set at the entry).
+     * Tick-thread context.
+     */
+    public void leaveBed() {
+        this.sleeping = false;
+        this.sleepingPos = null;
+    }
+
     // --- movement guard accessors --------------------------------------------
 
     /** @return grace ticks left (a teleport or knockback is still in flight). */

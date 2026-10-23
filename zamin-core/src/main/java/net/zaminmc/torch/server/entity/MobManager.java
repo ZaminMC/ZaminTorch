@@ -868,6 +868,37 @@ public final class MobManager {
     }
 
     /**
+     * The sleep-refusal monster probe (PlayerEntity.trySleep lines 1101-1109,
+     * the NOT_SAFE arm's exact rule and radius): whether any hostile body's
+     * own box intersects the reference's bed box — x/z ±8, y ±5 around the
+     * bed cell (the {@code getEntitiesOfType(MonsterEntity.class, box)}
+     * consult; the neutral-by-day kinds count too — the reference's class
+     * hierarchy decides, never the temper). Tick-thread context.
+     */
+    public boolean monstersNearBed(net.zaminmc.torch.block.BlockPosition bed) {
+        for (MobEntity mob : mobs) {
+            if (mob.dead() || !mob.type().hostile) {
+                continue;
+            }
+            Position at = mob.position();
+            double halfWidth = mob.type().width / 2.0;
+            // The box-intersection the reference's entity query answers:
+            // the mob's feet-anchored box (width x height) against the bed
+            // box's own spans.
+            boolean overlaps = at.x() + halfWidth >= bed.x() - 8.0
+                    && at.x() - halfWidth <= bed.x() + 8.0
+                    && at.z() + halfWidth >= bed.z() - 8.0
+                    && at.z() - halfWidth <= bed.z() + 8.0
+                    && at.y() + mob.type().height >= bed.y() - 5.0
+                    && at.y() <= bed.y() + 5.0;
+            if (overlaps) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      * Spawns one mob of the kind at the exact position (validated by callers).
      * Tick-thread context.
      *
