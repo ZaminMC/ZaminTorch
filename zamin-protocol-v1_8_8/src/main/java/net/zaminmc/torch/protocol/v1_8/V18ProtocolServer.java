@@ -12,6 +12,7 @@ import io.netty.channel.group.DefaultChannelGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
+import io.netty.handler.timeout.ReadTimeoutHandler;
 import io.netty.util.concurrent.GlobalEventExecutor;
 import net.zaminmc.torch.block.ChunkPosition;
 import net.zaminmc.torch.server.EngineServer;
@@ -36,8 +37,24 @@ public final class V18ProtocolServer implements ProtocolAdapter {
 
     static final long DEFAULT_KEEP_ALIVE_INTERVAL_MS = 10_000;
 
+    /**
+     * The read-idle reap bound, the reference's own value: the vanilla
+     * 1.8.8 listener installs {@code ReadTimeoutHandler(30)} as the FIRST
+     * handler on every accepted child channel (ConnectionListener.java
+     * line 104 — "timeout" ahead of the splitter/decoder family), so a
+     * connection that goes silent before completing login is dropped after
+     * thirty seconds. Torch carries the same bound at the same pipeline
+     * position: a flood of in-progress logins (handshake sent, login never
+     * completed) can never outlive this window, whatever the flood's size —
+     * the reference's own answer to the unbounded-accept question (it has
+     * no numeric login cap either; its 600-tick login deadline rides the
+     * same 30-second wall clock).
+     */
+    static final int DEFAULT_READ_TIMEOUT_SECONDS = 30;
+
     private final EngineServer engine;
     private final long keepAliveIntervalMs;
+    private final int readTimeoutSeconds;
     private final Map<V18Connection, Channel> connections = new ConcurrentHashMap<>();
     private final ChannelGroup allChannels = new DefaultChannelGroup(GlobalEventExecutor.INSTANCE);
     private final AtomicInteger entityIds = new AtomicInteger();
@@ -52,8 +69,18 @@ public final class V18ProtocolServer implements ProtocolAdapter {
     }
 
     V18ProtocolServer(EngineServer engine, long keepAliveIntervalMs) {
+        this(engine, keepAliveIntervalMs, DEFAULT_READ_TIMEOUT_SECONDS);
+    }
+
+    /**
+     * The full boot: the keep-alive cadence plus the read-idle reap bound
+     * (seconds; the reference's own 30). Tests that need to observe the
+     * reaping drive a short window through this constructor.
+     */
+    V18ProtocolServer(EngineServer engine, long keepAliveIntervalMs, int readTimeoutSeconds) {
         this.engine = engine;
         this.keepAliveIntervalMs = keepAliveIntervalMs;
+        this.readTimeoutSeconds = readTimeoutSeconds;
         // §27.3's packet construction: the composed-frame sender installed
         // at construction — the registry's send() resolves a player's
         // PLAY-state connection through here and writes through the shared
@@ -115,6 +142,16 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                     protected void initChannel(SocketChannel channel) {
                         V18Connection connection = new V18Connection(V18ProtocolServer.this, engine);
                         channel.pipeline()
+                                // The read-idle reap bound, first in the pipeline
+                                // exactly where the reference installs it
+                                // (ConnectionListener.java line 104: addLast
+                                // "timeout", ReadTimeoutHandler(30) ahead of the
+                                // splitter): a connection silent past the bound
+                                // is closed — the pre-login flood boundary. The
+                                // exception lands in V18Connection.exceptionCaught,
+                                // which reaps it quietly (never a protocol
+                                // WARNING — the timeout is the mechanism working).
+                                .addLast("timeout", new ReadTimeoutHandler(readTimeoutSeconds))
                                 .addLast(FrameCodec.DECODER_NAME, new FrameCodec.Decoder())
                                 .addLast(FrameCodec.ENCODER_NAME, new FrameCodec.Encoder())
                                 // §27.3's interception point: every PLAY-state

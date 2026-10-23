@@ -538,6 +538,20 @@ public final class EngineServer implements Server, EngineBridge {
     private net.zaminmc.torch.server.nbt.TileNbt tileNbt;
     /** The vehicles (boats, minecarts); created at boot, tick-thread owned. */
     private volatile net.zaminmc.torch.server.entity.vehicle.VehicleManager vehicleManager;
+    /**
+     * The rides remembered across a relog (ML-016 — the reference's
+     * "Riding" NBT row, Torch-shaped): a player who quits while seated
+     * leaves the seat open (the vehicle never holds a ghost) but the link
+     * is remembered here, keyed by player UUID, and the rejoin's restore
+     * walk consumes it — the vehicle stays LIVE in the running engine
+     * with its stable entity id, so the remount needs no recreate (the
+     * reference's Entities.create walk) and no store format change. One
+     * entry per quit-while-riding; consumed (or dropped when the target
+     * is gone) at the next join. Any thread (the capture runs on the
+     * event loop, the consume on the tick lane).
+     */
+    private final java.util.Map<UUID, RememberedRide> rememberedRides
+            = new java.util.concurrent.ConcurrentHashMap<>();
     /** The fishing bobbers (Slice 67); created at boot, tick-thread owned. */
     private volatile net.zaminmc.torch.server.fishing.FishingSystem fishing;
     /** The public §27.3 fishing view (the empty answer until the world boots). */
@@ -26874,6 +26888,22 @@ public final class EngineServer implements Server, EngineBridge {
         if (session.state() == PlayerState.DISCONNECTED) {
             return;
         }
+        // The ride is remembered BEFORE the seat opens (ML-016 — the
+        // reference saves the "Riding" row with the player BEFORE the quit
+        // walk removes the mount, PlayerManager.remove lines 281-285): the
+        // relog's restore walk consumes the link and remounts at the
+        // vehicle's live position. Only a LIVE target is remembered — a
+        // gone vehicle (broken, fallen, dead) leaves nothing to restore,
+        // exactly like the reference's tag dying with the vehicle.
+        if (session.ridingVehicleId() >= 0 && vehicleManager != null
+                && vehicleManager.byId(session.ridingVehicleId()) != null) {
+            rememberedRides.put(session.uuid(),
+                    new RememberedRide(session.ridingVehicleId(), -1));
+        } else if (session.ridingMobId() >= 0 && mobManager != null
+                && mobManager.byId(session.ridingMobId()) != null) {
+            rememberedRides.put(session.uuid(),
+                    new RememberedRide(-1, session.ridingMobId()));
+        }
         // The seat opens on disconnect (the vehicle never holds a ghost).
         if (vehicleManager != null && session.ridingVehicleId() >= 0) {
             var ridden = vehicleManager.byId(session.ridingVehicleId());
@@ -26930,6 +26960,96 @@ public final class EngineServer implements Server, EngineBridge {
             });
         }
         LOGGER.info(() -> "Player disconnected: " + session.name() + " (" + reason + ")");
+    }
+
+    /**
+     * The relog remount arm (ML-016 — the reference's PlayerManager.onLogin
+     * "Riding" walk, lines 157-165, Torch-shaped): the adapter calls this
+     * AFTER its join sequence completed (the rejoiner's wire can receive
+     * packets and already knows the pre-existing vehicles through the join
+     * view's spawn snapshot), and the walk itself rides the tick lane —
+     * the mount's own owner, the interact path's own shape. The remembered
+     * link is consumed whether or not the remount lands (the reference's
+     * tag is consumed at login too): a gone vehicle, a taken seat, or a
+     * session that never reached play leaves the player on foot, never a
+     * retry loop.
+     */
+    @Override
+    public void rejoinRestoreRide(PlayerSession session) {
+        Objects.requireNonNull(session, "session");
+        if (ticker == null) {
+            return;
+        }
+        ticker.submit(() -> restoreRememberedRide(session));
+    }
+
+    /**
+     * The remount walk's own body, tick-thread context: mount the live
+     * vehicle (the attach + posture publication fans through the existing
+     * mount listeners), then the seat anchor lands the body, then the
+     * rider's own wire re-anchors — the reference's startRiding sequence
+     * exactly (ServerPlayerEntity.startRiding lines 516-523: the Attach
+     * Entity packet, then the teleport to the seat).
+     */
+    private void restoreRememberedRide(PlayerSession session) {
+        RememberedRide ride = rememberedRides.remove(session.uuid());
+        if (ride == null) {
+            return;
+        }
+        if (session.state() != PlayerState.PLAYING || session.dead()) {
+            return; // the rejoin raced a quit: the link is consumed, on foot
+        }
+        if (ride.vehicleEntityId() >= 0 && vehicleManager != null) {
+            net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle =
+                    vehicleManager.byId(ride.vehicleEntityId());
+            // A gone vehicle never remounts (the reference's Riding tag dies
+            // with the vehicle entity); an occupied seat refuses the mount
+            // exactly like the live interact path's one-seat law.
+            if (vehicle == null || !vehicleManager.mount(vehicle, session.engineEntityId())) {
+                return;
+            }
+            // The seat anchor (tickVehicleRiders' own law, lines 15668-15670):
+            // the body lands at the vehicle's seat, never its flat origin.
+            session.applyMovement(
+                    vehicle.seatAnchor(
+                            net.zaminmc.torch.server.entity.vehicle.RiderSeatLaw.PLAYER_RIDE_HEIGHT),
+                    session.rotation(), vehicle.onGround());
+            // The rider's own teleport (the reference's startRiding line 521):
+            // the rejoiner's client came up at the SAVED spot; the remount
+            // re-anchors it at the authoritative seat.
+            session.link().resyncPosition();
+            LOGGER.info(() -> "Player remounted after relog: " + session.name()
+                    + " (vehicle " + ride.vehicleEntityId() + ")");
+            return;
+        }
+        if (ride.mobEntityId() >= 0 && mobManager != null) {
+            MobEntity mob = mobManager.byId(ride.mobEntityId());
+            if (mob == null || mob.dead()) {
+                return;
+            }
+            // The plain load-seat (the anvil chain's own verb, the reference's
+            // startRiding at AnvilChunkStorage line 335): no temper flow, no
+            // buck — a restored rider simply sits.
+            mobManager.seatImportedRider(mob, session.engineEntityId());
+            if (mob.riderId() != session.engineEntityId()) {
+                return; // the seat was taken in the window: on foot
+            }
+            // The mob seat anchor (tickMobRiders' own law, lines 15773-15777):
+            // the mount's position plus the saddle height plus the rider's
+            // own -0.35.
+            Position seat = new Position(mob.position().x(),
+                    mob.position().y() + mob.seatHeight()
+                            + net.zaminmc.torch.server.entity.vehicle.RiderSeatLaw.PLAYER_RIDE_HEIGHT,
+                    mob.position().z());
+            session.applyMovement(seat, session.rotation(), mob.onGround());
+            session.link().resyncPosition();
+            LOGGER.info(() -> "Player remounted after relog: " + session.name()
+                    + " (mob " + ride.mobEntityId() + ")");
+        }
+    }
+
+    /** One remembered ride across a relog: exactly one of the two ids is set. */
+    private record RememberedRide(int vehicleEntityId, int mobEntityId) {
     }
 
     /** Checks whether the chunk containing the position is available read-only. */

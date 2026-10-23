@@ -90,6 +90,18 @@ public interface EngineBridge {
     void clientDisconnected(PlayerSession session, String reason);
 
     /**
+     * The relog remount arm (the reference's PlayerManager.onLogin "Riding"
+     * walk, lines 157-165): the adapter calls this once its join sequence
+     * fully completed (after the join view's world snapshot — the rejoiner's
+     * client already holds the pre-existing vehicles), and the engine
+     * consumes whatever ride the player left behind at quit, remounting at
+     * the vehicle's position when the target is still live. Default no-op
+     * for engine-internal bridges without the remount memory.
+     */
+    default void rejoinRestoreRide(PlayerSession session) {
+    }
+
+    /**
      * A window click in an open window (window 0 = player inventory, or the
      * session's open container): the adapter reports the raw click (historical
      * wire slot, button, mode, action number); the engine applies the semantic

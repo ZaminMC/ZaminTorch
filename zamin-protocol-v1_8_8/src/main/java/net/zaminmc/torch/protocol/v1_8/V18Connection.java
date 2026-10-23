@@ -166,6 +166,24 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         // failures stay loud (§126/§54): WARNING + the throwable for the
         // frame that broke the connection — an invisible drop is
         // undiagnosable.
+        // The read-idle reap (the reference's own "timeout" handler,
+        // ConnectionListener.java line 104): a connection silent past the
+        // bound is closed cleanly. This is the boundary mechanism WORKING,
+        // not a protocol fault — a flood of reaped in-progress logins must
+        // never spray WARNING stacks into the console (the quiet-disconnect
+        // law the keep-alive timeout already follows). PLAY-state clients
+        // are normally kicked by keep-alive long before this arm; this
+        // arm's population is the pre-login silence.
+        if (cause instanceof io.netty.handler.timeout.ReadTimeoutException) {
+            if (session != null) {
+                PlayerSession timedOut = session;
+                session = null;
+                engine.clientDisconnected(timedOut, "Timed out");
+            }
+            ctx.close();
+            return;
+        }
+
         if (cause instanceof java.io.IOException) {
             if (session != null) {
                 PlayerSession current = session;
@@ -341,6 +359,14 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                 engine.joinCompleted(accepted.session());
                 startKeepAlive(channel);
                 adapter.playerEnteredPlay(this);
+                // The relog remount arm (the reference's PlayerManager.onLogin
+                // "Riding" walk, lines 157-165 — after the whole join burst,
+                // exactly where the reference seats the returning rider): the
+                // engine consumes the ride remembered at quit and remounts on
+                // the tick lane; the mount's own listeners then publish the
+                // Attach Entity pair (the reference's startRiding lines
+                // 516-523: the attach, then the teleport to the seat).
+                engine.rejoinRestoreRide(accepted.session());
             }
         });
     }
