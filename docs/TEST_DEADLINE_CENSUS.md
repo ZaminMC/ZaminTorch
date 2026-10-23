@@ -2002,3 +2002,56 @@ count wins over the division.
 | line | form | value | classification | action |
 | --- | --- | --- | --- | --- |
 | 138 | poll loop deadline | 5s | C-C liveness bound (engine-visible condition polled) | keep |
+
+## The phase-2 pass (2026-10-23, the run #375/#376 evidence)
+
+The release pipeline's first completed suite runs on the final wave-3
+state surfaced four wall-clock families the census's core-module scope
+missed, plus a contract flaw in the shared utility itself:
+
+- **The EngineAwaits liveness guard, reworked two-sided**: the old
+  single total-wall backstop (10x nominal, capped 300s) could not tell a
+  STALLED engine from a SLOW one — a big-budget await (the fishing
+  bite's 2400 ticks) false-fired "stalled" on any engine averaging under
+  ~8 TPS, violating the utility's own contract ("fails only when the
+  engine itself stopped ticking"). The guard is now a 60s no-progress
+  STALL window (resets on every completed tick — a slow-but-alive runner
+  never trips it) beside a PATIENCE cap (15x nominal, floored 30s,
+  capped 15 min) that bounds the suite against a persistently crawling
+  engine with its own honestly-named verdict. A new expected-miss form
+  (`awaitConditionWithin` — polls, answers boolean, throws only on the
+  liveness guard) covers the probabilistic outcomes a throwing await
+  never could (the thorns roll's 30% no-bite arm, the fishing window's
+  budget exhaustion inside a retry structure).
+- **ProtocolTestBase.awaitCondition** (the whole protocol module rode
+  this 5s wall): converted to the engine-tick await at the established
+  400-tick budget — the module was outside the census's core scope, and
+  the horse wire test's documented root cause ("wall-clock sleeps racing
+  awaits", deferred to the coordinator's flake ledger) was exactly this
+  helper. First converted run surfaced the tight-boundary family the
+  wall form had been masking (the wheat-ladder interaction backlog, the
+  drop settle) at the nominal-equivalent 100 ticks — the budget sized to
+  the established generous form instead.
+- **The core acceptance classes' local 20s wall helpers**
+  (RangedCombatAcceptanceTest, ThornsMobVictimAcceptanceTest,
+  FishingApiAcceptanceTest): converted to the shared engine-tick await
+  (400 ticks — the nominal equivalent); the thorns proc window (2s wall)
+  became the expected-miss poll (40 ticks); the melee i-frame settle
+  (600ms wall) became its tick equivalent (12 ticks).
+- **The fishing retry design repaired**: retrieveInWindow's four-attempt
+  re-cast structure was defeated by its own throwing bite await — a
+  budget exhaustion killed the test instead of counting as the failed
+  attempt the loop exists to retry. The per-attempt window await is now
+  the expected-miss form (a dead attempt retrieves its line, awaits the
+  census drain, and re-casts; the final assert carries the story).
+- **The horse wire test's settle sleeps** (the op/clear/saddle command
+  settles): converted to the engine-visible consequences they were
+  waiting for (the op level, the emptied hand, the delivered saddle).
+
+Evidence: run #375 (the RCON/Query family — the RconBase.start()
+flag/thread race, fixed separately) and run #376 (the fishing bite via
+the throwing await, the ranged/thorns wall helpers, the horse wire test
+via the 5s wall helper). Verification: the protocol module 148/0 twice,
+the converted core families 60/0 (fishing 7, thorns 5, ranged 10, rcon
+38) with the fishing interceptor's local boundary failure absorbed by
+the repaired retry structure.

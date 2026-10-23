@@ -43,6 +43,9 @@ class ThornsMobVictimAcceptanceTest {
     @TempDir
     Path dataDir;
 
+    /** The current test's engine — the tick clock the shared await reads. */
+    private EngineServer activeServer;
+
     @Test
     void thePlayersMeleeBitesThroughTheMobWear() throws Exception {
         EngineServer server = boot();
@@ -62,7 +65,11 @@ class ThornsMobVictimAcceptanceTest {
         boolean proc = false;
         int landed = 0;
         for (int i = 0; i < 24 && !proc && !pig.dead(); i++) {
-            Thread.sleep(600); // the previous hit's i-frame decay, first
+            // The previous hit's i-frame decay (10 ticks, the reference's
+            // 0.5s) — the run #375/#376 conversion: the 600ms wall sleep
+            // became its nominal tick equivalent.
+            net.zaminmc.torch.testing.EngineAwaits.awaitTicks(server.world(), 12,
+                    "the i-frame decay before swing " + i);
             // The pig flees after every hit (the panic goal's own ~7
             // blocks a second): the read-teleport-swing sequence runs
             // tight so the drift inside it stays a fraction of the reach.
@@ -129,11 +136,14 @@ class ThornsMobVictimAcceptanceTest {
             server.releaseUsingItem(archer);
             await(() -> zombie.health() < mobStart || zombie.dead(),
                     "the arrow " + i + " landed on the wearer");
-            long deadline = System.currentTimeMillis() + 2_000;
-            while (System.currentTimeMillis() < deadline && !proc) {
-                Thread.sleep(50);
-                proc = archer.health() < archerStart;
-            }
+            // The bite poll — the EXPECTED-MISS form (the run #375/#376
+            // conversion): a no-bite roll (30.25% over the two carriers) is
+            // a legitimate outcome the loop retries, so the window may never
+            // throw on a miss — only the liveness guard does. 40 ticks = the
+            // old 2s window's nominal equivalent.
+            proc = net.zaminmc.torch.testing.EngineAwaits.awaitConditionWithin(
+                    server.world(), () -> archer.health() < archerStart, 40,
+                    "the thorns bite " + i + " reaching the shooter");
         }
         assertTrue(proc, "the arrow shooter carried the thorns bite through "
                 + "the mob's worn row");
@@ -251,6 +261,7 @@ class ThornsMobVictimAcceptanceTest {
                 dataDir.toString());
         EngineServer server = new EngineServer(config);
         server.start();
+        activeServer = server;
         return server;
     }
 
@@ -271,15 +282,16 @@ class ThornsMobVictimAcceptanceTest {
         };
     }
 
+    /**
+     * The engine-tick await (the run #375/#376 conversion — the census's
+     * own rule extended to this class's local helper): the old 20s wall
+     * deadline expired by wall time on a loaded runner even while the
+     * engine was alive and progressing. The budget is the wall form's
+     * nominal tick equivalent (20s = 400 ticks at 20 TPS).
+     */
     private void await(BooleanSupplier condition, String description)
             throws InterruptedException {
-        long deadline = System.currentTimeMillis() + 20_000;
-        while (System.currentTimeMillis() < deadline) {
-            if (condition.getAsBoolean()) {
-                return;
-            }
-            Thread.sleep(50);
-        }
-        throw new AssertionError("Condition not met in time: " + description);
+        net.zaminmc.torch.testing.EngineAwaits.awaitCondition(
+                activeServer.world(), condition, 400, description);
     }
 }

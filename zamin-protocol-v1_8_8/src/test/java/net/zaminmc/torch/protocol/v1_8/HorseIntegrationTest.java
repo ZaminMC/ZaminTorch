@@ -107,11 +107,19 @@ class HorseIntegrationTest extends ProtocolTestBase {
             // The mount attempt: the hand empties first (a held temper food
             // keeps feeding — the feed branch owns the interaction while the
             // wheat lasts); the bare hand falls through to the seat. /clear
-            // is op level 2, so the console op grants it first.
+            // is op level 2, so the console op grants it first. The op and
+            // the clear both land engine-side before the attempt rides (the
+            // run #375/#376 conversion: the settle sleeps became the
+            // engine-visible consequences they were waiting for).
             server.consoleCommand("op HorseTamer");
-            Thread.sleep(150);
+            awaitCondition(() -> server.playerRegistry().byName("HorseTamer")
+                            .orElseThrow().opLevel() >= 2,
+                    "the op grant landed before the /clear needs it");
             client.sendChat("/clear");
-            Thread.sleep(200);
+            awaitCondition(() -> server.playerRegistry().byName("HorseTamer")
+                            .orElseThrow().inventory()
+                            .countOf(net.zaminmc.torch.server.item.BuiltinItems.WHEAT) == 0,
+                    "the /clear emptied the hand");
             client.sendUseEntity(horseId, Protocol18.USE_ENTITY_INTERACT);
             awaitCondition(() -> server.mobs().byId(horseId).tamed(),
                     "the full-temper attempt tamed the horse");
@@ -122,7 +130,10 @@ class HorseIntegrationTest extends ProtocolTestBase {
             // The saddle goes on from the hand (the rider stays seated; the
             // vanilla right-click ladder equips before it seats).
             client.sendChat("/give minecraft:saddle 1");
-            Thread.sleep(200);
+            awaitCondition(() -> server.playerRegistry().byName("HorseTamer")
+                            .orElseThrow().inventory()
+                            .countOf(net.zaminmc.torch.server.item.BuiltinItems.SADDLE) > 0,
+                    "the /give delivered the saddle");
             client.sendUseEntity(horseId, Protocol18.USE_ENTITY_INTERACT);
             awaitCondition(() -> server.mobs().byId(horseId).saddled(),
                     "the saddle equipped from the hand");
