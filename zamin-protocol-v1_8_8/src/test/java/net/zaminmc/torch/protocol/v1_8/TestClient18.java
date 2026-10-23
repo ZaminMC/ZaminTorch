@@ -1750,6 +1750,17 @@ final class TestClient18 implements AutoCloseable {
         sendPacket(bodyToBytes(body));
     }
 
+    /**
+     * The abrupt-exit shape (ML-009b's rig): SO_LINGER(0) + close sends a
+     * TCP RST instead of a FIN — the client that vanished mid-stream, the
+     * exact event the quiet-disconnect classification owns. The later
+     * {@link #close()} is an idempotent no-op.
+     */
+    void resetAbruptly() throws IOException {
+        socket.setSoLinger(true, 0);
+        socket.close();
+    }
+
     @Override
     public void close() throws IOException {
         socket.close();

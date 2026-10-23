@@ -651,7 +651,7 @@ The console and modern-storage sections are architecture proposals, not claims o
 - The Folia 26.2.x audit is documented: all 21 patches read and 460 modified Java paths inventoried in `docs/FOLIA_PATCH_INVENTORY.md`, with the subsystem analysis in `docs/FOLIA_FORENSIC_AUDIT.md`.
 - The committed `reference/1.8.8/` tree is present and is the source for reference-driven mechanics work.
 - **The requested `1.8.8 - mechanics.zip` is PRESENT** (re-added at b2ef261, 2026-10-19, at `reference/1.8.8/1.8.8 - mechanics.zip`). Inspected 2026-10-20: the archive carries 1634 `.java` files and every one of them exists in the committed `reference/1.8.8/net` tree with the same inventory — the zip is the archive form of the same source; the reference-driven work reads either.
-- Continue auditing every mutable access path and retain explicit ownership/boundary decisions. The stated input gap is closed; the per-path audit continues with the mechanics.
+- Continue auditing every mutable access path and retain explicit ownership/boundary decisions. The stated input gap is closed; the per-path audit continues with the mechanics. The cycle-3 engineering audit's ranked backlog (docs/CYCLE3_AUDIT.md Phase 4) is now being worked down alongside: its B-3 (/op offline profiles) and the first two B-4 papercuts (the --port precedence, the unclean-exit disconnect noise) LANDED 2026-10-23 (§29's Wave ML); the remaining rows stay the backlog's own, the next cycle's order unchanged (B-5 the 0x0C metadata audit + the attribution pass).
 
 ### Phase 1 — Ownership primitives — IMPLEMENTED
 
@@ -3676,7 +3676,7 @@ own tests. Order is by vanilla visibility and dependency, not size.
       StatsCompletenessTest row — coarse_dirt/fern/podzol counting on
       stat rows the 1.8.8 client drops — reproduced on 6507bd09.)
 
-**Next concrete mechanics work:** continue from Section 29: the cycle-4 master ledger's remaining rows (docs/MASTER_LEDGER.md, carried by PR #38 until the owner merges it) — the wave-3 lanes in flight (ML-005/009 the ops papercuts #43, ML-018 the spectator camera #44, ML-014/015/016 the boundary verifications #45, ML-006/007/021 the debug table + attribution + the 0x0C fix #46 — all landed on their branches, the coordinator's merge queue) and the owner's open calls (DEC-001 online-mode scope, ML-008 the /give form, PR #38's audit merge, ML-013's watchdog shape). The §22 evidence bar holds: no concurrency phase opens without the attribution pass's numbers (ML-007 landed — the verdict: none justified at the current loads).
+**Next concrete mechanics work:** continue from Section 29: the cycle-4 master ledger's remaining rows (docs/MASTER_LEDGER.md, carried by PR #38 until the owner merges it) — the wave-3 lanes in flight (ML-018 the spectator camera #44, ML-014/015/016 the boundary verifications #45, ML-006/007/021 the debug table + attribution + the 0x0C fix #46 — all landed on their branches, the coordinator's merge queue) and the owner's open calls (DEC-001 online-mode scope, ML-008 the /give form, PR #38's audit merge, ML-013's watchdog shape). The §22 evidence bar holds: no concurrency phase opens without the attribution pass's numbers (ML-007 landed — the verdict: none justified at the current loads).
 
 ## Standing (demand-named, not scheduled)
 
