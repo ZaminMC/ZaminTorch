@@ -7277,6 +7277,41 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         }
 
         private void writeChunk(EngineChunk chunk, boolean groundUp) {
+            // ML-024 — the wire-publish profiler section: the whole
+            // serialization+publication path (the ChunkSerializer18 walk,
+            // the 0x21 build, the flush, the tile replays) rides its own
+            // row so the attribution harness sees the re-stream's cost
+            // exactly — the attribution pass found the storm's 17 full
+            // re-streams invisible (no section covers this walk; the JFR
+            // byte[] 4.15GB sample was the serialization's only trace).
+            // NOT a nested push/pop section: this walk runs on three
+            // lanes — this connection's netty event loop (the join
+            // sequence's sendInitial, the movement lane's updateCenter,
+            // the spectate follow's re-center), the tick thread's
+            // pre-handler job drain (the respawn/dimension-change
+            // re-streams — performRespawn's submitted job runs in
+            // EngineTicker's pending-work drain, BEFORE the tick handler,
+            // outside the root section's window), and the tick thread's
+            // relightTransport section — and the first lane can
+            // interleave with the tick thread's open sections, which the
+            // profiler's single-caller stack contract forbids (a torn
+            // stack answers garbage rows, worse than no data). The
+            // recordSectionSpan arm merges atomically into the same table
+            // pop merges into, so every lane accumulates into the one
+            // root.wirePublish row (the root prefix is the reference's
+            // own connection-arm placement — MinecraftServer.tick's root —
+            // and the harness's differencing strips it; the row is a
+            // CROSS-CUT: where the walk runs inside an open section — the
+            // relight re-sends — that section keeps its wall time and
+            // this row attributes the same span again). No try/finally:
+            // the arm holds no stack to unbalance, so a throwing serialize
+            // loses one sample, nothing else. Zero cost while profiling
+            // is off (the gate answers before the nanoTime pair — the
+            // section law every no-op push/pop already carries).
+            net.zaminmc.torch.server.profiler.EngineProfiler wirePublishProfiler =
+                    engine.profiler();
+            long wirePublishStart = wirePublishProfiler.isProfiling()
+                    ? System.nanoTime() : 0L;
             byte[] data = ChunkSerializer18.serialize(chunk, groundUp);
             ByteBuf out = Unpooled.buffer(16 + data.length);
             ByteBufOps.writeVarInt(out, Protocol18.S2C_CHUNK_DATA);
@@ -7341,6 +7376,10 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                 for (var entry : engine.commandBlocks().inChunk(chunk.position())) {
                     writeCommandTile(channel, entry.getKey(), entry.getValue());
                 }
+            }
+            if (wirePublishStart != 0L) {
+                wirePublishProfiler.recordSectionSpan("root.wirePublish",
+                        System.nanoTime() - wirePublishStart);
             }
         }
     }
