@@ -127,7 +127,15 @@ class Protocol18ConformanceTest {
         // after Collect Item 0x46.
         m.put("S2C_PLAYER_LIST_HEADER_FOOTER", 0x47);
         m.put("S2C_DISCONNECT", 0x40);
+        // Server Difficulty 0x41 (ML-012): DifficultyS2CPacket's own slot,
+        // between Disconnect 0x40 and Combat Event 0x42 — the reference's
+        // registration order (NetworkProtocol's clientbound play list).
+        m.put("S2C_SERVER_DIFFICULTY", 0x41);
         m.put("S2C_COMBAT_EVENT", 0x42);
+        // Resource Pack Send 0x48 (ML-017): ResourcePackS2CPacket's own
+        // slot, right after Player List Header/Footer 0x47 (the 1.9+
+        // request-id varint never rides protocol 47).
+        m.put("S2C_RESOURCE_PACK_SEND", 0x48);
         // Not play-state packets, same constant class: the login state's
         // disconnect/success (0x02 is Chat in play — states differ) and the
         // status state's response/pong.

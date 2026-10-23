@@ -168,6 +168,11 @@ class VanillaParityIntegrationTest extends ProtocolTestBase {
                 buf.writeLong(parity.uuid().getLeastSignificantBits());
             })));
             client.sendPacket(body(packet(Protocol18.C2S_RESOURCE_PACK_STATUS, buf -> {
+                // The reference's own wire form (ResourcePackC2SPacket.read):
+                // the hash string then the result varint (the Response enum
+                // order — 3 ACCEPTED). The pre-ML-017 stub read one varint;
+                // the handler now parses the packet a real 1.8.8 client sends.
+                ByteBufOps.writeString(buf, "");
                 ByteBufOps.writeVarInt(buf, 3); // accepted
             })));
 
