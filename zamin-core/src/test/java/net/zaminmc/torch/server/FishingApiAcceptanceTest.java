@@ -109,9 +109,19 @@ class FishingApiAcceptanceTest {
 
         await(() -> fishing.bobberOf(angler.engineEntityId()).isPresent(),
                 "the cast registered");
-        // The float rides the water (the 5-band buoyancy): the row is
-        // neither grounded nor hooked, and the bite window opens inside
-        // the approach + window cadence (20-80 + 10-30 ticks).
+        // The coordinator's review correction (this lane's own catch, the
+        // form that actually bit): the cadence is NOT 930 ticks worst-case.
+        // The arming AND the approach countdowns are l-scaled
+        // (FishingSystem.tickWater: catchTimer -= l, fishTravelTimer -= l)
+        // and l collapses to 0 on the no-sky-access ticks (the 50% roll),
+        // so a float whose pool sits under blocking terrain spends up to
+        // 2x the nominal on both walks — whether that happens varies with
+        // the worldgen seed's terrain above the pool, which is exactly the
+        // 50/50 flake this lane observed across machines (two green passes
+        // there, two deterministic failures + one lucky green on the
+        // coordinator's). The honest worst case is ~2000 ticks (degraded
+        // arming 1800 + approach 160 + the flight); 2400 covers it with
+        // margin. Detection is unchanged — a genuine bite is the only pass.
         awaitBite(server, fishing, angler, "the splash opened the bite window");
         Fishing.Bobber biting = fishing.bobberOf(angler.engineEntityId()).orElseThrow();
         assertFalse(biting.grounded(), "the water float never grounds");
@@ -401,16 +411,19 @@ class FishingApiAcceptanceTest {
      * wall: the 90s wall form (PR #37's raise) still tripped under a
      * loaded runner in this lane's own verification batch — the cadence
      * is 930 ticks worst-case, and a slow engine spends more wall time
-     * per tick, so the budget counts ENGINE ticks (1500 = cadence +
-     * slack) and never expires by wall time alone (EngineAwaits keeps a
-     * stalled-engine backstop).
+     * per tick, so the budget counts ENGINE ticks (2400 = the l-scaled
+     * cadence's worst case + margin) and never expires by wall time alone
+     * (EngineAwaits keeps a stalled-engine backstop).
      */
     private void awaitBite(EngineServer server, Fishing fishing, PlayerSession angler,
             String description) throws InterruptedException {
+        // 2400 ticks: the l-scaled cadence's honest worst case (see the
+        // first test's comment — the coordinator's review correction over
+        // this lane's original 1500).
         EngineAwaits.awaitCondition(server.world(),
                 () -> fishing.bobberOf(angler.engineEntityId())
                         .map(Fishing.Bobber::biting).orElse(false),
-                1_500, description);
+                2_400, description);
     }
 
     /**
