@@ -50,12 +50,35 @@ public abstract class RconBase implements Runnable {
         }
     }
 
-    /** The reference lines 29-33: the counted named thread, synchronized. */
+    /**
+     * The reference lines 29-33: the counted named thread, synchronized.
+     *
+     * <p>The one reordering, named (§32.4's second start() difference): the
+     * loop flag flips BEFORE the thread starts. The reference's own order
+     * starts the thread first and writes {@code running} after — a race the
+     * JMM loses: nothing in that order guarantees the worker observes the
+     * write, so on a loaded machine the scheduler can run the listener
+     * thread before the flag lands, the loop condition reads {@code false},
+     * and the run loop exits into its own {@code finally} — closing the
+     * freshly bound listener — while {@code isRunning()} still answers
+     * {@code true} once the parent's write lands. The silently-dead-listener
+     * shape, caught live by the CI suite (release run #375, 2026-10-23: the
+     * engine-booted RCON listener refused every connect with the running
+     * flag true — the four RconEngineRouteIntegrationTest ConnectExceptions
+     * — and a standalone query handler never answered its handshake — the
+     * QueryResponseHandlerTest line-101 failures across both suite
+     * attempts). Writing the flag before {@link Thread#start()} gives the
+     * loop's first read a guaranteed-visible {@code true} (the
+     * happens-before edge of start()); a {@link #stop()} landing between
+     * the write and the start still ends correct — the loop reads false,
+     * exits, and its finally closes the listener exactly like a stopped
+     * server.</p>
+     */
     public synchronized void start() {
+        this.running = true;
         Thread worker = new Thread(this, this.description + " #" + count.incrementAndGet());
         worker.start();
         this.thread = worker;
-        this.running = true;
     }
 
     /**

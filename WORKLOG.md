@@ -14371,3 +14371,66 @@ Stage Summary:
 - The wave-3 ledger is current: 16 RESOLVED rows total (the 13 instance
   rows + ML-006/007/021 from the coordinator's lane). Open: ML-024 (the
   wire-publish section) + the owner's decision rows.
+
+---
+Task ID: rcon-listener-race-hotfix
+Agent: the coordinator (Abasing session)
+Task: Run #375's red suite diagnosed and fixed — the RconBase.start()
+flag/thread race (the silently-dead-listener shape), found by the
+release pipeline's own evidence.
+
+Work Log:
+- The trigger: the PR #38 merge's confirming run (#375, the first
+  COMPLETED suite run on the final wave-3 state — #373/#374 were
+  cancelled by the successive pushes) failed at the suite step on both
+  attempts: attempt 1 the four RconEngineRouteIntegrationTest
+  ConnectExceptions + QueryResponseHandlerTest.theWrongChallengeIsIgnored
+  (line 101); attempt 2 (the retry) QueryResponseHandlerTest
+  .theHandshakeTokenLaw (the SAME line 101, a different method).
+- The diagnosis trail: the RCON class's bootEngine asserts HAD passed
+  (both listeners non-null AND isRunning true) before every connect was
+  refused — so the listener was born, then died, with the flag still
+  true; the Query failures were the same shape on UDP (the handshake
+  datagram answered by nothing). One root cause explains all five+one:
+  RconBase.start() starts the worker thread BEFORE writing the running
+  flag — the reference's own order (RconBase line 16) — and the JMM
+  gives the worker no guarantee it will observe the write: on the
+  loaded 2-core CI runner the scheduler can run the listener thread
+  first, the `while (running)` condition reads false, the loop exits
+  into its own finally (closing the freshly bound listener), and the
+  parent's write lands afterward — isRunning() true, socket closed.
+  TCP answers ConnectException; UDP answers silence (the 2s timeout
+  surfaces as the line-101 "the handshake always replies" failure).
+  Each QueryResponseHandlerTest method rolls a fresh handler = a fresh
+  roll of the dice; the engine boot rolls once per class.
+- The fix (one reorder, RconBase.start): the flag flips BEFORE
+  Thread.start() — the happens-before edge of start() makes the loop's
+  first read a guaranteed-visible true; a stop() landing between the
+  write and the start still ends correct (the loop reads false, exits,
+  the finally closes the listener like a stopped server). Covers all
+  three RconBase children (RconServer accept, QueryResponseHandler
+  receive, RconClient session). The javadoc names the race, the JMM
+  reasoning, and the run #375 evidence; §32.4 records it as the SECOND
+  named start() difference (the reference could live with the shape —
+  process-exit lifecycle; a long-running engine server cannot).
+- The test hardenings (the #361-family pattern — harden the assert to
+  the condition it needs): RconEngineRouteIntegrationTest.bootEngine's
+  two asserts now demand the live thread beside the flag (in-package
+  protected access; the fields are assigned only after start() returns,
+  so no NPE window); QueryResponseHandlerTest.startHandler asserts the
+  seat the same way, and theInvalidPortRefusalLawNeverBinds builds its
+  handler inline (the refusal arm never starts a thread — the happy-path
+  liveness law must not ride it). A future silent death now fails at
+  boot, loudly, naming the shape — not as refused connects or a
+  confusing line-101 timeout.
+- NOT changed: the ephemeral-port probe pattern (bind-then-release) —
+  the port-steal theory explains only the Query symptom and fails the
+  RCON one (a stolen port fails bootEngine's assert loudly, never the
+  refused-connect shape); the flag race explains every observed failure
+  with one cause. No ML-002 census follow-up — this is a start-ordering
+  race, not a deadline family.
+
+Stage Summary:
+- The engine's remote-admin listeners can no longer silently die at
+  boot on a loaded machine; the pipeline's confirming run for the PR
+  #38 merge rides the fix push (the next release stamps 131).

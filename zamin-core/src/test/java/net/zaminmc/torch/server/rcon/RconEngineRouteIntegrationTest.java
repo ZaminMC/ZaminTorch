@@ -65,11 +65,18 @@ class RconEngineRouteIntegrationTest {
                 && (server.rconServer() == null || server.queryResponseHandler() == null)) {
             EngineAwaits.awaitTicks(server.world(), 1, "engine progress (a 20 wall settle)");
         }
-        assertTrue(server.rconServer() != null && server.rconServer().isRunning(),
-                "the enabled RCON listener booted (enable-rcon, DedicatedServer line 210)");
+        assertTrue(server.rconServer() != null && server.rconServer().isRunning()
+                        && server.rconServer().thread.isAlive(),
+                "the enabled RCON listener booted AND its loop thread is live (enable-rcon,"
+                        + " DedicatedServer line 210) — the liveness the flag alone cannot"
+                        + " prove: run #375's race started the thread before the flag landed,"
+                        + " the loop read false, and the finally closed the listener while"
+                        + " isRunning() still answered true (every connect refused)");
         assertTrue(server.queryResponseHandler() != null
-                        && server.queryResponseHandler().isRunning(),
-                "the enabled query listener booted (enable-query, DedicatedServer line 203)");
+                        && server.queryResponseHandler().isRunning()
+                        && server.queryResponseHandler().thread.isAlive(),
+                "the enabled query listener booted AND its loop thread is live (enable-query,"
+                        + " DedicatedServer line 203) — the same liveness law");
     }
 
     @AfterAll

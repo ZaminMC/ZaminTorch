@@ -4009,14 +4009,33 @@ listeners twice — the early intake stop (step 1b: no remote command
 may race the player cleanup or the save walk) and the post-park
 sweep (step 4b: a shutdown that won the state gate mid-boot may see
 the boot thread's just-started listeners only past `awaitStop`) —
-both idempotent. The one named engine-side start() difference:
+both idempotent. The first named engine-side start() difference:
 SO_REUSEADDR before the bind (the reference binds directly, line 97;
 the engine's own net convention). Without it a restarted engine
 could not rebind its rcon.port for a full minute after a shutdown
 closed live connections — TIME_WAIT on the port — and the degrade
 law would silently disable the listener; the restart law is pinned
 by test (FIN_WAIT drains in beats, TIME_WAIT outlasts every restart
-that does not set the flag).
+that does not set the flag). The second named start() difference
+(RconBase.start, run #375's CI evidence, 2026-10-23): the loop flag
+flips BEFORE the thread starts — the reference's own order (thread
+first, flag after) is a race the JMM loses; on a loaded machine the
+scheduler can run the listener thread before the flag write lands,
+the `while (running)` condition reads false, and the loop exits into
+its own finally — closing the freshly bound listener — while
+isRunning() still answers true once the parent's write lands. The
+silently-dead-listener shape, caught live twice in one CI suite run
+(the engine-booted RCON listener refusing every connect across four
+tests with the flag true; a standalone query handler never answering
+its handshake) — a shape the reference could live with (process-exit
+lifecycle) but a long-running engine server cannot. The reorder gives
+the loop's first read a guaranteed-visible true (Thread.start()'s
+happens-before edge); a stop() landing between the write and the
+start still ends correct — the loop reads false, exits, and its
+finally closes the listener exactly like a stopped server. The boot
+asserts now pin the liveness (the flag AND the live thread), so a
+future silent death fails at boot naming the shape instead of
+surfacing as refused connects.
 
 ## 32.5 The configuration rows and their default laws
 
