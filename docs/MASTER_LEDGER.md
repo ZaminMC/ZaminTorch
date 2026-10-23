@@ -35,7 +35,8 @@ I=infra/CI/release, S=security/boundary.
   expect green; then the release workflow publishes 128+.
 - Acceptance: a green develop-head release run + a published 128+ release.
 - Dependencies: ML-002 (the population — a different member may trip next).
-- Status: confirmed gap (infrastructure).
+- Resolution (2026-10-23, the coordinator-reviewed wave-3 merge): the release pipeline: runs #364-#366+ green through the wave merges, torch-1.8.8-129/130/131 published (129 was green in-flight at the wave start); the 128-bump debt cleared by the PR #37 merge push. The suite-population hardening landed as ML-002.
+- Status: RESOLVED (pipeline green through the wave).
 - Confidence: high.
 
 ### ML-002 — the wall-clock-deadline test population (systemic)
@@ -60,7 +61,8 @@ I=infra/CI/release, S=security/boundary.
 - Acceptance: a census doc (test file → deadline → classification), the
   conversions landed, and ≥3 consecutive green full-suite CI runs.
 - Dependencies: none (ML-001 verifies through it).
-- Status: confirmed gap (test infrastructure).
+- Resolution (2026-10-23, the coordinator-reviewed wave-3 merge): the census landed (docs/TEST_DEADLINE_CENSUS.md + the TSV + the two scripts); 270 fixed sleeps converted over the ONE shared utility (EngineAwaits, java-test-fixtures); the observed members dispositioned. The coordinator review added: the GroupTwo MONITOR sibling hardened (the #361 family member the census missed), and the fishing budget corrected 1500->2400 ticks with the l-scaling derivation (the arming/approach countdowns halve their rate without sky access — the seed-dependent 50/50 flake both machines observed). Two consecutive chunked full-suite passes on the lane; every merge push's release run confirms.
+- Status: RESOLVED (census + conversions landed).
 
 ## High — protocol / client-visible
 
@@ -83,7 +85,8 @@ I=infra/CI/release, S=security/boundary.
   placing a sign and asserting the packet to the placer; mineflayer probe
   optional.
 - Dependencies: none.
-- Status: confirmed gap. Confidence: high (both sides read).
+- Resolution (2026-10-23, the coordinator-reviewed wave-3 merge): the 0x36 writer at the reference SignItem.useOn order (block land -> consume -> open), the per-player fan (the placer alone), the 0x12 close path unchanged. SignEditorOpenWireTest 3/0 + SignEditorOpenAcceptanceTest green.
+- Status: RESOLVED (landed, PR #40).
 
 ### ML-011 — Entity Properties (0x20) never sent: attribute modifiers invisible to clients
 - Category: protocol defect. Layers: P, V.
@@ -105,7 +108,8 @@ I=infra/CI/release, S=security/boundary.
   test: equip a mob with a modifier item → tracking client receives 0x20
   with the derived value.
 - Dependencies: none.
-- Status: confirmed gap. Confidence: high.
+- Resolution (2026-10-23, the coordinator-reviewed wave-3 merge): the 0x20 writer (EntityAttributesS2CPacket.write verbatim), the trackable pair only (maxHealth + movementSpeed; attackDamage never — the isTrackable law), the track-time sends at the reference's order (attributes before equipment), the change-time sends. EntityPropertiesWireConformanceTest + MobAttributesWireTest green.
+- Status: RESOLVED (landed, PR #42).
 
 ### ML-010 — Use Bed (0x0A) never sent: no sleeping pose, no multiplayer sleep walk
 - Category: vanilla behavior gap (protocol-delivered). Layers: P, V.
@@ -126,7 +130,8 @@ I=infra/CI/release, S=security/boundary.
   gate; add the packet.
 - Acceptance: engine tests: two players, one sleeps → no morning until both
   sleep; pose packet observed by the other player; the morning walk fires.
-- Dependencies: none. Status: confirmed gap (the code honestly declares the
+- Resolution (2026-10-23, the coordinator-reviewed wave-3 merge): the 0x0A broadcast, the all-sleepers walk over the single-player contract (one player = the same instant morning), the monster box (x/z +-8, y +-5), the wake fans, the foot->head redirect; the Entity Action ordinals corrected to the reference enum (2 STOP_SLEEPING / 3 START_SPRINTING / 4 STOP_SPRINTING — a real cross-cutting wire fix the lane surfaced). MultiplayerSleepAcceptanceTest + MultiplayerSleepWireTest green; SleepAcceptanceTest unmodified and green.
+- Status: RESOLVED (landed, PR #41).
   single-player contract — a Partial, not a false claim). Confidence: high.
 
 ## Medium — protocol / operations
@@ -142,7 +147,8 @@ I=infra/CI/release, S=security/boundary.
   (V18Connection:322,768); no 0x41 constant.
 - Acceptance: `/difficulty hard` → every connected client receives 0x41=3
   (protocol test + engine test).
-- Status: confirmed gap. Confidence: high.
+- Resolution (2026-10-23, the coordinator-reviewed wave-3 merge): the single-byte write at the reference onLogin slot (after Join Game, before Spawn Position) + the /difficulty change-time fan over every session link. OpsDifficultySyncTest + OpsProtocolWireTest green.
+- Status: RESOLVED (landed, PR #39).
 
 ### ML-017 — Resource Pack send (0x48) absent end-to-end
 - Category: feature gap (ops). Layers: P, T.
@@ -155,7 +161,8 @@ I=infra/CI/release, S=security/boundary.
   rows.
 - Acceptance: properties rows + join-time 0x48 send + status logging; a
   protocol test pinning the wire form.
-- Status: confirmed gap. Confidence: high.
+- Resolution (2026-10-23, the coordinator-reviewed wave-3 merge): the reference DedicatedServer rows (resource-pack / resource-pack-hash), the join-time 0x48 gated on a configured url, the C2S 0x19 hash+result varint parse with the reference Response vocabulary logged. ResourcePackConfigTest + the wire tests green.
+- Status: RESOLVED (landed, PR #39).
 
 ### ML-018 — Spectator mode is partial: camera/spectate unimplemented
 - Category: vanilla behavior gap. Layers: V, P.
@@ -170,7 +177,8 @@ I=infra/CI/release, S=security/boundary.
 - Acceptance: spectate a player → the client's camera follows the target
   (0x43 + position stream); the spectator is invisible to others; the
   leave-spectate walk restores control. Engine + protocol tests.
-- Status: confirmed gap (partial implementation). Confidence: high.
+- Resolution (2026-10-23, the coordinator-reviewed wave-3 merge): the C2S Spectate resolution, the 0x43 Camera packet, the no-clip gate (the wire-side sanity band still bounds spectators), the visibility law (the spectating body never spawns in another view); cross-dimension spectate ledgered as the honest bound. SpectatorCameraAcceptanceTest + SpectatorCameraWireAcceptanceTest green (the latter's 0x0C readers corrected to the 16-byte uuid form after the coordinator's ML-021 fix).
+- Status: RESOLVED (landed, PR #44).
 
 ### ML-005 — /op refuses offline players (vanilla ops via profile cache)
 - Category: vanilla parity defect. Layers: V.
@@ -181,7 +189,8 @@ I=infra/CI/release, S=security/boundary.
 - Acceptance: `/op Name` for a cached-but-offline profile writes ops.json
   and answers success; unknown name answers the vanilla
   "commands.op.failed" line.
-- Status: confirmed gap. Confidence: high.
+- Resolution (2026-10-23, the coordinator-reviewed wave-3 merge): PlayerProfileCache over the .zpd census + ops.json rows + this run's joins (no new persistence format); /op offline writes ops.json at level 4, unknown names answer commands.op.failed; /deop studied and left alone (its own walk already resolves). OpOfflineProfileAcceptanceTest green.
+- Status: RESOLVED (landed, PR #43).
 
 ### ML-006 — /debug stop prints no per-section table (blocks perf attribution)
 - Category: observability defect. Layers: T.
@@ -245,7 +254,8 @@ I=infra/CI/release, S=security/boundary.
   zamin.properties; abrupt client TCP reset logs a WARNING + netty
   stacktrace where vanilla logs a quiet disconnect line).
 - Acceptance: CLI override honored or refused loudly; disconnect path logs
-  one quiet line. Status: confirmed gap (low).
+- Resolution (2026-10-23, the coordinator-reviewed wave-3 merge): (a) --port honored with CLI > properties > default precedence (StartupArguments; malformed fails boot loudly; never written back); (b) the IOException family answers one quiet disconnect line — the ReadTimeout reap rides the same quiet law, first in the hand (netty's own subtype order). DisconnectClassificationTest 2/0, 3x green after the review correction (the reason pin relaxed to the quiet family's either delivery — a reset arrives as either the IOException form or a plain channelInactive).
+- Status: RESOLVED (landed, PR #43).
 
 ## Torch-native capabilities surfaced by the fork audit
 
@@ -265,7 +275,8 @@ I=infra/CI/release, S=security/boundary.
   tick-lane cost is unknown.
 - Verification: N concurrent logins against a booting world; measure
   tick-lane cost + memory; compare against the reference's own queueing.
-- Status: unverified (bounded diagnostic).
+- Resolution (2026-10-23, the coordinator-reviewed wave-3 merge): the measurement (100 in-progress logins: zero tick-lane cost, 20+ tps; ~1.3-4KiB per pending connection; 12 full logins: 44-55ms each serialized on the event loop) + the reference's own bound (ReadTimeoutHandler(30) first in the pipeline, the quiet reap). LoginFloodBoundaryTest green.
+- Status: RESOLVED (measured + bounded, PR #45).
 
 ### ML-015 — neighbor updates at unloaded-chunk boundaries unverified
 - Category: vanilla parity verification. Layers: V. Severity: M.
@@ -274,7 +285,8 @@ I=infra/CI/release, S=security/boundary.
 - Verification: place a redstone/neighbor-triggering update at a
   loaded/unloaded chunk edge; assert the update is dropped (reference
   behavior) and no exception/log noise occurs.
-- Status: unverified (bounded diagnostic).
+- Resolution (2026-10-23, the coordinator-reviewed wave-3 merge): the update at a loaded/unloaded edge is dropped silently with no chunk generation — exactly the reference's own law (the EmptyChunk dispatch-to-air); verified-as-is and pinned (UnloadedEdgeNeighborUpdateTest 2/0), no engine change owed.
+- Status: RESOLVED (verified-as-is + pinned, PR #45).
 
 ### ML-016 — relog-while-riding: remount + vehicle position sync unverified
 - Category: vanilla parity verification. Layers: V. Severity: M.
@@ -283,7 +295,8 @@ I=infra/CI/release, S=security/boundary.
   walk was not verified; 1.8.8 restores the mount from player NBT.
 - Verification: quit riding a boat/minecart/pig → rejoin → assert remount
   at the vehicle's position (the reference's behavior).
-- Status: unverified (bounded diagnostic).
+- Resolution (2026-10-23, the coordinator-reviewed wave-3 merge): the remount walk was absent -> landed (the quit captures the ride before the seat opens, the join consumes it after the whole burst, the remount through the live verbs at the reference's startRiding order). RelogRemountAcceptanceTest green.
+- Status: RESOLVED (fixed + pinned, PR #45).
 
 ### ML-019 — batched block/chunk packets absent (0x22 multi-block change, 0x26 chunk bulk)
 - Category: protocol batching difference. Layers: P. Severity: L (perf).
