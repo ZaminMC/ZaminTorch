@@ -32,6 +32,16 @@ class QueryResponseHandlerTest {
         access = new RconTestHarness.FakeAccess("unused", port);
         handler = new QueryResponseHandler(access);
         handler.start();
+        // The liveness law (run #375's race): the flag alone cannot prove
+        // the loop took its seat — the pre-fix order could start the thread
+        // before the flag landed, the loop read false, and the finally close
+        // the socket while isRunning() still answered true (the handshake
+        // then times out with a confusing line-101 symptom). The thread
+        // being alive IS the seat; a dead thread at boot now fails HERE,
+        // loudly, naming the shape.
+        assertTrue(handler.isRunning() && handler.thread.isAlive(),
+                "the handler took its seat: the loop flag is set AND the loop thread"
+                        + " is live (start()'s flag-before-thread order, run #375)");
     }
 
     @AfterEach
@@ -345,7 +355,11 @@ class QueryResponseHandlerTest {
 
     @Test
     void theInvalidPortRefusalLawNeverBinds() throws Exception {
-        startHandler(70000);
+        // Inline construction — the refusal arm never starts a thread, so
+        // the happy-path startHandler (with its liveness law) must not ride.
+        access = new RconTestHarness.FakeAccess("unused", 70000);
+        handler = new QueryResponseHandler(access);
+        handler.start();
         assertFalse(handler.isRunning(),
                 "QueryResponseHandler.start lines 244-249: a bad port disables");
         // The refused listener never took a UDP seat: the operator's own bind
