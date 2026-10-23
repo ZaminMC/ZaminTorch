@@ -2929,6 +2929,13 @@ public final class EngineServer implements Server, EngineBridge {
                                         at, 0.9, 3.5, 50.0, 50.0, 50.0);
                             }
                         });
+                // The dispenser's later arms (the ledgered tails this wave
+                // lands): the spawn-egg/firework/boat/minecart/skull/
+                // pumpkin/armor families consult the engine's own stores.
+                // Wired here — the last of the five (the skull store) is
+                // the boot's own construction order, the setEventBus shape.
+                dispenserSystem.setEngineSurfaces(
+                        mobManager, fireworks, vehicleManager, skulls, players);
                 // The tile NBT projections (Slice 89 — the reference's
                 // BlockEntity.writeNbt/readNbt over the engine's tile
                 // families): the /blockdata and /testforblock dataTag
@@ -10487,71 +10494,13 @@ public final class EngineServer implements Server, EngineBridge {
         }
         world.setBlock(target, lit ? BuiltinBlocks.LIT_PUMPKIN : BuiltinBlocks.PUMPKIN);
         consumePlaced(session, creativeHeld);
-        trySpawnGolem(target);
+        // The build scan rides the family file (GolemSpawns — the law the
+        // dispenser's pumpkin arm consults too, the reference's own shape:
+        // every placement path consults the same block object).
+        net.zaminmc.torch.server.block.GolemSpawns.trySpawnGolem(
+                world, mobManager, target);
     }
 
-    /**
-     * The golem build scan (trySpawnGolem 1:1 — the snow column first, the
-     * iron cross second, the body blocks clearing to air on the match):
-     * the snow golem spawns at the bottom snow cell, the iron golem at the
-     * base's center cell with the player-created flag.
-     */
-    private void trySpawnGolem(BlockPosition head) {
-        // The snow pattern (getSnowGolemPattern): "^" / "#" / "#" — the
-        // head over two snow blocks.
-        boolean snowBody = isBlockAt(head.offset(0, -1, 0), BuiltinBlocks.SNOW)
-                && isBlockAt(head.offset(0, -2, 0), BuiltinBlocks.SNOW);
-        if (snowBody) {
-            world.setBlock(head, world.airType());
-            world.setBlock(head.offset(0, -1, 0), world.airType());
-            world.setBlock(head.offset(0, -2, 0), world.airType());
-            BlockPosition at = head.offset(0, -2, 0);
-            mobManager.spawnAt(net.zaminmc.torch.server.entity.MobType.SNOW_GOLEM,
-                    new Position(at.x() + 0.5, at.y() + 0.05, at.z() + 0.5));
-            return;
-        }
-        // The iron pattern (getIronGolemPattern): "~^~" / "###" / "~#~" — the
-        // head over the 3-wide chest row, the single base under the middle
-        // — the reference's BlockPattern.find tries both horizontal axes.
-        for (int axis = 0; axis < 2; axis++) {
-            int dx = axis == 0 ? 1 : 0;
-            int dz = axis == 0 ? 0 : 1;
-            BlockPosition chest = head.offset(0, -1, 0);
-            BlockPosition base = head.offset(0, -2, 0);
-            boolean ironCross = isBlockAt(chest, BuiltinBlocks.IRON_BLOCK)
-                    && isBlockAt(chest.offset(dx, 0, dz), BuiltinBlocks.IRON_BLOCK)
-                    && isBlockAt(chest.offset(-dx, 0, -dz), BuiltinBlocks.IRON_BLOCK)
-                    && isBlockAt(base, BuiltinBlocks.IRON_BLOCK)
-                    && isBlockAt(head.offset(dx, 0, dz), world.airType())
-                    && isBlockAt(head.offset(-dx, 0, -dz), world.airType())
-                    && isBlockAt(base.offset(dx, 0, dz), world.airType())
-                    && isBlockAt(base.offset(-dx, 0, -dz), world.airType());
-            if (!ironCross) {
-                continue;
-            }
-            world.setBlock(head, world.airType());
-            world.setBlock(chest, world.airType());
-            world.setBlock(chest.offset(dx, 0, dz), world.airType());
-            world.setBlock(chest.offset(-dx, 0, -dz), world.airType());
-            world.setBlock(base, world.airType());
-            MobEntity golem = mobManager.spawnAt(
-                    net.zaminmc.torch.server.entity.MobType.IRON_GOLEM,
-                    new Position(base.x() + 0.5, base.y() + 0.05, base.z() + 0.5));
-            if (golem != null) {
-                // setPlayerCreated (IronGolemEntity lines 229-236): the
-                // pattern-built golem never despawns AND never turns on
-                // its builder's village (VIII10's −5 reputation arm
-                // refuses) — the engine's flag + persistence pair.
-                golem.setGolemPlayerCreated(true);
-            }
-            return;
-        }
-    }
-
-    /** @return whether the cell holds exactly the given block type. */
-    private boolean isBlockAt(BlockPosition at, BlockType type) {
-        return world.getBlock(at).equals(type);
-    }
 
     /**
      * The redstone dust placement (the historical ItemRedstone): the wire

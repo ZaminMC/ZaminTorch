@@ -1,20 +1,35 @@
 package net.zaminmc.torch.server.dispenser;
 
+import net.zaminmc.torch.GameMode;
 import net.zaminmc.torch.block.BlockPosition;
 import net.zaminmc.torch.block.BlockType;
 import net.zaminmc.torch.block.Direction;
+import net.zaminmc.torch.entity.PlayerState;
 import net.zaminmc.torch.item.ItemStack;
 import net.zaminmc.torch.server.block.BuiltinBlocks;
 import net.zaminmc.torch.server.block.FluidBlocks;
+import net.zaminmc.torch.server.block.GolemSpawns;
 import net.zaminmc.torch.server.block.RandomTickSystem;
+import net.zaminmc.torch.server.block.SkullBlocks;
 import net.zaminmc.torch.server.block.WorldSolidity;
 import net.zaminmc.torch.server.entity.ItemEntity;
 import net.zaminmc.torch.server.entity.ItemEntityManager;
+import net.zaminmc.torch.server.entity.MobEntity;
+import net.zaminmc.torch.server.entity.MobManager;
+import net.zaminmc.torch.server.entity.MobType;
 import net.zaminmc.torch.server.entity.projectile.ProjectileEntity;
 import net.zaminmc.torch.server.entity.projectile.ProjectileManager;
+import net.zaminmc.torch.server.entity.vehicle.VehicleEntity;
+import net.zaminmc.torch.server.entity.vehicle.VehicleManager;
 import net.zaminmc.torch.server.fx.FxManager;
+import net.zaminmc.torch.server.fireworks.FireworksSystem;
 import net.zaminmc.torch.server.hopper.HopperSystem;
+import net.zaminmc.torch.server.item.Armor;
+import net.zaminmc.torch.server.item.SpawnEggs;
+import net.zaminmc.torch.server.player.PlayerRegistry;
+import net.zaminmc.torch.server.player.PlayerSession;
 import net.zaminmc.torch.server.redstone.RedstoneSystem;
+import net.zaminmc.torch.server.skull.SkullManager;
 import net.zaminmc.torch.server.tnt.TntSystem;
 import net.zaminmc.torch.server.world.EngineWorld;
 import net.zaminmc.torch.server.world.WorldChangeListener;
@@ -123,6 +138,37 @@ public final class DispenserSystem implements WorldChangeListener {
 
     /** The public §27.7 dispense gate (null until the server wires the bus). */
     private net.zaminmc.torch.server.event.EngineEventBus eventBus;
+
+    /**
+     * The later arms' engine surfaces (the ledgered tails this slice
+     * lands): the mob/firework/vehicle/skull stores and the player
+     * registry the spawn-egg, firework, boat, minecart, skull, pumpkin and
+     * armor families consult. Wired by the server once every store
+     * exists — the setEventBus shape (null only inside the construction
+     * window, where no redstone can fire; an unwired surface degrades to
+     * the default drop, never a crash).
+     */
+    private record EngineSurfaces(MobManager mobs, FireworksSystem fireworks,
+                                  VehicleManager vehicles, SkullManager skulls,
+                                  PlayerRegistry players) {
+    }
+
+    private EngineSurfaces surfaces;
+
+    /**
+     * Wires the later arms' engine surfaces (the server's boot, after the
+     * skull store exists — the same late-wiring the event bus rides).
+     */
+    public void setEngineSurfaces(MobManager mobs, FireworksSystem fireworks,
+                                  VehicleManager vehicles, SkullManager skulls,
+                                  PlayerRegistry players) {
+        this.surfaces = new EngineSurfaces(
+                Objects.requireNonNull(mobs, "mobs"),
+                Objects.requireNonNull(fireworks, "fireworks"),
+                Objects.requireNonNull(vehicles, "vehicles"),
+                Objects.requireNonNull(skulls, "skulls"),
+                Objects.requireNonNull(players, "players"));
+    }
 
     /**
      * Wires the public dispense gate: every dispense (built-in and
@@ -377,7 +423,23 @@ public final class DispenserSystem implements WorldChangeListener {
             // with the half variation and the 1.25 force multiplier; the
             // drinkable falls through to the default drop.
             case "potion" -> this::potionSplash;
-            default -> this::defaultItemDrop;
+            // The spawn egg (Bootstrap lines 125-141) and the firework
+            // rocket (lines 142-160).
+            case "spawn_egg" -> this::spawnEggArm;
+            case "fireworks" -> this::fireworksArm;
+            // The boat (Bootstrap lines 182-219).
+            case "boat" -> this::boatArm;
+            // The minecart family (MinecartItem's own ctor registration,
+            // lines 21-77 — every cart kind shares the static).
+            case "minecart", "chest_minecart", "furnace_minecart", "tnt_minecart",
+                    "hopper_minecart" -> this::minecartArm;
+            // The skull (Bootstrap lines 340-392) and the carved pumpkin
+            // (lines 393-421 — Item.byBlock(Blocks.PUMPKIN) alone; the lit
+            // pumpkin never registered, the default drop covers it).
+            case "skull" -> this::skullArm;
+            case "pumpkin" -> this::pumpkinArm;
+            default -> Armor.specOf(stack.type()).isPresent()
+                    ? this::armorArm : this::defaultItemDrop;
         };
     }
 
@@ -558,6 +620,326 @@ public final class DispenserSystem implements WorldChangeListener {
         world.setBlock(target, RandomTickSystem.cropStage(
                 world.getBlock(target).identifier(), grown));
         fx.sound(centerOf(pos), "random.click", 1.0f, 1.0f);
+        return consumeOne(stack);
+    }
+
+    /**
+     * The spawn egg (Bootstrap lines 125-141): the body lands one block
+     * out at the dispenser's own base + 0.2 (lines 127-129 —
+     * SpawnEggItem.spawnEntity's own position law), the egg's damage
+     * naming the kind. A named egg names the body (lines 134-137); an
+     * UNKNOWN id still spends its unit (line 139: the split runs after
+     * the null spawn — the dispense path's own quirk, unlike the use
+     * path's no-payment gate). The base click plays (no playSound
+     * override — world event 1000).
+     */
+    private ItemStack spawnEggArm(BlockPosition pos, int facing, ItemStack stack) {
+        EngineSurfaces engine = surfaces;
+        if (engine == null) {
+            return defaultItemDrop(pos, facing, stack);
+        }
+        double x = pos.x() + 0.5 + OFFSETS[facing][0];
+        double y = pos.y() + 0.2;
+        double z = pos.z() + 0.5 + OFFSETS[facing][2];
+        MobType kind = SpawnEggs.typeOf(stack.damage());
+        if (kind != null) {
+            MobEntity spawned = engine.mobs().spawnFromEgg(kind, new Position(x, y, z));
+            if (spawned != null && stack.displayName() != null) {
+                spawned.setCustomName(stack.displayName()); // lines 134-137
+            }
+        }
+        fx.sound(centerOf(pos), "random.click", 1.0f, 1.0f);
+        return consumeOne(stack); // line 139: the split runs either way
+    }
+
+    /**
+     * The firework rocket (Bootstrap lines 142-160): the same one-out
+     * +0.2 lift-off the spawn egg rides (lines 143-145), the stack
+     * itself the payload (the reference's ctor hands {@code item} to
+     * the entity — the engine's launch contract is the same), and the
+     * BOW shot replaces the click (the playSound override, lines
+     * 156-159 — world event 1002).
+     */
+    private ItemStack fireworksArm(BlockPosition pos, int facing, ItemStack stack) {
+        EngineSurfaces engine = surfaces;
+        if (engine == null) {
+            return defaultItemDrop(pos, facing, stack);
+        }
+        double x = pos.x() + 0.5 + OFFSETS[facing][0];
+        double y = pos.y() + 0.2;
+        double z = pos.z() + 0.5 + OFFSETS[facing][2];
+        engine.fireworks().launch(new Position(x, y, z), stack);
+        fx.sound(centerOf(pos), "random.bow", 1.0f, 1.2f); // the 1002 override
+        return consumeOne(stack);
+    }
+
+    /**
+     * The boat (Bootstrap lines 182-219): the 1.125-out spawn over the
+     * facing cell (lines 187-189) — water there lifts the hull one full
+     * block (d3 = 1.0, lines 196-200), open air over water drops it at
+     * the cell's own height (d3 = 0.0, lines 201-208), anything else
+     * falls through to the default drop (the fallback, lines 202-206).
+     * The success click plays (the playSound override, lines 216-219).
+     */
+    private ItemStack boatArm(BlockPosition pos, int facing, ItemStack stack) {
+        EngineSurfaces engine = surfaces;
+        if (engine == null) {
+            return defaultItemDrop(pos, facing, stack);
+        }
+        double x = pos.x() + 0.5 + OFFSETS[facing][0] * 1.125;
+        double y = pos.y() + 0.5 + OFFSETS[facing][1] * 1.125;
+        double z = pos.z() + 0.5 + OFFSETS[facing][2] * 1.125;
+        BlockPosition target = pos.offset(OFFSETS[facing][0], OFFSETS[facing][1],
+                OFFSETS[facing][2]);
+        BlockType at = world.getBlock(target);
+        double lift;
+        if (FluidBlocks.kindOf(at.identifier()) == FluidBlocks.Kind.WATER) {
+            lift = 1.0; // lines 196-200: water at the facing cell
+        } else {
+            boolean waterBelow = FluidBlocks.kindOf(world
+                    .getBlock(target.offset(0, -1, 0)).identifier()) == FluidBlocks.Kind.WATER;
+            if (!at.equals(world.airType()) || !waterBelow) {
+                return defaultItemDrop(pos, facing, stack); // lines 202-206
+            }
+            lift = 0.0; // line 208: the open air over water
+        }
+        if (engine.vehicles().spawnBoat(new Position(x, y + lift, z)) == null) {
+            return stack; // the §27.7 spawn gate withheld the hull — the stack stays
+        }
+        fx.sound(centerOf(pos), "random.click", 1.0f, 1.0f);
+        return consumeOne(stack);
+    }
+
+    /**
+     * The minecart family (MinecartItem lines 18-77 — the shared static
+     * the reference registers for every cart kind): the 1.125-out spawn
+     * over the rail (lines 23-25); a rail at the facing cell holds the
+     * cart 0.1 above the block's floor (lines 43-47 — the flat shape;
+     * the engine carries no ascending rail states, the reference's 0.6
+     * and -0.4 arms ledger with the rail-shape slice), a rail one
+     * lower drops it 0.9 into the well (lines 49-64), anything else
+     * falls through to the default drop. The named cart carries its
+     * hover name (lines 57-59) and the success click plays (lines
+     * 73-76).
+     */
+    private ItemStack minecartArm(BlockPosition pos, int facing, ItemStack stack) {
+        EngineSurfaces engine = surfaces;
+        if (engine == null) {
+            return defaultItemDrop(pos, facing, stack);
+        }
+        double x = pos.x() + 0.5 + OFFSETS[facing][0] * 1.125;
+        double y = pos.y() + OFFSETS[facing][1]; // Math.floor(source.getY()) — the base
+        double z = pos.z() + 0.5 + OFFSETS[facing][2] * 1.125;
+        BlockPosition target = pos.offset(OFFSETS[facing][0], OFFSETS[facing][1],
+                OFFSETS[facing][2]);
+        BlockType at = world.getBlock(target);
+        double lift;
+        if (WorldSolidity.isRail(at.identifier())) {
+            lift = 0.1; // lines 43-47: the flat rail at the cell
+        } else {
+            boolean railBelow = WorldSolidity.isRail(world
+                    .getBlock(target.offset(0, -1, 0)).identifier());
+            if (!at.equals(world.airType()) || !railBelow) {
+                return defaultItemDrop(pos, facing, stack); // lines 51-53
+            }
+            lift = -0.9; // line 64: the below-rail drop
+        }
+        VehicleEntity cart = spawnCart(engine, stack.type().identifier().value(),
+                new Position(x, y + lift, z));
+        if (cart == null) {
+            return stack; // the §27.7 spawn gate withheld the cart — the stack stays
+        }
+        if (stack.displayName() != null) {
+            cart.setCustomName(stack.displayName()); // lines 57-59
+        }
+        fx.sound(centerOf(pos), "random.click", 1.0f, 1.0f);
+        return consumeOne(stack);
+    }
+
+    /**
+     * The cart kind's spawn (MinecartEntity.create by the item's own
+     * variant). The spawner and command carts carry server-owned hosts
+     * — their arms ride their own slice (the ledger's row).
+     */
+    private VehicleEntity spawnCart(EngineSurfaces engine, String item, Position at) {
+        VehicleManager vehicles = engine.vehicles();
+        return switch (item) {
+            case "minecart" -> vehicles.spawnMinecart(at);
+            case "chest_minecart" -> vehicles.spawnChestMinecart(at);
+            case "furnace_minecart" -> vehicles.spawnFurnaceMinecart(at);
+            case "tnt_minecart" -> vehicles.spawnTntMinecart(at);
+            case "hopper_minecart" -> hoppers != null
+                    ? vehicles.spawnHopperMinecart(at, hoppers::hopperCartTransfer) : null;
+            default -> null;
+        };
+    }
+
+    /**
+     * The armor pieces (ArmorItem lines 32-63 — every piece registers
+     * the shared static in its own ctor): the first eligible body at
+     * the facing cell wears the piece — the full-cell box (lines 36-40)
+     * under the reference's own filters (NOT_SPECTATOR +
+     * CanPickUpItemsFilter, EntityFilter lines 27-53: the slot must
+     * stand empty, mobs must roll their pickup flag, players always
+     * qualify), the mob in the equipment band with the always-drop
+     * marker (lines 49-59: setEquipment(i1) + the 2.0 chance), the
+     * player in the armor row (line 52's {@code i1 - 1} — the
+     * boots-first historical array, the engine's own head-first row).
+     * Nothing eligible: the default item drop (line 62's super call).
+     * The base click plays (no playSound override — world event 1000).
+     */
+    private ItemStack armorArm(BlockPosition pos, int facing, ItemStack stack) {
+        EngineSurfaces engine = surfaces;
+        if (engine == null) {
+            return defaultItemDrop(pos, facing, stack);
+        }
+        var spec = Armor.specOf(stack.type());
+        if (spec.isEmpty()) {
+            return defaultItemDrop(pos, facing, stack); // not armor: the default drop
+        }
+        BlockPosition target = pos.offset(OFFSETS[facing][0], OFFSETS[facing][1],
+                OFFSETS[facing][2]);
+        // getEquipmentSlot (MobEntity lines 625-644): the piece's slot in
+        // the reference's equipment band — 4 the head, 3 the chest, 2 the
+        // legs, 1 the feet.
+        int i1 = switch (spec.get().slot()) {
+            case HEAD -> 4;
+            case CHEST -> 3;
+            case LEGS -> 2;
+            case FEET -> 1;
+        };
+        ItemStack one = stack.withCount(1); // the copy().size = 1 (line 47)
+        // The scan (lines 36-40): the cell's full cube — the mobs first,
+        // then the players (the engine's own bodiesIn convention; the
+        // reference's chunk-scan order is its own).
+        for (MobEntity mob : engine.mobs().all()) {
+            if (mob.dead() || !mob.canPickUpLoot()
+                    || mob.equipment(i1) != null
+                    || !bodyIntersectsCell(mob.position(), target, 0.6)) {
+                continue;
+            }
+            mob.setEquipment(i1, one);
+            mob.setInventoryDropChance(i1, 2.0F); // line 59: the always-drop marker
+            engine.mobs().equipmentChanged(mob); // the Entity Equipment publish
+            fx.sound(centerOf(pos), "random.click", 1.0f, 1.0f);
+            return consumeOne(stack);
+        }
+        for (PlayerSession player : engine.players().all()) {
+            if (player.state() != PlayerState.PLAYING || player.dead()
+                    || player.gamemode() == GameMode.SPECTATOR) {
+                continue; // NOT_SPECTATOR (EntityFilter lines 27-31)
+            }
+            if (!bodyIntersectsCell(player.position(), target, 0.3)) {
+                continue;
+            }
+            int armorSlot = i1 - 1; // setEquipment(i1 - l) — the player's armor row
+            if (!player.inventory().armorAt(armorSlot).isEmpty()) {
+                continue; // CanPickUpItemsFilter: the occupied slot refuses
+            }
+            player.inventory().setArmor(armorSlot, one);
+            fx.sound(centerOf(pos), "random.click", 1.0f, 1.0f);
+            return consumeOne(stack);
+        }
+        return defaultItemDrop(pos, facing, stack); // line 62: super.dispenseItem
+    }
+
+    /**
+     * The body-box intersection with the facing cell's full cube (the
+     * reference's {@code Box(i, j, k, i+1, j+1, k+1)} over the body's
+     * own shape): the engine's PotionBodies convention — the body's
+     * half-width around the feet-anchored center, the 1.8 hull for the
+     * height band.
+     */
+    private static boolean bodyIntersectsCell(Position at, BlockPosition cell,
+                                              double halfWidth) {
+        return at.x() >= cell.x() - halfWidth && at.x() <= cell.x() + 1 + halfWidth
+                && at.z() >= cell.z() - halfWidth && at.z() <= cell.z() + 1 + halfWidth
+                && at.y() <= cell.y() + 1 && at.y() + 1.8 >= cell.y();
+    }
+
+    /**
+     * The skull (Bootstrap lines 340-392): ONLY the wither's head on a
+     * complete base dispenses — canSpawn's own law (SkullBlock line
+     * 160: metadata 1; lines 161-164: y at least 2, not peaceful, the
+     * base pattern) — landing as the FLOOR skull (line 352's FACING UP)
+     * with its face turned BACK at the dispenser (line 376: the
+     * opposite facing's horizontal id * 4), then the summon attempt
+     * (line 375 — the same trySpawn the placement runs). Any other
+     * skull type, a blocked cell, or a missing base fails with the
+     * 1001 click and spends nothing (the spawnedWither flag, lines
+     * 350-351 + 386-390).
+     */
+    private ItemStack skullArm(BlockPosition pos, int facing, ItemStack stack) {
+        EngineSurfaces engine = surfaces;
+        if (engine == null) {
+            return defaultItemDrop(pos, facing, stack);
+        }
+        BlockPosition target = pos.offset(OFFSETS[facing][0], OFFSETS[facing][1],
+                OFFSETS[facing][2]);
+        int type = stack.damage() & 0xFF;
+        if (!world.getBlock(target).equals(world.airType()) || type != 1
+                || !engine.skulls().canSummonAt(target)) {
+            fx.sound(centerOf(pos), "random.click", 1.0f, 1.2f); // the failure click
+            return stack; // the else arm never spends
+        }
+        world.setBlock(target, SkullBlocks.forState(1)); // line 352: the floor mount
+        engine.skulls().place(target, type, skullRotationOf(facing), null);
+        engine.skulls().trySummonWither(target); // line 375: the summon consult
+        fx.sound(centerOf(pos), "random.click", 1.0f, 1.0f); // the success click
+        return consumeOne(stack);
+    }
+
+    /**
+     * The dispensed skull's floor rotation (line 376: {@code direction
+     * .getOpposite().getIdHorizontal() * 4} — the head looks back at
+     * the dispenser). getIdHorizontal (Direction lines 14-17): SOUTH 0,
+     * WEST 1, NORTH 2, EAST 3 — the vertical pair -1; the engine's own
+     * byte masking keeps the raw -4's 22.5-degree angle (252 = 0xFC,
+     * the wire's own form).
+     */
+    private static int skullRotationOf(int facing) {
+        int opposite = switch (facing) {
+            case 2 -> 3; // NORTH's opposite: SOUTH
+            case 3 -> 2; // SOUTH's opposite: NORTH
+            case 4 -> 5; // WEST's opposite: EAST
+            case 5 -> 4; // EAST's opposite: WEST
+            default -> facing; // the verticals: their own opposite
+        };
+        int horizontal = switch (opposite) {
+            case 3 -> 0; // SOUTH
+            case 4 -> 1; // WEST
+            case 2 -> 2; // NORTH
+            case 5 -> 3; // EAST
+            default -> -1; // UP/DOWN carry the reference's own -1
+        };
+        return horizontal * 4;
+    }
+
+    /**
+     * The carved pumpkin (Bootstrap lines 393-421): the air +
+     * canSpawnGolem gates (lines 401: the body pattern a golem build
+     * would complete — the head cell a wildcard in both body
+     * patterns), then the plain placement whose own golem walk runs
+     * (lines 402-404: the reference's flag-3 setBlockState triggers
+     * onAdded — the engine runs the scan beside the commit, the
+     * placement path's own shape). Failure clicks 1001 and spends
+     * nothing (the spawnedGolem flag, lines 407-408 + 417-421).
+     */
+    private ItemStack pumpkinArm(BlockPosition pos, int facing, ItemStack stack) {
+        BlockPosition target = pos.offset(OFFSETS[facing][0], OFFSETS[facing][1],
+                OFFSETS[facing][2]);
+        if (!world.getBlock(target).equals(world.airType())
+                || !GolemSpawns.canSpawnGolem(world, target)) {
+            fx.sound(centerOf(pos), "random.click", 1.0f, 1.2f); // the failure click
+            return stack;
+        }
+        world.setBlock(target, BuiltinBlocks.PUMPKIN); // line 403: the default state
+        EngineSurfaces engine = surfaces;
+        if (engine != null) {
+            // The onAdded walk (PumpkinBlock lines 40-43).
+            GolemSpawns.trySpawnGolem(world, engine.mobs(), target);
+        }
+        fx.sound(centerOf(pos), "random.click", 1.0f, 1.0f); // the success click
         return consumeOne(stack);
     }
 
