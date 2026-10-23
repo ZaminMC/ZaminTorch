@@ -227,8 +227,19 @@ class TargetSelectorTest {
         // rm=50: nothing (the zombie is nearer).
         assertTrue(select(alice, "@e[type=Zombie,rm=50]").isEmpty());
 
-        // c on a/e defaults 0 (all); c=1 on p defaults 1.
-        assertTrue(select(alice, "@e").size() >= 4, "players + the fresh world's animals");
+        // c on a/e defaults 0 (all); c=1 on p defaults 1. The walk's own
+        // floor is the test's entities — both players, the far zombie and
+        // the cow below: the fresh world's ambient fertility is no longer
+        // a leg to stand on (the ambient/water tail's gates keep the bats
+        // off the sunlit surface, BatEntity.canSpawn lines 188-203 — the
+        // pre-tail stand-in let them swarm the daylight grass, and this
+        // bound quietly rode on them).
+        server.ticker().submit(() -> {
+            server.mobs().spawnAt(MobType.COW, new Position(at.x() + 1, at.y(), at.z()));
+        });
+        await(() -> server.mobs().all().stream().anyMatch(m -> m.type() == MobType.COW),
+                "the cow spawned");
+        assertTrue(select(alice, "@e").size() >= 4, "players + the test's own mobs");
         List<TargetSelector.Candidate> nearestOne = select(alice, "@a[c=1]");
         assertEquals(1, nearestOne.size(), "c=1 keeps the nearest player only");
 
