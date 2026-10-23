@@ -22433,6 +22433,21 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /**
+     * The profiler itself (ML-024 — the wire-publish section's reach): the
+     * protocol module's chunk publish walk records its span through
+     * {@link net.zaminmc.torch.server.profiler.EngineProfiler#recordSectionSpan},
+     * the cross-thread arm. CONTRACT: push/pop/swap stay TICK-THREAD-ONLY
+     * (the section stack is shared mutable state — safe from any thread
+     * only while the tick thread is the sole push/pop caller); code on
+     * any other lane uses the recordSectionSpan arm alone.
+     *
+     * @return the engine's profiler
+     */
+    public net.zaminmc.torch.server.profiler.EngineProfiler profiler() {
+        return profiler;
+    }
+
+    /**
      * The Phase-7 measurement face (§22's gate evidence bar): the
      * profiler's accumulated section table in ABSOLUTE nanoseconds —
      * undecayed, unlike the /debug report walk's own smoothing. A
