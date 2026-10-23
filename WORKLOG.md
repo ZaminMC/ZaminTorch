@@ -13513,3 +13513,85 @@ Stage Summary:
   baseline and the ranked backlog. The next cycle's order: verify CI
   green + the 128 release, then the 0x0C metadata audit (B-5) paired
   with the attribution pass (B-7 + Phase-3 rerun).
+
+---
+Task ID: ml-014+015+016
+Agent: Abasing (the boundary-verifications lane)
+Task: The cycle-3 audit's three boundary verification rows — ML-014
+(login-flood behavior), ML-015 (neighbor updates at unloaded-chunk
+boundaries), ML-016 (relog-while-riding remount) — each as a pinning
+test first, then the minimal reference-shaped fix only where the
+verification failed.
+
+Work Log:
+- Studied the three areas before writing anything: the login path
+  (V18ProtocolServer's accept + V18Connection's login state machine vs
+  the reference's ConnectionListener/ServerLoginNetworkHandler), the
+  neighbor-update walk (BlockUpdateSystem + RedstoneSystem vs the
+  reference's World.neighborChanged and its emergent EmptyChunk skip),
+  and the relog path (PlayerSession's riding fields, the quit/join
+  walks, the reference's PlayerManager.onLogin "Riding" walk).
+- ML-014 FAILED verification (no bound at all: a handshake-only
+  connection was immortal and invisible; the connections map unbounded)
+  -> landed the reference's own bound: ReadTimeoutHandler(30) first in
+  the child pipeline (ConnectionListener.java line 104's exact shape),
+  test-tunable via a third constructor parameter, with the reap handled
+  QUIETLY in exceptionCaught (ReadTimeoutException = the mechanism
+  working, never the protocol-fault WARNING stack).
+- ML-014's deliverable numbers (LoginFloodBoundaryTest, the DenseOwner
+  two-snapshot doctrine): 100 in-progress logins — 40 ticks in
+  1.94-1.98s (20.2-20.6 ticks/sec through the flood, the section fan
+  unchanged, the players registry never grows), 1.3-4.0 KiB per
+  connection; 12 concurrent full logins — join window 0.53-0.66s
+  (44-55ms per login, the serialized event-loop join bursts), 171-186
+  KiB per joined session, playerBodies/inhabitedTime fans grow with the
+  population.
+- ML-015 PASSED verification as-is: the emergent skip (EngineWorld's
+  air-read at an absent chunk) is exactly the reference's own emergent
+  skip (the shared EmptyChunk answers air, the notify dispatches to
+  air's empty default) — dropped, silent, never generating. Pinned by
+  UnloadedEdgeNeighborUpdateTest 2/0 with no engine change; the
+  transient unloaded-side queue entries (the engine's asynchronous
+  shape; nothing ever delivered) documented in the test's javadoc.
+- ML-016 FAILED verification (the remount walk was absent: quit
+  force-dismounts, the join walk riding-blind) -> landed the minimal
+  remount: the quit captures the ride BEFORE the seat opens (an
+  engine-side memory keyed by player UUID, only live targets, consumed
+  at the next join like the reference's tag), the adapter calls the new
+  EngineBridge.rejoinRestoreRide after its join view's world snapshot,
+  and the walk (tick lane) remounts through VehicleManager.mount /
+  MobManager.seatImportedRider, lands the body at the seat anchor, and
+  re-anchors the rider's wire (the reference's startRiding attach +
+  teleport sequence). RelogRemountAcceptanceTest 3/0 over real relog
+  cycles: boat + minecart + pig.
+- Verification: the full protocol module suite green (one
+  HorseIntegrationTest flake on the first run — the temper ladder's
+  randomness under load — isolated-green on rerun and suite-green on
+  the second run, the documented flake discipline); the whole zamin-core
+  suite green in six package batches (block/redstone/piston 61s,
+  entity 46s, world 3m47s, top-level a-L + nbt/concurrent/player/
+  enchantment/stat 8m01s, top-level m-z + the remaining packages
+  6m48s, leash/scoreboard/jukebox/crafting 12s — 370 classes, zero
+  failures); ./gradlew build green with the other modules' tests
+  (api 19/0, launcher 47/0, bukkit 52/0).
+- Two findings recorded for the coordinator, NOT fixed (out of the
+  row's minimal scope): the 0x1B attach-byte convention diverges from
+  the reference (Torch's riding flag 1=mount vs the reference's attach
+  type 0=mount/1=leash with attachedId=-1 for detach — a strict vanilla
+  client reads Torch's mounts as leashes; the fix belongs to one
+  wire-conformance row owning every mount site); and the engine-restart
+  relog cycle degrades to on-foot BY DESIGN (the ZVD store's
+  VehicleSnapshot carries no passenger id — a cross-store identity
+  design is a coordinator-scale decision).
+
+Stage Summary:
+- All three rows closed: ML-014 measured + bounded (the reference's own
+  ReadTimeoutHandler(30), quiet reap), ML-015 verified-as-is + pinned,
+  ML-016 remount walk landed over the reference's attach + teleport
+  sequence. New tests: LoginFloodBoundaryTest 3, UnloadedEdgeNeighbor
+  UpdateTest 2, RelogRemountAcceptanceTest 3 — all in new files, no
+  existing test touched. Engine changes strictly additive: the pipeline
+  timeout + the quiet reap arm, the remembered-ride capture + the
+  rejoinRestoreRide verb + the remount walk. Docs: Wave ML in §29, the
+  §22 next-work line, this entry. One PR against develop, not
+  self-merged.
