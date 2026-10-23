@@ -877,9 +877,12 @@ public final class BuiltinItems {
     // Fluid handling (legacy ids: bucket 325, water bucket 326, lava bucket
     // 327). A filled bucket carries its fluid as the identity — the 1.8 way —
     // and swaps for the empty one on use; the empty bucket fills from any
-    // source block it targets.
+    // source block it targets. The empty bucket stacks to 16 (the R-2 item
+    // table diff — Item.java line 608's setMaxStackSize(16); the fill arm
+    // already consumed one-from-many and overflow-threw the filled single,
+    // the reference's own shape).
     public static final EngineItemType BUCKET = new EngineItemType(
-            Identifier.parse("minecraft:bucket"), "Bucket", 1);
+            Identifier.parse("minecraft:bucket"), "Bucket", 16);
     public static final EngineItemType WATER_BUCKET = new EngineItemType(
             Identifier.parse("minecraft:water_bucket"), "Water Bucket", 1);
     public static final EngineItemType LAVA_BUCKET = new EngineItemType(

@@ -28,7 +28,7 @@ import net.zaminmc.torch.util.Rotation;
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
+
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -66,7 +66,6 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     private volatile PlayerSession session;
     private volatile boolean disconnectSent;
 
-    private final AtomicInteger keepAliveCounter = new AtomicInteger();
     private volatile long pendingKeepAlive = -1;
     private volatile long keepAliveSentAt;
 
@@ -2221,10 +2220,19 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     }
 
     private void sendKeepAlive(Channel channel) {
-        int id = keepAliveCounter.incrementAndGet();
+        // The R-4 payload law (the reference's own registration line):
+        // ServerPlayNetworkHandler.tick lines 132-136 send
+        // (int) getTimeMillis() as the keep-alive id — the low 32 bits of
+        // the send-time clock, NOT a counter. The old counter form was
+        // wire-legal (the client echoes any varint) but observably foreign
+        // to anything that reads the payload; the millis form is the
+        // reference's own. The exact-match read below is unchanged: two
+        // consecutive sends are always ≥ one poll period apart, so the
+        // millis ids never repeat while one is pending.
+        int id = (int) System.currentTimeMillis();
         pendingKeepAlive = id;
         keepAliveSentAt = System.currentTimeMillis();
-        ByteBuf out = Unpooled.buffer(8);
+        ByteBuf out = Unpooled.buffer(10);
         ByteBufOps.writeVarInt(out, Protocol18.S2C_KEEP_ALIVE);
         ByteBufOps.writeVarInt(out, id);
         channel.writeAndFlush(out);
