@@ -3430,8 +3430,12 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
 
     /**
      * Pushes a committed world change to this client if the chunk is visible.
-     * Called on the simulation thread by the adapter's broadcast; Netty writes
-     * are thread-safe, tracker reads are synchronized.
+     * The immediate unicast form: the use walk's anti-desync resync cell
+     * (the reference's own per-player direct send, ServerPlayNetworkHandler
+     * lines 494-497 — a packet sent in the handler's own flow, never through
+     * the ChunkMap accumulation). The committed-change BROADCAST queues
+     * instead ({@link #queueBlockChange}); Netty writes are thread-safe,
+     * tracker reads are synchronized.
      */
     void sendBlockChange(BlockPosition position, BlockType type) {
         Channel channel = adapter.channelOf(this);
@@ -3451,6 +3455,43 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         // blocksByStateId[54] is dirt and blocksByStateId[864] is the chest.
         ByteBufOps.writeVarInt(out, ChunkSerializer18.packedStateId(type));
         channel.writeAndFlush(out);
+    }
+
+    /**
+     * ML-019 — the committed-change broadcast's queue arm (the reference's
+     * ChunkMap.onBlockChanged, ChunkMap.java lines 102-109 and the
+     * ChunkHolder accumulation lines 330-347): the change lands in this
+     * connection's per-chunk pending buffer — a (localX << 12 | localZ << 8
+     * | y) cell, deduplicated per position with the LATEST committed state
+     * winning (the reference re-reads the chunk at flush; the last commit of
+     * the tick is the same state), the dirty-section mask growing even past a
+     * full buffer. The per-tick flush ({@link #flushPendingBlockChanges},
+     * the engine's chunkMap section) picks the wire form: one cell the single
+     * 0x23, 2-63 the 0x22 batch, a full 64 the partial 0x21 — the reference's
+     * ChunkHolder.sendChanges arms (ChunkMap.java lines 358-401) verbatim.
+     * Runs on the tick thread with the commit; tick-lane confined.
+     */
+    void queueBlockChange(BlockPosition position, BlockType type) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        if (LegacyBlockIds.legacyId(type.identifier()).isEmpty() || chunkTracker == null) {
+            return;
+        }
+        chunkTracker.queueBlockChange(position, ChunkSerializer18.packedStateId(type));
+    }
+
+    /**
+     * ML-019 — the per-tick drain of this connection's pending block-change
+     * buffers (the engine's chunkMap section calls the adapter's registered
+     * flush, the reference's ChunkMap.tick arm). Tick-lane confined like the
+     * queue; a dead or non-PLAY connection drops its buffers whole.
+     */
+    void flushPendingBlockChanges() {
+        if (chunkTracker != null) {
+            chunkTracker.flushBlockChanges();
+        }
     }
 
     /**
@@ -7165,6 +7206,32 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         private int centerX;
         private int centerZ;
 
+        /**
+         * ML-019 — this connection's pending block changes, one buffer per
+         * tracked chunk in first-dirty order (the reference's ChunkHolder
+         * set held by ChunkMap's dirty list, ChunkMap.java lines 35-39 and
+         * 70-76). Tick-lane confined: the world listener queues on the tick
+         * thread, the engine's chunkMap section drains there.
+         */
+        private final java.util.Map<Long, PendingBlockChanges> pendingBlockChanges =
+                new java.util.LinkedHashMap<>();
+
+        /**
+         * ML-019 — the per-chunk accumulation cell (the reference's
+         * ChunkHolder fields, ChunkMap.java lines 272-274: a 64-entry ring,
+         * the packed cells, the dirty-section mask). Positions pack exactly
+         * as the reference packs them (line 337: localX << 12 | localZ << 8
+         * | y); the state rides the LAST commit for a re-queued cell (the
+         * reference re-reads the chunk at flush — the same final state).
+         */
+        private static final class PendingBlockChanges {
+            static final int MAX_CELLS = 64;
+            final short[] positions = new short[MAX_CELLS];
+            final int[] stateIds = new int[MAX_CELLS];
+            int count;
+            int dirtySections;
+        }
+
         ChunkTracker(EngineServer engine, Channel channel) {
             this.engine = engine;
             this.channel = channel;
@@ -7178,12 +7245,28 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         void sendInitial(ChunkPosition center) {
             centerX = center.x();
             centerZ = center.z();
+            // ML-019 — the view-send bulk (the reference's per-player
+            // pending-chunk walk, ServerPlayerEntity.java lines 233-272: the
+            // ready columns of ONE walk ride a single bulk, exactly one the
+            // lone single): the synchronously-loaded columns collect here; a
+            // not-yet-loaded column keeps the chunk-load callback's single
+            // form (the reference's own lone-ready-column case — mixed
+            // emission is the law, both sides).
+            java.util.List<EngineChunk> batch = new java.util.ArrayList<>();
             forEachInRadius(engine.engineConfig().viewDistance(), position -> {
                 synchronized (sent) {
                     sent.add(position.packed());
                 }
+                EngineChunk loaded = engine.worldFor(dimension).peek(position);
+                if (loaded != null) {
+                    batch.add(loaded);
+                    return;
+                }
+                // Not yet loaded: generate on the world's owner thread, then
+                // serialize as the single form (sendChunk's own path).
                 sendChunk(position, true);
             });
+            writeChunkBatch(batch, true);
         }
 
         /**
@@ -7224,15 +7307,27 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             // (the partial-chunk branch of doPreChunk), so partial chunks
             // for new territory silently never appear — the "chunks don't
             // generate while walking" real-client regression class.
+            // ML-019 — the newly-visible columns batch like the initial
+            // view's (the reference's pending-chunk walk batches WHATEVER
+            // it collects: join, respawn and movement are the same drain).
+            java.util.List<EngineChunk> newlyVisible = new java.util.ArrayList<>();
             forEachInRadius(view, position -> {
                 boolean newlySent;
                 synchronized (sent) {
                     newlySent = sent.add(position.packed());
                 }
-                if (newlySent) {
-                    sendChunk(position, true);
+                if (!newlySent) {
+                    return;
                 }
+                EngineChunk loaded = engine.worldFor(dimension).peek(position);
+                if (loaded != null) {
+                    newlyVisible.add(loaded);
+                    return;
+                }
+                // Not yet loaded: the single form on the chunk-load callback.
+                sendChunk(position, true);
             });
+            writeChunkBatch(newlyVisible, true);
             }
         }
 
@@ -7252,6 +7347,135 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             if (hasChunk(position.packed())) {
                 sendChunk(position, false);
             }
+        }
+
+        /**
+         * ML-019 — the queue arm (the reference's ChunkMap.onBlockChanged →
+         * ChunkHolder.onBlockChanged, ChunkMap.java lines 330-347): the
+         * packed cell (localX << 12 | localZ << 8 | y, line 337 verbatim),
+         * the dedupe keeping the first slot with the LATEST state (the
+         * reference re-reads the chunk at flush — the same final state),
+         * the dirty-section mask growing even when the ring is full so the
+         * full-buffer arm's partial column covers the overflow (lines
+         * 335-346: the mask write precedes the ring bound).
+         */
+        void queueBlockChange(net.zaminmc.torch.block.BlockPosition position, int packedStateId) {
+            if (!channel.isActive()) {
+                return;
+            }
+            long packedChunk = position.chunkPosition().packed();
+            if (!hasChunk(packedChunk)) {
+                return;
+            }
+            PendingBlockChanges pending = pendingBlockChanges.computeIfAbsent(
+                    packedChunk, key -> new PendingBlockChanges());
+            int y = position.y();
+            pending.dirtySections |= 1 << (y >> 4);
+            if (pending.count < PendingBlockChanges.MAX_CELLS) {
+                short encoded = (short) (position.localX() << 12 | position.localZ() << 8 | y);
+                for (int i = 0; i < pending.count; i++) {
+                    if (pending.positions[i] == encoded) {
+                        pending.stateIds[i] = packedStateId;
+                        return;
+                    }
+                }
+                pending.positions[pending.count] = encoded;
+                pending.stateIds[pending.count] = packedStateId;
+                pending.count++;
+            }
+        }
+
+        /**
+         * ML-019 — the per-tick drain (the reference's ChunkHolder
+         * .sendChanges dispatch, ChunkMap.java lines 358-401, driven from
+         * the engine's chunkMap section): ONE pending cell the single 0x23
+         * (lines 360-365), 2-63 the 0x22 batch (lines 384-385), a full ring
+         * the partial 0x21 over the dirty sections (lines 369-372). Chunks
+         * drain in first-dirty order (the reference's dirty list).
+         */
+        void flushBlockChanges() {
+            if (pendingBlockChanges.isEmpty()) {
+                return;
+            }
+            if (!channel.isActive()) {
+                pendingBlockChanges.clear();
+                return;
+            }
+            for (java.util.Map.Entry<Long, PendingBlockChanges> entry : pendingBlockChanges.entrySet()) {
+                ChunkPosition position = ChunkPosition.unpack(entry.getKey());
+                PendingBlockChanges pending = entry.getValue();
+                if (pending.count == 1) {
+                    writeSingleBlockChange(position, pending.positions[0], pending.stateIds[0]);
+                } else if (pending.count == PendingBlockChanges.MAX_CELLS) {
+                    EngineChunk chunk = engine.worldFor(dimension).peek(position);
+                    if (chunk != null) {
+                        writePartialChunk(chunk, pending.dirtySections);
+                    }
+                } else {
+                    writeMultiBlockChange(position, pending);
+                }
+            }
+            pendingBlockChanges.clear();
+        }
+
+        /**
+         * The flush's single arm (ChunkMap.java lines 360-365): the cell
+         * decodes through the reference's own bands (x from bits 12-15, y
+         * from the low byte, z from bits 8-11) and rides the same 0x23 form
+         * the immediate unicast sends.
+         */
+        private void writeSingleBlockChange(ChunkPosition position, short encoded, int packedStateId) {
+            ByteBuf out = Unpooled.buffer(16);
+            ByteBufOps.writeVarInt(out, Protocol18.S2C_BLOCK_CHANGE);
+            ByteBufOps.writePackedBlockPosition(out,
+                    position.x() * 16 + (encoded >> 12 & 15),
+                    encoded & 255,
+                    position.z() * 16 + (encoded >> 8 & 15));
+            ByteBufOps.writeVarInt(out, packedStateId);
+            channel.writeAndFlush(out);
+        }
+
+        /**
+         * The flush's batch arm (BlocksUpdateS2CPacket.write lines 40-49):
+         * the chunk's coords, the varint record count, then each cell's u16
+         * and packed-state varint in arrival order.
+         */
+        private void writeMultiBlockChange(ChunkPosition position, PendingBlockChanges pending) {
+            ByteBuf out = Unpooled.buffer(12 + pending.count * 5);
+            ByteBufOps.writeVarInt(out, Protocol18.S2C_MULTI_BLOCK_CHANGE);
+            out.writeInt(position.x());
+            out.writeInt(position.z());
+            ByteBufOps.writeVarInt(out, pending.count);
+            for (int i = 0; i < pending.count; i++) {
+                out.writeShort(pending.positions[i]);
+                ByteBufOps.writeVarInt(out, pending.stateIds[i]);
+            }
+            channel.writeAndFlush(out);
+        }
+
+        /**
+         * The flush's full-ring arm (ChunkMap.java lines 369-372): the
+         * partial 0x21 with ground-up false and the DIRTY-section mask —
+         * the client rebuilds only the named sections, the overflow cells
+         * ride inside them. The effective mask intersects the request with
+         * the chunk's own sections (the reference's writeChunkData null
+         * drop, WorldChunkS2CPacket lines 68-74).
+         */
+        private void writePartialChunk(EngineChunk chunk, int dirtySections) {
+            int mask = ChunkSerializer18.effectiveSectionMask(chunk, dirtySections);
+            if (mask == 0) {
+                return; // every dirtied section vanished: nothing to rebuild
+            }
+            byte[] data = ChunkSerializer18.serialize(chunk, false, mask);
+            ByteBuf out = Unpooled.buffer(16 + data.length);
+            ByteBufOps.writeVarInt(out, Protocol18.S2C_CHUNK_DATA);
+            out.writeInt(chunk.position().x());
+            out.writeInt(chunk.position().z());
+            out.writeBoolean(false);
+            out.writeShort(mask);
+            ByteBufOps.writeVarInt(out, data.length);
+            out.writeBytes(data);
+            channel.writeAndFlush(out);
         }
 
         private void forEachInRadius(int radius, java.util.function.Consumer<ChunkPosition> action) {
@@ -7330,6 +7554,22 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             ByteBufOps.writeVarInt(out, data.length);
             out.writeBytes(data);
             channel.writeAndFlush(out);
+            replayChunkTiles(chunk);
+            if (wirePublishStart != 0L) {
+                wirePublishProfiler.recordSectionSpan("root.wirePublish",
+                        System.nanoTime() - wirePublishStart);
+            }
+        }
+
+        /**
+         * The tile replays one freshly sent column owes (protocol 47 chunk
+         * data carries no block entities — the reference's PlayerChunkMap
+         * sends each BE's createUpdatePacket with the chunk): the sign,
+         * spawner, beacon, skull and command-block walks, in the established
+         * single-chunk order. Shared by the 0x21 single and the 0x26 bulk
+         * (each bulk column replays exactly as its own chunk data would).
+         */
+        private void replayChunkTiles(EngineChunk chunk) {
             // The sign text replay (protocol 47 chunk data carries no tile
             // entities): every sign in the freshly sent column re-sends its
             // lines, the historical load order. The nether dimension holds
@@ -7385,9 +7625,113 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                     writeCommandTile(channel, entry.getKey(), entry.getValue());
                 }
             }
-            if (wirePublishStart != 0L) {
-                wirePublishProfiler.recordSectionSpan("root.wirePublish",
-                        System.nanoTime() - wirePublishStart);
+        }
+
+        /**
+         * ML-019 — the reference's own bulk-vs-single threshold
+         * (ServerPlayerEntity.java line 238: the pending walk collects at
+         * most 10 ready columns; lines 257-262: exactly 1 keeps the single
+         * 0x21, 2+ ride ONE 0x26). The 10 bound is also the wire's own
+         * frame law — the reference client's SplitterHandler accepts at
+         * most a 21-bit length (2,097,151 bytes), and ten full columns
+         * (~196 KB each at the densest shape) stay inside it with the same
+         * margin the reference itself ships.
+         */
+        private static final int BULK_COLUMNS_MAX = 10;
+
+        /**
+         * ML-019 — the view walk's emission pick (the reference's
+         * ServerPlayerEntity.java lines 257-262): an empty collection sends
+         * nothing, exactly ONE column keeps the single 0x21, and 2+ ride
+         * the 0x26 bulk — capped per PACKET at the reference's own 10 (the
+         * engine keeps its whole-walk-at-once pacing; the cap bounds the
+         * FRAME, and a remainder of exactly one keeps the single law).
+         */
+        private void writeChunkBatch(java.util.List<EngineChunk> batch, boolean groundUp) {
+            if (batch.isEmpty()) {
+                return;
+            }
+            if (batch.size() == 1) {
+                writeChunk(batch.get(0), groundUp);
+                return;
+            }
+            for (int from = 0; from < batch.size(); from += BULK_COLUMNS_MAX) {
+                int to = Math.min(from + BULK_COLUMNS_MAX, batch.size());
+                if (to - from == 1) {
+                    writeChunk(batch.get(from), groundUp); // the remainder's single law
+                } else {
+                    writeChunkBulk(batch.subList(from, to));
+                }
+            }
+        }
+
+        /**
+         * ML-019 — the 0x26 Map Chunk Bulk writer (WorldChunksS2CPacket.write
+         * lines 57-70): the skylight boolean, the varint column count, every
+         * column's header (i32 x, i32 z, u16 section mask), THEN every
+         * column's data array concatenated WITHOUT length prefixes — the
+         * client sizes each array from its own mask (the reference's read,
+         * lines 36-53; the single 0x21's varint length prefix is the one
+         * form difference). The skylight boolean is TRUE for both
+         * dimensions: the engine's single 0x21 always serializes the
+         * skylight pass (ChunkSerializer18 Pass 3, both dimensions — the
+         * established real-client-accepted form), so the bulk's arrays match
+         * light=true sizing bit-for-bit; the reference derives the flag from
+         * !hasNoSky (line 24) and omits the nether's skylight bytes — a
+         * divergence the single form already carries, recorded in the
+         * landing row. Each column's serialization AND tile replays ride
+         * their own root.wirePublish span (the ML-024 count semantics: one
+         * record per column whatever the frame shape — the harness's
+         * per-column arithmetic stays exact).
+         */
+        private void writeChunkBulk(java.util.List<EngineChunk> chunks) {
+            if (!channel.isActive()) {
+                return;
+            }
+            net.zaminmc.torch.server.profiler.EngineProfiler profiler = engine.profiler();
+            // Phase A — every column's payload under its own span (the
+            // per-column wire-publish record; the bulk frame's build and
+            // flush ride outside — the per-column cost is the story).
+            int[] masks = new int[chunks.size()];
+            byte[][] payloads = new byte[chunks.size()][];
+            int total = 0;
+            for (int i = 0; i < chunks.size(); i++) {
+                long spanStart = profiler.isProfiling() ? System.nanoTime() : 0L;
+                EngineChunk chunk = chunks.get(i);
+                masks[i] = ChunkSerializer18.sectionBitmask(chunk);
+                payloads[i] = ChunkSerializer18.serialize(chunk, true);
+                total += payloads[i].length;
+                if (spanStart != 0L) {
+                    profiler.recordSectionSpan("root.wirePublish",
+                            System.nanoTime() - spanStart);
+                }
+            }
+            // Phase B — the bulk frame: headers first, then every array
+            // (the reference's own two-loop write order).
+            ByteBuf out = Unpooled.buffer(16 + 10 * chunks.size() + total);
+            ByteBufOps.writeVarInt(out, Protocol18.S2C_CHUNK_BULK);
+            out.writeBoolean(true);
+            ByteBufOps.writeVarInt(out, chunks.size());
+            for (int i = 0; i < chunks.size(); i++) {
+                out.writeInt(chunks.get(i).position().x());
+                out.writeInt(chunks.get(i).position().z());
+                out.writeShort(masks[i]);
+            }
+            for (byte[] payload : payloads) {
+                out.writeBytes(payload);
+            }
+            channel.writeAndFlush(out);
+            // Phase C — each column's tile replays under their own span
+            // (the single form's per-chunk replay order, column by column —
+            // the reference sends the collected BE updates after the bulk,
+            // lines 264-266).
+            for (EngineChunk chunk : chunks) {
+                long spanStart = profiler.isProfiling() ? System.nanoTime() : 0L;
+                replayChunkTiles(chunk);
+                if (spanStart != 0L) {
+                    profiler.recordSectionSpan("root.wirePublish",
+                            System.nanoTime() - spanStart);
+                }
             }
         }
     }
