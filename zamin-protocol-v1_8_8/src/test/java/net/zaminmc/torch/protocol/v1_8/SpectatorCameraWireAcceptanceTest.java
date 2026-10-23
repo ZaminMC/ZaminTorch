@@ -207,8 +207,9 @@ class SpectatorCameraWireAcceptanceTest extends ProtocolTestBase {
                 case Protocol18.S2C_JOIN_GAME -> ownId = buffer.readInt();
                 case Protocol18.S2C_NAMED_SPAWN -> {
                     int wireId = ByteBufOps.readVarInt(buffer);
-                    String uuid = ByteBufOps.readString(buffer, 64);
-                    spawns.put(UUID.fromString(uuid), wireId);
+                    // ML-021's merged fix: the 16-byte writeUuid form
+                    UUID uuid = new UUID(buffer.readLong(), buffer.readLong());
+                    spawns.put(uuid, wireId);
                 }
                 case Protocol18.S2C_PLAYER_POSITION_AND_LOOK -> {
                     double x = buffer.readDouble();
@@ -244,8 +245,8 @@ class SpectatorCameraWireAcceptanceTest extends ProtocolTestBase {
             int id = ByteBufOps.readVarInt(buffer);
             if (id == Protocol18.S2C_NAMED_SPAWN) {
                 int wireId = ByteBufOps.readVarInt(buffer);
-                String uuid = ByteBufOps.readString(buffer, 64);
-                capture.spawns().put(UUID.fromString(uuid), wireId);
+                // ML-021's merged fix: the 16-byte writeUuid form
+                capture.spawns().put(new UUID(buffer.readLong(), buffer.readLong()), wireId);
             }
             boolean all = true;
             for (UUID wanted : expected) {
@@ -311,8 +312,11 @@ class SpectatorCameraWireAcceptanceTest extends ProtocolTestBase {
             int id = ByteBufOps.readVarInt(buffer);
             if (id == Protocol18.S2C_NAMED_SPAWN) {
                 ByteBufOps.readVarInt(buffer); // the fresh wire id
-                String uuid = ByteBufOps.readString(buffer, 64);
-                if (wanted.toString().equals(uuid)) {
+                // ML-021's merged fix: the 0x0C uuid rides the reference's
+                // writeUuid (16 raw bytes) — this reader was written against
+                // the string form the fix removed.
+                UUID spawned = new UUID(buffer.readLong(), buffer.readLong());
+                if (wanted.equals(spawned)) {
                     return;
                 }
             }
@@ -334,7 +338,7 @@ class SpectatorCameraWireAcceptanceTest extends ProtocolTestBase {
             int id = ByteBufOps.readVarInt(buffer);
             if (id == Protocol18.S2C_NAMED_SPAWN) {
                 ByteBufOps.readVarInt(buffer); // wire id
-                String uuid = ByteBufOps.readString(buffer, 64);
+                UUID uuid = new UUID(buffer.readLong(), buffer.readLong()); // ML-021's 16-byte form
                 assertFalse(forbidden.toString().equals(uuid), description);
             }
         }
