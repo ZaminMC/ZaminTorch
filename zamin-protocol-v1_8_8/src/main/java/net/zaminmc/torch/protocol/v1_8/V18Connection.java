@@ -153,9 +153,50 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-        // Malformed or broken input fails this connection predictably, never the server (§126).
-        // WARNING + stack: an invisible drop is undiagnosable; the console must
-        // say exactly which frame broke the connection (the §54 observer rule).
+        // ML-009b (the audit's B-4 row): the unclean-exit family — an abrupt
+        // client TCP reset, a broken pipe, an EOF mid-read — arrives as the
+        // IOException family, and the reference answers those with ONE quiet
+        // disconnect line, never a stacktrace (Connection.exceptionCaught
+        // lines 110-119: the "Internal Exception: <cause>" reason handed to
+        // the walk; ServerPlayNetworkHandler.onDisconnect line 573 logs the
+        // INFO line). With a session, that one line is the engine's own
+        // "Player disconnected" record (the reason carries the cause — never
+        // swallowed, just unstacked); without one (a status/login-phase
+        // reset) the connection logs it itself. Genuinely unexpected
+        // failures stay loud (§126/§54): WARNING + the throwable for the
+        // frame that broke the connection — an invisible drop is
+        // undiagnosable.
+        // The read-idle reap (the reference's own "timeout" handler,
+        // ConnectionListener.java line 104): a connection silent past the
+        // bound is closed cleanly. This is the boundary mechanism WORKING,
+        // not a protocol fault — a flood of reaped in-progress logins must
+        // never spray WARNING stacks into the console (the quiet-disconnect
+        // law the keep-alive timeout already follows). PLAY-state clients
+        // are normally kicked by keep-alive long before this arm; this
+        // arm's population is the pre-login silence.
+        if (cause instanceof io.netty.handler.timeout.ReadTimeoutException) {
+            if (session != null) {
+                PlayerSession timedOut = session;
+                session = null;
+                engine.clientDisconnected(timedOut, "Timed out");
+            }
+            ctx.close();
+            return;
+        }
+
+        if (cause instanceof java.io.IOException) {
+            if (session != null) {
+                PlayerSession current = session;
+                session = null;
+                engine.clientDisconnected(current, "Internal Exception: " + cause);
+                ctx.close();
+                return;
+            }
+            LOGGER.info(() -> "Connection lost from " + ctx.channel().remoteAddress()
+                    + ": " + cause);
+            ctx.close();
+            return;
+        }
         LOGGER.log(Level.WARNING, "Protocol error from " + ctx.channel().remoteAddress()
                 + (session != null ? " (" + session.name() + ")" : ""), cause);
         if (session != null) {
@@ -271,6 +312,12 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                 // Join sequence runs on this event loop; ordering below is meaningful:
                 // identity -> world anchor -> time -> chunks -> authoritative position.
                 sendJoinGame(channel, accepted.session());
+                // ML-012 — the reference's own join order (PlayerManager
+                // .onLogin line 128, right after the Login packet + brand):
+                // the Server Difficulty byte follows Join Game, before the
+                // spawn point. The wire form is DifficultyS2CPacket's own
+                // single-byte write.
+                sendServerDifficulty(engine.difficulty());
                 sendSpawnPosition(channel);
                 sendTimeUpdate(channel);
                 chunkTracker = new ChunkTracker(engine, channel);
@@ -295,6 +342,11 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                 // line 679): the full INITIALIZE, after the teleport like
                 // the reference's join walk.
                 engine.joinWorldBorder(accepted.session());
+                // ML-017 — the reference's join tail (PlayerManager.onLogin
+                // lines 148-150, right after sendWorldInfo): the configured
+                // resource pack reaches the joiner; the engine's own gate
+                // sends nothing when no url is configured.
+                engine.joinResourcePack(accepted.session());
                 engine.joinTabListHeaderFooter(accepted.session());
                 sendWindowItems(channel, accepted.session().inventory().snapshot(),
                         accepted.session().crafting().snapshot(),
@@ -307,6 +359,14 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                 engine.joinCompleted(accepted.session());
                 startKeepAlive(channel);
                 adapter.playerEnteredPlay(this);
+                // The relog remount arm (the reference's PlayerManager.onLogin
+                // "Riding" walk, lines 157-165 — after the whole join burst,
+                // exactly where the reference seats the returning rider): the
+                // engine consumes the ride remembered at quit and remounts on
+                // the tick lane; the mount's own listeners then publish the
+                // Attach Entity pair (the reference's startRiding lines
+                // 516-523: the attach, then the teleport to the seat).
+                engine.rejoinRestoreRide(accepted.session());
             }
         });
     }
@@ -564,10 +624,20 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                 // index (frames are length-delimited, so this is exact).
             }
             case Protocol18.C2S_SPECTATE -> {
-                packet.readLong();
-                packet.readLong();
+                // The spectate hotbar's player pick (the reference's
+                // PlayerSpectateC2SPacket — readUuid's two-long form, msb
+                // then lsb; handlePlayerSpectate lines 516-551): the two
+                // longs resolve to the target player's uuid and the engine
+                // arms the camera-follow (the audit's ruling over the
+                // reference's one-shot teleport — the packet that used to
+                // discard here). The gates (isSpectator, the live-player
+                // resolution, the self-target exit) live in the engine's own
+                // walk.
+                java.util.UUID targetUuid =
+                        new java.util.UUID(packet.readLong(), packet.readLong());
+                engine.spectateCamera(player, targetUuid);
             }
-            case Protocol18.C2S_RESOURCE_PACK_STATUS -> ByteBufOps.readVarInt(packet);
+            case Protocol18.C2S_RESOURCE_PACK_STATUS -> handleResourcePackStatus(player, packet);
             default -> {
                 // Unknown play packet: ignore, as the historical server does, but
                 // make it observable (rate-limited by keeping it at FINE).
@@ -575,6 +645,29 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                         + " from " + player.name());
             }
         }
+    }
+
+    /**
+     * Resource Pack Status (0x19, protocol 47 — ResourcePackC2SPacket's own
+     * read, ML-017): the hash string (the ctor's own 40-character truncation
+     * band) then the result varint — the reference's Response enum order
+     * (SUCCESSFULLY_LOADED 0, DECLINED 1, FAILED_DOWNLOAD 2, ACCEPTED 3).
+     * The reference's own server handler is empty (ServerPlayNetworkHandler
+     * line 568); the engine's owed behavior is the observable log line —
+     * the operator learns whether the pack landed. Any thread.
+     */
+    private void handleResourcePackStatus(PlayerSession player, ByteBuf packet) {
+        String hash = ByteBufOps.readString(packet, 40);
+        int result = ByteBufOps.readVarInt(packet);
+        String verdict = switch (result) {
+            case 0 -> "SUCCESSFULLY_LOADED";
+            case 1 -> "DECLINED";
+            case 2 -> "FAILED_DOWNLOAD";
+            case 3 -> "ACCEPTED";
+            default -> "UNKNOWN_" + result;
+        };
+        LOGGER.info(() -> player.name() + " resource pack " + verdict
+                + " (hash " + hash + ")");
     }
 
     private void handleKeepAlive(ByteBuf packet) {
@@ -1039,6 +1132,26 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             ByteBufOps.writeString(out, lines != null && line < lines.length
                     && lines[line] != null ? lines[line] : "");
         }
+        channel.writeAndFlush(out);
+    }
+
+    /**
+     * Open Sign Editor (0x36): the placement editor's own trigger —
+     * the reference's openSignEditor (ServerPlayerEntity lines 547-550)
+     * sends it to the placing player alone; the client's editor opens
+     * only on this packet and closes into the Update Sign (0x12) write
+     * path that already works. The body is the id varint + the packed
+     * position long, the same packing the 0x33 writer carries. Safe
+     * from any thread.
+     */
+    void sendOpenSignEditor(BlockPosition position) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(16);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_OPEN_SIGN_EDITOR);
+        ByteBufOps.writePackedBlockPosition(out, position.x(), position.y(), position.z());
         channel.writeAndFlush(out);
     }
 
@@ -2230,6 +2343,59 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     }
 
     /**
+     * Server Difficulty (0x41 — DifficultyS2CPacket's own write, ML-012):
+     * the single difficulty id byte (0 peaceful .. 3 hard). The reference's
+     * {@code locked} flag never rides the protocol-47 wire (the ctor
+     * carries it server-side only; the byte joined the wire in 1.9). Any
+     * thread.
+     */
+    void sendServerDifficulty(int difficultyId) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(4);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_SERVER_DIFFICULTY);
+        out.writeByte(difficultyId & 0xFF);
+        channel.writeAndFlush(out);
+    }
+
+    /**
+     * The /difficulty change-time re-sync (the engine's per-player fan-out):
+     * the same single-byte Server Difficulty packet, pushed the moment the
+     * runtime tier flips so no client waits for its next respawn. Any
+     * thread.
+     */
+    @Override
+    public void updateDifficulty(int difficultyId) {
+        sendServerDifficulty(difficultyId);
+    }
+
+    /**
+     * Resource Pack Send (0x48 — ResourcePackS2CPacket's own write,
+     * ML-017): the url string then the hash string, nothing else — the
+     * 1.9+ request-id varint never rides this protocol. The hash carries
+     * the packet ctor's own 40-character law (the reference throws the
+     * same IllegalArgumentException at its construction site). Any thread.
+     */
+    @Override
+    public void sendResourcePack(String url, String hash) {
+        if (hash.length() > 40) {
+            throw new IllegalArgumentException(
+                    "Hash is too long (max 40, was " + hash.length() + ")");
+        }
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(64 + url.length());
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_RESOURCE_PACK_SEND);
+        ByteBufOps.writeString(out, url);
+        ByteBufOps.writeString(out, hash);
+        channel.writeAndFlush(out);
+    }
+
+    /**
      * Map Data (0x34 — the map item family, the reference's
      * MapDataS2CPacket.write lines 64-82, 1:1): the varint MAP id (the
      * stack's damage field — the client indexes its map item renderer by
@@ -2768,6 +2934,15 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         if (dimensionOfSession() != other.dimension() || other.leavingTheEnd()) {
             return;
         }
+        // The spectating spectator never spawns for anyone else (the
+        // reference's broadcastTo law, ServerPlayerEntity line 472: the
+        // camera-following body is gated out of every other view — the
+        // tracker's updatePlayer arm removes it when the gate flips). The
+        // spectator's OWN view is untouched: it keeps receiving every
+        // other body while its camera rides the target.
+        if (other.spectatorCamera() != null) {
+            return;
+        }
         if (!visibleRemotePlayers.add(other.uuid())) {
             return; // already tracked
         }
@@ -2777,7 +2952,16 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBuf out = Unpooled.buffer(48);
         ByteBufOps.writeVarInt(out, Protocol18.S2C_NAMED_SPAWN);
         ByteBufOps.writeVarInt(out, entityId);
-        ByteBufOps.writeString(out, other.uuid().toString());
+        // ML-021's fix: the uuid rides the wire as the reference's writeUuid
+        // (two longs, 16 raw bytes — PacketByteBuf.writeUuid lines 112-115),
+        // the same form the tab list already uses. The string form this site
+        // carried (varint length + 36 chars) put 21 extra bytes in every
+        // 0x0C: a strict 1.8.8 client reads 16 uuid bytes, then walks the
+        // leftover string bytes as x/y/z/angles and enters the metadata
+        // loop 21 bytes early — protodef's PartialReadError inside
+        // entityMetadataItem (the cycle-3 observation), whose intermittence
+        // was the luck of the garbage walk landing on the terminator.
+        ByteBufOps.writeUuid(out, other.uuid());
         out.writeInt((int) Math.floor(pos.x() * 32.0));
         out.writeInt((int) Math.floor(pos.y() * 32.0));
         out.writeInt((int) Math.floor(pos.z() * 32.0));
@@ -2786,6 +2970,11 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeShort(0); // held item: none
         out.writeByte(Protocol18.METADATA_TERMINATOR); // no metadata entries (0x7F, protocol 47)
         channel.writeAndFlush(out);
+
+        // The track-time attribute pair (the reference's updatePlayer
+        // order — the attributes ride BEFORE the equipment, TrackedEntity
+        // lines 322-328 ahead of the equipment arm at 348-355).
+        sendPlayerAttributes(other);
 
         // The remote body's gear (held + the armor row) rides Entity
         // Equipment right after the spawn — the 1.8 rendering path.
@@ -2831,6 +3020,175 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         channel.writeAndFlush(out);
     }
 
+    // --- the attribute wire (ML-011 — Entity Properties 0x20, the
+    // reference's EntityAttributesS2CPacket over the tracker's two send
+    // sites: TrackedEntity.updatePlayer lines 322-328 at track time,
+    // sendDataAndAttributes lines 260-274 on the change walk). ---
+
+    /**
+     * One 0x20 row: the attribute's own name, its base and the
+     * equipment-applied modifier rows — the reference packet's Entry
+     * (EntityAttributesS2CPacket lines 84-106: id, baseValue, modifiers).
+     */
+    private record WireAttribute(String name, double base,
+            java.util.List<net.zaminmc.torch.item.AttributeModifier> modifiers) {
+    }
+
+    /**
+     * The trackable pair the engine's bodies answer (the reference's own
+     * isTrackable law — EntityAttributes lines 12-21: maxHealth and
+     * movementSpeed ARE trackable, attackDamage is NOT, so only the
+     * first two ever ride the 0x20): the two registrations every living
+     * body carries, so the track-time send is never empty — exactly the
+     * reference's getTrackable() walk over LivingEntity's registered
+     * attribute map.
+     */
+    private static java.util.List<WireAttribute> playerWireAttributes(PlayerSession player) {
+        return java.util.List.of(
+                new WireAttribute(Protocol18.ATTRIBUTE_MAX_HEALTH,
+                        net.zaminmc.torch.server.player.PlayerSession.MAX_HEALTH,
+                        equipmentModifiers(Protocol18.ATTRIBUTE_MAX_HEALTH,
+                                playerEquipment(player))),
+                new WireAttribute(Protocol18.ATTRIBUTE_MOVEMENT_SPEED, 0.1,
+                        // PlayerEntity line 141: the player's own registered
+                        // movement-speed base.
+                        equipmentModifiers(Protocol18.ATTRIBUTE_MOVEMENT_SPEED,
+                                playerEquipment(player))));
+    }
+
+    /** The mob's trackable pair: the body's own health model + the walk consult (the override included). */
+    private static java.util.List<WireAttribute> mobWireAttributes(
+            net.zaminmc.torch.server.entity.MobEntity mob) {
+        return java.util.List.of(
+                new WireAttribute(Protocol18.ATTRIBUTE_MAX_HEALTH, mob.maxHealth(),
+                        equipmentModifiers(Protocol18.ATTRIBUTE_MAX_HEALTH,
+                                mobEquipment(mob))),
+                new WireAttribute(Protocol18.ATTRIBUTE_MOVEMENT_SPEED, mob.walkSpeed(),
+                        equipmentModifiers(Protocol18.ATTRIBUTE_MOVEMENT_SPEED,
+                                mobEquipment(mob))));
+    }
+
+    /**
+     * The player body's five equipment slots (the held slot + the armor
+     * family) in the reference's getEquipment() order — held first, then
+     * feet, legs, chest, head (the five-slot scan of LivingEntity.tick
+     * lines 1289-1304 reads the same order).
+     */
+    private static net.zaminmc.torch.item.ItemStack[] playerEquipment(PlayerSession player) {
+        var inventory = player.inventory();
+        return new net.zaminmc.torch.item.ItemStack[] {
+                inventory.held(), inventory.armorAt(3), inventory.armorAt(2),
+                inventory.armorAt(1), inventory.armorAt(0)};
+    }
+
+    /** The mob body's five equipment slots — the same getEquipment() order (slot 0 held, 1..4 feet..head). */
+    private static net.zaminmc.torch.item.ItemStack[] mobEquipment(
+            net.zaminmc.torch.server.entity.MobEntity mob) {
+        return new net.zaminmc.torch.item.ItemStack[] {
+                mob.heldEquipment(), mob.equipment(1), mob.equipment(2),
+                mob.equipment(3), mob.equipment(4)};
+    }
+
+    /**
+     * The equipment rows naming ONE attribute (LivingEntity's equipment
+     * scan applies every row to the attribute it names): held slot
+     * first, the armor family after — a present-but-empty list (the
+     * attribute-wipe) contributes nothing, exactly the fold's own law.
+     */
+    private static java.util.List<net.zaminmc.torch.item.AttributeModifier> equipmentModifiers(
+            String attributeName, net.zaminmc.torch.item.ItemStack... equipment) {
+        java.util.List<net.zaminmc.torch.item.AttributeModifier> modifiers =
+                new java.util.ArrayList<>();
+        for (net.zaminmc.torch.item.ItemStack stack : equipment) {
+            if (stack == null || stack.isEmpty()) {
+                continue;
+            }
+            var rows = stack.attributeModifiers();
+            if (rows == null) {
+                continue; // the tagless fall-back: no rows ride the wire
+            }
+            for (var row : rows) {
+                if (attributeName.equals(row.attributeName())) {
+                    modifiers.add(row);
+                }
+            }
+        }
+        return modifiers;
+    }
+
+    /**
+     * The Entity Properties body (EntityAttributesS2CPacket.write lines
+     * 55-70, 1:1): VarInt entity id, Int property count, per property:
+     * the name string, the Double base, the VarInt modifier count, per
+     * modifier: the UUID (two big-endian longs), the Double amount, the
+     * Byte operation.
+     */
+    private static void writeEntityProperties(Channel channel, int entityId,
+            java.util.List<WireAttribute> attributes) {
+        ByteBuf out = Unpooled.buffer(64);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_ENTITY_PROPERTIES);
+        ByteBufOps.writeVarInt(out, entityId);
+        out.writeInt(attributes.size());
+        for (WireAttribute attribute : attributes) {
+            ByteBufOps.writeString(out, attribute.name());
+            out.writeDouble(attribute.base());
+            ByteBufOps.writeVarInt(out, attribute.modifiers().size());
+            for (net.zaminmc.torch.item.AttributeModifier modifier : attribute.modifiers()) {
+                ByteBufOps.writeUuid(out, modifier.uuid());
+                out.writeDouble(modifier.amount());
+                out.writeByte(modifier.operation());
+            }
+        }
+        channel.writeAndFlush(out);
+    }
+
+    /**
+     * The remote player's Entity Properties (0x20 — the reference's
+     * track-time arm, TrackedEntity.updatePlayer lines 322-328): the
+     * trackable pair with the equipment-applied rows, resolved through
+     * this observer's id space. A no-op when this client does not track
+     * the player — a player never tracks its own body (the reference's
+     * own updatePlayer gate). Any thread.
+     */
+    void sendPlayerAttributes(PlayerSession other) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY
+                || other == session || !visibleRemotePlayers.contains(other.uuid())) {
+            return;
+        }
+        Integer entityId = remoteEntityIds.get(other.uuid());
+        if (entityId == null) {
+            return;
+        }
+        writeEntityProperties(channel, entityId, playerWireAttributes(other));
+    }
+
+    /**
+     * The mob's Entity Properties (0x20) re-publish (the reference's
+     * change-time arm, sendDataAndAttributes lines 260-274 — the whole
+     * trackable pair rides, the engine's whole-block re-publish
+     * convention over the reference's dirty-set): the body's own health
+     * + walk consult with the equipment rows. Chunk-gated like every
+     * mob packet. Any thread.
+     */
+    void sendMobAttributes(net.zaminmc.torch.server.entity.MobEntity mob) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY
+                || chunkTracker == null) {
+            return;
+        }
+        // The mob's own dimension gates the observer (the same law as the
+        // spawn: a nether body's attributes never reach an overworld view).
+        if (dimensionOfSession() != mob.dimension()) {
+            return;
+        }
+        if (!chunkTracker.hasChunk(chunkKeyOf(mob.position()))) {
+            return; // observer cannot see that chunk yet
+        }
+        writeEntityProperties(channel, mob.entityId(), mobWireAttributes(mob));
+    }
+
+
     /** Removes a remote player entity from this client (logout or move-away). */
     void untrackPlayer(UUID remoteUuid) {
         if (!visibleRemotePlayers.remove(remoteUuid)) {
@@ -2846,6 +3204,103 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeVarInt(out, 1);
         ByteBufOps.writeVarInt(out, entityId);
         channel.writeAndFlush(out);
+    }
+
+    /**
+     * The spectate attach's own wire (the reference's setCamera(target),
+     * ServerPlayerEntity lines 916-923): the target must exist in this
+     * client's world BEFORE the camera points at it — the client's
+     * handleCamera consults its own entity map and drops the packet on an
+     * unknown id (ClientPlayNetworkHandler lines 1174-1181) — so the
+     * tracker's own spawn comes first, then the Camera 0x43 carrying the
+     * target's wire id, then the world stream re-centers on the target
+     * (the teleport's PlayerManager.move arm). Any thread (the listener's
+     * tick-thread fan-out); writeAndFlush is the channel's own ordering.
+     */
+    void spectateCameraAttached(PlayerSession target) {
+        trackPlayer(target);
+        Integer wireId = remoteEntityIds.get(target.uuid());
+        if (wireId != null) {
+            sendCameraPacket(wireId);
+        }
+        recenterChunkView(target.position());
+    }
+
+    /**
+     * The leave-spectate restore (the reference's setCamera(this)): the
+     * Camera 0x43 re-points at the client's own join-game id, then the
+     * authoritative Position-and-Look re-anchors the freed body where the
+     * follow left it (the reference's teleport to {@code this.x/y/z}), the
+     * teleport window arming exactly like the reference's teleport().
+     * Any thread.
+     */
+    void spectateCameraDetached() {
+        sendCameraPacket(ownEntityId);
+        resyncPosition();
+    }
+
+    /**
+     * Spectator Camera (0x43 — the reference's CameraS2CPacket.write, ONE
+     * varint: the camera entity's id). Any thread.
+     */
+    private void sendCameraPacket(int wireEntityId) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(8);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_CAMERA);
+        ByteBufOps.writeVarInt(out, wireEntityId);
+        channel.writeAndFlush(out);
+    }
+
+    /**
+     * The follow's chunk re-center: the tracker's center fields belong to
+     * the movement lane (submitMovement runs on the channel's own loop), so
+     * the tick-thread follow hops lanes before it moves them. Any thread.
+     */
+    private void recenterChunkView(Position at) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive()) {
+            return;
+        }
+        channel.eventLoop().execute(() -> {
+            if (chunkTracker != null) {
+                chunkTracker.updateCenter(at.toBlockPosition().chunkPosition());
+            }
+        });
+    }
+
+    /**
+     * The spectating camera's world-stream anchor (the engine's per-tick
+     * follow — the spectating client sends no movement of its own, so the
+     * target's position re-centers this observer's chunk stream every
+     * tick). Any thread.
+     */
+    @Override
+    public void spectateCameraFollow(Position targetPosition) {
+        recenterChunkView(targetPosition);
+    }
+
+    /**
+     * The spectator camera's own attach/restore verb (the reference's
+     * setCamera pair, ServerPlayerEntity lines 916-923 — the packets ride
+     * the player's own networkHandler there, the link here): the non-null
+     * arm spawns the target for this client then points the Camera 0x43 at
+     * it, the null arm restores the camera to this client's own body
+     * (0x43 self + the authoritative re-anchor). Any thread.
+     */
+    @Override
+    public void spectateCamera(UUID target) {
+        if (target == null) {
+            spectateCameraDetached();
+            return;
+        }
+        // The mid-flight departure: the target left between the engine's
+        // walk and this wire arm — nothing to point at (the engine's own
+        // per-tick liveness consult restores the camera next tick).
+        engine.playerRegistry().byUuid(target)
+                .ifPresent(this::spectateCameraAttached);
     }
 
     /**
@@ -4482,6 +4937,12 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeByte(Protocol18.METADATA_TERMINATOR);
         channel.writeAndFlush(out);
 
+        // The track-time attribute pair (the reference's updatePlayer walk:
+        // the attributes ride before the equipment, TrackedEntity lines
+        // 322-328 ahead of the equipment arm at 348-355) — the same gates
+        // this spawn already passed hold it (chunk + dimension).
+        writeEntityProperties(channel, mob.entityId(), mobWireAttributes(mob));
+
         // The mob's gear rides Entity Equipment right after the spawn —
         // VIII4's five-slot family (the reference's TrackedEntity
         // startTracking walk, lines 348-355: held first, then feet, legs,
@@ -5306,6 +5767,47 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeVarInt(out, Protocol18.S2C_ANIMATION);
         ByteBufOps.writeVarInt(out, entityId);
         out.writeByte(animation);
+        channel.writeAndFlush(out);
+    }
+
+    /**
+     * Use Bed (0x0A) aimed at this observer's own body: the sleep pose at
+     * the bed head cell — the reference's ServerPlayerEntity.trySleep self
+     * arm (the trailing {@code networkHandler.sendPacket(packet)} after the
+     * tracker fan, lines 491-501). Any thread.
+     */
+    void sendSelfUseBed(net.zaminmc.torch.block.BlockPosition bedHead) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(16);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_USE_BED);
+        ByteBufOps.writeVarInt(out, ownEntityId);
+        ByteBufOps.writePackedBlockPosition(out, bedHead.x(), bedHead.y(), bedHead.z());
+        channel.writeAndFlush(out);
+    }
+
+    /**
+     * Use Bed (0x0A) for a tracked remote player (the reference's
+     * EntityMap.sendPacket arm over the trackers — the sleeping pose the
+     * observers render at the bed head cell), the entity id resolved
+     * through this observer's own id space. Any thread.
+     */
+    void sendRemotePlayerUseBed(java.util.UUID remoteUuid,
+                                net.zaminmc.torch.block.BlockPosition bedHead) {
+        Integer entityId = remoteEntityIds.get(remoteUuid);
+        if (entityId == null) {
+            return; // not visible to this observer
+        }
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(16);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_USE_BED);
+        ByteBufOps.writeVarInt(out, entityId);
+        ByteBufOps.writePackedBlockPosition(out, bedHead.x(), bedHead.y(), bedHead.z());
         channel.writeAndFlush(out);
     }
 

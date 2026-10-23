@@ -24,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The public entity API (§27.5/§27.6) over the live engine: a plugin-style
@@ -238,7 +239,7 @@ class EntityApiAcceptanceTest {
         try {
             // execute is fire-and-forget on the owner lane; give the count a
             // moment to land before the caller reads it.
-            Thread.sleep(60);
+            EngineAwaits.awaitTicks(server.world(), 2, "engine progress (a 60 wall settle)");
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }

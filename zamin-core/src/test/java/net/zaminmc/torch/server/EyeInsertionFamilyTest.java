@@ -25,6 +25,7 @@ import java.util.function.BooleanSupplier;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * THE EYE-INSERTION FAMILY'S OWN COMPLETION (the import-families slice's
@@ -98,7 +99,7 @@ class EyeInsertionFamilyTest {
         await(() -> Math.abs(player.position().x() - at.x()) < 0.01
                         && Math.abs(player.position().z() - at.z()) < 0.01,
                 "the player stood at " + at);
-        Thread.sleep(200);
+        EngineAwaits.awaitTicks(server.world(), 4, "engine progress (a 200 wall settle)");
     }
 
     private void hold(ItemStack stack) throws InterruptedException {

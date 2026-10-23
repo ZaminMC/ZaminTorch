@@ -18,6 +18,7 @@ import java.util.function.BooleanSupplier;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The stone-slab family's doubles + the SEAMLESS skins (Slice L5 —
@@ -139,12 +140,12 @@ class DoubleStoneSlabFamilyTest {
         builder.inventory().selectHotbarSlot(0);
         server.useItemOnBlock(builder, floor, 1, java.util.Optional.empty(),
                 windowId -> { });
-        Thread.sleep(120);
+        EngineAwaits.awaitTicks(server.world(), 3, "engine progress (a 120 wall settle)");
         assertEquals("sandstone_slab", world.getBlock(atop).identifier().value(),
                 "the first single lays the bottom half");
         server.useItemOnBlock(builder, atop, 1, java.util.Optional.empty(),
                 windowId -> { });
-        Thread.sleep(120);
+        EngineAwaits.awaitTicks(server.world(), 3, "engine progress (a 120 wall settle)");
         assertEquals("double_sandstone_slab", world.getBlock(atop).identifier().value(),
                 "the pair doubles into the family's OWN double");
 
@@ -161,10 +162,10 @@ class DoubleStoneSlabFamilyTest {
         builder.inventory().selectHotbarSlot(0);
         server.useItemOnBlock(builder, floor2, 1, java.util.Optional.empty(),
                 windowId -> { });
-        Thread.sleep(120);
+        EngineAwaits.awaitTicks(server.world(), 3, "engine progress (a 120 wall settle)");
         server.useItemOnBlock(builder, atop2, 1, java.util.Optional.empty(),
                 windowId -> { });
-        Thread.sleep(120);
+        EngineAwaits.awaitTicks(server.world(), 3, "engine progress (a 120 wall settle)");
         assertEquals("double_stone_slab2", world.getBlock(atop2).identifier().value(),
                 "the slab2 pair merges into the 181 double (the dead-arm repair)");
         server.shutdown(null);

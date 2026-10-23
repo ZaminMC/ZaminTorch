@@ -24,6 +24,7 @@ import java.util.function.BooleanSupplier;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The §27.7 interaction-events wave's furnace + hopper arms (Slice 82):
@@ -58,7 +59,7 @@ class FurnaceHopperEventAcceptanceTest {
                     });
 
             loadFurnace(server, at, "minecraft:iron_ore", "minecraft:stick");
-            Thread.sleep(600); // several ignite attempts refused
+            EngineAwaits.awaitTicks(server.world(), 12, "several ignite attempts refused");
 
             FurnaceBlockEntity furnace = server.furnaceManager().at(at);
             assertFalse(furnace.burning(), "the cancelled ignite kept the furnace cold");
@@ -146,7 +147,7 @@ class FurnaceHopperEventAcceptanceTest {
                 }
             });
 
-            Thread.sleep(600); // several transfer cadences refused
+            EngineAwaits.awaitTicks(server.world(), 12, "several transfer cadences refused");
 
             assertTrue(seen.get() != null, "the push observation arrived");
             assertEquals("minecraft:diamond",

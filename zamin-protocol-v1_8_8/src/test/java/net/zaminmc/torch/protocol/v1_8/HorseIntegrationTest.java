@@ -89,7 +89,14 @@ class HorseIntegrationTest extends ProtocolTestBase {
 
             // The feeding ladder: wheat in hand, every use +3 temper.
             client.sendChat("/give minecraft:wheat 64");
-            Thread.sleep(200);
+            // The chat frame's delivery rides the loopback netty lane, not
+            // the tick clock — the honest wait is the engine-visible one:
+            // the wheat actually reaching the tamer's inventory (the
+            // census doc's loopback-delivery note).
+            awaitCondition(() -> server.playerRegistry().byName("HorseTamer")
+                            .orElseThrow().inventory()
+                            .countOf(net.zaminmc.torch.server.item.BuiltinItems.WHEAT) > 0,
+                    "the /give delivered the wheat to the tamer's hotbar");
             for (int i = 0; i < 100 && server.mobs().byId(horseId).temper() < 100; i++) {
                 client.sendUseEntity(horseId, Protocol18.USE_ENTITY_INTERACT);
                 Thread.sleep(60);

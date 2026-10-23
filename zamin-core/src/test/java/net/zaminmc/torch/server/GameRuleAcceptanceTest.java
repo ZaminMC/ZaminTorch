@@ -33,6 +33,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The gamerule family (Slice 24a — the reference port of
@@ -222,7 +223,7 @@ class GameRuleAcceptanceTest {
         setRule("showDeathMessages", "false");
         server.damage(victim, 1000.0f);
         await(() -> victim.dead(), "the body dies");
-        Thread.sleep(200); // any broadcast would land within the same tick
+        EngineAwaits.awaitTicks(server.world(), 4, "any broadcast would land within the same tick");
         assertTrue(delivered.stream().noneMatch(line -> line.contains("Silent")),
                 "the death line never broadcast");
         // The twin (the default-true rule): the line lands.
@@ -265,7 +266,7 @@ class GameRuleAcceptanceTest {
         server.ticker().submit(() -> server.mobs().hurt(cow, 1000.0f, 0.0));
         await(() -> cow.dead() || server.mobs().all().stream()
                 .noneMatch(m -> m == cow), "the cow died");
-        Thread.sleep(200); // the death animation's drop walk is same-tick
+        EngineAwaits.awaitTicks(server.world(), 4, "the death animation's drop walk is same-tick");
         assertEquals(itemsBefore, server.itemEntities().all().size(),
                 "no loot landed under the rule");
         assertEquals(orbsBefore, server.experienceOrbs().size(),
@@ -287,11 +288,11 @@ class GameRuleAcceptanceTest {
         // The honest dig rhythm (the reference's dirt-with-a-hand clock,
         // 0.75 s nominal — the lenient floor needs the start first).
         server.blockInteraction().submitMiningStart(miner, dirt);
-        Thread.sleep(1000);
+        EngineAwaits.awaitTicks(server.world(), 20, "engine progress (a 1000 wall settle)");
         server.blockInteraction().submitMiningFinished(miner, dirt);
         await(() -> server.world().getBlock(dirt).equals(BuiltinBlocks.AIR),
                 "the block broke");
-        Thread.sleep(200);
+        EngineAwaits.awaitTicks(server.world(), 4, "engine progress (a 200 wall settle)");
         assertEquals(itemsBefore, server.itemEntities().all().size(),
                 "no drop landed under the rule");
     }
@@ -363,7 +364,7 @@ class GameRuleAcceptanceTest {
         var sub2 = ((Server) server).events().on(
                 net.zaminmc.torch.event.world.ExplosionEvent.class, blast2::set);
         await(() -> blast2.get() != null, "the blast still detonated under the rule");
-        Thread.sleep(200);
+        EngineAwaits.awaitTicks(server.world(), 4, "engine progress (a 200 wall settle)");
         assertFalse(server.world().getBlock(groundSample).equals(BuiltinBlocks.AIR),
                 "the blocks stayed under the rule");
         assertTrue(walker.health() < healthBefore || walker.dead(),
@@ -380,7 +381,7 @@ class GameRuleAcceptanceTest {
         // wounded body never heals.
         setRule("naturalRegeneration", "false");
         server.ticker().submit(() -> patient.setBody(10.0f, 20, 5.0f));
-        Thread.sleep(6000); // the 80-tick regen window, tripled
+        EngineAwaits.awaitTicks(server.world(), 120, "the 80-tick regen window, tripled");
         assertEquals(10.0f, patient.health(), "the rule held the wounds");
         // The rule back on: the food regen resumes (the control arm).
         setRule("naturalRegeneration", "true");

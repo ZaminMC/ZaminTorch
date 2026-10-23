@@ -17,6 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The mob armor family (VIII4 — the §29 Wave VIII row): the four armor
@@ -726,7 +727,7 @@ class MobArmorFamilyTest {
             while (System.currentTimeMillis() < deadline
                     && console.stream()
                             .noneMatch(line -> line.startsWith("Anvil import finished"))) {
-                Thread.sleep(50);
+                EngineAwaits.awaitTicks(server.world(), 1, "engine progress (a 50 wall settle)");
             }
             assertTrue(console.stream()
                             .anyMatch(line -> line.startsWith("Anvil import finished")),

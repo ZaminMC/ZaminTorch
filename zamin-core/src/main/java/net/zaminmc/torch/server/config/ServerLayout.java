@@ -189,6 +189,8 @@ public final class ServerLayout {
                 spawn-monsters=true
                 op-permission-level=4
                 resource-pack-sha1=
+                resource-pack=
+                resource-pack-hash=
                 announce-player-achievements=true
                 pvp=%s
                 snooper-enabled=true

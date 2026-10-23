@@ -70,6 +70,16 @@ public interface EngineBridge {
     void joinTabListHeaderFooter(PlayerSession session);
 
     /**
+     * Mid-join hook (the reference's PlayerManager.onLogin lines 148-150,
+     * the sendWorldInfo tail): the adapter has sent the world border's join
+     * sync; the engine now sends the configured resource pack. The engine
+     * owns the reference's own gate — nothing goes out when no url is
+     * configured (DedicatedServer line 111 reads the {@code resource-pack}
+     * and {@code resource-pack-hash} rows, both defaulting empty).
+     */
+    void joinResourcePack(PlayerSession session);
+
+    /**
      * A movement proposal (position, look, or combined). Validated server-side;
      * applied on the simulation context.
      */
@@ -78,6 +88,18 @@ public interface EngineBridge {
 
     /** The client disconnected (cleanly or by error). Engine-side cleanup follows. */
     void clientDisconnected(PlayerSession session, String reason);
+
+    /**
+     * The relog remount arm (the reference's PlayerManager.onLogin "Riding"
+     * walk, lines 157-165): the adapter calls this once its join sequence
+     * fully completed (after the join view's world snapshot — the rejoiner's
+     * client already holds the pre-existing vehicles), and the engine
+     * consumes whatever ride the player left behind at quit, remounting at
+     * the vehicle's position when the target is still live. Default no-op
+     * for engine-internal bridges without the remount memory.
+     */
+    default void rejoinRestoreRide(PlayerSession session) {
+    }
 
     /**
      * A window click in an open window (window 0 = player inventory, or the

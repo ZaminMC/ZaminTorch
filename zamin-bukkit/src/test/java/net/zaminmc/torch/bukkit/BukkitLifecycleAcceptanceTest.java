@@ -12,6 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The lifecycle bridge end-to-end (§28.7's plugin-discovery/lifecycle
@@ -96,7 +97,7 @@ class BukkitLifecycleAcceptanceTest {
         int joinsBefore = countOf(harness.probeLogLines(), "event:join");
         harness.join("AfterDisable");
         harness.await(() -> harness.server.players().size() >= 1, "the join landed");
-        Thread.sleep(300); // the join event certainly dispatched
+        EngineAwaits.awaitTicks(harness.server.world(), 6, "the join event certainly dispatched");
         assertEquals(joinsBefore, countOf(harness.probeLogLines(), "event:join"),
                 "the disabled plugin's listeners are gone");
 

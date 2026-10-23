@@ -306,6 +306,32 @@ public interface ClientLink {
     }
 
     /**
+     * The spectating camera's world-stream anchor (the reference's
+     * PlayerManager.move arm over the per-tick follow,
+     * ServerPlayerEntity.tick lines 274-281): the spectator's own client
+     * sends no movement while its camera rides another body
+     * (LocalClientPlayerEntity.sendMovementToServer's isCamera gate), so
+     * the target's position re-centers the observer's world stream each
+     * tick. Safe from any thread; default no-op for engine-internal links.
+     */
+    default void spectateCameraFollow(net.zaminmc.torch.util.Position targetPosition) {
+    }
+
+    /**
+     * The spectator camera's own attach/restore verb (the reference's
+     * setCamera pair, ServerPlayerEntity lines 916-923): a non-null target
+     * points this client's camera at that player — the target must exist
+     * in the client's world first (the client's handleCamera drops an
+     * unknown id), so the wire spawns it before the Camera packet; null
+     * restores the camera to the client's own body — Camera 0x43(self)
+     * then the authoritative position re-anchor, the reference's own
+     * camera-then-teleport order. Safe from any thread; default no-op
+     * for engine-internal links.
+     */
+    default void spectateCamera(UUID target) {
+    }
+
+    /**
      * Spawn Position (0x05): the world spawn re-anchor (the reference's
      * PlayerManager.sendPacket on /setworldspawn; the join burst carries
      * the same packet). Safe from any thread; default no-op for
@@ -357,5 +383,28 @@ public interface ClientLink {
     default void sendMapData(int mapId, byte scale, java.util.List<MapIcon> icons,
                              int minX, int minY, int width, int height, byte[] colors,
                              long gateChunk) {
+    }
+
+    /**
+     * Server Difficulty (0x41 — the reference's DifficultyS2CPacket, the
+     * single difficulty id byte 0..3): the runtime difficulty's change-time
+     * fan-out after {@code /difficulty} (the reference's own send set: the
+     * join walk's packet, PlayerManager.onLogin line 128, and the change
+     * re-sync), so tracking clients drop the join-time byte before their
+     * next respawn. Safe from any thread; default no-op for engine-internal
+     * links.
+     */
+    default void updateDifficulty(int difficultyId) {
+    }
+
+    /**
+     * Resource Pack Send (0x48 — the reference's ResourcePackS2CPacket: the
+     * url string then the hash string, the ctor's own 40-character hash
+     * law): the join walk's own send (PlayerManager.onLogin lines 148-150 —
+     * only ever called when the configured url is non-empty, the reference's
+     * own gate). Safe from any thread; default no-op for engine-internal
+     * links.
+     */
+    default void sendResourcePack(String url, String hash) {
     }
 }

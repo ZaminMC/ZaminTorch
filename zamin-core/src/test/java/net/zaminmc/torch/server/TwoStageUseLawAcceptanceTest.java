@@ -25,6 +25,7 @@ import java.util.function.BooleanSupplier;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * THE TWO-STAGE USE LAW (ServerPlayerInteractionManager.useBlock lines
@@ -154,7 +155,7 @@ class TwoStageUseLawAcceptanceTest {
 
         // Sneaking: the bypass skips the chest's use — the item places.
         server.entityAction(player, 0); // start sneaking
-        Thread.sleep(200);
+        EngineAwaits.awaitTicks(server.world(), 4, "engine progress (a 200 wall settle)");
         use(chestAt, 4); // the west face: the stone targets (1, 5, 0)
         await(() -> server.world().getBlock(beside)
                 .equals(BuiltinBlocks.STONE), "the sneaked stone placed");
@@ -185,7 +186,7 @@ class TwoStageUseLawAcceptanceTest {
         place(chestAt, BuiltinBlocks.CHEST);
         hold(ItemStack.EMPTY);
         server.entityAction(player, 0); // start sneaking
-        Thread.sleep(200);
+        EngineAwaits.awaitTicks(server.world(), 4, "engine progress (a 200 wall settle)");
         use(chestAt, 4);
         await(() -> player.openContainerKind() == PlayerSession.ContainerKind.CHEST,
                 "the empty-handed sneak still opens the chest");
@@ -248,7 +249,7 @@ class TwoStageUseLawAcceptanceTest {
         seedDoorPair(lower, upper);
         hold(ItemStack.of(BuiltinItems.STONE, 5));
         server.entityAction(player, 0); // start sneaking
-        Thread.sleep(200);
+        EngineAwaits.awaitTicks(server.world(), 4, "engine progress (a 200 wall settle)");
         use(lower, 4);
         BlockPosition beside = new BlockPosition(1, 5, 0);
         await(() -> server.world().getBlock(beside).equals(BuiltinBlocks.STONE),
@@ -299,7 +300,7 @@ class TwoStageUseLawAcceptanceTest {
         server.ticker().submit(() -> server.world().setBlock(beside,
                 BuiltinBlocks.AIR));
         server.entityAction(player, 0); // start sneaking
-        Thread.sleep(200);
+        EngineAwaits.awaitTicks(server.world(), 4, "engine progress (a 200 wall settle)");
         use(oreTwo, 1); // the UP face: the stone targets the cell above
         await(() -> server.world().getBlock(new BlockPosition(2, 6, 2))
                 .equals(BuiltinBlocks.STONE), "the sneaked stone placed above");
@@ -319,15 +320,15 @@ class TwoStageUseLawAcceptanceTest {
         hold(ItemStack.of(BuiltinItems.STONE, 5));
 
         server.entityAction(player, 0); // start sneaking
-        Thread.sleep(200);
+        EngineAwaits.awaitTicks(server.world(), 4, "engine progress (a 200 wall settle)");
         use(noteAt, 4);
-        Thread.sleep(300);
+        EngineAwaits.awaitTicks(server.world(), 6, "engine progress (a 300 wall settle)");
         assertEquals(0, player.stats().get(
                         net.zaminmc.torch.server.stat.EngineStats.NOTE_BLOCKS_TUNED),
                 "the sneaked click never tuned the note block");
 
         server.entityAction(player, 1); // stop sneaking
-        Thread.sleep(200);
+        EngineAwaits.awaitTicks(server.world(), 4, "engine progress (a 200 wall settle)");
         use(noteAt, 4);
         await(() -> player.stats().get(
                 net.zaminmc.torch.server.stat.EngineStats.NOTE_BLOCKS_TUNED) == 1,
@@ -352,7 +353,7 @@ class TwoStageUseLawAcceptanceTest {
                 net.zaminmc.torch.util.Rotation.ZERO, true));
         await(() -> player.position().z() > 19.0, "the player walked away");
         use(chestAt, 4);
-        Thread.sleep(300);
+        EngineAwaits.awaitTicks(server.world(), 6, "engine progress (a 300 wall settle)");
         assertEquals(PlayerSession.ContainerKind.NONE, player.openContainerKind(),
                 "the too-far use never opened the chest");
 
@@ -388,7 +389,7 @@ class TwoStageUseLawAcceptanceTest {
         place(trapdoorAt, TrapdoorBlocks.state("trapdoor", 0, false, false));
         hold(ItemStack.of(BuiltinItems.STONE, 5));
         server.entityAction(player, 0); // start sneaking
-        Thread.sleep(200);
+        EngineAwaits.awaitTicks(server.world(), 4, "engine progress (a 200 wall settle)");
         use(trapdoorAt, 4);
         BlockPosition beside = new BlockPosition(1, 5, 0);
         await(() -> server.world().getBlock(beside).equals(BuiltinBlocks.STONE),
@@ -418,7 +419,7 @@ class TwoStageUseLawAcceptanceTest {
         await(() -> player.teleportPending(), "the window armed");
 
         use(chestAt, 4);
-        Thread.sleep(300);
+        EngineAwaits.awaitTicks(server.world(), 6, "engine progress (a 300 wall settle)");
         assertEquals(PlayerSession.ContainerKind.NONE, player.openContainerKind(),
                 "the unacknowledged teleport refused the use");
 

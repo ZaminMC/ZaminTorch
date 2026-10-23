@@ -13674,6 +13674,615 @@ Stage Summary:
   (#363 in_progress, #364 queued on the PR #37 merge).
 
 ---
+Task ID: ML-012+ML-017
+Agent: instance (feature/ops-protocol lane, the Cycle-3 audit backlog)
+Task: ML-012 Server Difficulty (0x41) never sent, /difficulty not live-synced + ML-017 Resource Pack (0x48) absent end-to-end — two confirmed ops-facing protocol gaps from the audit, landed as ONE bounded chunk on feature/ops-protocol (base b7a6917c).
+
+Work Log:
+- Reference study: DifficultyS2CPacket (s2c/play 0x41) — write() carries
+  ONE difficulty id byte; the locked flag rides the ctor and the client
+  getter only (protocol 47 never serializes it — the byte joined in
+  1.9); the reference's own send set = the join walk (PlayerManager
+  .onLogin line 128, Login -> brand -> Difficulty -> SpawnPoint).
+  ResourcePackS2CPacket (0x48): the url string then the hash string,
+  the ctor's 40-char hash law, NO request-id varint (1.9+ only); the
+  join send sits at onLogin lines 148-150 gated on url length > 0.
+  ResourcePackC2SPacket (0x19): readString(40) + the Response enum
+  varint (SUCCESSFULLY_LOADED 0, DECLINED 1, FAILED_DOWNLOAD 2,
+  ACCEPTED 3); the reference's server handler is EMPTY (line 568).
+  DedicatedServer line 111 reads the resource-pack / resource-pack-hash
+  rows (empty defaults).
+- Torch study: no 0x41/0x48 constants in Protocol18 (the conformance
+  table's own law requires a row per new clientbound id); the join walk
+  (V18Connection, LOGIN_SUCCESS listener) and its order; the C2S 0x19
+  read-one-varint discard (~L570); the weather precedent
+  (onRainingFlipped's players.all() -> link fan-out) and the gamemode
+  precedent (session.link()) picked as the established seams; the
+  EngineBridge mid-join hook family (joinTabList/joinScoreboard/
+  joinWorldBorder/joinTabListHeaderFooter); ConfigLoader/EngineConfig/
+  ServerLayout's properties conventions (the rconPassword precedent for
+  raw rows with downstream laws).
+- ML-012 landing (2d731337): S2C_SERVER_DIFFICULTY 0x41 + the
+  single-byte writer + the join-walk send right after sendJoinGame (the
+  reference's onLogin slot) + ClientLink.updateDifficulty + the
+  /difficulty arm's change-time fan-out over players.all() — every
+  connected client re-syncs the tier the moment it flips, never waiting
+  for the next respawn.
+- ML-017 landing (2d731337): EngineConfig's resourcePackUrl/
+  resourcePackHash components (compat constructors default empty) +
+  ConfigLoader's two rows + ServerLayout's template rows +
+  EngineBridge.joinResourcePack (the url-non-empty gate) + the join
+  walk's call after joinWorldBorder (the reference's after-sendWorldInfo
+  placement) + the 0x48 writer (two strings; the ctor's hash law
+  throws the reference's own IllegalArgumentException) + the C2S 0x19
+  handler parsing the reference's true form and logging the Response
+  vocabulary.
+- The parity tour's 0x19 payload corrected to the reference's true form
+  (0a3880ee): the old input was pinned to the stub's one-varint shape,
+  not to what a vanilla client sends — the tour's survival assertion
+  untouched.
+- The canonical EngineConfig grew two trailing args: RconQueryConfigTest
+  (two sites) + RconEngineRouteIntegrationTest (one) carry the empty
+  pair — assertions untouched, a mechanical arity repair.
+- Tests (9e696330): OpsProtocolWireTest 5 (real socket: the join-walk
+  0x41's slot + single-byte form; the /difficulty hard fan-out byte 3
+  on both clients + the peaceful re-flip 0; the configured 0x48's
+  two-string form; the unconfigured silence proven past the window
+  items; the C2S status log with the hash — the connection held open,
+  a socket close over unread server packets races the RST that
+  discards the frame, the flake root-caused and documented),
+  OpsDifficultySyncTest 2 (the engine seam: both links hear 3 then 0
+  immediately; the joinResourcePack gate sends configured / silent
+  unconfigured), ResourcePackConfigTest 4 (the rows, the blanks, the
+  template, the compat defaults), the conformance rows.
+- Verification: ./gradlew build -x test green; the suites batched per
+  the sandbox discipline (--max-workers=1, --no-daemon): zamin-core
+  371 classes / 2203 tests / 0 failures over nine package batches;
+  zamin-protocol-v1_8_8 46 classes / 123 tests / 0 failures
+  (HorseIntegrationTest's wall-clock temper ladder flaked once
+  mid-suite and re-ran green — two different assertions across runs,
+  the sleep-driven feed loop's own race, nothing equine in the diff;
+  one plain-develop worktree run green); zamin-launcher 9 / 47 / 0;
+  zamin-bukkit (the shared EngineConfig's blast radius) 52 / 0 forced.
+- Docs: Torch-Arcetecture.txt §29's Wave OPS row + §22's next-work
+  clause; VANILLA_1_8_8_COMPATIBILITY.md untouched (no Ledgered row
+  matches the difficulty wire-sync or the resource pack — the L83
+  difficulty row is the peaceful family, its ledgered tail is the
+  local-difficulty model, not this packet).
+
+Stage Summary:
+- The audit's ML-012 + ML-017 retired whole: the difficulty tier now
+  reaches every client at join AND at every /difficulty flip (0x41,
+  the reference's own single-byte wire form and onLogin slot), and the
+  resource pack runs end-to-end (the server.properties rows, the
+  join-time 0x48 behind the reference's url gate, the status answer
+  logged in the reference's vocabulary).
+- The seams chosen follow the repo's own precedents (the weather
+  fan-out's link seam, the EngineBridge mid-join hook family, the
+  rconPassword raw-row config convention) — no parallel paths, no
+  invented surfaces.
+- The one existing-test edit (the parity tour's 0x19 payload) is a
+  faithfulness CORRECTION (the input now matches the reference packet),
+  documented in the commit and the PR; the three canonical-ctor call
+  sites are mechanical arity repairs with assertions untouched.
+- Fresh-suite evidence recorded above; the horse flake documented with
+  its root cause (wall-clock sleeps racing awaits) for the
+  coordinator's flake ledger.
+
+---
+Task ID: ML-003
+Agent: Abasing (the sign-editor-open lane)
+Task: ML-003 — Sign Editor Open (0x36) never sent (the cycle-4 ranked
+audit's H-severity wire row): a real 1.8.8 client places a sign and the
+editor never opens (the sign stays blank); bot clients writing Update
+Sign (0x12) directly masked the bug. Port the reference's openSignEditor
+law 1:1, additive only.
+
+Work Log:
+- Studied the reference first: SignItem.useOn lines 21-56 (place ->
+  consume -> openSignEditor the moment the block entity lands),
+  ServerPlayerEntity.openSignEditor lines 547-550 (the editing-player
+  mark + OpenSignEditorS2CPacket — the client's editor opens ONLY on
+  it), the packet's write (writeBlockPos -> one packed position long),
+  ServerPlayNetworkHandler.handleSignUpdate lines 881-907 (the
+  editing-player gate — Torch's existing 0x12 reach gate stands in,
+  the wire's close path already worked), and NetworkProtocol line 176
+  (the #55 registration slot, between BlockEntityUpdate 0x35 and Stats
+  0x37).
+- Implementation (strictly additive): S2C_OPEN_SIGN_EDITOR 0x36 in
+  Protocol18; sendOpenSignEditor in V18Connection (the established
+  sendX form — PLAY gate, id varint + the 0x33 packing style); the
+  engine's SignEditorListener surface (onSignEditorOpened(editor,
+  position)) in EngineServer fired from placeSignOnTick's standing AND
+  wall arms after the block lands and the survival consume (the
+  reference's place-consume-open order); V18ProtocolServer's per-player
+  fan (currentSession() == editor — the observer's client stays closed).
+- Tests (all NEW files): SignEditorOpenWireTest 3 — the placer's socket
+  receives 0x36 byte-identical to the reference packet's write form
+  (9 bytes, no tail) naming the placed cell; the observer crosses the
+  whole placement-and-edit window bounded by the 0x33 replay marker
+  without ever seeing a 0x36; the codec pin across the coordinate band
+  (negatives included). SignEditorOpenAcceptanceTest 4 — through the
+  real use dispatch: the standing and wall placements open the editor
+  at the placed cell for the placer alone (a second joined session
+  never appears), the survival arm still consumes its item, the
+  client-claimed creative arm opens it too, a stone placement never
+  does (tick-lane latch marker — no wall-clock sleeps). Found and fixed
+  in my own wire pair: the shared per-class world collided my two
+  tests' sign columns (each test now owns its own column, +2/+4).
+- The conformance table caught the new constant on the whole-module run
+  (the Unload Chunk class of bug it exists for): the 0x36 row added from
+  NetworkProtocol line 176 — the table's own add-the-row step, not a
+  loosening.
+- Verification (--max-workers=1, --no-daemon, per-package batches — the
+  sandbox wedges whole detached suite runs): all 5 modules assemble
+  (jars produced); zamin-core 2205/2205 green in 14 package batches
+  (root A-D 115, E-H 91, I-N 77, O-R 58, S-Z 106, entity 466, block
+  210, world 231, nbt+concurrent 213, the a-e/e-m/n-r/s-w package
+  groups 174+124+226+103, sign 7); zamin-protocol-v1_8_8 121/121 green
+  whole-module; zamin-api 19/19; zamin-bukkit 52/52; zamin-launcher
+  47/47 — 2444 tests total. Two one-off test races during batching,
+  both pre-existing and unrelated to this lane (no sign path touches
+  them): RangedCombatAcceptanceTest's arrow wound await (the documented
+  known flake) and SpawnEggTest's consume await (green on rerun x2 in
+  batch + isolation + a clean-develop S-Z batch); ChestIntegrationTest
+  (the documented known flake) appeared once on the protocol module's
+  first whole run, green on the rerun run and isolated.
+- Docs: Torch-Arcetecture.txt §29's Wave ML row (the landed record) +
+  §22 Phase 4's next-work line; VANILLA_1_8_8_COMPATIBILITY.md left
+  alone — no Ledgered: row matches signs (the spawner row's
+  "before OpenSignEditor 0x36" prose is registration order, not a
+  ledger row); the master ledger (docs/MASTER_LEDGER.md) untouched
+  (coordinator-owned).
+
+Stage Summary:
+- ML-003 closed whole: the sign placement now hands the placing player
+  the editing screen (0x36, the reference's openSignEditor 1:1) while
+  every other client stays closed, and the editor's close flows the
+  existing 0x12 write path. Branch feature/sign-editor-open, commits
+  f90b0880 + bb4f9e0b + 2b29487d + this docs tail. 2444 tests green
+  (core 2205 batched, protocol 121, api 19, bukkit 52, launcher 47);
+  the two documented test races and the chest flake are pre-existing,
+  reproduced outside this lane. PR opened against develop, not
+  self-merged — the coordinator reviews.
+
+---
+Task ID: ML-010
+Agent: Abasing (the multiplayer-sleep lane)
+Task: ML-010 from the cycle-3 audit's ranked backlog — the Use Bed (0x0A)
+never sent + the multiplayer sleep walk over the single-player contract:
+other players never saw the sleep pose, and the vanilla multiplayer
+contract (morning only when ALL sleeping players sleep) was replaced by a
+single-player instant jump.
+
+Work Log:
+- Studied the reference walk whole (PlayerSleepS2CPacket, ServerWorld's
+  updatePlayersSleepingStatus/canSkipNight/wakeSleepingPlayers,
+  PlayerEntity.trySleep/wakeUp/the per-tick sleep block,
+  ServerPlayerEntity's trySleep/wakeUp wire arms, BedBlock.use's
+  redirect + message arms, ServerPlayNetworkHandler's STOP_SLEEPING
+  arm, EntityMap/TrackedEntity's sendPacket vs sendPacketToAll — the
+  latter INCLUDES the entity itself) and the engine's existing surfaces
+  (sleepOnTick at the single-player contract, the bed-click arm, the
+  SurvivalListener posture precedent, the entityAction stream, the
+  V18Connection writer/fan conventions, the per-observer id spaces).
+- The engine: PlayerSession's sleeping + sleepingPos state; sleepOnTick
+  reworked into the bed entry (the OTHER_PROBLEM guard, the
+  night-window gate, bedHeadCell's foot-to-head redirect, the NOT_SAFE
+  monster box via MobManager.monstersNearBed — x/z ±8, y ±5, the
+  feet-anchored box intersection, the hostile family whatever the
+  temper); the new 'sleep' tick phase (tickSleep) — the per-sleeper
+  integrity pair (bed gone / day arrived / death) + the areAllPlayers
+  Asleep walk (at least one sleeper, every non-spectator overworld body
+  sleeping → the morning jump + the weather clear + wakeSleeping
+  Players); wakeOnTick (leaveBed + the wake fan); the SurvivalListener's
+  onPlayerSleeping/onPlayerWake additive defaults + the publish fans.
+  The identity clause recorded: with ONE player the click enters and the
+  next tick jumps to morning — SleepAcceptanceTest green unmodified; the
+  reference's isSleepingLongEnough 100-tick grace deliberately not
+  ported.
+- The wire: Protocol18.S2C_USE_BED = 0x0A (#11 in the reference's
+  clientbound registration order) + the conformance row;
+  V18Connection.sendSelfUseBed/sendRemotePlayerUseBed (the per-observer
+  id-space resolution); the adapter's SurvivalListener overrides — the
+  0x0A to self + trackers on entry, the Animation 0x0B code 2 to every
+  observer INCLUDING the sleeper + the sleeper's own position anchor
+  (resyncPosition — the packet that closes the sleep screen) on wake.
+- The Entity Action ordinals corrected to the reference's enum order
+  (2 STOP_SLEEPING → the leave-bed walk, 3 START_SPRINTING, 4
+  STOP_SPRINTING — the old map was off by one);
+  RangedCombatAcceptanceTest's posture rows moved to the corrected codes
+  (the same assertions).
+- The tests: MultiplayerSleepAcceptanceTest 3 scenes (the all-sleepers
+  gate with the morning/poses/wakes/spawns observables — the sleeping
+  flag's one-tick lifetime under the instant walk taught the await
+  design; the leave-bed without the clock jump + the re-entry hold; the
+  monster refusal with the clear-box control) + MultiplayerSleepWireTest
+  (the real-socket proof: the other player's 0x0A at the bed HEAD cell,
+  the self copy, the day-band Time Update, the 0x0B code-2 pair on the
+  wake and the leave-bed action, the refusal chat line; the scripted
+  client's position echo after each wake — the anchor opens the
+  teleport window and a real client's every-tick packet closes it).
+  The natural spawn cycle stays off in both fixtures (the flat world's
+  night would seed hostiles inside the ±8 refusal box beside the beds).
+- Verified: ./gradlew build (all modules, -x test) green; :zamin-core
+  2315/0 (batched per package family at --no-daemon --max-workers=1);
+  :zamin-protocol-v1_8_8 119/0; :zamin-api 19/0; :zamin-launcher 47/0;
+  :zamin-bukkit 52/0. One suite-load flake (HorseIntegrationTest's
+  steered-horse row) reproduced green in isolation — the cycle-3 flake
+  family, not this lane's.
+- Docs: Torch-Arcetecture.txt §29's Wave ML landed record + §22's
+  next-work line; VANILLA_1_8_8_COMPATIBILITY.md untouched (its sleep
+  row is IMPLEMENTED, not a "Ledgered:" row — the task's own rule).
+
+Stage Summary:
+- The multiplayer sleep contract landed whole: the 0x0A pose wire with
+  the self + tracker fans, the all-sleepers morning walk with the
+  single-player identity, the leave-bed walk on the corrected Entity
+  Action ordinals, the monster-proximity refusal at the reference's
+  exact box, and the per-sleeper integrity pair. 2552 tests green
+  across the repo; SleepAcceptanceTest unmodified and green. One PR
+  against develop, not self-merged — the coordinator reviews.
+
+---
+Task ID: ML-011
+Agent: Abasing (the implementation agent)
+Task: The audit's confirmed H-severity wire gap — Entity Properties
+(0x20) never sent: the engine's attribute state (Wave J's
+tag.AttributeModifiers on equipped items, the Attributes NBT rows' base
+overrides) never reached tracking clients. Port the reference's
+EntityAttributesS2CPacket wire with its two tracker send sites (on
+track, on change), branch feature/entity-attributes-wire off b7a6917.
+
+Work Log:
+- Studied the reference: EntityAttributesS2CPacket (the packet body —
+  write lines 55-70: varint id, int count, per property string/double/
+  varint, per modifier uuid-two-longs/double/byte), TrackedEntity's
+  two send sites (updatePlayer lines 322-328 at track,
+  sendDataAndAttributes lines 260-274 on the change walk),
+  EntityAttributes lines 12-21 (the isTrackable law: maxHealth +
+  movementSpeed ride, attackDamage never does), LivingEntity.tick's
+  equipment scan lines 1289-1304 (the Wave J application site), and
+  ModifiableEntityAttributeInstance's setBase -> markDirty -> track
+  chain (the dirty-set rule).
+- The constant: S2C_ENTITY_PROPERTIES 0x20 (#31 clientbound play
+  registration, NetworkProtocol line 154) + the conformance-table row
+  (the test's own contract — no unwired id reaches the wire unnamed).
+- The writer: V18Connection.writeEntityProperties — the reference's
+  write() verbatim, over a WireAttribute view (the trackable pair with
+  the equipment rows collected in getEquipment's own five-slot order).
+- The track-time sends at both tracker hooks: trackPlayer (between the
+  Named Spawn and the equipment — the reference's own updatePlayer
+  order) and sendMobSpawn (between the spawn and the five 0x04 writes);
+  the join view and the broadcast fan ride the same writers, chunk and
+  dimension gates included.
+- The change-time sends: the equipment wake re-publishes the pair
+  beside the 0x04 batch; the NEW MobManager.attributesChanged
+  publication + Listener.onMobAttributesChanged default fired by the
+  /summon + /entitydata Attributes rows through a 5-arg
+  EntityNbt.readNbt (the 4-arg form delegates — every existing caller
+  compiles untouched), the wake gated by the isTrackable law (only the
+  movementSpeed row fires it, exactly the reference's dirty-set); the
+  player paths (the held-slot listener + the inventory observer branch)
+  re-publish beside the equipment re-render. The restore path wakes at
+  boot (a zero-connection no-op, the equipmentChanged convention).
+- Two NEW test files (existing attribute tests untouched):
+  EntityPropertiesWireConformanceTest (2 — the reference read()'s
+  field-for-field decode over the real wire: the varint head, the int
+  count, the string/double/varint triple, the uuid-long-pair/double/
+  byte rows, the trailing-bytes pin, the track-time pair for both
+  mutual observers, the equipped modifier row's exact form) +
+  MobAttributesWireTest (3 — the /summon Equipment row's modifier item
+  re-derives the pair with the derived value base+0.5; the later
+  /entitydata mutation fires the change-time send with the new base;
+  the attackDamage-only negative: no 0x20 ever rides the untrackable
+  row).
+- The wire-drain debugging this demanded: the fresh test world's own
+  animal seeding + movement syncs keep the wire busy (the quiet window
+  never truly quiets — verified PRE-EXISTING on clean develop), and
+  the unanswered keep-alive kick closes long drains mid-read; the new
+  tests' drains are packet-budget-bounded (the tick-scaled bound) with
+  the keep-alive exchange answered inline — never a wall-clock sleep,
+  and every engine state an awaitCondition. The throwaway probes that
+  found the SNBT shape (the Equipment row's item compound nests the
+  modifier rows under tag — the /give dataTag IS the tag, the summon
+  element nests it) were deleted after the fix.
+
+Stage Summary:
+- The 0x20 attribute wire whole: constant + conformance row, the writer
+  (the reference's packet body verbatim), the track-time sends at both
+  tracker hooks, the change-time sends on all four mutation surfaces
+  (mob equipment, the Attributes rows, player held, player inventory),
+  the isTrackable law held on the wire (attackDamage never rides).
+- Evidence: :zamin-protocol-v1_8_8:test whole 123/0 green
+  (--max-workers=1, 47 classes — the prior 118 plus the five new);
+  :zamin-core:test 2197/0 green (--max-workers=1, 369 classes — run as
+  eight package batches on this 3.9GiB box where the single full-suite
+  daemon OOMs; every batch green, the class count exactly the source
+  tree's 369); :zamin-api:test 19/0, :zamin-launcher:test 47/0,
+  :zamin-bukkit:test 52/0, `assemble` green. The conformance row added
+  to Protocol18ConformanceTest (the test's own additive contract);
+  AttributeMeleeIntegrationTest + every other existing test
+  UNMODIFIED.
+- Docs: this entry; Torch-Arcetecture.txt §29's Wave ML row (the landed
+  record, commit 57fb936) + §22's next-work line (the Wave ML lane
+  pointer, ML-011 landed, the audit's remaining ranked rows the
+  continuation). VANILLA_1_8_8_COMPATIBILITY.md left untouched — no
+  "Ledgered:" row matches attributes-on-the-wire (the Wave J row's
+  seams are the type-table fall-back and the per-type envelope, not
+  the wire).
+
+---
+Task ID: ml-005-ml-009
+Agent: Abasing (the ops-papercuts lane)
+Task: The cycle-3 audit's ML-005 + ML-009 rows — /op offline profiles
+through the persisted-player cache (B-3), the --port CLI precedence and
+the unclean-exit disconnect noise (B-4, first two items); branch
+feature/ops-papercuts off b7a6917c.
+
+Work Log:
+- Phase 0: read the reference whole (the dedicated OpCommand lines 30-39
+  + DeOpCommand lines 29-38 + GameProfileCache — the cache resolution
+  law and its lowercase keys; Connection.exceptionCaught lines 110-119 +
+  ServerPlayNetworkHandler.onDisconnect line 573 — the quiet
+  "Internal Exception" walk), OpStore/PlayerDataStore (the .zpd header
+  carries the name), the /op//deop commands, LauncherRuntime (args dead
+  since the first boot), and V18Connection's exceptionCaught. The
+  1.8.8 en_US.lang lines verified against the period assets:
+  commands.op.failed = "Could not op %s".
+- ML-005: server/ops/PlayerProfileCache — the reference's
+  GameProfileCache role over ONLY persisted identities (the .zpd census
+  through PlayerDataStore's new persistedNames() header read, ops.json's
+  own rows, this run's joins through the accept-site add);
+  case-insensitive over the canonical case, no expiry (no usercache
+  file — a deliberate boundary), concurrent-map thread-safety. /op's
+  offline arm writes through OpStore at level 4, answers the engine's
+  established success line, and refuses an unknown name with the
+  reference's commands.op.failed line. /deop studied and left alone:
+  its own offline walk already resolves over ops.json (the reference's
+  getOps().getProfile shape) — no defect to fix.
+- ML-009a: launcher/StartupArguments — the dedicated server's
+  precedence CLI > properties > default (--port <n> and --port=<n>,
+  last wins, malformed flags fail boot loudly, the range law stays
+  EngineConfig's compact constructor through the new withPort copy);
+  the override logged at config time, the effective port on the
+  standing "Server ready" line, the properties file never written back;
+  the remote-admin ports keep their own rows' resolved values.
+- ML-009b: V18Connection.exceptionCaught classifies the IOException
+  family (reset / broken pipe / EOF) to the reference's one quiet
+  disconnect line — the engine's own "Player disconnected" record
+  carrying the vanilla "Internal Exception: <cause>" reason (the cause
+  stays, the stacktrace goes), a pre-session reset one connection-side
+  INFO line, genuinely unexpected failures unchanged-loud (WARNING +
+  the throwable).
+- Tests: OpOfflineProfileAcceptanceTest 2 (the same-run arm: the
+  join-quit-op + the unknown refusal + the unchanged online arm; the
+  restart arm: the boot census + the ops.json-only seed + the returning
+  player entering already opped), StartupArgumentsTest 6 (the
+  precedence ladder, both flag forms, the loud malformed failures, the
+  no-write-back proof, the out-of-range refusal),
+  DisconnectClassificationTest 2 (the real-wire RST: zero WARNING
+  records, zero thrown-bearing records, exactly one quiet line with
+  "Internal Exception"; the malformed chat frame: the WARNING with its
+  throwable + the "protocol error" walk; both leave the server
+  RUNNING). TestClient18 gained the additive resetAbruptly()
+  (SO_LINGER(0) + close — the RST shape). Two rig lessons recorded in
+  the test bodies: the scripted client must keep draining the socket
+  after login (the join burst otherwise overflows the receive buffer
+  and RSTs before the frame is read), and the login helper must ride
+  the CALLER's client (a helper-internal client leaves the real one
+  unread — the same RST family, found the hard way through an
+  EmbeddedChannel probe).
+- Verification (all --no-daemon --max-workers=1): assemble green
+  (every module compiled + jarred); :zamin-core:test 2199/0 over 370
+  classes (run in five snapshot-chunked batches — the whole-module run
+  exceeds the ten-minute window); :zamin-launcher:test 53/0;
+  :zamin-protocol-v1_8_8:test 120/0; :zamin-api:test 19/0;
+  :zamin-bukkit:test 52/0. Zero failures, zero errors everywhere.
+- Ledgers: Torch-Arcetecture.txt §29 Wave ML (the two rows' landed
+  records) + §22 Phase 0's audit line (the backlog worked down: B-3 +
+  the first two B-4 rows landed, the next cycle's order unchanged);
+  VANILLA_1_8_8_COMPATIBILITY.md untouched (no "Ledgered:" row matches
+  these mechanics — verified against the ledger's own rows); README +
+  docs/ audit files the coordinator's per the lane order.
+
+Stage Summary:
+- /op now pre-ops joined-but-offline players exactly like the reference
+  (the persisted-identity cache, no new persistence format); --port
+  wins over server.properties with the boot log saying so; an abrupt
+  client reset answers one quiet vanilla-shaped line instead of a
+  WARNING + stacktrace while real protocol failures stay loud.
+  Branch: feature/ops-papercuts; PR opened against develop (not
+  merged).
+
+---
+Task ID: ML-018
+Agent: Abasing (the spectator-camera lane)
+Task: ML-018 — the spectator's camera/spectate mechanics, the audit's confirmed partial-implementation gap: gamemode 3 gates digging/use and grants flight, but the C2S Spectate handler discarded its two longs, Protocol18 carried no 0x43, and no no-clip/visibility walk existed anywhere. Port the reference's camera walk 1:1 (ServerPlayerEntity.setCamera + tick's camera arm + broadcastTo + PlayerEntity.tick's noClip arm) on the branch feature/spectator-camera off develop b7a6917c.
+
+Work Log:
+- Read the reference's whole spectate surface before touching anything: PlayerSpectateC2SPacket (readUuid's two-long form), ServerPlayNetworkHandler.handlePlayerSpectate lines 516-551 (the isSpectator gate, the uuid resolution, the self-target reset), ServerPlayerEntity lines 916-923 (setCamera: the Camera packet THEN the teleport, both on the player's own networkHandler), the per-tick camera arm lines 273-285 (dead-target restore, the body follow at updatePositionAndAngles + getPlayerManager().move, the isSneaking exit), broadcastTo line 472 (the spectating body hidden from every other view), PlayerEntity.tick line 191 (noClip = isSpectator), and the client's own gates (LocalClientPlayerEntity.sendMovementToServer's isCamera gate — an attached client sends NO movement; the sneak Entity Action rides BEFORE that gate, so it is the only exit signal; ClientPlayNetworkHandler.handleCamera drops an unknown entity id).
+- Engine core (zamin-core): PlayerSession's own camera target (the reference's camera field — the followed player's uuid, null = self; tick-thread writes, volatile wire reads); EngineServer.spectateCamera (the C2S entry, the reference's gate order 1:1 — the isSpectator refusal, the registry resolution with the entity==null arm, the self-target exit, the same-dimension bound honestly ledgered where the reference's cross-world respawn ride stays out); the per-tick camera follow inside tickPlayerBodies (the dead-or-gone target and the sneak exit both restore to self; a live target anchors the body at the target's position every tick — the attached client sends no movement of its own); the detach arms (setGamemodeOnTick's else-arm, the reference's setGameMode setCamera(this)); the movement no-clip gate in movementProposal (PlayerEntity.tick's noClip arm over the anti-cheat pushback — the spectator's free-camera flight never meets the guard, every other gamemode keeps the envelope; the wire-side sanity band still bounds spectators like everyone); the ClientLink pair: spectateCamera(uuid-or-null) — the reference's camera-then-teleport wire, order guaranteed inside ONE verb because the reference rides both on the player's own networkHandler — and spectateCameraFollow(position) (the PlayerManager.move arm: the spectating client's chunk view re-centers on the target); the SpectatorListener event pair for the visibility fan-outs.
+- Wire (zamin-protocol-v1_8_8): the C2S 0x18 handler resolves the two longs as the target uuid and hands them to the engine (it discarded them before); Protocol18.S2C_CAMERA 0x43 (CameraS2CPacket's exact shape — ONE varint entity id); V18Connection's attach arm (the target spawned for the client BEFORE the 0x43 points at it — the client's handleCamera drops an unknown id — then the packet, then the chunk re-center on the channel's own loop, the movement lane's state staying single-threaded); the restore arm (0x43 self + the authoritative Position-and-Look re-anchor, the teleport window armed like the reference's teleport()); trackPlayer's gate + broadcastMovement's silent follow (the broadcastTo law — the spectating body never spawns in another view and publishes nothing, the spectator keeping its own full view); the adapter's SpectatorListener fan-outs (the attach's untrack-from-every-view, the detach's re-entry through the movement broadcast's own range walk).
+- Tests (NEW files, engine + protocol): SpectatorCameraAcceptanceTest 7/0 — the attach (camera armed + body anchored at the target's own position), the per-tick follow (the target's authoritative steps anchor the spectator's body, the world-stream arm reaching the link), the sneak exit (the only signal an attached client can send — the null verb, the body staying where the follow left it), the gamemode-change exit, the target's-departure exit, the no-clip law (the spectator's flight-speed burst applies while the same burst for a survival body is still the guard's refusal, the state untouched), and the walk's own refusals (non-spectator, absent target, self-target). SpectatorCameraWireAcceptanceTest 3/0 over real sockets — the 0x43 naming the SAME wire id the spectator's own world holds for the target, the target's movement streaming to the spectating client, the other observer's Destroy at attach, the sneak exit's 0x43-own-id + the re-anchor at the followed position + the re-spawn for the other observer, the survival pick's refusal (tick-scaled window, no 0x43), and the join view's gate (a newcomer never sees the spectating body).
+- The harness findings the debug runs surfaced, both recorded in the test family's own shape: the engine test's first run exposed the verb split (the re-anchor belongs on the per-session link, not a broadcast listener — the reference's own call site), and the wire test's first run exposed the live world (the natural-spawn mobs wander at ~450 movement packets per second per observer — wire silence never exists; every read targets its packet BY ID and skips the noise).
+
+Stage Summary:
+- ML-018 landed whole on feature/spectator-camera (5 commits): the C2S Spectate handler that discarded now arms the camera-follow, the 0x43 Camera packet on the wire in the reference's exact shape, the per-tick body follow with the world-stream re-center, all three exits (sneak, target departure, gamemode change), the broadcastTo visibility law (invisible to others while spectating, own view intact), and the no-clip gate that never weakens the guard for any other mode. Evidence: SpectatorCameraAcceptanceTest 7/0 + SpectatorCameraWireAcceptanceTest 3/0; the module suites' fresh runs recorded on the PR. The engine's dig/use gamemode-3 gates untouched (verified by the module sweep). Cross-dimension spectate stays out (the honest bound, ledgered at the walk); the untracked fishing-lane leftover file (FishingApiAcceptanceTest.java, untracked in the shared tree) was moved aside to /home/z/my-project/lanes-backup/ untouched — it belongs to the fishing lane's own PR.
+
+---
+Task ID: ml-014+015+016
+Agent: Abasing (the boundary-verifications lane)
+Task: The cycle-3 audit's three boundary verification rows — ML-014
+(login-flood behavior), ML-015 (neighbor updates at unloaded-chunk
+boundaries), ML-016 (relog-while-riding remount) — each as a pinning
+test first, then the minimal reference-shaped fix only where the
+verification failed.
+
+Work Log:
+- Studied the three areas before writing anything: the login path
+  (V18ProtocolServer's accept + V18Connection's login state machine vs
+  the reference's ConnectionListener/ServerLoginNetworkHandler), the
+  neighbor-update walk (BlockUpdateSystem + RedstoneSystem vs the
+  reference's World.neighborChanged and its emergent EmptyChunk skip),
+  and the relog path (PlayerSession's riding fields, the quit/join
+  walks, the reference's PlayerManager.onLogin "Riding" walk).
+- ML-014 FAILED verification (no bound at all: a handshake-only
+  connection was immortal and invisible; the connections map unbounded)
+  -> landed the reference's own bound: ReadTimeoutHandler(30) first in
+  the child pipeline (ConnectionListener.java line 104's exact shape),
+  test-tunable via a third constructor parameter, with the reap handled
+  QUIETLY in exceptionCaught (ReadTimeoutException = the mechanism
+  working, never the protocol-fault WARNING stack).
+- ML-014's deliverable numbers (LoginFloodBoundaryTest, the DenseOwner
+  two-snapshot doctrine): 100 in-progress logins — 40 ticks in
+  1.94-1.98s (20.2-20.6 ticks/sec through the flood, the section fan
+  unchanged, the players registry never grows), 1.3-4.0 KiB per
+  connection; 12 concurrent full logins — join window 0.53-0.66s
+  (44-55ms per login, the serialized event-loop join bursts), 171-186
+  KiB per joined session, playerBodies/inhabitedTime fans grow with the
+  population.
+- ML-015 PASSED verification as-is: the emergent skip (EngineWorld's
+  air-read at an absent chunk) is exactly the reference's own emergent
+  skip (the shared EmptyChunk answers air, the notify dispatches to
+  air's empty default) — dropped, silent, never generating. Pinned by
+  UnloadedEdgeNeighborUpdateTest 2/0 with no engine change; the
+  transient unloaded-side queue entries (the engine's asynchronous
+  shape; nothing ever delivered) documented in the test's javadoc.
+- ML-016 FAILED verification (the remount walk was absent: quit
+  force-dismounts, the join walk riding-blind) -> landed the minimal
+  remount: the quit captures the ride BEFORE the seat opens (an
+  engine-side memory keyed by player UUID, only live targets, consumed
+  at the next join like the reference's tag), the adapter calls the new
+  EngineBridge.rejoinRestoreRide after its join view's world snapshot,
+  and the walk (tick lane) remounts through VehicleManager.mount /
+  MobManager.seatImportedRider, lands the body at the seat anchor, and
+  re-anchors the rider's wire (the reference's startRiding attach +
+  teleport sequence). RelogRemountAcceptanceTest 3/0 over real relog
+  cycles: boat + minecart + pig.
+- Verification: the full protocol module suite green (one
+  HorseIntegrationTest flake on the first run — the temper ladder's
+  randomness under load — isolated-green on rerun and suite-green on
+  the second run, the documented flake discipline); the whole zamin-core
+  suite green in six package batches (block/redstone/piston 61s,
+  entity 46s, world 3m47s, top-level a-L + nbt/concurrent/player/
+  enchantment/stat 8m01s, top-level m-z + the remaining packages
+  6m48s, leash/scoreboard/jukebox/crafting 12s — 370 classes, zero
+  failures); ./gradlew build green with the other modules' tests
+  (api 19/0, launcher 47/0, bukkit 52/0).
+- Two findings recorded for the coordinator, NOT fixed (out of the
+  row's minimal scope): the 0x1B attach-byte convention diverges from
+  the reference (Torch's riding flag 1=mount vs the reference's attach
+  type 0=mount/1=leash with attachedId=-1 for detach — a strict vanilla
+  client reads Torch's mounts as leashes; the fix belongs to one
+  wire-conformance row owning every mount site); and the engine-restart
+  relog cycle degrades to on-foot BY DESIGN (the ZVD store's
+  VehicleSnapshot carries no passenger id — a cross-store identity
+  design is a coordinator-scale decision).
+
+Stage Summary:
+- All three rows closed: ML-014 measured + bounded (the reference's own
+  ReadTimeoutHandler(30), quiet reap), ML-015 verified-as-is + pinned,
+  ML-016 remount walk landed over the reference's attach + teleport
+  sequence. New tests: LoginFloodBoundaryTest 3, UnloadedEdgeNeighbor
+  UpdateTest 2, RelogRemountAcceptanceTest 3 — all in new files, no
+  existing test touched. Engine changes strictly additive: the pipeline
+  timeout + the quiet reap arm, the remembered-ride capture + the
+  rejoinRestoreRide verb + the remount walk. Docs: Wave ML in §29, the
+  §22 next-work line, this entry. One PR against develop, not
+  self-merged.
+
+---
+Task ID: wave3-lane1
+Agent: Instance 1 (the coordinator — Abasing session)
+Task: ML-006 + ML-007 — the /debug stop section table and the
+performance attribution pass (the coordinator's own wave-3 lane).
+
+Work Log:
+- ML-006: EngineProfiler gained the visit-count face (countsByLocation,
+  one merge per pop, sectionCountsSnapshot() mirroring the undecayed
+  nanos face) + the pure buildSectionTable (the reference's span header
+  verbatim; rows: name, count, avg/visit, total, % of root, total-desc);
+  the /debug stop arm snapshots UNDECAYED before the file report's decay
+  walk and prints the table to the console (B-7's ask); the file report
+  and the reply stay reference-1:1. Tests: DebugSectionTableTest 3/0 +
+  the three existing profiler tests green unmodified (12/0 over the
+  family).
+- ML-007: the AttributionLoadTest harness (protocol test tree, real
+  wire): two scripted clients + drain threads; the cycle-3 shapes
+  in-process (the 100-zombie horde; the ~3 Hz respawn-kill storm —
+  the re-stream by construction, respawnAt clears + sendInitial);
+  capture = whole-fan window deltas + wall TPS + GC beans + heap + JFR
+  ObjectAllocationSample (the size field introspected — JDK 21 names it
+  weight). Four honest harness findings recorded (the daylight burnout;
+  the seed-dependent join placement vs the 32-block despawn ring —
+  anchored on the standing player with the bed-spawn pinned; the census
+  re-fill; the horde strolls, never chases). Deliverables:
+  docs/ATTRIBUTION_REPORT.md + docs/ATTRIBUTION_RUN_EVIDENCE.txt.
+- The verdict over the evidence: randomTicks 3.6-3.9ms/tick
+  load-independent (the top subsystem); mobs 715us -> 2.4-4.2ms at the
+  ~120-body census (~20-34us/body); the composite 7.2ms/tick vs the 50ms
+  budget, 19.9-20.0 TPS through every window; NO concurrency phase
+  justified — §22 holds the line. The pass found the re-stream has no
+  dedicated profiler section (a wire-publish section proposed as a new
+  master-ledger row).
+- §22 Phase 7 carries the full record; the compat doc untouched (no
+  Ledgered row matches); the master ledger's row updates land on the
+  audit branch (PR #38 still open).
+
+Stage Summary:
+- ML-006 and ML-007 COMPLETE on feature/debug-attribution; the PR
+  carries both rows plus the §22 record, the report doc, the raw
+  evidence file, and this entry. ML-021 (the lane's tail) follows next.
+
+---
+Task ID: wave3-lane1-ml021
+Agent: Instance 1 (the coordinator — Abasing session)
+Task: ML-021 — the 0x0C Named Entity Spawn diagnostic (the lane's tail):
+the botless pin, the four-bot raw capture, and the root cause.
+
+Work Log:
+- Phase one (the botless pin, DataWatcherWirePinTest 4/0): an independent
+  reference-form parser (SyncedData.writeEntry/read verbatim — the strict
+  PartialRead analog) over live frames; every watched type the engine
+  emits pinned to its exact boundary: BYTE (flags/age/the zombie's
+  12/13/14), FLOAT (health), INT (the villager's profession), SHORT (the
+  enderman's carried block), SLOT (the item entity's stack — the
+  reference writeItem form 280x3@0), ROTATION (the armor stand's poses,
+  pitch/yaw/roll in the reference's own order). The 0x0C's uuid STRING
+  walk is itself a strict live string parse. POSITION (type 6) has no
+  writer in the engine — recorded, not claimed; the metadata-context
+  STRING trigger has no update publication (the family-owned CustomName
+  rows tail) — recorded, not claimed.
+- Phase two (the four-bot capture, the release jar on loopback): the
+  cycle-3 PartialReadError REPRODUCED (24 stacks, all
+  packet_named_entity_spawn -> entityMetadata -> entityMetadataItem).
+  mineflayer's 'raw' fires post-parse only — a socket-level tee
+  reassembler captured the failing frames' exact bytes pre-parse.
+- ROOT CAUSE (the captured bytes + the reference + mineflayer's own
+  1.8.8 schema): trackPlayer wrote the 0x0C's uuid as a length-prefixed
+  STRING (varint + 36 chars) where the 1.8.8 wire form is the reference's
+  writeUuid — 16 RAW BYTES (two longs, PacketByteBuf lines 112-115) —
+  21 extra bytes per 0x0C; every strict client read 16 uuid bytes, walked
+  the leftover string bytes as x/y/z/angles, and entered the metadata
+  loop 21 bytes early — the PartialReadError. The intermittence (clean in
+  some runs, 24 errors in others) was the luck of the garbage walk
+  landing on the 0x7f terminator. The tab list already used writeUuid
+  (ByteBufOps) — the defect was this ONE site.
+- THE FIX: trackPlayer now writes ByteBufOps.writeUuid (the one-line
+  change, the same form the tab list uses); the pin test's parser reads
+  the reference form with the boundary assert as the regression guard.
+  Verified: DataWatcherWirePinTest 4/0 + ChatAndMultiplayerTest 4/0
+  (the fixed 0x0C still serves TestClient18's flows).
+- The end-to-end re-capture (the fixed dist + four mineflayer bots)
+  rides the PR's verification build.
+
+Stage Summary:
+- ML-021 CLOSED as a real engine defect, root-caused with captured
+  bytes, fixed, and pinned — the cycle-3 "both sides possible" question
+  answered: the engine was at fault; mineflayer's parser was right.
+
+---
 Task ID: wave3-lane1-ledger
 Agent: Instance 1 (the coordinator — Abasing session)
 Task: The master-ledger row updates for the lane's three rows (this
@@ -13692,6 +14301,52 @@ Work Log:
 Stage Summary:
 - The ledger now reflects the lane; PR #38 carries these updates
   automatically (no new PR needed).
+
+---
+Task ID: ML-001+ML-002
+Agent: main (Z.ai session — the test-deadline census + release-pipeline lane, docs/MASTER_LEDGER.md's two release blockers)
+Task: ML-001 the wall-clock-deadline census over every module test tree + ML-002 the conversions (engine-condition awaits / tick-scaled deadlines) + the release verification (3 green full-suite runs, torch-1.8.8-128+).
+
+Work Log:
+- Branched feature/test-deadline-census off origin/develop (b7a6917, PR #37's merge), identity Abasing <abasing@zaminmc.github.io>.
+- ML-001 LANDED (fd1cf23 + 49df469 + c2ef63f): scripts/test_deadline_census.py (the extractor: every deadline-poll delta, standalone fixed sleep, poll interval, latch/future timeout, @Timeout, nanoTime budget across all five test trees — loop membership by a brace-depth walk, strings/comments blanked, do-while handled) + scripts/test_deadline_census_doc.py (the renderer) + scripts/census_raw.tsv (the raw evidence) + docs/TEST_DEADLINE_CENSUS.md (644 independent sites: 272 deadline polls — 245 generous liveness keeps, 27 hand-audited short bounds; 277 fixed sleeps — 275 C-B conversions over 110 files, 2 no-engine launcher keeps; 94 delivery-bound latches; 3 elapsed-time product assertions; 1 adversarial @Timeout; the #361/#362 trio's dispositions: fishing + bukkit hardened by #37, the RCON 5s FIN-WAIT drain converts in ML-002; the dispenser negative windows convert).
+- ML-002 IN PROGRESS — the plan: (1) the ONE shared utility EngineAwaits (awaitTicks(EngineWorld, ticks, what) — the volatile world.totalTicks() clock, wall backstop 60x nominal floored 30s as a stalled-engine liveness guard only; awaitCondition(world, cond, tickBudget, what) — fails when the engine COMPLETED tickBudget ticks without the condition, the honest tick-scaled deadline) as a zamin-core testFixtures class (java-test-fixtures plugin; protocol + bukkit take testImplementation(testFixtures(project(":zamin-core")))); (2) the RCON FIN-WAIT drain bound 5s -> 30s (detection unchanged, the #362 evidence in the comment); (3) the 9 dispenser negative windows -> awaitTicks; (4) the 275 fixed sleeps across 110 files -> awaitTicks(ceil(ms/50), annotated tick counts win) — scripted conversion with the compiler in the loop (the unique-variable-name rule for the in-scope clock, harness.server for bukkit, stragglers manual); (5) RandomTickLaneTest's pacing loop manual (submit + awaitTicks(1) x40).
+- Release verification NOT YET RUN (needs the conversions landed first): ./gradlew build green, then all five module suites --max-workers=1 twice consecutively, numbers recorded; then the develop-push release runs + torch-1.8.8-128+ publish.
+
+Stage Summary:
+- ML-001 landed on the branch and pushed (3 commits). The census's own refinement catch: the window heuristic misclassified sleeps after closed loops and condition-poll intervals — the brace-depth walk replaced it; the extractor's two regex bugs (newline-eating string class, DOTALL line-comment over-blank) fixed and both re-validated against known sites.
+- The conversion set is final and documented: 285 sites (275 sleeps + 9 dispenser windows + the RCON drain). The keeps are reasoned per family in the census doc.
+- Known flake context for the verification runs: the workflow's retry list carries LifecycleEvent/HopperSystem/HopperWindow; PR #37's hardenings cover fishing + the bukkit MONITOR await; the RCON drain converts in this lane.
+
+---
+Task ID: ML-001+ML-002 (cont.)
+Agent: main (the test-deadline census + release-pipeline lane, session 2)
+Task: the ML-002 landing + the verification runs (continuation of the entry above).
+
+Work Log:
+- ML-002 LANDED (e87d8d7 + 0b30836 + a580990 + 323b732): EngineAwaits (zamin-core testFixtures, java-test-fixtures wiring + protocol/bukkit consumer deps) — awaitTicks on the world's own volatile totalTicks clock with a stalled-engine backstop (60x nominal, floor 30s), awaitCondition with a tick-scaled deadline; 246 swept fixed sleeps + 7 settle/awaitSettled helper signatures (43 call sites) + 16 manual in-method sites + the RCON FIN-WAIT bound 5s->30s + DispenserSystemTest's three true negative windows + RandomTickLaneTest's pacing loop; the census's loop-membership walk gained the multiline-header brace fix.
+- THE LANDING'S OWN CATCH (323b732): the first protocol-suite run failed HorseIntegrationTest's wheat ladder — a wait after client.sendChat guards LOOPBACK NETTY DELIVERY, not tick progress; the 23 give/chat/slot/position delivery sites across 8 protocol tests reverted to wall sleeps + census-reclassified C-C (loopback delivery, no tick ordering), the dig-duration conversions stayed (the finish floor is a minimum — late is always safe), and the wheat ladder now awaits the engine-visible condition (the wheat in the tamer's inventory). The touched protocol batch green in 34s.
+- Verification run 1 progress: zamin-api + zamin-launcher + zamin-bukkit + zamin-protocol-v1_8_8 full suites GREEN together (BUILD SUCCESSFUL in 2m41s, --no-daemon --max-workers=1); zamin-core remaining — the server-root package alone exceeds the 10-minute tool window, run it in alphabetical chunks (then the sub-packages), then repeat everything for run 2.
+
+Stage Summary:
+- All code + docs landed and pushed on feature/test-deadline-census (HEAD 323b732). Remaining for the PR: zamin-core's chunked suite runs x2, the runs' numbers recorded, the §22 next-work line, and the PR itself (title: ML-001+ML-002: the test-deadline census and conversions + the green release pipeline).
+- The loopback-delivery distinction is the lane's own engineering finding — recorded in the census doc, it is the rule any future conversion must apply: tick-clock awaits only for tick-lane work; netty delivery waits stay wall-bounded (or await an engine-visible condition).
+
+---
+Task ID: ML-001+ML-002 (final)
+Agent: main (the test-deadline census + release-pipeline lane, session 2 — completion)
+Task: the verification runs recorded + the PR (the lane's close).
+
+Work Log:
+- Verification: TWO CONSECUTIVE full-suite passes green over all five modules, --no-daemon --max-workers=1, chunked (the 10-minute tool window cannot hold zamin-core whole). PASS 1: api+launcher+bukkit+protocol 2m41s; core server-root A-E 2m43s / F-R 7m17s (after the fishing hardening) / S-Z 2m5s (after the WorldBorder revert); entity 46s; block+world 4m9s; nbt..chest 1m19s; border..experience 1m53s; fishing..piston 45s; plugin..weather+armorstand 1m3s. PASS 2: small modules 1m58s; F-R 7m2s; S-Z 2m5s; entity+block 1m12s; world..chest 4m55s; border..experience 1m52s; fishing..piston 45s; plugin..weather 1m2s. Full build assembles green (build -x test + :zamin-launcher:serverDist; torch-1.8.8-128.jar present — the tree carries the 128 bump).
+- The pass-1 catches (both hardened the honest way, never loosened): (1) FishingApiAcceptanceTest's awaitBite — the 90s WALL bound still tripped under batch load (the bite cadence is 930 ticks worst-case; a slow engine spends more wall per tick) -> the bound is now TICK-SCALED (1500 engine ticks via EngineAwaits.awaitCondition) and EngineAwaits' backstop gained a cap (10x nominal, 30s floor, 5min max — the 60x form could hang 75min on a large budget); (2) WorldBorderTest's lerp site — the border lerp is the PRODUCT's own wall-clock walk (no engine booted), reverted to the honest wall sleep.
+- The pass-2 catch: DonkeyChestIntegrationTest tripped the same loopback-delivery race the horse test took (the wheatless ladder under load, green in isolation) -> the /give now awaits the wheat in the mule's inventory (the same condition hardening).
+- The hazard audit: the null-field scan over every converted file (34 flagged, cross-method ordering resolves all but the WorldBorder case — proven by the green chunks covering them) and the loopback-delivery reversion (23 protocol sites) both recorded in the census doc.
+- Docs closed: §22's next-work line carries the landing; this entry closes the lane's worklog.
+
+Stage Summary:
+- Branch feature/test-deadline-census, all work pushed. The PR: "ML-001+ML-002: the test-deadline census and conversions + the green release pipeline" against develop — the census summary (644 sites: 245+18 poll keeps, 27+23+2 sleep keeps, 94 latch keeps, 270 sleep conversions, the RCON + fishing + wheat-ladder hardenings), the two consecutive chunked full-suite passes with numbers, the release status (run #364 in flight on the base; the merged PR's develop push cuts the confirming release — the pipeline's own [skip ci] bump commit 217f597 already stamps 128).
+- NOT self-merged — the coordinator reviews, corrects, and merges.
 
 ---
 Task ID: wave3-ledger-close

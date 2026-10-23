@@ -12,6 +12,7 @@ import io.netty.channel.group.DefaultChannelGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
+import io.netty.handler.timeout.ReadTimeoutHandler;
 import io.netty.util.concurrent.GlobalEventExecutor;
 import net.zaminmc.torch.block.ChunkPosition;
 import net.zaminmc.torch.server.EngineServer;
@@ -36,8 +37,24 @@ public final class V18ProtocolServer implements ProtocolAdapter {
 
     static final long DEFAULT_KEEP_ALIVE_INTERVAL_MS = 10_000;
 
+    /**
+     * The read-idle reap bound, the reference's own value: the vanilla
+     * 1.8.8 listener installs {@code ReadTimeoutHandler(30)} as the FIRST
+     * handler on every accepted child channel (ConnectionListener.java
+     * line 104 — "timeout" ahead of the splitter/decoder family), so a
+     * connection that goes silent before completing login is dropped after
+     * thirty seconds. Torch carries the same bound at the same pipeline
+     * position: a flood of in-progress logins (handshake sent, login never
+     * completed) can never outlive this window, whatever the flood's size —
+     * the reference's own answer to the unbounded-accept question (it has
+     * no numeric login cap either; its 600-tick login deadline rides the
+     * same 30-second wall clock).
+     */
+    static final int DEFAULT_READ_TIMEOUT_SECONDS = 30;
+
     private final EngineServer engine;
     private final long keepAliveIntervalMs;
+    private final int readTimeoutSeconds;
     private final Map<V18Connection, Channel> connections = new ConcurrentHashMap<>();
     private final ChannelGroup allChannels = new DefaultChannelGroup(GlobalEventExecutor.INSTANCE);
     private final AtomicInteger entityIds = new AtomicInteger();
@@ -52,8 +69,18 @@ public final class V18ProtocolServer implements ProtocolAdapter {
     }
 
     V18ProtocolServer(EngineServer engine, long keepAliveIntervalMs) {
+        this(engine, keepAliveIntervalMs, DEFAULT_READ_TIMEOUT_SECONDS);
+    }
+
+    /**
+     * The full boot: the keep-alive cadence plus the read-idle reap bound
+     * (seconds; the reference's own 30). Tests that need to observe the
+     * reaping drive a short window through this constructor.
+     */
+    V18ProtocolServer(EngineServer engine, long keepAliveIntervalMs, int readTimeoutSeconds) {
         this.engine = engine;
         this.keepAliveIntervalMs = keepAliveIntervalMs;
+        this.readTimeoutSeconds = readTimeoutSeconds;
         // §27.3's packet construction: the composed-frame sender installed
         // at construction — the registry's send() resolves a player's
         // PLAY-state connection through here and writes through the shared
@@ -115,6 +142,16 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                     protected void initChannel(SocketChannel channel) {
                         V18Connection connection = new V18Connection(V18ProtocolServer.this, engine);
                         channel.pipeline()
+                                // The read-idle reap bound, first in the pipeline
+                                // exactly where the reference installs it
+                                // (ConnectionListener.java line 104: addLast
+                                // "timeout", ReadTimeoutHandler(30) ahead of the
+                                // splitter): a connection silent past the bound
+                                // is closed — the pre-login flood boundary. The
+                                // exception lands in V18Connection.exceptionCaught,
+                                // which reaps it quietly (never a protocol
+                                // WARNING — the timeout is the mechanism working).
+                                .addLast("timeout", new ReadTimeoutHandler(readTimeoutSeconds))
                                 .addLast(FrameCodec.DECODER_NAME, new FrameCodec.Decoder())
                                 .addLast(FrameCodec.ENCODER_NAME, new FrameCodec.Encoder())
                                 // §27.3's interception point: every PLAY-state
@@ -289,6 +326,17 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                 connection.sendSignUpdate(position, lines);
             }
         });
+        // Open Sign Editor (0x36): the placement editor opens for the
+        // placing player alone (the reference's openSignEditor — every
+        // other player's client stays closed; their sign text arrives
+        // through the 0x33 replay above when the editor closes).
+        server.addSignEditorListener((editor, position) -> {
+            for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                if (connection.currentSession() == editor) {
+                    connection.sendOpenSignEditor(position);
+                }
+            }
+        });
         // The spawner's broadcasts (Slice 18e): the fired cycle's flames
         // (doEvent 2004 — the Effect packet) and the delay reroll's spin
         // reset (the block event 1 — the Block Action packet), both
@@ -379,12 +427,28 @@ public final class V18ProtocolServer implements ProtocolAdapter {
             /**
              * The equipment changed after the spawn (Slice 78b — the
              * /summon Equipment rows + the restore's stacks): the
-             * Entity Equipment re-send, all five slots (VIII4).
+             * Entity Equipment re-send, all five slots (VIII4), beside
+             * the attribute pair's re-derive (ML-011 — the reference's
+             * equipment scan swaps the rows on the attribute instances,
+             * the tracked set carries them to the observers).
              */
             @Override
             public void onMobEquipmentChanged(net.zaminmc.torch.server.entity.MobEntity mob) {
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
                     connection.sendMobEquipment(mob);
+                    connection.sendMobAttributes(mob);
+                }
+            }
+
+            /**
+             * The attribute overrides changed after the spawn (ML-011 —
+             * the /summon + /entitydata Attributes rows): the Entity
+             * Properties (0x20) re-publish to every observer.
+             */
+            @Override
+            public void onMobAttributesChanged(net.zaminmc.torch.server.entity.MobEntity mob) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendMobAttributes(mob);
                 }
             }
 
@@ -800,8 +864,11 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                 } else {
                     // The armor row rides the Entity Equipment packets to the
                     // observers (the 1.8 way: remote armor renders from
-                    // equipment, never from metadata).
+                    // equipment, never from metadata), and the attribute pair
+                    // re-derives with it (ML-011 — the equipment's trackable
+                    // modifier rows).
                     connection.sendPlayerEquipment(player);
+                    connection.sendPlayerAttributes(player);
                 }
             }
         });
@@ -1223,6 +1290,64 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                     connection.sendPostureMetadata(player);
                 }
             }
+
+            @Override
+            public void onPlayerSleeping(net.zaminmc.torch.server.player.PlayerSession player,
+                                         net.zaminmc.torch.block.BlockPosition bedHead) {
+                // The sleep pose (the reference's ServerPlayerEntity.trySleep
+                // wire arm, lines 491-501): the Use Bed 0x0A to every
+                // tracking observer (the EntityMap.sendPacket fan) AND the
+                // sleeper's own client (the trailing self send).
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    if (connection.currentSession() == player) {
+                        connection.sendSelfUseBed(bedHead);
+                    } else {
+                        connection.sendRemotePlayerUseBed(player.uuid(), bedHead);
+                    }
+                }
+            }
+
+            @Override
+            public void onPlayerWake(net.zaminmc.torch.server.player.PlayerSession player) {
+                // The leave-bed walk's wire arm (ServerPlayerEntity.wakeUp
+                // lines 503-513): the Animation 0x0B code 2 to every
+                // observer INCLUDING the sleeper (EntityMap.sendPacketToAll
+                // fans to the trackers plus the entity itself), and the
+                // sleeper's own position anchor — the reference's trailing
+                // networkHandler.teleport, the packet that closes the
+                // client's sleep screen.
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    if (connection.currentSession() == player) {
+                        connection.sendSelfAnimation(2);
+                        connection.resyncPosition();
+                    } else {
+                        connection.sendRemotePlayerAnimation(player.uuid(), 2);
+                    }
+                }
+            }
+        });
+        // The spectator camera's visibility law (ML-018 — the reference's
+        // broadcastTo, ServerPlayerEntity line 472, answered by the
+        // tracker's own updatePlayer arm): the attach drops the spectating
+        // body from every other view (the camera's own packets ride the
+        // per-session link verb), the detach re-enters the restored body
+        // into the in-range observers' tracking windows — the same range
+        // walk every movement broadcast runs for the mover.
+        server.addSpectatorListener(new net.zaminmc.torch.server.EngineServer.SpectatorListener() {
+            @Override
+            public void onCameraAttached(net.zaminmc.torch.server.player.PlayerSession spectator,
+                                          net.zaminmc.torch.server.player.PlayerSession target) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    if (connection.currentSession() != spectator) {
+                        connection.untrackPlayer(spectator.uuid());
+                    }
+                }
+            }
+
+            @Override
+            public void onCameraDetached(net.zaminmc.torch.server.player.PlayerSession spectator) {
+                broadcastMovement(spectator);
+            }
         });
         // Experience orbs: engine decides lifecycle, adapter renders Spawn
         // Experience Orb 0x11 / Collect / Destroy — the item-entity shape.
@@ -1314,11 +1439,14 @@ public final class V18ProtocolServer implements ProtocolAdapter {
             }
         });
         // The held-slot switch: the owner gets the 0x09 confirm, every
-        // observer re-renders the new held item through Entity Equipment.
+        // observer re-renders the new held item through Entity Equipment,
+        // and the attribute pair re-derives (ML-011 — a held stack's
+        // trackable modifier rows ride the 0x20 re-publish).
         server.addHeldSlotListener(player -> {
             for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
                 connection.sendHeldItemChangeConfirm(player);
                 connection.sendPlayerEquipment(player);
+                connection.sendPlayerAttributes(player);
             }
         });
         // The FX bus: every engine sound/particle event fans out to the
@@ -1849,6 +1977,17 @@ public final class V18ProtocolServer implements ProtocolAdapter {
 
     /** Broadcasts a remote player's authoritative position to observers in range. */
     void broadcastMovement(PlayerSession mover) {
+        // The spectating spectator publishes nothing of its own (the
+        // reference's broadcastTo law — the camera-following body is gated
+        // out of every other view) and drops out of any view it still
+        // held: its follow anchors the body silently on the tick lane, the
+        // target's own stream carries the camera.
+        if (mover.spectatorCamera() != null) {
+            for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                connection.untrackPlayer(mover.uuid());
+            }
+            return;
+        }
         var moverChunk = mover.position().toBlockPosition().chunkPosition();
         long viewSq = (long) engine.engineConfig().viewDistance() * engine.engineConfig().viewDistance();
         for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {

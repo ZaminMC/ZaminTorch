@@ -19,6 +19,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The §28.8 adversarial subset's first wave over the live engine (the
@@ -126,7 +127,7 @@ class BukkitAdversarialTest {
         Bukkit.getScheduler().runTaskAsynchronously(probe, () -> {
             append(harness, "disable-drill:async-started"); // the in-flight marker
             try {
-                Thread.sleep(250); // running when the disable walk runs
+                EngineAwaits.awaitTicks(harness.server.world(), 5, "running when the disable walk runs");
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
@@ -172,7 +173,7 @@ class BukkitAdversarialTest {
                 "the late completion was DROPPED (the native scope's own invalidation)");
 
         // The queued task never ran — past four beat slots.
-        Thread.sleep(500);
+        EngineAwaits.awaitTicks(harness.server.world(), 10, "engine progress (a 500 wall settle)");
         assertEquals(queuedBefore, count(harness, "disable-drill:queued-ran"),
                 "the queued delayed task never ran after the disable");
         assertTrue(droppedLateCount(harness) > droppedLateBefore,

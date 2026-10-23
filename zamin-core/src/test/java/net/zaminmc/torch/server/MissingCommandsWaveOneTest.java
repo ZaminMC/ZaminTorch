@@ -18,6 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The missing-commands batch, wave one (Slice 88): /kill's any-kind arm
@@ -248,7 +249,7 @@ class MissingCommandsWaveOneTest {
         dispatch("/enchant Alice sharpness 99");
         // The canEnchant refusal: depth strider on a sword.
         dispatch("/enchant Alice depth_strider 1");
-        Thread.sleep(300);
+        EngineAwaits.awaitTicks(server.world(), 6, "engine progress (a 300 wall settle)");
         // The incompatible and out-of-bounds writes never landed: the row
         // stays exactly sharpness 3.
         assertEquals(3, alice.inventory().held().enchantments().get(16).intValue());
@@ -265,7 +266,7 @@ class MissingCommandsWaveOneTest {
 
         // The too-far refusal: a point far outside the 16-block gate.
         dispatch("/playsound mob.zombie.say Bob 500 40 500");
-        Thread.sleep(300);
+        EngineAwaits.awaitTicks(server.world(), 6, "engine progress (a 300 wall settle)");
         assertEquals(1, bobSounds.size(), "the too-far arm refused");
 
         // The fold-back rule: the same far point with a minimum volume.
@@ -291,7 +292,7 @@ class MissingCommandsWaveOneTest {
 
         // The unknown-name refusal.
         dispatch("/particle notAParticle ~ ~ ~ 0 0 0 1 1");
-        Thread.sleep(300);
+        EngineAwaits.awaitTicks(server.world(), 6, "engine progress (a 300 wall settle)");
         assertEquals(2, aliceParticles.size(), "the refusal fired no packet");
     }
 
@@ -335,14 +336,14 @@ class MissingCommandsWaveOneTest {
 
         // The keep gate refuses on an occupied cell.
         dispatch("/setblock ~ ~2 ~ cobblestone keep");
-        Thread.sleep(300);
+        EngineAwaits.awaitTicks(server.world(), 6, "engine progress (a 300 wall settle)");
         assertEquals("stone", server.world().getBlock(
                 new net.zaminmc.torch.block.BlockPosition(x, y + 2, z)).identifier().value(),
                 "the keep gate kept the stone");
 
         // The height bounds.
         dispatch("/setblock ~ 300 ~ stone");
-        Thread.sleep(300);
+        EngineAwaits.awaitTicks(server.world(), 6, "engine progress (a 300 wall settle)");
         assertEquals("stone", server.world().getBlock(
                 new net.zaminmc.torch.block.BlockPosition(x, y + 2, z)).identifier().value());
     }
@@ -375,7 +376,7 @@ class MissingCommandsWaveOneTest {
 
         // The volume cap.
         dispatch("/fill ~-20 ~1 ~-20 ~20 ~40 ~20 stone");
-        Thread.sleep(300);
+        EngineAwaits.awaitTicks(server.world(), 6, "engine progress (a 300 wall settle)");
         // The too-many refusal fired nothing new — the shell is still stone.
         assertEquals("stone", server.world().getBlock(
                 new net.zaminmc.torch.block.BlockPosition(x, y + 1, z)).identifier().value());
@@ -433,14 +434,14 @@ class MissingCommandsWaveOneTest {
 
         // The detect mismatch: the refusal, nothing placed.
         dispatch("/execute Alice ~ ~ ~ detect ~ ~2 ~ gold_block -1 setblock ~ ~5 ~ dirt");
-        Thread.sleep(300);
+        EngineAwaits.awaitTicks(server.world(), 6, "engine progress (a 300 wall settle)");
         assertEquals("air", server.world().getBlock(
                 new net.zaminmc.torch.block.BlockPosition(x, y + 5, z)).identifier().value(),
                 "the mismatched detect refused the nested run");
 
         // The too-short form: five args minimum, the fourth is the command.
         dispatch("/execute Alice ~ ~ ~");
-        Thread.sleep(200);
+        EngineAwaits.awaitTicks(server.world(), 4, "engine progress (a 200 wall settle)");
         assertEquals("air", server.world().getBlock(
                 new net.zaminmc.torch.block.BlockPosition(x, y + 6, z)).identifier().value(),
                 "the short form refused");
@@ -468,7 +469,7 @@ class MissingCommandsWaveOneTest {
         int ax = (int) Math.floor(alice.position().x());
         int ay = (int) Math.floor(alice.position().y());
         int az = (int) Math.floor(alice.position().z());
-        Thread.sleep(300);
+        EngineAwaits.awaitTicks(server.world(), 6, "engine progress (a 300 wall settle)");
         assertEquals("air", server.world().getBlock(
                 new net.zaminmc.torch.block.BlockPosition(ax, ay + 2, az)).identifier().value(),
                 "the anchor was the zombie, not Alice");
@@ -497,7 +498,7 @@ class MissingCommandsWaveOneTest {
         double ax0 = alice.position().x();
         double az0 = alice.position().z();
         dispatch("/spreadplayers ~ ~ 10 3 false Alice Bob");
-        Thread.sleep(300);
+        EngineAwaits.awaitTicks(server.world(), 6, "engine progress (a 300 wall settle)");
         assertEquals(ax0, alice.position().x(), 0.01, "the bad range refused");
         assertEquals(az0, alice.position().z(), 0.01, "the bad range refused");
     }
@@ -517,7 +518,7 @@ class MissingCommandsWaveOneTest {
         double ax0 = alice.position().x();
         double az0 = alice.position().z();
         dispatch("/spreadplayers ~ ~ 10 11 false @e");
-        Thread.sleep(600);
+        EngineAwaits.awaitTicks(server.world(), 12, "engine progress (a 600 wall settle)");
         assertEquals(ax0, alice.position().x(), 0.01, "the impossible spread left Alice in place");
         assertEquals(az0, alice.position().z(), 0.01, "the impossible spread left Alice in place");
     }
@@ -581,13 +582,13 @@ class MissingCommandsWaveOneTest {
         // The clear arm: the binding gone, later runs leave the score.
         dispatch("/stats entity Alice clear AffectedBlocks");
         dispatch("/fill ~1 ~5 ~1 ~2 ~5 ~4 stone");
-        Thread.sleep(400);
+        EngineAwaits.awaitTicks(server.world(), 8, "engine progress (a 400 wall settle)");
         assertEquals(8, server.scoreboard().getScore("Alice", objective).get(),
                 "the cleared binding stopped the updates");
 
         // The unknown-type refusal.
         dispatch("/stats entity Alice set NotAStat Alice statcnt");
-        Thread.sleep(300);
+        EngineAwaits.awaitTicks(server.world(), 6, "engine progress (a 300 wall settle)");
         // The binding never changed (the clear left none): the last score stays.
         assertEquals(8, server.scoreboard().getScore("Alice", objective).get());
     }
@@ -625,7 +626,7 @@ class MissingCommandsWaveOneTest {
 
         // The unsupported family refuses.
         dispatch("/replaceitem entity Alice slot.villager.0 stone");
-        Thread.sleep(300);
+        EngineAwaits.awaitTicks(server.world(), 6, "engine progress (a 300 wall settle)");
 
         // The block arm: a chest placed and filled through its container
         // slot (the tile appears on the write — the engine's lazy
@@ -647,7 +648,7 @@ class MissingCommandsWaveOneTest {
 
         // The no-container refusal (the plain stone beside it).
         dispatch("/replaceitem block ~3 ~ ~ slot.container.0 stone");
-        Thread.sleep(300);
+        EngineAwaits.awaitTicks(server.world(), 6, "engine progress (a 300 wall settle)");
         var beside = new net.zaminmc.torch.block.BlockPosition(x + 3, y, z);
         assertEquals("air", server.world().getBlock(beside).identifier().value());
     }
@@ -663,14 +664,14 @@ class MissingCommandsWaveOneTest {
                         new net.zaminmc.torch.block.BlockPosition(x + 1, y + 2, z)).identifier().value().equals("stone"),
                 "the stone landed");
         dispatch("/testforblock ~1 ~2 ~ stone");
-        Thread.sleep(300);
+        EngineAwaits.awaitTicks(server.world(), 6, "engine progress (a 300 wall settle)");
         // The mismatch refusal leaves nothing to assert state-wise beyond
         // survival; the meta gate honors -1-any and 0-the-type's-own.
         dispatch("/testforblock ~1 ~2 ~ stone -1");
-        Thread.sleep(300);
+        EngineAwaits.awaitTicks(server.world(), 6, "engine progress (a 300 wall settle)");
         // The unknown name refusal.
         dispatch("/testforblock ~1 ~2 ~ nosuchblock");
-        Thread.sleep(300);
+        EngineAwaits.awaitTicks(server.world(), 6, "engine progress (a 300 wall settle)");
     }
 
     @Test
@@ -688,14 +689,14 @@ class MissingCommandsWaveOneTest {
                         new net.zaminmc.torch.block.BlockPosition(x - 2, y + 4, z + 1)).identifier().value().equals("stone"),
                 "the second platform built");
         dispatch("/testforblocks ~1 ~4 ~1 ~2 ~4 ~2 ~-2 ~4 ~1");
-        Thread.sleep(400);
+        EngineAwaits.awaitTicks(server.world(), 8, "engine progress (a 400 wall settle)");
         // The mismatch: change one destination cell.
         dispatch("/setblock ~-2 ~4 ~1 glass");
         await(() -> server.world().getBlock(
                         new net.zaminmc.torch.block.BlockPosition(x - 2, y + 4, z + 1)).identifier().value().equals("glass"),
                 "the destination cell changed");
         dispatch("/testforblocks ~1 ~4 ~1 ~2 ~4 ~2 ~-2 ~4 ~1");
-        Thread.sleep(400);
+        EngineAwaits.awaitTicks(server.world(), 8, "engine progress (a 400 wall settle)");
         // The masked mode skips the air cells: comparing the stone platform
         // against the air above it passes with the stone cells alone... no —
         // masked skips AIR SOURCE cells; the stone source still mismatches

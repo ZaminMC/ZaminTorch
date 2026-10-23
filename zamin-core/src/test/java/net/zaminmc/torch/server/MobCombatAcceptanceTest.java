@@ -23,6 +23,7 @@ import java.util.function.BooleanSupplier;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * Melee combat and the living population over the real ticker: server-side
@@ -80,7 +81,7 @@ class MobCombatAcceptanceTest {
         server.teleportPlayer(attacker, new Position(0.5, 5.0, 60.0));
         await(() -> attacker.position().z() == 60.0, "the teleport landed");
         server.attackEntity(attacker, cow.entityId());
-        Thread.sleep(300);
+        EngineAwaits.awaitTicks(server.world(), 6, "engine progress (a 300 wall settle)");
         assertEquals(before, cow.health(), "out-of-reach swings never connect");
         server.shutdown(null);
     }

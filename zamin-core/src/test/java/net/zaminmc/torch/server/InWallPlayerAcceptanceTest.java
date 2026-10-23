@@ -18,6 +18,7 @@ import java.util.function.BooleanSupplier;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * THE PLAYER'S IN-WALL ARM (the in-wall slice's player half —
@@ -97,7 +98,7 @@ class InWallPlayerAcceptanceTest {
         // The i-frame: no second wound inside the window; the next one
         // after ~10 ticks.
         float first = walker.health();
-        Thread.sleep(150); // ~3 ticks: inside the window
+        EngineAwaits.awaitTicks(server.world(), 3, "~3 ticks: inside the window");
         assertEquals(first, walker.health(), 1e-6f, "no wound inside the i-frame window");
         await(() -> walker.health() < first, "the second wound lands past the window");
         assertEquals(first - 1.0f, walker.health(), 1e-6f, "the second 1.0 wound");
@@ -107,7 +108,7 @@ class InWallPlayerAcceptanceTest {
     void aClearEyedPlayerNeverWounds() throws Exception {
         PlayerSession walker = join("Clear", new Position(8.5, 5.0, 8.5));
         float before = walker.health();
-        Thread.sleep(1_500); // ~30 ticks with no wall anywhere near the eye
+        EngineAwaits.awaitTicks(server.world(), 30, "~30 ticks with no wall anywhere near the eye");
         assertEquals(before, walker.health(), 1e-6f, "no wall, no wound");
         assertTrue(walker.state() == net.zaminmc.torch.entity.PlayerState.PLAYING);
     }

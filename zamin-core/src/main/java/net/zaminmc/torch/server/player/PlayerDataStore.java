@@ -339,6 +339,65 @@ public final class PlayerDataStore {
         }
     }
 
+    /**
+     * The persisted-identity census (ML-005 — the /op profile-cache
+     * equivalent's own disk half): every {@code <uuid>.zpd} under the
+     * directory read at HEADER depth only (the magic, the version, the
+     * name string — the leading fields of every format version since
+     * v1), never the full body. A file that fails the header read is
+     * skipped silently: the census degrades to a miss for that name,
+     * and the next join's own {@link #load} walk owns the quarantine.
+     * The store's format knowledge stays here (the §31.4 boundary) —
+     * the census consumer never parses a byte.
+     */
+    public java.util.Map<UUID, String> persistedNames() {
+        java.util.Map<UUID, String> names = new java.util.LinkedHashMap<>();
+        if (!Files.isDirectory(directory)) {
+            return names;
+        }
+        try (java.util.stream.Stream<Path> files = Files.list(directory)) {
+            for (Path file : (Iterable<Path>) files::iterator) {
+                String fileName = file.getFileName().toString();
+                if (!fileName.endsWith(".zpd")) {
+                    continue;
+                }
+                UUID uuid;
+                try {
+                    uuid = UUID.fromString(fileName.substring(0, fileName.length() - 4));
+                } catch (IllegalArgumentException notAUuid) {
+                    continue;
+                }
+                String name = readNameHeader(file);
+                if (name != null && !name.isBlank()) {
+                    names.put(uuid, name);
+                }
+            }
+        } catch (IOException unreadable) {
+            // The census degrades to what it read; /op then answers the
+            // failed line for the names it could not see.
+            return names;
+        }
+        return names;
+    }
+
+    /** The header-depth name read: the magic, the version, the name string. */
+    private static String readNameHeader(Path file) {
+        try (DataInputStream in = new DataInputStream(new BufferedInputStream(
+                Files.newInputStream(file)))) {
+            if (in.readByte() != MAGIC_0 || in.readByte() != MAGIC_1
+                    || in.readByte() != MAGIC_2) {
+                return null;
+            }
+            int version = in.readByte();
+            if (version < 1 || version > FORMAT_VERSION) {
+                return null;
+            }
+            return readString(in);
+        } catch (IOException | RuntimeException corrupt) {
+            return null;
+        }
+    }
+
     private Path fileOf(UUID uuid) {
         return directory.resolve(uuid + ".zpd");
     }

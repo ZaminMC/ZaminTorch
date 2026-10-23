@@ -95,6 +95,19 @@ public final class MobManager {
         }
 
         /**
+         * The mob's attribute overrides changed after the spawn (ML-011 —
+         * the /summon + /entitydata Attributes rows over the Slice 78b
+         * override setters): the Entity Properties (0x20) re-send to every
+         * observer — the reference's own change walk (setBase → markDirty →
+         * the tracked set → TrackedEntity.sendDataAndAttributes lines
+         * 260-274). The wire's isTrackable law holds on this wake: only
+         * the movementSpeed row fires it (attackDamage never enters the
+         * tracked set — EntityAttributes line 21 has no trackable flag).
+         */
+        default void onMobAttributesChanged(MobEntity mob) {
+        }
+
+        /**
          * The ocelot's posture bits changed (the shared flags byte at
          * index 0: the tempt's sneak 0x02, the flee's sprint 0x10).
          */
@@ -687,6 +700,19 @@ public final class MobManager {
         }
     }
 
+    /**
+     * The attributes-change publication (ML-011 — the /summon and
+     * /entitydata Attributes rows land after the spawn packet went out,
+     * the same convention as the equipment wake): every listener
+     * re-sends the Entity Properties (0x20). Tick-thread context.
+     */
+    public void attributesChanged(MobEntity mob) {
+        Objects.requireNonNull(mob, "mob");
+        for (Listener listener : listeners) {
+            listener.onMobAttributesChanged(mob);
+        }
+    }
+
     /** Wires the potion system (the witch's drink lands its effects through it). */
     /** Wires the item-entity world for the loot-pickup scan (Slice 92). */
     public void setItemEntitiesForPickup(ItemEntityManager items) {
@@ -861,6 +887,37 @@ public final class MobManager {
             double dy = at.y() - y;
             double dz = at.z() - z;
             if (dx * dx + dy * dy + dz * dz <= radius * radius) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * The sleep-refusal monster probe (PlayerEntity.trySleep lines 1101-1109,
+     * the NOT_SAFE arm's exact rule and radius): whether any hostile body's
+     * own box intersects the reference's bed box — x/z ±8, y ±5 around the
+     * bed cell (the {@code getEntitiesOfType(MonsterEntity.class, box)}
+     * consult; the neutral-by-day kinds count too — the reference's class
+     * hierarchy decides, never the temper). Tick-thread context.
+     */
+    public boolean monstersNearBed(net.zaminmc.torch.block.BlockPosition bed) {
+        for (MobEntity mob : mobs) {
+            if (mob.dead() || !mob.type().hostile) {
+                continue;
+            }
+            Position at = mob.position();
+            double halfWidth = mob.type().width / 2.0;
+            // The box-intersection the reference's entity query answers:
+            // the mob's feet-anchored box (width x height) against the bed
+            // box's own spans.
+            boolean overlaps = at.x() + halfWidth >= bed.x() - 8.0
+                    && at.x() - halfWidth <= bed.x() + 8.0
+                    && at.z() + halfWidth >= bed.z() - 8.0
+                    && at.z() - halfWidth <= bed.z() + 8.0
+                    && at.y() + mob.type().height >= bed.y() - 5.0
+                    && at.y() <= bed.y() + 5.0;
+            if (overlaps) {
                 return true;
             }
         }
@@ -2196,11 +2253,20 @@ public final class MobManager {
                 if (nbt.dropChances() != null) {
                     mob.setInventoryDropChances(nbt.dropChances());
                 }
+                boolean attributesRestored = false;
                 if (!Double.isNaN(nbt.movementSpeed())) {
                     mob.setMovementSpeedOverride(nbt.movementSpeed());
+                    // MOVEMENT_SPEED is the trackable one (EntityAttributes
+                    // line 18) — the wake fires the 0x20 re-publish; the
+                    // attackDamage row below never enters the tracked set
+                    // (the reference's own isTrackable law).
+                    attributesRestored = true;
                 }
                 if (!Double.isNaN(nbt.attackDamage())) {
                     mob.setAttackDamageOverride((float) nbt.attackDamage());
+                }
+                if (attributesRestored) {
+                    attributesChanged(mob); // the boot-time fan: no connections yet
                 }
             }
             // The v5 command-stat bindings (Slice 90 — the reference's

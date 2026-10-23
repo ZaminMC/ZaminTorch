@@ -16,6 +16,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The piston on the live engine (Slice 9e) — the reference port of
@@ -149,7 +150,7 @@ class PistonSystemTest {
                     new BlockPosition(x, y + 1, z)));
             // Give the (wrongly armed) extend time to never happen: the
             // piston stays retracted, the column untouched.
-            Thread.sleep(400);
+            EngineAwaits.awaitTicks(server.world(), 8, "engine progress (a 400 wall settle)");
             assertTrue(!PistonBlocks.pistonExtended(typeAt(server, x, y, z)),
                     "thirteen blocks refuse the extend");
             assertTrue(typeAt(server, x + 1, y, z).identifier().value().equals("stone"),
@@ -225,7 +226,7 @@ class PistonSystemTest {
             await(() -> PistonBlocks.isPiston(typeAt(server, x, y, z)), "the piston placed");
             await(() -> RedstoneBlocks.isLever(typeAt(server, x + 1, y + 1, z)),
                     "the quasi lever placed");
-            Thread.sleep(300);
+            EngineAwaits.awaitTicks(server.world(), 6, "engine progress (a 300 wall settle)");
             assertTrue(!PistonBlocks.pistonExtended(typeAt(server, x, y, z)),
                     "an unpowered piston stays retracted");
             // Power the quasi region: the lever beside the block above. The

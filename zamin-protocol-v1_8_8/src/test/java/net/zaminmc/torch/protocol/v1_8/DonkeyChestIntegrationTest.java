@@ -5,6 +5,7 @@ import org.junit.jupiter.api.TestInstance;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The donkey chest + love burst over the real wire (the HorseMenu layout):
@@ -73,7 +74,14 @@ class DonkeyChestIntegrationTest extends ProtocolTestBase {
 
             // The tame ladder (wheat +3 temper, the same flow the horse test drives).
             client.sendChat("/give minecraft:wheat 64");
-            Thread.sleep(200);
+            // The loopback delivery of the /give frame is not tick-ordered —
+            // await the engine-visible condition (the wheat actually landing
+            // in the mule's inventory) so the ladder never fires wheatless
+            // under a loaded runner (the same hardening the horse test took).
+            awaitCondition(() -> server.playerRegistry().byName("PackMule")
+                            .orElseThrow().inventory()
+                            .countOf(net.zaminmc.torch.server.item.BuiltinItems.WHEAT) > 0,
+                    "the /give delivered the wheat to the mule's hotbar");
             for (int i = 0; i < 100 && server.mobs().byId(horseId).temper() < 100; i++) {
                 client.sendUseEntity(horseId, Protocol18.USE_ENTITY_INTERACT);
                 Thread.sleep(60);
