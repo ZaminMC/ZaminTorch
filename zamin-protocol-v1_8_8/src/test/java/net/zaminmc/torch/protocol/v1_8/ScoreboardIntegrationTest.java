@@ -8,6 +8,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The scoreboard wire family over the real socket (Slice 85 — 0x3B/0x3C/
@@ -38,7 +39,7 @@ class ScoreboardIntegrationTest extends ProtocolTestBase {
                     "wirePoints", ScoreboardCriterion.DUMMY));
             awaitCondition(() -> server.scoreboard().getObjective("wirePoints") != null,
                     "the objective exists");
-            Thread.sleep(200);
+            EngineAwaits.awaitTicks(server.world(), 4, "engine progress (a 200 wall settle)");
             player.setReadTimeout(600);
             boolean silent;
             try {

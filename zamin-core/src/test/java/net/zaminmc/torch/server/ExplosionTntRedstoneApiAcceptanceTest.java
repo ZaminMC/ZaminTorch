@@ -18,6 +18,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The explosion + TNT + redstone API wave (§27.3/§27.7): the
@@ -81,7 +82,7 @@ class ExplosionTntRedstoneApiAcceptanceTest {
             World world = server.world();
             BlockPosition center = new BlockPosition(60, 60, 60);
             placeCluster(server, center);
-            awaitSettled();
+            awaitSettled(server);
 
             // The cancelling handler: the gate fires BEFORE any destruction.
             AtomicInteger fired = new AtomicInteger();
@@ -95,7 +96,7 @@ class ExplosionTntRedstoneApiAcceptanceTest {
             // A short-fuse prime at the center: the detonation ~2 ticks out.
             server.ticker().submit(() ->
                     server.tnt().ignite(center, 2));
-            awaitSettled();
+            awaitSettled(server);
 
             assertEquals(1, fired.get(), "the gate fired exactly once");
             assertEquals(4.0f, seenPower.get(), 0.001f,
@@ -109,10 +110,10 @@ class ExplosionTntRedstoneApiAcceptanceTest {
             // The uncancelled twin: the same cluster, no handler — the blast
             // tears the stone.
             placeCluster(server, center);
-            awaitSettled();
+            awaitSettled(server);
             server.ticker().submit(() ->
                     server.tnt().ignite(center, 2));
-            awaitSettled();
+            awaitSettled(server);
             assertFalse(clusterIntact(world, center),
                     "the uncancelled blast destroyed the cluster");
         } finally {
@@ -132,7 +133,7 @@ class ExplosionTntRedstoneApiAcceptanceTest {
             BlockPosition at = new BlockPosition(70, 60, 70);
             server.ticker().submit(() ->
                     server.tnt().ignite(at, 80));
-            awaitSettled();
+            awaitSettled(server);
             var bodies = world.primedTnt();
             assertEquals(1, bodies.size(), "the primed body answers the family view");
             PrimedTnt body = bodies.iterator().next();
@@ -152,7 +153,7 @@ class ExplosionTntRedstoneApiAcceptanceTest {
             BlockPosition lever = new BlockPosition(80, 60, 80);
             server.ticker().submit(() -> server.world().setBlock(lever,
                     net.zaminmc.torch.server.redstone.RedstoneBlocks.leverOf(0, true)));
-            awaitSettled();
+            awaitSettled(server);
             assertEquals(15, world.redstone().powerAt(lever.offset(1, 0, 0)),
                     "the lever's neighbor reads the 15 feed");
             assertTrue(world.redstone().poweredAt(lever.offset(0, 0, 1)),
@@ -165,11 +166,7 @@ class ExplosionTntRedstoneApiAcceptanceTest {
     }
 
     /** The submit drains at the head of the next tick (<= 100 ms). */
-    private static void awaitSettled() {
-        try {
-            Thread.sleep(400);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
+    private void awaitSettled(EngineServer server) throws InterruptedException {
+        EngineAwaits.awaitTicks(server.world(), 8, "the submit drains at the head of the next tick");
     }
 }

@@ -27,6 +27,7 @@ import java.util.function.BooleanSupplier;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The achievement family's award sites (VIII6 — the twenty-eight rows the
@@ -340,11 +341,11 @@ class AchievementFamilyTest {
             await(() -> hunter.stats().hasAchievement(
                             EngineAchievements.DEAL_OVERKILL_DAMAGE.key()),
                     "the 19.5-hit earns the overkill row");
-            Thread.sleep(700); // the hurt window's 10-tick cadence
+            EngineAwaits.awaitTicks(server.world(), 14, "the hurt window's 10-tick cadence");
             // The first swing's knockback carried the body away: close the
             // distance again before the finishing swing.
             standNextTo(server, hunter, zombie.position());
-            Thread.sleep(200);
+            EngineAwaits.awaitTicks(server.world(), 4, "engine progress (a 200 wall settle)");
             server.attackEntity(hunter, zombie.entityId());
             await(() -> zombie.dead(), "the zombie died");
             assertTrue(hunter.stats().hasAchievement(
@@ -546,7 +547,7 @@ class AchievementFamilyTest {
                             EngineAchievements.RIDE_PIG_OFF_CLIFF.key()),
                     "the row taken back");
             server.ticker().submit(() -> pig.takeFallDamage(5.0f, 1.0f));
-            Thread.sleep(300);
+            EngineAwaits.awaitTicks(server.world(), 6, "engine progress (a 300 wall settle)");
             assertFalse(rider.stats().hasAchievement(
                             EngineAchievements.RIDE_PIG_OFF_CLIFF.key()),
                     "the five-block fall exactly never earns the row");
@@ -629,7 +630,7 @@ class AchievementFamilyTest {
                     "the progress one short");
             // The census runs every 20 ticks over the player's column: give
             // it a couple of windows to observe the short set.
-            Thread.sleep(1_500);
+            EngineAwaits.awaitTicks(server.world(), 30, "engine progress (a 1_500 wall settle)");
             assertFalse(explorer.stats().hasAchievement(
                             EngineAchievements.ENTER_ALL_BIOMES.key()),
                     "the missing biome refuses the award");

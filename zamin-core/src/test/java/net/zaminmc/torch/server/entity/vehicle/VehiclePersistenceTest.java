@@ -13,6 +13,7 @@ import java.util.function.BooleanSupplier;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The vehicle persistence round trip (Slice 25g — the ZVD store): the
@@ -64,7 +65,8 @@ class VehiclePersistenceTest {
         await(() -> one.vehicles().all().size() == 3, "the three vehicles spawned");
         // Let the bodies settle (the carts ride their physics onto the
         // ground; the settled position is what the store carries).
-        Thread.sleep(600);
+        EngineAwaits.awaitTicks(one.world(), 12,
+                        "the bodies settle (the carts ride their physics onto the ground)");
         // Wound the cart inside its i-frame window (one hit = one damage).
         VehicleEntity wounded = one.vehicles().all().stream()
                 .filter(v -> v.kind() == VehicleEntity.Kind.MINECART).findFirst()
@@ -207,7 +209,7 @@ class VehiclePersistenceTest {
             }
         });
         await(() -> one.vehicles().all().size() == 1, "the chest cart spawned");
-        Thread.sleep(400); // the settle
+        EngineAwaits.awaitTicks(one.world(), 8, "the settle");
         one.saveAllNow();
         one.shutdown(null);
         awaitState(one);

@@ -20,6 +20,7 @@ import java.util.function.BooleanSupplier;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * THE DIG HANDLER'S OWN GATES (ServerPlayNetworkHandler.handlePlayerDig
@@ -98,7 +99,7 @@ class DigHandlerGatesAcceptanceTest {
         await(() -> server.world().getBlock(target).equals(type),
                 "the target block landed at " + target);
         player.applyMovement(standAt, net.zaminmc.torch.util.Rotation.ZERO, true);
-        Thread.sleep(200); // the movement lands before the dig submissions
+        EngineAwaits.awaitTicks(server.world(), 4, "the movement lands before the dig submissions");
     }
 
     /** The inside-edge stand: 5.5 blocks out — the OLD 4.5 band refused, the dig band opens. */
@@ -121,7 +122,8 @@ class DigHandlerGatesAcceptanceTest {
         seedAndStand(target, BuiltinBlocks.DIRT, INSIDE_EDGE);
 
         server.blockInteraction().submitMiningStart(player, target, 1);
-        Thread.sleep(900); // dirt by hand: 15 ticks nominal; the 0.7 accept floor passes
+        EngineAwaits.awaitTicks(server.world(), 18,
+                "dirt by hand: 15 ticks nominal; the 0.7 accept floor passes");
         server.blockInteraction().submitMiningFinished(player, target);
         await(() -> server.world().getBlock(target).equals(BuiltinBlocks.AIR),
                 "the inside-edge dig broke the block (the old 4.5 band refused this START)");
@@ -143,9 +145,9 @@ class DigHandlerGatesAcceptanceTest {
         seedAndStand(target, BuiltinBlocks.DIRT, OUTSIDE);
 
         server.blockInteraction().submitMiningStart(player, target, 1);
-        Thread.sleep(900);
+        EngineAwaits.awaitTicks(server.world(), 18, "engine progress (a 900 wall settle)");
         server.blockInteraction().submitMiningFinished(player, target);
-        Thread.sleep(400);
+        EngineAwaits.awaitTicks(server.world(), 8, "engine progress (a 400 wall settle)");
         assertFalse(server.world().getBlock(target).equals(BuiltinBlocks.AIR),
                 "a finish beyond the band never breaks the block");
         assertTrue(resyncs.isEmpty(),
@@ -173,10 +175,10 @@ class DigHandlerGatesAcceptanceTest {
 
         // The guest's START: the consult refuses, the echo answers.
         server.blockInteraction().submitMiningStart(player, target, 1);
-        Thread.sleep(400);
+        EngineAwaits.awaitTicks(server.world(), 8, "engine progress (a 400 wall settle)");
         await(() -> resyncs.stream().anyMatch(r -> r.startsWith("BlockPosition[x=2, y=5, z=2]=minecraft:")),
                 "the refused START answered the BlockUpdate echo");
-        Thread.sleep(900);
+        EngineAwaits.awaitTicks(server.world(), 18, "engine progress (a 900 wall settle)");
         assertFalse(server.world().getBlock(target).equals(BuiltinBlocks.AIR),
                 "the refused consult never opened the dig");
 
@@ -184,9 +186,9 @@ class DigHandlerGatesAcceptanceTest {
         // stands the inside edge for the START.
         resyncs.clear();
         owner.applyMovement(INSIDE_EDGE, net.zaminmc.torch.util.Rotation.ZERO, true);
-        Thread.sleep(200);
+        EngineAwaits.awaitTicks(server.world(), 4, "engine progress (a 200 wall settle)");
         server.blockInteraction().submitMiningStart(owner, target, 1);
-        Thread.sleep(900);
+        EngineAwaits.awaitTicks(server.world(), 18, "engine progress (a 900 wall settle)");
         server.blockInteraction().submitMiningFinished(owner, target);
         await(() -> server.world().getBlock(target).equals(BuiltinBlocks.AIR),
                 "the operator's dig passed the consult freely");
@@ -214,7 +216,7 @@ class DigHandlerGatesAcceptanceTest {
         server.blockInteraction().submitMiningStart(player, target, 1);
         await(() -> server.world().getBlock(fireAt).equals(BuiltinBlocks.AIR),
                 "the dig start extinguished the fire at the face-offset cell");
-        Thread.sleep(900);
+        EngineAwaits.awaitTicks(server.world(), 18, "engine progress (a 900 wall settle)");
         server.blockInteraction().submitMiningFinished(player, target);
         await(() -> server.world().getBlock(target).equals(BuiltinBlocks.AIR),
                 "the extinguish never stopped the dig from opening");
@@ -242,7 +244,7 @@ class DigHandlerGatesAcceptanceTest {
         server.blockInteraction().submitCreativeBreak(player, target, 1);
         await(() -> server.world().getBlock(fireAt).equals(BuiltinBlocks.AIR),
                 "the creative break extinguished the fire");
-        Thread.sleep(400);
+        EngineAwaits.awaitTicks(server.world(), 8, "engine progress (a 400 wall settle)");
         assertEquals(BuiltinBlocks.STONE, server.world().getBlock(target),
                 "the extinguish consumed the click — the block behind the fire SURVIVES");
 
@@ -267,7 +269,7 @@ class DigHandlerGatesAcceptanceTest {
         seedAndStand(target, BuiltinBlocks.DIRT, INSIDE_EDGE);
 
         server.blockInteraction().submitMiningStart(player, target, 1);
-        Thread.sleep(100); // far below the 0.7 floor: the park
+        EngineAwaits.awaitTicks(server.world(), 2, "far below the 0.7 floor: the park");
         server.blockInteraction().submitMiningFinished(player, target);
         await(() -> resyncs.stream().anyMatch(r -> r.startsWith("BlockPosition[x=2, y=5, z=2]=minecraft:")),
                 "the early-parked finish answered the standing block (the tail echo)");
@@ -292,17 +294,17 @@ class DigHandlerGatesAcceptanceTest {
         seedAndStand(target, BuiltinBlocks.DIRT, INSIDE_EDGE);
 
         server.blockInteraction().submitMiningStart(player, target, 1);
-        Thread.sleep(100);
+        EngineAwaits.awaitTicks(server.world(), 2, "engine progress (a 100 wall settle)");
         player.applyMovement(OUTSIDE, net.zaminmc.torch.util.Rotation.ZERO, true);
-        Thread.sleep(200);
+        EngineAwaits.awaitTicks(server.world(), 4, "engine progress (a 200 wall settle)");
         server.blockInteraction().submitMiningAborted(player, target); // beyond the band
-        Thread.sleep(300);
+        EngineAwaits.awaitTicks(server.world(), 6, "engine progress (a 300 wall settle)");
         assertTrue(resyncs.isEmpty(),
                 "the ignored abort answers nothing — no echo: " + resyncs);
 
         // Back inside the band: the finish runs WITH the session the abort never killed.
         player.applyMovement(INSIDE_EDGE, net.zaminmc.torch.util.Rotation.ZERO, true);
-        Thread.sleep(700); // past the 0.7 floor from the ORIGINAL start
+        EngineAwaits.awaitTicks(server.world(), 14, "past the 0.7 floor from the ORIGINAL start");
         server.blockInteraction().submitMiningFinished(player, target);
         await(() -> server.world().getBlock(target).equals(BuiltinBlocks.AIR),
                 "the ignored abort left the session live — the finish broke the block");
@@ -322,13 +324,13 @@ class DigHandlerGatesAcceptanceTest {
         seedAndStand(target, BuiltinBlocks.DIRT, INSIDE_EDGE);
 
         server.blockInteraction().submitMiningStart(player, target, 1);
-        Thread.sleep(100);
+        EngineAwaits.awaitTicks(server.world(), 2, "engine progress (a 100 wall settle)");
         server.blockInteraction().submitMiningAborted(player, target); // inside the band
         await(() -> resyncs.stream().anyMatch(r -> r.startsWith("BlockPosition[x=2, y=5, z=2]=minecraft:")),
                 "the abort's tail answered the standing block");
-        Thread.sleep(1_200); // past the full nominal duration
+        EngineAwaits.awaitTicks(server.world(), 24, "past the full nominal duration");
         server.blockInteraction().submitMiningFinished(player, target);
-        Thread.sleep(400);
+        EngineAwaits.awaitTicks(server.world(), 8, "engine progress (a 400 wall settle)");
         assertFalse(server.world().getBlock(target).equals(BuiltinBlocks.AIR),
                 "the cleared dig never completes — the block stands");
         long echoes = resyncs.stream()

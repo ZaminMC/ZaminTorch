@@ -24,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * no-tile and no-players refusals, and the read's landings.
  */
 import net.zaminmc.torch.server.player.PlayerSession;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 class NbtCommandsTest {
 
@@ -144,14 +145,14 @@ class NbtCommandsTest {
         // The unchanged refusal: an empty merge changes nothing (the deep
         // equals against the pre-merge copy — the slot keeps its stack).
         dispatch("/blockdata ~2 ~ ~ {}");
-        Thread.sleep(300);
+        EngineAwaits.awaitTicks(server.world(), 6, "engine progress (a 300 wall settle)");
         var chest = server.chests().peek(chestPos);
         assertTrue(chest != null && chest.getItem(0).count() == 4,
                 "the unchanged refusal changed nothing");
 
         // The no-tile refusal: the plain ground beside it.
         dispatch("/blockdata ~3 ~ ~ {Items:[]}");
-        Thread.sleep(300);
+        EngineAwaits.awaitTicks(server.world(), 6, "engine progress (a 300 wall settle)");
         // (The refusal is observable only as no state change; the stone
         // cell carries no tile family at all.)
         assertEquals("air", server.world().getBlock(
@@ -172,7 +173,7 @@ class NbtCommandsTest {
         // The UUID strip: the body's own uuid survives any input rows.
         java.util.UUID before = zombie.getUuid();
         dispatch("/entitydata @e[type=Zombie,c=1] {UUIDMost:1L,UUIDLeast:2L}");
-        Thread.sleep(300);
+        EngineAwaits.awaitTicks(server.world(), 6, "engine progress (a 300 wall settle)");
         assertEquals(before, zombie.getUuid(), "the input's UUID rows never merge");
 
         // The Pos rows MOVE the body (the reference's own readNbt
@@ -193,7 +194,7 @@ class NbtCommandsTest {
 
         // The player refusal: Alice is never a target.
         dispatch("/entitydata Alice {NoAI:1b}");
-        Thread.sleep(300);
+        EngineAwaits.awaitTicks(server.world(), 6, "engine progress (a 300 wall settle)");
         assertTrue(alice.opLevel() >= 2, "the player refusal touched nothing");
     }
 

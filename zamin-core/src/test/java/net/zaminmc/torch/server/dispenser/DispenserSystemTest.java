@@ -19,6 +19,7 @@ import java.util.function.BooleanSupplier;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The dispenser and dropper on the live engine (Slice 11a — the reference
@@ -69,14 +70,12 @@ class DispenserSystemTest {
                     new BlockPosition(x + 2, y, z)));
             await(() -> !DispenserBlocks.triggered(typeAt(server, x, y, z)),
                     "the unpowered dispenser cleared its TRIGGERED pair");
-            long deadline = System.currentTimeMillis() + 400;
-            while (System.currentTimeMillis() < deadline) {
+            EngineAwaits.awaitTicks(server.world(), 8,
+                    "the re-dispense negative window (8 ticks)");
                 if (server.dispensers().peek(dispenser) != null
                         && server.dispensers().peek(dispenser).getItem(0).count() != 2) {
                     throw new AssertionError("the unpowered dispenser re-dispensed");
                 }
-                sleep(20);
-            }
         } finally {
             server.shutdown(() -> { });
         }
@@ -202,12 +201,10 @@ class DispenserSystemTest {
             assertEquals(4, server.dispensers().peek(dropper).getItem(0).count(),
                     "the dropper kept the rest");
             // The push is silent: no item entity ever spawns.
-            long deadline = System.currentTimeMillis() + 300;
-            while (System.currentTimeMillis() < deadline) {
+            EngineAwaits.awaitTicks(server.world(), 6,
+                    "the re-dispense negative window (6 ticks)");
                 assertFalse(itemDropNear(server, x + 1, y, z, "diamond"),
                         "the dropper's push spawned no item entity");
-                sleep(20);
-            }
         } finally {
             server.shutdown(() -> { });
         }
@@ -376,12 +373,10 @@ class DispenserSystemTest {
             await(() -> DispenserBlocks.triggered(typeAt(server, x, y, z)),
                     "the empty dispenser still raised its TRIGGERED pair");
             // Nothing spawns, nothing crashes — the empty click.
-            long deadline = System.currentTimeMillis() + 300;
-            while (System.currentTimeMillis() < deadline) {
+            EngineAwaits.awaitTicks(server.world(), 6,
+                    "the re-dispense negative window (6 ticks)");
                 assertFalse(itemDropNear(server, x, y + 1, z, "diamond"),
                         "the empty dispenser dropped nothing");
-                sleep(20);
-            }
         } finally {
             server.shutdown(() -> { });
         }

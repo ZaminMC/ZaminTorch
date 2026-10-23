@@ -12,6 +12,7 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The /summon NBT arm (Slice 75 — SummonCommand lines 65-74 1:1): the
@@ -99,14 +100,14 @@ class SummonNbtTest {
             // The invulnerable pin refuses every wound (Entity.isInvulnerable).
             server.ticker().submit(() ->
                     server.mobs().hurt(zombie, 100.0f, 0.0));
-            Thread.sleep(150);
+            EngineAwaits.awaitTicks(server.world(), 3, "the submit drains (the refused wound)");
             assertFalse(zombie.dead(), "the pinned body refused the wound");
             assertEquals(5.0f, zombie.health(), 1e-6, "the health never moved");
             // The NoAI pin: the body stands exactly still (the mind walk
             // never runs — the position's fixed point never moves).
             long before = Double.doubleToLongBits(zombie.position().x())
                     ^ Double.doubleToLongBits(zombie.position().z());
-            Thread.sleep(1_000); // 20 ticks
+            EngineAwaits.awaitTicks(server.world(), 20, "the NoAI pin: the mind walk never runs");
             long after = Double.doubleToLongBits(zombie.position().x())
                     ^ Double.doubleToLongBits(zombie.position().z());
             assertEquals(before, after, "the pinned body never moved");
@@ -122,7 +123,7 @@ class SummonNbtTest {
             var session = opSession(server);
             server.chatService().submitChat(session,
                     "/summon Zombie ~ ~ ~ {CustomName:\"unterminated}");
-            Thread.sleep(400);
+            EngineAwaits.awaitTicks(server.world(), 8, "the settle");
             assertTrue(server.mobs().all().stream()
                             .noneMatch(mob -> mob.type() == MobType.ZOMBIE),
                     "the broken tag never spawned the body");

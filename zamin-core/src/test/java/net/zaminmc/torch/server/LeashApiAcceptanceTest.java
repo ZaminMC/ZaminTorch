@@ -25,6 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The leash family's public API surface (§27.3 — the former NOT AUDITED
@@ -179,7 +180,7 @@ class LeashApiAcceptanceTest {
         assertEquals(LeashHolderKind.NONE, body.leashHolderKind(), "the kind is none again");
         assertTrue(body.leashKnotPosition().isEmpty(), "the knot cleared");
         // Give the item walk a beat: no lead item may land (the no-drop arm).
-        Thread.sleep(300);
+        EngineAwaits.awaitTicks(server.world(), 6, "engine progress (a 300 wall settle)");
         assertFalse(leadDroppedNear(20.5, 4.0, 20.5), "the creative release drops nothing");
     }
 

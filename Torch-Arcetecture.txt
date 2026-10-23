@@ -689,7 +689,7 @@ THE SECTION TABLE AND THE ATTRIBUTION PASS LANDED (ML-006 + ML-007 — the cycle
 
 Dynamic split/merge and load-driven migration remain future work. First prove migration with in-flight tasks, delayed work, messages, compute results, persistence, shutdown, and stale-generation invalidation; add telemetry and anti-oscillation rules before enabling automatic balancing.
 
-**Next concrete mechanics work:** continue from Section 29: the cycle-4 master ledger's remaining rows (docs/MASTER_LEDGER.md, carried by PR #38 until the owner merges it) — the last lane in the merge queue: ML-006/007/021 the debug table + the attribution pass + the 0x0C uuid fix (PR #46, landed on its branch). Then the owner's open calls (DEC-001 online-mode scope, ML-008 the /give form, PR #38's audit merge, ML-013's watchdog shape). The §22 evidence bar holds: no concurrency phase opens without the attribution pass's numbers (ML-007 landed — the verdict: none justified at the current loads).
+**Next concrete mechanics work:** continue from Section 29: the cycle-4 master ledger's remaining rows (docs/MASTER_LEDGER.md, carried by PR #38 until the owner merges it) — the owner's open calls (DEC-001 online-mode scope, ML-008 the /give form, PR #38's audit merge, ML-013's watchdog shape) and the family-owned tails (ML-100). The wave-3 lanes are ALL MERGED (releases 129-131 published green through the merges). The §22 evidence bar holds: no concurrency phase opens without the attribution pass's numbers (ML-007 landed — the verdict: none justified at the current loads).
 
 # 23. COMMITS / PUSHES / RELEASES
 

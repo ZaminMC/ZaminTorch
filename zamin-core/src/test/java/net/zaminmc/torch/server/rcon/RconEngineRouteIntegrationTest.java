@@ -22,6 +22,7 @@ import java.util.Arrays;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The remote-admin protocols through a REAL booted engine (one boot per
@@ -62,7 +63,7 @@ class RconEngineRouteIntegrationTest {
         long deadline = System.currentTimeMillis() + 10_000;
         while (System.currentTimeMillis() < deadline
                 && (server.rconServer() == null || server.queryResponseHandler() == null)) {
-            Thread.sleep(20);
+            EngineAwaits.awaitTicks(server.world(), 1, "engine progress (a 20 wall settle)");
         }
         assertTrue(server.rconServer() != null && server.rconServer().isRunning(),
                 "the enabled RCON listener booted (enable-rcon, DedicatedServer line 210)");

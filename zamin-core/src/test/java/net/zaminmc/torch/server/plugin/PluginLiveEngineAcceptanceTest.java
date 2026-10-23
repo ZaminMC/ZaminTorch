@@ -16,6 +16,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The plugin host's live-engine acceptance (Slice 76 — the §28.5/§28.6
@@ -147,7 +148,7 @@ class PluginLiveEngineAcceptanceTest {
             // The swept subscription no longer fires: a second join never
             // reaches the disabled plugin.
             joinAs(server, "unwatched");
-            Thread.sleep(500);
+            EngineAwaits.awaitTicks(server.world(), 10, "engine progress (a 500 wall settle)");
             assertEquals(1, joins.get(),
                     "the disabled plugin's subscription never fired again");
         } finally {

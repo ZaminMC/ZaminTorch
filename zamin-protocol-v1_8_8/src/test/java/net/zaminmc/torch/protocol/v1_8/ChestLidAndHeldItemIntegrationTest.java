@@ -9,6 +9,7 @@ import java.io.DataInputStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The container polish over the real wire: a chest opening swings its lid
@@ -48,7 +49,7 @@ class ChestLidAndHeldItemIntegrationTest extends ProtocolTestBase {
             opener.readWindowSlotTable(10_000);
             opener.sendBlockPlacement(2, 4, 2, 1, CHEST);
             opener.readBlockChange(10_000);
-            Thread.sleep(200); // the placement's fan-out window
+            EngineAwaits.awaitTicks(server.world(), 4, "the placement's fan-out window");
 
             // Open the chest: the watcher sees the lid swing open (0x24).
             opener.sendBlockPlacement(2, 5, 2, 1, -1);

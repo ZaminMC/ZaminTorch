@@ -9,6 +9,7 @@ import org.junit.jupiter.api.TestInstance;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The chest over the real wire: right-clicking a placed chest opens the
@@ -139,7 +140,7 @@ class ChestIntegrationTest extends ProtocolTestBase {
             client.sendCloseWindow(reopenedId);
             client.readWindowSlotTable(10_000, 0, true);
             client.sendDigging(0, 2, 5, 2, 1);
-            Thread.sleep(3_800); // chest by hand: 75 ticks nominal (3.75 s)
+            EngineAwaits.awaitTicks(server.world(), 76, "chest by hand: 75 ticks nominal (3.75 s)");
             client.sendDigging(2, 2, 5, 2, 1);
 
             int[] removal = client.readBlockChange(10_000);

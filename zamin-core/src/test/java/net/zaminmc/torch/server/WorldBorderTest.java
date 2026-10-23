@@ -17,6 +17,7 @@ import java.util.function.BooleanSupplier;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The world border (Slice 86 — WorldBorder 1:1): the geometry (the
@@ -143,6 +144,10 @@ class WorldBorderTest {
         border.setSize(10.0);
         border.setSize(10.0, 20.0, 100L);
         assertTrue(border.isGrowing());
+        // The lerp walk is the PRODUCT's own wall-clock behavior (vanilla
+        // lerps the border over real milliseconds) — no engine is booted
+        // here and no tick clock exists; the wall sleep is the honest
+        // wait (the census's genuine-product-time family).
         Thread.sleep(60);
         double midway = border.getLerpSize();
         assertTrue(midway > 10.0 && midway < 20.0, "the wall-clock walk advances: " + midway);
@@ -225,7 +230,7 @@ class WorldBorderTest {
             await(() -> server.worldBorder().getLerpSize() == 20.0, "the border is set");
 
             float inside = runner.health();
-            Thread.sleep(400); // several body ticks inside
+            EngineAwaits.awaitTicks(server.world(), 8, "several body ticks inside");
             assertEquals(inside, runner.health(), 1e-6, "inside the border: no damage");
 
             // Walk 15 blocks out (10-block half-width + 5 beyond).

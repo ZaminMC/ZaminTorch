@@ -20,6 +20,7 @@ import java.util.function.BooleanSupplier;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The redstone interaction layer on the live engine (Slice 9b): the dust's
@@ -79,7 +80,7 @@ class RedstoneInteractionTest {
                     "the player stood at the wall");
             server.useItemOnBlock(player, new BlockPosition(x, y, z + 1), 2,
                     java.util.Optional.empty(), 0, id -> { });
-            Thread.sleep(500);
+            EngineAwaits.awaitTicks(server.world(), 10, "engine progress (a 500 wall settle)");
             BlockType placed = typeAt(server, x, y, z);
             assertTrue(!RedstoneBlocks.isWire(placed),
                     "the dust never placed without its solid bed (got " + placed + ")");
