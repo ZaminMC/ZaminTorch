@@ -28,7 +28,7 @@ import net.zaminmc.torch.util.Rotation;
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
+
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -66,7 +66,6 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     private volatile PlayerSession session;
     private volatile boolean disconnectSent;
 
-    private final AtomicInteger keepAliveCounter = new AtomicInteger();
     private volatile long pendingKeepAlive = -1;
     private volatile long keepAliveSentAt;
 
@@ -2221,10 +2220,19 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     }
 
     private void sendKeepAlive(Channel channel) {
-        int id = keepAliveCounter.incrementAndGet();
+        // The R-4 payload law (the reference's own registration line):
+        // ServerPlayNetworkHandler.tick lines 132-136 send
+        // (int) getTimeMillis() as the keep-alive id — the low 32 bits of
+        // the send-time clock, NOT a counter. The old counter form was
+        // wire-legal (the client echoes any varint) but observably foreign
+        // to anything that reads the payload; the millis form is the
+        // reference's own. The exact-match read below is unchanged: two
+        // consecutive sends are always ≥ one poll period apart, so the
+        // millis ids never repeat while one is pending.
+        int id = (int) System.currentTimeMillis();
         pendingKeepAlive = id;
         keepAliveSentAt = System.currentTimeMillis();
-        ByteBuf out = Unpooled.buffer(8);
+        ByteBuf out = Unpooled.buffer(10);
         ByteBufOps.writeVarInt(out, Protocol18.S2C_KEEP_ALIVE);
         ByteBufOps.writeVarInt(out, id);
         channel.writeAndFlush(out);
@@ -7277,6 +7285,41 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         }
 
         private void writeChunk(EngineChunk chunk, boolean groundUp) {
+            // ML-024 — the wire-publish profiler section: the whole
+            // serialization+publication path (the ChunkSerializer18 walk,
+            // the 0x21 build, the flush, the tile replays) rides its own
+            // row so the attribution harness sees the re-stream's cost
+            // exactly — the attribution pass found the storm's 17 full
+            // re-streams invisible (no section covers this walk; the JFR
+            // byte[] 4.15GB sample was the serialization's only trace).
+            // NOT a nested push/pop section: this walk runs on three
+            // lanes — this connection's netty event loop (the join
+            // sequence's sendInitial, the movement lane's updateCenter,
+            // the spectate follow's re-center), the tick thread's
+            // pre-handler job drain (the respawn/dimension-change
+            // re-streams — performRespawn's submitted job runs in
+            // EngineTicker's pending-work drain, BEFORE the tick handler,
+            // outside the root section's window), and the tick thread's
+            // relightTransport section — and the first lane can
+            // interleave with the tick thread's open sections, which the
+            // profiler's single-caller stack contract forbids (a torn
+            // stack answers garbage rows, worse than no data). The
+            // recordSectionSpan arm merges atomically into the same table
+            // pop merges into, so every lane accumulates into the one
+            // root.wirePublish row (the root prefix is the reference's
+            // own connection-arm placement — MinecraftServer.tick's root —
+            // and the harness's differencing strips it; the row is a
+            // CROSS-CUT: where the walk runs inside an open section — the
+            // relight re-sends — that section keeps its wall time and
+            // this row attributes the same span again). No try/finally:
+            // the arm holds no stack to unbalance, so a throwing serialize
+            // loses one sample, nothing else. Zero cost while profiling
+            // is off (the gate answers before the nanoTime pair — the
+            // section law every no-op push/pop already carries).
+            net.zaminmc.torch.server.profiler.EngineProfiler wirePublishProfiler =
+                    engine.profiler();
+            long wirePublishStart = wirePublishProfiler.isProfiling()
+                    ? System.nanoTime() : 0L;
             byte[] data = ChunkSerializer18.serialize(chunk, groundUp);
             ByteBuf out = Unpooled.buffer(16 + data.length);
             ByteBufOps.writeVarInt(out, Protocol18.S2C_CHUNK_DATA);
@@ -7341,6 +7384,10 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                 for (var entry : engine.commandBlocks().inChunk(chunk.position())) {
                     writeCommandTile(channel, entry.getKey(), entry.getValue());
                 }
+            }
+            if (wirePublishStart != 0L) {
+                wirePublishProfiler.recordSectionSpan("root.wirePublish",
+                        System.nanoTime() - wirePublishStart);
             }
         }
     }
