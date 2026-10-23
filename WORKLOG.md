@@ -13513,6 +13513,166 @@ Stage Summary:
   baseline and the ranked backlog. The next cycle's order: verify CI
   green + the 128 release, then the 0x0C metadata audit (B-5) paired
   with the attribution pass (B-7 + Phase-3 rerun).
+
+---
+Task ID: cycle-4
+Agent: the coordinator (exhaustive-audit session, 2026-10-23)
+Task: The exhaustive 1.8.8 compatibility and implementation gap audit —
+ground truth, contract matrix, vanilla parity census, complete Folia
+patch accounting, test/perf/concurrency evidence, and the authoritative
+master ledger. Audit-only: no production code, tests, or behavior
+changed.
+
+Work Log:
+- Phase 0 ground truth re-established after the environment reset:
+  develop 48b91574 (local == GitHub, verified via API), PR #37 OPEN
+  unmerged mergeable-clean 5 commits with NO CI runs (the release
+  workflow = develop-push only), release run #362 RED at the suite step,
+  torch-1.8.8-127 the last published release (128 bump committed, never
+  shipped), feature/save-s4-stores found stale-and-merged (87 behind, 0
+  ahead), the owner's §33/§34 additions to the architecture file
+  confirmed present (15de9398).
+- The supplied patched-server tree identified FROM SOURCE: PaperMC/Folia
+  ver/26.2.x (mcVersion 26.2, paperRef 5d4f9bd0, channel BETA, paperweight
+  2.0.0-beta.21, Java 25) — NOT a 1.8.8 server; the archive carries only
+  Folia's delta over Paper (24 patch files); the upstream Paper/Spigot/
+  CraftBukkit/Bukkit stacks are NOT in the archive — recorded as a scope
+  boundary, never silently audited.
+- Phase 3 complete: all 24 patches read and classified (10
+  different-by-design, 9 not-applicable, 2 missing-as-Torch-native
+  [watchdog pair], 3 unverified with bounded procedures) —
+  docs/FOLIA_PATCH_ACCOUNTING.md, building on the prior cycle's 460-path
+  inventory without duplicating it.
+- Phase 2 census method executed: reference-derived inventories (192
+  entity classes, 153 block classes, 74 item classes, 28+77 packet
+  classes, 23 effects, 21 enchantment classes) reconciled against the
+  engine — mobs 32/32 exact, projectiles 9/9, vehicles 9/9, specials 8/8,
+  decorations 4/4, effects 23/23, block-state registry 896 test-pinned,
+  C2S 27/28 (KeyC2S absent = offline-mode), S2C 67/77 with every absence
+  named.
+- Three FRESH confirmed wire gaps found by the census (each verified
+  against the reference source, not just constant absence): 0x36 Sign
+  Editor Open never sent (ServerPlayerEntity.openSignEditor lines 547-550
+  proves the obligation; SignManager's doc expects an editor nothing
+  opens — real clients cannot type sign text, bots masked it), 0x20
+  Entity Properties never sent (Wave J's attribute engine has no wire
+  face), 0x0A Use Bed never sent (the sleep flow's own doc declares the
+  single-player contract — no multiplayer all-sleepers walk, no pose
+  broadcast). Medium: 0x41 difficulty live-sync, 0x48 resource pack
+  end-to-end (the C2S status handler is read-and-discard), spectator
+  camera (C2S Spectate read-and-discard, V18Connection:566-569).
+- Phases 4-6: zamin-bukkit state verified CONSISTENT with the docs (the
+  cycle-3 mismatch question disproved); the wall-clock-deadline test
+  population generalization carried (ML-002); the perf baseline retained
+  as historical observation; /debug's missing section table re-verified;
+  the watchdog absence verified; concurrency phases stay gated.
+- The deliverables written: docs/CYCLE4_EXHAUSTIVE_AUDIT.md (ground
+  truth, continuity carry-forward with every cycle-3 lead classified, the
+  Phase-1 contract matrix, the method + final report), docs/
+  MASTER_LEDGER.md (20+1 evidence-backed rows with the required fields:
+  the two release blockers, the wire rows, the carried items, the
+  fork-audit rows, the decision block), docs/VANILLA_PARITY_MATRIX.md
+  (the census + the R-1..R-8 honest remainder), docs/
+  FOLIA_PATCH_ACCOUNTING.md, docs/COMPATIBILITY_MATRIX.md,
+  docs/TEST_COVERAGE_MATRIX.md (440 classes / 2533 tests censused).
+- Branch cycle4-exhaustive-audit pushed; PR opened against develop.
+  PR #37 untouched and unmerged, per the audit's own boundary.
+
+Stage Summary:
+- The next implementation queue is now the MASTER_LEDGER's, ordered by
+  the dependency-aware sequence: Wave R (release pipeline + the deadline
+  population), Wave W1 (the three wire rows 0x36/0x20/0x41 — the
+  smallest blast radius with the highest client-visible payoff), Wave W2
+  (sleep walk + spectator camera), Wave D (diagnostics: slot-27
+  instrumentation, /debug table, watchdog, the three bounded
+  verifications), Wave V (the R-remainder + /op offline + decisions),
+  Wave P (attribution after ML-006 — the §22 gate evaluation, explicitly
+  not concurrency wiring).
+- The audit is COMPLETE for the supplied-fork tree (24/24), the contract,
+  continuity, and CI dimensions; INCREMENT-COMPLETE for vanilla (census
+  level + named gaps + the quantified R-1..R-9 remainder — the honest
+  boundary). No completed ledger row was reopened without new evidence;
+  four families were found Partial (sleep, spectator, sign editor,
+  attributes-wire) — incompleteness findings, not regressions.
+- Owner decisions requested: DEC-001 (online-mode scope), ML-008 (/give
+  form), PR #37 merge (the release verification path), ML-013 (watchdog).
+
+---
+Task ID: cycle-4-increment-2
+Agent: the coordinator (post-reset session, 2026-10-23)
+Task: Re-establish ground truth after the environment reset; handle PR #37
+per the owner's instruction; re-anchor the exhaustive audit's fork target on
+the owner-supplied KigPaper 1.8.8 tree and run the audit increment.
+
+Work Log:
+- Ground truth re-verified: cycle4-exhaustive-audit was clean/synced at
+  a55aefb2 (6 commits from the pre-reset session); develop had moved
+  48b91574 -> 94f1fed3 (owner supplies KigPaper-ver-1.8.8.zip) ;
+  PR #37 open/clean/CI-less; release #361/#362 red, #363 in_progress.
+- PR #37 squash-merged into develop as b7a6917c (owner instruction
+  "handle the PR yourself"; author Abasing); cycle4 rebased onto it
+  (WORKLOG conflict unioned: cycle-3 entry + cycle-4 entry, --- separator);
+  pushed as 66d94f9b.
+- Architecture re-read (owner's "readit"): laws 1-17, §17, §22 snapshot,
+  §27.9-27.12, §28.7, Standing list; no KigPaper mention anywhere (the zip
+  was the change).
+- KigPaper extracted and identified FROM SOURCE: ProjectKig/KigPaper
+  (README verbatim), fork of 1.8.8 Paper; layer model from applyPatches.sh
+  (Bukkit-Patches=Spigot API delta 29, CraftBukkit-Patches=Spigot server
+  delta 160, Spigot-API-Patches=Paper API delta 78, Spigot-Server-Patches=
+  Paper+KigPaper server delta 258, nms-patches=KigPaper NMS delta 8);
+  submodules empty = upstream sources not in archive (scope boundary).
+- Census: scripts/kigpaper_census.py -> docs/kigpaper-census.json; 533/533
+  enumerated (subject/files/diffstat). nms layer: all 8 read in full and
+  classified (N1 bed action-bar + N5 doWaterFreezing = different-by-design
+  config-gated divergences -> DEC-003; N4 EnumProtocol specialized-packets
+  registry -> ML-022 unverified; N2/N3/N6/N7/N8 Guava-hygiene NA).
+- Deliverables landed (commit a842e782): KIGPAPER_PATCH_ACCOUNTING.md,
+  kigpaper-census.json + script (repo-relative), MASTER_LEDGER rows
+  ML-022/ML-023 + DEC-003, COMPATIBILITY_MATRIX fork row #2,
+  CYCLE4_EXHAUSTIVE_AUDIT increment-2 section.
+
+Stage Summary:
+- The fork target is re-anchored on KigPaper; Folia stays lessons-only.
+- Audit NOT end-to-end done: ML-023 (per-patch deep classification of the
+  418 server-stack patches) is the quantified remainder; the census is
+  committed so any future session resumes from it.
+- No production code, tests, or behavior changed. PR #37 merged per owner
+  instruction; release run #363 outcome still pending at commit time.
+
+---
+Task ID: cycle-4-increment-3
+Agent: the coordinator (same post-reset session)
+Task: Complete the KigPaper per-patch audit (ML-023) and close the fork
+dimension end-to-end.
+
+Work Log:
+- Deep pass: scripts/kigpaper_deep_pass.py -> docs/kigpaper-deep-pass.json
+  (hunk identifiers for all 418 server-stack patches: config keys/fields,
+  NMS vs Bukkit targets, fork markers, event surfaces; 133 KigPaper-marked).
+- Classifier: scripts/kigpaper_classify.py -> docs/kigpaper-tables.md
+  (418 rows) + docs/kigpaper-bugfix-classes.json (171 bugfix-divs mapped to
+  NMS classes; PlayerConnection 18, World 16, Entity 13 lead).
+- Dispositions: 130 knob (DEC-003) / 171 bugfix-div (reference wins) /
+  70 api (DEC-002) / 24 perf (ML-007) / 23 infra (NA).
+- ML-022 closed: registerSpecializedPacket has no caller in 533 patches.
+- Spot-check (two-sided): Torch FluidSystem.checkSpreadCollisions
+  implements exactly the reference's lava-water bands; the fork's SSV0067
+  divergence (> 0) recorded, not owed.
+- Hand-review: CB0047, CB0079, SSV0067, SSV0156 full reads; no
+  misclassifications surfaced; accounting doc rewritten with final summary.
+- Deliverables landed (commit a6627a35): the tables, deep-pass JSON,
+  bugfix class map, ledger ML-022/023 closures, compatibility matrix
+  completion, audit-record increment-3 section.
+
+Stage Summary:
+- The KigPaper patch audit is COMPLETE at the disposition level: 533/533
+  accounted (8 nms full-read; 107 API layer-closed; 418 dispositioned);
+  no Torch debt created by the fork audit.
+- The audit's standing remainder is unchanged: the R-1..R-9 vanilla
+  verifications (Wave V in the Phase-10 plan) + the pending release runs
+  (#363 in_progress, #364 queued on the PR #37 merge).
+
 ---
 Task ID: ML-012+ML-017
 Agent: instance (feature/ops-protocol lane, the Cycle-3 audit backlog)
@@ -14123,6 +14283,26 @@ Stage Summary:
   answered: the engine was at fault; mineflayer's parser was right.
 
 ---
+Task ID: wave3-lane1-ledger
+Agent: Instance 1 (the coordinator — Abasing session)
+Task: The master-ledger row updates for the lane's three rows (this
+audit branch carries the ledger until PR #38 merges).
+
+Work Log:
+- ML-006 -> RESOLVED (landed, feature/debug-attribution).
+- ML-007 -> RESOLVED (landed — the report + the evidence file + the
+  committed harness; the verdict: no concurrency phase justified).
+- ML-021 -> RESOLVED (defect fixed and pinned — the uuid string-form
+  root cause, the one-line writeUuid fix).
+- ML-024 OPENED (new): the wire-publish walk has no dedicated profiler
+  section — the attribution pass's own finding, proposed for the next
+  pass.
+
+Stage Summary:
+- The ledger now reflects the lane; PR #38 carries these updates
+  automatically (no new PR needed).
+
+---
 Task ID: ML-001+ML-002
 Agent: main (Z.ai session — the test-deadline census + release-pipeline lane, docs/MASTER_LEDGER.md's two release blockers)
 Task: ML-001 the wall-clock-deadline census over every module test tree + ML-002 the conversions (engine-condition awaits / tick-scaled deadlines) + the release verification (3 green full-suite runs, torch-1.8.8-128+).
@@ -14167,3 +14347,27 @@ Work Log:
 Stage Summary:
 - Branch feature/test-deadline-census, all work pushed. The PR: "ML-001+ML-002: the test-deadline census and conversions + the green release pipeline" against develop — the census summary (644 sites: 245+18 poll keeps, 27+23+2 sleep keeps, 94 latch keeps, 270 sleep conversions, the RCON + fishing + wheat-ladder hardenings), the two consecutive chunked full-suite passes with numbers, the release status (run #364 in flight on the base; the merged PR's develop push cuts the confirming release — the pipeline's own [skip ci] bump commit 217f597 already stamps 128).
 - NOT self-merged — the coordinator reviews, corrects, and merges.
+
+---
+Task ID: wave3-ledger-close
+Agent: Instance 1 (the coordinator — Abasing session)
+Task: The master-ledger row resolutions for all eight instance lanes
+(this audit branch carries the ledger until PR #38 merges).
+
+Work Log:
+- ML-001/002 (PR #47): the pipeline green through the wave (129/130/131
+  published); the census + 270 conversions; the coordinator review added
+  the GroupTwo MONITOR sibling hardening and the fishing budget
+  correction (1500 -> 2400, the l-scaling derivation).
+- ML-012/017 (PR #39), ML-003 (PR #40), ML-010 (PR #41), ML-011 (PR #42),
+  ML-005/009 (PR #43), ML-018 (PR #44), ML-014/015/016 (PR #45): every
+  row RESOLVED with its landing record and test evidence.
+- The cross-lane repairs the reviews caught: EngineConfig.withPort's
+  constructor arity (post-#39), the exceptionCaught union (ReadTimeout
+  before the IOException family — netty's subtype order), and PR #44's
+  0x0C test readers moved to the 16-byte uuid form after ML-021's fix.
+
+Stage Summary:
+- The wave-3 ledger is current: 16 RESOLVED rows total (the 13 instance
+  rows + ML-006/007/021 from the coordinator's lane). Open: ML-024 (the
+  wire-publish section) + the owner's decision rows.
