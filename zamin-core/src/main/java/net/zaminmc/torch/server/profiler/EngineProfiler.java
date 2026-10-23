@@ -21,7 +21,13 @@ public final class EngineProfiler {
 
     private final List<String> locations = new ArrayList<>();
     private final List<Long> times = new ArrayList<>();
-    private boolean profiling;
+    // Volatile (the reference's own field is plain — its profiler is
+    // single-threaded): ML-024's wire-publish arm gates on collection from
+    // the netty event loop (the join/movement publish lanes), a thread the
+    // tick lane's start()/stop() writes carry no happens-before edge to;
+    // the volatile read is the minimum that cross-thread gate needs (the
+    // same discipline as EngineServer's profilerRequested flag).
+    private volatile boolean profiling;
     private String currentLocation = "";
     // ConcurrentHashMap (not the reference's HashMap): the Phase-7
     // measurement face (sectionNanosSnapshot) reads this table from the
@@ -95,6 +101,42 @@ public final class EngineProfiler {
     public void swap(String location) {
         this.pop();
         this.push(location);
+    }
+
+    /**
+     * The cross-thread span arm (ML-024 — the wire-publish walk's
+     * section): records an already-measured elapsed span directly into the
+     * section table WITHOUT the section stack. The walk this exists for
+     * runs on three lanes — the netty event loop (the join sequence's and
+     * the movement lane's chunk streams), the tick thread's pre-handler
+     * job drain (the respawn/dimension-change re-streams, OUTSIDE the
+     * root section's window), and the tick thread inside the
+     * relightTransport section — and the first lane can interleave with
+     * the tick thread's open sections, which the push/pop stack's
+     * single-caller contract forbids: a nested section there would tear
+     * the shared stack and produce garbage rows (worse than no data).
+     * This arm merges into the same two ConcurrentHashMaps {@link #pop}
+     * merges into — atomic merges, the same weakly-consistent read the
+     * snapshot faces already document — so all three lanes accumulate
+     * into ONE row. {@code location} carries its full dotted prefix (no
+     * stack builds it here); the row appears in
+     * {@link #sectionNanosSnapshot()} / {@link #sectionCountsSnapshot()}
+     * and the /debug stop table like any pop-recorded row, as a
+     * CROSS-CUT: where the walk runs inside another open section (the
+     * relight re-sends), that section keeps its own wall time and this
+     * row attributes the same span again — overlap, never a partition.
+     * Gated on collection exactly like pop (a span that ends after stop
+     * is dropped, pop's own semantics); no stack is held, so a throwing
+     * body loses at most its one sample.
+     *
+     * @param location    the full dotted section name (e.g. "root.wirePublish")
+     * @param elapsedNanos the span's elapsed nanoseconds
+     */
+    public void recordSectionSpan(String location, long elapsedNanos) {
+        if (this.profiling) {
+            this.timesByLocation.merge(location, elapsedNanos, Long::sum);
+            this.countsByLocation.merge(location, 1L, Long::sum);
+        }
     }
 
     /**

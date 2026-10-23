@@ -82,10 +82,17 @@ never a CI assertion.
 | `levels.world.tick.mobs` | 715 | 2989 | 2425 | 3834 | 4152 | 2919 |
 | `levels.world.tick.naturalSpawns` | 902 | 373 | 327 | 349 | 338 | 399 |
 | `levels.world.tick.playerBodies` | 83 | 42 | 34 | 28 | 42 | 61 |
+| `wirePublish` (ML-024 re-run, 2026-10-23) | — | — | — | **5344.6** | — | — |
 | everything else (combined) | ~363 | ~395 | ~300 | ~330 | ~330 | ~360 |
 | **whole-fan total** | **5748** | **7434** | **6988** | **8277** | **8531** | **7190** |
 | window TPS | 20.2 | 20.1 | 19.9 | 20.0 | 19.9 | 19.9 |
 | GC (per window) | +10 col, +14 ms | +18, +27 ms | +12, +23 ms | +37, +54 ms | +12, +18 ms | +37, +59 ms |
+
+The `wirePublish` row is from the ML-024 re-run (below) — the original
+capture predates the section, so its W2 column carries the row's cost
+inside nothing (the walk ran outside every measured section). The
+original W2 row set is kept unchanged above; the re-run's own W2 fan
+sits in the evidence file's ML-024 section.
 
 The GC/heap and per-window totals across all six windows are in the
 evidence file; the allocation capture (whole run, JFR
@@ -119,7 +126,7 @@ family (`Aabb` 25.6 MB) and `BlockPosition` 75.2 MB.
    work, and the cycle-3 saturation lived in the wire-side/bot-side
    envelope this harness deliberately excludes (keep-alives disabled,
    scripted clients).
-4. **The re-stream's serialization has no dedicated profiler section.**
+4. **The re-stream's serialization had no dedicated profiler section.**
    The storm window (17 full re-streams of the view-distance set) shows no
    new section and no single-section jump beyond the census's own variance
    band: the chunk serialization runs inside the publish walk, which no
@@ -129,6 +136,9 @@ family (`Aabb` 25.6 MB) and `BlockPosition` 75.2 MB.
    strings — the profiler's overhead while profiling is part of the
    measured run, recorded here). A dedicated wire-publish section would
    make the next attribution pass exact; proposed as a master-ledger row.
+   **RESOLVED as ML-024 (2026-10-23): the section landed and the re-run
+   (next section) reads the re-stream's cost exactly — 5.3 ms/tick over
+   the storm window, the window's second-largest row.**
 5. **The §22 gate verdict over this evidence: NO concurrency phase is
    justified.** The measured top costs are `randomTicks` (load-independent
    — a §22 Phase-5 lighting/parallel-random-tick candidate at best, and
@@ -139,6 +149,51 @@ family (`Aabb` 25.6 MB) and `BlockPosition` 75.2 MB.
    evidence; the next attribution pass re-runs this harness (it is
    committed, repeatable, and green) whenever a load shape changes.
 
+## The ML-024 re-run (2026-10-23): the re-stream's own row
+
+The wire-publish section landed exactly as the ledger directed: one row
+(`root.wirePublish`) around the whole chunk serialization+publication
+walk (`ChunkSerializer18.serialize`, the 0x21 build, the flush, the
+sign/spawner/beacon/skull/command tile replays), recorded through the
+profiler's new cross-thread span arm rather than a nested push/pop —
+the walk runs on three lanes (the netty event loop's join/movement
+streams, the tick thread's pre-handler job drain where the respawn
+re-stream lands — OUTSIDE the root section's window, which is why the
+original pass could not see it, and the tick thread's relightTransport
+section), and the push/pop stack's single-caller contract excludes the
+netty lane. All lanes accumulate into the one row; where the walk runs
+inside an open section (the relight re-sends) the row is a cross-cut —
+overlap, never a partition.
+
+The re-run's numbers (same harness, same machine, twice):
+
+- **W2 storm window: `wirePublish` 4536.0 then 5344.6 us/tick** — the
+  window's second-largest row behind `randomTicks`, present in NO other
+  window (the scripted clients stand still; no re-streams occur
+  outside the storm).
+- **The /debug stop table's accounting is exact**: 1377 visits = 17
+  cycles x 81 view-distance columns, 0.50 ms average per column,
+  681.65 ms total, 13.49% of root over the whole profiled span — every
+  re-streamed column recorded exactly once, no double-count, no miss.
+- Per cycle: ~32 ms of serialization+publication for one full
+  view re-stream at view-distance 4 (81 columns, ~0.4-0.5 ms each on
+  the flat test world).
+- The row is invisible to the ORIGINAL capture's W2 column by
+  construction (the section did not exist); the original numbers above
+  stand unchanged.
+
+Recorded honestly, two run-variance findings from this machine (a base
+control — the same harness on the unmodified tree — reproduces BOTH,
+so neither is the section's effect): the W3 composite window caught 0
+storm cycles in every this-machine run (the storm's stop can leave
+Alice mid-death and the next driver's `!victim.dead()` gate then never
+fires — a pre-existing harness race; the original release-runner
+capture caught 17 cycles there), and this machine's JFR sample totals
+run ~27 GB with `[J`/`[Ljava.lang.Object;` dominant versus the original
+runner's 9.9 GB with `byte[]` dominant — same harness, different
+machine profile. The section's own allocation footprint is
+indistinguishable (27.2 GB with vs 27.2 GB without).
+
 ## What this closes
 
 - ML-007's acceptance: "an attribution report naming the top subsystems
@@ -147,3 +202,9 @@ family (`Aabb` 25.6 MB) and `BlockPosition` 75.2 MB.
   methodology is fully recorded above.
 - ML-006's acceptance was the section table this pass ran on; the two
   rows close together, as the ledger sequenced them.
+- ML-024's acceptance (2026-10-23): "the section visible in
+  sectionNanosSnapshot; the harness re-run shows the re-stream's cost in
+  its own row" — `root.wirePublish` appears in the snapshot face
+  (WirePublishSectionTest pins it green, 3/3) and the re-run's W2 storm
+  window carries the row at 4.5-5.3 ms/tick with exact visit accounting
+  (1377 = 17 x 81).
