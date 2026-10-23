@@ -390,12 +390,28 @@ public final class V18ProtocolServer implements ProtocolAdapter {
             /**
              * The equipment changed after the spawn (Slice 78b — the
              * /summon Equipment rows + the restore's stacks): the
-             * Entity Equipment re-send, all five slots (VIII4).
+             * Entity Equipment re-send, all five slots (VIII4), beside
+             * the attribute pair's re-derive (ML-011 — the reference's
+             * equipment scan swaps the rows on the attribute instances,
+             * the tracked set carries them to the observers).
              */
             @Override
             public void onMobEquipmentChanged(net.zaminmc.torch.server.entity.MobEntity mob) {
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
                     connection.sendMobEquipment(mob);
+                    connection.sendMobAttributes(mob);
+                }
+            }
+
+            /**
+             * The attribute overrides changed after the spawn (ML-011 —
+             * the /summon + /entitydata Attributes rows): the Entity
+             * Properties (0x20) re-publish to every observer.
+             */
+            @Override
+            public void onMobAttributesChanged(net.zaminmc.torch.server.entity.MobEntity mob) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendMobAttributes(mob);
                 }
             }
 
@@ -811,8 +827,11 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                 } else {
                     // The armor row rides the Entity Equipment packets to the
                     // observers (the 1.8 way: remote armor renders from
-                    // equipment, never from metadata).
+                    // equipment, never from metadata), and the attribute pair
+                    // re-derives with it (ML-011 — the equipment's trackable
+                    // modifier rows).
                     connection.sendPlayerEquipment(player);
+                    connection.sendPlayerAttributes(player);
                 }
             }
         });
@@ -1360,11 +1379,14 @@ public final class V18ProtocolServer implements ProtocolAdapter {
             }
         });
         // The held-slot switch: the owner gets the 0x09 confirm, every
-        // observer re-renders the new held item through Entity Equipment.
+        // observer re-renders the new held item through Entity Equipment,
+        // and the attribute pair re-derives (ML-011 — a held stack's
+        // trackable modifier rows ride the 0x20 re-publish).
         server.addHeldSlotListener(player -> {
             for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
                 connection.sendHeldItemChangeConfirm(player);
                 connection.sendPlayerEquipment(player);
+                connection.sendPlayerAttributes(player);
             }
         });
         // The FX bus: every engine sound/particle event fans out to the

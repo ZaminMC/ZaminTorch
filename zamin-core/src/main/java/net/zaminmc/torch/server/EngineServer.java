@@ -23721,7 +23721,8 @@ public final class EngineServer implements Server, EngineBridge {
             return "The data tag did not change: " + net.zaminmc.torch.server.nbt.NbtOps.write(rows);
         }
         net.zaminmc.torch.server.nbt.EntityNbt.readNbt(mob, rows, potionSystem,
-                () -> mobManager.equipmentChanged(mob));
+                () -> mobManager.equipmentChanged(mob),
+                () -> mobManager.attributesChanged(mob));
         return "The data tag: " + net.zaminmc.torch.server.nbt.NbtOps.write(rows);
     }
 
@@ -25141,7 +25142,8 @@ public final class EngineServer implements Server, EngineBridge {
             // line 89 — the NBT's Rotation/Motion and everything else
             // stick).
             net.zaminmc.torch.server.nbt.EntityNbt.readNbt(spawned, nbt, potionSystem,
-                    () -> mobManager.equipmentChanged(spawned));
+                    () -> mobManager.equipmentChanged(spawned),
+                    () -> mobManager.attributesChanged(spawned));
             spawned.teleport(new Position(x, y, z));
         }
         return "Object successfully summoned";
