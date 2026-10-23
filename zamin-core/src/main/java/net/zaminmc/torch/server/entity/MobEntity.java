@@ -216,6 +216,64 @@ public final class MobEntity implements LivingEntity {
             return 15;
         }
 
+        /**
+         * The brightness at a cell (the reference's
+         * {@code Entity.getBrightness} — the dimension's brightness table
+         * over the raw light {@code max(block, sky - ambientDarkness)},
+         * Explosion-adjacent World laws): the day-neutral kinds' own gate
+         * reads it at the eye. The stub worlds answer full bright.
+         */
+        default float brightness(int x, int y, int z) {
+            return 1.0f;
+        }
+
+        /**
+         * The scoreboard team the member rides (the reference's key law —
+         * players by NAME, {@code PlayerEntity.getScoreboardTeam} line
+         * 1634; every other living body by its UUID STRING,
+         * {@code LivingEntity.getScoreboardTeam} line 1635 over
+         * {@code getTeamOfMember}). The stub worlds answer teamless.
+         */
+        default String teamNameOf(String member) {
+            return null;
+        }
+
+        /**
+         * The hunt scan's same-team refusal ({@code TrackTargetGoal
+         * .isTarget} lines 102-106: the hunter's team non-null and the
+         * candidate's the same team — refused): the nearest live mob of
+         * the kind NOT on the given team; a null team folds to the plain
+         * scan (a teamless body never refuses).
+         */
+        default MobEntity nearestMobOfKind(double x, double y, double z, double range,
+                                           MobType kind, String excludeTeam) {
+            return nearestMobOfKind(x, y, z, range, kind);
+        }
+
+        /**
+         * The player hunt's own same-team refusal ({@code
+         * MobEntityPlayerTargetGoal.shouldContinue} lines 90-94 over the
+         * NAME key): the nearest live player not on the given team; a
+         * null team folds to the plain scan.
+         */
+        default Position nearestPlayer(double x, double y, double z, double range,
+                                       String excludeTeam) {
+            return nearestPlayer(x, y, z, range);
+        }
+
+        /**
+         * The iron golem's own hostile scan (the reference's golem-side
+         * {@code ActiveTargetGoal} override, IronGolemEntity lines 247-283:
+         * the creeper exclusion the override's own predicate carries, line
+         * 256-258, over the shared same-team refusal): the nearest live
+         * hostile mob, the given kind and team refused. A null kind or team
+         * folds the matching gate off.
+         */
+        default MobEntity nearestHostileMob(double x, double y, double z, double range,
+                                            MobType excludeKind, String excludeTeam) {
+            return nearestHostileMob(x, y, z, range);
+        }
+
         /** @return whether the block containing this point is lava. */
         default boolean inLava(double x, double y, double z) {
             return false;
@@ -3117,11 +3175,16 @@ public final class MobEntity implements LivingEntity {
      * The iron golem's mind (the goal ladder 1-8 + the target selector's
      * TrackIronGolemTargetGoal): the nearest hostile mob within 32 owns
      * the walk and the melee — the body never hunts players (the
-     * canAttack gate) — else the stroll cycle holds.
+     * canAttack gate) — else the stroll cycle holds. The hostile scan
+     * carries the golem's own target law (IronGolemEntity lines 54-57
+     * over 247-283): the creeper excluded — the override's own predicate,
+     * lines 256-258, and the canAttack line 137's {@code type !=
+     * CreeperEntity.class} — and the same-team refusal every target goal
+     * reads.
      */
     private void tickIronGolemMind(boolean night) {
         golemTarget = world.nearestHostileMob(position.x(), position.y(), position.z(),
-                GOLEM_HUNT_RANGE);
+                GOLEM_HUNT_RANGE, MobType.CREEPER, teamName());
         if (golemTarget != null && golemTarget.dead()) {
             golemTarget = null;
         }
@@ -3168,14 +3231,17 @@ public final class MobEntity implements LivingEntity {
      * The snow golem's mind (ProjectileAttackGoal 1.25/20/10 + the
      * target selector's Monster filter): the nearest hostile within 10
      * takes the 20-tick snowball volley — the walk holds the distance
-     * (the goal's 1.25 chase closes only past the range).
+     * (the goal's 1.25 chase closes only past the range). The scan keeps
+     * the creeper IN (SnowGolemEntity line 33's plain Monster.FILTER —
+     * the iron golem's exclusion is its own) and reads the shared
+     * same-team refusal every target goal carries.
      */
     private void tickSnowGolemMind() {
         if (snowGolemShotCooldown > 0) {
             snowGolemShotCooldown--;
         }
         golemTarget = world.nearestHostileMob(position.x(), position.y(), position.z(),
-                SNOW_GOLEM_RANGE);
+                SNOW_GOLEM_RANGE, null, teamName());
         if (golemTarget == null || golemTarget.dead()) {
             golemTarget = null;
             return; // the plain stroll
@@ -7675,7 +7741,12 @@ public final class MobEntity implements LivingEntity {
             }
         }
         boolean canHunt = (type.hostile || (type == MobType.RABBIT && rabbitKiller()))
-                && (!type.traits.neutralByDay() || night)
+                // The day-neutral kinds' own gate (the spider law — the
+                // brightness at the eye, not the clock: SpiderEntity
+                // .TargetGoal.canStart lines 222-226 + the attack goal's
+                // 1-in-100 daylight drop, lines 200-208; a cave-dwelling
+                // spider hunts at noon, a torch-lit one sleeps at night).
+                && (!type.traits.neutralByDay() || dayNeutralHuntGate())
                 && (type != MobType.ZOMBIE_PIGMAN || isAngry()) // the neutral gate (16d)
                 // The enderman's own provocation gate (19d — the reference's
                 // LookAtPlayerGoal/takeDamage model): the neutral body hunts
@@ -7784,12 +7855,28 @@ public final class MobEntity implements LivingEntity {
 
         // The mob-vs-mob target family (Slice 16b — the targetSelector's
         // single target): the hunts (the wolf's sheep/rabbits/skeletons,
-        // the zombie's villagers) and the revenge/owner arms. The target
-        // outranks the player hunt — setAttackTarget is the single write.
-        // (The state itself updated before the goal walk above; the scan
-        // ran there so the stroll's yielding gate could see it.)
+        // the zombie's villagers, the spider's and the skeleton's golem
+        // feuds) and the revenge/owner arms. The target outranks the player
+        // hunt — setAttackTarget is the single write. (The state itself
+        // updated before the goal walk above; the scan ran there so the
+        // stroll's yielding gate could see it.)
         if (mobTarget != null) {
-            tickMobTargetChase(mobTarget);
+            // The ranged-on-mob arm (the reference's ProjectileAttackGoal
+            // attacks ANY attackTarget — its canStart reads the target's
+            // KIND not at all, ProjectileAttackGoal lines 40-48; the
+            // skeleton's own melee goal is Player-only, lines 43-44): a mob
+            // target on a bow carrier rides the shooting band, the arrows
+            // landing through the engine's projectile-on-mob collision
+            // family with the shooter's identity on the wound.
+            if (type.traits.ranged() && !skeletonWither) {
+                double dx = mobTarget.position().x() - position.x();
+                double dy = mobTarget.position().y() - position.y();
+                double dz = mobTarget.position().z() - position.z();
+                tickSkeletonMind(mobTarget.position(),
+                        Math.sqrt(dx * dx + dz * dz), dy);
+            } else {
+                tickMobTargetChase(mobTarget);
+            }
             return;
         }
 
@@ -7801,10 +7888,22 @@ public final class MobEntity implements LivingEntity {
             return;
         }
 
-        if (canHunt && target != null) {
-            double dx = target.x() - position.x();
-            double dy = target.y() - position.y();
-            double dz = target.z() - position.z();
+        // The hunt's same-team refusal (TrackTargetGoal.isTarget lines
+        // 102-106 over the player's NAME key — MobEntityPlayerTargetGoal
+        // lines 90-94): a teamed body never hunts its own kin; the glance
+        // and the awareness reads keep the teamless scan
+        // (LookAtEntityGoal carries no team law).
+        Position huntTarget = target;
+        String huntTeam = teamName();
+        if (canHunt && huntTarget != null && huntTeam != null) {
+            huntTarget = world.nearestPlayer(position.x(), position.y(), position.z(),
+                    type.hostile ? AGGRO_RANGE : 8.0, huntTeam);
+        }
+
+        if (canHunt && huntTarget != null) {
+            double dx = huntTarget.x() - position.x();
+            double dy = huntTarget.y() - position.y();
+            double dz = huntTarget.z() - position.z();
             double horizontal = Math.sqrt(dx * dx + dz * dz);
 
             // The enderman's far-target blink (the reference's
@@ -7814,7 +7913,7 @@ public final class MobEntity implements LivingEntity {
                 if (dx * dx + dy * dy + dz * dz > 256.0) {
                     if (++farFromTargetTicks >= 30) {
                         farFromTargetTicks = 0;
-                        teleportToward(target);
+                        teleportToward(huntTarget);
                     }
                 } else {
                     farFromTargetTicks = 0;
@@ -7829,11 +7928,11 @@ public final class MobEntity implements LivingEntity {
             }
 
             if (type.traits.explodes()) {
-                tickCreeperMind(target, horizontal, dy);
+                tickCreeperMind(huntTarget, horizontal, dy);
                 return;
             }
             if (type.traits.ranged() && !skeletonWither) {
-                tickSkeletonMind(target, horizontal, dy);
+                tickSkeletonMind(huntTarget, horizontal, dy);
                 return;
             }
             // The wither variant's melee (the nether initialize lines
@@ -7844,7 +7943,7 @@ public final class MobEntity implements LivingEntity {
             mode = Mode.CHASE;
             yaw = (float) (Math.toDegrees(Math.atan2(-dx, dz)));
             headYaw = yaw;
-            tickPathFollowing(target);
+            tickPathFollowing(huntTarget);
             // The killer bunny's own reach (EvilAttackGoal.getReach lines
             // 438-441: {@code 4.0 + target.width} against the SQUARED
             // distance — the plain rabbit's 3.0 swing never arms); the
@@ -8366,6 +8465,63 @@ public final class MobEntity implements LivingEntity {
     }
 
     /**
+     * @return the body's own team name ({@code LivingEntity.getScoreboardTeam}
+     * line 1635's UUID-STRING key over the engine's name-keyed teams), or
+     * null when the body rides no team.
+     */
+    public String teamName() {
+        return world.teamNameOf(uuid.toString());
+    }
+
+    /**
+     * The same-team refusal ({@code TrackTargetGoal.isTarget} lines 102-106
+     * over {@code AbstractTeam.isAlliedTo}'s same-team equality, lines 8-10):
+     * a teamless body never refuses.
+     */
+    boolean sameTeamAs(MobEntity other) {
+        String own = teamName();
+        return own != null && own.equals(other.teamName());
+    }
+
+    /**
+     * The day-neutral kinds' darkness gate (the reference's spider law —
+     * {@code SpiderEntity.TargetGoal.canStart} lines 222-226 over the attack
+     * goal's own continue, {@code SpiderAttackGoal.shouldContinue} lines
+     * 200-208): a NEW hunt starts only in darkness (the brightness at the
+     * eye under 0.5 — the raw light 12 quirk the brightness table's own
+     * {@code table[12] == 0.5} carries), and a hunt already live in the
+     * light keeps running until the 1-in-100 drop roll lands. The answer
+     * caches per tick — the scan (tickMobTargeting, the tick's first walk)
+     * resets it and the hunt gate reads the same roll, exactly the
+     * reference's one-goal-per-tick cadence.
+     */
+    private Boolean dayNeutralDarkTick;
+
+    private boolean dayNeutralHuntGate() {
+        if (dayNeutralDarkTick == null) {
+            if (brightnessAtEye() < 0.5f) {
+                dayNeutralDarkTick = true; // dark: the hunt is armed
+            } else {
+                // Bright: only a live hunt continues, and only until the roll.
+                dayNeutralDarkTick = (mode == Mode.CHASE || mode == Mode.STRAFE)
+                        && random.nextInt(100) != 0;
+            }
+        }
+        return dayNeutralDarkTick;
+    }
+
+    /**
+     * The brightness at the eye ({@code Entity.getBrightness(1.0F)} — the
+     * eye-height cell's own read, Entity.java lines 889-892).
+     */
+    private float brightnessAtEye() {
+        return world.brightness(
+                (int) Math.floor(position.x()),
+                (int) Math.floor(position.y() + eyeHeight()),
+                (int) Math.floor(position.z()));
+    }
+
+    /**
      * The single-target write ({@code setAttackTarget}): the wolf's angry
      * posture follows it — a wild wolf goes angry on any target, and the
      * target's death stands it down (WolfEntity.setAttackTarget lines
@@ -8387,36 +8543,45 @@ public final class MobEntity implements LivingEntity {
      * the 1-in-10 cadence gate, then the nearest legal prey within the
      * follow range — the wolf's sheep/rabbits (the UNTAMED arm only, the
      * reference's UntamedActiveTargetGoal) and the skeleton feud (any
-     * taming state), the zombie's villagers. A live target is kept until
+     * taming state), the zombie's villagers, the spider's golems (the
+     * day-neutral gate — SpiderEntity.TargetGoal line 44, the same
+     * brightness law the player hunt reads), and the skeleton's own
+     * always-on golem feud (targetSelector 3). A live target is kept until
      * it dies (the goal's own shouldContinue — no re-targeting mid-hunt).
+     * Every scan refuses same-team candidates ({@code TrackTargetGoal
+     * .isTarget} lines 102-106 — a teamed body never hunts its own kin).
      *
      * @return the mob the chase mind runs against this tick, or null.
      */
     MobEntity tickMobTargeting() {
+        dayNeutralDarkTick = null; // the per-tick reset — this scan runs first
         if (mobAttackTarget != null && mobAttackTarget.dead()) {
             setMobAttackTarget(null); // shouldContinue: the target died
         }
+        boolean dayNeutralDark = !type.traits.neutralByDay() || dayNeutralHuntGate();
         if (mobAttackTarget == null && (type == MobType.WOLF || type == MobType.ZOMBIE
+                || type == MobType.SPIDER || type == MobType.SKELETON
                 || (type == MobType.RABBIT && rabbitKiller()))
                 && random.nextInt(HUNT_SCAN_CHANCE) == 0) {
             MobEntity found = null;
             double best = MOB_TARGET_FOLLOW_RANGE * MOB_TARGET_FOLLOW_RANGE;
+            String team = teamName();
             if (type == MobType.WOLF) {
                 // targetSelector 5 (ActiveTargetGoal SkeletonEntity): any
                 // taming state; 4 (UntamedActiveTargetGoal AnimalEntity):
                 // sheep or rabbit, the untamed arm only.
                 MobEntity skeleton = world.nearestMobOfKind(
                         position.x(), position.y(), position.z(),
-                        MOB_TARGET_FOLLOW_RANGE, MobType.SKELETON);
+                        MOB_TARGET_FOLLOW_RANGE, MobType.SKELETON, team);
                 if (skeleton != null) {
                     found = skeleton;
                 } else if (!wolfTamed()) {
                     MobEntity sheep = world.nearestMobOfKind(
                             position.x(), position.y(), position.z(),
-                            MOB_TARGET_FOLLOW_RANGE, MobType.SHEEP);
+                            MOB_TARGET_FOLLOW_RANGE, MobType.SHEEP, team);
                     MobEntity rabbit = world.nearestMobOfKind(
                             position.x(), position.y(), position.z(),
-                            MOB_TARGET_FOLLOW_RANGE, MobType.RABBIT);
+                            MOB_TARGET_FOLLOW_RANGE, MobType.RABBIT, team);
                     if (sheep != null && rabbit != null) {
                         found = distanceSquaredTo(sheep) <= distanceSquaredTo(rabbit) ? sheep : rabbit;
                     } else {
@@ -8429,10 +8594,32 @@ public final class MobEntity implements LivingEntity {
                 // rides the engine's player hunt above): any wolf within the
                 // follow range.
                 found = world.nearestMobOfKind(position.x(), position.y(), position.z(),
-                        MOB_TARGET_FOLLOW_RANGE, MobType.WOLF);
+                        MOB_TARGET_FOLLOW_RANGE, MobType.WOLF, team);
+            } else if (type == MobType.SPIDER) {
+                // targetSelector 3 (SpiderEntity.TargetGoal over the iron
+                // golem — line 44): the day-neutral gates' own arm, the
+                // brightness gate the player hunt reads plus the goal's
+                // checkVisibility (the canSee line the ActiveTargetGoal's
+                // canTarget consult carries).
+                if (dayNeutralDark) {
+                    found = world.nearestMobOfKind(position.x(), position.y(), position.z(),
+                            MOB_TARGET_FOLLOW_RANGE, MobType.IRON_GOLEM, team);
+                    if (found != null && !world.clearLine(eyePosition(), found.position())) {
+                        found = null; // canTarget's visibility consult
+                    }
+                }
+            } else if (type == MobType.SKELETON) {
+                // targetSelector 3 (ActiveTargetGoal over the iron golem —
+                // line 57, always-on): the bow carrier's own feud with the
+                // defender, the same visibility consult.
+                found = world.nearestMobOfKind(position.x(), position.y(), position.z(),
+                        MOB_TARGET_FOLLOW_RANGE, MobType.IRON_GOLEM, team);
+                if (found != null && !world.clearLine(eyePosition(), found.position())) {
+                    found = null; // canTarget's visibility consult
+                }
             } else { // the zombie: targetSelector 2's villager hunt
                 found = world.nearestMobOfKind(position.x(), position.y(), position.z(),
-                        MOB_TARGET_FOLLOW_RANGE, MobType.VILLAGER);
+                        MOB_TARGET_FOLLOW_RANGE, MobType.VILLAGER, team);
             }
             if (found != null && !found.dead()) {
                 setMobAttackTarget(found);
