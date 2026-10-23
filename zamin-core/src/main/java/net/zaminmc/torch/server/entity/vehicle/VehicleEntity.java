@@ -258,6 +258,15 @@ public abstract class VehicleEntity implements net.zaminmc.torch.entity.Vehicle 
         return customName;
     }
 
+    /**
+     * Sets the custom name (a null/empty argument clears it) — the named
+     * spawn arm's write (MinecartItem line 58: a named cart carries its
+     * hover name onto the body; the engine's own MobEntity shape).
+     */
+    public void setCustomName(String name) {
+        this.customName = name == null || name.isEmpty() ? null : name;
+    }
+
     /** The name-plate visibility flag. */
     public boolean customNameVisible() {
         return customNameVisible;

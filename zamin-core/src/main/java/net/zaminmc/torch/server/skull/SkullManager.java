@@ -142,6 +142,53 @@ public final class SkullManager {
     // ------------------------------------------------------------------
 
     /**
+     * The hypothetical-head base-pattern check (SkullBlock.canSpawn's
+     * block-side law, lines 159-165): the y and difficulty gates, then
+     * the BASE pattern ({@code getBasePattern} lines 246-255 — aisle
+     * {@code "   ", "###", "~#~"}: the top row all wildcards — the head
+     * is not there yet — a soul-sand row of three under it and the
+     * single sand base with air flanks two under). The placed cell may
+     * sit at any of the three wildcard top cells; the item-side
+     * metadata==1 gate (line 160's first clause) stays at the caller,
+     * the item being the caller's own.
+     *
+     * @return whether a wither skull at {@code head} would sit on a
+     *         complete base.
+     */
+    public boolean canSummonAt(BlockPosition head) {
+        if (head.y() < 2 || host.difficulty() == 0) {
+            return false; // the y + difficulty gates (lines 161-162)
+        }
+        // The four horizontal directions (the pattern's width run), the
+        // head at any of the three top cells — the same anchor walk the
+        // summon's own search runs.
+        int[][] dirs = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+        for (int[] dir : dirs) {
+            for (int slot = 0; slot < 3; slot++) {
+                int cx = head.x() - slot * dir[0];
+                int cz = head.z() - slot * dir[1];
+                // The top row is wildcards: only the "###" sand row at
+                // y-1 and the "~#~" base row at y-2 must already stand.
+                boolean sandRow = true;
+                for (int i = -1; i <= 1; i++) {
+                    if (!isSoulSand(new BlockPosition(cx + i * dir[0],
+                            head.y() - 1, cz + i * dir[1]))) {
+                        sandRow = false;
+                        break;
+                    }
+                }
+                if (sandRow
+                        && isAir(new BlockPosition(cx - dir[0], head.y() - 2, cz - dir[1]))
+                        && isSoulSand(new BlockPosition(cx, head.y() - 2, cz))
+                        && isAir(new BlockPosition(cx + dir[0], head.y() - 2, cz + dir[1]))) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
      * The summon attempt after a wither-skull placement: the gates (type
      * 1, y at least 2, not peaceful — line 168), then the 3x3 pattern —
      * three wither-skull tiles (the predicate reads the TILE type, not
