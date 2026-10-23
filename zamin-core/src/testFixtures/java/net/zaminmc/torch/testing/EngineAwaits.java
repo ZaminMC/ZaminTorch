@@ -18,17 +18,32 @@ import net.zaminmc.torch.server.world.EngineWorld;
  * advances), so a slow runner changes WHEN the wait ends, never HOW MUCH
  * engine progress it covers.</p>
  *
- * <p>The wall-clock backstop is a liveness guard for a STALLED engine
- * (60x the nominal window, floored at 30 seconds), never a performance
- * assertion: a test fails on it only when the engine itself stopped
- * ticking, which is a real defect worth failing on. Failure detection is
- * never loosened — the awaited condition or tick count is exactly what
- * the converted wall sleep meant to cover.</p>
+ * <p>The liveness guard is TWO-SIDED (the run #375/#376 lesson: a single
+ * total wall deadline cannot tell a stalled engine from a slow one):
+ * <ul>
+ *   <li>the STALL window — no completed tick for {@link #STALL_WINDOW_MS}
+ *       means the engine STOPPED (a real defect worth failing on, and the
+ *       only "stalled" verdict there is);</li>
+ *   <li>the PATIENCE cap — {@link #capMillis(long)}, 15x the nominal
+ *       window floored at 30s and capped at 15 minutes, bounds the suite
+ *       against an engine that keeps ticking but averages under ~1.3 TPS
+ *       — too slow to test against, a different (and honestly named)
+ *       failure than a stall.</li>
+ * </ul>
+ * A slow-but-alive runner (transient GC pauses, scheduler bursts — the
+ * shapes the release runners actually show) NEVER trips either side: the
+ * stall window resets on every completed tick, and the cap tolerates a
+ * 15x slowdown. Failure detection is never loosened — the awaited
+ * condition or tick count is exactly what the converted wall sleep meant
+ * to cover.</p>
  */
 public final class EngineAwaits {
 
     private EngineAwaits() {
     }
+
+    /** No completed tick for this long = the engine STOPPED. */
+    private static final long STALL_WINDOW_MS = 60_000L;
 
     /**
      * Awaits {@code ticks} more COMPLETED engine ticks on the world's own
@@ -46,24 +61,37 @@ public final class EngineAwaits {
             throws InterruptedException {
         long start = world.totalTicks();
         long target = start + ticks;
-        long stalled = System.currentTimeMillis() + backstopMillis(ticks);
+        long wallStart = System.currentTimeMillis();
+        long cap = wallStart + capMillis(ticks);
+        long lastTicks = start;
+        long lastProgress = wallStart;
         while (world.totalTicks() < target) {
-            if (System.currentTimeMillis() > stalled) {
+            long now = world.totalTicks();
+            if (now > lastTicks) {
+                lastTicks = now;
+                lastProgress = System.currentTimeMillis();
+            } else if (System.currentTimeMillis() - lastProgress > STALL_WINDOW_MS) {
                 throw new AssertionError("The engine stalled mid-wait: " + what
                         + " (awaited " + ticks + " ticks; only "
                         + (world.totalTicks() - start) + " completed)");
+            }
+            if (System.currentTimeMillis() > cap) {
+                throw new AssertionError("The engine is running too slowly to test: "
+                        + what + " (awaited " + ticks + " ticks; only "
+                        + (world.totalTicks() - start) + " completed in "
+                        + (System.currentTimeMillis() - wallStart) + "ms)");
             }
             Thread.sleep(25);
         }
     }
 
     /**
-     * The stalled-engine backstop: 10x the nominal window, floored at 30s
-     * and capped at 5 minutes — a liveness guard for a dead engine, never
-     * a performance assertion, and never an unbounded hang.
+     * The patience cap: 15x the nominal window, floored at 30s and capped
+     * at 15 minutes — a suite-time bound against a persistently crawling
+     * engine, never a performance assertion and never an unbounded hang.
      */
-    private static long backstopMillis(long ticks) {
-        return Math.max(30_000L, Math.min(ticks * 50L * 10L, 300_000L));
+    private static long capMillis(long ticks) {
+        return Math.max(30_000L, Math.min(ticks * 50L * 15L, 900_000L));
     }
 
     /**
@@ -71,8 +99,9 @@ public final class EngineAwaits {
      * when the engine COMPLETED {@code tickBudget} ticks without the
      * condition landing — the honest bound for tick-cadence conditions
      * (a wall deadline expires by wall time even when the engine simply
-     * runs slow; a tick budget never does). The stalled-engine backstop
-     * still guards a dead engine.
+     * runs slow; a tick budget never does). The two-sided liveness guard
+     * still covers a stopped engine (the stall window) and bounds the
+     * suite against a crawling one (the patience cap).
      *
      * @param world      the engine world providing the tick clock
      * @param condition  the engine-visible condition to poll
@@ -82,19 +111,47 @@ public final class EngineAwaits {
      */
     public static void awaitCondition(EngineWorld world, BooleanSupplier condition,
             long tickBudget, String what) throws InterruptedException {
+        if (!awaitConditionWithin(world, condition, tickBudget, what)) {
+            throw new AssertionError("Condition not met within " + tickBudget
+                    + " engine ticks: " + what);
+        }
+    }
+
+    /**
+     * The expected-miss form: polls the condition for up to
+     * {@code tickBudget} COMPLETED engine ticks and answers whether it
+     * landed — for the probabilistic outcomes a throwing await can never
+     * cover (the thorns roll's 30% no-bite arm, a loot window's miss).
+     * The liveness guard still throws: a stopped or crawling engine is a
+     * defect mid-test regardless of the polled outcome.
+     *
+     * @return whether the condition landed within the tick budget
+     */
+    public static boolean awaitConditionWithin(EngineWorld world, BooleanSupplier condition,
+            long tickBudget, String what) throws InterruptedException {
         long start = world.totalTicks();
         long tickDeadline = start + tickBudget;
-        long stalled = System.currentTimeMillis() + backstopMillis(tickBudget);
+        long cap = System.currentTimeMillis() + capMillis(tickBudget);
+        long lastTicks = start;
+        long lastProgress = System.currentTimeMillis();
         while (!condition.getAsBoolean()) {
-            if (world.totalTicks() >= tickDeadline) {
-                throw new AssertionError("Condition not met within " + tickBudget
-                        + " engine ticks: " + what);
+            long now = world.totalTicks();
+            if (now >= tickDeadline) {
+                return false;
             }
-            if (System.currentTimeMillis() > stalled) {
+            if (now > lastTicks) {
+                lastTicks = now;
+                lastProgress = System.currentTimeMillis();
+            } else if (System.currentTimeMillis() - lastProgress > STALL_WINDOW_MS) {
                 throw new AssertionError("The engine stalled before the condition"
                         + " landed: " + what);
             }
+            if (System.currentTimeMillis() > cap) {
+                throw new AssertionError("The engine is running too slowly to test"
+                        + " before the condition landed: " + what);
+            }
             Thread.sleep(25);
         }
+        return true;
     }
 }

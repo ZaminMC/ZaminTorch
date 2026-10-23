@@ -44,6 +44,9 @@ class FishingApiAcceptanceTest {
     @TempDir
     Path dataDir;
 
+    /** The current test's engine — the tick clock the shared await reads. */
+    private EngineServer activeServer;
+
     @Test
     void theBootedFacadeAnswersTheLiveView() throws Exception {
         EngineServer server = boot();
@@ -374,6 +377,7 @@ class FishingApiAcceptanceTest {
                 dataDir.toString());
         EngineServer server = new EngineServer(config);
         server.start();
+        activeServer = server;
         return server;
     }
 
@@ -457,8 +461,27 @@ class FishingApiAcceptanceTest {
                 await(() -> fishing.bobberOf(angler.engineEntityId()).isPresent(),
                         "the cast registered (attempt " + attempt + ")");
             }
-            awaitBite(server, fishing, angler,
-                    "the bite window opened (attempt " + attempt + ")");
+            // The bite await — the EXPECTED-MISS form inside the retry
+            // structure (the run #375/#376 lesson: BOTH observed fishing
+            // failures died here, the throw defeating the re-cast design
+            // the loop itself exists for): a budget exhaustion is a failed
+            // ATTEMPT, never a dead test — the next attempt re-casts from
+            // the pool's near edge, and the final assert below carries the
+            // story if all four attempts miss.
+            if (!net.zaminmc.torch.testing.EngineAwaits.awaitConditionWithin(
+                    server.world(),
+                    () -> fishing.bobberOf(angler.engineEntityId())
+                            .map(Fishing.Bobber::biting).orElse(false),
+                    2_400, "the bite window opened (attempt " + attempt + ")")) {
+                // The dead attempt's line comes home first: a bobber left
+                // out owns the census seat, and the re-cast path below only
+                // fires on an empty one — a dry-land or cycle-stuck bobber
+                // would otherwise eat every remaining attempt's budget.
+                server.useItem(angler); // the retrieve (the bare-water answer)
+                await(() -> fishing.bobberOf(angler.engineEntityId()).isEmpty(),
+                        "the dead attempt's line left the census");
+                continue;
+            }
             server.teleportPlayer(angler, poolFloor(
                     fishing.bobberOf(angler.engineEntityId()).orElseThrow().at()));
             server.useItem(angler); // the retrieve inside the window
@@ -473,18 +496,20 @@ class FishingApiAcceptanceTest {
             // the loop re-casts — the bare retrieve left no debt behind.
         }
         throw new AssertionError(
-                "Condition not met in time: the catch never landed across the retrieve retries");
+                "Condition not met in time: the bite window never opened nor the catch"
+                        + " land across the retrieve retries");
     }
 
+    /**
+     * The engine-tick await (the run #375/#376 conversion — the census's
+     * own rule extended to this class's local helper): the old 20s wall
+     * deadline expired by wall time on a loaded runner even while the
+     * engine was alive and progressing. The budget is the wall form's
+     * nominal tick equivalent (20s = 400 ticks at 20 TPS).
+     */
     private void await(BooleanSupplier condition, String description)
             throws InterruptedException {
-        long deadline = System.currentTimeMillis() + 20_000;
-        while (System.currentTimeMillis() < deadline) {
-            if (condition.getAsBoolean()) {
-                return;
-            }
-            Thread.sleep(50);
-        }
-        throw new AssertionError("Condition not met in time: " + description);
+        net.zaminmc.torch.testing.EngineAwaits.awaitCondition(
+                activeServer.world(), condition, 400, description);
     }
 }

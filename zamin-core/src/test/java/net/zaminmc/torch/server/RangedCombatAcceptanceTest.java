@@ -39,6 +39,9 @@ class RangedCombatAcceptanceTest {
 
     private final List<FxManager.FxEvent> fxEvents = new ArrayList<>();
 
+    /** The current test's engine — the tick clock the shared await reads. */
+    private EngineServer activeServer;
+
     @Test
     void theBowDrawsConsumesAnArrowAndFiresASpeedScaledArrow() throws Exception {
         EngineServer server = boot();
@@ -365,6 +368,7 @@ class RangedCombatAcceptanceTest {
         EngineServer server = new EngineServer(config);
         server.fx().addListener(fxEvents::add);
         server.start();
+        activeServer = server;
         return server;
     }
 
@@ -392,14 +396,16 @@ class RangedCombatAcceptanceTest {
         };
     }
 
+    /**
+     * The engine-tick await (the run #375/#376 conversion — the census's
+     * own rule extended to this class's local helper): the old 20s wall
+     * deadline expired by wall time on a loaded runner even while the
+     * engine was alive and progressing. The budget is the wall form's
+     * nominal tick equivalent (20s = 400 ticks at 20 TPS) — identical
+     * patience at nominal speed, honestly more patient under load, and
+     * the two-sided liveness guard replaces the wall cutoff.
+     */
     private void await(BooleanSupplier condition, String description) throws InterruptedException {
-        long deadline = System.currentTimeMillis() + 20_000;
-        while (System.currentTimeMillis() < deadline) {
-            if (condition.getAsBoolean()) {
-                return;
-            }
-            Thread.sleep(50);
-        }
-        throw new AssertionError("Condition not met in time: " + description);
+        EngineAwaits.awaitCondition(activeServer.world(), condition, 400, description);
     }
 }

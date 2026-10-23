@@ -61,14 +61,21 @@ abstract class ProtocolTestBase {
         awaitCondition(() -> server.players().isEmpty(), "all players left");
     }
 
+    /**
+     * The engine-tick await (the run #375/#376 conversion — the old 5s wall
+     * deadline expired by wall time on a loaded runner even while the engine
+     * was alive and progressing; the census's own rule applies here too: a
+     * tick budget never expires by wall time alone). The budget is 400
+     * ticks — the established generous form (the core helpers' old 20s wall
+     * equivalent), NOT the 5s form's nominal 100: the protocol suite's
+     * conditions include the wire-interaction backlogs (the wheat ladder's
+     * queued uses drain at the tick lane's own pace) that the tight 100-tick
+     * boundary cut on the first converted run — the same boundary flake the
+     * horse test documented, now sized honestly. The two-sided liveness
+     * guard (stall window + patience cap) replaces the wall cutoff.
+     */
     protected void awaitCondition(BooleanSupplier condition, String description) throws InterruptedException {
-        long deadline = System.currentTimeMillis() + 5_000;
-        while (System.currentTimeMillis() < deadline) {
-            if (condition.getAsBoolean()) {
-                return;
-            }
-            Thread.sleep(25);
-        }
-        throw new AssertionError("Condition not met in time: " + description);
+        net.zaminmc.torch.testing.EngineAwaits.awaitCondition(server.world(), condition,
+                400, description);
     }
 }

@@ -14434,3 +14434,58 @@ Stage Summary:
 - The engine's remote-admin listeners can no longer silently die at
   boot on a loaded machine; the pipeline's confirming run for the PR
   #38 merge rides the fix push (the next release stamps 131).
+
+---
+Task ID: load-flake-retirement-phase2
+Agent: the coordinator (Abasing session)
+Task: Run #376's red suite diagnosed and fixed — the wall-clock flake
+families the census's core scope missed, and the shared utility's own
+contract flaw.
+
+Work Log:
+- Run #376 (the rcon hotfix's confirming run) failed both attempts on a
+  DIFFERENT set than #375: attempt 1 the fishing loot test (awaitBite),
+  RangedCombatAcceptanceTest.anArrowHurtsTheTargetInItsPath (the 20s
+  wall helper), ThornsMobVictimAcceptanceTest
+  .theArchersArrowBitesTheShooterThroughTheMobWear (the 2s proc window);
+  attempt 2 core GREEN, the protocol module's HorseIntegrationTest (the
+  5s wall ProtocolTestBase.awaitCondition — the flake whose root cause
+  ML-001 documented and deferred to the coordinator's ledger). The rcon
+  family green on both attempts — the race fix held.
+- The EngineAwaits contract flaw: the single total-wall backstop (10x
+  capped 300s) false-fired "stalled" on any engine averaging under ~8
+  TPS at big budgets — violating the utility's own javadoc contract
+  ("fails only when the engine itself stopped ticking"). Reworked
+  two-sided: a 60s no-progress STALL window (resets on every completed
+  tick — slow-but-alive never trips) + a PATIENCE cap (15x nominal,
+  30s floor, 15 min cap) with its own verdict. Added the expected-miss
+  form awaitConditionWithin (boolean poll; throws only on the liveness
+  guard) for the probabilistic outcomes.
+- The conversions: ProtocolTestBase.awaitCondition (the whole protocol
+  module's 5s wall) -> the engine-tick await at 400 ticks (the first
+  run at the nominal 100 surfaced the tight-boundary family — the
+  wheat-ladder backlog, the drop settle — sized to the established
+  generous form); the three core classes' local 20s wall helpers ->
+  400-tick awaits; the thorns 2s proc window -> the 40-tick
+  expected-miss poll; the melee 600ms i-frame settle -> 12 ticks.
+- The fishing retry repair: retrieveInWindow's throwing bite await
+  defeated its own four-attempt re-cast design (a budget exhaustion
+  killed the test, both observed CI failures died exactly there); the
+  per-attempt window await is now the expected-miss form — a dead
+  attempt retrieves its line, awaits the census drain, re-casts; the
+  final assert carries the story. Verified live: the local run's
+  interceptor failure (attempt 1's window never opening in 2400 ticks)
+  was absorbed green by the repaired structure.
+- The horse test's settle sleeps -> the engine-visible consequences
+  (the op level before /clear needs it, the emptied hand, the delivered
+  saddle).
+- Verification: protocol module 148/0 x2 (rerun-tasks), the converted
+  core families 60/0 (fishing 7, thorns 5, ranged 10, rcon 38); the
+  census doc's phase-2 section records the pass.
+
+Stage Summary:
+- The suite's remaining wall-clock flake families retired: the engine's
+  own tick clock now governs every await in the affected classes, the
+  liveness guard tells stalls from slowness honestly, and the
+  probabilistic outcomes ride the expected-miss form. The confirming
+  run for the whole pass rides the next push (release 131).
