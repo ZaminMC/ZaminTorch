@@ -13543,3 +13543,19 @@ Work Log:
 Stage Summary:
 - All code + docs landed and pushed on feature/test-deadline-census (HEAD 323b732). Remaining for the PR: zamin-core's chunked suite runs x2, the runs' numbers recorded, the §22 next-work line, and the PR itself (title: ML-001+ML-002: the test-deadline census and conversions + the green release pipeline).
 - The loopback-delivery distinction is the lane's own engineering finding — recorded in the census doc, it is the rule any future conversion must apply: tick-clock awaits only for tick-lane work; netty delivery waits stay wall-bounded (or await an engine-visible condition).
+
+---
+Task ID: ML-001+ML-002 (final)
+Agent: main (the test-deadline census + release-pipeline lane, session 2 — completion)
+Task: the verification runs recorded + the PR (the lane's close).
+
+Work Log:
+- Verification: TWO CONSECUTIVE full-suite passes green over all five modules, --no-daemon --max-workers=1, chunked (the 10-minute tool window cannot hold zamin-core whole). PASS 1: api+launcher+bukkit+protocol 2m41s; core server-root A-E 2m43s / F-R 7m17s (after the fishing hardening) / S-Z 2m5s (after the WorldBorder revert); entity 46s; block+world 4m9s; nbt..chest 1m19s; border..experience 1m53s; fishing..piston 45s; plugin..weather+armorstand 1m3s. PASS 2: small modules 1m58s; F-R 7m2s; S-Z 2m5s; entity+block 1m12s; world..chest 4m55s; border..experience 1m52s; fishing..piston 45s; plugin..weather 1m2s. Full build assembles green (build -x test + :zamin-launcher:serverDist; torch-1.8.8-128.jar present — the tree carries the 128 bump).
+- The pass-1 catches (both hardened the honest way, never loosened): (1) FishingApiAcceptanceTest's awaitBite — the 90s WALL bound still tripped under batch load (the bite cadence is 930 ticks worst-case; a slow engine spends more wall per tick) -> the bound is now TICK-SCALED (1500 engine ticks via EngineAwaits.awaitCondition) and EngineAwaits' backstop gained a cap (10x nominal, 30s floor, 5min max — the 60x form could hang 75min on a large budget); (2) WorldBorderTest's lerp site — the border lerp is the PRODUCT's own wall-clock walk (no engine booted), reverted to the honest wall sleep.
+- The pass-2 catch: DonkeyChestIntegrationTest tripped the same loopback-delivery race the horse test took (the wheatless ladder under load, green in isolation) -> the /give now awaits the wheat in the mule's inventory (the same condition hardening).
+- The hazard audit: the null-field scan over every converted file (34 flagged, cross-method ordering resolves all but the WorldBorder case — proven by the green chunks covering them) and the loopback-delivery reversion (23 protocol sites) both recorded in the census doc.
+- Docs closed: §22's next-work line carries the landing; this entry closes the lane's worklog.
+
+Stage Summary:
+- Branch feature/test-deadline-census, all work pushed. The PR: "ML-001+ML-002: the test-deadline census and conversions + the green release pipeline" against develop — the census summary (644 sites: 245+18 poll keeps, 27+23+2 sleep keeps, 94 latch keeps, 270 sleep conversions, the RCON + fishing + wheat-ladder hardenings), the two consecutive chunked full-suite passes with numbers, the release status (run #364 in flight on the base; the merged PR's develop push cuts the confirming release — the pipeline's own [skip ci] bump commit 217f597 already stamps 128).
+- NOT self-merged — the coordinator reviews, corrects, and merges.
