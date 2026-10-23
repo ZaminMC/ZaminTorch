@@ -13692,3 +13692,27 @@ Work Log:
 Stage Summary:
 - The ledger now reflects the lane; PR #38 carries these updates
   automatically (no new PR needed).
+
+---
+Task ID: wave3-ledger-close
+Agent: Instance 1 (the coordinator — Abasing session)
+Task: The master-ledger row resolutions for all eight instance lanes
+(this audit branch carries the ledger until PR #38 merges).
+
+Work Log:
+- ML-001/002 (PR #47): the pipeline green through the wave (129/130/131
+  published); the census + 270 conversions; the coordinator review added
+  the GroupTwo MONITOR sibling hardening and the fishing budget
+  correction (1500 -> 2400, the l-scaling derivation).
+- ML-012/017 (PR #39), ML-003 (PR #40), ML-010 (PR #41), ML-011 (PR #42),
+  ML-005/009 (PR #43), ML-018 (PR #44), ML-014/015/016 (PR #45): every
+  row RESOLVED with its landing record and test evidence.
+- The cross-lane repairs the reviews caught: EngineConfig.withPort's
+  constructor arity (post-#39), the exceptionCaught union (ReadTimeout
+  before the IOException family — netty's subtype order), and PR #44's
+  0x0C test readers moved to the 16-byte uuid form after ML-021's fix.
+
+Stage Summary:
+- The wave-3 ledger is current: 16 RESOLVED rows total (the 13 instance
+  rows + ML-006/007/021 from the coordinator's lane). Open: ML-024 (the
+  wire-publish section) + the owner's decision rows.
