@@ -1,0 +1,584 @@
+{
+ "0009-Async-Operation-Catching.patch": [
+  "Block",
+  "EntityLiving",
+  "EntityTracker"
+ ],
+ "0013-Handle-Null-Tile-Entities.patch": [
+  "World"
+ ],
+ "0016-PlayerItemDamageEvent.patch": [
+  "ItemStack"
+ ],
+ "0020-Close-Unloaded-Save-Files.patch": [
+  "RegionFileCache"
+ ],
+ "0021-Remove-o-Option.patch": [
+  "PropertyManager"
+ ],
+ "0022-Recipe-Deconstruction.patch": [
+  "IRecipe",
+  "ShapedRecipes",
+  "ShapelessRecipes"
+ ],
+ "0025-Implement-SpawnerSpawnEvent.patch": [
+  "MobSpawnerAbstract"
+ ],
+ "0031-Properly-Close-Inventories.patch": [
+  "Chunk",
+  "EntityMinecartContainer"
+ ],
+ "0032-Disallow-Interaction-With-Self.patch": [
+  "PlayerConnection"
+ ],
+ "0033-Entity-Mount-and-Dismount-Events.patch": [
+  "Entity",
+  "EntityLiving"
+ ],
+ "0034-Prevent-Ghost-Players-Caused-by-Plugins.patch": [
+  "PlayerList"
+ ],
+ "0035-Plug-World-Unload-Memory-Leak.patch": [
+  "BlockRedstoneTorch"
+ ],
+ "0036-Player-Collision-API.patch": [
+  "EntityHuman",
+  "EntityLiving",
+  "EntityPlayer"
+ ],
+ "0037-Fully-Disable-Snooper-When-Not-Required.patch": [
+  "MinecraftServer"
+ ],
+ "0040-Update-Inventory-and-Health-for-PlayerConsumeItemEve.patch": [
+  "EntityHuman"
+ ],
+ "0041-Call-EntityChangeBlockEvent-for-Fire-Arrows-hitting-.patch": [
+  "BlockTNT"
+ ],
+ "0044-Don-t-Special-Case-X-Move-Value.patch": [
+  "PlayerConnection"
+ ],
+ "0047-Fix-packed-ice-generation.patch": [
+  "WorldGenPackedIce2"
+ ],
+ "0049-Clear-Flower-Pot-on-Drop.patch": [
+  "BlockFlowerPot"
+ ],
+ "0050-Fix-some-chunks-not-being-sent-to-the-client.patch": [
+  "Chunk"
+ ],
+ "0051-Fix-Broken-Async-Chat.patch": [
+  "PacketPlayInChat"
+ ],
+ "0054-Fire-PreLogin-Events-in-Offline-Mode.patch": [
+  "LoginListener"
+ ],
+ "0059-Log-Cause-of-Unexpected-Exceptions.patch": [
+  "MinecraftServer"
+ ],
+ "0061-Save-ticks-lived-to-nbttag.patch": [
+  "Entity"
+ ],
+ "0068-Fix-ItemStack-Unbreakable-Code.patch": [
+  "ItemStack"
+ ],
+ "0069-Try-and-Debug-Crash-Reports-Crashing.patch": [
+  "MinecraftServer"
+ ],
+ "0070-Improve-AutoSave-Mechanism.patch": [
+  "Chunk",
+  "ChunkProviderServer",
+  "MinecraftServer"
+ ],
+ "0071-Catch-stalling-on-corrupted-map-data-NBT-arrays.patch": [
+  "NBTTagByteArray",
+  "NBTTagIntArray"
+ ],
+ "0077-Implement-Locale-Getter-for-Players.patch": [
+  "EntityPlayer"
+ ],
+ "0079-Fix-dispensing-bone-meal-not-having-the-correct-data.patch": [
+  "DispenserRegistry"
+ ],
+ "0086-Unfinalize-the-isDisconnected-method-by-bukkit.patch": [
+  "PlayerConnection"
+ ],
+ "0087-Implement-Silenceable-Lightning-API.patch": [
+  "EntityLightning"
+ ],
+ "0089-Prevent-hoppers-from-loading-chunks.patch": [
+  "TileEntityHopper"
+ ],
+ "0090-Guard-Entity-List.patch": [
+  "World"
+ ],
+ "0091-Fix-ConcurrentModificationException-while-being-idle.patch": [
+  "World"
+ ],
+ "0092-Cancellable-WitherSkull-potion-effect.patch": [
+  "EntityWitherSkull"
+ ],
+ "0093-Descriptive-kick-reasons-instead-of-Nope.patch": [
+  "Entity",
+  "PlayerConnection"
+ ],
+ "0097-Add-Conversion-Message.patch": [
+  "DedicatedServer"
+ ],
+ "0098-Properly-cancel-fishing-event.-Fixes-BUKKIT-5396.patch": [
+  "ItemFishingRod"
+ ],
+ "0099-Print-Stack-on-InternalException.patch": [
+  "NetworkManager"
+ ],
+ "0100-Use-Offline-Player-Data-Once-if-Required.patch": [
+  "WorldNBTStorage"
+ ],
+ "0101-Use-Provided-Case-for-Non-Existent-Offline-Players.patch": [
+  "UserCache"
+ ],
+ "0103-Fix-Player-Banning.patch": [
+  "GameProfileBanEntry"
+ ],
+ "0104-Fix-ban-expire-dates.patch": [
+  "GameProfileBanEntry"
+ ],
+ "0106-Convert-Horses-owner-to-UUID.patch": [
+  "EntityHorse"
+ ],
+ "0108-Log-null-TileEntity-Owner.patch": [
+  "TileEntity"
+ ],
+ "0110-Convert-player-skulls-async.patch": [
+  "ItemSkull",
+  "TileEntitySkull"
+ ],
+ "0111-Prevent-NoClassDefError-crash-and-notify-on-crash.patch": [
+  "World"
+ ],
+ "0112-Check-Skull-canPlace.patch": [
+  "ItemSkull"
+ ],
+ "0113-Fix-race-condition-that-could-kill-connections-befor.patch": [
+  "NetworkManager",
+  "ServerConnection"
+ ],
+ "0115-Implement-PlayerSpawnLocationEvent.patch": [
+  "PlayerList"
+ ],
+ "0117-Process-conversation-input-on-the-main-thread.-Fixes.patch": [
+  "PlayerConnection"
+ ],
+ "0122-Limit-block-placement-interaction-packets.patch": [
+  "PacketPlayInArmAnimation",
+  "PlayerConnection"
+ ],
+ "0123-Better-item-validation.patch": [
+  "DataWatcher",
+  "PacketDataSerializer"
+ ],
+ "0125-Disable-ResourceLeakDetector.patch": [
+  "MinecraftServer"
+ ],
+ "0126-Add-More-Information-to-session.lock-Errors.patch": [
+  "WorldNBTStorage"
+ ],
+ "0127-Safer-JSON-Loading.patch": [
+  "JsonList",
+  "UserCache"
+ ],
+ "0129-Add-CommandLine-EULA-Flag.patch": [
+  "DedicatedServer"
+ ],
+ "0130-Fix-for-enchanting-table-wiping-meta-when-placing-st.patch": [
+  "ContainerEnchantTable"
+ ],
+ "0131-Don-t-spawn-bonus-ocelots-when-plugins-spawn-ocelots.patch": [
+  "EntityOcelot"
+ ],
+ "0134-Fix-Null-Tile-Entity-Worlds.patch": [
+  "World"
+ ],
+ "0136-Apply-NBTReadLimiter-to-more-things.patch": [
+  "NBTCompressedStreamTools"
+ ],
+ "0140-Plug-WorldMap-Memory-Leak.patch": [
+  "PersistentCollection",
+  "World",
+  "WorldMap"
+ ],
+ "0141-Fix-Corrupted-Trapped-Chest.patch": [
+  "WorldServer"
+ ],
+ "0149-Refactor-ItemDoor-Place.patch": [
+  "ItemDoor"
+ ],
+ "0150-BungeeCord-Chat-API.patch": [
+  "PacketPlayOutChat"
+ ],
+ "0155-map-decoration-fix.patch": [
+  "EntityItemFrame",
+  "WorldMap"
+ ],
+ "0157-Clear-Packet-Queue-on-Disconnect.patch": [
+  "NetworkManager",
+  "PlayerConnection"
+ ],
+ "0004-Vanished-players-don-t-have-rights.patch": [
+  "EntityArrow",
+  "EntityFishingHook",
+  "EntityProjectile"
+ ],
+ "0011-Allow-nerfed-mobs-to-jump.patch": [
+  "EntityInsentient",
+  "PathfinderGoalFloat"
+ ],
+ "0018-Player-affects-spawning-API.patch": [
+  "EntityHuman",
+  "EntityInsentient",
+  "MobSpawnerAbstract"
+ ],
+ "0030-Add-TNT-source-location-API.patch": [
+  "BlockTNT",
+  "DispenserRegistry",
+  "EntityTNTPrimed"
+ ],
+ "0031-Prevent-tile-entity-and-entity-crashes.patch": [
+  "TileEntity",
+  "World"
+ ],
+ "0033-Enderman-drop-the-block-they-re-holding-when-they-di.patch": [
+  "EntityEnderman"
+ ],
+ "0034-Check-online-mode-before-converting-and-renaming-pla.patch": [
+  "WorldNBTStorage"
+ ],
+ "0037-Add-FallingBlock-source-location-API.patch": [
+  "BlockDragonEgg",
+  "BlockFalling",
+  "EntityFallingBlock"
+ ],
+ "0041-Add-PlayerLocaleChangeEvent.patch": [
+  "EntityPlayer"
+ ],
+ "0046-Fix-lag-from-explosions-processing-dead-entities.patch": [
+  "Explosion"
+ ],
+ "0051-Stop-updating-flowing-block-if-material-has-changed.patch": [
+  "BlockFlowing"
+ ],
+ "0062-Send-absolute-position-the-first-time-an-entity-is-s.patch": [
+  "EntityTrackerEntry"
+ ],
+ "0064-Add-BeaconEffectEvent.patch": [
+  "TileEntityBeacon"
+ ],
+ "0067-Fix-lava-water-some-times-creating-air-instead-of-co.patch": [
+  "BlockFluids"
+ ],
+ "0070-Disable-spigot-tick-limiters.patch": [
+  "World"
+ ],
+ "0071-Don-t-damage-already-dead-ArmorStands.patch": [
+  "EntityArmorStand"
+ ],
+ "0073-Don-t-create-Region-File-s-when-checking-if-chunk-ex.patch": [
+  "ChunkRegionLoader",
+  "RegionFileCache"
+ ],
+ "0075-EAR-Fix-bug-with-teleporting-entities.patch": [
+  "Entity"
+ ],
+ "0076-Add-PlayerInitialSpawnEvent.patch": [
+  "PlayerList"
+ ],
+ "0078-SPIGOT-1387-Resolve-bed-issues-on-unloaded-chunks.patch": [
+  "EntityHuman"
+ ],
+ "0081-Ensure-commands-are-not-ran-async.patch": [
+  "PlayerConnection"
+ ],
+ "0084-Remove-completely-invalid-Redstone-event-for-Netherr.patch": [
+  "BlockBloodStone"
+ ],
+ "0086-Made-EntityDismountEvent-Cancellable.patch": [
+  "Entity",
+  "EntityLiving"
+ ],
+ "0089-Avoid-hopper-searches-if-there-are-no-items.patch": [
+  "Chunk"
+ ],
+ "0091-Fix-FurnaceMinecarts-losing-all-of-their-velocity-on.patch": [
+  "EntityMinecartFurnace"
+ ],
+ "0094-Player-Tab-List-and-Title-APIs.patch": [
+  "PacketPlayOutPlayerListHeaderFooter",
+  "PacketPlayOutTitle"
+ ],
+ "0095-Ensure-inv-drag-is-in-bounds.patch": [
+  "Container"
+ ],
+ "0096-Change-implementation-of-tile-entity-removal-list.patch": [
+  "World"
+ ],
+ "0100-Add-exception-reporting-event.patch": [
+  "Chunk",
+  "ChunkProviderServer",
+  "NameReferencingFileConverter"
+ ],
+ "0101-PaperMC-Paper-GH-166.patch": [
+  "PacketDataSerializer",
+  "PacketLoginInEncryptionBegin"
+ ],
+ "0102-Allow-hidden-player-to-be-hit-by-projectiles.patch": [
+  "EntityArrow",
+  "EntityFishingHook",
+  "EntityProjectile"
+ ],
+ "0104-Only-trigger-EntityDismountEvent-if-triggered-by-sne.patch": [
+  "EntityLiving"
+ ],
+ "0106-Allow-arrows-to-fly-through-invis-armor-stands.patch": [
+  "EntityArrow",
+  "EntityFishingHook",
+  "EntityProjectile"
+ ],
+ "0107-Disable-world-saving-on-shutdown-if-auto-save-is-dis.patch": [
+  "MinecraftServer"
+ ],
+ "0110-Backport-from-Spigot-Enforce-cooldowns-on-book-edits.patch": [
+  "PlayerConnection"
+ ],
+ "0111-Make-cacti-physics-break-trigger-BlockPhysicsEvent.patch": [
+  "BlockCactus"
+ ],
+ "0112-Only-trigger-PlayerConnection-disconnect-once.patch": [
+  "PlayerConnection"
+ ],
+ "0114-Projectile-Effects-API.patch": [
+  "EntityArrow",
+  "EntityFishingHook",
+  "EntityProjectile"
+ ],
+ "0116-Player-nickname-framework.patch": [
+  "EntityPlayer"
+ ],
+ "0117-Nickname-player-info-injection.patch": [
+  "EntityPlayer",
+  "PacketPlayOutPlayerInfo"
+ ],
+ "0121-Nicknames-in-server-ping.patch": [
+  "PacketStatusListener"
+ ],
+ "0124-Allow-entities-to-be-immune-to-stuck-arrows.patch": [
+  "EntityArrow",
+  "EntityLiving"
+ ],
+ "0125-Dynamic-server-player-limit.patch": [
+  "PlayerList"
+ ],
+ "0126-Add-dismount-cause-to-EntityDismountEvent.patch": [
+  "Entity",
+  "EntityLiving"
+ ],
+ "0131-Set-last-attacked-entity-on-projectile-hit.patch": [
+  "EntityArrow"
+ ],
+ "0132-Add-EntityExtinguishEvent.patch": [
+  "Entity"
+ ],
+ "0133-Fix-EntityCombustByBlockEvent.patch": [
+  "Entity",
+  "World"
+ ],
+ "0134-Fix-extinguish-event-implementation.patch": [
+  "Entity"
+ ],
+ "0135-Better-Async-Chunk-API.patch": [
+  "ChunkProviderServer"
+ ],
+ "0138-Fix-some-more-memory-leaks.patch": [
+  "EnchantmentManager",
+  "EntityInsentient",
+  "NetworkManager"
+ ],
+ "0139-Add-MapView-Unload-API.patch": [
+  "PersistentCollection"
+ ],
+ "0140-Fix-NPE-from-0138-and-logging-from-0139.patch": [
+  "EntityInsentient",
+  "PersistentCollection"
+ ],
+ "0142-ItemStack-max-stack-size-API.patch": [
+  "ItemStack"
+ ],
+ "0143-Add-Actionbar-API.patch": [
+  "NetworkManager"
+ ],
+ "0144-Fix-tick-loop-precision.patch": [
+  "MinecraftServer"
+ ],
+ "0147-Backport-NetworkManager-Tuinity-patches-0017-0018.patch": [
+  "MinecraftServer",
+  "NetworkManager"
+ ],
+ "0148-Fix-chunk-leak-on-world-unload.patch": [
+  "ChunkProviderServer",
+  "ChunkRegionLoader"
+ ],
+ "0149-Paper-0098-Reduce-IO-ops-opening-a-new-region-file.patch": [
+  "RegionFile"
+ ],
+ "0150-Paper-0321-Cleanup-allocated-favicon-ByteBuf.patch": [
+  "MinecraftServer"
+ ],
+ "0151-Paper-0344-Start-entity-IDs-at-1.patch": [
+  "Entity"
+ ],
+ "0152-Akarin-0001-Avoid-double-I-O-operation-on-load-playe.patch": [
+  "WorldNBTStorage"
+ ],
+ "0154-Fix-canFlush-from-0147.patch": [
+  "NetworkManager"
+ ],
+ "0157-Only-wakeup-when-flushing-NetworkManager.patch": [
+  "NetworkManager"
+ ],
+ "0161-Fix-CraftingManager-memory-leak.patch": [
+  "ContainerWorkbench",
+  "PlayerList"
+ ],
+ "0165-Add-exit-code-to-shutdown-API.patch": [
+  "DedicatedServer"
+ ],
+ "0167-Add-setType-without-lighting-update-API.patch": [
+  "Chunk",
+  "World"
+ ],
+ "0170-Kick-after-receiving-invalid-creative-action-packet.patch": [
+  "PlayerConnection"
+ ],
+ "0172-NBT-no-op-reader-for-block-place-packet.patch": [
+  "PacketPlayInBlockPlace",
+  "PlayerConnection"
+ ],
+ "0173-Block-place-item-update-fix.patch": [
+  "PlayerConnection"
+ ],
+ "0174-Add-custom-property-in-nick-skins.patch": [
+  "PacketPlayOutPlayerInfo"
+ ],
+ "0175-Spoof-UUID-for-nicks.patch": [
+  "EntityPlayer",
+  "PacketPlayOutNamedEntitySpawn",
+  "PacketPlayOutPlayerInfo"
+ ],
+ "0176-Fix-update-packet-not-being-sent-on-right-click.patch": [
+  "PlayerConnection"
+ ],
+ "0177-Send-player-info-using-real-UUID-for-self.patch": [
+  "PacketPlayOutPlayerInfo",
+  "PlayerInteractManager",
+  "PlayerList"
+ ],
+ "0178-Fix-player-info-cloning.patch": [
+  "PacketPlayOutPlayerInfo"
+ ],
+ "0179-Don-t-make-PlayerInfoData-static.patch": [
+  "PacketPlayOutPlayerInfo"
+ ],
+ "0182-Sink-player-entities.patch": [
+  "EntityTracker",
+  "EntityTrackerEntry",
+  "PlayerChunkMap"
+ ],
+ "0187-Add-ProjectileCollideEvent.patch": [
+  "EntityArrow",
+  "EntityFireball",
+  "EntityFishingHook"
+ ],
+ "0188-Add-compatibility-to-PlayerConnection.patch": [
+  "PlayerConnection"
+ ],
+ "0189-Respect-player-visibility-for-certain-sounds.patch": [
+  "World"
+ ],
+ "0190-Ensure-sounds-are-played-to-self.patch": [
+  "PlayerList",
+  "World",
+  "WorldManager"
+ ],
+ "0191-Don-t-calculate-initial-light-if-not-requested.patch": [
+  "Chunk"
+ ],
+ "0192-Fix-more-EnchantmentManager-leaks.patch": [
+  "EnchantmentManager"
+ ],
+ "0193-Add-chunk-conditional-block-update.patch": [
+  "Chunk"
+ ],
+ "0196-Add-fake-textures-to-skin-cache.patch": [
+  "EntityPlayer"
+ ],
+ "0197-Cache-User-Authenticator-Threads.patch": [
+  "LoginListener"
+ ],
+ "0199-Spoof-ping-for-nicked-players.patch": [
+  "PacketPlayOutPlayerInfo"
+ ],
+ "0200-Change-metadata-to-be-non-global.patch": [
+  "Entity"
+ ],
+ "0205-Remove-sink-players-on-death.patch": [
+  "World"
+ ],
+ "0206-Add-PlayerInteractUpdateEvent.patch": [
+  "PlayerConnection"
+ ],
+ "0213-accurate-collisions-Fix-collision-for-puddles.patch": [
+  "Entity"
+ ],
+ "0216-Make-tracking-range-configurable-per-entity.patch": [
+  "Entity"
+ ],
+ "0227-event-Add-PreSignChangeEvent.patch": [
+  "PlayerConnection"
+ ],
+ "0229-Make-ChunkCoordComparator-package-private.patch": [
+  "PlayerChunkMap"
+ ],
+ "0234-Use-effective-name-for-health-score-updates.patch": [
+  "EntityPlayer"
+ ],
+ "0236-Prevent-xp-orbs-from-following-intangible-players.patch": [
+  "World"
+ ],
+ "0237-world-Add-doWaterFreezing-game-rule.patch": [
+  "WorldServer"
+ ],
+ "0245-Broadcast-more-packets-to-sink-players.patch": [
+  "PlayerList",
+  "WorldServer"
+ ],
+ "0246-Do-not-call-onPlace-when-block-physics-are-off.patch": [
+  "World"
+ ],
+ "0247-Send-ping-and-game-mode-updates-to-sink-players.patch": [
+  "PlayerList"
+ ],
+ "0250-Send-time-updates-to-sink-players.patch": [
+  "MinecraftServer"
+ ],
+ "0253-Only-skip-interact-event-for-same-position-and-item.patch": [
+  "PlayerConnection",
+  "PlayerInteractManager"
+ ],
+ "0256-Better-ProjectileHitEvent-API.patch": [
+  "EntityArrow",
+  "EntityFireball",
+  "EntityFishingHook"
+ ],
+ "0257-Backport-EntityAddToWorldEvent.patch": [
+  "WorldServer"
+ ]
+}
