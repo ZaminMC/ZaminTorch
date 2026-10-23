@@ -14032,3 +14032,92 @@ Stage Summary:
   §22 next-work line, this entry. One PR against develop, not
   self-merged.
 
+---
+Task ID: wave3-lane1
+Agent: Instance 1 (the coordinator — Abasing session)
+Task: ML-006 + ML-007 — the /debug stop section table and the
+performance attribution pass (the coordinator's own wave-3 lane).
+
+Work Log:
+- ML-006: EngineProfiler gained the visit-count face (countsByLocation,
+  one merge per pop, sectionCountsSnapshot() mirroring the undecayed
+  nanos face) + the pure buildSectionTable (the reference's span header
+  verbatim; rows: name, count, avg/visit, total, % of root, total-desc);
+  the /debug stop arm snapshots UNDECAYED before the file report's decay
+  walk and prints the table to the console (B-7's ask); the file report
+  and the reply stay reference-1:1. Tests: DebugSectionTableTest 3/0 +
+  the three existing profiler tests green unmodified (12/0 over the
+  family).
+- ML-007: the AttributionLoadTest harness (protocol test tree, real
+  wire): two scripted clients + drain threads; the cycle-3 shapes
+  in-process (the 100-zombie horde; the ~3 Hz respawn-kill storm —
+  the re-stream by construction, respawnAt clears + sendInitial);
+  capture = whole-fan window deltas + wall TPS + GC beans + heap + JFR
+  ObjectAllocationSample (the size field introspected — JDK 21 names it
+  weight). Four honest harness findings recorded (the daylight burnout;
+  the seed-dependent join placement vs the 32-block despawn ring —
+  anchored on the standing player with the bed-spawn pinned; the census
+  re-fill; the horde strolls, never chases). Deliverables:
+  docs/ATTRIBUTION_REPORT.md + docs/ATTRIBUTION_RUN_EVIDENCE.txt.
+- The verdict over the evidence: randomTicks 3.6-3.9ms/tick
+  load-independent (the top subsystem); mobs 715us -> 2.4-4.2ms at the
+  ~120-body census (~20-34us/body); the composite 7.2ms/tick vs the 50ms
+  budget, 19.9-20.0 TPS through every window; NO concurrency phase
+  justified — §22 holds the line. The pass found the re-stream has no
+  dedicated profiler section (a wire-publish section proposed as a new
+  master-ledger row).
+- §22 Phase 7 carries the full record; the compat doc untouched (no
+  Ledgered row matches); the master ledger's row updates land on the
+  audit branch (PR #38 still open).
+
+Stage Summary:
+- ML-006 and ML-007 COMPLETE on feature/debug-attribution; the PR
+  carries both rows plus the §22 record, the report doc, the raw
+  evidence file, and this entry. ML-021 (the lane's tail) follows next.
+
+---
+Task ID: wave3-lane1-ml021
+Agent: Instance 1 (the coordinator — Abasing session)
+Task: ML-021 — the 0x0C Named Entity Spawn diagnostic (the lane's tail):
+the botless pin, the four-bot raw capture, and the root cause.
+
+Work Log:
+- Phase one (the botless pin, DataWatcherWirePinTest 4/0): an independent
+  reference-form parser (SyncedData.writeEntry/read verbatim — the strict
+  PartialRead analog) over live frames; every watched type the engine
+  emits pinned to its exact boundary: BYTE (flags/age/the zombie's
+  12/13/14), FLOAT (health), INT (the villager's profession), SHORT (the
+  enderman's carried block), SLOT (the item entity's stack — the
+  reference writeItem form 280x3@0), ROTATION (the armor stand's poses,
+  pitch/yaw/roll in the reference's own order). The 0x0C's uuid STRING
+  walk is itself a strict live string parse. POSITION (type 6) has no
+  writer in the engine — recorded, not claimed; the metadata-context
+  STRING trigger has no update publication (the family-owned CustomName
+  rows tail) — recorded, not claimed.
+- Phase two (the four-bot capture, the release jar on loopback): the
+  cycle-3 PartialReadError REPRODUCED (24 stacks, all
+  packet_named_entity_spawn -> entityMetadata -> entityMetadataItem).
+  mineflayer's 'raw' fires post-parse only — a socket-level tee
+  reassembler captured the failing frames' exact bytes pre-parse.
+- ROOT CAUSE (the captured bytes + the reference + mineflayer's own
+  1.8.8 schema): trackPlayer wrote the 0x0C's uuid as a length-prefixed
+  STRING (varint + 36 chars) where the 1.8.8 wire form is the reference's
+  writeUuid — 16 RAW BYTES (two longs, PacketByteBuf lines 112-115) —
+  21 extra bytes per 0x0C; every strict client read 16 uuid bytes, walked
+  the leftover string bytes as x/y/z/angles, and entered the metadata
+  loop 21 bytes early — the PartialReadError. The intermittence (clean in
+  some runs, 24 errors in others) was the luck of the garbage walk
+  landing on the 0x7f terminator. The tab list already used writeUuid
+  (ByteBufOps) — the defect was this ONE site.
+- THE FIX: trackPlayer now writes ByteBufOps.writeUuid (the one-line
+  change, the same form the tab list uses); the pin test's parser reads
+  the reference form with the boundary assert as the regression guard.
+  Verified: DataWatcherWirePinTest 4/0 + ChatAndMultiplayerTest 4/0
+  (the fixed 0x0C still serves TestClient18's flows).
+- The end-to-end re-capture (the fixed dist + four mineflayer bots)
+  rides the PR's verification build.
+
+Stage Summary:
+- ML-021 CLOSED as a real engine defect, root-caused with captured
+  bytes, fixed, and pinned — the cycle-3 "both sides possible" question
+  answered: the engine was at fault; mineflayer's parser was right.

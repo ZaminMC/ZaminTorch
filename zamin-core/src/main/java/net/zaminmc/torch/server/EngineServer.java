@@ -22348,9 +22348,19 @@ public final class EngineServer implements Server, EngineBridge {
             }
             long durationMillis = System.currentTimeMillis() - debugStartMillis;
             long durationTicks = world.totalTicks() - debugStartTicks;
-            // The report builds while the table still collects (the
-            // reference's own order), then the table turns off.
+            // The section table's snapshots freeze FIRST (undecayed — the
+            // file report's getResults walk applies the reference's own
+            // *999/1000 decay to the live table; the frozen copies never
+            // see it), then the file report builds while the table still
+            // collects (the reference's own order), then the table turns
+            // off. The table prints to the console (ML-006 — B-7's ask: the
+            // one-line summary blocked per-subsystem attribution from the
+            // console); the file keeps the reference's exact report shape.
+            java.util.Map<String, Long> sectionNanos = profiler.sectionNanosSnapshot();
+            java.util.Map<String, Long> sectionCounts = profiler.sectionCountsSnapshot();
             writeProfilerReport(durationMillis, durationTicks);
+            LOGGER.info(() -> net.zaminmc.torch.server.profiler.EngineProfiler
+                    .buildSectionTable(durationMillis, durationTicks, sectionNanos, sectionCounts));
             profiler.stop();
             profilerRequested = false;
             return "Stopped debugging. After " + (durationMillis / 1000.0)

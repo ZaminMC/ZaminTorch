@@ -2952,7 +2952,16 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBuf out = Unpooled.buffer(48);
         ByteBufOps.writeVarInt(out, Protocol18.S2C_NAMED_SPAWN);
         ByteBufOps.writeVarInt(out, entityId);
-        ByteBufOps.writeString(out, other.uuid().toString());
+        // ML-021's fix: the uuid rides the wire as the reference's writeUuid
+        // (two longs, 16 raw bytes — PacketByteBuf.writeUuid lines 112-115),
+        // the same form the tab list already uses. The string form this site
+        // carried (varint length + 36 chars) put 21 extra bytes in every
+        // 0x0C: a strict 1.8.8 client reads 16 uuid bytes, then walks the
+        // leftover string bytes as x/y/z/angles and enters the metadata
+        // loop 21 bytes early — protodef's PartialReadError inside
+        // entityMetadataItem (the cycle-3 observation), whose intermittence
+        // was the luck of the garbage walk landing on the terminator.
+        ByteBufOps.writeUuid(out, other.uuid());
         out.writeInt((int) Math.floor(pos.x() * 32.0));
         out.writeInt((int) Math.floor(pos.y() * 32.0));
         out.writeInt((int) Math.floor(pos.z() * 32.0));
