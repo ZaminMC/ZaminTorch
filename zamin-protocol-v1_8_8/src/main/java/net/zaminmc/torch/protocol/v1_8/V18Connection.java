@@ -324,6 +324,14 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                 engine.joinCompleted(accepted.session());
                 startKeepAlive(channel);
                 adapter.playerEnteredPlay(this);
+                // The relog remount arm (the reference's PlayerManager.onLogin
+                // "Riding" walk, lines 157-165 — after the whole join burst,
+                // exactly where the reference seats the returning rider): the
+                // engine consumes the ride remembered at quit and remounts on
+                // the tick lane; the mount's own listeners then publish the
+                // Attach Entity pair (the reference's startRiding lines
+                // 516-523: the attach, then the teleport to the seat).
+                engine.rejoinRestoreRide(accepted.session());
             }
         });
     }
