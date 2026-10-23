@@ -34,3 +34,4 @@ run/
 players/
 launcher.pid
 zamin.properties
+__pycache__/
