@@ -153,6 +153,23 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
+        // The read-idle reap (the reference's own "timeout" handler,
+        // ConnectionListener.java line 104): a connection silent past the
+        // bound is closed cleanly. This is the boundary mechanism WORKING,
+        // not a protocol fault — a flood of reaped in-progress logins must
+        // never spray WARNING stacks into the console (the quiet-disconnect
+        // law the keep-alive timeout already follows). PLAY-state clients
+        // are normally kicked by keep-alive long before this arm; this
+        // arm's population is the pre-login silence.
+        if (cause instanceof io.netty.handler.timeout.ReadTimeoutException) {
+            if (session != null) {
+                PlayerSession timedOut = session;
+                session = null;
+                engine.clientDisconnected(timedOut, "Timed out");
+            }
+            ctx.close();
+            return;
+        }
         // Malformed or broken input fails this connection predictably, never the server (§126).
         // WARNING + stack: an invisible drop is undiagnosable; the console must
         // say exactly which frame broke the connection (the §54 observer rule).
