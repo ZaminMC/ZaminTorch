@@ -14,6 +14,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The scheduler bridge over the live engine (§28.7's inventory: synchronous
@@ -96,7 +97,7 @@ class BukkitSchedulerBridgeTest {
             }
         }
         int frozen = count(harness, "sched:timer-beat");
-        Thread.sleep(400); // certainly past two more beat slots
+        EngineAwaits.awaitTicks(harness.server.world(), 8, "certainly past two more beat slots");
         assertEquals(frozen, count(harness, "sched:timer-beat"),
                 "the cancelled timers never beat again");
         for (org.bukkit.scheduler.BukkitTask task : Bukkit.getScheduler().getPendingTasks()) {

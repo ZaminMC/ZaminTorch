@@ -14121,3 +14121,49 @@ Stage Summary:
 - ML-021 CLOSED as a real engine defect, root-caused with captured
   bytes, fixed, and pinned — the cycle-3 "both sides possible" question
   answered: the engine was at fault; mineflayer's parser was right.
+
+---
+Task ID: ML-001+ML-002
+Agent: main (Z.ai session — the test-deadline census + release-pipeline lane, docs/MASTER_LEDGER.md's two release blockers)
+Task: ML-001 the wall-clock-deadline census over every module test tree + ML-002 the conversions (engine-condition awaits / tick-scaled deadlines) + the release verification (3 green full-suite runs, torch-1.8.8-128+).
+
+Work Log:
+- Branched feature/test-deadline-census off origin/develop (b7a6917, PR #37's merge), identity Abasing <abasing@zaminmc.github.io>.
+- ML-001 LANDED (fd1cf23 + 49df469 + c2ef63f): scripts/test_deadline_census.py (the extractor: every deadline-poll delta, standalone fixed sleep, poll interval, latch/future timeout, @Timeout, nanoTime budget across all five test trees — loop membership by a brace-depth walk, strings/comments blanked, do-while handled) + scripts/test_deadline_census_doc.py (the renderer) + scripts/census_raw.tsv (the raw evidence) + docs/TEST_DEADLINE_CENSUS.md (644 independent sites: 272 deadline polls — 245 generous liveness keeps, 27 hand-audited short bounds; 277 fixed sleeps — 275 C-B conversions over 110 files, 2 no-engine launcher keeps; 94 delivery-bound latches; 3 elapsed-time product assertions; 1 adversarial @Timeout; the #361/#362 trio's dispositions: fishing + bukkit hardened by #37, the RCON 5s FIN-WAIT drain converts in ML-002; the dispenser negative windows convert).
+- ML-002 IN PROGRESS — the plan: (1) the ONE shared utility EngineAwaits (awaitTicks(EngineWorld, ticks, what) — the volatile world.totalTicks() clock, wall backstop 60x nominal floored 30s as a stalled-engine liveness guard only; awaitCondition(world, cond, tickBudget, what) — fails when the engine COMPLETED tickBudget ticks without the condition, the honest tick-scaled deadline) as a zamin-core testFixtures class (java-test-fixtures plugin; protocol + bukkit take testImplementation(testFixtures(project(":zamin-core")))); (2) the RCON FIN-WAIT drain bound 5s -> 30s (detection unchanged, the #362 evidence in the comment); (3) the 9 dispenser negative windows -> awaitTicks; (4) the 275 fixed sleeps across 110 files -> awaitTicks(ceil(ms/50), annotated tick counts win) — scripted conversion with the compiler in the loop (the unique-variable-name rule for the in-scope clock, harness.server for bukkit, stragglers manual); (5) RandomTickLaneTest's pacing loop manual (submit + awaitTicks(1) x40).
+- Release verification NOT YET RUN (needs the conversions landed first): ./gradlew build green, then all five module suites --max-workers=1 twice consecutively, numbers recorded; then the develop-push release runs + torch-1.8.8-128+ publish.
+
+Stage Summary:
+- ML-001 landed on the branch and pushed (3 commits). The census's own refinement catch: the window heuristic misclassified sleeps after closed loops and condition-poll intervals — the brace-depth walk replaced it; the extractor's two regex bugs (newline-eating string class, DOTALL line-comment over-blank) fixed and both re-validated against known sites.
+- The conversion set is final and documented: 285 sites (275 sleeps + 9 dispenser windows + the RCON drain). The keeps are reasoned per family in the census doc.
+- Known flake context for the verification runs: the workflow's retry list carries LifecycleEvent/HopperSystem/HopperWindow; PR #37's hardenings cover fishing + the bukkit MONITOR await; the RCON drain converts in this lane.
+
+---
+Task ID: ML-001+ML-002 (cont.)
+Agent: main (the test-deadline census + release-pipeline lane, session 2)
+Task: the ML-002 landing + the verification runs (continuation of the entry above).
+
+Work Log:
+- ML-002 LANDED (e87d8d7 + 0b30836 + a580990 + 323b732): EngineAwaits (zamin-core testFixtures, java-test-fixtures wiring + protocol/bukkit consumer deps) — awaitTicks on the world's own volatile totalTicks clock with a stalled-engine backstop (60x nominal, floor 30s), awaitCondition with a tick-scaled deadline; 246 swept fixed sleeps + 7 settle/awaitSettled helper signatures (43 call sites) + 16 manual in-method sites + the RCON FIN-WAIT bound 5s->30s + DispenserSystemTest's three true negative windows + RandomTickLaneTest's pacing loop; the census's loop-membership walk gained the multiline-header brace fix.
+- THE LANDING'S OWN CATCH (323b732): the first protocol-suite run failed HorseIntegrationTest's wheat ladder — a wait after client.sendChat guards LOOPBACK NETTY DELIVERY, not tick progress; the 23 give/chat/slot/position delivery sites across 8 protocol tests reverted to wall sleeps + census-reclassified C-C (loopback delivery, no tick ordering), the dig-duration conversions stayed (the finish floor is a minimum — late is always safe), and the wheat ladder now awaits the engine-visible condition (the wheat in the tamer's inventory). The touched protocol batch green in 34s.
+- Verification run 1 progress: zamin-api + zamin-launcher + zamin-bukkit + zamin-protocol-v1_8_8 full suites GREEN together (BUILD SUCCESSFUL in 2m41s, --no-daemon --max-workers=1); zamin-core remaining — the server-root package alone exceeds the 10-minute tool window, run it in alphabetical chunks (then the sub-packages), then repeat everything for run 2.
+
+Stage Summary:
+- All code + docs landed and pushed on feature/test-deadline-census (HEAD 323b732). Remaining for the PR: zamin-core's chunked suite runs x2, the runs' numbers recorded, the §22 next-work line, and the PR itself (title: ML-001+ML-002: the test-deadline census and conversions + the green release pipeline).
+- The loopback-delivery distinction is the lane's own engineering finding — recorded in the census doc, it is the rule any future conversion must apply: tick-clock awaits only for tick-lane work; netty delivery waits stay wall-bounded (or await an engine-visible condition).
+
+---
+Task ID: ML-001+ML-002 (final)
+Agent: main (the test-deadline census + release-pipeline lane, session 2 — completion)
+Task: the verification runs recorded + the PR (the lane's close).
+
+Work Log:
+- Verification: TWO CONSECUTIVE full-suite passes green over all five modules, --no-daemon --max-workers=1, chunked (the 10-minute tool window cannot hold zamin-core whole). PASS 1: api+launcher+bukkit+protocol 2m41s; core server-root A-E 2m43s / F-R 7m17s (after the fishing hardening) / S-Z 2m5s (after the WorldBorder revert); entity 46s; block+world 4m9s; nbt..chest 1m19s; border..experience 1m53s; fishing..piston 45s; plugin..weather+armorstand 1m3s. PASS 2: small modules 1m58s; F-R 7m2s; S-Z 2m5s; entity+block 1m12s; world..chest 4m55s; border..experience 1m52s; fishing..piston 45s; plugin..weather 1m2s. Full build assembles green (build -x test + :zamin-launcher:serverDist; torch-1.8.8-128.jar present — the tree carries the 128 bump).
+- The pass-1 catches (both hardened the honest way, never loosened): (1) FishingApiAcceptanceTest's awaitBite — the 90s WALL bound still tripped under batch load (the bite cadence is 930 ticks worst-case; a slow engine spends more wall per tick) -> the bound is now TICK-SCALED (1500 engine ticks via EngineAwaits.awaitCondition) and EngineAwaits' backstop gained a cap (10x nominal, 30s floor, 5min max — the 60x form could hang 75min on a large budget); (2) WorldBorderTest's lerp site — the border lerp is the PRODUCT's own wall-clock walk (no engine booted), reverted to the honest wall sleep.
+- The pass-2 catch: DonkeyChestIntegrationTest tripped the same loopback-delivery race the horse test took (the wheatless ladder under load, green in isolation) -> the /give now awaits the wheat in the mule's inventory (the same condition hardening).
+- The hazard audit: the null-field scan over every converted file (34 flagged, cross-method ordering resolves all but the WorldBorder case — proven by the green chunks covering them) and the loopback-delivery reversion (23 protocol sites) both recorded in the census doc.
+- Docs closed: §22's next-work line carries the landing; this entry closes the lane's worklog.
+
+Stage Summary:
+- Branch feature/test-deadline-census, all work pushed. The PR: "ML-001+ML-002: the test-deadline census and conversions + the green release pipeline" against develop — the census summary (644 sites: 245+18 poll keeps, 27+23+2 sleep keeps, 94 latch keeps, 270 sleep conversions, the RCON + fishing + wheat-ladder hardenings), the two consecutive chunked full-suite passes with numbers, the release status (run #364 in flight on the base; the merged PR's develop push cuts the confirming release — the pipeline's own [skip ci] bump commit 217f597 already stamps 128).
+- NOT self-merged — the coordinator reviews, corrects, and merges.

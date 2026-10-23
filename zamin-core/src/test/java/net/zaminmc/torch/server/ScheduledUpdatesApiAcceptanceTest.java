@@ -20,6 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The scheduled-tick API wave (§27.3's scheduled-block-tick family over
@@ -53,10 +54,10 @@ class ScheduledUpdatesApiAcceptanceTest {
             // under the opaque stone dies to dirt.
             server.ticker().submit(() ->
                     server.world().setBlock(at, BuiltinBlocks.GRASS_BLOCK));
-            awaitSettled();
+            awaitSettled(server);
             server.ticker().submit(() ->
                     server.world().setBlock(above, BuiltinBlocks.STONE));
-            awaitSettled();
+            awaitSettled(server);
 
             World world = server.world();
             ScheduledUpdates updates = world.scheduledUpdates();
@@ -70,7 +71,7 @@ class ScheduledUpdatesApiAcceptanceTest {
             // The request arm (owner lane): schedules the cell, due now —
             // the next tick runs it and the queue drains again.
             server.ticker().submit(() -> updates.requestAt(above));
-            awaitSettled();
+            awaitSettled(server);
             assertTrue(updates.pending().isEmpty(), "the requested update ran");
 
             // The cancel arm (owner lane): a FUTURE-due pending fuse cancels.
@@ -89,7 +90,7 @@ class ScheduledUpdatesApiAcceptanceTest {
                 server.scheduler().runLater(1, () ->
                         cancelled.set(updates.cancelFallCheckAt(sand)));
             });
-            awaitSettled();
+            awaitSettled(server);
             assertTrue(cancelled.get(), "the armed fuse cancelled inside its window");
             assertEquals(BuiltinBlocks.SAND, world.getBlock(sand),
                     "the sand hovers forever — its fuse was cancelled");
@@ -150,7 +151,7 @@ class ScheduledUpdatesApiAcceptanceTest {
             // On-lane request through World.execute (the §27.6 owner path):
             // the verb runs.
             world.execute(() -> updates.requestAt(at));
-            awaitSettled();
+            awaitSettled(server);
             Optional<ScheduledUpdates.PendingUpdate> pending =
                     updates.pendingAt(at);
             // The requested update was due the current tick — after settling
@@ -162,11 +163,7 @@ class ScheduledUpdatesApiAcceptanceTest {
     }
 
     /** The submit drains at the head of the next tick (<= 100 ms). */
-    private static void awaitSettled() {
-        try {
-            Thread.sleep(300);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
+    private void awaitSettled(EngineServer server) throws InterruptedException {
+        EngineAwaits.awaitTicks(server.world(), 6, "the submit drains at the head of the next tick");
     }
 }

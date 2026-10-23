@@ -22,6 +22,7 @@ import java.util.function.BooleanSupplier;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The vanilla 1.8.8 mining port ({@code MiningRules}: PlayerEntity.
@@ -155,7 +156,7 @@ class VanillaMiningTimingTest {
         // finish accepts at f >= 0.7 = tick 15.1; the finish at ~500ms (10-11
         // ticks, f ~= 0.5) must park the dig — the vanilla wasMining path.
         server.blockInteraction().submitMiningStart(player, stone);
-        Thread.sleep(500);
+        EngineAwaits.awaitTicks(server.world(), 10, "engine progress (a 500 wall settle)");
         server.blockInteraction().submitMiningFinished(player, stone);
         assertTrue(server.world().getBlock(stone).equals(BuiltinBlocks.STONE),
                 "a half-progress finish is below the vanilla 0.7 threshold");
@@ -205,7 +206,7 @@ class VanillaMiningTimingTest {
         // parks the dig; the vanilla self-completion then lands at tick 15
         // (~750ms) — not at the client's claimed 300ms and not never.
         server.blockInteraction().submitMiningStart(player, dirt);
-        Thread.sleep(300);
+        EngineAwaits.awaitTicks(server.world(), 6, "engine progress (a 300 wall settle)");
         server.blockInteraction().submitMiningFinished(player, dirt);
         assertTrue(server.world().getBlock(dirt).equals(BuiltinBlocks.DIRT),
                 "a 0.47-progress finish does not mine");
@@ -229,7 +230,7 @@ class VanillaMiningTimingTest {
         player.applyMovement(player.position(), new Rotation(0f, 0f), false);
 
         server.blockInteraction().submitMiningStart(player, dirt);
-        Thread.sleep(1_500);
+        EngineAwaits.awaitTicks(server.world(), 30, "engine progress (a 1_500 wall settle)");
         server.blockInteraction().submitMiningFinished(player, dirt);
         assertTrue(server.world().getBlock(dirt).equals(BuiltinBlocks.DIRT),
                 "an airborne dig cannot finish in a grounded dig's time");

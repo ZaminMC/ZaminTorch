@@ -20,6 +20,7 @@ import java.util.function.BooleanSupplier;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The dye-coloring families' live placement walk (Slice 31): the damage-aware
@@ -88,7 +89,7 @@ class DyeFamilyPlacementAcceptanceTest {
 
     private void useOn(PlayerSession player, BlockPosition at, int face) throws InterruptedException {
         server.useItemOnBlock(player, at, face, java.util.Optional.empty(), windowId -> { });
-        Thread.sleep(150);
+        EngineAwaits.awaitTicks(server.world(), 3, "engine progress (a 150 wall settle)");
     }
 
     @Test
@@ -117,7 +118,7 @@ class DyeFamilyPlacementAcceptanceTest {
         builder.inventory().setSlot(1, ItemStack.of(item("minecraft:shears"), 1));
         builder.inventory().selectHotbarSlot(1);
         server.blockInteraction().submitMiningStart(builder, wool);
-        Thread.sleep(600);
+        EngineAwaits.awaitTicks(server.world(), 12, "engine progress (a 600 wall settle)");
         server.blockInteraction().submitMiningFinished(builder, wool);
         await(() -> server.world().getBlock(wool).equals(BuiltinBlocks.AIR), "the wool broke");
         await(() -> !server.itemEntities().all().isEmpty(), "the drop landed");

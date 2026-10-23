@@ -15,6 +15,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The /title and /tellraw commands (TitleCommand/TellRawCommand 1:1) over
@@ -157,7 +158,7 @@ class TitleTellRawCommandTest {
         dispatch("/title Nobody title {\"text\":\"Hi\"}");
         dispatch("/title Alice bogus extra args");
         // Let the chat queue drain, then assert nothing fired.
-        Thread.sleep(500);
+        EngineAwaits.awaitTicks(server.world(), 10, "engine progress (a 500 wall settle)");
         assertTrue(aliceLink.verbs.isEmpty(), "no verb fired: " + aliceLink.verbs);
     }
 

@@ -23,6 +23,7 @@ import java.util.function.BooleanSupplier;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The §27.7 interaction-events wave's piston + fluid arms (Slice 81):
@@ -65,7 +66,7 @@ class PistonFluidEventAcceptanceTest {
 
             server.ticker().submit(() -> server.redstone().useLever(
                     new BlockPosition(x, y + 1, z)));
-            Thread.sleep(400); // let the cancelled event land
+            EngineAwaits.awaitTicks(server.world(), 8, "let the cancelled event land");
 
             assertTrue(PistonBlocks.isPiston(typeAt(server, x, y, z))
                             && !PistonBlocks.pistonExtended(typeAt(server, x, y, z)),
@@ -79,7 +80,7 @@ class PistonFluidEventAcceptanceTest {
             // re-armed extend goes through.
             server.ticker().submit(() -> server.redstone().useLever(
                     new BlockPosition(x, y + 1, z)));
-            Thread.sleep(200); // the OFF flip settles
+            EngineAwaits.awaitTicks(server.world(), 4, "the OFF flip settles");
             server.ticker().submit(() -> server.redstone().useLever(
                     new BlockPosition(x, y + 1, z)));
             await(() -> PistonBlocks.pistonExtended(typeAt(server, x, y, z)),
@@ -257,7 +258,7 @@ class PistonFluidEventAcceptanceTest {
 
             server.ticker().submit(() -> server.redstone().useLever(
                     new BlockPosition(x, y + 1, z)));
-            Thread.sleep(400);
+            EngineAwaits.awaitTicks(server.world(), 8, "engine progress (a 400 wall settle)");
 
             assertTrue(PistonBlocks.isPistonHead(typeAt(server, x + 1, y, z)),
                     "the cancelled retract left the head in place");
@@ -310,7 +311,7 @@ class PistonFluidEventAcceptanceTest {
             // still pool re-awakens through the sideways write's neighbor
             // update) before both cells settle — the witness must span
             // that whole cycle.
-            Thread.sleep(400);
+            EngineAwaits.awaitTicks(server.world(), 8, "engine progress (a 400 wall settle)");
             assertTrue(sawTheCancelledTarget.get(),
                     "the flow toward the cancelled cell was observed");
             sub.unsubscribe();

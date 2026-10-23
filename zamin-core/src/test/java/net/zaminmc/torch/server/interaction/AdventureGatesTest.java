@@ -22,6 +22,7 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * Wave I — the adventure gates over the live engine (PlayerEntity's
@@ -131,7 +132,7 @@ class AdventureGatesTest {
         // 1. No list: the prediction drops, nothing places, nothing consumes.
         tick(() -> adventurer.inventory().setSlot(0, ItemStack.of(chest, 1)));
         server.useItemOnBlock(adventurer, ground, 1, Optional.empty(), id -> { });
-        Thread.sleep(400); // the resync arrives; the block never lands
+        EngineAwaits.awaitTicks(server.world(), 8, "the resync arrives; the block never lands");
         assertTrue(server.world().getBlock(target).equals(server.world().airType()),
                 "the bare adventure stack never places");
         assertTrue(adventurer.inventory().held().count() == 1,
@@ -141,7 +142,7 @@ class AdventureGatesTest {
         tick(() -> adventurer.inventory().setSlot(0,
                 ItemStack.of(chest, 1).withCanPlaceOn(List.of("minecraft:dirt"))));
         server.useItemOnBlock(adventurer, ground, 1, Optional.empty(), id -> { });
-        Thread.sleep(400);
+        EngineAwaits.awaitTicks(server.world(), 8, "engine progress (a 400 wall settle)");
         assertTrue(server.world().getBlock(target).equals(server.world().airType()),
                 "the wrong-name list never places");
 
@@ -185,9 +186,9 @@ class AdventureGatesTest {
 
         // 1. No list: the dig never opens, the finish refuses, the block stays.
         server.blockInteraction().submitMiningStart(adventurer, target);
-        Thread.sleep(600);
+        EngineAwaits.awaitTicks(server.world(), 12, "engine progress (a 600 wall settle)");
         server.blockInteraction().submitMiningFinished(adventurer, target);
-        Thread.sleep(400);
+        EngineAwaits.awaitTicks(server.world(), 8, "engine progress (a 400 wall settle)");
         assertTrue(server.world().getBlock(target).equals(BuiltinBlocks.DIRT),
                 "the bare adventure dig never breaks");
 
@@ -198,7 +199,7 @@ class AdventureGatesTest {
         tick(() -> adventurer.inventory().setSlot(0,
                 ItemStack.of(stick, 1).withCanDestroy(List.of("dirt"))));
         server.blockInteraction().submitMiningStart(adventurer, target);
-        Thread.sleep(600); // the dig's own elapsed floor (the finish's walk)
+        EngineAwaits.awaitTicks(server.world(), 12, "the dig's own elapsed floor (the finish's walk)");
         server.blockInteraction().submitMiningFinished(adventurer, target);
         await(() -> server.world().getBlock(target).equals(server.world().airType()),
                 "the named list breaks");

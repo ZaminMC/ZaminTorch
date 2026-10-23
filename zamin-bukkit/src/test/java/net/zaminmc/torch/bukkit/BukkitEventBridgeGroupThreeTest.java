@@ -20,6 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The event bridge's third group over the live engine (§28.7's entity
@@ -111,7 +112,7 @@ class BukkitEventBridgeGroupThreeTest {
                 harness.server.mobs().hurt(pig.get(), 20.0f, 0.0));
         harness.await(() -> harness.probeLogContains("cancel:mobdamage"),
                 "the legacy listener cancelled the big hit");
-        Thread.sleep(300); // the cancelled hit certainly settled
+        EngineAwaits.awaitTicks(harness.server.world(), 6, "the cancelled hit certainly settled");
         assertEquals(9.0f, pig.get().health(), 1e-6f,
                 "the cancelled damage landed nothing (the mapped-back cancel)");
     }
@@ -187,7 +188,7 @@ class BukkitEventBridgeGroupThreeTest {
                 "the legacy listener cancelled the diamond drop");
         harness.await(() -> dropped.get() == null,
                 "the cancelled drop returned null through the engine's own surface");
-        Thread.sleep(300); // any wrongly-landed body would have settled
+        EngineAwaits.awaitTicks(harness.server.world(), 6, "any wrongly-landed body would have settled");
         assertEquals(0, itemsNear(harness, 79.5, 40.5, 79.5),
                 "the cancelled diamond never entered the world");
     }

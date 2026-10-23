@@ -5,6 +5,7 @@ import org.junit.jupiter.api.TestInstance;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The dye-coloring families over the real wire (Slice 31): the creative
@@ -58,14 +59,14 @@ class DyeFamilyWireAcceptanceTest extends ProtocolTestBase {
             var session = server.playerRegistry().byName("Decorator").orElseThrow();
             server.ticker().submit(() -> session.setGamemode(
                     net.zaminmc.torch.GameMode.CREATIVE));
-            Thread.sleep(200);
+            EngineAwaits.awaitTicks(server.world(), 4, "engine progress (a 200 wall settle)");
 
             // The creative pick: lime wool — item id 35 with damage 5 (the
             // DyeColor id domain). The slot claim must resolve the FAMILY
             // ITEM (minecraft:wool), never the flattened lime_wool block
             // (which carries no item of its own).
             client.sendCreativeSlot(36, 35, 5);
-            Thread.sleep(200);
+            EngineAwaits.awaitTicks(server.world(), 4, "engine progress (a 200 wall settle)");
             var held = session.inventory().held();
             assertTrue(!held.isEmpty(), "the claim landed in the hotbar");
             assertEquals("wool", held.type().identifier().value(),
@@ -104,11 +105,11 @@ class DyeFamilyWireAcceptanceTest extends ProtocolTestBase {
             var session = server.playerRegistry().byName("Glazier").orElseThrow();
             server.ticker().submit(() -> session.setGamemode(
                     net.zaminmc.torch.GameMode.CREATIVE));
-            Thread.sleep(200);
+            EngineAwaits.awaitTicks(server.world(), 4, "engine progress (a 200 wall settle)");
 
             // The blue stained glass — item id 95 damage 11 (DyeColor.BLUE).
             client.sendCreativeSlot(36, 95, 11);
-            Thread.sleep(200);
+            EngineAwaits.awaitTicks(server.world(), 4, "engine progress (a 200 wall settle)");
             var held = session.inventory().held();
             assertTrue(!held.isEmpty());
             assertEquals("stained_glass", held.type().identifier().value(),

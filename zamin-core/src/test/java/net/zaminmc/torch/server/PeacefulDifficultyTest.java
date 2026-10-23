@@ -15,6 +15,7 @@ import java.util.function.BooleanSupplier;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The peaceful difficulty's own law (Slice 19e — the reference's
@@ -137,7 +138,8 @@ class PeacefulDifficultyTest {
                     "the night hours landed");
             // MonsterEntity.canSpawn line 131: no monster ever spawns on a
             // peaceful world — the whole night passes empty-handed.
-            Thread.sleep(500); // ten seconds of engine ticks
+            EngineAwaits.awaitTicks(server.world(), 10,
+                            "the night passes empty-handed (a peaceful world never spawns)");
             assertEquals(0, server.mobs().all().stream()
                             .filter(m -> m.type().hostile).count(),
                     "the monster category never spawns on peaceful");

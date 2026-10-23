@@ -24,6 +24,7 @@ import java.util.function.BooleanSupplier;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * THE PLACEMENT REACH LAW (Slice N7 — the secondary reach bands retired, a
@@ -175,7 +176,7 @@ class PlacementReachLawAcceptanceTest {
         resyncs.clear();
 
         use(farStone, 1); // the top face: the target cell (9, 5, 0)
-        Thread.sleep(300);
+        EngineAwaits.awaitTicks(server.world(), 6, "engine progress (a 300 wall settle)");
         assertEquals(BuiltinBlocks.AIR, server.world().getBlock(new BlockPosition(9, 5, 0)),
                 "the beyond-band use never placed");
         assertEquals(5, player.inventory().held().count(),
@@ -201,7 +202,7 @@ class PlacementReachLawAcceptanceTest {
         hold(ItemStack.of(BuiltinItems.STONE, 5));
 
         use(underFeet, 1); // the top face: the target is the player's feet cell
-        Thread.sleep(300);
+        EngineAwaits.awaitTicks(server.world(), 6, "engine progress (a 300 wall settle)");
         assertEquals(BuiltinBlocks.AIR, server.world().getBlock(new BlockPosition(0, 5, 0)),
                 "the solid stone never places inside the player");
         assertEquals(5, player.inventory().held().count(),

@@ -7,6 +7,7 @@ import java.io.IOException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * Item metadata over the real wire: /give with a variant argument produces
@@ -104,7 +105,7 @@ class MetadataIntegrationTest extends ProtocolTestBase {
 
             // --- mine it by hand: 15 ticks nominal (750 ms) ---
             client.sendDigging(0, 2, 5, 2, 1);
-            Thread.sleep(850);
+            EngineAwaits.awaitTicks(server.world(), 17, "engine progress (a 850 wall settle)");
             client.sendDigging(2, 2, 5, 2, 1);
             client.readBlockChangeAt(2, 5, 2, 0, 10_000); // the sand block is gone
             int[] spawn = client.readSpawnItem(10_000);
@@ -120,7 +121,7 @@ class MetadataIntegrationTest extends ProtocolTestBase {
             client.readWindowSlotTable(10_000); // one glass consumed
 
             client.sendDigging(0, 2, 5, 2, 1);
-            Thread.sleep(850); // glass: 9 ticks nominal; the floor keeps it honest
+            EngineAwaits.awaitTicks(server.world(), 17, "glass: 9 ticks nominal; the floor keeps it honest");
             client.sendDigging(2, 2, 5, 2, 1);
             client.readBlockChangeAt(2, 5, 2, 0, 10_000); // the glass block is gone
             assertThrows(IOException.class, () -> client.readSpawnItem(1_500),

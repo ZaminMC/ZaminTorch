@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The armor stand family on the live engine (Slice 28c) — the reference
@@ -651,7 +652,7 @@ class ArmorStandSystemTest {
             server.ticker().submit(() -> firstHit.set(server.armorStands().attack(stand, false)));
             await(server, () -> firstHit.get() != null, "the first hit answered");
             assertFalse(firstHit.get(), "the marker refuses the melee hit");
-            Thread.sleep(120); // past the five-tick window
+            EngineAwaits.awaitTicks(server.world(), 3, "past the five-tick window");
             AtomicReference<Boolean> secondHit = new AtomicReference<>();
             server.ticker().submit(() -> secondHit.set(server.armorStands().attack(stand, false)));
             await(server, () -> secondHit.get() != null, "the second hit answered");

@@ -25,6 +25,7 @@ import java.util.function.BooleanSupplier;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The bone-meal arms' use-path scenarios (the 2026-10-21 audit's VIII7 —
@@ -87,7 +88,7 @@ class BonemealArmsAcceptanceTest {
     private void useOn(PlayerSession player, BlockPosition at) throws InterruptedException {
         server.useItemOnBlock(player, at, 1, java.util.Optional.empty(),
                 windowId -> { });
-        Thread.sleep(150); // the tick-thread application window
+        EngineAwaits.awaitTicks(server.world(), 3, "the tick-thread application window");
     }
 
     /** Polls the held count to its expected value (the cold-boot flake
@@ -109,7 +110,7 @@ class BonemealArmsAcceptanceTest {
         server.ticker().submit(() -> player.applyMovement(
                 new Position(0.5, 66.5, 1.5),
                 net.zaminmc.torch.util.Rotation.ZERO, true));
-        Thread.sleep(150);
+        EngineAwaits.awaitTicks(server.world(), 3, "engine progress (a 150 wall settle)");
     }
 
     @Test

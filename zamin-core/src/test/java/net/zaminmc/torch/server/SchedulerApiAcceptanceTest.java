@@ -15,6 +15,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The scheduler & diagnostics API (Slice 14d — §27.3's task controls over
@@ -48,7 +49,7 @@ class SchedulerApiAcceptanceTest {
             ran.countDown();
         });
         assertTrue(ran.await(3, TimeUnit.SECONDS), "the body ran within a tick");
-        Thread.sleep(250); // several further ticks pass
+        EngineAwaits.awaitTicks(server.world(), 5, "several further ticks pass");
         assertEquals(1, fires.get(), "the one-shot body ran exactly once");
         assertEquals("zamin-tick", threadName.get(),
                 "the body ran on the simulation owner's thread");
@@ -84,11 +85,11 @@ class SchedulerApiAcceptanceTest {
         EngineServer server = boot();
         AtomicInteger fires = new AtomicInteger();
         Task task = server.scheduler().runRepeating(1, 1, fires::incrementAndGet);
-        Thread.sleep(1500); // ~30 ticks at 20Hz
+        EngineAwaits.awaitTicks(server.world(), 30, "~30 ticks at 20Hz");
         task.cancel();
         int atCancel = fires.get();
         assertTrue(atCancel >= 20, "the repeat fired through the window (saw " + atCancel + ")");
-        Thread.sleep(400);
+        EngineAwaits.awaitTicks(server.world(), 8, "the settle");
         assertEquals(atCancel, fires.get(), "no further fires after the cancel");
         assertTrue(task.cancelled());
         server.shutdown(null);
@@ -100,7 +101,7 @@ class SchedulerApiAcceptanceTest {
         AtomicInteger fires = new AtomicInteger();
         Task task = server.scheduler().runLater(5, fires::incrementAndGet);
         task.cancel();
-        Thread.sleep(600);
+        EngineAwaits.awaitTicks(server.world(), 12, "the settle");
         assertEquals(0, fires.get(), "the cancelled body never ran");
         assertEquals(true, task.cancelled());
         server.shutdown(null);
@@ -109,7 +110,7 @@ class SchedulerApiAcceptanceTest {
     @Test
     void theTpsReadsASaneWindow() throws Exception {
         EngineServer server = boot();
-        Thread.sleep(1100); // a full second of ticks
+        EngineAwaits.awaitTicks(server.world(), 22, "a full second of ticks");
         double tps = server.tps(1);
         assertTrue(tps > 0.0 && tps <= 20.0, "the tps band (got " + tps + ")");
         assertTrue(tps >= 19.0, "an idle server holds its rate (got " + tps + ")");

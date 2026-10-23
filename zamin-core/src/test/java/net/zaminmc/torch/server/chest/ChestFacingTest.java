@@ -19,6 +19,7 @@ import java.util.function.BooleanSupplier;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The chest pair's horizontal FACING states (Slice L2 — ChestBlock 1:1):
@@ -73,7 +74,7 @@ class ChestFacingTest {
     private void useOn(PlayerSession player, BlockPosition at, int face) throws InterruptedException {
         server.useItemOnBlock(player, at, face, java.util.Optional.empty(),
                 windowId -> { });
-        Thread.sleep(120);
+        EngineAwaits.awaitTicks(server.world(), 3, "engine progress (a 120 wall settle)");
     }
 
     @Test

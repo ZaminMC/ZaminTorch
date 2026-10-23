@@ -20,6 +20,7 @@ import java.util.function.BooleanSupplier;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The experience economy, end to end: a survival coal-ore break releases
@@ -79,7 +80,7 @@ class MiningXpAcceptanceTest {
         Position beside = new Position(at.x() + 3.5, at.y(), at.z() + 0.5);
         server.ticker().submit(() -> player.applyMovement(beside,
                 net.zaminmc.torch.util.Rotation.ZERO, true));
-        Thread.sleep(80);
+        EngineAwaits.awaitTicks(server.world(), 2, "engine progress (a 80 wall settle)");
     }
 
     @Test
@@ -96,7 +97,7 @@ class MiningXpAcceptanceTest {
         // with an iron pick runs ~950ms nominal; the lenient floor is ~70%),
         // finish. The diamond roll (3-7) always pays something.
         server.blockInteraction().submitMiningStart(miner, ore);
-        Thread.sleep(1100);
+        EngineAwaits.awaitTicks(server.world(), 22, "engine progress (a 1100 wall settle)");
         server.blockInteraction().submitMiningFinished(miner, ore);
 
         await(() -> server.world().getBlock(ore).equals(BuiltinBlocks.AIR),
@@ -119,7 +120,7 @@ class MiningXpAcceptanceTest {
         server = boot();
         PlayerSession builder = join("Creator");
         server.ticker().submit(() -> builder.setGamemode(net.zaminmc.torch.GameMode.CREATIVE));
-        Thread.sleep(60);
+        EngineAwaits.awaitTicks(server.world(), 2, "engine progress (a 60 wall settle)");
         BlockPosition ore = new BlockPosition(0, 64, 0);
         setBlock(ore, BuiltinBlocks.COAL_ORE);
         standBeside(builder, ore);
@@ -127,7 +128,7 @@ class MiningXpAcceptanceTest {
         server.blockInteraction().submitCreativeBreak(builder, ore);
         await(() -> server.world().getBlock(ore).equals(BuiltinBlocks.AIR),
                 "the creative break landed");
-        Thread.sleep(200);
+        EngineAwaits.awaitTicks(server.world(), 4, "engine progress (a 200 wall settle)");
         assertEquals(0, server.experienceOrbs().size(),
                 "creative mining pays nothing (the historical rule)");
         assertEquals(0, builder.totalXp(), "no points entered the body");

@@ -17,6 +17,7 @@ import java.util.UUID;
 import java.util.function.BooleanSupplier;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * THE SPAWN-PROTECTION GATE (DedicatedServer.isSpawnProtected lines
@@ -127,7 +128,7 @@ class SpawnProtectionAcceptanceTest {
         // The guest's use inside the band: refused.
         use(guest);
         try {
-            Thread.sleep(300);
+            EngineAwaits.awaitTicks(server.world(), 6, "engine progress (a 300 wall settle)");
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
