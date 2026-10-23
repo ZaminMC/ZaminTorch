@@ -70,6 +70,20 @@ import java.util.Objects;
  *                        reference's default law (QueryResponseHandler
  *                        lines 67-69: {@code 0 -> serverPort}). Range law
  *                        owned by start() (lines 244-249), like rconPort.
+ * @param resourcePackUrl the {@code resource-pack} property (DedicatedServer
+ *                        line 111: {@code getString("resource-pack", "")})
+ *                        — the server resource pack's url. Empty (the
+ *                        default) means no pack is ever offered; the
+ *                        join-time gate is the reference's own (PlayerManager
+ *                        line 148: {@code url.length() > 0}).
+ * @param resourcePackHash the {@code resource-pack-hash} property
+ *                        (DedicatedServer line 111:
+ *                        {@code getString("resource-pack-hash", "")}) — the
+ *                        pack's sha-1 digest, carried raw like the
+ *                        reference's own PropertyManager row; the packet
+ *                        ctor's 40-character law (ResourcePackS2CPacket
+ *                        lines 18-20) owns the length at the send site,
+ *                        never a boot failure — the rconPassword precedent.
  */
 public record EngineConfig(
         String host,
@@ -91,7 +105,9 @@ public record EngineConfig(
         String rconPassword,
         int rconPort,
         boolean enableQuery,
-        int queryPort
+        int queryPort,
+        String resourcePackUrl,
+        String resourcePackHash
 ) {
 
     /**
@@ -171,7 +187,8 @@ public record EngineConfig(
                         int spawnProtectionRadius) {
         this(host, port, worldName, motd, maxPlayers, viewDistance, tickRateHz, dataDir,
                 gamemode, pvp, levelType, whiteList, regionSizeChunks, enableCommandBlocks,
-                spawnProtectionRadius, false, "", UNSET_REMOTE_PORT, false, UNSET_REMOTE_PORT);
+                spawnProtectionRadius, false, "", UNSET_REMOTE_PORT, false, UNSET_REMOTE_PORT,
+                "", "");
     }
 
     public EngineConfig {
@@ -208,6 +225,8 @@ public record EngineConfig(
             throw new IllegalArgumentException("dataDir must not be blank");
         }
         Objects.requireNonNull(rconPassword, "rconPassword");
+        Objects.requireNonNull(resourcePackUrl, "resourcePackUrl");
+        Objects.requireNonNull(resourcePackHash, "resourcePackHash");
         // The remote-admin ports' default laws, resolved where the reference
         // resolves them (RconServer lines 29-31, QueryResponseHandler lines
         // 67-69) — but at the engine's one validation site, because the

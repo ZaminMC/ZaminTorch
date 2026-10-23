@@ -271,6 +271,12 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                 // Join sequence runs on this event loop; ordering below is meaningful:
                 // identity -> world anchor -> time -> chunks -> authoritative position.
                 sendJoinGame(channel, accepted.session());
+                // ML-012 — the reference's own join order (PlayerManager
+                // .onLogin line 128, right after the Login packet + brand):
+                // the Server Difficulty byte follows Join Game, before the
+                // spawn point. The wire form is DifficultyS2CPacket's own
+                // single-byte write.
+                sendServerDifficulty(engine.difficulty());
                 sendSpawnPosition(channel);
                 sendTimeUpdate(channel);
                 chunkTracker = new ChunkTracker(engine, channel);
@@ -295,6 +301,11 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                 // line 679): the full INITIALIZE, after the teleport like
                 // the reference's join walk.
                 engine.joinWorldBorder(accepted.session());
+                // ML-017 — the reference's join tail (PlayerManager.onLogin
+                // lines 148-150, right after sendWorldInfo): the configured
+                // resource pack reaches the joiner; the engine's own gate
+                // sends nothing when no url is configured.
+                engine.joinResourcePack(accepted.session());
                 engine.joinTabListHeaderFooter(accepted.session());
                 sendWindowItems(channel, accepted.session().inventory().snapshot(),
                         accepted.session().crafting().snapshot(),
@@ -567,7 +578,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                 packet.readLong();
                 packet.readLong();
             }
-            case Protocol18.C2S_RESOURCE_PACK_STATUS -> ByteBufOps.readVarInt(packet);
+            case Protocol18.C2S_RESOURCE_PACK_STATUS -> handleResourcePackStatus(player, packet);
             default -> {
                 // Unknown play packet: ignore, as the historical server does, but
                 // make it observable (rate-limited by keeping it at FINE).
@@ -575,6 +586,29 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                         + " from " + player.name());
             }
         }
+    }
+
+    /**
+     * Resource Pack Status (0x19, protocol 47 — ResourcePackC2SPacket's own
+     * read, ML-017): the hash string (the ctor's own 40-character truncation
+     * band) then the result varint — the reference's Response enum order
+     * (SUCCESSFULLY_LOADED 0, DECLINED 1, FAILED_DOWNLOAD 2, ACCEPTED 3).
+     * The reference's own server handler is empty (ServerPlayNetworkHandler
+     * line 568); the engine's owed behavior is the observable log line —
+     * the operator learns whether the pack landed. Any thread.
+     */
+    private void handleResourcePackStatus(PlayerSession player, ByteBuf packet) {
+        String hash = ByteBufOps.readString(packet, 40);
+        int result = ByteBufOps.readVarInt(packet);
+        String verdict = switch (result) {
+            case 0 -> "SUCCESSFULLY_LOADED";
+            case 1 -> "DECLINED";
+            case 2 -> "FAILED_DOWNLOAD";
+            case 3 -> "ACCEPTED";
+            default -> "UNKNOWN_" + result;
+        };
+        LOGGER.info(() -> player.name() + " resource pack " + verdict
+                + " (hash " + hash + ")");
     }
 
     private void handleKeepAlive(ByteBuf packet) {
@@ -2226,6 +2260,59 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeByte(raining ? Protocol18.GAME_STATE_CHANGE_BEGIN_RAINING
                 : Protocol18.GAME_STATE_CHANGE_END_RAINING);
         out.writeFloat(0.0f);
+        channel.writeAndFlush(out);
+    }
+
+    /**
+     * Server Difficulty (0x41 — DifficultyS2CPacket's own write, ML-012):
+     * the single difficulty id byte (0 peaceful .. 3 hard). The reference's
+     * {@code locked} flag never rides the protocol-47 wire (the ctor
+     * carries it server-side only; the byte joined the wire in 1.9). Any
+     * thread.
+     */
+    void sendServerDifficulty(int difficultyId) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(4);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_SERVER_DIFFICULTY);
+        out.writeByte(difficultyId & 0xFF);
+        channel.writeAndFlush(out);
+    }
+
+    /**
+     * The /difficulty change-time re-sync (the engine's per-player fan-out):
+     * the same single-byte Server Difficulty packet, pushed the moment the
+     * runtime tier flips so no client waits for its next respawn. Any
+     * thread.
+     */
+    @Override
+    public void updateDifficulty(int difficultyId) {
+        sendServerDifficulty(difficultyId);
+    }
+
+    /**
+     * Resource Pack Send (0x48 — ResourcePackS2CPacket's own write,
+     * ML-017): the url string then the hash string, nothing else — the
+     * 1.9+ request-id varint never rides this protocol. The hash carries
+     * the packet ctor's own 40-character law (the reference throws the
+     * same IllegalArgumentException at its construction site). Any thread.
+     */
+    @Override
+    public void sendResourcePack(String url, String hash) {
+        if (hash.length() > 40) {
+            throw new IllegalArgumentException(
+                    "Hash is too long (max 40, was " + hash.length() + ")");
+        }
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(64 + url.length());
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_RESOURCE_PACK_SEND);
+        ByteBufOps.writeString(out, url);
+        ByteBufOps.writeString(out, hash);
         channel.writeAndFlush(out);
     }
 

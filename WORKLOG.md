@@ -13513,3 +13513,98 @@ Stage Summary:
   baseline and the ranked backlog. The next cycle's order: verify CI
   green + the 128 release, then the 0x0C metadata audit (B-5) paired
   with the attribution pass (B-7 + Phase-3 rerun).
+---
+Task ID: ML-012+ML-017
+Agent: instance (feature/ops-protocol lane, the Cycle-3 audit backlog)
+Task: ML-012 Server Difficulty (0x41) never sent, /difficulty not live-synced + ML-017 Resource Pack (0x48) absent end-to-end — two confirmed ops-facing protocol gaps from the audit, landed as ONE bounded chunk on feature/ops-protocol (base b7a6917c).
+
+Work Log:
+- Reference study: DifficultyS2CPacket (s2c/play 0x41) — write() carries
+  ONE difficulty id byte; the locked flag rides the ctor and the client
+  getter only (protocol 47 never serializes it — the byte joined in
+  1.9); the reference's own send set = the join walk (PlayerManager
+  .onLogin line 128, Login -> brand -> Difficulty -> SpawnPoint).
+  ResourcePackS2CPacket (0x48): the url string then the hash string,
+  the ctor's 40-char hash law, NO request-id varint (1.9+ only); the
+  join send sits at onLogin lines 148-150 gated on url length > 0.
+  ResourcePackC2SPacket (0x19): readString(40) + the Response enum
+  varint (SUCCESSFULLY_LOADED 0, DECLINED 1, FAILED_DOWNLOAD 2,
+  ACCEPTED 3); the reference's server handler is EMPTY (line 568).
+  DedicatedServer line 111 reads the resource-pack / resource-pack-hash
+  rows (empty defaults).
+- Torch study: no 0x41/0x48 constants in Protocol18 (the conformance
+  table's own law requires a row per new clientbound id); the join walk
+  (V18Connection, LOGIN_SUCCESS listener) and its order; the C2S 0x19
+  read-one-varint discard (~L570); the weather precedent
+  (onRainingFlipped's players.all() -> link fan-out) and the gamemode
+  precedent (session.link()) picked as the established seams; the
+  EngineBridge mid-join hook family (joinTabList/joinScoreboard/
+  joinWorldBorder/joinTabListHeaderFooter); ConfigLoader/EngineConfig/
+  ServerLayout's properties conventions (the rconPassword precedent for
+  raw rows with downstream laws).
+- ML-012 landing (2d731337): S2C_SERVER_DIFFICULTY 0x41 + the
+  single-byte writer + the join-walk send right after sendJoinGame (the
+  reference's onLogin slot) + ClientLink.updateDifficulty + the
+  /difficulty arm's change-time fan-out over players.all() — every
+  connected client re-syncs the tier the moment it flips, never waiting
+  for the next respawn.
+- ML-017 landing (2d731337): EngineConfig's resourcePackUrl/
+  resourcePackHash components (compat constructors default empty) +
+  ConfigLoader's two rows + ServerLayout's template rows +
+  EngineBridge.joinResourcePack (the url-non-empty gate) + the join
+  walk's call after joinWorldBorder (the reference's after-sendWorldInfo
+  placement) + the 0x48 writer (two strings; the ctor's hash law
+  throws the reference's own IllegalArgumentException) + the C2S 0x19
+  handler parsing the reference's true form and logging the Response
+  vocabulary.
+- The parity tour's 0x19 payload corrected to the reference's true form
+  (0a3880ee): the old input was pinned to the stub's one-varint shape,
+  not to what a vanilla client sends — the tour's survival assertion
+  untouched.
+- The canonical EngineConfig grew two trailing args: RconQueryConfigTest
+  (two sites) + RconEngineRouteIntegrationTest (one) carry the empty
+  pair — assertions untouched, a mechanical arity repair.
+- Tests (9e696330): OpsProtocolWireTest 5 (real socket: the join-walk
+  0x41's slot + single-byte form; the /difficulty hard fan-out byte 3
+  on both clients + the peaceful re-flip 0; the configured 0x48's
+  two-string form; the unconfigured silence proven past the window
+  items; the C2S status log with the hash — the connection held open,
+  a socket close over unread server packets races the RST that
+  discards the frame, the flake root-caused and documented),
+  OpsDifficultySyncTest 2 (the engine seam: both links hear 3 then 0
+  immediately; the joinResourcePack gate sends configured / silent
+  unconfigured), ResourcePackConfigTest 4 (the rows, the blanks, the
+  template, the compat defaults), the conformance rows.
+- Verification: ./gradlew build -x test green; the suites batched per
+  the sandbox discipline (--max-workers=1, --no-daemon): zamin-core
+  371 classes / 2203 tests / 0 failures over nine package batches;
+  zamin-protocol-v1_8_8 46 classes / 123 tests / 0 failures
+  (HorseIntegrationTest's wall-clock temper ladder flaked once
+  mid-suite and re-ran green — two different assertions across runs,
+  the sleep-driven feed loop's own race, nothing equine in the diff;
+  one plain-develop worktree run green); zamin-launcher 9 / 47 / 0;
+  zamin-bukkit (the shared EngineConfig's blast radius) 52 / 0 forced.
+- Docs: Torch-Arcetecture.txt §29's Wave OPS row + §22's next-work
+  clause; VANILLA_1_8_8_COMPATIBILITY.md untouched (no Ledgered row
+  matches the difficulty wire-sync or the resource pack — the L83
+  difficulty row is the peaceful family, its ledgered tail is the
+  local-difficulty model, not this packet).
+
+Stage Summary:
+- The audit's ML-012 + ML-017 retired whole: the difficulty tier now
+  reaches every client at join AND at every /difficulty flip (0x41,
+  the reference's own single-byte wire form and onLogin slot), and the
+  resource pack runs end-to-end (the server.properties rows, the
+  join-time 0x48 behind the reference's url gate, the status answer
+  logged in the reference's vocabulary).
+- The seams chosen follow the repo's own precedents (the weather
+  fan-out's link seam, the EngineBridge mid-join hook family, the
+  rconPassword raw-row config convention) — no parallel paths, no
+  invented surfaces.
+- The one existing-test edit (the parity tour's 0x19 payload) is a
+  faithfulness CORRECTION (the input now matches the reference packet),
+  documented in the commit and the PR; the three canonical-ctor call
+  sites are mechanical arity repairs with assertions untouched.
+- Fresh-suite evidence recorded above; the horse flake documented with
+  its root cause (wall-clock sleeps racing awaits) for the
+  coordinator's flake ledger.

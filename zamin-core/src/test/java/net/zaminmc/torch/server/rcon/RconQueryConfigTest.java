@@ -69,7 +69,7 @@ class RconQueryConfigTest {
                 EngineConfig.WHOLE_WORLD_REGION_SIZE, false,
                 EngineConfig.DEFAULT_SPAWN_PROTECTION,
                 true, "pw", EngineConfig.UNSET_REMOTE_PORT,
-                true, EngineConfig.UNSET_REMOTE_PORT);
+                true, EngineConfig.UNSET_REMOTE_PORT, "", "");
         assertEquals(25587, config.rconPort(), "rcon.port 0 -> serverPort + 10");
         assertEquals(25577, config.queryPort(), "query.port 0 -> serverPort");
         // An explicit zero row carries the same law (the reference reads the
@@ -78,7 +78,7 @@ class RconQueryConfigTest {
                 20, 4, 20, tempDir.toString(), GameMode.SURVIVAL, true, "flat", false,
                 EngineConfig.WHOLE_WORLD_REGION_SIZE, false,
                 EngineConfig.DEFAULT_SPAWN_PROTECTION,
-                true, "pw", 0, true, 0);
+                true, "pw", 0, true, 0, "", "");
         assertEquals(25587, zeroed.rconPort());
         assertEquals(25577, zeroed.queryPort());
     }

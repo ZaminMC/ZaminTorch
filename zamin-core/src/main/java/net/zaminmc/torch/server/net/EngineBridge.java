@@ -70,6 +70,16 @@ public interface EngineBridge {
     void joinTabListHeaderFooter(PlayerSession session);
 
     /**
+     * Mid-join hook (the reference's PlayerManager.onLogin lines 148-150,
+     * the sendWorldInfo tail): the adapter has sent the world border's join
+     * sync; the engine now sends the configured resource pack. The engine
+     * owns the reference's own gate — nothing goes out when no url is
+     * configured (DedicatedServer line 111 reads the {@code resource-pack}
+     * and {@code resource-pack-hash} rows, both defaulting empty).
+     */
+    void joinResourcePack(PlayerSession session);
+
+    /**
      * A movement proposal (position, look, or combined). Validated server-side;
      * applied on the simulation context.
      */

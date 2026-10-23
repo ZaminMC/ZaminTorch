@@ -24087,6 +24087,15 @@ public final class EngineServer implements Server, EngineBridge {
                 mobs.removeHostiles();
             }
         }
+        // ML-012 — the change-time re-sync: every connected client drops
+        // the join-time difficulty byte now (Server Difficulty 0x41,
+        // DifficultyS2CPacket's single-byte write), never waiting for the
+        // next respawn to carry it. The per-player link fan-out is the
+        // weather precedent's own shape (onRainingFlipped's players.all()
+        // walk); the connection's own writers gate on the play state.
+        for (PlayerSession player : players.all()) {
+            player.link().updateDifficulty(id);
+        }
         LOGGER.info(() -> "Difficulty set to " + args[0] + " by " + sender.name());
         return "Set difficulty to " + args[0];
     }
@@ -26325,6 +26334,21 @@ public final class EngineServer implements Server, EngineBridge {
         String[] pair = tabListPair;
         if (pair != null) {
             session.link().tabListHeaderFooter(pair[0], pair[1]);
+        }
+    }
+
+    @Override
+    public void joinResourcePack(PlayerSession session) {
+        // ML-017 — the reference's own join tail (PlayerManager.onLogin
+        // lines 148-150): after sendWorldInfo (the border's join sync here),
+        // the configured resource pack reaches the joiner — and ONLY when a
+        // url is configured (the reference's own length() > 0 gate over the
+        // DedicatedServer line 111 rows). The wire's hash length law is the
+        // packet ctor's own (ResourcePackS2CPacket lines 18-20), never a
+        // boot failure — the rconPassword precedent.
+        if (!config.resourcePackUrl().isEmpty()) {
+            session.link().sendResourcePack(
+                    config.resourcePackUrl(), config.resourcePackHash());
         }
     }
 

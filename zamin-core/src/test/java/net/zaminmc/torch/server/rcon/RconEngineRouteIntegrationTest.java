@@ -54,7 +54,7 @@ class RconEngineRouteIntegrationTest {
                 GameMode.SURVIVAL, true, "flat", false,
                 EngineConfig.WHOLE_WORLD_REGION_SIZE, false,
                 EngineConfig.DEFAULT_SPAWN_PROTECTION,
-                true, PASSWORD, rconPort, true, queryPort);
+                true, PASSWORD, rconPort, true, queryPort, "", "");
         server = new EngineServer(config);
         server.start();
         // The boot thread starts the listeners just past the world-ready
