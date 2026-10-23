@@ -29,6 +29,12 @@ public final class EngineProfiler {
     // consistent iteration never throws, and every merge/put stays atomic;
     // for the single-threaded report walk the behavior is identical.
     private final Map<String, Long> timesByLocation = new ConcurrentHashMap<>();
+    // The visit counts (NOT a reference arm — the reference's profiler
+    // accumulates time only): one merge per pop, the same key as the
+    // time merge, so every nanos row has its count row. The count is what
+    // makes the /debug stop table's avg column meaningful (total/count)
+    // and lets a harness difference per-visit costs between spans.
+    private final Map<String, Long> countsByLocation = new ConcurrentHashMap<>();
 
     /** @return whether the table is collecting (the /debug stop gate). */
     public boolean isProfiling() {
@@ -46,9 +52,10 @@ public final class EngineProfiler {
         this.profiling = false;
     }
 
-    /** Profiler.reset 1:1 — clears the table and the stack. */
+    /** Profiler.reset 1:1 — clears the tables and the stack. */
     public void reset() {
         this.timesByLocation.clear();
+        this.countsByLocation.clear();
         this.currentLocation = "";
         this.locations.clear();
     }
@@ -73,6 +80,7 @@ public final class EngineProfiler {
             this.locations.remove(this.locations.size() - 1);
             long elapsed = now - opened;
             this.timesByLocation.merge(this.currentLocation, elapsed, Long::sum);
+            this.countsByLocation.merge(this.currentLocation, 1L, Long::sum);
             if (elapsed > 100_000_000L) {
                 LOGGER.warning("Something's taking too long! '" + this.currentLocation
                         + "' took aprox " + elapsed / 1_000_000.0 + " ms");
@@ -110,9 +118,81 @@ public final class EngineProfiler {
         return java.util.Map.copyOf(this.timesByLocation);
     }
 
+    /**
+     * The counts face of {@link #sectionNanosSnapshot} — the immutable
+     * visit-count copy over the same keys, one count per recorded pop.
+     * The same measurement-face contract: never mutated, safe from any
+     * thread, an empty table answers an empty map.
+     *
+     * @return the frozen section-name → accumulated-visit-counts table
+     */
+    public java.util.Map<String, Long> sectionCountsSnapshot() {
+        return java.util.Map.copyOf(this.countsByLocation);
+    }
+
     /** Profiler.getCurrentLocation 1:1. */
     public String getCurrentLocation() {
         return this.locations.isEmpty() ? "[UNKNOWN]" : this.locations.get(this.locations.size() - 1);
+    }
+
+    /**
+     * The /debug stop section table (ML-006 — B-7's ask: the console report
+     * carried only the one-line summary, blocking per-subsystem attribution
+     * from the console). Pure: takes frozen snapshots (so the builder never
+     * mutates the table and never sees the report walk's decay), plus the
+     * command's own span anchors. The header is the reference's own report
+     * shape (the Time span / Tick span / ticks-per-second lines, verbatim
+     * from DebugCommand.buildReport); the rows are the engine's own
+     * attribution surface — every section with a time row, one line each:
+     * name, visit count, average per visit, total, and the share of the
+     * root total, sorted by total descending (the attribution order — the
+     * top consumers first). Sections present in one table but not the
+     * other are kept with the missing column as "-"; a zero count never
+     * divides (avg prints "-").
+     *
+     * @param durationMillis the span's wall milliseconds (/debug's anchors)
+     * @param durationTicks the span's tick count (/debug's anchors)
+     * @param nanos a frozen sectionNanosSnapshot (undecayed — snapshot
+     *              BEFORE any getResults call)
+     * @param counts a matching sectionCountsSnapshot
+     * @return the printed table, newline-terminated
+     */
+    public static String buildSectionTable(long durationMillis, long durationTicks,
+            Map<String, Long> nanos, Map<String, Long> counts) {
+        StringBuilder table = new StringBuilder();
+        table.append("---- Section table (name, count, avg, total) ----\n");
+        table.append("Time span: ").append(durationMillis).append(" ms\n");
+        table.append("Tick span: ").append(durationTicks).append(" ticks\n");
+        table.append("// This is approximately ")
+                .append(String.format("%.2f", durationTicks / (durationMillis / 1000.0)))
+                .append(" ticks per second. It should be ")
+                .append(20)
+                .append(" ticks per second\n\n");
+        table.append(String.format("%-48s %8s %12s %12s %10s%n",
+                "Section", "count", "avg/visit", "total", "% of root"));
+
+        java.util.Set<String> names = new java.util.HashSet<>();
+        names.addAll(nanos.keySet());
+        names.addAll(counts.keySet());
+        java.util.List<String> ordered = new java.util.ArrayList<>(names);
+        java.util.Collections.sort(ordered, (a, b) -> Long.compare(
+                nanos.getOrDefault(b, 0L), nanos.getOrDefault(a, 0L)));
+
+        long rootTotal = nanos.getOrDefault("root", 0L);
+        for (String name : ordered) {
+            long totalNanos = nanos.getOrDefault(name, 0L);
+            long count = counts.getOrDefault(name, 0L);
+            String avg = count > 0
+                    ? String.format("%.2f ms", totalNanos / (double) count / 1_000_000.0)
+                    : "-";
+            String total = String.format("%.2f ms", totalNanos / 1_000_000.0);
+            String share = rootTotal > 0
+                    ? String.format("%.2f%%", totalNanos * 100.0 / rootTotal)
+                    : "-";
+            table.append(String.format("%-48s %8d %12s %12s %10s%n",
+                    name, count, avg, total, share));
+        }
+        return table.toString();
     }
 
     /**
