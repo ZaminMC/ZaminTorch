@@ -153,9 +153,32 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-        // Malformed or broken input fails this connection predictably, never the server (§126).
-        // WARNING + stack: an invisible drop is undiagnosable; the console must
-        // say exactly which frame broke the connection (the §54 observer rule).
+        // ML-009b (the audit's B-4 row): the unclean-exit family — an abrupt
+        // client TCP reset, a broken pipe, an EOF mid-read — arrives as the
+        // IOException family, and the reference answers those with ONE quiet
+        // disconnect line, never a stacktrace (Connection.exceptionCaught
+        // lines 110-119: the "Internal Exception: <cause>" reason handed to
+        // the walk; ServerPlayNetworkHandler.onDisconnect line 573 logs the
+        // INFO line). With a session, that one line is the engine's own
+        // "Player disconnected" record (the reason carries the cause — never
+        // swallowed, just unstacked); without one (a status/login-phase
+        // reset) the connection logs it itself. Genuinely unexpected
+        // failures stay loud (§126/§54): WARNING + the throwable for the
+        // frame that broke the connection — an invisible drop is
+        // undiagnosable.
+        if (cause instanceof java.io.IOException) {
+            if (session != null) {
+                PlayerSession current = session;
+                session = null;
+                engine.clientDisconnected(current, "Internal Exception: " + cause);
+                ctx.close();
+                return;
+            }
+            LOGGER.info(() -> "Connection lost from " + ctx.channel().remoteAddress()
+                    + ": " + cause);
+            ctx.close();
+            return;
+        }
         LOGGER.log(Level.WARNING, "Protocol error from " + ctx.channel().remoteAddress()
                 + (session != null ? " (" + session.name() + ")" : ""), cause);
         if (session != null) {
