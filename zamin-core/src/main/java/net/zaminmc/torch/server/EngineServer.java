@@ -58,6 +58,7 @@ import net.zaminmc.torch.server.interaction.DropService;
 import net.zaminmc.torch.server.ops.BanStore;
 import net.zaminmc.torch.server.ops.IpBanStore;
 import net.zaminmc.torch.server.ops.OpStore;
+import net.zaminmc.torch.server.ops.PlayerProfileCache;
 import net.zaminmc.torch.server.ops.WhitelistStore;
 import net.zaminmc.torch.server.net.ClientLink;
 import net.zaminmc.torch.server.sign.SignDataStore;
@@ -417,6 +418,12 @@ public final class EngineServer implements Server, EngineBridge {
     private net.zaminmc.torch.server.entity.vehicle.VehicleDataStore vehicleStore;
     /** The operator registry (ops.json); loaded at boot, rewritten on /op and /deop. */
     private OpStore opStore = OpStore.load(java.nio.file.Path.of("ops.json"));
+    /**
+     * The /op name resolution (ML-005 — the audit's B-3 row): the
+     * persisted-identity census (the .zpd headers + ops.json's own rows
+     * + this run's joins). Null until the boot walk builds it.
+     */
+    private PlayerProfileCache profileCache;
     /** The ban registry (banned-players.json) and the whitelist roster. */
     private BanStore banStore = BanStore.load(java.nio.file.Path.of("banned-players.json"));
     private WhitelistStore whitelistStore =
@@ -467,8 +474,10 @@ public final class EngineServer implements Server, EngineBridge {
     private final java.util.List<InventoryListener> inventoryListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     private final java.util.List<FurnaceViewListener> furnaceViewListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     private final java.util.List<SurvivalListener> survivalListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
+    private final java.util.List<SpectatorListener> spectatorListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     private final java.util.List<TimeListener> timeListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     private final java.util.List<SignListener> signListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
+    private final java.util.List<SignEditorListener> signEditorListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     private final java.util.List<RelightListener> relightListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     private final java.util.List<ExperienceListener> experienceListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     private final java.util.List<ExperienceOrbManager.Listener> orbListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
@@ -529,6 +538,20 @@ public final class EngineServer implements Server, EngineBridge {
     private net.zaminmc.torch.server.nbt.TileNbt tileNbt;
     /** The vehicles (boats, minecarts); created at boot, tick-thread owned. */
     private volatile net.zaminmc.torch.server.entity.vehicle.VehicleManager vehicleManager;
+    /**
+     * The rides remembered across a relog (ML-016 — the reference's
+     * "Riding" NBT row, Torch-shaped): a player who quits while seated
+     * leaves the seat open (the vehicle never holds a ghost) but the link
+     * is remembered here, keyed by player UUID, and the rejoin's restore
+     * walk consumes it — the vehicle stays LIVE in the running engine
+     * with its stable entity id, so the remount needs no recreate (the
+     * reference's Entities.create walk) and no store format change. One
+     * entry per quit-while-riding; consumed (or dropped when the target
+     * is gone) at the next join. Any thread (the capture runs on the
+     * event loop, the consume on the tick lane).
+     */
+    private final java.util.Map<UUID, RememberedRide> rememberedRides
+            = new java.util.concurrent.ConcurrentHashMap<>();
     /** The fishing bobbers (Slice 67); created at boot, tick-thread owned. */
     private volatile net.zaminmc.torch.server.fishing.FishingSystem fishing;
     /** The public §27.3 fishing view (the empty answer until the world boots). */
@@ -646,6 +669,12 @@ public final class EngineServer implements Server, EngineBridge {
                 // Player persistence: one ZPD file per identity under world/playerdata.
                 playerStore = new PlayerDataStore(
                         config.playerDataDir());
+                // The /op profile-cache equivalent (ML-005 — the audit's B-3
+                // row): the reference's GameProfileCache role over ONLY the
+                // engine's persisted identities — the .zpd census + ops.json's
+                // own rows, both loaded above; the run's joins add live. Built
+                // before the first join can consult it.
+                profileCache = PlayerProfileCache.load(playerStore, opStore);
                 // The world-session lock (§31.6 session ownership): exactly
                 // one LIVE writer per world root. An OS-level FileLock held
                 // for the whole run — a crashed process's lock evaporates
@@ -2813,6 +2842,11 @@ public final class EngineServer implements Server, EngineBridge {
                     profiled("hopperViewers", this::tickHopperViewers);
                     profiled("dispenserViewers", this::tickDispenserViewers);
                     profiled("playerBodies", this::tickPlayerBodies);
+                    // The multiplayer sleep walk (ServerWorld.tick's opening
+                    // canSkipNight consult + the per-sleeper integrity pair):
+                    // the all-sleepers morning, the destroyed-bed wake, the
+                    // day-arrival wake.
+                    profiled("sleep", this::tickSleep);
                     // The portal caches' eviction walk (the reference's
                     // PortalForcer.tick per world).
                     profiled("portalForcers", () -> {
@@ -3915,6 +3949,7 @@ public final class EngineServer implements Server, EngineBridge {
                 session.inventory().consumeHeld(1);
                 publishInventoryChanged(session);
             }
+            openSignEditorOnPlacement(session, target);
             return;
         }
         // Standing facing: the sign fronts the placer. Yaw 0 = south (+Z),
@@ -3930,6 +3965,24 @@ public final class EngineServer implements Server, EngineBridge {
         if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE) {
             session.inventory().consumeHeld(1);
             publishInventoryChanged(session);
+        }
+        openSignEditorOnPlacement(session, target);
+    }
+
+    /**
+     * The editor open at placement (the reference's openSignEditor,
+     * ServerPlayerEntity lines 547-550, called from SignItem.useOn
+     * lines 51-54 the moment the sign block lands): the placing player
+     * alone gets the editing screen — the adapter's listener hands
+     * their connection the Open Sign Editor (0x36) send, every other
+     * player's client stays closed, and the editor's close flows back
+     * as the Update Sign (0x12) write that editSignOnTick already owns
+     * (the reach gate stands in for the reference's editing-player
+     * marker). Tick-thread context.
+     */
+    private void openSignEditorOnPlacement(PlayerSession editor, BlockPosition position) {
+        for (SignEditorListener listener : signEditorListeners) {
+            listener.onSignEditorOpened(editor, position);
         }
     }
 
@@ -4111,6 +4164,17 @@ public final class EngineServer implements Server, EngineBridge {
         return opStore;
     }
 
+    /**
+     * The /op name resolution (ML-005): the persisted-identity census
+     * over the .zpd headers, ops.json's own rows, and this run's joins —
+     * the reference's GameProfileCache role, minus the Mojang walk the
+     * engine deliberately does not own. Null before the boot walk
+     * builds it.
+     */
+    public PlayerProfileCache profileCache() {
+        return profileCache;
+    }
+
     /** The crafting matcher (exposed for recipe tests). */
     public CraftingService crafting() {
         return crafting;
@@ -4215,6 +4279,22 @@ public final class EngineServer implements Server, EngineBridge {
     /** Registers the sign-text observer (the protocol adapter's wire fan-out). */
     public void addSignListener(SignListener listener) {
         signListeners.add(listener);
+    }
+
+    /**
+     * A sign placement opened the editing screen for its placer — the
+     * reference's openSignEditor law (ServerPlayerEntity lines 547-550:
+     * the sign placement hands the placing player the editor; every
+     * other player's client stays closed). The wire send rides the
+     * protocol adapter's per-player fan (Open Sign Editor 0x36).
+     */
+    public interface SignEditorListener {
+        void onSignEditorOpened(PlayerSession editor, BlockPosition position);
+    }
+
+    /** Registers the sign-editor-open observer (the adapter's 0x36 send). */
+    public void addSignEditorListener(SignEditorListener listener) {
+        signEditorListeners.add(listener);
     }
 
     /**
@@ -4763,6 +4843,73 @@ public final class EngineServer implements Server, EngineBridge {
          */
         default void onEndCredits(PlayerSession player) {
         }
+
+        /**
+         * The player entered a bed (the reference's
+         * ServerPlayerEntity.trySleep lines 491-501 — the wire arm): the
+         * sleeper's own client and every tracking observer render the sleep
+         * pose (Use Bed 0x0A) at the bed head cell. Default no-op so older
+         * listeners stay source-compatible.
+         */
+        default void onPlayerSleeping(PlayerSession player, BlockPosition bedHead) {
+        }
+
+        /**
+         * The player left the bed (the reference's
+         * ServerPlayerEntity.wakeUp lines 503-513 — the wire arm: the
+         * Animation 0x0B code 2 to every observer INCLUDING the sleeper,
+         * plus the sleeper's own position anchor): whatever drove the wake
+         * — the leave-bed entity action, the morning walk, the destroyed
+         * bed — this one fan renders the departure. Default no-op so older
+         * listeners stay source-compatible.
+         */
+        default void onPlayerWake(PlayerSession player) {
+        }
+    }
+
+    /**
+     * The spectator camera's engine events (the reference
+     * ServerPlayerEntity.setCamera's own wire arms — the Camera 0x43 pair
+     * and the broadcastTo visibility flip): the protocol adapter answers
+     * both by driving its per-connection tracking (the attach spawns the
+     * target for the spectator then publishes the camera, the detach
+     * re-anchors the spectator's own view and re-enters the others'
+     * tracking windows).
+     */
+    public interface SpectatorListener {
+
+        /**
+         * The spectate walk attached the camera (the reference's
+         * setCamera(target) — Camera 0x43(target) + the teleport to the
+         * target's position, plus the broadcastTo flip that hides the
+         * spectating body from every other view).
+         */
+        void onCameraAttached(PlayerSession spectator, PlayerSession target);
+
+        /**
+         * The camera returned to self (the reference's setCamera(this) —
+         * Camera 0x43(self) + the teleport back to the body's own
+         * position): the sneak exit, the target's departure, and the
+         * game-mode change away from spectator all land here.
+         */
+        void onCameraDetached(PlayerSession spectator);
+    }
+
+    /** Registers the spectator camera observer (the protocol adapter's sync). */
+    public void addSpectatorListener(SpectatorListener listener) {
+        spectatorListeners.add(listener);
+    }
+
+    private void publishCameraAttached(PlayerSession spectator, PlayerSession target) {
+        for (SpectatorListener listener : spectatorListeners) {
+            listener.onCameraAttached(spectator, target);
+        }
+    }
+
+    private void publishCameraDetached(PlayerSession spectator) {
+        for (SpectatorListener listener : spectatorListeners) {
+            listener.onCameraDetached(spectator);
+        }
     }
 
     /** Registers an internal survival observer (e.g. the protocol adapter's sync). */
@@ -4791,6 +4938,20 @@ public final class EngineServer implements Server, EngineBridge {
     private void publishEndCredits(PlayerSession player) {
         for (SurvivalListener listener : survivalListeners) {
             listener.onEndCredits(player);
+        }
+    }
+
+    /** The sleep pose fan (Use Bed 0x0A — the trySleep wire arm). */
+    private void publishPlayerSleeping(PlayerSession player, BlockPosition bedHead) {
+        for (SurvivalListener listener : survivalListeners) {
+            listener.onPlayerSleeping(player, bedHead);
+        }
+    }
+
+    /** The leave-bed fan (Animation 0x0B code 2 — the wakeUp wire arm). */
+    private void publishPlayerWake(PlayerSession player) {
+        for (SurvivalListener listener : survivalListeners) {
+            listener.onPlayerWake(player);
         }
     }
 
@@ -4991,6 +5152,30 @@ public final class EngineServer implements Server, EngineBridge {
                         scoreboard.getScore(session.name(), objective)
                                 .set((int) Math.ceil(health));
                     }
+                }
+            }
+            // The spectator's camera walk (the reference's ServerPlayerEntity.tick
+            // camera arm, lines 273-285): an attached camera follows its target
+            // every tick — a dead-or-gone target and the sneak exit both restore
+            // the camera to self (setCamera(this)), a live target anchors the
+            // body at the target's position (the reference's
+            // updatePositionAndAngles + getPlayerManager().move pair — the
+            // spectating body publishes nothing of its own, the broadcastTo
+            // law keeps it out of every other view).
+            UUID cameraTarget = session.spectatorCamera();
+            if (cameraTarget != null) {
+                PlayerSession followed = players.byUuid(cameraTarget).orElse(null);
+                if (followed == null || followed.state() != PlayerState.PLAYING
+                        || followed.leavingTheEnd() || session.sneaking()) {
+                    detachSpectatorCamera(session);
+                } else {
+                    session.applyMovement(followed.position(), followed.rotation(), false);
+                    // The world stream follows the camera (the reference's
+                    // PlayerManager.move arm — the spectator's chunk view
+                    // re-centers on the target while the client itself sends
+                    // no movement, LocalClientPlayerEntity's own isCamera
+                    // gate lines 160-166).
+                    session.link().spectateCameraFollow(followed.position());
                 }
             }
         }
@@ -7333,28 +7518,34 @@ public final class EngineServer implements Server, EngineBridge {
     /**
      * The Entity Action stream (0x0B): the posture gestures the client's own
      * physics already animates — the server tracks them for the observers'
-     * flags metadata, the sprint food cost and future movement validation.
-     * Actions: 0 start-sneak, 1 stop-sneak, 2 start-sprint, 3 stop-sprint
-     * (4 jump-with-horse and 5 leave-bed are posture-neutral here). Safe from
-     * any thread.
+     * flags metadata and the sprint hunger gate, and the leave-bed action
+     * drives the wake walk. Actions are the reference's own enum ordinals
+     * (PlayerMovementActionC2SPacket.Action, VarInt-encoded): 0 start-sneak,
+     * 1 stop-sneak, 2 leave-bed (STOP_SLEEPING —
+     * ServerPlayNetworkHandler.handlePlayerMovementAction line 685's own
+     * wakeUp(false, true, true)), 3 start-sprint, 4 stop-sprint (5/6 the
+     * riding pair, posture-neutral here). Safe from any thread.
      */
     public void entityAction(PlayerSession session, int action) {
         Objects.requireNonNull(session, "session");
         ticker.submit(() -> {
-            boolean before = session.sneaking() || session.sprinting();
             switch (action) {
                 case 0 -> session.setSneaking(true);
                 case 1 -> session.setSneaking(false);
-                case 2 -> {
+                case 2 -> wakeOnTick(session); // STOP_SLEEPING: the leave-bed walk
+                case 3 -> {
                     // The historical sprint gate: hunger below 7 refuses sprint.
                     if (session.food() > 6) {
                         session.setSprinting(true);
                     }
                 }
-                case 3 -> session.setSprinting(false);
+                case 4 -> session.setSprinting(false);
                 default -> {
                     return;
                 }
+            }
+            if (action == 2) {
+                return; // the leave-bed walk owns its own fan (the wake pose)
             }
             // The flags metadata is idempotent; observers re-sync regardless of
             // whether the posture actually flipped.
@@ -12380,14 +12571,25 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /**
-     * The sleep flow (the historical EntityPlayer.sleepInBedAt): outside the
-     * night window the bed refuses with the vanilla line; inside it, the
-     * body's bed spawn is set, the world jumps to morning, and the weather
-     * clears — the single-player sleep contract this server makes.
-     * Tick-thread context.
+     * The bed entry (the historical EntityPlayer.sleepInBedAt over
+     * PlayerEntity.trySleep): outside the night window the bed refuses with
+     * the vanilla line; a hostile body inside the reference's own bed box
+     * (±8 x, ±5 y, ±8 z — the NOT_SAFE arm) refuses with the monsters line;
+     * inside both gates the body's bed spawn is set and the body enters the
+     * bed — the per-player sleeping state the multiplayer walk counts. The
+     * morning itself is the walk's answer (tickSleep): with every other
+     * player sleeping, the next tick jumps the world to dawn; with one
+     * player alone that is the same tick — today's single-player contract
+     * unchanged. Tick-thread context.
      */
     private void sleepOnTick(PlayerSession session, BlockPosition clicked) {
         if (session.state() != PlayerState.PLAYING || session.dead()) {
+            return;
+        }
+        // The already-sleeping refusal (trySleep's OTHER_PROBLEM arm, lines
+        // 1085-1087): a body in a bed never re-enters — BedBlock.use carries
+        // no message line for this status, so the use is silently consumed.
+        if (session.sleeping()) {
             return;
         }
         long time = world.timeOfDay();
@@ -12396,10 +12598,131 @@ public final class EngineServer implements Server, EngineBridge {
             systemMessage(session, "You can only sleep at night");
             return;
         }
-        session.setBedSpawn(new Position(clicked.x() + 0.5, clicked.y() + 1.0,
-                clicked.z() + 0.5));
+        // BedBlock.use lines 37-43: a foot click redirects to the head —
+        // trySleep carries the head cell, and the wire pose renders there.
+        BlockPosition head = bedHeadCell(clicked);
+        // The monster-proximity refusal (trySleep lines 1101-1109, the
+        // NOT_SAFE arm — BedBlock.use's own message line 67).
+        MobManager mobs = mobManager;
+        if (mobs != null && mobs.monstersNearBed(head)) {
+            systemMessage(session, "You may not rest now, there are monsters nearby");
+            return;
+        }
+        session.setBedSpawn(new Position(head.x() + 0.5, head.y() + 1.0,
+                head.z() + 0.5));
         systemMessage(session, "Your spawn point has been set");
-        // The morning jump (the historical wake-up at 0) with the cycle sync.
+        session.enterBed(head);
+        // The sleep pose (ServerPlayerEntity.trySleep lines 491-501): the
+        // Use Bed 0x0A to the sleeper and every tracking observer.
+        publishPlayerSleeping(session, head);
+        LOGGER.info(() -> session.name() + " is now resting in a bed at " + head);
+    }
+
+    /**
+     * The bed pair's head cell (BedBlock.use lines 37-43): a clicked foot
+     * resolves to its sibling head — the horizontal neighbor of the opposite
+     * half class (the placement's own pair law); a clicked head is itself.
+     * A half whose pair is gone answers itself (the placement never makes
+     * one, the break removes both — the defensive row). Tick-thread context.
+     */
+    private BlockPosition bedHeadCell(BlockPosition clicked) {
+        BlockType type = world.getBlock(clicked);
+        if (!isBedHalf(type)) {
+            return clicked;
+        }
+        if (type.identifier().value().startsWith("bed_head")) {
+            return clicked;
+        }
+        for (int[] direction : new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
+            BlockPosition neighbor = clicked.offset(direction[0], 0, direction[1]);
+            BlockType at = world.getBlock(neighbor);
+            if (isBedHalf(at) && at.identifier().value().startsWith("bed_head")) {
+                return neighbor;
+            }
+        }
+        return clicked;
+    }
+
+    /**
+     * The leave-bed walk (PlayerEntity.wakeUp lines 1170-1192 +
+     * ServerPlayerEntity.wakeUp lines 503-513): the sleeping state drops
+     * and the wire fan renders the departure — the Animation 0x0B code 2
+     * to every observer including the sleeper's own client, whose position
+     * anchor (the reference's trailing networkHandler.teleport) closes its
+     * sleep screen. The body never moved into the bed (the engine's bodies
+     * stay where the click found them — today's single-player contract),
+     * so the wake moves nothing back; the spawn point was set at the entry
+     * and survives every wake path. Tick-thread context.
+     */
+    private void wakeOnTick(PlayerSession session) {
+        if (!session.sleeping()) {
+            return; // wakeUp's own no-op shape over an already-standing body
+        }
+        session.leaveBed();
+        publishPlayerWake(session);
+    }
+
+    /**
+     * The multiplayer sleep walk (ServerWorld.tick lines 169-176 with
+     * updatePlayersSleepingStatus lines 221-237 and canSkipNight lines
+     * 258-269, ported 1:1 with the identity clause): every sleeping body
+     * first answers the integrity pair — the bed gone under it
+     * (checkSleepingPosition → wakeUp(true, true, false)) and the day
+     * arrived (isSunny → wakeUp(false, true, true)) — then the overworld
+     * answers areAllPlayersAsleep: at least one sleeper and every
+     * non-spectator body in the dimension sleeping → the morning jump (the
+     * wake-up at 0 with the cycle sync), the weather clear, and every
+     * sleeper woken (wakeSleepingPlayers → wakeUp(false, false, true) —
+     * the spawn already set at each entry, the leave-bed fan riding each
+     * wake). With ONE player this is today's single-player contract
+     * unchanged: the click enters the bed and the next tick jumps to
+     * morning. The reference's isSleepingLongEnough 100-tick grace is
+     * deliberately not ported — the single-player contract is the instant
+     * jump (the walk's own identity clause), and the multiplayer contract
+     * this server makes answers the morning the moment the last body lies
+     * down. Tick-thread context.
+     */
+    private void tickSleep() {
+        // PlayerEntity.tick lines 215-233: the per-sleeper integrity pair.
+        for (PlayerSession session : players.all()) {
+            if (!session.sleeping()) {
+                continue;
+            }
+            if (session.state() != PlayerState.PLAYING || session.dead()) {
+                // The death/departure wake (PlayerEntity.die line 782's own
+                // wakeUp(true, true, false) — no pose, no spawn change).
+                wakeOnTick(session);
+            } else if (!isBedHalf(world.getBlock(session.sleepingPos()))) {
+                wakeOnTick(session); // the bed is gone: checkSleepingPosition
+            } else {
+                long time = world.timeOfDay();
+                if (time < MobManager.NIGHT_START || time >= MobManager.NIGHT_END) {
+                    wakeOnTick(session); // the day arrived: isSunny's own wake
+                }
+            }
+        }
+        // updatePlayersSleepingStatus + canSkipNight over the OVERWORLD's
+        // bodies (ServerWorld.players is the per-world list — the walk's
+        // clock is the overworld's): sleepers > 0 && sleepers >= the
+        // non-spectator count.
+        int sleepers = 0;
+        int waking = 0;
+        for (PlayerSession session : players.all()) {
+            if (session.dimension() != 0
+                    || session.gamemode() == GameMode.SPECTATOR) {
+                continue; // another world's body never gates this clock
+            }
+            waking++;
+            if (session.sleeping()) {
+                sleepers++;
+            }
+        }
+        if (sleepers <= 0 || sleepers < waking) {
+            return; // someone is still standing: the night holds
+        }
+        // The morning jump (the historical wake-up at 0 with the cycle sync
+        // — the reference's next-24000-multiple arithmetic folds to the same
+        // dawn under the wrapped clock).
         world.setTimeOfDay(0);
         publishTimeChanged();
         // Sleeping clears the weather (ServerWorld.wakeSleepingPlayers →
@@ -12409,7 +12732,17 @@ public final class EngineServer implements Server, EngineBridge {
         if (cycle != null) {
             cycle.clearWeather();
         }
-        LOGGER.info(() -> session.name() + " slept through the night");
+        // wakeSleepingPlayers lines 239-249: every sleeper leaves the bed.
+        int woke = 0;
+        for (PlayerSession session : players.all()) {
+            if (session.sleeping()) {
+                wakeOnTick(session);
+                woke++;
+            }
+        }
+        final int sleepersNow = woke;
+        LOGGER.info(() -> sleepersNow + " player" + (sleepersNow == 1 ? "" : "s")
+                + " slept through the night");
     }
 
     /**
@@ -22015,9 +22348,19 @@ public final class EngineServer implements Server, EngineBridge {
             }
             long durationMillis = System.currentTimeMillis() - debugStartMillis;
             long durationTicks = world.totalTicks() - debugStartTicks;
-            // The report builds while the table still collects (the
-            // reference's own order), then the table turns off.
+            // The section table's snapshots freeze FIRST (undecayed — the
+            // file report's getResults walk applies the reference's own
+            // *999/1000 decay to the live table; the frozen copies never
+            // see it), then the file report builds while the table still
+            // collects (the reference's own order), then the table turns
+            // off. The table prints to the console (ML-006 — B-7's ask: the
+            // one-line summary blocked per-subsystem attribution from the
+            // console); the file keeps the reference's exact report shape.
+            java.util.Map<String, Long> sectionNanos = profiler.sectionNanosSnapshot();
+            java.util.Map<String, Long> sectionCounts = profiler.sectionCountsSnapshot();
             writeProfilerReport(durationMillis, durationTicks);
+            LOGGER.info(() -> net.zaminmc.torch.server.profiler.EngineProfiler
+                    .buildSectionTable(durationMillis, durationTicks, sectionNanos, sectionCounts));
             profiler.stop();
             profilerRequested = false;
             return "Stopped debugging. After " + (durationMillis / 1000.0)
@@ -23496,7 +23839,8 @@ public final class EngineServer implements Server, EngineBridge {
             return "The data tag did not change: " + net.zaminmc.torch.server.nbt.NbtOps.write(rows);
         }
         net.zaminmc.torch.server.nbt.EntityNbt.readNbt(mob, rows, potionSystem,
-                () -> mobManager.equipmentChanged(mob));
+                () -> mobManager.equipmentChanged(mob),
+                () -> mobManager.attributesChanged(mob));
         return "The data tag: " + net.zaminmc.torch.server.nbt.NbtOps.write(rows);
     }
 
@@ -24087,6 +24431,15 @@ public final class EngineServer implements Server, EngineBridge {
                 mobs.removeHostiles();
             }
         }
+        // ML-012 — the change-time re-sync: every connected client drops
+        // the join-time difficulty byte now (Server Difficulty 0x41,
+        // DifficultyS2CPacket's single-byte write), never waiting for the
+        // next respawn to carry it. The per-player link fan-out is the
+        // weather precedent's own shape (onRainingFlipped's players.all()
+        // walk); the connection's own writers gate on the play state.
+        for (PlayerSession player : players.all()) {
+            player.link().updateDifficulty(id);
+        }
         LOGGER.info(() -> "Difficulty set to " + args[0] + " by " + sender.name());
         return "Set difficulty to " + args[0];
     }
@@ -24253,7 +24606,25 @@ public final class EngineServer implements Server, EngineBridge {
         }
         PlayerSession target = players.byName(args[0]).orElse(null);
         if (target == null) {
-            return "No online player named " + args[0];
+            // ML-005 (the audit's B-3 row): the reference resolves /op
+            // through the profile cache (OpCommand lines 30-39 — the
+            // cache get, then addOp + commands.op.success), so a
+            // joined-but-currently-offline name still ops: the pre-op of
+            // returning players. The engine's cache equivalent rides
+            // ONLY persisted identities (the .zpd census, ops.json's own
+            // rows, this run's joins); an unknown name answers the
+            // reference's commands.op.failed line (1.8.8 en_US.lang:
+            // "Could not op %s"). /deop is NOT this arm's to change: its
+            // own offline walk already resolves over ops.json (the
+            // reference's own getOps().getProfile resolution).
+            PlayerProfileCache.Profile profile = profileCache == null
+                    ? null : profileCache.byName(args[0]);
+            if (profile == null) {
+                return "Could not op " + args[0];
+            }
+            opStore.op(profile.uuid(), profile.name(), 4);
+            LOGGER.info("Made " + profile.name() + " a server operator (by " + sender.name() + ")");
+            return "Made " + profile.name() + " a server operator";
         }
         opStore.op(target.uuid(), target.name(), 4);
         target.setOpLevel(4);
@@ -24338,6 +24709,13 @@ public final class EngineServer implements Server, EngineBridge {
             return;
         }
         session.setGamemode(mode);
+        // The reference's setGameMode else-arm (ServerPlayerEntity lines
+        // 823-826: {@code else this.setCamera(this)}): leaving spectator
+        // restores the camera to self BEFORE the abilities sync — the
+        // detach walk sends the Camera(self) pair and re-anchors the body.
+        if (mode != GameMode.SPECTATOR) {
+            detachSpectatorCamera(session);
+        }
         session.link().updateGamemode(mode.legacyId());
         // The tab-list gamemode broadcast (ServerPlayerInteractionManager
         // .setGameMode line 44: UPDATE_GAME_MODE to everyone including the
@@ -24364,6 +24742,96 @@ public final class EngineServer implements Server, EngineBridge {
         publishBodyChanged(session);
         LOGGER.info("Game mode of " + session.name() + " set to "
                 + mode.name().toLowerCase(java.util.Locale.ROOT));
+    }
+
+    /**
+     * The C2S Spectate entry (the reference's handlePlayerSpectate,
+     * ServerPlayNetworkHandler lines 516-551, over the audit's camera
+     * ruling — the packet arms the camera-follow instead of the reference's
+     * one-shot teleport): resolves the uuid against the live registry and
+     * attaches the spectator's camera to the target player. Safe from any
+     * thread; the walk runs on the tick thread.
+     */
+    public void spectateCamera(PlayerSession session, java.util.UUID targetUuid) {
+        java.util.Objects.requireNonNull(session, "session");
+        java.util.Objects.requireNonNull(targetUuid, "targetUuid");
+        ticker.submit(() -> spectateCameraOnTick(session, targetUuid));
+    }
+
+    /**
+     * The spectate walk's own gates, the reference's order 1:1: the
+     * isSpectator refusal first (line 518 — a non-spectator's packet is
+     * discarded), then the uuid resolution across the live registry (the
+     * reference's per-world walk answering null for an absent body), then
+     * the self-target arm (the reference's setCamera(this.player) — an
+     * attached camera returns to self). Tick-thread context.
+     */
+    private void spectateCameraOnTick(PlayerSession session, java.util.UUID targetUuid) {
+        if (session.state() != PlayerState.PLAYING
+                || session.gamemode() != GameMode.SPECTATOR
+                || session.leavingTheEnd()) {
+            return;
+        }
+        if (targetUuid.equals(session.uuid())) {
+            // Spectating self is the exit (the reference's own camera
+            // reset before the teleport): an attached camera detaches.
+            detachSpectatorCamera(session);
+            return;
+        }
+        PlayerSession target = players.byUuid(targetUuid).orElse(null);
+        if (target == null || target.state() != PlayerState.PLAYING || target.leavingTheEnd()) {
+            return; // the reference's entity==null arm: nothing happens
+        }
+        // The reference's cross-dimension walk (the respawn-packet move
+        // across worlds) is NOT ported here: the engine's dimension
+        // change rides the changeDimension machinery and the tracker's
+        // per-dimension gates would strand the camera on an unspawned
+        // body. Same-dimension targets only — the honest bound.
+        if (target.dimension() != session.dimension()) {
+            return;
+        }
+        if (java.util.Objects.equals(session.spectatorCamera(), target.uuid())) {
+            return; // already following this player
+        }
+        session.setSpectatorCamera(target.uuid());
+        // The body anchors at the target immediately (the reference's
+        // setCamera teleport arm — the client renders from the target the
+        // moment its camera attaches); the per-tick walk keeps it there.
+        // A spectator is never on the ground (PlayerEntity.tick lines
+        // 190-192: {@code if (this.isSpectator()) this.onGround = false}).
+        session.applyMovement(target.position(), target.rotation(), false);
+        // The camera's own wire — the reference's sendPacket(Camera) +
+        // teleport pair rides the player's own networkHandler, so the
+        // link verb owns both (the target spawns for the client before
+        // the Camera 0x43 points at it).
+        session.link().spectateCamera(target.uuid());
+        // The visibility flip (broadcastTo line 472): the spectating body
+        // drops out of every other view.
+        publishCameraAttached(session, target);
+        LOGGER.fine(() -> session.name() + " spectates " + target.name());
+    }
+
+    /**
+     * The leave-spectate walk (the reference's setCamera(this), lines
+     * 916-923): clears the camera target and hands the restore to the
+     * wire (Camera 0x43(self) + the position re-anchor). The body stays
+     * where the follow left it — the reference's own teleport target is
+     * {@code this.x/y/z}, the followed position. Tick-thread context.
+     */
+    private void detachSpectatorCamera(PlayerSession session) {
+        if (session.spectatorCamera() == null) {
+            return;
+        }
+        // The state clears FIRST: the tracking gates read it (a detached
+        // body re-enters the others' views through the re-track fan-out).
+        session.setSpectatorCamera(null);
+        // The restore's own wire, the reference's camera-then-teleport
+        // order (setCamera(this) lines 919-921): the Camera 0x43(self)
+        // then the authoritative Position-and-Look re-anchor where the
+        // follow left the body.
+        session.link().spectateCamera(null);
+        publishCameraDetached(session);
+        LOGGER.fine(() -> session.name() + " leaves the spectate camera");
     }
 
     /**
@@ -24907,7 +25375,8 @@ public final class EngineServer implements Server, EngineBridge {
             // line 89 — the NBT's Rotation/Motion and everything else
             // stick).
             net.zaminmc.torch.server.nbt.EntityNbt.readNbt(spawned, nbt, potionSystem,
-                    () -> mobManager.equipmentChanged(spawned));
+                    () -> mobManager.equipmentChanged(spawned),
+                    () -> mobManager.attributesChanged(spawned));
             spawned.teleport(new Position(x, y, z));
         }
         return "Object successfully summoned";
@@ -25982,6 +26451,13 @@ public final class EngineServer implements Server, EngineBridge {
             // from here; the wire-local ids remain the adapter's business.
             session.assignEngineEntityId(nextPlayerEntityId++);
             players.register(session);
+            // The login's own cache add (ML-005 — the reference's
+            // GameProfileCache.add at the accept site): a same-run
+            // join-then-quit name stays resolvable for /op without a
+            // restart.
+            if (profileCache != null) {
+                profileCache.add(offlineUuid, username);
+            }
             session.authenticate();
             // The personal game mode survives restarts (ZPD v4); a fresh player
             // inherits the server default (server.properties, overridden by
@@ -26328,6 +26804,21 @@ public final class EngineServer implements Server, EngineBridge {
         }
     }
 
+    @Override
+    public void joinResourcePack(PlayerSession session) {
+        // ML-017 — the reference's own join tail (PlayerManager.onLogin
+        // lines 148-150): after sendWorldInfo (the border's join sync here),
+        // the configured resource pack reaches the joiner — and ONLY when a
+        // url is configured (the reference's own length() > 0 gate over the
+        // DedicatedServer line 111 rows). The wire's hash length law is the
+        // packet ctor's own (ResourcePackS2CPacket lines 18-20), never a
+        // boot failure — the rconPassword precedent.
+        if (!config.resourcePackUrl().isEmpty()) {
+            session.link().sendResourcePack(
+                    config.resourcePackUrl(), config.resourcePackHash());
+        }
+    }
+
     /** The tab-list header/footer API state (Slice 87); null until set. */
     private volatile String[] tabListPair;
 
@@ -26364,7 +26855,24 @@ public final class EngineServer implements Server, EngineBridge {
         // snapped back to the authoritative position — the historical
         // "moved wrongly" behavior. The grace window (teleports, knockback,
         // join bursts) suspends the speed caps for honest bursts.
+        //
+        // The spectator's no-clip (the reference's own walk,
+        // PlayerEntity.tick line 191: {@code this.noClip =
+        // this.isSpectator()} + ServerPlayNetworkHandler.handlePlayerMove's
+        // {@code if (!this.player.noClip)} band, line 335): a spectator's
+        // flight never meets the guard — its client-side envelope is the
+        // free camera (through blocks, at flight speed), so the pushback
+        // would fight an honest spectator every fast tick. The wire-side
+        // sanity band (isSaneMovement's finiteness + coordinate bounds,
+        // the reference's isInvalidMove/"Illegal position" pair) still
+        // bounds spectators exactly like every other mode — only the
+        // guard's pushback is gated out, and never for any other gamemode.
         Position from = session.position();
+        if (session.gamemode() == GameMode.SPECTATOR) {
+            session.applyMovement(position, rotation, onGround);
+            session.acknowledgeTeleportIfAtAnchor(position);
+            return;
+        }
         if (!MovementGuard.permits(session, from, position, onGround,
                 fluidAt(from.x(), from.y(), from.z())
                         || ladderAt(from.x(), from.y(), from.z()))) {
@@ -26389,6 +26897,22 @@ public final class EngineServer implements Server, EngineBridge {
     public void clientDisconnected(PlayerSession session, String reason) {
         if (session.state() == PlayerState.DISCONNECTED) {
             return;
+        }
+        // The ride is remembered BEFORE the seat opens (ML-016 — the
+        // reference saves the "Riding" row with the player BEFORE the quit
+        // walk removes the mount, PlayerManager.remove lines 281-285): the
+        // relog's restore walk consumes the link and remounts at the
+        // vehicle's live position. Only a LIVE target is remembered — a
+        // gone vehicle (broken, fallen, dead) leaves nothing to restore,
+        // exactly like the reference's tag dying with the vehicle.
+        if (session.ridingVehicleId() >= 0 && vehicleManager != null
+                && vehicleManager.byId(session.ridingVehicleId()) != null) {
+            rememberedRides.put(session.uuid(),
+                    new RememberedRide(session.ridingVehicleId(), -1));
+        } else if (session.ridingMobId() >= 0 && mobManager != null
+                && mobManager.byId(session.ridingMobId()) != null) {
+            rememberedRides.put(session.uuid(),
+                    new RememberedRide(-1, session.ridingMobId()));
         }
         // The seat opens on disconnect (the vehicle never holds a ghost).
         if (vehicleManager != null && session.ridingVehicleId() >= 0) {
@@ -26446,6 +26970,96 @@ public final class EngineServer implements Server, EngineBridge {
             });
         }
         LOGGER.info(() -> "Player disconnected: " + session.name() + " (" + reason + ")");
+    }
+
+    /**
+     * The relog remount arm (ML-016 — the reference's PlayerManager.onLogin
+     * "Riding" walk, lines 157-165, Torch-shaped): the adapter calls this
+     * AFTER its join sequence completed (the rejoiner's wire can receive
+     * packets and already knows the pre-existing vehicles through the join
+     * view's spawn snapshot), and the walk itself rides the tick lane —
+     * the mount's own owner, the interact path's own shape. The remembered
+     * link is consumed whether or not the remount lands (the reference's
+     * tag is consumed at login too): a gone vehicle, a taken seat, or a
+     * session that never reached play leaves the player on foot, never a
+     * retry loop.
+     */
+    @Override
+    public void rejoinRestoreRide(PlayerSession session) {
+        Objects.requireNonNull(session, "session");
+        if (ticker == null) {
+            return;
+        }
+        ticker.submit(() -> restoreRememberedRide(session));
+    }
+
+    /**
+     * The remount walk's own body, tick-thread context: mount the live
+     * vehicle (the attach + posture publication fans through the existing
+     * mount listeners), then the seat anchor lands the body, then the
+     * rider's own wire re-anchors — the reference's startRiding sequence
+     * exactly (ServerPlayerEntity.startRiding lines 516-523: the Attach
+     * Entity packet, then the teleport to the seat).
+     */
+    private void restoreRememberedRide(PlayerSession session) {
+        RememberedRide ride = rememberedRides.remove(session.uuid());
+        if (ride == null) {
+            return;
+        }
+        if (session.state() != PlayerState.PLAYING || session.dead()) {
+            return; // the rejoin raced a quit: the link is consumed, on foot
+        }
+        if (ride.vehicleEntityId() >= 0 && vehicleManager != null) {
+            net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle =
+                    vehicleManager.byId(ride.vehicleEntityId());
+            // A gone vehicle never remounts (the reference's Riding tag dies
+            // with the vehicle entity); an occupied seat refuses the mount
+            // exactly like the live interact path's one-seat law.
+            if (vehicle == null || !vehicleManager.mount(vehicle, session.engineEntityId())) {
+                return;
+            }
+            // The seat anchor (tickVehicleRiders' own law, lines 15668-15670):
+            // the body lands at the vehicle's seat, never its flat origin.
+            session.applyMovement(
+                    vehicle.seatAnchor(
+                            net.zaminmc.torch.server.entity.vehicle.RiderSeatLaw.PLAYER_RIDE_HEIGHT),
+                    session.rotation(), vehicle.onGround());
+            // The rider's own teleport (the reference's startRiding line 521):
+            // the rejoiner's client came up at the SAVED spot; the remount
+            // re-anchors it at the authoritative seat.
+            session.link().resyncPosition();
+            LOGGER.info(() -> "Player remounted after relog: " + session.name()
+                    + " (vehicle " + ride.vehicleEntityId() + ")");
+            return;
+        }
+        if (ride.mobEntityId() >= 0 && mobManager != null) {
+            MobEntity mob = mobManager.byId(ride.mobEntityId());
+            if (mob == null || mob.dead()) {
+                return;
+            }
+            // The plain load-seat (the anvil chain's own verb, the reference's
+            // startRiding at AnvilChunkStorage line 335): no temper flow, no
+            // buck — a restored rider simply sits.
+            mobManager.seatImportedRider(mob, session.engineEntityId());
+            if (mob.riderId() != session.engineEntityId()) {
+                return; // the seat was taken in the window: on foot
+            }
+            // The mob seat anchor (tickMobRiders' own law, lines 15773-15777):
+            // the mount's position plus the saddle height plus the rider's
+            // own -0.35.
+            Position seat = new Position(mob.position().x(),
+                    mob.position().y() + mob.seatHeight()
+                            + net.zaminmc.torch.server.entity.vehicle.RiderSeatLaw.PLAYER_RIDE_HEIGHT,
+                    mob.position().z());
+            session.applyMovement(seat, session.rotation(), mob.onGround());
+            session.link().resyncPosition();
+            LOGGER.info(() -> "Player remounted after relog: " + session.name()
+                    + " (mob " + ride.mobEntityId() + ")");
+        }
+    }
+
+    /** One remembered ride across a relog: exactly one of the two ids is set. */
+    private record RememberedRide(int vehicleEntityId, int mobEntityId) {
     }
 
     /** Checks whether the chunk containing the position is available read-only. */

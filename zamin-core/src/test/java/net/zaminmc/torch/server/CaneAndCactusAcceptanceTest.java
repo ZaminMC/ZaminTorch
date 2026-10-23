@@ -20,6 +20,7 @@ import java.util.function.BooleanSupplier;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The world-completion flora: the reed plants only on wet soil, grows to
@@ -77,12 +78,12 @@ class CaneAndCactusAcceptanceTest {
     private void useOn(PlayerSession player, BlockPosition at, int face) throws InterruptedException {
         server.useItemOnBlock(player, at, face, java.util.Optional.empty(),
                 windowId -> { });
-        Thread.sleep(150);
+        EngineAwaits.awaitTicks(server.world(), 3, "engine progress (a 150 wall settle)");
     }
 
     private void probe(RandomTickSystem ticks, BlockPosition at) throws InterruptedException {
         server.ticker().submit(() -> ticks.randomTick(at));
-        Thread.sleep(80);
+        EngineAwaits.awaitTicks(server.world(), 2, "engine progress (a 80 wall settle)");
     }
 
     @Test
@@ -98,7 +99,7 @@ class CaneAndCactusAcceptanceTest {
         server.ticker().submit(() -> farmer.applyMovement(
                 new Position(2.5, 65.5, 0.5),
                 net.zaminmc.torch.util.Rotation.ZERO, true));
-        Thread.sleep(150);
+        EngineAwaits.awaitTicks(server.world(), 3, "engine progress (a 150 wall settle)");
         farmer.inventory().setSlot(0, ItemStack.of(item("minecraft:sugar_cane"), 4));
         farmer.inventory().selectHotbarSlot(0);
         useOn(farmer, dry, 1);

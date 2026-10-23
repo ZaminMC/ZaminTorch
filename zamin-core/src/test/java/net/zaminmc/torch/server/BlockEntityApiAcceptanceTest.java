@@ -16,6 +16,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The block-entity API wave beyond the containers (§27.3's read surface
@@ -49,7 +50,7 @@ class BlockEntityApiAcceptanceTest {
                 server.spawnerManager().getOrCreate(0, at).setType(MobType.ZOMBIE);
                 server.spawnerManager().refreshWireTiles();
             });
-            awaitSettled();
+            awaitSettled(server);
             World world = server.world();
             Optional<net.zaminmc.torch.blockentity.BlockEntities.MobSpawner> spawner =
                     world.blockEntities().spawnerAt(at);
@@ -72,7 +73,7 @@ class BlockEntityApiAcceptanceTest {
                 server.spawnerManager().getOrCreate(-1, fortressAt).setType(MobType.BLAZE);
                 server.spawnerManager().refreshWireTiles();
             });
-            awaitSettled();
+            awaitSettled(server);
             assertTrue(world.blockEntities().spawnerAt(fortressAt).isEmpty(),
                     "a nether spawner never answers the overworld's view");
             World nether = null;
@@ -95,7 +96,7 @@ class BlockEntityApiAcceptanceTest {
                 server.world().setBlock(fresh, BuiltinBlocks.MOB_SPAWNER);
                 server.spawnerManager().getOrCreate(0, fresh);
             });
-            awaitSettled();
+            awaitSettled(server);
             Optional<net.zaminmc.torch.blockentity.BlockEntities.MobSpawner> freshView =
                     world.blockEntities().spawnerAt(fresh);
             assertTrue(freshView.isPresent(), "the un-typed spawner still answers");
@@ -124,7 +125,7 @@ class BlockEntityApiAcceptanceTest {
                 server.world().setBlock(at, BuiltinBlocks.SIGN_SOUTH);
                 server.signs().set(at, new String[]{"Torch", "was", "here"});
             });
-            awaitSettled();
+            awaitSettled(server);
             World world = server.world();
             Optional<net.zaminmc.torch.blockentity.BlockEntities.Sign> sign =
                     world.blockEntities().signAt(at);
@@ -153,11 +154,7 @@ class BlockEntityApiAcceptanceTest {
     }
 
     /** The submit drains at the head of the next tick (<= 100 ms). */
-    private static void awaitSettled() {
-        try {
-            Thread.sleep(300);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
+    private void awaitSettled(EngineServer server) throws InterruptedException {
+        EngineAwaits.awaitTicks(server.world(), 6, "the submit drains at the head of the next tick");
     }
 }

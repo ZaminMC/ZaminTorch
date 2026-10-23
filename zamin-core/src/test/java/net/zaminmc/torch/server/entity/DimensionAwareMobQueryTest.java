@@ -11,6 +11,7 @@ import java.util.Random;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The dimension-aware mob query (Slice 25d — the reference's
@@ -137,7 +138,7 @@ class DimensionAwareMobQueryTest {
             while (System.currentTimeMillis() < deadline
                     && !server.netherWorld().isChunkLoaded(
                             new net.zaminmc.torch.block.ChunkPosition(x >> 4, z >> 4))) {
-                Thread.sleep(50);
+                EngineAwaits.awaitTicks(server.world(), 1, "engine progress (a 50 wall settle)");
             }
             // The nether body on the platform (a pigman, the nether's own).
             server.ticker().submit(() -> server.mobs().spawnNaturalNether(

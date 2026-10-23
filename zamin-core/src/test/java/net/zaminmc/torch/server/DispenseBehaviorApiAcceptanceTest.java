@@ -25,6 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The public dispenser behavior registry (Slice 15b — §27.3's dispenser
@@ -170,7 +171,7 @@ class DispenseBehaviorApiAcceptanceTest {
                 }
             });
             try {
-                Thread.sleep(30); // the submitted check runs on the tick lane
+                EngineAwaits.awaitTicks(server.world(), 1, "the submitted check runs on the tick lane");
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }

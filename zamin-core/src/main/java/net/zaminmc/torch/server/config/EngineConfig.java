@@ -70,6 +70,20 @@ import java.util.Objects;
  *                        reference's default law (QueryResponseHandler
  *                        lines 67-69: {@code 0 -> serverPort}). Range law
  *                        owned by start() (lines 244-249), like rconPort.
+ * @param resourcePackUrl the {@code resource-pack} property (DedicatedServer
+ *                        line 111: {@code getString("resource-pack", "")})
+ *                        — the server resource pack's url. Empty (the
+ *                        default) means no pack is ever offered; the
+ *                        join-time gate is the reference's own (PlayerManager
+ *                        line 148: {@code url.length() > 0}).
+ * @param resourcePackHash the {@code resource-pack-hash} property
+ *                        (DedicatedServer line 111:
+ *                        {@code getString("resource-pack-hash", "")}) — the
+ *                        pack's sha-1 digest, carried raw like the
+ *                        reference's own PropertyManager row; the packet
+ *                        ctor's 40-character law (ResourcePackS2CPacket
+ *                        lines 18-20) owns the length at the send site,
+ *                        never a boot failure — the rconPassword precedent.
  */
 public record EngineConfig(
         String host,
@@ -91,7 +105,9 @@ public record EngineConfig(
         String rconPassword,
         int rconPort,
         boolean enableQuery,
-        int queryPort
+        int queryPort,
+        String resourcePackUrl,
+        String resourcePackHash
 ) {
 
     /**
@@ -171,7 +187,8 @@ public record EngineConfig(
                         int spawnProtectionRadius) {
         this(host, port, worldName, motd, maxPlayers, viewDistance, tickRateHz, dataDir,
                 gamemode, pvp, levelType, whiteList, regionSizeChunks, enableCommandBlocks,
-                spawnProtectionRadius, false, "", UNSET_REMOTE_PORT, false, UNSET_REMOTE_PORT);
+                spawnProtectionRadius, false, "", UNSET_REMOTE_PORT, false, UNSET_REMOTE_PORT,
+                "", "");
     }
 
     public EngineConfig {
@@ -208,6 +225,8 @@ public record EngineConfig(
             throw new IllegalArgumentException("dataDir must not be blank");
         }
         Objects.requireNonNull(rconPassword, "rconPassword");
+        Objects.requireNonNull(resourcePackUrl, "resourcePackUrl");
+        Objects.requireNonNull(resourcePackHash, "resourcePackHash");
         // The remote-admin ports' default laws, resolved where the reference
         // resolves them (RconServer lines 29-31, QueryResponseHandler lines
         // 67-69) — but at the engine's one validation site, because the
@@ -224,6 +243,26 @@ public record EngineConfig(
         return new EngineConfig("0.0.0.0", 25565, "world",
                 "A ZaminTorch Server", 20, 4, 20, ".", GameMode.SURVIVAL, true,
                 "normal", false, WHOLE_WORLD_REGION_SIZE, false);
+    }
+
+    /**
+     * A copy with a different bind port (ML-009a — the CLI override's
+     * own shape; the dedicated server's precedence CLI &gt; properties
+     * &gt; default). The compact constructor re-validates the range
+     * (0-65535), so an out-of-range override fails boot loudly. The
+     * remote-admin ports keep their already-resolved values: they
+     * follow their OWN rows and the first-boot write-back law recorded
+     * above — the same envelope as a properties-only port change.
+     */
+    public EngineConfig withPort(int port) {
+        // The coordinator's merge repair: the copy carries EVERY loaded row
+        // through — the resource-pack pair rides beside rcon/query exactly
+        // as loaded (PR #43 branched before #39 added the pair; the 23-arg
+        // form it was written against no longer compiles post-#39).
+        return new EngineConfig(host, port, worldName, motd, maxPlayers, viewDistance,
+                tickRateHz, dataDir, gamemode, pvp, levelType, whiteList, regionSizeChunks,
+                enableCommandBlocks, spawnProtectionRadius, enableRcon, rconPassword,
+                rconPort, enableQuery, queryPort, resourcePackUrl, resourcePackHash);
     }
 
     /** The world folder (the historical {@code world/} of the Paper layout). */

@@ -17,6 +17,7 @@ import java.util.function.BooleanSupplier;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The brewing stand on the live engine (Slice 11e — the reference port of
@@ -151,7 +152,7 @@ class BrewingStandSystemTest {
             await(() -> server.brewingStands().peek(idle) != null,
                     "the idle stand's state materialized");
             var idleEntity = server.brewingStands().peek(idle);
-            Thread.sleep(400);
+            EngineAwaits.awaitTicks(server.world(), 8, "engine progress (a 400 wall settle)");
             assertEquals(0, idleEntity.timer(),
                     "the no-op brew never arms (the reference's change gate)");
 

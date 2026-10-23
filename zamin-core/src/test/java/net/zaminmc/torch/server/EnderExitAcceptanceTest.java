@@ -19,6 +19,7 @@ import java.util.function.BooleanSupplier;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The End exit walk (Slice 64 — the exit fountain's End-to-overworld
@@ -105,7 +106,7 @@ class EnderExitAcceptanceTest {
             server.movementProposal(vanquisher,
                     new Position(fountain.x() + 5.0, fountain.y(), fountain.z()),
                     new Rotation(0.0f, 0.0f), true);
-            Thread.sleep(300); // let the submit drain
+            EngineAwaits.awaitTicks(server.world(), 6, "let the submit drain");
             assertEquals(fountain.x(), vanquisher.position().x(), 1e-9,
                     "the credits body ignores movement proposals");
 

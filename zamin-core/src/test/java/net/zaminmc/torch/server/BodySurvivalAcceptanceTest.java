@@ -21,6 +21,7 @@ import java.util.function.BooleanSupplier;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The survival body on a real ticker: server-side eating (32-tick timer,
@@ -171,7 +172,7 @@ class BodySurvivalAcceptanceTest {
         await(() -> body.health() <= PlayerSession.STARVATION_FLOOR + 0.001f,
                 "the easy-difficulty floor stopped the damage");
         float after = body.health();
-        Thread.sleep(4_500); // another starvation cadence must not cross the floor
+        EngineAwaits.awaitTicks(server.world(), 90, "another starvation cadence must not cross the floor");
         assertEquals(after, body.health(), 0.001f, "starvation cannot kill on easy");
         assertTrue(body.health() >= PlayerSession.STARVATION_FLOOR - 0.001f);
         server.shutdown(null);

@@ -24,6 +24,7 @@ import java.util.function.BooleanSupplier;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The ranged-combat and feedback flows on a real ticker: the bow's draw and
@@ -54,7 +55,7 @@ class RangedCombatAcceptanceTest {
         // With ammunition: the draw starts, full charge at 20 ticks, release fires.
         server.useItem(archer);
         await(() -> archer.bowCharging(), "the draw started");
-        Thread.sleep(1_300); // 26 ticks at 20 Hz: past the 20-tick full charge
+        EngineAwaits.awaitTicks(server.world(), 26, "26 ticks at 20 Hz: past the 20-tick full charge");
         server.releaseUsingItem(archer);
         await(() -> server.projectiles().all().size() == 1, "the arrow launched");
         ProjectileEntity arrow = server.projectiles().all().get(0);
@@ -103,7 +104,7 @@ class RangedCombatAcceptanceTest {
         archer.freezeBowChargeForTest();
         drawFor(archer, 2);
         server.releaseUsingItem(archer);
-        Thread.sleep(400);
+        EngineAwaits.awaitTicks(server.world(), 8, "engine progress (a 400 wall settle)");
         assertEquals(0, server.projectiles().all().size(), "the flick fired nothing");
         archer.unfreezeBowChargeForTest();
 
@@ -278,7 +279,7 @@ class RangedCombatAcceptanceTest {
         server.blockInteraction().submitMiningStart(miner, new net.zaminmc.torch.block.BlockPosition(1, 4, 1));
         // Grass by hand: 15 ticks nominal (750 ms); the 70% leniency floor
         // needs a real wait before the finish gesture lands.
-        Thread.sleep(900);
+        EngineAwaits.awaitTicks(server.world(), 18, "engine progress (a 900 wall settle)");
         server.blockInteraction().submitMiningFinished(miner, new net.zaminmc.torch.block.BlockPosition(1, 4, 1));
         await(() -> fxEvents.stream().anyMatch(e -> e instanceof FxManager.Sound s
                         && s.name().equals("dig.grass")),
@@ -321,13 +322,14 @@ class RangedCombatAcceptanceTest {
             }
         });
         net.zaminmc.torch.server.player.PlayerSession sneaky = join(server, "Sneaky");
-        server.entityAction(sneaky, 0); // start sneak
+        server.entityAction(sneaky, 0); // start sneak (START_SNEAKING, ordinal 0)
         await(() -> !postures.isEmpty() && postures.get(postures.size() - 1).equals("true/false"),
                 "the sneak action broadcast");
-        server.entityAction(sneaky, 2); // start sprint
+        server.entityAction(sneaky, 3); // start sprint (START_SPRINTING, ordinal 3 —
+        // the reference's PlayerMovementActionC2SPacket.Action order)
         await(() -> postures.get(postures.size() - 1).equals("true/true"),
                 "sprint rides beside the sneak");
-        server.entityAction(sneaky, 3); // stop sprint
+        server.entityAction(sneaky, 4); // stop sprint (STOP_SPRINTING, ordinal 4)
         await(() -> postures.get(postures.size() - 1).equals("true/false"),
                 "the sprint stop broadcast");
         server.shutdown(null);
@@ -349,7 +351,7 @@ class RangedCombatAcceptanceTest {
         archer.applyMovement(archer.position(), new Rotation(0f, 35f), true); // aim down 35°
         server.useItem(archer);
         await(() -> archer.bowCharging(), "the draw started");
-        Thread.sleep(1_100);
+        EngineAwaits.awaitTicks(server.world(), 22, "engine progress (a 1_100 wall settle)");
         server.releaseUsingItem(archer);
         await(() -> victim.health() < before, "the arrow wounded the target");
         server.shutdown(null);

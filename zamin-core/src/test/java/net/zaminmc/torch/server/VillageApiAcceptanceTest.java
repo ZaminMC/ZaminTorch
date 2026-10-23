@@ -23,6 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The village census's public API surface (§27.3 — the VIII10 exposure,
@@ -232,7 +233,7 @@ class VillageApiAcceptanceTest {
         }, "village-snapshot-hammer");
         hammer.start();
         // Let the tick lane work against the hammer's reads.
-        Thread.sleep(1500);
+        EngineAwaits.awaitTicks(server.world(), 30, "engine progress (a 1500 wall settle)");
         hammer.join(30_000);
         assertTrue(done.getCount() == 0, "the hammer finished");
         RuntimeException caught = failure.get();

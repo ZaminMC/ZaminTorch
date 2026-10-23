@@ -24,6 +24,7 @@ import java.util.function.BooleanSupplier;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The world-family API wave (Slice 14a — the §27.3 "world, chunk, block,
@@ -196,7 +197,7 @@ class WorldApiAcceptanceTest {
         int after = count.get();
         world.execute(() -> world.setBlock(cell, BuiltinBlocks.DIRT));
         await(() -> world.getBlock(cell).equals(BuiltinBlocks.DIRT), "dirt placed");
-        Thread.sleep(200);
+        EngineAwaits.awaitTicks(server.world(), 4, "engine progress (a 200 wall settle)");
         assertEquals(after, count.get(), "no observation after the unsubscribe");
         server.shutdown(null);
     }

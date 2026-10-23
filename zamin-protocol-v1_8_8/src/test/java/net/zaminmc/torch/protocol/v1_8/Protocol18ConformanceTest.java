@@ -44,6 +44,10 @@ class Protocol18ConformanceTest {
         m.put("S2C_RESPAWN", 0x07);
         m.put("S2C_PLAYER_POSITION_AND_LOOK", 0x08);
         m.put("S2C_HELD_ITEM_CHANGE", 0x09);
+        // Use Bed: #11 in the client's registration order (NetworkProtocol
+        // line 132 — between SelectSlot 0x09 and Animation 0x0B): the
+        // multiplayer sleep pose (ML-010, PlayerSleepS2CPacket).
+        m.put("S2C_USE_BED", 0x0A);
         m.put("S2C_ANIMATION", 0x0B);
         m.put("S2C_NAMED_SPAWN", 0x0C);
         m.put("S2C_COLLECT_ITEM", 0x0D);
@@ -65,6 +69,10 @@ class Protocol18ConformanceTest {
         m.put("S2C_REMOVE_ENTITY_EFFECT", 0x1E);
         m.put("S2C_ATTACH_ENTITY", 0x1B);
         m.put("S2C_SET_EXPERIENCE", 0x1F);
+        // Entity Properties 0x20 (ML-011 — the attribute wire): #31 in the
+        // registration order (NetworkProtocol line 154, between PlayerXp
+        // 0x1F and WorldChunk 0x21) — EntityAttributesS2CPacket's own slot.
+        m.put("S2C_ENTITY_PROPERTIES", 0x20);
         m.put("S2C_CHUNK_DATA", 0x21);
         m.put("S2C_BLOCK_CHANGE", 0x23);
         m.put("S2C_BLOCK_ACTION", 0x24);
@@ -98,6 +106,11 @@ class Protocol18ConformanceTest {
         // (NetworkProtocol line 173 — after MapData 0x34, before
         // OpenSignEditor 0x36): the spawner's spinning body rides it.
         m.put("S2C_UPDATE_BLOCK_ENTITY", 0x35);
+        // Open Sign Editor: #55 in the same registration order
+        // (NetworkProtocol line 176 — right after BlockEntityUpdate 0x35,
+        // before Stats 0x37): the placement editor's own trigger
+        // (ServerPlayerEntity.openSignEditor sends it on sign placement).
+        m.put("S2C_OPEN_SIGN_EDITOR", 0x36);
         m.put("S2C_OPEN_WINDOW", 0x2D);
         m.put("S2C_CLOSE_WINDOW", 0x2E);
         m.put("S2C_SET_SLOT", 0x2F);
@@ -117,6 +130,11 @@ class Protocol18ConformanceTest {
         m.put("S2C_UPDATE_SCORE", 0x3C);
         m.put("S2C_DISPLAY_SCOREBOARD", 0x3D);
         m.put("S2C_TEAMS", 0x3E);
+        // Spectator Camera 0x43 (ML-018 — the spectator's camera): the
+        // reference CameraS2CPacket's own slot, the gap between Combat
+        // Event 0x42 and World Border 0x44 (the constant's own row — the
+        // conformance walk's demand, exactly the Slice 51 precedent).
+        m.put("S2C_CAMERA", 0x43);
         // World Border 0x44 (Slice 86): after Camera 0x43, before Title 0x45
         // (the reference's WorldBorderS2CPacket registration slot).
         m.put("S2C_WORLD_BORDER", 0x44);
@@ -127,7 +145,15 @@ class Protocol18ConformanceTest {
         // after Collect Item 0x46.
         m.put("S2C_PLAYER_LIST_HEADER_FOOTER", 0x47);
         m.put("S2C_DISCONNECT", 0x40);
+        // Server Difficulty 0x41 (ML-012): DifficultyS2CPacket's own slot,
+        // between Disconnect 0x40 and Combat Event 0x42 — the reference's
+        // registration order (NetworkProtocol's clientbound play list).
+        m.put("S2C_SERVER_DIFFICULTY", 0x41);
         m.put("S2C_COMBAT_EVENT", 0x42);
+        // Resource Pack Send 0x48 (ML-017): ResourcePackS2CPacket's own
+        // slot, right after Player List Header/Footer 0x47 (the 1.9+
+        // request-id varint never rides protocol 47).
+        m.put("S2C_RESOURCE_PACK_SEND", 0x48);
         // Not play-state packets, same constant class: the login state's
         // disconnect/success (0x02 is Chat in play — states differ) and the
         // status state's response/pong.

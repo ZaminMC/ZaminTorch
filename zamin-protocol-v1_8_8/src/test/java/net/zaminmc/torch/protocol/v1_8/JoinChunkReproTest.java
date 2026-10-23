@@ -14,6 +14,7 @@ import org.junit.jupiter.api.io.TempDir;
 import java.nio.file.Path;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * Reproduces the live-join symptom offline: full engine boot + adapter, a
@@ -86,7 +87,7 @@ class JoinChunkReproTest {
                 + " mask=" + Integer.toBinaryString(mask & 0xFFFF) + " len=" + length
                 + " frameLen=" + wireChunk.length + " head=" + head);
 
-        Thread.sleep(800); // a few ticks: the live loop runs (random ticks etc.)
+        EngineAwaits.awaitTicks(server.world(), 16, "a few ticks: the live loop runs (random ticks etc.)");
         var world = server.world();
         var chunk = world.peek(new net.zaminmc.torch.block.ChunkPosition(0, 0));
         System.out.println("server-view (0,4,0) = " + world.getBlock(

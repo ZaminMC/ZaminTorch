@@ -23,6 +23,7 @@ import java.util.function.BooleanSupplier;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * Slice 91 Wave C p2 — the creeper's own rows over the live engine
@@ -140,13 +141,13 @@ class CreeperRowsAcceptanceTest {
         assertEquals(1.0f, blast.get().power(), "the radius row steers the base");
         // The default 3-power blast tears the ground three blocks out; the
         // radius-1 blast leaves the two-block-out column standing.
-        Thread.sleep(300);
+        EngineAwaits.awaitTicks(server.world(), 6, "engine progress (a 300 wall settle)");
         BlockPosition twoOut = new BlockPosition(3, 4, 0);
         java.util.concurrent.atomic.AtomicBoolean stood = new java.util.concurrent.atomic.AtomicBoolean();
         server.ticker().submit(() -> stood.set(
                 !server.world().getBlock(twoOut)
                         .equals(net.zaminmc.torch.server.block.BuiltinBlocks.AIR)));
-        Thread.sleep(300);
+        EngineAwaits.awaitTicks(server.world(), 6, "engine progress (a 300 wall settle)");
         assertEquals(true, stood.get(),
                 "the 1-power blast's sphere never reached the two-block-out column");
         sub.unsubscribe();

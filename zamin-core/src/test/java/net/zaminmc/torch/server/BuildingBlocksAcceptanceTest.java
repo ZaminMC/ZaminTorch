@@ -19,6 +19,7 @@ import java.util.function.BooleanSupplier;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * Behavioral scenarios for the building vocabulary: doors place and swing
@@ -76,7 +77,7 @@ class BuildingBlocksAcceptanceTest {
     private void useOn(PlayerSession player, BlockPosition at, int face) throws InterruptedException {
         server.useItemOnBlock(player, at, face, java.util.Optional.empty(),
                 windowId -> { });
-        Thread.sleep(120);
+        EngineAwaits.awaitTicks(server.world(), 3, "engine progress (a 120 wall settle)");
     }
 
     @Test
@@ -115,7 +116,7 @@ class BuildingBlocksAcceptanceTest {
         // Break the upper half: the lower dies with it (the two-block unit).
         // Creative break removes the block without a dig timer.
         server.blockInteraction().submitCreativeBreak(builder, lower);
-        Thread.sleep(80);
+        EngineAwaits.awaitTicks(server.world(), 2, "engine progress (a 80 wall settle)");
         await(() -> world.getBlock(lower).equals(BuiltinBlocks.AIR), "the lower half breaks");
         await(() -> world.getBlock(upper).equals(BuiltinBlocks.AIR),
                 "the sibling upper half cleans up");

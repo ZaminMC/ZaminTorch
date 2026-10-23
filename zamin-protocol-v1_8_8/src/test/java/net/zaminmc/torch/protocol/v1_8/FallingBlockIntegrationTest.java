@@ -8,6 +8,7 @@ import org.junit.jupiter.api.TestInstance;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * Falling blocks over the real wire, from the client's point of view: a sand
@@ -57,7 +58,7 @@ class FallingBlockIntegrationTest extends ProtocolTestBase {
             // commit removes the block, drops one sand item, and the update queue
             // converts the two unsupported blocks into falling entities this tick.
             client.sendDigging(0, 2, 5, 2, 1);
-            Thread.sleep(1_200);
+            EngineAwaits.awaitTicks(server.world(), 24, "engine progress (a 1_200 wall settle)");
             client.sendDigging(2, 2, 5, 2, 1);
             client.readBlockChangeAt(2, 5, 2, 0, 10_000); // the dug base becomes air
 
@@ -136,7 +137,7 @@ class FallingBlockIntegrationTest extends ProtocolTestBase {
                     .identifier().toString().equals("minecraft:torch"), "torch placed");
 
             client.sendDigging(0, 1, 4, 1, 1);
-            Thread.sleep(1_400); // grass by hand: 18 ticks (900ms)
+            EngineAwaits.awaitTicks(server.world(), 28, "grass by hand: 18 ticks (900ms)");
             client.sendDigging(2, 1, 4, 1, 1);
 
             // The pop: the torch cell becomes air and a torch item entity

@@ -237,6 +237,16 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
      * server default. Tick-thread written, volatile for wire reads.
      */
     private volatile net.zaminmc.torch.GameMode gamemode = net.zaminmc.torch.GameMode.SURVIVAL;
+
+    /**
+     * The spectator's camera target (the reference ServerPlayerEntity's own
+     * {@code camera} field, lines 124/916-923): the uuid of the followed
+     * player while spectating, {@code null} while the camera answers self.
+     * Tick-thread written (the spectate walk and its exits), volatile for
+     * the wire's tracking gates.
+     */
+    private volatile UUID spectatorCamera;
+
     /** The operator level (0 = player, 4 = console-equivalent). */
     private volatile int opLevel;
 
@@ -579,6 +589,23 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
     /** Tick-thread write only; the wire reads are volatile-safe. */
     public void setGamemode(net.zaminmc.torch.GameMode mode) {
         this.gamemode = java.util.Objects.requireNonNull(mode, "mode");
+    }
+
+    /**
+     * @return the uuid of the player this spectator's camera follows, or
+     * {@code null} while the camera answers self (the reference
+     * ServerPlayerEntity.getCamera's self-null convention). Any thread.
+     */
+    public UUID spectatorCamera() {
+        return spectatorCamera;
+    }
+
+    /**
+     * The spectate walk's own write (the reference's setCamera): {@code null}
+     * restores the camera to self. Tick-thread write only.
+     */
+    public void setSpectatorCamera(UUID target) {
+        this.spectatorCamera = target;
     }
 
     public int opLevel() {
@@ -1495,6 +1522,49 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
 
     public void setSprinting(boolean sprinting) {
         this.sprinting = sprinting;
+    }
+
+    // --- sleep ---------------------------------------------------------------
+
+    /**
+     * True while the body lies in a bed (the reference's {@code sleeping}):
+     * the multiplayer sleep walk counts it, and the wire renders the sleep
+     * pose (Use Bed 0x0A) while it holds.
+     */
+    private volatile boolean sleeping;
+
+    /** The bed HEAD cell the body sleeps in (the reference's {@code sleepingPos}). */
+    private volatile BlockPosition sleepingPos;
+
+    /** True while the body lies in a bed. */
+    public boolean sleeping() {
+        return sleeping;
+    }
+
+    /** @return the bed head cell the body sleeps in (null when awake). */
+    public BlockPosition sleepingPos() {
+        return sleepingPos;
+    }
+
+    /**
+     * The bed entry (the reference's trySleep tail: sleeping = true,
+     * sleepingPos = pos, sleepingTime = 0 — the engine keeps no timer; the
+     * walk's identity clause answers the all-sleepers question the moment
+     * the last body lies down). Tick-thread context.
+     */
+    public void enterBed(BlockPosition bedHead) {
+        this.sleeping = true;
+        this.sleepingPos = bedHead;
+    }
+
+    /**
+     * The bed departure (the reference's wakeUp: sleeping = false — the
+     * sleepingPos drops with it, the spawn already set at the entry).
+     * Tick-thread context.
+     */
+    public void leaveBed() {
+        this.sleeping = false;
+        this.sleepingPos = null;
     }
 
     // --- movement guard accessors --------------------------------------------

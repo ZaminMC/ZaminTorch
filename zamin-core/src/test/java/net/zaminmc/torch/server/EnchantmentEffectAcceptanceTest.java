@@ -23,6 +23,7 @@ import java.util.function.BooleanSupplier;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The enchantment effect hooks over the real engine: the damage family
@@ -104,7 +105,7 @@ class EnchantmentEffectAcceptanceTest {
         // then finishes the 3-hp body (the historical 1-damage-per-second
         // burn rate) — the vanilla fire kill.
         await(() -> cow.burning(), "the pre-set lit the target");
-        Thread.sleep(1_600); // past the pre-set's 20-tick expiry
+        EngineAwaits.awaitTicks(server.world(), 32, "past the pre-set's 20-tick expiry");
         assertTrue(cow.burning(), "the re-armed 4-second burn outlives the pre-set");
         await(() -> cow.dead(), "the burn finished the 3-hp body");
         server.shutdown(null);
@@ -154,7 +155,7 @@ class EnchantmentEffectAcceptanceTest {
         BlockPosition stone = new BlockPosition(2, 5, 2);
         seedBlock(server, miner, stone, BuiltinBlocks.STONE);
         server.blockInteraction().submitMiningStart(miner, stone);
-        Thread.sleep(1_000);
+        EngineAwaits.awaitTicks(server.world(), 20, "engine progress (a 1_000 wall settle)");
         assertTrue(server.world().getBlock(stone).equals(BuiltinBlocks.STONE),
                 "bare hands have not broken stone inside the window");
         server.blockInteraction().submitMiningAborted(miner);
@@ -167,7 +168,7 @@ class EnchantmentEffectAcceptanceTest {
         grant(miner, ItemStack.of(BuiltinItems.DIAMOND_PICKAXE)
                 .withEnchantment(Enchantments.EFFICIENCY.id, 5));
         server.blockInteraction().submitMiningStart(miner, stone);
-        Thread.sleep(300);
+        EngineAwaits.awaitTicks(server.world(), 6, "engine progress (a 300 wall settle)");
         server.blockInteraction().submitMiningFinished(miner, stone);
         await(() -> server.world().getBlock(stone).equals(BuiltinBlocks.AIR),
                 "the Efficiency V pick broke stone inside the window");

@@ -21,6 +21,11 @@ final class Protocol18 {
     static final int S2C_UPDATE_HEALTH = 0x06;
     static final int S2C_RESPAWN = 0x07;
     static final int S2C_PLAYER_POSITION_AND_LOOK = 0x08;
+    /** Use Bed (0x0A, PlayerSleepS2CPacket — #11 in the reference's
+     * clientbound registration order, NetworkProtocol line 132): varint
+     * entity id + the packed bed head cell; the client raises the sleep
+     * pose at the cell. */
+    static final int S2C_USE_BED = 0x0A;
     static final int S2C_COLLECT_ITEM = 0x0D;
     static final int S2C_SPAWN_ENTITY = 0x0E;
     static final int S2C_SPAWN_MOB = 0x0F;
@@ -72,6 +77,14 @@ final class Protocol18 {
     static final int S2C_TAB_COMPLETE = 0x3A;
     /** Update Sign: packed position long, then the four UTF lines (protocol 47). */
     static final int S2C_UPDATE_SIGN = 0x33;
+    /**
+     * Open Sign Editor (0x36, OpenSignEditorS2CPacket — #55 in the PLAY
+     * registration order, right after Update Block Entity 0x35): the
+     * packed position long alone, the sign placement editor's own trigger
+     * (the reference's ServerPlayerEntity.openSignEditor lines 547-550 —
+     * the client's editor opens ONLY on this packet).
+     */
+    static final int S2C_OPEN_SIGN_EDITOR = 0x36;
     static final int S2C_NAMED_SPAWN = 0x0C;
     /** Attach Entity (0x1B, protocol 47): i32 rider, i32 vehicle, u8 leash/riding. */
     static final int S2C_ATTACH_ENTITY = 0x1B;
@@ -80,6 +93,20 @@ final class Protocol18 {
     static final int S2C_SPAWN_XP_ORB = 0x11;
     /** Set Experience (0x1F, protocol 47): f32 progress, short level, short total. */
     static final int S2C_SET_EXPERIENCE = 0x1F;
+    /**
+     * Entity Properties (0x20, protocol 47 — the reference's
+     * EntityAttributesS2CPacket, the #31 clientbound play registration
+     * between PlayerXp 0x1F and WorldChunk 0x21, NetworkProtocol lines
+     * 153-155): the attribute wire. VarInt entity id, Int property
+     * count, per property: String name, Double base, VarInt modifier
+     * count, per modifier: UUID (two big-endian longs), Double amount,
+     * Byte operation — the reference's write() lines 55-70 verbatim.
+     */
+    static final int S2C_ENTITY_PROPERTIES = 0x20;
+    /** The generic.maxHealth attribute name (EntityAttributes line 12 — the trackable registration). */
+    static final String ATTRIBUTE_MAX_HEALTH = "generic.maxHealth";
+    /** The generic.movementSpeed attribute name (EntityAttributes line 18 — the trackable registration). */
+    static final String ATTRIBUTE_MOVEMENT_SPEED = "generic.movementSpeed";
     /** Held Item Change (0x09, protocol 47): the i8 slot the client now holds. */
     static final int S2C_HELD_ITEM_CHANGE = 0x09;
     /** Block Action (0x24, protocol 47): i64 pos, u8 action, u8 param, u32 block. */
@@ -145,9 +172,27 @@ final class Protocol18 {
     // 0x1D is Entity Effect — writing a 1.9-style unload there killed real
     // clients with "Packet 0/29 (ib), 3 bytes extra" (29 decimal = 0x1D).
     static final int S2C_DISCONNECT = 0x40;
+    /**
+     * Server Difficulty (0x41, protocol 47 — DifficultyS2CPacket's own
+     * write): the single difficulty id byte (0 peaceful .. 3 hard). The
+     * reference's {@code locked} flag rides the packet's constructor and
+     * the client handler's getter only — the 1.8.8 wire carries the byte
+     * alone (the locked boolean joined the wire in 1.9).
+     */
+    static final int S2C_SERVER_DIFFICULTY = 0x41;
     static final int S2C_COMBAT_EVENT = 0x42;
     /** Combat event 2 = entity died (playerId varint, entityId i32, message). */
     static final int COMBAT_EVENT_ENTITY_DIED = 2;
+    /**
+     * Spectator Camera (s2c/play 0x43 — the reference's CameraS2CPacket,
+     * {@code buffer.writeVarInt(this.id)} line 27): ONE varint, the camera
+     * entity's id in the receiving client's own world (a Named-Spawn-tracked
+     * target while spectating, the Join Game own id when the camera returns
+     * to self — the client's handleCamera drops the packet on an unknown
+     * id, ClientPlayNetworkHandler line 1174's {@code getCamera(world)}
+     * null consult).
+     */
+    static final int S2C_CAMERA = 0x43;
 
     /**
      * Player Info (0x38, protocol 47 — PlayerInfoS2CPacket): varint action,
@@ -210,6 +255,14 @@ final class Protocol18 {
      * the engine exposes the wire through the native API surface.
      */
     static final int S2C_PLAYER_LIST_HEADER_FOOTER = 0x47;
+
+    /**
+     * Resource Pack Send (0x48, protocol 47 — ResourcePackS2CPacket's own
+     * write): the url string then the hash string, nothing else. The
+     * packet's own constructor law caps the hash at 40 characters; the
+     * 1.9+ varint request-id field never rides this protocol.
+     */
+    static final int S2C_RESOURCE_PACK_SEND = 0x48;
 
     // Serverbound play packet ids (protocol 47) — cross-checked against the
     // community protocol.json (PrismarineJS/minecraft-data) mapping. The

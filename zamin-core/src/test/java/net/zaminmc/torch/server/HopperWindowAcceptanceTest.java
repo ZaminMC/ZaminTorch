@@ -18,6 +18,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The hopper GUI window (the reference's HopperBlock.use + HopperMenu —
@@ -62,14 +63,14 @@ class HopperWindowAcceptanceTest {
             server.ticker().submit(() -> session.applyMovement(
                     new Position(90.5, 61.5, 91.5),
                     net.zaminmc.torch.util.Rotation.ZERO, true));
-            awaitSettled();
+            awaitSettled(server);
 
             // The right-click open (HopperBlock.use): the window id assigns,
             // the kind records, the entity lazily creates.
             AtomicInteger opened = new AtomicInteger(-1);
             server.useItemOnBlock(session, at, 1, java.util.Optional.empty(), 0,
                     opened::set);
-            awaitSettled();
+            awaitSettled(server);
             assertTrue(opened.get() > 0, "the hopper window opened (a container id)");
             assertEquals(PlayerSession.ContainerKind.HOPPER, session.openContainerKind(),
                     "the session records the hopper kind");
@@ -81,14 +82,14 @@ class HopperWindowAcceptanceTest {
             server.ticker().submit(() -> session.inventory().setSlot(
                     session.inventory().heldSlot(),
                     net.zaminmc.torch.item.ItemStack.of(BuiltinItems.DIAMOND, 7)));
-            awaitSettled();
+            awaitSettled(server);
             // Pick up from the hotbar (the cursor take).
             server.windowClick(session, opened.get(),
                     32 + session.inventory().heldSlot(), 0, 0, ok -> { });
-            awaitSettled();
+            awaitSettled(server);
             // Place into the hopper's slot 2.
             server.windowClick(session, opened.get(), 2, 0, 0, ok -> { });
-            awaitSettled();
+            awaitSettled(server);
             var hopper = server.hopper().peek(at);
             assertTrue(hopper != null, "the entity exists");
             assertEquals(7, hopper.getItem(2).count(), "the clicked stack landed");
@@ -96,7 +97,7 @@ class HopperWindowAcceptanceTest {
 
             // The shift-click out: the stack returns to the inventory.
             server.windowClick(session, opened.get(), 2, 0, 1, ok -> { });
-            awaitSettled();
+            awaitSettled(server);
             assertTrue(hopper.getItem(2).isEmpty(), "the quick-move emptied the slot");
             assertEquals(7, session.inventory().countOf(BuiltinItems.DIAMOND),
                     "the inventory received the stack back");
@@ -158,11 +159,7 @@ class HopperWindowAcceptanceTest {
     }
 
     /** The submit drains at the head of the next tick (<= 100 ms). */
-    private static void awaitSettled() {
-        try {
-            Thread.sleep(300);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
+    private void awaitSettled(EngineServer server) throws InterruptedException {
+        EngineAwaits.awaitTicks(server.world(), 6, "the submit drains at the head of the next tick");
     }
 }

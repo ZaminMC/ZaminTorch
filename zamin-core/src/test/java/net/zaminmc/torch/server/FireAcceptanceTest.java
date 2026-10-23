@@ -23,6 +23,7 @@ import net.zaminmc.torch.server.block.FireBlocks;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * The fire system, end to end: flint and steel ignites the aimed cell, fire
@@ -91,7 +92,7 @@ class FireAcceptanceTest {
     private void useOn(PlayerSession player, BlockPosition at, int face) throws InterruptedException {
         server.useItemOnBlock(player, at, face, java.util.Optional.empty(),
                 windowId -> { });
-        Thread.sleep(150);
+        EngineAwaits.awaitTicks(server.world(), 3, "engine progress (a 150 wall settle)");
     }
 
     @Test
@@ -105,7 +106,7 @@ class FireAcceptanceTest {
         server.ticker().submit(() -> igniter.applyMovement(
                 new Position(0.5, 65.5, 1.5),
                 net.zaminmc.torch.util.Rotation.ZERO, true));
-        Thread.sleep(150);
+        EngineAwaits.awaitTicks(server.world(), 3, "engine progress (a 150 wall settle)");
         igniter.inventory().setSlot(0, ItemStack.of(item("minecraft:flint_and_steel"), 1));
         igniter.inventory().selectHotbarSlot(0);
         int before = igniter.inventory().held().damage();

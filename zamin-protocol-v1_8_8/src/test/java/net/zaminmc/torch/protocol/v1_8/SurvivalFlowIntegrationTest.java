@@ -8,6 +8,7 @@ import org.junit.jupiter.api.TestInstance;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * Full survival loop over the real wire (§319 acceptance style): mine with
@@ -59,7 +60,7 @@ class SurvivalFlowIntegrationTest extends ProtocolTestBase {
 
             // --- mine the surface grass at (2,4,2) ---
             client.sendDigging(0, 2, 4, 2, 1);
-            Thread.sleep(950); // grass by hand: 18 ticks nominal (900ms)
+            EngineAwaits.awaitTicks(server.world(), 19, "grass by hand: 18 ticks nominal (900ms)");
             client.sendDigging(2, 2, 4, 2, 1);
 
             client.readBlockChangeAt(2, 4, 2, 0, 10_000); // the resulting state: air
@@ -99,7 +100,7 @@ class SurvivalFlowIntegrationTest extends ProtocolTestBase {
 
             // --- mine again, then drop the held item with Q (status 4) ---
             client.sendDigging(0, 2, 4, 2, 1);
-            Thread.sleep(950); // dirt by hand: 15 ticks nominal (750ms)
+            EngineAwaits.awaitTicks(server.world(), 19, "dirt by hand: 15 ticks nominal (750ms)");
             client.sendDigging(2, 2, 4, 2, 1);
             client.readBlockChangeAt(2, 4, 2, 0, 10_000); // air
             int[] redropped = client.readSpawnItem(10_000); // drop
@@ -149,7 +150,7 @@ class SurvivalFlowIntegrationTest extends ProtocolTestBase {
 
             // Mine it with the pickaxe: 1.5 * 30 / 2 = 23 ticks (1.15s), floor 805ms.
             client.sendDigging(0, 2, 5, 2, 1);
-            Thread.sleep(1_200);
+            EngineAwaits.awaitTicks(server.world(), 24, "engine progress (a 1_200 wall settle)");
             client.sendDigging(2, 2, 5, 2, 1);
 
             client.readBlockChangeAt(2, 5, 2, 0, 10_000); // air
