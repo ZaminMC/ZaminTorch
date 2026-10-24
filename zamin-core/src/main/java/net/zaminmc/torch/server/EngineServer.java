@@ -3076,6 +3076,14 @@ public final class EngineServer implements Server, EngineBridge {
                     // DragonEggBlock.startMining lines 81-83: the punch
                     // teleports the egg away before any dig accumulates).
                     teleportDragonEgg(at);
+                    // The play stat (NoteBlock.startMining lines 58-67: the
+                    // survival attack's play carries its own incrementStat —
+                    // the position listener above already played the note).
+                    if (noteBlocks != null && net.zaminmc.torch.server.noteblock.NoteBlockSystem
+                            .isNoteBlock(world.getBlock(at))) {
+                        session.stats().increment(
+                                net.zaminmc.torch.server.stat.EngineStats.NOTE_BLOCKS_PLAYED, 1);
+                    }
                 });
                 // The dig-start hook (Slice 27a — the reference's
                 // block.startMining arm, ServerPlayerInteractionManager

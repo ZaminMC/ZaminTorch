@@ -6,6 +6,7 @@ import net.zaminmc.torch.server.block.BuiltinBlocks;
 import net.zaminmc.torch.server.config.EngineConfig;
 import net.zaminmc.torch.server.fx.FxManager;
 import net.zaminmc.torch.server.redstone.RedstoneBlocks;
+import net.zaminmc.torch.util.Position;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -177,6 +178,54 @@ class NoteBlockSystemTest {
             assertEquals(4, actions.peek()[0], "planks below selected the bass guitar");
             assertEquals(0, actions.peek()[1], "the attack never tunes — note stays 0");
             assertEquals(0, server.noteBlocks().tileAt(new BlockPosition(x, y + 1, z)).note());
+        } finally {
+            server.shutdown(() -> { });
+        }
+    }
+
+    /**
+     * The survival attack's own stat (NoteBlock.startMining lines 58-67): the
+     * dig-start report carries the noteblockPlayed increment — the joined
+     * body's real submitMiningStart walk, not the system's bare verb.
+     */
+    @Test
+    void theSurvivalAttackIncrementsThePlayStat() throws Exception {
+        EngineServer server = boot();
+        try {
+            net.zaminmc.torch.server.net.ClientLink link =
+                    new net.zaminmc.torch.server.net.ClientLink() {
+                @Override public boolean isActive() { return true; }
+                @Override public void kick(String reason) { }
+            };
+            var result = server.joinRequest(link, "notestat",
+                    UUID.nameUUIDFromBytes("notestat".getBytes()));
+            net.zaminmc.torch.server.player.PlayerSession player =
+                    ((net.zaminmc.torch.server.net.EngineBridge.Accepted) result).session();
+
+            // Two cells beside the body (inside the dig handler's own
+            // six-block band — the reference's d3 > 36.0 gate): the floor,
+            // the note block, and a forced air cell above it (the play's
+            // own air-above gate).
+            Position feet = player.position();
+            int nx = (int) Math.floor(feet.x()) + 2;
+            int ny = (int) Math.floor(feet.y());
+            int nz = (int) Math.floor(feet.z());
+            BlockPosition noteAt = new BlockPosition(nx, ny, nz);
+            server.ticker().submit(() -> {
+                server.world().setBlock(noteAt.offset(0, -1, 0), BuiltinBlocks.OAK_PLANKS);
+                server.world().setBlock(noteAt, BuiltinBlocks.NOTE_BLOCK);
+                server.world().setBlock(noteAt.offset(0, 1, 0), server.world().airType());
+            });
+            await(server, () -> server.noteBlocks().tileAt(noteAt) != null,
+                    "the placement created the tile");
+
+            server.blockInteraction().submitMiningStart(player, noteAt);
+            await(server, () -> player.stats().get(
+                    net.zaminmc.torch.server.stat.EngineStats.NOTE_BLOCKS_PLAYED) > 0,
+                    "the survival attack incremented the play stat");
+            assertEquals(1, player.stats().get(
+                    net.zaminmc.torch.server.stat.EngineStats.NOTE_BLOCKS_PLAYED),
+                    "exactly one increment per dig start");
         } finally {
             server.shutdown(() -> { });
         }
