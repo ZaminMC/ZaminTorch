@@ -2592,19 +2592,16 @@ public final class MobManager {
 
     /**
      * Melee hit from another mob (Slice 16b — the mob-vs-mob target family's
-     * damage land): the attacker's identity rides the walk. The wolf's own
-     * takeDamage shaves a non-player non-arrow attacker to
-     * {@code (amount + 1) / 2} (WolfEntity lines 262-268), and the victim's
-     * RevengeGoal answers: the hostile kinds and the wolves target their
-     * attacker, the wolf and the zombie calling their nearby kin.
+     * damage land): the attacker's identity rides the walk. The victim's
+     * RevengeGoal answers inside the walk (the reference's takeDamage sets
+     * the attacker at its own site, LivingEntity lines 671-676, and the
+     * goal reads it — the engine's walk carries the same seat): the hostile
+     * kinds, the wolves, and the iron golem target their attacker, the wolf
+     * and the zombie calling their nearby kin.
      */
     public boolean hurtByMob(MobEntity attacker, MobEntity victim, float amount) {
         Objects.requireNonNull(attacker, "attacker");
         Objects.requireNonNull(victim, "victim");
-        if (victim.type() == MobType.WOLF) {
-            // WolfEntity.takeDamage: a mob's hit rounds up to half.
-            amount = (amount + 1.0f) / 2.0f;
-        }
         if (attacker.type() == MobType.IRON_GOLEM) {
             // IronGolemEntity.tryDamage line 202: the golem's own damage
             // draw — the heavy 7 + nextInt(15) roll per swing.
@@ -2650,9 +2647,8 @@ public final class MobManager {
             if (thorns != null) {
                 thorns.biteBack(victim, attacker);
             }
-            if (!victim.dead()) {
-                applyRevenge(victim, attacker);
-            } else if (attacker.type() == MobType.ZOMBIE
+            if (victim.dead()
+                    && attacker.type() == MobType.ZOMBIE
                     && victim.type() == MobType.VILLAGER) {
                 // ZombieEntity.onKill (lines 352-378, fired from die's own
                 // attacker credit): a zombie's killing blow on a villager
@@ -2665,19 +2661,30 @@ public final class MobManager {
     }
 
     /**
-     * RevengeGoal's arm (Slice 16b): the victim — any hostile kind or a
-     * wolf — targets its attacker, and the call-others family (the wolf's
-     * and the zombie's own {@code true} flag) passes the anger to every
-     * nearby same-kind body with no live target.
+     * RevengeGoal's arm (Slice 16b + the golem's own, IronGolemEntity
+     * targetSelector 2 — line 55): the victim — any hostile kind, a wolf,
+     * the killer bunny, or an iron golem — targets its attacker, and the
+     * call-others family (the wolf's and the zombie's own {@code true}
+     * flag) passes the anger to every nearby same-kind body with no live
+     * target. The gates are the reference's own: a same-team attacker
+     * never angers its kin ({@code TrackTargetGoal.isTarget} lines
+     * 102-106), and the call-others only reach kin NOT on the attacker's
+     * team ({@code RevengeGoal.start} line 39's {@code !isInSameTeam}).
      */
     private void applyRevenge(MobEntity victim, MobEntity attacker) {
         if (attacker.dead()) {
             return;
         }
+        if (victim.sameTeamAs(attacker)) {
+            return; // isTarget's same-team refusal
+        }
         boolean revengeArmed = victim.type().hostile || victim.type() == MobType.WOLF
                 // The killer bunny's own RevengeGoal (setVariant line 324:
                 // targetSelector 1, hurt → the attacker).
-                || victim.rabbitKiller();
+                || victim.rabbitKiller()
+                // The golem's RevengeGoal(this, false) — targetSelector 2,
+                // no call-others.
+                || victim.type() == MobType.IRON_GOLEM;
         if (!revengeArmed) {
             return;
         }
@@ -2686,12 +2693,16 @@ public final class MobManager {
         if (!callOthers) {
             return;
         }
+        String attackerTeam = attacker.teamName();
         for (MobEntity kin : mobs) {
             if (kin == victim || kin.type() != victim.type() || kin.dead()) {
                 continue;
             }
             if (kin.mobAttackTarget() != null) {
                 continue; // the reference's own gate: only the targetless join
+            }
+            if (attackerTeam != null && attackerTeam.equals(kin.teamName())) {
+                continue; // RevengeGoal.start line 39: kin on the attacker's team never join
             }
             double dx = kin.position().x() - victim.position().x();
             double dy = kin.position().y() - victim.position().y();
@@ -2960,6 +2971,15 @@ public final class MobManager {
         if (amount <= 0 || mob.dead()) {
             return false;
         }
+        // The wolf's own takeDamage shave (WolfEntity lines 264-268): a
+        // non-player non-arrow living attacker — a mob's claw, a mob-shot
+        // arrow, a mob-sourced explosion — rounds the amount up to half.
+        // The walk's own seat (the reference's takeDamage entry): every
+        // attacker-carrying path shaves, the 16b melee arm and the explosion
+        // and projectile identity arms alike.
+        if (attacker != null && mob.type() == MobType.WOLF) {
+            amount = (amount + 1.0f) / 2.0f;
+        }
         // The Invulnerable pin (Slice 75 — Entity.isInvulnerable's own
         // gate over every damage entry): the body refuses every wound.
         // The reference's creative-melee and void exemptions ride the
@@ -3075,7 +3095,38 @@ public final class MobManager {
         if (mob.type() == MobType.VILLAGER) {
             villagerWoundHook(mob, attacker, attackingPlayer);
         }
+        // The revenge seat (LivingEntity.takeDamage lines 671-676 —
+        // setAttacker at the wound's own site; the targetSelector reads it
+        // the next goal walk): a living attacker angers the victim through
+        // the walk's own arm, whatever path carried the identity — the 16b
+        // melee, the mob-shot arrow, the mob-sourced explosion. The
+        // reference's player arm rides the forced-hunt seat for the one
+        // kind whose own mind never hunts players: a VILLAGE golem revenges
+        // on its player attacker (IronGolemEntity targetSelector 2 — the
+        // RevengeGoal routes through canAttack line 137, so the
+        // player-built body's own gate refuses players).
+        if (!mob.dead()) {
+            if (attacker != null) {
+                applyRevenge(mob, attacker);
+            } else if (attackingPlayer != null
+                    && attackingPlayer.state() == PlayerState.PLAYING
+                    && mob.type() == MobType.IRON_GOLEM
+                    && !mob.golemPlayerCreated()
+                    && !sameTeamAsPlayer(mob, attackingPlayer)) {
+                mob.setForcedHuntPlayer(attackingPlayer.engineEntityId());
+            }
+        }
         return true;
+    }
+
+    /**
+     * The player's same-team consult (TrackTargetGoal.isTarget lines
+     * 102-106 over the player's NAME key — PlayerEntity.getScoreboardTeam
+     * line 1634): a teamed body never avenges on its own kin.
+     */
+    private boolean sameTeamAsPlayer(MobEntity mob, PlayerSession player) {
+        String own = mob.teamName();
+        return own != null && own.equals(world.teamNameOf(player.name()));
     }
 
     /**
@@ -3318,6 +3369,11 @@ public final class MobManager {
         if (villages == null) {
             return;
         }
+        // The player arms' own gate (IronGolemEntity.canAttack line 137:
+        // {@code !isPlayerCreated() || !PlayerEntity.isAssignableFrom(type)}
+        // — a player-built golem never attacks players, the defense goal's
+        // canTarget consult included).
+        boolean mayHuntPlayers = !golem.golemPlayerCreated();
         Position at = golem.position();
         int x = (int) Math.floor(at.x());
         int y = (int) Math.floor(at.y());
@@ -3331,13 +3387,13 @@ public final class MobManager {
             MobEntity attackerMob = byId(attackerId);
             if (attackerMob != null) {
                 golem.setMobAttackTarget(attackerMob);
-            } else {
+            } else if (mayHuntPlayers) {
                 golem.setForcedHuntPlayer(attackerId); // a player attacker
             }
             return;
         }
         // The 1-in-20 fallback (lines 30-33): the village's enemy player.
-        if (random.nextInt(20) == 0) {
+        if (mayHuntPlayers && random.nextInt(20) == 0) {
             String name = villages.defensePlayerName(village, x, y, z);
             if (name != null) {
                 int playerId = villages.engineIdOfPlayer(name);
