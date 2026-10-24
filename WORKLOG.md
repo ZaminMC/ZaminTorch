@@ -14860,3 +14860,29 @@ Stage Summary:
   ambient-water/spawn-attribute/dispenser tails and ML-019 retire with
   this entry. The full-suite confirming run rides the release pipeline
   (the targeted families all green locally).
+
+---
+Task ID: hunger-persistence-tail
+Agent: the coordinator (Abasing session)
+Task: The Wave AUDIT's one deferred row landed — the hunger family's
+exhaustion + food tick timer now survive restarts.
+
+Work Log:
+- The store-format slice: ZPD v11 -> v12 (the row's field list grows;
+  no wrapper patch): PlayerSnapshot gained exhaustion + foodTickTimer
+  (the pre-v11 shape's ctor chain preserved, the zeroed legacy pair),
+  PlayerDataStore's serialize appends the float + varint tail with the
+  legacy reader keeping 0/0 for v1-v11 files.
+- The live wiring: the capture site (snapshotOf) supplies
+  session.exhaustion() + session.bodyTimer() (the engine's bodyTimer IS
+  the reference's HungerManager foodTickTimer — the shared regen/starve
+  cadence); the restore walk applies both at the setBody site through
+  the new restoreBodyTimer verb; PlayerNbt stamps the LIVE timer in the
+  .dat export (was the hard 0).
+- Verified: PlayerSaveSplitTest 5/0 (the byte-identical historical walk
+  re-pinned over v12, the roundtrip carrying 3.5f/61); the player + nbt
+  packages green.
+
+Stage Summary:
+- The hunger family is now vanilla grade end to end INCLUDING the
+  persistence tail — the Wave AUDIT row closes whole.

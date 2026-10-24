@@ -4300,13 +4300,17 @@ out of that slice's blast radius).
       only). Pinned by KnockbackAndExhaustionTest 7/0 (the refusal pair
       + the ungated readNbt-style restore riding the cap/rate pins);
       the player/entity/interaction/potion packages green.
-- [ ] THE HUNGER PERSISTENCE TAIL (the audit's one deferred row): the
-      session tracks exhaustion but the player store's binary row
-      carries only food/saturation (the Z-format's own field list), and
-      the NBT export stamps foodTickTimer 0 — the vanilla player.dat
-      keeps foodExhaustionLevel and foodTickTimer across restarts. The
-      fix is a store-format slice: the row's field list grows (the
-      version bump + the legacy-reader pair), not a wrapper patch.
+- [x] THE HUNGER PERSISTENCE TAIL LANDED (a18d9fc3): the ZPD v12 tail —
+      the pending exhaustion (float) + the food cadence timer (varint,
+      the reference's foodTickTimer over the engine's bodyTimer) ride
+      the player store's binary row, restore with the body through the
+      same walk (setExhaustion + restoreBodyTimer at the setBody site),
+      and the NBT export stamps the live pair (PlayerNbt's foodTickTimer
+      carried the live timer now, HungerManager.writeNbt 71-76). The
+      legacy reader keeps the zeroed pair for v1-v11 files (the
+      historical fresh-start shape). Pinned by PlayerSaveSplitTest 5/0
+      (the byte-identical walk re-pinned over v12, the roundtrip
+      carrying 3.5f/61); the player + nbt packages green.
 
 ## Wave W6 — the 2026-10-24 wave-6 PR merge (the five ledgered tails, landed)
 
