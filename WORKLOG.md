@@ -14813,3 +14813,50 @@ mine — PlayerEntity/HungerManager/DamageSource, not memory.
 Stage Summary:
 - The hunger family is vanilla grade end to end except the persistence
   tail, which is ledgered and family-scoped for the next session.
+
+---
+Task ID: wave6-pr-merge
+Agent: the coordinator (Abasing session)
+Task: The five open wave-6 PRs reviewed, integrated, and merged — with
+the PR #53 detonation conflict reconciled over the R-1 walk.
+
+Work Log:
+- Baseline: develop @ 3e47ecd6 (release 134) clean; fetched the five
+  wave6/* branches (cut from 4fccf51b) and their PRs #49-#53. Trial
+  merges: four clean, #53 one-file conflict (EngineServer.java) — the
+  branch's pre-R-1 detonation family vs the landed R-1 1:1 walk + the
+  head-drop rider's detonateAtFromMob seat.
+- Merged #49 (the dispenser behavior tails: the spawn-egg, firework,
+  boat, minecart, armor, skull, TNT-minecart arms), #50 (ML-019's
+  batched wire: 0x22 Multi Block Change + 0x26 Map Chunk Bulk), #51
+  (the ambient/water placement laws: the squid's IN_WATER cell + the
+  63 sea-level band, the bat's ON_GROUND + below-63 + dark gate), #52
+  (the spawn attributes: the sheep color pick, the horse's MAX_HEALTH/
+  MOVEMENT_SPEED rolls, the spawnAnimals/spawnMonsters difficulty
+  flags) — all clean.
+- The #53 conflict resolved with the R-1 walk canonical: the branch's
+  detonateAtWithAttacker + maxDamage family dropped, the wither birth
+  re-threaded through detonateAtFromMob (the reference's own
+  explode(this, ...) seat), the old linear-falloff wound block
+  superseded by the two-phase walk whose hurtFromExplosion already
+  carries the attacker seat (the branch's wither threading and the
+  rider's creeper seat now ride ONE law), the wolf shave + the
+  walk-level revenge + the team gates + the day-neutral hunt gate +
+  the ranged-on-mob arm + the MobWorldQuery consults (teamNameOf,
+  brightness, the team-aware scans) landed whole. One stray brace from
+  the resolution caught by the compiler and fixed before any push.
+- Verified locally before pushing: compile green; CombatTargetTailsTest
+  13/13 (qualitative pins — survived the R-1 law change), BlastSourceTest
+  3/3, ChargedCreeperHeadDropTest 6/6 (both R-1-era suites green over
+  the reconciliation), DispenserBehaviorTailsTest 9/9,
+  HorseSpawnAttributeRollTest 6/6, NaturalSpawnSystemTest 12/12,
+  ChunkBulkWireTest 3/3, MultiBlockChangeWireTest 5/5.
+- A parallel session's hunger/food audit wave (release 135) landed on
+  origin/develop mid-integration; synced clean and pushed as
+  bfe1debe..fefabb5b. All five PRs verified MERGED via the API.
+
+Stage Summary:
+- The five wave-6 lanes are in develop; the compat ledger's 16b/
+  ambient-water/spawn-attribute/dispenser tails and ML-019 retire with
+  this entry. The full-suite confirming run rides the release pipeline
+  (the targeted families all green locally).

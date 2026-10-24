@@ -4308,6 +4308,45 @@ out of that slice's blast radius).
       fix is a store-format slice: the row's field list grows (the
       version bump + the legacy-reader pair), not a wrapper patch.
 
+## Wave W6 — the 2026-10-24 wave-6 PR merge (the five ledgered tails, landed)
+
+- [x] THE FIVE WAVE-6 LANES MERGED (PRs #49-#53, integrated with the
+      detonation conflict reconciled over the R-1 walk): the dispenser
+      behavior tails (#49 — the spawn-egg, firework, boat, minecart,
+      armor, skull, and TNT-minecart arms 1:1, DispenserBehaviorTailsTest
+      9/0), ML-019's batched wire (#50 — 0x22 Multi Block Change at the
+      block-change flush + 0x26 Map Chunk Bulk at the view walks,
+      MultiBlockChangeWireTest 5/0 + ChunkBulkWireTest 3/0), the
+      ambient/water placement laws (#51 — the squid's IN_WATER cell arm
+      with the 63 sea-level band, the bat's ON_GROUND + below-63 + dark
+      gate with the 1-in-2 coin, NaturalSpawnSystemTest 12/0), the
+      spawn attributes (#52 — the sheep color pick, the horse's
+      MAX_HEALTH/MOVEMENT_SPEED rolls at the spawn site, the
+      spawnAnimals/spawnMonsters difficulty flags,
+      HorseSpawnAttributeRollTest 6/0), and the 16b combat tails (#53 —
+      the golem's target law with the creeper exclusion + the team-aware
+      scans + the playerCreated gates, the spider's brightness-gated
+      day-neutral hunt with the 1-in-100 daylight drop, the skeleton's
+      always-on golem feud + the ranged-on-mob arm + the arrow shooter
+      identity, the scoreboard-team gates across every hunt scan and the
+      revenge + call-others, the explosion's attacker identity through
+      the walk, CombatTargetTailsTest 13/0).
+- [x] THE #53 RECONCILIATION (the merge's one conflict, EngineServer's
+      detonation family): the branch's pre-R-1 detonateAtWithAttacker +
+      maxDamage family dropped in favor of the landed two-phase walk —
+      the wither birth re-threaded through detonateAtFromMob (the
+      reference's own explode(this, ...) seat, the same seat the
+      charged-creeper head-drop rider landed), the old linear-falloff
+      wound block superseded by the walk whose hurtFromExplosion already
+      carries the attacker seat (the branch's wolf shave + walk-level
+      revenge + team gates all ride the ONE law now), the wolf shave
+      moved to the hurt walk's entry (WolfEntity.takeDamage lines
+      264-268 — every attacker-carrying path shaves), the arrow's
+      shooterMob riding mobHit's hurt call. Verified: the R-1-era
+      BlastSourceTest 3/0 and ChargedCreeperHeadDropTest 6/0 green over
+      the reconciliation; the targeted families all green locally; the
+      full-suite confirming run rides the release pipeline.
+
 # 33. CODEBASE SCALE, CLASS COHESION, AND MAINTAINABILITY
 
 Torch's server-engine single-JAR codebase has exceeded 12,000 lines of code. This is a scale milestone, not a target for artificial restructuring.

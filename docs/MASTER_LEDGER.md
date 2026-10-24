@@ -304,8 +304,12 @@ I=infra/CI/release, S=security/boundary.
   datas; the reference batches (0x22, 0x26). Clients accept singles — a
   throughput/bandwidth difference, not a conformance break.
 - Direction: optional batching optimization AFTER attribution (ML-007)
-  proves it matters. Status: intentional simplification, revisit on
-  evidence.
+  proves it matters. Status: LANDED (PR #50, Wave W6, 2026-10-24): the
+  0x22 Multi Block Change at the block-change flush (up to 64 same-chunk
+  changes in one record) and the 0x26 Map Chunk Bulk at the view walks
+  (the join/region-crossing chunk batches, the 1.8.8 bulk's own
+  sky-light column carry) — MultiBlockChangeWireTest 5/0 +
+  ChunkBulkWireTest 3/0 over the conformance rig. RETIRED.
 
 ### ML-020 — online-mode (Mojang auth + encryption) absent — scope decision
 - Category: scope decision. Layers: P, S. Severity: M (deployment-dependent).
