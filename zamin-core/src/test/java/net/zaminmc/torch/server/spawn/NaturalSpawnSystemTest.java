@@ -563,4 +563,179 @@ class NaturalSpawnSystemTest {
         }
         assertTrue(anyOcelot, "the jungle's monster walk grows the ocelots");
     }
+
+    // ------------------------------------------------------------------
+    // The ambient/water categories (Slice 16e's tail — the SpawnPlacement
+    // per-kind position gates + the kinds' own canSpawn laws)
+    // ------------------------------------------------------------------
+
+    /** The water source (the fake world's fluid). */
+    private static final net.zaminmc.torch.block.BlockType WATER =
+            net.zaminmc.torch.server.block.FluidBlocks.sourceOf(
+                    net.zaminmc.torch.server.block.FluidBlocks.Kind.WATER);
+
+    private static void fillLayer(FakeWorld world, int y, Object block) {
+        for (int x = -34; x <= 34; x++) {
+            for (int z = -34; z <= 34; z++) {
+                world.blocks.put(FakeWorld.key(x, y, z), block);
+            }
+        }
+    }
+
+    /**
+     * The AMBIENT gate (the bat): SpawnPlacement line 44 gives the bat the
+     * plain ON_GROUND cell rule — never the animals' grass floor
+     * (AnimalEntity lines 90-95 are the AnimalEntity's own law; the bat
+     * is an AmbientMobEntity) — and BatEntity.canSpawn lines 188-203 adds
+     * its own three arms below the walk: the below-the-sea-level band
+     * (the World's 63, line 62), the 1-in-2 coin (line 198, outside the
+     * Oct 20 - Nov 3 window the engine does not model) and the raw
+     * brightness against the nextInt(4) — World.getRawBrightness line
+     * 449 reads WorldChunk.getLight(pos, ambientDarkness) lines 592-606,
+     * the SAME ambient-darkness shave the monsters ride, so a sky-7 cell
+     * admits the bat at midnight (7 - 11 bottoms at 0) and refuses it at
+     * noon (7 > 3).
+     */
+    @Test
+    void batsSpawnUnderTheAmbientGateBelowTheSeaLevelInTheDark() {
+        // Phase 1 — the stone cave (the floor is STONE, never grass; the
+        // cells dark): the bats land with the rare cadence OFF (the
+        // AMBIENT category carries no rare flag — MobCategory line 13),
+        // below the sea level, at the cave cells' own y.
+        FakeWorld cave = new FakeWorld(4);
+        fillLayer(cave, 2, net.zaminmc.torch.server.block.BuiltinBlocks.STONE);
+        PlayerSession walker = player("Spelunker", 0.5, 0.5);
+        Spawned caveBats = new Spawned();
+        NaturalSpawnSystem caveSystem = new NaturalSpawnSystem(
+                spawnSink(caveBats), cave, new Random(3));
+        for (int cycle = 0; cycle < 30; cycle++) {
+            caveSystem.tick(List.of(walker), 18000L, false);
+        }
+        assertTrue(caveBats.countOf(NaturalSpawnSystem.Category.AMBIENT) > 0,
+                "the stone cave grows the bats (no grass floor, no rare cadence)");
+        for (int i = 0; i < caveBats.types.size(); i++) {
+            if (caveBats.types.get(i) == MobType.BAT) {
+                assertEquals(3.0, caveBats.at.get(i).y(), 1e-9,
+                        "the bat lands at the dark cell above the stone floor");
+            }
+        }
+        // Phase 2 — the sky-7 band: midnight admits it through the
+        // ambient-darkness shave, noon refuses it (the unshaved 7 clears
+        // the roll's whole 0-3 band) while the dark half still grows —
+        // the noon walk itself ran, only the band's light refuses.
+        FakeWorld lit = new FakeWorld(4);
+        fillLayer(lit, 2, net.zaminmc.torch.server.block.BuiltinBlocks.STONE);
+        for (int x = 7; x <= 34; x++) {
+            for (int z = -34; z <= 34; z++) {
+                lit.skyLight.put(FakeWorld.key(x, 3, z), 7);
+            }
+        }
+        int midnightBand = 0;
+        int midnightDark = 0;
+        for (int seed = 0; seed < 16 && midnightBand == 0; seed++) {
+            Spawned night = new Spawned();
+            NaturalSpawnSystem nightSystem = new NaturalSpawnSystem(
+                    spawnSink(night), lit, new Random(seed));
+            for (int cycle = 0; cycle < 20; cycle++) {
+                nightSystem.tick(List.of(walker), 18000L, false);
+            }
+            for (int i = 0; i < night.types.size(); i++) {
+                if (night.types.get(i) != MobType.BAT) {
+                    continue; // the midnight cave also hosts the monsters
+                }
+                if (night.at.get(i).x() >= 7.0) {
+                    midnightBand++;
+                } else {
+                    midnightDark++;
+                }
+            }
+        }
+        assertTrue(midnightBand > 0,
+                "midnight's shave (7 - 11 -> 0) admits the sky-7 band");
+        assertTrue(midnightDark > 0, "the dark half grows through the same walks");
+        Spawned noon = new Spawned();
+        NaturalSpawnSystem noonSystem = new NaturalSpawnSystem(
+                spawnSink(noon), lit, new Random(3));
+        for (int cycle = 0; cycle < 20; cycle++) {
+            noonSystem.tick(List.of(walker), 6000L, false);
+        }
+        int noonBand = 0;
+        boolean noonDark = false;
+        for (int i = 0; i < noon.types.size(); i++) {
+            if (noon.types.get(i) != MobType.BAT) {
+                continue;
+            }
+            if (noon.at.get(i).x() >= 7.0) {
+                noonBand++;
+            } else {
+                noonDark = true;
+            }
+        }
+        assertEquals(0, noonBand, "noon's raw 7 never passes the nextInt(4)");
+        assertTrue(noonDark, "the dark half still grows at noon — the walk ran");
+        // Phase 3 — the height band: a dark cave at y 69 (the floor 68)
+        // sits over the sea level 63; the whole category refuses it.
+        FakeWorld high = new FakeWorld(70);
+        fillLayer(high, 68, net.zaminmc.torch.server.block.BuiltinBlocks.STONE);
+        Spawned highBats = new Spawned();
+        NaturalSpawnSystem highSystem = new NaturalSpawnSystem(
+                spawnSink(highBats), high, new Random(3));
+        for (int cycle = 0; cycle < 40; cycle++) {
+            highSystem.tick(List.of(walker), 18000L, false);
+        }
+        assertEquals(0, highBats.countOf(NaturalSpawnSystem.Category.AMBIENT),
+                "no bat spawns at y 69 — the sea-level band holds (line 190)");
+    }
+
+    /**
+     * The WATER_CREATURE gate (the squid): SpawnPlacement line 54 gives the
+     * squid the IN_WATER cell rule — the liquid cell with the liquid below
+     * and the non-solid above (isValidSpawnPos lines 150-155; before this
+     * slice the generic arm's solid-floor/air-cell rule refused every
+     * in-water cell, so the natural walk never grew a squid) — and
+     * SquidEntity.canSpawn line 160 adds the y band: y > 45 and below the
+     * World's own seaLevel 63 (World line 62), so the TOP water cell 62
+     * stays legal (the pre-tail band read the generator's 62 water top and
+     * lost it) while 63 and above never spawn.
+     */
+    @Test
+    void squidsSpawnInWaterUnderTheWaterGateInsideTheSeaLevelBand() {
+        // Phase 1 — the y-band's top: only the 62 cell passes (below it
+        // the 61 water cell fails the liquid-below arm — its own below is
+        // air), so EVERY landed squid measures the band's top edge.
+        FakeWorld sea = new FakeWorld(62);
+        fillLayer(sea, 61, WATER);
+        fillLayer(sea, 62, WATER);
+        PlayerSession swimmer = player("Swimmer", 0.5, 0.5);
+        Spawned squids = new Spawned();
+        NaturalSpawnSystem seaSystem = new NaturalSpawnSystem(
+                spawnSink(squids), sea, new Random(3));
+        for (int cycle = 0; cycle < 30; cycle++) {
+            seaSystem.tick(List.of(swimmer), 6000L, false);
+        }
+        assertTrue(squids.countOf(NaturalSpawnSystem.Category.WATER_CREATURE) > 0,
+                "the water column grows the squid at noon — no light gate at all");
+        for (MobType type : squids.types) {
+            assertEquals(MobType.SQUID, type, "the water world grows squids alone");
+        }
+        for (Position at : squids.at) {
+            assertEquals(62.0, at.y(), 1e-9,
+                    "the squid lands in the top water cell 62 — the sea-level band's own top");
+        }
+        // Phase 2 — over the band: the 62-64 column passes the IN_WATER
+        // cell rule at 63 and 64 but the entity gate refuses both (the
+        // 62 cell fails the liquid-below arm — its own below is air).
+        FakeWorld flooded = new FakeWorld(64);
+        fillLayer(flooded, 62, WATER);
+        fillLayer(flooded, 63, WATER);
+        fillLayer(flooded, 64, WATER);
+        Spawned none = new Spawned();
+        NaturalSpawnSystem floodedSystem = new NaturalSpawnSystem(
+                spawnSink(none), flooded, new Random(3));
+        for (int cycle = 0; cycle < 40; cycle++) {
+            floodedSystem.tick(List.of(swimmer), 18000L, false);
+        }
+        assertEquals(0, none.countOf(NaturalSpawnSystem.Category.WATER_CREATURE),
+                "no squid spawns at y 63 or above — the sea-level band holds (line 160)");
+    }
 }

@@ -36,7 +36,11 @@ import java.util.Set;
  * brightness gate (the raw light — no ambient-darkness shave, the
  * reference's own {@code getActualLight} = {@code chunk.getLight(pos, 0)}),
  * the monster's randomized sky/block light rule read against the
- * time-of-day ambient darkness, and the four-per-chunk limit with the
+ * time-of-day ambient darkness, the ambient/water pair's own placement
+ * laws (the {@code SpawnPlacement} per-kind environments — the squid's
+ * IN_WATER cell rule, the bat's ON_GROUND cell rule with its own
+ * below-the-sea-level darkness band — Slice 16e's tail), and the
+ * four-per-chunk limit with the
  * horse-only 1/5 baby roll.
  *
  * <p>The mobs stay the MobManager's; this system owns the spawn math and
@@ -463,8 +467,9 @@ public final class NaturalSpawnSystem {
                         float yaw = random.nextFloat() * 360.0F;
                         // The entity's own canSpawn gate (line 112 — after
                         // the yaw roll, before the initialize): the slime's
-                        // swamp/chunk arms; every other kind carries none.
-                        if (!canSpawnAt(entry.type(), x, y, z, chunkX, chunkZ)) {
+                        // swamp/chunk arms, the bat's dark band; every other
+                        // kind carries none.
+                        if (!canSpawnAt(entry.type(), x, y, z, chunkX, chunkZ, ambientDarkness)) {
                             continue;
                         }
                         mobs.spawn(entry.type(),
@@ -502,11 +507,14 @@ public final class NaturalSpawnSystem {
         if (cell.y() <= 0) {
             return false; // the void floor: nothing below y=1 ever grounds a spawn
         }
-        if (type == MobType.GUARDIAN) {
-            // SpawnPlacement.ENVIRONMENTS (line 67): the guardian's own
-            // IN_WATER environment — the liquid cell with the liquid below
-            // and the non-solid above (isValidSpawnPos lines 150-155); no
-            // light gate at all (canSpawnAtLightLevel answers true).
+        if (type == MobType.GUARDIAN || type == MobType.SQUID) {
+            // SpawnPlacement.ENVIRONMENTS (lines 67 and 54): the guardian's
+            // and the squid's own IN_WATER environment — the liquid cell
+            // with the liquid below and the non-solid above
+            // (isValidSpawnPos lines 150-155); no light gate at all
+            // (WaterMobEntity.canSpawn line 20 answers the squid's true;
+            // the reference consults the environment per KIND, never per
+            // category — NaturalSpawner line 102).
             return isFluidAt(cell.x(), cell.y(), cell.z())
                     && isFluidAt(cell.x(), cell.y() - 1, cell.z())
                     && !isSolidAt(cell.x(), cell.y() + 1, cell.z());
@@ -527,6 +535,16 @@ public final class NaturalSpawnSystem {
         }
         if (isSolidAt(cell.x(), cell.y() + 1, cell.z())) {
             return false;
+        }
+        if (type == MobType.BAT) {
+            // SpawnPlacement.ENVIRONMENTS (line 44): the bat's ON_GROUND
+            // environment — the generic arm above IS its whole position
+            // gate. The bat is an AmbientMobEntity, never an AnimalEntity:
+            // the grass floor and the > 8 brightness below are the
+            // animals' own canSpawn law (AnimalEntity lines 90-95), never
+            // the bat's — its own gate rides canSpawnAt, the reference's
+            // line-112 consult (BatEntity.canSpawn lines 188-203).
+            return true;
         }
         if (isHostile(type)) {
             // MonsterEntity.canSpawnAtLightLevel lines 112-127: the sky
@@ -551,8 +569,11 @@ public final class NaturalSpawnSystem {
     }
 
     /**
-     * The entity-level spawn gates (the spawner's own consult, line 112):
-     * only the slime carries one (SlimeEntity.canSpawn lines 235-259) —
+     * The entity-level spawn gates (the spawner's own consult, line
+     * 112 — the kinds' own {@code canSpawn} overrides): the ghast's
+     * 1-in-20, the squid's y band, the bat's dark band, the guardian's
+     * sky roll — and the richest one, the slime's
+     * (SlimeEntity.canSpawn lines 235-259) —
      * the swampland band (the moon-phased night roll — the engine's biome
      * family carries no swamp, so the arm short-circuits before its
      * rolls exactly like a plains spawn in the reference) and the famous
@@ -561,7 +582,8 @@ public final class NaturalSpawnSystem {
      * 1:1 — {@code seed + cx*cx*4987142 + cx*5947611 + cz*cz*4392871L +
      * cz*389711 ^ 987234911L}), then the {@code y < 40} depth gate.
      */
-    private boolean canSpawnAt(MobType type, int x, int y, int z, int chunkX, int chunkZ) {
+    private boolean canSpawnAt(MobType type, int x, int y, int z, int chunkX, int chunkZ,
+                               int ambientDarkness) {
         if (type == MobType.GHAST) {
             // GhastEntity.canSpawn (line 126): the 1-in-20 roll — the
             // giant body stays rare whatever the weight rows say (the
@@ -570,8 +592,13 @@ public final class NaturalSpawnSystem {
             return random.nextInt(20) == 0;
         }
         if (type == MobType.SQUID) {
-            // SquidEntity.canSpawn: the y 45-seaLevel band, in water.
-            return y > 45 && y < 62
+            // SquidEntity.canSpawn (line 160): the y > 45 and the sea-level
+            // read — the World's own seaLevel 63 (World line 62; the
+            // engine's world view answers the same), so the top water
+            // cell 62 stays legal (the pre-tail band read the generator's
+            // 62 water top and lost it) — in water (the cell rule already
+            // holds; the super's WaterMobEntity.canSpawn answers true).
+            return y > 45 && y < 63
                     && isWaterAt(x, y, z);
         }
         if (type == MobType.GUARDIAN) {
@@ -581,6 +608,27 @@ public final class NaturalSpawnSystem {
             // hasSkyAccessIgnoreLiquids) always passes.
             return random.nextInt(20) == 0
                     || world.skyLightAt(new BlockPosition(x, y, z)) < 15;
+        }
+        if (type == MobType.BAT) {
+            // BatEntity.canSpawn (lines 188-203): below the sea level
+            // first (the World's 63, line 62 — no roll), then the 1-in-2
+            // coin (line 198 — the else of the Oct 20 - Nov 3 window; the
+            // calendar arm rides no engine clock and stays unmodeled, the
+            // band keeps its j = 4), then the raw brightness against the
+            // nextInt(4): World.getRawBrightness (line 449) reads
+            // WorldChunk.getLight(pos, ambientDarkness) (lines 592-606 —
+            // the max(sky - ambientDarkness, block) walk, the same read
+            // the monsters ride).
+            if (y >= 63) {
+                return false;
+            }
+            if (random.nextBoolean()) {
+                return false;
+            }
+            BlockPosition cell = new BlockPosition(x, y, z);
+            int rawBrightness = Math.max(world.skyLightAt(cell) - ambientDarkness,
+                    world.blockLightAt(cell));
+            return rawBrightness <= random.nextInt(4);
         }
         if (type != MobType.SLIME) {
             return true; // every other kind carries no entity-level gate
