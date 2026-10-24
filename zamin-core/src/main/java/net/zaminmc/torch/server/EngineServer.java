@@ -20190,8 +20190,11 @@ public final class EngineServer implements Server, EngineBridge {
          * The rain read (Slice 30d — World.isRainingAt's shape): the rain
          * flag up AND the point above the precipitation height at its
          * column (the first free cell above the surface, the lightning
-         * seat's own consult). The nether never rains (no weather system
-         * owns it — the rain flag lives on the overworld).
+         * seat's own consult) AND the biome's own rain read (the
+         * reference's isRaining lines 2565-2579: the snowy family refuses
+         * — it snows, never rains — and the dry family — the deserts,
+         * hell, the end — refuses everywhere). The nether never rains (no
+         * weather system owns it — the rain flag lives on the overworld).
          */
         @Override
         public boolean isRainingAt(double x, double y, double z) {
@@ -20200,7 +20203,17 @@ public final class EngineServer implements Server, EngineBridge {
                 return false;
             }
             int height = surfaceY((int) Math.floor(x), (int) Math.floor(z)) + 1;
-            return y >= height;
+            if (y < height) {
+                return false;
+            }
+            String name = world.biomeAt(new BlockPosition(
+                    (int) Math.floor(x), 64, (int) Math.floor(z)));
+            try {
+                return net.zaminmc.torch.server.world.Biome
+                        .valueOf(name.toUpperCase(java.util.Locale.ROOT)).rainy();
+            } catch (IllegalArgumentException unknown) {
+                return net.zaminmc.torch.server.world.Biome.PLAINS.rainy();
+            }
         }
 
         @Override
