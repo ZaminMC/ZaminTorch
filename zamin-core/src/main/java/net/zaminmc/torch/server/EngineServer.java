@@ -383,6 +383,8 @@ public final class EngineServer implements Server, EngineBridge {
     private ExplosionService endExplosionService;
     /** The note tiles' ZND persistence. */
     private net.zaminmc.torch.server.noteblock.NoteDataStore noteStore;
+    /** The spawners' ZSD persistence (the typed rows' restart survival). */
+    private net.zaminmc.torch.server.spawner.SpawnerDataStore spawnerStore;
     /** The comparator's stored outputs' ZCD persistence (Wave H1). */
     private net.zaminmc.torch.server.redstone.ComparatorDataStore comparatorStore;
     /** The hopper subsystem (Slice 10b): the 8-tick transfer cadence. */
@@ -917,6 +919,12 @@ public final class EngineServer implements Server, EngineBridge {
                         dimension -> dimension == -1 && netherWorld != null
                                 ? netherWorld : world);
                 this.spawners = spawnerManager;
+                // The spawners' own ZSD persistence (the reference's
+                // MobSpawner.writeNbt field set — the typed rows carry the
+                // delay + the six cadence rows; a re-type survives restarts).
+                spawnerStore = new net.zaminmc.torch.server.spawner.SpawnerDataStore(
+                        config.worldDataDir().resolve("spawners.bin"));
+                spawnerManager.restoreAll(spawnerStore.load());
                 // Falling blocks (§470): the block→entity→block transition for
                 // gravity blocks; occupied landings drop as items.
                 FallingBlockEntityManager falling = new FallingBlockEntityManager(
@@ -26208,6 +26216,19 @@ public final class EngineServer implements Server, EngineBridge {
                                 noteStore::writeSerialized));
                     } else {
                         noteStore.save(noteBlocks.snapshotTiles());
+                    }
+                }
+                // The spawners' typed rows (the ZSD store — the reference's
+                // writeNbt law: the untyped row never persists). The deep
+                // capture here on the tick lane, the rest off it.
+                if (spawnerStore != null && spawnerManager != null) {
+                    if (pipeline != null) {
+                        publications.add(pipeline.submitSave("spawner",
+                                spawnerStore.capture(spawnerManager.snapshot()),
+                                spawnerStore::serialize,
+                                spawnerStore::writeSerialized));
+                    } else {
+                        spawnerStore.save(spawnerManager.snapshot());
                     }
                 }
                 // The comparator's stored outputs (Wave H1 — the
