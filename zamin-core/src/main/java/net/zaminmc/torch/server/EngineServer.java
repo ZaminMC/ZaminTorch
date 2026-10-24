@@ -18617,7 +18617,17 @@ public final class EngineServer implements Server, EngineBridge {
                     ? 10 // BlazeEntity's own xpDrop (line 29)
                     : mob.type() == net.zaminmc.torch.server.entity.MobType.WITHER
                     ? 50 // WitherEntity's own xpDrop (the ctor line 67)
+                    : mob.type() == net.zaminmc.torch.server.entity.MobType.ENDERMITE
+                    ? 3 // EndermiteEntity's own xpDrop (the ctor line 26)
                     : ExperienceAwards.forMobKill(mob.type().hostile, gameplayRandom);
+            // The baby zombie's own lift (ZombieEntity.getXpDrop lines
+            // 128-133): {@code xpDrop = (int) (xpDrop * 2.5F)} — the
+            // twelve-and-a-half band rounded down, before the equipment
+            // bonus (the reference multiplies the base field, then the
+            // super walk adds the equipment rows).
+            if (mob.type() == net.zaminmc.torch.server.entity.MobType.ZOMBIE && mob.isBaby()) {
+                amount = (int) (amount * 2.5f);
+            }
             // The equipment bonus (MobEntity.getXpDrop lines 160-175): an
             // xp-carrying body adds 1 + nextInt(3) per equipped slot whose
             // chance sits at or under 1.0 (a picked-up hand at 2.0 pays
