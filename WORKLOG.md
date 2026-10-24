@@ -14996,3 +14996,41 @@ Stage Summary:
   armor-model edges, /testfor's dataTag arm, the armor-stand NBT tails
   (EntityTag merge, DisabledSlots), the blaze's FOLLOW_RANGE 48, the
   mob step-sound family (mob.silverfish.step etc.).
+
+---
+Task ID: vt-wave-7-ab
+Agent: the coordinator (Abasing session)
+Task: The vanilla-grade tail census's seventh wave, first halves — the
+per-kind hunt band and the biome rain gate.
+
+Work Log:
+- VT-7a (6cbf6dcd): the per-kind hunt band — the engine's player-hunt
+  scan read the flat 16 for every hostile; the reference's FOLLOW_RANGE
+  attribute overrides now ride it (followRange(): the blaze 48
+  (BlazeEntity line 44), the enderman 64 (line 74), the wither 40 (line
+  484), the zombie 35 (line 84, the pigman's super.initAttributes
+  inheritance), the ghast 100 (GhastEntity line 81), the shared 16
+  default (MobEntity line 90)). Both scan sites (the plain + the
+  team-aware consult) read the new consult. Pinned by
+  FollowRangeFamilyTest (the range-recording world asserts each kind's
+  own band); the whole entity package green over the change (49 suites).
+- VT-7b (f8829553): the biome rain gate — the shared isRainingAt (the
+  wolf's wet consult) carried only the flag + the precipitation height;
+  the reference isRaining's own biome read (lines 2565-2579: the snowy
+  family refuses — it snows — and the dry family — the deserts, hell,
+  the end — refuses everywhere) now guards it. The cauldron's fill
+  already read isRainyBiomeAt (Slice 23i). The water-shake cycle's
+  stale note closed (tickWolfShake was already whole). Weather +
+  wolf suites green over the change.
+
+Stage Summary:
+- Eight landed units this session (VT-1 through VT-7b); the releases
+  135/136 built mid-flight; CI #401 in progress on the tip.
+- REMAINING (the VT-7 second half, next window): the guardian's
+  squid-hunt arm + the elder's ghost-curse seam, the fishing
+  hooked-player pull, the command-block success counts +
+  areCommandBlocksEnabled + the block MC|AdvCdm arm, the armor-model
+  edges, /testfor's dataTag arm, the armor-stand NBT tails (EntityTag
+  merge, DisabledSlots), the mob step-sound family
+  (mob.silverfish.step), the silverfish canSpawn player gate, the
+  blaze's WanderThroughVillageGoal.
