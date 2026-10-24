@@ -14757,3 +14757,24 @@ rebuild (the source threading builds on the new wound walk).
 Stage Summary:
 - One ML-100 family tail closed. The remaining tails stay family-owned;
   the owner's standing calls (DEC-001, ML-008, ML-013) unchanged.
+
+## The death-XP ladder's two missing rows
+
+Date: 2026-10-24. A small rider over the head-drop push.
+
+- The ladder's read against the reference's per-type xpDrop assignments
+  (MobEntity.getXpDrop + the per-family ctors): the shared MonsterEntity 5,
+  the slime family's by-size, the ghast 5, the guardian 10, the blaze 10,
+  and the wither 50 were already in — the two missing rows landed: the
+  ENDERMITE's own 3 (EndermiteEntity's ctor line 26 — the shared band
+  paid 5) and the BABY ZOMBIE's lift (ZombieEntity.getXpDrop lines
+  128-133: (int)(xpDrop * 2.5F) = 12 over the shared 5, before the
+  equipment bonus exactly like the reference's field-then-super order).
+  The wither skeleton's ledgered "own 5 XP" note was STALE — its vanilla
+  value IS MonsterEntity's shared 5; the note corrected in the ledger.
+- Pinned by DeathXpLadderAcceptanceTest 1/0 (a full-boot kill-and-collect
+  walk over the three rows: 5, 3, 12).
+
+Stage Summary:
+- The death-XP ladder now matches the reference's per-type table row for
+  row. Remaining family tails stay family-owned.
