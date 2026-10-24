@@ -14778,3 +14778,38 @@ Date: 2026-10-24. A small rider over the head-drop push.
 Stage Summary:
 - The death-XP ladder now matches the reference's per-type table row for
   row. Remaining family tails stay family-owned.
+
+## The hunger/food family's vanilla-grade audit
+
+Date: 2026-10-24. The standing demand's first family read (verify what is
+done and what is not vanilla grade), against the mechanics zip's own gold
+mine — PlayerEntity/HungerManager/DamageSource, not memory.
+
+- The law decoded from the reference: the addFatigue wrapper gates on
+  abilities.invulnerable (PlayerEntity.java 1475-1481), the damage
+  exhaustion rides source.getExhaustion() with the 0.3 default zeroed by
+  setBypassesArmor/setUnblockable (DamageSource.java 32/124/135), and the
+  jump pair is 0.8 sprint / 0.2 walk (1477-1283). The audit's first
+  memory-based suspect list (jump 4x, attack 3x, fall 0.0) was WRONG —
+  the gold mine overruled it; the tick walk, the add caps, the per-meter
+  rates, the attack/break/effect charges, and the 40.0 ceiling were all
+  already exact.
+- The four real gaps landed (commit 3a235a39): the accrual wrapper's
+  invulnerable refusal (creative/spectator never accrue, the sources stay
+  ungated, the setExhaustion restore stays ungated like readNbt), the
+  lightning charge 0.0 -> 0.3 (an ordinary source), the in-wall charge
+  0.3 -> 0.0 (a setBypassesArmor source, the DamageKind row's own words),
+  and the eat walk's canEat pair (the invulnerable refusal at the start,
+  the unconditional completion consume — onItemUseFinish has no re-check).
+- Pinned by KnockbackAndExhaustionTest 7/0; the player/entity/interaction/
+  potion packages green; the regression batch over the touched walk
+  families green.
+- The deferred tail (ledgered as the Wave AUDIT open row): exhaustion and
+  the food tick timer do not survive restarts yet — the player store's
+  binary row carries food/saturation only and the NBT export stamps
+  foodTickTimer 0. A store-format slice (the field list grows with the
+  version bump + the legacy reader), not a wrapper patch.
+
+Stage Summary:
+- The hunger family is vanilla grade end to end except the persistence
+  tail, which is ledgered and family-scoped for the next session.
