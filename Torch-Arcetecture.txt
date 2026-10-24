@@ -4157,6 +4157,89 @@ out of that slice's blast radius).
 
 ---
 
+## Wave R-1 — the 2026-10-24 TNT lifecycle read (the last unclaimed parity remainder, landed)
+
+- [x] R1a — THE RAY-FAN LAW (Explosion.damageEntities lines 60-77): the
+      boundary cells alone fire — the 16^3 direction cube's shell, 1352
+      rays; the retired engine's 4096-cell interior fan (every cell but the
+      degenerate corner) carved craters the reference never shapes. The
+      float-faithful arithmetic kept: the axis components
+      j / 15.0F * 2.0F - 1.0F (float-computed before the double carry),
+      the per-ray strength power * (0.7F + rand.nextFloat() * 0.6F), the
+      per-crossing charge (f2 + 0.3F) * 0.3F, the 0.22500001F step, the
+      0.3F-magnitude step vector.
+- [x] R1b — THE TWO-PHASE ORDER: damageEntities COLLECTS (no writes — the
+      retired engine destroyed mid-fan, so a later ray crossed an earlier
+      ray's hole for free and carved deeper than vanilla), then
+      damageBlocks commits. The wounds ride BETWEEN the phases: the
+      density rays read the pre-blast world exactly like the reference
+      (wounds first, destruction second — the retired engine destroyed
+      first, so a shielding wall was already gone when the damage read it).
+      The air cells the fan collects (the reference's set-add sits OUTSIDE
+      the material check) ride the packet's offsets and never drop.
+- [x] R1c — THE WOUND LAW (lines 106-137): the feet-distance ratio gate
+      d12 <= 1.0 (Entity.distanceTo — no eye offset; the retired engine's
+      eye-vector gate was tighter), the eye-height direction (players
+      1.62 standing / 1.54 sneaking, mobs eyeHeightForQuery, carts the
+      Entity-default height*0.85 = 0.595; the retired 0.9 mid-band gone),
+      the World.getBlockDensity attenuation ported 1:1 — the sample grid
+      over the victim's box AND the reference's own ray-walk terminal: the
+      walk stops the moment the current cell IS the end cell (World.
+      rayTrace lines 639-745's l==i && i1==j && j1==k), never reading
+      beyond the endpoint. (The first DDA form stepped past a boundary
+      landing exactly ON the endpoint — grazing rays read the block below
+      the blast and the density collapsed to 0.2 in open air; the probe
+      caught it.) The damage: int((d10*d10 + d10) / 2 * 8 * f3 + 1) — the
+      retired linear (1-d/r)*cap gone (the TNT's point-blank 32 -> the
+      reference's 65 pre-difficulty). The difficulty ladder stays
+      player-only and pre-armor. The Blast Protection shave
+      floor(d10 * level * 0.15) now sits on the KNOCKBACK scale alone
+      (ProtectionEnchantment.modifyExplosionDamage lines 93-100 — the
+      retired engine shaved the DAMAGE, the wrong arm; the damage side
+      rides the ordinary armor + EPF walks). The packet's own motion
+      carry is dir * d10 (damagedPlayers lines 143-145 — the UNPROTECTED
+      scale); the retired engine's second 0x2B velocity send (a double
+      knockback) is gone. The motion lands even when the wound is refused
+      (the reference's velocity add and map put both ride outside the
+      takeDamage verdict — a peaceful blast still throws the body).
+- [x] R1d — THE DETONATION FX (damageBlocks lines 152-155): the
+      random.explode pair at 4.0F with the pitch walk
+      (1 + (rand - rand) * 0.2) * 0.7 — the sound the retired walk never
+      played. The EXPLOSION_HUGE/LARGE addParticle pair is NOT owed on the
+      wire: the dedicated server's particle listener is the EMPTY override
+      (ServerWorldEventListener.addParticle lines 23-29) — the client
+      renders its own from the 0x27 packet. Evidence-recorded, not skipped.
+- [x] R1e — THE FX RANGE LAW (ServerWorldEventListener.playSound line 44 +
+      ServerWorld.addParticle lines 930-936): sounds carry
+      volume > 1.0F ? 16 * volume : 16 blocks (the explosion's 4.0 = 64,
+      the TNT hiss's 1.0 = 16); the particle family carries 16 — the
+      retired fixed 64-block band for everything is gone.
+- [x] R1f — THE TNT FAMILY'S OWN ARMS: the detonation origin
+      y + height/16 = 0.98/16 = 0.06125 (the retired 0.06), the priming
+      hiss at the body's own feet (playSoundAtEntity — the retired +0.5
+      rise gone), the burning-arrow ignition (TntBlock.onEntityCollision
+      lines 96-113: the on-fire arrow enters the TNT's cell, the block
+      primes, the arrow KEEPS ITS FLIGHT through the opened cell — the
+      retired engine ledgered the whole arm as missing), and the creeper's
+      feet-position blast (CreeperEntity.explode line 210 — the retired
+      +0.5 rise gone). The smoke trail is NOT owed (the client renders
+      its own — same empty-override evidence). The drop roll: the
+      reference's own nextFloat() <= 1.0F/power form.
+- [x] R1g — THE PINS: BlastSourceTest's crater sizes re-pinned over the
+      boundary fan (the power-1 dirt crater 21 -> 7; the power-3
+      creeper-vs-stone crater 50 -> 1 — the vanilla law the interior fan
+      buried: a creeper barely scratches solid stone), fresh walls per
+      blast (a shared wall's plain run read the charged crater's opened
+      center as free air and carried the air cell — the reference's own
+      damagedBlocks-carry-air law, now pinned as the shared-world shape).
+      The affected families green locally (the explosion family, the
+      blast-adjacent suites, the full protocol module 3m45s); the full
+      zamin-core suite rides the release pipeline's own confirming run.
+      One engine defect found and fixed en route: the non-destructive arm
+      (mobGriefing off) threw ArrayStoreException inside the tick (the
+      generic-array holder's runtime component type rejected the
+      List.of() empty arm) — the collector is a final mutable list now.
+
 # 33. CODEBASE SCALE, CLASS COHESION, AND MAINTAINABILITY
 
 Torch's server-engine single-JAR codebase has exceeded 12,000 lines of code. This is a scale milestone, not a target for artificial restructuring.

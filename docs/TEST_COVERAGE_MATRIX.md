@@ -62,5 +62,7 @@ conditions plus CI-load robustness of the hardened members. It does NOT
 establish: real-Mojang-client UX, multiplayer latency beyond loopback,
 nether/end portal travel (untested in cycle 3), world-border edges.
 The R-2..R-7 remainder items closed this cycle (malformed-input resilience
-included, R-7); what remains open is R-1 (TNT lifecycle read) and R-8 (the
+included, R-7; R-1's lifecycle walk landed at e05a7a24 — the boundary
+fan, the two-phase order, the density-attenuated wound law, the fx law);
+what remains open is R-8 (the
 25 family-owned tails), inherited from this cycle's census.
