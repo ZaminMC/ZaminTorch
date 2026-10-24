@@ -14886,3 +14886,48 @@ Work Log:
 Stage Summary:
 - The hunger family is now vanilla grade end to end INCLUDING the
   persistence tail — the Wave AUDIT row closes whole.
+
+---
+Task ID: vt-wave-1-2
+Agent: the coordinator (Abasing session)
+Task: The vanilla-grade tail census's first two waves — the stats
+call-sites and the ambient/particle family (the standing demand:
+verify what is done and what is not vanilla grade).
+
+Work Log:
+- Baseline re-established: develop synced (0/0), identity Abasing
+  verified, no open PRs, CI release #391 pending on fd578d62.
+- The 25 ledgered standing tails enumerated from the compat ledger;
+  the wave plan built (VT-1 stats, VT-2 ambient/particles, VT-3
+  spawner, VT-4 names, VT-5 movement, VT-6 nether spawns, VT-7 the
+  remainder).
+- VT-1 (81ee04ab): NOTE_BLOCKS_PLAYED wired at the dig-start report
+  (NoteBlock.startMining lines 58-67 — the survival attack's own
+  incrementStat); NOTE_BLOCKS_TUNED and RECORDS_PLAYED were ALREADY
+  wired at their use sites (the stale ledger notes). Pinned by
+  NoteBlockSystemTest's new theSurvivalAttackIncrementsThePlayStat
+  (the real submitMiningStart walk, the position inside the dig band).
+- VT-2 (cd444313): the bat's 1015 takeoff event LANDED (both
+  roost-exit arms' doEvent — the mob drain's takeoff flag through
+  MobManager.onBatTakeoff to the adapter's WorldEvent 1015). The five
+  particle tails CLOSED NOT-OWED on the empty-listener evidence
+  (ServerWorldEventListener.addParticle lines 23-26 — the R-1 law):
+  the squid ink cloud (no particle call in 1.8.8 SquidEntity at all),
+  the fishing water FX (serverworld.addParticle rides the empty
+  listener), the mooshroom shear burst (same), the endermite portal
+  pair (inside the isClient gate), the pearl 32-burst (the client
+  renders its own). SquidAndBatTest extended with both takeoff pins.
+
+Stage Summary:
+- VT-1 and VT-2 landed and pushed; the compat ledger's rows updated
+  (the four families' particle/1015 tails closed with evidence).
+- NEXT (vt-wave-3): the spawner family — the evidence gathered: the
+  1.8.8 dungeon sets a SINGLE type (DungeonFeature line 128's
+  setType(pickDungeonType) — no potentials in 1.8.8 generation), the
+  potentials re-pick (MobSpawner.delay line 184) is only reachable via
+  NBT injection (no engine surface), the real gap is the ZSD
+  persistence (the egg re-type dies on restart — EngineServer 17255's
+  "ZSD-less in-memory model" guard). The SpawnerMinecart kind was
+  already 1:1 (closed). Wave plan: a spawner store slice (type +
+  tuning fields + the restore walk), then re-assess the potentials
+  model against the NBT-injection question.
