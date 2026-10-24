@@ -2532,6 +2532,19 @@ public final class MobManager {
     }
 
     /**
+     * The blast's own wound (Explosion.damageEntities lines 106-137 over
+     * takeDamage): the damage lands through the ordinary hurt walk with NO
+     * melee knockback — the caller applies the reference's own
+     * {@code velocity += (d5, d7, d9) * d11} impulse separately (the
+     * blast's direction-and-density scale, not the attack's yaw hop).
+     */
+    public boolean hurtFromExplosion(MobEntity mob, float amount) {
+        return hurt(mob, amount, Double.NaN,
+                net.zaminmc.torch.event.DamageCause.EXPLOSION,
+                false, false, null, null, true);
+    }
+
+    /**
      * Melee hit from another mob (Slice 16b — the mob-vs-mob target family's
      * damage land): the attacker's identity rides the walk. The wolf's own
      * takeDamage shaves a non-player non-arrow attacker to
@@ -2881,6 +2894,22 @@ public final class MobManager {
                  net.zaminmc.torch.event.DamageCause cause, boolean endermiteAttacker,
                  boolean arrowSource, MobEntity attacker,
                  PlayerSession attackingPlayer) {
+        return hurt(mob, amount, attackerYaw, cause, endermiteAttacker,
+                arrowSource, attacker, attackingPlayer, false);
+    }
+
+    /**
+     * The full walk with the knockback gate: the blast family's own entry
+     * (Explosion.damageEntities lines 106-137) — a wound through this seat
+     * lands NO melee-shaped knockback; the caller adds the reference's own
+     * {@code velocity += dir * d11} impulse over the blast's direction
+     * and density scale (the yaw-shaped half-velocity hop is the attack
+     * family's, never the blast's).
+     */
+    public boolean hurt(MobEntity mob, float amount, double attackerYaw,
+                 net.zaminmc.torch.event.DamageCause cause, boolean endermiteAttacker,
+                 boolean arrowSource, MobEntity attacker,
+                 PlayerSession attackingPlayer, boolean skipKnockback) {
         Objects.requireNonNull(mob, "mob");
         if (amount <= 0 || mob.dead()) {
             return false;
@@ -2961,7 +2990,9 @@ public final class MobManager {
             mob.armWitherSweep();
         }
         mob.hurt(amount);
-        mob.knockbackFrom(attackerYaw);
+        if (!skipKnockback) {
+            mob.knockbackFrom(attackerYaw);
+        }
         for (Listener listener : listeners) {
             listener.onMobHurt(mob);
         }

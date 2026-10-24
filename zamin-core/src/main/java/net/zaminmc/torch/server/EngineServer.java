@@ -1780,8 +1780,7 @@ public final class EngineServer implements Server, EngineBridge {
                 tntSystem = new net.zaminmc.torch.server.tnt.TntSystem(
                         world, redstoneSystem,
                         position -> solidAt(position.x(), position.y() - 0.1, position.z()),
-                        (center, power) -> detonateAt(center.x(), center.y(), center.z(), power,
-                                net.zaminmc.torch.server.tnt.TntSystem.MAX_DAMAGE, true),
+                        (center, power) -> detonateAt(center.x(), center.y(), center.z(), power, true),
                         fxManager, gameplayRandom, TNT_ID_BASE);
                 world.addChangeListener(tntSystem);
                 tntSystem.addListener(new TntEventDispatch());
@@ -2141,7 +2140,7 @@ public final class EngineServer implements Server, EngineBridge {
                 // line 33's own consult): a no-grief world wounds and
                 // knocks but never breaks blocks.
                 projectiles.setExplosionSink((at, power) -> detonateAt(
-                        at.x(), at.y(), at.z(), power, 8.0f * power + 1.0f,
+                        at.x(), at.y(), at.z(), power,
                         gameRules.getBoolean("mobGriefing")));
                 // The wither skull's own arm (the charged flag rides the
                 // blast's source model — WitherSkullEntity lines 43-51's
@@ -2149,9 +2148,14 @@ public final class EngineServer implements Server, EngineBridge {
                 // everything but the unbreakable band; the plain skull
                 // reads the table like every other source.
                 projectiles.setSkullExplosionSink((at, power, charged) -> detonateAtWithSource(
-                        at.x(), at.y(), at.z(), power, 8.0f * power + 1.0f,
+                        at.x(), at.y(), at.z(), power,
                         gameRules.getBoolean("mobGriefing"),
                         charged ? net.zaminmc.torch.server.block.BlastSources.CHARGED_SKULL : net.zaminmc.torch.server.block.ExplosionService.BlastSource.PLAIN));
+                // The burning arrow's TNT arm (TntBlock.onEntityCollision
+                // lines 96-113): a burning arrow entering the TNT cell
+                // primes it — the block leaves, the arrow keeps its flight.
+                projectiles.setTntIgniteSink(cell -> tntSystem != null
+                        && tntSystem.igniteByArrow(cell));
                 // The ender pearl's teleport arm (Slice 17c —
                 // EnderPearlEntity.onCollision lines 45-71): the 5%
                 // player-spawned endermite at the thrower's pre-teleport
@@ -2457,7 +2461,7 @@ public final class EngineServer implements Server, EngineBridge {
                 vehicles.setBlastSinkFactory(() ->
                         (net.zaminmc.torch.server.entity.vehicle.TntMinecartEntity.BlastSink)
                                 (x, y, z, power, primed) -> detonateAtWithSource(
-                                        x, y, z, power, 8.0f * power + 1.0f,
+                                        x, y, z, power,
                                         gameRules.getBoolean("mobGriefing"),
                                         primed ? net.zaminmc.torch.server.block.BlastSources.PRIMED_CART : net.zaminmc.torch.server.block.ExplosionService.BlastSource.PLAIN));
                 vehicles.addListener(new VehicleEventDispatch());
@@ -17466,7 +17470,6 @@ public final class EngineServer implements Server, EngineBridge {
             detonateAtIn(endWorld, endExplosionService, 1,
                     x, y, z,
                     net.zaminmc.torch.server.endcrystal.EnderCrystalSystem.BLAST_POWER,
-                    net.zaminmc.torch.server.endcrystal.EnderCrystalSystem.BLAST_MAX_DAMAGE,
                     true,
                     net.zaminmc.torch.server.block.ExplosionService.BlastSource.PLAIN);
         }
@@ -18926,7 +18929,7 @@ public final class EngineServer implements Server, EngineBridge {
             }
             double eye = mob.eyeHeightForQuery();
             detonateAt(mob.position().x(), mob.position().y() + eye, mob.position().z(),
-                    WITHER_BIRTH_POWER, WITHER_BIRTH_POWER * 2.0f, false);
+                    WITHER_BIRTH_POWER, false);
         }
 
         /**
@@ -20819,10 +20822,6 @@ public final class EngineServer implements Server, EngineBridge {
     static final float CREEPER_POWER = 3.0f;
     /** The wither's birth explosion (WitherEntity.mobAiTick line 217: 7.0F). */
     static final float WITHER_BIRTH_POWER = 7.0f;
-    /** The blast's injury radius: double the power (the historical falloff span). */
-    static final double BLAST_INJURY_RADIUS = CREEPER_POWER * 2.0;
-    /** Point-blank explosion damage on easy difficulty (the historical ~24). */
-    static final float BLAST_MAX_DAMAGE = 24.0f;
 
     /**
      * A primed creeper went off: destroy the blast sphere, roll the block
@@ -20834,13 +20833,14 @@ public final class EngineServer implements Server, EngineBridge {
     private void explodeOnTick(MobEntity creeper) {
         Position center = creeper.position();
         // The blast's own law (CreeperEntity.explode lines 206-213): the
+        // position is the body's own FEET (x, y, z — no rise), the
         // ExplosionRadius row steers the base, the charged flag doubles it
         // (isCharged ? 2.0F : 1.0F — the lightning-charged body), and
         // mobGriefing (Slice 24a) rides the destructive flag; a no-grief
         // world's blast wounds and knocks but never breaks blocks.
         float power = creeper.creeperExplosionRadius()
                 * (creeper.creeperCharged() ? 2.0f : 1.0f);
-        detonateAt(center.x(), center.y() + 0.5, center.z(), power, BLAST_MAX_DAMAGE,
+        detonateAt(center.x(), center.y(), center.z(), power,
                 gameRules.getBoolean("mobGriefing"));
     }
 
@@ -20848,30 +20848,41 @@ public final class EngineServer implements Server, EngineBridge {
      * One detonation in the OVERWORLD (the generalized walk's own dimension-0
      * binding — the creeper, the TNT, the fireballs, the wither).
      */
-    private void detonateAtWithSource(double cx, double cy, double cz, float power, float maxDamage,
+    private void detonateAtWithSource(double cx, double cy, double cz, float power,
                                       boolean destructive,
                                       net.zaminmc.torch.server.block.ExplosionService.BlastSource source) {
-        detonateAtIn(world, explosionService, 0, cx, cy, cz, power, maxDamage, destructive, source);
+        detonateAtIn(world, explosionService, 0, cx, cy, cz, power, destructive, source);
     }
 
-    private void detonateAt(double cx, double cy, double cz, float power, float maxDamage,
-                            boolean destructive) {
-        detonateAtIn(world, explosionService, 0, cx, cy, cz, power, maxDamage, destructive,
+    private void detonateAt(double cx, double cy, double cz, float power, boolean destructive) {
+        detonateAtIn(world, explosionService, 0, cx, cy, cz, power, destructive,
                 net.zaminmc.torch.server.block.ExplosionService.BlastSource.PLAIN);
     }
 
     /**
      * One detonation in the named world (the generalized explosion walk —
      * the creeper and the primed TNT ride the overworld binding, Slice
-     * 62's ender crystal rides the End one): the destruction sphere with
-     * the per-power drop roll, the wound falloff to double the power with
-     * the caller's easy-difficulty cap, and the wire fan-out. The wounds
-     * and the wire carry the blast's OWN dimension — a body in another
-     * world never takes a same-coordinate blast. Tick-thread context.
+     * 62's ender crystal rides the End one): the reference's own
+     * two-phase order (world/explosion/Explosion.java — damageEntities
+     * then damageBlocks), 1:1. Phase one collects the ray fan's damaged
+     * cells and wounds every body in the box over the world as it STOOD
+     * (the density rays read the pre-blast world). Phase two plays the
+     * "random.explode" pair, commits the collected cells to air, rolls
+     * the drops, and primes the chain-reaction TNT. The wound law is the
+     * reference's own (damageEntities lines 106-137): the feet-distance
+     * ratio gate, the eye-height direction, the block-density
+     * attenuation, the int-truncated quadratic damage
+     * {@code (d10*d10 + d10) / 2 * 8 * f3 + 1}, the Blast Protection
+     * shave on the KNOCKBACK scale alone (ProtectionEnchantment.
+     * modifyExplosionDamage lines 93-100 — the damage arm's own
+     * enchantment reduction rides the ordinary EPF walk), and the
+     * packet's own motion carry {@code dir * d10}. The wounds and the
+     * wire carry the blast's OWN dimension — a body in another world
+     * never takes a same-coordinate blast. Tick-thread context.
      */
     private void detonateAtIn(EngineWorld blastWorld, ExplosionService service,
                               int dimension, double cx, double cy, double cz,
-                              float power, float maxDamage, boolean destructive,
+                              float power, boolean destructive,
                               net.zaminmc.torch.server.block.ExplosionService.BlastSource source) {
         BlockPosition blockCenter = new BlockPosition(
                 (int) Math.floor(cx), (int) Math.floor(cy), (int) Math.floor(cz));
@@ -20888,7 +20899,6 @@ public final class EngineServer implements Server, EngineBridge {
             return; // nothing destroyed, nobody hurt, no packet
         }
 
-        // The destruction (each commit wakes the fluid and neighbor systems).
         // The blast rides the boundary scope (the Phase 4 spatial activation
         // — the design §10.3's "explosions and area effects spanning
         // multiple domains"): the sphere spans region seams, and the
@@ -20912,17 +20922,66 @@ public final class EngineServer implements Server, EngineBridge {
                 blockCenter.x() + blastReach,
                 Math.min(BlockPosition.MAX_Y, blockCenter.y() + blastReach),
                 blockCenter.z() + blastReach);
-        java.util.List<ExplosionService.Destroyed> destroyed = new java.util.ArrayList<>();
-        if (destructive) {
-            blastWorld.executeInRegions(scopeMin, scopeMax,
-                    () -> destroyed.addAll(service.detonate(blockCenter, power, source)));
-        }
-        // The historical drop roll: one block in `power` survives as loot.
+        // The injury radius (Explosion.damageEntities line 106): power*2.
+        float f3 = power * 2.0f;
+        // Phase one's collected cells + the per-observer knockback carry
+        // (the packet's own motion map — damagedPlayers lines 143-145).
+        // The collector is a final mutable list — the scope lambda fills
+        // it (a generic-array holder carries the runtime component type
+        // of its creation; the empty List.of() arm threw
+        // ArrayStoreException inside the tick).
+        final java.util.List<ExplosionService.Destroyed> damagedCells =
+                new java.util.ArrayList<>();
+        java.util.Map<UUID, double[]> motion = new java.util.HashMap<>();
+        blastWorld.executeInRegions(scopeMin, scopeMax, () -> {
+            // --- phase one: the ray fan, COLLECT-only ---------------------
+            // (damageEntities lines 60-105): nothing is written — the
+            // wound walk below reads the world as it stood.
+            if (destructive) {
+                damagedCells.addAll(service.collectDamaged(cx, cy, cz, power, source));
+            }
+
+            // --- phase one (continued): the wounds ------------------------
+            // (damageEntities lines 106-137). The scan box (lines 106-112):
+            // floor(c - f3 - 1) .. floor(c + f3 + 1) — the engine's family
+            // walks carry the same span through their own distance gates.
+            woundPlayersFromBlast(blastWorld, dimension, cx, cy, cz, f3, motion);
+            woundMobsFromBlast(blastWorld, dimension, cx, cy, cz, f3);
+            woundVehiclesFromBlast(dimension, cx, cy, cz, f3);
+            woundDecorationsFromBlast(dimension, cx, cy, cz, f3);
+
+            // --- phase two: the sound, then the destruction ---------------
+            // (damageBlocks lines 152-155): the explode pair plays BEFORE
+            // the destroy loop, destructive flag or not. The pitch walk is
+            // the reference's own: (1 + (rand - rand) * 0.2) * 0.7.
+            fxManager.sound(new Position(cx, cy, cz), "random.explode", 4.0f,
+                    (1.0f + (gameplayRandom.nextFloat() - gameplayRandom.nextFloat()) * 0.2f) * 0.7f);
+            // (The reference's EXPLOSION_HUGE/LARGE addParticle pair rides
+            // the CLIENT's own 0x27 rendering — the dedicated server's
+            // particle listener is the empty override,
+            // ServerWorldEventListener.addParticle lines 23-29. No packet.)
+            if (destructive) {
+                service.commitDamaged(damagedCells);
+            }
+        });
+
+        // The drop rolls + the chain reaction (damageBlocks lines 158-176):
+        // one {@code nextFloat() <= 1/power} roll per destroyed cell over
+        // the collected type; a consumed TNT cell never drops — it primes
+        // the short-fuse body instead (TntBlock.shouldDropItemsOnExplosion
+        // + onExploded lines 58-65, 115-117). The AIR cells the fan
+        // collected (the reference's own set-add shape — the packet's
+        // offsets carry them) are no-ops exactly like the reference's
+        // material gate.
         java.util.List<int[]> blockOffsets = new java.util.ArrayList<>();
-        for (ExplosionService.Destroyed removed : destroyed) {
+        BlockType scopeAir = blastWorld.airType();
+        for (ExplosionService.Destroyed removed : damagedCells) {
             BlockPosition b = removed.position();
             blockOffsets.add(new int[]{
                     b.x() - blockCenter.x(), b.y() - blockCenter.y(), b.z() - blockCenter.z()});
+            if (removed.type().equals(scopeAir)) {
+                continue; // the reference's own material gate: air never drops
+            }
             if (removed.type().identifier().value().equals("tnt")) {
                 // The chain reaction (TntBlock.onExploded lines 58-65): a
                 // consumed TNT primes a short-fuse body instead of dropping.
@@ -20934,7 +20993,7 @@ public final class EngineServer implements Server, EngineBridge {
                 }
                 continue;
             }
-            if (gameplayRandom.nextInt(Math.max(1, (int) power)) == 0) {
+            if (gameplayRandom.nextFloat() <= 1.0f / power) {
                 net.zaminmc.torch.item.ItemType item = net.zaminmc.torch.server.item.BuiltinItems.lookup(
                         removed.type().identifier()).orElse(null);
                 if (item != null) {
@@ -20947,194 +21006,15 @@ public final class EngineServer implements Server, EngineBridge {
         // already air and the drop rolls resolved; handlers observe the
         // destruction list, they do not veto it (the pre-commit gate
         // above is the veto point).
-        if (!destroyed.isEmpty()) {
+        if (!damagedCells.isEmpty()) {
             java.util.List<net.zaminmc.torch.event.world.ExplosionDestroyEvent.DestroyedCell>
-                    cells = new java.util.ArrayList<>(destroyed.size());
-            for (ExplosionService.Destroyed removed : destroyed) {
+                    cells = new java.util.ArrayList<>(damagedCells.size());
+            for (ExplosionService.Destroyed removed : damagedCells) {
                 cells.add(new net.zaminmc.torch.event.world.ExplosionDestroyEvent.DestroyedCell(
                         removed.position(), removed.type().identifier().toString()));
             }
             eventBus.fire(new net.zaminmc.torch.event.world.ExplosionDestroyEvent(
                     blastWorld, new Position(cx, cy, cz), power, cells));
-        }
-
-        // Player wounds: distance falloff to double the power, then the
-        // historical hurt window and the per-observer knockback vector.
-        // The blast's OWN dimension gates the body (Slice 62 — the same
-        // coordinates exist in every world; only the world's bodies take
-        // the blast).
-        double injuryRadius = power * 2.0;
-        java.util.Map<UUID, double[]> motion = new java.util.HashMap<>();
-        for (PlayerSession player : players.all()) {
-            if (player.state() != PlayerState.PLAYING
-                    || player.dimension() != dimension) {
-                continue;
-            }
-            Position p = player.position();
-            double dx = p.x() - cx;
-            double dy = (p.y() + 0.9) - cy;
-            double dz = p.z() - cz;
-            double dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
-            if (dist > injuryRadius) {
-                continue;
-            }
-            float damage = (float) ((1 - dist / injuryRadius) * maxDamage);
-            if (damage <= 0) {
-                continue;
-            }
-            // The difficulty's own scaling (Slice 19e — PlayerEntity.
-            // takeDamage lines 786-797 over the reference's scaled
-            // sources: the explosion family carries the whole ladder —
-            // peaceful never wounds, easy halves plus one, hard lifts a
-            // half — before the protection math sees the number.
-            if (difficulty == 0) {
-                continue; // the peaceful blast never wounds
-            }
-            if (difficulty == 1) {
-                damage = damage / 2.0f + 1.0f;
-            } else if (difficulty == 3) {
-                damage = damage * 1.5f;
-            }
-            // The reference Explosion walk: the victim's Blast Protection
-            // shaves floor(damage * level * 0.15) off the raw blast number
-            // before the ordinary pipeline (armor, protection) sees it.
-            damage = (float) EnchantmentHelper.modifyExplosionDamage(
-                    player.inventory().armorStacks(), damage);
-            damage = applyArmor(player, damage); // armor eats its share of the blast
-            damage = applyEnchantProtection(player, damage, DamageKind.EXPLOSION);
-            // §27.7: the public damage gate on the blast arm — after the
-            // protection math, before any state moves. A cancelled blast
-            // lands nothing; the mutable amount drives the window math.
-            net.zaminmc.torch.event.player.PlayerDamageEvent blastEvent =
-                    new net.zaminmc.torch.event.player.PlayerDamageEvent(
-                            player, damage, net.zaminmc.torch.event.DamageCause.EXPLOSION);
-            eventBus.fire(blastEvent);
-            if (blastEvent.cancelled()) {
-                motion.put(player.uuid(), new double[]{0, 0, 0});
-                continue;
-            }
-            damage = blastEvent.amount();
-            if (damage <= 0) {
-                motion.put(player.uuid(), new double[]{0, 0, 0});
-                continue;
-            }
-            double scale = (1 - dist / injuryRadius) * 1.6;
-            double mx = dist < 0.001 ? 0 : dx / dist * scale;
-            double mz = dist < 0.001 ? 0 : dz / dist * scale;
-            if (!player.hurtInvulnerable() || damage > player.lastHurtDamage()) {
-                float applied = player.hurtInvulnerable()
-                        ? Math.max(0.0f, damage - player.lastHurtDamage()) : damage;
-                player.beginHurtInvulnerability(damage);
-                if (applied > 0) {
-                    player.hurt(applied);
-                }
-                publishPlayerHurt(player);
-                publishKnockback(player, mx, 0.4, mz);
-                if (player.health() <= 0) {
-                    dieOnTick(player, "was blown up");
-                } else {
-                    publishBodyChanged(player);
-                }
-            }
-            motion.put(player.uuid(), new double[]{mx, 0.4, mz});
-        }
-
-        // Mob wounds: the same falloff, through the manager's hurt path,
-        // in the blast's own dimension (the mob's dimension field — the
-        // nether bodies never take an overworld blast at the same spot).
-        for (MobEntity mob : mobManager.all()) {
-            if (mob.dimension() != dimension) {
-                continue;
-            }
-            Position p = mob.position();
-            double dx = p.x() - cx;
-            double dy = (p.y() + mob.type().height * 0.5) - cy;
-            double dz = p.z() - cz;
-            double dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
-            if (dist > injuryRadius) {
-                continue;
-            }
-            float damage = (float) ((1 - dist / injuryRadius) * maxDamage);
-            if (damage <= 0) {
-                continue;
-            }
-            mobManager.hurt(mob, damage,
-                    Math.toDegrees(Math.atan2(-dx, dz)), // knockback away from the blast
-                    net.zaminmc.torch.event.DamageCause.EXPLOSION);
-        }
-
-        // Vehicle wounds (Slice 74 — the reference's damageEntities walk
-        // over the entity family: the minecarts take the blast with the
-        // EXPLOSIVE source, the same distance falloff as the players and
-        // the mobs). The dying furnace cart skips its furnace block and
-        // the dying TNT cart detonates (the chain reaction) — both laws
-        // read the source on the break sweep. The survivors take the
-        // knockback impulse (the reference's velocity += delta * scale
-        // over the body's own momentum walk). The engine's vehicle family
-        // rides the overworld — the other dimensions' blasts never reach
-        // it.
-        if (dimension == 0 && vehicleManager != null) {
-            for (net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle
-                    : vehicleManager.all()) {
-                Position p = vehicle.position();
-                double dx = p.x() - cx;
-                double dy = (p.y() + 0.35) - cy; // the cart hull's mid-band
-                double dz = p.z() - cz;
-                double dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
-                if (dist > injuryRadius) {
-                    continue;
-                }
-                float damage = (float) ((1 - dist / injuryRadius) * maxDamage);
-                if (damage <= 0) {
-                    continue;
-                }
-                vehicleManager.hurt(vehicle, damage,
-                        net.zaminmc.torch.server.entity.vehicle.VehicleEntity.DamageSource.EXPLOSIVE);
-                if (dist < 0.001) {
-                    continue; // the point-blank blast has no direction
-                }
-                double scale = (1 - dist / injuryRadius) * 1.6;
-                vehicle.setVelocity(
-                        vehicle.velocityX() + dx / dist * scale,
-                        vehicle.velocityY(),
-                        vehicle.velocityZ() + dz / dist * scale);
-            }
-        }
-
-        // DECORATION WOUNDS (the reference's damageEntities walk over the
-        // entity family — the frames and paintings in the blast box take
-        // the damage: DecorationEntity.takeDamage lines 137-146, any damage
-        // beyond the invulnerable gate removes the body and drops it through
-        // onAttack). The reference's Explosion consults every entity in the
-        // [power*2+1] box — the engine's walk here rings the same family:
-        // the frame's EXPLOSIVE arm (the loaded frame does not get the
-        // eject-keep treatment — the blast breaks the frame off the wall,
-        // the frame item + the loaded item both dropping through the
-        // null-attacker arm, exactly the survival poll's own sweep), the
-        // painting the same. The move/addVelocity instant-drop arms
-        // (DecorationEntity lines 153-165) stay ledgered with the piston
-        // family — the engine's pistons carry no decoration consult yet.
-        if (dimension == 0 && decorations != null) {
-            for (net.zaminmc.torch.server.decoration.ItemFrame frame : decorations.allFrames()) {
-                Position p = frame.hangingPosition();
-                double dx = p.x() - cx;
-                double dy = p.y() - cy;
-                double dz = p.z() - cz;
-                if (dx * dx + dy * dy + dz * dz > injuryRadius * injuryRadius) {
-                    continue;
-                }
-                decorations.attackFrame(frame, false, true);
-            }
-            for (net.zaminmc.torch.server.decoration.Painting painting : decorations.allPaintings()) {
-                net.zaminmc.torch.block.BlockPosition p = painting.pos();
-                double dx = p.x() - cx;
-                double dy = p.y() - cy;
-                double dz = p.z() - cz;
-                if (dx * dx + dy * dy + dz * dz > injuryRadius * injuryRadius) {
-                    continue;
-                }
-                decorations.attackPainting(painting, false);
-            }
         }
 
         // The wire: one Explosion packet per observer, motion included —
@@ -21144,7 +21024,378 @@ public final class EngineServer implements Server, EngineBridge {
         for (ExplosionListener listener : explosionListeners) {
             listener.onExplosion(event);
         }
-        LOGGER.fine(() -> "Explosion at " + blockCenter + " removed " + destroyed.size() + " blocks");
+        LOGGER.fine(() -> "Explosion at " + blockCenter + " removed " + blockOffsets.size() + " cells");
+    }
+
+    /**
+     * The blast's player wounds (Explosion.damageEntities lines 106-137,
+     * 1:1): the feet-distance ratio gate {@code d12 <= 1.0}, the
+     * eye-height direction (PlayerEntity.getEyeHeight — 1.62 standing,
+     * 1.54 sneaking), the box-density attenuation, the int-truncated
+     * quadratic damage, the player-only difficulty ladder
+     * (PlayerEntity.takeDamage lines 786-798), the ordinary armor + EPF
+     * walks, and the packet's own motion carry {@code dir * d10} — the
+     * reference sends NO separate velocity packet for a blast; the 0x27
+     * motion field IS the knockback (an extra 0x2B would double it). The
+     * motion lands even when the wound itself is refused (the reference's
+     * velocity add and the damagedPlayers put both ride outside the
+     * takeDamage verdict — a peaceful-mode blast still throws the body).
+     */
+    private void woundPlayersFromBlast(EngineWorld blastWorld, int dimension,
+                                       double cx, double cy, double cz, float f3,
+                                       java.util.Map<UUID, double[]> motion) {
+        for (PlayerSession player : players.all()) {
+            Position p = player.position();
+            // d12 (line 118): the FEET-distance ratio — Entity.distanceTo
+            // reads the body's own position, no eye offset.
+            double feetDx = p.x() - cx;
+            double feetDy = p.y() - cy;
+            double feetDz = p.z() - cz;
+            double d12 = Math.sqrt(feetDx * feetDx + feetDy * feetDy
+                    + feetDz * feetDz) / f3;
+            if (d12 > 1.0) {
+                continue;
+            }
+            // The knockback direction (line 123): the eye-height vector.
+            double eye = player.sneaking() ? 1.54 : 1.62;
+            double d5 = p.x() - cx;
+            double d7 = (p.y() + eye) - cy;
+            double d9 = p.z() - cz;
+            double d13 = Math.sqrt(d5 * d5 + d7 * d7 + d9 * d9);
+            if (d13 == 0.0) {
+                continue; // line 126: the reference's own degenerate guard
+            }
+            d5 /= d13;
+            d7 /= d13;
+            d9 /= d13;
+            // The density (line 131): the victim's 0.6x1.8 box over the
+            // world as it stood (World.getBlockDensity lines 1608-1637).
+            double d14 = blockDensity(blastWorld, cx, cy, cz,
+                    p.x() - 0.3, p.y(), p.z() - 0.3,
+                    p.x() + 0.3, p.y() + 1.8, p.z() + 0.3);
+            double d10 = (1.0 - d12) * d14;
+            // The wound (line 134): the int-truncated quadratic form.
+            float damage = (int) ((d10 * d10 + d10) / 2.0 * 8.0 * f3 + 1.0);
+            // The knockback scale (lines 136-139): the Blast Protection
+            // shave over the SCALE, never the damage.
+            double d11 = EnchantmentHelper.modifyExplosionDamage(
+                    player.inventory().armorStacks(), d10);
+            // The packet's own motion carry (lines 143-145): dir * d10,
+            // the UNPROTECTED scale — the enchantment never touches it.
+            motion.put(player.uuid(), new double[]{d5 * d10, d7 * d10, d9 * d10});
+            // The launch grace (the engine's own MovementGuard need — the
+            // reference has no anti-cheat; the window matches the
+            // melee-knockback launch grant).
+            player.setGraceTicks(10);
+            // The difficulty's own scaling (Slice 19e — PlayerEntity.
+            // takeDamage lines 786-798 over the reference's scaled
+            // sources: the explosion family carries the whole ladder —
+            // peaceful never wounds, easy halves plus one, hard lifts a
+            // half — before the armor math sees the number. The ladder
+            // gates the WOUND alone; the knockback above already landed,
+            // exactly the reference's own order.
+            if (difficulty == 0) {
+                continue; // the peaceful blast never wounds
+            }
+            if (difficulty == 1) {
+                damage = damage / 2.0f + 1.0f;
+            } else if (difficulty == 3) {
+                damage = damage * 1.5f;
+            }
+            // The ordinary pipeline (LivingEntity.damageEntity's own
+            // order): armor bar first, then the protection EPF walk.
+            damage = applyArmor(player, damage);
+            damage = applyEnchantProtection(player, damage, DamageKind.EXPLOSION);
+            // §27.7: the public damage gate on the blast arm — after the
+            // protection math, before any state moves. A cancelled blast
+            // lands nothing; the mutable amount drives the window math.
+            net.zaminmc.torch.event.player.PlayerDamageEvent blastEvent =
+                    new net.zaminmc.torch.event.player.PlayerDamageEvent(
+                            player, damage, net.zaminmc.torch.event.DamageCause.EXPLOSION);
+            eventBus.fire(blastEvent);
+            if (blastEvent.cancelled() || blastEvent.amount() <= 0) {
+                continue;
+            }
+            damage = blastEvent.amount();
+            if (!player.hurtInvulnerable() || damage > player.lastHurtDamage()) {
+                float applied = player.hurtInvulnerable()
+                        ? Math.max(0.0f, damage - player.lastHurtDamage()) : damage;
+                player.beginHurtInvulnerability(damage);
+                if (applied > 0) {
+                    player.hurt(applied);
+                }
+                publishPlayerHurt(player);
+                if (player.health() <= 0) {
+                    dieOnTick(player, "was blown up");
+                } else {
+                    publishBodyChanged(player);
+                }
+            }
+        }
+    }
+
+    /**
+     * The blast's mob wounds (Explosion.damageEntities lines 106-137 over
+     * the mob family): the same feet-distance gate, the body's own eye
+     * height (MobEntity.eyeHeightForQuery), the box-density attenuation
+     * over the mob's own hull, and the reference's velocity impulse
+     * {@code += dir * d11} (lines 137-139) — the mobs carry no equipment,
+     * so the Blast Protection shave is a no-op and {@code d11 = d10}. No
+     * difficulty ladder (the reference scales players alone). The blast's
+     * own dimension gates the body (the nether bodies never take an
+     * overworld blast at the same spot).
+     */
+    private void woundMobsFromBlast(EngineWorld blastWorld, int dimension,
+                                    double cx, double cy, double cz, float f3) {
+        for (MobEntity mob : mobManager.all()) {
+            if (mob.dimension() != dimension) {
+                continue;
+            }
+            Position p = mob.position();
+            double feetDist = Math.sqrt((p.x() - cx) * (p.x() - cx)
+                    + (p.y() - cy) * (p.y() - cy) + (p.z() - cz) * (p.z() - cz));
+            double d12 = feetDist / f3;
+            if (d12 > 1.0) {
+                continue;
+            }
+            double eye = mob.eyeHeightForQuery();
+            double d5 = p.x() - cx;
+            double d7 = (p.y() + eye) - cy;
+            double d9 = p.z() - cz;
+            double d13 = Math.sqrt(d5 * d5 + d7 * d7 + d9 * d9);
+            if (d13 == 0.0) {
+                continue;
+            }
+            d5 /= d13;
+            d7 /= d13;
+            d9 /= d13;
+            double w = mob.type().width;
+            double d14 = blockDensity(blastWorld, cx, cy, cz,
+                    p.x() - w / 2.0, p.y(), p.z() - w / 2.0,
+                    p.x() + w / 2.0, p.y() + mob.type().height, p.z() + w / 2.0);
+            double d10 = (1.0 - d12) * d14;
+            float damage = (int) ((d10 * d10 + d10) / 2.0 * 8.0 * f3 + 1.0);
+            if (damage <= 0) {
+                continue;
+            }
+            mobManager.hurtFromExplosion(mob, damage);
+            // The reference's own impulse (lines 137-139): velocity +=
+            // dir * d11 — the Y component included, no melee yaw hop.
+            mob.addVelocity(d5 * d10, d7 * d10, d9 * d10);
+        }
+    }
+
+    /**
+     * The blast's vehicle wounds (Slice 74 — the same damageEntities walk
+     * over the cart family): the same law over the cart's own 0.98x0.7
+     * hull with the Entity-default eye height (height * 0.85 = 0.595).
+     * The dying furnace cart skips its furnace block and the dying TNT
+     * cart detonates (the chain reaction) — both laws read the source on
+     * the break sweep. The engine's vehicle family rides the overworld —
+     * the other dimensions' blasts never reach it.
+     */
+    private void woundVehiclesFromBlast(int dimension, double cx, double cy,
+                                        double cz, float f3) {
+        if (dimension != 0 || vehicleManager == null || world == null) {
+            return;
+        }
+        for (net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle
+                : vehicleManager.all()) {
+            Position p = vehicle.position();
+            double feetDist = Math.sqrt((p.x() - cx) * (p.x() - cx)
+                    + (p.y() - cy) * (p.y() - cy) + (p.z() - cz) * (p.z() - cz));
+            double d12 = feetDist / f3;
+            if (d12 > 1.0) {
+                continue;
+            }
+            // Entity.getEyeHeight's default (Entity.java): height * 0.85 —
+            // the cart hull's 0.7 carries 0.595.
+            double d5 = p.x() - cx;
+            double d7 = (p.y() + 0.7 * 0.85) - cy;
+            double d9 = p.z() - cz;
+            double d13 = Math.sqrt(d5 * d5 + d7 * d7 + d9 * d9);
+            if (d13 == 0.0) {
+                continue;
+            }
+            d5 /= d13;
+            d7 /= d13;
+            d9 /= d13;
+            // The cart's open hull: the 0.98x0.7 box rides the same
+            // density walk the reference gives every entity.
+            double d14 = blockDensity(world, cx, cy, cz,
+                    p.x() - 0.49, p.y(), p.z() - 0.49,
+                    p.x() + 0.49, p.y() + 0.7, p.z() + 0.49);
+            double d10 = (1.0 - d12) * d14;
+            float damage = (int) ((d10 * d10 + d10) / 2.0 * 8.0 * f3 + 1.0);
+            if (damage <= 0) {
+                continue;
+            }
+            vehicleManager.hurt(vehicle, damage,
+                    net.zaminmc.torch.server.entity.vehicle.VehicleEntity.DamageSource.EXPLOSIVE);
+            vehicle.setVelocity(
+                    vehicle.velocityX() + d5 * d10,
+                    vehicle.velocityY() + d7 * d10,
+                    vehicle.velocityZ() + d9 * d10);
+        }
+    }
+
+    /**
+     * DECORATION WOUNDS (the reference's damageEntities walk over the
+     * entity family — the frames and paintings in the blast box take the
+     * damage: DecorationEntity.takeDamage lines 137-146, any damage
+     * beyond the invulnerable gate removes the body and drops it through
+     * onAttack). The reference's Explosion consults every entity in the
+     * [power*2+1] box — the quadratic form's own +1 floor means every
+     * in-radius body takes at least the 1 wound (the frame's one-hit
+     * family: the blast breaks it off the wall, the frame item + the
+     * loaded item both dropping through the null-attacker arm, exactly
+     * the survival poll's own sweep). The move/addVelocity instant-drop
+     * arms (DecorationEntity lines 153-165) stay ledgered with the piston
+     * family — the engine's pistons carry no decoration consult yet.
+     */
+    private void woundDecorationsFromBlast(int dimension, double cx, double cy,
+                                           double cz, float f3) {
+        if (dimension != 0 || decorations == null) {
+            return;
+        }
+        for (net.zaminmc.torch.server.decoration.ItemFrame frame : decorations.allFrames()) {
+            Position p = frame.hangingPosition();
+            double dx = p.x() - cx;
+            double dy = p.y() - cy;
+            double dz = p.z() - cz;
+            if (dx * dx + dy * dy + dz * dz > f3 * f3) {
+                continue;
+            }
+            decorations.attackFrame(frame, false, true);
+        }
+        for (net.zaminmc.torch.server.decoration.Painting painting : decorations.allPaintings()) {
+            net.zaminmc.torch.block.BlockPosition p = painting.pos();
+            double dx = p.x() - cx;
+            double dy = p.y() - cy;
+            double dz = p.z() - cz;
+            if (dx * dx + dy * dy + dz * dz > f3 * f3) {
+                continue;
+            }
+            decorations.attackPainting(painting, false);
+        }
+    }
+
+    /**
+     * World.getBlockDensity 1:1 (reference/1.8.8 world/World.java lines
+     * 1608-1637): the sample grid over the victim's box — the axis steps
+     * {@code 1 / (extent * 2 + 1)}, the two lateral half-cell carries
+     * {@code (1 - floor(1 / step) * step) / 2} — each sample ray-cast to
+     * the blast center; the fraction of UNBLOCKED casts
+     * ({@code rayTrace == null}) is the density. The float accumulation
+     * of the sample walk is the reference's own (the float loop counter).
+     */
+    private double blockDensity(EngineWorld densityWorld, double cx, double cy, double cz,
+                                double minX, double minY, double minZ,
+                                double maxX, double maxY, double maxZ) {
+        double d0 = 1.0 / ((maxX - minX) * 2.0 + 1.0);
+        double d1 = 1.0 / ((maxY - minY) * 2.0 + 1.0);
+        double d2 = 1.0 / ((maxZ - minZ) * 2.0 + 1.0);
+        double d3 = (1.0 - Math.floor(1.0 / d0) * d0) / 2.0;
+        double d4 = (1.0 - Math.floor(1.0 / d2) * d2) / 2.0;
+        if (!(d0 < 0.0) && !(d1 < 0.0) && !(d2 < 0.0)) {
+            int i = 0;
+            int j = 0;
+            for (float f = 0.0f; f <= 1.0f; f = (float) (f + d0)) {
+                for (float f1 = 0.0f; f1 <= 1.0f; f1 = (float) (f1 + d1)) {
+                    for (float f2 = 0.0f; f2 <= 1.0f; f2 = (float) (f2 + d2)) {
+                        double d5 = minX + (maxX - minX) * f;
+                        double d6 = minY + (maxY - minY) * f1;
+                        double d7 = minZ + (maxZ - minZ) * f2;
+                        if (!lineBlocked(densityWorld, d5 + d3, d6, d7 + d4,
+                                cx, cy, cz)) {
+                            i++;
+                        }
+                        j++;
+                    }
+                }
+            }
+            return (float) i / j;
+        }
+        return 0.0F;
+    }
+
+    /**
+     * The density ray's blocked test — World.rayTrace's own walk shape
+     * (stopOnLiquid false, ignoreBlockWithoutBoundingBox true): any cell
+     * the segment crosses holding a collision-carrying block blocks it.
+     * The start cell counts (the reference tests it before the first
+     * step); fluids, torches, and the other no-box blocks pass it
+     * through (WorldSolidity's own material set). The step cap mirrors
+     * the reference's own walk bound.
+     */
+    private boolean lineBlocked(EngineWorld walkWorld, double x0, double y0, double z0,
+                                double x1, double y1, double z1) {
+        // The reference's own walk shape (World.rayTrace lines 639-745):
+        // the start cell tests first, then the DDA steps cell-by-cell
+        // toward the target, and the walk TERMINATES the moment the current
+        // cell IS the end cell ({@code l == i && i1 == j && j1 == k}) —
+        // every cell from the start to the end (inclusive) is read, and
+        // NOTHING beyond the endpoint ever is. (The retired form's
+        // t > 1.0 boundary test stepped past a boundary that landed
+        // exactly ON the endpoint — grazing rays read the block BELOW the
+        // blast and the density collapsed.)
+        int ex = (int) Math.floor(x1);
+        int ey = (int) Math.floor(y1);
+        int ez = (int) Math.floor(z1);
+        int x = (int) Math.floor(x0);
+        int y = (int) Math.floor(y0);
+        int z = (int) Math.floor(z0);
+        if (y >= 0 && y <= 255
+                && WorldSolidity.isSolid(walkWorld.getBlock(new BlockPosition(x, y, z)))) {
+            return true; // the start cell counts (rayTrace's first test)
+        }
+        if (x == ex && y == ey && z == ez) {
+            return false; // already at the end cell (the reference's terminal)
+        }
+        double dx = x1 - x0;
+        double dy = y1 - y0;
+        double dz = z1 - z0;
+        double tDeltaX = dx == 0 ? Double.MAX_VALUE : Math.abs(1.0 / dx);
+        double tDeltaY = dy == 0 ? Double.MAX_VALUE : Math.abs(1.0 / dy);
+        double tDeltaZ = dz == 0 ? Double.MAX_VALUE : Math.abs(1.0 / dz);
+        int stepX = dx > 0 ? 1 : -1;
+        int stepY = dy > 0 ? 1 : -1;
+        int stepZ = dz > 0 ? 1 : -1;
+        double tMaxX = dx == 0 ? Double.MAX_VALUE
+                : ((dx > 0 ? x + 1.0 - x0 : x0 - x) / Math.abs(dx));
+        double tMaxY = dy == 0 ? Double.MAX_VALUE
+                : ((dy > 0 ? y + 1.0 - y0 : y0 - y) / Math.abs(dy));
+        double tMaxZ = dz == 0 ? Double.MAX_VALUE
+                : ((dz > 0 ? z + 1.0 - z0 : z0 - z) / Math.abs(dz));
+        for (int step = 0; step < 256; step++) {
+            if (tMaxX < tMaxY && tMaxX < tMaxZ) {
+                if (tMaxX > 1.0) {
+                    return false; // the segment is spent
+                }
+                x += stepX;
+                tMaxX += tDeltaX;
+            } else if (tMaxY < tMaxZ) {
+                if (tMaxY > 1.0) {
+                    return false; // the segment is spent
+                }
+                y += stepY;
+                tMaxY += tDeltaY;
+            } else {
+                if (tMaxZ > 1.0) {
+                    return false; // the segment is spent
+                }
+                z += stepZ;
+                tMaxZ += tDeltaZ;
+            }
+            if (y >= 0 && y <= 255
+                    && WorldSolidity.isSolid(walkWorld.getBlock(new BlockPosition(x, y, z)))) {
+                return true;
+            }
+            if (x == ex && y == ey && z == ez) {
+                return false; // arrived at the end cell — the reference's terminal
+            }
+        }
+        return false;
     }
 
     /**

@@ -40,19 +40,26 @@ import java.util.function.Predicate;
  * (0.02) and the 0.2 rise. The physics: gravity -0.04 per tick, the 0.98
  * drag, the ground friction (0.7 horizontal, the -0.5 bounce). The fuse:
  * 80 ticks, then the 4.0F explosion at the body's own position (the
- * reference's {@code y + height/16} = +0.06).
+ * reference's {@code y + height/16} = +0.06125).
  *
  * <h2>Engine adaptations, all ledgered</h2>
  *
  * <ul>
- *   <li>The explosion damage is the engine's creeper walk parameterized
- *       (the falloff to double the power, the easy-difficulty cap); the
- *       reference's ray-density attenuation rides the explosion slice's
- *       own refinement.</li>
- *   <li>The burning-arrow collision arm (TntBlock.onEntityCollision) needs
- *       per-block entity collision callbacks — ledgered for the projectile
- *       slice.</li>
- *   <li>The smoke trail rides the particle system slice.</li>
+ *   <li>The explosion walk is the reference's own two-phase law
+ *       (ExplosionService + the detonation seat): the boundary ray fan,
+ *       the collect-then-destroy order, the d10 density attenuation, and
+ *       the int-truncated quadratic wound form — the retired
+ *       creeper-walk parameterization is gone.</li>
+ *   <li>The burning-arrow collision arm (TntBlock.onEntityCollision) rides
+ *       the projectile manager's block-hit consult — the arrow enters the
+ *       TNT's cell, the block primes, the arrow keeps its flight. The
+ *       reference's igniter attribution (the arrow's shooter) is the
+ *       engine's own standing simplification: the primed bodies carry no
+ *       igniter.</li>
+ *   <li>The smoke trail is NOT owed on the wire: the reference's
+ *       addParticle rides the server listener's EMPTY override
+ *       (ServerWorldEventListener lines 23-29) — the client renders its
+ *       own trail from the Spawn Entity packet. No server packet exists.</li>
  * </ul>
  */
 public final class TntSystem implements WorldChangeListener {
@@ -61,8 +68,6 @@ public final class TntSystem implements WorldChangeListener {
     static final int FUSE_TICKS = 80;
     /** The vanilla explosion power (PrimedTntEntity.explode). */
     static final float POWER = 4.0f;
-    /** The point-blank cap on easy difficulty ((8 * 2 * power + 1) / 2). */
-    public static final float MAX_DAMAGE = 32.0f;
 
     /** One primed body in flight (the engine object IS the public handle, §27.5). */
     public static final class PrimedTnt
@@ -313,7 +318,10 @@ public final class TntSystem implements WorldChangeListener {
         for (Listener listener : listeners) {
             listener.onTntPrimed(tnt);
         }
-        fx.sound(new Position(x, y + 0.5, z), "game.tnt.primed", 1.0f, 1.0f);
+        // The priming hiss at the body's own position (the reference's
+        // playSoundAtEntity(primedtntentity, ...) — the entity's own x/y/z,
+        // no rise).
+        fx.sound(new Position(x, y, z), "game.tnt.primed", 1.0f, 1.0f);
     }
 
     // ------------------------------------------------------------------
@@ -337,7 +345,9 @@ public final class TntSystem implements WorldChangeListener {
         for (Listener listener : listeners) {
             listener.onTntPrimed(tnt);
         }
-        fx.sound(new Position(tnt.x(), tnt.y() + 0.5, tnt.z()), "game.tnt.primed", 1.0f, 1.0f);
+        // The hiss at the primed body itself (playSoundAtEntity — the
+        // body's own x/y/z).
+        fx.sound(new Position(tnt.x(), tnt.y(), tnt.z()), "game.tnt.primed", 1.0f, 1.0f);
     }
 
     /**
@@ -367,6 +377,26 @@ public final class TntSystem implements WorldChangeListener {
      * owns the held-stack wear). Tick-thread context.
      */
     public boolean useIgnite(BlockPosition pos) {
+        if (!isTnt(world.getBlock(pos))) {
+            return false;
+        }
+        ignite(pos, FUSE_TICKS);
+        return true;
+    }
+
+    /**
+     * The burning-arrow arm (TntBlock.onEntityCollision lines 96-113): an
+     * on-fire arrow crossing the TNT's cell primes the block — the full
+     * 80-tick fuse, the block leaves the world, and the arrow keeps its
+     * flight through the now-open cell. (The reference's igniter is the
+     * arrow's shooter when living — the engine's primed bodies carry no
+     * igniter attribution, the engine's own standing simplification.)
+     * Tick-thread context.
+     *
+     * @return whether the cell held TNT and the prime happened (the
+     *         caller's arrow continues its walk through the opened cell).
+     */
+    public boolean igniteByArrow(BlockPosition pos) {
         if (!isTnt(world.getBlock(pos))) {
             return false;
         }
@@ -416,11 +446,12 @@ public final class TntSystem implements WorldChangeListener {
             }
             if (tnt.fuse-- <= 0) {
                 // The detonation (lines 69-72 + explode): the 4.0F blast at
-                // the body's own position.
+                // the body's own position — the reference's
+                // {@code y + height / 16.0F} (0.98 / 16 = 0.06125).
                 for (Listener listener : listeners) {
                     listener.onTntRemoved(tnt);
                 }
-                explode.accept(new Position(tnt.x, tnt.y + 0.06, tnt.z), POWER);
+                explode.accept(new Position(tnt.x, tnt.y + TNT_HEIGHT / 16.0, tnt.z), POWER);
                 continue;
             }
             survivors.add(tnt);

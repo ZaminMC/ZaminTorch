@@ -148,6 +148,17 @@ public final class ProjectileManager {
         void teleportThrower(int throwerId, Position at);
     }
 
+    /**
+     * The burning arrow's TNT ignition arm (TntBlock.onEntityCollision
+     * lines 96-113): an on-fire arrow entering a TNT cell primes it.
+     *
+     * @return whether the cell held TNT and the prime happened (the
+     *         caller's arrow continues its flight through the opened cell).
+     */
+    public interface TntIgniteSink {
+        boolean ignite(net.zaminmc.torch.block.BlockPosition cell);
+    }
+
     /** Damage application callbacks (the engine owns the combat rules). */
     public interface CombatSink {
         /**
@@ -339,6 +350,9 @@ public final class ProjectileManager {
     private SkullExplosionSink skullExplosionSink = (at, power, charged) -> { };
     /** The ender pearl's teleport arm (Slice 17c); optional until wired. */
     private PearlSink pearlSink = (throwerId, at) -> { };
+    /** The burning arrow's TNT-block ignition arm (TntBlock.onEntityCollision
+     * lines 96-113); optional until wired. */
+    private TntIgniteSink tntIgniteSink = pos -> false;
     /** The ender crystal's pop arm (Slice 62); optional until wired. */
     private CrystalSink crystalSink = (x, y, z) -> false;
     /** The dragon part's wound arm (Slice 63); optional until wired. */
@@ -369,6 +383,15 @@ public final class ProjectileManager {
     /** Wires the ender pearl's teleport arm (Slice 17c). */
     public void setPearlSink(PearlSink sink) {
         this.pearlSink = Objects.requireNonNull(sink, "sink");
+    }
+
+    /**
+     * Wires the burning arrow's TNT ignition arm (TntBlock.
+     * onEntityCollision lines 96-113): a burning arrow entering the TNT
+     * block's cell primes it — the block leaves, the arrow continues.
+     */
+    public void setTntIgniteSink(TntIgniteSink sink) {
+        this.tntIgniteSink = Objects.requireNonNull(sink, "sink");
     }
 
     /** Wires the ender crystal's pop arm (Slice 62). */
@@ -1095,6 +1118,18 @@ public final class ProjectileManager {
         // --- block hit --------------------------------------------------------
         if (solid.solidAt(point.x(), point.y(), point.z())) {
             if (projectile.kind() == ProjectileEntity.Kind.ARROW) {
+                // The burning arrow's TNT arm (TntBlock.onEntityCollision
+                // lines 96-113): an on-fire arrow entering the TNT's cell
+                // primes the block — the cell opens and the arrow KEEPS ITS
+                // FLIGHT through it (the reference's collision consult
+                // removes the block, never the arrow).
+                if (projectile.burning() && tntIgniteSink.ignite(
+                        new net.zaminmc.torch.block.BlockPosition(
+                                (int) Math.floor(point.x()),
+                                (int) Math.floor(point.y()),
+                                (int) Math.floor(point.z())))) {
+                    return false; // the cell opened — the walk continues
+                }
                 projectile.landInGround();
                 for (Listener listener : listeners) {
                     listener.onProjectileLanded(projectile);

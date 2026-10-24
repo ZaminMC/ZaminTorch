@@ -75,24 +75,36 @@ class BlastSourceTest {
         // The cap's material consequence: a charged skull's power-1 ray
         // (strength 0.7-1.3) chews stone at (0.8+0.3)*0.3 = 0.33 per
         // crossing — deep craters where the plain skull (6 -> 1.89/crossing)
-        // dies on the first cell.
-        GridWorld wall = new GridWorld();
+        // dies on the first cell. Fresh walls per blast (the reference's
+        // own shape: a detonation reads the world as it stands, and the
+        // set-add now carries the air cells the ray still has strength at —
+        // a shared, already-cratered wall would read the opened center as
+        // free air, exactly the reference's damagedBlocks-carry-air law).
+        GridWorld chargedWall = new GridWorld();
         for (int x = -3; x <= 3; x++) {
             for (int y = 60; y < 66; y++) {
                 for (int z = -3; z <= 3; z++) {
-                    wall.put(x, y, z, of("stone"));
+                    chargedWall.put(x, y, z, of("stone"));
                 }
             }
         }
-        ExplosionService charged = new ExplosionService(wall, new Random(3));
+        ExplosionService charged = new ExplosionService(chargedWall, new Random(3));
         var byCharged = charged.detonate(new BlockPosition(0, 63, 0), 1.0f, BlastSources.CHARGED_SKULL);
-        ExplosionService plain = new ExplosionService(wall, new Random(3));
+        GridWorld plainWall = new GridWorld();
+        for (int x = -3; x <= 3; x++) {
+            for (int y = 60; y < 66; y++) {
+                for (int z = -3; z <= 3; z++) {
+                    plainWall.put(x, y, z, of("stone"));
+                }
+            }
+        }
+        ExplosionService plain = new ExplosionService(plainWall, new Random(3));
         var byPlain = plain.detonate(new BlockPosition(0, 63, 0), 1.0f);
-        assertTrue(byCharged.size() > byPlain.size() * 3,
+        assertTrue(byCharged.size() > byPlain.size(),
                 "the charged skull's crater dwarfs the plain one: "
                         + byCharged.size() + " vs " + byPlain.size());
-        assertTrue(byPlain.isEmpty() || byPlain.size() <= 2,
-                "the plain skull barely dents stone: " + byPlain.size());
+        assertTrue(byPlain.isEmpty(),
+                "the plain skull never affords stone: " + byPlain.size());
     }
 
     @Test
@@ -171,10 +183,10 @@ class BlastSourceTest {
         ExplosionService soft = new ExplosionService(dirt, new Random(7));
         var chewed = soft.detonate(new BlockPosition(0, 63, 0), 1.0f);
         assertFalse(chewed.isEmpty(), "the dirt wall is chewed");
-        // 21 cells under the engine's FULL 4095-ray fan (the reference's
-        // shell-only fan carries ~2/3 of the rays — the service's own
-        // historical shape, ledgered with its javadoc).
-        assertEquals(21, chewed.size(), "the engine's power-1 dirt crater");
+        // 7 cells under the reference's own BOUNDARY fan (the shell's 1352
+        // rays, lines 64-66 — the retired engine's 4096-cell fan carved 21,
+        // the interior directions the reference never fires).
+        assertEquals(7, chewed.size(), "the reference's power-1 dirt crater");
         // And the READ-table cost form: a stone crossing costs (6+0.3)*0.3
         // — the creeper's power-3 ray (2.1-3.9) dies inside two stone cells.
         GridWorld stone = new GridWorld();
@@ -187,11 +199,12 @@ class BlastSourceTest {
         }
         ExplosionService creeper = new ExplosionService(stone, new Random(11));
         var crater = creeper.detonate(new BlockPosition(0, 63, 0), 3.0f);
-        // 50 of the 75-cell region under the seed-11 rolls: each stone
-        // crossing costs (6+0.3)*0.3 = 1.89 — a 2.1-3.9 strength ray dies
-        // inside two cells. The retired model (hardness 1.5 -> 0.54 per
-        // crossing) cleared the whole region; the READ table's own value
-        // costs the creeper dear.
-        assertEquals(50, crater.size(), "the READ table's stone crater (seed 11)");
+        // 1 cell (the center alone) under the reference's own BOUNDARY fan
+        // and the seed-11 rolls: each stone crossing costs (6+0.3)*0.3 =
+        // 1.89 plus the ~0.75-per-block step cost, and a 2.1-3.9 strength
+        // ray never affords the second stone cell — the vanilla law the
+        // retired engine's 4095-ray fan buried (it carved 50 of 75; the
+        // interior directions the reference never fire).
+        assertEquals(1, crater.size(), "the READ table's stone crater (seed 11)");
     }
 }
