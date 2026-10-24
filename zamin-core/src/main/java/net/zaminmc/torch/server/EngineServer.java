@@ -7909,6 +7909,22 @@ public final class EngineServer implements Server, EngineBridge {
         } catch (IllegalArgumentException invalid) {
             accepted = false; // a broken click must not damage the session (§54)
         }
+        if (!accepted) {
+            // ML-004 — the rejection-reason instrumentation (the cycle-4
+            // B-2 seat: a chest window's slot-27 wire transaction rejected
+            // once, state-dependent, never reproduced; the evidence rule —
+            // instrumentation precedes any behavior claim). Every refused
+            // click now carries its full wire context and the named gate
+            // at FINE, so the next occurrence diagnoses itself.
+            String reason = windowClickRejectionReasonOf(session, windowId, wireSlot, button, mode);
+            LOGGER.fine(() -> "Window click rejected: session=" + session.name()
+                    + " window=" + windowId
+                    + " open=" + session.openContainerWindowId()
+                    + "/" + session.openContainerKind()
+                    + " slot=" + wireSlot + " button=" + button + " mode=" + mode
+                    + " cursorEmpty=" + inventory.cursor().isEmpty()
+                    + " reason=" + reason);
+        }
         try {
             result.accept(accepted);
         } catch (RuntimeException brokenCallback) {
@@ -7919,6 +7935,53 @@ public final class EngineServer implements Server, EngineBridge {
                     "Window click callback failed for " + session.name(), brokenCallback);
         }
         publishInventoryChanged(session);
+    }
+
+    /**
+     * ML-004 — names the most likely refusing gate for a rejected window
+     * click, from the observable click shape alone (the dispatch's own
+     * deep refusals stay inside their families; this classifier reads only
+     * the click's wire form and the session's open state, so it never
+     * mutates anything). The names ride the FINE log — the next
+     * state-dependent repro (the cycle-4 B-2 shape: a chest window's
+     * slot-27 rejection) carries its own diagnosis.
+     */
+    private String windowClickRejectionReasonOf(PlayerSession session, int windowId,
+                                                int wireSlot, int button, int mode) {
+        if (wireSlot != -999 && windowId != WIRE_WINDOW_PLAYER
+                && windowId != session.openContainerWindowId()) {
+            return "unknown-window";
+        }
+        if (mode == 3) {
+            return "creative-only-gesture";
+        }
+        if (mode < 0 || mode > 6) {
+            return "mode-out-of-range";
+        }
+        if (wireSlot == -999) {
+            return "outside-click-no-cursor";
+        }
+        switch (session.openContainerKind()) {
+            case CHEST -> {
+                var position = session.openContainerPosition();
+                if (position == null || chestManager.peek(position) == null) {
+                    return "stale-chest";
+                }
+                if (wireSlot >= 0 && wireSlot <= CHEST_WIRE_SLOT_LAST) {
+                    return "chest-slot-mode-gate";
+                }
+                if (chestEngineSlotOf(wireSlot) < 0) {
+                    return "slot-out-of-range";
+                }
+                return "chest-click-refused";
+            }
+            case NONE, CRAFTING_TABLE, FURNACE, CHEST_MINECART, HOPPER_MINECART,
+                    HOPPER, ENDER_CHEST, BEACON, DISPENSER, BREWING_STAND,
+                    HORSE, VILLAGER, ENCHANTING_TABLE, ANVIL -> {
+                return "unclassified";
+            }
+        }
+        return "unclassified";
     }
 
     /** Click routing for the player inventory window (window 0). Tick-thread context. */

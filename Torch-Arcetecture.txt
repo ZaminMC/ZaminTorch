@@ -4240,6 +4240,25 @@ out of that slice's blast radius).
       generic-array holder's runtime component type rejected the
       List.of() empty arm) — the collector is a final mutable list now.
 
+## Wave R-1's ML-004 rider — the slot-27 rejection-reason instrumentation (landed)
+
+- [x] ML004 — THE INSTRUMENTATION (the cycle-4 B-2 seat: a chest window's
+      slot-27 wire transaction rejected once, state-dependent, never
+      reproduced; the evidence rule — instrumentation precedes any
+      behavior claim): every refused window click now carries its full
+      wire context (session, window id, the session's open window and
+      kind, slot, button, mode, cursor state) and the NAMED refusing gate
+      at FINE on the engine's logger — unknown-window,
+      creative-only-gesture, mode-out-of-range, outside-click-no-cursor,
+      stale-chest, chest-slot-mode-gate, slot-out-of-range,
+      chest-click-refused, unclassified. The classifier reads only the
+      click's wire form and the session's open state (never mutates);
+      the families' own deep refusals keep their internal gates. Pinned
+      by WindowClickRejectionInstrumentationTest 4/0 (the unknown-window,
+      creative-only, out-of-range, and post-break gates, each asserting
+      the log's reason and context). The slot-27 repro itself stays open
+      — the next occurrence now diagnoses itself.
+
 # 33. CODEBASE SCALE, CLASS COHESION, AND MAINTAINABILITY
 
 Torch's server-engine single-JAR codebase has exceeded 12,000 lines of code. This is a scale milestone, not a target for artificial restructuring.

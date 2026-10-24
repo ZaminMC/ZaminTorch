@@ -14706,3 +14706,30 @@ Stage Summary:
   The next most valuable wave, from the updated state: ML-004 (the
   slot-27 diagnostics — the last named papercut) or the ML-100 family
   tails by family; the owner's standing calls (DEC-001, ML-008) unchanged.
+
+## The ML-004 rider — the slot-27 rejection-reason instrumentation
+
+Date: 2026-10-24. Rides the R-1 wave's push (the cycle-4 audit's Wave D
+pick: "diagnostics first, per the evidence rules").
+
+- The bounded diagnostic seat (B-2: a chest window's slot-27 wire
+  transaction rejected once, state-dependent, never reproduced): every
+  refused window click now logs its full wire context and the NAMED
+  refusing gate at FINE — unknown-window, creative-only-gesture,
+  mode-out-of-range, outside-click-no-cursor, stale-chest,
+  chest-slot-mode-gate, slot-out-of-range, chest-click-refused,
+  unclassified. The classifier reads only the click's wire form and the
+  session's open state (no mutation); the families' own deep refusals
+  keep their internal gates.
+- Pinned by WindowClickRejectionInstrumentationTest 4/0: the
+  unknown-window gate (a click on a foreign window id), the
+  creative-only gate (mode 3), the out-of-range gate (wire slot 999),
+  and the post-break gate (the chest removed under the open window —
+  stale-chest or unknown-window, whichever the engine's close-on-break
+  ordering yields). The slot-27 repro itself stays open; the next
+  occurrence diagnoses itself.
+
+Stage Summary:
+- ML-004's instrumentation half CLOSED; the repro half stays open by
+  record. The next most valuable waves: the ML-100 family tails by
+  family, or the owner's standing calls (DEC-001, ML-008).
