@@ -1468,6 +1468,13 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
         bodyTimer = 0;
     }
 
+    /** Restores the food cadence timer from a saved snapshot (ZPD v12 —
+     * the reference's foodTickTimer; the save/load walk's own verb, the
+     * tick walk never writes it directly). */
+    public void restoreBodyTimer(int saved) {
+        bodyTimer = Math.max(0, saved);
+    }
+
     public int bodyTimer() {
         return bodyTimer;
     }

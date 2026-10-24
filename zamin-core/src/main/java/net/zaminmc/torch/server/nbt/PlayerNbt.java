@@ -112,9 +112,11 @@ public final class PlayerNbt {
             NbtOps.putInt(nbt, "SpawnZ", (int) Math.floor(spawn.z()));
             NbtOps.putBoolean(nbt, "SpawnForced", false);
         }
-        // The hunger rows (HungerManager.writeNbt 71-76).
+        // The hunger rows (HungerManager.writeNbt 71-76 — the exhaustion
+        // and the cadence timer persist with the live values, the Wave
+        // AUDIT persistence tail).
         NbtOps.putInt(nbt, "foodLevel", player.food());
-        NbtOps.putInt(nbt, "foodTickTimer", 0);
+        NbtOps.putInt(nbt, "foodTickTimer", player.bodyTimer());
         NbtOps.putFloat(nbt, "foodSaturationLevel", player.saturation());
         NbtOps.putFloat(nbt, "foodExhaustionLevel", player.exhaustion());
         // The abilities compound (PlayerAbilities.writeNbt 14-24).

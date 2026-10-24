@@ -105,7 +105,7 @@ class PlayerSaveSplitTest {
         out.writeByte('Z');
         out.writeByte('P');
         out.writeByte('D');
-        out.writeByte(11);
+        out.writeByte(12);
         writeString(out, snapshot.name());
         out.writeDouble(snapshot.position().x());
         out.writeDouble(snapshot.position().y());
@@ -160,6 +160,9 @@ class PlayerSaveSplitTest {
                 writeString(out, value);
             }
         }
+        // ZPD v12: the hunger tail (the Wave AUDIT persistence row).
+        out.writeFloat(snapshot.exhaustion());
+        writeVarInt(out, snapshot.foodTickTimer());
         out.flush();
         return sink.toByteArray();
     }
@@ -188,7 +191,8 @@ class PlayerSaveSplitTest {
         progress.put("stat.exploreAllBiomes", biomes);
         return new PlayerSnapshot(uuid, name, new Position(x, 5.0, -7.25),
                 new Rotation(97.5f, -18.0f), 3, slots, 17.5f, 18, 4.25f, 0, 777,
-                new Position(2.5, 6.0, 2.5), ender, stats, commandStats, progress);
+                new Position(2.5, 6.0, 2.5), ender, stats, commandStats, progress,
+                3.5f, 61);
     }
 
     @Test
@@ -229,6 +233,8 @@ class PlayerSaveSplitTest {
         assertEquals(Set.of("plains", "desert"),
                 restored.progress().get("stat.exploreAllBiomes"),
                 "the progress tail survives");
+        assertEquals(3.5f, restored.exhaustion(), "the pending exhaustion survives");
+        assertEquals(61, restored.foodTickTimer(), "the food cadence timer survives");
     }
 
     @Test

@@ -34,6 +34,10 @@ import java.util.UUID;
  * @param progress   the achievement progress rows (ZPD v11; the all-biomes
  *                   row's string set — the reference's AchievementProgress
  *                   carriage over the stats file's progress arm)
+ * @param exhaustion the pending exhaustion (ZPD v12; 0.0 in older files —
+ *                  the Wave AUDIT persistence tail)
+ * @param foodTickTimer the food/regen cadence timer (ZPD v12; the reference's
+ *                      HungerManager foodTickTimer, 0 in older files)
  */
 public record PlayerSnapshot(UUID uuid, String name, Position position, Rotation rotation,
                              int heldSlot, List<SlotStack> slots,
@@ -42,17 +46,21 @@ public record PlayerSnapshot(UUID uuid, String name, Position position, Rotation
                              List<SlotStack> enderSlots,
                              Map<String, Integer> stats,
                              Map<String, String> commandStats,
-                             Map<String, java.util.Set<String>> progress) {
+                             Map<String, java.util.Set<String>> progress,
+                             float exhaustion, int foodTickTimer) {
 
-    /** The pre-progress shape (ZPD v1-v10 readers and engine callers without one). */
+    /** The pre-hunger-tail shape (ZPD v1-v11 readers and engine callers
+     * without the live exhaustion pair). */
     public PlayerSnapshot(UUID uuid, String name, Position position, Rotation rotation,
                           int heldSlot, List<SlotStack> slots,
                           float health, int food, float saturation,
                           int gamemodeId, long totalXp, Position bedSpawn,
                           List<SlotStack> enderSlots, Map<String, Integer> stats,
-                          Map<String, String> commandStats) {
+                          Map<String, String> commandStats,
+                          Map<String, java.util.Set<String>> progress) {
         this(uuid, name, position, rotation, heldSlot, slots, health, food, saturation,
-                gamemodeId, totalXp, bedSpawn, enderSlots, stats, commandStats, Map.of());
+                gamemodeId, totalXp, bedSpawn, enderSlots, stats, commandStats, progress,
+                0.0f, 0);
     }
 
     /** The pre-command-stats shape (ZPD v1-v9 readers and engine callers without one). */

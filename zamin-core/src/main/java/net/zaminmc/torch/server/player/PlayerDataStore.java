@@ -68,7 +68,7 @@ public final class PlayerDataStore {
     private static final int MAGIC_0 = 'Z';
     private static final int MAGIC_1 = 'P';
     private static final int MAGIC_2 = 'D';
-    private static final int FORMAT_VERSION = 11;
+    private static final int FORMAT_VERSION = 12;
 
     private final Path directory;
 
@@ -176,6 +176,12 @@ public final class PlayerDataStore {
                     writeString(out, value);
                 }
             }
+            // ZPD v12: the hunger tail (the Wave AUDIT persistence row —
+            // the reference's player.dat keeps foodExhaustionLevel and
+            // foodTickTimer across restarts; HungerManager.writeNbt
+            // lines 71-76).
+            out.writeFloat(snapshot.exhaustion());
+            writeVarInt(out, snapshot.foodTickTimer());
         } catch (IOException e) {
             // The sink is an in-memory buffer; an IOException here is a
             // defect, not a persistence failure — still loud (the store's
@@ -320,9 +326,20 @@ public final class PlayerDataStore {
                     progress.put(key, values);
                 }
             }
+            // Version 12 appends the hunger tail (the pending exhaustion
+            // + the food cadence timer); older saves load the zeroed pair.
+            float exhaustion = 0.0f;
+            int foodTickTimer = 0;
+            if (version >= 12) {
+                exhaustion = in.readFloat();
+                foodTickTimer = readVarInt(in);
+                if (foodTickTimer < 0 || foodTickTimer > 1000) {
+                    throw new IOException("Implausible food tick timer: " + foodTickTimer);
+                }
+            }
             return Optional.of(new PlayerSnapshot(uuid, name, position, rotation, heldSlot,
                     stacks, health, food, saturation, gamemodeId, totalXp, bedSpawn, enderSlots,
-                    stats, commandStats, progress));
+                    stats, commandStats, progress, exhaustion, foodTickTimer));
         } catch (IOException | RuntimeException corrupt) {
             // A malformed value (bad identifier, out-of-range slot) is corruption
             // just as much as a broken header: quarantine, then treat as absent.

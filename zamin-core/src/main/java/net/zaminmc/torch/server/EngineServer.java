@@ -27123,6 +27123,12 @@ public final class EngineServer implements Server, EngineBridge {
             session.commandResults().readNbt(envelope);
         }
         session.setBody(snapshot.health(), snapshot.food(), snapshot.saturation());
+        // ZPD v12: the hunger tail returns with the body (the Wave AUDIT
+        // persistence row — the pending exhaustion and the food cadence
+        // timer the reference's player.dat carries; the zeroed pair in
+        // older files is the historical fresh-start shape).
+        session.setExhaustion(snapshot.exhaustion());
+        session.restoreBodyTimer(snapshot.foodTickTimer());
     }
 
     /** The persistable view of a live session (position is volatile-read, inventory snapshotted). */
@@ -27164,7 +27170,8 @@ public final class EngineServer implements Server, EngineBridge {
                 session.health(), session.food(), session.saturation(),
                 session.gamemode().legacyId(), session.totalXp(), session.bedSpawn(), ender,
                 session.stats().snapshot(), commandStatsOf(session),
-                session.stats().progressSnapshot());
+                session.stats().progressSnapshot(),
+                session.exhaustion(), session.bodyTimer());
     }
 
     /**
