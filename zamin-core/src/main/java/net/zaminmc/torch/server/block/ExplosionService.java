@@ -14,18 +14,30 @@ import java.util.Random;
 import java.util.Set;
 
 /**
- * The explosion: rays of force from the blast center, each weakened by every
- * block it crosses, removing what it still has strength to remove. The
- * historical 16&times;16&times;16 ray fan (step 0.3) with resistance costing —
- * blast resistance is modeled as hardness &times; 5, so bedrock and obsidian
- * shrug off a creeper while dirt and planks do not.
+ * The explosion: the reference's own two-phase walk
+ * (world/explosion/Explosion.java 1:1). Phase one — {@code damageEntities}
+ * (lines 60-105): the boundary-cell ray fan over the 16&times;16&times;16
+ * direction cube, each ray a random-strength march paying every block it
+ * crosses the {@code (resistance + 0.3) * 0.3} charge, COLLECTING the
+ * damaged cells — nothing is written. Phase two — {@code damageBlocks}
+ * (lines 156-176): the collected cells commit to air. The two phases are
+ * separate because every ray of the fan must read the world as it stood
+ * before the blast: a fan that destroys as it casts lets an earlier ray's
+ * hole pay nothing for a later ray crossing it, carving deeper than the
+ * reference ever does.
  *
- * <p>The service owns geometry only: it commits the destroyed blocks through
- * the world (each commit wakes the fluid and update systems — an explosion
- * hole floods or drops sand naturally) and reports what vanished, with the
- * per-block drop decision left to the caller (the historical
- * one-in-radius drop roll). Damage and knockback stay in the engine's combat
- * paths, which already carry the hurt-window and death semantics.</p>
+ * <p>The fan fires the BOUNDARY cells alone (lines 64-66: {@code j == 0 ||
+ * j == 15 || k == 0 || k == 15 || l == 0 || l == 15}) — 1352 rays, the
+ * cube's shell. The interior directions the 4096-cell fan once carried are
+ * the retired engine's own shape, not the reference's.</p>
+ *
+ * <p>Blast resistance is the table's own READ value (the reference's
+ * {@code Entity.getBlastResistance} consult): bedrock and obsidian shrug
+ * off a creeper while dirt and planks do not. The per-block drop decision
+ * stays with the caller (the reference's {@code dropItems} chance roll —
+ * the {@code 1.0F / power} form). Damage and knockback stay in the
+ * engine's combat paths, which already carry the hurt-window and death
+ * semantics.</p>
  */
 public final class ExplosionService {
 
@@ -55,70 +67,116 @@ public final class ExplosionService {
     }
 
     /**
-     * Detonates with the blast's SOURCE model (the reference's
-     * {@code Entity.getBlastResistance} + {@code canExplodeBlock} consults,
-     * Explosion lines 87-93): the plain default reads the block table; the
-     * wither's charged skull caps at 0.8; the primed TNT cart spares rails.
+     * The block-center origin form (the historical callers' shape): the
+     * exact origin is the center cell's middle.
      */
     public List<Destroyed> detonate(BlockPosition center, float radius, BlastSource source) {
-        Set<Destroyed> destroyed = new LinkedHashSet<>();
-        double cx = center.x() + 0.5;
-        double cy = center.y() + 0.5;
-        double cz = center.z() + 0.5;
+        return detonate(center.x() + 0.5, center.y() + 0.5, center.z() + 0.5,
+                radius, source);
+    }
 
-        // The historical ray fan: 16 samples per axis across the unit cube,
-        // each ray a random-strength cylinder of force marching outward.
+    /**
+     * Detonates from an EXACT origin (the reference's own {@code x, y, z}
+     * carry — the primed TNT's {@code y + height/16} hop, the wither's
+     * eye-height rise): collect, then commit, then hand the destroyed
+     * cells back.
+     */
+    public List<Destroyed> detonate(double cx, double cy, double cz,
+                                    float radius, BlastSource source) {
+        List<Destroyed> damaged = collectDamaged(cx, cy, cz, radius, source);
+        commitDamaged(damaged);
+        return damaged;
+    }
+
+    /**
+     * Phase one (Explosion.damageEntities lines 60-105): the boundary ray
+     * fan. NO writes — the collected cells ride back to the caller, so the
+     * wound walk can read the world as it stood (the reference computes the
+     * entity-density rays over the pre-blast world, then destroys in the
+     * second phase).
+     */
+    public List<Destroyed> collectDamaged(double cx, double cy, double cz,
+                                          float radius, BlastSource source) {
+        Set<Destroyed> damaged = new LinkedHashSet<>();
+
+        // The reference's own loop shape (lines 60-66): the boundary cells
+        // of the 16x16x16 direction cube alone — the interior cell fires
+        // nothing.
         for (int ix = 0; ix < 16; ix++) {
             for (int iy = 0; iy < 16; iy++) {
                 for (int iz = 0; iz < 16; iz++) {
-                    if (ix == 0 && iy == 0 && iz == 0) {
-                        continue; // degenerate zero ray
+                    if (ix != 0 && ix != 15 && iy != 0 && iy != 15
+                            && iz != 0 && iz != 15) {
+                        continue; // interior direction: the reference never fires it
                     }
-                    double dx = ix / 15.0 * 2.0 - 1.0;
-                    double dy = iy / 15.0 * 2.0 - 1.0;
-                    double dz = iz / 15.0 * 2.0 - 1.0;
-                    double length = Math.sqrt(dx * dx + dy * dy + dz * dz);
-                    double strength = radius * (0.7 + random.nextDouble() * 0.6);
-                    double px = cx;
-                    double py = cy;
-                    double pz = cz;
-                    while (strength > 0.0) {
-                        if (py < 0.0 || py > 255.0) {
+                    // j / 15.0F * 2.0F - 1.0F — the float-computed axis
+                    // component (the reference's own arithmetic, kept
+                    // bit-for-bit: the float division rounds before the
+                    // double carry).
+                    double d0 = ix / 15.0f * 2.0f - 1.0f;
+                    double d1 = iy / 15.0f * 2.0f - 1.0f;
+                    double d2 = iz / 15.0f * 2.0f - 1.0f;
+                    double d3 = Math.sqrt(d0 * d0 + d1 * d1 + d2 * d2);
+                    d0 /= d3;
+                    d1 /= d3;
+                    d2 /= d3;
+                    // float f = power * (0.7F + random.nextFloat() * 0.6F)
+                    // — the reference's own per-ray strength draw (line 74).
+                    float f = radius * (0.7f + random.nextFloat() * 0.6f);
+                    double d4 = cx;
+                    double d6 = cy;
+                    double d8 = cz;
+
+                    while (f > 0.0f) {
+                        if (d6 < 0.0 || d6 > 255.0) {
                             break; // the world's vertical bounds end the ray
                         }
                         BlockPosition cell = new BlockPosition(
-                                (int) Math.floor(px), (int) Math.floor(py), (int) Math.floor(pz));
+                                (int) Math.floor(d4), (int) Math.floor(d6),
+                                (int) Math.floor(d8));
                         BlockType type = world.getBlock(cell);
                         if (!type.equals(worldAir())) {
-                            // THE RESISTANCE CHARGE (Explosion.damageEntities
-                            // lines 86-91, 1:1): every non-air crossing pays
-                            // the block's READ value —
-                            // {@code f -= (f2 + 0.3F) * 0.3F} — the retired
-                            // form's hardness-proxy is gone; the table's own
-                            // number stands (stone 6, not 1.5).
-                            float resistance = source.blastResistance(world, cell, type);
-                            strength -= (resistance + 0.3f) * 0.3f;
-                            // THE DESTROY GATE (line 93): the strength
-                            // surviving AND the source's own veto — a cell
-                            // the ray could not afford never joins the
-                            // destroyed list (the pre-fix engine looted
-                            // unaffordable cells; the reference collects
-                            // only what it can pay).
-                            if (strength > 0.0f && source.canExplodeBlock(world, cell, type)) {
-                                if (destroyed.add(new Destroyed(cell, type))) {
-                                    world.setBlock(cell, worldAir());
-                                }
-                            }
+                            // The resistance charge (lines 86-91):
+                            // f -= (f2 + 0.3F) * 0.3F over the table's own
+                            // READ value — stone 6, not 1.5.
+                            float f2 = source.blastResistance(world, cell, type);
+                            f -= (f2 + 0.3f) * 0.3f;
                         }
-                        strength -= 0.22500001f; // the historical per-step cost
-                        px += dx / length * 0.3;
-                        py += dy / length * 0.3;
-                        pz += dz / length * 0.3;
+                        // The destroy gate (line 93): the strength
+                        // surviving AND the source's own veto — a cell the
+                        // ray could not afford never joins the damaged
+                        // list (the reference collects only what it can
+                        // pay).
+                        if (f > 0.0f && (source.canExplodeBlock(world, cell, type))) {
+                            damaged.add(new Destroyed(cell, type));
+                        }
+                        f -= 0.22500001f; // the per-step cost (line 103)
+                        d4 += d0 * 0.3f;
+                        d6 += d1 * 0.3f;
+                        d8 += d2 * 0.3f;
                     }
                 }
             }
         }
-        return new ArrayList<>(destroyed);
+        return new ArrayList<>(damaged);
+    }
+
+    /**
+     * Phase two (Explosion.damageBlocks lines 156-176): the collected cells
+     * commit to air. Runs AFTER the whole fan — the writes never feed back
+     * into another ray's resistance reads. The AIR cells the fan collected
+     * (the reference's {@code set.add} rides outside the material check —
+     * the packet's own offsets carry them) are no-ops here exactly like the
+     * reference's own {@code material != AIR} gate: no write, no drop, no
+     * listener fan.
+     */
+    public void commitDamaged(List<Destroyed> damaged) {
+        BlockType air = worldAir();
+        for (Destroyed cell : damaged) {
+            if (!cell.type().equals(air)) {
+                world.setBlock(cell.position(), air);
+            }
+        }
     }
 
     /** One removed block: where it stood and what it was (the drop roll reads it). */
@@ -156,8 +214,9 @@ public final class ExplosionService {
     }
 
     /**
-     * The blast resistance model: hardness &times; 5 (the historical
-     * proportion for the common blocks). Unbreakable blocks (negative
+     * The blast resistance model: the table's own READ value first (the
+     * reference's Block.getBlastResistance read family); the unmapped fall
+     * through to the standing convention. Unbreakable blocks (negative
      * hardness) resist everything; fluids are skipped by callers — a blast
      * hole under water floods, it does not drain the ocean.
      */

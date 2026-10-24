@@ -6004,12 +6004,12 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
      * renders a single particle at the exact position with the offsets
      * as its velocity — the ambient breeding heart (AnimalEntity.mobTick's
      * HEART), the wolf's shake splash and the enderman's portal cloud all
-     * ride it. Distance-culled at the 64-block feedback range. Any thread.
+     * ride it. Distance-culled at the particle family's 16-block range. Any thread.
      */
     void sendDisplayParticle(int particleId, Position at,
                              float vx, float vy, float vz, float velocityScale) {
         if (currentSession() == null
-                || beyondFeedbackRange(currentSession(), at)) {
+                || beyondRange(currentSession(), at, PARTICLE_RANGE)) {
             return;
         }
         sendParticles(particleId, false, at, vx, vy, vz, velocityScale, 0, new int[0]);
@@ -6071,9 +6071,12 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     }
 
     /**
-     * Delivers one engine FX event to this observer: distance-culled (the
-     * historical 64-block feedback range), translated from the semantic bus
-     * into this protocol's packets. Any thread.
+     * Delivers one engine FX event to this observer: distance-culled by the
+     * reference's own per-kind ranges (ServerWorldEventListener.playSound
+     * line 44: {@code volume > 1.0F ? 16 * volume : 16} for sounds;
+     * ServerWorld.addParticle lines 930-936: 16 blocks for the particle
+     * family, 256 for the ignore-distance kinds), translated from the
+     * semantic bus into this protocol's packets. Any thread.
      */
     void deliverFx(net.zaminmc.torch.server.fx.FxManager.FxEvent event,
                    net.zaminmc.torch.server.player.PlayerSession observer) {
@@ -6083,13 +6086,13 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         Position at;
         if (event instanceof net.zaminmc.torch.server.fx.FxManager.Sound sound) {
             at = sound.position();
-            if (beyondFeedbackRange(observer, at)) {
+            if (beyondRange(observer, at, soundRange(sound.volume()))) {
                 return;
             }
             sendSound(sound.name(), sound.position(), sound.volume(), sound.pitch());
         } else if (event instanceof net.zaminmc.torch.server.fx.FxManager.BlockShatter shatter) {
             at = shatter.position();
-            if (beyondFeedbackRange(observer, at)) {
+            if (beyondRange(observer, at, PARTICLE_RANGE)) {
                 return;
             }
             Integer legacy = LegacyBlockIds.legacyId(shatter.block().identifier()).orElse(null);
@@ -6102,7 +6105,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                     0.4f, 0.4f, 0.4f, 0.3f, 20, new int[]{legacy & 0xFFF});
         } else if (event instanceof net.zaminmc.torch.server.fx.FxManager.StandShatter burst) {
             at = burst.position();
-            if (beyondFeedbackRange(observer, at)) {
+            if (beyondRange(observer, at, PARTICLE_RANGE)) {
                 return;
             }
             // The armor stand's breaking burst (addBreakingParticles):
@@ -6113,7 +6116,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                     0.125f, 0.494f, 0.125f, 0.05f, 10, new int[]{5});
         } else if (event instanceof net.zaminmc.torch.server.fx.FxManager.ItemShatter crumbs) {
             at = crumbs.position();
-            if (beyondFeedbackRange(observer, at)) {
+            if (beyondRange(observer, at, PARTICLE_RANGE)) {
                 return;
             }
             Integer legacy = LegacyBlockIds.legacyItemId(crumbs.stack().type().identifier()).orElse(null);
@@ -6125,14 +6128,14 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                     new int[]{legacy & 0xFFF, crumbs.stack().damage() & 0xF});
         } else if (event instanceof net.zaminmc.torch.server.fx.FxManager.Poof poof) {
             at = poof.position();
-            if (beyondFeedbackRange(observer, at)) {
+            if (beyondRange(observer, at, PARTICLE_RANGE)) {
                 return;
             }
             sendParticles(Protocol18.PARTICLE_SNOWBALL_POOF, false, at,
                     0.2f, 0.2f, 0.2f, 0.2f, 8, new int[0]);
         } else if (event instanceof net.zaminmc.torch.server.fx.FxManager.Smoke smoke) {
             at = smoke.position();
-            if (beyondFeedbackRange(observer, at)) {
+            if (beyondRange(observer, at, PARTICLE_RANGE)) {
                 return;
             }
             // The reference's own single SMOKE_NORMAL (EnderEyeItem's
@@ -6142,7 +6145,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                     0.0f, 0.0f, 0.0f, 0.0f, 1, new int[0]);
         } else if (event instanceof net.zaminmc.torch.server.fx.FxManager.PotionSplash splash) {
             at = splash.position();
-            if (beyondFeedbackRange(observer, at)) {
+            if (beyondRange(observer, at, PARTICLE_RANGE)) {
                 return;
             }
             // The 2002 world event (PotionEntity.onCollision's closing
@@ -6155,14 +6158,27 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         }
     }
 
-    /** The 64-block feedback radius (sounds and particles). */
-    private static boolean beyondFeedbackRange(PlayerSession observer, Position at) {
+    /**
+     * The sound family's own range law (ServerWorldEventListener.playSound
+     * line 44): {@code volume > 1.0F ? 16.0 * volume : 16.0} blocks — the
+     * explosion's 4.0 carries 64, the block sounds' 1.0 carry 16, the
+     * thunder's 10000 carries the whole world.
+     */
+    private static double soundRange(float volume) {
+        return volume > 1.0f ? 16.0 * volume : 16.0;
+    }
+
+    /** The range test over the squared distance. */
+    private static boolean beyondRange(PlayerSession observer, Position at, double range) {
         Position p = observer.position();
         double dx = at.x() - p.x();
         double dy = at.y() - p.y();
         double dz = at.z() - p.z();
-        return dx * dx + dy * dy + dz * dz > 64.0 * 64.0;
+        return dx * dx + dy * dy + dz * dz > range * range;
     }
+
+    /** The particle family's range (ServerWorld.addParticle lines 930-936): 16. */
+    private static final double PARTICLE_RANGE = 16.0;
 
     /** Destroy Entities (0x13) for one removed mob; drops its sync state. Any thread. */
     void sendMobRemoved(int mobEntityId) {
