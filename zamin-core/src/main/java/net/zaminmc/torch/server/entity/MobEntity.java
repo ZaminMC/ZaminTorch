@@ -572,6 +572,10 @@ public final class MobEntity implements LivingEntity {
     // flag — the swell never cools), the swell's own duration (Fuse), and
     // the blast's own radius (ExplosionRadius).
     private boolean creeperCharged;
+    /** The charged-creeper head-drop counter (CreeperEntity line 29). */
+    private int mobHeadDropCount;
+    /** The killing blast's charged-creeper source (the die walk's attribution). */
+    private MobEntity chargedCreeperKiller;
     private boolean creeperIgnited;
     private int creeperFuseTime = CREEPER_FUSE_TICKS;
     private int creeperExplosionRadius = 3;
@@ -1410,10 +1414,38 @@ public final class MobEntity implements LivingEntity {
         return sheared;
     }
 
-    /** @return whether the body is in the primed state (the fuse burning). */
     /** The creeper's charged flag (syncedData 17 — powered; the blast doubles). */
     public boolean creeperCharged() {
         return creeperCharged;
+    }
+
+    /**
+     * The charged-creeper head-drop gate (CreeperEntity lines 29 + 223-227):
+     * one head per creeper — {@code mobHeadDropCount < 1} (the doMobLoot
+     * half of the reference's own gate rides the loot walk's early return).
+     */
+    public boolean shouldDropMobHead() {
+        return mobHeadDropCount < 1;
+    }
+
+    /** The once-gate's own counter (CreeperEntity.addMobHeadDrop line 229). */
+    public void addMobHeadDrop() {
+        mobHeadDropCount++;
+    }
+
+    /**
+     * The killing blast's charged-creeper source (the die walk's
+     * attribution — ZombieEntity.die lines 591-597, SkeletonEntity.die
+     * lines 165-172, CreeperEntity.die lines 146-152): set on the wound
+     * that kills, read by the loot walk, never persisted.
+     */
+    public void killedByChargedCreeper(MobEntity creeper) {
+        this.chargedCreeperKiller = creeper;
+    }
+
+    /** @return the charged creeper whose blast killed this body, or null. */
+    public MobEntity chargedCreeperKiller() {
+        return chargedCreeperKiller;
     }
 
     public void setCreeperCharged(boolean charged) {
