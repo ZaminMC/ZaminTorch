@@ -1372,8 +1372,21 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
         clearHoverTicks();
     }
 
-    /** Exhaustion accrual (the vanilla cap: 40.0). */
+    /**
+     * Exhaustion accrual (the vanilla cap: 40.0) behind the reference's own
+     * gate — the invulnerable bodies never accrue ({@code PlayerEntity
+     * .addFatigue lines 1475-1481}: {@code if (!this.abilities.invulnerable)
+     * hungerManager.addExhaustion(amount)}). Creative and spectator are the
+     * engine's invulnerable modes (the abilities.invulnerable pair), so the
+     * wrapper itself refuses them — the sprint/jump/attack/break/damage
+     * sources stay ungated call sites exactly like the reference's own.
+     */
     public void addExhaustion(float amount) {
+        net.zaminmc.torch.GameMode mode = this.gamemode;
+        if (mode == net.zaminmc.torch.GameMode.CREATIVE
+                || mode == net.zaminmc.torch.GameMode.SPECTATOR) {
+            return; // the invulnerable accrual refusal (addFatigue's own arm)
+        }
         exhaustion = Math.min(exhaustion + amount, EXHAUSTION_CAP);
     }
 

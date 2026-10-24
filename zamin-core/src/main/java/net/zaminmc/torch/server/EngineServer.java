@@ -1241,7 +1241,11 @@ public final class EngineServer implements Server, EngineBridge {
                                                 // Entity.struckByLightning lines
                                                 // 1546-1552: 5.0 + the 8-second
                                                 // burn through the player arms.
-                                                damageOnTick(player, 5.0f, 0.0f,
+                                                // The lightning bolt is an ordinary
+                                                // source — the default 0.3 charge
+                                                // (only setBypassesArmor/setUnblockable
+                                                // zero it; DamageSource.java 124/135).
+                                                damageOnTick(player, 5.0f, 0.3f,
                                                         "was struck by lightning",
                                                         DamageKind.LIGHTNING);
                                                 igniteWithFireProtection(player, 8);
@@ -5181,7 +5185,7 @@ public final class EngineServer implements Server, EngineBridge {
                 if (depth < 0.0) {
                     damageOnTick(session,
                             Math.max(1, (int) Math.floor(-depth * worldBorder.getDamagePerBlock())),
-                            0.3f, "suffocated in a wall", DamageKind.IN_WALL);
+                            0.0f, "suffocated in a wall", DamageKind.IN_WALL);
                 }
             }
             // The scoreboard's health driver (ServerPlayerEntity.tick lines
@@ -5347,9 +5351,9 @@ public final class EngineServer implements Server, EngineBridge {
         }
         session.cancelEating();
         var nutrition = Foods.nutritionOf(held.type(), held.damage()).orElseThrow();
-        if (session.food() >= net.zaminmc.torch.server.player.PlayerSession.MAX_FOOD) {
-            return; // already full (the start check cannot fully guard the window)
-        }
+        // The completion consumes unconditionally (the reference's
+        // onItemUseFinish: the can-eat gate lives at the START only — a
+        // peaceful-difficulty food regen mid-eat still finishes the bite).
         session.inventory().consumeHeld(1);
         int newFood = Math.min(net.zaminmc.torch.server.player.PlayerSession.MAX_FOOD,
                 session.food() + nutrition.foodPoints());
@@ -7266,6 +7270,13 @@ public final class EngineServer implements Server, EngineBridge {
             }
             // Food: the eat timer.
             if (Foods.nutritionOf(held.type(), held.damage()).isEmpty()) {
+                return;
+            }
+            // canEat(false) = needsFood() && !invulnerable (the reference
+            // PlayerEntity.canEat line 1487-1489): the invulnerable bodies
+            // (creative, spectator) never eat — even the always-edible pair.
+            if (session.gamemode() == GameMode.CREATIVE
+                    || session.gamemode() == GameMode.SPECTATOR) {
                 return;
             }
             if (session.food() >= net.zaminmc.torch.server.player.PlayerSession.MAX_FOOD) {
