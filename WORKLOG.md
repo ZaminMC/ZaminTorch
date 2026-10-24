@@ -14931,3 +14931,68 @@ Stage Summary:
   already 1:1 (closed). Wave plan: a spawner store slice (type +
   tuning fields + the restore walk), then re-assess the potentials
   model against the NBT-injection question.
+
+---
+Task ID: vt-waves-3-6
+Agent: the coordinator (Abasing session)
+Task: The vanilla-grade tail census's waves three through six — the
+spawner persistence, the custom-name carries, the movement family, and
+the nether verification.
+
+Work Log:
+- VT-3 (9737b839): the spawners' ZSD persistence — SpawnerDataStore v1
+  (the reference writeNbt's own field set: the typed row's delay + six
+  cadence rows; the untyped row never persists per the EntityId gate);
+  boot restore beside the note store, saveAllNow's named pipeline arm;
+  the egg re-type now survives restarts. The potentials tail CLOSED
+  NOT-REACHABLE (the 1.8.8 dungeon sets a single type — DungeonFeature
+  line 128; the weighted re-pick needs NBT injection the engine has no
+  surface for). SpawnerDataStoreTest 3/0. The minecart kind verified
+  already 1:1.
+- VT-4 (bb4aecc4): the custom-name carries — the renamed egg names its
+  body (useOn lines 83-87 + startUsing lines 119-123; the dispenser arm
+  was already wired), the sheared mooshroom's cow inherits the CustomName
+  (MooshroomEntity lines 42-45). SpawnEggTest's new hover-name pin 7/0.
+  The cart's name row closed surface-exists (model/wire/persistence
+  whole; only NBT injection absent). The mob name surface (wire index
+  2/3, the named-never-despawn, ZMD) was already whole.
+- VT-5 (5533bc60, rebased over the 136 release): the spider family's
+  wall climb LANDED WHOLE — the post-clip wall flag (SpiderEntity.tick
+  line 67; the wire's byte-16 bit 0 for both kinds), travel lines
+  1165-1184's climb arms (the ±0.15 horizontal clamp, the -0.15 sink
+  floor, the 0.2 push-up on the press; the one-tick flag lag preserved).
+  SpiderWallClimbTest 4/0 (the flag+push-up choreography, the climb's
+  rise, the off-wall control, the cow control). The magma cube's size*3
+  armor override (MagmaCubeEntity lines 34-37) pinned in SlimeEntityTest.
+  The climb-out assist's ledger note closed landed-earlier (the assist
+  was already whole with its own test). The giant's favor stays ledgered
+  (the engine's pathfinder carries NO favor model — the whole favor
+  family's envelope, never the giant alone). DEBUG FIND en route: the
+  spider-climb pin initially froze at the wall — traced through the
+  solver (the gathered boxes printed) to a TEST-SCENE key collision
+  (x<<44 | z<<32 sign-extends for negative z — the wall's z=-1 cells
+  collided with x=0 cells, a phantom ceiling above the spider); fixed
+  with 12-bit field packing in the test. The ENGINE was correct — no
+  engine change needed beyond the climb arms.
+- VT-6 (1298f4c1): the nether spawn tail closed landed-earlier — the
+  HELL biome table (ghast 50/4-4, pigman 100/4-4, magma 1/4-4) rides
+  the naturalSpawnsNether system's own tick (EngineServer 2835); pinned
+  by BiomeSpawnTablesTest + NetherWorldTest.
+- Movement-family regressions green after the walk change (ClimbOut,
+  LavaMotionDrag, LavaWalk, MobSolverWalk, MobEntity, Pathfinding).
+- CI built releases 135 + 136 from the session's waves mid-flight; the
+  VT-5 push rebased over the 136 bump clean.
+
+Stage Summary:
+- Six waves landed: VT-1 stats, VT-2 ambient/particles (evidence
+  closure), VT-3 spawner ZSD, VT-4 name carries, VT-5 movement (the
+  spider climb whole), VT-6 nether verification. The compat ledger's
+  rows updated per wave.
+- REMAINING (VT-7, next window): the guardian's squid-hunt arm + the
+  elder's ghost-curse seam (ClientLink playGameState), the fishing
+  hooked-player pull (the knockback surface), the command-block
+  success counts + areCommandBlocksEnabled + the block MC|AdvCdm arm,
+  the wolf's water-shake cycle, the cauldron tails' exact shape, the
+  armor-model edges, /testfor's dataTag arm, the armor-stand NBT tails
+  (EntityTag merge, DisabledSlots), the blaze's FOLLOW_RANGE 48, the
+  mob step-sound family (mob.silverfish.step etc.).
