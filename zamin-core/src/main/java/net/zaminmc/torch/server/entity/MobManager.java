@@ -187,6 +187,14 @@ public final class MobManager {
         }
 
         /**
+         * The bat left its roost (BatEntity.mobAiTick lines 99-113 — both
+         * arms' doEvent(null, 1015, blockPos, 0)): the takeoff event at
+         * the body's cell.
+         */
+        default void onBatTakeoff(MobEntity mob) {
+        }
+
+        /**
          * A world event that reaches EVERY connected player (the
          * reference's doGlobalEvent — PlayerManager.sendPacket, no
          * distance and no dimension gate).
@@ -1587,6 +1595,13 @@ public final class MobManager {
             if (mob.consumeBlazeFireDirty()) {
                 for (Listener listener : listeners) {
                     listener.onMobBlazeFireChanged(mob);
+                }
+            }
+            // The bat's own takeoff event (BatEntity.mobAiTick lines 99-113,
+            // both roost-exit arms): the 1015 world event at the body.
+            if (mob.consumeBatTakeoff()) {
+                for (Listener listener : listeners) {
+                    listener.onBatTakeoff(mob);
                 }
             }
             // The wither's own band (Slice 59 — WitherEntity.mobAiTick's

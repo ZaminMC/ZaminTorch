@@ -533,6 +533,14 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                 }
             }
 
+            /** The bat's 1015 takeoff event (BatEntity lines 99-113, both arms). */
+            @Override
+            public void onBatTakeoff(net.zaminmc.torch.server.entity.MobEntity mob) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendWorldEvent(mob.position(), 1015, mob.dimension());
+                }
+            }
+
             /** A global world event (the doGlobalEvent family — every player). */
             @Override
             public void onWorldGlobalEventAt(net.zaminmc.torch.util.Position position, int eventId) {

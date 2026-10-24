@@ -19136,6 +19136,14 @@ public final class EngineServer implements Server, EngineBridge {
             }
         }
 
+        /** The bat's 1015 takeoff event at the body's cell. */
+        @Override
+        public void onBatTakeoff(net.zaminmc.torch.server.entity.MobEntity mob) {
+            for (MobManager.Listener listener : mobListeners) {
+                listener.onBatTakeoff(mob);
+            }
+        }
+
         /** The global world events (the 1013's own broadcast family). */
         @Override
         public void onWorldGlobalEventAt(Position position, int eventId) {

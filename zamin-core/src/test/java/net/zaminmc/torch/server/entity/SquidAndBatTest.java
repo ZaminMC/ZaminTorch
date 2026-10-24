@@ -116,6 +116,10 @@ class SquidAndBatTest {
         world.player = new Position(2.5, 8.2, 0.5);
         bat.tick(false);
         assertFalse(bat.batRoosting(), "a player within 4 wakes the roost");
+        // The wake's own 1015 (BatEntity line 112's doEvent): the event
+        // flag the manager drains for the world-event broadcast.
+        assertTrue(bat.consumeBatTakeoff(), "the player wake fired the takeoff event");
+        assertFalse(bat.consumeBatTakeoff(), "the flag is consumed once");
 
         // The flight: the wander moves the body.
         world.player = null;
@@ -127,6 +131,16 @@ class SquidAndBatTest {
             flew = now.x() != start.x() || now.y() != start.y() || now.z() != start.z();
         }
         assertTrue(flew, "the hangPos wander moves the body");
+
+        // The ceiling arm's own 1015 (BatEntity line 104's doEvent — the
+        // roost opens when the block above stops being solid): a fresh
+        // roost, the ceiling removed.
+        MobEntity ceilingBat = batIn(world, 93L);
+        assertTrue(ceilingBat.batRoosting(), "the fresh bat hangs");
+        world.ceilingSolid = false;
+        ceilingBat.tick(false);
+        assertFalse(ceilingBat.batRoosting(), "the opened ceiling wakes the roost");
+        assertTrue(ceilingBat.consumeBatTakeoff(), "the ceiling arm fired the takeoff event");
     }
 
     @Test

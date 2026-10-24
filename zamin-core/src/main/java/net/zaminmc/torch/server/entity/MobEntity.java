@@ -2927,13 +2927,15 @@ public final class MobEntity implements LivingEntity {
         if (batRoosting) {
             boolean ceilingSolid = world.isSolidAt(position.x(), position.y() + type.height, position.z());
             if (!ceilingSolid) {
-                batRoosting = false; // the 1015 event rides the sound slice
+                batRoosting = false;
+                pendingBatTakeoff = true; // doEvent(null, 1015, blockPos, 0)
             } else if (random.nextInt(200) == 0) {
                 headYaw = random.nextInt(360);
             }
             Position player = world.nearestPlayer(position.x(), position.y(), position.z(), 4.0);
             if (player != null) {
                 batRoosting = false;
+                pendingBatTakeoff = true; // the player-wake arm's own event
             }
             return;
         }
@@ -3499,6 +3501,7 @@ public final class MobEntity implements LivingEntity {
     private boolean pendingWitherBlockBreakSound;
     /** Set when a skull launch fired; the manager consumes (the 1014 sound). */
     private boolean pendingWitherShootSound;
+    private boolean pendingBatTakeoff;
 
     /**
      * The boss's own mind (WitherEntity.mobTick + mobAiTick 1:1): the
@@ -3822,6 +3825,13 @@ public final class MobEntity implements LivingEntity {
     public boolean consumeWitherBlockBreakSound() {
         boolean pending = pendingWitherBlockBreakSound;
         pendingWitherBlockBreakSound = false;
+        return pending;
+    }
+
+    /** @return the bat's 1015 takeoff-event flag; consumed once. */
+    public boolean consumeBatTakeoff() {
+        boolean pending = pendingBatTakeoff;
+        pendingBatTakeoff = false;
         return pending;
     }
 
