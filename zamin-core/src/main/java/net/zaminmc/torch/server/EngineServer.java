@@ -17534,7 +17534,7 @@ public final class EngineServer implements Server, EngineBridge {
                     x, y, z,
                     net.zaminmc.torch.server.endcrystal.EnderCrystalSystem.BLAST_POWER,
                     true,
-                    net.zaminmc.torch.server.block.ExplosionService.BlastSource.PLAIN);
+                    net.zaminmc.torch.server.block.ExplosionService.BlastSource.PLAIN, null);
         }
 
         @Override
@@ -20903,7 +20903,7 @@ public final class EngineServer implements Server, EngineBridge {
         // world's blast wounds and knocks but never breaks blocks.
         float power = creeper.creeperExplosionRadius()
                 * (creeper.creeperCharged() ? 2.0f : 1.0f);
-        detonateAt(center.x(), center.y(), center.z(), power,
+        detonateAtFromMob(creeper, center.x(), center.y(), center.z(), power,
                 gameRules.getBoolean("mobGriefing"));
     }
 
@@ -20914,12 +20914,24 @@ public final class EngineServer implements Server, EngineBridge {
     private void detonateAtWithSource(double cx, double cy, double cz, float power,
                                       boolean destructive,
                                       net.zaminmc.torch.server.block.ExplosionService.BlastSource source) {
-        detonateAtIn(world, explosionService, 0, cx, cy, cz, power, destructive, source);
+        detonateAtIn(world, explosionService, 0, cx, cy, cz, power, destructive, source, null);
     }
 
     private void detonateAt(double cx, double cy, double cz, float power, boolean destructive) {
         detonateAtIn(world, explosionService, 0, cx, cy, cz, power, destructive,
-                net.zaminmc.torch.server.block.ExplosionService.BlastSource.PLAIN);
+                net.zaminmc.torch.server.block.ExplosionService.BlastSource.PLAIN, null);
+    }
+
+    /**
+     * The mob-sourced blast (the creeper's own — CreeperEntity.explode's
+     * {@code world.explode(this, ...)}): the source rides the wound walk
+     * so the victims' deaths carry the attribution (the charged-creeper
+     * head-drop family's own gate).
+     */
+    private void detonateAtFromMob(MobEntity source, double cx, double cy, double cz,
+                                   float power, boolean destructive) {
+        detonateAtIn(world, explosionService, 0, cx, cy, cz, power, destructive,
+                net.zaminmc.torch.server.block.ExplosionService.BlastSource.PLAIN, source);
     }
 
     /**
@@ -20946,7 +20958,8 @@ public final class EngineServer implements Server, EngineBridge {
     private void detonateAtIn(EngineWorld blastWorld, ExplosionService service,
                               int dimension, double cx, double cy, double cz,
                               float power, boolean destructive,
-                              net.zaminmc.torch.server.block.ExplosionService.BlastSource source) {
+                              net.zaminmc.torch.server.block.ExplosionService.BlastSource source,
+                              MobEntity blastSourceMob) {
         BlockPosition blockCenter = new BlockPosition(
                 (int) Math.floor(cx), (int) Math.floor(cy), (int) Math.floor(cz));
 
@@ -21009,7 +21022,7 @@ public final class EngineServer implements Server, EngineBridge {
             // floor(c - f3 - 1) .. floor(c + f3 + 1) — the engine's family
             // walks carry the same span through their own distance gates.
             woundPlayersFromBlast(blastWorld, dimension, cx, cy, cz, f3, motion);
-            woundMobsFromBlast(blastWorld, dimension, cx, cy, cz, f3);
+            woundMobsFromBlast(blastWorld, dimension, cx, cy, cz, f3, blastSourceMob);
             woundVehiclesFromBlast(dimension, cx, cy, cz, f3);
             woundDecorationsFromBlast(dimension, cx, cy, cz, f3);
 
@@ -21209,7 +21222,8 @@ public final class EngineServer implements Server, EngineBridge {
      * overworld blast at the same spot).
      */
     private void woundMobsFromBlast(EngineWorld blastWorld, int dimension,
-                                    double cx, double cy, double cz, float f3) {
+                                    double cx, double cy, double cz, float f3,
+                                    MobEntity blastSourceMob) {
         for (MobEntity mob : mobManager.all()) {
             if (mob.dimension() != dimension) {
                 continue;
@@ -21241,7 +21255,7 @@ public final class EngineServer implements Server, EngineBridge {
             if (damage <= 0) {
                 continue;
             }
-            mobManager.hurtFromExplosion(mob, damage);
+            mobManager.hurtFromExplosion(mob, damage, blastSourceMob);
             // The reference's own impulse (lines 137-139): velocity +=
             // dir * d11 — the Y component included, no melee yaw hop.
             mob.addVelocity(d5 * d10, d7 * d10, d9 * d10);

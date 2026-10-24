@@ -2539,9 +2539,29 @@ public final class MobManager {
      * blast's direction-and-density scale, not the attack's yaw hop).
      */
     public boolean hurtFromExplosion(MobEntity mob, float amount) {
-        return hurt(mob, amount, Double.NaN,
+        return hurtFromExplosion(mob, amount, null);
+    }
+
+    /**
+     * The blast's own wound with its SOURCE (Explosion.damageEntities
+     * lines 106-137 over takeDamage): the damage lands through the
+     * ordinary hurt walk with NO melee knockback and the blast's source
+     * riding the attacker seat (the reference's DamageSource carries the
+     * exploding body — the zombie reinforcement ladder, the enderman
+     * anger, and the charged-creeper head-drop attribution all read it).
+     * When the wound kills and the source is a CHARGED creeper, the
+     * victim carries the attribution to its loot walk (the die arms'
+     * own law).
+     */
+    public boolean hurtFromExplosion(MobEntity mob, float amount, MobEntity blastSource) {
+        boolean landed = hurt(mob, amount, Double.NaN,
                 net.zaminmc.torch.event.DamageCause.EXPLOSION,
-                false, false, null, null, true);
+                false, false, blastSource, null, true);
+        if (landed && blastSource != null && blastSource.type() == MobType.CREEPER
+                && blastSource.creeperCharged() && mob.health() <= 0) {
+            mob.killedByChargedCreeper(blastSource);
+        }
+        return landed;
     }
 
     /**
@@ -3422,6 +3442,32 @@ public final class MobManager {
             return;
         }
         Position at = mob.position();
+        // The charged-creeper head drop (ZombieEntity.die lines 589-598,
+        // SkeletonEntity.die lines 156-172, CreeperEntity.die lines
+        // 139-152): a victim killed by a CHARGED creeper's blast drops
+        // its own head — once per creeper (shouldDropMobHead's own
+        // counter), the zombie's head (damage 2, the pigman never — the
+        // engine's own type split carries the gate), the skeleton's
+        // (damage 1 wither variant, 0 plain), the creeper's own (damage
+        // 4 — a creeper killed by ANOTHER charged creeper; the blasting
+        // body itself never wounds itself, the pre-blast removal).
+        MobEntity chargedCreeper = mob.chargedCreeperKiller();
+        if (chargedCreeper != null && chargedCreeper.shouldDropMobHead()) {
+            int headDamage;
+            switch (mob.type()) {
+                case ZOMBIE -> headDamage = 2;
+                case SKELETON -> headDamage = mob.skeletonWither() ? 1 : 0;
+                case CREEPER -> headDamage = 4;
+                default -> headDamage = -1;
+            }
+            if (headDamage >= 0) {
+                chargedCreeper.addMobHeadDrop();
+                lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()),
+                        net.zaminmc.torch.item.ItemStack.of(
+                                net.zaminmc.torch.server.item.BuiltinItems.SKULL, 1)
+                                .withDamage(headDamage));
+            }
+        }
         // The Looting widening (the reference's dropFewItems shape, e.g.
         // CowEntity: `nextInt(3) + nextInt(1 + lootingMultiplier)` — every
         // common roll widens by nextInt(1 + looting); at level 0 the term
