@@ -2916,6 +2916,18 @@ public final class MobEntity implements LivingEntity {
     }
 
     /**
+     * The spider family's wall flag (SpiderEntity's synced slot 16, bit 0 —
+     * the tick law's own post-move horizontal clip). The climb arms read it
+     * pre-move; the wire publishes it for the client's hanging pose.
+     */
+    private boolean spiderClimbingWall;
+
+    /** @return whether the spider body touches a wall (the index-16 bit). */
+    public boolean spiderClimbingWall() {
+        return spiderClimbingWall;
+    }
+
+    /**
      * The bat's mind (BatEntity.mobAiTick): the roost holds while a solid
      * ceiling stays above and no player stands within 4 (the head glances
      * on the 1-in-200); the flight wanders toward the re-rolled hangPos
@@ -4810,8 +4822,14 @@ public final class MobEntity implements LivingEntity {
      * reference's own quirk that a helmet HELD in the hand contributes its
      * points too (the loop checks {@code instanceof ArmorItem}, never the
      * slot). Non-armor stacks (the pumpkin, the skull) contribute nothing.
+     * The magma cube's own override (MagmaCubeEntity lines 34-37) replaces
+     * the whole walk: {@code size * 3} — the hull's own protection, the
+     * equipment never consulted.
      */
     public int armorProtectionPoints() {
+        if (type == MobType.MAGMA_CUBE) {
+            return slimeSize() * 3; // the reference's own override
+        }
         int points = 0;
         for (int slot = 0; slot <= armorEquipment.length; slot++) {
             ItemStack stack = equipment(slot);
@@ -9471,9 +9489,41 @@ public final class MobEntity implements LivingEntity {
         // d1/d0: the y captured before the move — the exit ledge sits
         // 0.6 above IT, not above the post-move body).
         double preMoveY = position.y();
+        // THE SPIDER FAMILY'S CLIMB CLAMP (LivingEntity.travel lines
+        // 1165-1175 over SpiderEntity.isClimbing's wall override): a body
+        // whose last move clipped a wall clamps its horizontal input to
+        // ±0.15, zeroes the fall distance, and never sinks faster than
+        // -0.15 — the pre-move arms the reference applies before its own
+        // move. The wall flag itself is the spider's tick law
+        // (SpiderEntity.tick line 67: setClimbingWall(collidingHorizontally),
+        // server-side) — updated from the move below.
+        double climbX = moveX;
+        double climbZ = moveZ;
+        double climbVy = standingDrift;
+        if (spiderClimbingWall) {
+            climbX = Math.max(-0.15, Math.min(0.15, climbX));
+            climbZ = Math.max(-0.15, Math.min(0.15, climbZ));
+            fallDistance = 0.0f;
+            if (climbVy < -0.15) {
+                climbVy = -0.15;
+            }
+        }
         net.zaminmc.torch.server.physics.EntityMoveSolver.Result swept =
-                solverMove(moveX, standingDrift, moveZ, WALK_STEP_HEIGHT);
+                solverMove(climbX, climbVy, climbZ, WALK_STEP_HEIGHT);
         if (swept != null) {
+            // The climb's push-up (LivingEntity.travel line 1184: a
+            // climbing body still pushing into the wall rises at 0.2 —
+            // the flag read is the PREVIOUS tick's own, the reference's
+            // tick order: SpiderEntity.tick sets it AFTER travel).
+            if (spiderClimbingWall && swept.collidingHorizontally()) {
+                velocityY = 0.2f;
+            }
+            // The spider's own tick law (SpiderEntity.tick line 67): the
+            // wall flag is the post-move horizontal clip — the wire's
+            // byte-16 bit 0, the climb arms' read next tick.
+            if (type == MobType.SPIDER || type == MobType.CAVE_SPIDER) {
+                spiderClimbingWall = swept.collidingHorizontally();
+            }
             if (swept.collidingHorizontally() && walk > 0 && detourTicks == 0
                     && swept.onGround()) {
                 // VIII9 — the zombie's door-break intercept

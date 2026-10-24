@@ -4929,6 +4929,13 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             // the client raises the hanging pose from it.
             out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5) | Protocol18.KIND_STATUS_METADATA_INDEX);
             out.writeByte(mob.batRoosting() ? 1 : 0);
+        } else if (mob.type() == net.zaminmc.torch.server.entity.MobType.SPIDER
+                || mob.type() == net.zaminmc.torch.server.entity.MobType.CAVE_SPIDER) {
+            // The spider family's wall flag (SpiderEntity's synced slot 16,
+            // bit 0 — the tick law's post-move horizontal clip): the client
+            // raises the head against the wall from it.
+            out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5) | Protocol18.KIND_STATUS_METADATA_INDEX);
+            out.writeByte(mob.spiderClimbingWall() ? 1 : 0);
         } else if (mob.type() == net.zaminmc.torch.server.entity.MobType.GUARDIAN) {
             // The guardian's block (GuardianEntity.registerSyncedData): the
             // index-16 flag Int (the moving 0x02 bit + the elder 0x04 bit)

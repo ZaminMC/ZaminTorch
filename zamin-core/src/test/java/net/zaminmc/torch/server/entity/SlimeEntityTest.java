@@ -94,6 +94,35 @@ class SlimeEntityTest {
         assertEquals(2.0f, slime.attackDamage(), 1e-6f);
     }
 
+    /**
+     * The magma cube's own armor override (MagmaCubeEntity lines 34-37):
+     * getArmorProtection = size * 3 — the hull's protection replaces the
+     * equipment sum entirely (a size-2 cube carries 6 points, the 24%
+     * armor envelope).
+     */
+    @Test
+    void theMagmaCubeArmorIsItsOwnSizeTimesThree() {
+        MobEntity magma = new MobEntity(301, MobType.MAGMA_CUBE,
+                new Position(0.5, 8.0, 0.5), new Random(4L), worldAt(null));
+        magma.setSlimeSize(1);
+        assertEquals(3, magma.armorProtectionPoints(), "a size-1 cube: 3 points");
+        magma.setSlimeSize(2);
+        assertEquals(6, magma.armorProtectionPoints(), "a size-2 cube: 6 points");
+        magma.setSlimeSize(4);
+        assertEquals(12, magma.armorProtectionPoints(), "a size-4 cube: 12 points");
+        // The envelope reads the same points (damage * (25 - 6) / 25).
+        magma.setSlimeSize(2);
+        assertEquals(6.0f * 19 / 25.0f, magma.damageAfterArmor(6.0f), 1e-6f,
+                "the armor envelope rides the size-based points");
+        // The plain slime keeps the equipment walk (no override — the
+        // reference's SlimeEntity carries none).
+        MobEntity slime = new MobEntity(302, MobType.SLIME,
+                new Position(0.5, 8.0, 0.5), new Random(4L), worldAt(null));
+        slime.setSlimeSize(4);
+        assertEquals(0, slime.armorProtectionPoints(),
+                "the plain slime's bare hull carries no armor points");
+    }
+
     @Test
     void theInitializeRollsTheSizeFamily() {
         // initialize lines 286-295: size = 1 << nextInt(3) — the 1/2/4
