@@ -133,4 +133,42 @@ class KnockbackAndExhaustionTest {
         assertEquals(0.01f + 0.1f + 0.2f + 0.025f + 0.3f + 3.0f, session.exhaustion(),
                 1.0E-3, "the charges accumulate under the cap");
     }
+
+    @Test
+    void theInvulnerableBodiesNeverAccrue() {
+        // The reference's addFatigue gate (PlayerEntity.java 1475-1481):
+        // if (!this.abilities.invulnerable) hungerManager.addExhaustion —
+        // the wrapper refuses, the sources stay ungated call sites.
+        PlayerSession creative = freshSession();
+        creative.setGamemode(net.zaminmc.torch.GameMode.CREATIVE);
+        creative.addExhaustion(0.8f); // a sprint-jump's worth
+        creative.addExhaustion(3.0f); // a regen heart's worth
+        assertEquals(0.0f, creative.exhaustion(), 0.0f,
+                "the creative body accrues nothing");
+
+        PlayerSession spectator = freshSession();
+        spectator.setGamemode(net.zaminmc.torch.GameMode.SPECTATOR);
+        spectator.addExhaustion(40.0f);
+        assertEquals(0.0f, spectator.exhaustion(), 0.0f,
+                "the spectator body accrues nothing");
+
+        PlayerSession survival = freshSession();
+        survival.addExhaustion(0.3f); // one swing
+        assertEquals(0.3f, survival.exhaustion(), 1.0E-6,
+                "the survival body accrues through the same wrapper");
+    }
+
+    @Test
+    void theLoadPathRestoreStaysUngated() {
+        // readNbt writes the field directly (HungerManager.readNbt lines
+        // 62-69) — the restore never runs the invulnerable refusal.
+        PlayerSession creative = freshSession();
+        creative.setGamemode(net.zaminmc.torch.GameMode.CREATIVE);
+        creative.setExhaustion(2.5f);
+        assertEquals(2.5f, creative.exhaustion(), 1.0E-6,
+                "the restored value survives on an invulnerable body");
+        // ...and the wrapper still refuses fresh accrual on top of it.
+        creative.addExhaustion(0.3f);
+        assertEquals(2.5f, creative.exhaustion(), 1.0E-6);
+    }
 }
