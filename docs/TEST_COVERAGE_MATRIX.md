@@ -31,7 +31,7 @@ bukkit bridge, rcon FIN-WAIT), which is the evidence behind ML-002.
 | 0x20 entity properties | **gap + untested** | ML-011: no writer, no test |
 | 0x0A use bed / multiplayer sleep | **partial + partial test** | SleepAcceptanceTest covers the single-player contract only (test methods verified this cycle) |
 | 0x41 difficulty live-sync | **gap + untested** | ML-012 |
-| Chest slot-27 rejection | **unverified** | ML-004: needs rejection-reason instrumentation first (no FINE log exists) |
+| Chest slot-27 rejection | **unverified** (repro open) | ML-004's instrumentation LANDED: every refused window click logs its wire context + the named gate at FINE (unknown-window / creative-only-gesture / slot-out-of-range / stale-chest / mode-out-of-range / outside-click-no-cursor / chest-slot-mode-gate / chest-click-refused / unclassified), pinned by WindowClickRejectionInstrumentationTest 4/0 — the next state-dependent repro diagnoses itself |
 | RCON drain under load | **flaky member** | RconProtocolTest:333-340 5s FIN-WAIT loop — ML-002 member |
 | Fishing bite windows under load | **flaky members** | two methods — hardened on PR #37; population audit pending |
 | Item registry id-by-id | **pinned this cycle** | R-2 resolved: ItemRegistryParityTest 4/0 — the full table, the 17-id no-engine-item set, the dual spellings, the stack sizes; 11 wire-id defects + 16 missing rows + the bucket stack repaired first |
