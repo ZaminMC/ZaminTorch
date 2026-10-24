@@ -14733,3 +14733,27 @@ Stage Summary:
 - ML-004's instrumentation half CLOSED; the repro half stays open by
   record. The next most valuable waves: the ML-100 family tails by
   family, or the owner's standing calls (DEC-001, ML-008).
+
+## The charged-creeper head-drop rider — the ML-100 family tail, 1:1
+
+Date: 2026-10-24. Lands as 22305d26, riding the R-1 wave's explosion
+rebuild (the source threading builds on the new wound walk).
+
+- The law (the reference's die arms): a victim killed by a CHARGED
+  creeper's blast drops its own head — the zombie's (SKULL damage 2), the
+  skeleton's (1 wither variant / 0 plain), the creeper's own (4, killed
+  by ANOTHER charged creeper) — once per creeper, the doMobLoot half
+  riding the loot walk's early return.
+- The attribution seat: detonateAtFromMob (the creeper's own blast seat)
+  threads the exploding body through the wound walk into
+  hurtFromExplosion's attacker seat — the same seat the reference's
+  DamageSource.getAttacker carries; the zombie reinforcement ladder and
+  the enderman anger now read the blast's true source too.
+- Pinned by ChargedCreeperHeadDropTest 6/0 (the zombie head beside the
+  corpse loot, the once gate, the uncharged nothing, the wither variant's
+  damage, the creeper victim's own head, the headless family's no skull);
+  the entity package (51 classes) green over the threading.
+
+Stage Summary:
+- One ML-100 family tail closed. The remaining tails stay family-owned;
+  the owner's standing calls (DEC-001, ML-008, ML-013) unchanged.
