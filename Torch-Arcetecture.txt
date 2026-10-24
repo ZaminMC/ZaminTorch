@@ -4259,6 +4259,24 @@ out of that slice's blast radius).
       the log's reason and context). The slot-27 repro itself stays open
       — the next occurrence now diagnoses itself.
 
+## Wave R-1's head-drop rider — the charged-creeper skull family (the ML-100 tail, landed)
+
+- [x] THE CHARGED-CREEPER HEAD DROP (ZombieEntity.die lines 589-598,
+      SkeletonEntity.die lines 156-172, CreeperEntity.die lines 139-152):
+      a victim killed by a CHARGED creeper's blast drops its own head —
+      the zombie's (SKULL damage 2, the pigman never — the engine's own
+      type split carries the gate), the skeleton's (damage 1 wither
+      variant / 0 plain), the creeper's own (damage 4, killed by ANOTHER
+      charged creeper) — once per creeper (shouldDropMobHead's counter,
+      CreeperEntity lines 29 + 223-227), the doMobLoot half riding the
+      loot walk's early return. The attribution seat: the blast's source
+      rides the wound walk (detonateAtFromMob — the creeper's own seat —
+      through woundMobsFromBlast into hurtFromExplosion's attacker seat,
+      the same seat the reference's DamageSource.getAttacker carries;
+      the zombie reinforcement ladder and the enderman anger read it
+      too). Pinned by ChargedCreeperHeadDropTest 6/0; the entity package
+      (51 classes) green over the threading.
+
 # 33. CODEBASE SCALE, CLASS COHESION, AND MAINTAINABILITY
 
 Torch's server-engine single-JAR codebase has exceeded 12,000 lines of code. This is a scale milestone, not a target for artificial restructuring.
