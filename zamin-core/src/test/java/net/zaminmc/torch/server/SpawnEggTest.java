@@ -154,6 +154,43 @@ class SpawnEggTest {
         }
     }
 
+    /**
+     * The hover-name carry (SpawnEggItem.useOn lines 83-87): a renamed
+     * stack names the body it spawns — the anvil-named pig egg's own law.
+     */
+    @Test
+    void theRenamedEggNamesTheBodyItSpawns() throws Exception {
+        EngineServer server = boot();
+        try {
+            PlayerSession player = join(server, "Namer");
+            BlockPosition stone = new BlockPosition(2, 4, 2);
+            server.world().execute(() -> server.world().setBlock(stone, BuiltinBlocks.STONE));
+            await(() -> server.world().getBlock(stone).equals(BuiltinBlocks.STONE),
+                    "the stone landed");
+
+            // The anvil-named pig egg (damage 90) in the held hand.
+            net.zaminmc.torch.item.ItemStack namedEgg = net.zaminmc.torch.item.ItemStack.of(
+                    net.zaminmc.torch.server.item.BuiltinItems.SPAWN_EGG, 1)
+                    .withDamage(90).withName("Hambone");
+            server.world().execute(() ->
+                    player.inventory().setSlot(player.inventory().heldSlot(), namedEgg));
+            await(() -> "Hambone".equals(player.inventory().held().displayName()),
+                    "the named egg held");
+
+            server.useItemOnBlock(player, stone, 1, java.util.Optional.empty(), ignored -> { });
+            await(() -> server.mobs().all().stream()
+                            .anyMatch(m -> m.type() == MobType.PIG
+                                    && "Hambone".equals(m.customName())),
+                    "the spawned pig carries the stack's hover name");
+            // The named body never despawns (the CustomName persistence rule).
+            assertEquals("Hambone", server.mobs().all().stream()
+                    .filter(m -> m.type() == MobType.PIG).findFirst().orElseThrow()
+                    .customName());
+        } finally {
+            server.shutdown(null);
+        }
+    }
+
     @Test
     void theFenceUpFaceLiftsTheSpawn() throws Exception {
         EngineServer server = boot();

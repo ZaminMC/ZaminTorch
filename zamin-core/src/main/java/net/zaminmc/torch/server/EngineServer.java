@@ -11589,8 +11589,13 @@ public final class EngineServer implements Server, EngineBridge {
         if (face == 1 && block.identifier().equals(BuiltinBlocks.FENCE.identifier())) {
             lift = 0.5;
         }
-        mobManager.spawnFromEgg(kind, new Position(
-                target.x() + 0.5, target.y() + lift, target.z() + 0.5));
+        net.zaminmc.torch.server.entity.MobEntity spawned = mobManager.spawnFromEgg(kind,
+                new Position(target.x() + 0.5, target.y() + lift, target.z() + 0.5));
+        // The hover-name carry (SpawnEggItem.useOn lines 83-87): a renamed
+        // stack names the body it spawns.
+        if (spawned != null && held.displayName() != null) {
+            spawned.setCustomName(held.displayName());
+        }
         if (session.gamemode() != GameMode.CREATIVE) {
             session.inventory().consumeHeld(1);
             publishInventoryChanged(session);
@@ -11619,8 +11624,13 @@ public final class EngineServer implements Server, EngineBridge {
         if (kind == null) {
             return; // the unknown id: no body, no payment
         }
-        mobManager.spawnFromEgg(kind, new Position(
-                liquidCell.x() + 0.5, liquidCell.y() + 0.5, liquidCell.z() + 0.5));
+        net.zaminmc.torch.server.entity.MobEntity spawned = mobManager.spawnFromEgg(kind,
+                new Position(liquidCell.x() + 0.5, liquidCell.y() + 0.5, liquidCell.z() + 0.5));
+        // The hover-name carry (SpawnEggItem.startUsing lines 119-123):
+        // the in-air arm names the body the same way.
+        if (spawned != null && session.inventory().held().displayName() != null) {
+            spawned.setCustomName(session.inventory().held().displayName());
+        }
         if (session.gamemode() != GameMode.CREATIVE) {
             session.inventory().consumeHeld(1);
             publishInventoryChanged(session);
@@ -13989,11 +13999,17 @@ public final class EngineServer implements Server, EngineBridge {
             float health = mob.health();
             Position at = mob.position();
             float yaw = mob.bodyYawLive();
+            String carriedName = mob.customName();
             mobManager.remove(mob, "sheared");
             MobEntity cow = mobManager.spawnAt(MobType.COW, at);
             if (cow != null) {
                 cow.setBodyYaw(yaw);
                 cow.setHealthCarried(health);
+                // The name carry (MooshroomEntity lines 42-45): the cow
+                // inherits the named body's own CustomName.
+                if (carriedName != null) {
+                    cow.setCustomName(carriedName);
+                }
             }
             for (int i = 0; i < 5; i++) {
                 itemEntities.spawnDropAtBlock(new Position(at.x(), at.y() + mob.type().height, at.z()),
