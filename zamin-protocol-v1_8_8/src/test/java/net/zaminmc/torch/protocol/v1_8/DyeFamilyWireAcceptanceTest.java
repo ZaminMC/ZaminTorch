@@ -85,7 +85,7 @@ class DyeFamilyWireAcceptanceTest extends ProtocolTestBase {
             var lime = net.zaminmc.torch.util.Identifier.parse("minecraft:lime_wool");
             awaitCondition(() -> server.world().getBlock(placedCell(fx, fy, fz))
                     .identifier().equals(lime), "the lime member placed");
-            int[] change = client.readBlockChange(10_000);
+            int[] change = client.readBlockChangeAt(fx, fy + 1, fz, 35, 10_000);
             assertEquals(35, change[3], "the block change names the wool family id");
             assertEquals(net.zaminmc.torch.server.block.DyeFamilyBlocks.colorOf(
                     server.world().getBlock(placedCell(fx, fy, fz)).identifier()), 5,
@@ -125,7 +125,7 @@ class DyeFamilyWireAcceptanceTest extends ProtocolTestBase {
             var blue = net.zaminmc.torch.util.Identifier.parse("minecraft:stained_glass_blue");
             awaitCondition(() -> server.world().getBlock(placedCell(fx, fy, fz))
                     .identifier().equals(blue), "the blue member placed");
-            int[] change = client.readBlockChange(10_000);
+            int[] change = client.readBlockChangeAt(fx, fy + 1, fz, 95, 10_000);
             assertEquals(95, change[3], "the block change names the stained glass id");
             assertEquals(net.zaminmc.torch.server.block.DyeFamilyBlocks.colorOf(
                     server.world().getBlock(placedCell(fx, fy, fz)).identifier()), 11,

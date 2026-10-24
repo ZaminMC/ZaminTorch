@@ -479,6 +479,8 @@ public final class EngineServer implements Server, EngineBridge {
     private final java.util.List<SignListener> signListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     private final java.util.List<SignEditorListener> signEditorListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     private final java.util.List<RelightListener> relightListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
+    private final java.util.List<BlockChangeFlushListener> blockChangeFlushListeners =
+            new java.util.concurrent.CopyOnWriteArrayList<>();
     private final java.util.List<ExperienceListener> experienceListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     private final java.util.List<ExperienceOrbManager.Listener> orbListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
 
@@ -2821,6 +2823,15 @@ public final class EngineServer implements Server, EngineBridge {
                         naturalSpawnsNether.tick(netherPlayers, netherWorld.timeOfDay());
                     });
                     profiled("generationAttachments", this::drainGenerationAttachments); // the populate-time villagers + loot chests (Slice 12b)
+                    // The chunk-map tick arm (ServerWorld.tick lines 195-200:
+                    // the reference's own section order — chunkMap between
+                    // tickBlocks and village): the adapter's per-connection
+                    // pending block-change buffers drain here, the reference's
+                    // ChunkMap.tick position verbatim. Changes committed after
+                    // this point in the tick (village, portalForcer, the
+                    // relight transport) flush on the NEXT tick's drain — the
+                    // reference's own mid-tick placement law.
+                    profiled("chunkMap", this::publishBlockChangeFlush);
                     // The village surface (VIII10 — SavedVillageData.tick's
                     // own cadence: every village's walk, the empty removal,
                     // ONE pending door-census update per tick, the pending
@@ -4325,6 +4336,31 @@ public final class EngineServer implements Server, EngineBridge {
     /** Registers the chunk-relight observer (the protocol adapter's resend path). */
     public void addRelightListener(RelightListener listener) {
         relightListeners.add(listener);
+    }
+
+    /**
+     * The per-tick block-change drain (the reference's ChunkMap.tick arm,
+     * ServerWorld.java lines 199-200 — the flush point between the world's
+     * tickBlocks and village sections): the protocol adapter accumulates
+     * each connection's committed block changes per chunk through the tick
+     * (the reference's ChunkMap.onBlockChanged) and drains them here — one
+     * pending cell the single change packet, 2-63 the per-chunk batch, a
+     * full buffer the partial chunk column (the reference's ChunkHolder
+     * .sendChanges arms, ChunkMap.java lines 358-401).
+     */
+    public interface BlockChangeFlushListener {
+        void onBlockChangeFlush();
+    }
+
+    /** Registers the per-tick block-change drain (the protocol adapter's batched sync). */
+    public void addBlockChangeFlushListener(BlockChangeFlushListener listener) {
+        blockChangeFlushListeners.add(listener);
+    }
+
+    private void publishBlockChangeFlush() {
+        for (BlockChangeFlushListener listener : blockChangeFlushListeners) {
+            listener.onBlockChangeFlush();
+        }
     }
 
     /** The simulation-owned experience-orb system (present once the world is up). */

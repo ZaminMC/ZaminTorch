@@ -74,7 +74,15 @@ class Protocol18ConformanceTest {
         // 0x1F and WorldChunk 0x21) — EntityAttributesS2CPacket's own slot.
         m.put("S2C_ENTITY_PROPERTIES", 0x20);
         m.put("S2C_CHUNK_DATA", 0x21);
+        // Multi Block Change (ML-019 — the 0x22 batch): BlocksUpdateS2CPacket,
+        // the per-chunk batched block updates of the reference's
+        // ChunkMap.ChunkHolder.sendChanges (the 2-63 pending-cells arm).
+        m.put("S2C_MULTI_BLOCK_CHANGE", 0x22);
         m.put("S2C_BLOCK_CHANGE", 0x23);
+        // Map Chunk Bulk (ML-019 — the 0x26 bulk): WorldChunksS2CPacket, the
+        // batched initial-view send of the reference's per-player pending-
+        // chunk walk (ServerPlayerEntity lines 233-272).
+        m.put("S2C_CHUNK_BULK", 0x26);
         m.put("S2C_BLOCK_ACTION", 0x24);
         // Block Break Animation: #37 in the 1.8.8 client's own
         // NetworkProtocol registration order (reference/1.8.8 — the
