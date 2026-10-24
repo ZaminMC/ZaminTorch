@@ -56,6 +56,33 @@ public final class MobEntity implements LivingEntity {
     public static final int WANDER_TICKS = 80;
     /** Hostile aggro radius in blocks (the historical follow range). */
     public static final double AGGRO_RANGE = 16.0;
+
+    /**
+     * The kind's own hunt band (the reference's FOLLOW_RANGE attribute —
+     * MobEntity line 90's 16.0 default with the per-kind overrides:
+     * BlazeEntity line 44's 48, EndermanEntity line 74's 64, the wither's
+     * 40 (WitherEntity line 484), ZombieEntity line 84's 35, the ghast's
+     * 100 (GhastEntity line 81)). The engine's hunt scan and the path
+     * search both read this consult instead of the flat 16.
+     */
+    private double followRange() {
+        if (type == MobType.BLAZE) {
+            return 48.0;
+        }
+        if (type == MobType.ENDERMAN) {
+            return 64.0;
+        }
+        if (type == MobType.WITHER) {
+            return 40.0;
+        }
+        if (type == MobType.ZOMBIE || type == MobType.ZOMBIE_PIGMAN) {
+            return 35.0;
+        }
+        if (type == MobType.GHAST) {
+            return 100.0;
+        }
+        return AGGRO_RANGE;
+    }
     /** Zombie melee reach in blocks (horizontal, center to center-ish). */
     public static final double MELEE_ATTACK_RANGE = 1.6;
     /** Vertical spread the melee attack tolerates. */
@@ -7873,7 +7900,7 @@ public final class MobEntity implements LivingEntity {
                 : null;
 
         Position target = world.nearestPlayer(position.x(), position.y(), position.z(),
-                type.hostile ? AGGRO_RANGE : 8.0);
+                type.hostile ? followRange() : 8.0);
         // VIII9 — the forced player hunt (the reinforcement callee's own
         // setAttackTarget, takeDamage line 218): a body with a forced
         // target chases it wherever it stands, past the nearest-player
@@ -8043,7 +8070,7 @@ public final class MobEntity implements LivingEntity {
         String huntTeam = teamName();
         if (canHunt && huntTarget != null && huntTeam != null) {
             huntTarget = world.nearestPlayer(position.x(), position.y(), position.z(),
-                    type.hostile ? AGGRO_RANGE : 8.0, huntTeam);
+                    type.hostile ? followRange() : 8.0, huntTeam);
         }
 
         if (canHunt && huntTarget != null) {
