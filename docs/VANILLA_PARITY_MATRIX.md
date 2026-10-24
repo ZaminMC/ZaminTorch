@@ -87,9 +87,26 @@ specials 8/8, decorations 4/4, potion effects 23/23, block-state registry
 896 (test-pinned), enchantment registry (legacy-id scheme), packet
 constants 27/28 C2S + 67/77 S2C with every absence named and ledgered.
 
-Remainder (quantified, NOT claimed complete — R-2..R-7 resolved this cycle, R-1 and R-8 left):
-- R-1: TNT primed-entity lifecycle end-to-end read (package exists) — still
-  open, deliberately not picked this wave.
+Remainder (quantified, NOT claimed complete — R-1..R-7 resolved this cycle, R-8 left):
+- R-1: RESOLVED (the lifecycle walk, 1:1 — e05a7a24): the boundary ray fan
+  (the shell's 1352 rays, the retired 4096-cell interior fan gone), the
+  two-phase collect-then-commit order (every ray reads the pre-blast world;
+  the wounds and their density rays read it too), the wound law
+  (feet-distance gate, eye-height direction, the World.getBlockDensity
+  attenuation with the reference's own end-cell-terminal DDA, the
+  int-truncated quadratic (d10^2+d10)/2*8*f3+1, the Blast Protection 0.15
+  shave on the KNOCKBACK scale alone — the retired engine shaved the
+  damage), the packet's own dir*d10 motion carry (the retired double
+  velocity-send gone), the random.explode 4.0F pair with the reference's
+  pitch walk, the fx range law (sounds 16*volume past 1.0, particles 16),
+  the detonation origin y + height/16 = 0.06125, the priming hiss at the
+  body's feet, the burning-arrow ignition arm (the arrow keeps its flight
+  through the opened cell), the creeper's feet-position blast, and the
+  nextFloat() <= 1/power drop roll. The smoke trail is NOT owed — the
+  server's particle listener is the empty override
+  (ServerWorldEventListener lines 23-29); the client renders its own from
+  the 0x27. BlastSourceTest re-pinned over the boundary fan (the dirt
+  crater 21 -> 7, the creeper-stone 50 -> 1).
 - R-2: RESOLVED (defects fixed + pinned): the id-by-id diff vs Item.java's
   init() walk (337 registrations) found 11 wrong wire ids (hopper at the
   prismarine crystals' 410 — the reference registers a BlockItem at 154;

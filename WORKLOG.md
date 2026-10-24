@@ -14635,3 +14635,74 @@ Stage Summary:
   (the TNT lifecycle read, the last unclaimed remainder) or ML-004
   (slot-27 diagnostics) — decided by the owner alongside the standing
   ML-008 /give decision.
+
+## The R-1 wave — the TNT lifecycle end-to-end read, 1:1
+
+Date: 2026-10-24. The wave started from develop 4fccf51b (release 133
+published, the cycle-5 wave merged) and lands as e05a7a24.
+
+- The last unclaimed parity remainder (the cycle-5 record's own "next most
+  valuable wave" pick). The read walked the full lifecycle against the
+  reference tree: the ignition arms (TntBlock's redstone/use/collision/
+  exploded family), the primed body's flight (PrimedTntEntity), the
+  explosion walk (Explosion + World.getBlockDensity + World.rayTrace), the
+  wire (ServerWorldEventListener + ServerWorld's particle broadcast), and
+  every engine seat the blast family carries (creeper, wither birth,
+  skulls, fireballs, carts, crystals).
+- The ray-fan law first: the reference fires the BOUNDARY cells alone
+  (1352 rays); the engine fired 4095 (every cell but the degenerate
+  corner) — every crater oversized. The float-faithful arithmetic kept
+  (the float-computed axis components, the per-ray strength draw, the
+  0.22500001F step).
+- The order law: the reference collects the whole fan before destroying
+  anything, and wounds (with the density rays) BEFORE the destruction.
+  The engine destroyed mid-fan (later rays crossed earlier holes free)
+  and wounded AFTER the destruction (the shielding wall already gone).
+  Both fixed: collect, wound, sound, commit.
+- The wound law: the engine's linear (1-d/r)*cap falloff replaced by the
+  reference's int((d10^2+d10)/2*8*f3+1) with the box-density attenuation
+  (World.getBlockDensity ported 1:1 — the sample grid + the reference's
+  own end-cell-terminal ray walk; the first DDA form overshot the
+  endpoint by one cell and read the block BELOW the blast — density
+  collapsed to 0.2 in open air, caught by probe), the feet-distance gate,
+  the eye-height direction, and the Blast Protection shave moved to the
+  KNOCKBACK scale (the retired engine shaved the damage — the wrong arm;
+  the reference's damage side rides the ordinary armor + EPF walks). The
+  packet's own dir*d10 motion carry restored; the extra 0x2B velocity
+  send (a double knockback) retired. The peaceful-blast-still-knocks law
+  landed with it.
+- The fx law: the random.explode 4.0F pair with the reference's pitch
+  walk (the retired walk played nothing), and the per-kind range law
+  (sounds volume>1 ? 16*volume : 16; particles 16 — the retired fixed
+  64-block band gone). The EXPLOSION_HUGE/LARGE particles and the primed
+  body's smoke trail are NOT server-owed — the dedicated server's
+  particle listener is the empty override (ServerWorldEventListener lines
+  23-29); the client renders its own from the 0x27/0x0E packets.
+  Evidence-recorded.
+- The TNT family's own arms: the detonation origin y + height/16 =
+  0.06125, the priming hiss at the body's feet, the burning-arrow
+  ignition (the block primes, the arrow keeps its flight — the retired
+  engine ledgered the whole arm as missing), the creeper's feet-position
+  blast, and the nextFloat() <= 1/power drop roll.
+- One engine defect found en route: the non-destructive arm (mobGriefing
+  off) threw ArrayStoreException inside the tick — the generic-array
+  holder's runtime component type rejected the List.of() empty arm, and
+  the whole detonation (wounds, sound, packet) died with the tick. The
+  collector is a final mutable list now.
+- Verification: the explosion family green (BlastSourceTest re-pinned
+  over the boundary fan — the dirt crater 21 -> 7, the creeper-stone 50
+  -> 1, the vanilla law the interior fan buried; fresh walls per blast
+  pinned as the shared-world carry-air shape), GameRuleAcceptanceTest's
+  mobGriefing stage green over the fixed non-destructive arm, the
+  blast-adjacent suites green (EnderCrystal, VehicleDamageSource,
+  WitherSkull, DecorationBlast, MobManager), the full protocol module
+  green 3m45s (the fx range change's wire family). The full zamin-core
+  suite rides the release pipeline's own confirming run (the repo's
+  established pattern).
+
+Stage Summary:
+- R-1 CLOSED: the TNT lifecycle is the reference's own walk end-to-end.
+  The parity matrix's remainder is R-8 alone (the 25 family-owned tails).
+  The next most valuable wave, from the updated state: ML-004 (the
+  slot-27 diagnostics — the last named papercut) or the ML-100 family
+  tails by family; the owner's standing calls (DEC-001, ML-008) unchanged.
