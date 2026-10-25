@@ -15415,3 +15415,30 @@ Stage Summary:
   previous 140-commit run used abasing@zaminmc.github.io, which does
   not link to the account (login: None on the API) — the linkage
   after this push is the experiment to watch.
+
+---
+Task ID: vt-release-417-repair-confirmed
+Agent: the coordinator (Abasing session)
+Task: The confirming run for the #417 repair — verdict and close-out.
+
+Work Log:
+- Run #418 (head f8c4c7ad) completed SUCCESS at 20:13:22Z — the full
+  suite green (both arms as needed), the tag torch-1.8.8-139 cut, the
+  prerelease published (torch-1.8.8-139.jar + ZaminTorch-server-1.8.8-139.zip).
+  The whole VT close-out state now rides a published dev release.
+- The identity verified end-to-end in the same window: f8c4c7ad and
+  a37ddfef author as Abasing <zaminpro2.0@gmail.com> and the API
+  resolves author.login = Abasing for both. The pipeline's own bump
+  commits use the verified noreply (140362885+Abasing@...) — every
+  future commit on the repo, hand or pipeline, links to the account.
+  The 140 historical abasing@zaminmc.github.io commits keep their
+  name Abasing but no account link; no history rewrite is owed (the
+  hashes are cited across the live ledger, WORKLOG, and the compat
+  ledger — a rewrite would falsify the record).
+- Run #419 (head a37ddfef, the Wave VT live-ledger section) in
+  progress as the next confirming run; it publishes the next numbered
+  build.
+
+Stage Summary:
+- #417's regression repaired and CONFIRMED GREEN by the pipeline.
+- Release 139 published; #419 rides the Wave VT docs state.
