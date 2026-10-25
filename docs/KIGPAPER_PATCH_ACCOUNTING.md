@@ -1,7 +1,7 @@
 # KigPaper 1.8.8 Patch Accounting — the supplied patched-1.8.8-server audit
 
 Cycle-4 exhaustive-audit deliverable, increment 2 (2026-10-23, post-owner-supply:
-`KigPaper-ver-1.8.8.zip` landed on develop at 94f1fed3). This is the audit's
+`KigPaper-ver-1.8.8.zip` landed on develop at dbb74c17). This is the audit's
 **primary supplied-fork target** — a real patched 1.8.8 server, unlike the
 Folia tree (kept as lessons-only; see `FOLIA_PATCH_ACCOUNTING.md`, which stands
 unchanged). Companion machine-readable census: `docs/kigpaper-census.json`

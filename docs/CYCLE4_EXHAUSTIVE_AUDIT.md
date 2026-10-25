@@ -26,7 +26,7 @@ without new evidence.
 
 ### Repository state
 
-- Audited baseline: **`develop` @ `48b9157437afa85d5e4a4e81098c08fe53479e39`**
+- Audited baseline: **`develop` @ `98b8973f5a2abeccba0cfdcb2f6d734bba3cb0ba`**
   (working tree clean, synced with `origin/develop`; GitHub develop HEAD
   verified identical via API). Local and remote `Torch-Arcetecture.txt`
   byte-identical at this commit.
@@ -35,7 +35,7 @@ without new evidence.
   behind develop, 0 ahead — fully merged, cleanup is an owner call, not taken
   during this audit run).
 - Audit branch: `cycle4-exhaustive-audit`, created from `develop` @
-  `48b91574`. All audit artifacts commit here; PR opened against `develop` at
+  `98b8973f`. All audit artifacts commit here; PR opened against `develop` at
   cycle close. PR #37's branch was NOT modified and NOT merged.
 
 ### Module graph (verified from `settings.gradle.kts` + sources)
@@ -53,9 +53,9 @@ without new evidence.
 - CI workflows: `release` (runs on develop push: build + full test suite with
   one documented-flake retry) and `Development Statistics (Java LOC)` (green
   at head, run #167).
-- **Release pipeline RED at develop head**: run #362 (48b91574) failed at
+- **Release pipeline RED at develop head**: run #362 (98b8973f) failed at
   step "Build + full test suite (one retry for the documented load flakes)"
-  (attempt 1 job data verified via API; run #361 on 228019a2 failed the same
+  (attempt 1 job data verified via API; run #361 on bd2deb79 failed the same
   step). The exact failing tests are documented in
   `docs/CYCLE3_AUDIT.md` (#362: `FishingApiAcceptanceTest` +
   `RconProtocolTest.theEmptyOutputAnswersOneEmptyPacket`; #361:
@@ -67,7 +67,7 @@ without new evidence.
   (modern releases publish without tags).
 - **PR #37 (`cycle3-audit`): OPEN, unmerged, mergeable (clean), 5 commits.**
   No CI runs exist for the branch (the release workflow triggers on develop
-  pushes only) — its two test hardenings (5b20386e) are therefore
+  pushes only) — its two test hardenings (89892637) are therefore
   **CI-unverified**. Its diff: WORKLOG entry, `docs/CYCLE3_AUDIT.md` (new),
   `BukkitEventBridgeGroupThreeTest.java` (+8/−8), `FishingApiAcceptanceTest.java`
   (+94/−33 engine-side untouched).
@@ -145,7 +145,7 @@ applicable. Each links to its master-ledger ID (ML-*) in
 
 | Cycle-3 lead | Current state (reverified this session) | Classification | Ledger ID |
 |---|---|---|---|
-| A-1: full-suite load flakes (bukkit MONITOR assert + fishing bite-window race) — fix landed on PR #37 (5b20386e) | Fix commits present on `cycle3-audit`; PR open, **no CI run for the branch** (release workflow = develop-push only); run #362 at develop head still red with the same step | Confirmed test-infrastructure defect; fix staged but CI-unverified | ML-001 |
+| A-1: full-suite load flakes (bukkit MONITOR assert + fishing bite-window race) — fix landed on PR #37 (89892637) | Fix commits present on `cycle3-audit`; PR open, **no CI run for the branch** (release workflow = develop-push only); run #362 at develop head still red with the same step | Confirmed test-infrastructure defect; fix staged but CI-unverified | ML-001 |
 | #362 verdict: the wall-clock-deadline test *population* (fishing awaits, RCON FIN-WAIT drain, bukkit harness awaits) trips a different member per loaded run | Generalization stands (three distinct timing tests across runs #361/#362); no further runs since; population audit not yet done | Confirmed test-infrastructure defect (systemic) | ML-002 |
 | B-5 (HIGH): 0x0C Named Entity Spawn metadata `PartialReadError` in mineflayer's protodef with four mutual players | No engine change since; not reproduced beyond the cycle-3 observation; wire bytes never captured | Suspected defect (wire-conformance candidate; evidence insufficient to localize — could be a Torch encoding defect OR a mineflayer parser quirk) | ML-021 |
 | B-2: chest window slot-27 (wire) transaction rejection, state-dependent, once | Not reproduced deterministically; cycle-3 record preserves the sequence; the rejection-reason instrumentation landed (every refused click logs its wire context + the named gate at FINE, WindowClickRejectionInstrumentationTest 4/0) — the next repro diagnoses itself | Unverified behavior (bounded diagnostic item; instrumented) | ML-004 |
@@ -164,7 +164,7 @@ survivability) remains a positive stress-pass observation, not a defect.
 ## Phase 1 — The compatibility contract (target matrix)
 
 Derived from `Torch-Arcetecture.txt` (§0 rules, §1 mission, §5, §17-§22,
-§27-§29, §31-§34) as of `48b91574` — the owner's §33/§34 additions included.
+§27-§29, §31-§34) as of `98b8973f` — the owner's §33/§34 additions included.
 
 | Target | Audit requirement (established scope) |
 |---|---|
@@ -291,7 +291,7 @@ overlap (shared-file risks named):
 
 ## Final report (this cycle)
 
-- Repository audited: develop @ 48b91574 (clean, synced); branch
+- Repository audited: develop @ 98b8973f (clean, synced); branch
   `cycle4-exhaustive-audit` carries the artifacts.
 - Supplied fork: PaperMC/Folia ver/26.2.x (mcVersion 26.2, paperRef
   5d4f9bd0, BETA) — NOT a 1.8.8 server; 24/24 patches classified.
@@ -328,13 +328,13 @@ remainder list is the honest boundary of this cycle's claims.
 ## Increment 2 (2026-10-23, post-reset session) — ground-truth delta and the KigPaper re-anchor
 
 - **PR #37 handled per owner instruction** ("handle the PR yourself"):
-  squash-merged into develop as b7a6917c (5 commits → 1, author Abasing).
+  squash-merged into develop as 971e59da (5 commits → 1, author Abasing).
   The branch itself was NOT modified; it remains an owner call whether to
   delete it (not done during the audit).
-- Develop moved 48b91574 → 94f1fed3 (**owner supplies
-  `KigPaper-ver-1.8.8.zip`** at repo root) → b7a6917c (PR #37). Release
+- Develop moved 98b8973f → dbb74c17 (**owner supplies
+  `KigPaper-ver-1.8.8.zip`** at repo root) → 971e59da (PR #37). Release
   runs: #361/#362 red at the suite step (recorded, ML-001/ML-002); **#363
-  in_progress at increment time** (triggered by 94f1fed3); outcome to be
+  in_progress at increment time** (triggered by dbb74c17); outcome to be
   recorded when it finishes — no pipeline fixes made during the audit.
 - **The fork target is re-anchored**: the audit's Phase-3 primary is now
   KigPaper (a real patched 1.8.8 server, owner-supplied), per the mission
@@ -375,6 +375,6 @@ remainder list is the honest boundary of this cycle's claims.
 - The KigPaper patch audit is COMPLETE at the disposition level. No Torch
   debt was created by the fork audit; adoption of any knob is DEC-003
   (owner); bugfix-divergences stay reference-wins per §17.
-- Release runs at commit time: #363 in_progress (94f1fed3), #364 queued
-  (b7a6917c — the PR #37 merge's CI proof). No pipeline action taken.
+- Release runs at commit time: #363 in_progress (dbb74c17), #364 queued
+  (971e59da — the PR #37 merge's CI proof). No pipeline action taken.
 - Still no production code, tests, or behavior changed.

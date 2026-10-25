@@ -21,14 +21,14 @@ I=infra/CI/release, S=security/boundary.
 - Category: build/CI/release defect. Layers: I.
 - Severity: R. Impact: no release can publish; every future wave ships only
   as commits.
-- Evidence: GH Actions run #362 (48b91574) failed at "Build + full test
+- Evidence: GH Actions run #362 (98b8973f) failed at "Build + full test
   suite (one retry…)" (job API verified this session); #361 same. Latest
   published release torch-1.8.8-127 (2026-10-22T16:37Z). The 128 bump
   commit exists on develop.
 - Reference/requirement: §23 — "For releaseable milestones… never claim a
   release that does not exist"; the release workflow gates on the suite.
 - Actual: the suite is load-flaky under CI (see ML-002); the two observed
-  failure members are already hardened on PR #37 (5b20386e) but that PR has
+  failure members are already hardened on PR #37 (89892637) but that PR has
   no CI run (release workflow = develop-push only) and is unmerged.
 - Gap: fix staged but unverified; pipeline red.
 - Verification: merge PR #37 (owner call) or run the suite on its branch;
@@ -417,7 +417,7 @@ I=infra/CI/release, S=security/boundary.
 
 ## KigPaper increment 2 (the supplied patched-1.8.8-server audit)
 
-The fork target is re-anchored on KigPaper (owner-supplied at 94f1fed3);
+The fork target is re-anchored on KigPaper (owner-supplied at dbb74c17);
 Folia remains lessons-only. New rows are fork-derived; the audit's own
 increment state lives in KIGPAPER_PATCH_ACCOUNTING.md's coverage statement.
 
