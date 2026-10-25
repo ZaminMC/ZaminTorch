@@ -15335,3 +15335,39 @@ Stage Summary:
   pipeline.
 - REMAINING (the VT-7 tail): the giant's favor-family envelope
   (standing) — the tail census's last row.
+
+---
+Task ID: vt-wave-7-close
+Agent: the coordinator (Abasing session)
+Task: The VT-7 tail census's close-out — the wave is complete.
+
+Work Log:
+- The census's three rows, each closed:
+  - The mob step-sound family — LANDED (VT-7j, b547cbea).
+  - The WanderThroughVillageGoal family — LANDED/RULED (VT-7k,
+    33fda443: the blaze NOT-REACHABLE, the villager's return walk, the
+    guardian's monument pin, the navigation-range defect found and
+    fixed on the way).
+  - The giant's favor-family envelope — STANDING, properly ledgered
+    (the engine's pathfinder carries no favor model at all; the
+    giant's brightness-0.5 law rides the whole family's envelope —
+    MonsterEntity's, the passives', the water-favor arm — never the
+    giant alone; the compat ledger's Slice-67 row already carries the
+    note).
+- THE RELEASE-RUN REGRESSION REPAIR (run #412's find): the
+  TileExtraSaveSplitTest's legacyStandBytes helper was stale at the ZAD
+  store's v1 body — VT-7g's v2 row and VT-7i's v3 row had each added
+  per-stand bytes (+5/stand, the 274-284 mismatch) and the
+  byte-identity assert went stale. Repaired at f420d2a8 (the helper
+  walks the v3 shape). The lesson: a store-format change must re-run
+  the byte-identity suites in OTHER packages that walk the same
+  bytes — VT-7g/7i's evidence named only the armor-stand package.
+
+Stage Summary:
+- THE VT WAVE (the vanilla-grade tail) IS COMPLETE: VT-1 through VT-7k
+  all landed or ruled. The remaining vanilla-grade surface is the
+  standing envelopes the ledger already carries (the favor family, the
+  favor-model envelope notes) — no open rows.
+- Watch: the release runs (#413 in progress at b547cbea — it will
+  still show the stale-helper failure, superseded; #415+ at 77063f94/
+  f420d2a8 the confirming runs for the VT-7j/7k + the repair state).
