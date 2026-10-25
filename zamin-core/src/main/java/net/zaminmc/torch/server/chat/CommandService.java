@@ -17,6 +17,30 @@ import java.util.function.BiFunction;
 public final class CommandService {
 
     /**
+     * A counted failure (VT-7f — the reference's CommandException model
+     * for the commands whose SUCCESS COUNT is the gameplay surface): the
+     * carried text lands in the sender's output exactly like the
+     * reference's {@code sendFailure} walk (the command block's last
+     * output row), but the dispatch counts ZERO — the shape /testfor's
+     * comparator circuits read (a mismatched dataTag throws in the
+     * reference, TestForCommand line 51: the count 0).
+     */
+    public static final class CommandFailure extends RuntimeException {
+        /** The failure's own feedback text (the sender's output row). */
+        private final String feedback;
+
+        public CommandFailure(String feedback) {
+            super(feedback, null, false, false);
+            this.feedback = feedback;
+        }
+
+        /** @return the failure's feedback text. */
+        public String feedback() {
+            return feedback;
+        }
+    }
+
+    /**
      * A command: name, description, required operator level, executor
      * returning the feedback text for the sender (null = silent), and the
      * optional per-command ARGUMENT completion (the reference's
@@ -182,6 +206,12 @@ public final class CommandService {
         try {
             result = command.executor().apply(sender, args);
             success = 1;
+        } catch (CommandFailure failure) {
+            // The counted failure (VT-7f — the reference's CommandException
+            // shape): the carried text lands in the output (the sendFailure
+            // walk), the count answers 0 — the comparator's own row.
+            sender.sendMessage(failure.feedback());
+            success = 0;
         } catch (RuntimeException e) {
             // A broken command must not damage the engine (§54); report to the sender.
             sender.sendMessage("Command failed: " + e.getMessage());

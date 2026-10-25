@@ -22464,7 +22464,10 @@ public final class EngineServer implements Server, EngineBridge {
      */
     private String testforCommand(CommandSender sender, String[] args) {
         if (args.length < 1) {
-            return "Usage: /testfor <player> [dataTag]";
+            // The reference's IncorrectUsageException — a counted failure
+            // (the usage error counts 0, never 1).
+            throw new net.zaminmc.torch.server.chat.CommandService.CommandFailure(
+                    "Usage: /testfor <player> [dataTag]");
         }
         net.zaminmc.torch.server.command.TargetSelector.Candidate found = net.zaminmc.torch.server.command.CommandParse
                 .parseEntity(players, sender, args[0]);
@@ -22503,7 +22506,12 @@ public final class EngineServer implements Server, EngineBridge {
             if (!net.zaminmc.torch.server.nbt.NbtOps.matches(
                     net.zaminmc.torch.server.nbt.Snbt.Tag.ofCompound(pattern),
                     net.zaminmc.torch.server.nbt.Snbt.Tag.ofCompound(written), true)) {
-                return "Found no " + found.name();
+                // The reference THROWS here (CommandException line 51 —
+                // commands.testfor.failure): the mismatched dataTag is a
+                // COUNTED FAILURE — the text lands in the output row but
+                // the count answers 0, the comparator's own law (VT-7f).
+                throw new net.zaminmc.torch.server.chat.CommandService.CommandFailure(
+                        "Found no " + found.name());
             }
         }
         return "Found " + found.name();

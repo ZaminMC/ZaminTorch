@@ -170,6 +170,44 @@ class MissingCommandsWaveOneTest {
     }
 
     @Test
+    void theTestforDataTagCountsItsVerdict() {
+        // VT-7f — TestForCommand line 51's throw: the mismatched dataTag
+        // is a COUNTED FAILURE — the failure text lands in the output row
+        // (the reference's sendFailure walk) but the count answers 0, the
+        // comparator's own law; the plain find and the matched tag count 1,
+        // and the usage error counts 0 (IncorrectUsageException).
+        java.util.List<String> output = new java.util.concurrent.CopyOnWriteArrayList<>();
+        net.zaminmc.torch.server.chat.CommandSender sender =
+                new net.zaminmc.torch.server.chat.CommandSender() {
+                    @Override public String name() {
+                        return "Alice";
+                    }
+
+                    @Override public void sendMessage(String message) {
+                        output.add(message);
+                    }
+
+                    @Override public int opLevel() {
+                        return 2;
+                    }
+
+                    @Override public PlayerSession player() {
+                        return alice;
+                    }
+                };
+        assertEquals(1, server.commands().dispatchCounted(sender, "/testfor Alice"),
+                "the plain find counts one");
+        assertEquals(0, server.commands().dispatchCounted(sender, "/testfor Alice {Health:0s}"),
+                "the mismatched dataTag counts zero");
+        assertTrue(output.stream().anyMatch(message -> message.contains("Found no Alice")),
+                "the failure text lands in the output row: " + output);
+        assertEquals(0, server.commands().dispatchCounted(sender, "/testfor"),
+                "the usage error counts zero");
+        assertEquals(1, server.commands().dispatchCounted(sender, "/testfor Alice {Health:20s}"),
+                "the matched dataTag counts one");
+    }
+
+    @Test
     void theToggledownfallFlip() throws Exception {
         boolean before = server.weather().raining();
         dispatch("/toggledownfall");
