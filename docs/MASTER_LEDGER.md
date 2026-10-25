@@ -290,7 +290,24 @@ I=infra/CI/release, S=security/boundary.
   Folia-compat debt (see FOLIA_PATCH_ACCOUNTING.md).
 - Direction: a stall detector over the tick lane (thread dump + loud log on
   N-second stalls), owner-approved shape.
-- Status: decision + capability item. Confidence: high.
+- Resolution (2026-10-26, the owner's "continue working towards until done"
+  directive): LANDED — not a Folia port but the REFERENCE's own watchdog,
+  1.8.8 vanilla behavior carried whole (net.minecraft.server.dedicated.
+  ServerWatchdog, reference lines 17-90): the max-tick-time property row
+  (one-minute default, 0 disables at the boot gate), the daemon "Server
+  Watchdog" thread started at the world-ready moment, the tick lane's
+  heartbeat watched, and a tick wedged past the threshold answering with the
+  two fatal lines, a full thread dump, a crash report under
+  crash-reports/crash-...-server.txt in the reference CrashReport.build
+  structure (witty comments carried 1:1), and the reference's force exit
+  (System.exit(1) under a 10s halt(1) timer — a wedged tick lane owns every
+  world write; a graceful save would itself hang). The lane also found and
+  closed an unledgered vanilla difference in the same family: the keep-up
+  warn law (MinecraftServer lines 396-401 — >2000ms warns, once per 15s,
+  "Can't keep up!" verbatim) replaced the engine's own 250ms-every-time
+  line. ServerWatchdogTest 6/0 + MaxTickTimeConfigTest 6/0; the
+  ticker/config/console/profiler families green unmodified.
+- Status: RESOLVED (landed, the reference-shaped capability).
 
 ### ML-014 — login-flood boundary behavior unverified
 - Category: security/boundary verification. Layers: S. Severity: M.

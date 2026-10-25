@@ -15557,3 +15557,74 @@ Stage Summary:
   online-mode, DEC-002, DEC-003) which stay owner-owned.
 - Next: ML-013 (the ServerWatchdog port over the engine's tick lane),
   then the vanilla-grade census re-run against the reference folder.
+
+---
+Task ID: ML-13-2026-10-26
+Agent: Abasing (the implementation agent)
+Task: ML-013 — the tick watchdog, the master ledger's last open
+implementable row; the owner's directive "continue working towards
+until done" as the shape approval.
+
+Work Log:
+- Synced to 55fcb3fd (the pipeline's torch-1.8.8-144 bump); the 715
+  file-mode rows neutralized as core.fileMode noise (0 insertions);
+  branches verified clean (develop + main only — the prior session's
+  cleanup holds); PR #38 confirmed merged; run #424 watched for the
+  ML-008 validation.
+- Read the reference's own ServerWatchdog (reference/1.8.8/
+  net/minecraft/server/dedicated/ServerWatchdog.java lines 17-90),
+  its DedicatedServer wiring (lines 216-221, the getMaxTickTime() > 0
+  boot gate; line 522, the max-tick-time property's one-minute
+  default), the keep-up warn law (MinecraftServer lines 396-401), and
+  the CrashReport.build structure (lines 160-182 + the witty list
+  253-288) — the watchdog is 1.8.8 vanilla behavior, not merely a
+  Folia capability.
+- EngineConfig: the maxTickTimeMillis 23rd param (negative fails
+  validation, 0 = the disabled marker), the 22-arg compat constructor
+  keeping the reference default for all 215 existing call sites,
+  defaults()/withPort() carrying the row (the --port override never
+  resets the loaded threshold). ConfigLoader's longOf row parse; the
+  ServerLayout first-boot row (max-tick-time=60000).
+- EngineTicker: the currentTickStartNanos heartbeat (published right
+  before the tick body, the reference's own placement; 0 = the idle
+  gate), isLoopRunning(), tickIntervalMillis(), completedTicks(), and
+  the keep-up warn law 1:1 replacing the engine's own 250ms-every-time
+  line (j > 2000ms && the 15s cadence, the epoch-0 first-warn anchor,
+  the reference's message verbatim with the pre-clamp j and j/50).
+- ServerWatchdog: the whole reference walk — the sleep-until-trip
+  loop, the two fatal lines, dumpAllThreads(true, true) with the tick
+  thread's stack picked as the crash error, the crash report in the
+  reference CrashReport.build structure (witty list carried 1:1) with
+  the Torch section (threshold/interval/ticks/tps), the reference's
+  save/skip lines, and forceExitJvm() verbatim (System.exit(1) under a
+  10s halt(1) Timer). The force exit is a seam so the stall walk runs
+  in-process under test.
+- EngineServer: the boot wiring at the world-ready moment beside the
+  remote-admin listeners (the reference's init-tail position), daemon,
+  "Server Watchdog" named, gated on max-tick-time > 0.
+- Tests: ServerWatchdogTest 6 (the world owned by the loop thread —
+  the ownership lesson from the first red run: a ticker world must be
+  constructed with the loop thread as owner or every tick fails the
+  domain assert), MaxTickTimeConfigTest 6; the ticker family
+  (NetherDimension, EngineTickerRouter), ConsoleCommand, the config
+  family, the profiler family, and a boot-heavy acceptance smoke all
+  green unmodified.
+- Ledgers: the master ledger's ML-013 row RESOLVED; the Folia
+  accounting's P5+M8 rows re-verdicted "Covered by the native
+  capability"; the compat ledger's section-8 row (the server loop's
+  stall law); the architecture file's Wave ML13 section + both stale
+  "Next concrete mechanics work" lines re-pinned (the queue is empty
+  of implementable rows); this WORKLOG entry.
+
+Stage Summary:
+- ML-013 landed at 53cf5aae and pushed; with it the master ledger's
+  demand-named queue has NO implementable rows left — the remainder is
+  owner decisions (DEC-001/ML-020, DEC-002, DEC-003) and ML-100's
+  family-owned tails.
+- The lane also closed an unledgered vanilla difference: the keep-up
+  warn law ("Can't keep up!") is now the reference's own, replacing
+  the engine's invented 250ms line.
+- Next: the vanilla-grade 1:1 census — enumerate the compat ledger's
+  standing tails (not LANDED/CLOSED), verify each against the
+  reference folder, and implement the reachable ones per ML-100's
+  family-slice rule.

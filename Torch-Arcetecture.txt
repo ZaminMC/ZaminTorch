@@ -689,7 +689,7 @@ THE SECTION TABLE AND THE ATTRIBUTION PASS LANDED (ML-006 + ML-007 — the cycle
 
 Dynamic split/merge and load-driven migration remain future work. First prove migration with in-flight tasks, delayed work, messages, compute results, persistence, shutdown, and stale-generation invalidation; add telemetry and anti-oscillation rules before enabling automatic balancing.
 
-**Next concrete mechanics work:** continue from Section 29: the cycle-4 master ledger's remaining rows (docs/MASTER_LEDGER.md, carried by PR #38 until the owner merges it) — the owner's open calls (DEC-001 online-mode scope, ML-008 the /give form, PR #38's audit merge, ML-013's watchdog shape) and the family-owned tails (ML-100). The wave-3 lanes are ALL MERGED (releases 129-131 published green through the merges). The §22 evidence bar holds: no concurrency phase opens without the attribution pass's numbers (ML-007 landed — the verdict: none justified at the current loads).
+**Next concrete mechanics work:** continue from Section 29: the master ledger's demand-named queue is now EMPTY of implementable rows (ML-013, the last — the tick watchdog, landed 2026-10-26 in §29's Wave ML13; ML-008 the /give form aligned the same day; PR #38's audit merge landed 2026-10-23). The remainder is the owner's decisions (DEC-001 online-mode scope, DEC-002 the adapter era, DEC-003 the KigPaper config surface) and ML-100's family-owned standing tails, each picked up only as its family's slice per that row's own rule. The §22 evidence bar holds: no concurrency phase opens without the attribution pass's numbers (ML-007 landed — the verdict: none justified at the current loads).
 
 # 23. COMMITS / PUSHES / RELEASES
 
@@ -3675,7 +3675,7 @@ own tests. Order is by vanilla visibility and dependency, not size.
       StatsCompletenessTest row — coarse_dirt/fern/podzol counting on
       stat rows the 1.8.8 client drops — reproduced on 26d961e1.)
 
-**Next concrete mechanics work:** continue from Section 29: the cycle-4 master ledger's remaining rows (docs/MASTER_LEDGER.md, carried by PR #38 until the owner merges it) — the last lane in the merge queue: ML-006/007/021 the debug table + the attribution pass + the 0x0C uuid fix (PR #46, landed on its branch). Then the owner's open calls (DEC-001 online-mode scope, ML-008 the /give form, PR #38's audit merge, ML-013's watchdog shape). The §22 evidence bar holds: no concurrency phase opens without the attribution pass's numbers (ML-007 landed — the verdict: none justified at the current loads).
+**Next concrete mechanics work:** the master ledger's demand-named queue is empty of implementable rows (ML-013 the tick watchdog landed 2026-10-26, §29's Wave ML13; ML-006/007/021 landed through PR #46; ML-008 aligned 2026-10-26; PR #38 merged 2026-10-23). The remainder: the owner's decisions (DEC-001 online-mode scope, DEC-002 the adapter era, DEC-003 the KigPaper config surface) and ML-100's family-owned tails, each only as its family's slice. The §22 evidence bar holds: no concurrency phase opens without the attribution pass's numbers (ML-007 landed — the verdict: none justified at the current loads).
 
 ## Standing (demand-named, not scheduled)
 
@@ -4554,6 +4554,60 @@ way were repaired inside the wave.
       carry the same lesson: a store/catalog change must re-run the
       byte-identity and public-API acceptance families OUTSIDE the
       wave's own named suites.
+
+## Wave ML13 — the 2026-10-26 tick watchdog (ML-013 resolved, the reference's own)
+
+- [x] THE WATCHDOG (53cf5aae): the reference DedicatedServer's own
+      ServerWatchdog carried onto the engine's tick lane, law for law
+      (reference lines 17-90) — the max-tick-time property row
+      (DedicatedServer line 522's one-minute default, 0 disables at
+      the boot gate getMaxTickTime() > 0L, lines 216-221; the
+      EngineConfig's 23rd param with a 22-arg compat constructor so
+      every existing caller keeps the default, the first-boot
+      template row, the malformed/negative rows failing boot loudly),
+      the daemon "Server Watchdog" thread started at the world-ready
+      moment beside the remote-admin listeners, the tick lane's NEW
+      heartbeat (currentTickStartNanos published right before the
+      tick body — the reference's nextTickTime = k immediately before
+      tick(), MinecraftServer lines 410-412; 0 = the idle gate), the
+      reference's own sleep shape (until the current tick's age would
+      reach the threshold), and the fatal arm whole on a wedged tick:
+      the two fatal lines (the "should be max" term over the ticker's
+      own interval face — the reference's hardcoded 0.05 at the 20
+      TPS default), every thread dumped with the tick thread's stack
+      picked as the crash error, the crash report under
+      crash-reports/crash-yyyy-MM-dd_HH.mm.ss-server.txt in the
+      reference CrashReport.build structure (the witty comment list
+      carried 1:1 from CrashReport lines 253-288, the Torch section
+      with the threshold/interval/ticks/tps), the reference's
+      save/skip lines, and the force exit verbatim (System.exit(1)
+      under a 10s halt(1) Timer — a wedged tick lane owns every world
+      write, a graceful save walk would itself hang; the reference's
+      own verdict). ServerWatchdogTest 6: the idle lane, the healthy
+      lane over a real loop, the wedged tick's whole stall walk with
+      the crash report pinned, the stopped-lane exit, and the two
+      keep-up arms below. MaxTickTimeConfigTest 6: the row's
+      default/explicit/0-carries/blank/malformed/negative laws, the
+      first-boot template, the compat shapes, the port override
+      carrying the loaded row.
+- [x] THE KEEP-UP WARN LAW, FOUND UNLEDGERED IN THE SAME LANE
+      (53cf5aae): the engine's own warn (250ms, every occurrence,
+      its own message) retired for the reference's law 1:1
+      (MinecraftServer lines 396-401) — j > 2000L && nextTickTime -
+      lastWarnTime >= 15000L, at most once per fifteen seconds, the
+      epoch-0 anchor making the first warn always allowed, the line
+      verbatim ("Can't keep up! Did the system time change, or is the
+      server overloaded? Running Xms behind, skipping N tick(s)"
+      with the pre-clamp j and j/50). Pinned twice: the decision
+      method at 1999/500/2001/2500-within-cadence/2100-past-cadence,
+      and the line itself verbatim through a real loop with one slow
+      first tick.
+- [x] THE MASTER LEDGER'S LAST OPEN IMPLEMENTABLE ROW: with ML-013
+      resolved the master ledger's demand-named queue is empty of
+      implementable rows — the remainder is owner decisions (DEC-001
+      online-mode scope, DEC-002 adapter era, DEC-003 the KigPaper
+      config surface) and ML-100's family-owned standing tails, each
+      picked up only as its family's slice per that row's own rule.
 
 # 33. CODEBASE SCALE, CLASS COHESION, AND MAINTAINABILITY
 
