@@ -26,7 +26,7 @@ without new evidence.
 
 ### Repository state
 
-- Audited baseline: **`develop` @ `98b8973f5a2abeccba0cfdcb2f6d734bba3cb0ba`**
+- Audited baseline: **`develop` @ `a074fef65fb5c3c016e563efaca4a206aed509c1`**
   (working tree clean, synced with `origin/develop`; GitHub develop HEAD
   verified identical via API). Local and remote `Torch-Arcetecture.txt`
   byte-identical at this commit.
@@ -35,7 +35,7 @@ without new evidence.
   behind develop, 0 ahead — fully merged, cleanup is an owner call, not taken
   during this audit run).
 - Audit branch: `cycle4-exhaustive-audit`, created from `develop` @
-  `98b8973f`. All audit artifacts commit here; PR opened against `develop` at
+  `a074fef6`. All audit artifacts commit here; PR opened against `develop` at
   cycle close. PR #37's branch was NOT modified and NOT merged.
 
 ### Module graph (verified from `settings.gradle.kts` + sources)
@@ -53,9 +53,9 @@ without new evidence.
 - CI workflows: `release` (runs on develop push: build + full test suite with
   one documented-flake retry) and `Development Statistics (Java LOC)` (green
   at head, run #167).
-- **Release pipeline RED at develop head**: run #362 (98b8973f) failed at
+- **Release pipeline RED at develop head**: run #362 (a074fef6) failed at
   step "Build + full test suite (one retry for the documented load flakes)"
-  (attempt 1 job data verified via API; run #361 on bd2deb79 failed the same
+  (attempt 1 job data verified via API; run #361 on faacfd1b failed the same
   step). The exact failing tests are documented in
   `docs/CYCLE3_AUDIT.md` (#362: `FishingApiAcceptanceTest` +
   `RconProtocolTest.theEmptyOutputAnswersOneEmptyPacket`; #361:
@@ -164,7 +164,7 @@ survivability) remains a positive stress-pass observation, not a defect.
 ## Phase 1 — The compatibility contract (target matrix)
 
 Derived from `Torch-Arcetecture.txt` (§0 rules, §1 mission, §5, §17-§22,
-§27-§29, §31-§34) as of `98b8973f` — the owner's §33/§34 additions included.
+§27-§29, §31-§34) as of `a074fef6` — the owner's §33/§34 additions included.
 
 | Target | Audit requirement (established scope) |
 |---|---|
@@ -291,7 +291,7 @@ overlap (shared-file risks named):
 
 ## Final report (this cycle)
 
-- Repository audited: develop @ 98b8973f (clean, synced); branch
+- Repository audited: develop @ a074fef6 (clean, synced); branch
   `cycle4-exhaustive-audit` carries the artifacts.
 - Supplied fork: PaperMC/Folia ver/26.2.x (mcVersion 26.2, paperRef
   5d4f9bd0, BETA) — NOT a 1.8.8 server; 24/24 patches classified.
@@ -328,13 +328,13 @@ remainder list is the honest boundary of this cycle's claims.
 ## Increment 2 (2026-10-23, post-reset session) — ground-truth delta and the KigPaper re-anchor
 
 - **PR #37 handled per owner instruction** ("handle the PR yourself"):
-  squash-merged into develop as 971e59da (5 commits → 1, author Abasing).
+  squash-merged into develop as c04d8553 (5 commits → 1, author Abasing).
   The branch itself was NOT modified; it remains an owner call whether to
   delete it (not done during the audit).
-- Develop moved 98b8973f → dbb74c17 (**owner supplies
-  `KigPaper-ver-1.8.8.zip`** at repo root) → 971e59da (PR #37). Release
+- Develop moved a074fef6 → 77be148c (**owner supplies
+  `KigPaper-ver-1.8.8.zip`** at repo root) → c04d8553 (PR #37). Release
   runs: #361/#362 red at the suite step (recorded, ML-001/ML-002); **#363
-  in_progress at increment time** (triggered by dbb74c17); outcome to be
+  in_progress at increment time** (triggered by 77be148c); outcome to be
   recorded when it finishes — no pipeline fixes made during the audit.
 - **The fork target is re-anchored**: the audit's Phase-3 primary is now
   KigPaper (a real patched 1.8.8 server, owner-supplied), per the mission
@@ -375,6 +375,6 @@ remainder list is the honest boundary of this cycle's claims.
 - The KigPaper patch audit is COMPLETE at the disposition level. No Torch
   debt was created by the fork audit; adoption of any knob is DEC-003
   (owner); bugfix-divergences stay reference-wins per §17.
-- Release runs at commit time: #363 in_progress (dbb74c17), #364 queued
-  (971e59da — the PR #37 merge's CI proof). No pipeline action taken.
+- Release runs at commit time: #363 in_progress (77be148c), #364 queued
+  (c04d8553 — the PR #37 merge's CI proof). No pipeline action taken.
 - Still no production code, tests, or behavior changed.

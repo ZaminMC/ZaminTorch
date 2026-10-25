@@ -5,11 +5,11 @@ Updated as findings land; the final backlog lands in the ledgers at cycle close.
 
 ## Phase 0 — ground truth (verified)
 
-- `develop` at 98b8973f, clean tree, synced; author identity Abasing.
-- The release pipeline is RED: run #361 (on bd2deb79, the wave-2 head) failed
+- `develop` at a074fef6, clean tree, synced; author identity Abasing.
+- The release pipeline is RED: run #361 (on faacfd1b, the wave-2 head) failed
   at "Build + full test suite". Latest published release is
   **torch-1.8.8-127** — a `release: torch-1.8.8-128` version-bump commit
-  exists but no 128 release was ever published. Run #362 (98b8973f,
+  exists but no 128 release was ever published. Run #362 (a074fef6,
   docs-only) re-runs the same suite — verdict pending at time of writing.
 - The failed run's exact failures (from the downloaded CI logs):
   - attempt 1: `zamin-bukkit:test` —
@@ -317,7 +317,7 @@ real numbers.
 
 ## Post-PR addendum — the #362 verdict arrived mid-cycle
 
-Release run #362 (98b8973f, docs-only push) ALSO failed, twice over:
+Release run #362 (a074fef6, docs-only push) ALSO failed, twice over:
 attempt 1 — `FishingApiAcceptanceTest.theLootOverrideAnswersTheBandAndTheRestore`
 (the SAME missed-window race family, a different method — the retry
 helper landed in 89892637 covers BOTH of its cycles); attempt 2 —

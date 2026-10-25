@@ -21,7 +21,7 @@ I=infra/CI/release, S=security/boundary.
 - Category: build/CI/release defect. Layers: I.
 - Severity: R. Impact: no release can publish; every future wave ships only
   as commits.
-- Evidence: GH Actions run #362 (98b8973f) failed at "Build + full test
+- Evidence: GH Actions run #362 (a074fef6) failed at "Build + full test
   suite (one retry…)" (job API verified this session); #361 same. Latest
   published release torch-1.8.8-127 (2026-10-22T16:37Z). The 128 bump
   commit exists on develop.
@@ -417,7 +417,7 @@ I=infra/CI/release, S=security/boundary.
 
 ## KigPaper increment 2 (the supplied patched-1.8.8-server audit)
 
-The fork target is re-anchored on KigPaper (owner-supplied at dbb74c17);
+The fork target is re-anchored on KigPaper (owner-supplied at 77be148c);
 Folia remains lessons-only. New rows are fork-derived; the audit's own
 increment state lives in KIGPAPER_PATCH_ACCOUNTING.md's coverage statement.
 

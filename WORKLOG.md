@@ -371,9 +371,9 @@ the bottom. The behavior-level status of every mechanic lives in
 
 
 - Follow-up documentation commits: `docs/MINESTOM_CONCURRENCY_BASELINE.md` records the actual current module and ownership baseline, including the limits of concurrent maps and live chunk references; `docs/FOLIA_FORENSIC_AUDIT.md` records the exact outstanding extraction/inventory work and explicitly prevents the incomplete audit from being represented as finished.
-- Documentation commits in this pass: architecture proposal `7fa2a0755377567b1efbe6ec7c13b5950385801c`; worklog update `744ba65f0ea107610529d6764d2a9b7a38be620e`; Minestom baseline `e48c68f0fd21620b2ef8d4143098303e9e39994b`; Folia audit status `5747d39048255e0caab9257c2f635fcd9430d8af`. These commits are on `develop`; no runtime source changed.
+- Documentation commits in this pass: architecture proposal `6abe4420e6743bab2e9f19cc92d8368f239f9d4b`; worklog update `dfa7c4d874fd8c9fd3c1993d362bbee592df8d3e`; Minestom baseline `29e008e14af214762d82fb45d53cb1aa959b0794`; Folia audit status `912261962021c9b90856b2d86592e9b8f7df8213`. These commits are on `develop`; no runtime source changed.
 
-- Added root `TORCH_ENGINEERING.md` (commit `72e4013c58c78de40f0e847015be60025532aa41`) as the current-state ledger: modules, verified ownership baseline, honest status table, missing mechanics archive blocker, release state, and ordered next steps. The ledger explicitly says local working-tree status is unknown because this pass did not access the local checkout.
+- Added root `TORCH_ENGINEERING.md` (commit `7805cdbad9a4ea0f533b38bfa9338dc9ba591425`) as the current-state ledger: modules, verified ownership baseline, honest status table, missing mechanics archive blocker, release state, and ordered next steps. The ledger explicitly says local working-tree status is unknown because this pass did not access the local checkout.
 
 ## 2026-10-10 — Slice 8b-i / 8b-ii / 8b-iii-a land; dev.22 released
 
@@ -9961,7 +9961,7 @@ N7), the Phase-5 workload adoptions, the §29 standing rows.
   `survivalPlaceOnTick` withinSurvivalReach (4.5^2). A placement at
   five to eight blocks — inside the handler's 64.0, outside the 4.5
   eye band — is REFUSED by the old engine and ALLOWED by the reference
-  (the same bug class N6 repaired for the dig). Landed at 8b87f468
+  (the same bug class N6 repaired for the dig). Landed at 808b73fc
   (re-verified on the fresh clone).
 - **THE STAYS**: the `intersectsPlayerBox` arm (the reference's own
   entity-collision check inside canPlace — solid blocks never place
@@ -9981,7 +9981,7 @@ N7), the Phase-5 workload adoptions, the §29 standing rows.
   suite green across three sweep chunks (288 classes, pre-reset) + the
   protocol module green (the one documented load flake green in
   isolation) (sweep-N7-*.log). The acceptance test re-landed at
-  c0e1f52b after the environment reset (the pre-reset part-2 and docs
+  fadd6b83 after the environment reset (the pre-reset part-2 and docs
   commits were local-only and lost).
 
 **Next:** the Phase-5 workload adoptions (pathfinding, lighting,
@@ -10024,7 +10024,7 @@ equivalence tests, and measurements), the §29 standing rows.
   the file; the superseded save's latch releases) + the persistence
   restart sweep green (PersistenceAcceptance/PlayerDataPersistence/
   FurnaceRestart/ContainerPersistence/CommandStatsPersistence/
-  StorageBoundary). Landed at 0a46918b; docs row landed with this
+  StorageBoundary). Landed at 062bea6e; docs row landed with this
   commit (the Wave S ledger section + the Phase-5 TWO WORKLOADS
   status).
 
@@ -10075,8 +10075,8 @@ measurement), then pathfinding/lighting.
   older/same-sequence drops with the independent sequence spaces; the
   superseded named save's latch release; the failed publication's latch
   release with nothing written and the lane's loud failure) + the full
-  persistence/concurrent sweep green. Landed at 562a3e57 (part 1) +
-  b3b1b912 (part 2).
+  persistence/concurrent sweep green. Landed at 23023a1b (part 1) +
+  7dfa05f5 (part 2).
 
 **Next:** S3 — the save walk's remaining synchronous stores adopted
 onto the same shape family by family: the board/border pair (the
@@ -10110,7 +10110,7 @@ tile/entity/metadata families; then pathfinding/lighting.
   file) + the world/scoreboard/border/persistence sweep green. The S2
   failure-arm test's lane-counter assertion made timing-tolerant
   (markFailed runs on the worker after the latch released). Landed at
-  c5de4835.
+  7899feb0.
 
 **Next:** S4 — the remaining tile stores (note/comparator/jukebox/sign/
 command-block/beacon/brewing/dispenser) onto the same shape, then the
@@ -10120,12 +10120,12 @@ weather/gamerule/mob/item/vehicle), then pathfinding/lighting.
 ## Slice S4 — the tile stores ride the save pipeline (the FIFTH/SIXTH/SEVENTH serialization workloads, parts 1–5)
 
 - **THE EIGHT STORES' SPLITS** (the S1/S2/S3 shape's continued
-  adoption, store by store): the note tile (ee7e9eff), the comparator's
-  outputs + the jukebox's records (c0e86c6f), the sign pair — the four
-  line rows + the CommandStats tail (f5cd6df2, tests 64c71fb8), the
-  command-block tile with the stats tail pre-flattened (a16e3fa6), and
+  adoption, store by store): the note tile (ec564145), the comparator's
+  outputs + the jukebox's records (482d1d45), the sign pair — the four
+  line rows + the CommandStats tail (82e48677, tests fe473ffd), the
+  command-block tile with the stats tail pre-flattened (4608de57), and
   the effect-tile trio — the dispenser's slots, the brewing stand's
-  timer + slots, the beacon's levels/effects/payment (c2712756). Each
+  timer + slots, the beacon's levels/effects/payment (50343d2f). Each
   store's save composes `writeSerialized(serialize(capture(live)))`:
   the CAPTURE on the owning tick lane (the deep immutable form where
   the system's own snapshot is the shallow map copy over LIVE
@@ -10140,7 +10140,7 @@ weather/gamerule/mob/item/vehicle), then pathfinding/lighting.
 - Evidence: NoteDataStoreSplitTest 2 + TileStateSaveSplitTest 3 +
   SignDataStoreSplitTest 3 + CommandBlockDataStoreSplitTest 2 +
   EffectTileSaveSplitTest 3 + the S4 regression batch green. Landed at
-  ee7e9eff, c0e86c6f, f5cd6df2, 64c71fb8, a16e3fa6, c2712756.
+  ec564145, 482d1d45, 82e48677, fe473ffd, 4608de57, 50343d2f.
 
 **Next:** S5 — the save walk's remaining synchronous stores onto the
 same shape, family by family: the entity-ish trio (decoration/
@@ -10319,7 +10319,7 @@ Agent: main (Abasing session)
 Task: The lighting batch shape — §22's last named Phase-5 item: the pool dispatch of the initial light computes across the pregen batch, gated by the staleness question (the pipelined capture would see pre-apply neighbor states for the overlapping 3x3)
 
 Work Log:
-- Environment reset recovered (fresh clone at /home/z/zaminmc/ZaminTorch, develop @ 8f634e5a = torch-1.8.8-99); Abasing identity set
+- Environment reset recovered (fresh clone at /home/z/zaminmc/ZaminTorch, develop @ 59bc148e = torch-1.8.8-99); Abasing identity set
 - Oriented: the console work (§30) already landed (e08259f + bdbc298, 47 tests); the save walk fully pipelined (S1-S5); pathfinding gate rejected; lighting gate landed + wired; per-command completion landed. Remaining per §22: the lighting batch shape (THIS slice), the Anvil canvas (assigned to a parallel instance), the Bukkit adapter (parallel instance), the Minestom module (deferred)
 - Parallel split delivered: Instance 2 = Anvil import (feature/anvil-import), Instance 3 = Bukkit adapter slice 1 (feature/bukkit-adapter); this session keeps the lighting batch (the architecture-sensitive continuation of the lighting seam work)
 
@@ -10332,7 +10332,7 @@ Agent: main (Abasing session)
 Task: The lighting batch shape — the implementation, the storm the measurements caught, and the honest numbers
 
 Work Log:
-- Recovered the environment (fresh clone, develop @ 8f634e5a = torch-1.8.8-99); delivered the 3-instance parallel split (Instance 2 = Anvil import on feature/anvil-import, Instance 3 = Bukkit adapter slice 1 on feature/bukkit-adapter — both with complete self-contained prompts; this session kept the lighting batch as the architecture-sensitive continuation)
+- Recovered the environment (fresh clone, develop @ 59bc148e = torch-1.8.8-99); delivered the 3-instance parallel split (Instance 2 = Anvil import on feature/anvil-import, Instance 3 = Bukkit adapter slice 1 on feature/bukkit-adapter — both with complete self-contained prompts; this session kept the lighting batch as the architecture-sensitive continuation)
 - THE BATCH LANE (f47e948): LightBatchPregen — the 4-wave decomposition by (x&1, z&1) (same-wave chunks >= 2 apart: no same-wave chunk inside another's 3x3; every capture precedes every install inside a wave — the pipelined staleness is structurally impossible); generate + applyPersistedDeltas (installGenerated's first half factored out) + capture on the lane, dispatchAndJoin the pure computes on a local pool, apply+install in the wave's fixed order via LightEngine.stashInitial + the hook's consult (the publication path stays the ONE route); EngineServer's pregenerateSpawnArea gated by torch.parallel-pregen-light (default OFF, a LOCAL pool — the boot's own domainWorkerPool does not exist yet at that point of the sequence); the step-4 border reconcile extracted as reconcileCardinalBorders (behavior-preserving)
 - THE TEST BUG the first run exposed: the harness registered the engine as a change listener but not a chunk-load listener (the production wiring registers both) — the comparison was vacuous until fixed
 - THE WORKED DIVERGENCE MEASUREMENT: 210 divergent cells, ALL batched-darker, ALL the sky channel, all in (2,1)'s covered trench — the probe's forensic found the mechanism: the SEQUENTIAL walk's own phantom artifact ((2,2)'s step-4 rederive fallback reads (48,2,31) in never-loaded (3,1) — the absent side answers sky 15 — and seeds real light from nothing); the batch's wave order never performed that read. The pinned durable BRACKET: the phantom defaults' asymmetry (sky 15 = max, block 0 = min) bounds every divergence — batched sky <= sequential sky, batched block >= sequential block, cell for cell (zero violations; the flat shape exact, 0 divergences, identical relight sets)
@@ -10355,11 +10355,11 @@ Task: The post-fix verification belt
 
 Work Log:
 - The protocol module FULL after the storm fix: 110/110 green on the re-run (one ChestIntegrationTest load flake on the first run — green in isolation AND on the full re-run, the documented flake class; the module's chunk packets carry the light sections, so this is the right regression arm for a light-engine change)
-- The wave-order javadoc line corrected to the code's walk (b15b86e5)
+- The wave-order javadoc line corrected to the code's walk (7793e9e8)
 
 Stage Summary:
 - THE LIGHTING BATCH SLICE IS COMPLETE AND FULLY VERIFIED: the light package 24/0, the block/concurrent/world sweeps green, the protocol module 110/110
-- develop pushed through b15b86e5; all commits authored Abasing
+- develop pushed through 7793e9e8; all commits authored Abasing
 - Next: review+merge the parallel instances' PRs when they open (Anvil import / Bukkit adapter); the Minestom module decision (ADR-0001 revisit) and the Phase-7 profiling opener remain the roadmap's next demand-named items
 
 ---
@@ -10384,7 +10384,7 @@ Agent: main (Abasing session)
 Task: The vanilla 1:1 light audit's fixes — the nine divergence families landed against the reference's own registrations
 
 Work Log:
-- Environment reset recovered (fresh clone at /home/z/ZaminTorch, develop @ 324c1836 = torch-1.8.8-101); Abasing identity set; the interrupted audit's findings re-verified line by line before any edit (the register block in reference/1.8.8/net/minecraft/block/Block.java: setLight truncation (int)(15*f) line 254, the constructor default isSolidRender()?255:0 line 216)
+- Environment reset recovered (fresh clone at /home/z/ZaminTorch, develop @ efa927d1 = torch-1.8.8-101); Abasing identity set; the interrupted audit's findings re-verified line by line before any edit (the register block in reference/1.8.8/net/minecraft/block/Block.java: setLight truncation (int)(15*f) line 254, the constructor default isSolidRender()?255:0 line 216)
 - THE AUDIT'S OWN ERROR CAUGHT DURING RE-VERIFICATION: the first cut gave BOTH mushrooms the 0.125 glow ("both share the 0.125 instance") — the reference registers them as TWO locals (Block.java lines 1058-1061): block3 (brown) carries setLight(0.125F), block4 (red) carries NONE. Only the brown glows; the red row stays (0,0) — the reference is the authority, not the audit's summary
 - THE TWO UNVERIFIED ROWS CLOSED: dragon_egg (1,0) and end_portal (15,0) were already correct in the engine (the class-internal setLight arms: DragonEgg registration line 1266, EndPortalBlock line 22)
 - THE NINE FIXES in BlockLightTable: snow_layer (0,15)->(0,0) [setOpacity(0) line 1175]; oak_leaves + every wood variant through mergeLight (1,1)->(0,1) [no setLight line 1027 + AbstractLeavesBlock setOpacity(1) line 30]; the brewing stand's 8 states (0,0)->(1,0) [setLight(0.125F) line 1241 — an EMISSION; the old comment had misread the call as a filter]; beacon (0,0)->(15,0) [setLight(1.0F) line 1300]; the unlit furnace family's 5 states (0,0)->(0,15) [FurnaceBlock(false) overrides nothing, line 1126 — solid render, now self-consistent with the lit 13/15]; brown_mushroom (0,0)->(1,0); the end portal frames' 8 states (0,15)->(1,0) [setLight(0.125F) line 1249 + isSolidRender false]; falling_water (0,2)->(0,3) [setOpacity(3) line 1017 — the dataset's filterLight 2 retired]; the powered comparators' 8 states (0,0)->(9,0) [setLight(0.625F) line 1321; the unpowered family correctly stays dark]
@@ -10397,16 +10397,16 @@ Stage Summary:
 - develop: the vanilla 1:1 light audit's nine families LANDED, all commits authored Abasing
 - THE LIGHT TABLE IS NOW REFERENCE-DERIVED where the reference speaks: every setLight/setOpacity call in the register block and both class-internal arms pinned by the census test; the dataset (minecraft-data) remains the source only where the reference never overrode (the default band)
 - The audit's own mushroom error is the session's lesson recorded: verify the AUDIT against the reference with the same discipline as the code — the two-registrations catch (block3/block4)
-- Next: the parallel instances' PRs (Anvil import — nothing pushed yet; the Bukkit adapter's scaffold at c023e5b2 on feature/bukkit-adapter) to review+merge; the Minestom module decision (ADR-0001 revisit); Phase 7's profiling opener
+- Next: the parallel instances' PRs (Anvil import — nothing pushed yet; the Bukkit adapter's scaffold at 59f0f816 on feature/bukkit-adapter) to review+merge; the Minestom module decision (ADR-0001 revisit); Phase 7's profiling opener
 Task ID: bukkit-adapter-slice1
 Agent: main (Abasing session — the parallel split's Instance 3, feature/bukkit-adapter)
 Task: The §28.7 Bukkit/Spigot/Paper compatibility adapter's first slice (the standing row) — plugin lifecycle + event bridge + scheduler bridge, a new standalone zamin-bukkit module over the engine's own §27 surfaces
 
 Work Log:
-- Environment recovered post-reset: fresh clone at /home/z/my-project/ZaminTorch, develop @ f47e9487 (the lighting batch shape); Abasing identity set; feature/bukkit-adapter branched off develop; oriented through §6 (the ownership law), §27 (esp. §27.6 low-level access must obey ownership, §27.7 the bus), §28 in full (§28.1-§28.10: the execution categories, the deadlock API law, the data-race contracts, the event ordering/cancellation/reentrancy law, the lifecycle state machine, §28.7 the legacy main-thread inventory, §28.8 the adversarial list, §28.9 observability, §28.10 the completion criteria + the final rule: compatibility constraints stay in the adapter, never the engine), the native plugin system (PluginManager's walks/scopes/quotas, PluginDiscovery's loader law, PluginTasks' quota'd lanes), the §27.7 bus, SimulationScheduler/EngineScheduler/EngineTicker's due-time queue, BlockingIoLane, CrossOwnerRouter, and the existing acceptance-suite patterns (EventApiAcceptanceTest's loopback port-0 + fake-ClientLink join walk)
+- Environment recovered post-reset: fresh clone at /home/z/my-project/ZaminTorch, develop @ 12952a89 (the lighting batch shape); Abasing identity set; feature/bukkit-adapter branched off develop; oriented through §6 (the ownership law), §27 (esp. §27.6 low-level access must obey ownership, §27.7 the bus), §28 in full (§28.1-§28.10: the execution categories, the deadlock API law, the data-race contracts, the event ordering/cancellation/reentrancy law, the lifecycle state machine, §28.7 the legacy main-thread inventory, §28.8 the adversarial list, §28.9 observability, §28.10 the completion criteria + the final rule: compatibility constraints stay in the adapter, never the engine), the native plugin system (PluginManager's walks/scopes/quotas, PluginDiscovery's loader law, PluginTasks' quota'd lanes), the §27.7 bus, SimulationScheduler/EngineScheduler/EngineTicker's due-time queue, BlockingIoLane, CrossOwnerRouter, and the existing acceptance-suite patterns (EventApiAcceptanceTest's loopback port-0 + fake-ClientLink join walk)
 - The 1.8.8 API pinned by actual resolution: org.spigotmc:spigot-api:1.8.8-R0.1-SNAPSHOT from the SpigotMC snapshot repository (the lineage's only published form; the metadata frozen at build 1.8.8-R0.1-20160221.082514-43, 2016-02-21); the bungeecord-chat 1.8-SNAPSHOT transitive resolves through PaperMC's maven-public proxy (Sonatype's copy is gone — verified by live resolution); the license ledger in the build file (spigot-api GPL-3.0, bungeecord-chat BSD-3, the compile transitives Apache-2.0) with every artifact consumed compile/test-ONLY — the module's jar redistributes none of it, and the module is deliberately NOT wired into the launcher or the fat jar (the runtime distribution story is a later, deliberate decision)
 - The one engine-side integration interface (the soft constraint honored, the orchestrator's own rule): isOwnerThread() on EngineTicker — §28.7's main-thread check needed an engine-side answer and no public one existed; added following the existing accessor pattern (a public read over the existing tickThread field, no scheduler redesign, no behavior change) — a THREAD fact, honestly distinguishing the tick thread from a domain worker holding the same owner's authority (§6.1); EngineServer.java and the roadmap state lines untouched (the shared-file law)
-- The adapter's whole main surface (commit 83bb1504): the object adapters under §27.5's handle law (TorchWorld, TorchPlayer, TorchOfflinePlayer, TorchBlock, TorchBlockState, MaterialMap, TorchServer + the console sender) — reads resolve to the current authoritative state; MUTATIONS route §27.6 (on the owner context direct, from anywhere else a nonblocking cross-owner intent to the position's owner, applied at a tick boundary); MaterialMap lowercases the legacy UPPERCASE names against the engine's lowercase identifiers, unmapped identities logged once and refused loudly (never a wrong block); every unbridged arm fails loudly with the message naming what the native API exposes instead (§27.9's honest-gap rule)
+- The adapter's whole main surface (commit ab437cea): the object adapters under §27.5's handle law (TorchWorld, TorchPlayer, TorchOfflinePlayer, TorchBlock, TorchBlockState, MaterialMap, TorchServer + the console sender) — reads resolve to the current authoritative state; MUTATIONS route §27.6 (on the owner context direct, from anywhere else a nonblocking cross-owner intent to the position's owner, applied at a tick boundary); MaterialMap lowercases the legacy UPPERCASE names against the engine's lowercase identifiers, unmapped identities logged once and refused loudly (never a wrong block); every unbridged arm fails loudly with the message naming what the native API exposes instead (§27.9's honest-gap rule)
 - The three bridges: TorchPluginManager (registration via the API artifact's OWN createRegisteredListeners scan, the §28.5 scope ownership of every listener registration, the §28.8 case-8 exception isolation with the 1.8.8 wording, no dispatch lock — the owner context is the serializer so nested dispatches cannot deadlock), BukkitPluginBridge (the load wave rides the API artifact's JavaPluginLoader machinery — the package-private PluginClassLoader the API's own JavaPlugin constructor requires, never reimplemented; the bridge's own onLoad call; then the ENGINE's native §28.5 host owns the plugin: enable walk → the legacy enable wave, disable walk → the legacy disable wave + the scope sweep, UNLOAD → the classloader close; per-jar isolation; the 1.8.8 enable-failure flaw preserved as documented), TorchSchedulerBridge (sync: the engine's public §27.3 scheduler — FIFO inside one due tick, stable periods, the traditional ordering by construction; async: the owning plugin's §28.6 quota'd blocking-I/O view — never a simulated worker thread; delayed/periodic async bodies ride a tick-aligned driver whose beats submit to the lane; every task scope-owned), TorchEventBridge (the first group at the engine's FIRST priority: PlayerJoin, PlayerQuit, PlayerChat (async + legacy forms), BlockBreak, BlockPlace; the cancellation table logged per dispatch — chat/break/place pre-commit SUPPORTED and mapped back onto the engine's cancellable events, join/quit not cancellable with the mutable broadcast line APPLIED; the honest §28.7 chat translation: the engine's chat event is synchronous on the owner context (§28.4's law) so AsyncPlayerChatEvent dispatches with isAsynchronous()==false — the honest context flag, the type's legacy identity preserved; message/format/recipients readable but not applied, every divergence logged)
 - The test wave (the run's own debugging found the laws): the shared harness (one engine + one adapter per test JVM on the loopback port-0 pattern — no real network, the existing suites' own precedent; the probe plugin jar built at test time by the JDK's own compiler against the pinned API artifact alone; its log file the cross-classloader observable; the end-of-run shutdown listener + the JVM hook, both idempotent). THE WALK-HANDLE LAW (the run's own finding): the native host passes the handle TO the lifecycle callback and the plugin's own code runs INSIDE it — before the registration call returns — so the bridge publishes the handle for the walk's duration; without it every enable-time task was silently dropped and never scope-owned. THE ORDER-INDEPENDENCE REDESIGN: every class ensures its entry state, the drill's async body awaited STARTED before the disable (a body still queued at the sweep is cancelled — §28.5's own law for outstanding work — a different, also-correct outcome than the running-work target); the join/quit context is the caller's (the bridge dispatches wherever the engine fired); the timer test cancels every pending sync task (a fresh wave per enable) and asserts the beats' ticks strictly increase
 - Validation: ./gradlew :zamin-bukkit:test --max-workers=1 → 24/0 (stable across a --rerun-tasks pass); the regression scan → 118/0 (server.plugin.* 16 + server.concurrent.* 97 + the scheduler acceptance family 5 — zero engine behavior changes from the slice's only engine edit, the isOwnerThread() read)
@@ -10422,7 +10422,7 @@ Agent: main (Abasing session)
 Task: The Phase-7 profiling opener — §22's "profiling demonstrates a dense-owner bottleneck" gate bar answered with measurements; plus the review+merge of PR #1 (the Bukkit adapter first slice)
 
 Work Log:
-- Environment reset recovered (fresh clone at /home/z/my-project/ZaminTorch, develop @ 8f634e5a = torch-1.8.8-99 at recovery, then fast-forwarded through 9432888); Abasing identity set; the interrupted pre-reset work stashed (it was the lighting batch slice the parallel session had already landed as f47e948 + cd77d3c — the local copy retired to stale-work-backup)
+- Environment reset recovered (fresh clone at /home/z/my-project/ZaminTorch, develop @ 59bc148e = torch-1.8.8-99 at recovery, then fast-forwarded through 9432888); Abasing identity set; the interrupted pre-reset work stashed (it was the lighting batch slice the parallel session had already landed as f47e948 + cd77d3c — the local copy retired to stale-work-backup)
 - PR #1 (the parallel Instance 3's §28.7 Bukkit adapter first slice, feature branch → PR) REVIEWED AND MERGED as 74e4c80: the engine-side diff verified minimal and pattern-true (the pinned spigot-api 1.8.8-R0.1-SNAPSHOT dependency with the resolution+license ledger, the zamin-bukkit module registration, and ONE engine accessor — EngineTicker.isOwnerThread(), a public thread-fact read with correct §27.6/§28.7/§6.1 javadoc); the module's architecture sampled (BukkitAdapter composition root, TorchSchedulerBridge's §27.3/§28.6 routing, the honest §27.9 arms); :zamin-bukkit:test 24/0 verified on the merge tree + the engine regression scan 113/0 (server.plugin.* + server.concurrent.* + the scheduler acceptance family); the ONE conflict (WORKLOG.md append-vs-append) resolved keeping both sides' entries
 - THE OPENER'S SECTION FAN: every gameplay system in EngineServer's tick handler rides its own profiler section — 47 sections (regionIntents under the jobs section, blockUpdates through relightTransport/tabList under the live world's tick section); the profiled() arm's try/finally is the §126 addition over the reference's bare startSection/endSection (a throwing system must not tear the section stack — this engine's tick survives one); no behavior change when profiling is off (push/pop are no-ops)
 - THE MEASUREMENT FACE: EngineProfiler.sectionNanosSnapshot() — the accumulated table in ABSOLUTE nanos, undecayed (the reference's *999/1000 decay fires only inside the report walk, 1:1 — the snapshot is a pure read, merge-only, never shrinking); the table is now a ConcurrentHashMap (the measuring thread's snapshot iterates while the tick thread merges — weakly-consistent, never CME, single-threaded behavior identical); EngineServer.profilerSectionNanos() is the public face
@@ -10472,7 +10472,7 @@ Agent: main (Abasing session)
 Task: The Anvil canvas — the read-only import of an original 1.8.8 world folder (level.dat + region/*.mca) into the live engine, the §22 phase-gated milestone, delivered as §31.4's EXPLICIT operator action (never a startup detection) — branch feature/anvil-import
 
 Work Log:
-- Oriented on develop @ f47e9487 (torch-1.8.8-100): read Torch-Arcetecture.txt (§6/§9/§13/§17/§22/§27/§31 — §31.4's no-implicit-conversion rule and §31.6's isolation/durability rules are this slice's own contract), TORCH_ENGINEERING.md, the WORKLOG's parallel-split note (Instance 2 = this Anvil import), and the reference's own gold mine: RegionFile.java (the 4-byte readInt location walk — the task summary's "1024×3 byte position entry" is the common spec-sheet phrasing; the reference's readInt/writeInt stride is the authority), AnvilChunkStorage.java (the Level/Sections gates, createChunkFromNbt's cell/nibble arithmetic), NbtIo/NbtElement (the binary lattice), ChunkNibbleStorage (the low-nibble-for-even rule), AlphaWorldStorageSource.getData (the level.dat walk), WorldData (the row set)
+- Oriented on develop @ 12952a89 (torch-1.8.8-100): read Torch-Arcetecture.txt (§6/§9/§13/§17/§22/§27/§31 — §31.4's no-implicit-conversion rule and §31.6's isolation/durability rules are this slice's own contract), TORCH_ENGINEERING.md, the WORKLOG's parallel-split note (Instance 2 = this Anvil import), and the reference's own gold mine: RegionFile.java (the 4-byte readInt location walk — the task summary's "1024×3 byte position entry" is the common spec-sheet phrasing; the reference's readInt/writeInt stride is the authority), AnvilChunkStorage.java (the Level/Sections gates, createChunkFromNbt's cell/nibble arithmetic), NbtIo/NbtElement (the binary lattice), ChunkNibbleStorage (the low-nibble-for-even rule), AlphaWorldStorageSource.getData (the level.dat walk), WorldData (the row set)
 - THE BINARY NBT READER (server/nbt/BinaryNbtReader — a NEW file; the SNBT grammar, NbtOps, and every existing NBT model untouched): TAG 0-11, big-endian, the named root compound, depth-512 guard, the gzip arm; output adapted to Map<String, Snbt.Tag> so downstream reads use the familiar NbtOps accessors — the one lattice disagreement (TAG_Byte_Array, which the 1.8.8 string language cannot spell) reads as LIST-of-BYTE with BinaryNbtReader.byteArray pulling the raw row back; one recorded deviation: a 16M-entry array sanity bound (the reference's NbtReadLimiter runs UNLIMITED on its own saves; this reads FOREIGN files — §31.6 quarantine, not an OOM)
 - THE REGION FILE READER (server/world/anvil/AnvilRegionFile, read-only): the whole file read once, every entry slicing the one array; the reference's own bounds arm (sectors past the file refused before any read), the length-vs-sector-budget arm, gzip/zlib per the reference's accepted pair plus the raw third form (read-only superset, ledgered); §31.6 replaces the reference's silent nulls with a typed Isolated record (path + chunk + reason)
 - THE STATE TABLE (server/world/anvil/AnvilBlockIds — 1157 rows): (id, meta) -> identifier derived from the wire table's own authority — every engine block through LegacyBlockIds.legacyId with the nibble from EngineBlockType.legacyMetadata first (crop stages, skull/ladder facings, farmland moisture, smooth sandstone — the families the wire's METADATA map predates) and metadataOf as fallback (redstone ladders, torch facings, fluid levels); gap fills from the reference: (6,0) oak sapling (the wire table's own missing row), (60,2..7) farmland moisture, (175,8..11) the double-plant upper band; the generation pipeline: a scratch generator over the FULL EngineServer registry chain (1153 types — BuiltinBlocks alone is only 854), deleted after the one run; the drift guard lives in the protocol module (the only side that sees both tables): AnvilBlockIdsIntegrityTest rebuilds the derivation and fails with the missing rows to paste
@@ -10481,7 +10481,7 @@ Work Log:
 - THE SESSION + THE COMMAND (server/world/anvil/AnvilWorldImport + EngineServer's /anvilimport, op-4 — the /save maintenance family's level): the walk covers level.dat then every region/r.X.Z.mca (the reference's naming), column-major entries, sorted files; every chunk installs through EngineWorld.installGenerated (the pregen's own publication route — the light hook lights imported chunks exactly like generated ones); a position the live world already holds KEEPS its live state (installGenerated's contract) and is COUNTED skipped; the file reads ride the BLOCKING-IO LANE (the /save walk's established pattern, the choice documented in the command's javadoc per the task's requirement) — the folder inventory + level.dat as the first task, one read per region file — with every world mutation on the owning lane inside the lane's completion drain between ticks; the command never blocks the tick thread on queued work (the /save wart deliberately not replicated); the final ledger summary reaches the sender from the last drain; a mid-walk generation change abandons loudly (the stale arm); a one-at-a-time gate refuses a second concurrent walk
 - THE ISOLATION LEDGER (server/world/anvil/AnvilImportLedger): installed/skipped/unoccupied/region-file rows, every isolation reason with counts and first examples, the unknown states by exact numeric form, the not-imported rows — the §31.6 report the operator reads
 - THE TESTS (the gold-standard fixture writer AnvilFixture ports the reference's own write side — NbtCompound.write, NbtIo.writeCompressed, RegionFile.writeChunkData's sector layout): BinaryNbtReaderTest 10, AnvilRegionFileTest 15 (every §31.6 branch), AnvilChunkReaderTest 19 (the quirks + every isolation branch + the numeric ladders), AnvilLevelDataTest 4, AnvilImportAcceptanceTest 2 (the LIVE booted server: the console command drives the I/O lane into the owning drains; the imported torch scene is readable AND lit — block light 14 at the torch, 13 one step out, sky 15 above; spawn + day clock landed; the boot-pregen overlap counted skipped with the live state kept; the garbage region file isolated whole; the final report carries every row), AnvilBlockIdsIntegrityTest 2 (protocol module)
-- THE BLOCKER (recorded per §24): the supplied GitHub token authenticates READS only (the repo is public — reads work anonymously) and is REJECTED for push ("Invalid username or token"); the three commits (d9c69cdc, 90608a37, 147d1043) are local on feature/anvil-import as Abasing (the first reworded once for the 4-byte location-int correction), the push and the PR opening blocked on a valid write credential
+- THE BLOCKER (recorded per §24): the supplied GitHub token authenticates READS only (the repo is public — reads work anonymously) and is REJECTED for push ("Invalid username or token"); the three commits (ff6b0ae5, 44d85aa6, 147d1043) are local on feature/anvil-import as Abasing (the first reworded once for the 4-byte location-int correction), the push and the PR opening blocked on a valid write credential
 
 Stage Summary:
 - feature/anvil-import @ c81eca2f: the Anvil canvas delivered — the binary NBT reader, the region reader, the state table, the chunk transform, the level rows, the import session, the explicit op-4 command, and 52 tests (50 in zamin-core + the protocol drift guard 2); the anvil+nbt target scan green, the world/block adjacent sweeps run in this session
@@ -10494,7 +10494,7 @@ Agent: main (Abasing session)
 Task: The push + the PR — the credential blocker resolved
 
 Work Log:
-- A valid write credential supplied in a follow-up session; the three commits (d9c69cdc, 90608a37, aaa02b2d) pushed to origin/feature/anvil-import
+- A valid write credential supplied in a follow-up session; the three commits (ff6b0ae5, 44d85aa6, 7b0bd7aa) pushed to origin/feature/anvil-import
 - PR #2 opened against develop: "The Anvil canvas — the read-only 1.8.8 world import (§22): the binary NBT reader, the region reader, the state table, the chunk transform, the level rows, and the explicit /anvilimport command" — https://github.com/ZaminMC/ZaminTorch/pull/2
 
 Stage Summary:
@@ -10619,7 +10619,7 @@ Work Log:
 - Validation: ./gradlew :zamin-bukkit:test --max-workers=1 → 38/0 (stable across a --rerun-tasks pass: 24 pre-existing + 14 new); ./gradlew :zamin-core:compileJava green; the core command regression (CommandSuggestionTest + ConsoleCommandTest) green; the whole zamin-bukkit module green (SpigotApiSurface 4, lifecycle 5, events 6, scheduler 6, adversarial 3, command bridge 7, event group two 7)
 
 Stage Summary:
-- feature/bukkit-slice-2-commands-events (off develop @ 3f45b095): the legacy command surface bridged onto the engine's ONE command path (PluginCommandYamlParser's own parse → the engine's own register/dispatch/unregister; aliases + the 1.8.8 fallback prefixes; the permission gate + permission-message + usage lines all the plugin's own arms carried through the API's own walks; the §28.5 scope-owned retirement on disable), and the event bridge's second group (PlayerDamage both-ways-cancellable + both-ways-mutable-amount, PlayerDeath with the message applied + the keepInventory arm onto the native cancel, FluidFlow, Piston extend+retract, SignChange with the rewrite applied, the furnace pair) — the entity-backed and container families recorded as the honest §27.9 gaps with the concrete reason (no entity/Inventory views modeled) and the tripwires proving no fake bridge ever fired
+- feature/bukkit-slice-2-commands-events (off develop @ 7a7b2ca7): the legacy command surface bridged onto the engine's ONE command path (PluginCommandYamlParser's own parse → the engine's own register/dispatch/unregister; aliases + the 1.8.8 fallback prefixes; the permission gate + permission-message + usage lines all the plugin's own arms carried through the API's own walks; the §28.5 scope-owned retirement on disable), and the event bridge's second group (PlayerDamage both-ways-cancellable + both-ways-mutable-amount, PlayerDeath with the message applied + the keepInventory arm onto the native cancel, FluidFlow, Piston extend+retract, SignChange with the rewrite applied, the furnace pair) — the entity-backed and container families recorded as the honest §27.9 gaps with the concrete reason (no entity/Inventory views modeled) and the tripwires proving no fake bridge ever fired
 - The verified Bukkit-1.8.8 shapes against the pinned artifact: EntityDamageEvent(Entity,DamageCause,double), PlayerDeathEvent(Player,List,int,String), BlockFromToEvent(Block,Block), BlockPistonExtendEvent(Block,List,BlockFace), BlockPistonRetractEvent(Block,List,BlockFace), SignChangeEvent(Block,Player,String[]), FurnaceBurnEvent(Block,ItemStack,int), FurnaceSmeltEvent(Block,ItemStack,ItemStack), ItemStack(Material,int,short) — every one constructible from the native event's own data; PluginCommand's default executor IS the owning plugin (the constructor's bytecode pin), Material.matchMaterial over the bare identifier path (the resolver's own \W strip), VehicleCreateEvent living in org.bukkit.event.vehicle not entity
 - Demand-named follow-ups for the adapter family: the entity adapters (org.bukkit.entity views of mobs/items/projectiles/vehicles — unblocks the six entity-backed event families), the inventory family (unblocks the container events), the per-event-type scope ownership for the bridge's native bus registrations, and the engine-side retract-event resolver row (the pull chain hitting the extended head — the native event's own javadoc intent)
 
@@ -10996,10 +10996,10 @@ and the RepairCost doubling, the mob damage consult), conflict-resolved
 insertion keeping both the VIII1 teleport and the VIII13 pushBy), and
 merged in creation order:
 
-- PR #9 — the tree-growth + leaf-decay family (VIII2/VIII3, 679d9edb)
-- PR #10 — the piston entity displacement (VIII13, 9b24e6b5)
-- PR #11 — the anvil GUI (VIII5, b2dde105)
-- PR #12 — the mob armor family (VIII4, 12976447)
+- PR #9 — the tree-growth + leaf-decay family (VIII2/VIII3, 6c2d66f8)
+- PR #10 — the piston entity displacement (VIII13, 4cee1f30)
+- PR #11 — the anvil GUI (VIII5, 7583c26c)
+- PR #12 — the mob armor family (VIII4, 213a97d9)
 
 THE VIII4 RECORDED FINDING RETIRED: the PR's own body flagged the PLAYER
 path's Armor.reduce as carrying the 1.9 toughness-shaped envelope
@@ -11024,7 +11024,7 @@ backlog.
 
 ## 2026-10-21 — VIII1: the rider side of the exotic mounts (the §31.6 counted refusal fully retired)
 
-The Wave VIII opener. The mount side landed in VII5 (2210f9d0); this
+The Wave VIII opener. The mount side landed in VII5 (259cca7b); this
 slice retires the RIDER side: a vehicle/projectile/item/firework/
 eye/orb RIDER now seats and follows whatever family it is, the
 reference's updateRidden (Entity.java lines 1297-1349) running at the
@@ -11227,7 +11227,7 @@ no armor points in the mob damage walk, no per-type spawn dice, no
 armor on the Entity Equipment wire, and the vanilla Equipment rows
 parsing to nothing.
 
-**The landing** (35b1a9ca): THE MODEL — MobEntity's four armor slots
+**The landing** (16417e88): THE MODEL — MobEntity's four armor slots
 through equipment(int)/setEquipment(int, stack) beside the held
 accessor family. THE DAMAGE CONSULT — MobEntity.hurt grows the
 reference's EXACT getDamageAfterArmor law (LivingEntity lines 868-877:
@@ -11856,7 +11856,7 @@ over a 2048² sweep — the whole table generating).
 
 ## 2026-10-21 — VIII14 surface slice (the depth-dependent surface builders, direct on develop)
 
-**ddf39d21 — the biome family's fourth slice.** The reference's
+**aaa6eccb — the biome family's fourth slice.** The reference's
 `Biome.prepareAndBuildSurfaces` whole over the engine's per-cell column
 model: the core `buildSurfaces` walk (Biome.java 452-508 — the k
 formula, the sea-band pair reset, the subsurface band, the sand
@@ -11886,7 +11886,7 @@ local-difficulty completion (the inhabited-time and moon-phase terms
 currently zeroed, MobManager 3520's ledger) split between the
 coordinator and instance 9.
 
-**811cc92c — Slice S6: the player store's save-walk arm (the save
+**46256c1d — Slice S6: the player store's save-walk arm (the save
 walk's last synchronous store).** The Phase-5 persistence wave's own
 named follow-up — "the save walk's remaining stores stay synchronous
 (S4+ adopts them)" — completed. Phase 0's census of the actual walks:
@@ -12077,7 +12077,7 @@ Work Log:
 - Validation: ./gradlew :zamin-bukkit:test --max-workers=1 → 45/0 (38 pre-existing with the flipped test-7 + 7 new), stable across a --rerun-tasks pass; ./gradlew :zamin-core:compileJava green — ZERO zamin-core edits this slice (every read surface the views ride already existed: the body's own public rows, the managers' gates, session.engineEntityId)
 
 Stage Summary:
-- feature/bukkit-slice-3-entities (off develop @ 31da7515): the entity adapter family whole (EntityTypeMap + the TorchEntityView base + the live TorchMob + the four pending views + the adapter's cache/resolutions) and the six entity-backed families bridged (both-ways where the legacy form is cancellable/mutable, the honest 1.8.8 shapes kept where it is not, every §27.9 divergence recorded in the javadoc with its concrete reason)
+- feature/bukkit-slice-3-entities (off develop @ 38eb4e7f): the entity adapter family whole (EntityTypeMap + the TorchEntityView base + the live TorchMob + the four pending views + the adapter's cache/resolutions) and the six entity-backed families bridged (both-ways where the legacy form is cancellable/mutable, the honest 1.8.8 shapes kept where it is not, every §27.9 divergence recorded in the javadoc with its concrete reason)
 - The verified Bukkit-1.8.8 shapes against the pinned artifact: CreatureSpawnEvent(LivingEntity,SpawnReason), ItemSpawnEvent(Item,Location), ProjectileLaunchEvent(Entity) — extends EntityEvent, NOT EntitySpawnEvent (no getLocation of its own), VehicleCreateEvent(Vehicle) — NOT cancellable (the 1.8.8 shape), EntityDeathEvent(LivingEntity,List,int), EntityType.fromName's misses (egg/minecart/small_fireball → null — the explicit-table law's cause), Entity.getEffectivePermissions/recalculatePermissions/addAttachment×4/removeAttachment (the Permissible tail the javap-first law caught before the compiler did)
 - Demand-named follow-ups for the adapter family: the inventory views (the container family's unblocking — the PARALLEL SLICE 4's own lane, its PR to be unioned with this one), the MaterialMap's modern-name pairs table (beef→RAW_BEEF, porkchop→PORK — the mob-loot drops' ItemSpawnEvents skip loudly today, the honest gap), the per-event-type scope ownership for the bridge's native bus registrations (slice-1's own follow-up, unchanged), the eye-height/i-frame/equipment rows if the engine ever names them public, and the §27.9 note that the spawn families' pending views could gain live-body upgrades if the engine ever fires its gates post-construction (the native API's own choice, never the adapter's to make)
 ---
@@ -12100,7 +12100,7 @@ Work Log:
 - THE PRE-EXISTING DEATH-TEST FLAKE (found by this run's stability sweep, recorded for the owning slice — NOT touched): BukkitEventBridgeGroupTwoTest.thePlayerDeathBridgeAppliesTheMessageAndKeepInventoryArm flaked once in four full-suite runs ("the native MONITOR observed the death" — the monitor's message null after await(keeper.dead())); isolated-green 3/3 and two further full runs green; the mechanism is the engine's own dieOnTick order (session.markDead() FIRST, the stats/potion/dismount/carried work between, PlayerDeathEvent fired only after) against the test's await-on-dead() — the sampling window between the flag flip and the dispatch; the one-line robustness fix (awaiting the monitor's observation) belongs to the slice that owns that test
 
 Stage Summary:
-- feature/bukkit-slice-4-inventory (off develop @ 31da7515, pushed through the green test wave): the inventory family whole — the org.bukkit.inventory lane over the engine's own §27.3 surfaces (the ItemStack value view, the six container views + the player inventory view, the InventoryView over the open window, the player's four inventory-family verbs), and the three container event families bridged (InventoryOpen with the cancellation mapped onto the engine's own close walk + the ghost-window translation recorded; BlockDispense cancellable both ways with the zero-vector velocity record and the readable-not-applied setItem/setVelocity; InventoryMoveItem over the PUSH/PULL arms with the initiator law, the SUCK arm the entity lane's recorded gap)
+- feature/bukkit-slice-4-inventory (off develop @ 38eb4e7f, pushed through the green test wave): the inventory family whole — the org.bukkit.inventory lane over the engine's own §27.3 surfaces (the ItemStack value view, the six container views + the player inventory view, the InventoryView over the open window, the player's four inventory-family verbs), and the three container event families bridged (InventoryOpen with the cancellation mapped onto the engine's own close walk + the ghost-window translation recorded; BlockDispense cancellable both ways with the zero-vector velocity record and the readable-not-applied setItem/setVelocity; InventoryMoveItem over the PUSH/PULL arms with the initiator law, the SUCK arm the entity lane's recorded gap)
 - The parallel-lane hygiene held: this slice's additions live in the inventory/ package + the bridge's third group + the probe's inventory section + clearly-marked slice-4 arms in TorchPlayer — the entity lane's regions (the org.bukkit.entity views of mobs/items/projectiles/vehicles, the entity-backed event families) untouched and expect the coordinator's union
 - Demand-named follow-ups for the adapter family: the entity container forms' views (the horse inventory, the chest/hopper minecarts — the entity lane's mounts unblock InventoryOpenEvent for them), the SUCK arm's item-entity view (the same lane), the open kinds still without views (the crafting table's session grid, the enchanting/anvil menu state, the beacon payment slot, the villager trades), the container-CLOSE event family (the engine has no close observation — InventoryCloseEvent is unbridgable until it exists; the tripwire pins the current shape), the block-state views (the InventoryHolder answers a position-keyed holder, NOT a CraftChest — the cast-hungry plugins' demand), and the addItem/removeItem merge walks (a native insert/withdraw surface would have to exist first — the §27.9 record names the engine's own walks)
 ---
@@ -12119,11 +12119,11 @@ Work Log:
 - DOCS: §29's Wave IX record (the lane's landing + the demand-named tail: the mob equipment read, the achievement reads, the plugin-facing anvil import verb, the biome registration datums, the generic-mount seat rows, the decorations' read surface)
 
 Stage Summary:
-- feature/completionist-surfaces pushed through e2578edf, all commits authored Abasing
+- feature/completionist-surfaces pushed through 7710651a, all commits authored Abasing
 - Four §27.3 exposure gaps closed (villages/piston-push/growth/pickup) + the import's stale-javadoc honesty pass + the §27.10 evidence table (NATIVE_API_CAPABILITIES.md §9, 18 rows)
 - The capability tests: VillageApiAcceptanceTest 2, PistonPushApiAcceptanceTest 2, GrowthApiAcceptanceTest 3, ArrowPickupTest 8 (all green); the anvil group 44/0; the api module green
 - The demand-named rows the audit leaves for the next slices are recorded in the §9 table + §29's Wave IX note
-**2c548327 — the biome family's fifth slice: the feature decorators.**
+**4773e60a — the biome family's fifth slice: the feature decorators.**
 The reference's `FeatureDecorator` walk whole
 (`world/gen/feature/decorator/FeatureDecorator.java` 98-298, every
 stage in the reference's exact order with the exact dice) + the
@@ -12189,7 +12189,7 @@ missing remote-admin doors, 1:1 with the reference
 per §30's law (the full decision record is §32 in
 Torch-Arcetecture.txt):
 
-**4b9f2f9a — the config rows.** The five keys the reference reads flow
+**20f3d1a9 — the config rows.** The five keys the reference reads flow
 through the engine's established config path: ServerLayout's
 first-boot template gains rcon.password/rcon.port (the port+10 law,
 RconServer 29-31) and query.port (the server-port law,
@@ -12201,7 +12201,7 @@ both listeners off). The port default laws resolve in the compact
 constructor; RANGE stays unvalidated on purpose — the listeners' own
 start() warn-and-disable laws own a bad port, never a boot failure.
 
-**e0c05f5e — the package whole.** The reference family ported into
+**853ec66f — the package whole.** The reference family ported into
 `net.zaminmc.torch.server.rcon`: BufferHelper (the NUL-terminated
 UTF-8 getString, the LE/BE reads, the negative-length crash shape),
 DataStreamHelper (the low-byte writeBytes + trailing NUL, the LE
@@ -12224,7 +12224,7 @@ reference Console.java laws) instead of the reference's static
 singleton buffer (concurrent connections must never interleave one
 buffer, §6.4).
 
-**6aaec4eb — the engine wiring.** EngineServer boots the listeners at
+**f365eed4 — the engine wiring.** EngineServer boots the listeners at
 the reference's own spot (DedicatedServer 203-216 — the world-ready
 moment, past the worldReady latch) with the degrade-on-failure
 posture; `runRconCommand` lands beside `consoleCommand` as the
@@ -12237,7 +12237,7 @@ race sweep at step 4b — a shutdown that won the state gate mid-boot
 sees the boot thread's just-started listeners only past awaitStop),
 both idempotent.
 
-**a81461c7 + 0dea1d26 — the tests.** The rcon package whole 38/0:
+**4a486451 + 09ffdcf9 — the tests.** The rcon package whole 38/0:
 RconProtocolTest 17 (the wire laws byte-for-byte — the auth accept's
 exact 14-byte frame, the wrong password's id -1 with the follow-up
 command refused without reaching the route, the 4096 split with both
@@ -12336,7 +12336,7 @@ Work Log:
 - Added the S2C_MAP_DATA conformance row (0x34, #53 in the reference's
   NetworkProtocol registration order, line 174) — the tracker commit had
   declared the constant without the table row.
-- Rebased onto origin/develop 8e572279 (the WORKLOG orientation entry resolved
+- Rebased onto origin/develop 26d961e1 (the WORKLOG orientation entry resolved
   by union — the cross-lane convention); the rebase surfaced the VIII14 fern's
   missing MapColors row (FOLIAGE — Material.REPLACEABLE_PLANT's own color,
   TallPlantBlock's ctor) — added with the flora band.
@@ -12344,7 +12344,7 @@ Work Log:
   (MapColorsTest 7 + MapItemTest 12), item (Armor 5, Tools 4, WrittenBookFlow
   9), crafting (CraftingRecipeTest 18), the protocol module whole 117/0, nbt
   116/0, interaction, stat (the StatsCompletenessTest failure REPRODUCED ON
-  DEVELOP 8e572279 — coarse_dirt/fern/podzol counting on stat rows the 1.8.8
+  DEVELOP 26d961e1 — coarse_dirt/fern/podzol counting on stat rows the 1.8.8
   client drops; the decorators/surface lanes' own defect, not this lane's).
 - Updated VANILLA_1_8_8_COMPATIBILITY.md §1 (the map crafting family row) + §7
   (the map item family row) and Torch-Arcetecture.txt §29 (Wave X — the
@@ -12364,12 +12364,12 @@ Agent: main (Abasing session — the coordinator's close-out)
 Task: The VIII14 local-difficulty slice's landing + the final PR wave (#25/#26/#27)
 
 Work Log:
-- PR #27 opened + merged (261c6d84): the local-difficulty completion whole, the branch deleted
+- PR #27 opened + merged (6364ef34): the local-difficulty completion whole, the branch deleted
 - The full-suite sweep's environment lesson: the single whole-suite run wedges the gradle daemon in this sandbox (the fork dies silently, the daemon polls its address registry forever) — the established three-batch practice extended to root-package chunks + package batches under --no-daemon, every batch green (one documented flake: RangedCombatAcceptanceTest, isolated-green, the known class)
 - The sweep's own two stale-table repairs landed with the slice: the BlockRegistryTest census re-pin 893 -> 896 (the surface slice's coarse_dirt + podzol and the decorators slice's fern — both registered without the root-batch pin moving, the parallel slices' world-package evidence never catching it) + the three stats folds (fern -> tallgrass, coarse_dirt/podzol -> dirt, the 1.8.8 family rows the StatsCompletenessTest law demands)
-- PR #25 (the remote-admin protocols — RCON + GS4 Query) reviewed + merged (cd70ca22): the config rows' default laws verified against the reference citations, the WORKLOG unioned, the rcon/config packages green
-- PR #26 (the map item family) reviewed + merged (fc857d75): the ItemStack record's two map fields with their compat shapes verified, the WORKLOG unioned, the map/crafting/item packages + protocol/api green
-- All branches deleted, zero open PRs; develop at fc857d75
+- PR #25 (the remote-admin protocols — RCON + GS4 Query) reviewed + merged (adee3be8): the config rows' default laws verified against the reference citations, the WORKLOG unioned, the rcon/config packages green
+- PR #26 (the map item family) reviewed + merged (59248ff5): the ItemStack record's two map fields with their compat shapes verified, the WORKLOG unioned, the map/crafting/item packages + protocol/api green
+- All branches deleted, zero open PRs; develop at 59248ff5
 
 Stage Summary:
 - SESSION DELIVERED: 9 PRs processed (six as coordinator: #19-#24 with two cross-PR/cross-slice repairs — the Pushable apiEntity() semantic gap and the slice-3/slice-4 diamond-hoarder fixture collision; three as implementer/coordinator: #25/#26/#27) + the VIII14 local-difficulty completion + the two stale-table repairs
@@ -12383,16 +12383,16 @@ README pending-work ledger and the session resync after the environment reset.
 
 Work Log:
 - Resynced after the environment reset: recloned, identity Abasing set, the working tree
-  clean at 27c7c2a3; audited every pending-work source (Torch-Arcetecture §22/§29, the
+  clean at 7b8d2fa1; audited every pending-work source (Torch-Arcetecture §22/§29, the
   compat ledger's section 10, NATIVE_API_CAPABILITIES §9, the WORKLOG tail) and verified
   each named gap against the code — the definitive pending list landed as README.md's
-  "Remaining work" TODO ledger (25 rows, 04dac0ab): the VIII14 ambient cadence, the
+  "Remaining work" TODO ledger (25 rows, ba9ec99d): the VIII14 ambient cadence, the
   vanilla-grade gaps (in-wall suffocation, climb-out assist, water travel model, the
   explosion resistance table, explosion x decorations, the dragon respawn ritual, the
   thorns mob arm, the wither exemptions, the 64-block world events), the Wave IX api tail,
   the gated concurrency phases, the standing deferrals. The stale rows repaired (the
   anvil import IS implemented; the milestone line).
-- Landed the ambient-sound cadence whole (5ab74115): the reference's baseTick law
+- Landed the ambient-sound cadence whole (3a22ff67): the reference's baseTick law
   verbatim (the named adaptation's 160+nextInt(320) RETIRED — the ctor's own draw gone,
   every mob's construction stream shifted one nextInt), the family table (intervals,
   volumes, the baby/adult pitch), the idle-name repairs (cow/chicken 'say', villager
@@ -12425,7 +12425,7 @@ Task: The living family's in-wall suffocation 1:1 — mobs and players — closi
 the VIII13 piston-crush tail with it.
 
 Work Log:
-- Landed the whole arm (a6b526a3): Entity.isInWall's eight-point survey
+- Landed the whole arm (cf28e044): Entity.isInWall's eight-point survey
   (the y pair at eye +/- 0.05, the x/z pairs at +/- 0.4*width, the
   distinct-cell dedup), the view-blocking consult (WorldQuery.viewBlockingAt
   default + the live dimension-aware override over CollisionShapes.isFullCube
@@ -12449,7 +12449,7 @@ Agent: main (Abasing session — the 2026-10-22 continuation)
 Task: The climb-out assist — the pool-exit law named in the lava-drag row.
 
 Work Log:
-- Landed the whole law (cc094690): the shared water/lava arm, the pre-move
+- Landed the whole law (c89efe91): the shared water/lava arm, the pre-move
   anchor, the consult over the APPLIED motion (the reference's clip-zeroed
   terms — the engine's swept dx/dz), both doesNotCollide sides (the gather +
   the dry-span requirement).
@@ -12609,14 +12609,14 @@ Stage Summary:
   world-event radius (10).
 ---
 Task ID: wave-2-assignment (the 2026-10-22 second parallel wave)
-Agent: main (Abasing session — the coordinator, post 7498b3a7)
+Agent: main (Abasing session — the coordinator, post 79d132b4)
 Task: The second nine-instance parallel wave's assignment after the first
 wave's close-out — the README TODO ledger's actionable tail partitioned.
 
 Work Log:
 - Resynced after the environment reset: recloned, identity Abasing set, the
-  stale pre-reset stash dropped after verifying its landing (f47e9487 is an
-  ancestor of develop), develop pulled to 7498b3a7 (the rows 4-7 landings +
+  stale pre-reset stash dropped after verifying its landing (12952a89 is an
+  ancestor of develop), develop pulled to 79d132b4 (the rows 4-7 landings +
   the Minestom ADR close), zero open PRs, working tree clean.
 - Audited the README TODO ledger's remaining 17 rows against the code: the
   actionable set is rows 8 + 10-18 (ten rows); row 9 (the wither exemptions)
@@ -12807,7 +12807,7 @@ Stage Summary:
 Task ID: wave-2-row-18 (the door-break arming read — the README TODO's
 row 18, one of the eight api-exposure lanes of the 2026-10-22 second
 parallel wave)
-Agent: Abasing (instance lane door-break-api, off develop c80e24ce)
+Agent: Abasing (instance lane door-break-api, off develop 86e9228b)
 Task: VIII9's builtin-goal arming + progress exposed — the §27.10 row
 the door-break goal's read family carries no api surface beside the
 custom-goal registration family.
@@ -12995,7 +12995,7 @@ Task ID: wave-2-row-13 (the anvil-import api lane)
 Agent: Abasing (instance 3 of the wave-2 nine — README TODO row 13)
 Task: Server.anvilImport() — the plugin-facing import verb over the same
 I/O lanes (the ledger report as the return), branched anvil-import-api off
-develop c80e24ce.
+develop 86e9228b.
 
 Work Log:
 - Oriented on the established surfaces (no own design invented): the README
@@ -13471,8 +13471,8 @@ baseline, and the ranked backlog; fixes only where the root cause was
 established.
 
 Work Log:
-- Phase 0: develop verified at 98b8973f, clean, synced; the release
-  pipeline found RED — #361 failed the full suite on bd2deb79 (the
+- Phase 0: develop verified at a074fef6, clean, synced; the release
+  pipeline found RED — #361 failed the full suite on faacfd1b (the
   wave-2 head), torch-1.8.8-127 the last published release (the 128
   bump never shipped). The exact failure pair pulled from the CI logs.
 - The failure pair reproduced-GREEN in isolation (bukkit 2m23s, fishing
@@ -13525,13 +13525,13 @@ changed.
 
 Work Log:
 - Phase 0 ground truth re-established after the environment reset:
-  develop 98b8973f (local == GitHub, verified via API), PR #37 OPEN
+  develop a074fef6 (local == GitHub, verified via API), PR #37 OPEN
   unmerged mergeable-clean 5 commits with NO CI runs (the release
   workflow = develop-push only), release run #362 RED at the suite step,
   torch-1.8.8-127 the last published release (128 bump committed, never
   shipped), feature/save-s4-stores found stale-and-merged (87 behind, 0
   ahead), the owner's §33/§34 additions to the architecture file
-  confirmed present (c570032b).
+  confirmed present (a30c48a5).
 - The supplied patched-server tree identified FROM SOURCE: PaperMC/Folia
   ver/26.2.x (mcVersion 26.2, paperRef 5d4f9bd0, channel BETA, paperweight
   2.0.0-beta.21, Java 25) — NOT a 1.8.8 server; the archive carries only
@@ -13607,12 +13607,12 @@ the owner-supplied KigPaper 1.8.8 tree and run the audit increment.
 Work Log:
 - Ground truth re-verified: cycle4-exhaustive-audit was clean/synced at
   a55aefb2 (6 commits from the pre-reset session); develop had moved
-  98b8973f -> dbb74c17 (owner supplies KigPaper-ver-1.8.8.zip) ;
+  a074fef6 -> 77be148c (owner supplies KigPaper-ver-1.8.8.zip) ;
   PR #37 open/clean/CI-less; release #361/#362 red, #363 in_progress.
-- PR #37 squash-merged into develop as 971e59da (owner instruction
+- PR #37 squash-merged into develop as c04d8553 (owner instruction
   "handle the PR yourself"; author Abasing); cycle4 rebased onto it
   (WORKLOG conflict unioned: cycle-3 entry + cycle-4 entry, --- separator);
-  pushed as ad3274ce.
+  pushed as 057629e9.
 - Architecture re-read (owner's "readit"): laws 1-17, §17, §22 snapshot,
   §27.9-27.12, §28.7, Standing list; no KigPaper mention anywhere (the zip
   was the change).
@@ -13627,7 +13627,7 @@ Work Log:
   classified (N1 bed action-bar + N5 doWaterFreezing = different-by-design
   config-gated divergences -> DEC-003; N4 EnumProtocol specialized-packets
   registry -> ML-022 unverified; N2/N3/N6/N7/N8 Guava-hygiene NA).
-- Deliverables landed (commit b6fd68e1): KIGPAPER_PATCH_ACCOUNTING.md,
+- Deliverables landed (commit db028cb2): KIGPAPER_PATCH_ACCOUNTING.md,
   kigpaper-census.json + script (repo-relative), MASTER_LEDGER rows
   ML-022/ML-023 + DEC-003, COMPATIBILITY_MATRIX fork row #2,
   CYCLE4_EXHAUSTIVE_AUDIT increment-2 section.
@@ -13661,7 +13661,7 @@ Work Log:
   divergence (> 0) recorded, not owed.
 - Hand-review: CB0047, CB0079, SSV0067, SSV0156 full reads; no
   misclassifications surfaced; accounting doc rewritten with final summary.
-- Deliverables landed (commit 21b2e977): the tables, deep-pass JSON,
+- Deliverables landed (commit 0b8c8bee): the tables, deep-pass JSON,
   bugfix class map, ledger ML-022/023 closures, compatibility matrix
   completion, audit-record increment-3 section.
 
@@ -13676,7 +13676,7 @@ Stage Summary:
 ---
 Task ID: ML-012+ML-017
 Agent: instance (feature/ops-protocol lane, the Cycle-3 audit backlog)
-Task: ML-012 Server Difficulty (0x41) never sent, /difficulty not live-synced + ML-017 Resource Pack (0x48) absent end-to-end — two confirmed ops-facing protocol gaps from the audit, landed as ONE bounded chunk on feature/ops-protocol (base 971e59da).
+Task: ML-012 Server Difficulty (0x41) never sent, /difficulty not live-synced + ML-017 Resource Pack (0x48) absent end-to-end — two confirmed ops-facing protocol gaps from the audit, landed as ONE bounded chunk on feature/ops-protocol (base c04d8553).
 
 Work Log:
 - Reference study: DifficultyS2CPacket (s2c/play 0x41) — write() carries
@@ -13840,7 +13840,7 @@ Stage Summary:
   the editing screen (0x36, the reference's openSignEditor 1:1) while
   every other client stays closed, and the editor's close flows the
   existing 0x12 write path. Branch feature/sign-editor-open, commits
-  cfba12b8 + df34b365 + a8aed2ff + this docs tail. 2444 tests green
+  b4d84804 + e4f7f658 + 3f90ce92 + this docs tail. 2444 tests green
   (core 2205 batched, protocol 121, api 19, bukkit 52, launcher 47);
   the two documented test races and the chest flake are pre-existing,
   reproduced outside this lane. PR opened against develop, not
@@ -14018,7 +14018,7 @@ Agent: Abasing (the ops-papercuts lane)
 Task: The cycle-3 audit's ML-005 + ML-009 rows — /op offline profiles
 through the persisted-player cache (B-3), the --port CLI precedence and
 the unclean-exit disconnect noise (B-4, first two items); branch
-feature/ops-papercuts off 971e59da.
+feature/ops-papercuts off c04d8553.
 
 Work Log:
 - Phase 0: read the reference whole (the dedicated OpCommand lines 30-39
@@ -14098,7 +14098,7 @@ Stage Summary:
 ---
 Task ID: ML-018
 Agent: Abasing (the spectator-camera lane)
-Task: ML-018 — the spectator's camera/spectate mechanics, the audit's confirmed partial-implementation gap: gamemode 3 gates digging/use and grants flight, but the C2S Spectate handler discarded its two longs, Protocol18 carried no 0x43, and no no-clip/visibility walk existed anywhere. Port the reference's camera walk 1:1 (ServerPlayerEntity.setCamera + tick's camera arm + broadcastTo + PlayerEntity.tick's noClip arm) on the branch feature/spectator-camera off develop 971e59da.
+Task: ML-018 — the spectator's camera/spectate mechanics, the audit's confirmed partial-implementation gap: gamemode 3 gates digging/use and grants flight, but the C2S Spectate handler discarded its two longs, Protocol18 carried no 0x43, and no no-clip/visibility walk existed anywhere. Port the reference's camera walk 1:1 (ServerPlayerEntity.setCamera + tick's camera arm + broadcastTo + PlayerEntity.tick's noClip arm) on the branch feature/spectator-camera off develop c04d8553.
 
 Work Log:
 - Read the reference's whole spectate surface before touching anything: PlayerSpectateC2SPacket (readUuid's two-long form), ServerPlayNetworkHandler.handlePlayerSpectate lines 516-551 (the isSpectator gate, the uuid resolution, the self-target reset), ServerPlayerEntity lines 916-923 (setCamera: the Camera packet THEN the teleport, both on the player's own networkHandler), the per-tick camera arm lines 273-285 (dead-target restore, the body follow at updatePositionAndAngles + getPlayerManager().move, the isSneaking exit), broadcastTo line 472 (the spectating body hidden from every other view), PlayerEntity.tick line 191 (noClip = isSpectator), and the client's own gates (LocalClientPlayerEntity.sendMovementToServer's isCamera gate — an attached client sends NO movement; the sneak Entity Action rides BEFORE that gate, so it is the only exit signal; ClientPlayNetworkHandler.handleCamera drops an unknown entity id).
@@ -14492,11 +14492,11 @@ Stage Summary:
 
 ## The cycle-5 wave — the CI retirement, ML-024, and the R-2..R-7 remainder
 
-Date: 2026-10-23. The wave started from develop 126383aa (release 132
+Date: 2026-10-23. The wave started from develop e5333381 (release 132
 published, both release runs green, 0 open PRs) and lands as one push.
 
 - The CI defect first: the "Development Statistics (Java LOC)" workflow
-  failed on every develop push and every 6h schedule since 3aa02359 (4
+  failed on every develop push and every 6h schedule since af88e5af (4
   failures + 1 cancel observed). Root cause: the workflow's render step
   runs AFTER "Checkout main branch", and the owner removed the feature
   from main in six web-UI commits (8e301af3..36051bae) — so
@@ -14509,7 +14509,7 @@ published, both release runs green, 0 open PRs) and lands as one push.
   remaining live pieces anywhere; the develop README never carried the
   dropdown and the SVG/history were main-side only). This executes the
   owner's demonstrated decision, not a new one — recoverable from
-  history (5587b34b/1870a4c9 added it) if ever wanted back.
+  history (08502dbc/1870a4c9 added it) if ever wanted back.
 - ML-024 (the wire-publish profiler section): landed as root.wirePublish
   through the profiler's new cross-thread span arm
   (EngineProfiler.recordSectionSpan) rather than a nested push/pop —
@@ -14638,8 +14638,8 @@ Stage Summary:
 
 ## The R-1 wave — the TNT lifecycle end-to-end read, 1:1
 
-Date: 2026-10-24. The wave started from develop e6c34be8 (release 133
-published, the cycle-5 wave merged) and lands as c45826d6.
+Date: 2026-10-24. The wave started from develop 44f8a0b7 (release 133
+published, the cycle-5 wave merged) and lands as 0ec68c18.
 
 - The last unclaimed parity remainder (the cycle-5 record's own "next most
   valuable wave" pick). The read walked the full lifecycle against the
@@ -14736,7 +14736,7 @@ Stage Summary:
 
 ## The charged-creeper head-drop rider — the ML-100 family tail, 1:1
 
-Date: 2026-10-24. Lands as 64ed7715, riding the R-1 wave's explosion
+Date: 2026-10-24. Lands as 220016a3, riding the R-1 wave's explosion
 rebuild (the source threading builds on the new wound walk).
 
 - The law (the reference's die arms): a victim killed by a CHARGED
@@ -14821,8 +14821,8 @@ Task: The five open wave-6 PRs reviewed, integrated, and merged — with
 the PR #53 detonation conflict reconciled over the R-1 walk.
 
 Work Log:
-- Baseline: develop @ 23a54c87 (release 134) clean; fetched the five
-  wave6/* branches (cut from e6c34be8) and their PRs #49-#53. Trial
+- Baseline: develop @ fbe327ff (release 134) clean; fetched the five
+  wave6/* branches (cut from 44f8a0b7) and their PRs #49-#53. Trial
   merges: four clean, #53 one-file conflict (EngineServer.java) — the
   branch's pre-R-1 detonation family vs the landed R-1 1:1 walk + the
   head-drop rider's detonateAtFromMob seat.
@@ -14853,7 +14853,7 @@ Work Log:
   ChunkBulkWireTest 3/3, MultiBlockChangeWireTest 5/5.
 - A parallel session's hunger/food audit wave (release 135) landed on
   origin/develop mid-integration; synced clean and pushed as
-  b0351360..a433db07. All five PRs verified MERGED via the API.
+  b1ba8f2e..f850e582. All five PRs verified MERGED via the API.
 
 Stage Summary:
 - The five wave-6 lanes are in develop; the compat ledger's 16b/
@@ -14896,18 +14896,18 @@ verify what is done and what is not vanilla grade).
 
 Work Log:
 - Baseline re-established: develop synced (0/0), identity Abasing
-  verified, no open PRs, CI release #391 pending on 5d8d0816.
+  verified, no open PRs, CI release #391 pending on 85cf0fd6.
 - The 25 ledgered standing tails enumerated from the compat ledger;
   the wave plan built (VT-1 stats, VT-2 ambient/particles, VT-3
   spawner, VT-4 names, VT-5 movement, VT-6 nether spawns, VT-7 the
   remainder).
-- VT-1 (069a246e): NOTE_BLOCKS_PLAYED wired at the dig-start report
+- VT-1 (db6e6a70): NOTE_BLOCKS_PLAYED wired at the dig-start report
   (NoteBlock.startMining lines 58-67 — the survival attack's own
   incrementStat); NOTE_BLOCKS_TUNED and RECORDS_PLAYED were ALREADY
   wired at their use sites (the stale ledger notes). Pinned by
   NoteBlockSystemTest's new theSurvivalAttackIncrementsThePlayStat
   (the real submitMiningStart walk, the position inside the dig band).
-- VT-2 (cbb30244): the bat's 1015 takeoff event LANDED (both
+- VT-2 (b9bf00c6): the bat's 1015 takeoff event LANDED (both
   roost-exit arms' doEvent — the mob drain's takeoff flag through
   MobManager.onBatTakeoff to the adapter's WorldEvent 1015). The five
   particle tails CLOSED NOT-OWED on the empty-listener evidence
@@ -14940,7 +14940,7 @@ spawner persistence, the custom-name carries, the movement family, and
 the nether verification.
 
 Work Log:
-- VT-3 (3cff51b6): the spawners' ZSD persistence — SpawnerDataStore v1
+- VT-3 (4180329b): the spawners' ZSD persistence — SpawnerDataStore v1
   (the reference writeNbt's own field set: the typed row's delay + six
   cadence rows; the untyped row never persists per the EntityId gate);
   boot restore beside the note store, saveAllNow's named pipeline arm;
@@ -14949,14 +14949,14 @@ Work Log:
   line 128; the weighted re-pick needs NBT injection the engine has no
   surface for). SpawnerDataStoreTest 3/0. The minecart kind verified
   already 1:1.
-- VT-4 (0ac78f43): the custom-name carries — the renamed egg names its
+- VT-4 (6d7815ed): the custom-name carries — the renamed egg names its
   body (useOn lines 83-87 + startUsing lines 119-123; the dispenser arm
   was already wired), the sheared mooshroom's cow inherits the CustomName
   (MooshroomEntity lines 42-45). SpawnEggTest's new hover-name pin 7/0.
   The cart's name row closed surface-exists (model/wire/persistence
   whole; only NBT injection absent). The mob name surface (wire index
   2/3, the named-never-despawn, ZMD) was already whole.
-- VT-5 (be693526, rebased over the 136 release): the spider family's
+- VT-5 (3f1b532f, rebased over the 136 release): the spider family's
   wall climb LANDED WHOLE — the post-clip wall flag (SpiderEntity.tick
   line 67; the wire's byte-16 bit 0 for both kinds), travel lines
   1165-1184's climb arms (the ±0.15 horizontal clamp, the -0.15 sink
@@ -14974,7 +14974,7 @@ Work Log:
   collided with x=0 cells, a phantom ceiling above the spider); fixed
   with 12-bit field packing in the test. The ENGINE was correct — no
   engine change needed beyond the climb arms.
-- VT-6 (c99830a3): the nether spawn tail closed landed-earlier — the
+- VT-6 (d34ba6b1): the nether spawn tail closed landed-earlier — the
   HELL biome table (ghast 50/4-4, pigman 100/4-4, magma 1/4-4) rides
   the naturalSpawnsNether system's own tick (EngineServer 2835); pinned
   by BiomeSpawnTablesTest + NetherWorldTest.
@@ -15004,7 +15004,7 @@ Task: The vanilla-grade tail census's seventh wave, first halves — the
 per-kind hunt band and the biome rain gate.
 
 Work Log:
-- VT-7a (784b579c): the per-kind hunt band — the engine's player-hunt
+- VT-7a (48b98aff): the per-kind hunt band — the engine's player-hunt
   scan read the flat 16 for every hostile; the reference's FOLLOW_RANGE
   attribute overrides now ride it (followRange(): the blaze 48
   (BlazeEntity line 44), the enderman 64 (line 74), the wither 40 (line
@@ -15014,7 +15014,7 @@ Work Log:
   team-aware consult) read the new consult. Pinned by
   FollowRangeFamilyTest (the range-recording world asserts each kind's
   own band); the whole entity package green over the change (49 suites).
-- VT-7b (426f8478): the biome rain gate — the shared isRainingAt (the
+- VT-7b (8f07a098): the biome rain gate — the shared isRainingAt (the
   wolf's wet consult) carried only the flag + the precipitation height;
   the reference isRaining's own biome read (lines 2565-2579: the snowy
   family refuses — it snows — and the dry family — the deserts, hell,
@@ -15043,7 +15043,7 @@ guardian's squid-hunt arm, the fishing hooked-player pull, the
 command-block run gate, and /testfor's counted verdict.
 
 Work Log:
-- VT-7c (ca6b332f): the guardian's squid-hunt arm — the reference's
+- VT-7c (a3fc1e30): the guardian's squid-hunt arm — the reference's
   GuardianTargetValidator line 591 instanceof-SquidEntity branch rides
   the ActiveTargetGoal's one-box scan: guardianHuntTarget() reads the
   nearest squid (nearestMobOfKind over the follow-range box, the shared
@@ -15057,13 +15057,13 @@ Work Log:
   the effect add at the aura walk). GuardianEntityTest 10/0 (three new
   pins: the squid owns the hunt, the nearer player keeps it, the
   in-band squid refused), entity package 502/0.
-- VT-7d (82eb3688, rebased over the 138 release): the hooked player's
+- VT-7d (0b107dc0, rebased over the 138 release): the hooked player's
   fishing pull — the retrieve's impulse (lines 456-462: velocity += the
   0.1-scaled direction + the sqrt(d)*0.08 vertical) now ADDS to the
   hooked player's server-known motion and rides the knockback surface
   (setMotion + publishKnockback — the wire's velocity set, the grace
   window guarding the flight). Fishing package 14/0.
-- VT-7e (f2c4932d): the command-block run gate — CommandExecutor.run
+- VT-7e (aae79906): the command-block run gate — CommandExecutor.run
   lines 84-108's else arm: a server with enable-command-block=false
   never executes (both the block host runCommandBlockExecutor and the
   cart host runCommandCart consult areCommandBlocksEnabled before the
@@ -15073,7 +15073,7 @@ Work Log:
   with the flag on; the disabled-gate boot pin (run 0, count 0, no
   output row). CommandBlockBlockTest 10/0, CommandBlockMinecartTest
   5/0. The stale "execution is ungated" comment corrected.
-- VT-7f (1b23ca2d): /testfor's dataTag verdict counts — the reference's
+- VT-7f (77e7ccb3): /testfor's dataTag verdict counts — the reference's
   line-51 throw modeled as CommandService.CommandFailure (a counted
   failure: the carried text lands in the output row through the
   sendFailure walk, the dispatch counts 0): the mismatched dataTag and
@@ -15101,7 +15101,7 @@ Task: The vanilla-grade tail's armor-stand NBT tails — the DisabledSlots
 gates and the EntityTag merge ruling.
 
 Work Log:
-- VT-7g (52983be5): the DisabledSlots bitfield — the ArmorStand field +
+- VT-7g (1ac205ab): the DisabledSlots bitfield — the ArmorStand field +
   the reference's three gate bands 1:1 in ArmorStandSystem.interactAt
   (the resolution bits 1<<slot: the ladder consult lines 317-327
   redirects the empty hand's band take — j falls to i, then to the hand
@@ -15132,7 +15132,7 @@ Task: The vanilla-grade tail's next pair — the spawner's canSpawn family
 and the stand's /summon surface.
 
 Work Log:
-- VT-7h (19602d1a): the spawner's entity-level consult — MobSpawner.tick
+- VT-7h (44c78c96): the spawner's entity-level consult — MobSpawner.tick
   line 106's mobentity.canSpawn() family 1:1 beside the unobstructed
   stand-in. The MonsterEntity chain (peaceful + the randomized sky
   ceiling + the raw-brightness band over the max(sky-darkness, block)
@@ -15155,7 +15155,7 @@ Work Log:
   thunder clamp's sky-10 pair — refuses the clear noon, passes the
   storm). SpawnerManagerTest 10/0 (the null-world harness law
   preserved: no chunk grid, no gates).
-- VT-7i (f5a362eb): the stand's /summon surface — the command's
+- VT-7i (b19fc350): the stand's /summon surface — the command's
   ArmorStand arm rides ArmorStandSystem.summonAt (the plain-constructor
   shape: the default pose with NO random roll — the roll is the item
   path alone — yaw 0, every flag down), the whole readCustomNbt walk
@@ -15343,9 +15343,9 @@ Task: The VT-7 tail census's close-out — the wave is complete.
 
 Work Log:
 - The census's three rows, each closed:
-  - The mob step-sound family — LANDED (VT-7j, 0a0b9099).
+  - The mob step-sound family — LANDED (VT-7j, 9f60e6ab).
   - The WanderThroughVillageGoal family — LANDED/RULED (VT-7k,
-    3711852d: the blaze NOT-REACHABLE, the villager's return walk, the
+    8aea2512: the blaze NOT-REACHABLE, the villager's return walk, the
     guardian's monument pin, the navigation-range defect found and
     fixed on the way).
   - The giant's favor-family envelope — STANDING, properly ledgered
@@ -15358,7 +15358,7 @@ Work Log:
   TileExtraSaveSplitTest's legacyStandBytes helper was stale at the ZAD
   store's v1 body — VT-7g's v2 row and VT-7i's v3 row had each added
   per-stand bytes (+5/stand, the 274-284 mismatch) and the
-  byte-identity assert went stale. Repaired at 6a76e16f (the helper
+  byte-identity assert went stale. Repaired at be72b296 (the helper
   walks the v3 shape). The lesson: a store-format change must re-run
   the byte-identity suites in OTHER packages that walk the same
   bytes — VT-7g/7i's evidence named only the armor-stand package.
@@ -15368,9 +15368,9 @@ Stage Summary:
   all landed or ruled. The remaining vanilla-grade surface is the
   standing envelopes the ledger already carries (the favor family, the
   favor-model envelope notes) — no open rows.
-- Watch: the release runs (#413 in progress at 0a0b9099 — it will
-  still show the stale-helper failure, superseded; #415+ at 0f4fc060/
-  6a76e16f the confirming runs for the VT-7j/7k + the repair state).
+- Watch: the release runs (#413 in progress at 9f60e6ab — it will
+  still show the stale-helper failure, superseded; #415+ at 4a94c21b/
+  be72b296 the confirming runs for the VT-7j/7k + the repair state).
 
 ---
 Task ID: vt-release-417-repair
@@ -15379,7 +15379,7 @@ Task: The release run #417's regression repair — the confirming run
 for the VT-7 close-out state failed; diagnose and repair.
 
 Work Log:
-- Run #417 (release, head 82760988) failed both arms:
+- Run #417 (release, head a0b10dc3) failed both arms:
   GoalApiAcceptanceTest.theRegisteredGoalTicksOnTheOwnerLane failed
   BOTH arms (a real regression, never a flake); MobEventBridge's
   cow-volume row and MultiplayerSleep's wake row failed one arm each
@@ -15422,12 +15422,12 @@ Agent: the coordinator (Abasing session)
 Task: The confirming run for the #417 repair — verdict and close-out.
 
 Work Log:
-- Run #418 (head 3244baf8) completed SUCCESS at 20:13:22Z — the full
+- Run #418 (head fee5285b) completed SUCCESS at 20:13:22Z — the full
   suite green (both arms as needed), the tag torch-1.8.8-139 cut, the
   prerelease published (torch-1.8.8-139.jar + ZaminTorch-server-1.8.8-139.zip).
   The whole VT close-out state now rides a published dev release.
-- The identity verified end-to-end in the same window: 3244baf8 and
-  bac132c3 author as Abasing <zaminpro2.0@gmail.com> and the API
+- The identity verified end-to-end in the same window: fee5285b and
+  be92c69c author as Abasing <zaminpro2.0@gmail.com> and the API
   resolves author.login = Abasing for both. The pipeline's own bump
   commits use the verified noreply (140362885+Abasing@...) — every
   future commit on the repo, hand or pipeline, links to the account.
@@ -15435,7 +15435,7 @@ Work Log:
   name Abasing but no account link; no history rewrite is owed (the
   hashes are cited across the live ledger, WORKLOG, and the compat
   ledger — a rewrite would falsify the record).
-- Run #419 (head bac132c3, the Wave VT live-ledger section) in
+- Run #419 (head be92c69c, the Wave VT live-ledger section) in
   progress as the next confirming run; it publishes the next numbered
   build.
 

@@ -88,7 +88,7 @@ specials 8/8, decorations 4/4, potion effects 23/23, block-state registry
 constants 27/28 C2S + 67/77 S2C with every absence named and ledgered.
 
 Remainder (quantified, NOT claimed complete — R-1..R-7 resolved this cycle, R-8 left):
-- R-1: RESOLVED (the lifecycle walk, 1:1 — c45826d6): the boundary ray fan
+- R-1: RESOLVED (the lifecycle walk, 1:1 — 0ec68c18): the boundary ray fan
   (the shell's 1352 rays, the retired 4096-cell interior fan gone), the
   two-phase collect-then-commit order (every ray reads the pre-blast world;
   the wounds and their density rays read it too), the wound law
