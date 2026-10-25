@@ -275,24 +275,55 @@ public final class ArmorStandSystem {
         } else if (height >= 1.6 && !stand.equipment(4).isEmpty()) {
             takeSlot = 4;
         }
+        // The DisabledSlots ladder consult (VT-7g — lines 317-327): when
+        // the take-band slot OR the held slot carries a disabled bit, the
+        // target falls to the held slot; when THAT is disabled too, the
+        // hand (0) — unless the hand itself is disabled, the consumed
+        // refusal. With the default 0 field the consult is a no-op (the
+        // engine's no-NBT-surface envelope — nothing flips the bits yet).
+        int disabled = stand.disabledSlots();
+        int i = heldSlot;
+        int j = takeSlot;
+        boolean bandHasPiece = !stand.equipment(j).isEmpty();
+        if ((disabled & 1 << j) != 0 || (disabled & 1 << i) != 0) {
+            j = i;
+            if ((disabled & 1 << j) != 0) {
+                if ((disabled & 1) != 0) {
+                    return true; // every candidate disabled — consumed
+                }
+                j = 0;
+            }
+        }
         // The held-item gates (lines 328-336): an item onto the HAND slot
         // needs the arms shown; an item onto an occupied slot never lands
         // (swapItem's own size <= 1 gate) — the fall-through takes the
         // worn piece instead.
         int slot;
         if (!held.isEmpty()) {
-            if (heldSlot == 0 && (stand.status() & ArmorStand.FLAG_SHOW_ARMS) == 0) {
+            if (i == 0 && (stand.status() & ArmorStand.FLAG_SHOW_ARMS) == 0) {
                 return true; // consumed: the arms stay hidden
             }
-            slot = heldSlot;
+            slot = i;
             if (!stand.equipment(slot).isEmpty() && held.count() > 1) {
                 return true; // swapItem's refusal: the stack too big
             }
+        } else if (bandHasPiece) {
+            slot = j;
         } else {
-            slot = takeSlot;
-            if (stand.equipment(slot).isEmpty()) {
-                return true; // nothing worn, nothing held: consumed
-            }
+            return true; // nothing worn, nothing held: consumed
+        }
+        // swapItem's own gates (lines 346-351): TAKING the standing piece
+        // needs the slot's bit slot+8 clear; PLACING onto a bare slot
+        // needs the slot's bit slot+16 clear (a full swap needs the take
+        // bit alone — the reference's own inner-clause shape: the place
+        // bit only gates the bare-slot arm).
+        ItemStack standing = stand.equipment(slot);
+        if (!standing.isEmpty() && (disabled & 1 << (slot + 8)) != 0) {
+            return true; // the standing piece's take bit set — no removal
+        }
+        if (standing.isEmpty() && !held.isEmpty()
+                && (disabled & 1 << (slot + 16)) != 0) {
+            return true; // the bare slot's place bit set — no placement
         }
         // The swap (swapItem lines 344-365): the creative hand places the
         // size-1 copy on a bare slot without paying (the hand keeps its
@@ -724,7 +755,18 @@ public final class ArmorStandSystem {
                               List<ItemStack> equipment, byte status,
                               ArmorStand.Pose head, ArmorStand.Pose body,
                               ArmorStand.Pose leftArm, ArmorStand.Pose rightArm,
-                              ArmorStand.Pose leftLeg, ArmorStand.Pose rightLeg) { }
+                              ArmorStand.Pose leftLeg, ArmorStand.Pose rightLeg,
+                              int disabledSlots) {
+        /** The v1 shape (VT-7g's compat arm — the disabled row defaults 0). */
+        public StandRecord(double x, double y, double z, float yaw,
+                           List<ItemStack> equipment, byte status,
+                           ArmorStand.Pose head, ArmorStand.Pose body,
+                           ArmorStand.Pose leftArm, ArmorStand.Pose rightArm,
+                           ArmorStand.Pose leftLeg, ArmorStand.Pose rightLeg) {
+            this(x, y, z, yaw, equipment, status, head, body, leftArm,
+                    rightArm, leftLeg, rightLeg, 0);
+        }
+    }
 
     /** The full snapshot (saved at saveAllNow). */
     public List<StandRecord> snapshot() {
@@ -736,7 +778,8 @@ public final class ArmorStandSystem {
             }
             records.add(new StandRecord(stand.x(), stand.y(), stand.z(), stand.yaw(),
                     equipment, stand.status(), stand.head(), stand.body(),
-                    stand.leftArm(), stand.rightArm(), stand.leftLeg(), stand.rightLeg()));
+                    stand.leftArm(), stand.rightArm(), stand.leftLeg(), stand.rightLeg(),
+                    stand.disabledSlots()));
         }
         return records;
     }
@@ -756,6 +799,7 @@ public final class ArmorStandSystem {
             stand.setRightArm(record.rightArm() == null ? ArmorStand.DEFAULT_RIGHT_ARM : record.rightArm());
             stand.setLeftLeg(record.leftLeg() == null ? ArmorStand.DEFAULT_LEFT_LEG : record.leftLeg());
             stand.setRightLeg(record.rightLeg() == null ? ArmorStand.DEFAULT_RIGHT_LEG : record.rightLeg());
+            stand.setDisabledSlots(record.disabledSlots());
             stands.put(stand.entityId(), stand);
             for (Listener listener : listeners) {
                 listener.onStandSpawned(stand);

@@ -341,6 +341,88 @@ class ArmorStandSystemTest {
         assertNotNull(record.head(), "the pose persisted");
     }
 
+    @Test
+    void theDisabledSlotsGatesTheSwapLadder() throws Exception {
+        // VT-7g — the reference's three gate bands: the resolution bits
+        // (1 << slot, lines 317-327 — the empty hand's band take redirects
+        // to the hand), the take bits (1 << slot+8, line 346 — the worn
+        // piece never leaves), and the place bits (1 << slot+16, line 347
+        // — a bare slot never receives).
+        EngineServer server = boot();
+        try {
+            place(server, 10, 39, 10, BuiltinBlocks.STONE);
+            await(server, () -> server.world().getBlock(new BlockPosition(10, 39, 10))
+                    .identifier().value().equals("stone"), "the floor placed");
+            server.ticker().submit(() -> server.armorStands().place(
+                    new BlockPosition(10, 39, 10), 1, 0.0f, new java.util.Random(1)));
+            await(server, () -> standAt(server, 10, 40, 10) != null, "the stand landed");
+            ArmorStand stand = standAt(server, 10, 40, 10);
+            List<ItemStack> hand = new ArrayList<>();
+
+            // The take bit (1 << (4 + 8)): the worn helmet never leaves.
+            hand.add(ItemStack.of(BuiltinItems.DIAMOND_HELMET, 1));
+            server.ticker().submit(() -> server.armorStands().interactAt(
+                    stand, hand.get(0), 1.0, false, stack -> hand.set(0, stack)));
+            await(server, () -> !stand.equipment(4).isEmpty(), "the helmet wore");
+            stand.setDisabledSlots(1 << 12); // the head's take bit
+            hand.set(0, ItemStack.EMPTY);
+            AtomicReference<Boolean> take = new AtomicReference<>();
+            server.ticker().submit(() -> take.set(server.armorStands().interactAt(
+                    stand, ItemStack.EMPTY, 1.7, false, stack -> hand.set(0, stack))));
+            await(server, () -> take.get() != null, "the take answered");
+            assertTrue(take.get(), "the click consumed");
+            assertTrue(hand.get(0).isEmpty(), "the take bit held the helmet on the stand");
+            assertEquals(BuiltinItems.DIAMOND_HELMET, stand.equipment(4).type(),
+                    "the worn piece never leaves");
+
+            // The resolution bit (1 << 4): the empty hand's band take
+            // redirects to the hand slot (0) — the helmet STAYS, nothing
+            // lands in the hand (the bare hand slot's empty swap is a
+            // no-op).
+            stand.setDisabledSlots(1 << 4); // the head's resolution bit
+            AtomicReference<Boolean> redirect = new AtomicReference<>();
+            server.ticker().submit(() -> redirect.set(server.armorStands().interactAt(
+                    stand, ItemStack.EMPTY, 1.7, false, stack -> hand.set(0, stack))));
+            await(server, () -> redirect.get() != null, "the redirect answered");
+            assertTrue(redirect.get(), "the click consumed");
+            assertTrue(hand.get(0).isEmpty(), "the band take redirected to the bare hand slot");
+            assertEquals(BuiltinItems.DIAMOND_HELMET, stand.equipment(4).type(),
+                    "the helmet stays under the resolution bit");
+
+            // The place bit (1 << (4 + 16)): a bare head slot never
+            // receives the held helmet.
+            stand.setDisabledSlots(0);
+            hand.set(0, ItemStack.EMPTY);
+            AtomicReference<Boolean> strip = new AtomicReference<>();
+            server.ticker().submit(() -> strip.set(server.armorStands().interactAt(
+                    stand, ItemStack.EMPTY, 1.7, false, stack -> hand.set(0, stack))));
+            await(server, () -> strip.get() != null && stand.equipment(4).isEmpty(),
+                    "the helmet left the slot");
+            stand.setDisabledSlots(1 << 20); // the head's place bit
+            hand.set(0, ItemStack.of(BuiltinItems.DIAMOND_HELMET, 1));
+            AtomicReference<Boolean> place = new AtomicReference<>();
+            server.ticker().submit(() -> place.set(server.armorStands().interactAt(
+                    stand, hand.get(0), 1.0, false, stack -> hand.set(0, stack))));
+            await(server, () -> place.get() != null, "the place answered");
+            assertTrue(place.get(), "the click consumed");
+            assertTrue(stand.equipment(4).isEmpty(),
+                    "the place bit held the bare slot bare");
+            assertEquals(1, hand.get(0).count(), "the held helmet never paid");
+
+            // The v2 row rides the store: a nonzero bitfield round-trips.
+            stand.setDisabledSlots((1 << 4) | (1 << 12) | (1 << 20));
+            AtomicReference<List<ArmorStandSystem.StandRecord>> snapshot =
+                    new AtomicReference<>();
+            server.ticker().submit(() -> snapshot.set(server.armorStands().snapshot()));
+            await(server, () -> snapshot.get() != null, "the snapshot taken");
+            assertEquals((1 << 4) | (1 << 12) | (1 << 20),
+                    snapshot.get().get(0).disabledSlots(),
+                    "the bitfield row rides the record");
+        } finally {
+            server.shutdown(() -> { });
+        }
+    }
+
     // ------------------------------------------------------------------
     // Helpers (the decoration test's own shape)
     // ------------------------------------------------------------------

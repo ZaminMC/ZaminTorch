@@ -40,7 +40,7 @@ public final class ArmorStandDataStore {
     private static final int MAGIC_0 = 'Z';
     private static final int MAGIC_1 = 'A';
     private static final int MAGIC_2 = 'D';
-    private static final int FORMAT_VERSION = 1;
+    private static final int FORMAT_VERSION = 2;
 
     private final Path file;
 
@@ -93,6 +93,9 @@ public final class ArmorStandDataStore {
                 writePose(out, stand.rightArm());
                 writePose(out, stand.leftLeg());
                 writePose(out, stand.rightLeg());
+                // VT-7g — the v2 row: the DisabledSlots bitfield (the
+                // reference's NBT row at line 141).
+                out.writeInt(stand.disabledSlots());
             }
         } catch (IOException e) {
             // The sink is an in-memory buffer; an IOException here is a
@@ -147,7 +150,7 @@ public final class ArmorStandDataStore {
                 return new ArrayList<>();
             }
             int version = in.readByte() & 0xFF;
-            if (version != FORMAT_VERSION) {
+            if (version != FORMAT_VERSION && version != 1) {
                 LOGGER.warning("Armor stand state " + file + " version " + version
                         + " unsupported; loading empty");
                 return new ArrayList<>();
@@ -173,8 +176,11 @@ public final class ArmorStandDataStore {
                 ArmorStand.Pose rightArm = readPose(in);
                 ArmorStand.Pose leftLeg = readPose(in);
                 ArmorStand.Pose rightLeg = readPose(in);
+                // VT-7g — the v2 row: the v1 files answer the default 0
+                // (the reference's own default — every swap legal).
+                int disabledSlots = version >= 2 ? in.readInt() : 0;
                 loaded.add(new ArmorStandSystem.StandRecord(x, y, z, yaw, equipment, status,
-                        head, body, leftArm, rightArm, leftLeg, rightLeg));
+                        head, body, leftArm, rightArm, leftLeg, rightLeg, disabledSlots));
             }
             return loaded;
         } catch (IOException | RuntimeException corrupt) {

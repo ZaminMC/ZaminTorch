@@ -81,6 +81,14 @@ public final class ArmorStand {
     private double velocityZ;
     /** The walk's landing state (the reference's onGround). */
     private boolean onGround;
+    /**
+     * The DisabledSlots bitfield (VT-7g — the reference's own field, line
+     * 36): bits 0-4 gate the swap's slot resolution (the ladder consult,
+     * lines 317-327), bits 8-12 gate TAKING the standing piece (swapItem
+     * line 346), bits 16-20 gate PLACING onto a bare slot (line 347).
+     * Default 0 — every swap legal.
+     */
+    private int disabledSlots;
 
     ArmorStand(int entityId, double x, double y, double z, float yaw) {
         this.entityId = entityId;
@@ -273,6 +281,24 @@ public final class ArmorStand {
 
     void setLastDamageTime(long time) {
         lastDamageTime = time;
+    }
+
+    /**
+     * The DisabledSlots bitfield (VT-7g — the reference's own field, line
+     * 36): bits 0-4 gate the swap's slot resolution (the ladder consult,
+     * lines 317-327), bits 8-12 gate TAKING the standing piece (swapItem
+     * line 346), bits 16-20 gate PLACING onto a bare slot (line 347).
+     * Default 0 — every swap legal. The server-only row (the NBT
+     * DisabledSlots write/read at lines 141/165).
+     */
+    public int disabledSlots() {
+        return disabledSlots;
+    }
+
+    /** The bitfield's write arm (the persistence restore + the future
+     * command surfaces). */
+    void setDisabledSlots(int disabledSlots) {
+        this.disabledSlots = disabledSlots;
     }
 
     /** The burn clock's remaining ticks. */
