@@ -2352,6 +2352,20 @@ public final class EngineServer implements Server, EngineBridge {
                 // dimensions share the one table.
                 naturalSpawns.setMobSpawningRead(() -> gameRules.getBoolean("doMobSpawning"));
                 naturalSpawnsNether.setMobSpawningRead(() -> gameRules.getBoolean("doMobSpawning"));
+                // The spawner's own canSpawn consult (the entity-level
+                // gate, MobSpawner line 106): the live reads the kinds'
+                // gates consume — the time-of-day and the two weather
+                // gradients behind the ambient-darkness walk, the
+                // thundering clamp, the runtime difficulty behind every
+                // peaceful gate (the same reads the natural cycle's tick
+                // parameters carry).
+                spawnerManager.setSpawnContext(
+                        () -> new net.zaminmc.torch.server.spawner.SpawnerManager.SpawnContext(
+                                world.timeOfDay(),
+                                weather != null ? weather.rainGradient() : 0.0f,
+                                weather != null ? weather.thunderGradient() : 0.0f,
+                                weather != null && weather.thundering(),
+                                difficulty));
                 // Vehicles (§ vehicles slice): boats and minecarts on the
                 // shared body model; the engine owns the mounted rider.
                 VehicleManager vehicles = new VehicleManager(
@@ -13399,12 +13413,16 @@ public final class EngineServer implements Server, EngineBridge {
                 return nearby;
             }
 
-            /** The unobstructed spawn (the engine's cell gate). */
+            /** The unobstructed spawn (the engine's cell gate + the
+             * entity-level canSpawn consult — the same pair the block
+             * spawner's own walk reads, the cart riding the same
+             * MobSpawner tick code). */
             @Override public boolean spawnAt(
                     net.zaminmc.torch.server.entity.MobType type,
                     double x, double y, double z) {
                 if (!net.zaminmc.torch.server.spawner.SpawnerManager
-                        .canSpawnAt(world, type, x, y, z)) {
+                        .canSpawnAt(world, type, x, y, z)
+                        || !spawnerManager.canSpawnEntity(type, world, x, y, z)) {
                     return false;
                 }
                 var spawned = mobManager.spawnAt(type,

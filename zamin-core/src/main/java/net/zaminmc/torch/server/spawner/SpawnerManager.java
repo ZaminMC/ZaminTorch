@@ -1,6 +1,7 @@
 package net.zaminmc.torch.server.spawner;
 
 import net.zaminmc.torch.block.BlockPosition;
+import net.zaminmc.torch.server.block.FluidBlocks;
 import net.zaminmc.torch.server.entity.MobEntity;
 import net.zaminmc.torch.server.entity.MobManager;
 import net.zaminmc.torch.server.entity.MobType;
@@ -207,6 +208,44 @@ public final class SpawnerManager {
         this.worldResolver = Objects.requireNonNull(worldResolver, "worldResolver");
     }
 
+    /**
+     * The light walk's live context (the reference's own World reads the
+     * canSpawn consult rides): the time-of-day and the two weather
+     * gradients behind the ambient-darkness walk
+     * (World.calculateAmbientDarkness), the thundering flag behind the
+     * canSpawnAtLightLevel clamp (the forced ambientDarkness 10), and
+     * the runtime difficulty behind every monster family's peaceful
+     * gate. Wired by the boot (the same reads the natural cycle's tick
+     * parameters carry); unwired keeps the unit harness's own law — a
+     * not-peaceful world under a clear noon (the gates that need no
+     * world read never refuse on defaults alone, and a null world
+     * consult passes whole — the pre-existing harness contract).
+     */
+    public record SpawnContext(long timeOfDay, float rainGradient, float thunderGradient,
+                               boolean thundering, int difficulty) {
+    }
+
+    /** The live context supplier (volatile — the boot wires it once). */
+    private volatile java.util.function.Supplier<SpawnContext> spawnContext;
+
+    /**
+     * Wires the canSpawn consult's live reads (the boot site — the same
+     * reads the natural cycle's tick parameters carry, Slice 11d/19e).
+     */
+    public void setSpawnContext(java.util.function.Supplier<SpawnContext> spawnContext) {
+        this.spawnContext = Objects.requireNonNull(spawnContext, "spawnContext");
+    }
+
+    /** The runtime difficulty (0 peaceful .. 3 hard); unwired answers the easy default. */
+    private int difficulty() {
+        java.util.function.Supplier<SpawnContext> wired = spawnContext;
+        if (wired == null) {
+            return 1; // the harness's not-peaceful default
+        }
+        SpawnContext context = wired.get();
+        return context != null ? context.difficulty() : 1;
+    }
+
     public void addListener(Listener listener) {
         listeners.add(Objects.requireNonNull(listener, "listener"));
     }
@@ -331,8 +370,11 @@ public final class SpawnerManager {
                         * spawner.spawnRange() + 0.5;
                 // The spawn gate (canSpawn + isUnobstructed lines 90-92):
                 // the engine's stand-in — the body cell + the head cell
-                // must be non-solid.
-                if (canSpawnAt(world, spawner.type(), x, y, z)) {
+                // must be non-solid — AND the entity-level consult
+                // (line 106's mobentity.canSpawn()): the kinds' own
+                // gates, the whole family riding the same walk.
+                if (canSpawnAt(world, spawner.type(), x, y, z)
+                        && canSpawnEntity(spawner.type(), world, x, y, z)) {
                     MobEntity spawned = mobs.spawnAt(spawner.type(), new Position(x, y, z));
                     if (spawned != null) {
                         // The body lives in the spawner's own dimension
@@ -429,6 +471,226 @@ public final class SpawnerManager {
             return false;
         }
         return true;
+    }
+
+    // ------------------------------------------------------------------
+    // The entity-level gate (MobSpawner line 106 — mobentity.canSpawn(),
+    // the kinds' own overrides 1:1)
+    // ------------------------------------------------------------------
+
+    /**
+     * The entity-level spawn gate (MobSpawner.tick line 106's
+     * {@code mobentity.canSpawn() && mobentity.isUnobstructed()} — the
+     * second conjunct the unobstructed stand-in above carries): the
+     * kinds' own overrides, the whole family 1:1.
+     *
+     * <ul>
+     *   <li>the MonsterEntity family (zombie .. wither):
+     *   {@code difficulty != PEACEFUL} + the light pair
+     *   (MonsterEntity.canSpawn lines 130-132 over canSpawnAtLightLevel
+     *   112-127 — the randomized sky ceiling, the raw-brightness band
+     *   with the thundering clamp). The PathFinderMob favor gate
+     *   (0.5 - brightnessTable[raw] &ge; 0) auto-passes under the light
+     *   gate's raw &le; 7 (table[7] = 0.18) — the engine's pathfinder
+     *   carries no favor model at all, the giant's standing ledger
+     *   envelope.</li>
+     *   <li>the silverfish + the endermite: the monster chain + the
+     *   empty 5-block player band (SilverfishEntity.canSpawn lines
+     *   116-123, EndermiteEntity line 140 — {@code getNearestPlayer(this,
+     *   5.0) == null}).</li>
+     *   <li>the slime: SlimeEntity.canSpawn lines 234-259 — the
+     *   MobEntity family ({@code implements Monster}, never a
+     *   MonsterEntity: no light gates), the peaceful wrap, the swamp arm
+     *   short-circuiting exactly like a plains consult (the engine's
+     *   biome family carries no swampland), the slime-chunk band's own
+     *   1-in-10 then the chunk-seeded 1-in-10 then the y &lt; 40 floor.
+     *   The superflat refusal (line 238) never runs — the engine's
+     *   world is normal.</li>
+     *   <li>the magma cube: MagmaCubeEntity.canSpawn line 25's own
+     *   override — the peaceful gate alone (no slime arms, no light).</li>
+     *   <li>the ghast: GhastEntity.canSpawn line 126 — the flying
+     *   family's 1-in-20 + the peaceful gate, no light gate.</li>
+     *   <li>the guardian: GuardianEntity.canSpawn line 418 — the
+     *   MobEntity family (no peaceful, no light), the open-sky 1-in-20
+     *   with the sky-light stand-in for hasSkyAccessIgnoreLiquids (the
+     *   natural cycle's own consult shape).</li>
+     *   <li>the squid: SquidEntity.canSpawn line 160 — the y band
+     *   (45..seaLevel) + the water cell (the super's
+     *   WaterMobEntity.canSpawn answers true).</li>
+     *   <li>the bat: BatEntity.canSpawn lines 188-203 — below the sea
+     *   level, the 1-in-2 coin (the Halloween window's j = 7 rides no
+     *   engine clock — the band keeps its j = 4, the natural cycle's
+     *   own ruling), the raw brightness against the nextInt(4).</li>
+     *   <li>the animals: AnimalEntity.canSpawn lines 90-95 — the
+     *   spawnableBlock floor (the grass every animal reads; the
+     *   mooshroom's own MYCELIUM, MooshroomEntity line 16) + the actual
+     *   light {@code max(sky, block) > 8} (the PathFinderMob favor 0.0
+     *   pass rides the super).</li>
+     *   <li>the villager + the golem pair: the PathFinderMob favor 0.0
+     *   pass — no gate of their own.</li>
+     * </ul>
+     *
+     * <p>The harness shape stays the pre-existing contract: a null
+     * world consult answers true whole (no chunk grid to read, no gate
+     * to decide) — the unit harness's own law since Slice 12g.</p>
+     */
+    public boolean canSpawnEntity(MobType type, EngineWorld world, double x, double y, double z) {
+        if (world == null) {
+            return true; // the harness shape: no chunk grid to consult
+        }
+        int bx = (int) Math.floor(x);
+        int by = (int) Math.floor(y);
+        int bz = (int) Math.floor(z);
+        BlockPosition cell = new BlockPosition(bx, by, bz);
+        switch (type) {
+            case GHAST -> {
+                // GhastEntity.canSpawn line 126: the 1-in-20 roll + the
+                // peaceful gate (the FlyingMob family — the Monster chain
+                // never rides it).
+                return random.nextInt(20) == 0 && difficulty() != 0;
+            }
+            case GUARDIAN -> {
+                // GuardianEntity.canSpawn line 418: the MobEntity family —
+                // the open-sky 1-in-20 (the sky-light stand-in), no
+                // peaceful and no light gate.
+                return random.nextInt(20) == 0 || world.skyLightAt(cell) < 15;
+            }
+            case SQUID -> {
+                // SquidEntity.canSpawn line 160: the y band over the
+                // World's own sea level 63 + the water cell.
+                return y > 45.0 && y < 63.0
+                        && FluidBlocks.isFluid(world.getBlock(cell).identifier());
+            }
+            case BAT -> {
+                // BatEntity.canSpawn lines 188-203: below the sea level,
+                // the 1-in-2 coin, then the raw brightness against the
+                // nextInt(4).
+                return by < 63 && random.nextBoolean()
+                        && rawBrightness(world, cell) <= random.nextInt(4);
+            }
+            case SLIME -> {
+                // SlimeEntity.canSpawn lines 234-259: the peaceful wrap,
+                // then the swamp arm (no swampland in the engine's biome
+                // family — the arm refuses exactly like a plains consult)
+                // and the slime-chunk band alone.
+                if (difficulty() == 0) {
+                    return false;
+                }
+                if (random.nextInt(10) != 0) {
+                    return false;
+                }
+                int chunkX = bx >> 4;
+                int chunkZ = bz >> 4;
+                long slimeSeed = world.generatorSeed()
+                        + (long) chunkX * chunkX * 4987142L
+                        + (long) chunkX * 5947611L
+                        + (long) chunkZ * chunkZ * 4392871L
+                        + (long) chunkZ * 389711L
+                        ^ 987234911L;
+                return new Random(slimeSeed).nextInt(10) == 0 && y < 40.0;
+            }
+            case MAGMA_CUBE -> {
+                // MagmaCubeEntity.canSpawn line 25: the cube's own
+                // override — the peaceful gate alone.
+                return difficulty() != 0;
+            }
+            case SILVERFISH, ENDERMITE -> {
+                // SilverfishEntity.canSpawn lines 116-123 (the endermite's
+                // own line 140 the same shape): the monster chain + the
+                // empty 5-block player band.
+                return monsterCanSpawn(world, cell)
+                        && !playerWithin(x, y, z, 5.0);
+            }
+            default -> {
+                if (type.hostile) {
+                    // The MonsterEntity family: the peaceful gate + the
+                    // light pair.
+                    return monsterCanSpawn(world, cell);
+                }
+                if (isAnimal(type)) {
+                    return animalCanSpawn(world, cell, type);
+                }
+                // The villager + the golem pair: the favor 0.0 pass.
+                return true;
+            }
+        }
+    }
+
+    /**
+     * MonsterEntity.canSpawn lines 130-132 over canSpawnAtLightLevel
+     * 112-127: the peaceful gate, the randomized sky-light ceiling, the
+     * raw-brightness band (the thundering clamp rides the brightness
+     * read itself).
+     */
+    private boolean monsterCanSpawn(EngineWorld world, BlockPosition cell) {
+        if (difficulty() == 0) {
+            return false; // the peaceful world never hosts the monster family
+        }
+        int sky = world.skyLightAt(cell);
+        if (sky > random.nextInt(32)) {
+            return false; // the day gate: the randomized sky ceiling
+        }
+        return rawBrightness(world, cell) <= random.nextInt(8);
+    }
+
+    /**
+     * AnimalEntity.canSpawn lines 90-95: the spawnableBlock floor under
+     * the feet (the grass every animal reads; the mooshroom's own
+     * MYCELIUM) + the actual light {@code max(sky, block) > 8}.
+     */
+    private boolean animalCanSpawn(EngineWorld world, BlockPosition cell, MobType type) {
+        String floor = type == MobType.MOOSHROOM
+                ? "minecraft:mycelium" : "minecraft:grass_block";
+        if (!Objects.equals(world.getBlock(cell.offset(0, -1, 0)).identifier().toString(), floor)) {
+            return false;
+        }
+        return Math.max(world.skyLightAt(cell), world.blockLightAt(cell)) > 8;
+    }
+
+    /**
+     * World.getRawBrightness over Chunk.getLight (lines 592-606): the
+     * {@code max(sky - ambientDarkness, block)} walk — the ambient
+     * darkness the live context's time-and-gradient shape answers
+     * (NaturalSpawnSystem.ambientDarkness, the calculateAmbientDarkness
+     * port), the thundering clamp forcing the 10 the reference's own
+     * canSpawnAtLightLevel walk reads (lines 119-124).
+     */
+    private int rawBrightness(EngineWorld world, BlockPosition cell) {
+        java.util.function.Supplier<SpawnContext> wired = spawnContext;
+        SpawnContext context = wired != null ? wired.get() : null;
+        int darkness = context != null
+                ? net.zaminmc.torch.server.spawn.NaturalSpawnSystem.ambientDarkness(
+                        context.timeOfDay(), context.rainGradient(), context.thunderGradient())
+                : 0;
+        if (context != null && context.thundering()) {
+            darkness = 10; // the storming sky's forced clamp
+        }
+        return Math.max(world.skyLightAt(cell) - darkness, world.blockLightAt(cell));
+    }
+
+    /** The AnimalEntity family (the passive kinds the spawnableBlock law reads). */
+    private static boolean isAnimal(MobType type) {
+        return switch (type) {
+            case PIG, COW, CHICKEN, SHEEP, RABBIT, WOLF, OCELOT, HORSE, MOOSHROOM -> true;
+            default -> false;
+        };
+    }
+
+    /**
+     * The player proximity consult (World.getNearestPlayer's own strict
+     * band): whether any player stands within the radius of the point.
+     */
+    private boolean playerWithin(double x, double y, double z, double radius) {
+        double squared = radius * radius;
+        for (Position player : players.positions()) {
+            double dx = player.x() - x;
+            double dy = player.y() - y;
+            double dz = player.z() - z;
+            if (dx * dx + dy * dy + dz * dz < squared) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
