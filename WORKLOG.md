@@ -15261,3 +15261,77 @@ Stage Summary:
   notes updated.
 - REMAINING (the VT-7 tail): the blaze's WanderThroughVillageGoal, the
   giant's favor-family envelope (standing).
+
+---
+Task ID: vt-wave-7k
+Agent: the coordinator (Abasing session)
+Task: The VT-7 tail's next unit — the WanderThroughVillageGoal family
+(the blaze's ruled unreachable; the villager's return walk + the
+guardian's monument pin landed 1:1).
+
+Work Log:
+- The reference read whole: WanderThroughVillageGoal (canStart's
+  isInVillage gate — the reference's INVERTED pair: the unset cache's
+  -1 short-circuit answers INSIDE, so the goal never starts for a
+  village-less body; the cache-set-and-outside pair is the only open
+  gate), TargetFinder.getTargetAwayFromPosition 16/7 over the village
+  center (the decompiler's name — the offset points TOWARD the center,
+  the half-plane filter keeps the homing candidates; the village nudge
+  pulls further in; the in-band valid gate's (radius+16)² with the +4
+  term; the villager's flat 0.0 favor — the FIRST passer wins),
+  PathFinderMobEntity's cache seat (lines 44-76), the setters' census
+  (VillageSiege's zombie, the villager's own scan at lines 353-368, the
+  guardian's self-pin at 16 line 377, the golem's village, the leash
+  holder), and BlockItem's placement law (already landed VT-7j).
+- THE BLAZE RULED NOT-REACHABLE: no setter ever writes a blaze's cache
+  (the nether carries no village collection; the leash path never
+  applies to the blaze) — an unleashed blaze answers isInVillage() true
+  forever; its goal 5 is vanilla dead code. The engine's shared stroll
+  IS the 1:1 shape (the ledger's old "stands in" note retired).
+- THE VILLAGER'S RETURN WALK LANDED: the village cache on MobEntity
+  (center/radius, the -1 sentinel — set/reset by the manager's scan arm
+  which now resolves the nearest village every 70+nextInt(50) window
+  per VillagerEntity.mobAiTick lines 356-362, not just the
+  converted-zombie consult), the goal as MobGoals.VILLAGE_RETURN
+  (priority 4 before the stroll — the reference's 5-over-9 order), the
+  gate + the candidate pick 1:1 (ten candidates, the half-plane filter,
+  the ±8 nudge, the in-band valid gate, the first passer), the walk at
+  speed 0.6 through the navigation path until it completes
+  (shouldContinue's own law — the gate is not re-consulted mid-walk).
+- THE GUARDIAN'S MONUMENT PIN LANDED: the self-cache at the first mind
+  tick (radius 16, never re-pinned — GuardianEntity.mobAiTick line
+  377's every-tick-while-unset law), and the pin-return steer when
+  outside the radius: the 3D homing direction toward the pin's cell
+  center at the swim scale (the reference's water navigation walks its
+  waypoints in three axes; the engine's steer model carries the swim
+  home). The unset cache refuses the arm (the -1 short-circuit — a
+  hard-won lesson: the first horizontal-only draft hovered the body
+  against the (0,0,0) default center, the 3D form + the cache gate
+  closed it).
+- THE NAVIGATION RANGE DEFECT FOUND AND FIXED (the walk's blocker): the
+  MobNavigation's search radius was hard-wired to the 16-block
+  AGGRO_RANGE (the HUNT SCAN's band) for every body — the reference's
+  navigation searches at the FOLLOW_RANGE attribute (the per-kind
+  overrides the hunt consult reads, the shared base 32). The village
+  return's candidates reach 16+8 blocks and the search found NOTHING
+  (the A* admitted no neighbor: every node beyond 16 of the target).
+  The navigation now reads navigationRange() — the same attribute
+  ladder, the base 32 — and the villager homes.
+- Tests: VillageReturnWalkTest 5/0 (the unset-cache gate, the
+  inside-radius stroll, the outside walk home, the candidate pick's
+  half-plane law, the guardian's pin + return), TemptBegGoalsTest's
+  selector census re-pinned (the 10-goal catalog with village_return
+  before the stroll), MobSolverWalkTest's seabed rest re-pinned (the
+  pin legitimately intercepts the seed's wide wander past 16 blocks —
+  the 3D homing dips the body back onto the floor, the rest grounded
+  at 64.0 by tick 60; the old 120-tick exact-rest was the test's own
+  comment's "stream-coupled accident"). The full entity + village +
+  pathfinding suites green.
+
+Stage Summary:
+- VT-7k landed; the compat ledger's blaze row + the village rows
+  updated. The navigation-range fix (the attribute's base 32) touches
+  every pathing body — the full-suite confirming run rides the release
+  pipeline.
+- REMAINING (the VT-7 tail): the giant's favor-family envelope
+  (standing) — the tail census's last row.

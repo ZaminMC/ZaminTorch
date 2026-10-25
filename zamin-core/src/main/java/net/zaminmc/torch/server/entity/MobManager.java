@@ -1489,7 +1489,10 @@ public final class MobManager {
             // villager's cell for the door census (the reference's own
             // markForUpdate call) and pays the converted-zombie's +5
             // reputation over the villager's own village once (lines
-            // 363-366 — the cured villager's first scan).
+            // 363-366 — the cured villager's first scan). The scan also
+            // resolves the village CACHE (lines 356-362: the nearest
+            // village within 32 writes its center/radius onto the body —
+            // the village-return walk's own seat; no village resets it).
             if (mob.type() == MobType.VILLAGER && villageSystem != null
                     && mob.tickVillagerScanCooldown(random)) {
                 Position at = mob.position();
@@ -1497,8 +1500,14 @@ public final class MobManager {
                 int scanY = (int) Math.floor(at.y());
                 int scanZ = (int) Math.floor(at.z());
                 villageSystem.markForUpdate(scanX, scanY, scanZ);
+                var village = villageSystem.nearestVillage(scanX, scanY, scanZ, 32);
+                if (village == null) {
+                    mob.resetVillageCache();
+                } else {
+                    mob.setVillageCache(village.centerX(), village.centerY(),
+                            village.centerZ(), village.radius());
+                }
                 if (mob.consumeVillagerConvertedZombie()) {
-                    var village = villageSystem.nearestVillage(scanX, scanY, scanZ, 32);
                     if (village != null) {
                         village.updateAllReputations(5);
                     }

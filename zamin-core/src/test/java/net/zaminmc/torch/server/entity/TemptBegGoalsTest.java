@@ -231,8 +231,12 @@ class TemptBegGoalsTest {
         // stroll's exclusive claim.
         GoalSelector selector = MobGoals.standard();
         var snapshot = selector.snapshot();
-        assertEquals(9, snapshot.size(),
-                "float, panic, break_door, breed, beg, tempt, flee, rabbit_raid_farm, stroll");
+        // The VT-7k village return joins at the stroll's band, before it
+        // (the reference's own order: the village walk 5 over the plain
+        // wander 9).
+        assertEquals(10, snapshot.size(),
+                "float, panic, break_door, breed, beg, tempt, flee, rabbit_raid_farm,"
+                        + " village_return, stroll");
         assertEquals("break_door", snapshot.get(2).goalId());
         assertEquals(1, snapshot.get(2).priority());
         assertTrue(snapshot.get(2).exclusive());
@@ -244,7 +248,9 @@ class TemptBegGoalsTest {
         assertTrue(snapshot.get(6).exclusive());
         assertEquals("rabbit_raid_farm", snapshot.get(7).goalId());
         assertTrue(snapshot.get(7).exclusive());
-        assertEquals("stroll", snapshot.get(8).goalId());
+        assertEquals("village_return", snapshot.get(8).goalId());
+        assertTrue(snapshot.get(8).exclusive());
+        assertEquals("stroll", snapshot.get(9).goalId());
         assertEquals(4, snapshot.get(8).priority());
     }
 

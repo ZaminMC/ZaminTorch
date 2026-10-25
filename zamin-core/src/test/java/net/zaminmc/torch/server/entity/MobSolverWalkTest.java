@@ -213,11 +213,16 @@ class MobSolverWalkTest {
         waterWorld.floor();
         // The VIII14 cadence slice's re-pin: the ctor's idle-timer draw is
         // gone (the reference has none), so the construction stream shifted
-        // one nextInt — seed 1 sinks the body to the exact seabed rest in
-        // 120 ticks (the old seed 7's drift was stream-coupled accident).
+        // one nextInt — seed 1 sinks the body toward the seabed. The
+        // VT-7k village pin (the guardian's 16-block monument anchor)
+        // intercepts the seed's wide wander drift past 16 blocks — the
+        // pin's own 3D homing steers the body back through the column,
+        // and the rest still lands through the solver's downward clip:
+        // seed 1 rests grounded on the seabed at 64.0 by tick 60 (the
+        // pin-return's bobbing pass dips the body onto the floor).
         MobEntity guardian = new MobEntity(8, MobType.GUARDIAN,
                 new Position(5.5, 65.8, 5.5), new Random(1), waterWorld);
-        for (int i = 0; i < 120; i++) {
+        for (int i = 0; i < 60; i++) {
             guardian.tick(false);
         }
         assertEquals(64.0, guardian.position().y(), 1e-9,

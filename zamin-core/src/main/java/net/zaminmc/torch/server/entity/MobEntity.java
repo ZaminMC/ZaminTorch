@@ -58,31 +58,50 @@ public final class MobEntity implements LivingEntity {
     public static final double AGGRO_RANGE = 16.0;
 
     /**
-     * The kind's own hunt band (the reference's FOLLOW_RANGE attribute —
-     * MobEntity line 90's 16.0 default with the per-kind overrides:
-     * BlazeEntity line 44's 48, EndermanEntity line 74's 64, the wither's
-     * 40 (WitherEntity line 484), ZombieEntity line 84's 35, the ghast's
-     * 100 (GhastEntity line 81)). The engine's hunt scan and the path
-     * search both read this consult instead of the flat 16.
+     * The FOLLOW_RANGE attribute's per-kind override (VT-7a's census —
+     * the reference's own rows: BlazeEntity line 44's 48,
+     * EndermanEntity line 74's 64, WitherEntity line 484's 40,
+     * ZombieEntity line 84's 35 with the pigman's inheritance,
+     * GhastEntity line 81's 100); NaN when the kind carries none — each
+     * consumer then answers its own default (the hunt band's
+     * established 16 through {@link #followRange()}, the navigation's
+     * search radius the attribute's own base 32 through
+     * {@link #navigationRange()}).
      */
-    private double followRange() {
-        if (type == MobType.BLAZE) {
-            return 48.0;
+    private double followRangeOverride() {
+        switch (type) {
+            case BLAZE: return 48.0;
+            case ENDERMAN: return 64.0;
+            case WITHER: return 40.0;
+            case ZOMBIE:
+            case ZOMBIE_PIGMAN: return 35.0;
+            case GHAST: return 100.0;
+            default: return Double.NaN;
         }
-        if (type == MobType.ENDERMAN) {
-            return 64.0;
-        }
-        if (type == MobType.WITHER) {
-            return 40.0;
-        }
-        if (type == MobType.ZOMBIE || type == MobType.ZOMBIE_PIGMAN) {
-            return 35.0;
-        }
-        if (type == MobType.GHAST) {
-            return 100.0;
-        }
-        return AGGRO_RANGE;
     }
+
+    private double followRange() {
+        double override = followRangeOverride();
+        return Double.isNaN(override) ? AGGRO_RANGE : override;
+    }
+
+    /**
+     * The navigation's search radius — the reference's own FOLLOW_RANGE
+     * attribute (the navigation's findPath range, MobNavigation's
+     * construction): the per-kind override, the shared attribute
+     * default 32 (EntityAttributes.FOLLOW_RANGE's base value). The
+     * engine's 16-block AGGRO_RANGE is the HUNT SCAN's own band, never
+     * the navigation's — the retired wiring (the flat 16 on every
+     * body) starved every long walk: the village-return's candidates
+     * reach 16 + 8 blocks out and the search found nothing.
+     */
+    private double navigationRange() {
+        double override = followRangeOverride();
+        return Double.isNaN(override) ? NAVIGATION_DEFAULT_RANGE : override;
+    }
+
+    /** The FOLLOW_RANGE attribute's shared base (the navigation's default). */
+    private static final double NAVIGATION_DEFAULT_RANGE = 32.0;
     /** Zombie melee reach in blocks (horizontal, center to center-ish). */
     public static final double MELEE_ATTACK_RANGE = 1.6;
     /** Vertical spread the melee attack tolerates. */
@@ -1227,7 +1246,7 @@ public final class MobEntity implements LivingEntity {
         this.world = Objects.requireNonNull(world, "world");
         this.health = type.maxHealth;
         this.navigation = new net.zaminmc.torch.server.entity.ai.pathing.MobNavigation(
-                new PathBody(), new PathWorldView(), (float) AGGRO_RANGE);
+                new PathBody(), new PathWorldView(), (float) navigationRange());
         this.modeTicks = random.nextInt(IDLE_TICKS);
         // The herd look — the reference's own initialize dice
         // (HorseBaseEntity.initialize lines 1262-1280): 1 in 10 the donkey,
@@ -3075,6 +3094,12 @@ public final class MobEntity implements LivingEntity {
     private static final double GUARDIAN_TARGET_MIN_SQUARED = 9.0;
     /** The wander cadence (WanderAroundGoal's interval 80 — the re-roll). */
     private static final int GUARDIAN_WANDER_INTERVAL = 80;
+
+    /**
+     * The guardian's village-pin radius (GuardianEntity.mobAiTick line
+     * 377: the self-cache at 16 — the body's monument anchor).
+     */
+    private static final int GUARDIAN_VILLAGE_PIN_RADIUS = 16;
     /** The swim's velocity scale (moveRelative: updateVelocity(…, 0.1F)). */
     private static final double GUARDIAN_SWIM_SCALE = 0.1;
     /** The swim's per-tick decay (velocity *= 0.9). */
@@ -5093,6 +5118,44 @@ public final class MobEntity implements LivingEntity {
         // the waypoints never leave the water): a dry cell re-rolls with
         // the climbing vertical.
         boolean dryCell = !world.inFluid(position.x(), position.y() + 0.2, position.z());
+        // The village-pin return (GuardianEntity.mobAiTick line 377's
+        // self-cache + WanderThroughVillageGoal 1.0): the pin lands at
+        // the body's first mind tick (the reference sets it EVERY tick
+        // while unset — the first tick's position), radius 16, and never
+        // re-pins. A body outside the pin's radius steers back toward it
+        // (the reference's half-plane-toward-pin candidate pick over the
+        // water navigation; the engine's steer carries the swim home).
+        if (!villageCacheSet()) {
+            setVillageCache((int) Math.floor(position.x()),
+                    (int) Math.floor(position.y()),
+                    (int) Math.floor(position.z()), GUARDIAN_VILLAGE_PIN_RADIUS);
+        }
+        long guardianPinSquared = cellSquaredDistance(
+                (long) Math.floor(position.x()), (long) Math.floor(position.y()),
+                (long) Math.floor(position.z()),
+                villageCenterX, villageCenterY, villageCenterZ);
+        boolean outsidePin = villageCacheSet() && guardianPinSquared
+                >= (long) GUARDIAN_VILLAGE_PIN_RADIUS * GUARDIAN_VILLAGE_PIN_RADIUS;
+        if (outsidePin && !dryCell) {
+            // The 3D homing direction (the reference's navigation walks
+            // its waypoints in three axes — the pin's cell center): the
+            // normalized vector at the swim scale, the body swimming
+            // home through the column (a pin above lifts the body, a
+            // pin below draws it down).
+            double pinDx = villageCenterX + 0.5 - position.x();
+            double pinDy = villageCenterY + 0.5 - position.y();
+            double pinDz = villageCenterZ + 0.5 - position.z();
+            double pinLength = Math.sqrt(
+                    pinDx * pinDx + pinDy * pinDy + pinDz * pinDz);
+            if (pinLength > 1e-6) {
+                guardianSteerX = (pinDx / pinLength) * GUARDIAN_SWIM_SCALE;
+                guardianSteerY = (pinDy / pinLength) * GUARDIAN_SWIM_SCALE;
+                guardianSteerZ = (pinDz / pinLength) * GUARDIAN_SWIM_SCALE;
+                guardianHasSteer = true;
+                yaw = angleTo(guardianSteerX, guardianSteerZ);
+                return;
+            }
+        }
         if (!guardianHasSteer || random.nextInt(GUARDIAN_WANDER_INTERVAL) == 0 || dryCell) {
             float bearing = random.nextFloat() * (float) Math.PI * 2.0f;
             guardianSteerX = Math.cos(bearing) * GUARDIAN_SWIM_SCALE;
@@ -7729,6 +7792,68 @@ public final class MobEntity implements LivingEntity {
     private int villagerScanCooldown;
 
     /**
+     * The cached village seat (PathFinderMobEntity.pos + villageRadius,
+     * lines 44-53): the villager's scan arm writes the center/radius of
+     * its own village; the radius -1 sentinel marks "no cache". The
+     * village-return walk (WanderThroughVillageGoal) reads it — the
+     * cache-set-AND-outside pair is the goal's own gate. The guardian's
+     * self-pin (GuardianEntity.mobAiTick line 377) rides the same seat.
+     */
+    private int villageCenterX;
+    private int villageCenterY;
+    private int villageCenterZ;
+    private float villageRadius = -1.0f;
+
+    /** setVillagePosAndRadius (line 50): the scan arm's write. */
+    void setVillageCache(int x, int y, int z, float radius) {
+        this.villageCenterX = x;
+        this.villageCenterY = y;
+        this.villageCenterZ = z;
+        this.villageRadius = radius;
+    }
+
+    /** resetVillageRadius (line 63): the scan's no-village arm. */
+    void resetVillageCache() {
+        this.villageRadius = -1.0f;
+    }
+
+    /** @return whether the cache is set (the reference's inVillage()). */
+    boolean villageCacheSet() {
+        return this.villageRadius != -1.0f;
+    }
+
+    /** @return whether the village-return walk owns the stroll band (the test read). */
+    boolean villageReturnWalking() {
+        return villageReturnActive;
+    }
+
+    /** The candidate pick, exposed for the walk's own pin test. */
+    Position pickVillageReturnTargetForTest() {
+        return pickVillageReturnTarget((long) Math.floor(position.x()),
+                (long) Math.floor(position.y()), (long) Math.floor(position.z()));
+    }
+
+    /**
+     * The village-return walk's live target (WanderThroughVillageGoal's
+     * targetX/Y/Z fields) — the candidate pick's winner, held for the
+     * walk's whole life (the reference's start() navigates to it once;
+     * shouldContinue runs the path to its end).
+     */
+    private Position villageReturnTarget;
+
+    /** Whether the village-return walk owns the stroll band this tick. */
+    private boolean villageReturnActive;
+
+    /** The BlockPos squared distance (the reference's cell-to-cell reads). */
+    private static long cellSquaredDistance(long ax, long ay, long az,
+                                            long bx, long by, long bz) {
+        long dx = ax - bx;
+        long dy = ay - by;
+        long dz = az - bz;
+        return dx * dx + dy * dy + dz * dz;
+    }
+
+    /**
      * setConvertedZombie (VillagerEntity lines 784-786 + the mobAiTick read
      * lines 363-366): the cured-villager marker — the next village-scan
      * cadence pays the WHOLE village +5 reputation once (the reference's
@@ -8255,7 +8380,10 @@ public final class MobEntity implements LivingEntity {
             modeTicks = 0;
             clearPath();
         }
-        // No hunt: the stroll goal owns the idle band this tick.
+        // No hunt: the stroll goal owns the idle band this tick. (The
+        // villager's village-return walk runs in the goal layer above —
+        // the MobGoals catalog's own entry; the blaze's variant is
+        // unreachable, the guardian's rides its swim pin.)
         goalTickIdleWander(target);
     }
 
@@ -8978,6 +9106,154 @@ public final class MobEntity implements LivingEntity {
         return (targetHuntable && visibleTarget != null) || mobAttackTarget != null
                 || pendingScareWolf != null;
     }
+
+    /**
+     * The village-return walk (WanderThroughVillageGoal 1:1 — the
+     * villager's own goal 5 at speed 0.6, VillagerEntity line 315): a
+     * body whose cached village exists and whose cell sits OUTSIDE the
+     * cached radius walks back toward the village. The gate is the
+     * reference's own inverted pair — {@code isInVillage()}
+     * (isValidGoalTarget at the mob's own cell) answers TRUE when the
+     * cache is UNSET (the -1 short-circuit), so the goal never starts
+     * for a village-less villager; it runs only when the cache is set
+     * AND the body is beyond the radius. The walk runs until the
+     * navigation completes (shouldContinue's own law) — even back
+     * inside the radius, the armed path walks on.
+     *
+     * <p>The target pick is TargetFinder.getTargetAwayFromPosition(16,
+     * 7, villageCenter) — the naming is the decompiler's: the offset
+     * points from the body TOWARD the village center, and the filter
+     * keeps only candidates in that half-plane (the walk homes). Ten
+     * random candidates in the ±16/±7 band; the village nudge (the
+     * cache-set arm) pulls each surviving candidate further toward the
+     * center; the in-band valid gate (within (radius + 16)² of the
+     * center, the candidate must fall inside the radius); the FIRST
+     * passer wins — the villager's own getPathfindingFavor is the flat
+     * 0.0 (PathFinderMobEntity line 29), so no candidate ever outscores
+     * the first. No passer: the goal waits (canStart's null).</p>
+     *
+     * <p>The blaze's own goal 5 (BlazeEntity line 31) is ruled
+     * NOT-REACHABLE beside this seat: nothing ever writes a blaze's
+     * cache (the nether carries no village collection; the leash path
+     * never applies) — an unleashed blaze answers isInVillage() true
+     * forever, exactly the engine's shared stroll. The guardian's
+     * variant rides its own pin (the swim seat's self-cache).</p>
+     *
+     * @return whether the goal claims the body this tick (canStart or
+     *         the live walk's shouldContinue).
+     */
+    boolean goalVillageReturnCanUse() {
+        if (type != MobType.VILLAGER) {
+            return false; // the goal is the villager's own registration
+        }
+        if (villageReturnActive) {
+            // shouldContinue (the goal's own law): the armed path walks
+            // to its end — the gate itself is not re-consulted mid-walk
+            // (a re-entry keeps the walk until the path completes).
+            if (navigation.isDone()) {
+                villageReturnActive = false;
+                return false;
+            }
+            return true;
+        }
+        if (villageRadius <= 0.0f) {
+            return false; // no cache: the -1 short-circuit answers inside
+        }
+        // canStart: inside the cached radius refuses the goal.
+        long mobCellX = (long) Math.floor(position.x());
+        long mobCellY = (long) Math.floor(position.y());
+        long mobCellZ = (long) Math.floor(position.z());
+        long radius = (long) this.villageRadius;
+        if (cellSquaredDistance(mobCellX, mobCellY, mobCellZ,
+                villageCenterX, villageCenterY, villageCenterZ)
+                < radius * radius) {
+            return false;
+        }
+        Position target = pickVillageReturnTarget(mobCellX, mobCellY, mobCellZ);
+        if (target == null) {
+            return false; // no candidate passed: the goal waits
+        }
+        villageReturnTarget = target;
+        villageReturnActive = true;
+        mode = Mode.WANDER;
+        modeTicks = 0;
+        return true;
+    }
+
+    /** start()/tick(): the navigation owns the walk at the goal's 0.6 speed. */
+    void goalVillageReturnTick() {
+        goalWalkSpeed = VILLAGE_RETURN_SPEED;
+        mode = Mode.WANDER;
+        tickPathFollowing(villageReturnTarget);
+        if (navigation.isDone()) {
+            villageReturnActive = false; // the walk's life ends; the stroll resumes
+        }
+    }
+
+    /**
+     * The candidate pick (TargetFinder.getTarget over the village
+     * offset, lines 26-88): ten random candidates in the ±16/±7 band,
+     * the half-plane filter toward the village center, the ±8 nudge the
+     * cache-set arm applies, the in-band valid gate — the first passer
+     * wins (the villager's flat favor).
+     */
+    private Position pickVillageReturnTarget(long mobCellX, long mobCellY, long mobCellZ) {
+        // getTargetAwayFromPosition's startOffset: the village center
+        // minus the body — the half-plane's own axis.
+        double offsetX = villageCenterX - mobCellX;
+        double offsetZ = villageCenterZ - mobCellZ;
+        // flag1 (the in-band valid gate, lines 34-40): within
+        // (radius + 16)² of the center (the + 4.0 term included), every
+        // candidate must fall INSIDE the village radius.
+        boolean inBand = cellSquaredDistance(mobCellX, mobCellY, mobCellZ,
+                villageCenterX, villageCenterY, villageCenterZ) + 4L
+                < (long) (villageRadius + VILLAGE_RETURN_RANGE)
+                  * (long) (villageRadius + VILLAGE_RETURN_RANGE);
+        for (int attempt = 0; attempt < 10; attempt++) {
+            int l = random.nextInt(2 * VILLAGE_RETURN_RANGE + 1) - VILLAGE_RETURN_RANGE;
+            int k1 = random.nextInt(2 * VILLAGE_RETURN_VERTICAL + 1) - VILLAGE_RETURN_VERTICAL;
+            int i1 = random.nextInt(2 * VILLAGE_RETURN_RANGE + 1) - VILLAGE_RETURN_RANGE;
+            // The half-plane filter (line 52): a candidate against the
+            // center's direction is refused.
+            if (l * offsetX + i1 * offsetZ < 0.0) {
+                continue;
+            }
+            // The village nudge (lines 55-67, the cache-set arm): pull
+            // the candidate FURTHER toward the center by up to 8.
+            if (mobCellX > villageCenterX) {
+                l -= random.nextInt(VILLAGE_RETURN_RANGE / 2);
+            } else {
+                l += random.nextInt(VILLAGE_RETURN_RANGE / 2);
+            }
+            if (mobCellZ > villageCenterZ) {
+                i1 -= random.nextInt(VILLAGE_RETURN_RANGE / 2);
+            } else {
+                i1 += random.nextInt(VILLAGE_RETURN_RANGE / 2);
+            }
+            int candidateX = (int) mobCellX + l;
+            int candidateY = (int) mobCellY + k1;
+            int candidateZ = (int) mobCellZ + i1;
+            if (inBand) {
+                long r = (long) villageRadius;
+                if (cellSquaredDistance(candidateX, candidateY, candidateZ,
+                        villageCenterX, villageCenterY, villageCenterZ) >= r * r) {
+                    continue; // isValidGoalTarget refuses the outside cell
+                }
+            }
+            // The villager's flat 0.0 favor: the first passer wins.
+            return new Position(candidateX, candidateY, candidateZ);
+        }
+        return null;
+    }
+
+    /** The goal's speed parameter (VillagerEntity line 315: 0.6). */
+    private static final double VILLAGE_RETURN_SPEED = 0.6;
+
+    /** The goal's horizontal candidate band (16). */
+    private static final int VILLAGE_RETURN_RANGE = 16;
+
+    /** The goal's vertical candidate band (7). */
+    private static final int VILLAGE_RETURN_VERTICAL = 7;
 
     void goalTickIdleWander(Position target) {
         if (mode == Mode.CHASE || mode == Mode.STRAFE || mode == Mode.FUSE) {
