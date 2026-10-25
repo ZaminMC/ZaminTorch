@@ -68,7 +68,9 @@ class TileExtraSaveSplitTest {
         out.writeByte('Z');
         out.writeByte('A');
         out.writeByte('D');
-        out.writeByte(1);
+        // The v3 walk (VT-7g's disabled-slots int + VT-7i's invisible
+        // boolean riding every row beside the v1 body).
+        out.writeByte(3);
         writeVarInt(out, stands.size());
         for (ArmorStandSystem.StandRecord stand : stands) {
             out.writeDouble(stand.x());
@@ -85,6 +87,8 @@ class TileExtraSaveSplitTest {
             legacyPose(out, stand.rightArm());
             legacyPose(out, stand.leftLeg());
             legacyPose(out, stand.rightLeg());
+            out.writeInt(stand.disabledSlots());
+            out.writeBoolean(stand.invisible());
         }
         out.flush();
         return sink.toByteArray();
