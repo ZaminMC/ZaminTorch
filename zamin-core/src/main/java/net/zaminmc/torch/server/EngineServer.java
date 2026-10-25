@@ -25969,19 +25969,13 @@ public final class EngineServer implements Server, EngineBridge {
                     true);
             return "Object successfully summoned";
         }
-        MobType type = MobType.byVanillaName(name);
-        if (type == null) {
-            type = MobType.byName(name);
-        }
-        if (type == null) {
-            return "Unable to summon object";
-        }
-        // The NBT arm (Slice 89 — the reference's lines 63-74): the joined
-        // text parses as one compound; a parse failure answers the tagError
-        // line, the parse itself never fails the summon. The whole entity
-        // then reads its rows through EntityNbt.readNbt (the base rows,
-        // the custom rows, the per-type rows — the reference's own
-        // Entity.readNbt walk).
+        // The NBT arm (Slice 89 — the reference's lines 63-74, the
+        // parse-before-create order): the joined text parses as one
+        // compound; a parse failure answers the tagError line, the
+        // parse itself never fails the summon. The whole entity then
+        // reads its rows through its own read walk (the reference's
+        // Entities.create reads the compound inside the factory — the
+        // base rows, the custom rows, the per-type rows).
         java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> nbt = null;
         if (args.length >= 5) {
             StringBuilder joined = new StringBuilder();
@@ -25996,6 +25990,22 @@ public final class EngineServer implements Server, EngineBridge {
             } catch (IllegalArgumentException tagError) {
                 return "Error parsing tag: " + tagError.getMessage();
             }
+        }
+        // The armor stand's own route (VT-7i — the reference's
+        // EntityList "ArmorStand" arm): the stand rides its own system,
+        // never the MobType surface — the plain-constructor shape (the
+        // default pose, no random roll) with the whole NBT read before
+        // the spawn publish (the factory's own order).
+        if ("ArmorStand".equals(name)) {
+            armorStands.summonAt(x, y, z, nbt);
+            return "Object successfully summoned";
+        }
+        MobType type = MobType.byVanillaName(name);
+        if (type == null) {
+            type = MobType.byName(name);
+        }
+        if (type == null) {
+            return "Unable to summon object";
         }
         MobEntity spawned = mobManager.spawnAt(type, new Position(x, y, z));
         if (spawned == null) {
@@ -26095,6 +26105,10 @@ public final class EngineServer implements Server, EngineBridge {
     private java.util.List<String> summonableEntityNames() {
         java.util.List<String> names = new java.util.ArrayList<>();
         names.add("LightningBolt");
+        // The stand's own key (VT-7i — the reference's EntityList carries
+        // the ArmorStand arm; the engine's stand rides its own system,
+        // never the MobType surface).
+        names.add("ArmorStand");
         for (net.zaminmc.torch.server.entity.MobType type : net.zaminmc.torch.server.entity.MobType.values()) {
             names.add(type.vanillaName());
         }

@@ -6990,12 +6990,18 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         }
     }
 
-    /** The stand's tracked data (the status byte + the six pose triples). */
+    /**
+     * The stand's tracked data (the base-flags byte at index 0 — the
+     * fire bit 0x01 + the invisible bit 0x20, VT-7i — then the status
+     * byte + the six pose triples).
+     */
     private void sendStandMetadata(Channel channel,
                                    net.zaminmc.torch.server.armorstand.ArmorStand stand) {
         ByteBuf meta = Unpooled.buffer(96);
         ByteBufOps.writeVarInt(meta, Protocol18.S2C_ENTITY_METADATA);
         ByteBufOps.writeVarInt(meta, stand.entityId());
+        meta.writeByte((Protocol18.METADATA_TYPE_BYTE << 5) | 0);
+        meta.writeByte(stand.flags());
         meta.writeByte((Protocol18.METADATA_TYPE_BYTE << 5) | 10);
         meta.writeByte(stand.status());
         writePoseEntry(meta, 11, stand.head());

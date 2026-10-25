@@ -4,6 +4,7 @@ import net.zaminmc.torch.block.BlockPosition;
 import net.zaminmc.torch.item.ItemStack;
 import net.zaminmc.torch.server.item.Armor;
 import net.zaminmc.torch.server.item.BuiltinItems;
+import net.zaminmc.torch.server.nbt.NbtOps;
 import net.zaminmc.torch.util.Position;
 
 import java.util.ArrayList;
@@ -756,7 +757,18 @@ public final class ArmorStandSystem {
                               ArmorStand.Pose head, ArmorStand.Pose body,
                               ArmorStand.Pose leftArm, ArmorStand.Pose rightArm,
                               ArmorStand.Pose leftLeg, ArmorStand.Pose rightLeg,
-                              int disabledSlots) {
+                              int disabledSlots, boolean invisible) {
+        /** The v2 shape (VT-7i's compat arm — the invisible row defaults false). */
+        public StandRecord(double x, double y, double z, float yaw,
+                           List<ItemStack> equipment, byte status,
+                           ArmorStand.Pose head, ArmorStand.Pose body,
+                           ArmorStand.Pose leftArm, ArmorStand.Pose rightArm,
+                           ArmorStand.Pose leftLeg, ArmorStand.Pose rightLeg,
+                           int disabledSlots) {
+            this(x, y, z, yaw, equipment, status, head, body, leftArm,
+                    rightArm, leftLeg, rightLeg, disabledSlots, false);
+        }
+
         /** The v1 shape (VT-7g's compat arm — the disabled row defaults 0). */
         public StandRecord(double x, double y, double z, float yaw,
                            List<ItemStack> equipment, byte status,
@@ -764,7 +776,7 @@ public final class ArmorStandSystem {
                            ArmorStand.Pose leftArm, ArmorStand.Pose rightArm,
                            ArmorStand.Pose leftLeg, ArmorStand.Pose rightLeg) {
             this(x, y, z, yaw, equipment, status, head, body, leftArm,
-                    rightArm, leftLeg, rightLeg, 0);
+                    rightArm, leftLeg, rightLeg, 0, false);
         }
     }
 
@@ -779,7 +791,7 @@ public final class ArmorStandSystem {
             records.add(new StandRecord(stand.x(), stand.y(), stand.z(), stand.yaw(),
                     equipment, stand.status(), stand.head(), stand.body(),
                     stand.leftArm(), stand.rightArm(), stand.leftLeg(), stand.rightLeg(),
-                    stand.disabledSlots()));
+                    stand.disabledSlots(), stand.invisible()));
         }
         return records;
     }
@@ -800,10 +812,141 @@ public final class ArmorStandSystem {
             stand.setLeftLeg(record.leftLeg() == null ? ArmorStand.DEFAULT_LEFT_LEG : record.leftLeg());
             stand.setRightLeg(record.rightLeg() == null ? ArmorStand.DEFAULT_RIGHT_LEG : record.rightLeg());
             stand.setDisabledSlots(record.disabledSlots());
+            stand.setInvisible(record.invisible());
             stands.put(stand.entityId(), stand);
             for (Listener listener : listeners) {
                 listener.onStandSpawned(stand);
             }
         }
+    }
+
+    // ------------------------------------------------------------------
+    // The /summon path (SummonCommand's Entities.create + addEntity walk)
+    // ------------------------------------------------------------------
+
+    /**
+     * The summon spawn (VT-7i — the reference's
+     * {@code Entities.create(nbt, world)} + {@code world.addEntity}
+     * order): the plain {@code new EntityArmorStand(world)} shape — the
+     * DEFAULT pose with no random roll (the roll is the item path
+     * alone, ArmorStandItem.pickRotation), the yaw 0 — then the whole
+     * NBT read BEFORE the spawn listeners fire (the reference reads
+     * the compound inside the factory; the tracker's Spawn Object +
+     * metadata + equipment publish sees the finished body), the
+     * command's own coordinates overriding the Pos rows alone (the
+     * reference's setPositionAndAngles keeps the NBT's yaw).
+     *
+     * @param nbt the parsed compound, or null for a plain summon
+     * @return the spawned stand (never null — the engine's stand
+     *         surface carries no refusal gate)
+     */
+    public synchronized ArmorStand summonAt(double x, double y, double z,
+                                            Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> nbt) {
+        ArmorStand stand = new ArmorStand(nextId, x, y, z, 0.0f);
+        nextId++;
+        if (nbt != null) {
+            readSummonNbt(stand, nbt);
+        }
+        stands.put(stand.entityId(), stand);
+        for (Listener listener : listeners) {
+            listener.onStandSpawned(stand);
+        }
+        return stand;
+    }
+
+    /**
+     * The summon NBT read (Entity.readNbt's base rows +
+     * ArmorStandEntity.readCustomNbt lines 153-172, 1:1): the Motion /
+     * Rotation / Fire / OnGround base rows, then the stand's own — the
+     * Equipment list (the list's own index IS the slot), the Invisible /
+     * Small / ShowArms / NoGravity / NoBasePlate / Marker booleans, the
+     * DisabledSlots bitfield, and the Pose compound (setPose lines
+     * 175-218: a MISSING part resets to the default — the reference's
+     * own else arms).
+     */
+    private void readSummonNbt(ArmorStand stand, Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> nbt) {
+        // ---- the base rows (Entity.readNbt) ----
+        java.util.List<net.zaminmc.torch.server.nbt.Snbt.Tag> motion =
+                listRows(nbt.get("Motion"));
+        if (motion != null && motion.size() == 3) {
+            stand.setVelocity(motion.get(0).asDouble(), motion.get(1).asDouble(),
+                    motion.get(2).asDouble());
+        }
+        java.util.List<net.zaminmc.torch.server.nbt.Snbt.Tag> rotation =
+                listRows(nbt.get("Rotation"));
+        if (rotation != null && !rotation.isEmpty()) {
+            // The yaw alone (the stand carries no pitch field — the row's
+            // second element stays unconsumed).
+            stand.setYaw(rotation.get(0).asFloat());
+        }
+        net.zaminmc.torch.server.nbt.Snbt.Tag fire = nbt.get("Fire");
+        if (fire != null) {
+            stand.setFireTicks((int) fire.asDouble());
+        }
+        net.zaminmc.torch.server.nbt.Snbt.Tag onGround = nbt.get("OnGround");
+        if (onGround != null) {
+            stand.setOnGround(onGround.asByte() != 0);
+        }
+        // ---- the stand's own rows (readCustomNbt) ----
+        java.util.List<net.zaminmc.torch.server.nbt.Snbt.Tag> equipment =
+                listRows(nbt.get("Equipment"));
+        if (equipment != null) {
+            for (int slot = 0; slot <= 4 && slot < equipment.size(); slot++) {
+                Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> rows =
+                        equipment.get(slot).asCompound();
+                stand.setEquipment(slot, rows == null || rows.isEmpty()
+                        ? null : net.zaminmc.torch.server.nbt.ItemNbt.read(rows));
+            }
+        }
+        stand.setInvisible(NbtOps.getBoolean(nbt, "Invisible"));
+        applyStatusBit(stand, ArmorStand.FLAG_SMALL, NbtOps.getBoolean(nbt, "Small"));
+        applyStatusBit(stand, ArmorStand.FLAG_SHOW_ARMS, NbtOps.getBoolean(nbt, "ShowArms"));
+        applyStatusBit(stand, ArmorStand.FLAG_NO_GRAVITY, NbtOps.getBoolean(nbt, "NoGravity"));
+        applyStatusBit(stand, ArmorStand.FLAG_NO_BASE_PLATE, NbtOps.getBoolean(nbt, "NoBasePlate"));
+        applyStatusBit(stand, ArmorStand.FLAG_MARKER, NbtOps.getBoolean(nbt, "Marker"));
+        stand.setDisabledSlots(NbtOps.getInt(nbt, "DisabledSlots"));
+        // The Pose compound: an absent compound reads empty — every part
+        // falls to the reference's own default (setPose's else arms).
+        Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> pose =
+                compoundRows(nbt.get("Pose"));
+        stand.setHead(posePart(pose, "Head", ArmorStand.DEFAULT_HEAD));
+        stand.setBody(posePart(pose, "Body", ArmorStand.DEFAULT_BODY));
+        stand.setLeftArm(posePart(pose, "LeftArm", ArmorStand.DEFAULT_LEFT_ARM));
+        stand.setRightArm(posePart(pose, "RightArm", ArmorStand.DEFAULT_RIGHT_ARM));
+        stand.setLeftLeg(posePart(pose, "LeftLeg", ArmorStand.DEFAULT_LEFT_LEG));
+        stand.setRightLeg(posePart(pose, "RightLeg", ArmorStand.DEFAULT_RIGHT_LEG));
+    }
+
+    /** The status byte's own bit write (setSmall &amp; the family's own shape). */
+    private static void applyStatusBit(ArmorStand stand, byte bit, boolean value) {
+        stand.setStatus(value ? (byte) (stand.status() | bit) : (byte) (stand.status() & ~bit));
+    }
+
+    /** The list rows (a non-list or empty row answers null). */
+    private static java.util.List<net.zaminmc.torch.server.nbt.Snbt.Tag> listRows(
+            net.zaminmc.torch.server.nbt.Snbt.Tag tag) {
+        java.util.List<net.zaminmc.torch.server.nbt.Snbt.Tag> rows = tag == null ? null : tag.asList();
+        return rows == null || rows.isEmpty() ? null : rows;
+    }
+
+    /** The compound rows (a non-compound row answers empty). */
+    private static Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> compoundRows(
+            net.zaminmc.torch.server.nbt.Snbt.Tag tag) {
+        Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> rows =
+                tag == null ? null : tag.asCompound();
+        return rows == null ? Map.of() : rows;
+    }
+
+    /** One pose part (setPose lines 175-218: a present 3-float list sets,
+     * anything else the reference default). */
+    private static ArmorStand.Pose posePart(
+            Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> pose, String part,
+            ArmorStand.Pose fallback) {
+        java.util.List<net.zaminmc.torch.server.nbt.Snbt.Tag> rows = listRows(pose.get(part));
+        if (rows == null || rows.size() < 3) {
+            return fallback;
+        }
+        return new ArmorStand.Pose(rows.get(0).asFloat(), rows.get(1).asFloat(),
+                rows.get(2).asFloat());
     }
 }

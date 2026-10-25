@@ -40,7 +40,7 @@ public final class ArmorStandDataStore {
     private static final int MAGIC_0 = 'Z';
     private static final int MAGIC_1 = 'A';
     private static final int MAGIC_2 = 'D';
-    private static final int FORMAT_VERSION = 2;
+    private static final int FORMAT_VERSION = 3;
 
     private final Path file;
 
@@ -96,6 +96,9 @@ public final class ArmorStandDataStore {
                 // VT-7g — the v2 row: the DisabledSlots bitfield (the
                 // reference's NBT row at line 141).
                 out.writeInt(stand.disabledSlots());
+                // VT-7i — the v3 row: the Invisible flag (the reference's
+                // NBT row at line 138).
+                out.writeBoolean(stand.invisible());
             }
         } catch (IOException e) {
             // The sink is an in-memory buffer; an IOException here is a
@@ -150,7 +153,7 @@ public final class ArmorStandDataStore {
                 return new ArrayList<>();
             }
             int version = in.readByte() & 0xFF;
-            if (version != FORMAT_VERSION && version != 1) {
+            if (version != FORMAT_VERSION && version != 2 && version != 1) {
                 LOGGER.warning("Armor stand state " + file + " version " + version
                         + " unsupported; loading empty");
                 return new ArrayList<>();
@@ -179,8 +182,12 @@ public final class ArmorStandDataStore {
                 // VT-7g — the v2 row: the v1 files answer the default 0
                 // (the reference's own default — every swap legal).
                 int disabledSlots = version >= 2 ? in.readInt() : 0;
+                // VT-7i — the v3 row: the v2 files answer the default
+                // false (the reference's own default — a visible stand).
+                boolean invisible = version >= 3 && in.readBoolean();
                 loaded.add(new ArmorStandSystem.StandRecord(x, y, z, yaw, equipment, status,
-                        head, body, leftArm, rightArm, leftLeg, rightLeg, disabledSlots));
+                        head, body, leftArm, rightArm, leftLeg, rightLeg, disabledSlots,
+                        invisible));
             }
             return loaded;
         } catch (IOException | RuntimeException corrupt) {

@@ -128,6 +128,38 @@ public final class ArmorStand {
         return yaw;
     }
 
+    /** The yaw's write arm (the summon path's Rotation row — the
+     * reference's setLocationAndAngles keeps the NBT's own yaw). */
+    void setYaw(float yaw) {
+        this.yaw = yaw;
+    }
+
+    /**
+     * The invisible flag (VT-7i — the reference's readCustomNbt line
+     * 162: the row the engine's stand never carried; the wire's own
+     * slot-0 bit 0x20 below).
+     */
+    private boolean invisible;
+
+    /** The invisible flag (the wire's base-flags bit 0x20). */
+    public boolean invisible() {
+        return invisible;
+    }
+
+    /** The flag's write arm (the summon NBT read + the restore walk). */
+    void setInvisible(boolean invisible) {
+        this.invisible = invisible;
+    }
+
+    /**
+     * The base entity-flags byte (the wire's slot 0 — the reference's
+     * DataWatcher index 0): the on-fire bit 0x01 over the live burn
+     * clock, the invisible bit 0x20.
+     */
+    public byte flags() {
+        return (byte) ((fireTicks > 0 ? 0x01 : 0) | (invisible ? 0x20 : 0));
+    }
+
     /** The equipment slot (0 = hand .. 4 = head); EMPTY when bare. */
     public ItemStack equipment(int slot) {
         return equipment[slot];
