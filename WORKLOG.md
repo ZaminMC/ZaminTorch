@@ -15034,3 +15034,62 @@ Stage Summary:
   merge, DisabledSlots), the mob step-sound family
   (mob.silverfish.step), the silverfish canSpawn player gate, the
   blaze's WanderThroughVillageGoal.
+
+---
+Task ID: vt-wave-7c-7f
+Agent: the coordinator (Abasing session)
+Task: The vanilla-grade tail census's seventh wave, second batch — the
+guardian's squid-hunt arm, the fishing hooked-player pull, the
+command-block run gate, and /testfor's counted verdict.
+
+Work Log:
+- VT-7c (6d72edbe): the guardian's squid-hunt arm — the reference's
+  GuardianTargetValidator line 591 instanceof-SquidEntity branch rides
+  the ActiveTargetGoal's one-box scan: guardianHuntTarget() reads the
+  nearest squid (nearestMobOfKind over the follow-range box, the shared
+  squaredDistance>9 band) and the NEAREST of player/squid owns the hunt;
+  the manager's beam id resolves the squid's own entity id (never a
+  fresh player scan), the laser hit lands the magic+melee pair on the
+  squid through the mob walk (the hard-difficulty magic arm read from
+  the difficulty supplier), and the elder's shouldContinue exemption
+  (lines 474-476: a live charge never drops for proximity). The
+  ghost-curse seam VERIFIED landed-earlier (playGameState(10) precedes
+  the effect add at the aura walk). GuardianEntityTest 10/0 (three new
+  pins: the squid owns the hunt, the nearer player keeps it, the
+  in-band squid refused), entity package 502/0.
+- VT-7d (ef0be9cf, rebased over the 138 release): the hooked player's
+  fishing pull — the retrieve's impulse (lines 456-462: velocity += the
+  0.1-scaled direction + the sqrt(d)*0.08 vertical) now ADDS to the
+  hooked player's server-known motion and rides the knockback surface
+  (setMotion + publishKnockback — the wire's velocity set, the grace
+  window guarding the flight). Fishing package 14/0.
+- VT-7e (5452e414): the command-block run gate — CommandExecutor.run
+  lines 84-108's else arm: a server with enable-command-block=false
+  never executes (both the block host runCommandBlockExecutor and the
+  cart host runCommandCart consult areCommandBlocksEnabled before the
+  dispatch, the success count answering 0); the count now rides
+  dispatchCounted (the reference's commandhandler.run return) replacing
+  the flat known-command envelope; the cart's live-engine test boots
+  with the flag on; the disabled-gate boot pin (run 0, count 0, no
+  output row). CommandBlockBlockTest 10/0, CommandBlockMinecartTest
+  5/0. The stale "execution is ungated" comment corrected.
+- VT-7f (c335a0b4): /testfor's dataTag verdict counts — the reference's
+  line-51 throw modeled as CommandService.CommandFailure (a counted
+  failure: the carried text lands in the output row through the
+  sendFailure walk, the dispatch counts 0): the mismatched dataTag and
+  the usage error answer 0, the matched tag and the plain find answer 1
+  — the comparator circuit's own law over the block run's counted
+  dispatch. MissingCommandsWaveOneTest 23/0 (the spreadplayers arm a
+  known load flake — green in isolation and on the class re-run).
+
+Stage Summary:
+- Four landed units this session (VT-7c/7d/7e/7f); all pushed as
+  Abasing; the compat ledger's rows updated per unit.
+- REMAINING (the VT-7 tail, next window): the armor-stand NBT tails
+  (the DisabledSlots field + the three swap gates 1<<slot / 1<<slot+8 /
+  1<<slot+16 + the persistence row; the EntityTag merge NOT-REACHABLE —
+  the engine carries no item-NBT surface, the cart-CustomName family
+  ruling; the bigger hole: /summon ArmorStand unsupported — the whole
+  stand family has no command surface), the mob step-sound family
+  (mob.silverfish.step etc.), the silverfish canSpawn player gate, the
+  blaze's WanderThroughVillageGoal.
