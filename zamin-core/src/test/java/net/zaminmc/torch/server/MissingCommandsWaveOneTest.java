@@ -272,9 +272,9 @@ class MissingCommandsWaveOneTest {
 
     @Test
     void theEnchantArm() throws Exception {
-        // Put a sword in Alice's hand through the self-give path (the
-        // engine's /give has no player arg): the held stack is the target.
-        dispatch("/give minecraft:iron_sword 1");
+        // Put a sword in Alice's hand through the vanilla give form (the
+        // target is the command's own first argument).
+        dispatch("/give Alice minecraft:iron_sword 1");
         await(() -> !alice.inventory().held().isEmpty(), "the sword landed");
         dispatch("/enchant Alice sharpness 3");
         await(() -> alice.inventory().held().enchantments() != null

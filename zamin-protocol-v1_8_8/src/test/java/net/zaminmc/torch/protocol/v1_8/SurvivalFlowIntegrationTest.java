@@ -43,6 +43,27 @@ class SurvivalFlowIntegrationTest extends ProtocolTestBase {
         client.walkTo(spawn[2] / 32.0, spawn[3] / 32.0 - 0.125, spawn[4] / 32.0, true);
     }
 
+
+    /**
+     * Pre-seeds ops.json so the test players can run the op-gated verbs
+     * (/give among them — the vanilla GiveCommand sits at op level 2): the
+     * offline-mode UUID convention resolves each name deterministically
+     * before the engine boots.
+     */
+    @Override
+    @org.junit.jupiter.api.BeforeAll
+    void bootStack() throws Exception {
+        java.nio.file.Files.write(dataDir.resolve("ops.json"), java.util.List.of(
+                "[{\"uuid\": \"" + java.util.UUID.nameUUIDFromBytes(
+                        "OfflinePlayer:Survivor".getBytes(java.nio.charset.StandardCharsets.UTF_8))
+                        + "\", \"name\": \"Survivor\", \"level\": 4, \"bypassesPlayerLimit\": false},",
+                " {\"uuid\": \"" + java.util.UUID.nameUUIDFromBytes(
+                        "OfflinePlayer:Toolman".getBytes(java.nio.charset.StandardCharsets.UTF_8))
+                        + "\", \"name\": \"Toolman\", \"level\": 4, \"bypassesPlayerLimit\": false}]"
+        ));
+        super.bootStack();
+    }
+
     @Test
     void mineCollectPlaceDropOverTheWire() throws Exception {
         try (TestClient18 client = new TestClient18("127.0.0.1", adapter.boundPort())) {
@@ -133,7 +154,8 @@ class SurvivalFlowIntegrationTest extends ProtocolTestBase {
             client.readWindowItems(10_000); // join sync: empty inventory
 
             // /give over chat: the administrative item source (crafting is not built yet).
-            client.sendChat("/give wooden_pickaxe 1");
+            client.sendChat("/give Toolman wooden_pickaxe 1");
+            client.drainGiveGhostWake(150);
             int[] given = client.readWindowItems(10_000);
             assertEquals(36, given[2]);  // hotbar slot 0 (wire slot 36)
             assertEquals(270, given[3]); // community-dataset legacy id: wooden_pickaxe

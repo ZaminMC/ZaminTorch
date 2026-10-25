@@ -30,8 +30,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  *
  * <p><b>The R-6 diff (this cycle, evidence in docs/VANILLA_PARITY_MATRIX.md):
  * 74 engine verbs vs the reference's 62 names</b> — intersection 56
- * (50 level-matched), 6 level-divergent rows RECORDED as standing
- * divergences (give 0 vs 2, time 0 vs 2, seed 0 vs 2, kick 2 vs 3,
+ * (51 level-matched), 5 level-divergent rows RECORDED as standing
+ * divergences (time 0 vs 2, seed 0 vs 2, kick 2 vs 3,
  * say 2 vs 1, defaultgamemode 2 vs 4), 18 engine extras (the collapsed
  * save, the gamemode shortcuts gms/gmc/gma/gmsp, the tell aliases as
  * first-class verbs msg/w, the admin QoL family heal/feed/fly/spawn/
@@ -39,11 +39,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * 6 reference names with no engine verb (the {@code ?} help alias,
  * publish, save-all/save-on/save-off as separate verbs, setidletimeout).
  * The deeper form divergences stay ledgered where they
- * live: /give ML-008 (the owner's record-or-align decision, pending),
- * /summon + /spawnmob player-only where the reference accepts the console
+ * live: /summon + /spawnmob player-only where the reference accepts the console
  * (the cycle-3 papercut, standing), /save collapsed without the on/off
  * arms, /setspawn the standing-form verb the reference folds into
- * setworldspawn's no-args form. /op's offline-profile walk was ML-005,
+ * setworldspawn's no-args form. /give was ML-008 — RESOLVED: aligned to
+ * the vanilla form and level (GiveCommand 1:1, the <player> <item>
+ * [count] [data] [dataTag] shape). /op's offline-profile walk was ML-005,
  * resolved (wave 3); /ban-ip and /pardon-ip are reference-matched at 3
  * (the player-to-IP resolution form).</p>
  *
@@ -117,7 +118,7 @@ class RegisteredCommandSurfaceParityTest {
         // walk + per-class overrides; the dedicated set's ban family at 3)
         assertLevel("help", 0);
         assertLevel("ping", 0); // extra (no reference verb)
-        assertLevel("give", 0); // DIVERGENT-RECORDED: reference 2 (R-6 table; ML-008's form decision pending)
+        assertLevel("give", 2); // reference-matched (ML-008 resolved: the vanilla form, GiveCommand 1:1)
         assertLevel("gamerule", 2); // reference-matched
         assertLevel("scoreboard", 2); // reference-matched
         assertLevel("worldborder", 2); // reference-matched

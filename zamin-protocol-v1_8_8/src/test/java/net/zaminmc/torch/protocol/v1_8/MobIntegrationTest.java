@@ -29,6 +29,30 @@ class MobIntegrationTest extends ProtocolTestBase {
         return server.playerRegistry().byName(name).orElseThrow();
     }
 
+
+    /**
+     * Pre-seeds ops.json so the test players can run the op-gated verbs
+     * (/give among them — the vanilla GiveCommand sits at op level 2): the
+     * offline-mode UUID convention resolves each name deterministically
+     * before the engine boots.
+     */
+    @Override
+    @org.junit.jupiter.api.BeforeAll
+    void bootStack() throws Exception {
+        java.nio.file.Files.write(dataDir.resolve("ops.json"), java.util.List.of(
+                "[{\"uuid\": \"" + java.util.UUID.nameUUIDFromBytes(
+                        "OfflinePlayer:MobHunter".getBytes(java.nio.charset.StandardCharsets.UTF_8))
+                        + "\", \"name\": \"MobHunter\", \"level\": 4, \"bypassesPlayerLimit\": false},",
+                " {\"uuid\": \"" + java.util.UUID.nameUUIDFromBytes(
+                        "OfflinePlayer:NightWatcher".getBytes(java.nio.charset.StandardCharsets.UTF_8))
+                        + "\", \"name\": \"NightWatcher\", \"level\": 4, \"bypassesPlayerLimit\": false},",
+                " {\"uuid\": \"" + java.util.UUID.nameUUIDFromBytes(
+                        "OfflinePlayer:Swinger".getBytes(java.nio.charset.StandardCharsets.UTF_8))
+                        + "\", \"name\": \"Swinger\", \"level\": 4, \"bypassesPlayerLimit\": false}]"
+        ));
+        super.bootStack();
+    }
+
     @Test
     void mobsSpawnMoveFightAndLootOverTheWire() throws Exception {
         try (TestClient18 client = new TestClient18("127.0.0.1", adapter.boundPort())) {
@@ -62,7 +86,8 @@ class MobIntegrationTest extends ProtocolTestBase {
             // as Entity Status 2 with the historical hurt sound; the kill
             // adds status 3 (the death fall). The client walks to the pig
             // first (and again after the pop) — reach is server-validated.
-            client.sendChat("/give diamond_sword 1");
+            client.sendChat("/give MobHunter diamond_sword 1");
+            client.drainGiveGhostWake(150);
             client.walkTo(pig[2] / 32.0, pig[3] / 32.0, pig[4] / 32.0, true);
             client.sendUseEntity(pigId, Protocol18.USE_ENTITY_ATTACK);
             int[] hurt = client.readEntityStatus(15_000);

@@ -49,6 +49,30 @@ class CraftingTableIntegrationTest extends ProtocolTestBase {
         return new Click(confirm[2] == 1, confirm[0], cursor[1], cursor[2], window);
     }
 
+
+    /**
+     * Pre-seeds ops.json so the test players can run the op-gated verbs
+     * (/give among them — the vanilla GiveCommand sits at op level 2): the
+     * offline-mode UUID convention resolves each name deterministically
+     * before the engine boots.
+     */
+    @Override
+    @org.junit.jupiter.api.BeforeAll
+    void bootStack() throws Exception {
+        java.nio.file.Files.write(dataDir.resolve("ops.json"), java.util.List.of(
+                "[{\"uuid\": \"" + java.util.UUID.nameUUIDFromBytes(
+                        "OfflinePlayer:Cooper".getBytes(java.nio.charset.StandardCharsets.UTF_8))
+                        + "\", \"name\": \"Cooper\", \"level\": 4, \"bypassesPlayerLimit\": false},",
+                " {\"uuid\": \"" + java.util.UUID.nameUUIDFromBytes(
+                        "OfflinePlayer:Skeptic".getBytes(java.nio.charset.StandardCharsets.UTF_8))
+                        + "\", \"name\": \"Skeptic\", \"level\": 4, \"bypassesPlayerLimit\": false},",
+                " {\"uuid\": \"" + java.util.UUID.nameUUIDFromBytes(
+                        "OfflinePlayer:Tablewright".getBytes(java.nio.charset.StandardCharsets.UTF_8))
+                        + "\", \"name\": \"Tablewright\", \"level\": 4, \"bypassesPlayerLimit\": false}]"
+        ));
+        super.bootStack();
+    }
+
     @Test
     void tableOpensCraftsAPickaxeAndReturnsOnClose() throws Exception {
         try (TestClient18 client = new TestClient18("127.0.0.1", adapter.boundPort())) {
@@ -60,12 +84,15 @@ class CraftingTableIntegrationTest extends ProtocolTestBase {
             client.readWindowItems(10_000); // join sync: all empty
 
             // --- stock the inventory: table, 3 planks, 2 sticks ---
-            client.sendChat("/give crafting_table 1");
+            client.sendChat("/give Tablewright crafting_table 1");
+            client.drainGiveGhostWake(150);
             int[][] given = client.readWindowSlotTable(10_000);
             assertEquals(CRAFTING_TABLE, given[36][0]);
-            client.sendChat("/give oak_planks 3");
+            client.sendChat("/give Tablewright oak_planks 3");
+            client.drainGiveGhostWake(150);
             assertEquals(OAK_PLANKS, client.readWindowSlotTable(10_000)[37][0]);
-            client.sendChat("/give stick 2");
+            client.sendChat("/give Tablewright stick 2");
+            client.drainGiveGhostWake(150);
             assertEquals(280, client.readWindowSlotTable(10_000)[38][0]);
 
             // --- place the table (held slot 0 = the table): click the grass top
@@ -151,9 +178,11 @@ class CraftingTableIntegrationTest extends ProtocolTestBase {
             awaitPlayer("Cooper");
             client.readWindowItems(10_000);
 
-            client.sendChat("/give crafting_table 1");
+            client.sendChat("/give Cooper crafting_table 1");
+            client.drainGiveGhostWake(150);
             client.readWindowSlotTable(10_000);
-            client.sendChat("/give oak_planks 16");
+            client.sendChat("/give Cooper oak_planks 16");
+            client.drainGiveGhostWake(150);
             assertEquals(OAK_PLANKS, client.readWindowSlotTable(10_000)[37][0]);
 
             client.sendBlockPlacement(-2, 4, -2, 1, CRAFTING_TABLE);
@@ -213,7 +242,8 @@ class CraftingTableIntegrationTest extends ProtocolTestBase {
             awaitPlayer("Skeptic");
             client.readWindowItems(10_000);
 
-            client.sendChat("/give oak_planks 4");
+            client.sendChat("/give Skeptic oak_planks 4");
+            client.drainGiveGhostWake(150);
             assertEquals(OAK_PLANKS, client.readWindowSlotTable(10_000)[36][0]);
 
             // a click for a window the engine never opened: declined, resync follows

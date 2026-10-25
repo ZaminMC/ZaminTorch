@@ -153,6 +153,7 @@ class KeepAliveTimeoutWireTest {
     void anUnansweredKeepAliveKicksWithATimedOutDisconnectPacket() throws Exception {
         TestClient18 client = new TestClient18("127.0.0.1", adapter.boundPort());
         try {
+            client.silenceKeepAlives(); // the silence arm: never answer
             login(client, "Ghost");
             // Silence: never answer a keep-alive, never send anything. The
             // kick window is 3 × 300ms from the first unanswered send.

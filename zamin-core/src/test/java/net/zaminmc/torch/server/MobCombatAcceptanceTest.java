@@ -49,7 +49,7 @@ class MobCombatAcceptanceTest {
 
         // Walk to the pig and hit it with a diamond sword: 10 hp / 7 = 2 hits.
         standNextTo(server, hunter, pig);
-        server.chatService().submitChat(hunter, "/give diamond_sword 1");
+        server.chatService().submitChat(hunter, "/give " + hunter.name() + " diamond_sword 1");
         await(() -> !hunter.inventory().held().isEmpty(), "sword given");
         server.attackEntity(hunter, pig.entityId());
         await(() -> pig.health() < MobType.PIG.maxHealth, "the first hit landed");
@@ -167,6 +167,7 @@ class MobCombatAcceptanceTest {
         PlayerSession session = ((EngineBridge.Accepted) accepted).session();
         await(() -> server.playerRegistry().byName(name).isPresent(), name + " registered");
         server.joinCompleted(session);
+        server.ticker().submit(() -> session.setOpLevel(2));
         await(() -> session.state() == net.zaminmc.torch.entity.PlayerState.PLAYING, name + " playing");
         return session;
     }

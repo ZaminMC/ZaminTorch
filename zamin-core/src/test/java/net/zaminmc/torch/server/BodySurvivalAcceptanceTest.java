@@ -40,7 +40,7 @@ class BodySurvivalAcceptanceTest {
         EngineServer server = boot();
         PlayerSession eater = join(server, "Eater");
 
-        server.chatService().submitChat(eater, "/give beef 2");
+        server.chatService().submitChat(eater, "/give " + eater.name() + " beef 2");
         await(() -> !eater.inventory().held().isEmpty(), "beef given");
         // Make room to eat: the body starts full, so lower hunger directly
         // (the same write the food economy itself performs).
@@ -70,7 +70,7 @@ class BodySurvivalAcceptanceTest {
         try {
             // The plain apple (metadata 0): Absorption I for 2400 ticks.
             PlayerSession eater = join(server, "Vip");
-            server.chatService().submitChat(eater, "/give golden_apple 1");
+            server.chatService().submitChat(eater, "/give " + eater.name() + " golden_apple 1");
             await(() -> !eater.inventory().held().isEmpty(), "the apple given");
             eater.setBody(20.0f, 12, 0.0f);
             server.useItem(eater);
@@ -96,7 +96,7 @@ class BodySurvivalAcceptanceTest {
 
             // The notch pair (metadata 1): the full set — Absorption I 2400,
             // Regeneration V 600, Resistance I 6000, Fire Resistance I 6000.
-            server.chatService().submitChat(eater, "/give golden_apple 1 1");
+            server.chatService().submitChat(eater, "/give " + eater.name() + " golden_apple 1 1");
             await(() -> !eater.inventory().held().isEmpty()
                             && eater.inventory().held().damage() == 1,
                     "the notch apple given");
@@ -128,7 +128,7 @@ class BodySurvivalAcceptanceTest {
             // The spider eye's FoodItem pair (Item.java line 664): Poison I
             // for 5 s at chance 1.0 — the certain roll.
             PlayerSession diner = join(server, "Diner");
-            server.chatService().submitChat(diner, "/give spider_eye 1");
+            server.chatService().submitChat(diner, "/give " + diner.name() + " spider_eye 1");
             await(() -> !diner.inventory().held().isEmpty(), "the eye given");
             diner.setBody(20.0f, 12, 0.0f);
             server.useItem(diner);
@@ -201,9 +201,9 @@ class BodySurvivalAcceptanceTest {
     void deathDropsTheInventoryAndRespawnResetsTheBody() throws Exception {
         EngineServer server = boot();
         PlayerSession doomed = join(server, "Doomed");
-        server.chatService().submitChat(doomed, "/give dirt 5");
+        server.chatService().submitChat(doomed, "/give " + doomed.name() + " dirt 5");
         await(() -> !doomed.inventory().held().isEmpty(), "dirt given");
-        server.chatService().submitChat(doomed, "/give beef 1");
+        server.chatService().submitChat(doomed, "/give " + doomed.name() + " beef 1");
 
         int entitiesBefore = server.itemEntities().size();
         server.damage(doomed, 100.0f);
@@ -230,7 +230,7 @@ class BodySurvivalAcceptanceTest {
             // Poison IV 1200 (60 s), Hunger III 300 (15 s), Nausea II 300
             // (15 s) — all certain, no chance roll. One food, 0.1 saturation.
             PlayerSession swimmer = join(server, "Swimmer");
-            server.chatService().submitChat(swimmer, "/give fish 1 3");
+            server.chatService().submitChat(swimmer, "/give " + swimmer.name() + " fish 1 3");
             await(() -> !swimmer.inventory().held().isEmpty(), "the pufferfish given");
             assertEquals(3, swimmer.inventory().held().damage(), "metadata 3 is the pufferfish");
             swimmer.setBody(20.0f, 12, 0.0f);
@@ -293,7 +293,7 @@ class BodySurvivalAcceptanceTest {
 
             // The live eat: a cooked salmon restores 6 food.
             PlayerSession diner = join(server, "Angler");
-            server.chatService().submitChat(diner, "/give cooked_fish 1 1");
+            server.chatService().submitChat(diner, "/give " + diner.name() + " cooked_fish 1 1");
             await(() -> !diner.inventory().held().isEmpty(), "the cooked salmon given");
             assertEquals(1, diner.inventory().held().damage());
             diner.setBody(20.0f, 12, 0.0f);
@@ -304,7 +304,7 @@ class BodySurvivalAcceptanceTest {
             // The reference's own quirk: a cooked fish WITH pufferfish
             // metadata eats (and poisons) like a raw pufferfish —
             // Type.byItem reads the metadata of any FishItem.
-            server.chatService().submitChat(diner, "/give cooked_fish 1 3");
+            server.chatService().submitChat(diner, "/give " + diner.name() + " cooked_fish 1 3");
             await(() -> !diner.inventory().held().isEmpty()
                             && diner.inventory().held().damage() == 3,
                     "the cooked pufferfish given");
@@ -336,6 +336,7 @@ class BodySurvivalAcceptanceTest {
         // The adapter calls this after its join sequence; the scripted fake link
         // skips straight to play state so the body simulation applies.
         server.joinCompleted(session);
+        server.ticker().submit(() -> session.setOpLevel(2));
         await(() -> session.state() == net.zaminmc.torch.entity.PlayerState.PLAYING, name + " playing");
         return session;
     }

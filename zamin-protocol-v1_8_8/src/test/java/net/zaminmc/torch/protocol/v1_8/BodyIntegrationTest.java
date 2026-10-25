@@ -32,6 +32,30 @@ class BodyIntegrationTest extends ProtocolTestBase {
         awaitCondition(() -> server.playerRegistry().byName(name).isPresent(), "player joined");
     }
 
+
+    /**
+     * Pre-seeds ops.json so the test players can run the op-gated verbs
+     * (/give among them — the vanilla GiveCommand sits at op level 2): the
+     * offline-mode UUID convention resolves each name deterministically
+     * before the engine boots.
+     */
+    @Override
+    @org.junit.jupiter.api.BeforeAll
+    void bootStack() throws Exception {
+        java.nio.file.Files.write(dataDir.resolve("ops.json"), java.util.List.of(
+                "[{\"uuid\": \"" + java.util.UUID.nameUUIDFromBytes(
+                        "OfflinePlayer:Glutton".getBytes(java.nio.charset.StandardCharsets.UTF_8))
+                        + "\", \"name\": \"Glutton\", \"level\": 4, \"bypassesPlayerLimit\": false},",
+                " {\"uuid\": \"" + java.util.UUID.nameUUIDFromBytes(
+                        "OfflinePlayer:Phoenix".getBytes(java.nio.charset.StandardCharsets.UTF_8))
+                        + "\", \"name\": \"Phoenix\", \"level\": 4, \"bypassesPlayerLimit\": false},",
+                " {\"uuid\": \"" + java.util.UUID.nameUUIDFromBytes(
+                        "OfflinePlayer:Skydiver".getBytes(java.nio.charset.StandardCharsets.UTF_8))
+                        + "\", \"name\": \"Skydiver\", \"level\": 4, \"bypassesPlayerLimit\": false}]"
+        ));
+        super.bootStack();
+    }
+
     @Test
     void fallDamageFollowsMovementAndSyncsHealth() throws Exception {
         try (TestClient18 client = new TestClient18("127.0.0.1", adapter.boundPort())) {
@@ -66,7 +90,8 @@ class BodyIntegrationTest extends ProtocolTestBase {
             client.readUpdateHealth(10_000);
 
             // Stock the hotbar: the death must scatter it.
-            client.sendChat("/give dirt 3");
+            client.sendChat("/give Phoenix dirt 3");
+            client.drainGiveGhostWake(150);
             client.readWindowSlotTable(10_000);
 
             // A lethal hit straight from the engine's damage entry.
@@ -111,7 +136,8 @@ class BodyIntegrationTest extends ProtocolTestBase {
             client.readWindowItems(10_000);
             client.readUpdateHealth(10_000);
 
-            client.sendChat("/give beef 2");
+            client.sendChat("/give Glutton beef 2");
+            client.drainGiveGhostWake(150);
             client.readWindowSlotTable(10_000);
 
             // The use-item gesture (block placement with the -1 sentinel):

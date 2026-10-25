@@ -33,7 +33,7 @@ public final class FxManager {
     private static final Logger LOGGER = Logger.getLogger(FxManager.class.getName());
 
     /** One broadcast unit. The adapter translates each kind per its version. */
-    public sealed interface FxEvent permits Sound, BlockShatter, StandShatter, ItemShatter, Poof, Smoke, PotionSplash {
+    public sealed interface FxEvent permits Sound, SoundExcept, BlockShatter, StandShatter, ItemShatter, Poof, Smoke, PotionSplash {
     }
 
     /** A named sound at a position (historical 1.8 resource name). */
@@ -42,6 +42,23 @@ public final class FxManager {
         public Sound {
             Objects.requireNonNull(position, "position");
             Objects.requireNonNull(name, "name");
+        }
+    }
+
+    /**
+     * A named sound one session never hears — the reference's
+     * {@code playSound(Entity except, String, float, float)} overload
+     * (GiveCommand's pop at the target: everyone nearby except the
+     * granted player). Same range law and packet as {@link Sound}; the
+     * exempt session's own observer is skipped.
+     */
+    public record SoundExcept(Position position, String name, float volume, float pitch,
+                              net.zaminmc.torch.server.player.PlayerSession exempt)
+            implements FxEvent {
+        public SoundExcept {
+            Objects.requireNonNull(position, "position");
+            Objects.requireNonNull(name, "name");
+            Objects.requireNonNull(exempt, "exempt");
         }
     }
 
@@ -116,6 +133,15 @@ public final class FxManager {
     /** Emits a sound at full volume, default pitch. Any thread. */
     public void sound(Position position, String name) {
         emit(new Sound(position, name, 1.0f, 1.0f));
+    }
+
+    /**
+     * Emits a named sound one session never hears (the reference's
+     * playSound(Entity except, ...) overload). Any thread; best-effort.
+     */
+    public void soundExcept(Position position, String name, float volume, float pitch,
+                            net.zaminmc.torch.server.player.PlayerSession exempt) {
+        emit(new SoundExcept(position, name, volume, pitch, exempt));
     }
 
     /** Emits a block-shatter burst. Any thread. */

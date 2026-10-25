@@ -129,6 +129,32 @@ class EntityPropertiesWireConformanceTest extends ProtocolTestBase {
         return true;
     }
 
+    /**
+     * Pre-seeds ops.json so the test players can run the op-gated verbs
+     * (/give among them — the vanilla GiveCommand sits at op level 2): the
+     * offline-mode UUID convention resolves each name deterministically
+     * before the engine boots.
+     */
+    @Override
+    @org.junit.jupiter.api.BeforeAll
+    void bootStack() throws Exception {
+        java.nio.file.Files.write(dataDir.resolve("ops.json"), java.util.List.of(
+                "[{\"uuid\": \"" + java.util.UUID.nameUUIDFromBytes(
+                        "OfflinePlayer:Alpha".getBytes(java.nio.charset.StandardCharsets.UTF_8))
+                        + "\", \"name\": \"Alpha\", \"level\": 4, \"bypassesPlayerLimit\": false},",
+                " {\"uuid\": \"" + java.util.UUID.nameUUIDFromBytes(
+                        "OfflinePlayer:Bravo".getBytes(java.nio.charset.StandardCharsets.UTF_8))
+                        + "\", \"name\": \"Bravo\", \"level\": 4, \"bypassesPlayerLimit\": false},",
+                " {\"uuid\": \"" + java.util.UUID.nameUUIDFromBytes(
+                        "OfflinePlayer:Charlie".getBytes(java.nio.charset.StandardCharsets.UTF_8))
+                        + "\", \"name\": \"Charlie\", \"level\": 4, \"bypassesPlayerLimit\": false},",
+                " {\"uuid\": \"" + java.util.UUID.nameUUIDFromBytes(
+                        "OfflinePlayer:Delta".getBytes(java.nio.charset.StandardCharsets.UTF_8))
+                        + "\", \"name\": \"Delta\", \"level\": 4, \"bypassesPlayerLimit\": false}]"
+        ));
+        super.bootStack();
+    }
+
     @Test
     void theTrackTimePairRidesTheTrackingExchange() throws Exception {
         try (TestClient18 alice = new TestClient18("127.0.0.1", adapter.boundPort());
@@ -191,10 +217,11 @@ class EntityPropertiesWireConformanceTest extends ProtocolTestBase {
             // The Tools item carrying AttributeModifiers (Wave J's own
             // dataTag form): a movementSpeed-named op-0 row — the
             // trackable name the 0x20 rides.
-            carol.sendChat("/give diamond_sword 1 0 {AttributeModifiers:"
+            carol.sendChat("/give Charlie diamond_sword 1 0 {AttributeModifiers:"
                     + "[{AttributeName:\"generic.movementSpeed\","
                     + "Name:\"Speed modifier\",Amount:0.5d,Operation:0,"
                     + "UUIDMost:3L,UUIDLeast:4L}]}");
+            carol.drainGiveGhostWake(150); // the makeFakeItem ghost's wake
             awaitCondition(() -> {
                 var held = carolSession.inventory().held();
                 return held != null && !held.isEmpty()

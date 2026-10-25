@@ -6154,6 +6154,19 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                 return;
             }
             sendSound(sound.name(), sound.position(), sound.volume(), sound.pitch());
+        } else if (event instanceof net.zaminmc.torch.server.fx.FxManager.SoundExcept except) {
+            // The reference's playSound(Entity except, ...) overload: the
+            // exempt session's own observer never hears it (GiveCommand's
+            // pop at the granted player); everyone else rides the same
+            // range law and packet.
+            if (observer == except.exempt()) {
+                return;
+            }
+            at = except.position();
+            if (beyondRange(observer, at, soundRange(except.volume()))) {
+                return;
+            }
+            sendSound(except.name(), except.position(), except.volume(), except.pitch());
         } else if (event instanceof net.zaminmc.torch.server.fx.FxManager.BlockShatter shatter) {
             at = shatter.position();
             if (beyondRange(observer, at, PARTICLE_RANGE)) {

@@ -39,6 +39,26 @@ class AttributeMeleeIntegrationTest extends ProtocolTestBase {
         throw new AssertionError("Player " + name + " never registered");
     }
 
+    /**
+     * Pre-seeds ops.json so the test players can run the op-gated verbs
+     * (/give among them — the vanilla GiveCommand sits at op level 2): the
+     * offline-mode UUID convention resolves each name deterministically
+     * before the engine boots.
+     */
+    @Override
+    @org.junit.jupiter.api.BeforeAll
+    void bootStack() throws Exception {
+        java.nio.file.Files.write(dataDir.resolve("ops.json"), java.util.List.of(
+                "[{\"uuid\": \"" + java.util.UUID.nameUUIDFromBytes(
+                        "OfflinePlayer:Alice".getBytes(java.nio.charset.StandardCharsets.UTF_8))
+                        + "\", \"name\": \"Alice\", \"level\": 4, \"bypassesPlayerLimit\": false},",
+                " {\"uuid\": \"" + java.util.UUID.nameUUIDFromBytes(
+                        "OfflinePlayer:Bob".getBytes(java.nio.charset.StandardCharsets.UTF_8))
+                        + "\", \"name\": \"Bob\", \"level\": 4, \"bypassesPlayerLimit\": false}]"
+        ));
+        super.bootStack();
+    }
+
     @Test
     void theBoostedSwordFoldsItsModifiersIntoTheLiveMelee() throws Exception {
         try (TestClient18 alice = new TestClient18("127.0.0.1", adapter.boundPort());
@@ -65,10 +85,11 @@ class AttributeMeleeIntegrationTest extends ProtocolTestBase {
             // --- the boosted sword: Amount 10 op 0 over the base 1.0 — the
             // fold answers 11, the dataTag riding the /give's SNBT parse
             // (the 1.8 grammar's own suffixes: doubles d, longs L).
-            alice.sendChat("/give diamond_sword 1 0 {AttributeModifiers:"
+            alice.sendChat("/give Alice diamond_sword 1 0 {AttributeModifiers:"
                     + "[{AttributeName:\"generic.attackDamage\","
                     + "Name:\"Weapon modifier\",Amount:10.0d,Operation:0,"
                     + "UUIDMost:1L,UUIDLeast:2L}]}");
+            alice.drainGiveGhostWake(150); // the makeFakeItem ghost's wake
             alice.readWindowItems(5_000); // the authoritative inventory sync
             assertTrue(aliceSession.inventory().held() != null
                             && !aliceSession.inventory().held().isEmpty(),
@@ -88,10 +109,11 @@ class AttributeMeleeIntegrationTest extends ProtocolTestBase {
             // the read gate, the emptied list NEVER falls back to the
             // sword's default weapon modifier — the swing deals the bare
             // fist's 1. Bob's own first /give lands his own held slot.
-            bob.sendChat("/give diamond_sword 1 0 {AttributeModifiers:"
+            bob.sendChat("/give Bob diamond_sword 1 0 {AttributeModifiers:"
                     + "[{AttributeName:\"generic.attackDamage\","
                     + "Name:\"Wiped\",Amount:99.0d,Operation:0,"
                     + "UUIDMost:0L,UUIDLeast:0L}]}");
+            bob.drainGiveGhostWake(150); // the makeFakeItem ghost's wake
             bob.readWindowItems(5_000);
             assertTrue(bobSession.inventory().held() != null
                             && !bobSession.inventory().held().isEmpty(),

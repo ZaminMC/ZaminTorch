@@ -30,6 +30,27 @@ class FallingBlockIntegrationTest extends ProtocolTestBase {
         return server.playerRegistry().byName(name).orElseThrow();
     }
 
+
+    /**
+     * Pre-seeds ops.json so the test players can run the op-gated verbs
+     * (/give among them — the vanilla GiveCommand sits at op level 2): the
+     * offline-mode UUID convention resolves each name deterministically
+     * before the engine boots.
+     */
+    @Override
+    @org.junit.jupiter.api.BeforeAll
+    void bootStack() throws Exception {
+        java.nio.file.Files.write(dataDir.resolve("ops.json"), java.util.List.of(
+                "[{\"uuid\": \"" + java.util.UUID.nameUUIDFromBytes(
+                        "OfflinePlayer:GravityEngine".getBytes(java.nio.charset.StandardCharsets.UTF_8))
+                        + "\", \"name\": \"GravityEngine\", \"level\": 4, \"bypassesPlayerLimit\": false},",
+                " {\"uuid\": \"" + java.util.UUID.nameUUIDFromBytes(
+                        "OfflinePlayer:TorchBearer".getBytes(java.nio.charset.StandardCharsets.UTF_8))
+                        + "\", \"name\": \"TorchBearer\", \"level\": 4, \"bypassesPlayerLimit\": false}]"
+        ));
+        super.bootStack();
+    }
+
     @Test
     void sandColumnFallsAsObject70AndLandsBackAsBlocks() throws Exception {
         try (TestClient18 client = new TestClient18("127.0.0.1", adapter.boundPort())) {
@@ -41,7 +62,8 @@ class FallingBlockIntegrationTest extends ProtocolTestBase {
             client.readWindowItems(15_000);
 
             // A three-high sand column on the surface grass at (2,4,2).
-            client.sendChat("/give sand 3");
+            client.sendChat("/give GravityEngine sand 3");
+            client.drainGiveGhostWake(150);
             client.sendBlockPlacement(2, 4, 2, 1, 12); // onto the grass top
             // Engine-driven rules share the wire (the covered grass decays the
             // same tick), so every read names the position it waits for.
@@ -129,7 +151,8 @@ class FallingBlockIntegrationTest extends ProtocolTestBase {
             // A torch on the surface grass, then the grass breaks beneath it.
             // Close to spawn: the survival reach (eye-based) is the historical
             // ~4.5 blocks, and (1,4,1) sits well inside it.
-            client.sendChat("/give torch 1");
+            client.sendChat("/give TorchBearer torch 1");
+            client.drainGiveGhostWake(150);
             client.sendBlockPlacement(1, 4, 1, 1, 50);
             client.readBlockChangeAt(1, 5, 1, 50, 10_000); // the placed torch
             BlockPosition torchAt = new BlockPosition(1, 5, 1);

@@ -65,7 +65,8 @@ class EnchantingTableIntegrationTest extends ProtocolTestBase {
 
             // --- the table first: survival placement spends the HELD slot
             // (engine 0), so the give order stages what each placement holds ---
-            client.sendChat("/give enchanting_table 1");
+            client.sendChat("/give Enchanter enchanting_table 1");
+            client.drainGiveGhostWake(150);
             assertTrue(client.readChatLine(10_000).contains("Enchantment Table"),
                     "table granted");
             client.sendBlockPlacement(2, 4, 2, 1, ENCHANTING_TABLE);
@@ -77,7 +78,8 @@ class EnchantingTableIntegrationTest extends ProtocolTestBase {
             // (4,5,1)/(4,6,1), (3,5,0)/(3,6,0) — power 6, whose
             // enchantability base term keeps slot 0's cost above zero for any
             // seed (the reference ladder's floor) ---
-            client.sendChat("/give bookshelf 6");
+            client.sendChat("/give Enchanter bookshelf 6");
+            client.drainGiveGhostWake(150);
             assertTrue(client.readChatLine(10_000).contains("Bookshelf"), "shelves granted");
             int[][] shelfPlacements = {
                     {3, 4, 0, 3, 5, 0}, {3, 5, 0, 3, 6, 0},
@@ -91,9 +93,11 @@ class EnchantingTableIntegrationTest extends ProtocolTestBase {
 
             // --- the tool stock (lands in the emptied hotbar: sword engine 0,
             // lapis engine 1 -> enchanting-window wires 29 and 30) ---
-            client.sendChat("/give diamond_sword 1");
+            client.sendChat("/give Enchanter diamond_sword 1");
+            client.drainGiveGhostWake(150);
             assertTrue(client.readChatLine(10_000).contains("Diamond Sword"), "sword granted");
-            client.sendChat("/give lapis 5 4");
+            client.sendChat("/give Enchanter lapis 5 4");
+            client.drainGiveGhostWake(150);
             assertTrue(client.readChatLine(10_000).contains("Lapis Lazuli"), "lapis granted");
             client.sendChat("/xp 30L Enchanter");
             client.readSetExperience(10_000); // the level grant resync

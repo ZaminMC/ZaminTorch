@@ -56,7 +56,7 @@ class FurnaceRestartAcceptanceTest {
         first.useItemOnBlock(smelter, FURNACE_POS, -1, java.util.Optional.empty(), windowId::set);
         await(() -> windowId.get() > 0, "furnace window opened");
 
-        first.chatService().submitChat(smelter, "/give iron_ore 3");
+        first.chatService().submitChat(smelter, "/give " + smelter.name() + " iron_ore 3");
         await(() -> smelter.inventory().snapshot().stream()
                 .anyMatch(stack -> !stack.isEmpty()
                         && stack.type().equals(BuiltinItems.IRON_ORE)), "ore given");
@@ -99,6 +99,7 @@ class FurnaceRestartAcceptanceTest {
         var accepted = server.joinRequest(link(), name, UUID.randomUUID());
         PlayerSession session = ((EngineBridge.Accepted) accepted).session();
         await(() -> server.playerRegistry().byName(name).isPresent(), name + " registered");
+        server.ticker().submit(() -> session.setOpLevel(2));
         return session;
     }
 

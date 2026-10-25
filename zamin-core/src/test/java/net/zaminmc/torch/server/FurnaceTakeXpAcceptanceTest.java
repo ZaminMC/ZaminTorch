@@ -54,8 +54,8 @@ class FurnaceTakeXpAcceptanceTest {
                     windowId::set);
             await(() -> windowId.get() > 0, "furnace window opened");
 
-            server.chatService().submitChat(smelter, "/give gold_ore 3");
-            server.chatService().submitChat(smelter, "/give coal 2");
+            server.chatService().submitChat(smelter, "/give " + smelter.name() + " gold_ore 3");
+            server.chatService().submitChat(smelter, "/give " + smelter.name() + " coal 2");
             await(() -> smelter.inventory().snapshot().stream().anyMatch(stack -> !stack.isEmpty()
                     && stack.type().equals(BuiltinItems.GOLD_ORE)), "gold ore given");
 
@@ -126,6 +126,7 @@ class FurnaceTakeXpAcceptanceTest {
         var accepted = server.joinRequest(link(), name, UUID.randomUUID());
         PlayerSession session = ((EngineBridge.Accepted) accepted).session();
         await(() -> server.playerRegistry().byName(name).isPresent(), name + " registered");
+        server.ticker().submit(() -> session.setOpLevel(2));
         return session;
     }
 

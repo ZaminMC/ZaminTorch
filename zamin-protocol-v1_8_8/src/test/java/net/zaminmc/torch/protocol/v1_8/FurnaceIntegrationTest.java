@@ -53,6 +53,24 @@ class FurnaceIntegrationTest extends ProtocolTestBase {
         return new Click(confirm[2] == 1, cursor[1], cursor[2], window);
     }
 
+
+    /**
+     * Pre-seeds ops.json so the test players can run the op-gated verbs
+     * (/give among them — the vanilla GiveCommand sits at op level 2): the
+     * offline-mode UUID convention resolves each name deterministically
+     * before the engine boots.
+     */
+    @Override
+    @org.junit.jupiter.api.BeforeAll
+    void bootStack() throws Exception {
+        java.nio.file.Files.write(dataDir.resolve("ops.json"), java.util.List.of(
+                "[{\"uuid\": \"" + java.util.UUID.nameUUIDFromBytes(
+                        "OfflinePlayer:Smelter".getBytes(java.nio.charset.StandardCharsets.UTF_8))
+                        + "\", \"name\": \"Smelter\", \"level\": 4, \"bypassesPlayerLimit\": false}]"
+        ));
+        super.bootStack();
+    }
+
     @Test
     void furnaceSmeltsIronOreWithLiveProgress() throws Exception {
         try (TestClient18 client = new TestClient18("127.0.0.1", adapter.boundPort())) {
@@ -64,11 +82,14 @@ class FurnaceIntegrationTest extends ProtocolTestBase {
             client.readWindowItems(10_000); // join sync: all empty
 
             // --- stock: furnace, 3 iron ore, 2 coal ---
-            client.sendChat("/give furnace 1");
+            client.sendChat("/give Smelter furnace 1");
+            client.drainGiveGhostWake(150);
             assertEquals(FURNACE, client.readWindowSlotTable(10_000)[36][0]);
-            client.sendChat("/give iron_ore 3");
+            client.sendChat("/give Smelter iron_ore 3");
+            client.drainGiveGhostWake(150);
             assertEquals(IRON_ORE, client.readWindowSlotTable(10_000)[37][0]);
-            client.sendChat("/give coal 2");
+            client.sendChat("/give Smelter coal 2");
+            client.drainGiveGhostWake(150);
             assertEquals(COAL, client.readWindowSlotTable(10_000)[38][0]);
 
             // --- place the furnace: top face at (2,4,2) -> lands at (2,5,2) ---

@@ -24,6 +24,36 @@ class VehicleIntegrationTest extends ProtocolTestBase {
         return 300_000;
     }
 
+
+    /**
+     * Pre-seeds ops.json so the test players can run the op-gated verbs
+     * (/give among them — the vanilla GiveCommand sits at op level 2): the
+     * offline-mode UUID convention resolves each name deterministically
+     * before the engine boots.
+     */
+    @Override
+    @org.junit.jupiter.api.BeforeAll
+    void bootStack() throws Exception {
+        java.nio.file.Files.write(dataDir.resolve("ops.json"), java.util.List.of(
+                "[{\"uuid\": \"" + java.util.UUID.nameUUIDFromBytes(
+                        "OfflinePlayer:BoatRider".getBytes(java.nio.charset.StandardCharsets.UTF_8))
+                        + "\", \"name\": \"BoatRider\", \"level\": 4, \"bypassesPlayerLimit\": false},",
+                " {\"uuid\": \"" + java.util.UUID.nameUUIDFromBytes(
+                        "OfflinePlayer:ChestCartRider".getBytes(java.nio.charset.StandardCharsets.UTF_8))
+                        + "\", \"name\": \"ChestCartRider\", \"level\": 4, \"bypassesPlayerLimit\": false},",
+                " {\"uuid\": \"" + java.util.UUID.nameUUIDFromBytes(
+                        "OfflinePlayer:FireCartWatcher".getBytes(java.nio.charset.StandardCharsets.UTF_8))
+                        + "\", \"name\": \"FireCartWatcher\", \"level\": 4, \"bypassesPlayerLimit\": false},",
+                " {\"uuid\": \"" + java.util.UUID.nameUUIDFromBytes(
+                        "OfflinePlayer:MobSeatWatcher".getBytes(java.nio.charset.StandardCharsets.UTF_8))
+                        + "\", \"name\": \"MobSeatWatcher\", \"level\": 4, \"bypassesPlayerLimit\": false},",
+                " {\"uuid\": \"" + java.util.UUID.nameUUIDFromBytes(
+                        "OfflinePlayer:RailRider".getBytes(java.nio.charset.StandardCharsets.UTF_8))
+                        + "\", \"name\": \"RailRider\", \"level\": 4, \"bypassesPlayerLimit\": false}]"
+        ));
+        super.bootStack();
+    }
+
     @Test
     void boatPlaceRideSteerAndDismountOverTheWire() throws Exception {
         try (TestClient18 client = new TestClient18("127.0.0.1", adapter.boundPort())) {
@@ -57,7 +87,8 @@ class VehicleIntegrationTest extends ProtocolTestBase {
                     "pool seeded");
 
             // The boat item into the held slot (the default hotbar slot 0).
-            client.sendChat("/give minecraft:boat 1");
+            client.sendChat("/give BoatRider minecraft:boat 1");
+            client.drainGiveGhostWake(150);
             Thread.sleep(200);
 
             // The placement: use the boat on the water block's top face.

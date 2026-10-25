@@ -30,6 +30,24 @@ class WindowClickIntegrationTest extends ProtocolTestBase {
         return new int[]{confirm[2], cursor[1], cursor[2], window[2], window[3], window[4]};
     }
 
+
+    /**
+     * Pre-seeds ops.json so the test players can run the op-gated verbs
+     * (/give among them — the vanilla GiveCommand sits at op level 2): the
+     * offline-mode UUID convention resolves each name deterministically
+     * before the engine boots.
+     */
+    @Override
+    @org.junit.jupiter.api.BeforeAll
+    void bootStack() throws Exception {
+        java.nio.file.Files.write(dataDir.resolve("ops.json"), java.util.List.of(
+                "[{\"uuid\": \"" + java.util.UUID.nameUUIDFromBytes(
+                        "OfflinePlayer:Clicker".getBytes(java.nio.charset.StandardCharsets.UTF_8))
+                        + "\", \"name\": \"Clicker\", \"level\": 4, \"bypassesPlayerLimit\": false}]"
+        ));
+        super.bootStack();
+    }
+
     @Test
     void clicksMoveItemsAndCraftSlotsAreRejected() throws Exception {
         try (TestClient18 client = new TestClient18("127.0.0.1", adapter.boundPort())) {
@@ -41,7 +59,8 @@ class WindowClickIntegrationTest extends ProtocolTestBase {
             client.readWindowItems(10_000); // join sync: empty
 
             // 30 dirt into hotbar slot 0 (wire slot 36)
-            client.sendChat("/give dirt 30");
+            client.sendChat("/give Clicker dirt 30");
+            client.drainGiveGhostWake(150);
             client.readWindowItems(10_000);
 
             // shift-click the hotbar stack: quick-move to main slot 9

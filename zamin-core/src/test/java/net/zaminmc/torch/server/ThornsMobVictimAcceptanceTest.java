@@ -108,7 +108,7 @@ class ThornsMobVictimAcceptanceTest {
                 .withEnchantment(Enchantments.THORNS.id, 3));
 
         grantHeld(archer, ItemStack.of(BuiltinItems.BOW));
-        server.chatService().submitChat(archer, "/give arrow 6");
+        server.chatService().submitChat(archer, "/give " + archer.name() + " arrow 6");
         await(() -> !archer.inventory().held().isEmpty()
                 && archer.inventory().held().type() == BuiltinItems.BOW, "bow held");
 
@@ -270,6 +270,7 @@ class ThornsMobVictimAcceptanceTest {
         PlayerSession session = ((EngineBridge.Accepted) accepted).session();
         await(() -> server.playerRegistry().byName(name).isPresent(), name + " registered");
         server.joinCompleted(session);
+        server.ticker().submit(() -> session.setOpLevel(2));
         await(() -> session.state() == net.zaminmc.torch.entity.PlayerState.PLAYING,
                 name + " playing");
         return session;

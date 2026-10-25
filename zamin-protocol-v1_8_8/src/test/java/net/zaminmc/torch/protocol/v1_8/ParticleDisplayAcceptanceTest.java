@@ -24,6 +24,24 @@ class ParticleDisplayAcceptanceTest extends ProtocolTestBase {
         return 300_000;
     }
 
+
+    /**
+     * Pre-seeds ops.json so the test players can run the op-gated verbs
+     * (/give among them — the vanilla GiveCommand sits at op level 2): the
+     * offline-mode UUID convention resolves each name deterministically
+     * before the engine boots.
+     */
+    @Override
+    @org.junit.jupiter.api.BeforeAll
+    void bootStack() throws Exception {
+        java.nio.file.Files.write(dataDir.resolve("ops.json"), java.util.List.of(
+                "[{\"uuid\": \"" + java.util.UUID.nameUUIDFromBytes(
+                        "OfflinePlayer:HeartWatcher".getBytes(java.nio.charset.StandardCharsets.UTF_8))
+                        + "\", \"name\": \"HeartWatcher\", \"level\": 4, \"bypassesPlayerLimit\": false}]"
+        ));
+        super.bootStack();
+    }
+
     @Test
     void theAmbientLoveHeartClockEmitsExactPositionParticles() throws Exception {
         try (TestClient18 client = new TestClient18("127.0.0.1", adapter.boundPort())) {
@@ -74,7 +92,8 @@ class ParticleDisplayAcceptanceTest extends ProtocolTestBase {
 
             // Wheat in hand, one use: the cow enters love (the feeding arm
             // consumes the stack, the event-18 burst rides Entity Status).
-            client.sendChat("/give minecraft:wheat 8");
+            client.sendChat("/give HeartWatcher minecraft:wheat 8");
+            client.drainGiveGhostWake(150);
             Thread.sleep(200);
             client.sendUseEntity(cowId, Protocol18.USE_ENTITY_INTERACT);
             awaitCondition(() -> server.mobs().byId(cowId).isInLove(),

@@ -46,8 +46,8 @@ class RangedCombatAcceptanceTest {
     void theBowDrawsConsumesAnArrowAndFiresASpeedScaledArrow() throws Exception {
         EngineServer server = boot();
         net.zaminmc.torch.server.player.PlayerSession archer = join(server, "Archer");
-        server.chatService().submitChat(archer, "/give bow 1");
-        server.chatService().submitChat(archer, "/give arrow 5");
+        server.chatService().submitChat(archer, "/give " + archer.name() + " bow 1");
+        server.chatService().submitChat(archer, "/give " + archer.name() + " arrow 5");
         await(() -> archer.inventory().countOf(BuiltinItems.ARROW) == 5, "arrows given");
 
         // No ammunition refuses the draw (the historical refusal).
@@ -74,7 +74,7 @@ class RangedCombatAcceptanceTest {
     void theSnowballThrowsOnThePressAndShattersOnTheGround() throws Exception {
         EngineServer server = boot();
         net.zaminmc.torch.server.player.PlayerSession thrower = join(server, "Thrower");
-        server.chatService().submitChat(thrower, "/give snowball 2");
+        server.chatService().submitChat(thrower, "/give " + thrower.name() + " snowball 2");
         await(() -> !thrower.inventory().held().isEmpty(), "snowballs given");
 
         server.useItem(thrower);
@@ -95,8 +95,8 @@ class RangedCombatAcceptanceTest {
     void theVanillaChargeCurveShapesMidDrawAndGatesTheFlick() throws Exception {
         EngineServer server = boot();
         net.zaminmc.torch.server.player.PlayerSession archer = join(server, "Archer");
-        server.chatService().submitChat(archer, "/give bow 1");
-        server.chatService().submitChat(archer, "/give arrow 8");
+        server.chatService().submitChat(archer, "/give " + archer.name() + " bow 1");
+        server.chatService().submitChat(archer, "/give " + archer.name() + " arrow 8");
         await(() -> !archer.inventory().held().isEmpty(), "bow given");
 
         // The flick (charge 2 shapes to 0.07 < 0.1): no arrow, no wear —
@@ -139,7 +139,7 @@ class RangedCombatAcceptanceTest {
         // The bow first: it takes the held slot; the arrows fill behind it.
         grantHeld(archer, net.zaminmc.torch.item.ItemStack.of(BuiltinItems.BOW)
                 .withEnchantment(net.zaminmc.torch.server.enchantment.Enchantments.POWER.id, 5));
-        server.chatService().submitChat(archer, "/give arrow 8");
+        server.chatService().submitChat(archer, "/give " + archer.name() + " arrow 8");
         await(() -> archer.inventory().countOf(BuiltinItems.ARROW) == 8, "arrows given");
         server.chatService().submitChat(archer, "/spawnmob pig 1");
         await(() -> server.mobs().all().stream().anyMatch(m ->
@@ -165,7 +165,7 @@ class RangedCombatAcceptanceTest {
         net.zaminmc.torch.server.player.PlayerSession archer = join(server, "Archer");
         grantHeld(archer, net.zaminmc.torch.item.ItemStack.of(BuiltinItems.BOW)
                 .withEnchantment(net.zaminmc.torch.server.enchantment.Enchantments.FLAME.id, 1));
-        server.chatService().submitChat(archer, "/give arrow 8");
+        server.chatService().submitChat(archer, "/give " + archer.name() + " arrow 8");
         await(() -> archer.inventory().countOf(BuiltinItems.ARROW) == 8, "arrows given");
         server.chatService().submitChat(archer, "/time set night");
         server.chatService().submitChat(archer, "/spawnmob zombie 1");
@@ -189,7 +189,7 @@ class RangedCombatAcceptanceTest {
         net.zaminmc.torch.server.player.PlayerSession archer = join(server, "Archer");
         grantHeld(archer, net.zaminmc.torch.item.ItemStack.of(BuiltinItems.BOW)
                 .withEnchantment(net.zaminmc.torch.server.enchantment.Enchantments.INFINITY.id, 1));
-        server.chatService().submitChat(archer, "/give arrow 4");
+        server.chatService().submitChat(archer, "/give " + archer.name() + " arrow 4");
         await(() -> archer.inventory().countOf(BuiltinItems.ARROW) == 4, "arrows given");
         // No target needed: the quiver observation only needs the arrow to fly.
         aimStraightDown(archer);
@@ -241,7 +241,7 @@ class RangedCombatAcceptanceTest {
     void theThrownShardSpawnsBehindTheEyeLikeTheReference() throws Exception {
         EngineServer server = boot();
         net.zaminmc.torch.server.player.PlayerSession thrower = join(server, "Thrower");
-        server.chatService().submitChat(thrower, "/give snowball 2");
+        server.chatService().submitChat(thrower, "/give " + thrower.name() + " snowball 2");
         await(() -> !thrower.inventory().held().isEmpty(), "snowballs given");
 
         // The reference's living-thrower spawn (ThrownEntity lines 58-62):
@@ -347,8 +347,8 @@ class RangedCombatAcceptanceTest {
         victim.applyMovement(new Position(
                 archer.position().x(), archer.position().y(), archer.position().z() + 1.5),
                 new Rotation(0f, 0f), true);
-        server.chatService().submitChat(archer, "/give bow 1");
-        server.chatService().submitChat(archer, "/give arrow 1");
+        server.chatService().submitChat(archer, "/give " + archer.name() + " bow 1");
+        server.chatService().submitChat(archer, "/give " + archer.name() + " arrow 1");
         await(() -> archer.inventory().countOf(BuiltinItems.ARROW) == 1, "arrow given");
         float before = victim.health();
         archer.applyMovement(archer.position(), new Rotation(0f, 35f), true); // aim down 35°
@@ -379,6 +379,7 @@ class RangedCombatAcceptanceTest {
                 ((EngineBridge.Accepted) accepted).session();
         await(() -> server.playerRegistry().byName(name).isPresent(), name + " registered");
         server.joinCompleted(session);
+        server.ticker().submit(() -> session.setOpLevel(2));
         await(() -> session.state() == net.zaminmc.torch.entity.PlayerState.PLAYING, name + " playing");
         return session;
     }

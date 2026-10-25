@@ -26,6 +26,27 @@ class ChestLidAndHeldItemIntegrationTest extends ProtocolTestBase {
         awaitCondition(() -> server.playerRegistry().byName(name).isPresent(), "player joined");
     }
 
+
+    /**
+     * Pre-seeds ops.json so the test players can run the op-gated verbs
+     * (/give among them — the vanilla GiveCommand sits at op level 2): the
+     * offline-mode UUID convention resolves each name deterministically
+     * before the engine boots.
+     */
+    @Override
+    @org.junit.jupiter.api.BeforeAll
+    void bootStack() throws Exception {
+        java.nio.file.Files.write(dataDir.resolve("ops.json"), java.util.List.of(
+                "[{\"uuid\": \"" + java.util.UUID.nameUUIDFromBytes(
+                        "OfflinePlayer:Opener".getBytes(java.nio.charset.StandardCharsets.UTF_8))
+                        + "\", \"name\": \"Opener\", \"level\": 4, \"bypassesPlayerLimit\": false},",
+                " {\"uuid\": \"" + java.util.UUID.nameUUIDFromBytes(
+                        "OfflinePlayer:Watcher".getBytes(java.nio.charset.StandardCharsets.UTF_8))
+                        + "\", \"name\": \"Watcher\", \"level\": 4, \"bypassesPlayerLimit\": false}]"
+        ));
+        super.bootStack();
+    }
+
     @Test
     void chestLidSwingsForObserversAndHeldItemConfirms() throws Exception {
         try (TestClient18 opener = new TestClient18("127.0.0.1", adapter.boundPort());
@@ -45,7 +66,8 @@ class ChestLidAndHeldItemIntegrationTest extends ProtocolTestBase {
             watcher.readWindowItems(10_000);
 
             // Place the chest beside spawn (the flat world's surface).
-            opener.sendChat("/give chest 1");
+            opener.sendChat("/give Opener chest 1");
+            opener.drainGiveGhostWake(150);
             opener.readWindowSlotTable(10_000);
             opener.sendBlockPlacement(2, 4, 2, 1, CHEST);
             opener.readBlockChange(10_000);

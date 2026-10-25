@@ -23,6 +23,24 @@ class HorseIntegrationTest extends ProtocolTestBase {
         return 300_000;
     }
 
+
+    /**
+     * Pre-seeds ops.json so the test players can run the op-gated verbs
+     * (/give among them — the vanilla GiveCommand sits at op level 2): the
+     * offline-mode UUID convention resolves each name deterministically
+     * before the engine boots.
+     */
+    @Override
+    @org.junit.jupiter.api.BeforeAll
+    void bootStack() throws Exception {
+        java.nio.file.Files.write(dataDir.resolve("ops.json"), java.util.List.of(
+                "[{\"uuid\": \"" + java.util.UUID.nameUUIDFromBytes(
+                        "OfflinePlayer:HorseTamer".getBytes(java.nio.charset.StandardCharsets.UTF_8))
+                        + "\", \"name\": \"HorseTamer\", \"level\": 4, \"bypassesPlayerLimit\": false}]"
+        ));
+        super.bootStack();
+    }
+
     @Test
     void horseTamesSeatsDrivesAndOpensItsInventoryOverTheWire() throws Exception {
         try (TestClient18 client = new TestClient18("127.0.0.1", adapter.boundPort())) {
@@ -88,7 +106,8 @@ class HorseIntegrationTest extends ProtocolTestBase {
             assertTrue(flagInt, "the index-16 flag Int rides the horse spawn");
 
             // The feeding ladder: wheat in hand, every use +3 temper.
-            client.sendChat("/give minecraft:wheat 64");
+            client.sendChat("/give HorseTamer minecraft:wheat 64");
+            client.drainGiveGhostWake(150);
             // The chat frame's delivery rides the loopback netty lane, not
             // the tick clock — the honest wait is the engine-visible one:
             // the wheat actually reaching the tamer's inventory (the
@@ -129,7 +148,8 @@ class HorseIntegrationTest extends ProtocolTestBase {
 
             // The saddle goes on from the hand (the rider stays seated; the
             // vanilla right-click ladder equips before it seats).
-            client.sendChat("/give minecraft:saddle 1");
+            client.sendChat("/give HorseTamer minecraft:saddle 1");
+            client.drainGiveGhostWake(150);
             awaitCondition(() -> server.playerRegistry().byName("HorseTamer")
                             .orElseThrow().inventory()
                             .countOf(net.zaminmc.torch.server.item.BuiltinItems.SADDLE) > 0,

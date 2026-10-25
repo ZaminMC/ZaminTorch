@@ -21820,11 +21820,12 @@ public final class EngineServer implements Server, EngineBridge {
         commands.register(new CommandService.Command("ping", "Check server responsiveness",
                 (sender, args) -> "pong"));
         commands.register(new CommandService.Command("give",
-                "Give yourself an item: /give <name> [count] [metadata] [dataTag]",
-                playerCommand(this::giveCommand),
-                // GiveCommand.getSuggestions 1:1 over the engine's own item
-                // registry (Item.REGISTRY.keySet() — the namespaced ids).
-                (sender, args) -> args.length == 1 ? itemIdentifierNames() : null));
+                "Give a player an item: /give <player> <item> [count] [data] [dataTag]",
+                2, this::giveCommand,
+                // GiveCommand.getSuggestions 1:1: the player names at arg 1
+                // ride the standing fallback (the reference's getPlayerNames);
+                // the item registry at arg 2 (Item.REGISTRY.keySet()).
+                (sender, args) -> args.length == 2 ? itemIdentifierNames() : null));
         commands.register(new CommandService.Command("gamerule",
                 "Query or set a game rule: /gamerule <rule> [true|false|value]",
                 2, this::gameruleCommand,
@@ -26136,44 +26137,44 @@ public final class EngineServer implements Server, EngineBridge {
         return keys;
     }
 
-    private String giveCommand(PlayerSession sender, String[] args) {
-        if (args.length < 1) {
-            return "Usage: /give <item> [count] [metadata]";
+    /**
+     * /give (GiveCommand 1:1, op-2): the vanilla form
+     * {@code <player> <item> [count 1..64] [data] [dataTag]} — the target
+     * resolves through the parsePlayer ladder (selector, uuid, name), the
+     * count rides the reference's own 1..64 band (never the stack size),
+     * and the granted stack lands through the reference's exact walk: the
+     * add into the target's inventory, the random.pop at 0.2F with the
+     * {@code ((r - r) * 0.7F + 1.0F) * 2.0F} pitch heard by everyone
+     * EXCEPT the target (the playSound(Entity except, ...) overload), the
+     * full-fit arm's fake-drop quirk (a one-tick ghost: never-pick-up +
+     * age 5999, the reference's makeFakeItem), the remainder arm's drop
+     * with noPickUpDelay + the owner window, and the AFFECTED_ITEMS rows
+     * (the full fit counts the whole grant, the partial the difference).
+     */
+    private String giveCommand(CommandSender sender, String[] args) {
+        if (args.length < 2) {
+            return "Usage: /give <player> <item> [count] [data] [dataTag]";
         }
-        String rawName = args[0];
+        PlayerSession target = net.zaminmc.torch.server.command.CommandParse.parsePlayer(
+                players, sender, args[0]);
+        String rawName = args[1];
         String name = rawName.contains(":") ? rawName : "minecraft:" + rawName;
         net.zaminmc.torch.item.ItemType type = net.zaminmc.torch.server.item.BuiltinItems.lookup(
                 net.zaminmc.torch.util.Identifier.parse(name)).orElse(null);
         if (type == null) {
             return "Unknown item: " + rawName;
         }
-        int count = 1;
-        if (args.length >= 2) {
-            try {
-                count = Integer.parseInt(args[1]);
-            } catch (NumberFormatException e) {
-                return "Not a count: " + args[1];
-            }
-            if (count < 1 || count > type.maxStackSize()) {
-                return "Count must be 1.." + type.maxStackSize() + " for " + type.displayName();
-            }
-        }
-        int metadata = 0;
-        if (args.length >= 3) {
-            try {
-                metadata = Integer.parseInt(args[2]);
-            } catch (NumberFormatException e) {
-                return "Not a metadata value: " + args[2];
-            }
-            if (metadata < 0 || metadata > net.zaminmc.torch.item.ItemStack.MAX_DAMAGE) {
-                return "Metadata must be 0.." + net.zaminmc.torch.item.ItemStack.MAX_DAMAGE;
-            }
-        }
+        // The reference's parseInt(args[2], 1, 64): the band is the
+        // command's own, never the item's stack size.
+        int count = args.length >= 3
+                ? net.zaminmc.torch.server.command.CommandParse.parseInt(args[2], 1, 64) : 1;
+        int data = args.length >= 4
+                ? net.zaminmc.torch.server.command.CommandParse.parseInt(args[3]) : 0;
         net.zaminmc.torch.item.ItemStack granted;
         try {
-            granted = net.zaminmc.torch.item.ItemStack.of(type, count).withDamage(metadata);
+            granted = net.zaminmc.torch.item.ItemStack.of(type, count).withDamage(data);
         } catch (IllegalArgumentException invalidVariant) {
-            return "Cannot grant that metadata: " + invalidVariant.getMessage();
+            return "Cannot grant that data: " + invalidVariant.getMessage();
         }
         // The dataTag arm (Wave H2 — the reference's GiveCommand: the
         // trailing argument parsed as SNBT and set as the stack's whole
@@ -26182,9 +26183,9 @@ public final class EngineServer implements Server, EngineBridge {
         // error, and the granted stack carries every model arm the walk
         // reads (display.Name, ench, Unbreakable, RepairCost, HideFlags,
         // Lore, BlockEntityTag).
-        if (args.length >= 4) {
+        if (args.length >= 5) {
             String dataTag = String.join(" ",
-                    java.util.Arrays.copyOfRange(args, 3, args.length));
+                    java.util.Arrays.copyOfRange(args, 4, args.length));
             try {
                 granted = net.zaminmc.torch.server.nbt.ItemNbt.readTagInto(
                         granted, net.zaminmc.torch.server.nbt.Snbt.parseCompound(dataTag));
@@ -26192,25 +26193,56 @@ public final class EngineServer implements Server, EngineBridge {
                 return "Invalid dataTag: " + badTag.getMessage();
             }
         }
-        net.zaminmc.torch.item.ItemStack remainder = sender.inventory().pickUp(granted);
-        publishInventoryChanged(sender);
-        int given = count - remainder.count();
-        sender.commandResults().add(senderSelfView(sender),
-                net.zaminmc.torch.server.command.EngineCommandResults.Type.AFFECTED_ITEMS, given);
-        String variantName = metadata != 0 ? " (metadata " + metadata + ")" : "";
-        return remainder.isEmpty()
-                ? "Given " + given + " x " + type.displayName() + variantName
-                : "Inventory full: gave " + given + " of " + count;
-    }
 
-    /** A sender view over a session (the stats resolve walk's source). */
-    private static CommandSender senderSelfView(PlayerSession session) {
-        return new CommandSender() {
-            @Override public String name() { return session.name(); }
-            @Override public void sendMessage(String message) { }
-            @Override public int opLevel() { return session.opLevel(); }
-            @Override public PlayerSession player() { return session; }
-        };
+        net.zaminmc.torch.item.ItemStack remainder = target.inventory().pickUp(granted);
+        boolean anyAdded = remainder.count() < granted.count();
+        if (anyAdded) {
+            // The reference's flag arm: the pop sound at the target's
+            // position, everyone except the target, and the player menu
+            // re-sync.
+            Position at = target.position();
+            if (fxManager != null) {
+                float pitchDelta = gameplayRandom.nextFloat() - gameplayRandom.nextFloat();
+                fxManager.soundExcept(new Position(at.x(), at.y(), at.z()), "random.pop",
+                        0.2F, (pitchDelta * 0.7F + 1.0F) * 2.0F, target);
+            }
+            publishInventoryChanged(target);
+        }
+
+        if (anyAdded && remainder.isEmpty()) {
+            // The full-fit quirk (lines 121-127): the whole grant landed,
+            // so a one-tick ghost drops anyway — the reference resets the
+            // SAME stack object to size 1 and drops it with makeFakeItem
+            // (never-pick-up + age 5999: it despawns next tick, a wire
+            // ghost and nothing more). withCount(1) keeps the damage and
+            // every dataTag arm on the ghost, same object semantics.
+            sender.addResult(net.zaminmc.torch.server.command.EngineCommandResults.Type.AFFECTED_ITEMS,
+                    count);
+            ItemEntity ghostEntity = throwFromPlayer(target, granted.withCount(1));
+            if (ghostEntity != null) {
+                // makeFakeItem: setNeverPickUp (delay 32767) + age 5999.
+                ghostEntity.setPickupDelayTicks(32767);
+                ghostEntity.setAge(5999);
+            }
+        } else {
+            // The remainder arm (lines 128-135): what did not fit drops at
+            // the target with noPickUpDelay and the owner window stamped —
+            // the player can sweep it straight back up.
+            sender.addResult(net.zaminmc.torch.server.command.EngineCommandResults.Type.AFFECTED_ITEMS,
+                    granted.count() - remainder.count());
+            ItemEntity dropped = throwFromPlayer(target, remainder);
+            if (dropped != null) {
+                dropped.setPickupDelayTicks(0);
+                dropped.setOwner(target.name());
+            }
+        }
+        // The reference's itemstack.getDisplayName: the custom name when
+        // the dataTag carries one, the item's own display name otherwise.
+        String shown = granted.displayName() != null
+                ? granted.displayName() : type.displayName();
+        String variantName = data != 0 ? " (data " + data + ")" : "";
+        return "Given " + count + " x " + shown + variantName
+                + " to " + target.name();
     }
 
     private void publishChat(ChatService.ChatEvent event) {

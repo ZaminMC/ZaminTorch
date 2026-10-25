@@ -26,6 +26,30 @@ class WorldEventRadiusAcceptanceTest extends ProtocolTestBase {
         return 300_000;
     }
 
+
+    /**
+     * Pre-seeds ops.json so the test players can run the op-gated verbs
+     * (/give among them — the vanilla GiveCommand sits at op level 2): the
+     * offline-mode UUID convention resolves each name deterministically
+     * before the engine boots.
+     */
+    @Override
+    @org.junit.jupiter.api.BeforeAll
+    void bootStack() throws Exception {
+        java.nio.file.Files.write(dataDir.resolve("ops.json"), java.util.List.of(
+                "[{\"uuid\": \"" + java.util.UUID.nameUUIDFromBytes(
+                        "OfflinePlayer:FarWatcher".getBytes(java.nio.charset.StandardCharsets.UTF_8))
+                        + "\", \"name\": \"FarWatcher\", \"level\": 4, \"bypassesPlayerLimit\": false},",
+                " {\"uuid\": \"" + java.util.UUID.nameUUIDFromBytes(
+                        "OfflinePlayer:MiddleCatcher".getBytes(java.nio.charset.StandardCharsets.UTF_8))
+                        + "\", \"name\": \"MiddleCatcher\", \"level\": 4, \"bypassesPlayerLimit\": false},",
+                " {\"uuid\": \"" + java.util.UUID.nameUUIDFromBytes(
+                        "OfflinePlayer:NearCatcher".getBytes(java.nio.charset.StandardCharsets.UTF_8))
+                        + "\", \"name\": \"NearCatcher\", \"level\": 4, \"bypassesPlayerLimit\": false}]"
+        ));
+        super.bootStack();
+    }
+
     @Test
     void theBottleSplashFansOnlyTheSixtyFourBlockObservers() throws Exception {
         try (TestClient18 near = new TestClient18("127.0.0.1", adapter.boundPort());
@@ -67,7 +91,8 @@ class WorldEventRadiusAcceptanceTest extends ProtocolTestBase {
             // The bottle in the thrower's hand, then the use-in-air press:
             // the lob flies, the burst lands within a few blocks of the
             // thrower, and the 2002 event rides the radius fan.
-            near.sendChat("/give minecraft:experience_bottle 4");
+            near.sendChat("/give NearCatcher minecraft:experience_bottle 4");
+            near.drainGiveGhostWake(150);
             awaitCondition(() -> !nearSession.inventory().held().isEmpty(),
                     "the bottle granted into the held slot");
             near.sendUseItemInAir();

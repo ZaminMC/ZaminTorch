@@ -52,6 +52,27 @@ class ChestIntegrationTest extends ProtocolTestBase {
         return new Click(confirm[2] == 1, cursor[1], cursor[2], window);
     }
 
+
+    /**
+     * Pre-seeds ops.json so the test players can run the op-gated verbs
+     * (/give among them — the vanilla GiveCommand sits at op level 2): the
+     * offline-mode UUID convention resolves each name deterministically
+     * before the engine boots.
+     */
+    @Override
+    @org.junit.jupiter.api.BeforeAll
+    void bootStack() throws Exception {
+        java.nio.file.Files.write(dataDir.resolve("ops.json"), java.util.List.of(
+                "[{\"uuid\": \"" + java.util.UUID.nameUUIDFromBytes(
+                        "OfflinePlayer:Packrat".getBytes(java.nio.charset.StandardCharsets.UTF_8))
+                        + "\", \"name\": \"Packrat\", \"level\": 4, \"bypassesPlayerLimit\": false},",
+                " {\"uuid\": \"" + java.util.UUID.nameUUIDFromBytes(
+                        "OfflinePlayer:Storer".getBytes(java.nio.charset.StandardCharsets.UTF_8))
+                        + "\", \"name\": \"Storer\", \"level\": 4, \"bypassesPlayerLimit\": false}]"
+        ));
+        super.bootStack();
+    }
+
     @Test
     void chestStoresRetainsAndSpillsOverTheWire() throws Exception {
         try (TestClient18 client = new TestClient18("127.0.0.1", adapter.boundPort())) {
@@ -63,7 +84,8 @@ class ChestIntegrationTest extends ProtocolTestBase {
             client.readWindowItems(10_000); // join sync: all empty
 
             // --- stock: chest, then dirt ---
-            client.sendChat("/give chest 1");
+            client.sendChat("/give Storer chest 1");
+            client.drainGiveGhostWake(150);
             assertEquals(CHEST, client.readWindowSlotTable(10_000)[36][0]);
 
             // --- place the chest: top face at (2,4,2) -> lands at (2,5,2) ---
@@ -92,7 +114,8 @@ class ChestIntegrationTest extends ProtocolTestBase {
             // --- stock dirt while the chest window is open (the visible
             // inventory lives in the container layout, so the sync arrives
             // for the chest window; engine slot 0 = wire 54) ---
-            client.sendChat("/give dirt 30");
+            client.sendChat("/give Storer dirt 30");
+            client.drainGiveGhostWake(150);
             window = client.readWindowSlotTable(10_000, windowId);
             assertEquals(DIRT, window[54][0], "the hotbar mirror shows the dirt");
             assertEquals(30, window[54][1]);
@@ -178,7 +201,8 @@ class ChestIntegrationTest extends ProtocolTestBase {
             awaitPlayer("Packrat");
             client.readWindowItems(10_000);
 
-            client.sendChat("/give chest 1");
+            client.sendChat("/give Packrat chest 1");
+            client.drainGiveGhostWake(150);
             assertEquals(CHEST, client.readWindowSlotTable(10_000)[36][0]);
             client.sendBlockPlacement(2, 4, 2, 1, CHEST);
             client.readWindowSlotTable(10_000); // the immediate consume sync
@@ -191,7 +215,8 @@ class ChestIntegrationTest extends ProtocolTestBase {
             // Fill the whole inventory with full stacks (give merges partials,
             // so only 64s guarantee fullness): 36 x /give dirt 64.
             for (int i = 0; i < 36; i++) {
-                client.sendChat("/give dirt 64");
+                client.sendChat("/give Packrat dirt 64");
+                client.drainGiveGhostWake(150);
                 client.readWindowSlotTable(10_000, windowId);
             }
             // Seed one stack inside the chest through the engine (the

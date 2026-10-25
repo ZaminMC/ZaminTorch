@@ -49,6 +49,7 @@ class SpawnEggTest {
         var result = server.joinRequest(link, name, UUID.nameUUIDFromBytes(name.getBytes()));
         PlayerSession session = ((EngineBridge.Accepted) result).session();
         server.ticker().submit(session::markPlaying);
+        server.ticker().submit(() -> session.setOpLevel(2));
         return session;
     }
 
@@ -133,7 +134,7 @@ class SpawnEggTest {
             await(() -> server.world().getBlock(stone).equals(BuiltinBlocks.STONE),
                     "the stone landed");
 
-            server.chatService().submitChat(player, "/give spawn_egg 1 90"); // the pig egg
+            server.chatService().submitChat(player, "/give " + player.name() + " spawn_egg 1 90"); // the pig egg
             await(() -> !player.inventory().held().isEmpty(), "the egg granted");
 
             // SpawnEggItem.useOn line 82: the UP face's offset cell center —
@@ -201,7 +202,7 @@ class SpawnEggTest {
             await(() -> server.world().getBlock(fence).equals(BuiltinBlocks.FENCE),
                     "the fence landed");
 
-            server.chatService().submitChat(player, "/give spawn_egg 1 91"); // the sheep egg
+            server.chatService().submitChat(player, "/give " + player.name() + " spawn_egg 1 91"); // the sheep egg
             await(() -> !player.inventory().held().isEmpty(), "the egg granted");
 
             // useOn lines 78-81: the FenceBlock's UP face adds its own
@@ -233,7 +234,7 @@ class SpawnEggTest {
                     "the spawner landed");
 
             // useOn lines 68-82: the creeper egg re-types the block entity.
-            server.chatService().submitChat(player, "/give spawn_egg 1 50");
+            server.chatService().submitChat(player, "/give " + player.name() + " spawn_egg 1 50");
             await(() -> !player.inventory().held().isEmpty(), "the creeper egg granted");
             server.useItemOnBlock(player, spawner, 1, java.util.Optional.empty(), ignored -> { });
             await(() -> server.spawners().peek(spawner) != null
@@ -243,7 +244,7 @@ class SpawnEggTest {
 
             // The unknown id (63 — the ender dragon registered without an
             // egg): the reference's null key CLEARS the type the same way.
-            server.chatService().submitChat(player, "/give spawn_egg 1 63");
+            server.chatService().submitChat(player, "/give " + player.name() + " spawn_egg 1 63");
             await(() -> !player.inventory().held().isEmpty(), "the dragon egg granted");
             server.useItemOnBlock(player, spawner, 1, java.util.Optional.empty(), ignored -> { });
             await(() -> server.spawners().peek(spawner) == null
@@ -268,7 +269,7 @@ class SpawnEggTest {
             await(() -> server.world().getBlock(dirt).equals(BuiltinBlocks.DIRT),
                     "the dirt landed");
 
-            server.chatService().submitChat(player, "/give spawn_egg 2 54"); // the zombie pair
+            server.chatService().submitChat(player, "/give " + player.name() + " spawn_egg 2 54"); // the zombie pair
             await(() -> !player.inventory().held().isEmpty(), "the eggs granted");
 
             // useOn lines 85-88: the creative hand never pays.
@@ -292,7 +293,7 @@ class SpawnEggTest {
             await(() -> server.world().getBlock(stone).equals(BuiltinBlocks.STONE),
                     "the stone landed");
 
-            server.chatService().submitChat(player, "/give spawn_egg 1 53"); // the giant: no egg
+            server.chatService().submitChat(player, "/give " + player.name() + " spawn_egg 1 53"); // the giant: no egg
             await(() -> !player.inventory().held().isEmpty(), "the egg granted");
             // The no-body assert counts the mobs NEAR the use point alone
             // (inside the natural spawn system's own 24-block keep-out

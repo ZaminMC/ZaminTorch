@@ -37,6 +37,30 @@ class SignIntegrationTest extends ProtocolTestBase {
         throw new AssertionError("player never joined: " + name);
     }
 
+
+    /**
+     * Pre-seeds ops.json so the test players can run the op-gated verbs
+     * (/give among them — the vanilla GiveCommand sits at op level 2): the
+     * offline-mode UUID convention resolves each name deterministically
+     * before the engine boots.
+     */
+    @Override
+    @org.junit.jupiter.api.BeforeAll
+    void bootStack() throws Exception {
+        java.nio.file.Files.write(dataDir.resolve("ops.json"), java.util.List.of(
+                "[{\"uuid\": \"" + java.util.UUID.nameUUIDFromBytes(
+                        "OfflinePlayer:Alice".getBytes(java.nio.charset.StandardCharsets.UTF_8))
+                        + "\", \"name\": \"Alice\", \"level\": 4, \"bypassesPlayerLimit\": false},",
+                " {\"uuid\": \"" + java.util.UUID.nameUUIDFromBytes(
+                        "OfflinePlayer:Bob".getBytes(java.nio.charset.StandardCharsets.UTF_8))
+                        + "\", \"name\": \"Bob\", \"level\": 4, \"bypassesPlayerLimit\": false},",
+                " {\"uuid\": \"" + java.util.UUID.nameUUIDFromBytes(
+                        "OfflinePlayer:Waller".getBytes(java.nio.charset.StandardCharsets.UTF_8))
+                        + "\", \"name\": \"Waller\", \"level\": 4, \"bypassesPlayerLimit\": false}]"
+        ));
+        super.bootStack();
+    }
+
     @Test
     void signsPlaceWriteAndReplay() throws Exception {
         try (TestClient18 alice = new TestClient18("127.0.0.1", adapter.boundPort())) {
@@ -60,7 +84,8 @@ class SignIntegrationTest extends ProtocolTestBase {
             // Survival placement validates the engine's own inventory, so
             // Alice holds a real sign first (the /give feedback inventory
             // sync is consumed here).
-            alice.sendChat("/give sign 1");
+            alice.sendChat("/give Alice sign 1");
+            alice.drainGiveGhostWake(150);
             alice.readWindowItems(5_000);
             alice.sendBlockPlacement(gx, gy, gz, 1, 323);
             var signCell = floor.offset(0, 1, 0);
@@ -140,7 +165,8 @@ class SignIntegrationTest extends ProtocolTestBase {
 
             // The placement: click the upper post's north face (face 2) with
             // a sign — the wall-sign rule hangs block 68 facing north.
-            client.sendChat("/give sign 1");
+            client.sendChat("/give Waller sign 1");
+            client.drainGiveGhostWake(150);
             client.readWindowItems(5_000);
             client.sendBlockPlacement(gx, gy + 1, gz, 2, 323);
             var signCell = new BlockPosition(gx, gy + 1, gz - 1);

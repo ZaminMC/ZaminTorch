@@ -77,7 +77,8 @@ class WindowResyncIntegrationTest extends ProtocolTestBase {
         client.readWindowItems(10_000); // join sync: all empty
 
         // stock a chest, then place it: the ground's top face -> the chest above it
-        client.sendChat("/give chest 1");
+        client.sendChat("/give " + name + " chest 1");
+        client.drainGiveGhostWake(150);
         client.readWindowSlotTable(10_000); // the give's sync
         client.sendBlockPlacement(ground.x(), ground.y(), ground.z(), 1, CHEST);
         // ML-019's order: the immediate consume sync and the use walk's resync
@@ -94,6 +95,33 @@ class WindowResyncIntegrationTest extends ProtocolTestBase {
         int[][] window = client.readWindowSlotTable(10_000, (Integer) open[0]);
         assertEquals(63, window.length, "27 chest slots + 27 main + 9 hotbar");
         return (Integer) open[0];
+    }
+
+
+    /**
+     * Pre-seeds ops.json so the test players can run the op-gated verbs
+     * (/give among them — the vanilla GiveCommand sits at op level 2): the
+     * offline-mode UUID convention resolves each name deterministically
+     * before the engine boots.
+     */
+    @Override
+    @org.junit.jupiter.api.BeforeAll
+    void bootStack() throws Exception {
+        java.nio.file.Files.write(dataDir.resolve("ops.json"), java.util.List.of(
+                "[{\"uuid\": \"" + java.util.UUID.nameUUIDFromBytes(
+                        "OfflinePlayer:Dispenserer".getBytes(java.nio.charset.StandardCharsets.UTF_8))
+                        + "\", \"name\": \"Dispenserer\", \"level\": 4, \"bypassesPlayerLimit\": false},",
+                " {\"uuid\": \"" + java.util.UUID.nameUUIDFromBytes(
+                        "OfflinePlayer:Feeder".getBytes(java.nio.charset.StandardCharsets.UTF_8))
+                        + "\", \"name\": \"Feeder\", \"level\": 4, \"bypassesPlayerLimit\": false},",
+                " {\"uuid\": \"" + java.util.UUID.nameUUIDFromBytes(
+                        "OfflinePlayer:Hopperer".getBytes(java.nio.charset.StandardCharsets.UTF_8))
+                        + "\", \"name\": \"Hopperer\", \"level\": 4, \"bypassesPlayerLimit\": false},",
+                " {\"uuid\": \"" + java.util.UUID.nameUUIDFromBytes(
+                        "OfflinePlayer:Resyncer".getBytes(java.nio.charset.StandardCharsets.UTF_8))
+                        + "\", \"name\": \"Resyncer\", \"level\": 4, \"bypassesPlayerLimit\": false}]"
+        ));
+        super.bootStack();
     }
 
     @Test

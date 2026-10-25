@@ -81,8 +81,10 @@ class TabCompleteIntegrationTest extends ProtocolTestBase {
             List<String> weather = alice.readTabCompletions(5_000);
             assertTrue(weather.contains("thunder") && weather.size() == 1, weather.toString());
 
-            // The give arm over the engine's own item registry: the namespaced ids.
-            alice.sendTabComplete("/give minecraft:st");
+            // The give arm over the engine's own item registry: the
+            // namespaced ids at the ITEM position (arg 2 — the vanilla
+            // form's own order; the player names ride arg 1's fallback).
+            alice.sendTabComplete("/give Alice minecraft:st");
             List<String> items = alice.readTabCompletions(5_000);
             assertTrue(items.contains("minecraft:stone"), items.toString());
             assertFalse(items.contains("minecraft:dirt"), items.toString());

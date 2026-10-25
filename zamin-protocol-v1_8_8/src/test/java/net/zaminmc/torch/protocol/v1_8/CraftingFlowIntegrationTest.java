@@ -42,6 +42,27 @@ class CraftingFlowIntegrationTest extends ProtocolTestBase {
         return new Click(confirm[2] == 1, cursor[1], cursor[2], window);
     }
 
+
+    /**
+     * Pre-seeds ops.json so the test players can run the op-gated verbs
+     * (/give among them — the vanilla GiveCommand sits at op level 2): the
+     * offline-mode UUID convention resolves each name deterministically
+     * before the engine boots.
+     */
+    @Override
+    @org.junit.jupiter.api.BeforeAll
+    void bootStack() throws Exception {
+        java.nio.file.Files.write(dataDir.resolve("ops.json"), java.util.List.of(
+                "[{\"uuid\": \"" + java.util.UUID.nameUUIDFromBytes(
+                        "OfflinePlayer:Crafter".getBytes(java.nio.charset.StandardCharsets.UTF_8))
+                        + "\", \"name\": \"Crafter\", \"level\": 4, \"bypassesPlayerLimit\": false},",
+                " {\"uuid\": \"" + java.util.UUID.nameUUIDFromBytes(
+                        "OfflinePlayer:Stickler".getBytes(java.nio.charset.StandardCharsets.UTF_8))
+                        + "\", \"name\": \"Stickler\", \"level\": 4, \"bypassesPlayerLimit\": false}]"
+        ));
+        super.bootStack();
+    }
+
     @Test
     void planksInGridShowPreviewAndCraftOnceThenCraftAll() throws Exception {
         try (TestClient18 client = new TestClient18("127.0.0.1", adapter.boundPort())) {
@@ -53,7 +74,8 @@ class CraftingFlowIntegrationTest extends ProtocolTestBase {
             client.readWindowItems(10_000); // join sync: all empty
 
             // 32 planks arrive in the hotbar (wire slot 36)
-            client.sendChat("/give oak_planks 32");
+            client.sendChat("/give Crafter oak_planks 32");
+            client.drainGiveGhostWake(150);
             int[][] afterGive = client.readWindowSlotTable(10_000);
             assertEquals(OAK_PLANKS, afterGive[36][0]);
             assertEquals(32, afterGive[36][1]);
@@ -112,7 +134,8 @@ class CraftingFlowIntegrationTest extends ProtocolTestBase {
             assertEquals(28, repicked.cursorCount(), "the 28 planks back on the cursor");
             Click topCell = click(client, 1, 0, 0); // whole stack into r0c0
             assertEquals(-1, topCell.cursorId());
-            client.sendChat("/give oak_planks 64");
+            client.sendChat("/give Crafter oak_planks 64");
+            client.drainGiveGhostWake(150);
             int[][] given = client.readWindowSlotTable(10_000);
             assertEquals(OAK_PLANKS, given[36][0], "the fresh stack lands in the freed hotbar slot");
             Click repicked2 = click(client, 36, 0, 0);
@@ -152,7 +175,8 @@ class CraftingFlowIntegrationTest extends ProtocolTestBase {
             awaitPlayer("Stickler");
             client.readWindowItems(10_000);
 
-            client.sendChat("/give oak_planks 6");
+            client.sendChat("/give Stickler oak_planks 6");
+            client.drainGiveGhostWake(150);
             int[][] afterGive = client.readWindowSlotTable(10_000);
             assertEquals(OAK_PLANKS, afterGive[36][0]);
             assertEquals(6, afterGive[36][1]);

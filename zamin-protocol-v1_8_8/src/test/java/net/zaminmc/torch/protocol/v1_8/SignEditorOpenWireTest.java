@@ -57,6 +57,30 @@ class SignEditorOpenWireTest extends ProtocolTestBase {
                 (byte) (packed >>> 8), (byte) packed};
     }
 
+
+    /**
+     * Pre-seeds ops.json so the test players can run the op-gated verbs
+     * (/give among them — the vanilla GiveCommand sits at op level 2): the
+     * offline-mode UUID convention resolves each name deterministically
+     * before the engine boots.
+     */
+    @Override
+    @org.junit.jupiter.api.BeforeAll
+    void bootStack() throws Exception {
+        java.nio.file.Files.write(dataDir.resolve("ops.json"), java.util.List.of(
+                "[{\"uuid\": \"" + java.util.UUID.nameUUIDFromBytes(
+                        "OfflinePlayer:Onlooker".getBytes(java.nio.charset.StandardCharsets.UTF_8))
+                        + "\", \"name\": \"Onlooker\", \"level\": 4, \"bypassesPlayerLimit\": false},",
+                " {\"uuid\": \"" + java.util.UUID.nameUUIDFromBytes(
+                        "OfflinePlayer:Placer".getBytes(java.nio.charset.StandardCharsets.UTF_8))
+                        + "\", \"name\": \"Placer\", \"level\": 4, \"bypassesPlayerLimit\": false},",
+                " {\"uuid\": \"" + java.util.UUID.nameUUIDFromBytes(
+                        "OfflinePlayer:Signer".getBytes(java.nio.charset.StandardCharsets.UTF_8))
+                        + "\", \"name\": \"Signer\", \"level\": 4, \"bypassesPlayerLimit\": false}]"
+        ));
+        super.bootStack();
+    }
+
     @Test
     void thePlacerReceivesOpenSignEditorForThePlacedCell() throws Exception {
         try (TestClient18 alice = new TestClient18("127.0.0.1", adapter.boundPort())) {
@@ -77,7 +101,8 @@ class SignEditorOpenWireTest extends ProtocolTestBase {
                     "the floor cell exists");
 
             // Place: click the floor's top face with a sign (item 323).
-            alice.sendChat("/give sign 1");
+            alice.sendChat("/give Placer sign 1");
+            alice.drainGiveGhostWake(150);
             alice.readWindowItems(5_000);
             alice.sendBlockPlacement(gx, gy, gz, 1, 323);
             var signCell = floor.offset(0, 1, 0);
@@ -130,7 +155,8 @@ class SignEditorOpenWireTest extends ProtocolTestBase {
             int gx = (int) Math.floor(aliceSession.position().x()) + 4;
             int gz = (int) Math.floor(aliceSession.position().z());
             int gy = (int) Math.floor(aliceSession.position().y()) - 1;
-            alice.sendChat("/give sign 1");
+            alice.sendChat("/give Signer sign 1");
+            alice.drainGiveGhostWake(150);
             alice.readWindowSlotTable(10_000);
             alice.sendBlockPlacement(gx, gy, gz, 1, 323);
             var signCell = new BlockPosition(gx, gy + 1, gz);

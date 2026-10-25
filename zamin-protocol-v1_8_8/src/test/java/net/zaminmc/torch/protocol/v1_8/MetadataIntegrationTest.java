@@ -34,6 +34,27 @@ class MetadataIntegrationTest extends ProtocolTestBase {
         awaitCondition(() -> server.playerRegistry().byName(name).isPresent(), "player joined");
     }
 
+
+    /**
+     * Pre-seeds ops.json so the test players can run the op-gated verbs
+     * (/give among them — the vanilla GiveCommand sits at op level 2): the
+     * offline-mode UUID convention resolves each name deterministically
+     * before the engine boots.
+     */
+    @Override
+    @org.junit.jupiter.api.BeforeAll
+    void bootStack() throws Exception {
+        java.nio.file.Files.write(dataDir.resolve("ops.json"), java.util.List.of(
+                "[{\"uuid\": \"" + java.util.UUID.nameUUIDFromBytes(
+                        "OfflinePlayer:Smelter".getBytes(java.nio.charset.StandardCharsets.UTF_8))
+                        + "\", \"name\": \"Smelter\", \"level\": 4, \"bypassesPlayerLimit\": false},",
+                " {\"uuid\": \"" + java.util.UUID.nameUUIDFromBytes(
+                        "OfflinePlayer:Variant".getBytes(java.nio.charset.StandardCharsets.UTF_8))
+                        + "\", \"name\": \"Variant\", \"level\": 4, \"bypassesPlayerLimit\": false}]"
+        ));
+        super.bootStack();
+    }
+
     @Test
     void giveVariantsStayDistinctAndRideItemEntities() throws Exception {
         try (TestClient18 client = new TestClient18("127.0.0.1", adapter.boundPort())) {
@@ -45,14 +66,16 @@ class MetadataIntegrationTest extends ProtocolTestBase {
             client.readWindowItems(10_000);
 
             // --- charcoal: /give coal with metadata 1 ---
-            client.sendChat("/give coal 5 1");
+            client.sendChat("/give Variant coal 5 1");
+            client.drainGiveGhostWake(150);
             int[][] after = client.readWindowSlotTable(10_000);
             assertEquals(COAL, after[36][0]);
             assertEquals(5, after[36][1]);
             assertEquals(1, after[36][2], "the wire damage field carries the variant");
 
             // --- plain coal after it: a separate stack, never merged ---
-            client.sendChat("/give coal 3");
+            client.sendChat("/give Variant coal 3");
+            client.drainGiveGhostWake(150);
             after = client.readWindowSlotTable(10_000);
             assertEquals(5, after[36][1], "the charcoal stack kept its count");
             assertEquals(COAL, after[37][0]);
@@ -60,7 +83,8 @@ class MetadataIntegrationTest extends ProtocolTestBase {
             assertEquals(0, after[37][2], "plain coal carries metadata 0");
 
             // --- red sand variant via /give ---
-            client.sendChat("/give sand 4 1");
+            client.sendChat("/give Variant sand 4 1");
+            client.drainGiveGhostWake(150);
             after = client.readWindowSlotTable(10_000);
             assertEquals(SAND, after[38][0]);
             assertEquals(1, after[38][2], "red sand is sand with metadata 1");
@@ -90,10 +114,12 @@ class MetadataIntegrationTest extends ProtocolTestBase {
             awaitPlayer("Smelter");
             client.readWindowItems(10_000);
 
-            client.sendChat("/give sand 4");
+            client.sendChat("/give Smelter sand 4");
+            client.drainGiveGhostWake(150);
             int[][] after = client.readWindowSlotTable(10_000);
             assertEquals(SAND, after[36][0]);
-            client.sendChat("/give glass 2");
+            client.sendChat("/give Smelter glass 2");
+            client.drainGiveGhostWake(150);
             after = client.readWindowSlotTable(10_000);
             assertEquals(GLASS, after[37][0]);
 

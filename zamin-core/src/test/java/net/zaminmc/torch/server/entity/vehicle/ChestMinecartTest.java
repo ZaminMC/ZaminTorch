@@ -185,6 +185,7 @@ class ChestMinecartTest {
         var result = server.joinRequest(link, name, UUID.nameUUIDFromBytes(name.getBytes()));
         PlayerSession session = ((EngineBridge.Accepted) result).session();
         server.ticker().submit(session::markPlaying);
+        server.ticker().submit(() -> session.setOpLevel(2));
         return session;
     }
 
@@ -230,7 +231,7 @@ class ChestMinecartTest {
 
             // A shift-click from the player's hotbar into the cart: the
             // chest menu's own no-filter fill (wire slot 54 = hotbar 0).
-            server.chatService().submitChat(player, "/give coal 7");
+            server.chatService().submitChat(player, "/give " + player.name() + " coal 7");
             await(() -> player.inventory().countOf(BuiltinItems.COAL) >= 7,
                     "the coal granted");
             server.windowClick(player, player.openContainerWindowId(),
@@ -314,7 +315,7 @@ class ChestMinecartTest {
             await(() -> server.world().getBlock(railPos).equals(BuiltinBlocks.RAIL_EW),
                     "the rail landed");
 
-            server.chatService().submitChat(player, "/give chest_minecart 1");
+            server.chatService().submitChat(player, "/give " + player.name() + " chest_minecart 1");
             await(() -> !player.inventory().held().isEmpty(), "the chest minecart granted");
 
             server.useItemOnBlock(player, railPos, 1, java.util.Optional.empty(), ignored -> { });

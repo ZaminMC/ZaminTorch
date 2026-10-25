@@ -43,6 +43,27 @@ class PvpIntegrationTest extends ProtocolTestBase {
         throw new AssertionError("Player " + name + " never registered");
     }
 
+
+    /**
+     * Pre-seeds ops.json so the test players can run the op-gated verbs
+     * (/give among them — the vanilla GiveCommand sits at op level 2): the
+     * offline-mode UUID convention resolves each name deterministically
+     * before the engine boots.
+     */
+    @Override
+    @org.junit.jupiter.api.BeforeAll
+    void bootStack() throws Exception {
+        java.nio.file.Files.write(dataDir.resolve("ops.json"), java.util.List.of(
+                "[{\"uuid\": \"" + java.util.UUID.nameUUIDFromBytes(
+                        "OfflinePlayer:Alice".getBytes(java.nio.charset.StandardCharsets.UTF_8))
+                        + "\", \"name\": \"Alice\", \"level\": 4, \"bypassesPlayerLimit\": false},",
+                " {\"uuid\": \"" + java.util.UUID.nameUUIDFromBytes(
+                        "OfflinePlayer:Bob".getBytes(java.nio.charset.StandardCharsets.UTF_8))
+                        + "\", \"name\": \"Bob\", \"level\": 4, \"bypassesPlayerLimit\": false}]"
+        ));
+        super.bootStack();
+    }
+
     @Test
     @org.junit.jupiter.api.Order(1)
     void meleeRidesTheWireAndKillsThroughInvulnerabilityFrames() throws Exception {
@@ -90,7 +111,8 @@ class PvpIntegrationTest extends ProtocolTestBase {
                     "the absorbed hit must not double-dip (no 17 here)");
 
             // --- give Alice a sword for a fast, decisive kill (7 damage) ---
-            alice.sendChat("/give diamond_sword 1");
+            alice.sendChat("/give Alice diamond_sword 1");
+            alice.drainGiveGhostWake(150);
             alice.readWindowItems(5_000); // the authoritative inventory sync
 
             // Sword damage 7: 18 -> 11 -> 4 -> dead. Space the swings past the
@@ -152,7 +174,8 @@ class PvpIntegrationTest extends ProtocolTestBase {
 
             // Sword kill (7 damage: 20 -> dead inside the swing loop), with
             // the hurt-window spacing the melee test already established.
-            alice.sendChat("/give diamond_sword 1");
+            alice.sendChat("/give Alice diamond_sword 1");
+            alice.drainGiveGhostWake(150);
             alice.readWindowItems(5_000);
             for (int swing = 0; swing < 3; swing++) {
                 alice.sendUseEntity(aliceSeesBob, Protocol18.USE_ENTITY_ATTACK);

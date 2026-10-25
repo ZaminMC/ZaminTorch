@@ -23,6 +23,24 @@ class ItemNbtIntegrationTest extends ProtocolTestBase {
         return 120_000;
     }
 
+
+    /**
+     * Pre-seeds ops.json so the test players can run the op-gated verbs
+     * (/give among them — the vanilla GiveCommand sits at op level 2): the
+     * offline-mode UUID convention resolves each name deterministically
+     * before the engine boots.
+     */
+    @Override
+    @org.junit.jupiter.api.BeforeAll
+    void bootStack() throws Exception {
+        java.nio.file.Files.write(dataDir.resolve("ops.json"), java.util.List.of(
+                "[{\"uuid\": \"" + java.util.UUID.nameUUIDFromBytes(
+                        "OfflinePlayer:Namer".getBytes(java.nio.charset.StandardCharsets.UTF_8))
+                        + "\", \"name\": \"Namer\", \"level\": 4, \"bypassesPlayerLimit\": false}]"
+        ));
+        super.bootStack();
+    }
+
     @Test
     void renameStampsTheNameAndItSurvivesTheWorldRoundTrip() throws Exception {
         try (TestClient18 client = new TestClient18("127.0.0.1", adapter.boundPort())) {
@@ -34,7 +52,8 @@ class ItemNbtIntegrationTest extends ProtocolTestBase {
             client.readWindowItems(10_000); // join sync: empty inventory
 
             // The item source, then the rename.
-            client.sendChat("/give stick 1");
+            client.sendChat("/give Namer stick 1");
+            client.drainGiveGhostWake(150);
             client.readWindowItems(10_000);
             client.sendChat("/rename Excalibur of the Torch");
             String[] names = client.readWindowSlotNames(10_000);

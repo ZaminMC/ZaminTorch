@@ -24,6 +24,27 @@ class DonkeyChestIntegrationTest extends ProtocolTestBase {
         return 300_000;
     }
 
+
+    /**
+     * Pre-seeds ops.json so the test players can run the op-gated verbs
+     * (/give among them — the vanilla GiveCommand sits at op level 2): the
+     * offline-mode UUID convention resolves each name deterministically
+     * before the engine boots.
+     */
+    @Override
+    @org.junit.jupiter.api.BeforeAll
+    void bootStack() throws Exception {
+        java.nio.file.Files.write(dataDir.resolve("ops.json"), java.util.List.of(
+                "[{\"uuid\": \"" + java.util.UUID.nameUUIDFromBytes(
+                        "OfflinePlayer:CowWisperer".getBytes(java.nio.charset.StandardCharsets.UTF_8))
+                        + "\", \"name\": \"CowWisperer\", \"level\": 4, \"bypassesPlayerLimit\": false},",
+                " {\"uuid\": \"" + java.util.UUID.nameUUIDFromBytes(
+                        "OfflinePlayer:PackMule".getBytes(java.nio.charset.StandardCharsets.UTF_8))
+                        + "\", \"name\": \"PackMule\", \"level\": 4, \"bypassesPlayerLimit\": false}]"
+        ));
+        super.bootStack();
+    }
+
     @Test
     void chestedDonkeyOpensThe53SlotWindowAndStoresStacks() throws Exception {
         try (TestClient18 client = new TestClient18("127.0.0.1", adapter.boundPort())) {
@@ -73,7 +94,8 @@ class DonkeyChestIntegrationTest extends ProtocolTestBase {
                     net.zaminmc.torch.server.entity.MobEntity.HORSE_SUBTYPE_DONKEY));
 
             // The tame ladder (wheat +3 temper, the same flow the horse test drives).
-            client.sendChat("/give minecraft:wheat 64");
+            client.sendChat("/give PackMule minecraft:wheat 64");
+            client.drainGiveGhostWake(150);
             // The loopback delivery of the /give frame is not tick-ordered —
             // await the engine-visible condition (the wheat actually landing
             // in the mule's inventory) so the ladder never fires wheatless
@@ -98,7 +120,8 @@ class DonkeyChestIntegrationTest extends ProtocolTestBase {
             client.readAttachEntity(20_000);
 
             // The chest equips from the hand (the HorseBaseEntity chest arm).
-            client.sendChat("/give minecraft:chest 1");
+            client.sendChat("/give PackMule minecraft:chest 1");
+            client.drainGiveGhostWake(150);
             Thread.sleep(200);
             client.sendUseEntity(horseId, Protocol18.USE_ENTITY_INTERACT);
             awaitCondition(() -> server.mobs().byId(horseId).chested(),
@@ -108,7 +131,8 @@ class DonkeyChestIntegrationTest extends ProtocolTestBase {
 
             // The sneak-open: the 53-slot EntityHorse window. A fresh wheat
             // stack rides along (the /clear emptied the ladder's stack).
-            client.sendChat("/give minecraft:wheat 64");
+            client.sendChat("/give PackMule minecraft:wheat 64");
+            client.drainGiveGhostWake(150);
             Thread.sleep(200);
             client.sendEntityAction(0); // start sneaking
             Thread.sleep(150);
@@ -148,7 +172,8 @@ class DonkeyChestIntegrationTest extends ProtocolTestBase {
             client.readUntilPositionAndLook();
             client.readWindowItems(5_000);
 
-            client.sendChat("/give minecraft:wheat 8");
+            client.sendChat("/give CowWisperer minecraft:wheat 8");
+            client.drainGiveGhostWake(150);
             client.sendChat("/spawnmob cow 1");
             awaitCondition(() -> server.mobs().all().stream()
                     .anyMatch(m -> m.type() == net.zaminmc.torch.server.entity.MobType.COW

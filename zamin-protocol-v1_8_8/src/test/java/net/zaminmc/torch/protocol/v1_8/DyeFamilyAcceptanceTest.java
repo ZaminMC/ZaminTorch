@@ -23,6 +23,24 @@ class DyeFamilyAcceptanceTest extends ProtocolTestBase {
         return 300_000;
     }
 
+
+    /**
+     * Pre-seeds ops.json so the test players can run the op-gated verbs
+     * (/give among them — the vanilla GiveCommand sits at op level 2): the
+     * offline-mode UUID convention resolves each name deterministically
+     * before the engine boots.
+     */
+    @Override
+    @org.junit.jupiter.api.BeforeAll
+    void bootStack() throws Exception {
+        java.nio.file.Files.write(dataDir.resolve("ops.json"), java.util.List.of(
+                "[{\"uuid\": \"" + java.util.UUID.nameUUIDFromBytes(
+                        "OfflinePlayer:Shepherd".getBytes(java.nio.charset.StandardCharsets.UTF_8))
+                        + "\", \"name\": \"Shepherd\", \"level\": 4, \"bypassesPlayerLimit\": false}]"
+        ));
+        super.bootStack();
+    }
+
     @Test
     void theSheepTakesTheDyeAndTheShearDropsTheColor() throws Exception {
         try (TestClient18 client = new TestClient18("127.0.0.1", adapter.boundPort())) {
@@ -70,7 +88,8 @@ class DyeFamilyAcceptanceTest extends ProtocolTestBase {
             // The dye arm: hold lapis (minecraft:dye damage 4 — the blue
             // row of the ink-sac family) and use it on the sheep. The fleece
             // becomes BLUE — DyeColor id 11 (byMetadata(4) = BLUE).
-            client.sendChat("/give minecraft:dye 8 4");
+            client.sendChat("/give Shepherd minecraft:dye 8 4");
+            client.drainGiveGhostWake(150);
             Thread.sleep(200);
             client.sendUseEntity(sheepId, Protocol18.USE_ENTITY_INTERACT);
             awaitCondition(() -> server.mobs().byId(sheepId).sheepFleeceColor() == 11,
@@ -85,7 +104,8 @@ class DyeFamilyAcceptanceTest extends ProtocolTestBase {
             // The shear: the drops are wool of damage 11 — the blue row.
             // The shears land in the first empty hotbar slot (1 — the dye
             // holds slot 0); select it, then use it on the coat.
-            client.sendChat("/give minecraft:shears 1");
+            client.sendChat("/give Shepherd minecraft:shears 1");
+            client.drainGiveGhostWake(150);
             Thread.sleep(200);
             client.sendHeldItemChange(1);
             Thread.sleep(150);

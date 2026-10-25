@@ -68,6 +68,7 @@ class AdventureGatesTest {
         PlayerSession session = accepted.session();
         tick(() -> {
             session.markPlaying();
+            session.setOpLevel(2);
             session.applyMovement(new Position(0.5, 5, 0.5), Rotation.ZERO, true);
         });
         return session;
@@ -164,7 +165,7 @@ class AdventureGatesTest {
     void theBareNameNormalizationFeedsThroughGive() throws Exception {
         // /give's dataTag carries the list; the sanitize normalizes bare
         // names ("stone" -> "minecraft:stone", the engine's id convention).
-        server.chatService().submitChat(adventurer, "/give chest 1 0 {CanPlaceOn:[stone]}");
+        server.chatService().submitChat(adventurer, "/give " + adventurer.name() + " chest 1 0 {CanPlaceOn:[stone]}");
         await(() -> {
             ItemStack held = adventurer.inventory().held();
             return !held.isEmpty()

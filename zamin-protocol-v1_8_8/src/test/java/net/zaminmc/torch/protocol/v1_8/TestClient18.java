@@ -36,6 +36,74 @@ final class TestClient18 implements AutoCloseable {
         socket.setSoTimeout(millis);
     }
 
+    /**
+     * The drain's pushback: packets popped mid-drain that are NOT the
+     * ghost's wake wait here for the next read.
+     */
+    private final java.util.ArrayDeque<byte[]> pushbackQueue = new java.util.ArrayDeque<>();
+
+    /**
+     * Answers the server's keep-alives the moment they are read — what a
+     * real client does. Without it every blocked typed read swallows
+     * keep-alive requests unanswered, and any read that out-silences the
+     * 3x-interval window (a ghost-wake drain, a long await) collects a
+     * "Timed out" kick mid-flow. The timeout test's silent arm opts out.
+     */
+    private boolean autoAnswerKeepAlives = true;
+
+    /** Disables the automatic keep-alive exchange (the silence arm's own need). */
+    void silenceKeepAlives() {
+        autoAnswerKeepAlives = false;
+    }
+
+    /**
+     * Drains the give ghost's wire wake — the vanilla makeFakeItem quirk
+     * the aligned /give carries (ML-008): a full-fit grant drops a
+     * one-tick ghost, so the wire sees a Spawn Entity, its Entity
+     * Metadata, the grant's pop Named Sound, and the destroy a tick
+     * later. Pops and discards those packets (plus the ambient
+     * keep-alive/time-update) until the wire is quiet for quietMs; every
+     * OTHER packet met mid-drain is kept and re-queued in order for the
+     * next typed read. The read timeout is restored on exit.
+     */
+    void drainGiveGhostWake(int quietMs) throws IOException {
+        int previous = socket.getSoTimeout();
+        socket.setSoTimeout(quietMs);
+        java.util.List<byte[]> kept = new java.util.ArrayList<>();
+        // A hard cap BELOW the keep-alive timeout (interval x 3): a busy
+        // world keeps packets flowing (natural mob moves, metadata
+        // broadcasts) and would reset the quiet window forever — and the
+        // drain must never out-silence the client past the kick line, so
+        // keep-alives met mid-drain are ANSWERED, never discarded.
+        long budgetEnd = System.currentTimeMillis() + 700;
+        try {
+            while (System.currentTimeMillis() < budgetEnd) {
+                byte[] payload;
+                try {
+                    payload = readPacket();
+                } catch (java.net.SocketTimeoutException quiet) {
+                    break; // the wire is quiet: the ghost's wake is drained
+                }
+                int id = readPacketId(payload);
+                if (id == Protocol18.S2C_SPAWN_ENTITY
+                        || id == Protocol18.S2C_ENTITY_METADATA
+                        || id == Protocol18.S2C_DESTROY_ENTITIES
+                        || id == Protocol18.S2C_NAMED_SOUND_EFFECT
+                        || id == Protocol18.S2C_KEEP_ALIVE
+                        || id == Protocol18.S2C_TIME_UPDATE) {
+                    continue; // the ghost's wake or the ambient hum (the
+                              // keep-alive was answered inside readPacket)
+                }
+                kept.add(payload); // not ours to take
+            }
+        } finally {
+            socket.setSoTimeout(previous);
+        }
+        for (int i = kept.size() - 1; i >= 0; i--) {
+            pushbackQueue.addFirst(kept.get(i));
+        }
+    }
+
     // ---- framing ------------------------------------------------------------
 
     private void writeVarInt(DataOutputStream out, int value) throws IOException {
@@ -98,9 +166,17 @@ final class TestClient18 implements AutoCloseable {
 
     /** Reads one framed packet, returns its payload (packet id is the first varint). */
     byte[] readPacket() throws IOException {
+        if (!pushbackQueue.isEmpty()) {
+            return pushbackQueue.poll();
+        }
         int length = readVarInt(in);
         byte[] payload = new byte[length];
         in.readFully(payload);
+        if (autoAnswerKeepAlives && readPacketId(payload) == Protocol18.S2C_KEEP_ALIVE) {
+            io.netty.buffer.ByteBuf body = io.netty.buffer.Unpooled.wrappedBuffer(payload);
+            ByteBufOps.readVarInt(body); // the packet id
+            sendKeepAliveResponse((int) ByteBufOps.readVarInt(body));
+        }
         if (WIRE_TRACE) {
             ByteBuf peek = Unpooled.wrappedBuffer(payload);
             System.out.println("[trace-client] frame len=" + length + " id=0x"

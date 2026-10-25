@@ -459,7 +459,7 @@ class BlockEntityTagPlacementTest {
         // ride the SNBT fall-to-string shape (the reference's own
         // NumberFormatException arm) — no quotes, no splitter ambiguity.
         server.chatService().submitChat(alice,
-                "/give chest 1 0 {BlockEntityTag:{Lock:Keyed},display:{Name:Stash}}");
+                "/give " + alice.name() + " chest 1 0 {BlockEntityTag:{Lock:Keyed},display:{Name:Stash}}");
         await(() -> {
             ItemStack held = alice.inventory().held();
             return !held.isEmpty()
@@ -482,7 +482,7 @@ class BlockEntityTagPlacementTest {
         assertEquals("Keyed", server.chests().getOrCreate(target).lockKey());
         // A malformed dataTag is the command's own tag error.
         int replies = chatLog.size();
-        server.chatService().submitChat(alice, "/give chest 1 0 {not a compound");
+        server.chatService().submitChat(alice, "/give " + alice.name() + " chest 1 0 {not a compound");
         await(() -> chatLog.size() > replies, "the malformed parse replied");
         String last = chatLog.get(chatLog.size() - 1);
         assertTrue(last.contains("Invalid dataTag"),
