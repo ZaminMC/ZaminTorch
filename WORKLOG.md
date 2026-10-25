@@ -15371,3 +15371,47 @@ Stage Summary:
 - Watch: the release runs (#413 in progress at b547cbea — it will
   still show the stale-helper failure, superseded; #415+ at 77063f94/
   f420d2a8 the confirming runs for the VT-7j/7k + the repair state).
+
+---
+Task ID: vt-release-417-repair
+Agent: the coordinator (Abasing session)
+Task: The release run #417's regression repair — the confirming run
+for the VT-7 close-out state failed; diagnose and repair.
+
+Work Log:
+- Run #417 (release, head 6652cc6b) failed both arms:
+  GoalApiAcceptanceTest.theRegisteredGoalTicksOnTheOwnerLane failed
+  BOTH arms (a real regression, never a flake); MobEventBridge's
+  cow-volume row and MultiplayerSleep's wake row failed one arm each
+  (different tests per arm — the documented load-flake pattern).
+- Root cause: VT-7k placed MobGoals.VILLAGE_RETURN in the shared
+  standard() catalog (the established shape — BREAK_DOOR and
+  RABBIT_RAID_FARM are kind-gated inert views the snapshot exposes
+  the same way), and the goal itself is properly kind-gated
+  (goalVillageReturnCanUse answers false for every non-villager at
+  MobEntity:9146) — but GoalApiAcceptanceTest's snapshot census was
+  never re-run: the pig's built-in count went 9 -> 10 and the
+  assertEquals(10, live.size()) assert went stale. The VT-7k evidence
+  named the entity/village suites and TemptBegGoalsTest's selector
+  census — the server package's public-API acceptance family was
+  never in the affected set.
+- The repair: the census re-pinned — ten built-in views (village_return
+  joins the kind-gated inert list in the comment), assertEquals(11,
+  live.size()). Local run: GoalApiAcceptanceTest 4/0,
+  MobEventBridgeAcceptanceTest 2/0, MultiplayerSleepAcceptanceTest
+  3/0 — the two one-arm rows did not reproduce (the load-flake
+  convention; the release retry tolerates them).
+- The lesson (the same one #412 taught, now from the other side): a
+  catalog change that grows the shared goal list must re-run the
+  PUBLIC-API acceptance family (GoalApiAcceptanceTest) — the snapshot
+  census is a public contract, and the affected-set habit of naming
+  only the family's own suites misses it.
+
+Stage Summary:
+- The #417 repair is in. The next release run (#418) is the
+  confirming run for the whole VT close-out state.
+- Identity note: the session's git identity is now
+  Abasing <zaminpro2.0@gmail.com> (the user's own instruction); the
+  previous 140-commit run used abasing@zaminmc.github.io, which does
+  not link to the account (login: None on the API) — the linkage
+  after this push is the experiment to watch.
