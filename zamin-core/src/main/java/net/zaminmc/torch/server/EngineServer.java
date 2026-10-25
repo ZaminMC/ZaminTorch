@@ -13343,9 +13343,10 @@ public final class EngineServer implements Server, EngineBridge {
      * The command cart's run surface (Slice 66 — CommandExecutor.run
      * lines 79-100 over the engine's CommandService): the dispatch with
      * the executor's own sender — op level 2 (canUseCommand line 105),
-     * the name "@", the feedback landing in the cart's last output. The
-     * reference's areCommandBlocksEnabled gate rides the config surface
-     * the engine does not carry yet (ledgered with the config slice).
+     * the name "@", the feedback landing in the cart's last output.
+     * The run's areCommandBlocksEnabled gate (VT-7e — run lines 84-108:
+     * a disabled server runs nothing, the success count 0) rides the
+     * host's own consult below.
      */
     private net.zaminmc.torch.server.entity.vehicle.CommandBlockMinecartEntity.CommandHost
             commandCartHost() {
@@ -13417,7 +13418,10 @@ public final class EngineServer implements Server, EngineBridge {
      * One command-cart execution (public — the engine's own tests and
      * the future summon paths): the CommandService dispatch with the
      * executor's own sender (op level 2, the name "@", the feedback
-     * landing in the cart's last output).
+     * landing in the cart's last output). The count is the dispatch's
+     * own (the reference's {@code commandhandler.run} return), and the
+     * areCommandBlocksEnabled gate leads (CommandExecutor.run lines
+     * 84-108: a disabled server runs nothing — the success count 0).
      */
     public int runCommandCart(
             net.zaminmc.torch.server.entity.vehicle.CommandBlockMinecartEntity cart,
@@ -13425,13 +13429,15 @@ public final class EngineServer implements Server, EngineBridge {
         if (command == null || command.isBlank()) {
             return 0;
         }
+        if (!areCommandBlocksEnabled()) {
+            // CommandExecutor.run's else arm: the disabled server never
+            // executes — the count answers 0 for the wire row.
+            return 0;
+        }
         String line = command.startsWith("/") ? command : "/" + command;
-        String name = line.substring(1).split("\\s+")[0];
         // The engine's own command table (the deferred field read — the
         // host runs post-boot).
-        var service = commands();
-        boolean known = service.lookup(name) != null;
-        service.dispatch(new net.zaminmc.torch.server.chat.CommandSender() {
+        return commands().dispatchCounted(new net.zaminmc.torch.server.chat.CommandSender() {
             @Override public String name() {
                 return "@"; // CommandExecutor's own default
             }
@@ -13448,7 +13454,6 @@ public final class EngineServer implements Server, EngineBridge {
                 return null;
             }
         }, line);
-        return known ? 1 : 0;
     }
 
     /**
@@ -13513,8 +13518,9 @@ public final class EngineServer implements Server, EngineBridge {
     /**
      * The areCommandBlocksEnabled gate (Slice 72 — DedicatedServer line
      * 378's {@code getBoolean("enable-command-block", false)} over the
-     * engine's config): the MC|AdvCdm edit gate — the execution itself
-     * is ungated (the reference's own shape: a block that exists runs).
+     * engine's config): the MC|AdvCdm edit gate AND the run gate
+     * (VT-7e — CommandExecutor.run lines 84-108: a disabled server
+     * never executes, the success count answers 0).
      */
     public boolean areCommandBlocksEnabled() {
         return config.enableCommandBlocks();
@@ -13548,7 +13554,11 @@ public final class EngineServer implements Server, EngineBridge {
      * One block executor's run (CommandExecutor.run over the engine's
      * CommandService — the same sender shape the cart rides): op level
      * 2, the name "@", the feedback landing in the executor's last
-     * output through the recordOutput walk.
+     * output through the recordOutput walk. The count is the dispatch's
+     * own (the reference's {@code commandhandler.run} return — the
+     * comparator's analog source), and the areCommandBlocksEnabled gate
+     * leads (run lines 84-108: a disabled server runs nothing, the
+     * count 0).
      */
     private int runCommandBlockExecutor(
             net.zaminmc.torch.server.commandblock.CommandBlockManager.CommandState executor,
@@ -13556,11 +13566,15 @@ public final class EngineServer implements Server, EngineBridge {
         if (command == null || command.isBlank()) {
             return 0;
         }
+        if (!areCommandBlocksEnabled()) {
+            // CommandExecutor.run's else arm: the disabled server never
+            // executes — the count answers 0 (the analog signal's own
+            // row the comparator reads).
+            return 0;
+        }
         String line = command.startsWith("/") ? command : "/" + command;
-        String name = line.substring(1).split("\\s+")[0];
         var service = commands();
-        boolean known = service.lookup(name) != null;
-        service.dispatch(new net.zaminmc.torch.server.chat.CommandSender() {
+        return service.dispatchCounted(new net.zaminmc.torch.server.chat.CommandSender() {
             @Override public String name() {
                 return "@"; // CommandExecutor's own default
             }
@@ -13584,7 +13598,6 @@ public final class EngineServer implements Server, EngineBridge {
                 executor.commandResults().add(this, type, result);
             }
         }, line);
-        return known ? 1 : 0;
     }
 
     /** The command-block tiles (Slice 72 — the test and protocol surfaces). */

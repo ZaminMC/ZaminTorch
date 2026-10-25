@@ -173,6 +173,46 @@ class CommandBlockBlockTest {
     }
 
     @Test
+    void theDisabledRunGateRunsNothingAndCountsZero() throws Exception {
+        // VT-7e — CommandExecutor.run lines 84-108: the else arm — a
+        // server with enable-command-block=false never executes the
+        // executor; the success count answers 0 (the comparator's own
+        // row stays dark).
+        EngineServer server = boot(false);
+        try {
+            int x = 24, y = 40, z = 24;
+            java.util.concurrent.atomic.AtomicReference<
+                    net.zaminmc.torch.server.commandblock.CommandBlockManager.CommandState>
+                    executor = new java.util.concurrent.atomic.AtomicReference<>();
+            server.ticker().submit(() -> {
+                server.world().setBlock(new BlockPosition(x, y - 1, z),
+                        BuiltinBlocks.STONE);
+                server.world().setBlock(new BlockPosition(x, y, z),
+                        BuiltinBlocks.COMMAND_BLOCK);
+                var state = server.commandBlocks().createAt(
+                        new BlockPosition(x, y, z), true);
+                state.setCommand("say muted");
+                executor.set(state);
+            });
+            await(() -> executor.get() != null, "the tile carries the command");
+            // The run answers 0 and never dispatches (the disabled gate's
+            // own shape — no last output, no execution side effects).
+            java.util.concurrent.atomic.AtomicInteger ran =
+                    new java.util.concurrent.atomic.AtomicInteger(-1);
+            server.ticker().submit(() -> ran.set(server.commandBlocks().run(
+                    new BlockPosition(x, y, z))));
+            await(() -> ran.get() >= 0, "the run answered");
+            assertEquals(0, ran.get(), "the disabled gate counts zero");
+            assertEquals(0, executor.get().successCount(),
+                    "the success count row stays dark");
+            assertNull(executor.get().lastOutput(),
+                    "the disabled run never dispatches (no output row)");
+        } finally {
+            server.shutdown(() -> { });
+        }
+    }
+
+    @Test
     void theGateRefusesTheEngineVerbNowhereButTheWireGateAnswers() throws Exception {
         EngineServer server = boot(false);
         try {

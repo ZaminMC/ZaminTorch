@@ -202,9 +202,14 @@ class CommandBlockMinecartTest {
     }
 
     private EngineServer boot() throws Exception {
+        // VT-7e — the run gate (CommandExecutor.run lines 84-108): the
+        // live-engine run needs enable-command-block=true exactly like
+        // the reference's dedicated default-off law (the run test's own
+        // boot now carries the flag).
         EngineConfig config = new EngineConfig("127.0.0.1", 0,
                 "cmct" + Math.abs(UUID.randomUUID().hashCode() % 100000),
-                "it", 20, 2, 20, dataDir.toString(), GameMode.SURVIVAL);
+                "it", 20, 2, 20, dataDir.toString(), GameMode.SURVIVAL,
+                true, "flat", false, EngineConfig.WHOLE_WORLD_REGION_SIZE, true);
         EngineServer server = new EngineServer(config);
         server.start();
         return server;
