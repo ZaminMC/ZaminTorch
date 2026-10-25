@@ -53,7 +53,7 @@ cycle (entity/block/item/packet/effect class censuses); engine side from
 | Enchantments | 21 classes / legacy-id registry | `Enchantments` with legacy ids (PROTECTION=0, SHARPNESS=16, …) | VERIFIED-EQ at registry level (per-ench depth = ledger) |
 | Crafting/smelting/brewing/anvil/enchanting tables | recipe families | landed (compat ledger §1; anvil import #31) | VERIFIED-EQ per ledger |
 | Items registry | 74 item classes (registry ~440 ids incl. block-items) | item families present (census R-2 remainder: full id-by-id diff not run this cycle) | UNVERIFIED at id level (family coverage per ledger) |
-| Commands | ~41 vanilla commands | 74 registered (superset incl. custom); per-command semantic diff = remainder R-6; known divergences: /give (ML-008), /op-offline (ML-005) | PARTIAL |
+| Commands | ~41 vanilla commands | 74 registered (superset incl. custom); per-command semantic diff = remainder R-6; known divergences: /op-offline (ML-005, resolved); /give aligned to vanilla (ML-008 resolved 2026-10-26) | PARTIAL |
 | Sleep | pose broadcast + all-sleepers walk | single-player contract only (declared) | PARTIAL → ML-010 |
 | Spectator | gamemode 3 mechanics | gates + flight only | PARTIAL → ML-018 |
 | Combat/hunger/XP | 1.8.8 pipeline | deep record (§29 VIII waves) | VERIFIED-EQ per ledger |
@@ -141,11 +141,13 @@ Remainder (quantified, NOT claimed complete — R-1..R-7 resolved this cycle, R-
 - R-6: RESOLVED (surface-verified + pinned): 74 engine verbs vs the
   reference walk's 62 names (59 registrations + the w/msg tell aliases +
   the ? help alias) — intersection 56 (50 level-matched), 6 level
-  divergences RECORDED (give 0v2, time 0v2, seed 0v2, kick 2v3, say 2v1,
+  divergences RECORDED (time 0v2, seed 0v2, kick 2v3, say 2v1,
   defaultgamemode 2v4), 18 extras (the collapsed save, the gamemode
   shortcuts, msg/w, the admin QoL family, spawnmob), 6 missing (the ?
   help alias, publish, save-all/on/off as separate verbs, setidletimeout).
-  Form divergences stay ledgered: /give ML-008 (owner decision pending),
+  Form divergences stay ledgered: /give was ML-008 — RESOLVED (aligned
+  to the vanilla GiveCommand form 2026-10-26, the level and the target
+  shape both reference-matched now),
   /summon + /spawnmob player-only (cycle-3 papercut), /save collapsed,
   /setspawn the standing-form verb. /op ML-005 resolved (wave 3).
   RegisteredCommandSurfaceParityTest 2/0 pins the exact 74-name set and

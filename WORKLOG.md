@@ -15504,3 +15504,56 @@ Stage Summary:
   record kept whole by the 456-citation re-pin and the archived map.
 - The pre-rewrite history is preserved in full in the session backup
   bundle should any pre-rewrite object ever need recovering.
+
+---
+Task ID: session-2026-10-26-identity-plus-ml008
+Agent: main (Abasing session)
+Task: The owner's identity-unification order (every commit exactly like
+the recent four) + the branch cleanup + the vanilla-grade continuation
+(ML-008, the /give alignment).
+
+Work Log:
+- The identity pass 2: the whole history rewritten with git-filter-repo
+  onto the VERIFIED account email Abasing <zaminpro2.0@gmail.com> (998
+  commits, every author and committer, develop + main reset, all 140
+  tags re-pointed, trees/messages/dates byte-identical; commit-message
+  hash citations auto-re-pinned by the same pass). Verified end-to-end
+  against the API: every sampled commit across the whole depth resolves
+  to the account with the avatar-linked email.
+- The pipeline identity fixed at its source: release.yml's bump/tag git
+  config now uses zaminpro2.0@gmail.com (was the noreply form — the
+  white-avatar regression's own generator); the next bump (142) already
+  carried the correct identity.
+- The record kept whole: 212 ledger citations re-pinned to the rewritten
+  hashes (WORKLOG 125, the architecture file 62, the cycle-4 audit 13,
+  the compat ledger, MASTER_LEDGER, the coverage/parity matrices) and
+  docs/IDENTITY_REWRITE_MAP.txt regenerated as the three-era chain map
+  (original -> noreply -> gmail, 997 rows).
+- The branch cleanup: all six extra branches reviewed — cycle3-audit's
+  five unique commits verified as fully landed in develop (the Bukkit
+  MONITOR fix identical, the fishing retry present, CYCLE3_AUDIT.md
+  evolved past it); the five wave6/* branches fully merged; all six
+  deleted. main was a stale stub (the LOC-stats automation era, missing
+  the whole project) — hard-reset to develop's head. Only develop and
+  main remain.
+- ML-008 RESOLVED (the owner's vanilla-grade directive): /give aligned
+  to the reference GiveCommand 1:1 — the <player> <item> [count 1..64]
+  [data] [dataTag] target form, op-2, the parsePlayer ladder, the
+  playSound(Entity except, ...) pop (the new SoundExcept FX bus arm),
+  the full-fit makeFakeItem ghost, the remainder drop with noPickUpDelay
+  + owner, the AFFECTED_ITEMS rows. The test fleet migrated (38 core +
+  56 wire sites, the ops seeding, the ghost-wake drain, the keep-alive
+  auto-answer — see the Wave ML8 row in the architecture file for the
+  full record). GiveCommandAcceptanceTest 9 green; every affected suite
+  green locally; the pipeline's full run rides the push.
+
+Stage Summary:
+- One identity everywhere, both fixes verified against the GitHub API;
+  the white-avatar source (the pipeline's own git config) closed.
+- Only develop and main exist; main mirrors develop's head.
+- ML-008 closed as the vanilla-grade answer; the remaining master-ledger
+  rows: ML-013 (the watchdog — the reference's own ServerWatchdog makes
+  it parity work too) and the owner decisions (DEC-001/ML-020
+  online-mode, DEC-002, DEC-003) which stay owner-owned.
+- Next: ML-013 (the ServerWatchdog port over the engine's tick lane),
+  then the vanilla-grade census re-run against the reference folder.

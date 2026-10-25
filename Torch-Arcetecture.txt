@@ -4495,6 +4495,54 @@ way were repaired inside the wave.
       (properly ledgered — the engine's pathfinder carries no favor
       model, the whole family's envelope, never the giant alone).
       The VT wave complete: VT-1 through VT-7k all landed or ruled.
+## Wave ML8 — the 2026-10-26 /give vanilla alignment (ML-008 resolved)
+
+- [x] THE FORM (6184e910): /give aligned to the reference GiveCommand
+      1:1 — the `<player> <item> [count 1..64] [data] [dataTag]` target
+      shape over the parsePlayer ladder (selector, uuid, name), op-2
+      like the reference (the engine's own-level-0 self-form retired),
+      the count band the command's own 1..64 (never the stack size —
+      parseInt(args[2], 1, 64) verbatim), the data arm unbounded, and
+      the dataTag arm riding the landed Wave H2 SNBT walk unchanged.
+      The granted stack lands through the reference's exact walk: the
+      add into the target's inventory, the random.pop at 0.2F with the
+      ((r - r) * 0.7F + 1.0F) * 2.0F pitch heard by everyone EXCEPT the
+      target (the reference's playSound(Entity except, ...) overload —
+      a new SoundExcept event on the FX bus, the wire arm skipping the
+      exempt observer), the full-fit arm's makeFakeItem one-tick ghost
+      (never-pick-up 32767 + age 5999; withCount(1) keeps the damage
+      and every dataTag arm — the reference's same-object semantics),
+      the remainder arm's drop with noPickUpDelay + the owner window
+      (the overflow sweeps straight back to the target), and the
+      AFFECTED_ITEMS rows (the full fit counts the whole grant, the
+      partial the difference). GiveCommandAcceptanceTest 9: the target
+      form, the pop's except-law, the ghost (age, delay, despawn, the
+      grant intact), the remainder drop (delay 0, owner, count), the
+      count band + the unknown-item/player refusals, the op-2 gate, the
+      selector/uuid ladder.
+- [x] THE FLEET MIGRATION (6184e910): 38 core + 56 wire give call
+      sites moved to the target form; the op seeding — ops.json
+      pre-seeds for the wire rigs (the offline-UUID convention, the
+      EnchantingTableIntegrationTest idiom, every login name in each
+      affected rig), setOpLevel(2) at join for the core rigs;
+      RegisteredCommandSurfaceParityTest re-pinned (give 2
+      reference-matched, the R-6 divergent count 6 -> 5, matched
+      50 -> 51).
+- [x] THE SCRIPTED CLIENT'S TWO HONEST FIXES (6184e910): the
+      ghost-wake drain — the makeFakeItem quirk is REAL wire behavior
+      (a spawn, its metadata, the pop, the destroy a tick later), so
+      TestClient18 grew drainGiveGhostWake (discard the wake types,
+      pushback everything else in order, a hard 700ms cap below the
+      keep-alive kick line, keep-alives answered inline); and the
+      keep-alive AUTO-ANSWER in readPacket itself — a blocked typed
+      read was always swallowing keep-alive requests unanswered, and
+      any read that out-silences the 3x-interval window collects a
+      "Timed out" kick mid-flow (the drain only widened the hazard the
+      250ms-interval rigs live under; KeepAliveTimeoutWireTest's
+      silence arm opts out through silenceKeepAlives()). The lesson
+      for every future wire-test lane: the scripted client is a real
+      client — it answers pings.
+
 - [x] THE RELEASE-RUN REPAIRS (be72b296 + fee5285b): run #412's find
       — TileExtraSaveSplitTest's legacyStandBytes helper stale at the
       ZAD store's v1 body after VT-7g's v2 and VT-7i's v3 rows (+5

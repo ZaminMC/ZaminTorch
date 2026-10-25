@@ -246,7 +246,31 @@ I=infra/CI/release, S=security/boundary.
 - Evidence: engine `/give <name> [count] [data] [dataTag]` vs vanilla
   `/give <player> <item> …` (cycle-3 B-4; unchanged).
 - Decision needed from owner: record as intentional divergence (documented
-  in /help) or align to vanilla syntax. Status: unverified decision.
+  in /help) or align to vanilla syntax.
+- Resolution (2026-10-26, the owner's vanilla-grade directive — "verify
+  what is done and what is not 1:1 vanilla grade, do vanilla grade"):
+  ALIGNED. GiveCommand 1:1 — the `<player> <item> [count 1..64] [data]
+  [dataTag]` target form over the parsePlayer ladder (selector/uuid/name),
+  op-2 like the reference, the pop sound through the playSound(Entity
+  except, ...) overload (the new SoundExcept FX bus arm — everyone near
+  the target hears random.pop EXCEPT the granted player; the wire arm
+  skips the exempt observer), the full-fit arm's makeFakeItem one-tick
+  ghost (never-pick-up 32767 + age 5999, withCount(1) keeps the damage
+  and every dataTag arm — same-object semantics), the remainder arm's
+  drop with noPickUpDelay + the owner window, and the AFFECTED_ITEMS
+  result rows; the count band is the command's own 1..64, never the
+  stack size. The test fleet migrated with it: 38 core + 56 wire give
+  sites, the ops seeding (ops.json pre-seeds for the wire rigs,
+  setOpLevel at join for the core rigs), the scripted client's
+  ghost-wake drain (the makeFakeItem quirk is real wire behavior —
+  spawn, metadata, destroy, the pop — with pushback so no typed read
+  loses its packet), and the keep-alive auto-answer in readPacket
+  itself (a blocked read was always swallowing keep-alive requests
+  unanswered; the drain only widened the hazard the 250ms-interval rigs
+  live under). GiveCommandAcceptanceTest 9 green;
+  RegisteredCommandSurfaceParityTest re-pinned (give 2, the R-6 row
+  count 6 -> 5 divergent, 50 -> 51 matched).
+- Status: RESOLVED (aligned to vanilla, landed).
 
 ### ML-009 — B-4 papercuts: --port override ignored; unclean-exit stacktrace noise
 - Category: operational papercuts. Layers: T. Severity: L.
