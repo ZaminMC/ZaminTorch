@@ -15124,3 +15124,64 @@ Stage Summary:
   (mob.silverfish.step etc.), the silverfish canSpawn player gate, the
   blaze's WanderThroughVillageGoal, and the /summon ArmorStand surface
   hole.
+
+---
+Task ID: vt-wave-7h-7i
+Agent: the coordinator (Abasing session)
+Task: The vanilla-grade tail's next pair — the spawner's canSpawn family
+and the stand's /summon surface.
+
+Work Log:
+- VT-7h (da174278): the spawner's entity-level consult — MobSpawner.tick
+  line 106's mobentity.canSpawn() family 1:1 beside the unobstructed
+  stand-in. The MonsterEntity chain (peaceful + the randomized sky
+  ceiling + the raw-brightness band over the max(sky-darkness, block)
+  walk with the thundering clamp's forced 10; the PathFinderMob favor
+  gate auto-passes under raw<=7, the giant's no-favor-model envelope
+  noted); the silverfish/endermite 5-block player band; the slime's own
+  chunk band with NO light gates (implements Monster, never a
+  MonsterEntity — the swamp arm short-circuits like a plains consult);
+  the magma cube's peaceful-only override; the ghast's flying 1-in-20;
+  the guardian's open-sky roll (no peaceful — the MobEntity family);
+  the squid's 45..63 water band; the bat's coin + brightness; the
+  animals' spawnableBlock floor + light>8 (the mooshroom's own
+  MYCELIUM); the villager/golem favor-0 pass. The SpawnContext wiring
+  (time/weather/difficulty — the same reads the natural cycle's tick
+  parameters carry); the spawner cart's host shares the consult (the
+  same MobSpawner tick code). SpawnerSpawnGatesTest 15/0 (the seeded
+  roll pins: 18 answers nextInt(20)==0 and nextInt(10)==0, 1 answers
+  both nonzero, 4096 answers nextBoolean false; the deterministic
+  bands: raw 8+ never passes <=nextInt(8), raw 0 always does; the
+  thunder clamp's sky-10 pair — refuses the clear noon, passes the
+  storm). SpawnerManagerTest 10/0 (the null-world harness law
+  preserved: no chunk grid, no gates).
+- VT-7i (63542101): the stand's /summon surface — the command's
+  ArmorStand arm rides ArmorStandSystem.summonAt (the plain-constructor
+  shape: the default pose with NO random roll — the roll is the item
+  path alone — yaw 0, every flag down), the whole readCustomNbt walk
+  BEFORE the spawn publish (the reference reads the compound inside
+  Entities.create; the tracker's Spawn Object + metadata + equipment
+  sees the finished body): the five status booleans, the Invisible
+  flag (the field the engine's stand never carried — the wire's slot-0
+  base-flags byte now written, the fire bit 0x01 over the live burn
+  clock + the invisible bit 0x20), the DisabledSlots bitfield, the
+  Pose compound's set-and-reset law (a present 3-float row sets its
+  part, every missing part resetting to the reference's own default —
+  the else arms), the Equipment list's own-index slots, the base
+  Motion/Rotation/Fire/OnGround rows. The ZAD store's v3 row carries
+  the invisible flag (v1/v2 files default visible). The tab-completion
+  carries the stand's key beside LightningBolt. ArmorStandSummonTest
+  6/0, ArmorStandSystemTest 11/0, the store test green.
+
+Stage Summary:
+- Two units landed and pushed as Abasing; the compat ledger's armor
+  stand + silverfish + spawner rows updated per unit.
+- REMAINING (the VT-7 tail, next window): the mob step-sound family
+  (the whole shared walk: the 198-row block sound table extracted from
+  Block.init() — the reference's 12 families (stone/wood/gravel/grass/
+  metal/glass/cloth/sand/snow/ladder/anvil/slime) + the walk
+  accumulation (distanceMoved * 0.6, the blocksWalkedOn integer
+  crossing) + the snow-layer override + the swim arm + the silverfish's
+  makesSteps false), the blaze's WanderThroughVillageGoal, the
+  endermite's 5-block band verified landed with the silverfish's
+  (VT-7h), the giant's favor-family envelope (standing).
