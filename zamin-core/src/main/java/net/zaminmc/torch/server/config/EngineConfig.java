@@ -84,6 +84,19 @@ import java.util.Objects;
  *                        ctor's 40-character law (ResourcePackS2CPacket
  *                        lines 18-20) owns the length at the send site,
  *                        never a boot failure — the rconPassword precedent.
+ * @param maxTickTimeMillis the {@code max-tick-time} property
+ *                        (DedicatedServer line 522: {@code getOrDefault(
+ *                        "max-tick-time", TimeUnit.MINUTES.toMillis(1L))})
+ *                        — the tick watchdog's stall threshold in
+ *                        milliseconds. The default is the reference's own
+ *                        one minute; {@code 0} disables the watchdog
+ *                        entirely (the reference's boot gate
+ *                        {@code getMaxTickTime() > 0L}, DedicatedServer
+ *                        lines 216-221). A tick whose lane stays wedged
+ *                        past the threshold dumps every thread, writes a
+ *                        crash report under {@code crash-reports/} and
+ *                        force-exits the JVM — the reference
+ *                        ServerWatchdog's own law.
  */
 public record EngineConfig(
         String host,
@@ -107,7 +120,8 @@ public record EngineConfig(
         boolean enableQuery,
         int queryPort,
         String resourcePackUrl,
-        String resourcePackHash
+        String resourcePackHash,
+        long maxTickTimeMillis
 ) {
 
     /**
@@ -131,6 +145,18 @@ public record EngineConfig(
      * laws in the compact constructor (never a boot failure).
      */
     public static final int UNSET_REMOTE_PORT = 0;
+
+    /**
+     * The tick watchdog's default threshold: the reference's own
+     * {@code TimeUnit.MINUTES.toMillis(1L)} (DedicatedServer line 522).
+     */
+    public static final long DEFAULT_MAX_TICK_TIME_MILLIS = 60_000L;
+
+    /**
+     * The tick watchdog's disabled marker: the reference's boot gate
+     * ({@code getMaxTickTime() > 0L}) never starts the watchdog thread at 0.
+     */
+    public static final long WATCHDOG_DISABLED = 0L;
 
     /** Compatibility constructor for callers that do not care about mode/type. */
     public EngineConfig(String host, int port, String worldName, String motd,
@@ -191,6 +217,24 @@ public record EngineConfig(
                 "", "");
     }
 
+    /**
+     * Compatibility constructor for the pre-watchdog canonical shape (the
+     * 22-arg form the existing callers compile against): the watchdog keeps
+     * the reference's one-minute default (DedicatedServer line 522).
+     */
+    public EngineConfig(String host, int port, String worldName, String motd,
+                        int maxPlayers, int viewDistance, int tickRateHz, String dataDir,
+                        GameMode gamemode, boolean pvp, String levelType, boolean whiteList,
+                        int regionSizeChunks, boolean enableCommandBlocks,
+                        int spawnProtectionRadius, boolean enableRcon, String rconPassword,
+                        int rconPort, boolean enableQuery, int queryPort,
+                        String resourcePackUrl, String resourcePackHash) {
+        this(host, port, worldName, motd, maxPlayers, viewDistance, tickRateHz, dataDir,
+                gamemode, pvp, levelType, whiteList, regionSizeChunks, enableCommandBlocks,
+                spawnProtectionRadius, enableRcon, rconPassword, rconPort, enableQuery,
+                queryPort, resourcePackUrl, resourcePackHash, DEFAULT_MAX_TICK_TIME_MILLIS);
+    }
+
     public EngineConfig {
         Objects.requireNonNull(host, "host");
         Objects.requireNonNull(worldName, "worldName");
@@ -219,6 +263,10 @@ public record EngineConfig(
         if (spawnProtectionRadius < 0) {
             throw new IllegalArgumentException("spawnProtectionRadius must not be negative: "
                     + spawnProtectionRadius);
+        }
+        if (maxTickTimeMillis < 0) {
+            throw new IllegalArgumentException("max-tick-time must not be negative (0 disables the watchdog): "
+                    + maxTickTimeMillis);
         }
         Objects.requireNonNull(dataDir, "dataDir");
         if (dataDir.isBlank()) {
@@ -258,11 +306,14 @@ public record EngineConfig(
         // The coordinator's merge repair: the copy carries EVERY loaded row
         // through — the resource-pack pair rides beside rcon/query exactly
         // as loaded (PR #43 branched before #39 added the pair; the 23-arg
-        // form it was written against no longer compiles post-#39).
+        // form it was written against no longer compiles post-#39). The
+        // watchdog's row rides the same law (the pre-loaded threshold
+        // survives a --port override — never silently reset to the default).
         return new EngineConfig(host, port, worldName, motd, maxPlayers, viewDistance,
                 tickRateHz, dataDir, gamemode, pvp, levelType, whiteList, regionSizeChunks,
                 enableCommandBlocks, spawnProtectionRadius, enableRcon, rconPassword,
-                rconPort, enableQuery, queryPort, resourcePackUrl, resourcePackHash);
+                rconPort, enableQuery, queryPort, resourcePackUrl, resourcePackHash,
+                maxTickTimeMillis);
     }
 
     /** The world folder (the historical {@code world/} of the Paper layout). */

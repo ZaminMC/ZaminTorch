@@ -216,12 +216,13 @@ public final class ServerLayout {
                 enable-rcon=false
                 rcon.password=
                 rcon.port=%d
+                max-tick-time=%d
                 """.formatted(LocalDate.now().toString(),
                 d.gamemode().legacyId(), d.port(), d.pvp(), d.levelType(), d.maxPlayers(),
                 d.port(),
                 d.host().equals("0.0.0.0") ? "" : d.host(),
                 d.worldName(), d.viewDistance(), d.whiteList(), d.regionSizeChunks(), d.motd(),
-                d.rconPort());
+                d.rconPort(), d.maxTickTimeMillis());
         Files.writeString(file, text, StandardCharsets.UTF_8);
     }
 }

@@ -57,7 +57,8 @@ public final class ConfigLoader {
                 boolOf(properties, "enable-query", false),
                 intOf(properties, "query.port", UNSET_REMOTE_PORT_FALLBACK),
                 string(properties, "resource-pack", ""),
-                string(properties, "resource-pack-hash", ""));
+                string(properties, "resource-pack-hash", ""),
+                longOf(properties, "max-tick-time", EngineConfig.DEFAULT_MAX_TICK_TIME_MILLIS));
     }
 
     /**
@@ -108,6 +109,24 @@ public final class ConfigLoader {
         }
         try {
             return Integer.parseInt(raw.trim());
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException(
+                    "server.properties key '" + key + "' is not a number: " + raw, e);
+        }
+    }
+
+    /**
+     * The tick watchdog's threshold row ({@code max-tick-time}, DedicatedServer
+     * line 522) — a long because the reference's own default is
+     * {@code TimeUnit.MINUTES.toMillis(1L)}; 0 disables the watchdog.
+     */
+    private static long longOf(Properties properties, String key, long fallback) {
+        String raw = properties.getProperty(key);
+        if (raw == null || raw.isBlank()) {
+            return fallback;
+        }
+        try {
+            return Long.parseLong(raw.trim());
         } catch (NumberFormatException e) {
             throw new IllegalArgumentException(
                     "server.properties key '" + key + "' is not a number: " + raw, e);

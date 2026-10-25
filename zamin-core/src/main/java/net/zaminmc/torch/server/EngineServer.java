@@ -3340,6 +3340,23 @@ public final class EngineServer implements Server, EngineBridge {
                 // inside start() itself (the reference's own refusal law) —
                 // the boot never dies on a listener.
                 startRemoteAdminListeners();
+                // The tick watchdog (ML-013 — the reference DedicatedServer
+                // lines 216-221): started at the world-ready moment exactly
+                // like the reference's own init tail, daemon, "Server
+                // Watchdog" named, and ONLY when max-tick-time is positive
+                // (the getMaxTickTime() > 0L gate — 0 disables the whole
+                // thread). The watchdog watches this thread's heartbeat; a
+                // tick wedged past the threshold dumps every thread, writes
+                // crash-reports/crash-...-server.txt and force-exits.
+                if (config.maxTickTimeMillis() > 0) {
+                    Thread watchdog = new Thread(new ServerWatchdog(ticker,
+                            config.maxTickTimeMillis(),
+                            java.nio.file.Path.of(config.dataDir(), "crash-reports"),
+                            ServerWatchdog::forceExitJvm),
+                            "Server Watchdog");
+                    watchdog.setDaemon(true);
+                    watchdog.start();
+                }
                 simulationDomain.enter();
                 netherDomain.enter(); // the second dimension rides the same loop
                 endDomain.enter(); // the third dimension rides it too (Slice 64)

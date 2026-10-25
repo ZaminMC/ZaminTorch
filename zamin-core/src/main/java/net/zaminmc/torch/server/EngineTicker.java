@@ -27,8 +27,31 @@ import java.util.logging.Logger;
 public final class EngineTicker {
 
     private static final Logger LOGGER = Logger.getLogger(EngineTicker.class.getName());
-    /** Overruns below this stay silent: they are the boot-warmup norm. */
-    private static final long WARN_OVERRUN_NANOS = TimeUnit.MILLISECONDS.toNanos(250);
+    /**
+     * The keep-up warn law's thresholds, 1:1 the reference's own
+     * (MinecraftServer lines 396-401): a >2000ms lateness warns, at most
+     * once per 15000ms, with the reference's own line.
+     */
+    private static final long KEEP_UP_WARN_NANOS = TimeUnit.MILLISECONDS.toNanos(2000);
+    private static final long KEEP_UP_CADENCE_NANOS = TimeUnit.MILLISECONDS.toNanos(15000);
+    /**
+     * The keep-up warn law's cadence anchor (the reference's
+     * {@code lastWarnTime}, MinecraftServer line 117): the NEXT-TICK stamp
+     * of the last warn; 0 means "never warned" (the origin-independent
+     * difference makes the first >2s lateness always warn, the reference's
+     * own epoch-0 law).
+     */
+    private long lastWarnNextTickNanos;
+    /**
+     * The tick watchdog's heartbeat (ML-013): the nanoTime stamp of the
+     * tick currently in flight, published right before the tick body runs
+     * (the reference's {@code this.nextTickTime = k} immediately before
+     * {@code this.tick()}, MinecraftServer lines 410-412). 0 while no tick
+     * has ever started — the watchdog's idle gate. The stamp survives the
+     * park window (the reference's own envelope: nextTickTime holds the
+     * previous tick's value through the sleep).
+     */
+    private volatile long currentTickStartNanos;
 
     private volatile EngineWorld world;
     /**
@@ -78,7 +101,6 @@ public final class EngineTicker {
     private final CountDownLatch stopped = new CountDownLatch(1);
     private volatile Thread tickThread;
     private volatile long lastTickOverrunNanos;
-    private boolean tickedOnce;
     // The /tps window (the Paper 1m/5m/15m report): ticks completed per
     // elapsed second, the last sixty seconds kept for the 1-minute average.
     private final java.util.concurrent.ConcurrentLinkedQueue<long[]> tpsWindow =
@@ -205,17 +227,20 @@ public final class EngineTicker {
             if (now - nextTick > tickIntervalNanos) {
                 final long overrun = now - nextTick;
                 lastTickOverrunNanos = overrun;
-                // Sub-quarter-second overruns are the boot-warmup norm (class
-                // loading, world pregeneration): warning on them spams the
-                // console without telling the operator anything actionable.
-                if (tickedOnce && overrun > WARN_OVERRUN_NANOS) {
-                    LOGGER.warning(() -> "Simulation fell behind by "
-                            + TimeUnit.NANOSECONDS.toMillis(overrun)
-                            + " ms; skipping missed ticks (no burst catch-up)");
+                // The reference's keep-up law, 1:1 (MinecraftServer lines
+                // 396-401): a lateness past two full ticks warns — at most
+                // once per fifteen seconds — with the reference's own line
+                // (the pre-clamp j and j/50). The 2000ms band keeps the
+                // boot-warmup norm silent all by itself.
+                if (shouldWarnKeepUp(overrun, nextTick)) {
+                    long behindMillis = TimeUnit.NANOSECONDS.toMillis(overrun);
+                    LOGGER.warning(() -> "Can't keep up! Did the system time change, "
+                            + "or is the server overloaded? Running " + behindMillis
+                            + "ms behind, skipping " + (behindMillis / 50) + " tick(s)");
                 }
                 nextTick = now; // snap forward instead of accumulating debt
             }
-            tickedOnce = true;
+            currentTickStartNanos = now;
             tickOnce();
             noteTpsTick();
             nextTick += tickIntervalNanos;
@@ -448,6 +473,66 @@ public final class EngineTicker {
 
     long lastTickOverrunNanos() {
         return lastTickOverrunNanos;
+    }
+
+    /**
+     * The tick watchdog's heartbeat read (ML-013): the nanoTime stamp of
+     * the tick currently in flight, or 0 while no tick has ever started
+     * (the idle gate — the reference's watchdog reads the same window
+     * through {@code getNextTickTime()}).
+     */
+    long currentTickStartNanos() {
+        return currentTickStartNanos;
+    }
+
+    /**
+     * Whether the loop is still running — the watchdog's own loop
+    * condition (the reference's {@code this.server.isRunning()}).
+     */
+    boolean isLoopRunning() {
+        return running.get();
+    }
+
+    /**
+     * The tick interval in milliseconds (the watchdog's "should be max"
+     * line — the reference's hardcoded 0.05 at the 20 TPS default).
+     */
+    double tickIntervalMillis() {
+        return tickIntervalNanos / 1_000_000.0;
+    }
+
+    /**
+     * The keep-up warn decision, the reference's law 1:1 (MinecraftServer
+     * lines 396-401): {@code j > 2000L && nextTickTime - lastWarnTime >=
+     * 15000L} — a lateness past two full ticks warns, at most once per
+     * fifteen seconds (the anchor is the lateness's own next-tick stamp,
+     * exactly the reference's {@code this.lastWarnTime = this.nextTickTime}
+     * update, line 401). The first warn is always allowed: the anchor starts
+     * at 0, the reference's own epoch-0 law. Tick thread only (the decision
+     * both reads and updates the cadence anchor).
+     *
+     * @param overrunNanos  the lateness measured against the next-tick
+     *                      deadline (the reference's j)
+     * @param nextTickNanos the next-tick deadline the lateness was measured
+     *                      against (the reference's nextTickTime)
+     * @return whether the warn line fires for this lateness
+     */
+    boolean shouldWarnKeepUp(long overrunNanos, long nextTickNanos) {
+        if (overrunNanos > KEEP_UP_WARN_NANOS
+                && nextTickNanos - lastWarnNextTickNanos >= KEEP_UP_CADENCE_NANOS) {
+            lastWarnNextTickNanos = nextTickNanos;
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * The last completed tick's number (the watchdog's crash-report row —
+     * the reference's populateCrashReport system details carry the same
+     * shape).
+     */
+    long completedTicks() {
+        return completedTickView;
     }
 
     private static void parkUntil(long deadlineNanos) {
