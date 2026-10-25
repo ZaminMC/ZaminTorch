@@ -3083,6 +3083,13 @@ public final class MobEntity implements LivingEntity {
     private boolean pendingGuardianLaserHit;
     /** Set when the elder's aura cycle fires; the manager walks the players. */
     private boolean pendingGuardianAura;
+    /**
+     * The live squid the hunt rides (VT-7c — GuardianTargetValidator line
+     * 591's {@code instanceof SquidEntity} branch), or null when the hunt
+     * rides a player (or nothing). Re-derived every mind tick; the manager
+     * reads it after the tick for the beam id and the hit's walk.
+     */
+    private MobEntity guardianSquidHunt;
     /** The wander's steering target (the re-rolled swim direction). */
     private double guardianSteerX;
     private double guardianSteerY;
@@ -4962,6 +4969,52 @@ public final class MobEntity implements LivingEntity {
     }
 
     /**
+     * The guardian's own hunt read (VT-7c — the reference's ActiveTargetGoal
+     * over LivingEntity with GuardianTargetValidator line 591): players AND
+     * squids share one grown-box scan and the NEAREST body passing the
+     * validator's {@code squaredDistance > 9} band owns the hunt. The
+     * player arm keeps the shared nearest-player read (its follow-range
+     * gate with the sneaking/invisibility folds the engine's scan already
+     * carries); the squid arm rides the same follow-range box (the scan's
+     * own {@code grown(d0, 4.0, d0)} shape reads the follow range).
+     *
+     * @param playerTarget the shared scan's nearest player (may be null)
+     * @return the hunt's own target position — the nearer of the pair
+     */
+    private Position guardianHuntTarget(Position playerTarget) {
+        guardianSquidHunt = null;
+        MobEntity squid = world.nearestMobOfKind(position.x(), position.y(), position.z(),
+                followRange(), MobType.SQUID);
+        if (squid != null && !squid.dead()) {
+            double sx = squid.position().x() - position.x();
+            double sy = squid.position().y() - position.y();
+            double sz = squid.position().z() - position.z();
+            double squidSquared = sx * sx + sy * sy + sz * sz;
+            if (squidSquared > GUARDIAN_TARGET_MIN_SQUARED) {
+                // the validator's own band — both kinds share it
+                if (playerTarget == null) {
+                    guardianSquidHunt = squid;
+                    return squid.position();
+                }
+                double px = playerTarget.x() - position.x();
+                double py = playerTarget.y() - position.y();
+                double pz = playerTarget.z() - position.z();
+                if (squidSquared < px * px + py * py + pz * pz) {
+                    guardianSquidHunt = squid; // the EntityDistanceComparator's nearest
+                    return squid.position();
+                }
+            }
+        }
+        return playerTarget;
+    }
+
+    /** @return the live squid the hunt rides (the manager's beam id + hit
+     * walk read), or null when the hunt rides a player. */
+    public MobEntity guardianHuntSquid() {
+        return guardianSquidHunt;
+    }
+
+    /**
      * The guardian's mind (GuardianAttackEntityGoal + the wander family):
      * the laser's charge cycle against the nearest player beyond the
      * flop band with a clear line (the target validator's {@code > 9}
@@ -4975,7 +5028,12 @@ public final class MobEntity implements LivingEntity {
             double dy = target.y() - position.y();
             double dz = target.z() - position.z();
             double squared = dx * dx + dy * dy + dz * dz;
-            if (squared > GUARDIAN_TARGET_MIN_SQUARED) {
+            // GuardianAttackEntityGoal.shouldContinue lines 474-476: the
+            // ELDER never drops a live charge for proximity (its own
+            // {@code isElder() ||} exemption — only the plain guardian's
+            // band break applies); a fresh hunt still needs the band.
+            if (squared > GUARDIAN_TARGET_MIN_SQUARED
+                    || (guardianElder && guardianChargeTicks != Integer.MIN_VALUE)) {
                 hunting = true;
                 // The look stays on the target every charge tick (the
                 // reference's own setLookatValues(…, 90.0F, 90.0F)).
@@ -7959,7 +8017,11 @@ public final class MobEntity implements LivingEntity {
             return;
         }
         if (type == MobType.GUARDIAN) {
-            tickGuardianMind(target, canHunt);
+            // VT-7c — the validator's squid branch: the reference's
+            // ActiveTargetGoal scans players AND squids in one box and
+            // the NEAREST passing body owns the hunt (the shared
+            // nearest-player read alone missed the squid arm).
+            tickGuardianMind(guardianHuntTarget(target), canHunt);
             return;
         }
         // The golem pair's own minds (17d — the reverse hunt): the iron

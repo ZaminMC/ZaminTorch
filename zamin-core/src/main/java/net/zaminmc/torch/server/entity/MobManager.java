@@ -1768,7 +1768,18 @@ public final class MobManager {
             if (mob.type() == MobType.GUARDIAN) {
                 boolean wasBeam = wasGuardianBeam;
                 int wasMoving = wasGuardianMoving ? 1 : 0;
-                if (mob.guardianBeamActive()) {
+                // VT-7c — the squid arm's beam id: the reference's
+                // setBeamTag carries the ATTACK TARGET's own network id
+                // (any LivingEntity — the squid branch included), never a
+                // fresh player scan.
+                MobEntity squidHunt = mob.guardianHuntSquid();
+                if (squidHunt != null && !squidHunt.dead()) {
+                    if (mob.guardianBeamActive()) {
+                        mob.setGuardianBeamTargetId(squidHunt.entityId());
+                    } else {
+                        mob.setGuardianBeamTargetId(0);
+                    }
+                } else if (mob.guardianBeamActive()) {
                     PlayerSession beamTarget = nearestPlayingPlayer(players, mob);
                     mob.setGuardianBeamTargetId(
                             beamTarget != null ? beamTarget.engineEntityId() : 0);
@@ -1783,17 +1794,34 @@ public final class MobManager {
                     }
                 }
                 if (mob.consumeGuardianLaserHit()) {
-                    PlayerSession laserTarget = nearestPlayingPlayer(players, mob);
-                    if (laserTarget != null && laserTarget.health() > 0
-                            && !laserTarget.dead()) {
-                        // The magic half (1.0 + the elder's 2.0 — the hard
-                        // bump lands at the engine's difficulty read) and
-                        // the melee half (the ATTACK_DAMAGE attribute's own).
-                        float magic = mob.guardianElder()
-                                ? 1.0F + 2.0F : 1.0F;
-                        for (Listener listener : listeners) {
-                            listener.onMobGuardianLaserHit(mob, laserTarget,
-                                    magic, mob.attackDamage());
+                    if (squidHunt != null && !squidHunt.dead()) {
+                        // VT-7c — the squid arm's hit (the reference's
+                        // tick lines 508-522 land the same pair on ANY
+                        // LivingEntity target): the magic half pierces with
+                        // no knockback, then the melee half walks the mob
+                        // ladder (the ATTACK_DAMAGE attribute's own).
+                        float magic = mob.guardianElder() ? 1.0F + 2.0F : 1.0F;
+                        java.util.function.IntSupplier squidDifficultyAt = difficultyRead;
+                        if (squidDifficultyAt != null && squidDifficultyAt.getAsInt() == 3) {
+                            magic += 2.0F; // the goal's own hard-difficulty arm
+                        }
+                        hurt(squidHunt, magic, Double.NaN,
+                                net.zaminmc.torch.event.DamageCause.MAGIC,
+                                false, false, mob, null, true);
+                        hurtByMob(mob, squidHunt, mob.attackDamage());
+                    } else {
+                        PlayerSession laserTarget = nearestPlayingPlayer(players, mob);
+                        if (laserTarget != null && laserTarget.health() > 0
+                                && !laserTarget.dead()) {
+                            // The magic half (1.0 + the elder's 2.0 — the hard
+                            // bump lands at the engine's difficulty read) and
+                            // the melee half (the ATTACK_DAMAGE attribute's own).
+                            float magic = mob.guardianElder()
+                                    ? 1.0F + 2.0F : 1.0F;
+                            for (Listener listener : listeners) {
+                                listener.onMobGuardianLaserHit(mob, laserTarget,
+                                        magic, mob.attackDamage());
+                            }
                         }
                     }
                 }

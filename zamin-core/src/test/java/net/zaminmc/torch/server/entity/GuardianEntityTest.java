@@ -8,6 +8,7 @@ import java.util.Random;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -22,6 +23,8 @@ class GuardianEntityTest {
         boolean water = true;
         Position player;
         double playerRange = 64.0;
+        /** VT-7c — the scripted squid body (the validator's squid branch). */
+        MobEntity squid;
 
         @Override
         public boolean isSolid(double x, double y, double z) {
@@ -48,6 +51,19 @@ class GuardianEntityTest {
             double dy = player.y() - y;
             double dz = player.z() - z;
             return dx * dx + dy * dy + dz * dz <= range * range ? player : null;
+        }
+
+        @Override
+        public MobEntity nearestMobOfKind(double x, double y, double z, double range,
+                                          MobType kind) {
+            // The engine scan's own shape: the live squid within range.
+            if (squid == null || squid.dead() || kind != MobType.SQUID) {
+                return null;
+            }
+            double dx = squid.position().x() - x;
+            double dy = squid.position().y() - y;
+            double dz = squid.position().z() - z;
+            return dx * dx + dy * dy + dz * dz <= range * range ? squid : null;
         }
 
         @Override
@@ -207,5 +223,83 @@ class GuardianEntityTest {
         guardian.tick(true);
         assertFalse(guardian.guardianBeamActive(), "the hunt's break clears the beam");
         assertNull(world.nearestPlayer(0.5, 12.0, 0.5, 64.0));
+    }
+
+    @Test
+    void theSquidHuntArmOwnsTheNearestBody() {
+        // VT-7c — GuardianTargetValidator line 591: the validator's
+        // {@code instanceof SquidEntity} branch — the ActiveTargetGoal's
+        // one-box scan over players AND squids takes the NEAREST passing
+        // body; the squid at 4 blocks beats the player at 11.5.
+        ScriptedWorld world = new ScriptedWorld();
+        world.player = new Position(12.0, 12.0, 0.5); // 11.5 out
+        world.squid = new MobEntity(991, MobType.SQUID, new Position(4.5, 12.0, 0.5),
+                new Random(11L), world); // 4 out — the nearer body
+        MobEntity guardian = guardianIn(world, 8L);
+        guardian.tick(true);
+        assertSame(world.squid, guardian.guardianHuntSquid(),
+                "the nearer squid owns the hunt");
+        // The charge runs to the hit verdict against the squid — the
+        // beam arms at charge 0 exactly as the player hunt does.
+        boolean armed = false;
+        for (int i = 0; i < 10; i++) {
+            guardian.tick(true);
+            if (guardian.consumeGuardianBeamStart()) {
+                armed = true;
+                break;
+            }
+        }
+        assertTrue(armed, "the squid hunt's beam arms at the charge's 0");
+        assertSame(world.squid, guardian.guardianHuntSquid(),
+                "the hunt keeps riding the live squid mid-charge");
+        boolean hit = false;
+        for (int i = 0; i < 80; i++) {
+            guardian.tick(true);
+            if (guardian.consumeGuardianLaserHit()) {
+                hit = true;
+                break;
+            }
+        }
+        assertTrue(hit, "the squid hunt's laser completes at the 80-tick charge");
+        // The dead squid drops the hunt: the next mind tick re-derives the
+        // target over the player alone (the squid's isAlive gate).
+        world.squid = null; // the scan finds no squid anymore
+        guardian.tick(true);
+        assertNull(guardian.guardianHuntSquid(),
+                "a vanished squid returns the hunt to the player read");
+    }
+
+    @Test
+    void theNearerPlayerStillOwnsTheHunt() {
+        // The comparator's own law: the player at 4 blocks beats the squid
+        // at 11.5 — the hunt rides the player (the squid arm never steals
+        // a farther body).
+        ScriptedWorld world = new ScriptedWorld();
+        world.player = new Position(4.5, 12.0, 0.5);
+        world.squid = new MobEntity(992, MobType.SQUID, new Position(12.0, 12.0, 0.5),
+                new Random(12L), world);
+        MobEntity guardian = guardianIn(world, 9L);
+        for (int i = 0; i < 3; i++) {
+            guardian.tick(true);
+        }
+        assertNull(guardian.guardianHuntSquid(),
+                "the farther squid never owns the hunt");
+    }
+
+    @Test
+    void theSquidInsideTheFlopBandIsRefused() {
+        // The validator's shared band: a squid within 9 squared (3 blocks)
+        // is refused exactly like a near player — the engine's own
+        // target-selection read.
+        ScriptedWorld world = new ScriptedWorld();
+        world.squid = new MobEntity(993, MobType.SQUID, new Position(1.5, 12.0, 0.5),
+                new Random(13L), world); // 1 block out — inside the band
+        MobEntity guardian = guardianIn(world, 10L);
+        for (int i = 0; i < 2; i++) {
+            guardian.tick(true);
+            assertFalse(guardian.consumeGuardianBeamStart(),
+                    "the validator's squaredDistanceTo > 9 gate refuses the near squid");
+            assertFalse(guardian.consumeGuardianLaserHit());
+        }
     }
 }
