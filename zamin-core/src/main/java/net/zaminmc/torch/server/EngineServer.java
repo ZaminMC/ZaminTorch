@@ -2609,11 +2609,23 @@ public final class EngineServer implements Server, EngineBridge {
                                             double dx, double dy, double dz) {
                                         if (hooked instanceof MobEntity mob) {
                                             mob.addVelocity(dx, dy, dz);
+                                        } else if (hooked instanceof PlayerSession player) {
+                                            // VT-7d — the hooked player's pull
+                                            // (retrieve lines 456-462): the impulse
+                                            // ADDS to the body's motion exactly as
+                                            // the reference's {@code velocity +=}
+                                            // arms, then rides the knockback
+                                            // surface (the client-authoritative
+                                            // body's velocity set — the wire's
+                                            // own write, with the grace window
+                                            // guarding the flight against the
+                                            // anti-cheat's next proposals).
+                                            double nvx = player.motionX() + dx;
+                                            double nvy = player.motionY() + dy;
+                                            double nvz = player.motionZ() + dz;
+                                            player.setMotion(nvx, nvy, nvz);
+                                            publishKnockback(player, nvx, nvy, nvz);
                                         }
-                                        // The player's client-authoritative body: the
-                                        // pull rides the knockback surface's own slice
-                                        // (ledgered — the engine's movement protocol
-                                        // has no server-side player velocity write).
                                     }
                                 },
                                 new net.zaminmc.torch.server.fishing.FishingSystem.CatchSink() {
