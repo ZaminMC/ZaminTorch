@@ -15628,3 +15628,62 @@ Stage Summary:
   standing tails (not LANDED/CLOSED), verify each against the
   reference folder, and implement the reachable ones per ML-100's
   family-slice rule.
+
+---
+Task ID: VT-CENSUS-2026-10-26
+Agent: Abasing (the implementation agent)
+Task: the vanilla-grade 1:1 re-census (the owner's directive: "verify
+what is done and what is not 1:1 vanilla grade") — the ML-100 family
+tails re-verified against the reference folder and the live engine.
+
+Work Log:
+- Enumerated every "Ledgered:" tail in the compat ledger (25+) and
+  dispositioned each against the reference source and the live engine.
+- STALE TAILS FOUND LANDED (the ledger now says so): the arrow pickup
+  flag (ProjectileEntity's 0/1/2 band), the spawner + command-block
+  minecarts (Slice 66 parts four/five), the ocelot's tamed purr/meow
+  ambient family (Slice 30c's effectiveIdleSound arm), the fortress
+  skeleton's wither variant, the squid ink cloud, the endermite
+  particles, the CustomName surface — all already whole.
+- ONE LEDGER ERROR CLOSED: the guardian's "difficulty-scaled thorns"
+  was a misreading — the reference's DamageSource.thorns (line 66-68)
+  carries NO setScaledWithDifficulty; only the explosion pair does
+  (lines 71-73) and its one consumer is the player-side ladder
+  (PlayerEntity.takeDamage lines 786-798, landed as Slice 19e). The
+  engine's flat 2.0 spike IS 1:1.
+- THE GENUINELY OPEN LANES (the census's keep):
+  1. THE TAMEABLE FAMILY'S OWNER-FOLLOW + THE CAT'S OWN GOALS —
+     FollowOwnerGoal missing for BOTH tamed kinds (the wolf's
+     canStart >= 10 blocks / shouldContinue > 2, the ocelot's 10/5
+     pair; the every-10-tick path re-issue; the >= 144 (12 blocks)
+     teleport over the 5x5 outer ring with the solid-top + two-air
+     gate at floor(owner)-2; the swim-off start/stop), the
+     OcelotSitOnBlockGoal (the tamed cat's bed/chest/lit-furnace
+     perch — the 8-block GoToBlock ring scan, the 200+nextInt(200)
+     cadence, the chest's viewerCount < 1 gate, the BED's foot-part
+     refusal, the reached-target sitting flip), and the untamed
+     chicken-hunt (UntamedActiveTargetGoal(chicken) + PounceAtTarget
+     0.3F + AttackGoal, the wolf's own Pounce 0.4F + MeleeAttack 1.0
+     beside it). The infrastructure is whole (the MobGoal catalog +
+     the goal-driven MobEntity methods + world.nearestPlayerView);
+     the one new consult the family needs is the owner's live
+     position by identity (the tamed state carries ownerName/uuid).
+  2. THE DISPENSER'S WORLD-EVENT 2000 SMOKE + 2005 BONEMEAL
+     PARTICLES — the wire sends exist (the world-event packet); the
+     dispenser's arms never fire them.
+  3. THE FRAME'S MAP-MARKER CLEANUP — the frame marker's ADD landed
+     with the map wave (the "frame-<id>" naming); the removeItem
+     cleanup (decorations.remove("frame-<id>")) still owed on the
+     frame-empty walks.
+  4. The item entities'/projectiles' own dimension reads — their own
+     slice, low severity, unchanged.
+- The census corrections applied to the compat ledger's four rows
+  (the dispenser, guardian, ocelot, minecart families).
+
+Stage Summary:
+- The ML-100 re-census complete: six tails re-verdicted LANDED/stale,
+  one closed as a ledger error, the genuinely-open lanes named with
+  their full reference laws for the next implementation pass.
+- Next lane (the census's pick): the tameable family's owner-follow
+  + the cat's sit-on-block + the chicken-hunt — the largest genuinely
+  open vanilla-grade surface, infrastructure already whole.
