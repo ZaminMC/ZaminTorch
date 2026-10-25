@@ -15093,3 +15093,34 @@ Stage Summary:
   stand family has no command surface), the mob step-sound family
   (mob.silverfish.step etc.), the silverfish canSpawn player gate, the
   blaze's WanderThroughVillageGoal.
+
+---
+Task ID: vt-wave-7g
+Agent: the coordinator (Abasing session)
+Task: The vanilla-grade tail's armor-stand NBT tails — the DisabledSlots
+gates and the EntityTag merge ruling.
+
+Work Log:
+- VT-7g (fc8b0479): the DisabledSlots bitfield — the ArmorStand field +
+  the reference's three gate bands 1:1 in ArmorStandSystem.interactAt
+  (the resolution bits 1<<slot: the ladder consult lines 317-327
+  redirects the empty hand's band take — j falls to i, then to the hand
+  0, the all-disabled refusal; the take bits 1<<slot+8: swapItem line
+  346's no-removal; the place bits 1<<slot+16: line 347's bare-slot
+  no-placement — the reference's own inner-clause shape, a full swap
+  needs the take bit alone). The ZAD store v2: the bitfield row appended
+  after the poses (FORMAT_VERSION 2, the v1 read path answers the
+  default 0); StandRecord + snapshot/restore carry the row. The EntityTag
+  merge tail ruled NOT-REACHABLE — the engine carries no item-NBT
+  surface (the cart-CustomName/spawner-potentials family ruling); the
+  bigger named hole: /summon ArmorStand is unsupported (the stand family
+  has no command surface) — ledgered for the next window.
+  ArmorStandSystemTest 11/0 (the three gate bands + the v2 record row).
+
+Stage Summary:
+- VT-7g landed and pushed as Abasing; the ledger's armor-stand row
+  updated (DisabledSlots LANDED, EntityTag NOT-REACHABLE).
+- REMAINING (the VT-7 tail, next window): the mob step-sound family
+  (mob.silverfish.step etc.), the silverfish canSpawn player gate, the
+  blaze's WanderThroughVillageGoal, and the /summon ArmorStand surface
+  hole.
