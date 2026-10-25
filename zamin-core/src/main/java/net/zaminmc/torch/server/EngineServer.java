@@ -3194,6 +3194,12 @@ public final class EngineServer implements Server, EngineBridge {
                 blockInteraction.setCommitFeedbackListener(commit -> {
                     if (commit.now().equals(world.airType())) {
                         // A break: the shatter burst plus the dig family sound.
+                        // (The reference's own break law sends ONLY the 2001
+                        // block-dust event — the client plays the dig sound
+                        // itself from the packet's block id; the engine's
+                        // named-sound + blockShatter pair is the established
+                        // stand-in decomposition of that client-side
+                        // rendering, the volume/pitch its own convention.)
                         Position center = new Position(commit.position().x() + 0.5,
                                 commit.position().y() + 0.5, commit.position().z() + 0.5);
                         fxManager.blockShatter(center, commit.previous());
@@ -3202,14 +3208,20 @@ public final class EngineServer implements Server, EngineBridge {
                                         .orElse("dig.stone"), 1.0f,
                                 0.75f + fxRandom.nextFloat() * 0.2f);
                     } else if (!commit.previous().equals(commit.now())) {
-                        // A place (or replace): the dig family sound at the softer
-                        // historical place volume.
+                        // A place (or replace): the reference's own law
+                        // (BlockItem.place lines 53-60) — the family's
+                        // PLACING name (the four overrides: glass places
+                        // step.stone, the anvil lands random.anvil_land,
+                        // the slime squishes), the volume
+                        // (family + 1) / 2, the pitch family * 0.8.
                         Position center = new Position(commit.position().x() + 0.5,
                                 commit.position().y() + 0.5, commit.position().z() + 0.5);
-                        fxManager.sound(center,
-                                BlockSoundMap.digSound(commit.now().identifier())
-                                        .orElse("dig.stone"), 0.8f,
-                                0.8f + fxRandom.nextFloat() * 0.2f);
+                        BlockSoundMap.SoundFamily family = BlockSoundMap
+                                .familyOf(commit.now().identifier())
+                                .orElse(BlockSoundMap.SoundFamily.STONE);
+                        fxManager.sound(center, family.placing(),
+                                (family.volume() + 1.0f) / 2.0f,
+                                family.pitch() * 0.8f);
                     }
                 });
                 // The dig-start consult (Slice N6 — handlePlayerDig lines

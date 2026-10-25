@@ -2002,7 +2002,7 @@ public final class MobManager {
                 }
             }
             // The slime's jump and landing squish (getSoundVolume 0.4 * size).
-            MobEntity.SlimeSound jumpSound = mob.consumeSlimeSound();
+            MobEntity.StagedSound jumpSound = mob.consumeSlimeSound();
             if (jumpSound != null) {
                 for (Listener listener : listeners) {
                     listener.onMobSoundAt(mob, jumpSound.name(),
@@ -2024,11 +2024,29 @@ public final class MobManager {
                     listener.onRabbitFarmEat(mob);
                 }
             }
-            MobEntity.SlimeSound landSound = mob.consumeSlimeLandSound();
+            MobEntity.StagedSound landSound = mob.consumeSlimeLandSound();
             if (landSound != null) {
                 for (Listener listener : listeners) {
                     listener.onMobSoundAt(mob, landSound.name(),
                             landSound.volume(), landSound.pitch() / 0.8F);
+                }
+            }
+            // The step-sound walk's pair (Entity.move lines 594-624): the
+            // swim splash first, the footstep second — the reference's own
+            // call order inside the crossing (a wading body over a solid
+            // riverbed carries both on one crossing).
+            MobEntity.StagedSound swimSound = mob.consumeSwimSound();
+            if (swimSound != null) {
+                for (Listener listener : listeners) {
+                    listener.onMobSoundAt(mob, swimSound.name(),
+                            swimSound.volume(), swimSound.pitch());
+                }
+            }
+            MobEntity.StagedSound stepSound = mob.consumeStepSound();
+            if (stepSound != null) {
+                for (Listener listener : listeners) {
+                    listener.onMobSoundAt(mob, stepSound.name(),
+                            stepSound.volume(), stepSound.pitch());
                 }
             }
             // The zombie villager's cure countdown completed its walk

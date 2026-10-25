@@ -143,17 +143,19 @@ class StairsHalfBitTest {
         assertTrue(CollisionShapes.contains(BuiltinBlocks.OAK_STAIRS_EAST,
                 0.5, 0.25, 0.5, CollisionShapes.ISOLATED),
                 "the plain stair's lower half keeps its box");
-        // The dig sound rule: the woods dig wood, the masonry the stone
-        // default.
+        // The dig sound rule: the woods dig wood, the masonry carries its
+        // base block's own family (StairsBlock's constructor copies it —
+        // the stone brick pair digs stone).
         assertEquals(java.util.Optional.of("dig.wood"),
                 net.zaminmc.torch.server.fx.BlockSoundMap.digSound(
                         Identifier.parse("minecraft:birch_stairs_north_top")));
         assertEquals(java.util.Optional.of("dig.wood"),
                 net.zaminmc.torch.server.fx.BlockSoundMap.digSound(
                         Identifier.parse("minecraft:dark_oak_stairs_east")));
-        assertTrue(net.zaminmc.torch.server.fx.BlockSoundMap.digSound(
-                Identifier.parse("minecraft:stone_brick_stairs_east_top")).isEmpty(),
-                "the masonry set carries no wood row");
+        assertEquals(java.util.Optional.of("dig.stone"),
+                net.zaminmc.torch.server.fx.BlockSoundMap.digSound(
+                        Identifier.parse("minecraft:stone_brick_stairs_east_top")),
+                "the masonry stairs carry the base block's stone family");
     }
 
     @Test

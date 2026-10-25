@@ -420,7 +420,7 @@ public final class V18ProtocolServer implements ProtocolAdapter {
             public void onMobSoundAt(net.zaminmc.torch.server.entity.MobEntity mob,
                                      String soundName, float volume, float pitch) {
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
-                    connection.sendSound(soundName, mob.position(), volume, pitch);
+                    connection.sendMobSoundRanged(soundName, mob.position(), volume, pitch);
                 }
             }
 

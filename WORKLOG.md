@@ -15185,3 +15185,79 @@ Stage Summary:
   makesSteps false), the blaze's WanderThroughVillageGoal, the
   endermite's 5-block band verified landed with the silverfish's
   (VT-7h), the giant's favor-family envelope (standing).
+
+---
+Task ID: vt-wave-7j
+Agent: the coordinator (Abasing session)
+Task: The VT-7 tail's biggest unit — the mob step-sound family.
+
+Work Log:
+- The reference read whole: Entity.move lines 594-624 (the step walk —
+  the 0.6 accumulation, the ladder-only dy, the blocksWalkedOn crossing
+  at floor(y-0.2) with the fence/wall/gate-below consult, the swim arm's
+  velocity-scaled game.neutral.swim), playStepSound 691-698 (the
+  snow-layer override, the liquid refusal, volume * 0.15), makesSteps
+  715 (false: TNT, falling block, minecart, boat, guardian, endermite,
+  silverfish), Block.Sounds 40-88 + 1508-1539 (the twelve families and
+  their name overrides), the full Block.init() setSounds census (the
+  ~200 registrations + the constructor families: StairsBlock/WallBlock
+  copy their base, AbstractLogBlock WOOD, AbstractLeavesBlock GRASS,
+  WheatBlock GRASS, DaylightDetector WOOD, DoublePlantBlock GRASS,
+  PistonBaseBlock STONE; everything else DEFAULT_SOUNDS stone),
+  BlockItem.place 53-60 (the placement law: placing name at
+  (volume+1)/2 and pitch*0.8), and ServerWorldEventListener.playSound
+  line 43 (the range law volume > 1 ? 16*volume : 16).
+- onSteppedOn ruled NOT-OWED: the 1.8.8 override census is EMPTY (the
+  base is a no-op; the farmland trample rides onFallenOn — landed).
+- THE TABLE REBUILT: BlockSoundMap carries the extraction — the
+  SoundFamily enum (key/volume/pitch + breaking()/placing()/stepping()
+  with the four overrides 1:1), the base rows mapped to the engine's
+  identifiers, the ordered prefix rules for the flattened state
+  variants (stairs, doors, chests, furnaces, signs, ladders, the six
+  woods' families, the fluid levels, the fire ages, the persistent
+  leaves), and the stone default for unlisted minecraft blocks (the
+  reference's own DEFAULT_SOUNDS law). The retired hand table's named
+  errors corrected: dirt dug grass -> gravel, wool/cactus dug wool ->
+  cloth, the anvil dug anvil -> stone, TNT/many rows missing -> their
+  families.
+- THE WALK LANDED: MobEntity.stepSoundWalk after every applied move —
+  tickBody's swept and legacy arms, pushBy (the piston/explosion
+  shove), and the ghast's integrateFlight. The accumulators
+  (distanceMoved, blocksWalkedOn init 1 — not persisted, the
+  reference's own NBT carries neither), the crossing's swim arm
+  staging game.neutral.swim AND the footstep on the same crossing (the
+  riverbed plays both — the reference's own fall-through shape), the
+  snow-layer override, the liquid refusal, the makesSteps gate
+  (guardian/endermite/silverfish silent). The staged pair rides the
+  renamed StagedSound record (the shape the slime sounds always
+  shared); MobManager drains swim first, footstep second (the
+  reference's call order).
+- THE RANGE LAW: V18ProtocolServer.onMobSoundAt now distance-culls per
+  connection at ServerWorldEventListener line 43's
+  volume > 1 ? 16*volume : 16 — the whole mob-sound fan (hurt, death,
+  ambient, the new steps) was previously sent to every connection
+  unculled.
+- THE PLACEMENT LAW: EngineServer's commit feedback now carries
+  BlockItem.place's own shape — the family's placing name (glass places
+  step.stone, the anvil lands random.anvil_land, the slime squishes),
+  the volume (family + 1) / 2, the pitch family * 0.8 (the retired flat
+  0.8 volume / 0.8-1.0 random pitch). The break arm keeps its
+  established named-sound stand-in (the reference's own break path
+  sends only the 2001 event; the client renders both halves) with the
+  corrected names through the table.
+- Tests: StepSoundFamilyTest 10/0 (the twelve families + the four
+  overrides, the extraction corrections + the DEFAULT_SOUNDS law, the
+  flattened-variant resolution, the walking cadence with the volume
+  law, the snow-layer override, the riverbed pair, the open-water
+  refusal, the silent trio, the fence-below consult, the placement law
+  over the live engine); StairsHalfBitTest's masonry row corrected
+  (the base block's stone family). The entity package 55 classes
+  green, the fx family green, the mining/placement acceptance family
+  green, the protocol module 170 green (DonkeyChest + LoginFlood the
+  two known load flakes, green in isolation on the re-run).
+
+Stage Summary:
+- VT-7j landed; the compat ledger's sound row + the silverfish/golem
+  notes updated.
+- REMAINING (the VT-7 tail): the blaze's WanderThroughVillageGoal, the
+  giant's favor-family envelope (standing).

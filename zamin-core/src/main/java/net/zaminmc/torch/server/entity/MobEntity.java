@@ -590,6 +590,23 @@ public final class MobEntity implements LivingEntity {
     private int air = 300;
     /** The fall accumulator (Entity.fallDistance, line 91). */
     private float fallDistance;
+
+    /**
+     * The step-sound walk's accumulated distance (Entity.distanceMoved,
+     * line 90): every move adds the actual traveled delta scaled by 0.6;
+     * the {@link #blocksWalkedOn} crossing fires the footstep. Not
+     * persisted — the reference's own NBT carries neither row (a fresh
+     * body starts at zero over the init {@code blocksWalkedOn = 1}).
+     */
+    private float distanceMoved;
+
+    /**
+     * The next footstep's threshold (Entity.blocksWalkedOn, line 92 —
+     * the constructor's init 1): the crossing sets it to
+     * {@code (int) distanceMoved + 1}, one step per block of
+     * accumulated (0.6-scaled) travel.
+     */
+    private int blocksWalkedOn = 1;
     /** The portal re-entry cooldown (Entity.portalCooldown, line 128). */
     private int portalCooldown;
     /** The last wound's age stamp (LivingEntity.lastAttackedTime, line 118). */
@@ -5377,12 +5394,19 @@ public final class MobEntity implements LivingEntity {
     private void integrateFlight() {
         // THE SWEPT-BOX APPLICATION: the ghast's own Entity.move — the
         // 4-tall body clips against every box its swept shape touches.
+        double preMoveX = position.x();
+        double preMoveY = position.y();
+        double preMoveZ = position.z();
         net.zaminmc.torch.server.physics.EntityMoveSolver.Result swept =
                 solverMove(velocityX, velocityY, velocityZ, 0.0);
         if (swept != null) {
             if (swept.collidingHorizontally()) {
                 ghastMoving = false;
             }
+            // The step-sound walk (Entity.move's closing arm — a flying
+            // body scraping a floor's cell steps on it; the air cell
+            // gate refuses the open sky).
+            stepSoundWalk(preMoveX, preMoveY, preMoveZ);
             return;
         }
         double midY = position.y() + 2.0; // the 4-tall body's center band
@@ -5407,6 +5431,7 @@ public final class MobEntity implements LivingEntity {
         }
         position = new Position(newX, newY, newZ);
         onGround = false;
+        stepSoundWalk(preMoveX, preMoveY, preMoveZ);
     }
 
     /**
@@ -5441,7 +5466,7 @@ public final class MobEntity implements LivingEntity {
             slimeHopCooldown /= 3;
         }
         launchSlimeHop(1.0);
-        pendingSlimeSound = new SlimeSound(slimeSoundName(),
+        pendingSlimeSound = new StagedSound(slimeSoundName(),
                 0.4F * slimeSize,
                 (random.nextFloat() - random.nextFloat()) * 0.2F + 1.0F);
     }
@@ -5650,7 +5675,7 @@ public final class MobEntity implements LivingEntity {
         rabbitJumpTicks = 0;
         pendingRabbitJumpStatus = true; // mobTick's doEntityEvent(1)
         launchRabbitHop(action, targetDy);
-        pendingSlimeSound = new SlimeSound("mob.rabbit.hop",
+        pendingSlimeSound = new StagedSound("mob.rabbit.hop",
                 1.0F,
                 ((random.nextFloat() - random.nextFloat()) * 0.2F + 1.0F) * 0.8F);
     }
@@ -5858,27 +5883,52 @@ public final class MobEntity implements LivingEntity {
     }
 
 
-    /** One queued slime sound (the jump's squish or the landing thud). */
-    record SlimeSound(String name, float volume, float pitch) {
+    /**
+     * One queued world sound (a jump's squish, a landing thud, a footstep
+     * on stone — the staged-shape the manager's tick drains and
+     * broadcasts through the mob-sound listener). Public for the
+     * acceptance tests that read the staged pair.
+     */
+    public record StagedSound(String name, float volume, float pitch) {
     }
 
     /** The queued jump sound (consumed by the manager's tick). */
-    private SlimeSound pendingSlimeSound;
+    private StagedSound pendingSlimeSound;
 
     /** The landing sound queued when a hop ends (the size > 2 rule). */
-    private SlimeSound pendingSlimeLandSound;
+    private StagedSound pendingSlimeLandSound;
+
+    /** The queued footstep (the step-sound walk's crossing). */
+    private StagedSound pendingStepSound;
+
+    /** The queued swim splash (the step-sound walk's crossing over water). */
+    private StagedSound pendingSwimSound;
 
     /** @return and clears the queued jump sound (null when none). */
-    public SlimeSound consumeSlimeSound() {
-        SlimeSound sound = pendingSlimeSound;
+    public StagedSound consumeSlimeSound() {
+        StagedSound sound = pendingSlimeSound;
         pendingSlimeSound = null;
         return sound;
     }
 
     /** @return and clears the queued landing sound (null when none). */
-    public SlimeSound consumeSlimeLandSound() {
-        SlimeSound sound = pendingSlimeLandSound;
+    public StagedSound consumeSlimeLandSound() {
+        StagedSound sound = pendingSlimeLandSound;
         pendingSlimeLandSound = null;
+        return sound;
+    }
+
+    /** @return and clears the queued footstep (null when none). */
+    public StagedSound consumeStepSound() {
+        StagedSound sound = pendingStepSound;
+        pendingStepSound = null;
+        return sound;
+    }
+
+    /** @return and clears the queued swim splash (null when none). */
+    public StagedSound consumeSwimSound() {
+        StagedSound sound = pendingSwimSound;
+        pendingSwimSound = null;
         return sound;
     }
 
@@ -9284,8 +9334,166 @@ public final class MobEntity implements LivingEntity {
      * stand-down window).
      */
     public boolean pushBy(double dx, double dy, double dz) {
-        return solverMove(dx, dy, dz,
+        // The step walk's pre-move anchor (the reference's Entity.move
+        // runs the step arm over every applied move — the piston shove
+        // and the explosion impulse step exactly like a walk).
+        double preMoveX = position.x();
+        double preMoveY = position.y();
+        double preMoveZ = position.z();
+        boolean pushed = solverMove(dx, dy, dz,
                 type == MobType.HORSE ? HORSE_STEP_HEIGHT : WALK_STEP_HEIGHT) != null;
+        stepSoundWalk(preMoveX, preMoveY, preMoveZ);
+        return pushed;
+    }
+
+    /**
+     * The step-sound walk (Entity.move lines 594-624, 1:1): the reference's
+     * own footstep cadence, run after every applied move. The moved delta
+     * accumulates into {@link #distanceMoved} at the 0.6 scale — the
+     * vertical term counting only over a ladder ({@code block1 != LADDER}
+     * zeroes d13 elsewhere) — and the {@link #blocksWalkedOn} integer
+     * crossing fires over a non-air feet cell: the swim arm first (the
+     * velocity-scaled {@code game.neutral.swim} — a body wading the
+     * riverbed splashes at the footstep cadence), then the footstep
+     * itself ({@code playStepSound} lines 691-698: the snow-layer-above
+     * override reads the SNOW family, a liquid feet cell refuses — the
+     * water arm already splashed — and every other block plays its
+     * family's stepping name at {@code volume * 0.15}).
+     *
+     * <p>The {@code makesSteps()} gate 1:1: the reference's seven
+     * overrides are the TNT, the falling block, the minecart, the boat
+     * (not mob bodies here — structurally excluded), the guardian, the
+     * endermite, and the silverfish. The passenger exclusion
+     * ({@code vehicle == null}) has no engine surface — the engine's
+     * mobs never ride (a jockey's mount carries the steps). The
+     * sneaking-player skip ({@code !flag}) is player-only in the
+     * reference — a mob never skips. The reference's
+     * {@code onSteppedOn} call is a 1.8.8 no-op (no block class
+     * overrides it — the farmland trample rides the fall path) and
+     * carries nothing here.</p>
+     */
+    private void stepSoundWalk(double preX, double preY, double preZ) {
+        if (!makesSteps()) {
+            return;
+        }
+        // The feet cell (Entity.move line 568-573): floor(y - 0.2), and
+        // when that cell is air the fence/wall/gate consult takes the
+        // cell BELOW as the stepped-on block (a body standing in the
+        // 1.5-tall fence's band reads the fence as its ground).
+        int feetX = (int) Math.floor(position.x());
+        int feetY = (int) Math.floor(position.y() - 0.2);
+        int feetZ = (int) Math.floor(position.z());
+        net.zaminmc.torch.util.Identifier ground = world.blockIdAt(feetX, feetY, feetZ);
+        if (isAir(ground)) {
+            net.zaminmc.torch.util.Identifier below =
+                    world.blockIdAt(feetX, feetY - 1, feetZ);
+            if (isFenceLike(below)) {
+                ground = below;
+                feetY--;
+            }
+        }
+        double d12 = position.x() - preX;
+        double d13 = onLadderBlock(ground) ? position.y() - preY : 0.0;
+        double d14 = position.z() - preZ;
+        distanceMoved = (float) (distanceMoved
+                + Math.sqrt(d12 * d12 + d13 * d13 + d14 * d14) * 0.6);
+        if (distanceMoved > blocksWalkedOn && !isAir(ground)) {
+            blocksWalkedOn = (int) distanceMoved + 1;
+            // The swim arm (lines 611-620): the velocity-scaled splash at
+            // the crossing — sqrt(vx²*0.2 + vy² + vz²*0.2) * 0.35 clamped
+            // to 1.0, the pitch walk +-(rand-rand)*0.4 over 1.0. The walk
+            // FALLS THROUGH to the footstep (the reference's own shape:
+            // a body wading a riverbed over a solid floor splashes AND
+            // steps — playStepSound's liquid gate reads the FEET CELL,
+            // not the body's water flag).
+            if (bodyInWater()) {
+                float f = (float) Math.sqrt(velocityX * velocityX * 0.2
+                        + velocityY * velocityY
+                        + velocityZ * velocityZ * 0.2) * 0.35f;
+                if (f > 1.0f) {
+                    f = 1.0f;
+                }
+                pendingSwimSound = new StagedSound("game.neutral.swim", f,
+                        1.0f + (random.nextFloat() - random.nextFloat()) * 0.4f);
+            }
+            // playStepSound (lines 691-698): the snow-layer override reads
+            // the SNOW family, the liquid cell refuses (a body swimming
+            // over open water never steps — the splash above already
+            // answered), everything else plays its family at
+            // volume * 0.15.
+            if (isSnowLayer(world.blockIdAt(feetX, feetY + 1, feetZ))) {
+                pendingStepSound = new StagedSound(
+                        net.zaminmc.torch.server.fx.BlockSoundMap.SoundFamily.SNOW.stepping(),
+                        net.zaminmc.torch.server.fx.BlockSoundMap.SoundFamily.SNOW.volume() * 0.15f,
+                        net.zaminmc.torch.server.fx.BlockSoundMap.SoundFamily.SNOW.pitch());
+            } else if (net.zaminmc.torch.server.block.FluidBlocks.kindOf(ground) == null) {
+                net.zaminmc.torch.server.fx.BlockSoundMap.SoundFamily family =
+                        net.zaminmc.torch.server.fx.BlockSoundMap.familyOf(ground)
+                                .orElse(net.zaminmc.torch.server.fx.BlockSoundMap.SoundFamily.STONE);
+                pendingStepSound = new StagedSound(family.stepping(),
+                        family.volume() * 0.15f, family.pitch());
+            }
+        }
+    }
+
+    /**
+     * The reference's {@code makesSteps()} (Entity line 715): true for
+     * every body except the seven overrides — the mob kinds among them
+     * are the guardian, the endermite, and the silverfish
+     * (GuardianEntity 229, EndermiteEntity 51, SilverfishEntity 57; the
+     * TNT, the falling block, the minecart, and the boat are not mob
+     * bodies on this engine).
+     */
+    private boolean makesSteps() {
+        return type != MobType.GUARDIAN && type != MobType.ENDERMITE
+                && type != MobType.SILVERFISH;
+    }
+
+    /** Whether the identifier is the empty cell (the reference's Material.AIR). */
+    private static boolean isAir(net.zaminmc.torch.util.Identifier id) {
+        return id == null || id.value().equals("air");
+    }
+
+    /** Whether the identifier is a snow layer (Blocks.SNOW_LAYER). */
+    private static boolean isSnowLayer(net.zaminmc.torch.util.Identifier id) {
+        return id != null && id.value().equals("snow_layer");
+    }
+
+    /** Whether the identifier is the ladder (any facing form — Blocks.LADDER). */
+    private static boolean onLadderBlock(net.zaminmc.torch.util.Identifier id) {
+        return id != null && (id.value().equals("ladder")
+                || id.value().startsWith("ladder_"));
+    }
+
+    /**
+     * The fence/wall/gate consult (Entity.move lines 573-579): the
+     * reference's {@code instanceof FenceBlock || WallBlock ||
+     * FenceGateBlock} over the engine's flattened identifiers — the six
+     * wood fences and the nether brick fence, the wall pair, and every
+     * fence-gate state.
+     */
+    private static boolean isFenceLike(net.zaminmc.torch.util.Identifier id) {
+        if (id == null) {
+            return false;
+        }
+        String value = id.value();
+        return value.equals("oak_fence") || value.equals("spruce_fence")
+                || value.equals("birch_fence") || value.equals("jungle_fence")
+                || value.equals("acacia_fence") || value.equals("dark_oak_fence")
+                || value.equals("nether_brick_fence")
+                || value.equals("cobblestone_wall") || value.equals("mossy_cobblestone_wall")
+                || value.contains("_fence_gate");
+    }
+
+    /**
+     * The body's own water read (Entity.isInWater over the box): the
+     * engine's fluid consult at the body's mid band, water alone — the
+     * lava cell refuses the swim arm exactly like the reference (the
+     * lava's own loop hiss rides the fizz family elsewhere).
+     */
+    private boolean bodyInWater() {
+        return world.inFluid(position.x(), position.y() + 0.2, position.z())
+                && !world.inLava(position.x(), position.y() + 0.2, position.z());
     }
 
     private void tickBody() {
@@ -9519,7 +9727,7 @@ public final class MobEntity implements LivingEntity {
             // particle slice.
             if (onGround && !wasSlimeGrounded) {
                 if (slimeSize > 2 || type == MobType.MAGMA_CUBE) {
-                    pendingSlimeLandSound = new SlimeSound(slimeSoundName(),
+                    pendingSlimeLandSound = new StagedSound(slimeSoundName(),
                             0.4F * slimeSize,
                             (random.nextFloat() - random.nextFloat()) * 0.2F + 1.0F);
                 }
@@ -9576,8 +9784,11 @@ public final class MobEntity implements LivingEntity {
                 ? (0.0 - GRAVITY_PER_TICK) * 0.98 : velocityY;
         // The climb-out assist's pre-move anchor (LivingEntity.travel's
         // d1/d0: the y captured before the move — the exit ledge sits
-        // 0.6 above IT, not above the post-move body).
+        // 0.6 above IT, not above the post-move body). The x/z pair ride
+        // beside it for the step-sound walk's own delta.
         double preMoveY = position.y();
+        double preMoveX = position.x();
+        double preMoveZ = position.z();
         // THE SPIDER FAMILY'S CLIMB CLAMP (LivingEntity.travel lines
         // 1165-1175 over SpiderEntity.isClimbing's wall override): a body
         // whose last move clipped a wall clamps its horizontal input to
@@ -9665,6 +9876,10 @@ public final class MobEntity implements LivingEntity {
                     && canOccupyClimbOut(preMoveY, swept.dx(), swept.dz())) {
                 velocityY = 0.3f;
             }
+            // The step-sound walk (Entity.move's own closing arm — the
+            // swept path's move has landed the body; the walk reads the
+            // post-move feet cell over the pre-move anchor).
+            stepSoundWalk(preMoveX, preMoveY, preMoveZ);
             return;
         }
 
@@ -9752,6 +9967,9 @@ public final class MobEntity implements LivingEntity {
         }
 
         position = new Position(newX, newY, newZ);
+        // The step-sound walk (Entity.move's own closing arm — the
+        // legacy path's move has landed the body).
+        stepSoundWalk(preMoveX, preMoveY, preMoveZ);
     }
 
     /**

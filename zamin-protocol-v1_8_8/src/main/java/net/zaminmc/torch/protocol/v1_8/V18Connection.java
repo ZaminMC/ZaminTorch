@@ -6047,6 +6047,22 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     }
 
     /**
+     * The mob-sound fan's own ranged form (the reference's
+     * {@code World.playSound(Entity, ...)} seat — every mob-emitted sound
+     * crosses ServerWorldEventListener.playSound line 43's
+     * {@code volume > 1.0F ? 16.0F * volume : 16.0F} band): this observer
+     * hears it only inside the range the volume itself carries. Any
+     * thread.
+     */
+    void sendMobSoundRanged(String soundName, Position position, float volume, float pitch) {
+        PlayerSession observer = currentSession();
+        if (observer != null && beyondRange(observer, position, soundRange(volume))) {
+            return;
+        }
+        sendSound(soundName, position, volume, pitch);
+    }
+
+    /**
      * One server-computed display particle (the ServerWorld.addParticle
      * shape, 1:1): World Particles with {@code count 0} so the client
      * renders a single particle at the exact position with the offsets
