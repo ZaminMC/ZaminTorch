@@ -16,15 +16,15 @@ cycle (entity/block/item/packet/effect class censuses); engine side from
 
 | Family | Reference census | Engine state | Coverage |
 |---|---|---|---|
-| C2S packets | 28 classes (1 handshake, 2 query, 2 login, 23 play) | 30 constants; 27/28 mapped 1:1 (all 23 play + handshake + query pair + LOGIN_START) | PARTIAL — `KeyC2SPacket` (encryption response) absent = offline-mode only → ML-020/DEC-001 **decided 2026-10-26: Wave ON-1 implements it whole** |
-| S2C packets | 77 classes (3 login, 2 query, 72 play) | 67 constants, all IDs verified against protocol 47 | PARTIAL — absent: 0x20 Entity Properties (ML-011), 0x36 Sign Editor Open (ML-003), 0x0A Use Bed (ML-010), 0x41 Server Difficulty (ML-012), 0x43 Camera (ML-018), 0x48 Resource Pack Send (ML-017), 0x22 Multi Block Change + 0x26 Chunk Bulk (ML-019, batching only); login CompressionThreshold handled by FrameCodec (wire form remainder check R-3) |
-| Handshake/login/status | handshake → status/login state machine | `V18Connection` state switch verified | VERIFIED-EQ (offline-mode shape) |
+| C2S packets | 28 classes (1 handshake, 2 query, 2 login, 23 play) | 31 constants; 28/28 mapped 1:1 (all 23 play + handshake + query pair + LOGIN_START + LOGIN_ENCRYPTION_RESPONSE) | VERIFIED-EQ — the KeyC2S (encryption response) arm landed with Wave ON-1b (5f0d77e1); ML-020 RESOLVED |
+| S2C packets | 77 classes (3 login, 2 query, 72 play) | 69 constants, all IDs verified against protocol 47 | PARTIAL — absent: 0x20 Entity Properties (ML-011), 0x36 Sign Editor Open (ML-003), 0x0A Use Bed (ML-010), 0x41 Server Difficulty (ML-012), 0x43 Camera (ML-018), 0x48 Resource Pack Send (ML-017), 0x22 Multi Block Change + 0x26 Chunk Bulk (ML-019, batching only); the login family is WHOLE (0x01 Encryption Request + 0x03 Set Compression landed with Waves ON-1a/ON-1b) |
+| Handshake/login/status | handshake → status/login state machine | `V18Connection` state switch + the login stage machine (HELLO-KEY-AUTHENTICATING-READY) | VERIFIED-EQ (both branches: the online arm's encryption + consult + exchange landed with Waves ON-1a/ON-1b, offline stays as the online-mode=false branch) |
 | Keepalive/latency | KeepAlive both ways | C2S/S2C KEEP_ALIVE wired | VERIFIED-EQ (timeout behavior remainder R-4) |
 | Movement sync | Entity 0x14 + rel/look/teleport/head | all five constants + writers | VERIFIED-EQ |
 | Metadata/equipment/effects | 0x1C/0x04/0x1D/0x1E | all wired | VERIFIED-EQ (0x0C metadata encoding suspect — ML-003 cycle-3 lead, wire bytes never captured) |
 | Chunk/block sync | 0x21 chunk data, 0x23 block change, 0x24 action, 0x25 break anim, 0x35 BE update | all wired (single-update form) | VERIFIED-EQ minus batching (ML-019) |
 | Inventory windows | open/close/set-slot/items/property/confirm | all wired | VERIFIED-EQ (slot-27 rejection unverified — ML-004) |
-| Player list/chat/tab | 0x30 PlayerInfo (via PLAYER_INFO), 0x3A tab-complete, header/footer | wired | VERIFIED-EQ |
+| Player list/chat/tab | 0x30 PlayerInfo (via PLAYER_INFO), 0x3A tab-complete, header/footer | wired; the ADD_PLAYER carries the profile's signed properties (the textures row online, count 0 offline) | VERIFIED-EQ (the properties lane landed with Wave ON-1d) |
 | Plugin messages | 0x3F/0x17 | wired (MC|TrList rides it) | VERIFIED-EQ |
 | Scoreboard | objective/score/display/teams | all wired | VERIFIED-EQ |
 
@@ -77,7 +77,7 @@ cycle (entity/block/item/packet/effect class censuses); engine side from
 | Malformed-packet fuzzing | R-7 run this cycle: 24-case deterministic corpus (one fresh client per case) + seeded tail (Random(474747L), 40 frames) — 4 lawful closes, engine ticked through all, clean join intact | VERIFIED-EQ (MalformedPacketFuzzWireTest 3/0) |
 | Login flood | bounded + measured (wave 3, ML-014: zero tick-lane cost at 100 pending; ReadTimeoutHandler(30) first in the pipeline) | RESOLVED (ML-014, wave 3) |
 | Packet-size limits / rate limits | the 21-bit frame ceiling (MAX_FRAME 2,097,151 = the 3-byte varint maximum) — the reference's own splitter law (SplitterHandler.java: wider-than-21-bit → CorruptedFrameException); pinned: 4-byte continuation varint closes, ceiling-length partial frame WAITS | VERIFIED-EQ (R-7, MalformedPacketFuzzWireTest) |
-| Compression threshold exchange | the engine never performs the 0x03 exchange — its permanent mode is the reference's threshold=-1 shape (the ENGINEERING_PLAN slice decision); the byte-exact no-exchange form pinned at the wire | INTENTIONAL DIVERGENCE, RECORDED + PINNED (R-3, LoginCompressionWireTest 3/0) |
+| Compression threshold exchange | the 0x03 Set Compression rides BEFORE Login Success (acceptLogin lines 91-101) with the threshold default 256 (MinecraftServer line 1122, negatives disable — the reference's own unvalidated law); the codec install ordered structurally (decompress after the frame decoder, the outbound deflate before the length prefix) | VERIFIED-EQ (Wave ON-1a, f0dbe1dd — DEC-001 superseded the ENGINEERING_PLAN slice decision; LoginCompressionWireTest 5/0 + CompressionCodecTest 8/0) |
 | Micro-level boundary/rounding laws | per-mechanic records in ledger (formulas pinned test-by-test) | VERIFIED-EQ where ledgered (the standing method) |
 
 ## Coverage summary and honest remainder
@@ -85,7 +85,9 @@ cycle (entity/block/item/packet/effect class censuses); engine side from
 Verified by census this cycle: mob 32/32, projectiles 9/9, vehicles 9/9,
 specials 8/8, decorations 4/4, potion effects 23/23, block-state registry
 896 (test-pinned), enchantment registry (legacy-id scheme), packet
-constants 27/28 C2S + 67/77 S2C with every absence named and ledgered.
+constants 28/28 C2S (the KeyC2S arm landed with Wave ON-1b) + 69/77 S2C
+with every absence named and ledgered (the login family whole since
+Waves ON-1a/ON-1b).
 
 Remainder (quantified, NOT claimed complete — R-1..R-7 resolved this cycle, R-8 left):
 - R-1: RESOLVED (the lifecycle walk, 1:1 — 0ec68c18): the boundary ray fan
@@ -117,11 +119,13 @@ Remainder (quantified, NOT claimed complete — R-1..R-7 resolved this cycle, R-
   with the reference's own registration lines cited; ItemRegistryParityTest
   4/0 pins the full table, the no-engine-item set (17 ids), the dual
   spellings, and the stack sizes.
-- R-3: RECORDED as the standing intentional divergence + pinned: the engine
-  never performs the login compression exchange (permanent threshold=-1
-  shape, the ENGINEERING_PLAN's own slice decision); the reference's own
-  exchange law (ServerLoginNetworkHandler lines 92-101) extracted and the
-  byte-exact no-exchange form pinned (LoginCompressionWireTest 3/0).
+- R-3: RESOLVED by decision (DEC-001) + Wave ON-1a (f0dbe1dd): the
+  ENGINEERING_PLAN's permanent threshold=-1 slice decision was
+  superseded — the engine now performs the login compression exchange
+  whole (the 0x03 before Login Success, the reference's own acceptLogin
+  lines 91-101 order, the 256 default with negatives disabling); the
+  byte-exact exchange-first form and the disabled branch both pinned
+  (LoginCompressionWireTest 5/0, CompressionCodecTest 8/0).
 - R-4: RESOLVED (payload defect fixed + the engine's own stricter kick
   recorded): the payload now the reference's (int) getTimeMillis() form
   (ServerPlayNetworkHandler.tick lines 131-137 — it was a from-scratch

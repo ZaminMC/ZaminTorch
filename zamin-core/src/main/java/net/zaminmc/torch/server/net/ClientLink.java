@@ -94,19 +94,29 @@ public interface ClientLink {
 
     /**
      * One tab-list entry: the tab-list family's wire payload (the reference's
-     * PlayerInfoS2CPacket.Entry — the offline profile's uuid + name, the game
-     * mode id, and the smoothed ping). No display name: the reference's
-     * getPlayerListName() answers null, and offline profiles carry no
-     * texture properties.
+     * PlayerInfoS2CPacket.Entry — the profile's uuid + name + signed
+     * properties, the game mode id, and the smoothed ping). No display
+     * name: the reference's getPlayerListName() answers null. The
+     * properties ride empty on the offline branch (the reference's
+     * createFakeProfile shape) and carry the session service's textures
+     * row on the online one (Wave ON-1d).
      */
-    record TabListEntry(UUID uuid, String name, int gamemodeId, int ping) {
+    record TabListEntry(UUID uuid, String name, int gamemodeId, int ping,
+                        java.util.List<net.zaminmc.torch.server.auth.GameProfile.Property> properties) {
+
+        /** The offline-profile shape (no properties — the historical form). */
+        TabListEntry(UUID uuid, String name, int gamemodeId, int ping) {
+            this(uuid, name, gamemodeId, ping, java.util.List.of());
+        }
     }
 
     /**
      * Player Info 0x38 action ADD_PLAYER (the reference's ctor walk: uuid,
-     * name, zero properties, game mode varint, ping varint, no display
-     * name). One packet with the given entries. Safe from any thread;
-     * default no-op for engine-internal links.
+     * name, the profile's properties — count varint, then per property the
+     * name string, the value string, the has-signature boolean and its
+     * signature string when signed, game mode varint, ping varint, no
+     * display name). One packet with the given entries. Safe from any
+     * thread; default no-op for engine-internal links.
      */
     default void tabListAdd(java.util.List<TabListEntry> entries) {
     }

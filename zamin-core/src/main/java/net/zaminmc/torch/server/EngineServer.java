@@ -27335,10 +27335,12 @@ public final class EngineServer implements Server, EngineBridge {
     // ------------------------------------------------------------------ EngineBridge
 
     @Override
-    public JoinResult joinRequest(ClientLink link, String username, UUID offlineUuid) {
+    public JoinResult joinRequest(ClientLink link, String username, UUID offlineUuid,
+                                  java.util.List<net.zaminmc.torch.server.auth.GameProfile.Property> properties) {
         Objects.requireNonNull(link, "link");
         Objects.requireNonNull(username, "username");
         Objects.requireNonNull(offlineUuid, "offlineUuid");
+        Objects.requireNonNull(properties, "properties");
 
         if (state.get() != ServerState.RUNNING) {
             return new EngineBridge.Rejected("Server is not accepting players");
@@ -27382,6 +27384,12 @@ public final class EngineServer implements Server, EngineBridge {
             Optional<PlayerSnapshot> saved = playerStore == null
                     ? Optional.empty() : playerStore.load(offlineUuid);
             PlayerSession session = new PlayerSession(offlineUuid, username, link);
+            // The profile's signed properties ride in with the identity
+            // (Wave ON-1d): empty offline, the session service's textures
+            // row online — installed before the join burst can build the
+            // tab-list entries (the reference's profile is whole at
+            // onLogin, the same law).
+            session.setProfileProperties(properties);
             // The API's give() re-syncs the wire exactly like the engine's own
             // pickup paths (§27.5: the handle resolves to live behavior).
             session.setInventorySyncHook(this::publishInventoryChanged);

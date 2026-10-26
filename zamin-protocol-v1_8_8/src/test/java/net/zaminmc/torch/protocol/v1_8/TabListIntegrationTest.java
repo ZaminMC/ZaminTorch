@@ -65,10 +65,25 @@ class TabListIntegrationTest extends ProtocolTestBase {
             assertEquals(0, bobOnAliceWire.gamemode(), "survival");
             assertEquals(0, bobOnAliceWire.ping(), "a fresh joiner's ping");
 
+            // The offline branch's profile law (Wave ON-1d's other side): the
+            // offline profile carries NO properties — the count varint is 0,
+            // no name/value/signature rows behind it (the reference's
+            // createFakeProfile shape; the parser would have captured any).
+            assertTrue(bobOnAliceWire.properties().isEmpty(),
+                    "the offline ADD carries zero properties");
+
             long selfAdds = bobSees.stream().filter(e -> "TabBob".equals(e.name())).count();
             assertTrue(selfAdds >= 2, "the joiner's own entry twice (got " + selfAdds + ")");
             assertTrue(bobSees.stream().anyMatch(e -> "TabAlice".equals(e.name())),
                     "the existing player's ADD reached the joiner");
+            // Both of the joiner's own copies ride the same empty row, and the
+            // existing player's entry carries none either.
+            assertTrue(bobSees.stream().filter(e -> "TabBob".equals(e.name()))
+                    .allMatch(e -> e.properties().isEmpty()),
+                    "every self-add carries the offline zero-property row");
+            assertTrue(bobSees.stream().filter(e -> "TabAlice".equals(e.name()))
+                    .allMatch(e -> e.properties().isEmpty()),
+                    "the offline existing-player entry carries none either");
         }
         awaitEmptyServer();
     }

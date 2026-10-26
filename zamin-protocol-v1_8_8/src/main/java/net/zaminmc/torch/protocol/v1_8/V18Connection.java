@@ -464,7 +464,8 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
      * walk.
      */
     private void acceptLogin(Channel channel, GameProfile profile) {
-        EngineBridge.JoinResult result = engine.joinRequest(this, profile.name(), profile.id());
+        EngineBridge.JoinResult result = engine.joinRequest(this, profile.name(),
+                profile.id(), profile.properties());
         if (result instanceof EngineBridge.Rejected rejected) {
             sendLoginDisconnect(channel, rejected.reason());
             return;
@@ -2733,9 +2734,12 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         }
         // Player Info (0x38) action ADD_PLAYER — the reference's write walk
         // (PlayerInfoS2CPacket lines 116-140): uuid, name, varint property
-        // count (offline = 0 — the engine carries no profile properties),
-        // varint game mode, varint ping, boolean has-display-name (the
-        // reference's getPlayerListName() answers null → always false).
+        // count, per property the name string, the value string, the
+        // has-signature boolean and its signature string when signed
+        // (empty offline — the reference's createFakeProfile; the session
+        // service's textures row online), varint game mode, varint ping,
+        // boolean has-display-name (the reference's getPlayerListName()
+        // answers null → always false).
         ByteBuf out = Unpooled.buffer(96);
         ByteBufOps.writeVarInt(out, Protocol18.S2C_PLAYER_INFO);
         ByteBufOps.writeVarInt(out, Protocol18.PLAYER_INFO_ADD_PLAYER);
@@ -2743,7 +2747,15 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         for (net.zaminmc.torch.server.net.ClientLink.TabListEntry entry : entries) {
             ByteBufOps.writeUuid(out, entry.uuid());
             ByteBufOps.writeString(out, entry.name());
-            ByteBufOps.writeVarInt(out, 0); // properties: offline profile has none
+            ByteBufOps.writeVarInt(out, entry.properties().size());
+            for (net.zaminmc.torch.server.auth.GameProfile.Property property : entry.properties()) {
+                ByteBufOps.writeString(out, property.name());
+                ByteBufOps.writeString(out, property.value());
+                out.writeBoolean(property.hasSignature());
+                if (property.hasSignature()) {
+                    ByteBufOps.writeString(out, property.signature());
+                }
+            }
             ByteBufOps.writeVarInt(out, entry.gamemodeId());
             ByteBufOps.writeVarInt(out, entry.ping());
             out.writeBoolean(false); // no display name (getPlayerListName = null)

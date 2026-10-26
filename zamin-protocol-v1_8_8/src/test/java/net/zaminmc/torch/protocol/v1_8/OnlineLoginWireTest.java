@@ -22,11 +22,15 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Wave ON-1b's wire pins — the whole online login arm end to end, against
+ * Waves ON-1b/ON-1d's wire pins — the whole online login arm end to end
+ * (ON-1b) plus the profile's properties riding the join burst's tab-list
+ * ADD (ON-1d), against
  * the canonical operator shape (online-mode=true, threshold=256) with the
  * session service stubbed at the seam the reference stubs it nowhere: the
  * real hasJoined walk is exercised by MojangSessionServiceTest; THIS test
@@ -75,8 +79,25 @@ class OnlineLoginWireTest {
             if (refuse) {
                 return null;
             }
-            return new GameProfile(onlineIdOf(username), username,
-                    List.of(new GameProfile.Property("textures", "aGVsbG8=", "c2lnbmF0dXJl")));
+            return new GameProfile(onlineIdOf(username), username, propertiesFor(username));
+        }
+
+        /**
+         * The stub's per-name property arms (Wave ON-1d's test surface):
+         * the signed textures default, the UNSIGNED variant (the wire's
+         * no-signature arm — a null signature never rides a string), and
+         * the multi-property row (the count varint's >1 form).
+         */
+        private static List<GameProfile.Property> propertiesFor(String username) {
+            if (username.startsWith("Unsigned")) {
+                return List.of(new GameProfile.Property("textures", "dW5zaWduZWQ=", null));
+            }
+            if (username.startsWith("Multi")) {
+                return List.of(
+                        new GameProfile.Property("textures", "bXVsdGk=", "c2lnbmF0dXJl"),
+                        new GameProfile.Property("custom", "b3RoZXI=", null));
+            }
+            return List.of(new GameProfile.Property("textures", "aGVsbG8=", "c2lnbmF0dXJl"));
         }
     }
 
@@ -195,6 +216,92 @@ class OnlineLoginWireTest {
             assertTrue(joinGameSeen, "the join burst rode the encrypted stream");
             assertEquals(ServerState.RUNNING, server.state());
         }
+    }
+
+    /**
+     * Wave ON-1d's pin: the profile's signed properties ride the join
+     * burst's tab-list ADD whole (the reference's PlayerInfoS2CPacket
+     * lines 118-135 — the textures row is the online branch's own skin
+     * carrier). Three arms: the SIGNED default, the UNSIGNED variant
+     * (the no-signature boolean with no string behind it), and the
+     * MULTI-property row (the count varint above one). Every ADD the
+     * joiner's own wire carries — the broadcast self-copy AND the
+     * per-player loop's — must carry the identical row.
+     */
+    @Test
+    void theTabListAddCarriesTheSessionServicePropertiesWhole() throws Exception {
+        // The signed default arm.
+        try (TestClient18 client = new TestClient18("127.0.0.1", adapter.boundPort())) {
+            List<TestClient18.PropWire> props = onlineLoginCollectingOwnAdds(client, "SkinRider");
+            assertEquals(1, props.size(), "the stub's single signed textures row");
+            assertEquals("textures", props.get(0).name());
+            assertEquals("aGVsbG8=", props.get(0).value());
+            assertEquals("c2lnbmF0dXJl", props.get(0).signature(),
+                    "the signed arm: the boolean true rides the signature string");
+        }
+        // The unsigned arm: the boolean false, never a string.
+        try (TestClient18 client = new TestClient18("127.0.0.1", adapter.boundPort())) {
+            List<TestClient18.PropWire> props = onlineLoginCollectingOwnAdds(client, "UnsignedSkin");
+            assertEquals(1, props.size());
+            assertEquals("textures", props.get(0).name());
+            assertEquals("dW5zaWduZWQ=", props.get(0).value());
+            assertNull(props.get(0).signature(),
+                    "the unsigned arm: no signature string behind the false boolean");
+        }
+        // The multi-property arm: the count varint above one, the rows in order.
+        try (TestClient18 client = new TestClient18("127.0.0.1", adapter.boundPort())) {
+            List<TestClient18.PropWire> props = onlineLoginCollectingOwnAdds(client, "MultiSkin");
+            assertEquals(2, props.size(), "the count varint's >1 form");
+            assertEquals("textures", props.get(0).name());
+            assertEquals("c2lnbmF0dXJl", props.get(0).signature());
+            assertEquals("custom", props.get(1).name());
+            assertNull(props.get(1).signature());
+        }
+    }
+
+    /**
+     * The whole encrypted login (Request -> Response -> the exchange ->
+     * Success) with the join burst's own ADDs collected — every self-add
+     * must carry the SAME properties (the reference's double-add quirk
+     * rides the same profile twice).
+     */
+    private List<TestClient18.PropWire> onlineLoginCollectingOwnAdds(
+            TestClient18 client, String name) throws Exception {
+        client.sendHandshake(47, 2);
+        client.sendLoginStart(name);
+        TestClient18.EncryptionRequest request = client.readEncryptionRequest();
+        SecretKey secret = TestClient18.clientSecret();
+        client.sendEncryptionResponse(secret, request.publicKey(), request.nonce());
+        client.enableEncryption(secret);
+
+        byte[] exchange = client.readPacket();
+        ByteBuf exchangeBody = Unpooled.wrappedBuffer(exchange);
+        assertEquals(Protocol18.S2C_LOGIN_SET_COMPRESSION, ByteBufOps.readVarInt(exchangeBody));
+        ByteBufOps.readVarInt(exchangeBody); // the threshold
+        client.armCompression();
+        client.armInboundCompression();
+
+        byte[] success = client.readPacket();
+        ByteBuf successBody = Unpooled.wrappedBuffer(success);
+        assertEquals(Protocol18.S2C_LOGIN_SUCCESS, ByteBufOps.readVarInt(successBody));
+        ByteBufOps.readString(successBody, 64); // the uuid
+        ByteBufOps.readString(successBody, 64); // the name
+
+        // The join burst through the negotiated cipher + inflater: collect
+        // the joiner's own ADDs (the self-copy + the loop's final entry).
+        List<TestClient18.TabEntry> adds = client.readUntilPositionCollectingTabAdds();
+        List<TestClient18.TabEntry> selfAdds = adds.stream()
+                .filter(e -> name.equals(e.name())).toList();
+        assertFalse(selfAdds.isEmpty(), "the joiner's own ADD reached their own wire");
+        for (TestClient18.TabEntry self : selfAdds) {
+            assertEquals(onlineIdOf(name), self.uuid(),
+                    "the tab entry keys on the ONLINE identity");
+        }
+        List<List<TestClient18.PropWire>> rows = selfAdds.stream()
+                .map(TestClient18.TabEntry::properties).distinct().toList();
+        assertEquals(1, rows.size(),
+                "every self-add carries the identical property row (got " + rows + ")");
+        return rows.get(0);
     }
 
     /**

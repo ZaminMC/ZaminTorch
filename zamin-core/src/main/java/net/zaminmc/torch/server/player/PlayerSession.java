@@ -510,6 +510,32 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
         this.link = Objects.requireNonNull(link, "link");
     }
 
+    /**
+     * The profile's signed properties (Wave ON-1d): empty on the offline
+     * branch (the reference's createFakeProfile shape), the session
+     * service's textures row on the online one. Set once at the join,
+     * before the wire's join burst builds the tab-list entries — never
+     * mutated after (the reference's profile is immutable too).
+     */
+    private volatile java.util.List<net.zaminmc.torch.server.auth.GameProfile.Property> profileProperties =
+            java.util.List.of();
+
+    /** @return the profile's signed properties (empty offline). */
+    public java.util.List<net.zaminmc.torch.server.auth.GameProfile.Property> profileProperties() {
+        return profileProperties;
+    }
+
+    /**
+     * The join-time property install (the online branch's one write):
+     * called between the session's creation and the join burst, never
+     * after — the tab list and any later re-flush read a stable list.
+     */
+    public void setProfileProperties(
+            java.util.List<net.zaminmc.torch.server.auth.GameProfile.Property> properties) {
+        this.profileProperties = properties == null
+                ? java.util.List.of() : java.util.List.copyOf(properties);
+    }
+
     public UUID uuid() {
         return uuid;
     }

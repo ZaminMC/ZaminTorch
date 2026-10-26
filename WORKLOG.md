@@ -16081,3 +16081,131 @@ behavior — the test was wrong, the implementation right); (3) run the
 NEIGHBORING families before building on a catalog — the committed
 tree carried a failing census pin the previous lane left, and the new
 goal's band insertion would have compounded it.
+
+## 2026-10-26 (the online-mode whole) — Wave ON-1 landed: the decisions, the compression exchange, the encryption arm, and the textures lane (the interrupted session's ledger rows recovered)
+
+**The wave's shape:** DEC-001 executed whole — the owner's call that
+offline-only is not the vanilla shape (the dedicated server's own
+online-mode=true default, DedicatedServer line 103). The wave landed
+in four commits: the decisions record (5464b5d4), ON-1a the login
+compression exchange (f0dbe1dd), ON-1b the whole encryption arm
+(5f0d77e1), and ON-1d the tab-list textures lane (this session). The
+wave's numbering recorded honestly: the planning session was
+interrupted before its ledger rows; no c-labeled slice exists anywhere
+in the tree or history — the wave landed a, b, d, the c-slice (the
+engine seam) folded whole into d's landing.
+
+**ON-1a — the login compression exchange (f0dbe1dd):**
+- CompressionCodec: the reference CompressionDecoder/Encoder pair
+  ported whole — the data-length varint's two wire forms (the zero raw
+  ride below the threshold, the size-prefixed deflate at it) and the
+  decoder's two badly-compressed guards with the reference's exact
+  messages.
+- The Set Compression packet (S2C login 0x03) rides BEFORE Login
+  Success per acceptLogin lines 91-101; the codec install ordered
+  structurally (decompress after the frame decoder, the outbound
+  deflate before the length prefix).
+- The operator surface: network-compression-threshold (default 256,
+  negatives disable — the reference's own unvalidated law) +
+  online-mode defaulting TRUE, both riding EngineConfig's canonical
+  shape while the compat constructors freeze the pre-wave wire for
+  their historical callers.
+- Tests: LoginCompressionWireTest 5 (rewritten under the DEC-001
+  authority — the canonical stack's exchange-first byte-exact form,
+  the whole join burst inflating through the independent client-side
+  walk; the disabled branch's exchange-less pins),
+  CompressionCodecTest 8, ConfigLoaderTest's two-row parse pins.
+
+**ON-1b — the online login's whole encryption arm (5f0d77e1):**
+- TorchEncryption: the reference EncryptionUtils ported — the per-boot
+  RSA-1024 keypair, the SHA-1 server-id digest's exact concatenation
+  order, the BigInteger-signed hex spelling (the leading '-' on
+  negative digests, the historical shape both wire sides keep).
+- The Encryption Request/Response pair (S2C/C2S login 0x01), the
+  AES/CFB8/NoPadding stream codec (the ciphertext IS the framed bytes,
+  compression rides inside), the login stage machine
+  (HELLO-KEY-AUTHENTICATING-READY, the echo-verify close on a bad
+  nonce, the stage-gate close on an unsolicited response), and the
+  authenticator thread with the reference's own 'User Authenticator
+  #N' naming (daemon + a bounded consult — the one deliberate
+  hardening: a wedged session server answers the down-string instead
+  of hanging the login to the reap).
+- The session-service seam: GameProfile/Property/
+  AuthenticationUnavailableException in the engine's auth package, the
+  strict whole-document SessionProfileParser (a half-parsed profile
+  never logs in), and MojangSessionService (the real hasJoined GET
+  with the 5s/20s bounds, 200=profile, 204=the flat refusal,
+  network=the down arm). The accept walk carries the profile whole.
+- Tests: TorchEncryptionTest 8, EncryptionCodecTest 3,
+  SessionProfileParserTest 11, MojangSessionServiceTest 5 (the local
+  stub HTTP server's three arms), OnlineLoginWireTest 5 (the full
+  encrypted login over real sockets), the conformance table's two new
+  login rows.
+
+**ON-1d — the profile's signed properties riding the tab list (this
+session, over the interrupted draft):**
+- The draft's shape verified against the reference before the tests
+  were written: the ADD_PLAYER per-property walk is byte-exact
+  PlayerInfoS2CPacket lines 118-135 (the count varint, then per
+  property the name string, the value string, the has-signature
+  boolean and its signature string when signed), and the join seam's
+  install ordering is correct (setProfileProperties inside joinRequest,
+  before the adapter's joinTabList mid-burst hook).
+- EngineBridge.joinRequest's fourth arm carries the profile WHOLE (the
+  three-arg historical shape kept as the interface's default over the
+  empty row — every existing caller compiles and behaves identically);
+  PlayerSession stores the row once at the join (a defensive
+  List.copyOf, empty on the offline branch per createFakeProfile);
+  TabListEntry carries the row so every announce site (the join
+  broadcast, the per-player loop, the ping cadence's batched entries)
+  reads the same whole profile the reference's onLogin receives.
+- TestClient18's tab parser now CAPTURES the properties (the PropWire
+  record) instead of discarding them — the JoinCollector and every
+  readPlayerInfo walk sees the row.
+- Tests: OnlineLoginWireTest's new three-arm pin (the SIGNED textures
+  row through the encrypted+compressed join burst — every self-add
+  carrying the identical row, the tab entry keying on the ONLINE
+  identity; the UNSIGNED arm's bare false boolean with no string
+  behind it; the MULTI-property count varint above one, the rows in
+  order), TabListIntegrationTest's offline zero-properties pins (the
+  count-0 law on both wires — the reference's createFakeProfile
+  shape), TabListServiceTest's engine pin 6/6 (the join-seam install,
+  the whole-row entries on both self-adds, the defensive copy against
+  a later source mutation, the offline default).
+- The tree's re-materialization noise cleaned before the commit: 740
+  mode-flipped files restored to 644 and the two re-packed reference
+  zips restored from the index — the diff is the lane's content alone.
+
+**The session's verification net (the sandbox's full-suite limit
+stands — the 2026-10-26 06:08 full run's 142 failures were
+NoClassDefFoundError classloader cascades, not product failures; CI
+runs the suite on push):** TabListServiceTest 6/6,
+TabListHeaderFooterApiTest 1/1, OnlineLoginWireTest 6/6,
+TabListIntegrationTest 3/3, LoginCompressionWireTest 5,
+CompressionCodecTest 8, EncryptionCodecTest 3, TorchEncryptionTest 8,
+SessionProfileParserTest 11, MojangSessionServiceTest 5,
+Protocol18ConformanceTest 2, ScoreboardIntegrationTest 3,
+MultiplayerSleep/SpawnProtection/Beacon/HopperWindow/PlacementTile 18,
+RelogRemount/PacketSendApi/SpectatorCamera 9 — all green.
+MissingCommandsWaveOneTest 23/23 green in isolation (a full-run kill
+artifact verified clean).
+
+**Ledger:** the Wave ON-1 rows in §29 (Torch-Arcetecture.txt), both
+next-work lines re-pinned to the landed state, ML-020 RESOLVED
+(master ledger + the DEC-001 decision record's executed note), the
+parity matrix re-pinned (C2S 28/28 with the KeyC2S arm, the S2C login
+family whole at 69 constants, the login state machine both branches,
+the Player Info properties row, the R-3 compression row RESOLVED by
+decision, the census summary), the compatibility matrix's DEC-001 row
+landed-noted, and the test-coverage census recounted (495 classes /
+2718 methods).
+
+**Lessons:** (1) an interrupted session's ledger debt compounds — the
+a/b landings carried no WORKLOG rows and four stale doc rows; closing
+a wave owes the ledger the SAME session the code lands, or the next
+session pays the recovery tax this one paid; (2) the draft's label
+survives over the planner's intent — ON-1d landed as d with the
+numbering gap recorded honestly rather than renumbered against lost
+intent; (3) the workspace re-materialization flips modes and re-packs
+zips — a 740-file "modification" that is ALL noise must be cleaned
+BEFORE the commit, or the lane's diff drowns.

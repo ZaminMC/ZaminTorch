@@ -2,6 +2,7 @@ package net.zaminmc.torch.server;
 
 import net.zaminmc.torch.GameMode;
 import net.zaminmc.torch.entity.PlayerState;
+import net.zaminmc.torch.server.auth.GameProfile;
 import net.zaminmc.torch.server.config.EngineConfig;
 import net.zaminmc.torch.server.net.ClientLink;
 import net.zaminmc.torch.server.net.EngineBridge;
@@ -15,6 +16,7 @@ import java.util.UUID;
 import java.util.function.BooleanSupplier;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -27,7 +29,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * INCLUDING the subject, the ping cadence fires on the 601st tick (the
  * reference's own ++counter &gt; 600 off-by-one) as ONE batched packet per
  * recipient, and the ping smoothing is the reference's own
- * (ping * 3 + roundTrip) / 4.
+ * (ping * 3 + roundTrip) / 4. Wave ON-1d adds the profile-properties pin:
+ * the join seam installs the session service's row before the burst and
+ * every entry carries it whole (empty on the offline branch).
  */
 class TabListServiceTest {
 
@@ -237,6 +241,79 @@ class TabListServiceTest {
         assertEquals(1, aliceLink.pingBatches.size(), "the reset counter needs another 601 ticks");
         service.tick(registry);
         assertEquals(2, aliceLink.pingBatches.size(), "and fires again exactly on the next 601st");
+    }
+
+    /**
+     * Wave ON-1d's engine pin: the profile's signed properties ride the
+     * join seam whole — the four-arg joinRequest installs the row on the
+     * session BEFORE the join burst builds the tab-list entries, every
+     * ADD the join announce sends carries it (the broadcast self-copy +
+     * the loop's iteration, the reference's double add over the same
+     * whole profile), the offline three-arg join stays the empty row
+     * (createFakeProfile), and the install is a defensive copy — a later
+     * mutation of the source list never reaches the wire.
+     */
+    @Test
+    void theProfilePropertiesRideTheJoinSeamAndTheEntriesWhole() throws Exception {
+        dataDir = Files.createTempDirectory("tablist-props");
+        EngineConfig config = new EngineConfig("127.0.0.1", 0, "tabs", "it", 20, 2, 20,
+                dataDir.toString());
+        server = new EngineServer(config);
+        server.start();
+        try {
+            List<GameProfile.Property> row = new ArrayList<>(List.of(
+                    new GameProfile.Property("textures", "dGV4dHVyZXM=", "c2lnbmF0dXJl"),
+                    new GameProfile.Property("custom", "b3RoZXI=", null)));
+            RecordingLink carrieLink = new RecordingLink();
+            var accepted = server.joinRequest(carrieLink, "Carrie",
+                    UUID.nameUUIDFromBytes("OfflinePlayer:Carrie".getBytes()), row);
+            PlayerSession carrie = ((EngineBridge.Accepted) accepted).session();
+            await(() -> carrie.state() == PlayerState.JOINING
+                    || carrie.state() == PlayerState.PLAYING, "Carrie registered");
+            server.joinTabList(carrie); // the adapter's mid-burst hook
+            server.joinCompleted(carrie);
+            await(() -> carrie.state() == PlayerState.PLAYING, "Carrie playing");
+
+            // The session's stored row: the whole property list.
+            assertEquals(2, carrie.profileProperties().size(),
+                    "the session stores the profile's whole property row");
+            assertEquals("textures", carrie.profileProperties().get(0).name());
+            assertEquals("dGV4dHVyZXM=", carrie.profileProperties().get(0).value());
+            assertEquals("c2lnbmF0dXJl", carrie.profileProperties().get(0).signature());
+            assertNull(carrie.profileProperties().get(1).signature(),
+                    "the unsigned row stores the null signature");
+
+            // Every ADD the join announce sent carries the row whole (both
+            // of the joiner's own packets — the broadcast self-copy + the
+            // loop's final iteration).
+            assertEquals(2, carrieLink.adds.size(),
+                    "the lone joiner's own wire: the self-copy + the loop's iteration");
+            for (List<ClientLink.TabListEntry> packet : carrieLink.adds) {
+                assertEquals(1, packet.size());
+                assertEquals(2, packet.get(0).properties().size(),
+                        "the wire entry carries the whole property row");
+                assertEquals("textures", packet.get(0).properties().get(0).name());
+                assertEquals("dGV4dHVyZXM=", packet.get(0).properties().get(0).value());
+                assertEquals("c2lnbmF0dXJl", packet.get(0).properties().get(0).signature());
+                assertNull(packet.get(0).properties().get(1).signature());
+            }
+
+            // The defensive copy: a later mutation of the source row never
+            // reaches the session (the install is List.copyOf).
+            row.add(new GameProfile.Property("late", "bGF0ZQ==", null));
+            assertEquals(2, carrie.profileProperties().size(),
+                    "the session's row is the install-time copy, never the live source");
+
+            // The offline default: the three-arg join carries the empty row.
+            RecordingLink daveLink = new RecordingLink();
+            var daveAccepted = server.joinRequest(daveLink, "Dave",
+                    UUID.nameUUIDFromBytes("OfflinePlayer:Dave".getBytes()));
+            PlayerSession dave = ((EngineBridge.Accepted) daveAccepted).session();
+            assertTrue(dave.profileProperties().isEmpty(),
+                    "the offline branch's row is empty (createFakeProfile)");
+        } finally {
+            server.shutdown(null);
+        }
     }
 
     private static void await(BooleanSupplier condition, String what) throws InterruptedException {

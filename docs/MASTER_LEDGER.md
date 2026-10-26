@@ -369,7 +369,14 @@ I=infra/CI/release, S=security/boundary.
   session-service hasJoined consult, and the compression exchange this
   row's remainder flagged, with offline-mode kept as the
   online-mode=false branch.**
-- Status: DECIDED (Wave ON-1). Confidence: high.
+- **Wave ON-1 LANDED 2026-10-26 (§29's wave rows): ON-1a the login
+  compression exchange (f0dbe1dd), ON-1b the whole encryption arm —
+  TorchEncryption, the wire pair, the AES/CFB8 stream codec, the login
+  stage machine, the authenticator thread, the session-service seam
+  with MojangSessionService's real hasJoined consult (5f0d77e1) — and
+  ON-1d the profile's signed properties riding the tab list's
+  ADD_PLAYER (the textures lane). ML-020 is RESOLVED.**
+- Status: RESOLVED (Wave ON-1 landed). Confidence: high.
 
 ### ML-021 — 0x0C Named Entity Spawn metadata chokes an independent parser (cycle-3 lead, unresolved)
 - Category: suspected wire defect. Layers: P.
@@ -495,6 +502,9 @@ increment state lives in KIGPAPER_PATCH_ACCOUNTING.md's coverage statement.
   compression remainder the row flagged (the LoginCompressionWireTest
   divergence pin gets rewritten with this decision as its authority).
   Offline-mode stays as the `online-mode=false` branch — also vanilla.
+  **EXECUTED 2026-10-26: Wave ON-1 landed whole (§29's wave rows —
+  ON-1a the exchange, ON-1b the encryption arm + consult, ON-1d the
+  tab-list textures lane); this entry stays as the decision record.**
 - DEC-003: **fork-divergence adoption policy (KigPaper family)** —
   **DECIDED 2026-10-26 (the owner's priorities): NO KigPaper
   configuration family, ever.** Torch owns vanilla's own

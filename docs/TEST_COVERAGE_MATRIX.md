@@ -2,18 +2,19 @@
 
 Cycle-4 exhaustive-audit deliverable. Maps requirement families to the
 tests that establish them, distinguishes coverage states, and names the
-missing evidence. Test census (mechanical, this cycle): **440 test classes
-/ 2533 @Test methods** (core 370, protocol 47, launcher 9, bukkit 10,
-api 4).
+missing evidence. Test census (mechanical recount 2026-10-26, post
+Waves ML13/TF/TF-7/ON-1 — classes containing @Test methods): **495
+test classes / 2718 @Test methods** (core 402/2381, protocol 70/213,
+launcher 10/53, bukkit 9/52, api 4/19).
 
 ## The suite's shape
 
 | Module | Classes | Established by (representative, per compat ledger + §29) |
 |---|---|---|
-| zamin-core | 370 | the per-slice behavioral tests every §29 wave cites (reference-shadow sweeps, formula pins, round trips) |
-| zamin-protocol-v1_8_8 | 47 | wire conformance (Protocol18ConformanceTest, VanillaParityIntegrationTest, TestClient18) |
-| zamin-launcher | 47 tests / 9 classes | console contract (ADR-21 list) |
-| zamin-bukkit | 10 (52 tests) | the honest-shim event bridges (deferred adapter's test-first core) |
+| zamin-core | 402 | the per-slice behavioral tests every §29 wave cites (reference-shadow sweeps, formula pins, round trips) |
+| zamin-protocol-v1_8_8 | 70 | wire conformance (Protocol18ConformanceTest, VanillaParityIntegrationTest, TestClient18) + the Wave ON-1 login families (LoginCompressionWireTest 5, CompressionCodecTest 8, TorchEncryptionTest 8, EncryptionCodecTest 3, SessionProfileParserTest 11, MojangSessionServiceTest 5, OnlineLoginWireTest 6) |
+| zamin-launcher | 10 (53 tests) | console contract (ADR-21 list) |
+| zamin-bukkit | 9 (52 tests) | the honest-shim event bridges (deferred adapter's test-first core) |
 | zamin-api | 4 | the §27.10 capability tests (no-cast law) |
 
 CI: `release.yml` runs build + full suite with ONE retry whose documented
@@ -38,6 +39,7 @@ bukkit bridge, rcon FIN-WAIT), which is the evidence behind ML-002.
 | Worldgen end-to-end determinism | **pinned this cycle** | R-5 resolved: WorldgenDeterminismRunTest 1/0 (4 runs) — two engines, same derived seed, 25 columns byte-identical (serialized columns); region-level inapplicable by design (region files import-read-only; native save = delta pipeline) |
 | Malformed-packet fuzz | **pinned this cycle** | R-7 resolved: MalformedPacketFuzzWireTest 3/0 — 24-case deterministic corpus + seeded tail (Random(474747L)) + the 21-bit frame boundary (close vs wait) |
 | Login flood | **pinned (wave 3)** | ML-014 resolved: LoginFloodBoundaryTest — 100 pending at zero tick-lane cost, ReadTimeoutHandler(30) reap |
+| Online-mode login arm (encryption, consult, exchange, textures) | **pinned (Wave ON-1)** | ML-020/DEC-001 executed: TorchEncryptionTest 8, EncryptionCodecTest 3, SessionProfileParserTest 11, MojangSessionServiceTest 5 (the stub HTTP server's three arms), LoginCompressionWireTest 5, CompressionCodecTest 8, OnlineLoginWireTest 6 (the full encrypted login over real sockets + the tab-list textures lane), TabListServiceTest 6 / TabListIntegrationTest 3 (the join seam + the offline count-0 law) |
 | Per-command semantics | **surface-pinned this cycle** | R-6 resolved at the surface level: RegisteredCommandSurfaceParityTest 2/0 — the exact 74-verb set + every level vs the reference walk's 62 names; effect-level semantics stay family-owned |
 | Ownership/concurrency invariants | **tested** | the §22 Phase 1-2 records (eight ownership tests + lane gates) — standing green |
 | The §28.8 adversarial plugin set | **deferred tests** | required before any plugin-safety claim; blocked on §28.7-era work (not started by design) |

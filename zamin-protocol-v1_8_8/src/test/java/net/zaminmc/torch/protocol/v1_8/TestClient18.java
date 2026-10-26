@@ -536,8 +536,18 @@ final class TestClient18 implements AutoCloseable {
 
     // ---- tab list (Player Info 0x38) ----------------------------------------
 
+    /** One parsed profile property (the ADD_PLAYER wire's own triple). */
+    record PropWire(String name, String value, String signature) {
+    }
+
     /** One parsed Player Info entry (the fields the actions carry). */
-    record TabEntry(UUID uuid, String name, int gamemode, int ping) {
+    record TabEntry(UUID uuid, String name, int gamemode, int ping,
+                    java.util.List<PropWire> properties) {
+
+        /** The property-less shape (the non-ADD actions never carry any). */
+        TabEntry(UUID uuid, String name, int gamemode, int ping) {
+            this(uuid, name, gamemode, ping, java.util.List.of());
+        }
     }
 
     /** A parsed Player Info packet: the action + its entries. */
@@ -555,19 +565,20 @@ final class TestClient18 implements AutoCloseable {
                     UUID uuid = ByteBufOps.readUuid(buffer);
                     String name = ByteBufOps.readString(buffer, 16);
                     int properties = ByteBufOps.readVarInt(buffer);
-                    for (int p = 0; p < properties; p++) { // consume the properties
-                        ByteBufOps.readString(buffer, 32767);
-                        ByteBufOps.readString(buffer, 32767);
-                        if (buffer.readBoolean()) {
-                            ByteBufOps.readString(buffer, 32767);
-                        }
+                    java.util.List<PropWire> props = new java.util.ArrayList<>(properties);
+                    for (int p = 0; p < properties; p++) { // the reference's per-property walk
+                        String propName = ByteBufOps.readString(buffer, 32767);
+                        String propValue = ByteBufOps.readString(buffer, 32767);
+                        String propSignature = buffer.readBoolean()
+                            ? ByteBufOps.readString(buffer, 32767) : null;
+                        props.add(new PropWire(propName, propValue, propSignature));
                     }
                     int gamemode = ByteBufOps.readVarInt(buffer);
                     int ping = ByteBufOps.readVarInt(buffer);
                     if (buffer.readBoolean()) { // display name
                         ByteBufOps.readString(buffer, 32767);
                     }
-                    entries.add(new TabEntry(uuid, name, gamemode, ping));
+                    entries.add(new TabEntry(uuid, name, gamemode, ping, props));
                 }
                 case Protocol18.PLAYER_INFO_UPDATE_GAME_MODE -> entries.add(
                         new TabEntry(ByteBufOps.readUuid(buffer), null,

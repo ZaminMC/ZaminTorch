@@ -36,10 +36,10 @@ public final class TabListService {
 
     private int pingUpdateTime;
 
-    /** The wire entry for a session (the offline profile: no properties, no display name). */
+    /** The wire entry for a session (the profile's own properties ride whole). */
     private static ClientLink.TabListEntry entryOf(PlayerSession session) {
         return new ClientLink.TabListEntry(session.uuid(), session.name(),
-                session.gamemode().legacyId(), session.ping());
+                session.gamemode().legacyId(), session.ping(), session.profileProperties());
     }
 
     /**

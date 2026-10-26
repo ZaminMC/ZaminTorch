@@ -689,7 +689,7 @@ THE SECTION TABLE AND THE ATTRIBUTION PASS LANDED (ML-006 + ML-007 — the cycle
 
 Dynamic split/merge and load-driven migration remain future work. First prove migration with in-flight tasks, delayed work, messages, compute results, persistence, shutdown, and stale-generation invalidation; add telemetry and anti-oscillation rules before enabling automatic balancing.
 
-**Next concrete mechanics work:** continue from Section 29: the master ledger's demand-named queue is EMPTY of implementable rows (ML-013, the last — the tick watchdog, landed 2026-10-26 in §29's Wave ML13; ML-008 the /give form aligned the same day; PR #38's audit merge landed 2026-10-23). The 2026-10-26 vanilla-grade census's lanes are ALL LANDED (§29's Waves TF-7 + TF-7-continued: the silverfish's infest completion, the skeleton's sunlight escape, the fireball punch's Knockback push, the armor stand's EntityTag NBT merge, the nether portal's random-tick pigman spawn, and the skeleton's AvoidSunlightGoal trim — the census closed whole, the last two rows landing 2026-10-26 in §29's Wave TF-7's continuation rows). The owner's three decisions LANDED 2026-10-26: DEC-001 online-mode IMPLEMENTED WHOLE as Wave ON-1 (the encryption pair, the AES/CFB8 stream layer, the session-service hasJoined consult, the compression exchange — offline stays as the online-mode=false branch); DEC-002 STAY NATIVE indefinitely (no adapter surfaces, absent beats stubbed); DEC-003 NO KigPaper config family (vanilla's own server.properties rows only). The remainder is ML-100's family-owned standing tails, each picked up only as its family's slice per that row's own rule. The §22 evidence bar holds: no concurrency phase opens without the attribution pass's numbers (ML-007 landed — the verdict: none justified at the current loads).
+**Next concrete mechanics work:** continue from Section 29: the master ledger's demand-named queue is EMPTY of implementable rows (ML-013, the last — the tick watchdog, landed 2026-10-26 in §29's Wave ML13; ML-008 the /give form aligned the same day; PR #38's audit merge landed 2026-10-23). The 2026-10-26 vanilla-grade census's lanes are ALL LANDED (§29's Waves TF-7 + TF-7-continued: the silverfish's infest completion, the skeleton's sunlight escape, the fireball punch's Knockback push, the armor stand's EntityTag NBT merge, the nether portal's random-tick pigman spawn, and the skeleton's AvoidSunlightGoal trim — the census closed whole, the last two rows landing 2026-10-26 in §29's Wave TF-7's continuation rows). Wave ON-1 LANDED 2026-10-26 (§29's Wave ON-1, DEC-001 executed whole): the login compression exchange (ON-1a), the online login's whole encryption arm with the session-service hasJoined consult (ON-1b), and the profile's signed properties riding the tab list (ON-1d — the textures lane) — offline stays as the online-mode=false branch; DEC-002 STAY NATIVE indefinitely (no adapter surfaces, absent beats stubbed); DEC-003 NO KigPaper config family (vanilla's own server.properties rows only, both missing rows landing with the wave). The remainder is ML-100's family-owned standing tails, each picked up only as its family's slice per that row's own rule. The §22 evidence bar holds: no concurrency phase opens without the attribution pass's numbers (ML-007 landed — the verdict: none justified at the current loads).
 
 # 23. COMMITS / PUSHES / RELEASES
 
@@ -3675,7 +3675,7 @@ own tests. Order is by vanilla visibility and dependency, not size.
       StatsCompletenessTest row — coarse_dirt/fern/podzol counting on
       stat rows the 1.8.8 client drops — reproduced on 26d961e1.)
 
-**Next concrete mechanics work:** the master ledger's demand-named queue is empty of implementable rows (ML-013 the tick watchdog landed 2026-10-26, §29's Wave ML13; ML-006/007/021 landed through PR #46; ML-008 aligned 2026-10-26; PR #38 merged 2026-10-23). The owner's three decisions landed 2026-10-26: DEC-001 online-mode IMPLEMENTED WHOLE as Wave ON-1, DEC-002 STAY NATIVE indefinitely, DEC-003 NO KigPaper config family. The remainder: ML-100's family-owned tails, each only as its family's slice. The §22 evidence bar holds: no concurrency phase opens without the attribution pass's numbers (ML-007 landed — the verdict: none justified at the current loads).
+**Next concrete mechanics work:** the master ledger's demand-named queue is empty of implementable rows (ML-013 the tick watchdog landed 2026-10-26, §29's Wave ML13; ML-006/007/021 landed through PR #46; ML-008 aligned 2026-10-26; ML-020 resolved 2026-10-26 — §29's Wave ON-1 landed the online-mode whole: the compression exchange, the encryption arm with the hasJoined consult, and the tab-list textures lane; PR #38 merged 2026-10-23). DEC-002 STAY NATIVE indefinitely and DEC-003 NO KigPaper config family both stand. The remainder: ML-100's family-owned tails, each only as its family's slice. The §22 evidence bar holds: no concurrency phase opens without the attribution pass's numbers (ML-007 landed — the verdict: none justified at the current loads).
 
 ## Standing (demand-named, not scheduled)
 
@@ -4853,6 +4853,99 @@ way were repaired inside the wave.
       escape row without re-pinning the census test's twelve).
       The 2026-10-26 census is now CLOSED WHOLE — no named lane
       remains open.
+
+## Wave ON-1 — the 2026-10-26 online-mode whole (DEC-001 executed: the compression exchange, the encryption arm, the session-service consult, and the profile's properties riding the tab list; offline stays as the online-mode=false branch)
+
+- [x] ON-1-decisions — THE OWNER'S THREE STANDING DECISIONS (5464b5d4):
+      DEC-001 online-mode IMPLEMENTED WHOLE as this wave (the 1:1 call:
+      the dedicated server's own online-mode=true default,
+      DedicatedServer line 103 — offline-only is not the vanilla shape);
+      DEC-002 STAY NATIVE indefinitely (absent beats stubbed — no
+      adapter surfaces without a real consumer); DEC-003 NO KigPaper
+      config family (vanilla's own server.properties rows only, the two
+      missing ones — online-mode and network-compression-threshold —
+      riding the wave). The ledger's ML-020 row, both architecture
+      next-work lines, and the two matrix rows re-pinned to the decided
+      state; the release 149 bump merged clean.
+- [x] ON-1a — THE LOGIN COMPRESSION EXCHANGE 1:1 (f0dbe1dd):
+      CompressionCodec (the reference CompressionDecoder/Encoder pair
+      ported whole — the data-length varint's two wire forms: the zero
+      raw ride below the threshold, the size-prefixed deflate at it
+      with the deflater's own finish/reset economy; the decoder's two
+      badly-compressed guards with the reference's exact messages), the
+      Set Compression packet (S2C login 0x03) sent BEFORE Login Success
+      per acceptLogin lines 91-101 with the codec install ordered
+      structurally (the 0x03 rides uncompressed, every later frame
+      carries the data-length varint), and the operator surface: the
+      network-compression-threshold row (default 256 over
+      MinecraftServer line 1122, negatives disable — the reference's
+      own unvalidated law) + the online-mode row defaulting TRUE riding
+      EngineConfig's canonical shape while the compat constructors
+      freeze the pre-wave wire (offline, no exchange) for their
+      historical callers. Pinned by LoginCompressionWireTest 5/0 (the
+      canonical stack's exchange-first byte-exact form and the whole
+      join burst inflating through the independent client-side walk;
+      the disabled branch's exchange-less pins), CompressionCodecTest
+      8/0, ConfigLoaderTest's two-row parse pins.
+- [x] ON-1b — THE ONLINE LOGIN'S WHOLE ENCRYPTION ARM (5f0d77e1):
+      TorchEncryption (the reference EncryptionUtils ported: the
+      per-boot RSA-1024 keypair under MinecraftServer.getKeyPair's own
+      lazy law, the SHA-1 server-id digest's exact concatenation
+      order, the BigInteger-signed hex spelling the hasJoined consult
+      carries — leading '-' on negative digests), the Encryption
+      Request/Response pair on the wire (S2C/C2S login 0x01, the
+      HelloS2CPacket/KeyC2SPacket forms), the AES/CFB8/NoPadding
+      stream codec (EncryptionCodec — the ciphertext IS the framed
+      bytes, compression rides inside), the login stage machine
+      (HELLO-KEY-AUTHENTICATING-READY, the reference's own enum; the
+      echo-verify close on a bad nonce and the stage-gate close on an
+      unsolicited response), the authenticator thread with the
+      reference's own 'User Authenticator #N' naming (daemon + a
+      bounded consult — the one deliberate hardening), and the
+      session-service seam: GameProfile/Property/
+      AuthenticationUnavailableException in the engine's auth package,
+      the strict whole-document SessionProfileParser (a half-parsed
+      profile never logs in), and MojangSessionService (the real
+      hasJoined GET with the 5s/20d bounds, 200=profile, 204=the flat
+      refusal, network=the down arm); V18Connection's accept walk
+      carries the profile whole (the online branch's identity is the
+      service's answer, never the offline v3). Pinned by
+      TorchEncryptionTest 8/0, EncryptionCodecTest 3/0,
+      SessionProfileParserTest 11/0, MojangSessionServiceTest 5/0 (the
+      local stub HTTP server's three arms), OnlineLoginWireTest 5/0
+      (the full encrypted login over real sockets), and the conformance
+      table's two new login rows.
+- [x] ON-1d — THE PROFILE'S SIGNED PROPERTIES RIDING THE TAB LIST (the
+      wave's textures lane — the online profile's skin carrier,
+      PlayerInfoS2CPacket lines 118-135): the EngineBridge join seam
+      carries the profile WHOLE (joinRequest's fourth arm — the
+      identity pair plus the signed properties, the three-arg historical
+      shape kept as the interface's default over the empty row), the
+      PlayerSession stores the row once at the join (setProfileProperties
+      before the burst can build the entries — a defensive List.copyOf,
+      empty on the offline branch per the reference's createFakeProfile),
+      and the Player Info 0x38 ADD_PLAYER write walks the reference's
+      per-property form (the count varint, then per property the name
+      string, the value string, the has-signature boolean and its
+      signature string when signed — the byte-exact branch shape) with
+      the TabListEntry carrying the row so every announce site (the
+      join broadcast, the per-player loop, the ping cadence's batched
+      entries) reads the same whole profile the reference's onLogin
+      receives. Pinned by OnlineLoginWireTest's new three-arm pin (the
+      SIGNED textures row through the encrypted+compressed join burst —
+      every self-add carrying the identical row, the tab entry keying
+      on the ONLINE identity; the UNSIGNED arm's bare false boolean;
+      the MULTI-property count varint), TabListIntegrationTest's
+      offline zero-properties pins (the count-0 law on both wires), and
+      TabListServiceTest's engine pin (the join-seam install, the
+      whole-row entries, the defensive copy, the offline default).
+      The wave's numbering note, recorded honestly: the planning
+      session was interrupted before its ledger rows; no c-labeled
+      slice exists anywhere in the tree or history — the wave landed
+      a, b, d, the c-slice (the engine seam) folded whole into d's
+      landing. Wave ON-1 is now CLOSED WHOLE: the compression exchange,
+      the encryption arm, the consult, and the textures lane all
+      landed; offline stays as the online-mode=false branch.
 
 # 33. CODEBASE SCALE, CLASS COHESION, AND MAINTAINABILITY
 

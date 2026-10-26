@@ -20,12 +20,22 @@ import java.util.UUID;
 public interface EngineBridge {
 
     /**
-     * A client completed login start and requests gameplay identity.
+     * A client completed login start and requests gameplay identity — the
+     * profile's whole form (Wave ON-1d): the identity pair plus the signed
+     * properties (empty on the offline branch, the session service's
+     * textures row on the online one — the reference's onLogin receives
+     * the GameProfile whole, the same law).
      *
      * @return accepted session, or a rejection reason (the adapter owns how the
      *         rejection is represented on the wire)
      */
-    JoinResult joinRequest(ClientLink link, String username, UUID offlineUuid);
+    JoinResult joinRequest(ClientLink link, String username, UUID offlineUuid,
+                           java.util.List<net.zaminmc.torch.server.auth.GameProfile.Property> properties);
+
+    /** The pre-ON-1d shape (no properties — the offline profile). */
+    default JoinResult joinRequest(ClientLink link, String username, UUID offlineUuid) {
+        return joinRequest(link, username, offlineUuid, java.util.List.of());
+    }
 
     /**
      * The adapter finished its join sequence (version-specific spawn
