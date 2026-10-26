@@ -370,4 +370,31 @@ class ItemTagRowsTest {
         assertTrue(ItemStack.mergeable(rocket, same),
                 "two identically-fused rockets merge");
     }
+
+    @Test
+    void theEntityTagRoundTripsTheWireNbt() {
+        // The slot NBT form (Slice TF-7d — tag.EntityTag, the compound the
+        // armor stand item carries): the parse lands the boxed rows on the
+        // stack, the write publishes them back verbatim.
+        Map<String, Snbt.Tag> rows = Snbt.parseCompound(
+                "{id:\"minecraft:armor_stand\", Count:1b, tag:{EntityTag:{NoGravity:1b, Marker:0b}}}");
+        ItemStack stack = ItemNbt.read(rows);
+        assertTrue(stack.entityTag() != null && !stack.entityTag().isEmpty(),
+                "the EntityTag rows landed on the stack");
+        assertEquals((byte) 1, stack.entityTag().get("NoGravity"));
+        assertEquals((byte) 0, stack.entityTag().get("Marker"));
+
+        // The write: the round trip publishes the compound verbatim.
+        Map<String, Snbt.Tag> written = new LinkedHashMap<>();
+        ItemNbt.write(stack, written);
+        Map<String, Snbt.Tag> writtenTag = NbtOps.getCompound(written, "tag");
+        Map<String, Snbt.Tag> writtenEntity = NbtOps.getCompound(writtenTag, "EntityTag");
+        assertFalse(writtenEntity.isEmpty(), "the EntityTag rode the write");
+        assertEquals(1, NbtOps.getByte(writtenEntity, "NoGravity"));
+
+        // The placement consult's input form: the boxed rows convert back
+        // through NbtOps.fromBoxed (the ArmorStandSystem's merge entry).
+        Map<String, Snbt.Tag> converted = NbtOps.fromBoxed(stack.entityTag());
+        assertEquals(1, NbtOps.getByte(converted, "NoGravity"));
+    }
 }

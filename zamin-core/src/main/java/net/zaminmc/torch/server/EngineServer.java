@@ -10656,9 +10656,12 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /**
-     * The armor stand's placement arm (Slice 28c): the reach gate, the
-     * DOWN-face gate, the cell + headroom + entity-box gates, the yaw
-     * snap off the player's own look, then the consume.
+     * The armor stand's placement arm (Slice 28c + TF-7d): the reach
+     * gate, the DOWN-face gate, the cell + headroom + entity-box gates,
+     * the yaw snap off the player's own look, the item's EntityTag rows
+     * merged over the fresh stand (ArmorStandItem.useOn lines 55-61 —
+     * the flags, the poses, the equipment ride the placement), then the
+     * consume.
      */
     private void placeArmorStandOnTick(PlayerSession session, BlockPosition clicked, int face,
                                        java.util.Optional<BlockType> creativeHeld) {
@@ -10669,7 +10672,15 @@ public final class EngineServer implements Server, EngineBridge {
                 && session.inventory().held().isEmpty()) {
             return;
         }
-        if (armorStands.place(clicked, face, session.rotation().yaw(), gameplayRandom)) {
+        // The held stack's EntityTag (useOn line 55: stack.getNbt()'s
+        // row — the live hand's own, survival or creative).
+        java.util.Map<String, Object> entityTag = null;
+        ItemStack held = session.inventory().held();
+        if (!held.isEmpty()) {
+            entityTag = held.entityTag();
+        }
+        if (armorStands.place(clicked, face, session.rotation().yaw(), gameplayRandom,
+                entityTag)) {
             consumePlaced(session, creativeHeld);
         }
     }

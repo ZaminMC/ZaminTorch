@@ -757,4 +757,84 @@ class ArmorStandSystemTest {
         server.start();
         return server;
     }
+
+    // ------------------------------------------------------------------
+    // The EntityTag merge (Slice TF-7d — ArmorStandItem.useOn 55-61)
+    // ------------------------------------------------------------------
+
+    @Test
+    void theEntityTagMergesOverTheFreshStand() throws Exception {
+        EngineServer server = boot();
+        try {
+            place(server, 20, 39, 20, BuiltinBlocks.STONE);
+            await(server, () -> server.world().getBlock(new BlockPosition(20, 39, 20))
+                    .identifier().value().equals("stone"), "the floor placed");
+
+            // The item's EntityTag rows (the boxed NBT form the wire parse
+            // carries): the flag family, the Rotation override, and a
+            // PARTIAL Pose (the head alone — the shallow merge's own
+            // quirk: the other parts reset to the reference defaults).
+            java.util.Map<String, Object> pose = new java.util.LinkedHashMap<>();
+            pose.put("Head", List.of(10.0f, 20.0f, 30.0f));
+            java.util.Map<String, Object> entityTag = new java.util.LinkedHashMap<>();
+            entityTag.put("Small", (byte) 1);
+            entityTag.put("ShowArms", (byte) 1);
+            entityTag.put("NoBasePlate", (byte) 1);
+            entityTag.put("Invisible", (byte) 1);
+            entityTag.put("Rotation", List.of(90.0f));
+            entityTag.put("Pose", pose);
+
+            AtomicReference<Boolean> landed = new AtomicReference<>();
+            server.ticker().submit(() -> landed.set(server.armorStands().place(
+                    new BlockPosition(20, 39, 20), 1, 0.0f,
+                    new java.util.Random(21), entityTag)));
+            await(server, () -> landed.get() != null, "the tagged placement answered");
+            assertTrue(landed.get(), "the tagged stand landed");
+            ArmorStand stand = standAt(server, 20, 40, 20);
+            assertNotNull(stand, "the tagged stand stands");
+
+            // The flags rode the merge (readCustomNbt's boolean rows).
+            assertTrue(stand.small(), "Small rode the tag");
+            assertTrue(stand.showArms(), "ShowArms rode the tag");
+            assertTrue(stand.noBasePlate(), "NoBasePlate rode the tag");
+            assertTrue(stand.invisible(), "Invisible rode the tag");
+            // The Rotation override (the base row's yaw): 90 over the
+            // placement's own snap.
+            assertEquals(90.0f, stand.yaw(), 1e-6f, "the tag's Rotation overrode the snap");
+            // The PARTIAL Pose quirk: the head from the tag, the other
+            // parts at the reference DEFAULTS (never the roll).
+            assertEquals(10.0f, stand.head().pitch(), 1e-6f);
+            assertEquals(20.0f, stand.head().yaw(), 1e-6f);
+            assertEquals(30.0f, stand.head().roll(), 1e-6f);
+            assertEquals(ArmorStand.DEFAULT_LEFT_ARM.pitch(),
+                    stand.leftArm().pitch(), 1e-6f,
+                    "the shallow merge reset the absent pose parts to the defaults");
+            assertEquals(ArmorStand.DEFAULT_BODY.yaw(), stand.body().yaw(), 1e-6f);
+
+            // The ABSENT rows keep the stand's own state: a tag with the
+            // Small flag alone keeps the placement's roll and snap.
+            place(server, 22, 39, 20, BuiltinBlocks.STONE);
+            await(server, () -> server.world().getBlock(new BlockPosition(22, 39, 20))
+                    .identifier().value().equals("stone"), "the second floor placed");
+            java.util.Map<String, Object> smallOnly = new java.util.LinkedHashMap<>();
+            smallOnly.put("Small", (byte) 1);
+            AtomicReference<Boolean> plain = new AtomicReference<>();
+            server.ticker().submit(() -> plain.set(server.armorStands().place(
+                    new BlockPosition(22, 39, 20), 1, 10.0f,
+                    new java.util.Random(22), smallOnly)));
+            await(server, () -> plain.get() != null, "the small-only placement answered");
+            assertTrue(plain.get(), "the small-only stand landed");
+            ArmorStand rolled = standAt(server, 22, 40, 20);
+            assertNotNull(rolled, "the small-only stand stands");
+            assertTrue(rolled.small(), "the Small flag rode");
+            // The snap kept (playerYaw 10 -> the -180 snap, the placement
+            // test's own math) and the roll kept (the head pitch band).
+            assertEquals(-180.0f, rolled.yaw(), 1e-6f, "the absent Rotation kept the snap");
+            assertTrue(rolled.head().pitch() >= 0.0f && rolled.head().pitch() < 5.0f,
+                    "the absent Pose kept the roll");
+        } finally {
+            server.shutdown(() -> { });
+        }
+    }
+
 }

@@ -153,7 +153,8 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
                         Map<String, Object> fireworks,
                         List<String> bookPages, String bookAuthor, String bookTitle,
                         boolean bookResolved, int bookGeneration,
-                        boolean mapScaling, List<Map<String, Object>> mapDecorations) {
+                        boolean mapScaling, List<Map<String, Object>> mapDecorations,
+                        Map<String, Object> entityTag) {
 
     /** The wire's i16 damage/metadata ceiling (the historical field width). */
     public static final int MAX_DAMAGE = 0x7FFF;
@@ -193,7 +194,7 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
                     || skullOwner != null || fireworks != null
                     || bookPages != null || bookAuthor != null || bookTitle != null
                     || bookResolved || bookGeneration != 0
-                    || mapScaling || mapDecorations != null) {
+                    || mapScaling || mapDecorations != null || entityTag != null) {
                 throw new IllegalArgumentException("A stack without a type must be empty (count "
                         + count + ", damage " + damage + ")");
             }
@@ -241,7 +242,31 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
                 bookGeneration = 0;
             }
             mapDecorations = sanitizeMapDecorations(mapDecorations);
+            entityTag = sanitizeEntityTag(entityTag);
         }
+    }
+
+    /**
+     * The pre-TF7 twenty-three-arg shape (the compatibility constructor
+     * over the armor stand's EntityTag arm — every pre-lane caller).
+     */
+    public ItemStack(ItemType type, int count, int damage, String displayName,
+                     Map<Integer, Integer> enchantments, boolean unbreakable,
+                     int repairCost, int hideFlags, List<String> lore,
+                     Map<String, Object> blockEntityTag,
+                     List<String> canDestroy, List<String> canPlaceOn,
+                     Integer displayColor,
+                     List<AttributeModifier> attributeModifiers,
+                     SkullProfile skullOwner,
+                     Map<String, Object> fireworks,
+                     List<String> bookPages, String bookAuthor, String bookTitle,
+                     boolean bookResolved, int bookGeneration,
+                     boolean mapScaling, List<Map<String, Object>> mapDecorations) {
+        this(type, count, damage, displayName, enchantments, unbreakable,
+                repairCost, hideFlags, lore, blockEntityTag, canDestroy, canPlaceOn,
+                displayColor, attributeModifiers, skullOwner, fireworks,
+                bookPages, bookAuthor, bookTitle, bookResolved, bookGeneration,
+                mapScaling, mapDecorations, null);
     }
 
     /** The pre-G1 five-arg shape (the compatibility constructor over the new arms' defaults). */
@@ -703,7 +728,24 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
                 unbreakable, repairCost, hideFlags, lore, blockEntityTag,
                 canDestroy, canPlaceOn, displayColor, attributeModifiers, skullOwner,
                 fireworks, bookPages, bookAuthor, bookTitle, bookResolved, bookGeneration,
-                mapScaling, decorations);
+                mapScaling, decorations, entityTag);
+    }
+
+    /**
+     * @return the same stack carrying the tag's EntityTag compound (Slice
+     *         TF-7d — ArmorStandItem.useOn lines 55-61: the spawn-time rows
+     *         merged over the freshly-placed armor stand's own NBT — the
+     *         flags, the poses, the equipment); null or empty clears.
+     */
+    public ItemStack withEntityTag(Map<String, Object> rows) {
+        if (isEmpty()) {
+            return this;
+        }
+        return new ItemStack(type, count, damage, displayName, enchantments,
+                unbreakable, repairCost, hideFlags, lore, blockEntityTag,
+                canDestroy, canPlaceOn, displayColor, attributeModifiers, skullOwner,
+                fireworks, bookPages, bookAuthor, bookTitle, bookResolved, bookGeneration,
+                mapScaling, mapDecorations, rows);
     }
 
     /**
@@ -998,6 +1040,20 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
             return null;
         }
         return (Map<String, Object>) sanitizeBoxedValue(input, "BlockEntityTag");
+    }
+
+    /**
+     * The EntityTag compound's own sanitize (Slice TF-7d — the armor
+     * stand's spawn rows): the same boxed-tree walk as BlockEntityTag,
+     * the rows carried verbatim (the placement consult merges them over
+     * the fresh stand's own NBT, never interpreting them at the item
+     * layer).
+     */
+    private static Map<String, Object> sanitizeEntityTag(Map<String, Object> input) {
+        if (input == null || input.isEmpty()) {
+            return null;
+        }
+        return (Map<String, Object>) sanitizeBoxedValue(input, "EntityTag");
     }
 
     /**

@@ -96,13 +96,14 @@ public final class ItemNbt {
         boolean hasBookTitle = stack.bookTitle() != null;
         boolean hasMapDecorations = stack.mapDecorations() != null
                 && !stack.mapDecorations().isEmpty();
+        boolean hasEntityTag = stack.entityTag() != null && !stack.entityTag().isEmpty();
         if (hasName || hasLore || hasEnch || unbreakable || repairCost > 0 || hideFlags > 0
                 || hasBlockEntityTag || hasCanDestroy || hasCanPlaceOn
                 || stack.displayColor() != null || hasAttributeModifiers
                 || stack.skullOwner() != null || hasFireworks
                 || hasBookPages || hasBookAuthor || hasBookTitle
                 || stack.bookResolved() || stack.bookGeneration() != 0
-                || stack.mapScaling() || hasMapDecorations) {
+                || stack.mapScaling() || hasMapDecorations || hasEntityTag) {
             Map<String, Snbt.Tag> tag = new java.util.LinkedHashMap<>();
             if (hasName || hasLore || stack.displayColor() != null) {
                 Map<String, Snbt.Tag> display = new java.util.LinkedHashMap<>();
@@ -148,6 +149,14 @@ public final class ItemNbt {
             if (hasBlockEntityTag) {
                 NbtOps.putCompound(tag, "BlockEntityTag",
                         NbtOps.fromBoxed(stack.blockEntityTag()));
+            }
+            // The spawn rows (Slice TF-7d — ArmorStandItem.useOn lines
+            // 55-61 reads the row with contains("EntityTag", 10)): the
+            // whole subtree verbatim, merged over the fresh stand's own
+            // NBT at the placement consult.
+            if (hasEntityTag) {
+                NbtOps.putCompound(tag, "EntityTag",
+                        NbtOps.fromBoxed(stack.entityTag()));
             }
             // The adventure gates' lists (Wave I — contains(...,9) +
             // getList(...,8): a TAG_LIST of TAG_STRING over the block
@@ -366,6 +375,14 @@ public final class ItemNbt {
         Map<String, Snbt.Tag> blockEntityTag = NbtOps.getCompound(tag, "BlockEntityTag");
         if (!blockEntityTag.isEmpty()) {
             stack = stack.withBlockEntityTag(NbtOps.toBoxed(blockEntityTag));
+        }
+        // The EntityTag compound (Slice TF-7d — ArmorStandItem.useOn lines
+        // 55-61: getCompound("EntityTag") merged over the fresh stand's
+        // own NBT at the placement): the whole subtree carried verbatim
+        // in its boxed form — the item layer never interprets it.
+        Map<String, Snbt.Tag> entityTagRows = NbtOps.getCompound(tag, "EntityTag");
+        if (!entityTagRows.isEmpty()) {
+            stack = stack.withEntityTag(NbtOps.toBoxed(entityTagRows));
         }
         // The Fireworks compound (the firework-rocket family — the
         // reference's own read: getCompound("Fireworks") in the

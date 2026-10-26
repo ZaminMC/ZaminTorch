@@ -155,6 +155,26 @@ public final class ArmorStandSystem {
      * @return whether a stand landed (the stack consumes one unit).
      */
     public synchronized boolean place(BlockPosition clicked, int face, float playerYaw, Random random) {
+        return place(clicked, face, playerYaw, random, null);
+    }
+
+    /**
+     * The placement with the item's EntityTag rows (Slice TF-7d —
+     * ArmorStandItem.useOn lines 55-61): the yaw snap and the pose roll
+     * land FIRST, then the tag's rows merge over the fresh stand —
+     * {@code writeNbtIfNotMount(compound); compound.merge(entityTag);
+     * readNbt(compound)} — every present row overriding whole, absent
+     * rows keeping the stand's own (rolled, snapped) state. The Pose
+     * compound rides the shallow merge's own quirk: a PRESENT partial
+     * Pose replaces the whole sub-compound, so the missing parts reset
+     * to the reference's defaults (never the rolled values).
+     *
+     * @param entityTag the held stack's EntityTag rows in the boxed
+     *                  form, or null when the item carries none
+     * @return whether a stand landed (the stack consumes one unit).
+     */
+    public synchronized boolean place(BlockPosition clicked, int face, float playerYaw,
+                                      Random random, Map<String, Object> entityTag) {
         if (face == 0) {
             return false; // DOWN: the reference's own refusal
         }
@@ -185,12 +205,96 @@ public final class ArmorStandSystem {
         float yaw = (float) (Math.floor((wrapped + 22.5f) / 45.0f) * 45.0f);
         ArmorStand stand = new ArmorStand(nextId, cell.x() + 0.5, cell.y(), cell.z() + 0.5, yaw);
         pickRotation(stand, random);
+        if (entityTag != null && !entityTag.isEmpty()) {
+            applyEntityTag(stand, net.zaminmc.torch.server.nbt.NbtOps.fromBoxed(entityTag));
+        }
         nextId++;
         stands.put(stand.entityId(), stand);
         for (Listener listener : listeners) {
             listener.onStandSpawned(stand);
         }
         return true;
+    }
+
+    /**
+     * The EntityTag merge's read walk (Entity.readNbt's base rows +
+     * ArmorStandEntity.readCustomNbt lines 153-172, the same gates the
+     * /summon path walks): every arm contains-gated — an absent row
+     * keeps the stand's own state. The Pose arm's own gate is the
+     * merge's shallow-override quirk (a present compound resets its
+     * missing parts to the defaults; an absent one keeps the roll).
+     */
+    private void applyEntityTag(ArmorStand stand,
+                                Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> nbt) {
+        // ---- the base rows (Entity.readNbt) ----
+        java.util.List<net.zaminmc.torch.server.nbt.Snbt.Tag> motion =
+                listRows(nbt.get("Motion"));
+        if (motion != null && motion.size() == 3) {
+            stand.setVelocity(motion.get(0).asDouble(), motion.get(1).asDouble(),
+                    motion.get(2).asDouble());
+        }
+        java.util.List<net.zaminmc.torch.server.nbt.Snbt.Tag> rotation =
+                listRows(nbt.get("Rotation"));
+        if (rotation != null && !rotation.isEmpty()) {
+            stand.setYaw(rotation.get(0).asFloat());
+        }
+        net.zaminmc.torch.server.nbt.Snbt.Tag fire = nbt.get("Fire");
+        if (fire != null) {
+            stand.setFireTicks((int) fire.asDouble());
+        }
+        net.zaminmc.torch.server.nbt.Snbt.Tag onGround = nbt.get("OnGround");
+        if (onGround != null) {
+            stand.setOnGround(onGround.asByte() != 0);
+        }
+        // ---- the stand's own rows (readCustomNbt) ----
+        java.util.List<net.zaminmc.torch.server.nbt.Snbt.Tag> equipment =
+                listRows(nbt.get("Equipment"));
+        if (equipment != null) {
+            for (int slot = 0; slot <= 4 && slot < equipment.size(); slot++) {
+                Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> rows =
+                        equipment.get(slot).asCompound();
+                stand.setEquipment(slot, rows == null || rows.isEmpty()
+                        ? null : net.zaminmc.torch.server.nbt.ItemNbt.read(rows));
+            }
+        }
+        if (nbt.containsKey("Invisible")) {
+            stand.setInvisible(NbtOps.getBoolean(nbt, "Invisible"));
+        }
+        if (nbt.containsKey("Small")) {
+            applyStatusBit(stand, ArmorStand.FLAG_SMALL, NbtOps.getBoolean(nbt, "Small"));
+        }
+        if (nbt.containsKey("ShowArms")) {
+            applyStatusBit(stand, ArmorStand.FLAG_SHOW_ARMS, NbtOps.getBoolean(nbt, "ShowArms"));
+        }
+        if (nbt.containsKey("NoGravity")) {
+            applyStatusBit(stand, ArmorStand.FLAG_NO_GRAVITY,
+                    NbtOps.getBoolean(nbt, "NoGravity"));
+        }
+        if (nbt.containsKey("NoBasePlate")) {
+            applyStatusBit(stand, ArmorStand.FLAG_NO_BASE_PLATE,
+                    NbtOps.getBoolean(nbt, "NoBasePlate"));
+        }
+        if (nbt.containsKey("Marker")) {
+            applyStatusBit(stand, ArmorStand.FLAG_MARKER, NbtOps.getBoolean(nbt, "Marker"));
+        }
+        net.zaminmc.torch.server.nbt.Snbt.Tag disabled = nbt.get("DisabledSlots");
+        if (disabled != null) {
+            stand.setDisabledSlots((int) disabled.asDouble());
+        }
+        // The Pose compound's merge quirk (the shallow override): a
+        // PRESENT compound replaces the whole sub-compound — the missing
+        // parts reset to the defaults, never the rolled values; an
+        // absent one keeps the placement's own roll.
+        if (nbt.containsKey("Pose")) {
+            Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> pose =
+                    compoundRows(nbt.get("Pose"));
+            stand.setHead(posePart(pose, "Head", ArmorStand.DEFAULT_HEAD));
+            stand.setBody(posePart(pose, "Body", ArmorStand.DEFAULT_BODY));
+            stand.setLeftArm(posePart(pose, "LeftArm", ArmorStand.DEFAULT_LEFT_ARM));
+            stand.setRightArm(posePart(pose, "RightArm", ArmorStand.DEFAULT_RIGHT_ARM));
+            stand.setLeftLeg(posePart(pose, "LeftLeg", ArmorStand.DEFAULT_LEFT_LEG));
+            stand.setRightLeg(posePart(pose, "RightLeg", ArmorStand.DEFAULT_RIGHT_LEG));
+        }
     }
 
     /** The pose roll (ArmorStandItem.pickRotation lines 70-80). */
