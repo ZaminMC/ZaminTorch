@@ -15987,3 +15987,97 @@ cell (or pin the walk off through the removal surface, which this
 session made honest); (3) compiling while a test JVM is in flight
 invalidates its classpath (142 NoClassDefFoundError "failures" that
 were environmental — never recompile mid-run).
+
+## 2026-10-26 (later) — the census closed whole: the portal's pigman and the sun-shade trim (Slice TF-7e + TF-7f)
+
+**TF-7e — the nether portal's random-tick pigman spawn (7b706a51):**
+- PortalBlock.tick lines 34-53 over the randomTick → tick delegation,
+  dispatched through a new PortalPigmanSink consult on the
+  RandomTickSystem (the sink owns the world reads and the spawn; the
+  system's own random stream drives the roll — the reference's
+  `random` parameter).
+- The walk 1:1: the doMobSpawning rule, the nextInt(2000) <
+  difficulty roll, the ground search down the column to the first
+  World.hasSolidTop (THE FIDELITY REPAIR of the resumed draft: the
+  interrupted work had used the plain WorldSolidity.isSolid — the
+  reference's law is the hasSolidTop family, and the engine's own 1:1
+  port already lived in FireBlocks; the bottom slab, the fence, the
+  wall and the thin snow are NOT the ground the pigman stands on), the
+  plain Block.isSolid headroom gate, the spawn at +1.1 through
+  MobManager.spawnAt (the SpawnEggItem.spawnEntity convention the
+  endermite lane established), and the portalCooldown 300
+  (Entity.getPortalCooldown) — the fresh body never re-enters the
+  portal it was born at.
+- The isNatural gate inherent: the RandomTickSystem is bound to the
+  overworld at construction (the nether carries no random-tick family
+  — the reference's dimension.isNatural() gate answered by topology).
+- The dispatch cleaned to WorldSolidity.isNetherPortal (the canonical
+  helper over the raw string pair the draft carried).
+- TEST REPAIR (the lesson that pays again): the first draft placed a
+  FRAMELESS portal — the reference's PortalBlock.neighborChanged (the
+  1:1 port the BlockUpdateSystem carries, the {0,0,0} self-offset in
+  the scheduled fan) killed the cell on the next scheduled update, and
+  the probe drove 60,000 rolls against air. The probe portal now
+  stands inside a hand-built 4x5 X-plane frame (the PortalForcerTest
+  geometry) with a survival await past the validation (placement tick
+  + 10), and the spawn site is captured AT the roll (WORKLOG lesson 2
+  — the live cell read at the event, never after the walk).
+- Tests: PortalPigmanSpawnTest 2 (the framed spawn with the site and
+  the cooldown, the peaceful empty band); the random-tick/portal/
+  dimension/growth families 30/0 green.
+
+**TF-7f — the skeleton's AvoidSunlightGoal 1:1 (d72962aa):**
+- THE LEDGER CORRECTION FIRST: the TF-7b row had ledgered this goal as
+  "the pathfinder's setAvoidSunlight cost flag" — the 1.8.8 reference
+  carries NO sunlight path cost (the A* walk never reads the sun); the
+  goal's whole effect is GroundPathNavigation.trimPath's truncation
+  over every ADOPTED route. Landed as the reference's actual
+  mechanism, the ledger note corrected beside it.
+- AvoidSunlightGoal: canStart the sunny world alone (the registration
+  is the skeleton's own, the wither variant never joins), start/stop
+  the navigation's avoidSunLight pair. The engine's stateless selector
+  adaptation: the goal rides the float's ADDITIVE band (the
+  reference's flag-free mutex set — it runs beside whatever exclusive
+  goal owns the body: the panic, the escape, the stroll), its tick
+  arms the flag, and the mind-tick default clear (the same per-tick
+  block the postures use) carries stop() — the flag stands exactly
+  while the sunny claim re-arms it each pass.
+- trimPath lines 61-77 1:1 on MobNavigation: the body-open-sky arm
+  keeps the whole route; the shaded body's route cuts at the last
+  shaded node before the first sky-exposed one (truncate(i - 1), the
+  -1 at i 0 left exact); the call site at moveAlong after the
+  same-path adopt, before the empty check (the reference's order).
+- The PathWorld interface gains the hasSkyAccess consult (default
+  sky-open for the stub worlds — the no-shade shape; the
+  MobEntity.PathWorldView maps it to the WorldQuery heightmap read
+  the TF-7b escape lane built).
+- THE STALE CENSUS PIN REPAIRED: TF-7b had re-pinned
+  GoalApiAcceptanceTest at fourteen built-ins but MISSED
+  TemptBegGoalsTest's twelve-row order pin (the same stale-pin class
+  the ledger keeps catching — found by running the goal families
+  before writing the new goal, the failing pin on the COMMITTED tree
+  the evidence). Both pins now carry the fourteen-row order.
+- Tests: AvoidSunlightTest 7 — the four structural trims (the boundary
+  cut, the open-sky body's whole route, the unflagged route, the
+  all-sky -1 arithmetic), the goal arms (the sunny claim, the sunset
+  clear, the kind gate), and the live behavioral pin (a shaded
+  skeleton's strolls over a seeded 300-tick window never cross into
+  the open half while the flag stands).
+
+**The census's state:** the 2026-10-26 vanilla-grade census is now
+CLOSED WHOLE — all six lanes landed (TF-7a through TF-7f). The master
+ledger's demand-named queue stays empty; the remainder is the owner's
+decisions (DEC-001/002/003) and ML-100's family-owned tails. The
+branch state verified clean: only develop and main exist (local and
+remote), nothing to merge or delete.
+
+**Lessons:** (1) a resumed draft owes the reference a re-read before
+the compile — the draft's solidAt ground search was behaviorally
+close but NOT the hasSolidTop law (the 1:1 standard is the reference's
+own family, not the nearest engine helper); (2) a probe that places a
+block family with a survival law must place the SUPPORT the law
+requires (the frameless portal's death was 1:1 CORRECT engine
+behavior — the test was wrong, the implementation right); (3) run the
+NEIGHBORING families before building on a catalog — the committed
+tree carried a failing census pin the previous lane left, and the new
+goal's band insertion would have compounded it.

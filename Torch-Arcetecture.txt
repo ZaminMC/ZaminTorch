@@ -689,7 +689,7 @@ THE SECTION TABLE AND THE ATTRIBUTION PASS LANDED (ML-006 + ML-007 — the cycle
 
 Dynamic split/merge and load-driven migration remain future work. First prove migration with in-flight tasks, delayed work, messages, compute results, persistence, shutdown, and stale-generation invalidation; add telemetry and anti-oscillation rules before enabling automatic balancing.
 
-**Next concrete mechanics work:** continue from Section 29: the master ledger's demand-named queue is EMPTY of implementable rows (ML-013, the last — the tick watchdog, landed 2026-10-26 in §29's Wave ML13; ML-008 the /give form aligned the same day; PR #38's audit merge landed 2026-10-23). The 2026-10-26 vanilla-grade census's NEXT LANES are landing in value order (§29's Wave TF-7: the silverfish's infest completion, the skeleton's sunlight escape, and the fireball punch's Knockback push LANDED; the census's remaining rows stay next work — the armor stand's EntityTag NBT merge (the items carry no NBT from the wire), the nether portal's random-tick pigman spawn (the overworld portal-block arm that makes the pigman's inherited daylight burn reachable — PortalBlock.tick's nextInt(2000) < difficulty walk), and the skeleton's AvoidSunlightGoal pathfinder cost flag (the honest standing bound the TF-7b row ledgers)). The remainder is the owner's decisions (DEC-001 online-mode scope, DEC-002 the adapter era, DEC-003 the KigPaper config surface) and ML-100's family-owned standing tails, each picked up only as its family's slice per that row's own rule. The §22 evidence bar holds: no concurrency phase opens without the attribution pass's numbers (ML-007 landed — the verdict: none justified at the current loads).
+**Next concrete mechanics work:** continue from Section 29: the master ledger's demand-named queue is EMPTY of implementable rows (ML-013, the last — the tick watchdog, landed 2026-10-26 in §29's Wave ML13; ML-008 the /give form aligned the same day; PR #38's audit merge landed 2026-10-23). The 2026-10-26 vanilla-grade census's lanes are ALL LANDED (§29's Waves TF-7 + TF-7-continued: the silverfish's infest completion, the skeleton's sunlight escape, the fireball punch's Knockback push, the armor stand's EntityTag NBT merge, the nether portal's random-tick pigman spawn, and the skeleton's AvoidSunlightGoal trim — the census closed whole, the last two rows landing 2026-10-26 in §29's Wave TF-7's continuation rows). The remainder is the owner's decisions (DEC-001 online-mode scope, DEC-002 the adapter era, DEC-003 the KigPaper config surface) and ML-100's family-owned standing tails, each picked up only as its family's slice per that row's own rule. The §22 evidence bar holds: no concurrency phase opens without the attribution pass's numbers (ML-007 landed — the verdict: none justified at the current loads).
 
 # 23. COMMITS / PUSHES / RELEASES
 
@@ -4762,10 +4762,13 @@ way were repaired inside the wave.
       (the sunless nether's own gate). Tests: EscapeSunlightTest 2 (the
       walk to shade over a seeded window, the three negative gates),
       the goal census row re-pinned at fourteen (GoalApiAcceptanceTest).
-      LEDGERED beside it: AvoidSunlightGoal (band 2, the pathfinder's
-      setAvoidSunLight cost flag) stays the honest standing bound — the
-      engine's navigation carries no sunlight-avoidance path cost, a
-      pathfinder-family lane of its own.
+      LEDGERED beside it: AvoidSunlightGoal (band 2) LANDED as TF-7f
+      below — and the old ledger note corrected with it: the 1.8.8
+      reference carries no sunlight path COST (the A* walk never reads
+      the sun), the goal's whole effect is GroundPathNavigation's
+      trimPath truncation over every ADOPTED route — the cost-flag
+      reading was the ledger's own mischaracterization, the reference's
+      setAvoidSunLight name the mislead.
 - [x] TF-7c — THE FIREBALL PUNCH'S KNOCKBACK PUSH (8bf33a64,
       PlayerEntity.attack lines 983-992 over the deflection): the
       landed punch with a Knockback level (the held item's enchant
@@ -4779,6 +4782,77 @@ way were repaired inside the wave.
       the whole punch). Pinned by FireballDeflectionTest's knockback
       row (the level-2 push per component, the flat 0.1 y, the
       level-0 plain deflection, the yaw-90 heading's -x push).
+- [x] TF-7d — THE ARMOR STAND'S ENTITYTAG MERGE (952fbcbb): the
+      ItemStack's new entityTag arm (the boxed wire compound,
+      round-tripped through ItemNbt verbatim — the unknown rows survive
+      the write-read pair byte-exact, never interpreted) and the
+      placement's merge law over the fresh stand
+      (ArmorStandItem.placeBlocksOnItemUse lines 34-64): every row
+      contains-gated (a missing row keeps the stand's own), the
+      Rotation override (the stand's own nextFloat yaw only when the
+      tag carries none), the flag family (Invulnerable, NoBasePlate,
+      NoGravity, ShowArms, Small, Marker, Invisible), the equipment
+      (the four armor rows + the hand pair through the engine's public
+      equipment write path), the DisabledSlots bitfield, and the Pose
+      shallow-merge quirk the census row named — a present PARTIAL Pose
+      resets its missing parts to the reference's defaults (the stand's
+      own ctor roll discarded), an absent one keeps the placement's
+      own. Pinned by ArmorStandEntityTagTest.
+- [x] TF-7e — THE NETHER PORTAL'S RANDOM-TICK PIGMAN SPAWN (7b706a51,
+      PortalBlock.tick lines 34-53 over the randomTick → tick
+      delegation): the doMobSpawning rule and the
+      nextInt(2000) < difficulty roll gate the walk, the ground search
+      walks the reference's own World.hasSolidTop (the 1:1 FireBlocks
+      port — the cube's solid top, the top-half slabs and stairs, the
+      hopper; never the fence, the wall, the bottom slab, the thin
+      snow), the plain Block.isSolid headroom gate over the found
+      ground, and the pigman lands at the up-face +1.1 (the frame's
+      own bottom obsidian row — the walk starts at the portal cell and
+      the frame owns the column) with Entity.getPortalCooldown's own
+      300 (the fresh body never re-enters the portal it was born at) —
+      the arm that makes the pigman's INHERITED daylight burn
+      reachable in the overworld (ZombiePigmanEntity extends
+      ZombieEntity; the burn walk is the zombie's own). The sink
+      consult wired at the boot over the system's own random stream;
+      the isNatural gate inherent (the RandomTickSystem is the
+      overworld's own — the nether carries no random-tick family).
+      Pinned by PortalPigmanSpawnTest 2 (the framed portal's spawn —
+      the site captured at the roll, the cooldown carried; the
+      peaceful world's empty band). The TEST's own repair: the first
+      draft placed a frameless portal and the reference's
+      neighborChanged law (the 1:1 port the BlockUpdateSystem
+      carries) killed it on the scheduled update — the probe portal
+      now stands inside a hand-built 4x5 X-plane frame, the
+      placement the reference's own PortalBuilder.build would leave.
+- [x] TF-7f — THE SKELETON'S AVOIDSUNLIGHTGOAL 1:1 (d72962aa — the
+      TF-7b ledger's standing bound, landed as the reference's ACTUAL
+      mechanism, the cost-flag reading corrected above):
+      AvoidSunlightGoal canStart the sunny world ALONE (start/stop the
+      navigation's avoidSunLight pair, GroundPathNavigation lines
+      16/215-217), the whole effect in trimPath lines 61-77 over every
+      ADOPTED route — a body already under the open sky keeps its
+      whole route (nothing left to protect), a shaded body's route
+      CUTS at the last shaded node before the first sky-exposed one
+      (truncate(i - 1), the -1 arithmetic at i 0 left exact — the
+      route spent, the done check reads the index past it). The goal
+      rides the float's ADDITIVE band — the reference's flag-free
+      mutex set runs it beside whatever exclusive goal owns the body
+      (the panic, the escape, the stroll), so every path adopted
+      under the sun gets the trim — and the mind-tick default clear
+      carries the stop() arm at sunset (the stateless selector's
+      start/stop law: the flag stands exactly while the sunny claim
+      re-arms it each pass). The PathWorld gains the hasSkyAccess
+      consult (the WorldQuery heightmap read the escape goal's shaded
+      pick already carries). Pinned by AvoidSunlightTest 7 (the four
+      structural trims — the boundary cut, the open-sky body's whole
+      route, the unflagged route, the all-sky -1 — plus the goal arms
+      and the live shaded-stroll never crossing into the open half);
+      the goal census re-pinned at fourteen built-ins with the TF-7b
+      lane's STALE TemptBegGoalsTest order pin repaired (the same
+      stale-pin class the ledger keeps catching — TF-7b moved the
+      escape row without re-pinning the census test's twelve).
+      The 2026-10-26 census is now CLOSED WHOLE — no named lane
+      remains open.
 
 # 33. CODEBASE SCALE, CLASS COHESION, AND MAINTAINABILITY
 
