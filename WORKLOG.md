@@ -15907,3 +15907,83 @@ didn't fire, the timing flakes did), 7245cf2c's run GREEN (run 40262340893
 a body EARLIER in its life must re-audit every test that anchors on a
 spawned mob's position — the old 60-tick idle floor was an implicit test
 contract, and the lane that retired it owes the exposure audit.
+
+---
+
+## 2026-10-26 — the census's next lanes, three landed (Slice TF-7: the silverfish's infest completion, the skeleton's sunlight escape, the fireball punch's Knockback push)
+
+**Task:** the owner's vanilla-grade directive — architecture first (the
+branch set verified clean at develop+main alone, the working tree
+synced), then the 1:1 gaps in the census's own value order.
+
+**TF-7a — the silverfish's infest completion (f20491b3):**
+- THE NAV-IDLE GATE: InfestStoneGoal.canStart line 147 — the roll only
+  fires on a body whose navigation is done; the engine folds the
+  stroll's own window flag into the read (the model's one-tick
+  path-start deferral is the documented reason a live stroll window
+  with an idle path still owns the body).
+- THE SMOKE BURST: animateSpawn's Entity Status 20 (MobEntity lines
+  179-197 — the server's doEntityEvent byte, the clients' 20-puff
+  cloud at the merge point) now rides the infest BEFORE the remove;
+  the old comment claimed the burst rode the removal — Destroy Entity
+  carries no particles, the claim retired.
+- THE LANE'S OWN REPAIR: the §27.3 stroll-removal was INERT
+  behaviorally — the mind's tail call (tickMind's goalTickIdleWander
+  fallback, reached exactly when the selector does not claim) ran the
+  stroll's start gate ungated, so a REMOVED stroll kept walking
+  forever. GoalSelector.hasBuiltIn now gates the start. The debug
+  harness (a watcher-thread stack capture at the mode flip) found the
+  writer empirically — the stroll was removed from the selector yet
+  the body still walked.
+- Tests: SilverfishInfestGateTest (the structural pin), the live
+  silverfish infest row (a real booted server, the status capture
+  through a dynamic-proxy listener, the stroll pinned off through the
+  now-honest removal surface), the goal/stroll/thorns families green.
+
+**TF-7b — the skeleton's EscapeSunlightGoal 1:1 (048ddb8e):**
+- Band 3 in the MobGoals catalog, registered BEFORE the wolf flee (the
+  reference's own order, SkeletonEntity lines 50-51).
+- The WorldQuery gains isSunny (the ambientDarkness < 4 walk — the
+  live query reuses the DaylightDetectorSystem calculation the
+  brightness consult runs; the nether never sunny) and hasSkyAccess
+  (the heightmap read's stand-in: the sky-light-15 column).
+- The gates (sunny + burning + sky-open feet + a shaded pick), the
+  pick (ten candidates, no-sky AND negative favor — the monster's dark
+  preference), the walk (the navigation owns the body at 1.0 to the
+  path's end, shouldContinue !isDone alone — the walk outlives its own
+  gates), the precedence (the escape outranks the stroll and the wolf
+  flee; the hunt yields — a burning sunny skeleton walks to shade).
+- Tests: EscapeSunlightTest 2; the goal census re-pinned at fourteen
+  built-ins. LEDGERED: AvoidSunlightGoal (the pathfinder's
+  setAvoidSunlight cost flag) stays the standing bound — a
+  pathfinder-family lane.
+
+**TF-7c — the fireball punch's Knockback push (8bf33a64):**
+- PlayerEntity.attack lines 983-992 over the deflection: the Knockback
+  level (the enchant + the sprint's +1) ADDS the push to the
+  look-vector velocity (-sin/cos * i * 0.5, the flat 0.1 y), the
+  acceleration untouched; the puncher's own horizontal motion damps
+  *0.6 with the sprint cleared at the caller; the wire publish rides
+  the final velocity.
+- Tests: FireballDeflectionTest's knockback row (per-component pins,
+  the level-0 arm, the yaw-90 heading).
+
+**The census's remaining rows (next work, value order):** the armor
+stand's EntityTag NBT merge (the items carry no NBT from the wire —
+the ItemStack record chain plus the placement's merge law over the
+/summon read walk), the nether portal's random-tick pigman spawn
+(PortalBlock.tick: the natural-dimension gate, the doMobSpawning rule,
+the nextInt(2000) < difficulty roll, the ground search, the spawn at
++1.1 — the arm that makes the pigman's INHERITED daylight burn
+reachable; ZombiePigmanEntity extends ZombieEntity, the burn walk is
+the zombie's own), and the skeleton's AvoidSunlightGoal path cost.
+
+**Lessons:** (1) the §27.3 removal surface's snapshot-only verification
+left the walk un-gated — an API whose observable contract is behavior
+needs a behavioral pin, not a set-membership pin; (2) the first live
+infest test hardcoded the body's SPAWN cell while the stroll walked it
+a block away — tests that anchor on a mob's cell must read the LIVE
+cell (or pin the walk off through the removal surface, which this
+session made honest); (3) compiling while a test JVM is in flight
+invalidates its classpath (142 NoClassDefFoundError "failures" that
+were environmental — never recompile mid-run).

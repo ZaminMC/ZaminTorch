@@ -689,7 +689,7 @@ THE SECTION TABLE AND THE ATTRIBUTION PASS LANDED (ML-006 + ML-007 — the cycle
 
 Dynamic split/merge and load-driven migration remain future work. First prove migration with in-flight tasks, delayed work, messages, compute results, persistence, shutdown, and stale-generation invalidation; add telemetry and anti-oscillation rules before enabling automatic balancing.
 
-**Next concrete mechanics work:** continue from Section 29: the master ledger's demand-named queue is now EMPTY of implementable rows (ML-013, the last — the tick watchdog, landed 2026-10-26 in §29's Wave ML13; ML-008 the /give form aligned the same day; PR #38's audit merge landed 2026-10-23). The remainder is the owner's decisions (DEC-001 online-mode scope, DEC-002 the adapter era, DEC-003 the KigPaper config surface) and ML-100's family-owned standing tails, each picked up only as its family's slice per that row's own rule. The §22 evidence bar holds: no concurrency phase opens without the attribution pass's numbers (ML-007 landed — the verdict: none justified at the current loads).
+**Next concrete mechanics work:** continue from Section 29: the master ledger's demand-named queue is EMPTY of implementable rows (ML-013, the last — the tick watchdog, landed 2026-10-26 in §29's Wave ML13; ML-008 the /give form aligned the same day; PR #38's audit merge landed 2026-10-23). The 2026-10-26 vanilla-grade census's NEXT LANES are landing in value order (§29's Wave TF-7: the silverfish's infest completion, the skeleton's sunlight escape, and the fireball punch's Knockback push LANDED; the census's remaining rows stay next work — the armor stand's EntityTag NBT merge (the items carry no NBT from the wire), the nether portal's random-tick pigman spawn (the overworld portal-block arm that makes the pigman's inherited daylight burn reachable — PortalBlock.tick's nextInt(2000) < difficulty walk), and the skeleton's AvoidSunlightGoal pathfinder cost flag (the honest standing bound the TF-7b row ledgers)). The remainder is the owner's decisions (DEC-001 online-mode scope, DEC-002 the adapter era, DEC-003 the KigPaper config surface) and ML-100's family-owned standing tails, each picked up only as its family's slice per that row's own rule. The §22 evidence bar holds: no concurrency phase opens without the attribution pass's numbers (ML-007 landed — the verdict: none justified at the current loads).
 
 # 23. COMMITS / PUSHES / RELEASES
 
@@ -4712,6 +4712,73 @@ way were repaired inside the wave.
       half, the giant's inverted bright half, the pig's grass half, the
       despawn gate, the walk's life); the wolf/ocelot/rabbit/mob goal
       families re-verified green.
+
+## Wave TF-7 — the 2026-10-26 census's next lanes, landed three-per-session (the vanilla-grade directive's own order)
+
+- [x] TF-7a — THE SILVERFISH'S INFEST COMPLETION (f20491b3): the roll's
+      navigation-idle gate (InfestStoneGoal.canStart line 147 — a
+      WALKING silverfish never merges into stone; the engine folds the
+      stroll's own window flag in, the model's one-tick path-start
+      deferral the documented reason) and the animateSpawn Entity
+      Status 20 the removal never carried (MobEntity.animateSpawn
+      lines 179-197 — the server's doEntityEvent byte, the clients'
+      20-puff smoke cloud at the merge point; the old comment's claim
+      that the burst "rides the removal" retired — Destroy Entity
+      carries no particles). The lane's own repair: the §27.3
+      stroll-removal was INERT behaviorally — the mind's tail call ran
+      goalTickIdleWander ungated, so a removed stroll kept walking
+      forever; GoalSelector.hasBuiltIn now gates the stroll's start
+      (the removal's behavioral consult, the API contract's own words).
+      Tests: SilverfishInfestGateTest (the structural pin — no infest
+      verdict ever on a walking body over a 600-tick seeded window),
+      SilverfishEntityTest's live infest row (the status-20 burst
+      through a real booted server, the egg write, the removal),
+      StrollFavorTest/GoalApiAcceptanceTest/ThornsMobVictim
+      AcceptanceTest re-verified green.
+- [x] TF-7b — THE SKELETON'S ESCAPESUNLIGHTGOAL 1:1 (048ddb8e): band 3
+      in the catalog, registered before the wolf flee exactly the
+      reference's own order (SkeletonEntity lines 50-51 — the tie goes
+      to the earlier registration, the escape outranks the flee). THE
+      GATES (canStart lines 28-52): the sunny world (World.isSunny —
+      ambientDarkness < 4, the new WorldQuery.isSunny family: the live
+      query walks the same calculateAmbientDarkness the brightness
+      consult runs, the nether never sunny), the burning body, the open
+      sky above the feet (hasSkyAccess — the new WorldQuery family over
+      the heightmap read; the engine's sky-light-15 column stands in,
+      the propagation holding 15 exactly through an unobstructed
+      column), and a shaded cell found. THE PICK
+      (getShadedLocationPos lines 60-76): ten candidates in the ±10
+      horizontal / -3..+2 vertical band — the first WITHOUT sky access
+      whose pathfinding favor reads negative (the monster family's dark
+      preference — a lit cavern's bright cells never qualify). THE WALK
+      (start + shouldContinue lines 48-56): the navigation owns the
+      body at the ctor's 1.0 until the path's own end, whatever the
+      gates do meanwhile (shouldContinue is !isDone alone — the walk
+      runs on after sunset or a doused fire); a still-burning body
+      re-picks on the next pass. THE PRECEDENCE: the escape claims
+      before the stroll (band 3 over 4 — a burning sunny skeleton stops
+      hunting and walks to shade, the vanilla law) and before the wolf
+      flee (the registration order). The wither variant never joins
+      (the sunless nether's own gate). Tests: EscapeSunlightTest 2 (the
+      walk to shade over a seeded window, the three negative gates),
+      the goal census row re-pinned at fourteen (GoalApiAcceptanceTest).
+      LEDGERED beside it: AvoidSunlightGoal (band 2, the pathfinder's
+      setAvoidSunLight cost flag) stays the honest standing bound — the
+      engine's navigation carries no sunlight-avoidance path cost, a
+      pathfinder-family lane of its own.
+- [x] TF-7c — THE FIREBALL PUNCH'S KNOCKBACK PUSH (8bf33a64,
+      PlayerEntity.attack lines 983-992 over the deflection): the
+      landed punch with a Knockback level (the held item's enchant
+      plus the sprint's own +1) ADDS the push to the deflection's
+      look-vector velocity ({@code -sin(yaw) * i * 0.5, 0.1,
+      cos(yaw) * i * 0.5} — the reference's addVelocity arm AFTER
+      takeDamage's set, the acceleration untouched at look * 0.1), and
+      the puncher's own horizontal motion damps to 60% with the sprint
+      wiped (the attack walk's own arms at the caller). The wire
+      publish rides the final velocity (one Entity Velocity packet for
+      the whole punch). Pinned by FireballDeflectionTest's knockback
+      row (the level-2 push per component, the flat 0.1 y, the
+      level-0 plain deflection, the yaw-90 heading's -x push).
 
 # 33. CODEBASE SCALE, CLASS COHESION, AND MAINTAINABILITY
 
