@@ -102,6 +102,13 @@ class ThornsMobVictimAcceptanceTest {
         PlayerSession archer = join(server, "Archer");
         server.chatService().submitChat(archer, "/spawnmob zombie 1");
         MobEntity zombie = awaitMob(server, MobType.ZOMBIE);
+        // The test's own deterministic-target law (the reference's zombie
+        // strolls — WanderAroundGoal's 1-in-120 from the first idle tick,
+        // Slice TF-6): the arrows fall through the body's column at the
+        // captured anchor, so the stroll goal leaves the selector for the
+        // test's life (the §27.3 removal surface — the thorns law is the
+        // pin, not the walk).
+        zombie.goals().removeBuiltIn("stroll");
         zombie.setEquipment(3, ItemStack.of(BuiltinItems.IRON_CHESTPLATE)
                 .withEnchantment(Enchantments.THORNS.id, 3));
         zombie.setEquipment(4, ItemStack.of(BuiltinItems.IRON_HELMET)
