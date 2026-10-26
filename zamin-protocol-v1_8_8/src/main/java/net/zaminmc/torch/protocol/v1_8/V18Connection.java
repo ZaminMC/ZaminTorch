@@ -12,6 +12,7 @@ import io.netty.channel.SimpleChannelInboundHandler;
 import net.zaminmc.torch.util.Position;
 import net.zaminmc.torch.util.Rotation;
 import net.zaminmc.torch.server.EngineServer;
+import net.zaminmc.torch.server.auth.GameProfile;
 import net.zaminmc.torch.GameMode;
 import net.zaminmc.torch.server.entity.MobEntity;
 import net.zaminmc.torch.server.net.EngineBridge;
@@ -121,7 +122,36 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     V18Connection(V18ProtocolServer adapter, EngineServer engine) {
         this.adapter = adapter;
         this.engine = engine;
+        // The echo-verification nonce (the reference ServerLoginNetwork
+        // //Handler's own ctor law: 4 bytes off a shared Random, once per
+        // connection — the KeyC2S reply must return it RSA-encrypted).
+        LOGIN_NONCE_RANDOM.nextBytes(loginNonce);
     }
+
+    /**
+     * The login walk's stage machine (the reference's own Stage enum,
+     * ServerLoginNetworkHandler lines 204-211): HELLO (Login Start
+     * pending) -> KEY (the Encryption Request out, the response pending)
+     * -> AUTHENTICATING (the hasJoined consult in flight) -> READY (the
+     * accept walk may run). The offline branch steps HELLO -> READY
+     * directly — the reference handleHello's else-arm, line 134.
+     */
+    private enum LoginStage { HELLO, KEY, AUTHENTICATING, READY }
+
+    private volatile LoginStage loginStage = LoginStage.HELLO;
+
+    /** The reference's own nonce source: one shared Random, four bytes per connection. */
+    private static final java.util.Random LOGIN_NONCE_RANDOM = new java.util.Random();
+
+    /** The reference's own authenticator naming: "User Authenticator #N". */
+    private static final java.util.concurrent.atomic.AtomicInteger AUTHENTICATOR_IDS =
+            new java.util.concurrent.atomic.AtomicInteger();
+
+    /** The online login's echo nonce (RSA-encrypted back by the client). */
+    private final byte[] loginNonce = new byte[4];
+
+    /** The joining name, carried across the async authentication arm. */
+    private volatile String loginName;
 
     /**
      * The chunk-visibility key for an entity position: the chunk column from
@@ -278,8 +308,13 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
 
     private void handleLogin(Channel channel, ByteBuf packet) {
         int packetId = ByteBufOps.readVarInt(packet);
+        if (packetId == Protocol18.C2S_LOGIN_ENCRYPTION_RESPONSE) {
+            handleEncryptionResponse(channel, packet);
+            return;
+        }
         if (packetId != Protocol18.C2S_LOGIN_START) {
-            channel.close(); // only login start is valid here
+            channel.close(); // only login start (and, in the KEY stage, the
+            // encryption response) is valid here
             return;
         }
         String username;
@@ -293,7 +328,129 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         // (ServerLoginNetworkHandler.createFakeProfile line 200's own law).
         UUID offlineUuid = UUID.nameUUIDFromBytes(
                 ("OfflinePlayer:" + username).getBytes(StandardCharsets.UTF_8));
-        acceptLogin(channel, username, offlineUuid);
+        if (engine.onlineMode()) {
+            // The reference handleHello's online arm (lines 130-132): the
+            // stage steps to KEY and the Encryption Request rides out —
+            // the identity itself is NOT resolved yet (the session service
+            // owns it; the offline convention here is only the pre-auth
+            // placeholder the reference's packet profile carries).
+            loginStage = LoginStage.KEY;
+            loginName = username;
+            sendEncryptionRequest(channel);
+            return;
+        }
+        loginStage = LoginStage.READY;
+        acceptLogin(channel, GameProfile.offline(username, offlineUuid));
+    }
+
+    /**
+     * The Encryption Request (the reference HelloS2CPacket's wire form,
+     * handleHello line 132): the server-id string (the reference's own
+     * empty key — 1.8.8's famous "" server id), the DER-encoded public
+     * key as a byte array, and the 4-byte nonce as a byte array.
+     */
+    private void sendEncryptionRequest(Channel channel) {
+        java.security.KeyPair keyPair = adapter.loginKeyPair();
+        ByteBuf request = Unpooled.buffer(420);
+        ByteBufOps.writeVarInt(request, Protocol18.S2C_LOGIN_ENCRYPTION_REQUEST);
+        ByteBufOps.writeString(request, ""); // the reference's own empty server id
+        ByteBufOps.writeByteArray(request, keyPair.getPublic().getEncoded());
+        ByteBufOps.writeByteArray(request, loginNonce);
+        channel.writeAndFlush(request);
+    }
+
+    /**
+     * The Encryption Response walk (the reference handleKey, lines
+     * 139-197): the stage gate (only KEY answers — the reference's
+     * Validate.validState throw, which kills the connection as an
+     * internal error), the RSA decrypt of the shared secret and the echo
+     * nonce, the nonce comparison (the reference's IllegalStateException
+     * "Invalid nonce!" — an internal-error close), the stream codec's
+     * install (decrypt before the framing decoder, encrypt before the
+     * framing encoder — Connection.setupEncryption lines 295-299), and
+     * the authenticator thread ("User Authenticator #N", the reference's
+     * own naming) that carries the hasJoined consult and hops the accept
+     * walk back onto the event loop. Never blocks the IO thread on the
+     * network — the reference's own shape.
+     */
+    private void handleEncryptionResponse(Channel channel, ByteBuf packet) {
+        if (loginStage != LoginStage.KEY) {
+            LOGGER.warning("Protocol error from " + channel.remoteAddress()
+                    + ": encryption response outside the KEY stage");
+            channel.close();
+            return;
+        }
+        byte[] encryptedSecret;
+        byte[] encryptedNonce;
+        try {
+            encryptedSecret = ByteBufOps.readByteArray(packet);
+            encryptedNonce = ByteBufOps.readByteArray(packet);
+        } catch (IllegalArgumentException e) {
+            channel.close(); // a malformed response is not a login answer
+            return;
+        }
+        java.security.KeyPair keyPair = adapter.loginKeyPair();
+        byte[] secretBytes = TorchEncryption.decrypt(keyPair.getPrivate(), encryptedSecret);
+        byte[] echoedNonce = TorchEncryption.decrypt(keyPair.getPrivate(), encryptedNonce);
+        if (!TorchEncryption.nonceMatches(loginNonce, echoedNonce)) {
+            // The reference's own law: the IllegalStateException reaches
+            // the connection's exception walk — an internal-error close.
+            LOGGER.warning("Protocol error from " + channel.remoteAddress()
+                    + ": Invalid nonce!");
+            channel.close();
+            return;
+        }
+        javax.crypto.SecretKey secretKey = TorchEncryption.secretKey(secretBytes);
+        loginStage = LoginStage.AUTHENTICATING;
+        installEncryption(channel, secretKey);
+
+        String name = loginName;
+        Thread authenticator = new Thread(() -> {
+            try {
+                String serverIdHash = TorchEncryption.serverIdHash(
+                        "", keyPair.getPublic(), secretKey);
+                net.zaminmc.torch.server.auth.GameProfile profile =
+                        adapter.sessionService().hasJoined(name, serverIdHash);
+                if (profile == null) {
+                    // The reference's own string (line 180).
+                    channel.eventLoop().execute(() ->
+                            sendLoginDisconnect(channel, "Failed to verify username!"));
+                    return;
+                }
+                net.zaminmc.torch.server.auth.GameProfile authorized = profile;
+                channel.eventLoop().execute(() -> {
+                    if (loginStage != LoginStage.AUTHENTICATING) {
+                        return; // the connection moved on (a reap won the race)
+                    }
+                    loginStage = LoginStage.READY;
+                    acceptLogin(channel, authorized);
+                });
+            } catch (net.zaminmc.torch.server.auth.AuthenticationUnavailableException e) {
+                // The reference's own string (line 190).
+                channel.eventLoop().execute(() ->
+                        sendLoginDisconnect(channel,
+                                "Authentication servers are down. Please try again later, sorry!"));
+            }
+        }, "User Authenticator #" + AUTHENTICATOR_IDS.incrementAndGet());
+        authenticator.setDaemon(true); // a wedged consult never blocks JVM shutdown
+        authenticator.start();
+    }
+
+    /**
+     * The stream codec's install (Connection.setupEncryption lines
+     * 295-299: decrypt before the splitter, encrypt before the
+     * prepender — mapped onto Torch's frame codec names). The
+     * idempotence guards mirror the compression install's own law.
+     */
+    private void installEncryption(Channel channel, javax.crypto.SecretKey secretKey) {
+        if (channel.pipeline().get(EncryptionCodec.DECRYPT_NAME) == null) {
+            channel.pipeline().addBefore(FrameCodec.DECODER_NAME, EncryptionCodec.DECRYPT_NAME,
+                    new EncryptionCodec.Decoder(TorchEncryption.streamCipher(2, secretKey)));
+        }
+        if (channel.pipeline().get(EncryptionCodec.ENCRYPT_NAME) == null) {
+            channel.pipeline().addBefore(FrameCodec.ENCODER_NAME, EncryptionCodec.ENCRYPT_NAME,
+                    new EncryptionCodec.Encoder(TorchEncryption.streamCipher(1, secretKey)));
+        }
     }
 
     /**
@@ -306,8 +463,8 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
      * hasJoined consult) rides ON-1b's stage machine in front of this
      * walk.
      */
-    private void acceptLogin(Channel channel, String username, UUID uuid) {
-        EngineBridge.JoinResult result = engine.joinRequest(this, username, uuid);
+    private void acceptLogin(Channel channel, GameProfile profile) {
+        EngineBridge.JoinResult result = engine.joinRequest(this, profile.name(), profile.id());
         if (result instanceof EngineBridge.Rejected rejected) {
             sendLoginDisconnect(channel, rejected.reason());
             return;
@@ -331,7 +488,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             ByteBufOps.writeVarInt(exchange, threshold);
             Runnable afterExchange = () -> {
                 installCompression(channel, threshold);
-                sendLoginSuccess(channel, accepted, username, uuid);
+                sendLoginSuccess(channel, accepted, profile);
             };
             if (channel.eventLoop().inEventLoop()) {
                 channel.writeAndFlush(exchange);
@@ -341,7 +498,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                         .addListener(future -> channel.eventLoop().execute(afterExchange));
             }
         } else {
-            sendLoginSuccess(channel, accepted, username, uuid);
+            sendLoginSuccess(channel, accepted, profile);
         }
     }
 
@@ -365,11 +522,11 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     }
 
     private void sendLoginSuccess(Channel channel, EngineBridge.Accepted accepted,
-                                   String username, UUID uuid) {
+                                   GameProfile profile) {
         ByteBuf success = Unpooled.buffer(96);
         ByteBufOps.writeVarInt(success, Protocol18.S2C_LOGIN_SUCCESS);
-        ByteBufOps.writeString(success, uuid.toString());
-        ByteBufOps.writeString(success, username);
+        ByteBufOps.writeString(success, profile.id().toString());
+        ByteBufOps.writeString(success, profile.name());
         channel.writeAndFlush(success).addListener(future -> {
             if (future.isSuccess()) {
                 state = WireState.PLAY;

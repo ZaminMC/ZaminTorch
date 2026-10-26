@@ -60,6 +60,21 @@ public final class V18ProtocolServer implements ProtocolAdapter {
     private final AtomicInteger entityIds = new AtomicInteger();
     private final AtomicBoolean running = new AtomicBoolean(false);
 
+    /**
+     * The session-service consult (Wave ON-1b): the reference's own
+     * getSessionService seam — the real Mojang endpoint by default, a
+     * test's stub through the test constructor.
+     */
+    private final net.zaminmc.torch.server.auth.SessionService sessionService;
+
+    /**
+     * The per-boot RSA keypair (Wave ON-1b): the reference
+     * MinecraftServer.getKeyPair's own lazy law — generated once on the
+     * first online-mode login that needs it, cached for the boot's life
+     * (1024 bits, the reference's own size).
+     */
+    private volatile java.security.KeyPair loginKeyPair;
+
     private EventLoopGroup bossGroup;
     private EventLoopGroup workerGroup;
     private Channel serverChannel;
@@ -78,9 +93,22 @@ public final class V18ProtocolServer implements ProtocolAdapter {
      * reaping drive a short window through this constructor.
      */
     V18ProtocolServer(EngineServer engine, long keepAliveIntervalMs, int readTimeoutSeconds) {
+        this(engine, keepAliveIntervalMs, readTimeoutSeconds,
+                new MojangSessionService());
+    }
+
+    /**
+     * The full boot with the session-service seam exposed (Wave ON-1b's
+     * test surface): the online login walk consults whatever service
+     * rides here — the real Mojang endpoint in production, a stub over a
+     * local HTTP server (or an in-memory fake) in the wire tests.
+     */
+    V18ProtocolServer(EngineServer engine, long keepAliveIntervalMs, int readTimeoutSeconds,
+                      net.zaminmc.torch.server.auth.SessionService sessionService) {
         this.engine = engine;
         this.keepAliveIntervalMs = keepAliveIntervalMs;
         this.readTimeoutSeconds = readTimeoutSeconds;
+        this.sessionService = sessionService;
         // §27.3's packet construction: the composed-frame sender installed
         // at construction — the registry's send() resolves a player's
         // PLAY-state connection through here and writes through the shared
@@ -88,6 +116,29 @@ public final class V18ProtocolServer implements ProtocolAdapter {
         // engine frame).
         ((net.zaminmc.torch.server.net.PacketHookRegistry) engine.protocolHooks())
                 .setFrameSender(this::sendComposedFrameTo);
+    }
+
+    /** The session-service consult (the login walk's hasJoined arm). */
+    net.zaminmc.torch.server.auth.SessionService sessionService() {
+        return sessionService;
+    }
+
+    /**
+     * The login keypair (the reference getKeyPair's lazy law): generated
+     * once, on the first consult, cached for the boot.
+     */
+    java.security.KeyPair loginKeyPair() {
+        java.security.KeyPair pair = loginKeyPair;
+        if (pair == null) {
+            synchronized (this) {
+                pair = loginKeyPair;
+                if (pair == null) {
+                    pair = TorchEncryption.generateKeyPair();
+                    loginKeyPair = pair;
+                }
+            }
+        }
+        return pair;
     }
 
     /**

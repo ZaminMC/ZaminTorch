@@ -21,14 +21,91 @@ import java.util.UUID;
 final class TestClient18 implements AutoCloseable {
 
     private final Socket socket;
-    private final DataInputStream in;
-    private final DataOutputStream out;
+    private DataInputStream in;
+    private DataOutputStream out;
 
     TestClient18(String host, int port) throws IOException {
         this.socket = new Socket(host, port);
         this.socket.setTcpNoDelay(true);
         this.in = new DataInputStream(socket.getInputStream());
         this.out = new DataOutputStream(socket.getOutputStream());
+    }
+
+    /**
+     * The client's encryption arm (Wave ON-1b): wraps the socket's streams
+     * in the negotiated key's AES/CFB8 cipher pair — exactly the stream a
+     * real 1.8.8 client builds from the same secret (the key's own bytes
+     * as the IV, the reference crypt shape). Every later read and write —
+     * framing, keep-alive auto-answers, all of it — rides the cipher.
+     */
+    void enableEncryption(javax.crypto.SecretKey secretKey) throws java.io.IOException {
+        javax.crypto.Cipher decrypt = TorchEncryption.streamCipher(2, secretKey);
+        javax.crypto.Cipher encrypt = TorchEncryption.streamCipher(1, secretKey);
+        in = new DataInputStream(new javax.crypto.CipherInputStream(
+                socket.getInputStream(), decrypt));
+        out = new DataOutputStream(new javax.crypto.CipherOutputStream(
+                socket.getOutputStream(), encrypt));
+    }
+
+    /** The server's Encryption Request, read whole (the HelloS2CPacket form). */
+    record EncryptionRequest(String serverId, java.security.PublicKey publicKey, byte[] nonce) {
+    }
+
+    /**
+     * Reads the Encryption Request: the server-id string, the DER public
+     * key byte array, the nonce byte array — the request's own packet id
+     * checked on the way in.
+     */
+    EncryptionRequest readEncryptionRequest() throws IOException {
+        byte[] payload = readPacket();
+        ByteBuf body = Unpooled.wrappedBuffer(payload);
+        if (ByteBufOps.readVarInt(body) != Protocol18.S2C_LOGIN_ENCRYPTION_REQUEST) {
+            throw new IOException("expected the encryption request, got id "
+                    + readPacketId(payload));
+        }
+        String serverId = readBodyString(body, 20);
+        byte[] der = ByteBufOps.readByteArray(body);
+        byte[] nonce = ByteBufOps.readByteArray(body);
+        if (body.readableBytes() != 0) {
+            throw new IOException("encryption request body not fully consumed");
+        }
+        return new EncryptionRequest(serverId, TorchEncryption.publicKey(der), nonce);
+    }
+
+    /**
+     * Answers the request (the KeyC2SPacket form): the RSA-encrypted
+     * shared secret and the RSA-encrypted echo nonce — the same JCE
+     * default "RSA" transformation a real client resolves.
+     */
+    void sendEncryptionResponse(javax.crypto.SecretKey secretKey,
+                                java.security.PublicKey serverKey, byte[] nonce) throws IOException {
+        ByteBuf body = Unpooled.buffer(300);
+        ByteBufOps.writeVarInt(body, Protocol18.C2S_LOGIN_ENCRYPTION_RESPONSE);
+        ByteBufOps.writeByteArray(body, TorchEncryption.encrypt(serverKey, secretKey.getEncoded()));
+        ByteBufOps.writeByteArray(body, TorchEncryption.encrypt(serverKey, nonce));
+        sendPacket(bodyToBytes(body));
+    }
+
+    /** A fresh 128-bit AES secret — the client's own choice, like the real one. */
+    static javax.crypto.SecretKey clientSecret() {
+        try {
+            javax.crypto.KeyGenerator generator = javax.crypto.KeyGenerator.getInstance("AES");
+            generator.init(128);
+            return generator.generateKey();
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    /** Reads a length-prefixed string off a body buffer (the wire's own form). */
+    private static String readBodyString(ByteBuf body, int maxLength) {
+        int length = ByteBufOps.readVarInt(body);
+        if (length < 0 || length > maxLength * 4) {
+            throw new IllegalArgumentException("string length out of bounds: " + length);
+        }
+        byte[] bytes = new byte[length];
+        body.readBytes(bytes);
+        return new String(bytes, StandardCharsets.UTF_8);
     }
 
     /** Sets the read timeout (the silent-wire assertions' own grace window). */
@@ -82,6 +159,21 @@ final class TestClient18 implements AutoCloseable {
     /** Arms the outbound compression form (after receiving Set Compression). */
     void armCompression() {
         compressionArmed = true;
+    }
+
+    /**
+     * The compression exchange's INBOUND arm (Wave ON-1b's online tests):
+     * strips the data-length varint off every frame the server sends and
+     * inflates the deflated ones — a real client's own decompression walk.
+     * Separate from the outbound arm so a test can keep parsing the raw
+     * compressed form itself (the independent-walk discipline the
+     * LoginCompressionWireTest family pins with).
+     */
+    private boolean inboundCompressionArmed = false;
+
+    /** Arms the inbound decompression walk (after receiving Set Compression). */
+    void armInboundCompression() {
+        inboundCompressionArmed = true;
     }
 
     /**
@@ -203,6 +295,9 @@ final class TestClient18 implements AutoCloseable {
         int length = readVarInt(in);
         byte[] payload = new byte[length];
         in.readFully(payload);
+        if (inboundCompressionArmed) {
+            payload = decompressPayload(payload);
+        }
         if (inPlayState && autoAnswerKeepAlives
                 && readPacketId(payload) == Protocol18.S2C_KEEP_ALIVE) {
             io.netty.buffer.ByteBuf body = io.netty.buffer.Unpooled.wrappedBuffer(payload);
@@ -219,6 +314,35 @@ final class TestClient18 implements AutoCloseable {
 
     static final boolean WIRE_TRACE = Boolean.getBoolean("wireTrace")
             || System.getenv("WIRE_TRACE") != null;
+
+    /**
+     * The inbound compression walk: the data-length varint (zero rides
+     * raw), the inflate to exactly that many bytes otherwise.
+     */
+    private static byte[] decompressPayload(byte[] payload) throws IOException {
+        ByteBuf wire = Unpooled.wrappedBuffer(payload);
+        int dataLength = ByteBufOps.readVarInt(wire);
+        if (dataLength == 0) {
+            byte[] raw = new byte[wire.readableBytes()];
+            wire.readBytes(raw);
+            return raw;
+        }
+        byte[] compressed = new byte[wire.readableBytes()];
+        wire.readBytes(compressed);
+        java.util.zip.Inflater inflater = new java.util.zip.Inflater();
+        inflater.setInput(compressed);
+        byte[] inflated = new byte[dataLength];
+        try {
+            int inflatedBytes = inflater.inflate(inflated);
+            if (inflatedBytes != dataLength || !inflater.finished()) {
+                throw new IOException("frame inflated to " + inflatedBytes
+                        + " of " + dataLength + " declared bytes");
+            }
+        } catch (java.util.zip.DataFormatException e) {
+            throw new IOException("bad zlib stream: " + e.getMessage(), e);
+        }
+        return inflated;
+    }
 
     int readPacketId(byte[] payload) {
         ByteBuf buffer = Unpooled.wrappedBuffer(payload);

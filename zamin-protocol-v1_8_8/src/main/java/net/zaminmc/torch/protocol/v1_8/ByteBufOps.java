@@ -64,6 +64,32 @@ final class ByteBufOps {
         out.writeBytes(bytes);
     }
 
+    /**
+     * The byte-array wire form (the reference PacketByteBuf.writeByteArray
+     * lines 45-48): one varint length, then the raw bytes — the
+     * Encryption Request's public key and nonce, and the Encryption
+     * Response's two RSA blocks, all ride this shape.
+     */
+    static void writeByteArray(ByteBuf out, byte[] bytes) {
+        writeVarInt(out, bytes.length);
+        out.writeBytes(bytes);
+    }
+
+    /**
+     * The byte-array read (the reference readByteArray lines 50-54): the
+     * varint length, then exactly that many bytes — a truncated array is
+     * a framing failure, never a short read.
+     */
+    static byte[] readByteArray(ByteBuf in) {
+        int length = readVarInt(in);
+        if (length < 0 || length > in.readableBytes()) {
+            throw new IllegalArgumentException("Byte array length out of bounds: " + length);
+        }
+        byte[] bytes = new byte[length];
+        in.readBytes(bytes);
+        return bytes;
+    }
+
     static String readString(ByteBuf in, int maxLength) {
         int length = readVarInt(in);
         if (length < 0 || length > maxLength * 4) {

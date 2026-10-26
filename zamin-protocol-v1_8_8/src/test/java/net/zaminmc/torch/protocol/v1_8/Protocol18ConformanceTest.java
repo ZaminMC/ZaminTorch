@@ -167,6 +167,10 @@ class Protocol18ConformanceTest {
         // status state's response/pong.
         m.put("S2C_LOGIN_SUCCESS", 0x02);
         m.put("S2C_LOGIN_DISCONNECT", 0x00);
+        // The login state's encryption and compression pair (Wave ON-1):
+        // HelloS2CPacket / CompressionThresholdS2CPacket's own ids.
+        m.put("S2C_LOGIN_ENCRYPTION_REQUEST", 0x01);
+        m.put("S2C_LOGIN_SET_COMPRESSION", 0x03);
         m.put("S2C_STATUS_RESPONSE", 0x00);
         m.put("S2C_STATUS_PONG", 0x01);
         return Map.copyOf(m);
