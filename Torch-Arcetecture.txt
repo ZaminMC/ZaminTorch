@@ -669,7 +669,7 @@ Torch has published development releases, so the initial artifact gate has been 
 
 The engine has substantial reference-driven mechanics and API coverage, tracked in Section 29 and `VANILLA_1_8_8_COMPATIBILITY.md`. The current ledger includes completed Waves A–K, the metadata-variant Wave L (L1–L6), the stairs' two-box geometry (L7), Wave M (the swept-box physics solver across every moving family), the first Phase-6 gameplay lane (P6), the use/dig dispatch law family through N7 (the two-stage use law, the use handler's gates, the use packet's tail, the spawn-protection gate, the teleport window, the dig handler's own gates, and the placement reach bands' retirement — the handler's 64.0 is the only band), and the audit-lane ML-018 (the spectator camera: the C2S Spectate handler, the 0x43 Camera packet, the per-tick body follow with the world-stream re-center, all three exits, the broadcastTo visibility law, and the no-clip gate — gamemode 3's core mechanics whole, cross-dimension spectate the honest standing bound). That is progress by mechanic, not full Minecraft 1.8.8 compatibility: keep each remaining behavior, difference, test, and status explicit. Do not replace reference behavior with modern defaults or narrow the native API to match an incomplete compatibility layer.
 
-Next work: the cycle-4 ranked audit backlog (the master ledger's demand-named rows) is now landing one row per lane — ML-003, the sign editor open (0x36 on placement), is closed (§29's Wave ML row); the remaining ranked rows stay next work, each on its own evidence-pinned lane. The vanilla-grade census's named lanes: the tameable family's owner-aware lane LANDED (§29's Wave TF); the dispenser's world-event 2000/2005 arms and the frame's map-marker cleanup stay the census's open tails.
+Next work: the cycle-4 ranked audit backlog (the master ledger's demand-named rows) is now landing one row per lane — ML-003, the sign editor open (0x36 on placement), is closed (§29's Wave ML row); the remaining ranked rows stay next work, each on its own evidence-pinned lane. The vanilla-grade census's named lanes are ALL LANDED (§29's Wave TF: the tameable family's owner-aware lane, the dispenser's world-event 2000/2005 arms, the frame's map-marker cleanup) — the census's remaining standing rows are the family-owned envelopes the compat ledger carries in place.
 
 ### Phase 5 — Supporting parallel computation — INFRASTRUCTURE IMPLEMENTED; THE WORKLOAD ADOPTION GATES ANSWERED (PATHFINDING REJECTED WITH EVIDENCE; LIGHTING ANSWERED A MEASURED WIN — the contract, the equivalence, and the numbers landed, the wiring itself still demand-named)
 
@@ -4669,6 +4669,30 @@ way were repaired inside the wave.
       TameableFollowTest 11; GoalApiAcceptanceTest + TemptBegGoalsTest
       re-pinned for the twelve-goal selector; the wolf/ocelot/mob/
       pathfinding/breeding families green.
+- [x] THE DISPENSER'S WORLD-EVENT PAIR (8a43151e, the census's standing
+      tail closed): the FxManager's new WorldEvent record (position,
+      event id, DATA — the int the old hardcoded-0 wire writer dropped)
+      with the 1.8 adapter's translation over the 64-block event radius;
+      the 2000 smoke on EVERY registry dispense with the facing data
+      packed exactly toInt's law (offsetX + 1 + (offsetZ + 1) * 3 — the
+      vertical pair collapsing to 4), the dropper's fall-through firing
+      it and the silent container push never; the 2005 burst on every
+      successful fertilize (the dispenser's arm and the player-use
+      family — the itemShatter stand-ins retired); and the white-dye
+      stay law corrected beside it (the non-fertilizable target KEEPS
+      the stack with the 1001 failure click — the reference's dyed=false
+      quirk; only the non-white dyes drop). DispenserWorldEventTest 3.
+- [x] THE FRAME'S MAP-MARKER CLEANUP (f0da9f30, the census's last named
+      tail closed — ItemFrameEntity.removeItem lines 102-108): a filled
+      map leaving its frame drops the "frame-<id>" decoration from the
+      map's data, riding attackFrame's every display-leaving arm (the
+      eject, the break, the creative hand, the survival sweep) through
+      the DecorationSystem's new Surface hook; the MapSystem resolves
+      the data by the frame's own dimension and removes the marker by
+      name. MapItemTest's cleanup row. With this row the 2026-10-26
+      census's named lanes are ALL LANDED — the census's remaining
+      standing rows are the family-owned envelopes the compat ledger
+      carries in place.
 
 # 33. CODEBASE SCALE, CLASS COHESION, AND MAINTAINABILITY
 

@@ -15743,3 +15743,41 @@ Stage Summary:
   dispenser's world-event 2000/2005 arms and the frame's map-marker
   cleanup (the ADD landed with the map wave — the removeItem cleanup
   owed on the frame-empty walks).
+
+---
+
+Task ID: TF-2 + TF-3
+Agent: Abasing (the coding session)
+Task: The census's remaining two named lanes — the dispenser's world-event 2000/2005 arms and the frame's map-marker cleanup.
+
+Work Log:
+- Read the reference whole: DispenseItemBehavior's final wrapper (the
+  2000 event on every registry dispense with toInt's facing data),
+  Bootstrap's dye behavior (the 2005 on fertilize success, the dyed
+  flag's 1000/1001 click pair, the stay-in-slot failure arm), DyeItem's
+  useOn + spawnParticles (the fifteen happy-villager sparks), the
+  dropper's own base behavior, World.doEvent's 64-block radius, and
+  ItemFrameEntity.removeItem's map-marker cleanup.
+- FxManager: the new WorldEvent record (position, event id, data) on the
+  sealed FxEvent + the worldEvent emit; the V18Connection's adapter arm
+  translating it to the WorldEvent packet over the new EVENT_RANGE
+  (64.0) with the data int the old hardcoded-0 writer dropped.
+- DispenserSystem: the 2000 in dispenserDispense (after every registry
+  behavior) and dropperDispense's fall-through; the boneMeal rework
+  (the 2005 at the fertilized cell on success; the non-fertilizable
+  target keeps the stack with the 1001 failure click — the old
+  fall-through drop corrected).
+- EngineServer's player-use bonemeal family: the five fertilize arms'
+  itemShatter stand-ins replaced with the 2005 world event.
+- The frame cleanup: MapSystem.removeFrameMarker (the data by the
+  frame's dimension, the marker by name), the DecorationSystem's new
+  Surface hook, and attackFrame's every display-leaving arm carrying it.
+- Tests: DispenserWorldEventTest 3 + MapItemTest's cleanup row; the
+  dispenser/bonemeal/decoration/map families green.
+
+Stage Summary:
+- The 2026-10-26 census's named lanes are ALL LANDED (TF-1 the tameable
+  family, TF-2 the dispenser events, TF-3 the frame cleanup); the
+  census's remaining standing rows are the family-owned envelopes the
+  compat ledger carries in place (the SitGoal pair, the cadence freeze,
+  the water-shake cycle, the collar dye arm, and the like).
