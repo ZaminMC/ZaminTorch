@@ -1526,6 +1526,7 @@ public final class MobManager {
             int wasHorseFlags = mob.horseFlagsRaw();
             boolean wasWitchDrinking = mob.witchDrinking();
             boolean wasBegging = mob.wolfBegging();
+            int wasWolfState = mob.wolfFlagsRaw();
             int wasPosture = mob.postureFlags();
             boolean wasGhastCharging = mob.ghastCharging();
             boolean wasGuardianMoving = mob.guardianMoving();
@@ -1550,9 +1551,11 @@ public final class MobManager {
                     listener.onMobBurningChanged(mob, mob.burning());
                 }
             }
-            if (wasBegging != mob.wolfBegging()) {
-                // WolfBegGoal's start/stop pair rides the whole wolf-state
-                // block (the begging byte 19 sits inside it).
+            if (wasBegging != mob.wolfBegging() || wasWolfState != mob.wolfFlagsRaw()) {
+                // The wolf-state block's writers (the begging byte 19 and
+                // the state byte 16 — the goal-driven flips land here too:
+                // the perch's sit/stand pair, the anger's rise and its
+                // mobTick clear).
                 for (Listener listener : listeners) {
                     listener.onWolfStateChanged(mob);
                 }

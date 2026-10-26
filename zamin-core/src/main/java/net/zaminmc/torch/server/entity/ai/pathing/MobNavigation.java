@@ -57,11 +57,18 @@ public class MobNavigation {
         return this.pathFinder.findPath(this.world, this.mob, target, this.followRange);
     }
 
-    /**
-     * The vanilla BlockPos overload: the goal cell is floored, then centered
+    /** The vanilla GroundPathNavigation surface: the swim flag's pass-through. */
+    public void setCanSwim(boolean canSwim) {
+        this.nodeEvaluator.setCanSwim(canSwim);
+    }
+
+    public boolean canSwim() {
+        return this.nodeEvaluator.canSwim();
+    }
+
+    /** The vanilla BlockPos overload: the goal cell is floored, then centered
      * (+0.5 on every axis) — the search targets the cell's center, exactly
-     * {@code findPath(new BlockPos(floor x, (int) y, floor z))}.
-     */
+     * {@code findPath(new BlockPos(floor x, (int) y, floor z))}. */
     public boolean moveTo(double x, double y, double z, double speed) {
         Path path = this.findPath(Math.floor(x) + 0.5, (int) y + 0.5, Math.floor(z) + 0.5);
         return this.moveAlong(path, speed);

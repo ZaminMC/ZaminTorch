@@ -81,6 +81,13 @@ final class MobGoals {
      * consume arms the willing at the attempt), and the mate scan over
      * the willing pair — the walk itself (the proximity window + the
      * request) rides the shared shape.</p>
+     *
+     * <p>TF-1 — the tameable family's own yield (the reference's own
+     * priority order: FollowOwnerGoal 5 over the wolf's AnimalBreedGoal 6
+     * and the ocelot's 9): a tamed pet whose owner stands beyond the
+     * follow's 10-block start band never breeds — the follow could claim
+     * the body, so the breed yields exactly like the reference's selector
+     * steal.</p>
      */
     static final MobGoal BREED = new MobGoal() {
         @Override public String goalId() { return "breed"; }
@@ -90,7 +97,8 @@ final class MobGoals {
             if (mob.type() == MobType.VILLAGER) {
                 return mob.goalVillagerMatingCanUse();
             }
-            return mob.isInLove() && mob.findMate() != null;
+            return mob.isInLove() && mob.findMate() != null
+                    && !mob.followOwnerStartable();
         }
         @Override public void tick(MobEntity mob, boolean night) {
             MobEntity mate = mob.findMate();
@@ -179,6 +187,47 @@ final class MobGoals {
     };
 
     /**
+     * Priority 4, exclusive, FIRST in the band: the tameable family's
+     * owner-follow (FollowOwnerGoal 1:1 — the reference's own goal 5 on
+     * both kinds, above the wander's 7/10 and the perch's 6, below the
+     * tempt's 3): the tamed pet whose owner stands 10+ blocks away walks
+     * to them at the 1.0 goal speed, the path re-armed every 10 ticks,
+     * and a failed path at 12+ blocks teleports through the 5x5 outer
+     * ring. The wolf's own 2-block settle band, the ocelot's 5.
+     */
+    static final MobGoal FOLLOW_OWNER = new MobGoal() {
+        @Override public String goalId() { return "follow_owner"; }
+        @Override public int priority() { return 4; }
+        @Override public boolean exclusive() { return true; }
+        @Override public boolean canUse(MobEntity mob, boolean night) {
+            return mob.goalFollowOwnerCanUse(night);
+        }
+        @Override public void tick(MobEntity mob, boolean night) {
+            mob.goalFollowOwnerTick();
+        }
+    };
+
+    /**
+     * Priority 4, exclusive, after the follow: the tamed cat's perch
+     * (OcelotSitOnBlockGoal 1:1 over GoToBlockGoal — the reference's own
+     * goal 6): the 200+nextInt(200) cadence, the 8-block ring scan for a
+     * chest nobody watches, a lit furnace, or the bed's foot half, the
+     * walk at 0.8, and the sit at the arrival — the window standing the
+     * body down when its own clock runs out.
+     */
+    static final MobGoal SIT_ON_BLOCK = new MobGoal() {
+        @Override public String goalId() { return "sit_on_block"; }
+        @Override public int priority() { return 4; }
+        @Override public boolean exclusive() { return true; }
+        @Override public boolean canUse(MobEntity mob, boolean night) {
+            return mob.goalSitOnBlockCanUse();
+        }
+        @Override public void tick(MobEntity mob, boolean night) {
+            mob.goalSitOnBlockTick();
+        }
+    };
+
+    /**
      * Priority 4, exclusive: the rabbit's garden raid (Slice 21d —
      * RaidFarmGoal over GoToBlockGoal 1:1). A hungry rabbit scans the
      * ±16 box on the reference's own spiral for a farmland cell with
@@ -236,20 +285,25 @@ final class MobGoals {
     /**
      * The selector the mob runs: float + panic + the zombie's door break
      * + breed + the awareness band (beg, tempt, flee — the wolf and the
-     * ocelot's own, all kind-gated) + the rabbit's garden raid + the
+     * ocelot's own, all kind-gated) + the tameable band (the owner-follow
+     * first, then the cat's perch) + the rabbit's garden raid + the
      * villager's village return + stroll, in priority order. The band-1
      * order matters: the panic claims a hurt body first, the door break
      * a pressed one (the reference's own 1-band; a hurt zombie runs, it
      * does not stop to break). The band-3 order matters: the beg is
      * additive so it runs first every tick, then the tempt outranks the
      * flee (the reference's own 3-over-4), so a fish-holder holds a
-     * tempted cat even with players around. The band-4 order matters
-     * the same way: the village return outranks the plain stroll (the
-     * reference's 5-over-9), so a villager outside its village walks
-     * home instead of strolling on.
+     * tempted cat even with players around. The band-4 order matters the
+     * same way: the owner-follow outranks the perch and the plain stroll
+     * (the reference's 5-over-6/7/10), and the perch outranks the stroll
+     * (the reference's 6-over-10) — a tamed cat walks to its owner
+     * before it perches, and perches before it wanders. The rabbit's
+     * raid farm and the villager's village return keep their places
+     * (kind-gated, never contending with the tameable band).
      */
     static GoalSelector standard() {
         return new GoalSelector(List.of(FLOAT, PANIC, BREAK_DOOR, BREED, BEG, TEMPT,
-                FLEE_PLAYER, RABBIT_RAID_FARM, VILLAGE_RETURN, RANDOM_STROLL));
+                FLEE_PLAYER, FOLLOW_OWNER, SIT_ON_BLOCK, RABBIT_RAID_FARM,
+                VILLAGE_RETURN, RANDOM_STROLL));
     }
 }

@@ -227,16 +227,18 @@ class TemptBegGoalsTest {
     void theGoalsRideTheStandardSelector() {
         // The selector's own band order: the zombie's door break (VIII9)
         // at band 1 after the panic, then beg (additive) before tempt
-        // before flee, then the rabbit's garden raid (Slice 21d) below the
+        // before flee, then the tameable family's follow + perch (TF-1)
+        // before the rabbit's garden raid (Slice 21d) below the
         // stroll's exclusive claim.
         GoalSelector selector = MobGoals.standard();
         var snapshot = selector.snapshot();
         // The VT-7k village return joins at the stroll's band, before it
         // (the reference's own order: the village walk 5 over the plain
-        // wander 9).
-        assertEquals(10, snapshot.size(),
-                "float, panic, break_door, breed, beg, tempt, flee, rabbit_raid_farm,"
-                        + " village_return, stroll");
+        // wander 9); the TF-1 pair joins before both (the reference's own
+        // order: the follow 5 over the perch 6 over the wander 7/10).
+        assertEquals(12, snapshot.size(),
+                "float, panic, break_door, breed, beg, tempt, flee, follow_owner,"
+                        + " sit_on_block, rabbit_raid_farm, village_return, stroll");
         assertEquals("break_door", snapshot.get(2).goalId());
         assertEquals(1, snapshot.get(2).priority());
         assertTrue(snapshot.get(2).exclusive());
@@ -246,12 +248,16 @@ class TemptBegGoalsTest {
         assertTrue(snapshot.get(5).exclusive());
         assertEquals("flee_player", snapshot.get(6).goalId());
         assertTrue(snapshot.get(6).exclusive());
-        assertEquals("rabbit_raid_farm", snapshot.get(7).goalId());
+        assertEquals("follow_owner", snapshot.get(7).goalId());
         assertTrue(snapshot.get(7).exclusive());
-        assertEquals("village_return", snapshot.get(8).goalId());
+        assertEquals("sit_on_block", snapshot.get(8).goalId());
         assertTrue(snapshot.get(8).exclusive());
-        assertEquals("stroll", snapshot.get(9).goalId());
-        assertEquals(4, snapshot.get(8).priority());
+        assertEquals("rabbit_raid_farm", snapshot.get(9).goalId());
+        assertTrue(snapshot.get(9).exclusive());
+        assertEquals("village_return", snapshot.get(10).goalId());
+        assertTrue(snapshot.get(10).exclusive());
+        assertEquals("stroll", snapshot.get(11).goalId());
+        assertEquals(4, snapshot.get(10).priority());
     }
 
     @Test

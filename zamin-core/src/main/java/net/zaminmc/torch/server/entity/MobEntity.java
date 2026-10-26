@@ -392,6 +392,29 @@ public final class MobEntity implements LivingEntity {
         }
 
         /**
+         * The OWNER's live view (FollowOwnerGoal's {@code getOwner()}
+         * consult — TameableEntity's own walk over the world's players,
+         * the uuid arm first with the name row the legacy fallback). The
+         * default answers null so stub worlds carry no owner: the pet
+         * without its owner never follows. The engine's live query
+         * resolves the same consult {@link MobEntity#isOwner} carries.
+         */
+        default PlayerView ownerPlayerView(String ownerName, String ownerUuid) {
+            return null;
+        }
+
+        /**
+         * The count of players with a chest window open at the cell
+         * (OcelotSitOnBlockGoal.isValidTarget's {@code viewerCount < 1}
+         * read over ChestBlockEntity's own field). The default answers 0
+         * so stub worlds carry no viewers — an unwatched chest is a
+         * valid perch.
+         */
+        default int containerViewersAt(int x, int y, int z) {
+            return 0;
+        }
+
+        /**
          * The nearest live mob of the kind within {@code range} — the
          * mob-vs-mob target family's read (ActiveTargetGoal's scan and
          * FleeEntityGoal's scare range). The default answers null so stub
@@ -576,6 +599,16 @@ public final class MobEntity implements LivingEntity {
          */
         default String helmetItem() {
             return null;
+        }
+
+        /**
+         * Whether the player rides the spectator mode (FollowOwnerGoal's
+         * canStart refusal — a spectating owner is not followed). The
+         * default answers false so stub worlds keep their survival
+         * semantics.
+         */
+        default boolean spectator() {
+            return false;
         }
     }
 
@@ -1263,6 +1296,14 @@ public final class MobEntity implements LivingEntity {
         // reference's own traderOffers == null gate).
         if (type == MobType.VILLAGER) {
             this.profession = random.nextInt(5);
+        }
+        // OcelotEntity's ctor line 42: the cat's own navigation arms the
+        // swim paths ({@code setCanSwim(true)} — the jungle cat wades to
+        // its owner; the wolf's own navigation keeps the default off, the
+        // follow goal's stop() being the reference's own quirk that turns
+        // it on after the first window).
+        if (type == MobType.OCELOT) {
+            this.navigation.setCanSwim(true);
         }
         // VIII9 — initAttributes line 87: the zombie's own
         // spawnReinforcements base ({@code nextDouble() * 0.1}) — the
@@ -2572,9 +2613,14 @@ public final class MobEntity implements LivingEntity {
         }
     }
 
-    /** The wolf's sitting posture (readNbt's Sitting row). */
+    /**
+     * The tameable family's sitting posture (readNbt's Sitting row — the
+     * wolf's and the ocelot's own bit, TameableEntity's shared index-16
+     * state). The ocelot's arm rides the same bit (OcelotEntity's wire
+     * block reads it at its own slot 16); the horse keeps its own flags.
+     */
     public void setWolfSitting(boolean sitting) {
-        if (type == MobType.WOLF) {
+        if (type == MobType.WOLF || type == MobType.OCELOT) {
             if (sitting) {
                 wolfFlags |= WOLF_FLAG_SITTING;
             } else {
@@ -7844,6 +7890,48 @@ public final class MobEntity implements LivingEntity {
     /** Whether the village-return walk owns the stroll band this tick. */
     private boolean villageReturnActive;
 
+    // ------------------------------------- the tameable family (Slice TF-1)
+
+    /**
+     * Whether the owner-follow window owns the band this tick
+     * (FollowOwnerGoal's live state — the window between start() and
+     * stop(), held so shouldContinue's own law runs while it lives).
+     */
+    private boolean followOwnerActive;
+
+    /** The follow's re-path clock ({@code updateTimer}, 10 between paths). */
+    private int followOwnerTimer;
+
+    /**
+     * Whether the perch walk owns the band this tick
+     * (OcelotSitOnBlockGoal's live window over GoToBlockGoal's own
+     * activeTicks/maxActiveTicks pair).
+     */
+    private boolean sitOnBlockHasTarget;
+
+    /** The perch scan's cooldown ({@code GoToBlockGoal.cooldown}). */
+    private int sitOnBlockCooldown;
+
+    /** The perch cell ({@code GoToBlockGoal.target}). */
+    private int sitOnBlockX;
+    private int sitOnBlockY;
+    private int sitOnBlockZ;
+
+    /** The perch walk's approach clock ({@code activeTicks}, down at the perch). */
+    private int sitOnBlockActiveTicks;
+
+    /** The perch window's own bound ({@code maxActiveTicks}). */
+    private int sitOnBlockMaxTicks;
+
+    /** Whether the body stands at the perch ({@code reachedTarget}). */
+    private boolean sitOnBlockReached;
+
+    /**
+     * The pounce's airborne window (PounceAtTargetGoal.shouldContinue's
+     * own {@code !onGround} — true from the leap until the body lands).
+     */
+    private boolean pounceAirborne;
+
     /** The BlockPos squared distance (the reference's cell-to-cell reads). */
     private static long cellSquaredDistance(long ax, long ay, long az,
                                             long bx, long by, long bz) {
@@ -8284,6 +8372,11 @@ public final class MobEntity implements LivingEntity {
                 double dz = mobTarget.position().z() - position.z();
                 tickSkeletonMind(mobTarget.position(),
                         Math.sqrt(dx * dx + dz * dz), dy);
+            } else if (tickPounceAtTarget(mobTarget.position())) {
+                // The tameable family's own leap (PounceAtTargetGoal over
+                // the melee's band): the airborne window holds the walk —
+                // the chase resumes at the landing.
+                return;
             } else {
                 tickMobTargetChase(mobTarget);
             }
@@ -8353,6 +8446,11 @@ public final class MobEntity implements LivingEntity {
             mode = Mode.CHASE;
             yaw = (float) (Math.toDegrees(Math.atan2(-dx, dz)));
             headYaw = yaw;
+            if (tickPounceAtTarget(huntTarget)) {
+                // The tameable family's own leap holds the chase walk for
+                // the flight (the reference's selector stops the melee).
+                return;
+            }
             tickPathFollowing(huntTarget);
             // The killer bunny's own reach (EvilAttackGoal.getReach lines
             // 438-441: {@code 4.0 + target.width} against the SQUARED
@@ -8974,6 +9072,7 @@ public final class MobEntity implements LivingEntity {
         boolean dayNeutralDark = !type.traits.neutralByDay() || dayNeutralHuntGate();
         if (mobAttackTarget == null && (type == MobType.WOLF || type == MobType.ZOMBIE
                 || type == MobType.SPIDER || type == MobType.SKELETON
+                || type == MobType.OCELOT
                 || (type == MobType.RABBIT && rabbitKiller()))
                 && random.nextInt(HUNT_SCAN_CHANCE) == 0) {
             MobEntity found = null;
@@ -9008,6 +9107,15 @@ public final class MobEntity implements LivingEntity {
                 // follow range.
                 found = world.nearestMobOfKind(position.x(), position.y(), position.z(),
                         MOB_TARGET_FOLLOW_RANGE, MobType.WOLF, team);
+            } else if (type == MobType.OCELOT) {
+                // The untamed cat's own hunt (OcelotEntity line 53,
+                // targetSelector 1: UntamedActiveTargetGoal over the
+                // chicken): the 1-in-10 cadence, the follow range, the
+                // same-team refusal — the tamed cat never hunts.
+                if (!wolfTamed()) {
+                    found = world.nearestMobOfKind(position.x(), position.y(), position.z(),
+                            MOB_TARGET_FOLLOW_RANGE, MobType.CHICKEN, team);
+                }
             } else if (type == MobType.SPIDER) {
                 // targetSelector 3 (SpiderEntity.TargetGoal over the iron
                 // golem — line 44): the day-neutral gates' own arm, the
@@ -9188,6 +9296,406 @@ public final class MobEntity implements LivingEntity {
         if (navigation.isDone()) {
             villageReturnActive = false; // the walk's life ends; the stroll resumes
         }
+    }
+
+    // ------------------------------------- the tameable family (Slice TF-1)
+
+    /** FollowOwnerGoal's min distance: the start band's own edge (10 blocks). */
+    private static final double FOLLOW_OWNER_MIN_DISTANCE = 10.0;
+
+    /** The follow's goal speed over the base band ({@code 1.0} both kinds). */
+    private static final double FOLLOW_OWNER_SPEED = 1.0 / 0.3;
+
+    /**
+     * The teleport's distance gate ({@code !(squaredDistanceTo < 144.0)} —
+     * the 12-block edge the failed path must clear before the ring scan).
+     */
+    private static final double FOLLOW_OWNER_TELEPORT_SQUARED = 144.0;
+
+    /**
+     * The pure follow-start probe (the breed goal's yield gate — the
+     * reference's own priority order: FollowOwnerGoal 5 over the wolf's
+     * AnimalBreedGoal 6 and the ocelot's 9, so a pet whose owner stands
+     * beyond the start band never breeds while the follow could claim).
+     * Reads only: the tamed kind, the live non-spectator owner, the
+     * standing posture, and the 10-block band.
+     */
+    boolean followOwnerStartable() {
+        if (!followOwnerKind() || !wolfTamed() || wolfSitting()) {
+            return false;
+        }
+        PlayerView owner = world.ownerPlayerView(ownerName, ownerUuid);
+        if (owner == null || owner.spectator()) {
+            return false;
+        }
+        return squaredDistanceToView(owner) >= FOLLOW_OWNER_MIN_DISTANCE
+                * FOLLOW_OWNER_MIN_DISTANCE;
+    }
+
+    /** @return whether the kind carries the owner-follow (wolf + ocelot). */
+    private boolean followOwnerKind() {
+        return type == MobType.WOLF || type == MobType.OCELOT;
+    }
+
+    /** @return the squared 3D distance to the view's position. */
+    private double squaredDistanceToView(PlayerView view) {
+        double dx = view.position().x() - position.x();
+        double dy = view.position().y() - position.y();
+        double dz = view.position().z() - position.z();
+        return dx * dx + dy * dy + dz * dz;
+    }
+
+    /**
+     * The follow's stop() (FollowOwnerGoal lines 75-79): the path drops
+     * and the swim flag returns — the reference's own unconditional
+     * {@code setCanSwim(true)} (the value start() parked is dead in the
+     * 1.8.8 source; the write is the law, so the wolf's navigation gains
+     * swim paths after its first follow window — the reference's own
+     * quirk, carried as-is).
+     */
+    private void goalFollowOwnerStop() {
+        followOwnerActive = false;
+        clearPath();
+        navigation.setCanSwim(true);
+    }
+
+    /**
+     * FollowOwnerGoal's canStart/shouldContinue pair (lines 39-65): a
+     * live window continues while the path runs, the owner sits beyond
+     * the kind's own max band (the wolf's 2, the ocelot's 5), and the
+     * body stands; a fresh start needs the owner live, not spectating,
+     * the body standing, and the 10-block band cleared. The hunt yields
+     * the reference's own way — the wolf's melee band (4) steals from
+     * the running follow (5), so a fighting pet stops following until
+     * the fight ends.
+     */
+    boolean goalFollowOwnerCanUse(boolean night) {
+        if (!followOwnerKind() || !wolfTamed()) {
+            return false;
+        }
+        PlayerView owner = world.ownerPlayerView(ownerName, ownerUuid);
+        if (owner == null) {
+            if (followOwnerActive) {
+                goalFollowOwnerStop(); // the owner left the world
+            }
+            return false;
+        }
+        boolean huntLive = goalHasTarget(night);
+        if (followOwnerActive) {
+            // The steal: a live hunt owns the body over the running window
+            // (the reference's 4-over-5 selector law).
+            if (huntLive) {
+                goalFollowOwnerStop();
+                return false;
+            }
+            // shouldContinue: the path, the max band, the posture.
+            if (wolfSitting() || navigation.isDone()
+                    || squaredDistanceToView(owner) <= followOwnerMaxDistanceSquared()) {
+                goalFollowOwnerStop();
+                return false;
+            }
+            return true;
+        }
+        // canStart: the hunt band, the spectator refusal, the sitting
+        // refusal, the start band.
+        if (huntLive || owner.spectator() || wolfSitting()
+                || squaredDistanceToView(owner) < FOLLOW_OWNER_MIN_DISTANCE
+                * FOLLOW_OWNER_MIN_DISTANCE) {
+            return false;
+        }
+        // start(): the re-path clock arms, the swim paths drop for the
+        // window's life (the pet walks AROUND the water; the failed walk
+        // is the teleport's own gate).
+        followOwnerActive = true;
+        followOwnerTimer = 0;
+        navigation.setCanSwim(false);
+        return true;
+    }
+
+    /**
+     * The follow's own max band ({@code maxDistance}² — shouldContinue's
+     * edge): the wolf's 2.0F pair (WolfEntity line 61), the ocelot's 5.0F
+     * (OcelotEntity line 46).
+     */
+    private double followOwnerMaxDistanceSquared() {
+        return type == MobType.OCELOT ? 5.0 * 5.0 : 2.0 * 2.0;
+    }
+
+    /**
+     * FollowOwnerGoal's tick (lines 87-117): the eyes on the owner every
+     * tick, the re-path on the 10-tick clock, and — when the path fails
+     * and the owner stands 12+ blocks away — the teleport's 5x5 RING scan
+     * (the center 3x3 refused, the solid-top floor required, two clear
+     * cells for the body), landing at the ring cell's center through the
+     * plain position write ({@code setPositionAndAngles}, the yaw kept).
+     */
+    void goalFollowOwnerTick() {
+        PlayerView owner = world.ownerPlayerView(ownerName, ownerUuid);
+        if (owner == null) {
+            return; // the stop lands on the next canUse pass
+        }
+        // The look control runs first, whatever the posture (the reference's
+        // own order — a sitting body still watches its owner walk away).
+        headYaw = angleTo(owner.position().x() - position.x(),
+                owner.position().z() - position.z());
+        if (wolfSitting()) {
+            return;
+        }
+        mode = Mode.WANDER;
+        modeTicks = 0;
+        goalWalkSpeed = FOLLOW_OWNER_SPEED;
+        if (--followOwnerTimer <= 0) {
+            followOwnerTimer = 10;
+            // The reference's Entity overload (PathNavigation.moveTo lines
+            // 87-90 over findPath's own gate, lines 73-75): an airborne
+            // body can not update its path — findPath answers null and
+            // the moveTo fails WITHOUT a search, so a re-path that lands
+            // mid-hop feeds the teleport check exactly like the real
+            // vanilla quirk (the pet that blinks to a sprinting owner).
+            boolean pathFailed = !onGround || !navigation.moveTo(
+                    owner.position().x(), owner.position().y(), owner.position().z(),
+                    walkSpeed() * FOLLOW_OWNER_SPEED);
+            if (pathFailed && !leashed()
+                    && squaredDistanceToView(owner) >= FOLLOW_OWNER_TELEPORT_SQUARED) {
+                int baseX = (int) Math.floor(owner.position().x()) - 2;
+                int baseZ = (int) Math.floor(owner.position().z()) - 2;
+                int baseY = (int) Math.floor(owner.position().y());
+                for (int l = 0; l <= 4; l++) {
+                    for (int i1 = 0; i1 <= 4; i1++) {
+                        if ((l < 1 || i1 < 1 || l > 3 || i1 > 3) // the ring, never the center
+                                && world.isSolid(baseX + l + 0.5, baseY - 0.5, baseZ + i1 + 0.5)
+                                && !world.isSolid(baseX + l + 0.5, baseY + 0.5, baseZ + i1 + 0.5)
+                                && !world.isSolid(baseX + l + 0.5, baseY + 1.5, baseZ + i1 + 0.5)) {
+                            // setPositionAndAngles: the plain write — the
+                            // feet land at the cell center, the body's own
+                            // yaw/pitch kept, the path dropped.
+                            position = new Position(baseX + l + 0.5, baseY, baseZ + i1 + 0.5);
+                            clearPath();
+                            return;
+                        }
+                    }
+                }
+            }
+        }
+        tickNavigationHeading();
+    }
+
+    /**
+     * The per-tick navigation advance without the shared repath — the
+     * goals that own their own re-path cadence (the follow's 10, the
+     * perch's 40) call this between their moveTo lands: the walk
+     * advances and the path heading publishes, exactly
+     * {@link #tickPathFollowing}'s own tail.
+     */
+    private void tickNavigationHeading() {
+        navigation.tick();
+        if (navigation.hasTarget) {
+            pathYaw = angleTo(navigation.currentTargetX - position.x(),
+                    navigation.currentTargetZ - position.z());
+            pathYawValid = true;
+        } else {
+            pathYawValid = false;
+        }
+    }
+
+    /** The perch scan's range (GoToBlockGoal's own 8). */
+    private static final int SIT_ON_BLOCK_RANGE = 8;
+
+    /** The perch walk's speed over the base band ({@code 0.8}). */
+    private static final double SIT_ON_BLOCK_SPEED = 0.8 / 0.3;
+
+    /**
+     * OcelotSitOnBlockGoal.isValidTarget (lines 54-78) over the cell the
+     * scan offers — the PERCH cell itself (the chest/furnace/bed's own
+     * cell): strict air above it, then the block's own family — a chest
+     * nobody watches, a lit furnace, or the bed's FOOT half. The engine's
+     * flattened identifiers carry the facings as suffixes (chest_north,
+     * furnace_lit_east), so the families match on their prefixes; the
+     * bed's head half (bed_head and its facings) refuses.
+     */
+    private boolean isSitPerchAt(int x, int y, int z) {
+        var above = world.blockIdAt(x, y + 1, z);
+        if (above == null || !above.value().equals("air")) {
+            return false; // isValidTarget's first gate: isAir(pos.up())
+        }
+        var block = world.blockIdAt(x, y, z);
+        if (block == null) {
+            return false;
+        }
+        String value = block.value();
+        if (value.equals("chest") || value.startsWith("chest_")) {
+            return world.containerViewersAt(x, y, z) < 1;
+        }
+        if (value.equals("furnace_lit") || value.startsWith("furnace_lit_")) {
+            return true;
+        }
+        return (value.equals("bed") || value.startsWith("bed_"))
+                && !value.startsWith("bed_head");
+    }
+
+    /**
+     * OcelotSitOnBlockGoal.canStart/shouldContinue over GoToBlockGoal's
+     * own pair (lines 22-33 + 36-44): the tamed standing cat gates the
+     * whole goal; a live window continues while the approach clock stays
+     * inside the band and the perch still stands; a closed window waits
+     * out the {@code 200 + nextInt(200)} cadence, then runs the reference's
+     * own ring scan — the ±8 spiral at the y-1/y+0/y-2 bands, the first
+     * valid perch answering the target.
+     */
+    boolean goalSitOnBlockCanUse() {
+        if (type != MobType.OCELOT || !wolfTamed() || wolfSitting()) {
+            return false;
+        }
+        if (sitOnBlockHasTarget) {
+            // shouldContinue: the window's own clock band and the live perch.
+            if (sitOnBlockActiveTicks >= -sitOnBlockMaxTicks
+                    && sitOnBlockActiveTicks <= 1200
+                    && isSitPerchAt(sitOnBlockX, sitOnBlockY, sitOnBlockZ)) {
+                return true;
+            }
+            // stop(): the perch's own stand-down — the window ends, the
+            // body stands (the reference's setSitting(false)).
+            sitOnBlockHasTarget = false;
+            setWolfSitting(false);
+            return false;
+        }
+        if (sitOnBlockCooldown > 0) {
+            sitOnBlockCooldown--;
+            return false;
+        }
+        sitOnBlockCooldown = 200 + random.nextInt(200);
+        int cx = (int) Math.floor(position.x());
+        int cy = (int) Math.floor(position.y());
+        int cz = (int) Math.floor(position.z());
+        // GoToBlockGoal.findNearestBlock's own spiral (the rabbit's garden
+        // scan carries the same walk): k the y band (0, 1, -1 → y-1, y+0,
+        // y-2), l the ring radius, i1/j1 the ring's own cross walk.
+        for (int k = 0; k <= 1; k = k > 0 ? -k : 1 - k) {
+            for (int l = 0; l < SIT_ON_BLOCK_RANGE; l++) {
+                for (int i1 = 0; i1 <= l; i1 = i1 > 0 ? -i1 : 1 - i1) {
+                    for (int j1 = i1 < l && i1 > -l ? l : 0; j1 <= l; j1 = j1 > 0 ? -j1 : 1 - j1) {
+                        int x = cx + i1;
+                        int y = cy + k - 1;
+                        int z = cz + j1;
+                        if (isSitPerchAt(x, y, z)) {
+                            sitOnBlockX = x;
+                            sitOnBlockY = y;
+                            sitOnBlockZ = z;
+                            sitOnBlockHasTarget = true;
+                            // GoToBlockGoal.start (lines 41-45): the first
+                            // walk arms at the perch's up-center, the clock
+                            // starts, and the window's own bound rolls
+                            // {@code nextInt(nextInt(1200) + 1200) + 1200}.
+                            navigation.moveTo(x + 0.5, y + 1.0, z + 0.5,
+                                    walkSpeed() * SIT_ON_BLOCK_SPEED);
+                            sitOnBlockActiveTicks = 0;
+                            sitOnBlockMaxTicks = random.nextInt(random.nextInt(1200) + 1200) + 1200;
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * OcelotSitOnBlockGoal.tick over GoToBlockGoal.tick (lines 52-63):
+     * the walk to the perch's up-center with the 40-tick re-path and the
+     * approach clock counting, then the perch itself — the standing cell
+     * (the squared distance to the up-center within 1.0) sits the body
+     * once and counts the window down. The reference's own overlay: the
+     * walk keeps the body standing (setSitting(false) every walking
+     * tick), the perch sits it (setSitting(true) at the arrival) — the
+     * wire's state-16 bit rides the manager's flip detection.
+     */
+    void goalSitOnBlockTick() {
+        double tx = sitOnBlockX + 0.5;
+        double ty = sitOnBlockY + 1.0;
+        double tz = sitOnBlockZ + 0.5;
+        double dx = tx - position.x();
+        double dy = ty - position.y();
+        double dz = tz - position.z();
+        if (dx * dx + dy * dy + dz * dz > 1.0) {
+            // The approach (GoToBlockGoal.tick's walk arm).
+            sitOnBlockReached = false;
+            sitOnBlockActiveTicks++;
+            setWolfSitting(false); // the reference's own walking write
+            headYaw = angleTo(dx, dz);
+            mode = Mode.WANDER;
+            modeTicks = 0;
+            goalWalkSpeed = SIT_ON_BLOCK_SPEED;
+            if (sitOnBlockActiveTicks % 40 == 0) {
+                navigation.moveTo(tx, ty, tz, walkSpeed() * SIT_ON_BLOCK_SPEED);
+            }
+            tickNavigationHeading();
+            return;
+        }
+        // The perch (hasReachedTarget): the window counts down, the body
+        // sits — the reference's own one-shot write.
+        sitOnBlockReached = true;
+        sitOnBlockActiveTicks--;
+        if (!wolfSitting()) {
+            setWolfSitting(true);
+        }
+    }
+
+    /**
+     * The follow goal's own test read: the navigation's swim flag (the
+     * window's law — off while following, the reference's unconditional
+     * true at the stop).
+     */
+    boolean navigationCanSwim() {
+        return navigation.canSwim();
+    }
+
+    /**
+     * PounceAtTargetGoal 1:1 (lines 19-42) on the chase arms — the wolf's
+     * own 0.4F leap (WolfEntity line 59, goal 3 over the melee's 4) and
+     * the ocelot's 0.3F (OcelotEntity line 48, goal 7 over the attack's
+     * 8): a grounded body whose target sits 2-4 blocks out rolls the
+     * 1-in-5, then leaps — the horizontal charge at the target's unit
+     * bearing ({@code d/f * 0.4 + 20% of the current motion}) with the
+     * kind's own vertical impulse. The airborne window holds the MOVE
+     * control (the reference's selector stops the melee goal for the
+     * flight — the chase walk resumes at the landing), and a body in
+     * fluid never leaps (the swim goal owns the JUMP control at its
+     * higher band).
+     *
+     * @return true when the pounce owns the movement this tick.
+     */
+    boolean tickPounceAtTarget(Position target) {
+        if (type != MobType.WOLF && type != MobType.OCELOT) {
+            return false;
+        }
+        if (pounceAirborne) {
+            if (onGround) {
+                pounceAirborne = false; // shouldContinue's own end: the landing
+                return false;
+            }
+            return true; // the flight holds the walk; the body carries the leap
+        }
+        double dx = target.x() - position.x();
+        double dy = target.y() - position.y();
+        double dz = target.z() - position.z();
+        double squared = dx * dx + dy * dy + dz * dz;
+        if (squared < 4.0 || squared > 16.0 || !onGround || goalInFluid()) {
+            return false;
+        }
+        if (random.nextInt(5) != 0) {
+            return false; // the 1-in-5 roll
+        }
+        double horizontal = Math.sqrt(dx * dx + dz * dz);
+        if (horizontal < 1.0E-4) {
+            return false; // a stacked-vertical target has no leap bearing (the NaN guard)
+        }
+        double speed = type == MobType.WOLF ? 0.4F : 0.3F;
+        velocityX += dx / horizontal * 0.5 * 0.8F + velocityX * 0.2F;
+        velocityZ += dz / horizontal * 0.5 * 0.8F + velocityZ * 0.2F;
+        velocityY = speed;
+        onGround = false;
+        pounceAirborne = true;
+        return true;
     }
 
     /**

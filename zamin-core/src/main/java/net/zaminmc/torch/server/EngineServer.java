@@ -20647,13 +20647,68 @@ public final class EngineServer implements Server, EngineBridge {
                     best = player;
                 }
             }
-            if (best == null) {
-                return null;
+            return best == null ? null : playerView(best);
+        }
+
+        /**
+         * The owner's live view (FollowOwnerGoal's getOwner consult): the
+         * same liveness/dimension gates the awareness band reads, resolved
+         * through the owner consult's own law — the uuid arm first with
+         * the name row the legacy fallback (TameableEntity.getOwner over
+         * isOwner's key pair).
+         */
+        @Override
+        public net.zaminmc.torch.server.entity.MobEntity.PlayerView ownerPlayerView(
+                String ownerName, String ownerUuid) {
+            for (PlayerSession player : players.all()) {
+                if (player.state() != PlayerState.PLAYING || player.dead()
+                        || player.dimension() != activeDimension) {
+                    continue;
+                }
+                boolean owner = !ownerUuid.isEmpty()
+                        ? ownerUuid.equals(player.uuid().toString())
+                        : !ownerName.isEmpty() && ownerName.equals(player.name());
+                if (owner) {
+                    return playerView(player);
+                }
             }
-            PlayerSession session = best;
+            return null;
+        }
+
+        /**
+         * The perch's chest-viewer read (OcelotSitOnBlockGoal.isValidTarget's
+         * {@code viewerCount < 1} gate): every player whose open window is a
+         * chest at the cell counts — the trapped chest and the chest
+         * minecart ride their own windows, so the plain chest position
+         * match is the perch's own law.
+         */
+        @Override
+        public int containerViewersAt(int x, int y, int z) {
+            int viewers = 0;
+            for (PlayerSession player : players.all()) {
+                if (player.state() != PlayerState.PLAYING) {
+                    continue;
+                }
+                if (player.openContainerKind() == PlayerSession.ContainerKind.CHEST) {
+                    var open = player.openContainerPosition();
+                    if (open != null && open.x() == x && open.y() == y && open.z() == z) {
+                        viewers++;
+                    }
+                }
+            }
+            return viewers;
+        }
+
+        /**
+         * The shared view builder over a live session: the position, the
+         * rotation, the held item, the helmet slot, and the spectator
+         * flag — every player-view consult answers the same shape.
+         */
+        private net.zaminmc.torch.server.entity.MobEntity.PlayerView playerView(PlayerSession session) {
             net.zaminmc.torch.item.ItemStack held = session.heldItem();
             String heldId = held.isEmpty() || held.type() == null
                     ? null : held.type().identifier().toString();
+            boolean spectator = session.gamemode() == GameMode.SPECTATOR;
             return new net.zaminmc.torch.server.entity.MobEntity.PlayerView() {
                 @Override public Position position() {
                     return session.position();
@@ -20678,6 +20733,10 @@ public final class EngineServer implements Server, EngineBridge {
                     var helmet = session.inventory().armorAt(0);
                     return helmet == null || helmet.isEmpty() || helmet.type() == null
                             ? null : helmet.type().identifier().toString();
+                }
+
+                @Override public boolean spectator() {
+                    return spectator;
                 }
             };
         }
