@@ -669,7 +669,7 @@ Torch has published development releases, so the initial artifact gate has been 
 
 The engine has substantial reference-driven mechanics and API coverage, tracked in Section 29 and `VANILLA_1_8_8_COMPATIBILITY.md`. The current ledger includes completed Waves A–K, the metadata-variant Wave L (L1–L6), the stairs' two-box geometry (L7), Wave M (the swept-box physics solver across every moving family), the first Phase-6 gameplay lane (P6), the use/dig dispatch law family through N7 (the two-stage use law, the use handler's gates, the use packet's tail, the spawn-protection gate, the teleport window, the dig handler's own gates, and the placement reach bands' retirement — the handler's 64.0 is the only band), and the audit-lane ML-018 (the spectator camera: the C2S Spectate handler, the 0x43 Camera packet, the per-tick body follow with the world-stream re-center, all three exits, the broadcastTo visibility law, and the no-clip gate — gamemode 3's core mechanics whole, cross-dimension spectate the honest standing bound). That is progress by mechanic, not full Minecraft 1.8.8 compatibility: keep each remaining behavior, difference, test, and status explicit. Do not replace reference behavior with modern defaults or narrow the native API to match an incomplete compatibility layer.
 
-Next work: the cycle-4 ranked audit backlog (the master ledger's demand-named rows) is now landing one row per lane — ML-003, the sign editor open (0x36 on placement), is closed (§29's Wave ML row); the remaining ranked rows stay next work, each on its own evidence-pinned lane.
+Next work: the cycle-4 ranked audit backlog (the master ledger's demand-named rows) is now landing one row per lane — ML-003, the sign editor open (0x36 on placement), is closed (§29's Wave ML row); the remaining ranked rows stay next work, each on its own evidence-pinned lane. The vanilla-grade census's named lanes: the tameable family's owner-aware lane LANDED (§29's Wave TF); the dispenser's world-event 2000/2005 arms and the frame's map-marker cleanup stay the census's open tails.
 
 ### Phase 5 — Supporting parallel computation — INFRASTRUCTURE IMPLEMENTED; THE WORKLOAD ADOPTION GATES ANSWERED (PATHFINDING REJECTED WITH EVIDENCE; LIGHTING ANSWERED A MEASURED WIN — the contract, the equivalence, and the numbers landed, the wiring itself still demand-named)
 
@@ -4608,6 +4608,67 @@ way were repaired inside the wave.
       online-mode scope, DEC-002 adapter era, DEC-003 the KigPaper
       config surface) and ML-100's family-owned standing tails, each
       picked up only as its family's slice per that row's own rule.
+
+## Wave TF — the 2026-10-26 tameable family's owner-aware lane (the census's pick for the next lane, landed)
+
+- [x] FOLLOWOWNERGOAL 1:1 ON BOTH TAMED KINDS (a1fed1d0, the
+      reference's own goal 5 on wolf and ocelot — the owner-follow the
+      census named missing): the reference's band pair (the wolf's
+      10/2, the ocelot's 10/5 — start at >= 10 blocks, continue while
+      beyond the max), the owner resolved through the NEW
+      WorldQuery.ownerPlayerView consult (the uuid arm first with the
+      name row the legacy fallback, isOwner's own key pair), the
+      spectator and sitting refusals, the every-10-tick re-path with
+      the reference's Entity-overload quirk (an airborne re-path fails
+      without a search — findPath's canUpdatePath null), the >=
+      12-block teleport through the 5x5 OUTER ring (the center 3x3
+      refused, the solid-top floor, two clear cells, the plain
+      setPositionAndAngles write), and the leashed refusal.
+- [x] THE SWIM WINDOW OVER THE NAVIGATION'S OWN SURFACE: MobNavigation
+      carries GroundPathNavigation's setCanSwim/canSwim pair; the
+      ocelot's ctor arms the swim paths (OcelotEntity line 42), start()
+      drops them for the walk's life, and stop() writes the reference's
+      own unconditional setCanSwim(true) — the parked value is the
+      1.8.8 source's dead field, the write is the law (the wolf's
+      navigation gains swim paths after its first window, the
+      reference's own quirk carried as-is).
+- [x] OCELOTSITONBLOCKGOAL 1:1 OVER GOTOBLOCKGOAL: the tamed standing
+      cat's gates, the 200+nextInt(200) cadence, the reference's own
+      ring spiral over the 8-block range at the y-1/y+0/y-2 bands, the
+      strict air above + the chest nobody watches (the NEW
+      containerViewersAt consult over the open chest windows) + the lit
+      furnace + the bed's FOOT half (the flattened facing suffixes
+      matched on prefixes, bed_head refused), the walk at 0.8 with the
+      40-tick re-path and the approach clock, the sit at the standing
+      cell, and the window's own stop standing the body down when the
+      perch breaks or the clock runs out.
+- [x] THE UNTAMED CHICKEN HUNT + THE POUNCE: the ocelot joins
+      tickMobTargeting's scan family (UntamedActiveTargetGoal(chicken):
+      the 1-in-10 cadence, the 32-block follow range, the same-team
+      refusal, the tamed cat never hunts) and PounceAtTargetGoal 1:1 on
+      both kinds (the wolf's 0.4F, the ocelot's 0.3F — the 2-4-block
+      band, the 1-in-5 roll, the horizontal charge with 20% of the
+      current motion, the airborne window holding the MOVE control on
+      both chase arms, the fluid refusal, the stacked-vertical NaN
+      guard the reference lacks).
+- [x] THE BAND ORDER + THE WIRE REPAIRS RIDING THE LANE: FOLLOW_OWNER
+      and SIT_ON_BLOCK join the selector's band 4 FIRST (the
+      reference's 5-over-6-over-7/10), the follow yields to a live hunt
+      through goalHasTarget (the reference's melee-4 steals from the
+      running follow-5), BREED carries the tameable family's own yield
+      (the pure followOwnerStartable probe — a pet whose owner stands
+      beyond the band never breeds), the manager's per-tick walk diffs
+      the wolf-state byte itself (the goal-driven sit/stand and the
+      anger's rise/clear publish the state-16 block), and
+      setWolfSitting's kind gate widened to the ocelot (the latent NBT
+      bug: a saved sitting cat loaded standing). Ledgered: the SitGoal's
+      enabledWithOwner pair (no autonomous sit goal in the engine's
+      model — the owner's empty hand owns the posture), the
+      perch-vs-breed cadence freeze (the shared-band model's accepted
+      drift, the rabbit's garden raid the precedent). Tests:
+      TameableFollowTest 11; GoalApiAcceptanceTest + TemptBegGoalsTest
+      re-pinned for the twelve-goal selector; the wolf/ocelot/mob/
+      pathfinding/breeding families green.
 
 # 33. CODEBASE SCALE, CLASS COHESION, AND MAINTAINABILITY
 

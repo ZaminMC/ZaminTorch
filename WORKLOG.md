@@ -15687,3 +15687,59 @@ Stage Summary:
 - Next lane (the census's pick): the tameable family's owner-follow
   + the cat's sit-on-block + the chicken-hunt — the largest genuinely
   open vanilla-grade surface, infrastructure already whole.
+
+---
+
+Task ID: TF-1
+Agent: Abasing (the coding session)
+Task: The tameable family's owner-aware lane — the vanilla-grade census's pick for the next lane (FollowOwnerGoal on both tamed kinds, OcelotSitOnBlockGoal over GoToBlockGoal, the untamed chicken hunt, PounceAtTargetGoal on both kinds).
+
+Work Log:
+- Read the reference whole: FollowOwnerGoal (lines 15-118),
+  OcelotSitOnBlockGoal + GoToBlockGoal (13-79 + 7-92), PounceAtTargetGoal
+  (7-43), SitGoal, the wolf's and ocelot's goal registrations (the band
+  orders 1-11), PathNavigation's moveTo overloads (the Entity form's
+  canUpdatePath null gate — an airborne re-path fails without a search),
+  GroundPathNavigation's setCanSwim surface, and World.hasSolidTop.
+- MobNavigation: the setCanSwim/canSwim pass-throughs
+  (GroundPathNavigation's own surface).
+- MobEntity: the ocelot's ctor swim arm (OcelotEntity line 42); the
+  follow's canUse/tick pair with the band pair (wolf 10/2, ocelot 10/5),
+  the ownerPlayerView consult, the spectator/sitting refusals, the
+  10-tick re-path with the airborne-failure quirk, the 12-block teleport
+  through the 5x5 outer ring, the leashed refusal, the swim window's
+  unconditional stop write; the perch's cadence + spiral + the family
+  gates (chest-viewers/lit-furnace/bed-foot over the flattened facing
+  suffixes) + the walk/sit/stand-down; the chicken hunt in
+  tickMobTargeting; the pounce on both chase arms with the NaN guard;
+  the breed yield probe (followOwnerStartable); the setWolfSitting kind
+  fix (the latent ocelot NBT bug).
+- WorldQuery: ownerPlayerView + containerViewersAt + PlayerView.spectator;
+  EngineServer: the owner resolution (isOwner's key pair), the viewer
+  count over the open chest windows, the shared playerView builder.
+- MobManager: the per-tick wolf-state byte diff (the goal-driven
+  sit/stand and the anger's rise/clear publish the state-16 block).
+- MobGoals: FOLLOW_OWNER + SIT_ON_BLOCK at band 4 FIRST; the selector's
+  twelve-goal order; BREED's tameable yield.
+- Tests: TameableFollowTest 11 green (the ctor swim pair, the follow's
+  bands and refusals, the swim window, the pillar-world teleport, the
+  leash, the perch family, the broken perch, the chicken hunt, the
+  pounce's band + both impulses + the airborne window);
+  GoalApiAcceptanceTest + TemptBegGoalsTest re-pinned; the wolf/ocelot/
+  mob/pathfinding/breeding families green.
+- The lesson of the lane: the engine's shared goal bands cannot express
+  per-kind priority orders that differ (tempt > follow > breed for the
+  tameables, breed > raid-farm for the rabbit) — the yield probe is the
+  engine's own encoding of the reference's selector steal, and the
+  perch-vs-breed cadence freeze is the same accepted drift the rabbit's
+  garden raid already carries (ledgered both).
+
+Stage Summary:
+- The census's pick landed whole: the owner-follow, the perch, the
+  chicken hunt, and the pounce — the tameable family's owner-aware
+  surface complete, with the wire repairs the lane exposed (the
+  wolf-state diff, the ocelot's sitting NBT row).
+- Committed a1fed1d0 on develop; the census's remaining open lanes: the
+  dispenser's world-event 2000/2005 arms and the frame's map-marker
+  cleanup (the ADD landed with the map wave — the removeItem cleanup
+  owed on the frame-empty walks).
