@@ -98,6 +98,12 @@ public final class DispenserSystem implements WorldChangeListener {
     /** The reaction latency (DispenserBlock.getTickRate line 44). */
     public static final int TICK_RATE = 4;
 
+    /** The dispense smoke (DispenseItemBehavior.doWorldEvent's 2000). */
+    static final int WORLD_EVENT_DISPENSE_SMOKE = 2000;
+
+    /** The bone meal's fertilize burst (DyeItem.useOn's 2005). */
+    static final int WORLD_EVENT_BONE_MEAL = 2005;
+
     /** The item-drop velocity scale (DispenseItemBehavior.spawnItem). */
     private static final double ITEM_SPREAD = 0.0075 * 6.0;
 
@@ -344,7 +350,25 @@ public final class DispenserSystem implements WorldChangeListener {
      */
     private ItemStack dispenserDispense(BlockPosition pos, int facing, ItemStack stack) {
         Behavior behavior = behaviorOf(stack);
-        return behavior.dispense(pos, facing, stack);
+        ItemStack remainder = behavior.dispense(pos, facing, stack);
+        // The base class's closing event (DispenseItemBehavior.dispense,
+        // the final wrapper lines 13-18): EVERY registry dispense fires
+        // the 2000 smoke at the dispenser — the client orients its ten
+        // puffs by the facing data (toInt: {@code offsetX + 1 + (offsetZ + 1) * 3},
+        // the vertical pair collapsing to 4). The behavior's own success
+        // or failure click rides beside it (the playSound overrides).
+        fx.worldEvent(centerOf(pos), WORLD_EVENT_DISPENSE_SMOKE, facingData(facing));
+        return remainder;
+    }
+
+    /**
+     * The dispense smoke's own data (DispenseItemBehavior.toInt lines
+     * 57-59): the facing's x/z offsets packed as
+     * {@code offsetX + 1 + (offsetZ + 1) * 3} — DOWN/UP 4, NORTH 1,
+     * SOUTH 7, WEST 3, EAST 5 (the axis the smoke leans along).
+     */
+    private static int facingData(int facing) {
+        return OFFSETS[facing][0] + 1 + (OFFSETS[facing][2] + 1) * 3;
     }
 
     /**
@@ -369,7 +393,12 @@ public final class DispenserSystem implements WorldChangeListener {
             }
             return stack;
         }
-        return defaultItemDrop(pos, facing, stack);
+        // The fall-through is the dropper's OWN base behavior (DropperBlock
+        // line 58's new DefaultDispenseItemBehavior): the click and the
+        // smoke fire exactly like the dispenser's registry default.
+        ItemStack remainder = defaultItemDrop(pos, facing, stack);
+        fx.worldEvent(centerOf(pos), WORLD_EVENT_DISPENSE_SMOKE, facingData(facing));
+        return remainder;
     }
 
     // ------------------------------------------------------------------
@@ -604,9 +633,13 @@ public final class DispenserSystem implements WorldChangeListener {
     /**
      * The bone meal (Bootstrap lines 297-327, the white-dye arm): a growing
      * crop at the facing cell takes the {@code stage + nextInt(2..5)}
-     * growth (WheatBlock.growFully lines 47-53) and the stack loses one;
-     * anything else falls through to the default drop (the reference's
-     * super.dispenseItem for the non-white dyes and the non-crops).
+     * growth (WheatBlock.growFully lines 47-53), the stack pays, the
+     * 1000 click plays, and the 2005 burst lands at the fertilized cell
+     * (the client's fifteen happy-villager sparks); a NON-fertilizable
+     * target keeps the stack in the reservoir — the behavior's dyed=false
+     * arm (the 1001 failure click, no drop — the reference's own quirk:
+     * only the NON-white dyes fall through to the default drop, and the
+     * engine's bone_meal IS the white dye).
      */
     private ItemStack boneMeal(BlockPosition pos, int facing, ItemStack stack) {
         BlockPosition target = pos.offset(OFFSETS[facing][0], OFFSETS[facing][1],
@@ -614,12 +647,19 @@ public final class DispenserSystem implements WorldChangeListener {
         int stage = net.zaminmc.torch.server.block.WorldSolidity.cropStageOf(
                 world.getBlock(target).identifier());
         if (stage < 0 || stage >= 7) {
-            return defaultItemDrop(pos, facing, stack);
+            // dyed = false: the failure click, the stack stays.
+            fx.sound(centerOf(pos), "random.click", 1.0f, 1.2f);
+            return stack;
         }
         int grown = Math.min(7, stage + 2 + random.nextInt(4));
         world.setBlock(target, RandomTickSystem.cropStage(
                 world.getBlock(target).identifier(), grown));
         fx.sound(centerOf(pos), "random.click", 1.0f, 1.0f);
+        // DyeItem.useOn's own burst (line 45): the 2005 world event at the
+        // fertilized cell — the client renders DyeItem.spawnParticles'
+        // fifteen happy-villager sparks over the crop's shape.
+        fx.worldEvent(new Position(target.x() + 0.5, target.y() + 0.5, target.z() + 0.5),
+                WORLD_EVENT_BONE_MEAL, 0);
         return consumeOne(stack);
     }
 

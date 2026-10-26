@@ -6232,6 +6232,19 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             sendWorldEvent(Protocol18.WORLD_EVENT_POTION_SPLASH,
                     (int) Math.floor(at.x()), (int) Math.floor(at.y()),
                     (int) Math.floor(at.z()), splash.potionData(), false);
+        } else if (event instanceof net.zaminmc.torch.server.fx.FxManager.WorldEvent worldEvent) {
+            at = worldEvent.position();
+            if (beyondRange(observer, at, EVENT_RANGE)) {
+                return;
+            }
+            // The reference's own doEvent (World lines 2609-2627): the
+            // WorldEvent packet over the 64-block event radius — the
+            // dispense smoke's 2000 (the client's ten smoke puffs
+            // oriented by the facing data) and the bone meal's 2005
+            // (DyeItem.spawnParticles' fifteen happy-villager sparks).
+            sendWorldEvent(worldEvent.eventId(),
+                    (int) Math.floor(at.x()), (int) Math.floor(at.y()),
+                    (int) Math.floor(at.z()), worldEvent.data(), false);
         }
     }
 
@@ -6256,6 +6269,9 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
 
     /** The particle family's range (ServerWorld.addParticle lines 930-936): 16. */
     private static final double PARTICLE_RANGE = 16.0;
+
+    /** The world-event family's range (PlayerManager.sendPacket's 64.0). */
+    private static final double EVENT_RANGE = 64.0;
 
     /** Destroy Entities (0x13) for one removed mob; drops its sync state. Any thread. */
     void sendMobRemoved(int mobEntityId) {

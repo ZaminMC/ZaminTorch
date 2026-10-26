@@ -33,7 +33,7 @@ public final class FxManager {
     private static final Logger LOGGER = Logger.getLogger(FxManager.class.getName());
 
     /** One broadcast unit. The adapter translates each kind per its version. */
-    public sealed interface FxEvent permits Sound, SoundExcept, BlockShatter, StandShatter, ItemShatter, Poof, Smoke, PotionSplash {
+    public sealed interface FxEvent permits Sound, SoundExcept, BlockShatter, StandShatter, ItemShatter, Poof, Smoke, PotionSplash, WorldEvent {
     }
 
     /** A named sound at a position (historical 1.8 resource name). */
@@ -95,6 +95,19 @@ public final class FxManager {
     public record PotionSplash(Position position, int potionData) implements FxEvent {
         public PotionSplash {
             java.util.Objects.requireNonNull(position, "position");
+        }
+    }
+
+    /**
+     * The reference's own world event (World.doEvent over the 64-block
+     * event radius): the wire's WorldEvent packet verbatim — the event id
+     * and its data int (the dispense smoke's 2000 carrying the facing
+     * index, the bone meal's 2005 burst with the 0 that the client turns
+     * into fifteen happy-villager sparks).
+     */
+    public record WorldEvent(Position position, int eventId, int data) implements FxEvent {
+        public WorldEvent {
+            Objects.requireNonNull(position, "position");
         }
     }
 
@@ -167,6 +180,11 @@ public final class FxManager {
      */
     public void potionSplash(Position position, int potionData) {
         emit(new PotionSplash(position, potionData));
+    }
+
+    /** Emits the reference's own world event (World.doEvent). Any thread. */
+    public void worldEvent(Position position, int eventId, int data) {
+        emit(new WorldEvent(position, eventId, data));
     }
 
     public void poof(Position position) {

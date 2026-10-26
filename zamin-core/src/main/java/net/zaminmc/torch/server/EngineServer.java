@@ -12162,8 +12162,12 @@ public final class EngineServer implements Server, EngineBridge {
                 world.setBlock(clicked, RandomTickSystem.cropStage(
                         world.getBlock(clicked).identifier(), grown));
                 session.inventory().consumeHeld(1);
-                fxManager.itemShatter(new Position(clicked.x() + 0.5, clicked.y() + 0.5, clicked.z() + 0.5),
-                        session.inventory().held());
+                // DyeItem.useOn's own burst (line 45): the 2005 world
+                // event at the fertilized cell — the client's fifteen
+                // happy-villager sparks (the itemShatter stand-in the
+                // census row retired).
+                fxManager.worldEvent(new Position(clicked.x() + 0.5, clicked.y() + 0.5,
+                        clicked.z() + 0.5), 2005, 0);
                 publishInventoryChanged(session);
                 return true;
             }
@@ -12186,8 +12190,12 @@ public final class EngineServer implements Server, EngineBridge {
                             gameplayRandom);
                 }
                 session.inventory().consumeHeld(1);
-                fxManager.itemShatter(new Position(clicked.x() + 0.5, clicked.y() + 0.5, clicked.z() + 0.5),
-                        session.inventory().held());
+                // DyeItem.useOn's own burst (line 45): the 2005 world
+                // event at the fertilized cell — the client's fifteen
+                // happy-villager sparks (the itemShatter stand-in the
+                // census row retired).
+                fxManager.worldEvent(new Position(clicked.x() + 0.5, clicked.y() + 0.5,
+                        clicked.z() + 0.5), 2005, 0);
                 publishInventoryChanged(session);
                 return true; // a growing canGrow target consumed the use
             }
@@ -12201,8 +12209,12 @@ public final class EngineServer implements Server, EngineBridge {
                 net.zaminmc.torch.server.block.GrassBlocks.growGrass(
                         world, clicked, gameplayRandom);
                 session.inventory().consumeHeld(1);
-                fxManager.itemShatter(new Position(clicked.x() + 0.5, clicked.y() + 0.5, clicked.z() + 0.5),
-                        session.inventory().held());
+                // DyeItem.useOn's own burst (line 45): the 2005 world
+                // event at the fertilized cell — the client's fifteen
+                // happy-villager sparks (the itemShatter stand-in the
+                // census row retired).
+                fxManager.worldEvent(new Position(clicked.x() + 0.5, clicked.y() + 0.5,
+                        clicked.z() + 0.5), 2005, 0);
                 publishInventoryChanged(session);
                 return true;
             }
@@ -12218,8 +12230,12 @@ public final class EngineServer implements Server, EngineBridge {
                             world, clicked, world.getBlock(clicked), gameplayRandom);
                 }
                 session.inventory().consumeHeld(1);
-                fxManager.itemShatter(new Position(clicked.x() + 0.5, clicked.y() + 0.5, clicked.z() + 0.5),
-                        session.inventory().held());
+                // DyeItem.useOn's own burst (line 45): the 2005 world
+                // event at the fertilized cell — the client's fifteen
+                // happy-villager sparks (the itemShatter stand-in the
+                // census row retired).
+                fxManager.worldEvent(new Position(clicked.x() + 0.5, clicked.y() + 0.5,
+                        clicked.z() + 0.5), 2005, 0);
                 publishInventoryChanged(session);
                 return true;
             }
@@ -12234,8 +12250,10 @@ public final class EngineServer implements Server, EngineBridge {
                     world.setBlock(clicked, net.zaminmc.torch.server.block.CocoaBlocks
                             .withAge(world.getBlock(clicked), cocoaAge + 1));
                     session.inventory().consumeHeld(1);
-                    fxManager.itemShatter(new Position(clicked.x() + 0.5, clicked.y() + 0.5, clicked.z() + 0.5),
-                            session.inventory().held());
+                    // The same 2005 burst (the cocoa IS a Fertilizable —
+                    // DyeItem.useOn's one law covers the whole family).
+                    fxManager.worldEvent(new Position(clicked.x() + 0.5, clicked.y() + 0.5,
+                            clicked.z() + 0.5), 2005, 0);
                     publishInventoryChanged(session);
                     return true;
                 }
