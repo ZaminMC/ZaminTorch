@@ -1983,6 +1983,48 @@ public final class EngineServer implements Server, EngineBridge {
                 // The game-rule read (Slice 24a): randomTickSpeed answers
                 // the per-section pick band (ServerWorld.tickChunks 343).
                 randomTicks.setRandomTickSpeedRead(() -> gameRules.getInt("randomTickSpeed"));
+                // The nether portal's pigman spawn (Slice TF-7e —
+                // PortalBlock.tick lines 34-53, the overworld portal's own
+                // arm): the doMobSpawning rule, the nextInt(2000) <
+                // difficulty roll, the ground search, and the spawn with
+                // the portal cooldown (Entity.getPortalCooldown's 300 —
+                // the fresh body never re-enters the portal it was born
+                // at).
+                randomTicks.setPortalPigmanSink((portal, tickRandom) -> {
+                    if (!gameRules.getBoolean("doMobSpawning")) {
+                        return false;
+                    }
+                    if (tickRandom.nextInt(2000) >= difficulty) {
+                        return false;
+                    }
+                    // The ground search (lines 39-45): walk down from the
+                    // portal to the first solid top — the reference's own
+                    // World.hasSolidTop read (the 1:1 port the fire family
+                    // carries: the cube's solid top, the top-half slabs and
+                    // stairs, the hopper — never the fence, the wall, the
+                    // bottom slab, the thin snow).
+                    int portalY = portal.y();
+                    BlockPosition at = portal;
+                    while (!net.zaminmc.torch.server.block.FireBlocks
+                            .hasSolidTop(world, at) && at.y() > 0) {
+                        at = at.offset(0, -1, 0);
+                    }
+                    // The spawn gate (line 46): the portal above the
+                    // bedrock floor and the ground's headroom clear (the
+                    // plain Block.isSolid read over the cell above the
+                    // found ground).
+                    if (portalY <= 0 || solidAt(at.x() + 0.5, at.y() + 1.5,
+                            at.z() + 0.5)) {
+                        return false;
+                    }
+                    MobEntity pigman = mobManager.spawnAt(
+                            net.zaminmc.torch.server.entity.MobType.ZOMBIE_PIGMAN,
+                            new Position(at.x() + 0.5, at.y() + 1.1, at.z() + 0.5));
+                    if (pigman != null) {
+                        pigman.setPortalCooldown(PORTAL_COOLDOWN_TICKS);
+                    }
+                    return pigman != null;
+                });
                 // The liquid family's random-tick arm (LiquidBlock's own
                 // setTicksRandomly band over the reference's randomTick →
                 // tick delegation): the flowing forms re-run the flow tick,
@@ -5896,6 +5938,12 @@ public final class EngineServer implements Server, EngineBridge {
     // ExperienceBottleEntity.onCollision line 30: doEvent(2002, pos, 0)
     // — the splash-particle Effect with the value 0).
     private static final int WORLD_EVENT_BOTTLE_SPLASH = 2002;
+    /**
+     * The portal re-entry cooldown (Slice TF-7e — Entity.getPortalCooldown
+     * line 1457's own 300): the portal-born pigman never re-enters the
+     * portal it was born at for fifteen seconds.
+     */
+    private static final int PORTAL_COOLDOWN_TICKS = 300;
     /**
      * The silverfish's infest spawn burst (Slice TF-7a —
      * MobEntity.animateSpawn lines 179-197: the server's

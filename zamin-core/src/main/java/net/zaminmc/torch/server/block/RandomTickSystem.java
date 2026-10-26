@@ -118,6 +118,33 @@ public final class RandomTickSystem {
         this.liquidTicker = java.util.Objects.requireNonNull(liquidTicker, "liquidTicker");
     }
 
+    /**
+     * The nether portal's pigman spawn consult (Slice TF-7e — the
+     * reference's PortalBlock.tick whole walk, dispatched through the
+     * engine's own wiring): the doMobSpawning rule, the
+     * {@code nextInt(2000) < difficulty} roll, the ground search below
+     * the portal, and the pigman's own spawn at the found ground. The
+     * sink owns the world reads and the spawn; the system's own random
+     * drives the roll (the reference's {@code random} parameter — the
+     * same random-tick walk's own stream).
+     */
+    public interface PortalPigmanSink {
+        /**
+         * Runs the spawn walk for the portal cell.
+         *
+         * @return true when a pigman landed (the test surface's read)
+         */
+        boolean trySpawnAtPortal(BlockPosition portal, Random random);
+    }
+
+    /** The portal pigman's spawn consult (null until the boot wires it). */
+    private volatile PortalPigmanSink portalPigmanSink;
+
+    /** Wires the portal pigman's spawn consult (the boot wiring). */
+    public void setPortalPigmanSink(PortalPigmanSink sink) {
+        this.portalPigmanSink = java.util.Objects.requireNonNull(sink, "sink");
+    }
+
     /** Wires the leaf-decay drop seams (EngineServer's own bodies — the
      *  decayed cells' sapling/apple rolls land through the engine's own
      *  walk, the same one a hand break rolls). */
@@ -249,6 +276,18 @@ public final class RandomTickSystem {
                 if (arm != null) {
                     arm.accept(position, type);
                 }
+            }
+            return;
+        }
+        // The nether portal's pigman spawn (Slice TF-7e — PortalBlock.tick
+        // lines 34-53 over the reference's randomTick → tick delegation):
+        // the overworld's own system (the nether carries no random-tick
+        // family — the isNatural gate inherent), the whole spawn walk
+        // dispatched through the engine's consult.
+        if (WorldSolidity.isNetherPortal(type.identifier())) {
+            PortalPigmanSink sink = portalPigmanSink;
+            if (sink != null) {
+                sink.trySpawnAtPortal(position, random);
             }
             return;
         }
