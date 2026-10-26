@@ -12,17 +12,21 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.Set;
+import java.util.zip.Inflater;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * R-3 of the vanilla parity remainder: the login compression-threshold
- * exchange, checked at the wire.
+ * Wave ON-1a: the login compression-threshold exchange, checked at the
+ * wire — the record the pre-wave pins guarded, rewritten under the
+ * owner's DEC-001 decision (2026-10-26) that landed the exchange whole.
  *
  * <p><b>The reference law (reference/1.8.8)</b>: {@code ServerLoginNetworkHandler
  * .acceptLogin} lines 92-101 sends the login-state Set Compression packet
@@ -30,58 +34,77 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * 20-26) BEFORE Login Success whenever the configured threshold is ≥ 0
  * ({@code MinecraftServer.getNetworkCompressionThreshold} defaults to 256;
  * a dedicated server reads network-compression-threshold from its
- * properties, and -1 disables the exchange entirely), then installs the
- * zlib CompressionDecoder/CompressionEncoder pair (Connection.
- * setCompressionThreshold lines 325-346) — from then every frame is
- * length-varint + data-length-varint + zlib payload. The client only ever
- * enables decompression when it RECEIVES 0x03 (ClientLoginNetworkHandler
- * lines 101-105): an exchange-less login is the protocol's own legal
+ * properties, and any negative value disables the exchange entirely),
+ * then installs the zlib CompressionDecoder/CompressionEncoder pair
+ * (Connection.setCompressionThreshold lines 325-346) — from then every
+ * frame is length-varint + data-length-varint + zlib payload. The client
+ * only ever enables decompression when it RECEIVES 0x03
+ * (ClientLoginNetworkHandler lines 101-105), and arms its own outbound
+ * form with it: an exchange-less login is the protocol's own legal
  * uncompressed mode, byte-identical framing to the no-compression shape
  * (SizePrepender lines 8-20 / SplitterHandler: one length varint, max 3
  * bytes, then the payload).</p>
  *
- * <p><b>Torch's recorded divergence</b>: the engine never performs the
- * exchange — its permanent mode is the reference's threshold=-1 shape (the
- * ENGINEERING_PLAN's own slice decision: "compression disabled at first,
- * threshold introduced when measured necessary"). This test PINS that
- * state: the first S→C frame after Login Start is exactly Login Success
- * (0x02, never 0x03) with the reference's byte-exact body, the framing is
- * the one-length-varint uncompressed form for the whole join burst
- * (including over-threshold chunk frames), and FrameCodec's encoder emits
- * the SizePrepender form — not the two-varint CompressionEncoder form. If
- * compression is ever introduced, these pins fail until the divergence
- * record is rewritten with the owner's decision.</p>
+ * <p><b>The canonical operator shape</b> (the properties path's default,
+ * threshold=256): the exchange rides FIRST, Login Success second in the
+ * two-varint form, and the whole join burst — the over-threshold chunk
+ * frames included — rides compressed, inflating byte-exact through an
+ * independent client-side walk. <b>The disabled branch</b> (a negative
+ * threshold — the pre-wave permanent mode, the compat constructors' own
+ * shape): no exchange, one-varint framing, the historical pins kept as
+ * the branch's own record. Both branches are pinned here, each against
+ * its own boot.</p>
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LoginCompressionWireTest {
 
     @org.junit.jupiter.api.io.TempDir
-    static Path dataDir;
+    static Path disabledDataDir;
 
-    private EngineServer server;
-    private V18ProtocolServer adapter;
+    @org.junit.jupiter.api.io.TempDir
+    static Path canonicalDataDir;
+
+    /** The disabled-branch stack (threshold -1: the compat shape, no exchange). */
+    private EngineServer disabledServer;
+    private V18ProtocolServer disabledAdapter;
+
+    /** The canonical-operators stack (threshold 256, offline login). */
+    private EngineServer canonicalServer;
+    private V18ProtocolServer canonicalAdapter;
 
     @BeforeAll
-    void bootStack() throws Exception {
-        EngineConfig config = new EngineConfig(
-                "127.0.0.1", 0, "world", "ZaminTorch test", 20, 4, 20, dataDir.toString());
-        server = new EngineServer(config);
-        server.start();
-        adapter = new V18ProtocolServer(server, 60_000);
-        adapter.start(server);
+    void bootStacks() throws Exception {
+        EngineConfig disabled = new EngineConfig(
+                "127.0.0.1", 0, "world", "ZaminTorch test", 20, 4, 20, disabledDataDir.toString());
+        disabledServer = new EngineServer(disabled);
+        disabledServer.start();
+        disabledAdapter = new V18ProtocolServer(disabledServer, 60_000);
+        disabledAdapter.start(disabledServer);
+
+        EngineConfig canonical = new EngineConfig(
+                "127.0.0.1", 0, "world", "ZaminTorch test", 20, 4, 20, canonicalDataDir.toString(),
+                net.zaminmc.torch.GameMode.SURVIVAL, true, "flat", false,
+                EngineConfig.WHOLE_WORLD_REGION_SIZE, false, 16,
+                false, "", 0, false, 0, "", "", 60_000L,
+                false, 256);
+        canonicalServer = new EngineServer(canonical);
+        canonicalServer.start();
+        canonicalAdapter = new V18ProtocolServer(canonicalServer, 60_000);
+        canonicalAdapter.start(canonicalServer);
     }
 
     @AfterAll
-    void stopStack() {
-        server.shutdown(adapter::shutdown);
+    void stopStacks() {
+        disabledServer.shutdown(disabledAdapter::shutdown);
+        canonicalServer.shutdown(canonicalAdapter::shutdown);
     }
 
     /**
      * FrameCodec's own frame form, driven directly: exactly the reference's
      * SizePrepender shape — one varint length prefix, then the payload. The
-     * reference's CompressionEncoder would emit a SECOND varint (the
-     * data-length, 0 for below-threshold frames) before the payload; this pin
-     * fails the moment a compression stage enters the pipeline.
+     * compression stage (when armed) adds its SECOND varint (the
+     * data-length, 0 for below-threshold frames) INSIDE this framing; the
+     * outer form never changes, either branch.
      */
     @Test
     void frameCodecEmitsTheReferenceUncompressedFrameForm() {
@@ -96,21 +119,24 @@ class LoginCompressionWireTest {
         assertEquals(0x03, framed.readByte());
         assertEquals(0x04, framed.readByte());
         assertEquals(0, framed.readableBytes(),
-                "no second (data-length) varint — the compressed form's own marker");
+                "no second (data-length) varint at the FRAMING layer — the compressed "
+                        + "form's own marker lives inside, added by the compression stage");
         framed.release();
         channel.finishAndReleaseAll();
     }
 
+    // ------------------------------------------------------------------ the disabled branch (-1)
+
     /**
-     * The exchange-less login: the FIRST frame after Login Start is exactly
-     * Login Success (0x02) — never the reference's Set Compression (0x03) —
-     * and its body is byte-for-byte the reference's LoginSuccessS2CPacket
-     * form (varint-length uuid string, then varint-length username; the
-     * frame fully consumed).
+     * The exchange-less login (a negative threshold): the FIRST frame after
+     * Login Start is exactly Login Success (0x02) — never the reference's
+     * Set Compression (0x03) — and its body is byte-for-byte the
+     * reference's LoginSuccessS2CPacket form (varint-length uuid string,
+     * then varint-length username; the frame fully consumed).
      */
     @Test
-    void theLoginSequenceSkipsTheCompressionExchangeStraightToLoginSuccess() throws Exception {
-        try (TestClient18 client = new TestClient18("127.0.0.1", adapter.boundPort())) {
+    void theExchangelessLoginSkipsTheCompressionPacketStraightToLoginSuccess() throws Exception {
+        try (TestClient18 client = new TestClient18("127.0.0.1", disabledAdapter.boundPort())) {
             client.sendHandshake(47, 2);
             client.sendLoginStart("Compressless");
 
@@ -118,7 +144,7 @@ class LoginCompressionWireTest {
             ByteBuf body = Unpooled.wrappedBuffer(frame);
             int packetId = ByteBufOps.readVarInt(body);
             assertNotEquals(0x03, packetId,
-                    "the reference's Set Compression exchange never rides this login");
+                    "the disabled branch never rides the Set Compression exchange");
             assertEquals(Protocol18.S2C_LOGIN_SUCCESS, packetId,
                     "the first login-state answer is Login Success itself");
             String uuid = ByteBufOps.readString(body, 64);
@@ -128,42 +154,25 @@ class LoginCompressionWireTest {
             assertEquals(4, countChar(uuid, '-'), "the uuid's dashed five-group form");
             assertEquals(0, body.readableBytes(),
                     "the Login Success body is exactly the reference's two strings");
-            // The offline-mode identity itself (the v3 of "OfflinePlayer:name").
             assertEquals(java.util.UUID.nameUUIDFromBytes(
                             ("OfflinePlayer:Compressless").getBytes(StandardCharsets.UTF_8)).toString(),
                     uuid, "the offline uuid convention");
         }
-        assertEquals(ServerState.RUNNING, server.state());
+        assertEquals(ServerState.RUNNING, disabledServer.state());
     }
 
     /**
-     * The whole join burst stays in the UNCOMPRESSED frame form: every frame
-     * parses as [packet-id varint][body] with a known play id — including
-     * frames far over the reference's 256-byte compression threshold (the
-     * chunk burst), which a compression stage would have zlib'd into a
-     * second-varint form that cannot parse as a packet.
+     * The disabled branch's whole join burst stays in the UNCOMPRESSED
+     * frame form: every frame parses as [packet-id varint][body] with a
+     * known play id — including frames far over the reference's 256-byte
+     * compression threshold (the chunk burst), which a compression stage
+     * would have zlib'd into a two-varint form that cannot parse as a
+     * packet.
      */
     @Test
-    void theJoinBurstRidesUncompressedFramesIncludingOverThresholdChunks() throws Exception {
-        // The play-state ids this join burst can carry (Protocol18's own set).
-        Set<Integer> knownIds = Set.of(
-                Protocol18.S2C_JOIN_GAME, Protocol18.S2C_SERVER_DIFFICULTY,
-                Protocol18.S2C_SPAWN_POSITION, Protocol18.S2C_TIME_UPDATE,
-                Protocol18.S2C_CHUNK_DATA, Protocol18.S2C_PLAYER_POSITION_AND_LOOK,
-                Protocol18.S2C_CHUNK_BULK, Protocol18.S2C_MULTI_BLOCK_CHANGE,
-                Protocol18.S2C_CHAT, Protocol18.S2C_PLAYER_INFO,
-                Protocol18.S2C_PLUGIN_MESSAGE, Protocol18.S2C_WINDOW_ITEMS,
-                Protocol18.S2C_UPDATE_HEALTH, Protocol18.S2C_SET_EXPERIENCE,
-                Protocol18.S2C_PLAYER_ABILITIES, Protocol18.S2C_HELD_ITEM_CHANGE,
-                Protocol18.S2C_WORLD_BORDER, Protocol18.S2C_PLAYER_LIST_HEADER_FOOTER,
-                Protocol18.S2C_KEEP_ALIVE, Protocol18.S2C_CHANGE_GAME_STATE,
-                Protocol18.S2C_SPAWN_ENTITY, Protocol18.S2C_SPAWN_MOB,
-                Protocol18.S2C_ENTITY_METADATA, Protocol18.S2C_ENTITY_VELOCITY,
-                Protocol18.S2C_SCOREBOARD_OBJECTIVE, Protocol18.S2C_UPDATE_SCORE,
-                Protocol18.S2C_DISPLAY_SCOREBOARD, Protocol18.S2C_TEAMS,
-                Protocol18.S2C_NAMED_SPAWN,
-                Protocol18.S2C_ATTACH_ENTITY, Protocol18.S2C_ENTITY_TELEPORT);
-        try (TestClient18 client = new TestClient18("127.0.0.1", adapter.boundPort())) {
+    void theExchangelessJoinBurstRidesUncompressedFramesIncludingOverThresholdChunks() throws Exception {
+        Set<Integer> knownIds = knownPlayIds();
+        try (TestClient18 client = new TestClient18("127.0.0.1", disabledAdapter.boundPort())) {
             client.sendHandshake(47, 2);
             client.sendLoginStart("Framer");
             client.readLoginSuccess();
@@ -185,8 +194,6 @@ class LoginCompressionWireTest {
                     overThresholdFrames++;
                 }
                 if (packetId == Protocol18.S2C_JOIN_GAME && !joinGameChecked) {
-                    // The exact-body pin: the reference's Join Game layout,
-                    // fully consumed — the uncompressed parse to the last byte.
                     body.readInt();          // entity id
                     body.readByte();         // gamemode
                     body.readByte();         // dimension
@@ -208,6 +215,161 @@ class LoginCompressionWireTest {
                     "at least one over-threshold (256B+) frame rode uncompressed: "
                             + overThresholdFrames + " of " + frames + " frames");
         }
+    }
+
+    // ------------------------------------------------------------------ the canonical branch (256)
+
+    /**
+     * The canonical login performs the exchange FIRST: the initial
+     * login-state answer is Set Compression (0x03) carrying exactly the
+     * configured threshold (256 — the two-byte varint 81 02), the frame
+     * byte-exact against the reference's CompressionThresholdS2CPacket
+     * form, and Login Success follows as the SECOND frame — the
+     * reference's own acceptLogin order, lines 92-104.
+     */
+    @Test
+    void theCanonicalLoginPerformsTheCompressionExchangeFirst() throws Exception {
+        try (TestClient18 client = new TestClient18("127.0.0.1", canonicalAdapter.boundPort())) {
+            client.sendHandshake(47, 2);
+            client.sendLoginStart("Compressed");
+
+            byte[] exchange = client.readPacket();
+            ByteBuf body = Unpooled.wrappedBuffer(exchange);
+            assertEquals(Protocol18.S2C_LOGIN_SET_COMPRESSION, ByteBufOps.readVarInt(body),
+                    "the first login-state answer is Set Compression itself");
+            assertEquals(256, ByteBufOps.readVarInt(body), "the configured threshold rides whole");
+            assertEquals(0, body.readableBytes(),
+                    "the exchange body is exactly the reference's one varint");
+            // The byte-exact pin: [0x03][varint 256] = 03 80 02, three bytes.
+            assertArrayEquals(new byte[]{0x03, (byte) 0x80, 0x02}, exchange,
+                    "the exchange frame is byte-exact (varint 256 = 80 02)");
+
+            // A real client arms its own outbound form on 0x03
+            // (ClientLoginNetworkHandler lines 101-105).
+            client.armCompression();
+
+            byte[] success = client.readPacket();
+            ByteBuf successBody = Unpooled.wrappedBuffer(success);
+            int dataLength = ByteBufOps.readVarInt(successBody);
+            assertEquals(0, dataLength,
+                    "Login Success (under the threshold) rides the raw form — data-length zero");
+            assertEquals(Protocol18.S2C_LOGIN_SUCCESS, ByteBufOps.readVarInt(successBody),
+                    "the second frame is Login Success, the reference's own order");
+            String uuid = ByteBufOps.readString(successBody, 64);
+            String name = ByteBufOps.readString(successBody, 64);
+            assertEquals("Compressed", name);
+            assertEquals(java.util.UUID.nameUUIDFromBytes(
+                            ("OfflinePlayer:Compressed").getBytes(StandardCharsets.UTF_8)).toString(),
+                    uuid);
+            assertEquals(0, successBody.readableBytes(),
+                    "the Login Success body is exactly the reference's two strings");
+        }
+        assertEquals(ServerState.RUNNING, canonicalServer.state());
+    }
+
+    /**
+     * The canonical branch's whole join burst rides the two-varint form:
+     * every frame inflates through the independent client-side walk (a
+     * fresh Inflater per frame, the size checked against the declared
+     * data-length) and parses as [packet-id varint][body] with a known
+     * play id — the over-threshold chunk frames arrive DEFLATED (a
+     * non-zero data-length whose wire size is smaller than the payload),
+     * and the below-threshold frames ride the raw zero-length form.
+     */
+    @Test
+    void theCanonicalJoinBurstRidesCompressedFramesThatInflateByteExact() throws Exception {
+        Set<Integer> knownIds = knownPlayIds();
+        try (TestClient18 client = new TestClient18("127.0.0.1", canonicalAdapter.boundPort())) {
+            client.sendHandshake(47, 2);
+            client.sendLoginStart("Inflater");
+            client.readPacket(); // the exchange (0x03) — pinned by the test above
+            client.armCompression();
+            client.readPacket(); // Login Success (0x02, raw ride)
+
+            int frames = 0;
+            int deflatedFrames = 0;
+            int rawRideFrames = 0;
+            boolean joinGameChecked = false;
+            long deadline = System.currentTimeMillis() + 20_000;
+            while (System.currentTimeMillis() < deadline) {
+                byte[] frame = client.readPacket();
+                frames++;
+                ByteBuf wire = Unpooled.wrappedBuffer(frame);
+                int dataLength = ByteBufOps.readVarInt(wire);
+                byte[] payload;
+                if (dataLength == 0) {
+                    payload = new byte[wire.readableBytes()];
+                    wire.readBytes(payload);
+                    rawRideFrames++;
+                } else {
+                    byte[] compressed = new byte[wire.readableBytes()];
+                    wire.readBytes(compressed);
+                    assertTrue(compressed.length < dataLength,
+                            "a deflated frame's wire size is smaller than its payload (frame "
+                                    + frames + ": " + compressed.length + " vs " + dataLength + ")");
+                    Inflater inflater = new Inflater();
+                    inflater.setInput(compressed);
+                    payload = new byte[dataLength];
+                    assertEquals(dataLength, inflater.inflate(payload),
+                            "the frame inflates to exactly its declared data length");
+                    assertTrue(inflater.finished(), "the zlib stream is whole");
+                    inflater.reset();
+                    deflatedFrames++;
+                }
+                wire.release();
+                ByteBuf body = Unpooled.wrappedBuffer(payload);
+                int packetId = ByteBufOps.readVarInt(body);
+                assertTrue(knownIds.contains(packetId),
+                        "frame " + frames + " inflates to a known play id (0x"
+                                + Integer.toHexString(packetId) + ")");
+                if (packetId == Protocol18.S2C_JOIN_GAME && !joinGameChecked) {
+                    body.readInt();          // entity id
+                    body.readByte();         // gamemode
+                    body.readByte();         // dimension
+                    body.readByte();         // difficulty
+                    body.readByte();         // max players (legacy)
+                    ByteBufOps.readString(body, 32); // level type
+                    body.readBoolean();      // reduced debug info
+                    assertEquals(0, body.readableBytes(),
+                            "Join Game's body parses to the exact frame end once inflated");
+                    joinGameChecked = true;
+                }
+                if (packetId == Protocol18.S2C_PLAYER_POSITION_AND_LOOK
+                        && joinGameChecked && deflatedFrames > 0) {
+                    break; // the whole burst rode through, chunks deflated and inflated back
+                }
+            }
+            assertTrue(joinGameChecked, "the Join Game frame was observed and pinned");
+            assertTrue(deflatedFrames >= 1,
+                    "at least one over-threshold frame arrived deflated: "
+                            + deflatedFrames + " of " + frames + " frames");
+            assertTrue(rawRideFrames >= 1,
+                    "the below-threshold frames ride the raw zero-length form: "
+                            + rawRideFrames + " of " + frames + " frames");
+        }
+    }
+
+    // ------------------------------------------------------------------ shared
+
+    /** The play-state ids this join burst can carry (Protocol18's own set). */
+    private static Set<Integer> knownPlayIds() {
+        return Set.of(
+                Protocol18.S2C_JOIN_GAME, Protocol18.S2C_SERVER_DIFFICULTY,
+                Protocol18.S2C_SPAWN_POSITION, Protocol18.S2C_TIME_UPDATE,
+                Protocol18.S2C_CHUNK_DATA, Protocol18.S2C_PLAYER_POSITION_AND_LOOK,
+                Protocol18.S2C_CHUNK_BULK, Protocol18.S2C_MULTI_BLOCK_CHANGE,
+                Protocol18.S2C_CHAT, Protocol18.S2C_PLAYER_INFO,
+                Protocol18.S2C_PLUGIN_MESSAGE, Protocol18.S2C_WINDOW_ITEMS,
+                Protocol18.S2C_UPDATE_HEALTH, Protocol18.S2C_SET_EXPERIENCE,
+                Protocol18.S2C_PLAYER_ABILITIES, Protocol18.S2C_HELD_ITEM_CHANGE,
+                Protocol18.S2C_WORLD_BORDER, Protocol18.S2C_PLAYER_LIST_HEADER_FOOTER,
+                Protocol18.S2C_KEEP_ALIVE, Protocol18.S2C_CHANGE_GAME_STATE,
+                Protocol18.S2C_SPAWN_ENTITY, Protocol18.S2C_SPAWN_MOB,
+                Protocol18.S2C_ENTITY_METADATA, Protocol18.S2C_ENTITY_VELOCITY,
+                Protocol18.S2C_SCOREBOARD_OBJECTIVE, Protocol18.S2C_UPDATE_SCORE,
+                Protocol18.S2C_DISPLAY_SCOREBOARD, Protocol18.S2C_TEAMS,
+                Protocol18.S2C_NAMED_SPAWN,
+                Protocol18.S2C_ATTACH_ENTITY, Protocol18.S2C_ENTITY_TELEPORT);
     }
 
     private static int countChar(String value, char c) {

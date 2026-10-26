@@ -58,7 +58,10 @@ public final class ConfigLoader {
                 intOf(properties, "query.port", UNSET_REMOTE_PORT_FALLBACK),
                 string(properties, "resource-pack", ""),
                 string(properties, "resource-pack-hash", ""),
-                longOf(properties, "max-tick-time", EngineConfig.DEFAULT_MAX_TICK_TIME_MILLIS));
+                longOf(properties, "max-tick-time", EngineConfig.DEFAULT_MAX_TICK_TIME_MILLIS),
+                boolOf(properties, "online-mode", true),
+                intOf(properties, "network-compression-threshold",
+                        EngineConfig.DEFAULT_COMPRESSION_THRESHOLD));
     }
 
     /**

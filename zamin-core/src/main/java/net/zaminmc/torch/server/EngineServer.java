@@ -4244,6 +4244,29 @@ public final class EngineServer implements Server, EngineBridge {
         return difficulty;
     }
 
+    /**
+     * The online-mode gate (Wave ON-1, DEC-001 decided 2026-10-26): the
+     * boot-frozen {@code online-mode} row — DedicatedServer line 103's own
+     * {@code getBoolean("online-mode", true)} default. True arms the login
+     * walk's whole authentication arm (the encryption pair, the AES/CFB8
+     * stream layer, the session-service hasJoined consult); false is the
+     * offline branch — also vanilla's own shape.
+     */
+    public boolean onlineMode() {
+        return config.onlineMode();
+    }
+
+    /**
+     * The login compression exchange's threshold (Wave ON-1a): the
+     * boot-frozen {@code network-compression-threshold} row over
+     * MinecraftServer line 1122's 256 default (DedicatedServer line 451
+     * reads the row). Any negative value disables the exchange entirely —
+     * the reference's own {@code threshold >= 0} gates, carried unvalidated.
+     */
+    public int networkCompressionThreshold() {
+        return config.networkCompressionThreshold();
+    }
+
     /** The simulation-owned mob manager (present once the world is up). */
     public MobManager mobs() {
         return mobManager;

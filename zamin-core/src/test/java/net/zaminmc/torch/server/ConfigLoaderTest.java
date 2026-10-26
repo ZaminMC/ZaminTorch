@@ -50,6 +50,56 @@ class ConfigLoaderTest {
         assertEquals("flat", config.levelType());
     }
 
+    /**
+     * Wave ON-1's two rows: the online-mode gate (DedicatedServer line
+     * 103's {@code getBoolean("online-mode", true)} — the reference's own
+     * default is TRUE, the missing-row law this pins) and the compression
+     * threshold (DedicatedServer line 451 over MinecraftServer line
+     * 1122's 256 — a negative value disables the exchange, the reference's
+     * own {@code threshold >= 0} gate carried unvalidated).
+     */
+    @Test
+    void onlineModeAndCompressionRowsParseWithTheReferenceDefaults() {
+        Properties properties = new Properties();
+        // Neither row present: the reference's own defaults.
+        EngineConfig absent = ConfigLoader.fromProperties(properties);
+        assertTrue(absent.onlineMode(),
+                "a missing online-mode row defaults TRUE (DedicatedServer line 103)");
+        assertEquals(256, absent.networkCompressionThreshold(),
+                "a missing threshold row defaults 256 (MinecraftServer line 1122)");
+
+        properties.setProperty("online-mode", "false");
+        properties.setProperty("network-compression-threshold", "512");
+        EngineConfig present = ConfigLoader.fromProperties(properties);
+        assertEquals(false, present.onlineMode());
+        assertEquals(512, present.networkCompressionThreshold());
+
+        // The disabled spelling: any negative value (the reference's own
+        // law — -1 and -5 behave identically, never a boot failure).
+        properties.setProperty("network-compression-threshold", "-1");
+        assertEquals(-1, ConfigLoader.fromProperties(properties).networkCompressionThreshold());
+
+        // The first-boot template carries the reference's resolved rows.
+        assertEquals("online-mode=true", templateRow("online-mode"),
+                "the template writes the vanilla TRUE default (first boot's own write)");
+        assertEquals("network-compression-threshold=256", templateRow("network-compression-threshold"));
+    }
+
+    private String templateRow(String key) {
+        try {
+            Path file = tempDir.resolve("server.properties");
+            ServerLayout.ensureServerProperties(tempDir);
+            for (String line : Files.readAllLines(file)) {
+                if (line.startsWith(key + "=")) {
+                    return line;
+                }
+            }
+            return "<absent>";
+        } catch (Exception e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
     @Test
     void emptyServerIpMeansWildcard() {
         Properties properties = new Properties();

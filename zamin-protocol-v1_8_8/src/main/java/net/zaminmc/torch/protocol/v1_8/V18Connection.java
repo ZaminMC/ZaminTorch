@@ -289,11 +289,25 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             sendLoginDisconnect(channel, "Invalid username");
             return;
         }
-        // Offline-mode identity: the vanilla offline player UUID convention.
+        // Offline-mode identity: the vanilla offline player UUID convention
+        // (ServerLoginNetworkHandler.createFakeProfile line 200's own law).
         UUID offlineUuid = UUID.nameUUIDFromBytes(
                 ("OfflinePlayer:" + username).getBytes(StandardCharsets.UTF_8));
+        acceptLogin(channel, username, offlineUuid);
+    }
 
-        EngineBridge.JoinResult result = engine.joinRequest(this, username, offlineUuid);
+    /**
+     * The reference's acceptLogin walk (ServerLoginNetworkHandler lines
+     * 81-113): the engine's join consult (the canLogin gates — bans,
+     * whitelist, the player ceiling), then — on acceptance — the
+     * compression exchange BEFORE Login Success, then the success itself
+     * with the join burst in its completion. The ON-1a lane added the
+     * exchange arm; the online-mode branch (the encryption pair, the
+     * hasJoined consult) rides ON-1b's stage machine in front of this
+     * walk.
+     */
+    private void acceptLogin(Channel channel, String username, UUID uuid) {
+        EngineBridge.JoinResult result = engine.joinRequest(this, username, uuid);
         if (result instanceof EngineBridge.Rejected rejected) {
             sendLoginDisconnect(channel, rejected.reason());
             return;
@@ -301,9 +315,60 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         EngineBridge.Accepted accepted = (EngineBridge.Accepted) result;
         this.session = accepted.session();
 
+        // The compression exchange (the reference acceptLogin lines 91-101):
+        // the Set Compression packet rides BEFORE Login Success whenever the
+        // configured threshold is >= 0, and the codec installs only once the
+        // exchange frame is out — the 0x03 itself rides uncompressed, every
+        // later frame (Login Success included) carries the data-length
+        // varint. The order is structural, not listener-timing luck: on the
+        // event loop the write's pipeline walk completes inline before the
+        // codec lands; off it (never in practice — the login walk is inbound
+        // driven), the install task queues behind the queued write.
+        int threshold = engine.networkCompressionThreshold();
+        if (threshold >= 0) {
+            ByteBuf exchange = Unpooled.buffer(8);
+            ByteBufOps.writeVarInt(exchange, Protocol18.S2C_LOGIN_SET_COMPRESSION);
+            ByteBufOps.writeVarInt(exchange, threshold);
+            Runnable afterExchange = () -> {
+                installCompression(channel, threshold);
+                sendLoginSuccess(channel, accepted, username, uuid);
+            };
+            if (channel.eventLoop().inEventLoop()) {
+                channel.writeAndFlush(exchange);
+                afterExchange.run();
+            } else {
+                channel.writeAndFlush(exchange)
+                        .addListener(future -> channel.eventLoop().execute(afterExchange));
+            }
+        } else {
+            sendLoginSuccess(channel, accepted, username, uuid);
+        }
+    }
+
+    /**
+     * The codec install (Connection.setCompressionThreshold lines 325-346's
+     * add-branches): decompress after the frame decoder, compress after
+     * the frame encoder — the outbound walk (tail to head) then visits
+     * compress BEFORE the length prefix while the packet hook keeps its
+     * plaintext view ahead of it. Idempotent (the reference's own
+     * instanceof guard law).
+     */
+    private void installCompression(Channel channel, int threshold) {
+        if (channel.pipeline().get(CompressionCodec.DECODER_NAME) == null) {
+            channel.pipeline().addAfter(FrameCodec.DECODER_NAME, CompressionCodec.DECODER_NAME,
+                    new CompressionCodec.Decoder(threshold));
+        }
+        if (channel.pipeline().get(CompressionCodec.ENCODER_NAME) == null) {
+            channel.pipeline().addAfter(FrameCodec.ENCODER_NAME, CompressionCodec.ENCODER_NAME,
+                    new CompressionCodec.Encoder(threshold));
+        }
+    }
+
+    private void sendLoginSuccess(Channel channel, EngineBridge.Accepted accepted,
+                                   String username, UUID uuid) {
         ByteBuf success = Unpooled.buffer(96);
         ByteBufOps.writeVarInt(success, Protocol18.S2C_LOGIN_SUCCESS);
-        ByteBufOps.writeString(success, offlineUuid.toString());
+        ByteBufOps.writeString(success, uuid.toString());
         ByteBufOps.writeString(success, username);
         channel.writeAndFlush(success).addListener(future -> {
             if (future.isSuccess()) {

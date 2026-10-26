@@ -97,6 +97,31 @@ import java.util.Objects;
  *                        crash report under {@code crash-reports/} and
  *                        force-exits the JVM — the reference
  *                        ServerWatchdog's own law.
+ * @param onlineMode     the {@code online-mode} property (DedicatedServer
+ *                        line 103: {@code getBoolean("online-mode", true)})
+ *                        — Wave ON-1's row (DEC-001, decided 2026-10-26):
+ *                        when true the login walk performs the reference's
+ *                        whole authentication arm (the Encryption
+ *                        Request/Response pair, the AES/CFB8 stream layer,
+ *                        the session-service hasJoined consult); when false
+ *                        the offline branch — also vanilla's own shape
+ *                        (ServerLoginNetworkHandler.handleHello line 130's
+ *                        else-arm). The default is the reference's own true.
+ * @param networkCompressionThreshold the {@code network-compression-threshold}
+ *                        property (DedicatedServer line 451:
+ *                        {@code getInt("network-compression-threshold",
+ *                        super.getNetworkCompressionThreshold())} over
+ *                        MinecraftServer line 1122's 256) — the login
+ *                        compression exchange's threshold. {@code >= 0}
+ *                        arms the Set Compression packet (S2C login 0x03)
+ *                        before Login Success and installs the zlib
+ *                        CompressionDecoder/Encoder pair from then on; any
+ *                        negative value disables the exchange entirely (the
+ *                        reference's own {@code threshold >= 0} gates,
+ *                        Connection.setCompressionThreshold lines 325-346
+ *                        and ServerLoginNetworkHandler.acceptLogin line 91
+ *                        — carried unvalidated, the reference's own law:
+ *                        -1 and -5 behave identically).
  */
 public record EngineConfig(
         String host,
@@ -121,7 +146,9 @@ public record EngineConfig(
         int queryPort,
         String resourcePackUrl,
         String resourcePackHash,
-        long maxTickTimeMillis
+        long maxTickTimeMillis,
+        boolean onlineMode,
+        int networkCompressionThreshold
 ) {
 
     /**
@@ -157,6 +184,19 @@ public record EngineConfig(
      * ({@code getMaxTickTime() > 0L}) never starts the watchdog thread at 0.
      */
     public static final long WATCHDOG_DISABLED = 0L;
+
+    /**
+     * The compression exchange's default threshold: MinecraftServer line
+     * 1122's own {@code 256} (the dedicated row reads over it).
+     */
+    public static final int DEFAULT_COMPRESSION_THRESHOLD = 256;
+
+    /**
+     * The compression exchange's disabled marker: any negative value
+     * disables (the reference's {@code threshold >= 0} gates; -1 is the
+     * conventional spelling).
+     */
+    public static final int COMPRESSION_DISABLED = -1;
 
     /** Compatibility constructor for callers that do not care about mode/type. */
     public EngineConfig(String host, int port, String worldName, String motd,
@@ -235,6 +275,31 @@ public record EngineConfig(
                 queryPort, resourcePackUrl, resourcePackHash, DEFAULT_MAX_TICK_TIME_MILLIS);
     }
 
+    /**
+     * Compatibility constructor for the pre-ON-1 canonical shape (the
+     * 23-arg form): the online-mode row rides its pre-wave OFFLINE value
+     * and the compression exchange its DISABLED one — the historical wire
+     * the existing callers were written against (offline login, no 0x03
+     * exchange, one-varint framing). The operator path (the properties
+     * loader, the first-boot template) carries the vanilla defaults —
+     * online-mode=true (DedicatedServer line 103), threshold=256
+     * (MinecraftServer line 1122).
+     */
+    public EngineConfig(String host, int port, String worldName, String motd,
+                        int maxPlayers, int viewDistance, int tickRateHz, String dataDir,
+                        GameMode gamemode, boolean pvp, String levelType, boolean whiteList,
+                        int regionSizeChunks, boolean enableCommandBlocks,
+                        int spawnProtectionRadius, boolean enableRcon, String rconPassword,
+                        int rconPort, boolean enableQuery, int queryPort,
+                        String resourcePackUrl, String resourcePackHash,
+                        long maxTickTimeMillis) {
+        this(host, port, worldName, motd, maxPlayers, viewDistance, tickRateHz, dataDir,
+                gamemode, pvp, levelType, whiteList, regionSizeChunks, enableCommandBlocks,
+                spawnProtectionRadius, enableRcon, rconPassword, rconPort, enableQuery,
+                queryPort, resourcePackUrl, resourcePackHash, maxTickTimeMillis,
+                false, COMPRESSION_DISABLED);
+    }
+
     public EngineConfig {
         Objects.requireNonNull(host, "host");
         Objects.requireNonNull(worldName, "worldName");
@@ -290,7 +355,10 @@ public record EngineConfig(
     public static EngineConfig defaults() {
         return new EngineConfig("0.0.0.0", 25565, "world",
                 "A ZaminTorch Server", 20, 4, 20, ".", GameMode.SURVIVAL, true,
-                "normal", false, WHOLE_WORLD_REGION_SIZE, false);
+                "normal", false, WHOLE_WORLD_REGION_SIZE, false,
+                DEFAULT_SPAWN_PROTECTION, false, "", UNSET_REMOTE_PORT, false,
+                UNSET_REMOTE_PORT, "", "", DEFAULT_MAX_TICK_TIME_MILLIS,
+                true, DEFAULT_COMPRESSION_THRESHOLD);
     }
 
     /**
@@ -308,12 +376,14 @@ public record EngineConfig(
         // as loaded (PR #43 branched before #39 added the pair; the 23-arg
         // form it was written against no longer compiles post-#39). The
         // watchdog's row rides the same law (the pre-loaded threshold
-        // survives a --port override — never silently reset to the default).
+        // survives a --port override — never silently reset to the default),
+        // and the ON-1 pair rides it too (the online-mode gate and the
+        // compression threshold survive a --port override unchanged).
         return new EngineConfig(host, port, worldName, motd, maxPlayers, viewDistance,
                 tickRateHz, dataDir, gamemode, pvp, levelType, whiteList, regionSizeChunks,
                 enableCommandBlocks, spawnProtectionRadius, enableRcon, rconPassword,
                 rconPort, enableQuery, queryPort, resourcePackUrl, resourcePackHash,
-                maxTickTimeMillis);
+                maxTickTimeMillis, onlineMode, networkCompressionThreshold);
     }
 
     /** The world folder (the historical {@code world/} of the Paper layout). */

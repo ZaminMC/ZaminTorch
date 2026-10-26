@@ -325,8 +325,22 @@ final class Protocol18 {
     // State-transition ids
     static final int C2S_HANDSHAKE = 0x00;
     static final int C2S_LOGIN_START = 0x00;
+    // The encryption pair (Wave ON-1b, ServerLoginNetworkHandler.handleHello/
+    // handleKey): the request's wire form is HelloS2CPacket's own — the
+    // server-id string, the DER-encoded public key byte array, the 4-byte
+    // nonce byte array; the response's is KeyC2SPacket's — the RSA-encrypted
+    // shared secret and verify-token byte arrays.
+    static final int S2C_LOGIN_ENCRYPTION_REQUEST = 0x01;
+    static final int C2S_LOGIN_ENCRYPTION_RESPONSE = 0x01;
     static final int S2C_LOGIN_DISCONNECT = 0x00;
     static final int S2C_LOGIN_SUCCESS = 0x02;
+    // The compression exchange (Wave ON-1a, CompressionThresholdS2CPacket
+    // lines 20-26): one varint — the threshold. Sent BEFORE Login Success
+    // whenever the configured threshold is >= 0 (ServerLoginNetworkHandler
+    // .acceptLogin lines 91-101); from then every frame is
+    // length-varint + data-length-varint + payload (zlib when the data
+    // length is >= threshold, raw after a zero data-length varint below it).
+    static final int S2C_LOGIN_SET_COMPRESSION = 0x03;
     static final int S2C_STATUS_RESPONSE = 0x00;
     static final int C2S_STATUS_REQUEST = 0x00;
     static final int C2S_STATUS_PING = 0x01;

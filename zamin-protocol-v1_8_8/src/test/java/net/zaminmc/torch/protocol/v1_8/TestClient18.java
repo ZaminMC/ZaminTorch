@@ -68,6 +68,23 @@ final class TestClient18 implements AutoCloseable {
     }
 
     /**
+     * The compression exchange's client-side arm (Wave ON-1a): once the
+     * server's Set Compression (login 0x03) has been received, a real
+     * client arms its OWN outbound compression — every frame it sends
+     * carries the data-length varint like the server's do. The minimal
+     * legal client form is the raw ride (data-length zero, payload
+     * verbatim), which is exactly what this fixture does: the test's
+     * small C2S packets never reach the threshold, and a raw ride is
+     * byte-legal at any size below it.
+     */
+    private boolean compressionArmed = false;
+
+    /** Arms the outbound compression form (after receiving Set Compression). */
+    void armCompression() {
+        compressionArmed = true;
+    }
+
+    /**
      * Drains the give ghost's wire wake — the vanilla makeFakeItem quirk
      * the aligned /give carries (ML-008): a full-fit grant drops a
      * one-tick ghost, so the wire sees a Spawn Entity, its Entity
@@ -159,7 +176,10 @@ final class TestClient18 implements AutoCloseable {
 
     /** Sends one framed packet from the given payload. */
     void sendPacket(byte[] payload) throws IOException {
-        writeVarInt(out, payload.length);
+        writeVarInt(out, payload.length + (compressionArmed ? 1 : 0));
+        if (compressionArmed) {
+            writeVarInt(out, 0); // the raw ride's zero data-length
+        }
         out.write(payload);
         out.flush();
     }

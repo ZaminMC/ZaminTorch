@@ -209,7 +209,7 @@ public final class ServerLayout {
                 white-list=%s
                 region-size-chunks=%d
                 generate-structures=true
-                online-mode=false
+                online-mode=true
                 max-build-height=256
                 level-seed=
                 motd=%s
