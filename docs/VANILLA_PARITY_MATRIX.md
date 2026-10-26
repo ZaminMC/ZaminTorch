@@ -16,7 +16,7 @@ cycle (entity/block/item/packet/effect class censuses); engine side from
 
 | Family | Reference census | Engine state | Coverage |
 |---|---|---|---|
-| C2S packets | 28 classes (1 handshake, 2 query, 2 login, 23 play) | 30 constants; 27/28 mapped 1:1 (all 23 play + handshake + query pair + LOGIN_START) | PARTIAL — `KeyC2SPacket` (encryption response) absent = offline-mode only → ML-020/DEC-001 |
+| C2S packets | 28 classes (1 handshake, 2 query, 2 login, 23 play) | 30 constants; 27/28 mapped 1:1 (all 23 play + handshake + query pair + LOGIN_START) | PARTIAL — `KeyC2SPacket` (encryption response) absent = offline-mode only → ML-020/DEC-001 **decided 2026-10-26: Wave ON-1 implements it whole** |
 | S2C packets | 77 classes (3 login, 2 query, 72 play) | 67 constants, all IDs verified against protocol 47 | PARTIAL — absent: 0x20 Entity Properties (ML-011), 0x36 Sign Editor Open (ML-003), 0x0A Use Bed (ML-010), 0x41 Server Difficulty (ML-012), 0x43 Camera (ML-018), 0x48 Resource Pack Send (ML-017), 0x22 Multi Block Change + 0x26 Chunk Bulk (ML-019, batching only); login CompressionThreshold handled by FrameCodec (wire form remainder check R-3) |
 | Handshake/login/status | handshake → status/login state machine | `V18Connection` state switch verified | VERIFIED-EQ (offline-mode shape) |
 | Keepalive/latency | KeepAlive both ways | C2S/S2C KEEP_ALIVE wired | VERIFIED-EQ (timeout behavior remainder R-4) |

@@ -364,7 +364,12 @@ I=infra/CI/release, S=security/boundary.
   authenticated public deployment.
 - Decision needed from owner: declare offline-mode the 1.8.8-era scope
   (record as intentional difference) or schedule online-mode as a wave.
-- Status: decision item + confirmed absence. Confidence: high.
+- **Decision landed 2026-10-26 (DEC-001): online-mode implemented whole
+  as Wave ON-1 — the encryption pair, the AES/CFB8 stream layer, the
+  session-service hasJoined consult, and the compression exchange this
+  row's remainder flagged, with offline-mode kept as the
+  online-mode=false branch.**
+- Status: DECIDED (Wave ON-1). Confidence: high.
 
 ### ML-021 — 0x0C Named Entity Spawn metadata chokes an independent parser (cycle-3 lead, unresolved)
 - Category: suspected wire defect. Layers: P.
@@ -476,16 +481,30 @@ increment state lives in KIGPAPER_PATCH_ACCOUNTING.md's coverage statement.
 
 ## Deferred / not-applicable (recorded to prevent re-litigation)
 
-- DEC-001 (=ML-020): online-mode scope decision — owner.
-- DEC-003: **fork-divergence adoption policy (KigPaper family)** — KigPaper's
-  stated policy is that vanilla-gameplay alterations are config-gated (bed
-  action-bar messages N1, `doWaterFreezing` N5, plus the ~95 census-counted
-  "Configurable-*" knobs across the two server stacks). Torch's default is
-  the reference 1.8.8 behavior (§17); each knob is recorded as a fork
-  divergence, never auto-owed. The ONE decision: whether the owner ever wants
-  a KigPaper-style configuration surface for these (a config family), and if
-  so at which maturity point. Until answered: `Different by design / not
-  owed`; the per-patch deep classification lists each knob under this ID.
+- DEC-001 (=ML-020): online-mode scope — **DECIDED 2026-10-26 (the
+  owner's priorities: 1:1, reliability, performance, actualness):
+  IMPLEMENT online-mode whole, as Wave ON-1.** Offline-only is not the
+  vanilla shape — the dedicated server's own default is
+  `getBoolean("online-mode", true)` (DedicatedServer line 103), and the
+  Encryption Request/Response pair (S2C/C2S 0x01) plus the AES/CFB8
+  stream layer are part of the protocol-47 wire surface every real
+  client implements. The wave carries the session-service hasJoined
+  consult (the real HTTPS call — no stubs), the reference's exact
+  failure strings ("Failed to verify username!", "Authentication
+  servers are down. Please try again later, sorry!"), and the
+  compression remainder the row flagged (the LoginCompressionWireTest
+  divergence pin gets rewritten with this decision as its authority).
+  Offline-mode stays as the `online-mode=false` branch — also vanilla.
+- DEC-003: **fork-divergence adoption policy (KigPaper family)** —
+  **DECIDED 2026-10-26 (the owner's priorities): NO KigPaper
+  configuration family, ever.** Torch owns vanilla's own
+  `server.properties` rows only (the two it was missing — online-mode
+  and network-compression-threshold — land with Wave ON-1, Dedicated
+  lines 103/451 with the MinecraftServer 256 default); KigPaper's ~95
+  census-counted "Configurable-*" gameplay knobs stay `Different by
+  design / not owed`, each recorded as a fork divergence, never
+  auto-owed. The per-patch deep classification's knob listing under
+  this ID is now a CLOSED record (the reference-wins law, standing).
 - ML-023 (tracking row): CLOSED increment 3 — the 418 server-stack patches
   dispositioned (130 knob/171 bugfix-div/70 api/24 perf/23 infra; scripts +
   deep-pass JSON + 418-row table + bugfix class map committed); the
@@ -493,9 +512,16 @@ increment state lives in KIGPAPER_PATCH_ACCOUNTING.md's coverage statement.
   reference bands exactly). Fork-derived waves can now be planned; no
   Torch debt was created by the fork audit (knobs=DEC-003, bugfix-divs
   reference-wins, api=DEC-002, perf=ML-007-gated).
-- DEC-002: adapter-era surfaces (Bukkit Timings API stub-or-implement,
-  plugin gating manifest) — decide when §28.7 activates; Folia A1/A3; KigPaper
-  API stacks (107 patches, enumeration in the census).
+- DEC-002: adapter-era surfaces — **DECIDED 2026-10-26 (the owner's
+  priorities: 1:1, reliability, performance, actualness): STAY NATIVE,
+  indefinitely.** §28.7 does not activate; the Bukkit Timings API stays
+  ABSENT, not stubbed (absent beats stubbed — a stub API is a lie
+  plugins compile against); the plugin gating manifest stays unwritten
+  until a real plugin host exists; Folia A1/A3 and the KigPaper API
+  stacks (107 patches) remain the closed enumeration they are. The
+  adapter era reopens only on an explicit owner reversal with a named
+  consumer; until then the §27.1 order stands and `zamin-bukkit` stays
+  the not-runtime-activated honest-shim record it is.
 - §28.7 Bukkit adapter: deferred per §27.1 (README row); prerequisites
   inventoried in COMPATIBILITY_MATRIX.md; NOT activated by this audit.
 - Concurrency Phases 5-8: gated on §22 measured evidence (ML-006/ML-007
