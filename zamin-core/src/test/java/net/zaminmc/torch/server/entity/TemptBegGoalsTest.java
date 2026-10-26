@@ -225,39 +225,47 @@ class TemptBegGoalsTest {
 
     @Test
     void theGoalsRideTheStandardSelector() {
-        // The selector's own band order: the zombie's door break (VIII9)
-        // at band 1 after the panic, then beg (additive) before tempt
-        // before flee, then the tameable family's follow + perch (TF-1)
-        // before the rabbit's garden raid (Slice 21d) below the
-        // stroll's exclusive claim.
+        // The selector's own band order: the float and the sun-shade flag
+        // (TF-7f, additive — the reference's own swim-before-avoid order)
+        // before the zombie's door break (VIII9) at band 1 after the
+        // panic, then beg (additive) before tempt before the escape and
+        // flee, then the tameable family's follow + perch (TF-1) before
+        // the rabbit's garden raid (Slice 21d) below the stroll's
+        // exclusive claim.
         GoalSelector selector = MobGoals.standard();
         var snapshot = selector.snapshot();
         // The VT-7k village return joins at the stroll's band, before it
         // (the reference's own order: the village walk 5 over the plain
         // wander 9); the TF-1 pair joins before both (the reference's own
         // order: the follow 5 over the perch 6 over the wander 7/10).
-        assertEquals(12, snapshot.size(),
-                "float, panic, break_door, breed, beg, tempt, flee, follow_owner,"
-                        + " sit_on_block, rabbit_raid_farm, village_return, stroll");
-        assertEquals("break_door", snapshot.get(2).goalId());
-        assertEquals(1, snapshot.get(2).priority());
-        assertTrue(snapshot.get(2).exclusive());
-        assertEquals("beg", snapshot.get(4).goalId());
-        assertFalse(snapshot.get(4).exclusive(), "the beg is LOOK-only, additive");
-        assertEquals("tempt", snapshot.get(5).goalId());
-        assertTrue(snapshot.get(5).exclusive());
-        assertEquals("flee_player", snapshot.get(6).goalId());
+        assertEquals(14, snapshot.size(),
+                "float, avoid_sunlight, panic, break_door, breed, beg, tempt,"
+                        + " escape_sunlight, flee_player, follow_owner, sit_on_block,"
+                        + " rabbit_raid_farm, village_return, stroll");
+        assertEquals("avoid_sunlight", snapshot.get(1).goalId());
+        assertEquals(0, snapshot.get(1).priority());
+        assertFalse(snapshot.get(1).exclusive(), "the sun-shade flag is additive");
+        assertEquals("break_door", snapshot.get(3).goalId());
+        assertEquals(1, snapshot.get(3).priority());
+        assertTrue(snapshot.get(3).exclusive());
+        assertEquals("beg", snapshot.get(5).goalId());
+        assertFalse(snapshot.get(5).exclusive(), "the beg is LOOK-only, additive");
+        assertEquals("tempt", snapshot.get(6).goalId());
         assertTrue(snapshot.get(6).exclusive());
-        assertEquals("follow_owner", snapshot.get(7).goalId());
+        assertEquals("escape_sunlight", snapshot.get(7).goalId());
         assertTrue(snapshot.get(7).exclusive());
-        assertEquals("sit_on_block", snapshot.get(8).goalId());
+        assertEquals("flee_player", snapshot.get(8).goalId());
         assertTrue(snapshot.get(8).exclusive());
-        assertEquals("rabbit_raid_farm", snapshot.get(9).goalId());
+        assertEquals("follow_owner", snapshot.get(9).goalId());
         assertTrue(snapshot.get(9).exclusive());
-        assertEquals("village_return", snapshot.get(10).goalId());
+        assertEquals("sit_on_block", snapshot.get(10).goalId());
         assertTrue(snapshot.get(10).exclusive());
-        assertEquals("stroll", snapshot.get(11).goalId());
-        assertEquals(4, snapshot.get(10).priority());
+        assertEquals("rabbit_raid_farm", snapshot.get(11).goalId());
+        assertTrue(snapshot.get(11).exclusive());
+        assertEquals("village_return", snapshot.get(12).goalId());
+        assertTrue(snapshot.get(12).exclusive());
+        assertEquals("stroll", snapshot.get(13).goalId());
+        assertEquals(4, snapshot.get(12).priority());
     }
 
     @Test

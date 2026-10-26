@@ -32,6 +32,34 @@ final class MobGoals {
         }
     };
 
+    /**
+     * Priority 0, additive, after the float (TF-7f — the skeleton's
+     * AvoidSunlightGoal, reference/1.8.8 net/minecraft/entity/ai/goal/
+     * AvoidSunlightGoal 1:1; the reference's own relative order, the
+     * swim before the sun-shade, SkeletonEntity lines 47-49): a pure
+     * FLAG goal — while the sun stands it arms the navigation's
+     * avoid-sunlight trim (start line 23) and drives nothing else; the
+     * mind-tick default clear carries the stop() arm (line 27) when
+     * the sun sets. The ADDITIVE seat is the reference's own
+     * concurrency: the goal sets no mutex flags, so it runs beside
+     * whatever exclusive goal owns the body — the panic, the escape,
+     * the stroll — and every path adopted under the sun gets trimmed
+     * at the sky boundary (GroundPathNavigation.trimPath lines 61-77,
+     * the cut at the last shaded node before the first sky-exposed
+     * one — the reference's truncate(i - 1)).
+     */
+    static final MobGoal AVOID_SUNLIGHT = new MobGoal() {
+        @Override public String goalId() { return "avoid_sunlight"; }
+        @Override public int priority() { return 0; }
+        @Override public boolean exclusive() { return false; }
+        @Override public boolean canUse(MobEntity mob, boolean night) {
+            return mob.goalAvoidSunlightCanUse();
+        }
+        @Override public void tick(MobEntity mob, boolean night) {
+            mob.goalAvoidSunlightTick();
+        }
+    };
+
     /** Priority 1, exclusive: the hurt panic outranks everything but floating. */
     static final MobGoal PANIC = new MobGoal() {
         @Override public String goalId() { return "panic"; }
@@ -322,8 +350,8 @@ final class MobGoals {
      * (kind-gated, never contending with the tameable band).
      */
     static GoalSelector standard() {
-        return new GoalSelector(List.of(FLOAT, PANIC, BREAK_DOOR, BREED, BEG, TEMPT,
-                ESCAPE_SUNLIGHT, FLEE_PLAYER, FOLLOW_OWNER, SIT_ON_BLOCK, RABBIT_RAID_FARM,
-                VILLAGE_RETURN, RANDOM_STROLL));
+        return new GoalSelector(List.of(FLOAT, AVOID_SUNLIGHT, PANIC, BREAK_DOOR, BREED,
+                BEG, TEMPT, ESCAPE_SUNLIGHT, FLEE_PLAYER, FOLLOW_OWNER, SIT_ON_BLOCK,
+                RABBIT_RAID_FARM, VILLAGE_RETURN, RANDOM_STROLL));
     }
 }

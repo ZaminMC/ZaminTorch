@@ -16,8 +16,10 @@ package net.zaminmc.torch.server.entity.ai.pathing;
  * target and its y is informational. The vanilla chunk-region view
  * ({@code WorldRegion} at followRange + 16) is unnecessary here — the
  * engine's {@link PathWorld} answers bounds-safe for the whole world. The
- * zombie-on-chicken {@code canUpdatePath} arm and the sun-avoidance
- * {@code trimPath} belong to goals the engine has not ported yet.</p>
+ * zombie-on-chicken {@code canUpdatePath} arm belongs to a goal the engine
+ * has not ported yet; the sun-avoidance {@code trimPath} landed with the
+ * skeleton's AvoidSunlightGoal (TF-7f) — the flag arm and the trim below,
+ * GroundPathNavigation lines 61-77 and 215-217 1:1.</p>
  */
 public class MobNavigation {
     protected final MobView mob;
@@ -31,6 +33,9 @@ public class MobNavigation {
     private double lastStuckCheckY;
     private double lastStuckCheckZ;
     private float offset = 1.0F;
+    /** The sun-avoidance flag (GroundPathNavigation line 16): set by the
+     *  skeleton's AvoidSunlightGoal start/stop pair while the sun stands. */
+    private boolean avoidSunLight;
     private final PathFinder pathFinder;
     private final WalkNodeEvaluator nodeEvaluator;
 
@@ -66,6 +71,22 @@ public class MobNavigation {
         return this.nodeEvaluator.canSwim();
     }
 
+    /**
+     * The sun-avoidance flag's arm (GroundPathNavigation lines 215-217,
+     * 1:1): the AvoidSunlightGoal's start sets it, its stop clears it —
+     * the engine's body clears it per mind tick and re-arms it on the
+     * same pass's sunny claim (the stateless selector's own start/stop
+     * law: the flag stands exactly while the goal's canStart holds).
+     */
+    public void setAvoidSunLight(boolean avoidSunLight) {
+        this.avoidSunLight = avoidSunLight;
+    }
+
+    /** @return whether the sun-avoidance trim stands (the test pin's read). */
+    public boolean isAvoidingSunLight() {
+        return this.avoidSunLight;
+    }
+
     /** The vanilla BlockPos overload: the goal cell is floored, then centered
      * (+0.5 on every axis) — the search targets the cell's center, exactly
      * {@code findPath(new BlockPos(floor x, (int) y, floor z))}. */
@@ -86,6 +107,7 @@ public class MobNavigation {
             this.path = path;
         }
 
+        this.trimPath();
         if (this.path.length() == 0) {
             return false;
         }
@@ -101,6 +123,34 @@ public class MobNavigation {
 
     public Path getPath() {
         return this.path;
+    }
+
+    /**
+     * The sun-avoidance trim (GroundPathNavigation lines 61-77, 1:1):
+     * while the flag stands, a body already under the open sky keeps its
+     * whole route (nothing left to protect); a SHADED body's route cuts
+     * at the last shaded node before the first sky-exposed one — the
+     * skeleton never steps into the burning sun, whatever goal owns the
+     * walk. {@code truncate(i - 1)} at {@code i == 0} leaves the length
+     * at -1: the route is spent (the reference's own arithmetic — the
+     * empty-length check below reads 0, the done check reads the index
+     * past it).
+     */
+    protected void trimPath() {
+        if (this.avoidSunLight) {
+            if (this.world.hasSkyAccess((int) Math.floor(this.mob.x()),
+                    (int) (this.mob.y() + 0.5), (int) Math.floor(this.mob.z()))) {
+                return;
+            }
+
+            for (int i = 0; i < this.path.length(); i++) {
+                PathNode pathnode = this.path.getNode(i);
+                if (this.world.hasSkyAccess(pathnode.x, pathnode.y, pathnode.z)) {
+                    this.path.truncate(i - 1);
+                    return;
+                }
+            }
+        }
     }
 
     public double getSpeed() {

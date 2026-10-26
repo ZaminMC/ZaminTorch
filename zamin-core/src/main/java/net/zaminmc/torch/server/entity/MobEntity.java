@@ -8269,6 +8269,12 @@ public final class MobEntity implements LivingEntity {
         postureSneaking = false;
         postureSprinting = false;
         goalWalkSpeed = Double.NaN;
+        // The AvoidSunlightGoal's stop() arm (TF-7f — the reference's
+        // flag clears when the goal's canStart stops holding): the flag
+        // stands exactly while the sunny claim re-arms it this pass —
+        // every path a goal adopts below the claim gets the trim, none
+        // after the sun sets.
+        navigation.setAvoidSunLight(false);
 
         // The mob-vs-mob target state (Slice 16b) updates BEFORE the goal
         // walk — the stroll's yielding gate (goalHasTarget) reads the live
@@ -9356,6 +9362,31 @@ public final class MobEntity implements LivingEntity {
     /** @return whether the escape window is live (the test pin's read). */
     boolean escapeSunlightLive() {
         return escapeSunlightActive;
+    }
+
+    /**
+     * The sun-avoidance claim (TF-7f — AvoidSunlightGoal 1:1,
+     * reference/1.8.8 net/minecraft/entity/ai/goal/AvoidSunlightGoal):
+     * canStart (line 19) is the sunny world ALONE — no burn, no shade
+     * hunt, a pure flag goal. The registration is the skeleton's own
+     * (SkeletonEntity line 49 — the wither variant never joins, the
+     * nether has no sun), and the goal rides the float's additive band:
+     * like the reference's flag-free mutex set it runs beside WHATEVER
+     * exclusive goal owns the body — the panic, the escape, the stroll
+     * — so every path the mind adopts under the sun gets the trim.
+     */
+    boolean goalAvoidSunlightCanUse() {
+        return type == MobType.SKELETON && !skeletonWither && world.isSunny();
+    }
+
+    /** start() (line 23): the navigation's avoid-sunlight flag arms. */
+    void goalAvoidSunlightTick() {
+        navigation.setAvoidSunLight(true);
+    }
+
+    /** @return whether the avoid-sunlight trim stands (the test pin's read). */
+    boolean avoidingSunlight() {
+        return navigation.isAvoidingSunLight();
     }
 
     /**
@@ -11256,6 +11287,13 @@ public final class MobEntity implements LivingEntity {
         @Override
         public net.zaminmc.torch.server.entity.ai.pathing.CellMaterial materialAt(int x, int y, int z) {
             return world.pathMaterialAt(x, y, z);
+        }
+
+        @Override
+        public boolean hasSkyAccess(int x, int y, int z) {
+            // The sun-avoidance trim's world read (TF-7f — the same
+            // heightmap consult the escape goal's shaded pick reads).
+            return world.hasSkyAccess(x, y, z);
         }
     }
 }
