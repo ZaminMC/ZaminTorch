@@ -5960,8 +5960,24 @@ public final class EngineServer implements Server, EngineBridge {
                     double lookX = -Math.sin(yawRadians) * Math.cos(pitchRadians);
                     double lookY = -Math.sin(pitchRadians);
                     double lookZ = Math.cos(yawRadians) * Math.cos(pitchRadians);
+                    // The punch's Knockback level (PlayerEntity.attack lines
+                    // 952-956): the held item's enchant plus the sprint's
+                    // own +1 — the push rides the deflected fireball's
+                    // velocity (the reference's addVelocity arm, lines
+                    // 983-987), and the puncher's own horizontal motion
+                    // damps to 60% with the sprint wiped (lines 988-991).
+                    ItemStack punchHeld = attacker.inventory().held();
+                    int punchKnockback = EnchantmentHelper.knockbackLevel(punchHeld);
+                    if (attacker.sprinting()) {
+                        punchKnockback++;
+                    }
                     if (projectileManager.deflect(fireball, attacker.engineEntityId(),
-                            lookX, lookY, lookZ)) {
+                            lookX, lookY, lookZ, punchKnockback, yawRadians)) {
+                        if (punchKnockback > 0) {
+                            attacker.setMotion(attacker.motionX() * 0.6,
+                                    attacker.motionY(), attacker.motionZ() * 0.6);
+                            attacker.setSprinting(false);
+                        }
                         attacker.addExhaustion(ATTACK_EXHAUSTION); // the landed attack's own cost
                     }
                     return; // the fireball family takes no further attack arms

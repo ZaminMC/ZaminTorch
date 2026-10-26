@@ -349,6 +349,21 @@ public final class ProjectileEntity implements net.zaminmc.torch.entity.Projecti
     }
 
     /**
+     * The landed punch's knockback push (Slice TF-7c — PlayerEntity
+     * .attack lines 983-987: {@code target.addVelocity(-sin(yaw) * i *
+     * 0.5, 0.1, cos(yaw) * i * 0.5)} over the Knockback-enchanted or
+     * sprinting punch): ADDS to whatever the deflection set — the
+     * reference applies it after takeDamage's look-vector write. The
+     * y term is the flat 0.1. Package-private: the manager's deflect
+     * verb is the caller.
+     */
+    void punchKnockbackVelocity(double pushX, double pushY, double pushZ) {
+        this.vx += pushX;
+        this.vy += pushY;
+        this.vz += pushZ;
+    }
+
+    /**
      * The slime-block fling's velocity set (the VIII13 additive
      * families — MovingBlockEntity lines 94-107): the velocity SET
      * along the facing axis, the other components kept. A GROUNDED

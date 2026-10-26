@@ -1417,12 +1417,40 @@ public final class ProjectileManager {
      */
     public boolean deflect(ProjectileEntity projectile, int attackerId,
                            double lookX, double lookY, double lookZ) {
+        return deflect(projectile, attackerId, lookX, lookY, lookZ, 0, 0.0);
+    }
+
+    /**
+     * The punch with its Knockback push (Slice TF-7c — PlayerEntity
+     * .attack lines 983-992 over the deflection): the level joins the
+     * walk when the held item carries Knockback or the puncher sprints
+     * ({@code i > 0}), and the fireball's velocity takes the push on
+     * top of the look-vector write ({@code -sin(yaw) * i * 0.5, 0.1,
+     * cos(yaw) * i * 0.5} — the reference's addVelocity AFTER
+     * takeDamage's set), the wire publish riding the final velocity.
+     * The puncher's own *0.6 damping and sprint clear belong to the
+     * caller (the attack walk's own arms, lines 988-991).
+     *
+     * @param knockbackLevel the punch's own Knockback level (enchant +
+     *                       sprint — 0 when neither)
+     * @param yawRadians the puncher's yaw, the push's heading
+     * @return whether the punch landed (the attack's own verdict)
+     */
+    public boolean deflect(ProjectileEntity projectile, int attackerId,
+                           double lookX, double lookY, double lookZ,
+                           int knockbackLevel, double yawRadians) {
         Objects.requireNonNull(projectile, "projectile");
         if (projectile.kind() != ProjectileEntity.Kind.LARGE_FIREBALL
                 && projectile.kind() != ProjectileEntity.Kind.SMALL_FIREBALL) {
             return false; // the thrown family and arrows take no deflection
         }
         projectile.deflectBy(attackerId, lookX, lookY, lookZ);
+        if (knockbackLevel > 0) {
+            projectile.punchKnockbackVelocity(
+                    -Math.sin(yawRadians) * knockbackLevel * 0.5,
+                    0.1,
+                    Math.cos(yawRadians) * knockbackLevel * 0.5);
+        }
         for (Listener listener : listeners) {
             listener.onProjectileDeflected(projectile);
         }

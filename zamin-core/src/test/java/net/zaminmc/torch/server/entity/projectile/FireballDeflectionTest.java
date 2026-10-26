@@ -216,4 +216,48 @@ class FireballDeflectionTest {
         manager.tick(java.util.List.of());
         assertEquals(List.of("mob"), combat.events, "past 5 the shard can land");
     }
+
+    @Test
+    void theKnockbackPunchPushesTheDeflectedFireball() {
+        // PlayerEntity.attack lines 983-987 (Slice TF-7c): the landed
+        // punch with a Knockback level (the enchant or the sprint's +1)
+        // ADDS the push to the look-vector velocity — the reference's
+        // addVelocity arm AFTER takeDamage's set. Yaw 0 faces +z: the
+        // push is (0, 0.1, i * 0.5).
+        ProjectileManager manager = new ProjectileManager(
+                (x, y, z) -> false, new RiggedHits(), new RecordingCombat(),
+                new FxManager(), new Random(17), 5_400);
+        Events events = new Events();
+        manager.addListener(events);
+
+        ProjectileEntity fireball = manager.launchGhastFireball(777,
+                new Position(0.0, 10.0, 0.0), 1.0, 0.0, 0.0);
+        // The punch straight up (pitch -90): the look vector (0, 1, 0),
+        // the level 2 push along +z on top.
+        assertTrue(manager.deflect(fireball, 4242, 0.0, 1.0, 0.0, 2, 0.0));
+        assertEquals(0.0, fireball.velocityX(), 1e-9, "the push keeps the look's x");
+        assertEquals(1.0 + 0.1, fireball.velocityY(), 1e-9, "the flat 0.1 y term");
+        assertEquals(2 * 0.5, fireball.velocityZ(), 1e-9, "cos(0) * 2 * 0.5");
+        // The acceleration stays the deflection's own (look * 0.1 — the
+        // reference's takeDamage write, untouched by the push).
+        assertEquals(0.10, fireball.accelerationY(), 1e-9);
+        assertEquals(0.0, fireball.accelerationZ(), 1e-9);
+        assertEquals(1, events.deflections, "one wire publish for the whole punch");
+
+        // The level-0 punch: the plain look-vector deflection alone.
+        ProjectileEntity plain = manager.launchGhastFireball(777,
+                new Position(0.0, 10.0, 0.0), 1.0, 0.0, 0.0);
+        assertTrue(manager.deflect(plain, 4242, 0.0, 0.6, 0.8, 0, 0.0));
+        assertEquals(0.6, plain.velocityY(), 1e-9, "no push without the level");
+        assertEquals(0.8, plain.velocityZ(), 1e-9);
+
+        // The push's heading (yaw 90 faces +x... the reference's -sin(yaw)
+        // pair): the level-1 punch at yaw 90 pushes -x with the flat y.
+        ProjectileEntity turned = manager.launchGhastFireball(777,
+                new Position(0.0, 10.0, 0.0), 1.0, 0.0, 0.0);
+        assertTrue(manager.deflect(turned, 4242, 0.0, 1.0, 0.0, 1,
+                Math.toRadians(90.0)));
+        assertEquals(-0.5, turned.velocityX(), 1e-9, "-sin(90) * 1 * 0.5");
+        assertEquals(0.0, turned.velocityZ(), 1e-9, "cos(90) * 1 * 0.5");
+    }
 }
