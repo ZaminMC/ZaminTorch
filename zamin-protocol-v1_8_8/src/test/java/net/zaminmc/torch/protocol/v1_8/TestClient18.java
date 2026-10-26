@@ -48,8 +48,19 @@ final class TestClient18 implements AutoCloseable {
      * keep-alive requests unanswered, and any read that out-silences the
      * 3x-interval window (a ghost-wake drain, a long await) collects a
      * "Timed out" kick mid-flow. The timeout test's silent arm opts out.
+     *
+     * <p>STATE-AWARE (the ML-008 regression the join-flow family caught):
+     * the keep-alive packet id (0x00) collides with the STATUS response
+     * and the LOGIN disconnect on the wire — answering one of THOSE as a
+     * keep-alive writes an invalid packet into a pre-play state and the
+     * server closes the channel (the status ping's lost pong, the login
+     * arms' broken pipes). The auto-answer runs in PLAY alone, where the
+     * id is the keep-alive and nothing else.</p>
      */
     private boolean autoAnswerKeepAlives = true;
+
+    /** The client's own wire state (the auto-answer's PLAY gate). */
+    private boolean inPlayState = false;
 
     /** Disables the automatic keep-alive exchange (the silence arm's own need). */
     void silenceKeepAlives() {
@@ -172,7 +183,8 @@ final class TestClient18 implements AutoCloseable {
         int length = readVarInt(in);
         byte[] payload = new byte[length];
         in.readFully(payload);
-        if (autoAnswerKeepAlives && readPacketId(payload) == Protocol18.S2C_KEEP_ALIVE) {
+        if (inPlayState && autoAnswerKeepAlives
+                && readPacketId(payload) == Protocol18.S2C_KEEP_ALIVE) {
             io.netty.buffer.ByteBuf body = io.netty.buffer.Unpooled.wrappedBuffer(payload);
             ByteBufOps.readVarInt(body); // the packet id
             sendKeepAliveResponse((int) ByteBufOps.readVarInt(body));
@@ -320,6 +332,7 @@ final class TestClient18 implements AutoCloseable {
         if (id != Protocol18.S2C_LOGIN_SUCCESS) {
             throw new IOException("Expected login success, got " + id);
         }
+        inPlayState = true; // the state switch: the 0x00 id is a keep-alive now
         String uuid = ByteBufOps.readString(buffer, 64);
         String name = ByteBufOps.readString(buffer, 64);
         return uuid + "/" + name;
