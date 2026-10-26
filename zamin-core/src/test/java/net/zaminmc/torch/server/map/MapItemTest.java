@@ -785,4 +785,44 @@ class MapItemTest {
     private static void assertArrayEquals(byte[] expected, byte[] actual) {
         org.junit.jupiter.api.Assertions.assertArrayEquals(expected, actual);
     }
+
+    /**
+     * The frame's map-marker cleanup (ItemFrameEntity.removeItem lines
+     * 102-108, Slice TF-3): a filled map leaving its frame drops the
+     * "frame-&lt;id&gt;" decoration the holder walk added — a non-map display
+     * and an unknown map id never touch the data.
+     */
+    @Test
+    void theFrameMarkerCleanupRemovesTheFramesOwnDecoration() {
+        MapSystem maps = new MapSystem(new FakeSurface((x, y) ->
+                y == 64 ? block("stone") : block("air")));
+        int id = maps.createMapAt(0, 128.5, 128.5);
+        MapData data = maps.mapDataOf(0, id);
+        // The staged frame marker (the holder walk's own add: type 1 at the
+        // frame cell, the facing*90 rotation).
+        data.addDecoration(1, 0L, "frame-77", 128.5, 128.5, 90.0);
+        data.addDecoration(0, 0L, "Walker", 128.5, 128.5, 0.0);
+        org.junit.jupiter.api.Assertions.assertTrue(data.decorations.containsKey("frame-77"));
+
+        net.zaminmc.torch.item.ItemStack map =
+                net.zaminmc.torch.item.ItemStack.of(
+                        net.zaminmc.torch.server.item.BuiltinItems.FILLED_MAP, 1)
+                        .withDamage(id);
+        maps.removeFrameMarker(0, 77, map);
+        org.junit.jupiter.api.Assertions.assertFalse(data.decorations.containsKey("frame-77"),
+                "the leaving map dropped its frame marker");
+        org.junit.jupiter.api.Assertions.assertTrue(data.decorations.containsKey("Walker"),
+                "the other decorations stand");
+
+        // A non-map display and an unknown map id never touch the data.
+        data.addDecoration(1, 0L, "frame-78", 128.5, 128.5, 90.0);
+        maps.removeFrameMarker(0, 78,
+                net.zaminmc.torch.item.ItemStack.of(
+                        net.zaminmc.torch.server.item.BuiltinItems.DIAMOND, 1));
+        org.junit.jupiter.api.Assertions.assertTrue(data.decorations.containsKey("frame-78"),
+                "a non-map display keeps the marker");
+        maps.removeFrameMarker(0, 78, map.withDamage(9999));
+        org.junit.jupiter.api.Assertions.assertTrue(data.decorations.containsKey("frame-78"),
+                "an unknown map id keeps the marker");
+    }
 }

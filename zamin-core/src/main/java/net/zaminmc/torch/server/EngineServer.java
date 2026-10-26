@@ -17806,6 +17806,15 @@ public final class EngineServer implements Server, EngineBridge {
         public void wakeComparators(net.zaminmc.torch.block.BlockPosition cell) {
             redstoneSystem.wakeComparators(cell);
         }
+
+        @Override
+        public void removeFrameMarker(int frameEntityId, ItemStack display) {
+            if (maps != null) {
+                // The frames hang in the overworld (the decoration
+                // system's own world) — the marker's data lives there.
+                maps.removeFrameMarker(0, frameEntityId, display);
+            }
+        }
     }
 
     /**

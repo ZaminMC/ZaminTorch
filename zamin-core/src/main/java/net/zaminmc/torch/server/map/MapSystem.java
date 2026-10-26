@@ -315,6 +315,23 @@ public final class MapSystem {
      * payload. The frame gate rides the wire (the adapter's own
      * chunk-window check — the reference's tracking-player set).
      */
+    /**
+     * The frame's map-marker cleanup (ItemFrameEntity.removeItem lines
+     * 102-108): a filled map leaving its frame drops the frame's own
+     * "frame-&lt;id&gt;" decoration from the map's data — the marker the
+     * holder walk added while it hung there.
+     */
+    public void removeFrameMarker(int dimension, int frameEntityId, ItemStack display) {
+        if (display == null || display.isEmpty()
+                || !display.type().equals(BuiltinItems.FILLED_MAP)) {
+            return;
+        }
+        MapData data = mapDataOf(dimension, display.damage());
+        if (data != null) {
+            data.decorations.remove("frame-" + frameEntityId);
+        }
+    }
+
     public void frameTick(Iterable<PlayerSession> players, List<FrameInfo> framesWithMaps) {
         for (FrameInfo frame : framesWithMaps) {
             for (PlayerSession player : players) {

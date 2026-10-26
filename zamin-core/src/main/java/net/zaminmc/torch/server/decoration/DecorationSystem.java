@@ -80,6 +80,15 @@ public final class DecorationSystem {
 
         /** The comparator wake (World.updateNeighborComparators over the cell). */
         void wakeComparators(BlockPosition cell);
+
+        /**
+         * The framed map's marker cleanup (ItemFrameEntity.removeItem
+         * lines 102-108): a filled map leaving its frame drops the
+         * "frame-&lt;id&gt;" decoration from the map's data. The default is a
+         * no-op so surfaces without the map system keep their shape.
+         */
+        default void removeFrameMarker(int frameEntityId, ItemStack display) {
+        }
     }
 
     private final Surface surface;
@@ -484,6 +493,14 @@ public final class DecorationSystem {
      */
     public synchronized boolean attackFrame(ItemFrame frame, boolean creativeAttacker, boolean explosive) {
         Objects.requireNonNull(frame, "frame");
+        if (!frame.display().isEmpty()) {
+            // ItemFrameEntity.removeItem (lines 102-108): the display is
+            // leaving the frame on every arm below — the eject clears it,
+            // the break drops or loses it — and a filled map takes its
+            // "frame-<id>" marker off the map's data (the creative hand
+            // and the survival sweep ride the same walk).
+            surface.removeFrameMarker(frame.entityId(), frame.display());
+        }
         if (!explosive && !frame.display().isEmpty()) {
             // The item-eject arm: the frame stays on the wall.
             dropDisplay(frame, creativeAttacker, false);
