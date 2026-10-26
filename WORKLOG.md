@@ -15816,3 +15816,60 @@ Stage Summary:
   state-aware, because the 1.8 protocol's packet ids collide across
   states (0x00 is the status response, the login disconnect, AND the
   keep-alive, one per state).
+
+---
+
+## 2026-10-26 — the stroll family's favor lane (Slice TF-6, the ML-100 favor family's envelope closed)
+
+**Task:** the owner's vanilla-grade directive — architecture first (the
+demand-named queue empty, the branch set already clean at develop+main
+alone), then the 1:1 gaps. The fresh census re-verified the compat
+ledger's standing tails: several stale (the mushroom-island mycelium
+floor and the note-block/jukebox stat rows landed with their families'
+slices), the genuinely-open family envelope named — the pathfinder's
+favor model (the giant row's own words: "never the giant alone").
+
+**The lane (217da24d + bf050874, then the docs):**
+- THE FAVOR DISPATCH — MobEntity.getPathfindingFavor, the reference's
+  per-family laws law-by-law: the base flat 0.0 (PathFinderMobEntity
+  29-31), the monster's 0.5-brightness dark preference (MonsterEntity
+  105-109 — the brightness table's curve puts raw light 12 at exactly
+  0.5), the animal's grass-floor 10.0 else brightness-0.5 (AnimalEntity
+  72-75), the GIANT's inverted brightness-0.5 (GiantEntity 27-29), the
+  silverfish's stone floor (SilverfishEntity 105-108), the guardian's
+  water arm (GuardianEntity 238-243).
+- THE PICK — TargetFinder.getTarget 26-88 over the plain stroll's
+  startOffset-null shape: ten candidates ±10/±7, the HIGHEST favor wins
+  (the -99999.0f seed, the strict > tie law), the village arms whole
+  (the nudge toward the cached center, the in-band isValidGoalTarget
+  gate) — replacing the engine's historical random-heading roll.
+- THE CADENCE + THE WALK — WanderAroundGoal.canStart's despawn gate (a
+  body 100+ ticks without a player never strolls) + the interval roll
+  (120; the silverfish's InfestStoneGoal 10), the navigation owning the
+  walk at the per-kind speed parameter (villager/iron-golem/rabbit 0.6,
+  horse 0.7, creeper/spider/cave-spider/ocelot 0.8, the rest 1.0) until
+  the path's own end; the other minds' WANDER writes keep the historical
+  timer (the skeleton retreat, the slime's re-assertions).
+- Tests: StrollFavorTest 6 (the dispatch's exact numbers per family,
+  the best-of-10 mass law over 300 seeded picks — the zombie's dark
+  half, the giant's INVERTED bright half, the pig's grass half, the
+  despawn gate, the walk's life). Families re-verified green: MobEntity
+  11, Rabbit 10, TameableFollow 11, TemptBeg 7, the entity package whole.
+
+**The census's other findings (the next lanes, in value order):** the
+silverfish's InfestStoneGoal infest-merge arm (the 1-in-10 roll into
+stone — the silverfish family's own slice), the skeleton's
+EscapeSunlightGoal (the on-fire + sunny + sky-exposed shaded-cell walk —
+another favor consumer), the pigman's daylight-burn envelope (ruled
+unreachable — no overworld pigman spawns), the fireball's
+Knockback-punch push (an edge the engine's fireball carries no push
+surface for), and the armor stand's EntityTag NBT merge (the items
+carry no NBT from the wire).
+
+**Lessons:** the stub world's default answers can silently swallow a
+test's intent — the first StrollFavorTest draft covered only the z=0
+plane while the candidates span ±10 in every axis, and the pick's mass
+degenerated to a coin flip (157/300); the world maps must cover the
+whole candidate band. And the push race: the release pipeline's bump
+commits land between a code push and its tests push — pull --rebase,
+never force (the owner's own standing rule).

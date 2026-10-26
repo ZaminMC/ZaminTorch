@@ -4693,6 +4693,25 @@ way were repaired inside the wave.
       census's named lanes are ALL LANDED — the census's remaining
       standing rows are the family-owned envelopes the compat ledger
       carries in place.
+- [x] THE STROLL FAMILY'S FAVOR-WEIGHTED TARGET PICK (217da24d + bf050874,
+      the ML-100 favor family's envelope LANDED — the whole family, never
+      the giant alone): MobEntity.getPathfindingFavor carries the
+      reference's per-family laws whole (the base flat 0.0, the monster's
+      0.5-brightness dark preference, the animal's grass-floor 10.0 else
+      brightness-0.5, the GIANT's inverted brightness-0.5, the
+      silverfish's stone floor, the guardian's water arm), and the shared
+      stroll now picks its walk by TargetFinder's best-of-10 (the
+      -99999.0f seed, the strict > compare, the village nudge + the
+      in-band isValidGoalTarget gate) on the WanderAroundGoal cadence
+      (the 100-tick despawn gate, the 1-in-120 roll — the silverfish's
+      10), the navigation owning the walk at the per-kind speed parameter
+      (0.6/0.7/0.8/1.0) until the path's own end; the other minds'
+      heading-based WANDER writes keep their historical timer. Pinned by
+      StrollFavorTest 6 (the dispatch's exact numbers per family, the
+      best-of-10 mass law over 300 seeded picks for the zombie's dark
+      half, the giant's inverted bright half, the pig's grass half, the
+      despawn gate, the walk's life); the wolf/ocelot/rabbit/mob goal
+      families re-verified green.
 
 # 33. CODEBASE SCALE, CLASS COHESION, AND MAINTAINABILITY
 
