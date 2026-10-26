@@ -7890,6 +7890,36 @@ public final class MobEntity implements LivingEntity {
     /** Whether the village-return walk owns the stroll band this tick. */
     private boolean villageReturnActive;
 
+    // ----------------------------- the stroll family's favor pick (Slice TF-6)
+
+    /**
+     * The stroll's picked target (WanderAroundGoal's targetX/Y/Z fields,
+     * set once at canStart's TargetFinder pass, held for the walk's
+     * whole life — the reference's start() navigates to it once and
+     * shouldContinue runs the path to its end).
+     */
+    private Position strollTarget;
+
+    /**
+     * Whether the stroll's own navigation walk owns the WANDER band this
+     * tick — the flag that separates the stroll's path walk (this lane)
+     * from the historical heading walk the other minds' WANDER writes
+     * (the skeleton's retreat, the slime's re-assertions) still carry.
+     */
+    private boolean strollActive;
+
+    /** The stroll's horizontal candidate band (TargetFinder's 10). */
+    private static final int STROLL_RANGE = 10;
+
+    /** The stroll's vertical candidate band (TargetFinder's 7). */
+    private static final int STROLL_VERTICAL = 7;
+
+    /** The stroll family's own interval (WanderAroundGoal line 23's 120). */
+    private static final int STROLL_INTERVAL = 120;
+
+    /** The silverfish's own interval (InfestStoneGoal line 137's 10). */
+    private static final int SILVERFISH_STROLL_INTERVAL = 10;
+
     // ------------------------------------- the tameable family (Slice TF-1)
 
     /**
@@ -9754,6 +9784,188 @@ public final class MobEntity implements LivingEntity {
         return null;
     }
 
+    // -------------------------- the stroll family's favor pick (Slice TF-6)
+
+    /**
+     * The pathfinder's favor (the reference's {@code getPathfindingFavor}
+     * family, the ML-100 favor family's landing): how much a body likes a
+     * cell as a stroll destination — the score TargetFinder's best-of-10
+     * walk compares.
+     *
+     * <ul>
+     * <li>the base (PathFinderMobEntity lines 29-31): the flat 0.0 — the
+     * villager, the golem pair, the squid, the bat (their own wander
+     * models never consult it anyway).</li>
+     * <li>the monster family (MonsterEntity lines 105-109): {@code 0.5 -
+     * brightness} — monsters stroll toward the DARK (the brightness
+     * table's own curve puts raw light 12 at 0.5, so any cell dimmer
+     * than that scores positive).</li>
+     * <li>the animal family (AnimalEntity lines 72-75): the grass floor
+     * scores 10.0, every other cell {@code brightness - 0.5} — animals
+     * strongly prefer strolling onto grass, and beyond it the light.</li>
+     * <li>the giant (GiantEntity lines 27-29): the family's famous
+     * INVERTED quirk — {@code brightness - 0.5}, the monster law flipped:
+     * the giant strolls toward the LIGHT.</li>
+     * <li>the silverfish (SilverfishEntity lines 105-108): the stone
+     * floor scores 10.0 (the infest family's own pull), else the
+     * monster law.</li>
+     * <li>the guardian (GuardianEntity lines 238-243): the water cell
+     * scores {@code 10.0 + brightness - 0.5}, else the monster law (the
+     * land arm the engine's own swim wander never reads — carried whole
+     * for the dispatch's own law).</li>
+     * </ul>
+     */
+    float getPathfindingFavor(int x, int y, int z) {
+        if (type == MobType.GIANT) {
+            // GiantEntity lines 27-29: the inverted law.
+            return world.brightness(x, y, z) - 0.5f;
+        }
+        if (type == MobType.SILVERFISH) {
+            if (isBlockBelow(x, y, z, "minecraft:stone")) {
+                return 10.0f; // SilverfishEntity line 107's stone floor
+            }
+            return 0.5f - world.brightness(x, y, z);
+        }
+        if (type == MobType.GUARDIAN) {
+            if (world.inFluid(x + 0.5, y + 0.5, z + 0.5)) {
+                return 10.0f + world.brightness(x, y, z) - 0.5f;
+            }
+            return 0.5f - world.brightness(x, y, z);
+        }
+        if (type.hostile) {
+            // MonsterEntity lines 105-109: the dark preference.
+            return 0.5f - world.brightness(x, y, z);
+        }
+        if (isAnimalFamily(type)) {
+            if (isBlockBelow(x, y, z, "minecraft:grass_block")) {
+                return 10.0f; // AnimalEntity line 74's grass floor
+            }
+            return world.brightness(x, y, z) - 0.5f;
+        }
+        return 0.0f; // PathFinderMobEntity lines 29-31: the base flat
+    }
+
+    /** @return whether the cell below the candidate is the given block. */
+    private boolean isBlockBelow(int x, int y, int z, String identifier) {
+        net.zaminmc.torch.util.Identifier id = world.blockIdAt(x, y - 1, z);
+        return id != null && identifier.equals(id.toString());
+    }
+
+    /** The AnimalEntity family (the reference's own subclass set). */
+    private static boolean isAnimalFamily(MobType kind) {
+        return switch (kind) {
+            case PIG, COW, CHICKEN, SHEEP, RABBIT, WOLF, OCELOT, HORSE, MOOSHROOM -> true;
+            default -> false;
+        };
+    }
+
+    /**
+     * The stroll's candidate pick (TargetFinder.getTarget lines 26-88 over
+     * the plain stroll's {@code startOffset == null} — no half-plane
+     * filter): ten random candidates in the ±10/±7 band, the HIGHEST
+     * favor wins (the flat {@code f = -99999.0F} seed, the strict
+     * {@code >} compare — an earlier candidate wins ties).
+     *
+     * <p>The village arms (lines 43-45 + 55-67): a body with a live
+     * village cache (the villager's own; the reference's leash path never
+     * applies here) gets its candidates NUDGED toward the village center
+     * — {@code horizontalRange > 1} is the 10-band's own gate — and a
+     * body inside the {@code radius + range} band (the {@code +4.0} term
+     * included) only accepts candidates INSIDE the cached radius
+     * (isValidGoalTarget, PathFinderMobEntity line 46).</p>
+     *
+     * @return whether a candidate won (the stroll's canStart null gate).
+     */
+    private boolean pickStrollTarget() {
+        int mobCellX = (int) Math.floor(position.x());
+        int mobCellY = (int) Math.floor(position.y());
+        int mobCellZ = (int) Math.floor(position.z());
+        boolean inVillage = villageRadius > 0.0f; // inVillage(): the cache is set
+        boolean inBand = false;
+        if (inVillage) {
+            // flag1 (lines 43-45): the body's own distance to the center
+            // (+4.0) against the radius + the horizontal range.
+            double d0 = cellSquaredDistance(mobCellX, mobCellY, mobCellZ,
+                    villageCenterX, villageCenterY, villageCenterZ) + 4.0;
+            double d1 = villageRadius + STROLL_RANGE;
+            inBand = d0 < d1 * d1;
+        }
+        float best = -99999.0f;
+        boolean found = false;
+        int bestX = 0;
+        int bestY = 0;
+        int bestZ = 0;
+        for (int attempt = 0; attempt < 10; attempt++) {
+            int l = random.nextInt(2 * STROLL_RANGE + 1) - STROLL_RANGE;
+            int k1 = random.nextInt(2 * STROLL_VERTICAL + 1) - STROLL_VERTICAL;
+            int i1 = random.nextInt(2 * STROLL_RANGE + 1) - STROLL_RANGE;
+            // The village nudge (lines 55-67): the cache-set body's
+            // candidates pull toward the village center by up to half
+            // the horizontal range.
+            if (inVillage && STROLL_RANGE > 1) {
+                if (mobCellX > villageCenterX) {
+                    l -= random.nextInt(STROLL_RANGE / 2);
+                } else {
+                    l += random.nextInt(STROLL_RANGE / 2);
+                }
+                if (mobCellZ > villageCenterZ) {
+                    i1 -= random.nextInt(STROLL_RANGE / 2);
+                } else {
+                    i1 += random.nextInt(STROLL_RANGE / 2);
+                }
+            }
+            int candidateX = mobCellX + l;
+            int candidateY = mobCellY + k1;
+            int candidateZ = mobCellZ + i1;
+            // isValidGoalTarget (line 46): the in-band body only accepts
+            // candidates inside the cached radius (the -1 short-circuit
+            // folded into the inVillage gate above).
+            if (!inBand || cellSquaredDistance(candidateX, candidateY, candidateZ,
+                    villageCenterX, villageCenterY, villageCenterZ)
+                    < (long) villageRadius * (long) villageRadius) {
+                float favor = getPathfindingFavor(candidateX, candidateY, candidateZ);
+                if (favor > best) {
+                    best = favor;
+                    bestX = candidateX;
+                    bestY = candidateY;
+                    bestZ = candidateZ;
+                    found = true;
+                }
+            }
+        }
+        if (!found) {
+            return false; // canStart's null: the goal waits for the next roll
+        }
+        strollTarget = new Position(bestX, bestY, bestZ);
+        return true;
+    }
+
+    /**
+     * The stroll's own interval (WanderAroundGoal's ctor parameter): 120
+     * the family's own default; the silverfish's InfestStoneGoal carries
+     * 10 (the infest family's own cadence — it re-picks its den twelve
+     * times as often).
+     */
+    private int strollInterval() {
+        return type == MobType.SILVERFISH ? SILVERFISH_STROLL_INTERVAL : STROLL_INTERVAL;
+    }
+
+    /**
+     * The stroll's speed parameter (the ctor registrations' own numbers,
+     * the multiplier over the movement attribute the engine's
+     * {@code walkSpeed()} carries): the villager and the iron golem
+     * 0.6, the rabbit 0.6, the horse 0.7, the creeper/spider pair and
+     * the ocelot 0.8, every other strolling kind 1.0.
+     */
+    private double strollSpeedMultiplier() {
+        return switch (type) {
+            case VILLAGER, IRON_GOLEM, RABBIT -> 0.6;
+            case HORSE -> 0.7;
+            case CREEPER, SPIDER, CAVE_SPIDER, OCELOT -> 0.8;
+            default -> 1.0;
+        };
+    }
+
     /** The goal's speed parameter (VillagerEntity line 315: 0.6). */
     private static final double VILLAGE_RETURN_SPEED = 0.6;
 
@@ -9767,6 +9979,7 @@ public final class MobEntity implements LivingEntity {
         if (mode == Mode.CHASE || mode == Mode.STRAFE || mode == Mode.FUSE) {
             mode = Mode.IDLE; // target lost (or daylight saved the spider)
             modeTicks = 0;
+            strollActive = false; // the hunt's walk replaced the stroll's
         }
         switch (mode) {
             case IDLE -> {
@@ -9776,14 +9989,36 @@ public final class MobEntity implements LivingEntity {
                 if (!wolfBegging && target != null && modeTicks % 30 == 0 && random.nextInt(3) == 0) {
                     headYaw = angleTo(target.x() - position.x(), target.z() - position.z());
                 }
-                if (modeTicks >= IDLE_TICKS + random.nextInt(IDLE_TICKS)) {
+                // The reference stroll's start gate (WanderAroundGoal
+                // .canStart lines 19-42, Slice TF-6): a body 100+ ticks
+                // without a player nearby never strolls (the despawn
+                // clock's own pre-despawn band — it is heading out), then
+                // the interval roll (120 the family's own; the silverfish's
+                // InfestStoneGoal carries 10), then TargetFinder's pick —
+                // ten candidates, the best favor wins; no passer, no walk.
+                if (farFromPlayerTicks() < 100
+                        && random.nextInt(strollInterval()) == 0
+                        && pickStrollTarget()) {
+                    strollActive = true;
+                    goalWalkSpeed = strollSpeedMultiplier();
                     mode = Mode.WANDER;
                     modeTicks = 0;
-                    yaw = randomDirection();
-                    headYaw = yaw;
                 }
             }
             case WANDER -> {
+                if (strollActive) {
+                    // shouldContinue (line 66): the navigation owns the
+                    // walk's life — the path runs to its end (or dies at
+                    // a wall), then the body stands back down.
+                    goalWalkSpeed = strollSpeedMultiplier();
+                    tickPathFollowing(strollTarget);
+                    if (navigation.isDone()) {
+                        strollActive = false;
+                        mode = Mode.IDLE;
+                        modeTicks = 0;
+                    }
+                    return;
+                }
                 if (modeTicks >= WANDER_TICKS + random.nextInt(WANDER_TICKS)) {
                     mode = Mode.IDLE;
                     modeTicks = 0;
@@ -9792,6 +10027,7 @@ public final class MobEntity implements LivingEntity {
             default -> {
                 mode = Mode.IDLE;
                 modeTicks = 0;
+                strollActive = false; // another mind owned the body; the stroll re-picks
             }
         }
     }
