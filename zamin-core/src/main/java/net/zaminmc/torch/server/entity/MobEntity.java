@@ -263,6 +263,28 @@ public final class MobEntity implements LivingEntity {
         }
 
         /**
+         * The sunny read (World.isSunny line 627: {@code ambientDarkness
+         * < 4} — the calculateAmbientDarkness walk over the time of day
+         * and the weather gradients, 0 at clear noon). The stub worlds
+         * answer sunny (the bright-day default the escape goal's negative
+         * pins override).
+         */
+        default boolean isSunny() {
+            return true;
+        }
+
+        /**
+         * The cell's sky access (World.hasSkyAccess line 413 over
+         * WorldChunk line 652's heightmap read: {@code y >= heightMap[x |
+         * z << 4]}): whether the open sky stands above the cell. The
+         * stub worlds answer sky-open everywhere (the full-sky light
+         * default's own shape).
+         */
+        default boolean hasSkyAccess(int x, int y, int z) {
+            return true;
+        }
+
+        /**
          * The brightness at a cell (the reference's
          * {@code Entity.getBrightness} — the dimension's brightness table
          * over the raw light {@code max(block, sky - ambientDarkness)},
@@ -9250,6 +9272,90 @@ public final class MobEntity implements LivingEntity {
     boolean goalHasTarget(boolean night) {
         return (targetHuntable && visibleTarget != null) || mobAttackTarget != null
                 || pendingScareWolf != null;
+    }
+
+    // ------------------- the skeleton's sunlight escape (Slice TF-7b)
+
+    /** The escape's live window (shouldContinue's own law). */
+    private boolean escapeSunlightActive;
+
+    /** The shaded cell the escape walks to (canStart's one pick). */
+    private Position escapeSunlightTarget;
+
+    /**
+     * The escape's gate (EscapeSunlightGoal.canStart lines 28-52 over
+     * shouldContinue line 48): the LIVE window answers true whatever the
+     * gates — the reference's shouldContinue is the navigation's own
+     * {@code !isDone()} alone, the walk runs to its path's end even
+     * after the sun sets or the fire dies. A fresh start needs the
+     * sunny world AND the burning body AND the open sky above the feet
+     * AND a shaded cell the favor family rejects.
+     */
+    boolean goalEscapeSunlightCanUse() {
+        if (type != MobType.SKELETON || skeletonWither) {
+            return false; // the skeleton's own registration; the wither
+                          // variant lives in the sunless nether
+        }
+        if (escapeSunlightActive) {
+            return true; // shouldContinue: the walk owns the window
+        }
+        if (!world.isSunny() || !burning()) {
+            return false;
+        }
+        int feetX = (int) Math.floor(position.x());
+        int feetY = (int) Math.floor(position.y()); // getShape().minY: the feet
+        int feetZ = (int) Math.floor(position.z());
+        if (!world.hasSkyAccess(feetX, feetY, feetZ)) {
+            return false;
+        }
+        Position shaded = pickShadedLocation(feetX, feetY, feetZ);
+        if (shaded == null) {
+            return false;
+        }
+        escapeSunlightTarget = shaded;
+        return true;
+    }
+
+    /**
+     * The shaded-cell pick (getShadedLocationPos lines 60-76): ten
+     * random candidates in the ±10 horizontal / -3..+2 vertical band —
+     * the first cell WITHOUT sky access whose pathfinding favor reads
+     * negative wins (the monster family's dark preference — a lit
+     * cavern's bright cells never qualify).
+     */
+    private Position pickShadedLocation(int x, int y, int z) {
+        for (int attempt = 0; attempt < 10; attempt++) {
+            int cx = x + random.nextInt(20) - 10;
+            int cy = y + random.nextInt(6) - 3;
+            int cz = z + random.nextInt(20) - 10;
+            if (!world.hasSkyAccess(cx, cy, cz)
+                    && getPathfindingFavor(cx, cy, cz) < 0.0f) {
+                return new Position(cx, cy, cz);
+            }
+        }
+        return null;
+    }
+
+    /**
+     * The escape's walk (start line 54 + shouldContinue line 48): the
+     * navigation owns the body at the ctor's 1.0 speed until the path's
+     * own end — then the window closes and the gates re-arm on the next
+     * selector pass (a still-burning body picks a new shade and walks
+     * again).
+     */
+    void goalEscapeSunlightTick() {
+        escapeSunlightActive = true; // start(): the pick landed
+        goalWalkSpeed = 1.0; // the ctor's speed parameter
+        mode = Mode.WANDER;
+        tickPathFollowing(escapeSunlightTarget);
+        if (navigation.isDone()) {
+            escapeSunlightActive = false; // shouldContinue's end
+        }
+    }
+
+    /** @return whether the escape window is live (the test pin's read). */
+    boolean escapeSunlightLive() {
+        return escapeSunlightActive;
     }
 
     /**

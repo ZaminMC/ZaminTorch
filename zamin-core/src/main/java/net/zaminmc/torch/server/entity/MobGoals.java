@@ -170,6 +170,26 @@ final class MobGoals {
      * the same band; the killer bunny never flees (setVariant's own
      * removeGoal).
      */
+    /**
+     * Priority 3, exclusive (Slice TF-7b — the skeleton's
+     * EscapeSunlightGoal, registered at band 3 BEFORE the wolf flee —
+     * the reference's own order, SkeletonEntity lines 50-51): the
+     * on-fire body under the open sunny sky walks to the first shaded
+     * cell the favor family rejects. The registration is the skeleton's
+     * own (the wither variant never joins — the nether has no sun).
+     */
+    static final MobGoal ESCAPE_SUNLIGHT = new MobGoal() {
+        @Override public String goalId() { return "escape_sunlight"; }
+        @Override public int priority() { return 3; }
+        @Override public boolean exclusive() { return true; }
+        @Override public boolean canUse(MobEntity mob, boolean night) {
+            return mob.goalEscapeSunlightCanUse();
+        }
+        @Override public void tick(MobEntity mob, boolean night) {
+            mob.goalEscapeSunlightTick();
+        }
+    };
+
     static final MobGoal FLEE_PLAYER = new MobGoal() {
         @Override public String goalId() { return "flee_player"; }
         @Override public int priority() { return 3; }
@@ -303,7 +323,7 @@ final class MobGoals {
      */
     static GoalSelector standard() {
         return new GoalSelector(List.of(FLOAT, PANIC, BREAK_DOOR, BREED, BEG, TEMPT,
-                FLEE_PLAYER, FOLLOW_OWNER, SIT_ON_BLOCK, RABBIT_RAID_FARM,
+                ESCAPE_SUNLIGHT, FLEE_PLAYER, FOLLOW_OWNER, SIT_ON_BLOCK, RABBIT_RAID_FARM,
                 VILLAGE_RETURN, RANDOM_STROLL));
     }
 }

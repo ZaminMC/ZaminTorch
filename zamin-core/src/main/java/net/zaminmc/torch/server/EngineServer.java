@@ -20666,6 +20666,45 @@ public final class EngineServer implements Server, EngineBridge {
         }
 
         /**
+         * The sunny read (World.isSunny line 627: {@code ambientDarkness
+         * < 4}): the same calculateAmbientDarkness walk the brightness
+         * consult runs — the active dimension's time of day with the
+         * weather gradients' shaves. The nether never answers sunny (its
+         * own ambient read sits at the roofed 11 — no sun to escape).
+         */
+        @Override
+        public boolean isSunny() {
+            if (activeDimension == -1) {
+                return false; // no sun in the roof: ambientDarkness 11 stands
+            }
+            EngineWorld target = activeWorld();
+            net.zaminmc.torch.server.weather.WeatherSystem w = weather;
+            float rain = w != null ? w.rainGradient() : 0.0f;
+            float thunder = w != null ? w.thunderGradient() : 0.0f;
+            return net.zaminmc.torch.server.daylight.DaylightDetectorSystem
+                    .ambientDarkness(target.timeOfDay(), rain, thunder) < 4;
+        }
+
+        /**
+         * The cell's sky access (WorldChunk.hasSkyAccess line 652's
+         * heightmap read): the engine's light model stands in — a cell
+         * carries full sky light exactly when the open column stands
+         * above it (the propagation only holds 15 through an unobstructed
+         * column; every cover costs the cells below it).
+         */
+        @Override
+        public boolean hasSkyAccess(int x, int y, int z) {
+            if (y < BlockPosition.MIN_Y) {
+                return false;
+            }
+            if (activeDimension == -1) {
+                return false; // the roofed world has no sky column at all
+            }
+            return activeWorld().skyLightAt(new BlockPosition(
+                    x, Math.min(y, BlockPosition.MAX_Y), z)) >= 15;
+        }
+
+        /**
          * The hot-biome read (Slice 17d — the snow golem's melt): the
          * engine's biome family carries exactly one hot biome (the desert,
          * the reference's temperature 2.0 > 1.0).
