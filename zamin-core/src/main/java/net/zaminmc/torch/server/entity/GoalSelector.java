@@ -105,6 +105,22 @@ public final class GoalSelector {
         return false;
     }
 
+    /**
+     * Whether the built-in with the stable id is LIVE (the behavioral
+     * consult — a removed goal must not only leave the snapshot, its walk
+     * must stop starting). The mind's stroll band consults this every
+     * idle tick: the tail call that runs the stroll when the selector did
+     * not claim would otherwise keep a REMOVED stroll walking forever.
+     */
+    public boolean hasBuiltIn(String id) {
+        for (MobGoal goal : active) {
+            if (goal.goalId().equals(id)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** The live set in priority order (a snapshot copy — safe anywhere). */
     public List<MobGoal> snapshot() {
         return List.copyOf(active);

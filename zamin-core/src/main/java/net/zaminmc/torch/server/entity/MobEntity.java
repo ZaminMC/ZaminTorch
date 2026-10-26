@@ -4605,8 +4605,10 @@ public final class MobEntity implements LivingEntity {
      * The silverfish's clock (WakeUpFriendsGoal.tick lines 210-236 +
      * InfestStoneGoal.canStart lines 142-163): the wake-up countdown
      * ends in the scan verdict; the infest roll fires only with no
-     * target in sight — a 1-in-10 chance to slip into an adjacent
-     * infestable block (the body disappears into the egg).
+     * target in sight AND the navigation idle (the reference's own
+     * isDone gate, line 147 — a walking silverfish never slips into
+     * stone) — a 1-in-10 chance to merge into an adjacent infestable
+     * block (the body disappears into the egg).
      */
     private void tickSilverfishClock() {
         if (silverfishWakeCooldown > 0) {
@@ -4615,10 +4617,15 @@ public final class MobEntity implements LivingEntity {
                 pendingSilverfishWake = true;
             }
         }
-        // InfestStoneGoal.canStart: the targetless body rolls the
-        // 1-in-10; the direction pick walks the six facings, the
-        // adjacent cell read through the world's block identity.
-        if (visibleTarget == null && random.nextInt(10) == 0) {
+        // InfestStoneGoal.canStart: the targetless, navigation-idle body
+        // rolls the 1-in-10; the direction pick walks the six facings, the
+        // adjacent cell read through the world's block identity. The idle
+        // read folds the stroll's own window in (strollActive): the engine
+        // model defers the stroll's path start to the walk's first tick
+        // (the reference's start() calls moveTo at once), so the flag —
+        // not the path alone — owns the body's walk state in that window.
+        if (visibleTarget == null && !strollActive && navigation.isDone()
+                && random.nextInt(10) == 0) {
             int facing = random.nextInt(6);
             int dx = facing == 0 ? 1 : facing == 1 ? -1 : 0;
             int dy = facing == 2 ? 1 : facing == 3 ? -1 : 0;
@@ -10007,13 +10014,18 @@ public final class MobEntity implements LivingEntity {
                     headYaw = angleTo(target.x() - position.x(), target.z() - position.z());
                 }
                 // The reference stroll's start gate (WanderAroundGoal
-                // .canStart lines 19-42, Slice TF-6): a body 100+ ticks
-                // without a player nearby never strolls (the despawn
-                // clock's own pre-despawn band — it is heading out), then
-                // the interval roll (120 the family's own; the silverfish's
-                // InfestStoneGoal carries 10), then TargetFinder's pick —
-                // ten candidates, the best favor wins; no passer, no walk.
-                if (farFromPlayerTicks() < 100
+                // .canStart lines 19-42, Slice TF-6): the goal itself must
+                // be LIVE first (the §27.3 removal's behavioral consult —
+                // a removed stroll never starts, whatever the tail call
+                // that reaches here when the selector did not claim),
+                // then a body 100+ ticks without a player nearby never
+                // strolls (the despawn clock's own pre-despawn band — it
+                // is heading out), then the interval roll (120 the
+                // family's own; the silverfish's InfestStoneGoal carries
+                // 10), then TargetFinder's pick — ten candidates, the
+                // best favor wins; no passer, no walk.
+                if (goals.hasBuiltIn("stroll")
+                        && farFromPlayerTicks() < 100
                         && random.nextInt(strollInterval()) == 0
                         && pickStrollTarget()) {
                     strollActive = true;

@@ -5896,6 +5896,13 @@ public final class EngineServer implements Server, EngineBridge {
     // ExperienceBottleEntity.onCollision line 30: doEvent(2002, pos, 0)
     // — the splash-particle Effect with the value 0).
     private static final int WORLD_EVENT_BOTTLE_SPLASH = 2002;
+    /**
+     * The silverfish's infest spawn burst (Slice TF-7a —
+     * MobEntity.animateSpawn lines 179-197: the server's
+     * {@code doEntityEvent(this, (byte)20)}, the clients' 20-puff smoke
+     * cloud where the body merged into the egg).
+     */
+    private static final int SILVERFISH_INFEST_SPAWN_STATUS = 20;
 
     /**
      * A player attacked an entity (Use Entity 0x02, mouse=1): validates reach,
@@ -19592,13 +19599,19 @@ public final class EngineServer implements Server, EngineBridge {
         }
 
         /**
-         * The silverfish's infest (Slice 18c — InfestStoneGoal.start lines
-         * 171-187): the adjacent host becomes its egg and the body leaves
-         * the world (the reference's animateSpawn + remove; the client's
-         * own smoke burst rides the entity's removal).
+         * The silverfish's infest (Slice 18c + TF-7a — InfestStoneGoal
+         * lines 171-187): the animateSpawn's Entity Status 20 FIRST
+         * (MobEntity.animateSpawn lines 179-197 — the server's
+         * doEntityEvent byte, the clients' smoke burst where the body
+         * stands; the removal's Destroy Entity carries no burst of its
+         * own), then the adjacent host becomes its egg and the body
+         * leaves the world.
          */
         @Override
         public void onSilverfishInfest(net.zaminmc.torch.server.entity.MobEntity mob) {
+            for (MobManager.Listener listener : mobListeners) {
+                listener.onMobStatusEvent(mob, SILVERFISH_INFEST_SPAWN_STATUS);
+            }
             BlockPosition at = new BlockPosition(mob.silverfishInfestX(),
                     mob.silverfishInfestY(), mob.silverfishInfestZ());
             var type = world.getBlock(at);

@@ -181,18 +181,26 @@ class SilverfishEntityTest {
         // stone cell — the stub answers stone for every read.
         world.adjacentBlock = Identifier.parse("minecraft:stone");
         MobEntity body = silverfishIn(world, 99L);
+        // The stroll's walk pinned off (the §27.3 removal surface — the
+        // thorns test's own pattern): the body stays at its cell, the
+        // verdict's target is the cell's own neighbor.
+        body.goals().removeBuiltIn("stroll");
 
         boolean infested = false;
+        int cellX = (int) Math.floor(body.position().x());
+        int cellY = (int) Math.floor(body.position().y() + 0.5);
+        int cellZ = (int) Math.floor(body.position().z());
         for (int i = 0; i < 200 && !infested; i++) {
             body.tick(true);
             if (body.consumeSilverfishInfest()) {
                 infested = true;
                 // The target cell: one of the six neighbors of the body's
-                // own cell (0, 8, 0).
+                // own cell.
                 int dx = body.silverfishInfestX();
                 int dy = body.silverfishInfestY();
                 int dz = body.silverfishInfestZ();
-                assertTrue(Math.abs(dx) + Math.abs(dy - 8) + Math.abs(dz) == 1,
+                assertTrue(Math.abs(dx - cellX) + Math.abs(dy - cellY)
+                                + Math.abs(dz - cellZ) == 1,
                         "the infest target is the adjacent cell");
             }
         }
@@ -206,6 +214,93 @@ class SilverfishEntityTest {
             wanderer.tick(true);
             assertFalse(wanderer.consumeSilverfishInfest(),
                     "the dirt never hosts the egg");
+        }
+    }
+
+    @Test
+    void theInfestBurstsTheSmokeStatusBeforeTheRemoval() throws Exception {
+        EngineServer server = boot();
+        try {
+            var player = join(server, "Wanderer");
+            // The status-20 capture (MobEntity.animateSpawn lines 179-197:
+            // the server's doEntityEvent byte — the clients' smoke burst
+            // where the body merged into the egg).
+            java.util.List<int[]> statuses = new java.util.concurrent.CopyOnWriteArrayList<>();
+            // The listener surface through a dynamic proxy: the status arm
+            // captured, every other arm the interface's own no-op.
+            net.zaminmc.torch.server.entity.MobManager.Listener statusCapture =
+                    (net.zaminmc.torch.server.entity.MobManager.Listener) java.lang.reflect.Proxy
+                            .newProxyInstance(
+                                    net.zaminmc.torch.server.entity.MobManager.Listener.class
+                                            .getClassLoader(),
+                                    new Class<?>[] {net.zaminmc.torch.server.entity.MobManager.Listener.class},
+                                    (proxy, method, args) -> {
+                                        if ("onMobStatusEvent".equals(method.getName())
+                                                && ((MobEntity) args[0]).type() == MobType.SILVERFISH) {
+                                            statuses.add(new int[] {
+                                                    ((MobEntity) args[0]).entityId(),
+                                                    (Integer) args[1]});
+                                        }
+                                        return null;
+                                    });
+            server.addMobListener(statusCapture);
+
+            // The egg ahead of the spawn: the survival break bursts the
+            // silverfish (the same walk as the test above).
+            BlockPosition at = new BlockPosition(
+                    (int) Math.floor(player.position().x()),
+                    (int) Math.floor(player.position().y()),
+                    (int) Math.floor(player.position().z()) + 3);
+            server.world().execute(() -> server.world().setBlock(at,
+                    BuiltinBlocks.INFESTED_STONE_BRICKS));
+            await(() -> server.world().getBlock(at)
+                    .equals(BuiltinBlocks.INFESTED_STONE_BRICKS), "the egg landed");
+            server.blockInteraction().submitMiningStart(player, at);
+            await(() -> server.mobs().all().stream()
+                            .anyMatch(m -> m.type() == MobType.SILVERFISH),
+                    "the burst spawned the silverfish");
+            MobEntity silverfish = server.mobs().all().stream()
+                    .filter(m -> m.type() == MobType.SILVERFISH)
+                    .findFirst().orElseThrow();
+            // The stroll pinned off (the §27.3 removal surface): the body
+            // stays beside its host — the thorns-arrow test's own pattern.
+            silverfish.goals().removeBuiltIn("stroll");
+
+            // The stone host beside the body (the infest's adjacent cell).
+            BlockPosition host = new BlockPosition(
+                    (int) Math.floor(silverfish.position().x()),
+                    (int) Math.floor(silverfish.position().y()),
+                    (int) Math.floor(silverfish.position().z()) + 1);
+            server.world().execute(() -> server.world().setBlock(host,
+                    BuiltinBlocks.STONE));
+            await(() -> server.world().getBlock(host).equals(BuiltinBlocks.STONE),
+                    "the stone host landed");
+
+            // The player walks beyond the 16-block hunt band — the roll is
+            // the targetless body's own (InfestStoneGoal.canStart line 143).
+            Position away = new Position(player.position().x() + 24.0,
+                    player.position().y(), player.position().z());
+            for (int i = 0; i < 24; i++) {
+                server.teleportPlayer(player, away);
+                Thread.sleep(50);
+            }
+            await(() -> server.mobs().all().stream()
+                            .noneMatch(m -> m.entityId() == silverfish.entityId()),
+                    "the silverfish merged into the host");
+            // The infest's own wire verdict: the status-20 burst fired for
+            // the body (the smoke cloud the clients render at the merge).
+            assertTrue(statuses.stream().anyMatch(s -> s[0] == silverfish.entityId()
+                            && s[1] == 20),
+                    "the animateSpawn byte 20 rode the infest (saw " + statuses.size()
+                            + " silverfish statuses)");
+            // The egg write: the host cell became the infested form.
+            boolean eggForm = server.world().getBlock(host).equals(
+                    BuiltinBlocks.INFESTED_STONE);
+            assertTrue(eggForm || server.world().getBlock(host).equals(
+                            BuiltinBlocks.INFESTED_STONE_BRICKS),
+                    "the host cell took the egg (was " + server.world().getBlock(host) + ")");
+        } finally {
+            server.shutdown(null);
         }
     }
 
