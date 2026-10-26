@@ -10748,6 +10748,13 @@ public final class MobEntity implements LivingEntity {
             // The awareness goals' own speed (TemptGoal/FleeEntityGoal's
             // parameter over the movement attribute) overrides the band.
             walk = walkSpeed() * goalWalkSpeed;
+            if (witchDrink > 0) {
+                // The reference's drinking penalty is an ATTRIBUTE
+                // modifier (WitchEntity's -0.25 on the 0.25 base) — it
+                // zeroes EVERY walk shape, the stroll's goal speed
+                // included, never re-armed by a goal band.
+                walk = 0.0;
+            }
         }
         if (type == MobType.RABBIT) {
             // The rabbit's hop cycle owns the movement (the zeroed-input
