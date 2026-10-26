@@ -9940,14 +9940,31 @@ public final class MobEntity implements LivingEntity {
         return true;
     }
 
-    /**
-     * The stroll's own interval (WanderAroundGoal's ctor parameter): 120
+    /** The stroll's own interval (WanderAroundGoal's ctor parameter): 120
      * the family's own default; the silverfish's InfestStoneGoal carries
      * 10 (the infest family's own cadence — it re-picks its den twelve
      * times as often).
      */
     private int strollInterval() {
         return type == MobType.SILVERFISH ? SILVERFISH_STROLL_INTERVAL : STROLL_INTERVAL;
+    }
+
+    // The lane's own test surface (package-private, the family's
+    // established pattern — the acceptance pins read the pick directly).
+
+    /** @return whether the stroll's navigation walk owns the band (test). */
+    boolean isStrollActive() {
+        return strollActive;
+    }
+
+    /** Runs the TargetFinder pick once (the acceptance pin's direct call). */
+    boolean pickStrollTargetForTest() {
+        return pickStrollTarget();
+    }
+
+    /** @return the stroll's picked target (the acceptance pin's read). */
+    Position strollTargetForTest() {
+        return strollTarget;
     }
 
     /**
