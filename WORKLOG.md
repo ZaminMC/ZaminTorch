@@ -15781,3 +15781,38 @@ Stage Summary:
   census's remaining standing rows are the family-owned envelopes the
   compat ledger carries in place (the SitGoal pair, the cadence freeze,
   the water-shake cycle, the collar dye arm, and the like).
+
+---
+
+Task ID: TF-5
+Agent: Abasing (the coding session)
+Task: The CI-caught regression repair — the join-flow family's failure on the pre-session HEAD (f3221566), traced and fixed.
+
+Work Log:
+- The CI run on f3221566 (and f7af2ad2 before it) failed on
+  JoinFlowIntegrationTest (statusPing twice, the outdated/duplicate/
+  invalid arms with broken pipes); the failures are deterministic in
+  isolation locally (3 of 7).
+- The bisect by CI history: the last green run 37d5ef7c, the first
+  failure f7af2ad2 — the ML-008 commit (the /give alignment, whose
+  scripted-client changes added the keep-alive auto-answer).
+- The root cause: the keep-alive packet id (0x00) collides with the
+  STATUS response and the LOGIN disconnect on the wire — the
+  auto-answer answered those as keep-alives, writing an invalid packet
+  into the pre-play states and the server's default arm closed the
+  channel (the status ping's lost pong, the login arms' broken pipes).
+- The fix: the client's own inPlayState flag, set at readLoginSuccess
+  (the state switch where 0x00 becomes the keep-alive alone) — the
+  auto-answer runs in PLAY alone; the 120 login call sites all route
+  through readLoginSuccess, the raw-frame conformance tests never
+  needed the answering, and the timeout test's silence arm keeps its
+  opt-out.
+- JoinFlowIntegrationTest 7/7 green again; the full protocol suite
+  verified after the fix.
+
+Stage Summary:
+- The ML-008 scripted-client regression repaired (fc91e59c): the
+  lesson — the scripted client's wire-level conveniences must be
+  state-aware, because the 1.8 protocol's packet ids collide across
+  states (0x00 is the status response, the login disconnect, AND the
+  keep-alive, one per state).
