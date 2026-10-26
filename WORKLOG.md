@@ -15873,3 +15873,37 @@ degenerated to a coin flip (157/300); the world maps must cover the
 whole candidate band. And the push race: the release pipeline's bump
 commits land between a code push and its tests push — pull --rebase,
 never force (the owner's own standing rule).
+
+---
+
+## 2026-10-26 — the TF-6 regression repairs (the CI-caught pair, both green)
+
+**The witch (7245cf2c, run 40258294880's catch, locally reproduced):**
+WitchEntityTest's theDrinkingWitchStandsStill flaked at ~23% — the stroll's
+new goalWalkSpeed write re-armed the walk AFTER the drinking penalty had
+zeroed it (the old order: the band zero, then the goal-speed override
+overwriting it with walkSpeed*1.0 — a 0.06 drift on the stroll's first walk
+ticks). THE FIX: the reference's own law — WitchEntity's drinking penalty
+is a MOVEMENT_SPEED attribute modifier (-0.25 on the 0.25 base), an
+attribute-level zero that wins over EVERY walk shape; the goal-speed block
+now re-zeroes under the flag. WitchEntityTest 6/6 across six forced reruns.
+
+**The thorns arrow (1e7dd1f5, run 40258657689's catch):**
+ThornsMobVictimAcceptanceTest's archers-arrow test captures the zombie's
+column ONCE then drops four arrows through it — the TF-6 stroll fires from
+the FIRST idle tick now (the old engine's 60-tick idle floor retired), and
+a stroll that wins the race against the target acquisition's own 1-in-10
+scan (~15% window) walks the body out of the column. THE PIN: the test's
+own zombie drops the stroll goal through the §27.3 removal surface
+(goals().removeBuiltIn("stroll") — the thorns law is the pin, never the
+walk), the GoalApiAcceptanceTest pattern. 5/5 green.
+
+**The verdict chain:** 217da24d's run red (the witch + two player-only
+timing flakes), 2d56c14f's run red (one flake per attempt — the witch
+didn't fire, the timing flakes did), 7245cf2c's run GREEN (run 40262340893
+— the witch fix confirmed by the full suite), 1e7dd1f5 in flight.
+
+**The lesson (the #412 lesson's own shape):** a cadence change that moves
+a body EARLIER in its life must re-audit every test that anchors on a
+spawned mob's position — the old 60-tick idle floor was an implicit test
+contract, and the lane that retired it owes the exposure audit.
