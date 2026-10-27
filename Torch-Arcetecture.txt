@@ -5515,19 +5515,21 @@ way were repaired inside the wave.
       Pooled where the measurement demonstrates the benefit,
       unpooled where it demonstrates the opposite — §35.4's first
       sentence, both halves.
-- [x] THE ADOPTION: the engine's ONLY large outbound allocations —
-      the chunk-window frames (the 0x21 single's 16 + data.length,
-      the 0x21 partial's same form, and the 0x26 bulk's
-      16 + 10*columns + total, up to ~800 KiB) — now ask
-      POOLED.directBuffer; the 190 small sites keep Unpooled.buffer
-      (their measured win). The decision rides its own named
-      constant with the numbers in the javadoc. The serializer's
-      byte[] intermediates stay heap honestly (the 1:1-pinned walk,
-      its own future slice if the attribution ever shows them
-      material). The pipeline verified direct-compatible FIRST:
-      zero .array()/hasArray() assumptions on any outbound path
-      (the one .array() site is the inbound decrypt decoder's own
-      heap ask).
+- [x] THE ADOPTION: the engine's large outbound allocations — the
+      chunk-window frames (the 0x21 single's 16 + data.length, the
+      0x21 partial's same form, and the 0x26 bulk's
+      16 + 10*columns + total, up to ~800 KiB) and the plugin API's
+      generic composed frame at or past the same 16 KiB shape (the
+      sendComposedFrame threshold ask — a plugin payload can legally
+      ride ~32 KiB) — now ask POOLED.directBuffer; the small sites
+      keep Unpooled.buffer (their measured win). The decision rides
+      its own named constants with the numbers in the javadoc. The
+      serializer's byte[] intermediates stay heap honestly (the
+      1:1-pinned walk, its own future slice if the attribution ever
+      shows them material). The pipeline verified direct-compatible
+      FIRST: zero .array()/hasArray() assumptions on any outbound
+      path (the one .array() site is the inbound decrypt decoder's
+      own heap ask).
 - [x] THE WIRE VERIFIED over every protocol suite class against
       the pooled frames: all 71 test classes green (the unit batch
       91/0 incl. the new harness, the integration and wire batches,

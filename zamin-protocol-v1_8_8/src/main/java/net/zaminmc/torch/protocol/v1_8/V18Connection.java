@@ -3750,7 +3750,13 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         if (wire == null || !wire.isActive() || state != WireState.PLAY) {
             return false;
         }
-        ByteBuf out = Unpooled.buffer(payload.length + 8);
+        // The shape-based ask (§35.4): a plugin payload at or past the
+        // benchmark's large shape rides the pooled direct ask — the same
+        // measured law the chunk-window frames follow; small payloads keep
+        // the heap-unpooled ask that wins there.
+        ByteBuf out = payload.length >= ChunkTracker.POOLED_ASK_THRESHOLD
+                ? ChunkTracker.POOLED.directBuffer(payload.length + 8)
+                : Unpooled.buffer(payload.length + 8);
         ByteBufOps.writeVarInt(out, packetId);
         out.writeBytes(payload);
         enqueueOut(out);
@@ -7831,8 +7837,17 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     private static final class ChunkTracker {
 
         /**
+         * The pooled-ask threshold: payloads at or past the benchmark's
+         * 16 KiB "large" shape (the size where the pooled arms won 5-10x
+         * with ~120 B/packet of thread allocation against the unpooled
+         * ask's whole-frame young-gen churn) ride the pooled direct ask;
+         * smaller payloads keep the heap-unpooled ask that wins there.
+         */
+        private static final int POOLED_ASK_THRESHOLD = 16 * 1024;
+
+        /**
          * §35.4's evidenced decision for the CHUNK-WINDOW frames (the two
-         * 0x21 forms and the 0x26 bulk — the engine's only large outbound
+         * 0x21 forms and the 0x26 bulk — the engine's large outbound
          * allocations, 16 KiB-class and up): the frames ride POOLED DIRECT
          * buffers, every other packet keeps the heap-unpooled ask its own
          * measurement favors. The allocation harness (PacketAllocation-
