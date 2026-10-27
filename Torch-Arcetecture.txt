@@ -5345,7 +5345,7 @@ The desired result is a cohesive engine whose structure reflects its actual mech
 
 Torch must read and behave like a deliberately engineered software project, not a collection of generic AI-generated implementations.
 
-The objective is not to conceal AI assistance or imitate a human writing style. The objective is to eliminate shallow engineering, repetitive generated patterns, unnecessary complexity, and documentation that sounds authoritative without conveying useful information.
+The objective is not to conceal AI assistance but imitate a human writing style. The objective is to eliminate shallow engineering, repetitive generated patterns, unnecessary complexity, and documentation that sounds authoritative without conveying useful information.
 
 ## 34.1 Implementation standards
 
@@ -5381,3 +5381,392 @@ Judge implementations by correctness, fidelity to reference behavior, concurrenc
 
 Do not use AI-detection scores, stylistic stereotypes, or attempts to imitate a particular author's writing as acceptance criteria. The standard is good engineering, regardless of who or what produced the code.
 
+<-- This section was appened remotly. please adjust it to its best line number in the file, and remove this comment! -->
+
+# 35. VERSION-INDEPENDENT NETWORK TRANSPORT AND OUTBOUND PACKET PIPELINE
+
+Torch's networking architecture must optimize transport and packet handling without changing the Minecraft protocol expected by the connected client.
+
+The first compatibility target is Minecraft Java Edition 1.8.8. The engine must nevertheless be designed so the same transport architecture remains valid as Torch adds later protocol implementations, including 1.9 and subsequent versions through the project's future-version targets such as 26.3.
+
+The protocol version determines packet semantics and wire encoding. It must not determine the fundamental transport architecture.
+
+## 35.1 Core boundary
+
+The networking path is divided into two distinct responsibilities:
+
+`authoritative simulation → semantic packet production → version-specific encoding → transport optimization → Netty channel`
+
+The version-specific protocol implementation answers:
+
+- packet type;
+- field layout;
+- field encoding;
+- packet identifiers;
+- protocol-specific compression/encryption framing;
+- version-specific packet ordering where required by the protocol.
+
+The common transport layer answers:
+
+- buffer allocation and reuse;
+- frame construction where version-independent;
+- encoded-payload lifetime;
+- outbound queueing;
+- broadcast distribution;
+- write batching;
+- flush policy;
+- channel backpressure;
+- transport metrics.
+
+Do not move Minecraft-version semantics into the common transport layer merely because doing so appears convenient.
+
+A later protocol implementation must be able to reuse the transport layer without pretending that its packets have the same wire representation as 1.8.8.
+
+## 35.2 Vanilla-client compatibility is a hard requirement
+
+Transport optimization is server-side and must remain invisible to an unmodified client whenever the corresponding Minecraft protocol is otherwise supported.
+
+The optimized path must ultimately produce the same valid protocol stream that the target version's client expects.
+
+The following are transport optimizations and do not inherently require client modifications:
+
+- pooled Netty buffers;
+- buffer reuse;
+- reduced copying;
+- zero-copy techniques where the ownership/lifetime rules permit them;
+- encode-once broadcast payloads;
+- outbound write batching;
+- controlled flush consolidation;
+- optimized VarInt/frame processing;
+- packet allocation reduction;
+- outbound queue management;
+- transport-side backpressure.
+
+A change that introduces a new wire format, custom compression format, custom packet type, incompatible framing, or other client-visible protocol extension is a separate protocol feature. It must not be described as a transparent transport optimization.
+
+Client compatibility must be tested with an unmodified client for each supported protocol version.
+
+## 35.3 Encode once where the wire representation is identical
+
+When the same packet contents are sent to multiple clients using the same protocol representation, Torch should avoid serializing the same immutable payload independently for every recipient.
+
+The intended shape is:
+
+`semantic update → encode once → immutable encoded payload → distribute to eligible channels`
+
+For example, a world/entity update observed by many players may be encoded once and then referenced by multiple outbound queues.
+
+This optimization is conditional.
+
+A payload may be shared only when:
+
+- its encoded bytes are identical for all recipients;
+- its lifetime is explicitly owned;
+- no recipient can mutate the underlying representation;
+- reference counting or equivalent lifetime management is correct;
+- recipient-specific fields have already been excluded;
+- protocol state such as compression/encryption does not make the encoded representation recipient-specific.
+
+Do not assume that every Minecraft packet is shareable.
+
+A shared encoded payload does not mean one TCP transmission serves multiple sockets. Each client still has its own channel, socket, kernel buffers, and network transmission. The optimization is primarily the elimination of repeated serialization, allocation, and copying before those transmissions.
+
+## 35.4 Buffer ownership and pooled allocation
+
+Netty's pooled allocation mechanisms may be used where measurement demonstrates a benefit.
+
+The goal is not to replace every allocation with a pooled buffer indiscriminately. Buffer ownership must remain explicit.
+
+Every reference-counted buffer path must define:
+
+- creator/owner;
+- retained references;
+- release responsibility;
+- queue ownership;
+- channel ownership;
+- failure-path release;
+- cancellation behavior;
+- shutdown behavior.
+
+A buffer must never be released while another outbound queue can still access it.
+
+A pooled allocator also does not guarantee flat memory usage, zero garbage collection, or constant latency. Fragmentation, retained buffers, queue growth, copies, packet construction, compression, and channel backpressure remain measurable costs.
+
+The implementation must therefore compare:
+
+- allocation rate;
+- retained memory;
+- garbage-collection pressure;
+- bytes/sec;
+- packets/sec;
+- CPU time;
+- tick time;
+- outbound queue depth;
+- p50/p95/p99 packet-production latency.
+
+Do not merge allocator changes merely because pooled buffers exist.
+
+## 35.5 Write batching and flush policy
+
+Torch should support accumulating compatible outbound writes and flushing them deliberately rather than requiring every packet to cause an immediate flush.
+
+The general path may be:
+
+`write → write → write → write → flush`
+
+instead of:
+
+`write → flush → write → flush → write → flush`
+
+The batching boundary must remain explicit.
+
+Latency-sensitive traffic may require immediate or earlier flushing. Examples must be determined from actual protocol semantics and measurements rather than from a universal packet list invented in advance.
+
+The transport layer must therefore support both:
+
+- ordinary batched traffic;
+- explicitly prioritized/latency-sensitive traffic.
+
+A global "flush exactly once per tick" rule is not mandatory. It is a candidate policy whose effect must be measured.
+
+The relevant measurements include:
+
+- p50/p95/p99 packet latency;
+- packets/sec;
+- bytes/sec;
+- flush count;
+- average packets per flush;
+- Netty event-loop utilization;
+- tick duration;
+- outbound queue latency.
+
+Throughput gains that materially increase latency are not automatically improvements.
+
+## 35.6 Version-independent transport with version-specific codecs
+
+The long-term structure should resemble:
+
+`zamin-core`
+`  ↓`
+`semantic outbound operation`
+`  ↓`
+`protocol-version implementation`
+`  ├── v1_8_8`
+`  ├── v1_9`
+`  ├── ...`
+`  └── future versions`
+`  ↓`
+`common encoded-payload / outbound transport`
+`  ↓`
+`Netty`
+
+The exact module boundaries may differ as the repository evolves. Do not create a module merely to satisfy this diagram.
+
+The important invariant is the responsibility boundary:
+
+**Minecraft version controls what is encoded. Transport controls how efficiently the resulting representation is moved.**
+
+This allows 1.8.8 to use the same transport machinery as later protocol versions without forcing modern protocol assumptions into the 1.8.8 implementation.
+
+Protocol-specific compression and encryption remain above or within the version-specific framing boundary where their semantics require it. A common transport abstraction must not assume that compression, encryption, packet framing, or packet identifiers behave identically across versions.
+
+## 35.7 Broadcast and recipient-specific data
+
+The outbound system should distinguish at least conceptually between:
+
+- immutable shareable payloads;
+- recipient-specific payloads;
+- packets requiring protocol-state-specific transformation.
+
+A broadcast operation should first determine its eligible recipients using the authoritative visibility/tracking rules. Only then should the transport layer distribute the encoded representation.
+
+Do not move visibility decisions into the transport layer.
+
+For example:
+
+`simulation/tracking → recipients`
+`protocol encoder → encoded representation`
+`transport → recipient channels`
+
+not:
+
+`transport → discover who should receive gameplay state`
+
+The transport layer distributes data; it does not become another gameplay authority.
+
+## 35.8 Compression and encryption boundaries
+
+Compression and encryption must remain protocol-aware.
+
+Torch must not assume that a shared encoded buffer can always be reused after compression or encryption.
+
+If two recipients have different protocol state, compression thresholds, compression state, encryption state, or other connection-specific framing, their final byte streams may necessarily differ.
+
+The optimization hierarchy is therefore:
+
+1. share semantic computation where possible;
+2. share protocol encoding where the wire representation is identical;
+3. share pre-compression bytes where safe;
+4. avoid repeated copies and allocations;
+5. perform connection-specific compression/encryption only where required;
+6. write and flush through the connection's own queue.
+
+Do not introduce shared encrypted buffers merely because the plaintext packet was identical.
+
+## 35.9 Thread boundary
+
+The networking optimization must preserve the existing ownership rule:
+
+`network decode → validate → authoritative owner command`
+
+and the corresponding outbound direction:
+
+`authoritative simulation → outbound semantic result → protocol encoding → Netty`
+
+Netty event-loop execution must not become gameplay mutation authority.
+
+Similarly, optimizing outbound packet construction must not move authoritative world reads into arbitrary Netty callbacks.
+
+If future regional simulation lanes are introduced, the intended evolution remains:
+
+`Netty → validated intent → owning simulation lane → authoritative state → outbound packet production → Netty`
+
+The existence of an optimized transport pipeline is not evidence that regional simulation concurrency is ready.
+
+Do not introduce additional simulation queues or execution contexts solely because a networking optimization uses them.
+
+## 35.10 Evidence from existing Minecraft networking implementations
+
+Torch should use existing production implementations as engineering evidence rather than inventing networking optimizations from intuition.
+
+Relevant implementations include Krypton and networking work derived from the Velocity/Paper ecosystem, which demonstrate practical optimization of Minecraft's Netty path, including allocation, framing, serialization, and related transport costs.
+
+Other modern Minecraft server/network projects demonstrate explicit outbound batching, queueing, packet classification, and flush consolidation.
+
+These projects are references for techniques and measurements, not architectures to copy wholesale.
+
+Torch must independently verify that a technique preserves its own:
+
+- 1.8.8 wire behavior;
+- ownership model;
+- protocol module boundaries;
+- lifecycle semantics;
+- multi-version expansion plan.
+
+## 35.11 Multi-version acceptance rule
+
+Every new Minecraft protocol implementation must pass two separate gates.
+
+### Protocol gate
+
+The version-specific implementation must prove that its packets, framing, compression/encryption stages, ordering, and client-visible behavior match the target version.
+
+### Transport gate
+
+The common transport implementation must prove that its optimizations do not change the protocol semantics and remain correct under:
+
+- one recipient;
+- many recipients;
+- slow recipients;
+- disconnected recipients;
+- connection shutdown;
+- packet cancellation;
+- queue saturation;
+- shared-payload lifetime;
+- concurrent broadcasts;
+- compression enabled/disabled;
+- encryption enabled/disabled;
+- protocol-specific recipient differences.
+
+A protocol implementation must not be considered complete merely because its packets serialize correctly in isolation.
+
+## 35.12 Performance gate
+
+No networking optimization becomes an architectural claim merely because it looks faster in code review.
+
+Before adopting a significant transport optimization, establish a baseline and measure the changed path under representative workloads.
+
+At minimum record:
+
+- packets/sec;
+- bytes/sec;
+- allocations/sec;
+- retained buffer memory;
+- GC activity;
+- serialization CPU;
+- compression CPU;
+- Netty event-loop CPU;
+- simulation tick time;
+- flush count;
+- packets per flush;
+- outbound queue depth;
+- p50/p95/p99 outbound latency.
+
+Benchmark at least:
+
+- one player;
+- many players receiving the same broadcast;
+- many players receiving mostly different packets;
+- high entity-tracking traffic;
+- chunk streaming;
+- login/join bursts;
+- slow-client conditions;
+- compression enabled and disabled;
+- encryption enabled and disabled;
+- normal and overloaded simulation conditions.
+
+The objective is not a particular percentage improvement. The objective is demonstrable reduction of an identified bottleneck without violating correctness or latency requirements.
+
+## 35.13 Failure and lifetime rules
+
+Transport optimization must fail safely.
+
+A disconnected channel must not retain shared payloads indefinitely.
+
+A failed write must release every buffer reference owned by the failed path.
+
+A cancelled broadcast must release payload ownership that is no longer queued.
+
+A shutdown must stop admission of new outbound work, drain or cancel queued work according to the documented shutdown policy, release retained buffers, and close channels without leaving reference-counted objects alive indefinitely.
+
+Debug/test builds should make leaked reference-counted buffers visible.
+
+Do not hide buffer-lifetime failures behind broad exception handling.
+
+## 35.14 What is explicitly not part of this architecture
+
+The following are not required merely because this section exists:
+
+- client-side mods;
+- a custom Minecraft protocol;
+- a custom compression format;
+- native Panama/FFM networking;
+- io_uring;
+- platform-specific native networking;
+- per-player OS threads;
+- per-region OS threads;
+- concurrent authoritative mutation;
+- replacing Netty;
+- copying Krypton or PulseNet wholesale;
+- forcing every packet through a pooled buffer;
+- forcing every packet through a shared buffer;
+- flushing exactly once per tick.
+
+Any of these may become a separately justified engineering decision, but none is implied by the transport architecture.
+
+## 35.15 Definition of success
+
+Torch's networking architecture succeeds when an unmodified client for every supported Minecraft version can connect and behave normally while Torch internally minimizes unnecessary allocation, serialization, copying, queue overhead, and flush overhead.
+
+The target architecture is:
+
+`version-specific protocol semantics → immutable wire representation where possible → minimal-copy transport → recipient-aware distribution → controlled batching → connection-specific write/flush`
+
+The governing rule is:
+
+**Optimize how Torch moves protocol data without changing what the client believes that protocol data means.**
+
+1.8.8 is the first protocol implementation, not the permanent networking architecture. Later versions must reuse the transport principles without inheriting incorrect 1.8.8 wire assumptions.
+
+Owner note: 
+I would keep the section at this level for now. In particular, I deliberately did not declare pooled buffers, zero-copy, encode-once broadcasting, or batching as already implemented. §20's measurement discipline and the existing ownership rules remain authoritative. The section defines the architectural target and acceptance gates rather than prematurely committing Torch to a particular Netty implementation. (remove this note!)
