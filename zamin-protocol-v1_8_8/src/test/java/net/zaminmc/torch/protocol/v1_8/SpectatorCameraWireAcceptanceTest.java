@@ -35,8 +35,13 @@ class SpectatorCameraWireAcceptanceTest extends ProtocolTestBase {
 
     @Override
     protected long keepAliveIntervalMs() {
-        // The scripted clients answer no keep-alives; the scene runs untimed.
-        return 120_000;
+        // The cadence rides well UNDER the listener's own 30s read-idle reap
+        // (the reference's own proportion: its 15s cadence against the same
+        // bound): the auto-answered exchange keeps a reading client alive no
+        // matter how the scene's noise stream paces, and every scan below
+        // skips the keep-alive frames by id — the packet-bounded windows are
+        // never disturbed by the exchange.
+        return 5_000;
     }
 
     @Test

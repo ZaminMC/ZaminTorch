@@ -18,10 +18,16 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class MobIntegrationTest extends ProtocolTestBase {
 
-    /** Movement and population flows run on real ticks; keep-alives must not interfere. */
+    /**
+     * The keep-alive cadence rides well UNDER the listener's own 30s read-idle
+     * reap (the reference's own proportion: its 15s cadence against the same
+     * 30s bound): the auto-answered exchange keeps the read side alive while
+     * the movement waits idle, and every read below skips the keep-alive
+     * frames by id — the packet-bounded scans never see them.
+     */
     @Override
     protected long keepAliveIntervalMs() {
-        return 300_000;
+        return 5_000;
     }
 
     private PlayerSession awaitPlayer(String name) throws InterruptedException {
