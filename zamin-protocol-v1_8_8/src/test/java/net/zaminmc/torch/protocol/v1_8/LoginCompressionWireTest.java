@@ -352,24 +352,30 @@ class LoginCompressionWireTest {
     // ------------------------------------------------------------------ shared
 
     /** The play-state ids this join burst can carry (Protocol18's own set). */
+    /**
+     * The full S2C play-id map, collected reflectively: the burst window is
+     * a REAL wire window, not an isolated lane — the tick lane's own sends
+     * (a mob's spawn walk with its attribute pair, the census churn) may
+     * legally interleave between the join walk's frames, exactly as the
+     * reference's own per-thread writeAndFlush stream interleaves (the
+     * socket order is the write order, whatever thread wrote). The
+     * assertion's meaning is unchanged: every frame is a REAL packet, the
+     * framing never corrupts.
+     */
     private static Set<Integer> knownPlayIds() {
-        return Set.of(
-                Protocol18.S2C_JOIN_GAME, Protocol18.S2C_SERVER_DIFFICULTY,
-                Protocol18.S2C_SPAWN_POSITION, Protocol18.S2C_TIME_UPDATE,
-                Protocol18.S2C_CHUNK_DATA, Protocol18.S2C_PLAYER_POSITION_AND_LOOK,
-                Protocol18.S2C_CHUNK_BULK, Protocol18.S2C_MULTI_BLOCK_CHANGE,
-                Protocol18.S2C_CHAT, Protocol18.S2C_PLAYER_INFO,
-                Protocol18.S2C_PLUGIN_MESSAGE, Protocol18.S2C_WINDOW_ITEMS,
-                Protocol18.S2C_UPDATE_HEALTH, Protocol18.S2C_SET_EXPERIENCE,
-                Protocol18.S2C_PLAYER_ABILITIES, Protocol18.S2C_HELD_ITEM_CHANGE,
-                Protocol18.S2C_WORLD_BORDER, Protocol18.S2C_PLAYER_LIST_HEADER_FOOTER,
-                Protocol18.S2C_KEEP_ALIVE, Protocol18.S2C_CHANGE_GAME_STATE,
-                Protocol18.S2C_SPAWN_ENTITY, Protocol18.S2C_SPAWN_MOB,
-                Protocol18.S2C_ENTITY_METADATA, Protocol18.S2C_ENTITY_VELOCITY,
-                Protocol18.S2C_SCOREBOARD_OBJECTIVE, Protocol18.S2C_UPDATE_SCORE,
-                Protocol18.S2C_DISPLAY_SCOREBOARD, Protocol18.S2C_TEAMS,
-                Protocol18.S2C_NAMED_SPAWN,
-                Protocol18.S2C_ATTACH_ENTITY, Protocol18.S2C_ENTITY_TELEPORT);
+        Set<Integer> ids = new java.util.HashSet<>();
+        for (java.lang.reflect.Field field : Protocol18.class.getDeclaredFields()) {
+            if (java.lang.reflect.Modifier.isStatic(field.getModifiers())
+                    && field.getType() == int.class
+                    && field.getName().startsWith("S2C_")) {
+                try {
+                    ids.add(field.getInt(null));
+                } catch (IllegalAccessException e) {
+                    throw new AssertionError(e);
+                }
+            }
+        }
+        return java.util.Set.copyOf(ids);
     }
 
     private static int countChar(String value, char c) {

@@ -281,19 +281,29 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         // arm's population is the pre-login silence.
         if (cause instanceof io.netty.handler.timeout.ReadTimeoutException) {
             if (session != null) {
-                PlayerSession timedOut = session;
-                session = null;
-                engine.clientDisconnected(timedOut, "Timed out");
+                engine.clientDisconnected(session, "Timed out");
             }
+            // The session field STAYS: channelInactive's walk resolves the
+            // real departed uuid and runs the adapter's observer cleanup
+            // (forget + playerLeft) — the reference's onDisconnect shape.
+            // The engine's own walk is state-gated idempotent, so the
+            // second clientDisconnected lands as a no-op.
             ctx.close();
             return;
         }
 
         if (cause instanceof java.io.IOException) {
             if (session != null) {
-                PlayerSession current = session;
-                session = null;
-                engine.clientDisconnected(current, "Internal Exception: " + cause);
+                // The session field STAYS: the close's channelInactive walk
+                // resolves the REAL departed uuid and runs the adapter's
+                // observer cleanup (forget + playerLeft) — the reference's
+                // own onDisconnect always walks the observers
+                // (PlayerManager.remove), and the engine's clientDisconnected
+                // is state-gated idempotent, so the second call lands as a
+                // no-op with the reason already logged once. A write that
+                // lost the race against a closing socket must still leave
+                // the OTHER observers cleaned.
+                engine.clientDisconnected(session, "Internal Exception: " + cause);
                 ctx.close();
                 return;
             }
@@ -305,9 +315,10 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         LOGGER.log(Level.WARNING, "Protocol error from " + ctx.channel().remoteAddress()
                 + (session != null ? " (" + session.name() + ")" : ""), cause);
         if (session != null) {
-            PlayerSession current = session;
-            session = null;
-            engine.clientDisconnected(current, "protocol error");
+            // The session field STAYS (the same law as the other arms):
+            // channelInactive's walk resolves the real departed uuid and
+            // runs the adapter's observer cleanup.
+            engine.clientDisconnected(session, "protocol error");
         }
         ctx.close();
     }

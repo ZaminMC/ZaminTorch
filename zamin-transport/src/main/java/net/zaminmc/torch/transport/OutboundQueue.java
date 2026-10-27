@@ -237,6 +237,16 @@ public final class OutboundQueue {
         while ((packet = this.queue.poll()) != null) {
             int bytes = packet.readableBytes();
             this.queuedBytes.addAndGet(-bytes);
+            if (!this.channel.isActive()) {
+                // The channel died between admission and the drain: the
+                // failure path releases the ticket instead of writing into
+                // the dead socket (§35.13 — a failed write releases every
+                // reference the failed path owns; the drop is counted, never
+                // silent, and never a broken-pipe storm).
+                this.metrics.packetDropped(bytes);
+                packet.release();
+                continue;
+            }
             // The write hands the ticket to the pipeline: the frame encoder
             // releases it after encoding, and Netty's own failure path
             // releases it when the channel rejects the write. Both are the
