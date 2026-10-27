@@ -41,7 +41,7 @@ public final class ItemDataStore {
     private static final int MAGIC_0 = 'Z';
     private static final int MAGIC_1 = 'I';
     private static final int MAGIC_2 = 'D';
-    private static final int FORMAT_VERSION = 7;
+    private static final int FORMAT_VERSION = 8;
     /** The pre-Wave-G shape (Slice 93): the stack rows stop after the enchant pairs. */
     private static final int FORMAT_VERSION_1 = 1;
     /** The pre-H2 shape (Slice 94): the stack rows stop after the Lore list. */
@@ -54,10 +54,16 @@ public final class ItemDataStore {
     private static final int FORMAT_VERSION_5 = 5;
     /** The pre-K2 shape (Wave J): the stack rows stop after the attribute-modifiers row. */
     private static final int FORMAT_VERSION_6 = 6;
+    /** The pre-TF-9 shape (Wave K): the stack rows stop after the SkullOwner
+     * row — no body carries a dimension stamp yet. */
+    private static final int FORMAT_VERSION_7 = 7;
 
     private static final int FLAG_NEVER_DESPAWN = 0x01;
     private static final int FLAG_THROWER = 0x02;
     private static final int FLAG_OWNER = 0x04;
+    /** The body's own dimension (Wave TF-9 — the ZMD v2 row's own shape:
+     * the byte rides only when non-zero, -1 landing as the u8 255). */
+    private static final int FLAG_DIMENSION = 0x08;
 
     private final Path file;
 
@@ -200,7 +206,15 @@ public final class ItemDataStore {
                     if (item.owner() != null) {
                         flags |= FLAG_OWNER;
                     }
+                    if (item.dimension() != 0) {
+                        flags |= FLAG_DIMENSION;
+                    }
                     out.writeByte(flags);
+                    if ((flags & FLAG_DIMENSION) != 0) {
+                        // The byte carries the dimension (-1 lands as the u8 255,
+                        // exactly the ZMD v2 row's own law).
+                        out.writeByte(item.dimension());
+                    }
                     if (item.thrower() != null) {
                         writeNullableString(out, item.thrower());
                     }
@@ -254,7 +268,8 @@ public final class ItemDataStore {
                 throw new IOException("Not a ZID file");
             }
             int version = in.readByte();
-            if (version != FORMAT_VERSION && version != FORMAT_VERSION_6
+            if (version != FORMAT_VERSION && version != FORMAT_VERSION_7
+                    && version != FORMAT_VERSION_6
                     && version != FORMAT_VERSION_5
                     && version != FORMAT_VERSION_4
                     && version != FORMAT_VERSION_3
@@ -339,7 +354,7 @@ public final class ItemDataStore {
                         ? readNullableString(in) : null;
                 // The v7 tail (Wave K): the SkullOwner SNBT row — absent
                 // in a v6 file.
-                String skullOwnerRow = version >= FORMAT_VERSION
+                String skullOwnerRow = version >= FORMAT_VERSION_7
                         ? readNullableString(in) : null;
                 // An unresolvable item id (a newer save on an older build)
                 // still consumes its rows: the body simply never joins the
@@ -416,6 +431,13 @@ public final class ItemDataStore {
                 int age = readVarInt(in);
                 int pickupDelay = readVarInt(in);
                 int flags = in.readUnsignedByte();
+                // The v8 tail (Wave TF-9): the body's own dimension — a
+                // v1-v7 file never carries it (every historical body is an
+                // overworld body, the migration law).
+                int dimension = 0;
+                if (version >= FORMAT_VERSION && (flags & FLAG_DIMENSION) != 0) {
+                    dimension = in.readByte();
+                }
                 String thrower = (flags & FLAG_THROWER) != 0
                         ? readNullableString(in) : null;
                 String owner = (flags & FLAG_OWNER) != 0
@@ -426,7 +448,7 @@ public final class ItemDataStore {
                 loaded.add(new ItemEntityManager.ItemRecord(
                         new net.zaminmc.torch.util.Position(x, y, z),
                         vx, vy, vz, stack, age, pickupDelay,
-                        (flags & FLAG_NEVER_DESPAWN) != 0, thrower, owner));
+                        (flags & FLAG_NEVER_DESPAWN) != 0, thrower, owner, dimension));
             }
             return loaded;
         } catch (IOException | RuntimeException corrupt) {

@@ -86,11 +86,11 @@ class WitherBossTest {
         final List<ItemStack> drops = new ArrayList<>();
         final List<ItemStack> persistent = new ArrayList<>();
 
-        @Override public void spawnLootDrop(Position position, ItemStack stack) {
+        @Override public void spawnLootDrop(Position position, ItemStack stack, int dimension) {
             drops.add(stack);
         }
 
-        @Override public void spawnPersistentLootDrop(Position position, ItemStack stack) {
+        @Override public void spawnPersistentLootDrop(Position position, ItemStack stack, int dimension) {
             persistent.add(stack);
         }
     }

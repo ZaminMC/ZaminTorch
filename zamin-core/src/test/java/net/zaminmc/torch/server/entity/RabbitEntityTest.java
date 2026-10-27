@@ -110,7 +110,7 @@ class RabbitEntityTest {
         final List<ItemStack> drops = new ArrayList<>();
 
         @Override
-        public void spawnLootDrop(Position position, ItemStack stack) {
+        public void spawnLootDrop(Position position, ItemStack stack, int dimension) {
             drops.add(stack);
         }
     }

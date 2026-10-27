@@ -115,7 +115,7 @@ class DoorBreakApiAcceptanceTest {
     private record Rig(MobManager manager, Events events, DoorWorld world) {
     }
 
-    private static final MobManager.LootSink NO_LOOT = (position, stack) -> {
+    private static final MobManager.LootSink NO_LOOT = (position, stack, dimension) -> {
     };
 
     private Rig rig(long seed) {

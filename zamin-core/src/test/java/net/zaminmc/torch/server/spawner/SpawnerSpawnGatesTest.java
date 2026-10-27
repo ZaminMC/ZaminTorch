@@ -61,7 +61,7 @@ class SpawnerSpawnGatesTest {
 
     private static net.zaminmc.torch.server.entity.MobManager mobs() {
         return new net.zaminmc.torch.server.entity.MobManager(
-                AIR_WORLD, new Random(7L), (position, stack) -> {
+                AIR_WORLD, new Random(7L), (position, stack, dimension) -> {
                 }, 1, (x, z) -> 64);
     }
 

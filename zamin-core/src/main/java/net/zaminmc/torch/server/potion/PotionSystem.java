@@ -32,9 +32,14 @@ public final class PotionSystem {
 
     /** The engine's body surface (the application sink — the CombatSink pattern). */
     public interface Bodies {
-        /** Every living body inside the box (the splash scan). */
+        /**
+         * Every living body inside the box in the named dimension (the
+         * splash scan — Wave TF-9: the reference's same-world entity walk;
+         * a body in another dimension never takes a same-coordinate
+         * splash).
+         */
         List<Object> bodiesIn(double minX, double minY, double minZ,
-                              double maxX, double maxY, double maxZ);
+                              double maxX, double maxY, double maxZ, int dimension);
 
         /** A body's squared distance to a point (the proximity falloff). */
         double squaredDistanceTo(Object body, double x, double y, double z);
@@ -378,14 +383,14 @@ public final class PotionSystem {
      *                  witch's own-splash immunity keys on it.
      */
     public void splash(double x, double y, double z, int metadata, Object directHit,
-                       Object thrower) {
+                       Object thrower, int dimension) {
         List<StatusEffectInstance> set = PotionHelper.getStatusEffects(metadata);
         if (!set.isEmpty()) {
             // The scan box (onCollision lines 74-75): the potion's own
             // 0.25 cube grown (4, 2, 4) — the half-width 0.125 rides every
             // face of the point box.
             List<Object> nearby = bodies.bodiesIn(x - 4.125, y - 2.125, z - 4.125,
-                    x + 4.125, y + 2.125, z + 4.125);
+                    x + 4.125, y + 2.125, z + 4.125, dimension);
             for (Object body : nearby) {
                 double squared = bodies.squaredDistanceTo(body, x, y, z);
                 if (squared >= 16.0) {

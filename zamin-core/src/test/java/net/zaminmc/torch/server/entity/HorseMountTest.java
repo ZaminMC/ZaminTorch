@@ -224,7 +224,7 @@ class HorseMountTest {
     /** The manager's dying-dismount rule exercised through the real MobManager. */
     private boolean mobDyingOpensSeat(MobEntity mount) {
         MobManager manager = new MobManager(worldAt(), new Random(1),
-                (pos, stack) -> { }, 10, (x, z) -> 4);
+                (pos, stack, dimension) -> { }, 10, (x, z) -> 4);
         MobEntity spawned = manager.spawnAt(MobType.HORSE, new Position(0.5, 4.0, 0.5));
         spawned.setRider(100);
         spawned.hurt(1000.0f);

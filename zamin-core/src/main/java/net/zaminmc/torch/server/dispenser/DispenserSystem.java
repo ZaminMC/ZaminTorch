@@ -484,7 +484,7 @@ public final class DispenserSystem implements WorldChangeListener {
         Position at = dispensePosition(pos, facing);
         ProjectileEntity potion = projectiles.launchVector(ProjectileEntity.Kind.POTION, -1, at,
                 OFFSETS[facing][0], OFFSETS[facing][1] + 0.1, OFFSETS[facing][2],
-                1.1 * 1.25, 6.0 * 0.5);
+                1.1 * 1.25, 6.0 * 0.5, 0);
         if (potion != null) {
             potion.setPotionDamage(stack.damage());
         }
@@ -503,7 +503,7 @@ public final class DispenserSystem implements WorldChangeListener {
             Position at = dispensePosition(pos, facing);
             ProjectileEntity launched = projectiles.launchVector(kind, -1, at,
                     OFFSETS[facing][0], OFFSETS[facing][1] + 0.1, OFFSETS[facing][2],
-                    1.1, 6.0);
+                    1.1, 6.0, 0);
             if (launched != null && kind == ProjectileEntity.Kind.ARROW) {
                 // Bootstrap line 70: the dispensed arrow is COLLECTABLE
                 // (the bare positional ctor plus the explicit pickup = 1 —
@@ -528,7 +528,7 @@ public final class DispenserSystem implements WorldChangeListener {
         double y = at.y() + OFFSETS[facing][1] * 0.3;
         double z = at.z() + OFFSETS[facing][2] * 0.3;
         projectiles.launchFireball(new Position(x, y, z),
-                OFFSETS[facing][0], OFFSETS[facing][1], OFFSETS[facing][2]);
+                OFFSETS[facing][0], OFFSETS[facing][1], OFFSETS[facing][2], 0);
         fx.sound(centerOf(pos), "mob.ghast.fireball", 2.0f,
                 (random.nextFloat() - random.nextFloat()) * 0.2f + 1.0f);
         return consumeOne(stack);

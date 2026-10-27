@@ -86,7 +86,7 @@ class ArrowPickupTest {
      *  caller's. */
     private ProjectileEntity stuckArrow(ProjectileManager manager, int pickup) {
         ProjectileEntity arrow = manager.launch(ProjectileEntity.Kind.ARROW, -1,
-                new Position(0.6, 4.2, 0.5), 0, 0, 0.0);
+                new Position(0.6, 4.2, 0.5), 0, 0, 0.0, 0);
         arrow.landInGround();
         arrow.setPickupStatus(pickup);
         return arrow;
@@ -184,7 +184,7 @@ class ArrowPickupTest {
         // The in-flight arrow (the !inGround gate, line 428): the walk
         // never collects a moving body.
         ProjectileEntity arrow = manager.launch(ProjectileEntity.Kind.ARROW, -1,
-                new Position(0.6, 4.2, 0.5), 0, 0, 3.0);
+                new Position(0.6, 4.2, 0.5), 0, 0, 3.0, 0);
         arrow.setPickupStatus(1);
         int before = arrowCount(walker);
         manager.tick(List.of(walker));
@@ -221,7 +221,7 @@ class ArrowPickupTest {
         net.zaminmc.torch.entity.Projectile playerArrow = stuckArrow(manager, 1);
         net.zaminmc.torch.entity.Projectile infinityArrow = stuckArrow(manager, 2);
         net.zaminmc.torch.entity.Projectile shard = manager.launch(
-                ProjectileEntity.Kind.SNOWBALL, -1, new Position(0.6, 4.2, 0.5), 0, 0, 0.0);
+                ProjectileEntity.Kind.SNOWBALL, -1, new Position(0.6, 4.2, 0.5), 0, 0, 0.0, 0);
         assertEquals(0, mobArrow.pickupStatus(), "the mob shooter's band");
         assertEquals(1, playerArrow.pickupStatus(), "the player bow's band");
         assertEquals(2, infinityArrow.pickupStatus(), "the Infinity creative override");

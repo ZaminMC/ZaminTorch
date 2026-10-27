@@ -4669,6 +4669,13 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                 || chunkTracker == null) {
             return;
         }
+        // Wave TF-9 — the body's own dimension gates the observer (the
+        // same chunk coordinates exist in both worlds — a nether item
+        // never spawns for an overworld observer, whatever the chunk view
+        // holds).
+        if (dimensionOfSession() != entity.dimension()) {
+            return;
+        }
         if (!chunkTracker.hasChunk(chunkKeyOf(entity.position()))) {
             return; // observer cannot see that chunk yet
         }
@@ -4706,6 +4713,11 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
 
     /** Absolute-position sync for a moving item entity. Any thread. */
     void sendItemTeleport(net.zaminmc.torch.server.entity.ItemEntity entity) {
+        // Wave TF-9 — the observer in another dimension never tracks this
+        // body (its spawn never reached them; the teleport must not either).
+        if (dimensionOfSession() != entity.dimension()) {
+            return;
+        }
         sendEntityTeleport(entity.entityId(), entity.position(), entity.onGround());
     }
 
@@ -4776,6 +4788,10 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     void sendItemStackUpdate(net.zaminmc.torch.server.entity.ItemEntity entity) {
         Channel channel = adapter.channelOf(this);
         if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        // Wave TF-9 — the body's own dimension gates the observer.
+        if (dimensionOfSession() != entity.dimension()) {
             return;
         }
         ByteBuf meta = Unpooled.buffer(16);
@@ -6561,6 +6577,11 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         if (current == null || chunkTracker == null) {
             return;
         }
+        // Wave TF-9 — the body's own dimension gates the observer (the
+        // mob spawn's own Slice-25d gate, generalized).
+        if (dimensionOfSession() != projectile.dimension()) {
+            return;
+        }
         var blockPos = projectile.position().toBlockPosition();
         if (!chunkTracker.hasChunk(blockPos.chunkPosition().packed())) {
             return; // outside this observer's loaded window
@@ -6635,6 +6656,11 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     void sendProjectileMoved(net.zaminmc.torch.server.entity.projectile.ProjectileEntity projectile) {
         Channel channel = adapter.channelOf(this);
         if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        // Wave TF-9 — the observer in another dimension never tracks this
+        // body (its spawn never reached them; the teleport must not either).
+        if (dimensionOfSession() != projectile.dimension()) {
             return;
         }
         ByteBuf out = Unpooled.buffer(40);
@@ -6722,6 +6748,11 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     void sendProjectileRemoved(net.zaminmc.torch.server.entity.projectile.ProjectileEntity projectile) {
         Channel channel = adapter.channelOf(this);
         if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        // Wave TF-9 — the observer in another dimension never tracked this
+        // body; a stray Destroy for an unknown id is noise at best.
+        if (dimensionOfSession() != projectile.dimension()) {
             return;
         }
         ByteBuf out = Unpooled.buffer(8);

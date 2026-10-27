@@ -67,7 +67,7 @@ class MobDataStoreTest {
                         return null;
                     }
                 },
-                new java.util.Random(7), (position, stack) -> { }, 3000,
+                new java.util.Random(7), (position, stack, dimension) -> { }, 3000,
                 (x, z) -> 4);
         List<MobManager.MobSnapshot> saved = List.of(
                 // A kind that will never exist (Slice 63 added the very
@@ -88,7 +88,7 @@ class MobDataStoreTest {
         // Unbreakable byte, the RepairCost varint, the HideFlags varint,
         // the Lore list — ride the equipment block through the file.
         MobManager manager = new MobManager(new StubWorld(), new java.util.Random(7),
-                (position, stack) -> { }, 1_100_000, (x, z) -> 4);
+                (position, stack, dimension) -> { }, 1_100_000, (x, z) -> 4);
         MobEntity zombie = manager.spawnAt(
                 MobType.ZOMBIE, new Position(0.5, 4.0, 0.5));
         zombie.setHeldEquipment(net.zaminmc.torch.item.ItemStack.of(
@@ -112,7 +112,7 @@ class MobDataStoreTest {
 
         // And the restored body carries them onto the engine.
         MobManager restored = new MobManager(new StubWorld(), new java.util.Random(8),
-                (position, stack) -> { }, 1_200_000, (x, z) -> 4);
+                (position, stack, dimension) -> { }, 1_200_000, (x, z) -> 4);
         restored.restoreAll(loaded);
         net.zaminmc.torch.item.ItemStack again = restored.all().get(0).heldEquipment();
         assertTrue(again.unbreakable());
@@ -128,7 +128,7 @@ class MobDataStoreTest {
         // riding the held equipment block. A v10-era body loads with the
         // arm absent.
         MobManager manager = new MobManager(new StubWorld(), new java.util.Random(9),
-                (position, stack) -> { }, 1_100_000, (x, z) -> 4);
+                (position, stack, dimension) -> { }, 1_100_000, (x, z) -> 4);
         java.util.UUID uuid = java.util.UUID.fromString(
                 "CB3F55D3-645C-4F38-A497-9C13A33DB5CF");
         MobEntity zombie = manager.spawnAt(
@@ -225,7 +225,7 @@ class MobDataStoreTest {
                         return null;
                     }
                 },
-                new java.util.Random(7), (position, stack) -> { }, 3000,
+                new java.util.Random(7), (position, stack, dimension) -> { }, 3000,
                 (x, z) -> 4);
         List<MobManager.MobSnapshot> saved = List.of(
                 new MobManager.MobSnapshot("ZOMBIE", 1.5, 8.0, 0.5, 90f, 18f,
@@ -255,7 +255,7 @@ class MobDataStoreTest {
         // Wave K — the ZMD v12 tail: the held player head's profile as
         // ONE parseable-SNBT string row.
         MobManager manager = new MobManager(new StubWorld(), new java.util.Random(15),
-                (position, stack) -> { }, 1_100_000, (x, z) -> 4);
+                (position, stack, dimension) -> { }, 1_100_000, (x, z) -> 4);
         MobEntity zombie = manager.spawnAt(
                 MobType.ZOMBIE, new Position(0.5, 4.0, 0.5));
         zombie.setHeldEquipment(new net.zaminmc.torch.item.ItemStack(

@@ -46,7 +46,7 @@ class DimensionAwareMobQueryTest {
     }
 
     private static MobManager manager(MobEntity.WorldQuery world, long seed) {
-        return new MobManager(world, new Random(seed), (position, stack) -> { },
+        return new MobManager(world, new Random(seed), (position, stack, dimension) -> { },
                 900, (x, z) -> 8);
     }
 

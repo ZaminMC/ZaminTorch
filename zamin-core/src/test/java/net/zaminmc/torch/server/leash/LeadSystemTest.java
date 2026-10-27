@@ -92,7 +92,7 @@ class LeadSystemTest {
     }
 
     private Rig rig() {
-        MobManager mobs = new MobManager(worldAt(), new Random(11), (position, stack) -> { },
+        MobManager mobs = new MobManager(worldAt(), new Random(11), (position, stack, dimension) -> { },
                 2_000_000, (x, z) -> 4);
         Drops drops = new Drops();
         Wire wire = new Wire();

@@ -57,7 +57,7 @@ class LootPickupModelTest {
     private static final class StubBodies implements PotionSystem.Bodies {
         @Override
         public List<Object> bodiesIn(double minX, double minY, double minZ,
-                                     double maxX, double maxY, double maxZ) {
+                                     double maxX, double maxY, double maxZ, int dimension) {
             return List.of();
         }
 
@@ -125,7 +125,7 @@ class LootPickupModelTest {
         final List<ItemStack> drops = new java.util.ArrayList<>();
 
         @Override
-        public void spawnLootDrop(Position position, ItemStack stack) {
+        public void spawnLootDrop(Position position, ItemStack stack, int dimension) {
             drops.add(stack);
         }
     }

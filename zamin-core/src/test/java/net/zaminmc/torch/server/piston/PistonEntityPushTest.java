@@ -397,10 +397,10 @@ class PistonEntityPushTest {
                 // pulls them through the band over the extension's ticks).
                 arrow.set(server.projectiles().launchVector(
                         net.zaminmc.torch.server.entity.projectile.ProjectileEntity.Kind.ARROW,
-                        -1, new Position(x + 2.5, y + 0.5, z + 0.5), 1.0, 0.0, 0.0, 0.0, 0.0));
+                        -1, new Position(x + 2.5, y + 0.5, z + 0.5), 1.0, 0.0, 0.0, 0.0, 0.0, 0));
                 far.set(server.projectiles().launchVector(
                         net.zaminmc.torch.server.entity.projectile.ProjectileEntity.Kind.ARROW,
-                        -1, new Position(x + 4.5, y + 0.5, z + 0.5), 1.0, 0.0, 0.0, 0.0, 0.0));
+                        -1, new Position(x + 4.5, y + 0.5, z + 0.5), 1.0, 0.0, 0.0, 0.0, 0.0, 0));
             });
             await(() -> arrow.get() != null && far.get() != null, "the arrows launched");
             double before = arrow.get().position().x();
@@ -450,7 +450,7 @@ class PistonEntityPushTest {
                 server.tnt().spawnPrimedAt(x + 2.5, y, z + 0.6);
                 arrow.set(server.projectiles().launchVector(
                         net.zaminmc.torch.server.entity.projectile.ProjectileEntity.Kind.ARROW,
-                        -1, new Position(x + 2.5, y + 0.5, z + 0.2), 1.0, 0.0, 0.0, 0.0, 0.0));
+                        -1, new Position(x + 2.5, y + 0.5, z + 0.2), 1.0, 0.0, 0.0, 0.0, 0.0, 0));
                 for (net.zaminmc.torch.server.armorstand.ArmorStand placed
                         : server.armorStands().allStands()) {
                     stand.set(placed);

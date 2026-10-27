@@ -103,7 +103,7 @@ class ZombiePigmanTest {
         java.util.function.BiFunction<Integer, Integer, Integer> surface = (x, z) -> 8;
         class CountingLoot implements MobManager.LootSink {
             @Override public void spawnLootDrop(Position position,
-                                                net.zaminmc.torch.item.ItemStack stack) {
+                                                net.zaminmc.torch.item.ItemStack stack, int dimension) {
             }
         }
         MobManager manager = new MobManager(worldAt(null), new Random(83L),
@@ -176,7 +176,7 @@ class ZombiePigmanTest {
         // the player-kill window.
         class Loot implements MobManager.LootSink {
             final List<ItemStack> drops = new ArrayList<>();
-            @Override public void spawnLootDrop(Position position, ItemStack stack) {
+            @Override public void spawnLootDrop(Position position, ItemStack stack, int dimension) {
                 drops.add(stack);
             }
         }
@@ -222,7 +222,7 @@ class ZombiePigmanTest {
         // attacker. The named player gone, the window lapses at 100.
         class Loot implements MobManager.LootSink {
             final List<ItemStack> drops = new ArrayList<>();
-            @Override public void spawnLootDrop(Position position, ItemStack stack) {
+            @Override public void spawnLootDrop(Position position, ItemStack stack, int dimension) {
                 drops.add(stack);
             }
         }

@@ -842,8 +842,8 @@ public final class EngineServer implements Server, EngineBridge {
                 MobManager mobs = new MobManager(
                         new MobWorldQuery(),
                         new java.util.Random(),
-                        (position, stack) -> itemEntities.spawnDropAtBlock(position, stack,
-                                ItemEntity.PICKUP_DELAY_DROP_TICKS),
+                        (position, stack, dimension) -> itemEntities.spawnDropAtBlock(position, stack,
+                                ItemEntity.PICKUP_DELAY_DROP_TICKS, dimension),
                         MOB_ID_BASE,
                         (x, z) -> surfaceY(x, z));
                 this.mobManager = mobs;
@@ -1702,6 +1702,13 @@ public final class EngineServer implements Server, EngineBridge {
                                 || at.z() + 0.125 < minZ || at.z() - 0.125 > maxZ) {
                             continue;
                         }
+                        // Wave TF-9 — the piston family's own overworld
+                        // binding: the walk never collects a cross-dimension
+                        // body (a nether item at the same coordinates is not
+                        // this piston's to push).
+                        if (item.dimension() != 0) {
+                            continue;
+                        }
                         bodies.add(new PistonItemPush(item, itemEntities));
                     }
                     // The vehicles (the carts, the boats): the kind's own
@@ -2054,13 +2061,21 @@ public final class EngineServer implements Server, EngineBridge {
                 // only fires at tick time.
                 projectiles.setBurningTntArm(
                         new net.zaminmc.torch.server.entity.projectile.ProjectileManager.BurningTntArm() {
-                            @Override public boolean isTnt(net.zaminmc.torch.block.BlockPosition pos) {
+                            @Override public boolean isTnt(net.zaminmc.torch.block.BlockPosition pos,
+                                    int dimension) {
+                                // Wave TF-9 — the reference's own-world
+                                // getBlockState: the TNT read consults the
+                                // arrow's dimension (the nether never holds
+                                // engine TNT today — the block layer is
+                                // overworld-bound — so the gate answers
+                                // false there, the honest shape).
                                 return tntSystem != null
-                                        && tntSystem.isTntBlock(world.getBlock(pos));
+                                        && tntSystem.isTntBlock(worldForSafe(dimension).getBlock(pos));
                             }
 
-                            @Override public void ignite(net.zaminmc.torch.block.BlockPosition pos) {
-                                if (tntSystem != null) {
+                            @Override public void ignite(net.zaminmc.torch.block.BlockPosition pos,
+                                    int dimension) {
+                                if (tntSystem != null && dimension == 0) {
                                     tntSystem.useIgnite(pos);
                                 }
                             }
@@ -2069,11 +2084,14 @@ public final class EngineServer implements Server, EngineBridge {
                 // The fireball's landing arm (SmallFireballEntity.onHit): the
                 // fire block at the air cell the fireball crossed before the
                 // solid one.
-                projectiles.setFireSink((x, y, z) -> {
+                projectiles.setFireSink((x, y, z, dimension) -> {
+                    // Wave TF-9 — the fire lands in the fireball's OWN
+                    // world (SmallFireballEntity.onHit's world.setBlockState).
+                    EngineWorld fireWorld = worldForSafe(dimension);
                     BlockPosition at = new BlockPosition(x, y, z);
                     if (at.y() >= BlockPosition.MIN_Y && at.y() <= BlockPosition.MAX_Y
-                            && world.getBlock(at).equals(world.airType())) {
-                        world.setBlock(at, BuiltinBlocks.FIRE);
+                            && fireWorld.getBlock(at).equals(fireWorld.airType())) {
+                        fireWorld.setBlock(at, BuiltinBlocks.FIRE);
                     }
                 });
                 // The dispensers (Slice 11a): the 4-tick reaction + the
@@ -2181,9 +2199,11 @@ public final class EngineServer implements Server, EngineBridge {
                 potionSystem = new net.zaminmc.torch.server.potion.PotionSystem(
                         new PotionBodies());
                 beaconSystem.setPotions(potionSystem); // the beacon's spread rides the potion family
-                projectiles.setPotionSink((x, y, z, damage, directHit, throwerId) -> {
+                projectiles.setPotionSink((x, y, z, damage, directHit, throwerId, dimension) -> {
+                    // Wave TF-9 — the splash walks the potion's OWN world's
+                    // bodies (PotionEntity.onCollision's same-world scan).
                     potionSystem.splash(x, y, z, damage, directHit,
-                            resolveSplashThrower(throwerId));
+                            resolveSplashThrower(throwerId), dimension);
                     // The world event 2002 (PotionEntity.onCollision's own
                     // closing doEvent): the color-carrying burst particles.
                     fxManager.potionSplash(new Position(x, y, z), damage);
@@ -2195,22 +2215,26 @@ public final class EngineServer implements Server, EngineBridge {
                 // answers the destructive flag (Slice 24a — FireballEntity
                 // line 33's own consult): a no-grief world wounds and
                 // knocks but never breaks blocks.
-                projectiles.setExplosionSink((at, power) -> detonateAt(
+                projectiles.setExplosionSink((at, power, dimension) -> detonateAtIn(
+                        worldForSafe(dimension), explosionService, dimension,
                         at.x(), at.y(), at.z(), power,
-                        gameRules.getBoolean("mobGriefing")));
+                        gameRules.getBoolean("mobGriefing"),
+                        net.zaminmc.torch.server.block.ExplosionService.BlastSource.PLAIN, null));
                 // The wither skull's own arm (the charged flag rides the
                 // blast's source model — WitherSkullEntity lines 43-51's
                 // 0.8 cap over canDestroy): the blue skull breaks through
                 // everything but the unbreakable band; the plain skull
                 // reads the table like every other source.
-                projectiles.setSkullExplosionSink((at, power, charged) -> detonateAtWithSource(
+                projectiles.setSkullExplosionSink((at, power, charged, dimension) -> detonateAtIn(
+                        worldForSafe(dimension), explosionService, dimension,
                         at.x(), at.y(), at.z(), power,
                         gameRules.getBoolean("mobGriefing"),
-                        charged ? net.zaminmc.torch.server.block.BlastSources.CHARGED_SKULL : net.zaminmc.torch.server.block.ExplosionService.BlastSource.PLAIN));
+                        charged ? net.zaminmc.torch.server.block.BlastSources.CHARGED_SKULL : net.zaminmc.torch.server.block.ExplosionService.BlastSource.PLAIN, null));
                 // The burning arrow's TNT arm (TntBlock.onEntityCollision
                 // lines 96-113): a burning arrow entering the TNT cell
                 // primes it — the block leaves, the arrow keeps its flight.
-                projectiles.setTntIgniteSink(cell -> tntSystem != null
+                projectiles.setTntIgniteSink((cell, dimension) -> tntSystem != null
+                        && dimension == 0
                         && tntSystem.igniteByArrow(cell));
                 // The ender pearl's teleport arm (Slice 17c —
                 // EnderPearlEntity.onCollision lines 45-71): the 5%
@@ -2688,8 +2712,10 @@ public final class EngineServer implements Server, EngineBridge {
                                     /** The catch flies toward the angler (the 0.1 + sqrt law). */
                                     @Override public void dropCatch(Position at,
                                             net.zaminmc.torch.item.ItemStack stack,
-                                            double anglerX, double anglerY, double anglerZ) {
-                                        ItemEntity caught = itemEntities.spawnThrown(at, stack);
+                                            double anglerX, double anglerY, double anglerZ,
+                                            int dimension) {
+                                        ItemEntity caught = itemEntities.spawnThrown(at, stack,
+                                                dimension);
                                         if (caught == null) {
                                             return; // the §27.7 gate withheld the catch
                                         }
@@ -2822,7 +2848,15 @@ public final class EngineServer implements Server, EngineBridge {
                     // scheduledBlockTicks pass — the reference's own
                     // doScheduledTicks surface, the §472-pattern queue
                     // gone. The census list below carries the change.)
-                    profiled("fallingBlocks", falling::tick);           // §470: falling physics + landings
+                    profiled("fallingBlocks", () -> {
+                        // Wave TF-9 — the falling family's walk stamps the
+                        // overworld explicitly: the shared ground carries the
+                        // last item's dimension otherwise (the family's own
+                        // dimension reads stay its ledged tail, never a
+                        // stale flip).
+                        shapeGround.setActiveDimension(0);
+                        falling.tick();
+                    });           // §470: falling physics + landings
                     profiled("projectiles", () -> projectileManager.tick(players.all())); // ranged combat physics + the grounded arrows' pickup
                     profiled("vehicles", vehicles::tick);          // the boats and minecarts
                     // (The rider-follow arms ride AFTER the mobs section:
@@ -7208,7 +7242,8 @@ public final class EngineServer implements Server, EngineBridge {
         }
         var origin = session.position();
         ItemEntity entity = itemEntities.spawnThrown(
-                new net.zaminmc.torch.util.Position(origin.x(), origin.y() + 1.0, origin.z()), stack);
+                new net.zaminmc.torch.util.Position(origin.x(), origin.y() + 1.0, origin.z()), stack,
+                session.dimension());
         if (entity != null) { // the §27.7 gate may withhold the throw
             entity.setVelocity((Math.random() - 0.5) * 0.2, 0.2, (Math.random() - 0.5) * 0.2);
         }
@@ -7561,7 +7596,8 @@ public final class EngineServer implements Server, EngineBridge {
                 eye.z() - Math.sin(yawRadians) * 0.16);
         ProjectileEntity potion = projectileManager.launch(ProjectileEntity.Kind.POTION,
                 session.engineEntityId(), spawn, session.rotation().yaw(),
-                session.rotation().pitch() - 20.0F, POTION_THROW_POWER);
+                session.rotation().pitch() - 20.0F, POTION_THROW_POWER,
+                session.dimension());
         if (potion != null) {
             potion.setPotionDamage(metadata);
         }
@@ -7697,7 +7733,8 @@ public final class EngineServer implements Server, EngineBridge {
             // term alone carries the offset — the reference's own ctor).
             double dy = -Math.sin(pitchRadians - Math.toRadians(20.0));
             projectileManager.launchVector(ProjectileEntity.Kind.EXPERIENCE_BOTTLE,
-                    session.engineEntityId(), spawn, dx, dy, dz, 0.7, 1.0);
+                    session.engineEntityId(), spawn, dx, dy, dz, 0.7, 1.0,
+                    session.dimension());
             LOGGER.fine(() -> session.name() + " threw a bottle o' enchanting");
         }
         fxManager.sound(mouthPosition(session), "random.bow", 0.5f,
@@ -7726,7 +7763,8 @@ public final class EngineServer implements Server, EngineBridge {
                 eye.z() - Math.sin(yawRadians) * 0.16);
         ProjectileEntity projectile = projectileManager.launch(kind,
                 session.engineEntityId(), spawn,
-                session.rotation().yaw(), session.rotation().pitch(), speed);
+                session.rotation().yaw(), session.rotation().pitch(), speed,
+                session.dimension());
         if (projectile != null && kind == ProjectileEntity.Kind.ARROW) {
             // The player-shooter ctors' own set (ArrowEntity lines 61/85:
             // a PLAYER's arrow is collectable — the mob shooters never set
@@ -8063,7 +8101,7 @@ public final class EngineServer implements Server, EngineBridge {
         ItemEntity entity = itemEntitiesManager.spawnThrown(
                 new net.zaminmc.torch.util.Position(
                         eye.x() + dx * 0.4, eye.y() + 1.62 + dy * 0.4, eye.z() + dz * 0.4),
-                dropped);
+                dropped, session.dimension());
         if (entity == null) {
             return null; // the §27.7 gate withheld the throw
         }
@@ -14209,7 +14247,7 @@ public final class EngineServer implements Server, EngineBridge {
             for (int i = 0; i < 5; i++) {
                 itemEntities.spawnDropAtBlock(new Position(at.x(), at.y() + mob.type().height, at.z()),
                         ItemStack.of(BuiltinItems.RED_MUSHROOM, 1),
-                        ItemEntity.PICKUP_DELAY_DROP_TICKS);
+                        ItemEntity.PICKUP_DELAY_DROP_TICKS, mob.dimension());
             }
             player.inventory().damageHeld(1, gameplayRandom); // the shears wear
             publishInventoryChanged(player);
@@ -16943,7 +16981,8 @@ public final class EngineServer implements Server, EngineBridge {
         }
         var live = fishing.bobberOf(session.engineEntityId());
         if (live != null) {
-            int result = fishing.retrieve(session.engineEntityId(), session.position());
+            int result = fishing.retrieve(session.engineEntityId(), session.position(),
+                    session.dimension());
             if (session.gamemode() != GameMode.CREATIVE && result > 0) {
                 // takeDamageAndBreak(i): the wear = the result (1 fish,
                 // 2 grounded, 3 hooked; a bare retrieve wears nothing).
@@ -16962,14 +17001,19 @@ public final class EngineServer implements Server, EngineBridge {
 
     private final class ProjectileHitResolver implements ProjectileManager.HitResolver {
         @Override
-        public MobEntity mobAt(Position point) {
-            return mobManager.mobAt(point);
+        public MobEntity mobAt(Position point, int dimension) {
+            // Wave TF-9 — the reference's same-world entity scan: only the
+            // projectile's own dimension's bodies answer.
+            return mobManager.mobAt(point, dimension);
         }
 
         @Override
-        public net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicleAt(Position point) {
+        public net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicleAt(Position point, int dimension) {
             // Slice 77 — the reference's entity scan over the minecart
-            // family: the box containment (the cart hull's own shape).
+            // family: the box containment (the cart hull's own shape). The
+            // engine's vehicle family carries no dimension field yet —
+            // the consult stays dimension-blind, the family's own standing
+            // tail (Wave TF-9's ledger).
             net.zaminmc.torch.server.entity.vehicle.VehicleManager manager =
                     vehicleManager;
             if (manager == null) {
@@ -16984,9 +17028,15 @@ public final class EngineServer implements Server, EngineBridge {
         }
 
         @Override
-        public PlayerSession playerAt(Position point) {
+        public PlayerSession playerAt(Position point, int dimension) {
             for (PlayerSession player : players.all()) {
                 if (player.state() != PlayerState.PLAYING || player.dead()) {
+                    continue;
+                }
+                // Wave TF-9 — the reference's same-world entity scan: a
+                // player in another dimension never takes a
+                // same-coordinate hit.
+                if (player.dimension() != dimension) {
                     continue;
                 }
                 Position p = player.position();
@@ -17132,9 +17182,13 @@ public final class EngineServer implements Server, EngineBridge {
     private final class PotionBodies implements net.zaminmc.torch.server.potion.PotionSystem.Bodies {
         @Override
         public java.util.List<Object> bodiesIn(double minX, double minY, double minZ,
-                                               double maxX, double maxY, double maxZ) {
+                                               double maxX, double maxY, double maxZ,
+                                               int dimension) {
             java.util.List<Object> found = new java.util.ArrayList<>();
             for (MobEntity mob : mobManager.all()) {
+                if (mob.dimension() != dimension) {
+                    continue; // Wave TF-9 — the splash's own-world walk
+                }
                 Position at = mob.position();
                 if (at.x() >= minX - 0.6 && at.x() <= maxX + 0.6
                         && at.z() >= minZ - 0.6 && at.z() <= maxZ + 0.6
@@ -17146,6 +17200,9 @@ public final class EngineServer implements Server, EngineBridge {
                 if (player.state() != PlayerState.PLAYING || player.dead()
                         || player.gamemode() == GameMode.SPECTATOR) {
                     continue;
+                }
+                if (player.dimension() != dimension) {
+                    continue; // Wave TF-9 — the splash's own-world walk
                 }
                 Position at = player.position();
                 if (at.x() >= minX - 0.3 && at.x() <= maxX + 0.3
@@ -19147,7 +19204,7 @@ public final class EngineServer implements Server, EngineBridge {
             float yaw = (float) Math.toDegrees(Math.atan2(-dx, dz));
             float pitch = (float) -Math.toDegrees(Math.atan2(dy, horizontal));
             projectileManager.launch(ProjectileEntity.Kind.ARROW, mob.entityId(),
-                    origin, yaw, pitch, MobEntity.SKELETON_ARROW_SPEED);
+                    origin, yaw, pitch, MobEntity.SKELETON_ARROW_SPEED, mob.dimension());
             fxManager.sound(mob.position(), "random.bow", 1.0f, 1.0f);
             publishMobSwing(mob); // the arm swing rides the animation packet
         }
@@ -19174,7 +19231,8 @@ public final class EngineServer implements Server, EngineBridge {
             double dx = target.x() - origin.x();
             double dy = (target.y() + 0.9) - origin.y(); // the player torso
             double dz = target.z() - origin.z();
-            projectileManager.launchGhastFireball(mob.entityId(), origin, dx, dy, dz);
+            projectileManager.launchGhastFireball(mob.entityId(), origin, dx, dy, dz,
+                    mob.dimension());
             fxManager.sound(mob.position(), "mob.ghast.fireball", 10.0f, 1.0f);
         }
 
@@ -19221,7 +19279,7 @@ public final class EngineServer implements Server, EngineBridge {
                     mob.position().y() + mob.bodyHeight() / 2.0 + 0.5,
                     mob.position().z());
             projectileManager.launchBlazeFireball(mob.entityId(), origin,
-                    dx, dy, dz, mob.blazeFireballSigma(nearest));
+                    dx, dy, dz, mob.blazeFireballSigma(nearest), mob.dimension());
             // World event 1009 (WorldRenderer line 1939): the shot the
             // clients answer with mob.ghast.fireball at volume 2.0.
             fxManager.sound(mob.position(), "mob.ghast.fireball", 2.0f,
@@ -19290,7 +19348,8 @@ public final class EngineServer implements Server, EngineBridge {
             }
             liveProjectiles.launchWitherSkull(mob.entityId(),
                     new Position(headX, headY, headZ),
-                    targetX - headX, targetY - headY, targetZ - headZ, charged);
+                    targetX - headX, targetY - headY, targetZ - headZ, charged,
+                    mob.dimension());
         }
 
         /**
@@ -19331,7 +19390,8 @@ public final class EngineServer implements Server, EngineBridge {
                                 itemEntities.spawnDropAtBlock(new Position(
                                         at.x() + 0.5, at.y() + 0.5, at.z() + 0.5),
                                         drop, net.zaminmc.torch.server.entity.ItemEntity
-                                                .PICKUP_DELAY_DROP_TICKS);
+                                                .PICKUP_DELAY_DROP_TICKS,
+                                        mob.dimension());
                             }
                         }
                     }
@@ -19882,7 +19942,7 @@ public final class EngineServer implements Server, EngineBridge {
             float yaw = (float) Math.toDegrees(Math.atan2(-dx, dz));
             float pitch = (float) -Math.toDegrees(Math.atan2(dy, horizontal));
             projectileManager.launch(ProjectileEntity.Kind.SNOWBALL,
-                    shooter.entityId(), origin, yaw, pitch, 1.6);
+                    shooter.entityId(), origin, yaw, pitch, 1.6, shooter.dimension());
             fxManager.sound(shooter.position(), "random.bow", 1.0f,
                     1.0f / (fxRandom.nextFloat() * 0.4f + 0.8f));
         }
@@ -20171,7 +20231,7 @@ public final class EngineServer implements Server, EngineBridge {
         }
         ProjectileEntity potion = projectileManager.launchVector(
                 ProjectileEntity.Kind.POTION, mob.entityId(), origin,
-                d1, d2 + horizontal * 0.2F, d3, 0.75, 8.0);
+                d1, d2 + horizontal * 0.2F, d3, 0.75, 8.0, mob.dimension());
         if (potion != null) {
             potion.setPotionDamage(metadata);
         }
@@ -22499,6 +22559,22 @@ public final class EngineServer implements Server, EngineBridge {
         }
         if (dimension == 1) {
             return java.util.Objects.requireNonNull(endWorld, "end world");
+        }
+        return world;
+    }
+
+    /**
+     * The null-safe dimension resolution (Wave TF-9 — MobWorldQuery's own
+     * activeWorld stand-in generalized): an unbooted dimension falls back to
+     * the overworld rather than throwing, so sink consults and shared-ground
+     * reads stay safe in partial test boots.
+     */
+    private EngineWorld worldForSafe(int dimension) {
+        if (dimension == -1 && netherWorld != null) {
+            return netherWorld;
+        }
+        if (dimension == 1 && endWorld != null) {
+            return endWorld;
         }
         return world;
     }
@@ -28149,6 +28225,11 @@ public final class EngineServer implements Server, EngineBridge {
 
         @Override
         public void pushBy(double dx, double dy, double dz) {
+            // Wave TF-9 — the push reads the item's OWN world: the ground
+            // flips to the body's dimension before the clamped shift (the
+            // piston family itself stays overworld-bound — its walk never
+            // collects a cross-dimension body, the gate at the collector).
+            items.ground().setActiveDimension(item.dimension());
             item.pushBy(items.ground(), dx, dy, dz);
         }
 
@@ -28304,16 +28385,39 @@ public final class EngineServer implements Server, EngineBridge {
      * One adapter serves the three physics query interfaces (items, falling
      * blocks, projectiles): the boolean methods keep the full-cube rule for
      * existing callers, the shape methods answer the collision-shape slice.
+     *
+     * <p><b>Wave TF-9 — the dimension-aware ground.</b> The shared ground
+     * carries an active dimension exactly like the mob query's own flip
+     * (Slice 25d's shape generalized): the item and projectile managers
+     * flip it to each body's own dimension before every walk, so a nether
+     * item rests on the nether's blocks and a nether arrow sticks in the
+     * nether's terrain. The falling-block family's walk stamps the
+     * overworld 0 explicitly — its own dimension reads stay the family's
+     * ledged tail, never a stale dimension inherited from the last item.</p>
      */
     private final class ShapeGround implements
             ItemEntity.Ground, FallingBlockEntity.Ground, ProjectileManager.SolidQuery {
+        /** The active dimension (the per-body flip drives every read below). */
+        private int activeDimension = 0;
+
+        /** The dimension context switch (the managers' per-body flip). */
+        @Override
+        public void setActiveDimension(int dimension) {
+            this.activeDimension = dimension;
+        }
+
+        /** The world the active dimension lives in (the unbooted stand-in: the overworld). */
+        private EngineWorld activeGroundWorld() {
+            return worldForSafe(activeDimension);
+        }
+
         /**
-         * The swept-box surface (the physics-solver slice): the overworld
-         * block reads the item bodies and the falling blocks clip against
-         * — the same one-surface shape the mob query carries, the chunk
-         * gate and the border consult included. (The item/falling
-         * families' ground reads the overworld alone — the manager's own
-         * dimension blindness, ledgered; the surface matches it.)
+         * The swept-box surface (the physics-solver slice): the ACTIVE
+         * dimension's block reads the item bodies and the falling blocks
+         * clip against — the same one-surface shape the mob query carries,
+         * the chunk gate and the border consult included (the border
+         * consult rides the engine's one border, the reference's own
+         * worlds[0] border the other dimensions derive from).
          */
         private final net.zaminmc.torch.server.physics.EntityCollisionWorld collisionSurface =
                 new net.zaminmc.torch.server.physics.EntityCollisionWorld() {
@@ -28323,13 +28427,13 @@ public final class EngineServer implements Server, EngineBridge {
                                 || y > net.zaminmc.torch.block.BlockPosition.MAX_Y) {
                             return world.airType();
                         }
-                        return world.getBlock(
+                        return activeGroundWorld().getBlock(
                                 new net.zaminmc.torch.block.BlockPosition(x, y, z));
                     }
 
                     @Override
                     public boolean chunkLoaded(int x, int z) {
-                        return world.isChunkLoadedAt(
+                        return activeGroundWorld().isChunkLoadedAt(
                                 new net.zaminmc.torch.block.BlockPosition(x, 64, z));
                     }
 
@@ -28347,27 +28451,27 @@ public final class EngineServer implements Server, EngineBridge {
 
         @Override
         public boolean isSolid(double x, double y, double z) {
-            return solidAt(x, y, z);
+            return groundSolidAtPoint(x, y, z);
         }
 
         @Override
         public boolean solid(double x, double y, double z) {
-            return solidAt(x, y, z);
+            return groundSolidAtPoint(x, y, z);
         }
 
         @Override
         public boolean isSolidAt(double x, double y, double z) {
-            return solidAtPoint(x, y, z);
+            return groundSolidAtPoint(x, y, z);
         }
 
         @Override
         public boolean solidAt(double x, double y, double z) {
-            return solidAtPoint(x, y, z);
+            return groundSolidAtPoint(x, y, z);
         }
 
         @Override
         public double supportY(double x, double y, double z) {
-            return supportYAt(x, y, z);
+            return groundSupportYAt(x, y, z);
         }
 
         /**
@@ -28379,11 +28483,11 @@ public final class EngineServer implements Server, EngineBridge {
         @Override
         public boolean isSolidAtBox(double centerX, double bottomY, double centerZ) {
             double w = ItemEntity.Ground.HALF_WIDTH;
-            return solidAtPoint(centerX, bottomY, centerZ)
-                    || solidAtPoint(centerX - w, bottomY, centerZ - w)
-                    || solidAtPoint(centerX - w, bottomY, centerZ + w)
-                    || solidAtPoint(centerX + w, bottomY, centerZ - w)
-                    || solidAtPoint(centerX + w, bottomY, centerZ + w);
+            return groundSolidAtPoint(centerX, bottomY, centerZ)
+                    || groundSolidAtPoint(centerX - w, bottomY, centerZ - w)
+                    || groundSolidAtPoint(centerX - w, bottomY, centerZ + w)
+                    || groundSolidAtPoint(centerX + w, bottomY, centerZ - w)
+                    || groundSolidAtPoint(centerX + w, bottomY, centerZ + w);
         }
 
         /**
@@ -28394,12 +28498,48 @@ public final class EngineServer implements Server, EngineBridge {
         @Override
         public double supportYAtBox(double centerX, double bottomY, double centerZ) {
             double w = ItemEntity.Ground.HALF_WIDTH;
-            double best = supportYAt(centerX, bottomY, centerZ);
-            best = Math.max(best, supportYAt(centerX - w, bottomY, centerZ - w));
-            best = Math.max(best, supportYAt(centerX - w, bottomY, centerZ + w));
-            best = Math.max(best, supportYAt(centerX + w, bottomY, centerZ - w));
-            best = Math.max(best, supportYAt(centerX + w, bottomY, centerZ + w));
+            double best = groundSupportYAt(centerX, bottomY, centerZ);
+            best = Math.max(best, groundSupportYAt(centerX - w, bottomY, centerZ - w));
+            best = Math.max(best, groundSupportYAt(centerX - w, bottomY, centerZ + w));
+            best = Math.max(best, groundSupportYAt(centerX + w, bottomY, centerZ - w));
+            best = Math.max(best, groundSupportYAt(centerX + w, bottomY, centerZ + w));
             return best;
+        }
+
+        /** The shape-aware point test over the ACTIVE dimension's blocks. */
+        private boolean groundSolidAtPoint(double x, double y, double z) {
+            if (y < net.zaminmc.torch.block.BlockPosition.MIN_Y
+                    || y > net.zaminmc.torch.block.BlockPosition.MAX_Y) {
+                return false;
+            }
+            EngineWorld ground = activeGroundWorld();
+            return WorldSolidity.isSolidAt(ground.getBlock(blockAt(x, y, z)),
+                    x, y, z, groundProbe(ground, x, y, z));
+        }
+
+        /** The shape's top surface over the ACTIVE dimension's blocks. */
+        private double groundSupportYAt(double x, double y, double z) {
+            if (y < net.zaminmc.torch.block.BlockPosition.MIN_Y
+                    || y > net.zaminmc.torch.block.BlockPosition.MAX_Y) {
+                return Double.NEGATIVE_INFINITY;
+            }
+            EngineWorld ground = activeGroundWorld();
+            return WorldSolidity.supportY(ground.getBlock(blockAt(x, y, z)),
+                    x, y, z, groundProbe(ground, x, y, z));
+        }
+
+        /** The neighbour probe over the ACTIVE dimension's blocks. */
+        private CollisionShapes.NeighborProbe groundProbe(EngineWorld ground,
+                double x, double y, double z) {
+            net.zaminmc.torch.block.BlockPosition origin = blockAt(x, y, z);
+            return (dx, dy, dz) -> {
+                net.zaminmc.torch.block.BlockPosition at = origin.offset(dx, dy, dz);
+                if (at.y() < net.zaminmc.torch.block.BlockPosition.MIN_Y
+                        || at.y() > net.zaminmc.torch.block.BlockPosition.MAX_Y) {
+                    return null;
+                }
+                return ground.getBlock(at);
+            };
         }
     }
 

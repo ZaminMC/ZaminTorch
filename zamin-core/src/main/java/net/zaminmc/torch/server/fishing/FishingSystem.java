@@ -124,9 +124,10 @@ public final class FishingSystem {
 
     /** The engine's item drop + XP + sound surfaces. */
     public interface CatchSink {
-        /** The caught item entity launched toward the angler (the 0.1 + sqrt law). */
+        /** The caught item entity launched toward the angler (the 0.1 + sqrt
+         * law) — in the angler's own dimension (Wave TF-9). */
         void dropCatch(Position at, net.zaminmc.torch.item.ItemStack stack,
-                       double anglerX, double anglerY, double anglerZ);
+                       double anglerX, double anglerY, double anglerZ, int dimension);
 
         /** The catch's XP orb (nextInt(6) + 1). */
         void dropXp(Position at, int amount);
@@ -483,12 +484,15 @@ public final class FishingSystem {
      * blocking callback stalls the census reads, never the walk's
      * own lane order).
      */
-    public synchronized int retrieve(int throwerId, Position anglerAt) {
+    public synchronized int retrieve(int throwerId, Position anglerAt, int dimension) {
         Bobber bobber = byAngler.get(throwerId);
         if (bobber == null) {
             return 0;
         }
         int result = 0;
+        // Wave TF-9 — the angler's own dimension rides the catch drop (the
+        // body's world, never the system's binding).
+        final int retrieveDimension = dimension;
         if (bobber.hooked != null) {
             double dx = anglerAt.x() - bobber.x;
             double dy = anglerAt.y() - bobber.y;
@@ -523,7 +527,7 @@ public final class FishingSystem {
                 result = 0;
             } else {
                 catches.dropCatch(bobber.position(), caught,
-                        anglerAt.x(), anglerAt.y(), anglerAt.z());
+                        anglerAt.x(), anglerAt.y(), anglerAt.z(), retrieveDimension);
                 catches.dropXp(new Position(anglerAt.x(), anglerAt.y() + 0.5, anglerAt.z()),
                         random.nextInt(6) + 1);
                 result = 1;

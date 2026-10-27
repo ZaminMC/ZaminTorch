@@ -58,7 +58,7 @@ class WitchEntityTest {
         final List<ItemStack> drops = new ArrayList<>();
 
         @Override
-        public void spawnLootDrop(Position position, ItemStack stack) {
+        public void spawnLootDrop(Position position, ItemStack stack, int dimension) {
             drops.add(stack);
         }
     }
@@ -73,7 +73,7 @@ class WitchEntityTest {
 
         @Override
         public List<Object> bodiesIn(double minX, double minY, double minZ,
-                                     double maxX, double maxY, double maxZ) {
+                                     double maxX, double maxY, double maxZ, int dimension) {
             List<Object> found = new ArrayList<>();
             for (MobEntity mob : mobs) {
                 Position at = mob.position();

@@ -48,7 +48,7 @@ class MobArmorFamilyTest {
         final List<ItemStack> drops = new ArrayList<>();
 
         @Override
-        public void spawnLootDrop(Position position, ItemStack stack) {
+        public void spawnLootDrop(Position position, ItemStack stack, int dimension) {
             drops.add(stack);
         }
     }
@@ -422,7 +422,7 @@ class MobArmorFamilyTest {
             net.zaminmc.torch.server.potion.PotionSystem.Bodies {
         @Override
         public List<Object> bodiesIn(double minX, double minY, double minZ,
-                                     double maxX, double maxY, double maxZ) {
+                                     double maxX, double maxY, double maxZ, int dimension) {
             return List.of();
         }
 

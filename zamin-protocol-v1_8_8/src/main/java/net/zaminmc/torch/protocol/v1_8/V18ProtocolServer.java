@@ -296,6 +296,12 @@ public final class V18ProtocolServer implements ProtocolAdapter {
             public void onItemCollected(net.zaminmc.torch.server.entity.ItemEntity entity,
                                         net.zaminmc.torch.server.player.PlayerSession collector, int count) {
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    // Wave TF-9 — the collect reaches only the body's own
+                    // dimension's observers (the id-only send carries no
+                    // entity; the gate lives here).
+                    if (connection.dimensionOfSession() != entity.dimension()) {
+                        continue;
+                    }
                     connection.sendItemCollected(entity.entityId(), collector);
                 }
             }
@@ -304,6 +310,10 @@ public final class V18ProtocolServer implements ProtocolAdapter {
             public void onItemCollectedByMob(net.zaminmc.torch.server.entity.ItemEntity entity,
                     net.zaminmc.torch.server.entity.MobEntity collector) {
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    // Wave TF-9 — the same own-dimension gate.
+                    if (connection.dimensionOfSession() != entity.dimension()) {
+                        continue;
+                    }
                     connection.sendItemCollectedByMob(entity.entityId(), collector.entityId());
                 }
             }
@@ -318,6 +328,11 @@ public final class V18ProtocolServer implements ProtocolAdapter {
             @Override
             public void onItemRemoved(net.zaminmc.torch.server.entity.ItemEntity entity, String reason) {
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    // Wave TF-9 — the same own-dimension gate (a stray
+                    // Destroy for an untracked id is noise at best).
+                    if (connection.dimensionOfSession() != entity.dimension()) {
+                        continue;
+                    }
                     connection.sendItemRemoved(entity.entityId());
                 }
             }
@@ -1584,6 +1599,11 @@ public final class V18ProtocolServer implements ProtocolAdapter {
             public void onProjectileCollected(net.zaminmc.torch.server.entity.projectile.ProjectileEntity projectile,
                                               net.zaminmc.torch.server.player.PlayerSession collector) {
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    // Wave TF-9 — the collect reaches only the body's own
+                    // dimension's observers.
+                    if (connection.dimensionOfSession() != projectile.dimension()) {
+                        continue;
+                    }
                     connection.sendProjectileCollected(projectile.entityId(), collector);
                 }
             }

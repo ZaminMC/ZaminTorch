@@ -85,12 +85,12 @@ class FireballDeflectionTest {
         MobEntity mob;
 
         @Override
-        public MobEntity mobAt(Position point) {
+        public MobEntity mobAt(Position point, int dimension) {
             return mob;
         }
 
         @Override
-        public net.zaminmc.torch.server.player.PlayerSession playerAt(Position point) {
+        public net.zaminmc.torch.server.player.PlayerSession playerAt(Position point, int dimension) {
             return null;
         }
     }
@@ -119,7 +119,7 @@ class FireballDeflectionTest {
         int ghastId = 777;
 
         ProjectileEntity fireball = manager.launchGhastFireball(ghastId,
-                new Position(0.0, 10.0, 0.0), 1.0, 0.0, 0.0);
+                new Position(0.0, 10.0, 0.0), 1.0, 0.0, 0.0, 0);
         assertEquals(ghastId, fireball.throwerId(), "the ghast shot it");
 
         // The punch (takeDamage lines 248-273): the attacker's look vector
@@ -145,11 +145,11 @@ class FireballDeflectionTest {
         manager.addListener(events);
 
         ProjectileEntity arrow = manager.launch(ProjectileEntity.Kind.ARROW, -1,
-                new Position(0, 10, 0), 0, 0, 3.0);
+                new Position(0, 10, 0), 0, 0, 3.0, 0);
         assertFalse(manager.deflect(arrow, 4242, 0.0, 0.0, 1.0),
                 "the arrow carries no deflect surface");
         ProjectileEntity snowball = manager.launch(ProjectileEntity.Kind.SNOWBALL, -1,
-                new Position(0, 10, 0), 0, 0, 1.5);
+                new Position(0, 10, 0), 0, 0, 1.5, 0);
         assertFalse(manager.deflect(snowball, 4242, 0.0, 0.0, 1.0),
                 "the shard family carries no deflect surface");
         assertEquals(0, events.deflections, "no wire events fired");
@@ -157,7 +157,7 @@ class FireballDeflectionTest {
         // The small fireball DOES carry the family's arm (SmallFireball
         // extends the fireball parent).
         ProjectileEntity charge = manager.launchFireball(
-                new Position(0, 10, 0), 0.0, 0.0, 1.0);
+                new Position(0, 10, 0), 0.0, 0.0, 1.0, 0);
         assertTrue(manager.deflect(charge, 4242, 1.0, 0.0, 0.0),
                 "the fire charge is family (Bootstrap's dispensed arm)");
         assertEquals(4242, charge.throwerId());
@@ -178,7 +178,7 @@ class FireballDeflectionTest {
                 new Position(0, 10, 0), new Random(14), solidWorld());
         hits.mob = ghast;
         ProjectileEntity fireball = manager.launchGhastFireball(777,
-                new Position(0, 10, 0), 1.0, 0.0, 0.0);
+                new Position(0, 10, 0), 1.0, 0.0, 0.0, 0);
 
         // The first 25 ticks: the shooter is immune to its own fireball.
         for (int i = 0; i < ProjectileManager.FIREBALL_THROWER_IMMUNITY_TICKS; i++) {
@@ -208,7 +208,7 @@ class FireballDeflectionTest {
                 new Position(0, 10, 0), new Random(16), solidWorld());
         hits.mob = thrower;
         manager.launch(ProjectileEntity.Kind.SNOWBALL, 778,
-                new Position(0, 10, 0), 0, 0, 1.5);
+                new Position(0, 10, 0), 0, 0, 1.5, 0);
         for (int i = 0; i < 5; i++) {
             manager.tick(java.util.List.of());
         }
@@ -231,7 +231,7 @@ class FireballDeflectionTest {
         manager.addListener(events);
 
         ProjectileEntity fireball = manager.launchGhastFireball(777,
-                new Position(0.0, 10.0, 0.0), 1.0, 0.0, 0.0);
+                new Position(0.0, 10.0, 0.0), 1.0, 0.0, 0.0, 0);
         // The punch straight up (pitch -90): the look vector (0, 1, 0),
         // the level 2 push along +z on top.
         assertTrue(manager.deflect(fireball, 4242, 0.0, 1.0, 0.0, 2, 0.0));
@@ -246,7 +246,7 @@ class FireballDeflectionTest {
 
         // The level-0 punch: the plain look-vector deflection alone.
         ProjectileEntity plain = manager.launchGhastFireball(777,
-                new Position(0.0, 10.0, 0.0), 1.0, 0.0, 0.0);
+                new Position(0.0, 10.0, 0.0), 1.0, 0.0, 0.0, 0);
         assertTrue(manager.deflect(plain, 4242, 0.0, 0.6, 0.8, 0, 0.0));
         assertEquals(0.6, plain.velocityY(), 1e-9, "no push without the level");
         assertEquals(0.8, plain.velocityZ(), 1e-9);
@@ -254,7 +254,7 @@ class FireballDeflectionTest {
         // The push's heading (yaw 90 faces +x... the reference's -sin(yaw)
         // pair): the level-1 punch at yaw 90 pushes -x with the flat y.
         ProjectileEntity turned = manager.launchGhastFireball(777,
-                new Position(0.0, 10.0, 0.0), 1.0, 0.0, 0.0);
+                new Position(0.0, 10.0, 0.0), 1.0, 0.0, 0.0, 0);
         assertTrue(manager.deflect(turned, 4242, 0.0, 1.0, 0.0, 1,
                 Math.toRadians(90.0)));
         assertEquals(-0.5, turned.velocityX(), 1e-9, "-sin(90) * 1 * 0.5");

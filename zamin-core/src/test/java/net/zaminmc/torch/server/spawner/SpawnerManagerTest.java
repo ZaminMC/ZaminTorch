@@ -49,7 +49,7 @@ class SpawnerManagerTest {
     /** The minimal mob manager for the walk (the flat-air world). */
     private static net.zaminmc.torch.server.entity.MobManager mobs() {
         return new net.zaminmc.torch.server.entity.MobManager(
-                AIR_WORLD, new Random(7L), (position, stack) -> {
+                AIR_WORLD, new Random(7L), (position, stack, dimension) -> {
                 }, 1, (x, z) -> 64);
     }
 

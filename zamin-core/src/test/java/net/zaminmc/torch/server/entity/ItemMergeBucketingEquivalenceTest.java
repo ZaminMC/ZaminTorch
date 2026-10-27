@@ -104,7 +104,13 @@ class ItemMergeBucketingEquivalenceTest {
                 if (other.expired() || (absorbed != null && absorbed.contains(other))) {
                     continue;
                 }
-                if (other.entityId() < keeper.entityId() || !referenceWithinMergeRange(keeper, other)
+                // Wave TF-9: the same-dimension gate the live walk carries
+                // (the reference's same-world getEntitiesOfType scan) — a
+                // no-op over this test's single-dimension populations, kept
+                // so the copy stays the bar for the CURRENT law.
+                if (other.entityId() < keeper.entityId()
+                        || other.dimension() != keeper.dimension()
+                        || !referenceWithinMergeRange(keeper, other)
                         || !ItemStack.mergeable(keeper.stack(), other.stack())) {
                     continue;
                 }

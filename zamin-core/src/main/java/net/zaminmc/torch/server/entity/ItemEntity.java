@@ -30,6 +30,16 @@ public final class ItemEntity implements net.zaminmc.torch.entity.DroppedItem {
 
     /** Minimal ground query the entity needs from its world (tick-thread context only). */
     public interface Ground extends net.zaminmc.torch.server.physics.HasCollisionWorld {
+        /**
+         * The dimension context switch (Wave TF-9 — the reference's
+         * Entity.world): the manager flips the shared ground to the body's
+         * own dimension before every tick walk, exactly like the mob
+         * query's own flip. The default is a no-op so stub grounds keep
+         * their overworld-only semantics.
+         */
+        default void setActiveDimension(int dimension) {
+        }
+
         /** @return whether the block containing this point is solid. */
         boolean isSolid(double x, double y, double z);
 
@@ -103,7 +113,7 @@ public final class ItemEntity implements net.zaminmc.torch.entity.DroppedItem {
      */
     private String thrower;
     /**
-     * The pickup-window owner (ItemEntity's own second string): the pickup
+     * The window's own pickup-window owner (ItemEntity's own second string): the pickup
      * gate answers true when the store is null, when the body is within
      * 200 ticks of despawning ({@code 6000 - age <= 200}), or when the
      * collector IS the owner. The server never stamps it (the reference's
@@ -111,6 +121,26 @@ public final class ItemEntity implements net.zaminmc.torch.entity.DroppedItem {
      * permissive for every engine drop.
      */
     private String owner;
+
+    /**
+     * The body's dimension (Wave TF-9 — the reference's Entity.world, the
+     * mob query's own Slice-25d shape generalized over the item family):
+     * 0 the overworld, -1 the nether, 1 the end. The shared ground flips
+     * to the body's own world before every tick walk (setActiveDimension)
+     * — a nether item rests on the nether's blocks, merges only with the
+     * nether's items, and only the nether's players collect it.
+     */
+    private int dimension;
+
+    /** @return the dimension the body lives in (0 overworld, -1 nether, 1 the end). */
+    public int dimension() {
+        return dimension;
+    }
+
+    /** Sets the body's dimension (the spawn walks and the ZID restore stamp it). */
+    public void setDimension(int dimension) {
+        this.dimension = dimension;
+    }
 
     public ItemEntity(int entityId, Position position, ItemStack stack, int pickupDelayTicks) {
         this.entityId = entityId;

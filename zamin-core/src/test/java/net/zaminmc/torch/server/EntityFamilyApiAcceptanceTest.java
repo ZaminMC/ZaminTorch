@@ -120,7 +120,7 @@ class EntityFamilyApiAcceptanceTest {
         server = boot();
         PlayerSession shooter = join("Shooter");
         server.projectiles().launch(ProjectileEntity.Kind.ARROW, shooter.engineEntityId(),
-                new Position(8.5, 10.0, 8.5), 0.0, -20.0, 3.0);
+                new Position(8.5, 10.0, 8.5), 0.0, -20.0, 3.0, 0);
 
         AtomicReference<Projectile> handle = new AtomicReference<>();
         await(() -> {

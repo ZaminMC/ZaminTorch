@@ -64,11 +64,11 @@ class FireworksAndBottleTest {
     private static final class RiggedHits implements ProjectileManager.HitResolver {
         MobEntity mob;
 
-        @Override public MobEntity mobAt(Position point) {
+        @Override public MobEntity mobAt(Position point, int dimension) {
             return mob;
         }
 
-        @Override public net.zaminmc.torch.server.player.PlayerSession playerAt(Position point) {
+        @Override public net.zaminmc.torch.server.player.PlayerSession playerAt(Position point, int dimension) {
             return null;
         }
     }
@@ -125,7 +125,7 @@ class FireworksAndBottleTest {
         manager.setXpBottleSink(sink);
         ProjectileEntity bottle = manager.launchVector(
                 ProjectileEntity.Kind.EXPERIENCE_BOTTLE, 4242,
-                new Position(0.5, 10.0, 0.5), 1.0, 0.0, 0.0, 0.7, 1.0);
+                new Position(0.5, 10.0, 0.5), 1.0, 0.0, 0.0, 0.7, 1.0, 0);
         assertTrue(bottle != null, "the unit harness has no admission gate");
         for (int i = 0; i < 30 && sink.bursts.isEmpty(); i++) {
             manager.tick(java.util.List.of());
@@ -154,7 +154,7 @@ class FireworksAndBottleTest {
         manager.addListener(events);
         manager.setXpBottleSink(sink);
         manager.launchVector(ProjectileEntity.Kind.EXPERIENCE_BOTTLE, 4242,
-                new Position(0.5, 10.0, 0.5), 0.0, -1.0, 0.0, 0.7, 1.0);
+                new Position(0.5, 10.0, 0.5), 0.0, -1.0, 0.0, 0.7, 1.0, 0);
         for (int i = 0; i < 30 && sink.bursts.isEmpty(); i++) {
             manager.tick(java.util.List.of());
         }

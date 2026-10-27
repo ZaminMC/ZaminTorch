@@ -59,12 +59,12 @@ class EnderDragonTest {
         final List<net.zaminmc.torch.item.ItemStack> drops = new ArrayList<>();
 
         @Override public void spawnLootDrop(Position position,
-                                            net.zaminmc.torch.item.ItemStack stack) {
+                                            net.zaminmc.torch.item.ItemStack stack, int dimension) {
             drops.add(stack);
         }
 
         @Override public void spawnPersistentLootDrop(Position position,
-                                                      net.zaminmc.torch.item.ItemStack stack) {
+                                                      net.zaminmc.torch.item.ItemStack stack, int dimension) {
             drops.add(stack);
         }
     }

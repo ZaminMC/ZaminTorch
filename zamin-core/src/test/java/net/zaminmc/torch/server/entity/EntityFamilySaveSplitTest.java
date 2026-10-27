@@ -318,7 +318,7 @@ class EntityFamilySaveSplitTest {
         out.writeByte('Z');
         out.writeByte('I');
         out.writeByte('D');
-        out.writeByte(7);
+        out.writeByte(8);
         writeVarInt(out, items.size());
         for (ItemEntityManager.ItemRecord item : items) {
             out.writeDouble(item.position().x());
@@ -355,7 +355,13 @@ class EntityFamilySaveSplitTest {
             if (item.owner() != null) {
                 flags |= 0x04;
             }
+            if (item.dimension() != 0) {
+                flags |= 0x08;
+            }
             out.writeByte(flags);
+            if (item.dimension() != 0) {
+                out.writeByte(item.dimension());
+            }
             if (item.thrower() != null) {
                 writeNullableBooleanString(out, item.thrower());
             }
@@ -373,11 +379,11 @@ class EntityFamilySaveSplitTest {
                 new ItemEntityManager.ItemRecord(
                         new Position(3.5, 40.0, -2.5), 0.0, -0.04, 0.0,
                         ItemStack.of(BuiltinItems.DIAMOND, 3),
-                        120, 9, false, null, null),
+                        120, 9, false, null, null, 0),
                 new ItemEntityManager.ItemRecord(
                         new Position(-6.0, 65.0, 7.5), 0.1, 0.0, -0.2,
                         ItemStack.of(BuiltinItems.IRON_SWORD, 1).withDamage(87).withName("Kept"),
-                        0, 0, true, "Abasing", "Abasing"));
+                        0, 0, true, "Abasing", "Abasing", -1));
 
         ItemDataStore store = new ItemDataStore(dir.resolve("items.bin"));
 
@@ -399,6 +405,9 @@ class EntityFamilySaveSplitTest {
         assertTrue(restored.get(1).neverDespawn(), "the never-despawn flag survives");
         assertEquals("Abasing", restored.get(1).thrower(), "the thrower row survives");
         assertEquals("Abasing", restored.get(1).owner(), "the owner row survives");
+        assertEquals(-1, restored.get(1).dimension(),
+                "the dimension row survives (the nether byte, u8 255)");
+        assertEquals(0, restored.get(0).dimension(), "the overworld default stays implicit");
     }
 
     // ---- the historical vehicle walk (the store's own save body at the
@@ -568,7 +577,7 @@ class EntityFamilySaveSplitTest {
             List<ItemEntityManager.ItemRecord> items = List.of(
                     new ItemEntityManager.ItemRecord(new Position(1.5, 40.0, 1.5),
                             0, 0, 0, ItemStack.of(BuiltinItems.DIRT, 64), 0, 0, false,
-                            null, null));
+                            null, null, 0));
             byte[] itemBytes = itemStore.serialize(items);
 
             VehicleDataStore vehicleStore =

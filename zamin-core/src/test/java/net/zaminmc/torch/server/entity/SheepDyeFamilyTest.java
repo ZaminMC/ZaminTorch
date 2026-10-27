@@ -41,7 +41,7 @@ class SheepDyeFamilyTest {
 
     private static final class Loot implements MobManager.LootSink {
         final List<ItemStack> drops = new java.util.ArrayList<>();
-        @Override public void spawnLootDrop(Position position, ItemStack stack) {
+        @Override public void spawnLootDrop(Position position, ItemStack stack, int dimension) {
             drops.add(stack);
         }
     }

@@ -45,7 +45,7 @@ class EntityNbtTest {
     private static final class StubBodies implements PotionSystem.Bodies {
         @Override
         public List<Object> bodiesIn(double minX, double minY, double minZ,
-                                     double maxX, double maxY, double maxZ) {
+                                     double maxX, double maxY, double maxZ, int dimension) {
             return List.of();
         }
 

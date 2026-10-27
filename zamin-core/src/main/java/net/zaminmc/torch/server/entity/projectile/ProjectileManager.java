@@ -64,6 +64,16 @@ public final class ProjectileManager {
 
     /** The world solidity query (immutable snapshot reads; tick thread). */
     public interface SolidQuery {
+        /**
+         * The dimension context switch (Wave TF-9 — the reference's
+         * Entity.world): the manager flips the shared query to the body's
+         * own dimension before every collision walk, exactly like the mob
+         * query's own flip. The default is a no-op so stub queries keep
+         * their overworld-only semantics.
+         */
+        default void setActiveDimension(int dimension) {
+        }
+
         boolean solid(double x, double y, double z);
 
         /**
@@ -78,19 +88,24 @@ public final class ProjectileManager {
 
     /** Resolves the entity a projectile is inside of, if any (tick thread). */
     public interface HitResolver {
-        /** The mob whose bounding box contains the point, or null. */
-        MobEntity mobAt(Position point);
+        /** The mob whose bounding box contains the point in the projectile's
+         * own dimension (Wave TF-9 — the reference's same-world entity
+         * scan), or null. */
+        MobEntity mobAt(Position point, int dimension);
 
-        /** The player whose bounding box contains the point, or null. */
-        PlayerSession playerAt(Position point);
+        /** The player whose bounding box contains the point in the same
+         * dimension, or null. */
+        PlayerSession playerAt(Position point, int dimension);
 
         /**
          * The vehicle whose box contains the point, or null (Slice 77 —
          * the reference's entity scan over the minecart family: the
-         * arrow's onEntityHit lands on the cart's hull). Default null so
-         * stub resolvers keep their semantics.
+         * arrow's onEntityHit lands on the cart's hull). The engine's
+         * vehicle family carries no dimension field yet — the consult
+         * stays dimension-blind, the family's own standing tail. Default
+         * null so stub resolvers keep their semantics.
          */
-        default net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicleAt(Position point) {
+        default net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicleAt(Position point, int dimension) {
             return null;
         }
     }
@@ -101,8 +116,10 @@ public final class ProjectileManager {
      * the solid one. Wired by the engine; runs on the tick thread.
      */
     public interface FireSink {
-        /** Places fire at the cell when it holds air. */
-        void tryPlaceFire(int x, int y, int z);
+        /** Places fire at the cell when it holds air — in the projectile's
+         * own dimension (Wave TF-9 — the reference's world.setBlockState
+         * inside the fireball's own world). */
+        void tryPlaceFire(int x, int y, int z, int dimension);
     }
 
     /**
@@ -117,7 +134,8 @@ public final class ProjectileManager {
          * dispenser — the witch's own-splash immunity keys on the resolved
          * thrower).
          */
-        void splash(double x, double y, double z, int damage, Object directHit, int throwerId);
+        void splash(double x, double y, double z, int damage, Object directHit,
+                int throwerId, int dimension);
     }
 
     /**
@@ -126,15 +144,18 @@ public final class ProjectileManager {
      * Wired by the engine; runs on the tick thread.
      */
     public interface ExplosionSink {
-        /** The explosion at the point (the fireball's power). */
-        void explode(Position at, float power);
+        /** The explosion at the point in the projectile's own dimension
+         * (Wave TF-9 — the reference's world.explode inside the fireball's
+         * own world: a nether fireball tears the nether, never the
+         * overworld at the same coordinates). */
+        void explode(Position at, float power, int dimension);
     }
 
     /** The wither skull's explosion arm — the charged flag rides (the
      * blast's source model consults it). */
     @FunctionalInterface
     public interface SkullExplosionSink {
-        void explode(Position at, float power, boolean charged);
+        void explode(Position at, float power, boolean charged, int dimension);
     }
 
     /**
@@ -156,7 +177,7 @@ public final class ProjectileManager {
      *         caller's arrow continues its flight through the opened cell).
      */
     public interface TntIgniteSink {
-        boolean ignite(net.zaminmc.torch.block.BlockPosition cell);
+        boolean ignite(net.zaminmc.torch.block.BlockPosition cell, int dimension);
     }
 
     /** Damage application callbacks (the engine owns the combat rules). */
@@ -340,19 +361,19 @@ public final class ProjectileManager {
     private final List<Listener> listeners = new ArrayList<>();
     private int nextEntityId;
     /** The fireball's landing arm; optional until the engine wires it. */
-    private FireSink fireSink = (x, y, z) -> { };
+    private FireSink fireSink = (x, y, z, dimension) -> { };
     /** The potion's splash arm; optional until the engine wires it. */
-    private PotionSink potionSink = (x, y, z, damage, directHit, throwerId) -> { };
+    private PotionSink potionSink = (x, y, z, damage, directHit, throwerId, dimension) -> { };
     /** The ghast fireball's explosion arm; optional until the engine wires it. */
-    private ExplosionSink explosionSink = (at, power) -> { };
+    private ExplosionSink explosionSink = (at, power, dimension) -> { };
     /** The wither skull's own arm (the charged flag rides the blast's
      * source model — the 0.8 cap family); optional until wired. */
-    private SkullExplosionSink skullExplosionSink = (at, power, charged) -> { };
+    private SkullExplosionSink skullExplosionSink = (at, power, charged, dimension) -> { };
     /** The ender pearl's teleport arm (Slice 17c); optional until wired. */
     private PearlSink pearlSink = (throwerId, at) -> { };
     /** The burning arrow's TNT-block ignition arm (TntBlock.onEntityCollision
      * lines 96-113); optional until wired. */
-    private TntIgniteSink tntIgniteSink = pos -> false;
+    private TntIgniteSink tntIgniteSink = (pos, dimension) -> false;
     /** The ender crystal's pop arm (Slice 62); optional until wired. */
     private CrystalSink crystalSink = (x, y, z) -> false;
     /** The dragon part's wound arm (Slice 63); optional until wired. */
@@ -446,11 +467,14 @@ public final class ProjectileManager {
      * server at boot; null (the unwired window) skips the pass.
      */
     public interface BurningTntArm {
-        /** @return whether the cell is the TNT block. */
-        boolean isTnt(net.zaminmc.torch.block.BlockPosition pos);
+        /** @return whether the cell is the TNT block in the projectile's own
+         * dimension (Wave TF-9 — the reference's world.getBlockState inside
+         * the arrow's own world). */
+        boolean isTnt(net.zaminmc.torch.block.BlockPosition pos, int dimension);
 
-        /** Primes the cell (the block leaves, the primed body spawns). */
-        void ignite(net.zaminmc.torch.block.BlockPosition pos);
+        /** Primes the cell in the same dimension (the block leaves, the
+         * primed body spawns). */
+        void ignite(net.zaminmc.torch.block.BlockPosition pos, int dimension);
     }
 
     private BurningTntArm burningTnt;
@@ -608,11 +632,14 @@ public final class ProjectileManager {
 
     /**
      * Launches a projectile from a position along a look vector. Tick-thread
-     * context (the engine routes every launch through the tick queue).
+     * context (the engine routes every launch through the tick queue). The
+     * dimension stamps the body's own world (Wave TF-9 — the reference's
+     * Entity.world): the player paths pass the session's dimension, the mob
+     * shooters the mob's own.
      */
     public ProjectileEntity launch(ProjectileEntity.Kind kind, int throwerId,
                                    Position origin, double yawDegrees, double pitchDegrees,
-                                   double speed) {
+                                   double speed, int dimension) {
         if (!admitLaunch(kind, throwerId, origin)) {
             return null; // the §27.7 gate swallowed the shot
         }
@@ -630,6 +657,7 @@ public final class ProjectileManager {
                 (dx + random.nextGaussian() * 0.0075) * speed,
                 (dy + random.nextGaussian() * 0.0075) * speed,
                 (dz + random.nextGaussian() * 0.0075) * speed);
+        projectile.setDimension(dimension);
         projectiles.add(projectile);
         for (Listener listener : listeners) {
             listener.onProjectileSpawned(projectile);
@@ -678,7 +706,7 @@ public final class ProjectileManager {
      */
     public ProjectileEntity launchVector(ProjectileEntity.Kind kind, int throwerId,
                                          Position origin, double dx, double dy, double dz,
-                                         double force, double variation) {
+                                         double force, double variation, int dimension) {
         if (!admitLaunch(kind, throwerId, origin)) {
             return null; // the §27.7 gate swallowed the shot
         }
@@ -694,6 +722,7 @@ public final class ProjectileManager {
         dz += random.nextGaussian() * 0.0075 * variation;
         ProjectileEntity projectile = new ProjectileEntity(
                 nextEntityId++, kind, throwerId, origin, dx * force, dy * force, dz * force);
+        projectile.setDimension(dimension);
         projectiles.add(projectile);
         for (Listener listener : listeners) {
             listener.onProjectileSpawned(projectile);
@@ -709,7 +738,8 @@ public final class ProjectileManager {
      * toward ~1.9 blocks/tick. Tick-thread context.
      */
     public ProjectileEntity launchFireball(Position origin,
-                                           double directionX, double directionY, double directionZ) {
+                                           double directionX, double directionY, double directionZ,
+                                           int dimension) {
         if (!admitLaunch(ProjectileEntity.Kind.SMALL_FIREBALL, -1, origin)) {
             return null; // the §27.7 gate swallowed the shot
         }
@@ -718,6 +748,7 @@ public final class ProjectileManager {
                 directionX + random.nextGaussian() * 0.05,
                 directionY + random.nextGaussian() * 0.05,
                 directionZ + random.nextGaussian() * 0.05);
+        projectile.setDimension(dimension);
         projectiles.add(projectile);
         for (Listener listener : listeners) {
             listener.onProjectileSpawned(projectile);
@@ -734,13 +765,14 @@ public final class ProjectileManager {
      */
     public ProjectileEntity launchGhastFireball(int throwerId, Position origin,
                                                 double directionX, double directionY,
-                                                double directionZ) {
+                                                double directionZ, int dimension) {
         if (!admitLaunch(ProjectileEntity.Kind.LARGE_FIREBALL, throwerId, origin)) {
             return null; // the §27.7 gate swallowed the shot
         }
         ProjectileEntity projectile = new ProjectileEntity(nextEntityId++,
                 ProjectileEntity.Kind.LARGE_FIREBALL, throwerId, origin,
                 0.0, 0.0, 0.0);
+        projectile.setDimension(dimension);
         projectile.setAccelerationFromDirection(
                 directionX + random.nextGaussian() * 0.4,
                 directionY + random.nextGaussian() * 0.4,
@@ -763,13 +795,14 @@ public final class ProjectileManager {
      */
     public ProjectileEntity launchBlazeFireball(int throwerId, Position origin,
                                                  double directionX, double directionY,
-                                                 double directionZ, double spread) {
+                                                 double directionZ, double spread, int dimension) {
         if (!admitLaunch(ProjectileEntity.Kind.SMALL_FIREBALL, throwerId, origin)) {
             return null; // the §27.7 gate swallowed the shot
         }
         ProjectileEntity projectile = new ProjectileEntity(nextEntityId++,
                 ProjectileEntity.Kind.SMALL_FIREBALL, throwerId, origin,
                 0.0, 0.0, 0.0);
+        projectile.setDimension(dimension);
         projectile.setAccelerationFromDirection(
                 directionX + random.nextGaussian() * spread + random.nextGaussian() * 0.4,
                 directionY + random.nextGaussian() * 0.4,
@@ -791,13 +824,14 @@ public final class ProjectileManager {
      */
     public ProjectileEntity launchWitherSkull(int throwerId, Position origin,
                                               double directionX, double directionY,
-                                              double directionZ, boolean charged) {
+                                              double directionZ, boolean charged, int dimension) {
         if (!admitLaunch(ProjectileEntity.Kind.WITHER_SKULL, throwerId, origin)) {
             return null; // the §27.7 gate swallowed the shot
         }
         ProjectileEntity projectile = new ProjectileEntity(nextEntityId++,
                 ProjectileEntity.Kind.WITHER_SKULL, throwerId, origin,
                 0.0, 0.0, 0.0);
+        projectile.setDimension(dimension);
         projectile.setAccelerationFromDirection(
                 directionX + random.nextGaussian() * 0.4,
                 directionY + random.nextGaussian() * 0.4,
@@ -823,6 +857,12 @@ public final class ProjectileManager {
                 }
                 continue;
             }
+            // Wave TF-9 — the reference's Entity.world: the shared solid
+            // query flips to the body's own dimension before every
+            // collision walk (the mob query's own per-body flip,
+            // generalized). A nether arrow sticks in the nether's blocks,
+            // never in the overworld's same-coordinate terrain.
+            solid.setActiveDimension(projectile.dimension());
             // One historical step per tick (drag 0.99, gravity 0.05/0.03),
             // then collisions sampled at the midpoint AND the endpoint — in
             // flight order (midpoint first): a full-draw arrow crosses ~3
@@ -895,6 +935,13 @@ public final class ProjectileManager {
             for (net.zaminmc.torch.server.player.PlayerSession player : players) {
                 if (player.state() != net.zaminmc.torch.entity.PlayerState.PLAYING
                         || player.dead()) {
+                    continue;
+                }
+                // Wave TF-9 — the reference's same-world collision walk
+                // (ArrowEntity.onPlayerCollision runs inside the arrow's
+                // own world): a player in another dimension never collects
+                // an arrow at the same coordinates.
+                if (player.dimension() != projectile.dimension()) {
                     continue;
                 }
                 if (!withinArrowPickupRange(player, projectile)) {
@@ -970,13 +1017,14 @@ public final class ProjectileManager {
             int maxY = (int) Math.floor(at.y() + 0.25 - 0.001);
             int minZ = (int) Math.floor(at.z() - 0.25 + 0.001);
             int maxZ = (int) Math.floor(at.z() + 0.25 - 0.001);
+            int dimension = projectile.dimension();
             for (int x = minX; x <= maxX; x++) {
                 for (int y = minY; y <= maxY; y++) {
                     for (int z = minZ; z <= maxZ; z++) {
                         net.zaminmc.torch.block.BlockPosition cell =
                                 new net.zaminmc.torch.block.BlockPosition(x, y, z);
-                        if (burningTnt.isTnt(cell)) {
-                            burningTnt.ignite(cell);
+                        if (burningTnt.isTnt(cell, dimension)) {
+                            burningTnt.ignite(cell, dimension);
                         }
                     }
                 }
@@ -1027,8 +1075,8 @@ public final class ProjectileManager {
         // on ANY collision: a body, a block. The thrower-immunity window
         // still applies (the reference's ThrownEntity collision scan).
         if (projectile.kind() == ProjectileEntity.Kind.EXPERIENCE_BOTTLE) {
-            MobEntity burstMob = hits.mobAt(point);
-            PlayerSession burstPlayer = hits.playerAt(point);
+            MobEntity burstMob = hits.mobAt(point, projectile.dimension());
+            PlayerSession burstPlayer = hits.playerAt(point, projectile.dimension());
             boolean burstOnMob = burstMob != null && !burstMob.dead()
                     && !(burstMob.entityId() == projectile.throwerId()
                          && projectile.age() <= THROWER_IMMUNITY_TICKS);
@@ -1044,7 +1092,7 @@ public final class ProjectileManager {
             return false;
         }
         // --- entity hit -------------------------------------------------------
-        MobEntity mob = hits.mobAt(point);
+        MobEntity mob = hits.mobAt(point, projectile.dimension());
         if (mob != null && !mob.dead()
                 && !(mob.entityId() == projectile.throwerId()
                      && projectile.age() <= throwerImmunityTicksOf(projectile))) {
@@ -1052,14 +1100,15 @@ public final class ProjectileManager {
                 // The splash on the struck body (PotionEntity.onCollision's
                 // result.entity arm — the direct hit answers proximity 1.0).
                 potionSink.splash(point.x(), point.y(), point.z(),
-                        projectile.potionDamage(), mob, projectile.throwerId());
+                        projectile.potionDamage(), mob, projectile.throwerId(),
+                        projectile.dimension());
             } else {
                 hitMob(projectile, mob);
             }
             remove(projectile, "hit");
             return true;
         }
-        PlayerSession player = hits.playerAt(point);
+        PlayerSession player = hits.playerAt(point, projectile.dimension());
         if (player != null && !player.dead()
                 && !(player.engineEntityId() == projectile.throwerId()
                      && projectile.age() <= throwerImmunityTicksOf(projectile))) {
@@ -1070,7 +1119,8 @@ public final class ProjectileManager {
                 // own early return; the pearl-boost trick's rule).
             } else if (projectile.kind() == ProjectileEntity.Kind.POTION) {
                 potionSink.splash(point.x(), point.y(), point.z(),
-                        projectile.potionDamage(), player, projectile.throwerId());
+                        projectile.potionDamage(), player, projectile.throwerId(),
+                        projectile.dimension());
             } else {
                 hitPlayer(projectile, player);
             }
@@ -1086,7 +1136,7 @@ public final class ProjectileManager {
         // thrower immunity — the reference's scan exempts the THROWER
         // alone, never the vehicle it rides.
         net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle =
-                hits.vehicleAt(point);
+                hits.vehicleAt(point, projectile.dimension());
         if (vehicle != null && !vehicle.dead()) {
             hitVehicle(projectile, vehicle);
             remove(projectile, "hit");
@@ -1127,7 +1177,7 @@ public final class ProjectileManager {
                         new net.zaminmc.torch.block.BlockPosition(
                                 (int) Math.floor(point.x()),
                                 (int) Math.floor(point.y()),
-                                (int) Math.floor(point.z())))) {
+                                (int) Math.floor(point.z())), projectile.dimension())) {
                     return false; // the cell opened — the walk continues
                 }
                 projectile.landInGround();
@@ -1153,7 +1203,8 @@ public final class ProjectileManager {
                 // crossed before the solid one — the engine's stand-in for the
                 // reference's hit.face offset (the previous sample's cell).
                 fireSink.tryPlaceFire((int) Math.floor(from.x()),
-                        (int) Math.floor(from.y()), (int) Math.floor(from.z()));
+                        (int) Math.floor(from.y()), (int) Math.floor(from.z()),
+                        projectile.dimension());
                 remove(projectile, "hit");
                 return true;
             }
@@ -1164,7 +1215,8 @@ public final class ProjectileManager {
                 // charged flag rides the blast's SOURCE model (the blue
                 // skull's 0.8 cap, WitherSkullEntity.getBlastResistance
                 // lines 43-51): the skull's own arm, not the fireball's.
-                skullExplosionSink.explode(point, 1.0f, projectile.charged());
+                skullExplosionSink.explode(point, 1.0f, projectile.charged(),
+                        projectile.dimension());
                 remove(projectile, "hit");
                 return true;
             }
@@ -1172,10 +1224,10 @@ public final class ProjectileManager {
                 // FireballEntity.onHit: the explosion where the fireball
                 // lands (the fire flag's mobGriefing default — the fire
                 // placement stands in for the blast's own).
-                explosionSink.explode(point, 1.0f);
+                explosionSink.explode(point, 1.0f, projectile.dimension());
                 fireSink.tryPlaceFire((int) Math.floor(point.x()),
                         (int) Math.floor(point.y()),
-                        (int) Math.floor(point.z()));
+                        (int) Math.floor(point.z()), projectile.dimension());
                 remove(projectile, "hit");
                 return true;
             }
@@ -1183,7 +1235,8 @@ public final class ProjectileManager {
                 // The block splash (onCollision's null-entity arm: the box
                 // scan around the impact point alone).
                 potionSink.splash(point.x(), point.y(), point.z(),
-                        projectile.potionDamage(), null, projectile.throwerId());
+                        projectile.potionDamage(), null, projectile.throwerId(),
+                        projectile.dimension());
                 remove(projectile, "hit");
                 return true;
             }
@@ -1270,10 +1323,10 @@ public final class ProjectileManager {
         }
         if (projectile.kind() == ProjectileEntity.Kind.LARGE_FIREBALL) {
             // FireballEntity.onHit: the detonation at the struck body.
-            explosionSink.explode(mob.position(), 1.0f);
+            explosionSink.explode(mob.position(), 1.0f, projectile.dimension());
             fireSink.tryPlaceFire((int) Math.floor(projectile.position().x()),
                     (int) Math.floor(projectile.position().y()),
-                    (int) Math.floor(projectile.position().z()));
+                    (int) Math.floor(projectile.position().z()), projectile.dimension());
         }
         if (projectile.kind() == ProjectileEntity.Kind.WITHER_SKULL) {
             // WitherSkullEntity.onHit lines 58-84: a kill heals the
@@ -1285,7 +1338,7 @@ public final class ProjectileManager {
             } else if (landed) {
                 combat.skullWitherCurse(mob);
             }
-            explosionSink.explode(mob.position(), 1.0f);
+            explosionSink.explode(mob.position(), 1.0f, projectile.dimension());
         }
         if (projectile.kind() == ProjectileEntity.Kind.EGG && rollEggHatch()) {
             combat.chickenHatch(mob.position());
@@ -1323,12 +1376,12 @@ public final class ProjectileManager {
             // The curse and the detonation at the struck player (onHit
             // lines 69-84 — the same difficulty band as the mob arm).
             combat.skullWitherCurse(player);
-            explosionSink.explode(player.position(), 1.0f);
+            explosionSink.explode(player.position(), 1.0f, projectile.dimension());
         }
         if (projectile.kind() == ProjectileEntity.Kind.LARGE_FIREBALL) {
             // The detonation at the struck player (the fireball's own
             // explosion, at the impact).
-            explosionSink.explode(player.position(), 1.0f);
+            explosionSink.explode(player.position(), 1.0f, projectile.dimension());
         }
         if (projectile.kind() == ProjectileEntity.Kind.EGG && rollEggHatch()) {
             combat.chickenHatch(player.position());

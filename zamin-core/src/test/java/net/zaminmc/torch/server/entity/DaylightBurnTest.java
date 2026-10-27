@@ -141,7 +141,7 @@ class DaylightBurnTest {
         List<ItemStack> crumbs = new ArrayList<>();
         List<Float> pitches = new ArrayList<>();
         MobManager manager = new MobManager(world, new Random(31L),
-                (position, stack) -> { }, 1_100_000, (x, z) -> 8);
+                (position, stack, dimension) -> { }, 1_100_000, (x, z) -> 8);
         manager.addListener(new MobManager.Listener() {
             @Override public void onMobSpawned(MobEntity mob) { }
             @Override public void onMobMoved(MobEntity mob,

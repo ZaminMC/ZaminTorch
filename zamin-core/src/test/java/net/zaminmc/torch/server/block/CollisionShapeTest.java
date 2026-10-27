@@ -79,6 +79,15 @@ class CollisionShapeTest {
                               boolean corridor)
             implements MobEntity.WorldQuery, ItemEntity.Ground, FallingBlockEntity.Ground {
 
+        /**
+         * Wave TF-9 — the two Ground families now both declare the
+         * dimension flip default; an explicit no-op keeps the historical
+         * stub's overworld-only reads (the plain overworld stub world).
+         */
+        @Override
+        public void setActiveDimension(int dimension) {
+        }
+
         /** The open-plains shape: no corridor walls (the historical stub). */
         ShapeWorld(int slabX, int slabZ, WorldSolidityProbe probe, Position player) {
             this(slabX, slabZ, probe, player, false);

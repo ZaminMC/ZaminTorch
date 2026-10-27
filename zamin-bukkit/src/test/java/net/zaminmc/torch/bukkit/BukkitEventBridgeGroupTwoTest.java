@@ -328,7 +328,7 @@ class BukkitEventBridgeGroupTwoTest {
                 "the wrapped pending item view carried the stack facts");
         assertNotNull(harness.server.projectiles().launch(
                 net.zaminmc.torch.server.entity.projectile.ProjectileEntity.Kind.ARROW,
-                -1, new Position(64, 40, 60), 0.0, 0.0, 1.5),
+                -1, new Position(64, 40, 60), 0.0, 0.0, 1.5, 0),
                 "the arrow launched through the engine's own surface");
         harness.await(() -> harness.probeLogContains(
                 "event:launch type=ARROW shooter=none"),

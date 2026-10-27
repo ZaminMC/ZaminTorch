@@ -229,7 +229,7 @@ class CombatTargetTailsTest {
         TargetWorld world = new TargetWorld();
         java.util.function.BiFunction<Integer, Integer, Integer> surface = (x, z) -> 8;
         class NoLoot implements MobManager.LootSink {
-            @Override public void spawnLootDrop(Position position, net.zaminmc.torch.item.ItemStack stack) { }
+            @Override public void spawnLootDrop(Position position, net.zaminmc.torch.item.ItemStack stack, int dimension) { }
         }
         MobManager manager = new MobManager(world, new Random(80L), new NoLoot(), 950_000, surface);
         MobEntity golem = manager.spawnAt(MobType.IRON_GOLEM, new Position(0.5, 8.0, 0.5));
@@ -245,7 +245,7 @@ class CombatTargetTailsTest {
         TargetWorld world = new TargetWorld();
         java.util.function.BiFunction<Integer, Integer, Integer> surface = (x, z) -> 8;
         class NoLoot implements MobManager.LootSink {
-            @Override public void spawnLootDrop(Position position, net.zaminmc.torch.item.ItemStack stack) { }
+            @Override public void spawnLootDrop(Position position, net.zaminmc.torch.item.ItemStack stack, int dimension) { }
         }
         MobManager manager = new MobManager(world, new Random(81L), new NoLoot(), 960_000, surface);
         MobEntity village = manager.spawnAt(MobType.IRON_GOLEM, new Position(0.5, 8.0, 0.5));
@@ -423,7 +423,7 @@ class CombatTargetTailsTest {
         TargetWorld world = new TargetWorld();
         java.util.function.BiFunction<Integer, Integer, Integer> surface = (x, z) -> 8;
         class NoLoot implements MobManager.LootSink {
-            @Override public void spawnLootDrop(Position position, net.zaminmc.torch.item.ItemStack stack) { }
+            @Override public void spawnLootDrop(Position position, net.zaminmc.torch.item.ItemStack stack, int dimension) { }
         }
         MobManager manager = new MobManager(world, new Random(90L), new NoLoot(), 970_000, surface);
         MobEntity skeleton = manager.spawnAt(MobType.SKELETON, new Position(0.5, 8.0, 0.5));
@@ -476,7 +476,7 @@ class CombatTargetTailsTest {
         TargetWorld world = new TargetWorld();
         java.util.function.BiFunction<Integer, Integer, Integer> surface = (x, z) -> 8;
         class NoLoot implements MobManager.LootSink {
-            @Override public void spawnLootDrop(Position position, net.zaminmc.torch.item.ItemStack stack) { }
+            @Override public void spawnLootDrop(Position position, net.zaminmc.torch.item.ItemStack stack, int dimension) { }
         }
         MobManager manager = new MobManager(world, new Random(92L), new NoLoot(), 980_000, surface);
         MobEntity wolf = manager.spawnAt(MobType.WOLF, new Position(0.5, 8.0, 0.5));
@@ -527,7 +527,7 @@ class CombatTargetTailsTest {
         TargetWorld world = new TargetWorld();
         java.util.function.BiFunction<Integer, Integer, Integer> surface = (x, z) -> 8;
         class NoLoot implements MobManager.LootSink {
-            @Override public void spawnLootDrop(Position position, net.zaminmc.torch.item.ItemStack stack) { }
+            @Override public void spawnLootDrop(Position position, net.zaminmc.torch.item.ItemStack stack, int dimension) { }
         }
         MobManager manager = new MobManager(world, new Random(94L), new NoLoot(), 990_000, surface);
         MobEntity creeper = manager.spawnAt(MobType.CREEPER, new Position(0.5, 8.0, 0.5));

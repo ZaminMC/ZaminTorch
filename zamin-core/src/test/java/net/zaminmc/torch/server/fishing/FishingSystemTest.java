@@ -92,7 +92,8 @@ class FishingSystemTest {
         }
 
         @Override public void dropCatch(Position at, net.zaminmc.torch.item.ItemStack stack,
-                                        double anglerX, double anglerY, double anglerZ) {
+                                        double anglerX, double anglerY, double anglerZ,
+                                        int dimension) {
             catches.add(stack.type().identifier() + ":" + stack.damage());
         }
 
@@ -152,7 +153,7 @@ class FishingSystemTest {
                         && bobber.selfHitTimer <= FishingSystem.BITE_WINDOW_MAX,
                 "the bite window's 10..30 band: " + bobber.selfHitTimer);
         // The retrieve inside the window: a catch (result 1) + the XP.
-        int result = fishing.retrieve(8, new Position(0.0, 66.0, 0.0));
+        int result = fishing.retrieve(8, new Position(0.0, 66.0, 0.0), 0);
         assertEquals(1, result);
         assertEquals(1, sink.catches.size(), "the loot dropped");
         assertEquals(1, sink.xps.size(), "the XP orb dropped");
@@ -170,7 +171,7 @@ class FishingSystemTest {
         FishingSystem.Bobber bobber = fishing.bobberOf(9);
         bobber.catchTimer = 10_000; // the approach never comes
         fishing.tick();
-        assertEquals(0, fishing.retrieve(9, new Position(0.0, 66.0, 0.0)),
+        assertEquals(0, fishing.retrieve(9, new Position(0.0, 66.0, 0.0), 0),
                 "the bare water retrieve: result 0, no wear");
         assertTrue(sink.catches.isEmpty(), "nothing dropped");
         assertTrue(sink.xps.isEmpty());
@@ -189,7 +190,7 @@ class FishingSystemTest {
         fishing.tick();
         assertEquals(new Position(50.0, 64.0, 50.0), bobber.position(),
                 "the hooked follow rides the body's anchor");
-        assertEquals(3, fishing.retrieve(10, new Position(51.0, 65.0, 50.0)),
+        assertEquals(3, fishing.retrieve(10, new Position(51.0, 65.0, 50.0), 0),
                 "the hooked drag: result 3");
         assertEquals(1, sink.pulls.size(), "the pull fired");
         // The grounded arm (a fresh recording: the hooked body above must
@@ -203,7 +204,7 @@ class FishingSystemTest {
             dry.tick();
         }
         assertTrue(grounded.grounded(), "the dry world grounded the bobber");
-        assertEquals(2, dry.retrieve(11, new Position(0.0, 45.0, 0.0)),
+        assertEquals(2, dry.retrieve(11, new Position(0.0, 45.0, 0.0), 0),
                 "the grounded answer: result 2");
     }
 
@@ -243,7 +244,7 @@ class FishingSystemTest {
             fishing.cast(20, new Position(0.0, 65.0, 0.0), 0.0f, -90.0f);
             FishingSystem.Bobber bobber = fishing.bobberOf(20);
             bobber.selfHitTimer = 5; // force the bite window
-            fishing.retrieve(20, new Position(0.0, 66.0, 0.0));
+            fishing.retrieve(20, new Position(0.0, 66.0, 0.0), 0);
         }
         for (String entry : sink.catches) {
             // "minecraft:fish:0" — the damage rides the LAST colon (the

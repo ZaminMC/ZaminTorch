@@ -189,7 +189,7 @@ class MobTargetFamilyTest {
         java.util.function.BiFunction<Integer, Integer, Integer> surface = (x, z) -> 8;
         class CountingLoot implements MobManager.LootSink {
             final List<net.zaminmc.torch.item.ItemStack> drops = new ArrayList<>();
-            @Override public void spawnLootDrop(Position position, net.zaminmc.torch.item.ItemStack stack) {
+            @Override public void spawnLootDrop(Position position, net.zaminmc.torch.item.ItemStack stack, int dimension) {
                 drops.add(stack);
             }
         }

@@ -77,7 +77,7 @@ class MobManagerTest {
     private static final class Loot implements MobManager.LootSink {
         final List<ItemStack> drops = new ArrayList<>();
 
-        @Override public void spawnLootDrop(Position position, ItemStack stack) {
+        @Override public void spawnLootDrop(Position position, ItemStack stack, int dimension) {
             drops.add(stack);
         }
     }

@@ -63,7 +63,8 @@ class FishingOverrideTest {
         }
 
         @Override public void dropCatch(Position at, ItemStack stack,
-                                        double anglerX, double anglerY, double anglerZ) {
+                                        double anglerX, double anglerY, double anglerZ,
+                                        int dimension) {
             catches.add(stack.type().identifier() + ":" + stack.damage());
         }
 
@@ -90,7 +91,7 @@ class FishingOverrideTest {
         for (int i = 0; i < 300 && bobber.selfHitTimer <= 0; i++) {
             fishing.tick();
         }
-        return fishing.retrieve(anglerId, new Position(0.0, 65.0, 0.0));
+        return fishing.retrieve(anglerId, new Position(0.0, 65.0, 0.0), 0);
     }
 
     @Test

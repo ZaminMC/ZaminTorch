@@ -75,17 +75,17 @@ class VehicleWorldDamageTest {
         VehicleEntity vehicle;
 
         @Override
-        public net.zaminmc.torch.server.entity.MobEntity mobAt(Position point) {
+        public net.zaminmc.torch.server.entity.MobEntity mobAt(Position point, int dimension) {
             return null;
         }
 
         @Override
-        public PlayerSession playerAt(Position point) {
+        public PlayerSession playerAt(Position point, int dimension) {
             return null;
         }
 
         @Override
-        public VehicleEntity vehicleAt(Position point) {
+        public VehicleEntity vehicleAt(Position point, int dimension) {
             return vehicle;
         }
     }
@@ -103,7 +103,7 @@ class VehicleWorldDamageTest {
         // The full-draw arrow at speed 3: the damage roll (the engine's
         // established speed-scaled formula — ceil(3.0 * 2.0) = 6).
         ProjectileEntity arrow = manager.launch(ProjectileEntity.Kind.ARROW, -1,
-                new Position(0, 64, 0), 0, 0, 3.0);
+                new Position(0, 64, 0), 0, 0, 3.0, 0);
         manager.tick(java.util.List.of()); // the flight's first pass lands inside the cart
         assertEquals(1, combat.vehicleDamages.size(),
                 "the arrow's hit reached the vehicle arm");
@@ -128,7 +128,7 @@ class VehicleWorldDamageTest {
                 (x, y, z) -> false, hits, new RecordingCombat(),
                 new FxManager(), new Random(72L), 3_100);
         ProjectileEntity arrow = manager.launch(ProjectileEntity.Kind.ARROW, -1,
-                new Position(0, 64, 0), 0, 0, 3.0);
+                new Position(0, 64, 0), 0, 0, 3.0, 0);
         arrow.setOnFireFor(100); // the Flame release: the whole flight burns
         manager.tick(java.util.List.of());
         assertEquals(1, detonations.size(), "the burning arrow detonated the cart");

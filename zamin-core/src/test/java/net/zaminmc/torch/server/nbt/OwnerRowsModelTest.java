@@ -49,7 +49,7 @@ class OwnerRowsModelTest {
     private static final class StubBodies implements PotionSystem.Bodies {
         @Override
         public List<Object> bodiesIn(double minX, double minY, double minZ,
-                                     double maxX, double maxY, double maxZ) {
+                                     double maxX, double maxY, double maxZ, int dimension) {
             return List.of();
         }
 
@@ -225,7 +225,7 @@ class OwnerRowsModelTest {
         // The ZMD v6 tameable/horse block: the owner pair + the tamed bit
         // + the family's sitting/angry round-trip through the store.
         MobManager manager = new MobManager(new StubWorld(), new Random(7),
-                (position, stack) -> { }, 1_100_000, (x, z) -> 4);
+                (position, stack, dimension) -> { }, 1_100_000, (x, z) -> 4);
         MobEntity wolf = manager.spawnAt(MobType.WOLF, new Position(0.5, 4.0, 0.5));
         String uuid = UUID.randomUUID().toString();
         wolf.tameWolf("Abasing", uuid);
@@ -244,7 +244,7 @@ class OwnerRowsModelTest {
         assertTrue(loaded.get(0).tame().sitting());
 
         MobManager restored = new MobManager(new StubWorld(), new Random(8),
-                (position, stack) -> { }, 1_200_000, (x, z) -> 4);
+                (position, stack, dimension) -> { }, 1_200_000, (x, z) -> 4);
         restored.restoreAll(loaded);
         MobEntity wolfAgain = restored.all().get(0);
         assertTrue(wolfAgain.wolfTamed());
@@ -256,7 +256,7 @@ class OwnerRowsModelTest {
     @Test
     void thePlainKindsCarryNoTameBlock() {
         MobManager manager = new MobManager(new StubWorld(), new Random(9),
-                (position, stack) -> { }, 1_100_000, (x, z) -> 4);
+                (position, stack, dimension) -> { }, 1_100_000, (x, z) -> 4);
         manager.spawnAt(MobType.COW, new Position(0.5, 4.0, 0.5));
         List<MobManager.MobSnapshot> snapshot = manager.snapshot();
         assertNull(snapshot.get(0).tame());

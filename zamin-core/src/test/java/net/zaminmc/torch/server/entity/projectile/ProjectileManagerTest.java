@@ -57,12 +57,12 @@ class ProjectileManagerTest {
         PlayerSession player;
 
         @Override
-        public MobEntity mobAt(Position point) {
+        public MobEntity mobAt(Position point, int dimension) {
             return mob;
         }
 
         @Override
-        public PlayerSession playerAt(Position point) {
+        public PlayerSession playerAt(Position point, int dimension) {
             return player;
         }
     }
@@ -124,7 +124,7 @@ class ProjectileManagerTest {
             }
         });
         ProjectileEntity shard = manager.launch(ProjectileEntity.Kind.SNOWBALL, 42,
-                new Position(0, 10, 0), 0, 0, 1.5);
+                new Position(0, 10, 0), 0, 0, 1.5, 0);
         manager.tick(java.util.List.of()); // one tick at 1.5 blocks does not reach the wall at x=5
         assertEquals(0, destroyed.size(), "still airborne after one tick");
         assertTrue(shard.age() >= 1, "the shard aged");
@@ -141,7 +141,7 @@ class ProjectileManagerTest {
                 (x, y, z) -> y <= 8.0, new RiggedHits(), new RecordingCombat(), FX,
                 new Random(2), 2_000);
         ProjectileEntity arrow = manager.launch(ProjectileEntity.Kind.ARROW, -1,
-                new Position(0, 10, 0), 0, 90, 3.0); // straight down (pitch +90 aims down)
+                new Position(0, 10, 0), 0, 90, 3.0, 0); // straight down (pitch +90 aims down)
         List<Integer> landed = new ArrayList<>();
         manager.addListener(new ProjectileManager.Listener() {
             @Override
@@ -244,7 +244,7 @@ class ProjectileManagerTest {
                 new Position(0, 10, 0), new Random(4), solidWorld());
         hits.mob = zombie;
         manager.launch(ProjectileEntity.Kind.ARROW, -1, new Position(0, 12, 0),
-                0, 45, 3.0); // aimed down at the mob
+                0, 45, 3.0, 0); // aimed down at the mob
         manager.tick(java.util.List.of());
         assertEquals(List.of("mob"), combat.events, "the mob took the arrow");
         float damage = combat.damages.get(0);
@@ -262,7 +262,7 @@ class ProjectileManagerTest {
         victim.assignEngineEntityId(9_002);
         hits.player = victim;
         manager.launch(ProjectileEntity.Kind.SNOWBALL, 9_003,
-                new Position(0, 11, 0), 90, 0, 1.5);
+                new Position(0, 11, 0), 90, 0, 1.5, 0);
         manager.tick(java.util.List.of());
         assertEquals(List.of("player:Victim"), combat.events,
                 "the snowball reached the victim");
@@ -279,7 +279,7 @@ class ProjectileManagerTest {
         thrower.assignEngineEntityId(9_010);
         hits.player = thrower; // the flight path starts inside the thrower's own box
         manager.launch(ProjectileEntity.Kind.SNOWBALL, 9_010,
-                new Position(0, 11, 0), 90, 0, 1.5);
+                new Position(0, 11, 0), 90, 0, 1.5, 0);
         for (int i = 0; i < 5; i++) {
             manager.tick(java.util.List.of()); // ages 1..10: the first five ticks are immune
         }
@@ -290,7 +290,7 @@ class ProjectileManagerTest {
         ProjectileManager cleanManager = new ProjectileManager(
                 (x, y, z) -> false, hits, fresh, FX, new Random(16), 5_500);
         cleanManager.launch(ProjectileEntity.Kind.SNOWBALL, 9_010,
-                new Position(0, 11, 0), 90, 0, 1.5);
+                new Position(0, 11, 0), 90, 0, 1.5, 0);
         cleanManager.tick(java.util.List.of());
         cleanManager.tick(java.util.List.of());
         cleanManager.tick(java.util.List.of());
@@ -311,7 +311,7 @@ class ProjectileManagerTest {
         // chick; the fixed seed makes the roll deterministic.
         for (int i = 0; i < 16 && combat.chickenHatches == 0; i++) {
             manager.launch(ProjectileEntity.Kind.EGG, -1,
-                    new Position(0, 11, 0), 90, 0, 1.5);
+                    new Position(0, 11, 0), 90, 0, 1.5, 0);
             manager.tick(java.util.List.of());
         }
         assertTrue(combat.chickenHatches > 0, "the chick roll hatched within two cycles");
@@ -326,7 +326,7 @@ class ProjectileManagerTest {
                 (x, y, z) -> y <= 9.0, new RiggedHits(), new RecordingCombat(), bus,
                 new Random(8), 7_000);
         manager.launch(ProjectileEntity.Kind.SNOWBALL, -1,
-                new Position(0, 10, 0), 0, 90, 1.5);
+                new Position(0, 10, 0), 0, 90, 1.5, 0);
         manager.tick(java.util.List.of());
         boolean poof = fx.stream().anyMatch(e -> e instanceof FxManager.Poof);
         boolean glass = fx.stream().anyMatch(e ->
@@ -341,7 +341,7 @@ class ProjectileManagerTest {
                 (x, y, z) -> false, new RiggedHits(), new RecordingCombat(), FX,
                 new Random(9), 8_000);
         ProjectileEntity shard = manager.launch(ProjectileEntity.Kind.SNOWBALL, -1,
-                new Position(0, 100, 0), 90, 45, 0.1); // flies into the void
+                new Position(0, 100, 0), 90, 45, 0.1, 0); // flies into the void
         for (int i = 0; i < ProjectileManager.THROWABLE_AGE_TICKS; i++) {
             manager.tick(java.util.List.of());
         }
@@ -355,7 +355,7 @@ class ProjectileManagerTest {
                 (x, y, z) -> false, new RiggedHits(), new RecordingCombat(), FX,
                 new Random(10), 9_000);
         ProjectileEntity shard = manager.launch(ProjectileEntity.Kind.SNOWBALL, -1,
-                new Position(0, 100, 0), 0, 0, 2.0);
+                new Position(0, 100, 0), 0, 0, 2.0, 0);
         double first = shard.launchSpeed();
         manager.tick(java.util.List.of()); // two substeps of drag + gravity
         double second = shard.launchSpeed();
@@ -379,11 +379,11 @@ class ProjectileManagerTest {
                 new RiggedHits(), new RecordingCombat(), FX,
                 new Random(3), 3_000);
         manager.setBurningTntArm(new ProjectileManager.BurningTntArm() {
-            @Override public boolean isTnt(net.zaminmc.torch.block.BlockPosition pos) {
+            @Override public boolean isTnt(net.zaminmc.torch.block.BlockPosition pos, int dimension) {
                 return tntCells.contains(pos);
             }
 
-            @Override public void ignite(net.zaminmc.torch.block.BlockPosition pos) {
+            @Override public void ignite(net.zaminmc.torch.block.BlockPosition pos, int dimension) {
                 primed.add(pos);
                 // The reference's world.removeBlock(pos): the primed cell
                 // leaves the world, so the next pass finds no TNT there.
@@ -395,13 +395,13 @@ class ProjectileManagerTest {
         // face (the solid query answers inside the cell alone).
         ProjectileEntity burning = manager.launchVector(
                 ProjectileEntity.Kind.ARROW, -1,
-                new Position(10.5, 44.0, 10.5), 0.0, -1.0, 0.0, 1.0, 0.4);
+                new Position(10.5, 44.0, 10.5), 0.0, -1.0, 0.0, 1.0, 0.4, 0);
         assertNotNull(burning, "the shot entered the world");
         burning.setOnFireFor(2_000); // the Flame release's own clock
         // The plain control arrow, the same drop over a plain cell.
         ProjectileEntity plain = manager.launchVector(
                 ProjectileEntity.Kind.ARROW, -1,
-                new Position(12.5, 44.0, 10.5), 0.0, -1.0, 0.0, 1.0, 0.4);
+                new Position(12.5, 44.0, 10.5), 0.0, -1.0, 0.0, 1.0, 0.4, 0);
         assertNotNull(plain, "the control entered the world");
 
         for (int i = 0; i < 20; i++) {

@@ -91,7 +91,7 @@ class WitchAcceptanceTest {
         server.world().execute(() -> {
             float before = witch.health();
             server.potions().splash(at.x(), at.y() + 1.0, at.z(), 32732,
-                    witch, thrower);
+                    witch, thrower, 0);
             delta[0] = before - witch.health();
         });
         await(() -> delta[0] != Float.NEGATIVE_INFINITY, "the splash ran");

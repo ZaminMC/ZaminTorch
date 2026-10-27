@@ -136,12 +136,22 @@ public final class ItemEntityManager {
      *         spawn (the stack never enters the world; no id is consumed)
      */
     public ItemEntity spawnRestored(Position at, ItemStack stack) {
+        return spawnRestored(at, stack, 0);
+    }
+
+    /**
+     * The restored form with the dimension stamp (Wave TF-9 — the ZID v8
+     * restore's own row): the persisted body rejoins ITS OWN world, the
+     * reference's Entity.world carried across the restart.
+     */
+    public ItemEntity spawnRestored(Position at, ItemStack stack, int dimension) {
         Objects.requireNonNull(at, "at");
         Objects.requireNonNull(stack, "stack");
         if (!admitSpawn(stack, at)) {
             return null;
         }
         ItemEntity entity = new ItemEntity(nextEntityId++, at, stack, 0);
+        entity.setDimension(dimension);
         entities.add(entity);
         for (Listener listener : listeners) {
             listener.onItemSpawned(entity);
@@ -159,6 +169,18 @@ public final class ItemEntityManager {
      */
     public ItemEntity spawnDropAtBlock(Position blockPosition, ItemStack stack,
                                        int pickupDelayTicks) {
+        return spawnDropAtBlock(blockPosition, stack, pickupDelayTicks, 0);
+    }
+
+    /**
+     * The dimension-stamped drop (Wave TF-9): the sites that know their
+     * world — the mob deaths read the mob's own dimension, the player
+     * paths the session's — stamp it here; the overworld-bound systems
+     * keep the three-arg form's honest 0 (each such system's own
+     * dimension tail stays ledged).
+     */
+    public ItemEntity spawnDropAtBlock(Position blockPosition, ItemStack stack,
+                                       int pickupDelayTicks, int dimension) {
         Objects.requireNonNull(blockPosition, "blockPosition");
         Objects.requireNonNull(stack, "stack");
         // Center of the block plus the historical small random pop offset.
@@ -171,6 +193,7 @@ public final class ItemEntityManager {
         }
         ItemEntity entity = new ItemEntity(nextEntityId++, at,
                 stack, pickupDelayTicks);
+        entity.setDimension(dimension);
         entity.setVelocity(random.nextDouble() * 0.2 - 0.1, 0.2, random.nextDouble() * 0.2 - 0.1);
         entities.add(entity);
         for (Listener listener : listeners) {
@@ -186,11 +209,21 @@ public final class ItemEntityManager {
      *         drop (no id is consumed)
      */
     public ItemEntity spawnThrown(Position origin, ItemStack stack) {
+        return spawnThrown(origin, stack, 0);
+    }
+
+    /**
+     * The dimension-stamped throw (Wave TF-9): the player's Q-key drop
+     * stamps the session's own dimension — the thrown body lives in the
+     * world it was thrown in.
+     */
+    public ItemEntity spawnThrown(Position origin, ItemStack stack, int dimension) {
         if (!admitSpawn(stack, origin)) {
             return null; // the §27.7 gate withheld the throw
         }
         ItemEntity entity = new ItemEntity(nextEntityId++, origin, stack,
                 ItemEntity.PICKUP_DELAY_PLAYER_THROW_TICKS);
+        entity.setDimension(dimension);
         entities.add(entity);
         for (Listener listener : listeners) {
             listener.onItemSpawned(entity);
@@ -243,6 +276,12 @@ public final class ItemEntityManager {
                 continue;
             }
 
+            // Wave TF-9 — the reference's Entity.world: the shared
+            // ground flips to the body's own dimension before its physics
+            // walk (the mob query's own per-body flip, generalized). A
+            // nether item lands on the nether's blocks, never on the
+            // overworld's same-coordinate terrain.
+            ground.setActiveDimension(entity.dimension());
             if (entity.tick(ground)) {
                 for (Listener listener : listeners) {
                     listener.onItemMoved(entity);
@@ -255,6 +294,13 @@ public final class ItemEntityManager {
             for (PlayerSession player : players) {
                 if (player.state() != PlayerState.PLAYING) {
                     continue; // only players in play state collect items
+                }
+                // Wave TF-9 — the reference's same-world collision walk
+                // (onPlayerCollision runs inside the item's own world): a
+                // player in another dimension never collects a body at the
+                // same coordinates.
+                if (player.dimension() != entity.dimension()) {
+                    continue;
                 }
                 // The owner-window gate (Slice 93/D1 — onPlayerCollision
                 // lines 266-267): an owned body answers only to its owner
@@ -413,7 +459,13 @@ public final class ItemEntityManager {
         if (other.expired() || (absorbed != null && absorbed.contains(other))) {
             return absorbed;
         }
-        if (other.entityId() < keeper.entityId() || !withinMergeRange(keeper, other)
+        if (other.entityId() < keeper.entityId()
+                // Wave TF-9 — the reference's mergeWithNearbyItems walks
+                // world.getEntitiesOfType: only the body's OWN-WORLD items
+                // are candidates. Same coordinates in two dimensions never
+                // combine.
+                || other.dimension() != keeper.dimension()
+                || !withinMergeRange(keeper, other)
                 || !stacksMergeable(keeper.stack(), other.stack())) {
             return absorbed;
         }
@@ -678,7 +730,8 @@ public final class ItemEntityManager {
             int pickupDelay,
             boolean neverDespawn,
             String thrower,
-            String owner) {
+            String owner,
+            int dimension) {
     }
 
     /** The live population's records (the tick-lane save snapshot). */
@@ -693,7 +746,8 @@ public final class ItemEntityManager {
                     entity.pickupDelayTicks(),
                     entity.neverDespawn(),
                     entity.thrower(),
-                    entity.owner()));
+                    entity.owner(),
+                    entity.dimension()));
         }
         return records;
     }
@@ -722,6 +776,7 @@ public final class ItemEntityManager {
             }
             entity.setThrower(record.thrower());
             entity.setOwner(record.owner());
+            entity.setDimension(record.dimension());
             entities.add(entity);
             for (Listener listener : listeners) {
                 listener.onItemSpawned(entity);

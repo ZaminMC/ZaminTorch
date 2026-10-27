@@ -41,7 +41,7 @@ class HorseSpawnAttributeRollTest {
     }
 
     private static final class Loot implements MobManager.LootSink {
-        @Override public void spawnLootDrop(Position position, net.zaminmc.torch.item.ItemStack stack) {
+        @Override public void spawnLootDrop(Position position, net.zaminmc.torch.item.ItemStack stack, int dimension) {
         }
     }
 

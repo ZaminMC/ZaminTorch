@@ -203,7 +203,7 @@ class BukkitEventBridgeGroupThreeTest {
         harness.server.ticker().submit(() -> arrow.set(
                 harness.server.projectiles().launch(
                         net.zaminmc.torch.server.entity.projectile.ProjectileEntity.Kind.ARROW,
-                        -1, new Position(81, 40, 81), 0.0, 0.0, 1.5)));
+                        -1, new Position(81, 40, 81), 0.0, 0.0, 1.5, 0)));
         harness.await(() -> arrow.get() != null, "the arrow launched through the engine's surface");
         harness.await(() -> harness.probeLogContains(
                 "event:launch type=ARROW shooter=none at=(81.0,40.0,81.0) primary=true"),
@@ -215,7 +215,7 @@ class BukkitEventBridgeGroupThreeTest {
         harness.server.ticker().submit(() -> snowball.set(
                 harness.server.projectiles().launch(
                         net.zaminmc.torch.server.entity.projectile.ProjectileEntity.Kind.SNOWBALL,
-                        shooter.engineEntityId(), new Position(83, 40, 83), 0.0, 0.0, 1.5)));
+                        shooter.engineEntityId(), new Position(83, 40, 83), 0.0, 0.0, 1.5, 0)));
         harness.await(() -> harness.probeLogContains(
                 "event:launch type=SNOWBALL shooter=ShooterProbe"),
                 "the thrower id resolved onto the player view");

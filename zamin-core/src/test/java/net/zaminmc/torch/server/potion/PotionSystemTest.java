@@ -332,7 +332,7 @@ class PotionSystemTest {
         bodies.model(far).health = 10.0f;
         PlayerSession outside = bodies.spawn("Outside", false, 4.2, 0, 0);
         bodies.model(outside).health = 10.0f;
-        system.splash(0.0, 0.0, 0.0, INSTANT_HEALTH_I, direct, null);
+        system.splash(0.0, 0.0, 0.0, INSTANT_HEALTH_I, direct, null, 0);
         assertEquals(14.0f, bodies.model(direct).health,
                 "the direct hit's 1.0 proximity heals 4");
         // 1 - 3.9/4 = 0.025 -> (int)(0.025 * 4 + 0.5) = 0.
@@ -348,7 +348,7 @@ class PotionSystemTest {
         PotionSystem system = new PotionSystem(bodies);
         PlayerSession player = bodies.spawn("Soaked", false, 2.0, 0, 0);
         // At distance 2: proximity 0.5 -> (int)(0.5 * 900 + 0.5) = 450.
-        system.splash(0.0, 0.0, 0.0, POISON_I, null, null);
+        system.splash(0.0, 0.0, 0.0, POISON_I, null, null, 0);
         StatusEffectInstance poison = system.get(player, StatusEffects.POISON);
         assertEquals(450, poison.duration(), "the proximity-scaled duration installs");
         assertEquals(0, poison.amplifier());
@@ -359,7 +359,7 @@ class PotionSystemTest {
         Bodies bodies = new Bodies();
         PotionSystem system = new PotionSystem(bodies);
         PlayerSession player = bodies.spawn("Dry", false, 0, 0, 0);
-        system.splash(0.0, 0.0, 0.0, WATER, player, null);
+        system.splash(0.0, 0.0, 0.0, WATER, player, null, 0);
         assertTrue(system.allOf(player).isEmpty());
         assertEquals(20.0f, bodies.model(player).health);
     }
@@ -373,7 +373,7 @@ class PotionSystemTest {
         // 3.98: proximity 0.005 -> 9 — skipped (9 <= 20).
         PlayerSession near = bodies.spawn("Near", false, 3.94, 0, 0);
         PlayerSession far = bodies.spawn("Far", false, 3.98, 0, 0);
-        system.splash(0.0, 0.0, 0.0, WEAKNESS_I, null, null);
+        system.splash(0.0, 0.0, 0.0, WEAKNESS_I, null, null, 0);
         assertTrue(system.hasEffect(near, StatusEffects.WEAKNESS));
         assertFalse(system.hasEffect(far, StatusEffects.WEAKNESS),
                 "the 20-tick floor skips the whisper-level exposure");
@@ -444,7 +444,7 @@ class PotionSystemTest {
 
         @Override
         public List<Object> bodiesIn(double minX, double minY, double minZ,
-                                       double maxX, double maxY, double maxZ) {
+                                       double maxX, double maxY, double maxZ, int dimension) {
             List<Object> found = new ArrayList<>();
             for (PlayerSession session : all) {
                 Model model = models.get(session);

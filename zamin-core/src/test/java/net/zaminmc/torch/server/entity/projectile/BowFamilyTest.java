@@ -67,10 +67,10 @@ class BowFamilyTest {
         // so the multiplier is 5.0 — the full-draw band ceil(3 * 5) = 15
         // (the launch noise swings the speed, the band stays 14..16).
         ProjectileEntity arrow = manager.launch(ProjectileEntity.Kind.ARROW, -1,
-                new Position(0, 12, 0), 0, 0, 3.0);
+                new Position(0, 12, 0), 0, 0, 3.0, 0);
         arrow.addBonusDamage(5 * 0.5 + 0.5);
         ProjectileEntity plain = manager.launch(ProjectileEntity.Kind.ARROW, -1,
-                new Position(0, 12, 0), 0, 0, 3.0);
+                new Position(0, 12, 0), 0, 0, 3.0, 0);
 
         double powerBand = Math.ceil(arrow.launchSpeed() * (2.0 + arrow.bonusDamage()));
         double plainBand = Math.ceil(plain.launchSpeed() * 2.0);
@@ -97,7 +97,7 @@ class BowFamilyTest {
                     new Position(0, 10, 0), new Random(100 + i), solidWorld());
             hits.mob = zombie;
             ProjectileEntity arrow = manager.launch(ProjectileEntity.Kind.ARROW, -1,
-                    new Position(0, 12, 0), 0, 0, 3.0);
+                    new Position(0, 12, 0), 0, 0, 3.0, 0);
             arrow.setCritical(true);
             manager.tick(java.util.List.of());
         }
@@ -118,7 +118,7 @@ class BowFamilyTest {
         // Straight -x travel: the Punch II impulse (ArrowEntity lines 255-260)
         // rides vx * 2 * 0.6 / |vxz| plus the 0.1 rise.
         ProjectileEntity arrow = manager.launch(ProjectileEntity.Kind.ARROW, -1,
-                new Position(0, 12, 0), 0, 0, 3.0);
+                new Position(0, 12, 0), 0, 0, 3.0, 0);
         arrow.setPunchLevel(2);
         manager.tick(java.util.List.of());
         assertEquals(List.of("hit"), combat.order, "the hit landed");
@@ -154,7 +154,7 @@ class BowFamilyTest {
                 new Position(0, 10, 0), new Random(16), solidWorld());
         hits.mob = zombie;
         ProjectileEntity arrow = manager.launch(ProjectileEntity.Kind.ARROW, -1,
-                new Position(0, 12, 0), 0, 0, 3.0);
+                new Position(0, 12, 0), 0, 0, 3.0, 0);
         arrow.setPunchLevel(2);
         manager.tick(java.util.List.of());
         assertEquals(0.0, zombie.velocityX(), 1.0E-9,
@@ -172,7 +172,7 @@ class BowFamilyTest {
                 new Position(0, 10, 0), new Random(18), solidWorld());
         hits.mob = zombie;
         ProjectileEntity arrow = manager.launch(ProjectileEntity.Kind.ARROW, -1,
-                new Position(0, 12, 0), 0, 0, 3.0);
+                new Position(0, 12, 0), 0, 0, 3.0, 0);
         arrow.setOnFireFor(2_000);
         manager.tick(java.util.List.of());
         assertEquals(List.of("ignite", "hit"), combat.order,
@@ -189,9 +189,9 @@ class BowFamilyTest {
         // unit look vector picks up per-axis gaussian noise — two identical
         // launches never fly identically.
         ProjectileEntity a = manager.launch(ProjectileEntity.Kind.ARROW, -1,
-                new Position(0, 12, 0), 0, 0, 3.0);
+                new Position(0, 12, 0), 0, 0, 3.0, 0);
         ProjectileEntity b = manager.launch(ProjectileEntity.Kind.ARROW, -1,
-                new Position(0, 12, 0), 0, 0, 3.0);
+                new Position(0, 12, 0), 0, 0, 3.0, 0);
         assertNotEquals(a.velocityX(), b.velocityX(),
                 "the launch spread separates identical shots");
     }

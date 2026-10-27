@@ -124,7 +124,7 @@ class EntitySpawnEventAcceptanceTest {
         AtomicReference<Object> launched = new AtomicReference<>("unset");
         server.ticker().submit(() -> launched.set(server.projectiles().launch(
                 net.zaminmc.torch.server.entity.projectile.ProjectileEntity.Kind.ARROW,
-                -1, new Position(60, 40, 60), 0.0, 0.0, 1.5)));
+                -1, new Position(60, 40, 60), 0.0, 0.0, 1.5, 0)));
         await(() -> !"unset".equals(launched.get()), "the launch walk ran");
 
         assertEquals(1, fired.get(), "the gate fired exactly once");
@@ -139,7 +139,7 @@ class EntitySpawnEventAcceptanceTest {
         AtomicReference<Object> twin = new AtomicReference<>("unset");
         server.ticker().submit(() -> twin.set(server.projectiles().launch(
                 net.zaminmc.torch.server.entity.projectile.ProjectileEntity.Kind.ARROW,
-                -1, new Position(60, 40, 60), 0.0, 0.0, 1.5)));
+                -1, new Position(60, 40, 60), 0.0, 0.0, 1.5, 0)));
         await(() -> !"unset".equals(twin.get()), "the twin walk ran");
         assertTrue(twin.get() != null, "the uncancelled shot launched");
         await(() -> !server.projectiles().all().isEmpty(), "the arrow is in flight");

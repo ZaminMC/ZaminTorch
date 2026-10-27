@@ -132,7 +132,7 @@ class ZombieVillagerConversionTest {
 
     private static MobManager manager(long seed, MobEntity.WorldQuery world) {
         MobManager manager = new MobManager(world, new Random(seed),
-                (position, stack) -> { }, 900, SURFACE);
+                (position, stack, dimension) -> { }, 900, SURFACE);
         return manager;
     }
 
@@ -141,7 +141,7 @@ class ZombieVillagerConversionTest {
         PotionSystem potions = new PotionSystem(new PotionSystem.Bodies() {
             @Override
             public List<Object> bodiesIn(double minX, double minY, double minZ,
-                                          double maxX, double maxY, double maxZ) {
+                                          double maxX, double maxY, double maxZ, int dimension) {
                 return List.of();
             }
 

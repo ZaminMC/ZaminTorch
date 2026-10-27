@@ -55,15 +55,19 @@ public final class MobManager {
 
     /** Where mob loot goes (the engine's item-entity system). */
     public interface LootSink {
-        void spawnLootDrop(Position position, ItemStack stack);
+        /**
+         * The loot drop in the body's own dimension (Wave TF-9 — the
+         * reference's Entity.world: the dying body's world owns its drops).
+         */
+        void spawnLootDrop(Position position, ItemStack stack, int dimension);
 
         /**
          * A drop that never despawns (Slice 59 — the wither's nether star,
          * ItemEntity.setNeverDespawn): the default bridges to the ordinary
          * drop so simple sinks keep working.
          */
-        default void spawnPersistentLootDrop(Position position, ItemStack stack) {
-            spawnLootDrop(position, stack);
+        default void spawnPersistentLootDrop(Position position, ItemStack stack, int dimension) {
+            spawnLootDrop(position, stack, dimension);
         }
     }
 
@@ -876,6 +880,29 @@ public final class MobManager {
     }
 
     /**
+     * The dimension-aware box consult (Wave TF-9 — the reference's
+     * same-world entity scan): only a body in the named dimension answers.
+     * The projectile hit resolver reads it — a nether arrow never wounds
+     * the overworld mob at the same coordinates.
+     */
+    public MobEntity mobAt(Position point, int dimension) {
+        for (MobEntity mob : mobs) {
+            if (mob.dead() || mob.dimension() != dimension) {
+                continue;
+            }
+            Position p = mob.position();
+            double halfWidth = mob.type().width / 2.0;
+            double dx = Math.abs(point.x() - p.x());
+            double dz = Math.abs(point.z() - p.z());
+            double dy = point.y() - p.y();
+            if (dx <= halfWidth && dz <= halfWidth && dy >= -0.1 && dy <= mob.type().height) {
+                return mob;
+            }
+        }
+        return null;
+    }
+
+    /**
      * The structure-spawn idempotence probe (Slice 12b): whether a villager
      * already stands within the radius of the position — the populate-time
      * drain skips records whose villager a previous server life already
@@ -1272,7 +1299,7 @@ public final class MobManager {
         Position at = mob.position();
         for (int unit = 0; unit < wool; unit++) {
             lootSink.spawnLootDrop(new Position(at.x(), at.y() + mob.type().height, at.z()),
-                    new ItemStack(BuiltinItems.WOOL, 1, mob.sheepFleeceColor()));
+                    new ItemStack(BuiltinItems.WOOL, 1, mob.sheepFleeceColor()), mob.dimension());
         }
         for (Listener listener : listeners) {
             listener.onMobSheared(mob, wool);
@@ -3427,7 +3454,7 @@ public final class MobManager {
                 drop = stack.withDamage(k);
             }
             Position at = mob.position();
-            lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()), drop);
+            lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()), drop, mob.dimension());
         }
     }
 
@@ -3629,7 +3656,7 @@ public final class MobManager {
                 lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()),
                         net.zaminmc.torch.item.ItemStack.of(
                                 net.zaminmc.torch.server.item.BuiltinItems.SKULL, 1)
-                                .withDamage(headDamage));
+                                .withDamage(headDamage), mob.dimension());
             }
         }
         // The Looting widening (the reference's dropFewItems shape, e.g.
@@ -3660,7 +3687,7 @@ public final class MobManager {
             }
             for (int unit = 0; unit < count; unit++) {
                 lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()),
-                        ItemStack.of(BuiltinItems.MAGMA_CREAM, 1));
+                        ItemStack.of(BuiltinItems.MAGMA_CREAM, 1), mob.dimension());
             }
             return;
         }
@@ -3672,11 +3699,11 @@ public final class MobManager {
             int string = random.nextInt(3) + random.nextInt(1 + looting);
             for (int unit = 0; unit < string; unit++) {
                 lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()),
-                        ItemStack.of(BuiltinItems.STRING, 1));
+                        ItemStack.of(BuiltinItems.STRING, 1), mob.dimension());
             }
             if (random.nextInt(3) == 0 || random.nextInt(1 + looting) > 0) {
                 lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()),
-                        ItemStack.of(BuiltinItems.SPIDER_EYE, 1));
+                        ItemStack.of(BuiltinItems.SPIDER_EYE, 1), mob.dimension());
             }
             return;
         }
@@ -3687,7 +3714,7 @@ public final class MobManager {
             // kill-wither achievement walk (the grown 50/100/50 player
             // scan) ride the death fan-out's own sites.
             lootSink.spawnPersistentLootDrop(new Position(at.x(), at.y() + 0.5, at.z()),
-                    ItemStack.of(BuiltinItems.NETHER_STAR, 1));
+                    ItemStack.of(BuiltinItems.NETHER_STAR, 1), mob.dimension());
             return;
         }
         if (mob.type() == MobType.BLAZE) {
@@ -3697,7 +3724,7 @@ public final class MobManager {
             int rods = random.nextInt(2 + looting);
             for (int unit = 0; unit < rods; unit++) {
                 lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()),
-                        ItemStack.of(BuiltinItems.BLAZE_ROD, 1));
+                        ItemStack.of(BuiltinItems.BLAZE_ROD, 1), mob.dimension());
             }
             return;
         }
@@ -3712,19 +3739,19 @@ public final class MobManager {
                 int coal = random.nextInt(3 + looting) - 1;
                 for (int unit = 0; unit < coal; unit++) {
                     lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()),
-                            ItemStack.of(BuiltinItems.COAL, 1));
+                            ItemStack.of(BuiltinItems.COAL, 1), mob.dimension());
                 }
             } else {
                 int arrows = random.nextInt(3 + looting);
                 for (int unit = 0; unit < arrows; unit++) {
                     lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()),
-                            ItemStack.of(BuiltinItems.ARROW, 1));
+                            ItemStack.of(BuiltinItems.ARROW, 1), mob.dimension());
                 }
             }
             int bones = random.nextInt(3 + looting);
             for (int unit = 0; unit < bones; unit++) {
                 lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()),
-                        ItemStack.of(BuiltinItems.BONE, 1));
+                        ItemStack.of(BuiltinItems.BONE, 1), mob.dimension());
             }
             // The held-item drop rides the general dropEquipment walk
             // (Slice 92 — the inline 0.085 arm retired into the model's
@@ -3735,7 +3762,7 @@ public final class MobManager {
             if (mob.skeletonWither() && mob.playerHitRecently()
                     && random.nextFloat() < RARE_DROP_BASE + looting * 0.01F) {
                 lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()),
-                        new ItemStack(BuiltinItems.SKULL, 1, 1, null));
+                        new ItemStack(BuiltinItems.SKULL, 1, 1, null), mob.dimension());
             }
             return;
         }
@@ -3749,18 +3776,18 @@ public final class MobManager {
             int hides = random.nextInt(2) + random.nextInt(1 + looting);
             for (int unit = 0; unit < hides; unit++) {
                 lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()),
-                        ItemStack.of(BuiltinItems.RABBIT_HIDE, 1));
+                        ItemStack.of(BuiltinItems.RABBIT_HIDE, 1), mob.dimension());
             }
             int meat = random.nextInt(2);
             for (int unit = 0; unit < meat; unit++) {
                 lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()),
                         ItemStack.of(mob.burning()
-                                ? BuiltinItems.COOKED_RABBIT : BuiltinItems.RABBIT, 1));
+                                ? BuiltinItems.COOKED_RABBIT : BuiltinItems.RABBIT, 1), mob.dimension());
             }
             if (mob.playerHitRecently()
                     && random.nextFloat() < RARE_DROP_BASE + looting * 0.01F) {
                 lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()),
-                        ItemStack.of(BuiltinItems.RABBIT_FOOT, 1));
+                        ItemStack.of(BuiltinItems.RABBIT_FOOT, 1), mob.dimension());
             }
             return;
         }
@@ -3771,12 +3798,12 @@ public final class MobManager {
             int tears = random.nextInt(2) + random.nextInt(1 + looting);
             for (int unit = 0; unit < tears; unit++) {
                 lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()),
-                        ItemStack.of(BuiltinItems.GHAST_TEAR, 1));
+                        ItemStack.of(BuiltinItems.GHAST_TEAR, 1), mob.dimension());
             }
             int powder = random.nextInt(3) + random.nextInt(1 + looting);
             for (int unit = 0; unit < powder; unit++) {
                 lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()),
-                        ItemStack.of(BuiltinItems.GUNPOWDER, 1));
+                        ItemStack.of(BuiltinItems.GUNPOWDER, 1), mob.dimension());
             }
             return;
         }
@@ -3788,13 +3815,13 @@ public final class MobManager {
             // fire's cooked swap, each unit its own single-item stack.
             if (!mob.sheared()) {
                 lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()),
-                        new ItemStack(BuiltinItems.WOOL, 1, mob.sheepFleeceColor()));
+                        new ItemStack(BuiltinItems.WOOL, 1, mob.sheepFleeceColor()), mob.dimension());
             }
             int mutton = random.nextInt(2) + 1 + random.nextInt(1 + looting);
             for (int unit = 0; unit < mutton; unit++) {
                 lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()),
                         ItemStack.of(mob.burning()
-                                ? BuiltinItems.COOKED_MUTTON : BuiltinItems.MUTTON, 1));
+                                ? BuiltinItems.COOKED_MUTTON : BuiltinItems.MUTTON, 1), mob.dimension());
             }
             return;
         }
@@ -3808,17 +3835,17 @@ public final class MobManager {
             int flesh = random.nextInt(2 + looting);
             for (int unit = 0; unit < flesh; unit++) {
                 lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()),
-                        ItemStack.of(BuiltinItems.ROTTEN_FLESH, 1));
+                        ItemStack.of(BuiltinItems.ROTTEN_FLESH, 1), mob.dimension());
             }
             int nuggets = random.nextInt(2 + looting);
             for (int unit = 0; unit < nuggets; unit++) {
                 lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()),
-                        ItemStack.of(BuiltinItems.GOLD_NUGGET, 1));
+                        ItemStack.of(BuiltinItems.GOLD_NUGGET, 1), mob.dimension());
             }
             if (mob.playerHitRecently()
                     && random.nextFloat() < RARE_DROP_BASE + looting * 0.01F) {
                 lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()),
-                        ItemStack.of(BuiltinItems.GOLD_INGOT, 1));
+                        ItemStack.of(BuiltinItems.GOLD_INGOT, 1), mob.dimension());
             }
             return;
         }
@@ -3833,20 +3860,20 @@ public final class MobManager {
             int shards = random.nextInt(3) + random.nextInt(1 + looting);
             if (shards > 0) {
                 lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()),
-                        new ItemStack(BuiltinItems.PRISMARINE_SHARD, shards, 0, null));
+                        new ItemStack(BuiltinItems.PRISMARINE_SHARD, shards, 0, null), mob.dimension());
             }
             if (random.nextInt(3 + looting) > 1) {
                 lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()),
-                        ItemStack.of(BuiltinItems.FISH, 1));
+                        ItemStack.of(BuiltinItems.FISH, 1), mob.dimension());
             } else if (random.nextInt(3 + looting) > 1) {
                 lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()),
-                        ItemStack.of(BuiltinItems.PRISMARINE_CRYSTALS, 1));
+                        ItemStack.of(BuiltinItems.PRISMARINE_CRYSTALS, 1), mob.dimension());
             }
             if (mob.guardianElder() && looting > 0) {
                 // The wet sponge (Blocks.SPONGE with damage 1 — the engine's
                 // stack damage field carries the variant).
                 lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()),
-                        new ItemStack(BuiltinItems.SPONGE, 1, 1, null));
+                        new ItemStack(BuiltinItems.SPONGE, 1, 1, null), mob.dimension());
             }
             return;
         }
@@ -3858,12 +3885,12 @@ public final class MobManager {
             int poppies = random.nextInt(3);
             for (int unit = 0; unit < poppies; unit++) {
                 lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()),
-                        ItemStack.of(BuiltinItems.POPPY, 1));
+                        ItemStack.of(BuiltinItems.POPPY, 1), mob.dimension());
             }
             int ingots = 3 + random.nextInt(3);
             for (int unit = 0; unit < ingots; unit++) {
                 lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()),
-                        ItemStack.of(BuiltinItems.IRON_INGOT, 1));
+                        ItemStack.of(BuiltinItems.IRON_INGOT, 1), mob.dimension());
             }
             return;
         }
@@ -3882,7 +3909,7 @@ public final class MobManager {
                 }
                 for (int unit = 0; unit < count; unit++) {
                     lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()),
-                            ItemStack.of(item, 1));
+                            ItemStack.of(item, 1), mob.dimension());
                 }
             }
         } else {
@@ -3892,13 +3919,13 @@ public final class MobManager {
                 continue;
             }
                 lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()),
-                        ItemStack.of(roll.type(), count));
+                        ItemStack.of(roll.type(), count), mob.dimension());
             }
         }
         // The worn gear and the donkey chest spill with the body
         // (HorseBaseEntity.dropInventoryAndChest on the death path).
         for (ItemStack stack : mob.spillMountGear()) {
-            lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()), stack);
+            lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()), stack, mob.dimension());
         }
     }
 
@@ -4242,7 +4269,7 @@ public final class MobManager {
             if (held != null && random.nextFloat() - 0.1F
                     < mob.inventoryDropChance(0)) {
                 Position at = mob.position();
-                lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()), held);
+                lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()), held, mob.dimension());
             }
             // The GIVE_DIAMOND arm (updateInventory lines 393-399) keys on
             // the item's thrower — the engine's ItemEntity carries no

@@ -110,11 +110,11 @@ class WitherSkullTest {
     private static final class RiggedHits implements ProjectileManager.HitResolver {
         MobEntity mob;
 
-        @Override public MobEntity mobAt(Position point) {
+        @Override public MobEntity mobAt(Position point, int dimension) {
             return mob;
         }
 
-        @Override public net.zaminmc.torch.server.player.PlayerSession playerAt(Position point) {
+        @Override public net.zaminmc.torch.server.player.PlayerSession playerAt(Position point, int dimension) {
             return null;
         }
     }
@@ -125,7 +125,7 @@ class WitherSkullTest {
         final List<Float> power = new ArrayList<>();
 
         @Override
-        public void explode(Position position, float power) {
+        public void explode(Position position, float power, int dimension) {
             at.add(position);
             this.power.add(power);
         }
@@ -152,7 +152,7 @@ class WitherSkullTest {
         manager.addListener(events);
 
         ProjectileEntity skull = manager.launchWitherSkull(777,
-                new Position(0.0, 10.0, 0.0), 10.0, 0.0, 0.0, false);
+                new Position(0.0, 10.0, 0.0), 10.0, 0.0, 0.0, false, 0);
         assertEquals(777, skull.throwerId(), "the wither shot it");
         assertFalse(skull.charged(), "the plain skull");
         assertEquals(1, events.spawned, "the wire saw the spawn");
@@ -166,7 +166,7 @@ class WitherSkullTest {
         assertTrue(skull.accelerationX() > 0.05, "the aim is east");
 
         ProjectileEntity blue = manager.launchWitherSkull(777,
-                new Position(0.0, 10.0, 0.0), 0.0, 10.0, 0.0, true);
+                new Position(0.0, 10.0, 0.0), 0.0, 10.0, 0.0, true, 0);
         assertTrue(blue.charged(), "the blue skull");
         // The skull never deflects (WitherSkullEntity.takeDamage's false).
         assertFalse(manager.deflect(blue, 4242, 0.0, 1.0, 0.0),
@@ -190,7 +190,7 @@ class WitherSkullTest {
                 new Position(0.5, 4.0, 0.5), new Random(63L), openWorld());
         hits.mob = victim;
 
-        manager.launchWitherSkull(777, new Position(0.0, 10.0, 0.0), 1.0, 0.0, 0.0, false);
+        manager.launchWitherSkull(777, new Position(0.0, 10.0, 0.0), 1.0, 0.0, 0.0, false, 0);
         manager.tick(java.util.List.of());
         assertTrue(combat.events.contains("mob"), "the skull struck the body");
         assertEquals(8.0f, combat.lastDamage, 1e-6f, "the flat 8.0 hit");
@@ -213,7 +213,7 @@ class WitherSkullTest {
         MobEntity victim = new MobEntity(9508, MobType.CHICKEN,
                 new Position(0.5, 4.0, 0.5), new Random(65L), openWorld());
         hits.mob = victim;
-        manager.launchWitherSkull(778, new Position(0.0, 10.0, 0.0), 1.0, 0.0, 0.0, false);
+        manager.launchWitherSkull(778, new Position(0.0, 10.0, 0.0), 1.0, 0.0, 0.0, false, 0);
         manager.tick(java.util.List.of());
         assertTrue(victim.dead(), "the chicken died to the 8.0");
         assertEquals(778, combat.healShooter, "the kill's 5.0 heal credit");
@@ -234,9 +234,9 @@ class WitherSkullTest {
                 (x, y, z) -> false, new RiggedHits(), new SkullCombat(),
                 new FxManager(), new Random(66L), 6_300);
         ProjectileEntity plain = manager.launchWitherSkull(777,
-                new Position(0.0, 10.0, 0.0), 1.0, 0.0, 0.0, false);
+                new Position(0.0, 10.0, 0.0), 1.0, 0.0, 0.0, false, 0);
         ProjectileEntity blue = manager.launchWitherSkull(777,
-                new Position(0.0, 10.0, 0.0), 1.0, 0.0, 0.0, true);
+                new Position(0.0, 10.0, 0.0), 1.0, 0.0, 0.0, true, 0);
         assertEquals(ProjectileManager.FIREBALL_DRAG, ProjectileManager.dragOf(plain),
                 1e-9, "the plain skull's 0.95");
         assertEquals(ProjectileManager.CHARGED_SKULL_DRAG, ProjectileManager.dragOf(blue),

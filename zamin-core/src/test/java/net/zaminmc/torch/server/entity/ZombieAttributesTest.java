@@ -297,7 +297,7 @@ class ZombieAttributesTest {
 
     private static final MobManager.LootSink loot = new MobManager.LootSink() {
         @Override
-        public void spawnLootDrop(Position position, net.zaminmc.torch.item.ItemStack stack) {
+        public void spawnLootDrop(Position position, net.zaminmc.torch.item.ItemStack stack, int dimension) {
         }
     };
 

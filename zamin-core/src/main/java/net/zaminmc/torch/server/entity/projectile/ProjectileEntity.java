@@ -123,6 +123,25 @@ public final class ProjectileEntity implements net.zaminmc.torch.entity.Projecti
      * row). Non-arrow kinds never read it.
      */
     private int pickup;
+    /**
+     * The body's dimension (Wave TF-9 — the reference's Entity.world, the
+     * mob query's own Slice-25d shape generalized over the projectile
+     * family): 0 the overworld, -1 the nether, 1 the end. The shared
+     * solid query flips to the body's own world before every collision
+     * walk — a nether arrow sticks in the nether's blocks and wounds
+     * only the nether's bodies.
+     */
+    private int dimension;
+
+    /** @return the dimension the body flies in (0 overworld, -1 nether, 1 the end). */
+    public int dimension() {
+        return dimension;
+    }
+
+    /** Sets the body's dimension (the launch walks stamp it). */
+    public void setDimension(int dimension) {
+        this.dimension = dimension;
+    }
 
     public ProjectileEntity(int entityId, Kind kind, int throwerId,
                             Position position, double vx, double vy, double vz) {
