@@ -56,9 +56,21 @@ public final class ExperienceOrbManager {
     /**
      * Splits {@code total} points into orbs at the position (the historical
      * kill reward splits 1..3 bundles so the scatter animates) and returns
-     * the spawned entities. A non-positive total spawns nothing.
+     * the spawned entities. A non-positive total spawns nothing. The
+     * three-arg form keeps the overworld 0 (the overworld-bound systems'
+     * honest default — Wave TF-10's stamp convention).
      */
     public List<ExperienceOrbEntity> spawnBurst(Position position, int total, int maxOrbs) {
+        return spawnBurst(position, total, maxOrbs, 0);
+    }
+
+    /**
+     * The dimension-stamped burst (Wave TF-10 — the reference's
+     * Entity.world): the sites that know their world stamp it; the dying
+     * mob's own dimension, the player's session, the projectile's carry.
+     */
+    public List<ExperienceOrbEntity> spawnBurst(Position position, int total, int maxOrbs,
+                                                int dimension) {
         List<ExperienceOrbEntity> spawned = new ArrayList<>();
         if (total <= 0 || maxOrbs <= 0) {
             return spawned;
@@ -74,6 +86,7 @@ public final class ExperienceOrbManager {
             ExperienceOrbEntity orb = new ExperienceOrbEntity(nextEntityId++,
                     new Position(position.x(), position.y() + 0.2, position.z()), share,
                     ExperienceOrbEntity.PICKUP_DELAY_TICKS);
+            orb.setDimension(dimension);
             orb.setVelocity((random.nextDouble() - 0.5) * 0.2, 0.2,
                     (random.nextDouble() - 0.5) * 0.2);
             orbs.add(orb);
@@ -88,6 +101,11 @@ public final class ExperienceOrbManager {
     /** Spawns one orb of exactly {@code amount} points at the position. */
     public ExperienceOrbEntity spawnOrb(Position position, int amount) {
         return spawnBurst(position, amount, 1).get(0);
+    }
+
+    /** The dimension-stamped single orb (Wave TF-10). */
+    public ExperienceOrbEntity spawnOrb(Position position, int amount, int dimension) {
+        return spawnBurst(position, amount, 1, dimension).get(0);
     }
 
     /**
@@ -106,12 +124,19 @@ public final class ExperienceOrbManager {
      *         (nothing spawns — the burst arms' own rule).
      */
     public ExperienceOrbEntity spawnRestored(Position at, int amount, int age) {
+        return spawnRestored(at, amount, age, 0);
+    }
+
+    /** The dimension-stamped restore (Wave TF-10 — the anvil import keeps
+     * the overworld 0; the row exists for the store-carrying future). */
+    public ExperienceOrbEntity spawnRestored(Position at, int amount, int age, int dimension) {
         Objects.requireNonNull(at, "at");
         if (amount <= 0) {
             return null;
         }
         ExperienceOrbEntity orb = new ExperienceOrbEntity(nextEntityId++, at, amount, 0);
         orb.setAge(age);
+        orb.setDimension(dimension);
         orbs.add(orb);
         for (Listener listener : listeners) {
             listener.onOrbSpawned(orb);
@@ -127,6 +152,14 @@ public final class ExperienceOrbManager {
      * tier table: 2477, 1237, 617, 307, 149, 73, 37, 17, 7, 3, 1.
      */
     public List<ExperienceOrbEntity> spawnSplitBurst(Position position, int total) {
+        return spawnSplitBurst(position, total, 0);
+    }
+
+    /**
+     * The dimension-stamped split burst (Wave TF-10 — the bottle o'
+     * enchanting's orbs land in the projectile's own world).
+     */
+    public List<ExperienceOrbEntity> spawnSplitBurst(Position position, int total, int dimension) {
         List<ExperienceOrbEntity> spawned = new ArrayList<>();
         int remaining = total;
         while (remaining > 0) {
@@ -135,6 +168,7 @@ public final class ExperienceOrbManager {
             ExperienceOrbEntity orb = new ExperienceOrbEntity(nextEntityId++,
                     new Position(position.x(), position.y() + 0.2, position.z()), share,
                     ExperienceOrbEntity.PICKUP_DELAY_TICKS);
+            orb.setDimension(dimension);
             orb.setVelocity((random.nextDouble() - 0.5) * 0.2, 0.2,
                     (random.nextDouble() - 0.5) * 0.2);
             orbs.add(orb);
@@ -197,6 +231,10 @@ public final class ExperienceOrbManager {
      * own tick).
      */
     public void pushOrb(ExperienceOrbEntity orb, double dx, double dy, double dz) {
+        // Wave TF-10 — the push reads the orb's OWN world: the ground flips
+        // to the body's dimension before the clamped shift (the TF-9 item
+        // push's own shape).
+        ground.setActiveDimension(orb.dimension());
         orb.pushBy(ground, dx, dy, dz);
         for (Listener listener : listeners) {
             listener.onOrbMoved(orb);
@@ -234,6 +272,10 @@ public final class ExperienceOrbManager {
                 continue;
             }
 
+            // Wave TF-10 — the reference's Entity.world: the shared ground
+            // flips to the body's own dimension before its physics walk (the
+            // TF-9 item family's own per-body flip, generalized).
+            ground.setActiveDimension(orb.dimension());
             if (orb.tick(ground)) {
                 for (Listener listener : listeners) {
                     listener.onOrbMoved(orb);
@@ -245,6 +287,12 @@ public final class ExperienceOrbManager {
             }
             for (PlayerSession player : players) {
                 if (player.state() != PlayerState.PLAYING || player.dead()) {
+                    continue;
+                }
+                // Wave TF-10 — the reference's same-world collision walk: a
+                // player in another dimension never collects an orb at the
+                // same coordinates.
+                if (player.dimension() != orb.dimension()) {
                     continue;
                 }
                 if (!withinPickupRange(player, orb)) {

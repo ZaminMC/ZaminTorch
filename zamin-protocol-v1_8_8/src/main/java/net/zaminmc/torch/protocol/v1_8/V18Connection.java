@@ -4593,6 +4593,11 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                 || chunkTracker == null) {
             return;
         }
+        // Wave TF-10 — the body's own dimension gates the observer (the
+        // TF-9 item spawn's own gate, generalized).
+        if (dimensionOfSession() != orb.dimension()) {
+            return;
+        }
         if (!chunkTracker.hasChunk(chunkKeyOf(orb.position()))) {
             return; // observer cannot see that chunk yet
         }
@@ -4608,6 +4613,11 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
 
     /** Absolute-position sync for a moving orb. Any thread. */
     void sendOrbTeleport(net.zaminmc.torch.server.experience.ExperienceOrbEntity orb) {
+        // Wave TF-10 — the observer in another dimension never tracks this
+        // body (its spawn never reached them).
+        if (dimensionOfSession() != orb.dimension()) {
+            return;
+        }
         sendEntityTeleport(orb.entityId(), orb.position(), orb.onGround());
     }
 

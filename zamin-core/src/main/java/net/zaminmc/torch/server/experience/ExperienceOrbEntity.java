@@ -35,6 +35,16 @@ public final class ExperienceOrbEntity implements net.zaminmc.torch.entity.Exper
 
     /** Minimal ground query the orb needs (tick-thread context only). */
     public interface Ground {
+        /**
+         * The dimension context switch (Wave TF-10 — the reference's
+         * Entity.world, the item family's own TF-9 shape): the manager
+         * flips the shared ground to the body's own dimension before
+         * every tick walk. The default is a no-op so stub grounds keep
+         * their overworld-only semantics.
+         */
+        default void setActiveDimension(int dimension) {
+        }
+
         /** @return whether the block containing this point is solid. */
         boolean isSolid(double x, double y, double z);
     }
@@ -48,6 +58,23 @@ public final class ExperienceOrbEntity implements net.zaminmc.torch.entity.Exper
     private int age;
     private int pickupDelay;
     private boolean onGround;
+    /**
+     * The body's dimension (Wave TF-10 — the reference's Entity.world, the
+     * TF-9 shape over the orb family): 0 the overworld, -1 the nether. The
+     * shared ground flips to the body's own world before every tick walk;
+     * only the body's own dimension's players collect it.
+     */
+    private int dimension;
+
+    /** @return the dimension the body lives in (0 overworld, -1 nether). */
+    public int dimension() {
+        return dimension;
+    }
+
+    /** Sets the body's dimension (the spawn walks and the restore stamp it). */
+    public void setDimension(int dimension) {
+        this.dimension = dimension;
+    }
 
     public ExperienceOrbEntity(int entityId, Position position, int amount, int pickupDelayTicks) {
         if (amount <= 0) {

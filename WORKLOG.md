@@ -16370,3 +16370,45 @@ ledged tail and a latent cross-tick bug; (4) the stale-ledger check
 cuts both ways: the stats rows claimed a gap the code had already
 closed, and only the git blame against the increment sites settled
 which side was stale.
+
+## 2026-10-27 (the second generalization) — the XP-orb family's dimension reads 1:1 (Slice TF-10)
+
+**Scope:** the TF-9 ledger named the XP-orb family as the next
+dimension-read tail. The audit found the orb manager's ground bound to
+`this::solidAt` — an overworld-only method reference, so even a
+per-body flip would have read the overworld for every body. The re-
+wiring to the shared dimension-aware ShapeGround is the lane's real
+fix; the rest is the TF-9 shape applied to the family.
+
+**The lane:** ExperienceOrbEntity carries its own dimension; every
+spawn walk stamps it (the mob deaths' bursts and the dragon's batches
+read the dying body, the breeding scatter the parent, the villager
+trade the villager, the player's death scatter the session, the mining
+award the miner, the fishing XP the angler's carry through dropXp's
+new dimension row, and the bottle o' enchanting's burst the
+PROJECTILE's own dimension — the XpBottleSink's carry retiring the
+thrower-stand-in the pre-TF-9 sink documented). The manager flips the
+ground per body before every tick walk, the orb push flips before the
+clamped shift, the piston walk never collects a cross-dimension body,
+and the orb-toucher pickup walk gates on the collector's dimension.
+The wire's observer-dimension gates on the spawn/teleport sends (in
+the connection) and the collect/destroy sends (at the listener fan).
+
+**Evidence:** OrbDimensionReadsTest 3/0 (the spawn stamps over all
+four forms + the overworld defaults, the ground flip with the
+overworld orb settling while the nether orb falls past the
+same-coordinate floor, the pickup gate with the cross-dimension
+collector standing ON the orb through the whole pickup delay).
+Re-pins: the fishing CatchSink dropXp stubs, the BottleSink.
+Regression net: the experience family whole, the entity + fishing +
+piston families, the witch/death-ladder/mining-xp/furnace-xp/village
+acceptance sweep, the bukkit + launcher modules — all green.
+
+**Lessons:** (1) a method-reference ground binding (`this::solidAt`)
+silently pins a whole family to one world — the flip protocol only
+works over a surface that READS the flip, and the audit's first
+question for any family must be which surface its consults actually
+resolve through; (2) the sink-carry retirement chain: TF-9 gave the
+projectile its dimension, and TF-10 retired the LAST thrower-stand-in
+that documented its absence — each family lane should re-read the
+stand-ins its predecessors left behind.

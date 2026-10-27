@@ -338,18 +338,18 @@ public final class ProjectileManager {
      * ExperienceBottleEntity.onCollision lines 28-43): the 2002 splash
      * event at the impact plus the experience burst — {@code 3 + rand(5)
      * + rand(5)} points split through the orb family's own roundSize
-     * table. No damage ever lands: the reference's onCollision calls no
-     * takeDamage, so the burst IS the whole hit law.
+     * table — landing in the projectile's OWN dimension (Wave TF-10 —
+     * the reference's projectile carries its world). No damage ever
+     * lands: the reference's onCollision calls no takeDamage, so the
+     * burst IS the whole hit law.
      */
     public interface XpBottleSink {
         /**
-         * The splash event + the orb burst at the impact point. The
-         * thrower's engine id rides beside the point (the burst world
-         * resolves through the thrower — the reference's projectile
-         * carries its world; the engine's projectile system is
-         * dimension-blind, the boundary the hit resolver records).
+         * The splash event + the orb burst at the impact point, in the
+         * projectile's own dimension. The thrower's engine id rides
+         * beside the point.
          */
-        void burst(double x, double y, double z, int throwerId);
+        void burst(double x, double y, double z, int throwerId, int dimension);
     }
 
     private final SolidQuery solid;
@@ -379,7 +379,7 @@ public final class ProjectileManager {
     /** The dragon part's wound arm (Slice 63); optional until wired. */
     private DragonSink dragonSink = (x, y, z, damage, explosive, shooterId) -> false;
     /** The bottle o' enchanting's burst arm (Slice 65); optional until wired. */
-    private XpBottleSink xpBottleSink = (x, y, z, throwerId) -> { };
+    private XpBottleSink xpBottleSink = (x, y, z, throwerId, dimension) -> { };
 
     /** Wires the fireball's fire-placement arm. */
     public void setFireSink(FireSink sink) {
@@ -1085,7 +1085,7 @@ public final class ProjectileManager {
                          && projectile.age() <= THROWER_IMMUNITY_TICKS);
             if (burstOnMob || burstOnPlayer || solid.solid(point.x(), point.y(), point.z())) {
                 xpBottleSink.burst(point.x(), point.y(), point.z(),
-                        projectile.throwerId());
+                        projectile.throwerId(), projectile.dimension());
                 remove(projectile, "hit");
                 return true;
             }

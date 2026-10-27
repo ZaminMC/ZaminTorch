@@ -68,7 +68,7 @@ class FishingOverrideTest {
             catches.add(stack.type().identifier() + ":" + stack.damage());
         }
 
-        @Override public void dropXp(Position at, int amount) {
+        @Override public void dropXp(Position at, int amount, int dimension) {
             xps.add(amount);
         }
 

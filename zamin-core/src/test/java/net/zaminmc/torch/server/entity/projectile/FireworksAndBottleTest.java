@@ -54,7 +54,7 @@ class FireworksAndBottleTest {
         final List<Integer> throwers = new ArrayList<>();
 
         @Override
-        public void burst(double x, double y, double z, int throwerId) {
+        public void burst(double x, double y, double z, int throwerId, int dimension) {
             bursts.add(new Position(x, y, z));
             throwers.add(throwerId);
         }

@@ -1471,6 +1471,12 @@ public final class V18ProtocolServer implements ProtocolAdapter {
             public void onOrbCollected(net.zaminmc.torch.server.experience.ExperienceOrbEntity orb,
                                        net.zaminmc.torch.server.player.PlayerSession collector) {
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    // Wave TF-10 — the collect reaches only the body's own
+                    // dimension's observers (the id-only send carries no
+                    // entity; the gate lives here).
+                    if (connection.dimensionOfSession() != orb.dimension()) {
+                        continue;
+                    }
                     connection.sendOrbCollected(orb.entityId(), collector);
                 }
             }
@@ -1479,6 +1485,11 @@ public final class V18ProtocolServer implements ProtocolAdapter {
             public void onOrbRemoved(net.zaminmc.torch.server.experience.ExperienceOrbEntity orb,
                                      String reason) {
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    // Wave TF-10 — the same own-dimension gate (a stray
+                    // Destroy for an untracked id is noise at best).
+                    if (connection.dimensionOfSession() != orb.dimension()) {
+                        continue;
+                    }
                     connection.sendOrbRemoved(orb.entityId());
                 }
             }

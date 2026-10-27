@@ -129,8 +129,9 @@ public final class FishingSystem {
         void dropCatch(Position at, net.zaminmc.torch.item.ItemStack stack,
                        double anglerX, double anglerY, double anglerZ, int dimension);
 
-        /** The catch's XP orb (nextInt(6) + 1). */
-        void dropXp(Position at, int amount);
+        /** The catch's XP orb (nextInt(6) + 1) — in the angler's own
+         * dimension (Wave TF-10). */
+        void dropXp(Position at, int amount, int dimension);
 
         /** A world sound. */
         void sound(Position at, String key, float volume, float pitch);
@@ -529,7 +530,7 @@ public final class FishingSystem {
                 catches.dropCatch(bobber.position(), caught,
                         anglerAt.x(), anglerAt.y(), anglerAt.z(), retrieveDimension);
                 catches.dropXp(new Position(anglerAt.x(), anglerAt.y() + 0.5, anglerAt.z()),
-                        random.nextInt(6) + 1);
+                        random.nextInt(6) + 1, retrieveDimension);
                 result = 1;
             }
         }

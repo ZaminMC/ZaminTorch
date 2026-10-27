@@ -1734,6 +1734,12 @@ public final class EngineServer implements Server, EngineBridge {
                                 || at.z() + 0.125 < minZ || at.z() - 0.125 > maxZ) {
                             continue;
                         }
+                        // Wave TF-10 — the piston family's own overworld
+                        // binding: the walk never collects a cross-dimension
+                        // body (the TF-9 item gate's own shape).
+                        if (orb.dimension() != 0) {
+                            continue;
+                        }
                         bodies.add(new PistonOrbPush(orb, experienceOrbs));
                     }
                     // The armor stands: the family's own box rows (the
@@ -1982,7 +1988,10 @@ public final class EngineServer implements Server, EngineBridge {
                 explosionService = new ExplosionService(new BlastWorld(world), new java.util.Random());
                 // Experience orbs (the historical EntityXPOrb band): the small
                 // physics bodies mining and kills release, simulation-owned.
-                experienceOrbs = new ExperienceOrbManager(this::solidAt,
+                // Wave TF-10 — the ground rides the shared dimension-aware
+                // ShapeGround (the per-body flip drives the reads; the old
+                // this::solidAt binding read the overworld for every body).
+                experienceOrbs = new ExperienceOrbManager(shapeGround,
                         new java.util.Random(), ORB_ID_BASE);
                 experienceOrbs.addListener(new OrbEventDispatch());
                 // Random ticks (§471 pattern): grass growth and decay.
@@ -2315,22 +2324,18 @@ public final class EngineServer implements Server, EngineBridge {
                 // 2002 splash event at the impact plus the experience
                 // burst — 3 + rand(5) + rand(5) points through the
                 // roundSize ladder. No damage ever lands.
-                projectiles.setXpBottleSink((x, y, z, throwerId) -> {
-                    // The burst world resolves through the thrower (the
-                    // reference's projectile carries its world; the engine's
-                    // projectile system is dimension-blind — the boundary
-                    // the hit resolver records — so the thrower's dimension
-                    // stands in until the system carries its own).
-                    PlayerSession thrower = sessionByEngineId(throwerId);
-                    int burstDimension = thrower != null ? thrower.dimension() : 0;
+                projectiles.setXpBottleSink((x, y, z, throwerId, dimension) -> {
+                    // Wave TF-10 — the burst lands in the projectile's OWN
+                    // world (the TF-9 carry; the thrower-stand-in retired).
                     for (ProjectileListener listener : projectileListeners) {
                         listener.onWorldEventAt(new Position(x, y, z),
-                                WORLD_EVENT_BOTTLE_SPLASH, burstDimension);
+                                WORLD_EVENT_BOTTLE_SPLASH, dimension);
                     }
                     if (experienceOrbs != null) {
                         int points = 3 + gameplayRandom.nextInt(5)
                                 + gameplayRandom.nextInt(5);
-                        experienceOrbs.spawnSplitBurst(new Position(x, y, z), points);
+                        experienceOrbs.spawnSplitBurst(new Position(x, y, z), points,
+                                dimension);
                     }
                 });
                 mobs.setPotionSystem(potionSystem); // the witch's drink arm (12i)
@@ -2727,8 +2732,9 @@ public final class EngineServer implements Server, EngineBridge {
                                                 dy * 0.1 + Math.sqrt(distance) * 0.08, dz * 0.1);
                                     }
 
-                                    @Override public void dropXp(Position at, int amount) {
-                                        experienceOrbs.spawnOrb(at, amount);
+                                    @Override public void dropXp(Position at, int amount,
+                                            int dimension) {
+                                        experienceOrbs.spawnOrb(at, amount, dimension);
                                     }
 
                                     @Override public void sound(Position at, String key,
@@ -3256,8 +3262,10 @@ public final class EngineServer implements Server, EngineBridge {
                     if (amount <= 0) {
                         return;
                     }
+                    // Wave TF-10 — the mining award lands in the miner's own
+                    // world (the session's dimension).
                     experienceOrbs.spawnBurst(new Position(at.x() + 0.5, at.y() + 0.5,
-                            at.z() + 0.5), amount, 3);
+                            at.z() + 0.5), amount, 3, player.dimension());
                 });
                 // The infested egg's burst (Slice 18c —
                 // InfestedBlock.dropItems lines 79-88): the survival break
@@ -7190,7 +7198,9 @@ public final class EngineServer implements Server, EngineBridge {
             // orbs where the player fell, and the newcomer starts from zero.
             int xpScatter = ExperienceMath.xpDroppedOnDeath(session.experienceLevel());
             if (xpScatter > 0) {
-                experienceOrbs.spawnBurst(session.position(), xpScatter, 5);
+                // Wave TF-10 — the death scatter lands where the player died.
+                experienceOrbs.spawnBurst(session.position(), xpScatter, 5,
+                        session.dimension());
             }
             session.setTotalXp(0);
             publishExperienceChanged(session);
@@ -14904,7 +14914,8 @@ public final class EngineServer implements Server, EngineBridge {
         fxManager.sound(villager.position(), "mob.villager.yes", 1.0f,
                 1.0f / (gameplayRandom.nextFloat() * 0.4f + 0.8f));
         experienceOrbs.spawnOrb(new Position(villager.position().x(),
-                villager.position().y() + 0.5, villager.position().z()), xp);
+                villager.position().y() + 0.5, villager.position().z()), xp,
+                villager.dimension());
         return true;
     }
 
@@ -18935,7 +18946,7 @@ public final class EngineServer implements Server, EngineBridge {
                     }
                 }
             }
-            experienceOrbs.spawnBurst(mob.position(), amount, 3);
+            experienceOrbs.spawnBurst(mob.position(), amount, 3, mob.dimension());
         }
 
         @Override
@@ -19643,7 +19654,8 @@ public final class EngineServer implements Server, EngineBridge {
         @Override
         public void onDragonXpBatch(net.zaminmc.torch.server.entity.MobEntity mob, int amount) {
             if (experienceOrbs != null) {
-                experienceOrbs.spawnBurst(mob.position(), amount, Integer.MAX_VALUE);
+                experienceOrbs.spawnBurst(mob.position(), amount, Integer.MAX_VALUE,
+                        mob.dimension());
             }
         }
 
@@ -20115,7 +20127,7 @@ public final class EngineServer implements Server, EngineBridge {
                 return;
             }
             experienceOrbs.spawnBurst(parent.position(),
-                    1 + gameplayRandom.nextInt(7), 1);
+                    1 + gameplayRandom.nextInt(7), 1, parent.dimension());
         }
 
         @Override
@@ -28396,7 +28408,8 @@ public final class EngineServer implements Server, EngineBridge {
      * ledged tail, never a stale dimension inherited from the last item.</p>
      */
     private final class ShapeGround implements
-            ItemEntity.Ground, FallingBlockEntity.Ground, ProjectileManager.SolidQuery {
+            ItemEntity.Ground, FallingBlockEntity.Ground, ProjectileManager.SolidQuery,
+            net.zaminmc.torch.server.experience.ExperienceOrbEntity.Ground {
         /** The active dimension (the per-body flip drives every read below). */
         private int activeDimension = 0;
 
