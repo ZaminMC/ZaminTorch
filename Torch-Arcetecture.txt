@@ -689,7 +689,7 @@ THE SECTION TABLE AND THE ATTRIBUTION PASS LANDED (ML-006 + ML-007 — the cycle
 
 Dynamic split/merge and load-driven migration remain future work. First prove migration with in-flight tasks, delayed work, messages, compute results, persistence, shutdown, and stale-generation invalidation; add telemetry and anti-oscillation rules before enabling automatic balancing.
 
-**Next concrete mechanics work:** continue from Section 29: the master ledger's demand-named queue is EMPTY of implementable rows (ML-013, the last — the tick watchdog, landed 2026-10-26 in §29's Wave ML13; ML-008 the /give form aligned the same day; PR #38's audit merge landed 2026-10-23). The 2026-10-26 vanilla-grade census's lanes are ALL LANDED (§29's Waves TF-7 + TF-7-continued, closed whole). Wave ON-1 LANDED 2026-10-26 (DEC-001 executed whole; DEC-002 STAY NATIVE and DEC-003 NO KigPaper config family both stand). Wave TF-8 LANDED 2026-10-27 (§29's Wave TF-8: the undead family's daylight burn 1:1). Wave TF-9 LANDED 2026-10-27 (§29's Wave TF-9: the item-entity family's dimension reads 1:1 — the pigman tail's other half CLOSED, the mob query's 25d shape generalized over the items and the projectiles, the ZID store at v8, the wire's observer-dimension gates). Wave TF-10 LANDED 2026-10-27 (§29's Wave TF-10: the XP-orb family's dimension reads — the orb manager on the shared dimension-aware ground, the stamps, the pickup gate, the wire gates, the XpBottleSink's carry). Wave TF-11 LANDED 2026-10-27 (§29's Wave TF-11: the vehicle family's dimension reads — the ZVD row riding the body, the dimension-aware VehicleWorldQuery, the vehicleAt filter, the wire gates). Wave TF-12 LANDED 2026-10-27 (§29's Wave TF-12: the FX family's sound-broadcast dimension gate — every FxEvent carrying its world, the wire's gate in the reference's own sendPacket order, the entity-driven stamps, the fishing Bobber's carry; the handoff's open verifications — the protocol module whole 203/0, the bukkit 52/0 + launcher 53/0, the acceptance sweep — completed and green at the ledger head). The stats-family envelope is code-complete (the increments wired at their use sites — the compat file's stale "no stats system yet" notes re-pinned by TF-9). The dimension-read family tails are ALL CLOSED; the families that carry no dimension field at all (armor-stand, fireworks, ender-eye) stay honest overworld-0 emitters until their own family slices demand the carry. The §22 evidence bar holds: no concurrency phase opens without the attribution pass's numbers (ML-007 landed — the verdict: none justified at the current loads).
+**Next concrete mechanics work:** continue from Section 29: the master ledger's demand-named queue is EMPTY of implementable rows (ML-013, the last — the tick watchdog, landed 2026-10-26 in §29's Wave ML13; ML-008 the /give form aligned the same day; PR #38's audit merge landed 2026-10-23). The 2026-10-26 vanilla-grade census's lanes are ALL LANDED (§29's Waves TF-7 + TF-7-continued, closed whole). Wave ON-1 LANDED 2026-10-26 (DEC-001 executed whole; DEC-002 STAY NATIVE and DEC-003 NO KigPaper config family both stand). Wave TF-8 LANDED 2026-10-27 (§29's Wave TF-8: the undead family's daylight burn 1:1). Wave TF-9 LANDED 2026-10-27 (§29's Wave TF-9: the item-entity family's dimension reads 1:1 — the pigman tail's other half CLOSED, the mob query's 25d shape generalized over the items and the projectiles, the ZID store at v8, the wire's observer-dimension gates). Wave TF-10 LANDED 2026-10-27 (§29's Wave TF-10: the XP-orb family's dimension reads — the orb manager on the shared dimension-aware ground, the stamps, the pickup gate, the wire gates, the XpBottleSink's carry). Wave TF-11 LANDED 2026-10-27 (§29's Wave TF-11: the vehicle family's dimension reads — the ZVD row riding the body, the dimension-aware VehicleWorldQuery, the vehicleAt filter, the wire gates). Wave TF-12 LANDED 2026-10-27 (§29's Wave TF-12: the FX family's sound-broadcast dimension gate — every FxEvent carrying its world, the wire's gate in the reference's own sendPacket order, the entity-driven stamps, the fishing Bobber's carry; the handoff's open verifications — the protocol module whole 203/0, the bukkit 52/0 + launcher 53/0, the acceptance sweep — completed and green at the ledger head). Wave T-1 LANDED 2026-10-27 (§29's Wave T-1: the §35 outbound transport's first slice — the zamin-transport module whole, the 184-site queueing of the v1_8_8 play-state sends, the encode-once FX broadcast, the wire verified over every suite class). The stats-family envelope is code-complete (the increments wired at their use sites — the compat file's stale "no stats system yet" notes re-pinned by TF-9). The dimension-read family tails are ALL CLOSED; the families that carry no dimension field at all (armor-stand, fireworks, ender-eye) stay honest overworld-0 emitters until their own family slices demand the carry. The §22 evidence bar holds: no concurrency phase opens without the attribution pass's numbers (ML-007 landed — the verdict: none justified at the current loads). Next work (the §35 transport's standing rows, each its own evidenced slice): §35.4's pooled-buffer adoption (before/after evidence first), §35.12's outbound latency percentiles + the benchmark matrix, and the §35.11 slow-client kill policy — the §35.8 boundaries need no further slice.
 
 # 23. COMMITS / PUSHES / RELEASES
 
@@ -5320,6 +5320,108 @@ way were repaired inside the wave.
       ender-eye families carry no dimension fields (each its own
       future family slice — their sounds ride the overworld-0
       overloads today, the TF-9 vehicle precedent).
+
+## Wave T-1 — the 2026-10-27 §35 outbound transport's first slice (the version-independent queue, the encode-once FX broadcast, the wire verified over every suite class, landed)
+
+- [x] THE COMMON TRANSPORT MODULE (zamin-transport, §35.6 — imports
+      only Netty buffer/transport and the JDK, zero protocol
+      knowledge): EncodedPayload (§35.3's encode-once primitive —
+      the constructor takes the single reference by the honest
+      handover law, the share() is an index-independent
+      retainedDuplicate ticket whose per-recipient read-consume
+      cannot move another recipient's position, the release is the
+      creator-base law with the double-release refused),
+      OutboundQueue (§35.5's per-connection outbound stage — the
+      FIFO ConcurrentLinkedQueue fed from any simulation lane, the
+      coalesced drain scheduled once per tick-walk on the channel's
+      own event loop, write() per packet and ONE flush per drain,
+      enqueueUrgent joining the tail with the drain at once so order
+      never inverts, closeWith the ordered disconnect that can never
+      overtake owed packets, closeNow the error path that releases
+      everything queued, the admission gate that drops-and-releases
+      on a closed queue or a dead channel, and the drain's own
+      re-guard that releases a ticket when the channel dies between
+      admission and the write), TransportMetrics (§35.12's counters:
+      packets/bytes enqueued and written, flushes, drops, direct
+      writes, the queue-depth high-water mark, packets-per-flush),
+      TransportLog — pinned 10/0 (the batching boundary, the urgent
+      no-inversion, the disconnect-last ordered close, the leak-free
+      closeNow, the inactive-channel drop, the dual-lane 500+500
+      concurrent no-loss, the double-close safety, the saturation
+      crossing logged once).
+- [x] THE v1_8_8 WIRING (the version-specific codec keeps its
+      semantics, the movement becomes the queue's): every play-state
+      send site (184 of them) routed through the connection's lazy
+      per-connection queue — the metadata/status/equipment/
+      animation/rel-move/teleport/velocity/destroy/head/sign/skull/
+      command-tile/beacon/spawner/entity-properties writers, the
+      block-change flush walk, and the ChunkTracker's own stream
+      (the tracker gained the owner reference so its chunk Bulk
+      windows ride the same batching); the login/status/exchange
+      writes stay DIRECT (the §35 state-machine futures — the
+      handshake arms keep their synchronous shape); kick in PLAY
+      rides closeWith (the Disconnect frame is the queue's LAST
+      packet, one flush, then close); channelInactive closes the
+      queue NOW (every queued ticket released, nothing retained —
+      §35.13's disconnected-channel law); the static tile and
+      entity-properties writers became encode-then-enqueue (they
+      return the buffer, the caller owns the handover).
+- [x] THE ENCODE-ONCE BROADCAST (§35.3/§35.7 — the FX family's wire
+      form is identical for every observer with an eligible range
+      and dimension): the V18ProtocolServer's fx listener gathers
+      the eligible observers through fxEligible (the TF-12 gate
+      order intact — the dimension test ahead of the squared range),
+      encodes ONE packet through the extracted encodeSound/
+      encodeParticles/encodeWorldEvent forms (the exact bytes the
+      per-observer send forms produced), wraps it in the
+      EncodedPayload, and every eligible queue takes a share — N
+      recipients, one encode, N index-independent tickets, one
+      creator release. The connection's enqueueFxShare admits the
+      share or releases it (the unattachable-recipient law).
+- [x] THE WIRE VERIFIED OVER EVERY SUITE CLASS (the §35.11
+      acceptance rule at the 1.8.8 slice): the protocol module's
+      whole surface re-run against the queueing transport —
+      A 84/0, B 30/0, C 46/0, ChatAndMultiplayer 4/0,
+      LoginCompression 5/0, D1 22/0, D2+D3 26/0, WorldgenDeterminism
+      1/0 — every join burst, every movement stream, every combat
+      and loot walk, every chunk window byte-identical at the client
+      reader. The async-drain repair along the way: the queue's
+      drain re-guards isActive (a channel dying between admission
+      and the drain releases the ticket instead of writing into the
+      dead socket), the join-burst wire window reads the FULL
+      reflective S2C id set (the tick lane's own sends legally
+      interleave between the join walk's frames — the socket order
+      is the write order, whatever thread wrote), and
+      exceptionCaught keeps the session field so channelInactive's
+      walk resolves the real departed uuid and runs the adapter's
+      observer cleanup (the reference's own onDisconnect shape; the
+      engine's state-gated idempotence lands the second call as a
+      no-op).
+- [x] THE REAP-BOUND HARNESS LAW (the two read-window flakes'
+      root): the scripted clients sat silent past the listener's
+      30s read-idle reap (the MobIntegration 300s and SpectatorCamera
+      120s keep-alive overrides out-lived the reap bound), so a
+      batch-loaded tick lull could let the reap close the socket
+      mid-scan; the overrides now ride 5s — the reference's own
+      proportion (its 15s cadence against the same 30s bound) — the
+      auto-answered exchange keeps the read side alive, and every
+      scan still skips the keep-alive frames by id, so no assertion
+      changed meaning. Transport-harness only: no engine code
+      changed for the flakes.
+- [x] HONEST STANDING TAILS (§35's remaining rows, each its own
+      evidenced slice): §35.4's pooled allocation — the queue moves
+      the codecs' existing heap buffers today (Unpooled), the
+      pooled-buffer adoption needs its own before/after evidence;
+      §35.12's latency percentiles (p50/p95/p99 outbound) and the
+      benchmark matrix (the §35.12 scenario list) stay open — the
+      counters exist, the percentiles and the benchmark harness do
+      not; the §35.11 slow-client kill policy stays open per the
+      section's own text (the saturation observable logs and
+      counts; the kick-on-saturation decision is separately
+      evidenced); §35.8's compression/encryption boundaries are
+      already respected by construction (the queue sits inside the
+      plaintext frame layer, the pipeline's own handlers own the
+      compressed/encrypted bytes) and need no further slice.
 
 # 33. CODEBASE SCALE, CLASS COHESION, AND MAINTAINABILITY
 
