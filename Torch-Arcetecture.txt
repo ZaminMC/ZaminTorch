@@ -5767,6 +5767,3 @@ The governing rule is:
 **Optimize how Torch moves protocol data without changing what the client believes that protocol data means.**
 
 1.8.8 is the first protocol implementation, not the permanent networking architecture. Later versions must reuse the transport principles without inheriting incorrect 1.8.8 wire assumptions.
-
-Owner note: 
-I would keep the section at this level for now. In particular, I deliberately did not declare pooled buffers, zero-copy, encode-once broadcasting, or batching as already implemented. §20's measurement discipline and the existing ownership rules remain authoritative. The section defines the architectural target and acceptance gates rather than prematurely committing Torch to a particular Netty implementation. (remove this note!)

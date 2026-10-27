@@ -8,6 +8,7 @@ rootProject.name = "ZaminTorch"
 
 include("zamin-api")
 include("zamin-core")
+include("zamin-transport")
 include("zamin-protocol-v1_8_8")
 include("zamin-launcher")
 include("zamin-bukkit")

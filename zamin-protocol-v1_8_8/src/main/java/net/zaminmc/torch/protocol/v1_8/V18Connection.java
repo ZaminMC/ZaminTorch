@@ -67,6 +67,75 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     private volatile PlayerSession session;
     private volatile boolean disconnectSent;
 
+    /**
+     * The connection's outbound stage (§35 — the common transport): the
+     * per-connection queue, the batched drain, the flush policy. Created
+     * lazily over the registered channel — the registration happens-before
+     * any play-state send (the connection enters the adapter's map inside
+     * initChannel), and the headless harnesses that never register a
+     * channel never reach a send's write (their guards return first).
+     */
+    private volatile net.zaminmc.torch.transport.OutboundQueue outbound;
+
+    /** The queue's lazy face: one queue per connection, over the registered channel. */
+    private net.zaminmc.torch.transport.OutboundQueue outbound() {
+        net.zaminmc.torch.transport.OutboundQueue existing = this.outbound;
+        if (existing != null) {
+            return existing;
+        }
+        Channel channel = adapter.channelOf(this);
+        if (channel == null) {
+            return null;
+        }
+        synchronized (this) {
+            if (this.outbound == null) {
+                this.outbound = new net.zaminmc.torch.transport.OutboundQueue(channel);
+            }
+            return this.outbound;
+        }
+    }
+
+    /**
+     * The ordinary send (§35.5): the packet joins the connection's outbound
+     * queue — batched write, coalesced flush. Ownership transfers; with no
+     * channel attached the buffer releases (the drop visible in the
+     * transport's counters, never a leak — §35.13).
+     */
+    private void enqueueOut(ByteBuf out) {
+        net.zaminmc.torch.transport.OutboundQueue queue = outbound();
+        if (queue != null) {
+            queue.enqueue(out);
+        } else {
+            out.release();
+        }
+    }
+
+    /** The urgent send: the packet joins the tail and the drain executes at once (one flush). */
+    private void enqueueOutUrgent(ByteBuf out) {
+        net.zaminmc.torch.transport.OutboundQueue queue = outbound();
+        if (queue != null) {
+            queue.enqueueUrgent(out);
+        } else {
+            out.release();
+        }
+    }
+
+    /**
+     * One share of an encode-once payload joins this connection's queue
+     * (§35.3): the ticket is an index-independent view — this pipeline's
+     * read-consume cannot move another recipient's read position. An
+     * unattachable connection releases its share.
+     */
+    void enqueueFxShare(net.zaminmc.torch.transport.EncodedPayload payload) {
+        ByteBuf ticket = payload.share();
+        net.zaminmc.torch.transport.OutboundQueue queue = outbound();
+        if (queue != null) {
+            queue.enqueue(ticket);
+        } else {
+            ticket.release();
+        }
+    }
+
     private volatile long pendingKeepAlive = -1;
     private volatile long keepAliveSentAt;
 
@@ -169,6 +238,13 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
 
     @Override
     public void channelInactive(ChannelHandlerContext ctx) {
+        // §35.13 — the dead channel's queue releases every queued ticket:
+        // nothing retained survives the connection. The error-path shape
+        // (cancel, not drain — the channel no longer accepts writes).
+        net.zaminmc.torch.transport.OutboundQueue queue = this.outbound;
+        if (queue != null) {
+            queue.closeNow();
+        }
         PlayerSession current = session;
         UUID departedUuid = null;
         if (current != null) {
@@ -542,7 +618,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                 sendServerDifficulty(engine.difficulty());
                 sendSpawnPosition(channel);
                 sendTimeUpdate(channel);
-                chunkTracker = new ChunkTracker(engine, channel);
+                chunkTracker = new ChunkTracker(this, engine, channel);
                 // Center the initial view on the session's actual position: the
                 // world spawn for fresh players, the saved spot for returning ones.
                 chunkTracker.sendInitial(ChunkPosition.ofBlock(
@@ -605,7 +681,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeByte(0);                 // max players (legacy field, unused by client)
         ByteBufOps.writeString(out, engine.engineConfig().levelType()); // the configured level-type (client F3 + server list ping)
         out.writeBoolean(false);          // reduced debug info
-        channel.writeAndFlush(out);
+        enqueueOut(out);
         LOGGER.fine(() -> "Join game sent to " + playerSession.name() + " (entity " + entityId + ")");
     }
 
@@ -617,7 +693,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                 spawn.toBlockPosition().x(),
                 spawn.toBlockPosition().y(),
                 spawn.toBlockPosition().z());
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     private void sendTimeUpdate(Channel channel) {
@@ -629,7 +705,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeVarInt(out, Protocol18.S2C_TIME_UPDATE);
         out.writeLong(playerWorld.totalTicks());
         out.writeLong(playerWorld.timeOfDay());
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /** Re-syncs this client's clock (the periodic cycle and the /time command). Any thread. */
@@ -663,7 +739,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         // client applied x twice ("tp 400" landed at 800) and the movement
         // guard then fought the client forever. Absolute anchors: flags 0.
         out.writeByte(0x00);
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     // ------------------------------------------------------------------ play
@@ -990,7 +1066,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeFloat(player.health());
         ByteBufOps.writeVarInt(out, player.food());
         out.writeFloat(player.saturation());
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /**
@@ -1012,7 +1088,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeByte(amplifier & 0xFF);
         ByteBufOps.writeVarInt(out, duration > 32767 ? 32767 : duration);
         out.writeByte(particles ? 1 : 0);
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /**
@@ -1028,7 +1104,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeVarInt(out, Protocol18.S2C_REMOVE_ENTITY_EFFECT);
         ByteBufOps.writeVarInt(out, entityId);
         out.writeByte(effectId & 0xFF);
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /**
@@ -1047,7 +1123,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeVarInt(out, ownEntityId);
         out.writeInt(ownEntityId);
         ByteBufOps.writeString(out, "{\"text\":\"" + player.name() + " died\"}");
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /**
@@ -1083,7 +1159,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeByte(engine.difficulty());
         out.writeByte(player.gamemode().legacyId());
         ByteBufOps.writeString(out, engine.engineConfig().levelType()); // respawn mirrors the join's level-type
-        channel.writeAndFlush(out);
+        enqueueOut(out);
         player.link().updateAbilities(abilitiesFlagsOf(player.gamemode()));
 
         if (chunkTracker != null && destination != null) {
@@ -1312,7 +1388,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         for (String completion : completions) {
             ByteBufOps.writeString(out, completion);
         }
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /**
@@ -1342,11 +1418,11 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         if (channel == null || !channel.isActive() || state != WireState.PLAY) {
             return;
         }
-        writeSignUpdate(channel, position, lines);
+        enqueueOut(encodeSignUpdate(position, lines));
     }
 
     /** The 0x33 packet body (static: the chunk tracker replays on its own channel). */
-    private static void writeSignUpdate(Channel channel, BlockPosition position, String[] lines) {
+    private static ByteBuf encodeSignUpdate(BlockPosition position, String[] lines) {
         ByteBuf out = Unpooled.buffer(64);
         ByteBufOps.writeVarInt(out, Protocol18.S2C_UPDATE_SIGN);
         ByteBufOps.writePackedBlockPosition(out, position.x(), position.y(), position.z());
@@ -1354,7 +1430,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             ByteBufOps.writeString(out, lines != null && line < lines.length
                     && lines[line] != null ? lines[line] : "");
         }
-        channel.writeAndFlush(out);
+        return out;
     }
 
     /**
@@ -1374,7 +1450,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBuf out = Unpooled.buffer(16);
         ByteBufOps.writeVarInt(out, Protocol18.S2C_OPEN_SIGN_EDITOR);
         ByteBufOps.writePackedBlockPosition(out, position.x(), position.y(), position.z());
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /** Adds online players (never the asker) whose name starts the token. */
@@ -1401,7 +1477,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeByte(windowId);
         out.writeShort(actionNumber);
         out.writeBoolean(accepted);
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /** Authoritative cursor stack (Set Slot with window -1, slot -1). Any thread. */
@@ -1414,7 +1490,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeByte(-1);          // window: cursor
         out.writeShort(-1);         // slot: cursor
         writeSlot(out, player.inventory().cursor());
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     private void handleDigging(PlayerSession player, ByteBuf packet) {
@@ -1581,7 +1657,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         // string; a nonzero size pushes client variants onto the generic-chest
         // path, the "renders like a chest" real-client class).
         out.writeByte(0);
-        channel.writeAndFlush(out);
+        enqueueOut(out);
         sendContainerWindowItems(channel, windowId, player);
     }
 
@@ -1607,7 +1683,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                 namedFurnace == null ? null : namedFurnace.customName(),
                 Protocol18.FURNACE_WINDOW_TITLE));
         out.writeByte(3); // the GUI's own slots: input, fuel, output
-        channel.writeAndFlush(out);
+        enqueueOut(out);
         sendContainerWindowItems(channel, windowId, player);
     }
 
@@ -1629,7 +1705,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                 namedChest == null ? null : namedChest.customName(),
                 Protocol18.CHEST_WINDOW_TITLE));
         out.writeByte(27); // the GUI's own slots: 3 rows of 9
-        channel.writeAndFlush(out);
+        enqueueOut(out);
         sendContainerWindowItems(channel, windowId, player);
         // The §27 window family: capture the serial the open just synced —
         // the per-tick view fan then re-syncs only on a later change.
@@ -1658,7 +1734,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeString(out, Protocol18.CHEST_WINDOW_TYPE);
         ByteBufOps.writeString(out, Protocol18.ENDER_CHEST_WINDOW_TITLE);
         out.writeByte(27); // the GUI's own slots: 3 rows of 9
-        channel.writeAndFlush(out);
+        enqueueOut(out);
         sendChestWindowItems(channel, windowId, player.enderChest(), player);
         chestSlotsSynced = player.enderChest().slotsSerial();
     }
@@ -1689,7 +1765,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeString(out, Protocol18.BEACON_WINDOW_TYPE);
         ByteBufOps.writeString(out, Protocol18.BEACON_WINDOW_TITLE);
         out.writeByte(1); // the GUI's own slots: the payment alone
-        channel.writeAndFlush(out);
+        enqueueOut(out);
         sendBeaconWindowItems(channel, windowId, beacon, player);
     }
 
@@ -1720,7 +1796,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             }
             writeSlot(out, stack);
         }
-        channel.writeAndFlush(out);
+        enqueueOut(out);
         // The three properties ride the open (the menu's updateData).
         sendWindowProperty(channel, windowId, 0, beacon.levels());
         sendWindowProperty(channel, windowId, 1, beacon.primary());
@@ -1775,7 +1851,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         if (channel == null || !channel.isActive() || state != WireState.PLAY) {
             return;
         }
-        writeSkullTile(channel, tile);
+        enqueueOut(encodeSkullTile(tile));
     }
 
     /**
@@ -1790,11 +1866,11 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         if (channel == null || !channel.isActive() || state != WireState.PLAY) {
             return;
         }
-        writeCommandTile(channel, position, tile);
+        enqueueOut(encodeCommandTile(position, tile));
     }
 
     /** The tile packet's own writer (the static chunk-send path's form). */
-    private static void writeCommandTile(Channel channel,
+    private static ByteBuf encodeCommandTile(
             net.zaminmc.torch.block.BlockPosition position,
             net.zaminmc.torch.server.commandblock.CommandBlockManager.CommandState tile) {
         ByteBuf out = Unpooled.buffer(96);
@@ -1812,11 +1888,11 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         writeNbtString(out, "LastOutput",
                 tile.lastOutput() == null ? "" : tile.lastOutput());
         out.writeByte(0);               // end of the root
-        channel.writeAndFlush(out);
+        return out;
     }
 
     /** The tile packet's own writer (the static chunk-send path's form). */
-    private static void writeSkullTile(Channel channel,
+    private static ByteBuf encodeSkullTile(
             net.zaminmc.torch.server.skull.SkullManager.SkullTile tile) {
         net.zaminmc.torch.block.BlockPosition position = tile.position();
         ByteBuf out = Unpooled.buffer(40);
@@ -1865,7 +1941,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             out.writeByte(0);           // end of Owner
         }
         out.writeByte(0);               // end of the root
-        channel.writeAndFlush(out);
+        return out;
     }
 
     void sendBeaconTile(net.zaminmc.torch.block.BlockPosition position,
@@ -1878,11 +1954,11 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         if (!chunkTracker.hasChunk(position.chunkPosition().packed())) {
             return; // the observer cannot see that beacon
         }
-        writeBeaconTile(channel, position, beacon);
+        enqueueOut(encodeBeaconTile(position, beacon));
     }
 
     /** The tile packet's own writer (the static chunk-send path's form). */
-    private static void writeBeaconTile(Channel channel,
+    private static ByteBuf encodeBeaconTile(
             net.zaminmc.torch.block.BlockPosition position,
             net.zaminmc.torch.server.beacon.BeaconBlockEntity beacon) {
         ByteBuf out = Unpooled.buffer(64);
@@ -1898,7 +1974,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         writeNbtInt(out, "Secondary", beacon.secondary());
         writeNbtInt(out, "Levels", beacon.levels());
         out.writeByte(0);               // end of the root
-        channel.writeAndFlush(out);
+        return out;
     }
 
     /**
@@ -1918,7 +1994,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeString(out, Protocol18.CHEST_WINDOW_TYPE);
         ByteBufOps.writeString(out, Protocol18.MINECART_CHEST_WINDOW_TITLE);
         out.writeByte(27); // the GUI's own slots: the chest menu over the cart
-        channel.writeAndFlush(out);
+        enqueueOut(out);
         sendContainerWindowItems(channel, windowId, player);
         var openedCart = engineVehicleChest(player.containerMountId());
         if (openedCart != null) {
@@ -1943,7 +2019,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeString(out, Protocol18.HOPPER_WINDOW_TYPE);
         ByteBufOps.writeString(out, Protocol18.MINECART_HOPPER_WINDOW_TITLE);
         out.writeByte(5); // the GUI's own slots: the hopper menu over the cart
-        channel.writeAndFlush(out);
+        enqueueOut(out);
         sendContainerWindowItems(channel, windowId, player);
         var openedHopperCart = engineVehicleHopper(player.containerMountId());
         if (openedHopperCart != null) {
@@ -1977,7 +2053,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeString(out, windowTitle(container.customName(),
                 dropper ? Protocol18.DROPPER_WINDOW_TITLE : Protocol18.DISPENSER_WINDOW_TITLE));
         out.writeByte(9); // the GUI's own slots: 3 rows of 3
-        channel.writeAndFlush(out);
+        enqueueOut(out);
         sendContainerWindowItems(channel, windowId, player);
         dispenserSlotsSynced = container.slotsSerial();
     }
@@ -2004,7 +2080,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeString(out, windowTitle(hopper.customName(),
                 Protocol18.HOPPER_WINDOW_TITLE));
         out.writeByte(5); // the GUI's own slots: the hopper's five
-        channel.writeAndFlush(out);
+        enqueueOut(out);
         sendContainerWindowItems(channel, windowId, player);
         hopperSlotsSynced = hopper.slotsSerial();
     }
@@ -2034,7 +2110,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeString(out, windowTitle(stand.customName(),
                 Protocol18.BREWING_WINDOW_TITLE));
         out.writeByte(4); // the GUI's own slots: three bottles + the ingredient
-        channel.writeAndFlush(out);
+        enqueueOut(out);
         sendContainerWindowItems(channel, windowId, player);
     }
 
@@ -2068,7 +2144,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             }
             writeSlot(out, stack);
         }
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /**
@@ -2156,7 +2232,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeByte(windowId);
         out.writeShort(property);
         out.writeShort(value);
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /**
@@ -2208,7 +2284,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeString(out, Protocol18.ENCHANTING_WINDOW_TYPE);
         ByteBufOps.writeString(out, Protocol18.ENCHANTING_WINDOW_TITLE);
         out.writeByte(0); // the client builds the two-slot layout from the type
-        channel.writeAndFlush(out);
+        enqueueOut(out);
         sendEnchantingWindowItems(channel, windowId, player);
         var menu = player.enchantingMenu();
         if (menu != null) {
@@ -2245,7 +2321,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             }
             writeSlot(out, stack);
         }
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /**
@@ -2293,7 +2369,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeString(out, Protocol18.ANVIL_WINDOW_TYPE);
         ByteBufOps.writeString(out, Protocol18.ANVIL_WINDOW_TITLE);
         out.writeByte(0); // the client builds the three-slot layout from the type
-        channel.writeAndFlush(out);
+        enqueueOut(out);
         sendAnvilWindowItems(channel, windowId, player);
         var menu = player.anvilMenu();
         if (menu != null) {
@@ -2330,7 +2406,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             }
             writeSlot(out, stack);
         }
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /**
@@ -2458,7 +2534,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBuf out = Unpooled.buffer(10);
         ByteBufOps.writeVarInt(out, Protocol18.S2C_KEEP_ALIVE);
         ByteBufOps.writeVarInt(out, id);
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     // ------------------------------------------------------------------ ClientLink
@@ -2522,7 +2598,17 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             ByteBuf out = Unpooled.buffer(64);
             ByteBufOps.writeVarInt(out, Protocol18.S2C_DISCONNECT);
             ByteBufOps.writeString(out, StatusResponse.disconnectReason(reason));
-            channel.writeAndFlush(out).addListener(ChannelFutureListener.CLOSE);
+            // §35.5/§35.13 — the ordered close: the Disconnect joins the
+            // queue's tail, the final drain writes the owed packets and the
+            // Disconnect with ONE flush, then the channel closes. The
+            // disconnect can never overtake packets the client was owed.
+            net.zaminmc.torch.transport.OutboundQueue queue = outbound();
+            if (queue != null) {
+                queue.closeWith(out);
+            } else {
+                out.release();
+                channel.close();
+            }
         } else {
             sendLoginDisconnect(channel, reason);
         }
@@ -2539,7 +2625,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeVarInt(out, Protocol18.S2C_CHANGE_GAME_STATE);
         out.writeByte(Protocol18.GAME_STATE_CHANGE_GAMEMODE);
         out.writeFloat(gamemodeId);
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     @Override
@@ -2554,7 +2640,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeByte(flags);
         out.writeFloat(0.05f); // fly speed
         out.writeFloat(0.1f);  // field of view modifier (the historical walk speed field)
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     @Override
@@ -2570,7 +2656,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeByte(raining ? Protocol18.GAME_STATE_CHANGE_BEGIN_RAINING
                 : Protocol18.GAME_STATE_CHANGE_END_RAINING);
         out.writeFloat(0.0f);
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /**
@@ -2588,7 +2674,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBuf out = Unpooled.buffer(4);
         ByteBufOps.writeVarInt(out, Protocol18.S2C_SERVER_DIFFICULTY);
         out.writeByte(difficultyId & 0xFF);
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /**
@@ -2623,7 +2709,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeVarInt(out, Protocol18.S2C_RESOURCE_PACK_SEND);
         ByteBufOps.writeString(out, url);
         ByteBufOps.writeString(out, hash);
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /**
@@ -2669,7 +2755,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             ByteBufOps.writeVarInt(out, colors.length);
             out.writeBytes(colors);
         }
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     @Override
@@ -2684,7 +2770,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeVarInt(out, Protocol18.S2C_CHANGE_GAME_STATE);
         out.writeByte(reason);
         out.writeFloat(value);
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     @Override
@@ -2704,7 +2790,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeInt((int) Math.floor(x * 32.0));
         out.writeInt((int) Math.floor(y * 32.0));
         out.writeInt((int) Math.floor(z * 32.0));
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     @Override
@@ -2723,7 +2809,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             ByteBufOps.writeString(out, stat.getKey());
             ByteBufOps.writeVarInt(out, stat.getValue());
         }
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     @Override
@@ -2760,7 +2846,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             ByteBufOps.writeVarInt(out, entry.ping());
             out.writeBoolean(false); // no display name (getPlayerListName = null)
         }
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     @Override
@@ -2778,7 +2864,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         for (UUID id : ids) {
             ByteBufOps.writeUuid(out, id);
         }
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     @Override
@@ -2795,7 +2881,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeVarInt(out, 1);
         ByteBufOps.writeUuid(out, id);
         ByteBufOps.writeVarInt(out, gamemodeId);
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     @Override
@@ -2815,7 +2901,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             ByteBufOps.writeUuid(out, entry.uuid());
             ByteBufOps.writeVarInt(out, entry.ping());
         }
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     @Override
@@ -2836,7 +2922,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             ByteBufOps.writeString(out, data.displayName());
             ByteBufOps.writeString(out, data.renderType());
         }
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     @Override
@@ -2856,7 +2942,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         if (mode == 0) {
             ByteBufOps.writeVarInt(out, value);
         }
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     @Override
@@ -2871,7 +2957,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeVarInt(out, Protocol18.S2C_DISPLAY_SCOREBOARD);
         out.writeByte(slot);
         ByteBufOps.writeString(out, objectiveName);
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     @Override
@@ -2904,7 +2990,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                 ByteBufOps.writeString(out, member);
             }
         }
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     @Override
@@ -2975,7 +3061,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeVarInt(out, Protocol18.S2C_WORLD_BORDER);
         ByteBufOps.writeVarInt(out, action);
         fields.write(out);
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     // ------------------------------------------------------------------ titles + tab-list header/footer
@@ -3027,7 +3113,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeVarInt(out, Protocol18.S2C_PLAYER_LIST_HEADER_FOOTER);
         ByteBufOps.writeString(out, headerJson);
         ByteBufOps.writeString(out, footerJson);
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /** One Title packet (0x45): the varint enum ordinal + the per-type fields. */
@@ -3043,7 +3129,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeVarInt(out, Protocol18.S2C_TITLE);
         ByteBufOps.writeVarInt(out, type);
         fields.write(out);
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     @Override
@@ -3058,7 +3144,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeVarInt(out, Protocol18.S2C_CHAT);
         ByteBufOps.writeString(out, json);
         out.writeByte(position);
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     @Override
@@ -3072,7 +3158,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBuf out = Unpooled.buffer(16);
         ByteBufOps.writeVarInt(out, Protocol18.S2C_SPAWN_POSITION);
         ByteBufOps.writePackedBlockPosition(out, x, y, z);
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     @Override
@@ -3154,7 +3240,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeVarInt(out, Protocol18.S2C_CHAT);
         ByteBufOps.writeString(out, "{\"text\":\"" + jsonEscape(text) + "\"}");
         out.writeByte(position);
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     private static String jsonEscape(String text) {
@@ -3211,7 +3297,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeByte((int) (other.rotation().pitch() * 256.0f / 360.0f));
         out.writeShort(0); // held item: none
         out.writeByte(Protocol18.METADATA_TERMINATOR); // no metadata entries (0x7F, protocol 47)
-        channel.writeAndFlush(out);
+        enqueueOut(out);
 
         // The track-time attribute pair (the reference's updatePlayer
         // order — the attributes ride BEFORE the equipment, TrackedEntity
@@ -3259,7 +3345,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeVarInt(out, entityId);
         out.writeShort(equipmentSlot);
         writeSlot(out, stack);
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     // --- the attribute wire (ML-011 — Entity Properties 0x20, the
@@ -3365,7 +3451,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
      * modifier: the UUID (two big-endian longs), the Double amount, the
      * Byte operation.
      */
-    private static void writeEntityProperties(Channel channel, int entityId,
+    private static ByteBuf encodeEntityProperties(int entityId,
             java.util.List<WireAttribute> attributes) {
         ByteBuf out = Unpooled.buffer(64);
         ByteBufOps.writeVarInt(out, Protocol18.S2C_ENTITY_PROPERTIES);
@@ -3381,7 +3467,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                 out.writeByte(modifier.operation());
             }
         }
-        channel.writeAndFlush(out);
+        return out;
     }
 
     /**
@@ -3402,7 +3488,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         if (entityId == null) {
             return;
         }
-        writeEntityProperties(channel, entityId, playerWireAttributes(other));
+        enqueueOut(encodeEntityProperties(entityId, playerWireAttributes(other)));
     }
 
     /**
@@ -3427,7 +3513,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         if (!chunkTracker.hasChunk(chunkKeyOf(mob.position()))) {
             return; // observer cannot see that chunk yet
         }
-        writeEntityProperties(channel, mob.entityId(), mobWireAttributes(mob));
+        enqueueOut(encodeEntityProperties(mob.entityId(), mobWireAttributes(mob)));
     }
 
 
@@ -3445,7 +3531,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeVarInt(out, Protocol18.S2C_DESTROY_ENTITIES);
         ByteBufOps.writeVarInt(out, 1);
         ByteBufOps.writeVarInt(out, entityId);
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /**
@@ -3457,7 +3543,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
      * tracker's own spawn comes first, then the Camera 0x43 carrying the
      * target's wire id, then the world stream re-centers on the target
      * (the teleport's PlayerManager.move arm). Any thread (the listener's
-     * tick-thread fan-out); writeAndFlush is the channel's own ordering.
+     * tick-thread fan-out); ordering is the outbound queue's own FIFO.
      */
     void spectateCameraAttached(PlayerSession target) {
         trackPlayer(target);
@@ -3493,7 +3579,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBuf out = Unpooled.buffer(8);
         ByteBufOps.writeVarInt(out, Protocol18.S2C_CAMERA);
         ByteBufOps.writeVarInt(out, wireEntityId);
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /**
@@ -3599,7 +3685,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                     out.writeByte(pitch);
                 }
                 out.writeBoolean(other.onGround());
-                channel.writeAndFlush(out);
+                enqueueOut(out);
                 if (moved) {
                     last[0] = x;
                     last[1] = y;
@@ -3622,7 +3708,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeByte(yaw);
         out.writeByte(pitch);
         out.writeBoolean(other.onGround());
-        channel.writeAndFlush(out);
+        enqueueOut(out);
         trackedMoves.put(entityId, new long[] {x, y, z, other.onGround() ? 1 : 0, yaw, pitch});
     }
 
@@ -3656,7 +3742,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBuf out = Unpooled.buffer(payload.length + 8);
         ByteBufOps.writeVarInt(out, packetId);
         out.writeBytes(payload);
-        wire.writeAndFlush(out);
+        enqueueOut(out);
         return true;
     }
 
@@ -3688,7 +3774,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         // community-verified against the real client's registry, where
         // blocksByStateId[54] is dirt and blocksByStateId[864] is the chest.
         ByteBufOps.writeVarInt(out, ChunkSerializer18.packedStateId(type));
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /**
@@ -3755,7 +3841,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeVarInt(out, entityId);
         ByteBufOps.writePackedBlockPosition(out, position.x(), position.y(), position.z());
         out.writeByte(stage);
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /**
@@ -3780,7 +3866,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeVarInt(out, breakerEntityId);
         ByteBufOps.writePackedBlockPosition(out, position.x(), position.y(), position.z());
         out.writeByte(stage);
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     // ------------------------------------------------------------------ inventory sync
@@ -3813,7 +3899,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                     craftCells, armorSlots, craftingResult);
             writeSlot(out, stack);
         }
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     private static net.zaminmc.torch.item.ItemStack engineSlotForWireSlot(
@@ -3957,7 +4043,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeString(out, Protocol18.VILLAGER_WINDOW_TYPE);
         ByteBufOps.writeString(out, Protocol18.VILLAGER_WINDOW_TITLE);
         out.writeByte(Protocol18.VILLAGER_WINDOW_GUI_SLOTS);
-        channel.writeAndFlush(out);
+        enqueueOut(out);
         sendTradeList(channel, windowId, villager);
     }
 
@@ -3984,7 +4070,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeVarInt(out, Protocol18.S2C_PLUGIN_MESSAGE);
         ByteBufOps.writeString(out, Protocol18.PLUGIN_CHANNEL_TRADE_LIST);
         out.writeBytes(payload);
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /** Set Slot (0x2F) on the villager window's result slot (the trade preview). */
@@ -3999,7 +4085,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeByte(windowId);
         out.writeShort(2); // the result slot of the merchant GUI
         writeSlot(out, result);
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /**
@@ -4024,7 +4110,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                 ? Protocol18.HORSE_CHEST_WINDOW_TOTAL_SLOTS
                 : Protocol18.HORSE_WINDOW_TOTAL_SLOTS);
         out.writeInt(mount.entityId()); // the trailing mount id (the EntityHorse quirk)
-        channel.writeAndFlush(out);
+        enqueueOut(out);
         sendHorseWindowItems(channel, windowId, mount, player);
     }
 
@@ -4075,7 +4161,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             }
             writeSlot(out, stack);
         }
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /** @return the window stack of a mount's armor row (empty when none). */
@@ -4120,7 +4206,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             }
             writeSlot(out, stack);
         }
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /**
@@ -4153,7 +4239,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             }
             writeSlot(out, stack);
         }
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /**
@@ -4187,7 +4273,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             }
             writeSlot(out, stack);
         }
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /**
@@ -4210,7 +4296,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         for (int wireSlot = 0; wireSlot < Protocol18.TABLE_WINDOW_SLOTS; wireSlot++) {
             writeSlot(out, containerSlotForWireSlot(wireSlot, slots, grid, result));
         }
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /**
@@ -4242,7 +4328,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             }
             writeSlot(out, stack);
         }
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     private static net.zaminmc.torch.item.ItemStack containerSlotForWireSlot(
@@ -4278,7 +4364,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeByte(Protocol18.INVENTORY_WINDOW_ID);
         out.writeShort(wireSlotOf(engineSlot));
         writeSlot(out, stack);
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /**
@@ -4359,7 +4445,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             }
         }
         out.writeInt(carrier);
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /**
@@ -4385,7 +4471,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeByte(instrument);
         out.writeByte(note);
         out.writeInt(Protocol18.NOTE_BLOCK_LEGACY_BLOCK_ID);
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /**
@@ -4401,11 +4487,11 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         if (channel == null || !channel.isActive() || state != WireState.PLAY) {
             return;
         }
-        writeSpawnerTile(channel, tile);
+        enqueueOut(encodeSpawnerTile(tile));
     }
 
     /** The tile packet's own writer (the static chunk-send path's form). */
-    private static void writeSpawnerTile(Channel channel,
+    private static ByteBuf encodeSpawnerTile(
             net.zaminmc.torch.server.spawner.SpawnerManager.SpawnerTile tile) {
         net.zaminmc.torch.block.BlockPosition position = tile.position();
         String name = wireEntityNameOf(tile.type());
@@ -4438,7 +4524,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         writeNbtString(out, "id", name);
         out.writeByte(0);               // end of SpawnData
         out.writeByte(0);               // end of the root
-        channel.writeAndFlush(out);
+        return out;
     }
 
     /** One named NBT Int (tag 3). */
@@ -4490,7 +4576,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writePackedBlockPosition(out, position.x(), position.y(), position.z());
         out.writeInt(0); // data
         out.writeBoolean(false);
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /**
@@ -4514,7 +4600,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeByte(1);  // the event: the spin reset
         out.writeByte(0);  // the param
         out.writeInt(Protocol18.SPAWNER_LEGACY_BLOCK_ID);
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /**
@@ -4577,7 +4663,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBuf out = Unpooled.buffer(4);
         ByteBufOps.writeVarInt(out, Protocol18.S2C_HELD_ITEM_CHANGE);
         out.writeByte(player.inventory().heldSlot());
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     // ------------------------------------------------------------------ experience orb sync
@@ -4608,7 +4694,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeInt((int) Math.floor(orb.position().y() * 32.0));
         out.writeInt((int) Math.floor(orb.position().z() * 32.0));
         out.writeShort(Math.min(Short.MAX_VALUE, orb.amount()));
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /** Absolute-position sync for a moving orb. Any thread. */
@@ -4638,7 +4724,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeVarInt(out, Protocol18.S2C_COLLECT_ITEM);
         ByteBufOps.writeVarInt(out, orbEntityId);
         ByteBufOps.writeVarInt(out, collectorWireId);
-        channel.writeAndFlush(out);
+        enqueueOut(out);
         sendDestroyEntities(orbEntityId);
     }
 
@@ -4667,7 +4753,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeFloat(progress);
         ByteBufOps.writeVarInt(out, level);
         ByteBufOps.writeVarInt(out, total);
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     // ------------------------------------------------------------------ item entity sync
@@ -4709,7 +4795,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeShort((int) Math.floor(entity.velocityX() * 8000.0));
         out.writeShort((int) Math.floor(entity.velocityY() * 8000.0));
         out.writeShort((int) Math.floor(entity.velocityZ() * 8000.0));
-        channel.writeAndFlush(out);
+        enqueueOut(out);
 
         // The item stack itself rides on entity metadata (type slot, index 10).
         ByteBuf meta = Unpooled.buffer(16);
@@ -4718,7 +4804,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         meta.writeByte((Protocol18.METADATA_TYPE_SLOT << 5) | Protocol18.ITEM_STACK_METADATA_INDEX);
         writeSlot(meta, entity.stack());
         meta.writeByte(Protocol18.METADATA_TERMINATOR);
-        channel.writeAndFlush(meta);
+        enqueueOut(meta);
     }
 
     /** Absolute-position sync for a moving item entity. Any thread. */
@@ -4773,7 +4859,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                 rel.writeByte((int) dy);
                 rel.writeByte((int) dz);
                 rel.writeBoolean(onGround);
-                channel.writeAndFlush(rel);
+                enqueueOut(rel);
                 last[0] = x;
                 last[1] = y;
                 last[2] = z;
@@ -4790,7 +4876,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeByte(0);
         out.writeByte(0);
         out.writeBoolean(onGround);
-        channel.writeAndFlush(out);
+        enqueueOut(out);
         trackedMoves.put(entityId, new long[] {x, y, z, onGround ? 1 : 0, 0, 0});
     }
 
@@ -4810,7 +4896,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         meta.writeByte((Protocol18.METADATA_TYPE_SLOT << 5) | Protocol18.ITEM_STACK_METADATA_INDEX);
         writeSlot(meta, entity.stack());
         meta.writeByte(Protocol18.METADATA_TERMINATOR);
-        channel.writeAndFlush(meta);
+        enqueueOut(meta);
     }
 
     /**
@@ -4830,13 +4916,13 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeVarInt(out, Protocol18.S2C_COLLECT_ITEM);
         ByteBufOps.writeVarInt(out, itemEntityId);
         ByteBufOps.writeVarInt(out, collectorWireId);
-        channel.writeAndFlush(out);
+        enqueueOut(out);
 
         ByteBuf destroy = Unpooled.buffer(8);
         ByteBufOps.writeVarInt(destroy, Protocol18.S2C_DESTROY_ENTITIES);
         ByteBufOps.writeVarInt(destroy, 1);
         ByteBufOps.writeVarInt(destroy, itemEntityId);
-        channel.writeAndFlush(destroy);
+        enqueueOut(destroy);
     }
 
     /**
@@ -4858,13 +4944,13 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeVarInt(out, Protocol18.S2C_COLLECT_ITEM);
         ByteBufOps.writeVarInt(out, projectileEntityId);
         ByteBufOps.writeVarInt(out, collectorWireId);
-        channel.writeAndFlush(out);
+        enqueueOut(out);
 
         ByteBuf destroy = Unpooled.buffer(8);
         ByteBufOps.writeVarInt(destroy, Protocol18.S2C_DESTROY_ENTITIES);
         ByteBufOps.writeVarInt(destroy, 1);
         ByteBufOps.writeVarInt(destroy, projectileEntityId);
-        channel.writeAndFlush(destroy);
+        enqueueOut(destroy);
     }
 
 
@@ -4882,13 +4968,13 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeVarInt(out, Protocol18.S2C_COLLECT_ITEM);
         ByteBufOps.writeVarInt(out, itemEntityId);
         ByteBufOps.writeVarInt(out, collectorEntityId);
-        channel.writeAndFlush(out);
+        enqueueOut(out);
 
         ByteBuf destroy = Unpooled.buffer(8);
         ByteBufOps.writeVarInt(destroy, Protocol18.S2C_DESTROY_ENTITIES);
         ByteBufOps.writeVarInt(destroy, 1);
         ByteBufOps.writeVarInt(destroy, itemEntityId);
-        channel.writeAndFlush(destroy);
+        enqueueOut(destroy);
     }
 
     /** Removes an item entity from this observer. Any thread. */
@@ -4932,7 +5018,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeShort((int) Math.round(tnt.velocityX() * 8000.0));
         out.writeShort((int) Math.round(tnt.velocityY() * 8000.0));
         out.writeShort((int) Math.round(tnt.velocityZ() * 8000.0));
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /**
@@ -4964,7 +5050,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeVarInt(out, Protocol18.S2C_DESTROY_ENTITIES);
         ByteBufOps.writeVarInt(out, 1);
         ByteBufOps.writeVarInt(out, entityId);
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     // ------------------------------------------------------------------ falling block sync
@@ -5007,7 +5093,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeShort(0); // velocity x (falls are vertical)
         out.writeShort((int) Math.floor(entity.velocityY() * 8000.0));
         out.writeShort(0); // velocity z
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     private Integer wireEntityIdOf(PlayerSession player) {
@@ -5251,13 +5337,13 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             writeKindStatusMetadata(out, mob);
         }
         out.writeByte(Protocol18.METADATA_TERMINATOR);
-        channel.writeAndFlush(out);
+        enqueueOut(out);
 
         // The track-time attribute pair (the reference's updatePlayer walk:
         // the attributes ride before the equipment, TrackedEntity lines
         // 322-328 ahead of the equipment arm at 348-355) — the same gates
         // this spawn already passed hold it (chunk + dimension).
-        writeEntityProperties(channel, mob.entityId(), mobWireAttributes(mob));
+        enqueueOut(encodeEntityProperties(mob.entityId(), mobWireAttributes(mob)));
 
         // The mob's gear rides Entity Equipment right after the spawn —
         // VIII4's five-slot family (the reference's TrackedEntity
@@ -5415,7 +5501,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5) | Protocol18.KIND_STATUS_METADATA_INDEX);
         out.writeByte(value);
         out.writeByte(Protocol18.METADATA_TERMINATOR);
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /**
@@ -5444,7 +5530,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             writeWolfMetadata(out, mob);
         }
         out.writeByte(Protocol18.METADATA_TERMINATOR);
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /** Set Entity Metadata (0x1C) for the horse's index-16 flag Int: a tame
@@ -5469,7 +5555,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeByte((Protocol18.METADATA_TYPE_INT << 5) | Protocol18.HORSE_FLAGS_METADATA_INDEX);
         out.writeInt(mob.horseFlagsRaw());
         out.writeByte(Protocol18.METADATA_TERMINATOR);
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /**
@@ -5494,7 +5580,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5) | Protocol18.PASSIVE_AGE_METADATA_INDEX);
         out.writeByte(mob.isBaby() ? (byte) -1 : (byte) 0);
         out.writeByte(Protocol18.METADATA_TERMINATOR);
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /**
@@ -5518,7 +5604,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5) | Protocol18.PIG_SADDLE_METADATA_INDEX);
         out.writeByte(mob.pigSaddled() ? 1 : 0);
         out.writeByte(Protocol18.METADATA_TERMINATOR);
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /**
@@ -5543,7 +5629,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5) | Protocol18.LIVING_FLAGS_METADATA_INDEX);
         out.writeByte(mobLivingFlagsOf(mob));
         out.writeByte(Protocol18.METADATA_TERMINATOR);
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /** The living-flags byte: burning | the ocelot's postures (sneak 0x02, sprint 0x10). */
@@ -5609,7 +5695,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                 | Protocol18.WITCH_DRINKING_METADATA_INDEX);
         out.writeByte(mob.witchDrinking() ? 1 : 0);
         out.writeByte(Protocol18.METADATA_TERMINATOR);
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /**
@@ -5633,7 +5719,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5) | Protocol18.KIND_STATUS_METADATA_INDEX);
         out.writeByte(mob.ghastCharging() ? 1 : 0);
         out.writeByte(Protocol18.METADATA_TERMINATOR);
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /**
@@ -5658,7 +5744,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5) | Protocol18.KIND_STATUS_METADATA_INDEX);
         out.writeByte(mob.blazeFireActive() ? 1 : 0);
         out.writeByte(Protocol18.METADATA_TERMINATOR);
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /**
@@ -5696,7 +5782,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                 | Protocol18.WITHER_INVULN_METADATA_INDEX);
         out.writeInt(mob.witherInvulnTicks());
         out.writeByte(Protocol18.METADATA_TERMINATOR);
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /**
@@ -5718,7 +5804,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writePackedBlockPosition(out, blockPos.x(), blockPos.y(), blockPos.z());
         out.writeInt(0); // data
         out.writeBoolean(true); // the global flag
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /**
@@ -5748,7 +5834,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                 | Protocol18.ZOMBIE_CONVERTING_METADATA_INDEX);
         out.writeByte(mob.zombieConverting() ? 1 : 0);
         out.writeByte(Protocol18.METADATA_TERMINATOR);
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /**
@@ -5785,7 +5871,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writePackedBlockPosition(out, at.x(), at.y(), at.z());
         out.writeInt(data);
         out.writeBoolean(false); // not global
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /**
@@ -5825,7 +5911,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writePackedBlockPosition(out, blockPos.x(), blockPos.y(), blockPos.z());
         out.writeInt(0); // data
         out.writeBoolean(false); // not global
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /**
@@ -5855,7 +5941,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeByte(0); // pitch: the client re-aims from velocity
         out.writeByte(0); // yaw
         out.writeInt(0); // objectData: bare
-        channel.writeAndFlush(out);
+        enqueueOut(out);
         // The synced slot-8 item (registerSyncedData line 55: the payload
         // stack the client's burst reads — METADATA_TYPE_SLOT 5).
         ByteBuf meta = Unpooled.buffer(24);
@@ -5864,7 +5950,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         meta.writeByte((Protocol18.METADATA_TYPE_SLOT << 5) | 8);
         writeSlot(meta, rocket.payload());
         meta.writeByte(Protocol18.METADATA_TERMINATOR);
-        channel.writeAndFlush(meta);
+        enqueueOut(meta);
         // The tracker's syncVelocity arm: the launch velocity rides the
         // spawn (the client integrates its own copy between the syncs).
         ByteBuf velocity = Unpooled.buffer(16);
@@ -5873,7 +5959,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         velocity.writeShort((int) Math.round(rocket.velocityX() * 8000.0));
         velocity.writeShort((int) Math.round(rocket.velocityY() * 8000.0));
         velocity.writeShort((int) Math.round(rocket.velocityZ() * 8000.0));
-        channel.writeAndFlush(velocity);
+        enqueueOut(velocity);
     }
 
     /**
@@ -5893,7 +5979,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeShort((int) Math.round(rocket.velocityX() * 8000.0));
         out.writeShort((int) Math.round(rocket.velocityY() * 8000.0));
         out.writeShort((int) Math.round(rocket.velocityZ() * 8000.0));
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /**
@@ -5916,7 +6002,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeVarInt(out, Protocol18.S2C_ENTITY_STATUS);
         ByteBufOps.writeVarInt(out, rocket.entityId());
         out.writeByte(net.zaminmc.torch.server.fireworks.FireworksEntity.EVENT_BURST);
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /** Removes a burst rocket from this observer (the Destroy Entities). */
@@ -5960,7 +6046,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeByte((int) Math.floor(eye.rotation().pitch() * 256.0 / 360.0));
         out.writeByte((int) Math.floor(eye.rotation().yaw() * 256.0 / 360.0));
         out.writeInt(0); // objectData: bare
-        channel.writeAndFlush(out);
+        enqueueOut(out);
         // The tracker's syncVelocity arm (EntityMap's interval 4).
         ByteBuf velocity = Unpooled.buffer(16);
         ByteBufOps.writeVarInt(velocity, Protocol18.S2C_ENTITY_VELOCITY);
@@ -5968,7 +6054,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         velocity.writeShort((int) Math.round(eye.velocityX() * 8000.0));
         velocity.writeShort((int) Math.round(eye.velocityY() * 8000.0));
         velocity.writeShort((int) Math.round(eye.velocityZ() * 8000.0));
-        channel.writeAndFlush(velocity);
+        enqueueOut(velocity);
         if (withThrowEvent) {
             // The throw's 1002 (the fire-charge smoke at the player's own
             // position — the eye's spawn point). The eye system is
@@ -5995,7 +6081,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeShort((int) Math.round(eye.velocityX() * 8000.0));
         out.writeShort((int) Math.round(eye.velocityY() * 8000.0));
         out.writeShort((int) Math.round(eye.velocityZ() * 8000.0));
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /**
@@ -6024,7 +6110,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                 | Protocol18.ENDERMAN_SCREAMING_METADATA_INDEX);
         out.writeByte(mob.endermanAngry() ? 1 : 0);
         out.writeByte(Protocol18.METADATA_TERMINATOR);
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /**
@@ -6074,7 +6160,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             out.writeInt(mob.guardianBeamTargetId());
         }
         out.writeByte(Protocol18.METADATA_TERMINATOR);
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /**
@@ -6088,13 +6174,22 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         if (channel == null || !channel.isActive() || state != WireState.PLAY) {
             return;
         }
+        enqueueOut(encodeWorldEvent(eventId, x, y, z, data, global));
+    }
+
+    /**
+     * The World Event's byte form (0x21): i32 eventId, the packed block
+     * position, i32 data, bool global. The encode-once primitive's builder
+     * (§35.3).
+     */
+    private static ByteBuf encodeWorldEvent(int eventId, int x, int y, int z, int data, boolean global) {
         ByteBuf out = Unpooled.buffer(24);
         ByteBufOps.writeVarInt(out, Protocol18.S2C_WORLD_EVENT);
         out.writeInt(eventId);
         ByteBufOps.writePackedBlockPosition(out, x, y, z);
         out.writeInt(data);
         out.writeBoolean(global);
-        channel.writeAndFlush(out);
+        return out;
     }
 
     /**
@@ -6116,7 +6211,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeVarInt(out, Protocol18.S2C_ANIMATION);
         ByteBufOps.writeVarInt(out, mob.entityId());
         out.writeByte(0); // animation 0: the arm swing
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /**
@@ -6141,7 +6236,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeVarInt(out, Protocol18.S2C_ANIMATION);
         ByteBufOps.writeVarInt(out, mob.entityId());
         out.writeByte(animation);
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /**
@@ -6158,7 +6253,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeVarInt(out, Protocol18.S2C_ANIMATION);
         ByteBufOps.writeVarInt(out, ownEntityId);
         out.writeByte(animation);
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /**
@@ -6179,7 +6274,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeVarInt(out, Protocol18.S2C_ANIMATION);
         ByteBufOps.writeVarInt(out, entityId);
         out.writeByte(animation);
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /**
@@ -6197,7 +6292,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeVarInt(out, Protocol18.S2C_USE_BED);
         ByteBufOps.writeVarInt(out, ownEntityId);
         ByteBufOps.writePackedBlockPosition(out, bedHead.x(), bedHead.y(), bedHead.z());
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /**
@@ -6220,7 +6315,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeVarInt(out, Protocol18.S2C_USE_BED);
         ByteBufOps.writeVarInt(out, entityId);
         ByteBufOps.writePackedBlockPosition(out, bedHead.x(), bedHead.y(), bedHead.z());
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /**
@@ -6254,7 +6349,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeFloat((float) motion[0]);
         out.writeFloat((float) motion[1]);
         out.writeFloat((float) motion[2]);
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /**
@@ -6293,7 +6388,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             teleport.writeByte(angleBytes(mob.yaw()));
             teleport.writeByte(0);
             teleport.writeBoolean(mob.onGround());
-            channel.writeAndFlush(teleport);
+            enqueueOut(teleport);
         } else if (moved) {
             ByteBuf out = Unpooled.buffer(24);
             ByteBufOps.writeVarInt(out, Protocol18.S2C_REL_ENTITY_MOVE_LOOK);
@@ -6304,13 +6399,13 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             out.writeByte(angleBytes(mob.yaw()));
             out.writeByte(0); // pitch
             out.writeBoolean(mob.onGround());
-            channel.writeAndFlush(out);
+            enqueueOut(out);
         }
         ByteBuf head = Unpooled.buffer(8);
         ByteBufOps.writeVarInt(head, Protocol18.S2C_ENTITY_HEAD_LOOK);
         ByteBufOps.writeVarInt(head, mob.entityId());
         head.writeByte(angleBytes(mob.headYaw()));
-        channel.writeAndFlush(head);
+        enqueueOut(head);
 
         last[0] = x;
         last[1] = y;
@@ -6333,7 +6428,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeVarInt(out, Protocol18.S2C_ENTITY_STATUS);
         out.writeInt(mob.entityId());
         out.writeByte(status);
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /** Entity Status (0x1A) for a vehicle body (the hurt flash on a hit). */
@@ -6346,7 +6441,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeVarInt(out, Protocol18.S2C_ENTITY_STATUS);
         out.writeInt(vehicle.entityId());
         out.writeByte(status);
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /** Entity Status for this client's own body (the hurt flash on being hit). */
@@ -6359,7 +6454,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeVarInt(out, Protocol18.S2C_ENTITY_STATUS);
         out.writeInt(ownEntityId);
         out.writeByte(status);
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /** Entity Status for a tracked remote player (the observer's hurt flash). */
@@ -6376,7 +6471,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeVarInt(out, Protocol18.S2C_ENTITY_STATUS);
         out.writeInt(entityId);
         out.writeByte(status);
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /**
@@ -6396,7 +6491,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeShort((int) Math.round(vx * 8000.0));
         out.writeShort((int) Math.round(vy * 8000.0));
         out.writeShort((int) Math.round(vz * 8000.0));
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /**
@@ -6471,6 +6566,16 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         if (channel == null || !channel.isActive() || state != WireState.PLAY) {
             return;
         }
+        enqueueOut(encodeSound(soundName, position, volume, pitch));
+    }
+
+    /**
+     * The Named Sound Effect's byte form (0x29): string name, i32 xyz at
+     * 1/8 block units, f32 volume, u8 pitch. The encode-once primitive's
+     * builder — the same bytes every recipient receives, whoever the
+     * eligible observer is (§35.3).
+     */
+    private static ByteBuf encodeSound(String soundName, Position position, float volume, float pitch) {
         ByteBuf out = Unpooled.buffer(32 + soundName.length());
         ByteBufOps.writeVarInt(out, Protocol18.S2C_NAMED_SOUND_EFFECT);
         ByteBufOps.writeString(out, soundName);
@@ -6479,7 +6584,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeInt((int) Math.floor(position.z() * 8.0));
         out.writeFloat(volume);
         out.writeByte(Math.round(pitch * 63.0f)); // u8 0-63 around 1.0 = 63
-        channel.writeAndFlush(out);
+        return out;
     }
 
     /**
@@ -6494,6 +6599,18 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         if (channel == null || !channel.isActive() || state != WireState.PLAY) {
             return;
         }
+        enqueueOut(encodeParticles(particleId, longDistance, position,
+                offsetX, offsetY, offsetZ, particleData, count, data));
+    }
+
+    /**
+     * The World Particles' byte form (0x2B): i32 id, bool longDistance,
+     * f32 xyz, f32 offset xyz, f32 data, i32 count, then the crack
+     * families' extra varints. The encode-once primitive's builder (§35.3).
+     */
+    private static ByteBuf encodeParticles(int particleId, boolean longDistance, Position position,
+                                           float offsetX, float offsetY, float offsetZ,
+                                           float particleData, int count, int[] data) {
         ByteBuf out = Unpooled.buffer(48);
         ByteBufOps.writeVarInt(out, Protocol18.S2C_WORLD_PARTICLES);
         out.writeInt(particleId);
@@ -6514,133 +6631,137 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             // The shards: one combined state varint (id | meta << 12).
             ByteBufOps.writeVarInt(out, data.length > 0 ? data[0] : 0);
         }
-        channel.writeAndFlush(out);
+        return out;
     }
 
     /**
-     * Delivers one engine FX event to this observer: dimension-gated by the
-     * event's own world (Wave TF-12 — the reference's PlayerManager.sendPacket
-     * lines 630-640: {@code serverplayerentity.dimension == dimension} ahead
-     * of the range test, the listener resolving
-     * {@code this.world.dimension.getId()} — a sound, particle, or world
-     * event NEVER crosses dimensions however near the same coordinates sit),
-     * then distance-culled by the reference's own per-kind ranges
-     * (ServerWorldEventListener.playSound line 44:
-     * {@code volume > 1.0F ? 16 * volume : 16} for sounds;
-     * ServerWorld.addParticle lines 930-936: 16 blocks for the particle
-     * family, 256 for the ignore-distance kinds), translated from the
-     * semantic bus into this protocol's packets. Any thread.
+     * The FX event's eligibility gate for THIS observer — the recipient law
+     * split from the encode (§35.7: the simulation's tracking decides
+     * recipients; the transport distributes): the session must exist, the
+     * Wave TF-12 dimension order (the reference's PlayerManager.sendPacket
+     * lines 630-640: {@code serverplayerentity.dimension == dimension}
+     * ahead of the range test — a sound, particle, or world event NEVER
+     * crosses dimensions however near the same coordinates sit), the
+     * exempt-session skip (the reference's playSound(Entity except, ...)
+     * overload), the unknown-legacy-id families' nobody-gets-it law, and
+     * the reference's own per-kind ranges (ServerWorldEventListener
+     * .playSound line 44: {@code volume > 1.0F ? 16 * volume : 16} for
+     * sounds; ServerWorld.addParticle lines 930-936: 16 blocks for the
+     * particle family; PlayerManager.sendPacket's 64 for the world events).
+     * Any thread.
      */
-    void deliverFx(net.zaminmc.torch.server.fx.FxManager.FxEvent event,
-                   net.zaminmc.torch.server.player.PlayerSession observer) {
+    boolean fxEligible(net.zaminmc.torch.server.fx.FxManager.FxEvent event,
+                       net.zaminmc.torch.server.player.PlayerSession observer) {
         if (observer == null) {
-            return;
+            return false;
         }
         // Wave TF-12 — the reference's own gate order (the dimension test
         // inside the send loop, ahead of the squared-distance test): the
         // observer standing in another world never hears this event.
         if (event.dimension() != dimensionOfSession()) {
-            return;
+            return false;
         }
         Position at;
         if (event instanceof net.zaminmc.torch.server.fx.FxManager.Sound sound) {
             at = sound.position();
-            if (beyondRange(observer, at, soundRange(sound.volume()))) {
-                return;
-            }
-            sendSound(sound.name(), sound.position(), sound.volume(), sound.pitch());
+            return !beyondRange(observer, at, soundRange(sound.volume()));
         } else if (event instanceof net.zaminmc.torch.server.fx.FxManager.SoundExcept except) {
             // The reference's playSound(Entity except, ...) overload: the
             // exempt session's own observer never hears it (GiveCommand's
             // pop at the granted player); everyone else rides the same
             // range law and packet.
             if (observer == except.exempt()) {
-                return;
+                return false;
             }
             at = except.position();
-            if (beyondRange(observer, at, soundRange(except.volume()))) {
-                return;
-            }
-            sendSound(except.name(), except.position(), except.volume(), except.pitch());
+            return !beyondRange(observer, at, soundRange(except.volume()));
         } else if (event instanceof net.zaminmc.torch.server.fx.FxManager.BlockShatter shatter) {
-            at = shatter.position();
-            if (beyondRange(observer, at, PARTICLE_RANGE)) {
-                return;
-            }
+            return !beyondRange(observer, shatter.position(), PARTICLE_RANGE)
+                    && LegacyBlockIds.legacyId(shatter.block().identifier()).isPresent();
+        } else if (event instanceof net.zaminmc.torch.server.fx.FxManager.StandShatter burst) {
+            return !beyondRange(observer, burst.position(), PARTICLE_RANGE);
+        } else if (event instanceof net.zaminmc.torch.server.fx.FxManager.ItemShatter crumbs) {
+            return !beyondRange(observer, crumbs.position(), PARTICLE_RANGE)
+                    && LegacyBlockIds.legacyItemId(crumbs.stack().type().identifier()).isPresent();
+        } else if (event instanceof net.zaminmc.torch.server.fx.FxManager.Poof poof) {
+            return !beyondRange(observer, poof.position(), PARTICLE_RANGE);
+        } else if (event instanceof net.zaminmc.torch.server.fx.FxManager.Smoke smoke) {
+            return !beyondRange(observer, smoke.position(), PARTICLE_RANGE);
+        } else if (event instanceof net.zaminmc.torch.server.fx.FxManager.PotionSplash splash) {
+            return !beyondRange(observer, splash.position(), PARTICLE_RANGE);
+        } else if (event instanceof net.zaminmc.torch.server.fx.FxManager.WorldEvent worldEvent) {
+            return !beyondRange(observer, worldEvent.position(), EVENT_RANGE);
+        }
+        return false;
+    }
+
+    /**
+     * The FX family's encode-once builder (§35.3): one semantic bus event
+     * becomes ONE packet, identical for every eligible observer — the FX
+     * packets carry no per-observer field (no entity ids, no per-recipient
+     * state), so the encode rides once and every eligible queue takes a
+     * share of the same bytes. Null = the event maps to no packet for
+     * anyone (the unknown-legacy-id families). Any thread.
+     */
+    static ByteBuf encodeFx(net.zaminmc.torch.server.fx.FxManager.FxEvent event) {
+        if (event instanceof net.zaminmc.torch.server.fx.FxManager.Sound sound) {
+            return encodeSound(sound.name(), sound.position(), sound.volume(), sound.pitch());
+        } else if (event instanceof net.zaminmc.torch.server.fx.FxManager.SoundExcept except) {
+            return encodeSound(except.name(), except.position(), except.volume(), except.pitch());
+        } else if (event instanceof net.zaminmc.torch.server.fx.FxManager.BlockShatter shatter) {
             Integer legacy = LegacyBlockIds.legacyId(shatter.block().identifier()).orElse(null);
             if (legacy == null) {
-                return;
+                return null;
             }
             // blockcrack's data varint = (legacy id & 0xFFF) | (meta << 12);
             // this engine's blocks carry no metadata variants yet.
-            sendParticles(Protocol18.PARTICLE_BLOCK_CRACK, false, at,
+            return encodeParticles(Protocol18.PARTICLE_BLOCK_CRACK, false, shatter.position(),
                     0.4f, 0.4f, 0.4f, 0.3f, 20, new int[]{legacy & 0xFFF});
         } else if (event instanceof net.zaminmc.torch.server.fx.FxManager.StandShatter burst) {
-            at = burst.position();
-            if (beyondRange(observer, at, PARTICLE_RANGE)) {
-                return;
-            }
             // The armor stand's breaking burst (addBreakingParticles):
             // BLOCK_DUST over the PLANKS state (Block.serialize = 5),
             // count 10, the stand-box offsets 0.125 x 0.494 x 0.125,
             // speed 0.05.
-            sendParticles(Protocol18.PARTICLE_BLOCK_DUST, false, at,
+            return encodeParticles(Protocol18.PARTICLE_BLOCK_DUST, false, burst.position(),
                     0.125f, 0.494f, 0.125f, 0.05f, 10, new int[]{5});
         } else if (event instanceof net.zaminmc.torch.server.fx.FxManager.ItemShatter crumbs) {
-            at = crumbs.position();
-            if (beyondRange(observer, at, PARTICLE_RANGE)) {
-                return;
-            }
             Integer legacy = LegacyBlockIds.legacyItemId(crumbs.stack().type().identifier()).orElse(null);
             if (legacy == null) {
-                return;
+                return null;
             }
-            sendParticles(Protocol18.PARTICLE_ICON_CRACK, false, at,
+            return encodeParticles(Protocol18.PARTICLE_ICON_CRACK, false, crumbs.position(),
                     0.3f, 0.3f, 0.3f, 0.15f, 8,
                     new int[]{legacy & 0xFFF, crumbs.stack().damage() & 0xF});
         } else if (event instanceof net.zaminmc.torch.server.fx.FxManager.Poof poof) {
-            at = poof.position();
-            if (beyondRange(observer, at, PARTICLE_RANGE)) {
-                return;
-            }
-            sendParticles(Protocol18.PARTICLE_SNOWBALL_POOF, false, at,
+            return encodeParticles(Protocol18.PARTICLE_SNOWBALL_POOF, false, poof.position(),
                     0.2f, 0.2f, 0.2f, 0.2f, 8, new int[0]);
         } else if (event instanceof net.zaminmc.torch.server.fx.FxManager.Smoke smoke) {
-            at = smoke.position();
-            if (beyondRange(observer, at, PARTICLE_RANGE)) {
-                return;
-            }
             // The reference's own single SMOKE_NORMAL (EnderEyeItem's
             // sixteen-particle band assembles one event per particle —
             // the caller emits each at its own offset).
-            sendParticles(Protocol18.PARTICLE_SMOKE_NORMAL, false, at,
+            return encodeParticles(Protocol18.PARTICLE_SMOKE_NORMAL, false, smoke.position(),
                     0.0f, 0.0f, 0.0f, 0.0f, 1, new int[0]);
         } else if (event instanceof net.zaminmc.torch.server.fx.FxManager.PotionSplash splash) {
-            at = splash.position();
-            if (beyondRange(observer, at, PARTICLE_RANGE)) {
-                return;
-            }
+            Position at = splash.position();
             // The 2002 world event (PotionEntity.onCollision's closing
             // doEvent): the data carries the potion value — the client
             // spawns the item-crack crumbs and the color-tinted spell
             // burst from it, and the instants tint the spell family.
-            sendWorldEvent(Protocol18.WORLD_EVENT_POTION_SPLASH,
+            return encodeWorldEvent(Protocol18.WORLD_EVENT_POTION_SPLASH,
                     (int) Math.floor(at.x()), (int) Math.floor(at.y()),
                     (int) Math.floor(at.z()), splash.potionData(), false);
         } else if (event instanceof net.zaminmc.torch.server.fx.FxManager.WorldEvent worldEvent) {
-            at = worldEvent.position();
-            if (beyondRange(observer, at, EVENT_RANGE)) {
-                return;
-            }
+            Position at = worldEvent.position();
             // The reference's own doEvent (World lines 2609-2627): the
             // WorldEvent packet over the 64-block event radius — the
             // dispense smoke's 2000 (the client's ten smoke puffs
             // oriented by the facing data) and the bone meal's 2005
             // (DyeItem.spawnParticles' fifteen happy-villager sparks).
-            sendWorldEvent(worldEvent.eventId(),
+            return encodeWorldEvent(worldEvent.eventId(),
                     (int) Math.floor(at.x()), (int) Math.floor(at.y()),
                     (int) Math.floor(at.z()), worldEvent.data(), false);
         }
+        return null;
     }
 
     /**
@@ -6678,7 +6799,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeVarInt(out, Protocol18.S2C_DESTROY_ENTITIES);
         ByteBufOps.writeVarInt(out, 1);
         ByteBufOps.writeVarInt(out, mobEntityId);
-        channel.writeAndFlush(out);
+        enqueueOut(out);
         mobSyncState.remove(mobEntityId);
     }
 
@@ -6756,7 +6877,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             out.writeShort((int) Math.round(projectile.velocityY() * 8000.0));
             out.writeShort((int) Math.round(projectile.velocityZ() * 8000.0));
         }
-        channel.writeAndFlush(out);
+        enqueueOut(out);
         if (projectile.kind() == net.zaminmc.torch.server.entity.projectile.ProjectileEntity.Kind.WITHER_SKULL) {
             // The skull's charged byte (WitherSkullEntity
             // .registerSyncedData line 100: the synced slot 10 — the
@@ -6768,7 +6889,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             meta.writeByte((Protocol18.METADATA_TYPE_BYTE << 5) | 10);
             meta.writeByte(projectile.charged() ? 1 : 0);
             meta.writeByte(Protocol18.METADATA_TERMINATOR);
-            channel.writeAndFlush(meta);
+            enqueueOut(meta);
         }
     }
 
@@ -6796,7 +6917,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeByte(0); // yaw
         out.writeByte(0); // pitch
         out.writeBoolean(true); // onGround
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /**
@@ -6816,7 +6937,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeShort((int) Math.round(projectile.velocityX() * 8000.0));
         out.writeShort((int) Math.round(projectile.velocityY() * 8000.0));
         out.writeShort((int) Math.round(projectile.velocityZ() * 8000.0));
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /**
@@ -6862,7 +6983,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5) | Protocol18.LIVING_FLAGS_METADATA_INDEX);
         out.writeByte(projectile.burning() ? Protocol18.LIVING_FLAG_BURNING : 0);
         out.writeByte(Protocol18.METADATA_TERMINATOR);
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /**
@@ -6883,7 +7004,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeVarInt(out, Protocol18.S2C_DESTROY_ENTITIES);
         ByteBufOps.writeVarInt(out, 1);
         ByteBufOps.writeVarInt(out, projectile.entityId());
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /**
@@ -6935,7 +7056,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             out.writeShort((int) (vy * 8000.0));
             out.writeShort((int) (vz * 8000.0));
         }
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /** The reference's ±3.9 velocity clamp (AddEntityS2CPacket's d3). */
@@ -6962,7 +7083,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeVarInt(out, Protocol18.S2C_ENTITY_STATUS);
         ByteBufOps.writeVarInt(out, cart.entityId());
         out.writeByte(10); // doEntityEvent(this, (byte) 10) — the prime
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /**
@@ -6986,7 +7107,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeVarInt(out, Protocol18.S2C_ENTITY_STATUS);
         ByteBufOps.writeVarInt(out, cart.entityId());
         out.writeByte(1); // doEntityEvent(this, (byte) 1) — the spin reset
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /**
@@ -7020,7 +7141,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeShort((int) (clampWireVelocity(bobber.velocityX()) * 8000.0));
         out.writeShort((int) (clampWireVelocity(bobber.velocityY()) * 8000.0));
         out.writeShort((int) (clampWireVelocity(bobber.velocityZ()) * 8000.0));
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /**
@@ -7041,7 +7162,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeVarInt(out, Protocol18.S2C_DESTROY_ENTITIES);
         ByteBufOps.writeVarInt(out, 1);
         ByteBufOps.writeVarInt(out, bobber.entityId());
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /**
@@ -7085,7 +7206,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                     cart.lastOutput() == null ? "" : "{\"text\":\"" + escapeJson(cart.lastOutput()) + "\"}");
         }
         meta.writeByte(Protocol18.METADATA_TERMINATOR);
-        channel.writeAndFlush(meta);
+        enqueueOut(meta);
     }
 
     /** The minimal JSON string escape (the last output's text component). */
@@ -7166,7 +7287,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeVarInt(out, Protocol18.S2C_DESTROY_ENTITIES);
         ByteBufOps.writeVarInt(out, 1);
         ByteBufOps.writeVarInt(out, vehicle.entityId());
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /**
@@ -7231,7 +7352,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeInt(riderId);
         out.writeInt(vehicleId);
         out.writeByte(riding ? 1 : 0);
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /**
@@ -7262,7 +7383,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeShort(0); // velocity x
         out.writeShort(0); // velocity y
         out.writeShort(0); // velocity z
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /** Destroy Entities (0x13) for one removed leash knot. Any thread. */
@@ -7275,7 +7396,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeVarInt(out, Protocol18.S2C_DESTROY_ENTITIES);
         ByteBufOps.writeVarInt(out, 1);
         ByteBufOps.writeVarInt(out, knotEntityId);
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /**
@@ -7310,7 +7431,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeShort(0); // velocity x
         out.writeShort(0); // velocity y
         out.writeShort(0); // velocity z
-        channel.writeAndFlush(out);
+        enqueueOut(out);
         // The frame's tracked data (the reference sends it on the tracker's
         // next tick; riding the spawn keeps the join view one packet).
         ByteBuf meta = Unpooled.buffer(24);
@@ -7323,7 +7444,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         meta.writeByte((Protocol18.METADATA_TYPE_BYTE << 5) | 9);
         meta.writeByte(frame.rotation());
         meta.writeByte(Protocol18.METADATA_TERMINATOR);
-        channel.writeAndFlush(meta);
+        enqueueOut(meta);
     }
 
     /** Destroy Entities (0x13) for one removed item frame. Any thread. */
@@ -7336,7 +7457,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeVarInt(out, Protocol18.S2C_DESTROY_ENTITIES);
         ByteBufOps.writeVarInt(out, 1);
         ByteBufOps.writeVarInt(out, frameEntityId);
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /**
@@ -7356,7 +7477,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         meta.writeByte((Protocol18.METADATA_TYPE_SLOT << 5) | 8);
         writeSlot(meta, frame.display());
         meta.writeByte(Protocol18.METADATA_TERMINATOR);
-        channel.writeAndFlush(meta);
+        enqueueOut(meta);
     }
 
     /**
@@ -7376,7 +7497,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         meta.writeByte((Protocol18.METADATA_TYPE_BYTE << 5) | 9);
         meta.writeByte(frame.rotation());
         meta.writeByte(Protocol18.METADATA_TERMINATOR);
-        channel.writeAndFlush(meta);
+        enqueueOut(meta);
     }
 
     /**
@@ -7402,7 +7523,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeString(out, painting.motive().name);
         out.writeLong(packed);
         out.writeByte(painting.facing());
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /** Destroy Entities (0x13) for one removed painting. Any thread. */
@@ -7415,7 +7536,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeVarInt(out, Protocol18.S2C_DESTROY_ENTITIES);
         ByteBufOps.writeVarInt(out, 1);
         ByteBufOps.writeVarInt(out, paintingEntityId);
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /**
@@ -7452,7 +7573,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeShort(0); // velocity x
         out.writeShort(0); // velocity y
         out.writeShort(0); // velocity z
-        channel.writeAndFlush(out);
+        enqueueOut(out);
         sendStandMetadata(channel, stand);
         // The five Entity Equipment packets (the join view's own order).
         for (int slot = 0; slot < 5; slot++) {
@@ -7481,7 +7602,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         writePoseEntry(meta, 15, stand.leftLeg());
         writePoseEntry(meta, 16, stand.rightLeg());
         meta.writeByte(Protocol18.METADATA_TERMINATOR);
-        channel.writeAndFlush(meta);
+        enqueueOut(meta);
     }
 
     /** One pose entry (the wire's Rotation type: three floats). */
@@ -7503,7 +7624,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeVarInt(out, Protocol18.S2C_DESTROY_ENTITIES);
         ByteBufOps.writeVarInt(out, 1);
         ByteBufOps.writeVarInt(out, standEntityId);
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /**
@@ -7541,7 +7662,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeShort(0); // velocity x
         out.writeShort(0); // velocity y
         out.writeShort(0); // velocity z
-        channel.writeAndFlush(out);
+        enqueueOut(out);
         sendCrystalMetadata(channel, crystal);
     }
 
@@ -7557,7 +7678,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         meta.writeByte((Protocol18.METADATA_TYPE_INT << 5) | 8);
         meta.writeInt(crystal.health());
         meta.writeByte(Protocol18.METADATA_TERMINATOR);
-        channel.writeAndFlush(meta);
+        enqueueOut(meta);
     }
 
     /** The crystal's Destroy Entities (the pop). Any thread. */
@@ -7570,7 +7691,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeVarInt(out, Protocol18.S2C_DESTROY_ENTITIES);
         ByteBufOps.writeVarInt(out, 1);
         ByteBufOps.writeVarInt(out, crystalEntityId);
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /**
@@ -7637,7 +7758,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeInt(mob.entityId());
         out.writeInt(vehicleId);
         out.writeByte(1);
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /**
@@ -7669,7 +7790,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5) | Protocol18.LIVING_FLAGS_METADATA_INDEX);
         out.writeByte(flags);
         out.writeByte(Protocol18.METADATA_TERMINATOR);
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /** Animation (0x0B) code 0: the arm swing, aimed at one observer's id space. */
@@ -7682,7 +7803,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeVarInt(out, Protocol18.S2C_ANIMATION);
         ByteBufOps.writeVarInt(out, observerLocalEntityId);
         out.writeByte(Protocol18.ANIMATION_ARM_SWING);
-        channel.writeAndFlush(out);
+        enqueueOut(out);
     }
 
     /** Angle float degrees -> the wire's i8 1/256-turn encoding. */
@@ -7698,6 +7819,8 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
      */
     private static final class ChunkTracker {
 
+        /** The owning connection — the tracker's writes join the same outbound queue (the FIFO law). */
+        private final V18Connection owner;
         private final EngineServer engine;
         private final Channel channel;
         private final java.util.Set<Long> sent = new java.util.HashSet<>();
@@ -7737,7 +7860,8 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             int dirtySections;
         }
 
-        ChunkTracker(EngineServer engine, Channel channel) {
+        ChunkTracker(V18Connection owner, EngineServer engine, Channel channel) {
+            this.owner = owner;
             this.engine = engine;
             this.channel = channel;
         }
@@ -7937,7 +8061,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                     encoded & 255,
                     position.z() * 16 + (encoded >> 8 & 15));
             ByteBufOps.writeVarInt(out, packedStateId);
-            channel.writeAndFlush(out);
+            owner.enqueueOut(out);
         }
 
         /**
@@ -7955,7 +8079,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                 out.writeShort(pending.positions[i]);
                 ByteBufOps.writeVarInt(out, pending.stateIds[i]);
             }
-            channel.writeAndFlush(out);
+            owner.enqueueOut(out);
         }
 
         /**
@@ -7980,7 +8104,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             out.writeShort(mask);
             ByteBufOps.writeVarInt(out, data.length);
             out.writeBytes(data);
-            channel.writeAndFlush(out);
+            owner.enqueueOut(out);
         }
 
         private void forEachInRadius(int radius, java.util.function.Consumer<ChunkPosition> action) {
@@ -8058,7 +8182,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             out.writeShort(ChunkSerializer18.sectionBitmask(chunk));
             ByteBufOps.writeVarInt(out, data.length);
             out.writeBytes(data);
-            channel.writeAndFlush(out);
+            owner.enqueueOut(out);
             replayChunkTiles(chunk);
             if (wirePublishStart != 0L) {
                 wirePublishProfiler.recordSectionSpan("root.wirePublish",
@@ -8082,7 +8206,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             // replay is the overworld's walk.
             if (dimension == 0) {
                 for (var entry : engine.signs().inChunk(chunk.position())) {
-                    writeSignUpdate(channel, entry.getKey(), entry.getValue());
+                    owner.enqueueOut(encodeSignUpdate(entry.getKey(), entry.getValue()));
                 }
             }
             // The spawner tile replay (Slice 18e — the same protocol 47
@@ -8095,7 +8219,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             if (spawnerManager != null) {
                 for (var tile : spawnerManager.spawnersIn(chunk.position().packed())) {
                     if (tile.dimension() == dimension) {
-                        writeSpawnerTile(channel, tile);
+                        owner.enqueueOut(encodeSpawnerTile(tile));
                     }
                 }
             }
@@ -8106,7 +8230,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             // reads the levels from it).
             if (dimension == 0 && engine.beacons() != null) {
                 for (var entry : engine.beacons().inChunk(chunk.position())) {
-                    writeBeaconTile(channel, entry.getKey(), entry.getValue());
+                    owner.enqueueOut(encodeBeaconTile(entry.getKey(), entry.getValue()));
                 }
             }
             // The skull tile replay (Slice 60 — the same protocol 47 gap):
@@ -8116,7 +8240,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             // skeleton head).
             if (engine.skulls() != null) {
                 for (var tile : engine.skulls().tilesIn(chunk.position().packed())) {
-                    writeSkullTile(channel, tile);
+                    owner.enqueueOut(encodeSkullTile(tile));
                 }
             }
             // The command tile replay (Slice 73 — the same protocol 47 gap):
@@ -8127,7 +8251,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             // client's own edit GUI reads the live rows from it).
             if (engine.commandBlocks() != null) {
                 for (var entry : engine.commandBlocks().inChunk(chunk.position())) {
-                    writeCommandTile(channel, entry.getKey(), entry.getValue());
+                    owner.enqueueOut(encodeCommandTile(entry.getKey(), entry.getValue()));
                 }
             }
         }
@@ -8225,7 +8349,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             for (byte[] payload : payloads) {
                 out.writeBytes(payload);
             }
-            channel.writeAndFlush(out);
+            owner.enqueueOut(out);
             // Phase C — each column's tile replays under their own span
             // (the single form's per-chunk replay order, column by column —
             // the reference sends the collected BE updates after the bulk,

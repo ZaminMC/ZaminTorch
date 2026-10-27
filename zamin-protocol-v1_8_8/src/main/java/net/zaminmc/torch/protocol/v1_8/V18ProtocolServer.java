@@ -3,6 +3,7 @@ package net.zaminmc.torch.protocol.v1_8;
 import net.zaminmc.torch.util.Position;
 
 import io.netty.bootstrap.ServerBootstrap;
+import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
@@ -1641,12 +1642,39 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                 connection.sendPlayerAttributes(player);
             }
         });
-        // The FX bus: every engine sound/particle event fans out to the
-        // observers inside its feedback radius, translated per event kind.
+        // The FX bus (§35.3/§35.7): every engine sound/particle event fans
+        // out to the observers inside its feedback radius — the recipient
+        // law first (fxEligible, the TF-12 gate order intact), then the
+        // event encodes ONCE (the FX packets carry no per-observer field)
+        // and every eligible connection's outbound queue takes a share of
+        // the same bytes. The transport distributes; it never discovers
+        // recipients.
         server.fx().addListener(event -> {
+            java.util.List<V18Connection> eligible = null;
             for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
-                connection.deliverFx(event, connection.currentSession());
+                if (connection.fxEligible(event, connection.currentSession())) {
+                    if (eligible == null) {
+                        eligible = new java.util.ArrayList<>();
+                    }
+                    eligible.add(connection);
+                }
             }
+            if (eligible == null) {
+                return;
+            }
+            ByteBuf encoded = V18Connection.encodeFx(event);
+            if (encoded == null) {
+                return;
+            }
+            net.zaminmc.torch.transport.EncodedPayload payload =
+                    net.zaminmc.torch.transport.EncodedPayload.of(encoded);
+            for (V18Connection connection : eligible) {
+                connection.enqueueFxShare(payload);
+            }
+            // The creator's base reference drops after the distribution
+            // walk; each queue's ticket releases through its own channel's
+            // consumption or the queue's drop path (§35.4's law).
+            payload.release();
         });
         // Projectile sync: launch (Spawn Object + velocity), per-tick movement
         // (Entity Teleport) and removal (Destroy Entities) fan out the same way.
