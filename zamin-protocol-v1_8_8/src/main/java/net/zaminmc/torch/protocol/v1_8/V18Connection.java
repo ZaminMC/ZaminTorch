@@ -6787,6 +6787,11 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                 || chunkTracker == null) {
             return;
         }
+        // Wave TF-11 — the body's own dimension gates the observer (the
+        // TF-9 item spawn's own gate, generalized).
+        if (dimensionOfSession() != vehicle.dimension()) {
+            return;
+        }
         var blockPos = vehicle.position().toBlockPosition();
         if (!chunkTracker.hasChunk(blockPos.chunkPosition().packed())) {
             return; // observer cannot see that chunk yet
@@ -7013,6 +7018,11 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         if (channel == null || !channel.isActive() || state != WireState.PLAY) {
             return;
         }
+        // Wave TF-11 — the observer in another dimension never tracks this
+        // body (its spawn never reached them).
+        if (dimensionOfSession() != vehicle.dimension()) {
+            return;
+        }
         sendEntityTeleport(vehicle.entityId(), vehicle.position(), vehicle.onGround());
         if (rider == null) {
             return;
@@ -7031,6 +7041,11 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     void sendVehicleRemoved(net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle) {
         Channel channel = adapter.channelOf(this);
         if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        // Wave TF-11 — the observer in another dimension never tracked this
+        // body; a stray Destroy for an unknown id is noise at best.
+        if (dimensionOfSession() != vehicle.dimension()) {
             return;
         }
         ByteBuf out = Unpooled.buffer(8);

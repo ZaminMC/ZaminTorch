@@ -669,7 +669,7 @@ Torch has published development releases, so the initial artifact gate has been 
 
 The engine has substantial reference-driven mechanics and API coverage, tracked in Section 29 and `VANILLA_1_8_8_COMPATIBILITY.md`. The current ledger includes completed Waves A–K, the metadata-variant Wave L (L1–L6), the stairs' two-box geometry (L7), Wave M (the swept-box physics solver across every moving family), the first Phase-6 gameplay lane (P6), the use/dig dispatch law family through N7 (the two-stage use law, the use handler's gates, the use packet's tail, the spawn-protection gate, the teleport window, the dig handler's own gates, and the placement reach bands' retirement — the handler's 64.0 is the only band), the audit-lane ML-018 (the spectator camera: the C2S Spectate handler, the 0x43 Camera packet, the per-tick body follow with the world-stream re-center, all three exits, the broadcastTo visibility law, and the no-clip gate — gamemode 3's core mechanics whole, cross-dimension spectate the honest standing bound), and the vanilla-grade family waves TF/TF-7/TF-8/TF-9 (the tameable owner-aware lane, the census's named tails, the undead daylight burn, and the item-entity family's dimension reads — the 25d shape generalized). That is progress by mechanic, not full Minecraft 1.8.8 compatibility: keep each remaining behavior, difference, test, and status explicit. Do not replace reference behavior with modern defaults or narrow the native API to match an incomplete compatibility layer.
 
-Next work: the cycle-4 ranked audit backlog (the master ledger's demand-named rows) is now landing one row per lane — ML-003, the sign editor open (0x36 on placement), is closed (§29's Wave ML row); the remaining ranked rows stay next work, each on its own evidence-pinned lane. The vanilla-grade census's named lanes are ALL LANDED (§29's Wave TF: the tameable family's owner-aware lane, the dispenser's world-event 2000/2005 arms, the frame's map-marker cleanup) — and the census's family-owned envelopes are landing with their families: Wave TF-9 (2026-10-27) closed the item-entity family's dimension reads whole (the pigman tail's other half — the items and the projectiles now read their own worlds through the generalized 25d shape), and Wave TF-10 (2026-10-27) closed the XP-orb family's the same way (the orb manager riding the shared dimension-aware ground, the spawn stamps, the pickup gate, the wire gates, the bottle's burst carrying the projectile's own dimension).
+Next work: the cycle-4 ranked audit backlog (the master ledger's demand-named rows) is now landing one row per lane — ML-003, the sign editor open (0x36 on placement), is closed (§29's Wave ML row); the remaining ranked rows stay next work, each on its own evidence-pinned lane. The vanilla-grade census's named lanes are ALL LANDED (§29's Wave TF: the tameable family's owner-aware lane, the dispenser's world-event 2000/2005 arms, the frame's map-marker cleanup) — and the census's family-owned envelopes are landing with their families: Wave TF-9 (2026-10-27) closed the item-entity family's dimension reads whole (the pigman tail's other half — the items and the projectiles now read their own worlds through the generalized 25d shape), Wave TF-10 (2026-10-27) closed the XP-orb family's the same way (the orb manager riding the shared dimension-aware ground, the spawn stamps, the pickup gate, the wire gates, the bottle's burst carrying the projectile's own dimension), and Wave TF-11 (2026-10-27) closed the vehicle family's (the ZVD row the store already persisted now riding the body, the dimension-aware VehicleWorldQuery, the vehicleAt filter, the wire gates) — the FX family's sound-broadcast dimension gate is the last standing dimension tail.
 
 ### Phase 5 — Supporting parallel computation — INFRASTRUCTURE IMPLEMENTED; THE WORKLOAD ADOPTION GATES ANSWERED (PATHFINDING REJECTED WITH EVIDENCE; LIGHTING ANSWERED A MEASURED WIN — the contract, the equivalence, and the numbers landed, the wiring itself still demand-named)
 
@@ -689,7 +689,7 @@ THE SECTION TABLE AND THE ATTRIBUTION PASS LANDED (ML-006 + ML-007 — the cycle
 
 Dynamic split/merge and load-driven migration remain future work. First prove migration with in-flight tasks, delayed work, messages, compute results, persistence, shutdown, and stale-generation invalidation; add telemetry and anti-oscillation rules before enabling automatic balancing.
 
-**Next concrete mechanics work:** continue from Section 29: the master ledger's demand-named queue is EMPTY of implementable rows (ML-013, the last — the tick watchdog, landed 2026-10-26 in §29's Wave ML13; ML-008 the /give form aligned the same day; PR #38's audit merge landed 2026-10-23). The 2026-10-26 vanilla-grade census's lanes are ALL LANDED (§29's Waves TF-7 + TF-7-continued, closed whole). Wave ON-1 LANDED 2026-10-26 (DEC-001 executed whole; DEC-002 STAY NATIVE and DEC-003 NO KigPaper config family both stand). Wave TF-8 LANDED 2026-10-27 (§29's Wave TF-8: the undead family's daylight burn 1:1). Wave TF-9 LANDED 2026-10-27 (§29's Wave TF-9: the item-entity family's dimension reads 1:1 — the pigman tail's other half CLOSED, the mob query's 25d shape generalized over the items and the projectiles, the ZID store at v8, the wire's observer-dimension gates). Wave TF-10 LANDED 2026-10-27 (§29's Wave TF-10: the XP-orb family's dimension reads — the orb manager on the shared dimension-aware ground, the stamps, the pickup gate, the wire gates, the XpBottleSink's carry). The stats-family envelope is code-complete (the increments wired at their use sites — the compat file's stale "no stats system yet" notes re-pinned by TF-9). The remaining dimension-read family tails: the VEHICLE family's dimension field (the hit resolver's vehicleAt consult honestly dimension-blind until it carries one) and the FX family's sound-broadcast dimension gate — each its own family slice. The §22 evidence bar holds: no concurrency phase opens without the attribution pass's numbers (ML-007 landed — the verdict: none justified at the current loads).
+**Next concrete mechanics work:** continue from Section 29: the master ledger's demand-named queue is EMPTY of implementable rows (ML-013, the last — the tick watchdog, landed 2026-10-26 in §29's Wave ML13; ML-008 the /give form aligned the same day; PR #38's audit merge landed 2026-10-23). The 2026-10-26 vanilla-grade census's lanes are ALL LANDED (§29's Waves TF-7 + TF-7-continued, closed whole). Wave ON-1 LANDED 2026-10-26 (DEC-001 executed whole; DEC-002 STAY NATIVE and DEC-003 NO KigPaper config family both stand). Wave TF-8 LANDED 2026-10-27 (§29's Wave TF-8: the undead family's daylight burn 1:1). Wave TF-9 LANDED 2026-10-27 (§29's Wave TF-9: the item-entity family's dimension reads 1:1 — the pigman tail's other half CLOSED, the mob query's 25d shape generalized over the items and the projectiles, the ZID store at v8, the wire's observer-dimension gates). Wave TF-10 LANDED 2026-10-27 (§29's Wave TF-10: the XP-orb family's dimension reads — the orb manager on the shared dimension-aware ground, the stamps, the pickup gate, the wire gates, the XpBottleSink's carry). Wave TF-11 LANDED 2026-10-27 (§29's Wave TF-11: the vehicle family's dimension reads — the ZVD row riding the body, the dimension-aware VehicleWorldQuery, the vehicleAt filter, the wire gates). The stats-family envelope is code-complete (the increments wired at their use sites — the compat file's stale "no stats system yet" notes re-pinned by TF-9). The LAST standing dimension-read family tail: the FX family's sound-broadcast dimension gate — its own family slice. The §22 evidence bar holds: no concurrency phase opens without the attribution pass's numbers (ML-007 landed — the verdict: none justified at the current loads).
 
 # 23. COMMITS / PUSHES / RELEASES
 
@@ -3675,7 +3675,7 @@ own tests. Order is by vanilla visibility and dependency, not size.
       StatsCompletenessTest row — coarse_dirt/fern/podzol counting on
       stat rows the 1.8.8 client drops — reproduced on 26d961e1.)
 
-**Next concrete mechanics work:** the master ledger's demand-named queue is empty of implementable rows (ML-013 the tick watchdog landed 2026-10-26, §29's Wave ML13; ML-006/007/021 landed through PR #46; ML-008 aligned 2026-10-26; ML-020 resolved 2026-10-26 — §29's Wave ON-1 landed the online-mode whole; PR #38 merged 2026-10-23). DEC-002 STAY NATIVE indefinitely and DEC-003 NO KigPaper config family both stand. Wave TF-8 landed 2026-10-27 (§29's Wave TF-8: the undead daylight burn 1:1, the ML-100 pigman tail closed). Wave TF-9 landed 2026-10-27 (§29's Wave TF-9: the item-entity family's dimension reads 1:1 — the pigman tail's OTHER half closed, the mob query's 25d shape generalized over the items and the projectiles, the ZID store at v8, the wire's observer-dimension gates; the stats-family envelope verified code-complete with the stale ledger notes re-pinned). Wave TF-10 landed 2026-10-27 (§29's Wave TF-10: the XP-orb family's dimension reads — the ground re-wiring, the stamps, the pickup gate, the wire gates, the bottle's carry). The remainder: the VEHICLE family's dimension field and the FX family's sound-broadcast gate — each only as its family's slice. The §22 evidence bar holds: no concurrency phase opens without the attribution pass's numbers (ML-007 landed — the verdict: none justified at the current loads).
+**Next concrete mechanics work:** the master ledger's demand-named queue is empty of implementable rows (ML-013 the tick watchdog landed 2026-10-26, §29's Wave ML13; ML-006/007/021 landed through PR #46; ML-008 aligned 2026-10-26; ML-020 resolved 2026-10-26 — §29's Wave ON-1 landed the online-mode whole; PR #38 merged 2026-10-23). DEC-002 STAY NATIVE indefinitely and DEC-003 NO KigPaper config family both stand. Wave TF-8 landed 2026-10-27 (§29's Wave TF-8: the undead daylight burn 1:1, the ML-100 pigman tail closed). Wave TF-9 landed 2026-10-27 (§29's Wave TF-9: the item-entity family's dimension reads 1:1 — the pigman tail's OTHER half closed, the mob query's 25d shape generalized over the items and the projectiles, the ZID store at v8, the wire's observer-dimension gates; the stats-family envelope verified code-complete with the stale ledger notes re-pinned). Wave TF-10 landed 2026-10-27 (§29's Wave TF-10: the XP-orb family's dimension reads — the ground re-wiring, the stamps, the pickup gate, the wire gates, the bottle's carry). Wave TF-11 landed 2026-10-27 (§29's Wave TF-11: the vehicle family's dimension reads — the ZVD row riding the body, the dimension-aware VehicleWorldQuery, the vehicleAt filter, the wire gates). The remainder: the FX family's sound-broadcast dimension gate — the last standing dimension tail, its own family slice. The §22 evidence bar holds: no concurrency phase opens without the attribution pass's numbers (ML-007 landed — the verdict: none justified at the current loads).
 
 ## Standing (demand-named, not scheduled)
 
@@ -5215,6 +5215,47 @@ way were repaired inside the wave.
       carries the orbs (the ZOD does not exist; spawnRestored's
       anvil arm keeps the overworld 0 — the row exists for the
       store-carrying future).
+
+## Wave TF-11 — the 2026-10-27 vehicle family's dimension reads 1:1 (the TF-9 shape's third generalization, landed)
+
+- [x] THE FIELD THE STORE ALREADY CARRIED NOW RIDES THE BODY: the
+      VehicleEntity's dimension row (the ZVD v4's own BaseRows field —
+      persisted since Slice 66 but never READ by the physics) gains its
+      setter and every spawn walk stamps it — the eight spawn methods
+      carry the trailing dimension (the §27.7 gate and the listener fan
+      read it BEFORE the spawn publishes, the TF-9 lesson), the player's
+      item placements stamp the session's own dimension, the structure
+      seeding and the dispenser arms and the anvil imports keep their
+      honest overworld 0, and the RESTORE stamps the stored row (the
+      hoisted BaseRows read — a saved nether cart rejoins the nether
+      instead of riding the overworld's same-coordinate rails).
+- [x] EVERY READ CONSULTS IT: the VehicleWorldQuery (the family's own
+      shared surface) becomes dimension-aware exactly like the
+      ShapeGround — the active-dimension flip drives the collision
+      surface, the solid/solidAt/fluid/lava/fire-source/rail reads
+      (the local vehicleCellAt + vehicleProbe forms over
+      worldForSafe), and the water-or-rain consult's rain arm answers
+      the OVERWORLD alone (the roofed dimensions never rain — the
+      reference's own per-world weather); the manager flips it to each
+      body's dimension before every tick walk. The hit resolver's
+      vehicleAt consult filters by the projectile's dimension (the
+      TF-9 javadoc's standing tail retired — the family carries the
+      field). The wire's observer-dimension gates on the vehicle
+      spawn/moved/removed sends.
+- [x] TESTS: VehicleDimensionReadsTest 3/0 (the spawn stamps over
+      three forms, the tick flip per body, the ZVD round trip landing
+      a saved nether boat in the nether). RE-PINS: the
+      VehiclePersistenceTest's base-rows arm — the rail-riding chest
+      cart saves the OVERWORLD 0 now (the pre-lane test pinned a
+      dimension -1 cart resting on the overworld's rail — exactly the
+      dimension-blind physics the lane retired; the -1 round trip
+      itself stays pinned by the new test's restore arm), and the
+      vehicle spawn call sites across the test trees (the trailing 0).
+      REGRESSION NET: the vehicle family whole, the entity package +
+      mount-seats + vehicle-spawn-event + piston families, the
+      vehicle protocol suites (VehicleIntegrationTest +
+      RelogRemountAcceptanceTest), and the bukkit + launcher modules —
+      all green.
 
 # 33. CODEBASE SCALE, CLASS COHESION, AND MAINTAINABILITY
 

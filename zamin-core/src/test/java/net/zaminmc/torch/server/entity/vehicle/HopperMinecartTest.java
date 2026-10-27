@@ -154,7 +154,7 @@ class HopperMinecartTest {
                         .setSlot(0, ItemStack.of(BuiltinItems.DIAMOND, 5));
                 server.vehicles().spawnHopperMinecart(
                         new Position(10.5, 40.06, 10.5),
-                        server.hopper()::hopperCartTransfer);
+                        server.hopper()::hopperCartTransfer, 0);
             });
             await(() -> hopperCartSlotCount(server, 0) >= 1,
                     "the cart pulled the first diamond from the chest above");
@@ -187,7 +187,7 @@ class HopperMinecartTest {
                 server.world().setBlock(new BlockPosition(10, 40, 10), BuiltinBlocks.RAIL);
                 server.vehicles().spawnHopperMinecart(
                         new Position(10.5, 40.06, 10.5),
-                        server.hopper()::hopperCartTransfer);
+                        server.hopper()::hopperCartTransfer, 0);
             });
             await(() -> !server.vehicles().all().isEmpty(), "the cart spawned");
             HopperMinecartEntity cart = (HopperMinecartEntity) server.vehicles().all().get(0);
@@ -227,7 +227,7 @@ class HopperMinecartTest {
         VehicleManager manager = new VehicleManager(GROUND_WORLD,
                 vehicle -> { }, new Random(7), 9000);
         var spawned = (HopperMinecartEntity) manager.spawnHopperMinecart(
-                new Position(12.5, 64.06, 12.5), cart -> true);
+                new Position(12.5, 64.06, 12.5), cart -> true, 0);
         spawned.hopper().setItem(2, ItemStack.of(BuiltinItems.IRON_INGOT, 12));
         spawned.setEnabled(false);
         spawned.setTransferCooldown(3);

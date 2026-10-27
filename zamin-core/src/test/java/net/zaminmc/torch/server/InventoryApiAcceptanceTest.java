@@ -202,7 +202,7 @@ class InventoryApiAcceptanceTest {
             });
             awaitSettled();
             server.ticker().submit(() ->
-                    server.vehicles().spawnChestMinecart(new Position(50.5, 60.06, 50.5)));
+                    server.vehicles().spawnChestMinecart(new Position(50.5, 60.06, 50.5), 0));
             awaitSettled();
 
             World world = server.world();

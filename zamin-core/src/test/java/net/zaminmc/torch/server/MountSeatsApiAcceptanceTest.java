@@ -223,9 +223,9 @@ class MountSeatsApiAcceptanceTest {
         loadSceneChunk();
 
         VehicleEntity cart = server.vehicles().spawnMinecart(
-                new Position(SCENE_X + 0.5, 4, SCENE_Z + 0.5));
+                new Position(SCENE_X + 0.5, 4, SCENE_Z + 0.5), 0);
         VehicleEntity boat = server.vehicles().spawnBoat(
-                new Position(SCENE_X + 1.5, 4, SCENE_Z + 1.5));
+                new Position(SCENE_X + 1.5, 4, SCENE_Z + 1.5), 0);
         int cartId = cart.entityId();
         int boatId = boat.entityId();
 
@@ -233,7 +233,7 @@ class MountSeatsApiAcceptanceTest {
                 "the cart's seat opened for the boat rider");
         // THE ONE-RIDER LAW: the occupied seat refuses a real second rider.
         VehicleEntity secondBoat = server.vehicles().spawnBoat(
-                new Position(SCENE_X + 2.5, 4, SCENE_Z + 2.5));
+                new Position(SCENE_X + 2.5, 4, SCENE_Z + 2.5), 0);
         assertFalse(server.vehicles().mount(cart, secondBoat.entityId()),
                 "the occupied seat refuses the second rider");
 
@@ -281,9 +281,9 @@ class MountSeatsApiAcceptanceTest {
         MobEntity mobRider = server.mobs().spawnAt(MobType.ZOMBIE,
                 new Position(SCENE_X + 2.5, 4, SCENE_Z + 1.5));
         VehicleEntity cart = server.vehicles().spawnMinecart(
-                new Position(SCENE_X + 3.5, 4, SCENE_Z + 0.5));
+                new Position(SCENE_X + 3.5, 4, SCENE_Z + 0.5), 0);
         VehicleEntity boat = server.vehicles().spawnBoat(
-                new Position(SCENE_X + 3.5, 4, SCENE_Z + 1.5));
+                new Position(SCENE_X + 3.5, 4, SCENE_Z + 1.5), 0);
         int itemMountId = itemMount.entityId();
         int genericRiderId = genericRider.entityId();
         int mobMountId = mobMount.entityId();

@@ -174,7 +174,7 @@ class EntityFamilyApiAcceptanceTest {
     void theVehicleAndOrbFamiliesAreReachableThroughTheWorld() throws Exception {
         server = boot();
         join("Sailor");
-        server.vehicles().spawnBoat(new Position(8.5, 8.0, 8.5));
+        server.vehicles().spawnBoat(new Position(8.5, 8.0, 8.5), 0);
         server.experienceOrbs().spawnOrb(new Position(12.5, 8.0, 12.5), 3);
 
         AtomicReference<Vehicle> boat = new AtomicReference<>();

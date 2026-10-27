@@ -291,7 +291,7 @@ class VehicleIntegrationTest extends ProtocolTestBase {
                         new net.zaminmc.torch.block.BlockPosition(bx, by + 1, bz),
                         net.zaminmc.torch.server.block.BuiltinBlocks.FIRE);
                 server.vehicles().spawnMinecart(
-                        new net.zaminmc.torch.util.Position(bx + 0.5, by + 1.0, bz + 0.5));
+                        new net.zaminmc.torch.util.Position(bx + 0.5, by + 1.0, bz + 0.5), 0);
             });
 
             // The spawn (the plain minecart's object type), then the
@@ -332,7 +332,7 @@ class VehicleIntegrationTest extends ProtocolTestBase {
             server.ticker().submit(() -> {
                 var zombie = server.mobs().spawnAt(
                         net.zaminmc.torch.server.entity.MobType.ZOMBIE, spot);
-                var cart = server.vehicles().spawnMinecart(spot);
+                var cart = server.vehicles().spawnMinecart(spot, 0);
                 server.vehicles().mount(cart, zombie.entityId());
                 ids[0] = zombie.entityId();
                 ids[1] = cart.entityId();

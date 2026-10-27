@@ -179,7 +179,7 @@ class SpawnerMinecartTest {
         VehicleManager manager = new VehicleManager(GROUND_WORLD,
                 vehicle -> { }, new Random(9), 9700);
         var spawned = (SpawnerMinecartEntity) manager.spawnSpawnerMinecart(
-                new Position(12.5, 0.35, 12.5), new RecordingHost());
+                new Position(12.5, 0.35, 12.5), new RecordingHost(), 0);
         spawned.setMinSpawnDelay(11);
         spawned.setMaxSpawnDelay(22);
         spawned.setSpawnCount(3);
@@ -208,7 +208,7 @@ class SpawnerMinecartTest {
         VehicleManager manager = new VehicleManager(GROUND_WORLD,
                 vehicle -> { }, new Random(7), 9500);
         var spawned = (SpawnerMinecartEntity) manager.spawnSpawnerMinecart(
-                new Position(12.5, 0.35, 12.5), new RecordingHost());
+                new Position(12.5, 0.35, 12.5), new RecordingHost(), 0);
         spawned.setType(MobType.ZOMBIE);
         spawned.setDelay(137);
         store.save(manager.snapshot());
@@ -271,7 +271,7 @@ class SpawnerMinecartTest {
                                 }
                                 return server.mobs().spawnAt(type, new Position(x, y, z)) != null;
                             }
-                        });
+                        }, 0);
             });
             await(() -> !server.vehicles().all().isEmpty(), "the cart spawned");
             // The 20-tick initial delay, then pigs (the field default).

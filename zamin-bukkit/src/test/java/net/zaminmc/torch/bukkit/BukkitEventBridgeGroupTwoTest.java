@@ -333,7 +333,7 @@ class BukkitEventBridgeGroupTwoTest {
         harness.await(() -> harness.probeLogContains(
                 "event:launch type=ARROW shooter=none"),
                 "the wrapped pending projectile view carried the launch facts");
-        assertNotNull(harness.server.vehicles().spawnBoat(new Position(66, 40, 60)),
+        assertNotNull(harness.server.vehicles().spawnBoat(new Position(66, 40, 60), 0),
                 "the boat spawned through the engine's own surface");
         harness.await(() -> harness.probeLogContains(
                 "event:vehicle type=BOAT at=(66.0,40.0,60.0)"),

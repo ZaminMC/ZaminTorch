@@ -13519,19 +13519,19 @@ public final class EngineServer implements Server, EngineBridge {
             spawnAt = new Position(railCell.x() + 0.5, railCell.y() + 0.06, railCell.z() + 0.5);
         }
         if (boat) {
-            if (vehicleManager.spawnBoat(spawnAt) == null) {
+            if (vehicleManager.spawnBoat(spawnAt, session.dimension()) == null) {
                 return; // the §27.7 gate withheld the boat — the item stays
             }
         } else if (chestCart) {
-            if (vehicleManager.spawnChestMinecart(spawnAt) == null) {
+            if (vehicleManager.spawnChestMinecart(spawnAt, session.dimension()) == null) {
                 return; // the §27.7 gate withheld the cart — the item stays
             }
         } else if (furnaceCart) {
-            if (vehicleManager.spawnFurnaceMinecart(spawnAt) == null) {
+            if (vehicleManager.spawnFurnaceMinecart(spawnAt, session.dimension()) == null) {
                 return; // the §27.7 gate withheld the cart — the item stays
             }
         } else if (tntCart) {
-            if (vehicleManager.spawnTntMinecart(spawnAt) == null) {
+            if (vehicleManager.spawnTntMinecart(spawnAt, session.dimension()) == null) {
                 return; // the §27.7 gate withheld the cart — the item stays
             }
             // The blast sink rides the manager's factory arming (Slice 74):
@@ -13542,11 +13542,12 @@ public final class EngineServer implements Server, EngineBridge {
             // own mouth.
             if (hopperSystem == null
                     || vehicleManager.spawnHopperMinecart(
-                            spawnAt, hopperSystem::hopperCartTransfer) == null) {
+                            spawnAt, hopperSystem::hopperCartTransfer,
+                            session.dimension()) == null) {
                 return; // the §27.7 gate withheld the cart — the item stays
             }
         } else {
-            if (vehicleManager.spawnMinecart(spawnAt) == null) {
+            if (vehicleManager.spawnMinecart(spawnAt, session.dimension()) == null) {
                 return; // the §27.7 gate withheld the cart — the item stays
             }
         }
@@ -13700,7 +13701,8 @@ public final class EngineServer implements Server, EngineBridge {
             return; // minecarts only spawn on rails (the vanilla gate)
         }
         Position spawnAt = new Position(railCell.x() + 0.5, railCell.y() + 0.06, railCell.z() + 0.5);
-        if (vehicleManager.spawnCommandBlockMinecart(spawnAt, commandCartHost()) == null) {
+        if (vehicleManager.spawnCommandBlockMinecart(spawnAt, commandCartHost(),
+                session.dimension()) == null) {
             return; // the §27.7 gate withheld the cart — the item stays
         }
         consumePlaced(session, creativeHeld);
@@ -16801,9 +16803,47 @@ public final class EngineServer implements Server, EngineBridge {
     private final class VehicleWorldQuery
             implements net.zaminmc.torch.server.entity.vehicle.VehicleEntity.WorldQuery {
         /**
-         * The swept-box surface (the physics-solver slice): the overworld
-         * block reads the vehicles clip against — the same one-surface
-         * shape the other families carry.
+         * The active dimension (Wave TF-11 — the reference's Entity.world,
+         * the TF-9 flip generalized): the manager flips it to each body's
+         * own dimension before every tick walk.
+         */
+        private int activeDimension = 0;
+
+        /** The dimension context switch (the manager's per-body flip). */
+        @Override
+        public void setActiveDimension(int dimension) {
+            this.activeDimension = dimension;
+        }
+
+        /** The world the active dimension lives in (the unbooted stand-in: the overworld). */
+        private EngineWorld activeVehicleWorld() {
+            return worldForSafe(activeDimension);
+        }
+
+        /** The floored cell of a point (the engine's own blockAt shape). */
+        private net.zaminmc.torch.block.BlockPosition vehicleCellAt(double x, double y, double z) {
+            return new net.zaminmc.torch.block.BlockPosition(
+                    (int) Math.floor(x), (int) Math.floor(y), (int) Math.floor(z));
+        }
+
+        /** The neighbour probe over the ACTIVE dimension's blocks (the
+         *  shape-aware point test's connection consult). */
+        private CollisionShapes.NeighborProbe vehicleProbe(EngineWorld vehicleWorld,
+                net.zaminmc.torch.block.BlockPosition origin) {
+            return (dx, dy, dz) -> {
+                net.zaminmc.torch.block.BlockPosition at = origin.offset(dx, dy, dz);
+                if (at.y() < net.zaminmc.torch.block.BlockPosition.MIN_Y
+                        || at.y() > net.zaminmc.torch.block.BlockPosition.MAX_Y) {
+                    return null;
+                }
+                return vehicleWorld.getBlock(at);
+            };
+        }
+
+        /**
+         * The swept-box surface (the physics-solver slice): the ACTIVE
+         * dimension's block reads the vehicles clip against — the same
+         * one-surface shape the other families carry.
          */
         private final net.zaminmc.torch.server.physics.EntityCollisionWorld collisionSurface =
                 new net.zaminmc.torch.server.physics.EntityCollisionWorld() {
@@ -16813,13 +16853,13 @@ public final class EngineServer implements Server, EngineBridge {
                                 || y > net.zaminmc.torch.block.BlockPosition.MAX_Y) {
                             return world.airType();
                         }
-                        return world.getBlock(
+                        return activeVehicleWorld().getBlock(
                                 new net.zaminmc.torch.block.BlockPosition(x, y, z));
                     }
 
                     @Override
                     public boolean chunkLoaded(int x, int z) {
-                        return world.isChunkLoadedAt(
+                        return activeVehicleWorld().isChunkLoadedAt(
                                 new net.zaminmc.torch.block.BlockPosition(x, 64, z));
                     }
 
@@ -16836,17 +16876,33 @@ public final class EngineServer implements Server, EngineBridge {
 
         @Override
         public boolean isSolid(double x, double y, double z) {
-            return solidAt(x, y, z);
+            if (y < net.zaminmc.torch.block.BlockPosition.MIN_Y
+                    || y > net.zaminmc.torch.block.BlockPosition.MAX_Y) {
+                return false;
+            }
+            return WorldSolidity.isSolid(activeVehicleWorld().getBlock(vehicleCellAt(x, y, z)));
         }
 
         @Override
         public boolean isSolidAt(double x, double y, double z) {
-            return solidAtPoint(x, y, z);
+            if (y < net.zaminmc.torch.block.BlockPosition.MIN_Y
+                    || y > net.zaminmc.torch.block.BlockPosition.MAX_Y) {
+                return false;
+            }
+            EngineWorld vehicleWorld = activeVehicleWorld();
+            net.zaminmc.torch.block.BlockPosition cell = vehicleCellAt(x, y, z);
+            return WorldSolidity.isSolidAt(vehicleWorld.getBlock(cell),
+                    x, y, z, vehicleProbe(vehicleWorld, cell));
         }
 
         @Override
         public boolean inFluid(double x, double y, double z) {
-            return fluidAt(x, y, z);
+            if (y < net.zaminmc.torch.block.BlockPosition.MIN_Y
+                    || y > net.zaminmc.torch.block.BlockPosition.MAX_Y) {
+                return false;
+            }
+            return FluidBlocks.kindOf(activeVehicleWorld()
+                    .getBlock(vehicleCellAt(x, y, z)).identifier()) != null;
         }
 
         @Override
@@ -16856,7 +16912,7 @@ public final class EngineServer implements Server, EngineBridge {
                 return false;
             }
             return net.zaminmc.torch.server.block.FluidBlocks.kindOf(
-                    world.getBlock(blockAt(x, y, z)).identifier())
+                    activeVehicleWorld().getBlock(vehicleCellAt(x, y, z)).identifier())
                     == net.zaminmc.torch.server.block.FluidBlocks.Kind.LAVA;
         }
 
@@ -16872,7 +16928,7 @@ public final class EngineServer implements Server, EngineBridge {
                     || y > net.zaminmc.torch.block.BlockPosition.MAX_Y) {
                 return false;
             }
-            Identifier id = world.getBlock(blockAt(x, y, z)).identifier();
+            Identifier id = activeVehicleWorld().getBlock(vehicleCellAt(x, y, z)).identifier();
             return net.zaminmc.torch.server.block.WorldSolidity.isFire(id)
                     || net.zaminmc.torch.server.block.FluidBlocks.kindOf(id)
                     == net.zaminmc.torch.server.block.FluidBlocks.Kind.LAVA;
@@ -16883,7 +16939,9 @@ public final class EngineServer implements Server, EngineBridge {
          * {@code isInWaterOrRain}, the fire family's extinguish gate): a
          * water cell at the body, or the rain flag up with the point above
          * its column's surface (the mob query's own isRainingAt shape,
-         * Slice 30d).
+         * Slice 30d). The rain arm answers the OVERWORLD alone (Wave
+         * TF-11 — the roofed dimensions never rain, the reference's own
+         * per-world weather).
          */
         @Override
         public boolean inWaterOrRain(double x, double y, double z) {
@@ -16892,9 +16950,12 @@ public final class EngineServer implements Server, EngineBridge {
                 return false;
             }
             if (net.zaminmc.torch.server.block.FluidBlocks.kindOf(
-                    world.getBlock(blockAt(x, y, z)).identifier())
+                    activeVehicleWorld().getBlock(vehicleCellAt(x, y, z)).identifier())
                     == net.zaminmc.torch.server.block.FluidBlocks.Kind.WATER) {
                 return true;
+            }
+            if (activeDimension != 0) {
+                return false; // the roofed dimensions never rain
             }
             net.zaminmc.torch.server.weather.WeatherSystem weatherNow = weather;
             if (weatherNow == null || !weatherNow.raining()) {
@@ -16910,7 +16971,7 @@ public final class EngineServer implements Server, EngineBridge {
                     || y > net.zaminmc.torch.block.BlockPosition.MAX_Y) {
                 return -1;
             }
-            Identifier id = world.getBlock(blockAt(x, y, z)).identifier();
+            Identifier id = activeVehicleWorld().getBlock(vehicleCellAt(x, y, z)).identifier();
             if (id.equals(BuiltinBlocks.RAIL.identifier())) {
                 return 0; // the north-south rail: travel along Z
             }
@@ -17021,16 +17082,19 @@ public final class EngineServer implements Server, EngineBridge {
         @Override
         public net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicleAt(Position point, int dimension) {
             // Slice 77 — the reference's entity scan over the minecart
-            // family: the box containment (the cart hull's own shape). The
-            // engine's vehicle family carries no dimension field yet —
-            // the consult stays dimension-blind, the family's own standing
-            // tail (Wave TF-9's ledger).
+            // family: the box containment (the cart hull's own shape).
+            // Wave TF-11 — the consult now filters by the projectile's own
+            // dimension (the family carries the field since the ZVD store;
+            // the TF-9 javadoc's standing tail retired).
             net.zaminmc.torch.server.entity.vehicle.VehicleManager manager =
                     vehicleManager;
             if (manager == null) {
                 return null;
             }
             for (net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle : manager.all()) {
+                if (vehicle.dimension() != dimension) {
+                    continue;
+                }
                 if (vehicle.contains(point.x(), point.y(), point.z())) {
                     return vehicle;
                 }
@@ -17512,7 +17576,7 @@ public final class EngineServer implements Server, EngineBridge {
                         }
                         net.zaminmc.torch.server.entity.vehicle.VehicleEntity spawned =
                                 vehicleManager.spawnChestMinecart(new Position(
-                                        pending.x() + 0.5, pending.y() + 0.5, pending.z() + 0.5));
+                                        pending.x() + 0.5, pending.y() + 0.5, pending.z() + 0.5), 0);
                         if (spawned instanceof net.zaminmc.torch.server.entity.vehicle.ChestMinecartEntity cart) {
                             for (net.zaminmc.torch.server.world.structure.StructureWorld.GenLootSlot slot
                                     : pending.slots()) {

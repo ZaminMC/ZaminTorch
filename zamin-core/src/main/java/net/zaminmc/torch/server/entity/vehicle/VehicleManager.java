@@ -194,40 +194,40 @@ public final class VehicleManager {
         return best;
     }
 
-    public VehicleEntity spawnBoat(Position at) {
+    public VehicleEntity spawnBoat(Position at, int dimension) {
         // §27.7's spawn gate: a cancelled boat consumes no id, spawns no
         // body, and withholds the placing item (the caller's contract).
         if (!fireSpawnGate(VehicleEntity.Kind.BOAT.apiKind, at)) {
             return null;
         }
-        return spawn(new BoatEntity(nextEntityId++, at, random));
+        return spawn(new BoatEntity(nextEntityId++, at, random), dimension);
     }
 
-    public VehicleEntity spawnMinecart(Position at) {
+    public VehicleEntity spawnMinecart(Position at, int dimension) {
         if (!fireSpawnGate(VehicleEntity.Kind.MINECART.apiKind, at)) {
             return null;
         }
-        return spawn(new MinecartEntity(nextEntityId++, at, random));
+        return spawn(new MinecartEntity(nextEntityId++, at, random), dimension);
     }
 
     /** The chest minecart (the 27-slot rolling container). */
-    public VehicleEntity spawnChestMinecart(Position at) {
+    public VehicleEntity spawnChestMinecart(Position at, int dimension) {
         if (!fireSpawnGate(VehicleEntity.Kind.CHEST_MINECART.apiKind, at)) {
             return null;
         }
-        return spawn(new ChestMinecartEntity(nextEntityId++, at, random));
+        return spawn(new ChestMinecartEntity(nextEntityId++, at, random), dimension);
     }
 
     /** The furnace minecart (Slice 66 — the coal-fed pusher). */
-    public VehicleEntity spawnFurnaceMinecart(Position at) {
+    public VehicleEntity spawnFurnaceMinecart(Position at, int dimension) {
         if (!fireSpawnGate(VehicleEntity.Kind.FURNACE_MINECART.apiKind, at)) {
             return null;
         }
-        return spawn(new FurnaceMinecartEntity(nextEntityId++, at, random));
+        return spawn(new FurnaceMinecartEntity(nextEntityId++, at, random), dimension);
     }
 
     /** The TNT minecart (Slice 66 — the 80-tick fuse). */
-    public VehicleEntity spawnTntMinecart(Position at) {
+    public VehicleEntity spawnTntMinecart(Position at, int dimension) {
         if (!fireSpawnGate(VehicleEntity.Kind.TNT_MINECART.apiKind, at)) {
             return null;
         }
@@ -237,7 +237,7 @@ public final class VehicleManager {
         // fuse detonation and its death detonation burst nothing after a
         // restart). Every spawn arms the same engine detonation walk.
         cart.setBlastSink(blastSinkFactory.get());
-        return spawn(cart);
+        return spawn(cart, dimension);
     }
 
     /**
@@ -246,11 +246,11 @@ public final class VehicleManager {
      * HopperBlockEntity statics over the cart's mouth).
      */
     public VehicleEntity spawnHopperMinecart(Position at,
-            HopperMinecartEntity.TransferHost host) {
+            HopperMinecartEntity.TransferHost host, int dimension) {
         if (!fireSpawnGate(VehicleEntity.Kind.HOPPER_MINECART.apiKind, at)) {
             return null;
         }
-        return spawn(new HopperMinecartEntity(nextEntityId++, at, random, host));
+        return spawn(new HopperMinecartEntity(nextEntityId++, at, random, host), dimension);
     }
 
     /**
@@ -259,11 +259,11 @@ public final class VehicleManager {
      * count, the unobstructed spawn).
      */
     public VehicleEntity spawnSpawnerMinecart(Position at,
-            SpawnerMinecartEntity.SpawnHost host) {
+            SpawnerMinecartEntity.SpawnHost host, int dimension) {
         if (!fireSpawnGate(VehicleEntity.Kind.SPAWNER_MINECART.apiKind, at)) {
             return null;
         }
-        return spawn(new SpawnerMinecartEntity(nextEntityId++, at, random, host));
+        return spawn(new SpawnerMinecartEntity(nextEntityId++, at, random, host), dimension);
     }
 
     /**
@@ -273,11 +273,11 @@ public final class VehicleManager {
      * the cart's last output).
      */
     public VehicleEntity spawnCommandBlockMinecart(Position at,
-            CommandBlockMinecartEntity.CommandHost host) {
+            CommandBlockMinecartEntity.CommandHost host, int dimension) {
         if (!fireSpawnGate(VehicleEntity.Kind.COMMAND_BLOCK_MINECART.apiKind, at)) {
             return null;
         }
-        return spawn(new CommandBlockMinecartEntity(nextEntityId++, at, random, host));
+        return spawn(new CommandBlockMinecartEntity(nextEntityId++, at, random, host), dimension);
     }
 
     /**
@@ -295,7 +295,10 @@ public final class VehicleManager {
         return !event.cancelled();
     }
 
-    private VehicleEntity spawn(VehicleEntity vehicle) {
+    private VehicleEntity spawn(VehicleEntity vehicle, int dimension) {
+        // Wave TF-11 — the dimension stamps the body BEFORE the listener
+        // fan (the spawn publications read it; the TF-9 lesson).
+        vehicle.setDimension(dimension);
         vehicles.add(vehicle);
         for (Listener listener : listeners) {
             listener.onVehicleSpawned(vehicle);
@@ -530,18 +533,22 @@ public final class VehicleManager {
                 continue;
             }
             Position at = new Position(snapshot.x(), snapshot.y(), snapshot.z());
+            // Wave TF-11 — the stored dimension rides the spawn stamp (the
+            // body joins ITS OWN world; the restoreBaseRows call below
+            // re-lands the whole base band anyway).
+            VehicleManager.BaseRows base = snapshot.base();
             VehicleEntity restored;
             switch (kind) {
-                case BOAT -> restored = spawnBoat(at);
-                case MINECART -> restored = spawnMinecart(at);
-                case CHEST_MINECART -> restored = spawnChestMinecart(at);
-                case FURNACE_MINECART -> restored = spawnFurnaceMinecart(at);
-                case TNT_MINECART -> restored = spawnTntMinecart(at);
+                case BOAT -> restored = spawnBoat(at, base.dimension());
+                case MINECART -> restored = spawnMinecart(at, base.dimension());
+                case CHEST_MINECART -> restored = spawnChestMinecart(at, base.dimension());
+                case FURNACE_MINECART -> restored = spawnFurnaceMinecart(at, base.dimension());
+                case TNT_MINECART -> restored = spawnTntMinecart(at, base.dimension());
                 case HOPPER_MINECART -> {
                     if (hopperHost == null) {
                         continue; // no host wired: the cart cannot suck
                     }
-                    VehicleEntity cart = spawnHopperMinecart(at, hopperHost.get());
+                    VehicleEntity cart = spawnHopperMinecart(at, hopperHost.get(), base.dimension());
                     if (cart instanceof HopperMinecartEntity hopperCart) {
                         hopperCart.setEnabled(snapshot.hopperEnabled());
                         hopperCart.setTransferCooldown(snapshot.hopperCooldown());
@@ -552,7 +559,7 @@ public final class VehicleManager {
                     if (spawnerHost == null) {
                         continue; // no host wired: the cart cannot spawn
                     }
-                    VehicleEntity cart = spawnSpawnerMinecart(at, spawnerHost.get());
+                    VehicleEntity cart = spawnSpawnerMinecart(at, spawnerHost.get(), base.dimension());
                     if (cart instanceof SpawnerMinecartEntity spawnerCart) {
                         // The NBT rows' landing (readNbt's EntityId/Delay):
                         // a null type keeps the reference's own "Pig"
@@ -582,7 +589,7 @@ public final class VehicleManager {
                     if (commandHost == null) {
                         continue; // no host wired: the cart cannot run
                     }
-                    VehicleEntity cart = spawnCommandBlockMinecart(at, commandHost.get());
+                    VehicleEntity cart = spawnCommandBlockMinecart(at, commandHost.get(), base.dimension());
                     if (cart instanceof CommandBlockMinecartEntity commandCart) {
                         // readNbt's rows (executor.readNbt lines 53-74):
                         // Command, SuccessCount, TrackOutput, LastOutput.
@@ -609,7 +616,6 @@ public final class VehicleManager {
                 restored.restoreFireTimer(snapshot.fire());
                 // The base rows (Entity.readNbt's base band — the vehicle
                 // store's v4 round trip).
-                VehicleManager.BaseRows base = snapshot.base();
                 restored.restoreBaseRows(base.uuid(), base.customName(),
                         base.customNameVisible(), base.silent(), base.fallDistance(),
                         base.breath(), base.onGround(), base.invulnerable(),
@@ -662,6 +668,12 @@ public final class VehicleManager {
                 removeVehicle(cursor, vehicle, "broke");
                 continue;
             }
+            // Wave TF-11 — the reference's Entity.world: the shared query
+            // flips to the body's own dimension before every tick walk (the
+            // TF-9 item family's own per-body flip, generalized). A nether
+            // cart rides the nether's rails, never the overworld's
+            // same-coordinate track.
+            world.setActiveDimension(vehicle.dimension());
             long before = fixedPoint(vehicle.position());
             // The burn clock's own arm (Slice 78 — Entity.java lines
             // 320-335, the onUpdate fire arm): the 1.0 ON_FIRE wound every

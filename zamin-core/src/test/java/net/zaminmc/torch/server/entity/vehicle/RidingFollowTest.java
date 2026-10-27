@@ -95,7 +95,7 @@ class RidingFollowTest {
         final net.zaminmc.torch.server.entity.MobEntity[] zombieRef =
                 new net.zaminmc.torch.server.entity.MobEntity[1];
         server.ticker().submit(() -> {
-            var boat = server.vehicles().spawnBoat(ground);
+            var boat = server.vehicles().spawnBoat(ground, 0);
             // A known heading: yaw 90 degrees puts the seat 0.4 south of
             // the hull's center (cos/sin of the yaw in degrees — the
             // reference's own trig, BoatEntity lines 367-371).
@@ -216,7 +216,7 @@ class RidingFollowTest {
     // ------------------------------------------------------------- the helpers
 
     private net.zaminmc.torch.server.entity.vehicle.VehicleEntity spawnCart() {
-        var cart = server.vehicles().spawnMinecart(ground);
+        var cart = server.vehicles().spawnMinecart(ground, 0);
         awaitCart(cart);
         return cart;
     }

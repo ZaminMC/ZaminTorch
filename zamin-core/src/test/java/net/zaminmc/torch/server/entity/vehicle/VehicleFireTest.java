@@ -175,7 +175,7 @@ class VehicleFireTest {
         // crossing arming the 8-second burn — the flags flip publishes.
         Events events = new Events();
         VehicleManager manager = manager(fireWorld(), events);
-        VehicleEntity cart = manager.spawnMinecart(new Position(0.5, 4.5, 0.5));
+        VehicleEntity cart = manager.spawnMinecart(new Position(0.5, 4.5, 0.5), 0);
         assertEquals(4.0f, cart.health(), 1e-6, "the fresh cart is whole");
 
         manager.tick();
@@ -210,7 +210,7 @@ class VehicleFireTest {
         // from the sources).
         Events events = new Events();
         VehicleManager manager = manager(dryWorld(), events);
-        VehicleEntity cart = manager.spawnMinecart(new Position(0.5, 4.5, 0.5));
+        VehicleEntity cart = manager.spawnMinecart(new Position(0.5, 4.5, 0.5), 0);
         for (int i = 0; i < 30; i++) {
             manager.tick();
         }
@@ -227,7 +227,7 @@ class VehicleFireTest {
         // BURNING body drops the burn with the fizz.
         Events events = new Events();
         VehicleManager manager = manager(wetFireWorld(), events);
-        VehicleEntity cart = manager.spawnMinecart(new Position(0.5, 4.5, 0.5));
+        VehicleEntity cart = manager.spawnMinecart(new Position(0.5, 4.5, 0.5), 0);
         // A pre-armed burn (the walk-out-then-splash shape): the wet
         // contact extinguishes it on the first tick.
         cart.setOnFireFor(8);
@@ -252,7 +252,7 @@ class VehicleFireTest {
         // Slice 78 closes the walk's own gap: setOnFireFor(15).
         Events events = new Events();
         VehicleManager manager = manager(lavaWorld(), events);
-        VehicleEntity cart = manager.spawnMinecart(new Position(0.5, 4.5, 0.5));
+        VehicleEntity cart = manager.spawnMinecart(new Position(0.5, 4.5, 0.5), 0);
         manager.tick();
         assertEquals(300, cart.onFireTimer(),
                 "the lava's 15-second burn (the reference's own arm)");

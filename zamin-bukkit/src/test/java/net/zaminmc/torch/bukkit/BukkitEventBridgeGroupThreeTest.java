@@ -238,7 +238,7 @@ class BukkitEventBridgeGroupThreeTest {
         // type carries none; the native gate keeps its own verb).
         var boat = new AtomicReference<net.zaminmc.torch.server.entity.vehicle.VehicleEntity>();
         harness.server.ticker().submit(() ->
-                boat.set(harness.server.vehicles().spawnBoat(new Position(85, 40, 85))));
+                boat.set(harness.server.vehicles().spawnBoat(new Position(85, 40, 85), 0)));
         harness.await(() -> boat.get() != null, "the boat spawned through the engine's surface");
         harness.await(() -> harness.probeLogContains(
                 "event:vehicle type=BOAT at=(85.0,40.0,85.0) primary=true"),
@@ -247,7 +247,7 @@ class BukkitEventBridgeGroupThreeTest {
         // legacy spelling, not the engine identifier).
         var chest = new AtomicReference<net.zaminmc.torch.server.entity.vehicle.VehicleEntity>();
         harness.server.ticker().submit(() -> chest.set(
-                harness.server.vehicles().spawnChestMinecart(new Position(87, 40, 87))));
+                harness.server.vehicles().spawnChestMinecart(new Position(87, 40, 87), 0)));
         harness.await(() -> chest.get() != null, "the chest minecart spawned");
         harness.await(() -> harness.probeLogContains(
                 "event:vehicle type=MINECART_CHEST at=(87.0,40.0,87.0)"),

@@ -743,7 +743,7 @@ public final class DispenserSystem implements WorldChangeListener {
             }
             lift = 0.0; // line 208: the open air over water
         }
-        if (engine.vehicles().spawnBoat(new Position(x, y + lift, z)) == null) {
+        if (engine.vehicles().spawnBoat(new Position(x, y + lift, z), 0) == null) {
             return stack; // the §27.7 spawn gate withheld the hull — the stack stays
         }
         fx.sound(centerOf(pos), "random.click", 1.0f, 1.0f);
@@ -804,12 +804,12 @@ public final class DispenserSystem implements WorldChangeListener {
     private VehicleEntity spawnCart(EngineSurfaces engine, String item, Position at) {
         VehicleManager vehicles = engine.vehicles();
         return switch (item) {
-            case "minecart" -> vehicles.spawnMinecart(at);
-            case "chest_minecart" -> vehicles.spawnChestMinecart(at);
-            case "furnace_minecart" -> vehicles.spawnFurnaceMinecart(at);
-            case "tnt_minecart" -> vehicles.spawnTntMinecart(at);
+            case "minecart" -> vehicles.spawnMinecart(at, 0);
+            case "chest_minecart" -> vehicles.spawnChestMinecart(at, 0);
+            case "furnace_minecart" -> vehicles.spawnFurnaceMinecart(at, 0);
+            case "tnt_minecart" -> vehicles.spawnTntMinecart(at, 0);
             case "hopper_minecart" -> hoppers != null
-                    ? vehicles.spawnHopperMinecart(at, hoppers::hopperCartTransfer) : null;
+                    ? vehicles.spawnHopperMinecart(at, hoppers::hopperCartTransfer, 0) : null;
             default -> null;
         };
     }

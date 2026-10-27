@@ -556,9 +556,9 @@ class ArmorStandSystemTest {
 
             AtomicReference<Boolean> spawned = new AtomicReference<>();
             server.ticker().submit(() -> {
-                server.vehicles().spawnMinecart(new net.zaminmc.torch.util.Position(13.7, 40.0, 13.5));
-                server.vehicles().spawnChestMinecart(new net.zaminmc.torch.util.Position(13.9, 40.0, 13.5));
-                server.vehicles().spawnMinecart(new net.zaminmc.torch.util.Position(16.5, 40.0, 13.5));
+                server.vehicles().spawnMinecart(new net.zaminmc.torch.util.Position(13.7, 40.0, 13.5), 0);
+                server.vehicles().spawnChestMinecart(new net.zaminmc.torch.util.Position(13.9, 40.0, 13.5), 0);
+                server.vehicles().spawnMinecart(new net.zaminmc.torch.util.Position(16.5, 40.0, 13.5), 0);
                 spawned.set(true);
             });
             await(server, () -> spawned.get() != null, "the carts spawned");
@@ -691,8 +691,8 @@ class ArmorStandSystemTest {
 
             AtomicReference<Boolean> spawned = new AtomicReference<>();
             server.ticker().submit(() -> {
-                server.vehicles().spawnMinecart(new net.zaminmc.torch.util.Position(13.7, 40.0, 13.5));
-                server.vehicles().spawnMinecart(new net.zaminmc.torch.util.Position(17.7, 40.0, 13.5));
+                server.vehicles().spawnMinecart(new net.zaminmc.torch.util.Position(13.7, 40.0, 13.5), 0);
+                server.vehicles().spawnMinecart(new net.zaminmc.torch.util.Position(17.7, 40.0, 13.5), 0);
                 spawned.set(true);
             });
             await(server, () -> spawned.get() != null, "the push carts spawned");

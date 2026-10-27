@@ -61,6 +61,16 @@ public abstract class VehicleEntity implements net.zaminmc.torch.entity.Vehicle 
 
     /** Minimal world query the vehicle needs (tick-thread context only). */
     public interface WorldQuery extends net.zaminmc.torch.server.physics.HasCollisionWorld {
+        /**
+         * The dimension context switch (Wave TF-11 — the reference's
+         * Entity.world, the TF-9 shape over the vehicle family): the
+         * manager flips the shared query to the body's own dimension
+         * before every tick walk. The default is a no-op so stub queries
+         * keep their overworld-only semantics.
+         */
+        default void setActiveDimension(int dimension) {
+        }
+
         /** @return whether the block containing this point is solid. */
         boolean isSolid(double x, double y, double z);
 
@@ -295,6 +305,14 @@ public abstract class VehicleEntity implements net.zaminmc.torch.entity.Vehicle 
     /** The dimension id row. */
     public int dimension() {
         return dimension;
+    }
+
+    /**
+     * Sets the body's dimension (Wave TF-11 — the spawn walks and the ZVD
+     * restore stamp it; the manager's tick flips the shared query to it).
+     */
+    public void setDimension(int dimension) {
+        this.dimension = dimension;
     }
 
     /** The portal cooldown row. */

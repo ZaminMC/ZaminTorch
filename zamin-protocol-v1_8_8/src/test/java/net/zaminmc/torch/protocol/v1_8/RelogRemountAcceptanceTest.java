@@ -118,7 +118,7 @@ class RelogRemountAcceptanceTest extends ProtocolTestBase {
                     "pool seeded");
             // The boat, engine-side, in the pool's center cell.
             server.ticker().submit(() -> {
-                var boat = server.vehicles().spawnBoat(new Position(bx + 0.5, by, bz + 0.5));
+                var boat = server.vehicles().spawnBoat(new Position(bx + 0.5, by, bz + 0.5), 0);
                 boatId[0] = boat.entityId();
             });
             awaitCondition(() -> boatId[0] > 0, "the boat spawned");
@@ -183,7 +183,7 @@ class RelogRemountAcceptanceTest extends ProtocolTestBase {
             int by = (int) Math.floor(anchor.y()); // the feet-level air cell
             var spot = new Position(bx + 0.5, by, bz + 0.5);
             server.ticker().submit(() -> {
-                var cart = server.vehicles().spawnMinecart(spot);
+                var cart = server.vehicles().spawnMinecart(spot, 0);
                 cartId[0] = cart.entityId();
             });
             awaitCondition(() -> cartId[0] > 0, "the cart spawned");

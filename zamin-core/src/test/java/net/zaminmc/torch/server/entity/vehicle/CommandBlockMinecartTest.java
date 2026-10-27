@@ -141,7 +141,7 @@ class CommandBlockMinecartTest {
         VehicleManager manager = new VehicleManager(GROUND_WORLD,
                 vehicle -> { }, new Random(7), 9700);
         var spawned = (CommandBlockMinecartEntity) manager.spawnCommandBlockMinecart(
-                new Position(12.5, 0.35, 12.5), new RecordingHost());
+                new Position(12.5, 0.35, 12.5), new RecordingHost(), 0);
         spawned.setCommand("say persisted");
         spawned.setSuccessCount(3);
         spawned.setTrackOutput(false);
@@ -180,7 +180,7 @@ class CommandBlockMinecartTest {
                 server.world().setBlock(new net.zaminmc.torch.block.BlockPosition(railX, 40, 10),
                         BuiltinBlocks.RAIL);
                 var cart = server.vehicles().spawnCommandBlockMinecart(
-                        new Position(railX + 0.5, 40.06, 10.5), server::runCommandCart);
+                        new Position(railX + 0.5, 40.06, 10.5), server::runCommandCart, 0);
                 cartRef.set((CommandBlockMinecartEntity) cart);
             });
             await(() -> cartRef.get() != null, "the cart spawned");

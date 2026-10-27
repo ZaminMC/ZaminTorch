@@ -190,7 +190,7 @@ class VehicleManagerTest {
                 new Random(1), 100);
         manager.addListener(events);
 
-        VehicleEntity boat = manager.spawnBoat(new Position(0.5, 4.5, 0.5));
+        VehicleEntity boat = manager.spawnBoat(new Position(0.5, 4.5, 0.5), 0);
         assertTrue(manager.mount(boat, 7), "the open seat takes the rider");
         assertFalse(manager.mount(boat, 8), "the second rider is refused");
         assertEquals(7, boat.passengerId());
@@ -210,7 +210,7 @@ class VehicleManagerTest {
         VehicleManager manager = new VehicleManager(dryWorld(),
                 vehicle -> drops.add(ItemStack.of(BuiltinItems.BOAT, 1)),
                 new Random(1), 100);
-        VehicleEntity boat = manager.spawnBoat(new Position(0.5, -65.0, 0.5));
+        VehicleEntity boat = manager.spawnBoat(new Position(0.5, -65.0, 0.5), 0);
         manager.tick();
         assertEquals(0, manager.all().size(), "the vehicle below the kill plane is gone");
         // Slice 21a's 1:1 correction: the reference's outOfWorld -> setDead

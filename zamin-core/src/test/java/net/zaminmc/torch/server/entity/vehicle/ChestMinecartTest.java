@@ -123,7 +123,7 @@ class ChestMinecartTest {
                     }
                 },
                 new Random(1), 100);
-        VehicleEntity spawned = manager.spawnChestMinecart(new Position(0.5, 4.06, 0.5));
+        VehicleEntity spawned = manager.spawnChestMinecart(new Position(0.5, 4.06, 0.5), 0);
         assertTrue(spawned instanceof ChestMinecartEntity, "the chest variant spawned");
         ChestMinecartEntity cart = (ChestMinecartEntity) spawned;
         cart.chest().setSlot(3, ItemStack.of(BuiltinItems.COAL, 12));
@@ -160,7 +160,7 @@ class ChestMinecartTest {
                     }
                 },
                 new Random(1), 100);
-        VehicleEntity spawned = manager.spawnChestMinecart(new Position(0.5, -65.0, 0.5));
+        VehicleEntity spawned = manager.spawnChestMinecart(new Position(0.5, -65.0, 0.5), 0);
         ((ChestMinecartEntity) spawned).chest().setSlot(0, ItemStack.of(BuiltinItems.COAL, 5));
         manager.tick();
         assertEquals(0, manager.all().size(), "the loaded cart below the kill plane is gone");
@@ -214,7 +214,7 @@ class ChestMinecartTest {
             var at = player.position();
             Position cartAt = new Position(Math.floor(at.x()) + 1.5,
                     Math.floor(at.y()), Math.floor(at.z()) + 0.5);
-            VehicleEntity spawned = server.vehicles().spawnChestMinecart(cartAt);
+            VehicleEntity spawned = server.vehicles().spawnChestMinecart(cartAt, 0);
             assertTrue(spawned instanceof ChestMinecartEntity);
             ChestMinecartEntity cart = (ChestMinecartEntity) spawned;
 

@@ -157,9 +157,9 @@ class VehicleDamageSourceTest {
             server.ticker().submit(() -> {
                 server.world().setBlock(tntAt, BuiltinBlocks.TNT);
                 server.world().setBlock(chainStone, BuiltinBlocks.STONE);
-                furnaceCart.set(server.vehicles().spawnFurnaceMinecart(furnaceAt));
-                tntCart.set(server.vehicles().spawnTntMinecart(tntCartAt));
-                farCart.set(server.vehicles().spawnMinecart(farCartAt));
+                furnaceCart.set(server.vehicles().spawnFurnaceMinecart(furnaceAt, 0));
+                tntCart.set(server.vehicles().spawnTntMinecart(tntCartAt, 0));
+                farCart.set(server.vehicles().spawnMinecart(farCartAt, 0));
             });
             await(() -> furnaceCart.get() != null && tntCart.get() != null
                             && farCart.get() != null,
@@ -229,7 +229,7 @@ class VehicleDamageSourceTest {
             Position furnaceAt = new Position(150.5, 40.0, 150.5);
             AtomicReference<VehicleEntity> furnaceCart = new AtomicReference<>();
             server.ticker().submit(() ->
-                    furnaceCart.set(server.vehicles().spawnFurnaceMinecart(furnaceAt)));
+                    furnaceCart.set(server.vehicles().spawnFurnaceMinecart(furnaceAt, 0)));
             await(() -> furnaceCart.get() != null, "the furnace cart spawned");
             server.ticker().submit(() -> server.vehicles().hurt(furnaceCart.get(), 10.0f));
             await(() -> furnaceCart.get().dead(), "the melee hit killed the cart");

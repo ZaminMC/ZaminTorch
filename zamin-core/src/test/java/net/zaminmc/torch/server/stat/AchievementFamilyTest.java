@@ -571,7 +571,7 @@ class AchievementFamilyTest {
                     "the chain given");
 
             var cart = server.vehicles().spawnMinecart(
-                    new Position(8.5, 40.0, 8.5));
+                    new Position(8.5, 40.0, 8.5), 0);
             await(() -> server.vehicles().all().stream().anyMatch(
                     vehicle -> vehicle == cart), "the cart spawned");
             server.ticker().submit(() ->

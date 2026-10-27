@@ -194,11 +194,11 @@ class VehicleWorldDamageTest {
                 server.world().setBlock(dryStone, BuiltinBlocks.STONE);
                 server.world().setBlock(chainStone, BuiltinBlocks.STONE);
                 furnaceCart.set(server.vehicles().spawnFurnaceMinecart(
-                        new Position(170.5, 40.0, 170.5)));
+                        new Position(170.5, 40.0, 170.5), 0));
                 tntCart.set(server.vehicles().spawnTntMinecart(
-                        new Position(170.9, 40.0, 170.9)));
+                        new Position(170.9, 40.0, 170.9), 0));
                 dryCart.set(server.vehicles().spawnMinecart(
-                        new Position(173.5, 41.0, 173.5)));
+                        new Position(173.5, 41.0, 173.5), 0));
             });
             await(() -> furnaceCart.get() != null && tntCart.get() != null
                             && dryCart.get() != null,

@@ -42,7 +42,7 @@ class VehiclePersistenceTest {
         assertTrue(ground > 0, "the flat ground exists");
         one.ticker().submit(() -> {
             VehicleEntity chestCart = one.vehicles().spawnChestMinecart(
-                    new Position(8.5, ground + 1.0, 8.5));
+                    new Position(8.5, ground + 1.0, 8.5), 0);
             if (chestCart instanceof ChestMinecartEntity cart) {
                 cart.chest().setSlot(0, ItemStack.of(
                         net.zaminmc.torch.server.item.BuiltinItems.DIAMOND, 7));
@@ -51,16 +51,22 @@ class VehiclePersistenceTest {
             }
             // The base rows (Entity.readNbt's base band — the ZVD v4's own
             // round trip): a named, silent, invulnerable cart from another
-            // dimension mid-fall with a portal cooldown.
+            // dimension mid-fall with a portal cooldown. Wave TF-11 re-pin:
+            // the rail-riding cart saves the OVERWORLD 0 — its physics now
+            // reads its own world (the -1 row the pre-lane test carried
+            // would make the restored cart read the nether and fall past
+            // the overworld rail — the dimension-blind behavior the lane
+            // retired; the -1 round trip itself stays pinned by
+            // VehicleDimensionReadsTest's restore arm).
             if (chestCart != null) {
                 chestCart.restoreBaseRows(
                         new java.util.UUID(0x1111222233334444L, 0x5555666677778888L),
                         "Night Cart", true, true, 3.75f, 190, false,
-                        true, -1, 45);
+                        true, 0, 45);
             }
             // A wounded cart (the health carry: 4.0 - one hit = 3.0).
-            one.vehicles().spawnMinecart(new Position(12.5, ground + 1.0, 12.5));
-            one.vehicles().spawnBoat(new Position(16.5, ground + 1.0, 16.5));
+            one.vehicles().spawnMinecart(new Position(12.5, ground + 1.0, 12.5), 0);
+            one.vehicles().spawnBoat(new Position(16.5, ground + 1.0, 16.5), 0);
         });
         await(() -> one.vehicles().all().size() == 3, "the three vehicles spawned");
         // Let the bodies settle (the carts ride their physics onto the
@@ -116,7 +122,9 @@ class VehiclePersistenceTest {
             assertEquals(3.75f, cart.fallDistance(), 0.0001f);
             assertEquals(190, cart.breath());
             assertTrue(cart.invulnerable());
-            assertEquals(-1, cart.dimension());
+            assertEquals(0, cart.dimension(),
+                    "the overworld row survived (the TF-11 re-pin — the -1 round"
+                            + " trip lives in VehicleDimensionReadsTest)");
             assertEquals(45, cart.portalCooldown());
             assertEquals(8.5, cart.position().x(), 1e-9, "the cart's x survived");
             // The restored body sits at the saved y or just below it (the
@@ -201,7 +209,7 @@ class VehiclePersistenceTest {
                 .withFireworks(java.util.Map.of("Flight", (byte) 2));
         one.ticker().submit(() -> {
             VehicleEntity cart = one.vehicles().spawnChestMinecart(
-                    new Position(8.5, ground + 1.0, 8.5));
+                    new Position(8.5, ground + 1.0, 8.5), 0);
             if (cart instanceof ChestMinecartEntity chest) {
                 chest.chest().setSlot(3, signedBook);
                 chest.chest().setSlot(7, enchantedSword);

@@ -847,18 +847,18 @@ public final class AnvilWorldImport {
         var manager = seams.manager();
         net.zaminmc.torch.server.entity.vehicle.VehicleEntity spawned;
         switch (id) {
-            case "Boat" -> spawned = manager.spawnBoat(at);
-            case "MinecartRideable" -> spawned = manager.spawnMinecart(at);
-            case "MinecartChest" -> spawned = manager.spawnChestMinecart(at);
-            case "MinecartFurnace" -> spawned = manager.spawnFurnaceMinecart(at);
-            case "MinecartTNT" -> spawned = manager.spawnTntMinecart(at);
+            case "Boat" -> spawned = manager.spawnBoat(at, 0);
+            case "MinecartRideable" -> spawned = manager.spawnMinecart(at, 0);
+            case "MinecartChest" -> spawned = manager.spawnChestMinecart(at, 0);
+            case "MinecartFurnace" -> spawned = manager.spawnFurnaceMinecart(at, 0);
+            case "MinecartTNT" -> spawned = manager.spawnTntMinecart(at, 0);
             case "MinecartHopper" -> {
                 if (seams.hopperHost() == null) {
                     ledger.isolated("hopper cart has no transfer host (the engine's hopper surface is absent)",
                             "entity " + id + " at " + at.x() + "," + at.y() + "," + at.z());
                     return null;
                 }
-                spawned = manager.spawnHopperMinecart(at, seams.hopperHost().get());
+                spawned = manager.spawnHopperMinecart(at, seams.hopperHost().get(), 0);
                 continueVehicleImport(spawned, id, at, rows);
                 if (spawned != null) {
                     ledger.entityImported();
@@ -871,7 +871,7 @@ public final class AnvilWorldImport {
                             "entity " + id + " at " + at.x() + "," + at.y() + "," + at.z());
                     return null;
                 }
-                spawned = manager.spawnSpawnerMinecart(at, seams.spawnerHost().get());
+                spawned = manager.spawnSpawnerMinecart(at, seams.spawnerHost().get(), 0);
                 if (spawned instanceof net.zaminmc.torch.server.entity.vehicle.SpawnerMinecartEntity cart) {
                     // The reference's MobSpawner.readNbt: EntityId (the
                     // vanilla name) + the raw Delay.
@@ -936,7 +936,7 @@ public final class AnvilWorldImport {
                             "entity " + id + " at " + at.x() + "," + at.y() + "," + at.z());
                     return null;
                 }
-                spawned = manager.spawnCommandBlockMinecart(at, seams.commandHost().get());
+                spawned = manager.spawnCommandBlockMinecart(at, seams.commandHost().get(), 0);
                 if (spawned instanceof net.zaminmc.torch.server.entity.vehicle.CommandBlockMinecartEntity cart) {
                     // The reference's CommandExecutor.readNbt (lines
                     // 53-74): the four rows.

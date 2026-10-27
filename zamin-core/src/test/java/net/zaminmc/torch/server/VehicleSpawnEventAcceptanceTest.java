@@ -148,7 +148,7 @@ class VehicleSpawnEventAcceptanceTest {
         // a cancelled spawn returns null and consumes no id.
         AtomicReference<Object> spawned = new AtomicReference<>("unset");
         server.ticker().submit(() -> spawned.set(server.vehicles()
-                .spawnChestMinecart(new Position(8.5, 8.0, 8.5))));
+                .spawnChestMinecart(new Position(8.5, 8.0, 8.5), 0)));
         await(() -> !"unset".equals(spawned.get()), "the spawn walk ran");
 
         assertEquals(1, fired.get(), "the gate fired exactly once");
@@ -160,7 +160,7 @@ class VehicleSpawnEventAcceptanceTest {
         // The uncancelled twin: the cart spawns.
         AtomicReference<Object> twin = new AtomicReference<>("unset");
         server.ticker().submit(() -> twin.set(server.vehicles()
-                .spawnChestMinecart(new Position(8.5, 8.0, 8.5))));
+                .spawnChestMinecart(new Position(8.5, 8.0, 8.5), 0)));
         await(() -> !"unset".equals(twin.get()), "the twin walk ran");
         assertTrue(twin.get() != null, "the uncancelled cart spawned");
         assertEquals(VehicleKind.CHEST_MINECART,

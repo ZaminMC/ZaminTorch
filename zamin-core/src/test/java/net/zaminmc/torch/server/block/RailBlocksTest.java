@@ -143,7 +143,7 @@ class RailBlocksTest {
             // the rail (the onEntityCollision equivalent).
             server.ticker().submit(() -> {
                 server.vehicles().spawnMinecart(
-                        new Position(x + 0.5, y + 0.06, z + 0.5));
+                        new Position(x + 0.5, y + 0.06, z + 0.5), 0);
             });
             await(() -> RailBlocks.isPowered(typeAt(server, x, y, z)),
                     "the cart ride pressed the detector rail");

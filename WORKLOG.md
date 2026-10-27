@@ -16412,3 +16412,47 @@ resolve through; (2) the sink-carry retirement chain: TF-9 gave the
 projectile its dimension, and TF-10 retired the LAST thrower-stand-in
 that documented its absence — each family lane should re-read the
 stand-ins its predecessors left behind.
+
+## 2026-10-27 (the third generalization) — the vehicle family's dimension reads 1:1 (Slice TF-11)
+
+**Scope:** the TF-10 ledger named the vehicle family's dimension field
+as the next tail. The audit found the field ALREADY EXISTED — the ZVD
+store's BaseRows had persisted the dimension row since Slice 66 — but
+nothing ever read it: the physics consulted the overworld-bound
+VehicleWorldQuery for every body, and no spawn walk stamped the field
+(the restore landed it through restoreBaseRows alone, after the spawn
+publications had already fired).
+
+**The lane:** the eight spawn methods carry the trailing dimension
+(stamped at the single spawn() choke point BEFORE the listener fan),
+the player's item placements stamp the session's dimension, the
+structure/dispenser/anvil sites keep their honest 0, and the restore
+stamps the STORED row (the hoisted BaseRows read — a saved nether cart
+rejoins the nether instead of riding the overworld's same-coordinate
+rails). The VehicleWorldQuery becomes dimension-aware exactly like the
+ShapeGround (the flip driving the collision surface, the
+solid/fluid/lava/fire-source/rail reads over worldForSafe, the
+rain arm answering the overworld alone — the roofed dimensions never
+rain); the manager flips it per body before every tick walk. The hit
+resolver's vehicleAt consult filters by the projectile's dimension
+(the TF-9 javadoc's standing tail retired). The wire's
+observer-dimension gates on the vehicle spawn/moved/removed sends.
+
+**Evidence:** VehicleDimensionReadsTest 3/0. RE-PIN: the
+VehiclePersistenceTest's base-rows arm — the pre-lane test pinned a
+dimension -1 cart resting on the OVERWORLD's rail (exactly the
+dimension-blind physics the lane retired; the restored cart now reads
+the nether and correctly falls past it) — the rail-riding cart saves
+the overworld 0 with the -1 round trip staying pinned by the new
+test's restore arm. REGRESSION NET: the vehicle family whole, the
+entity package + mount-seats + vehicle-spawn-event + piston families,
+the vehicle protocol suites, and the bukkit + launcher modules.
+
+**Lessons:** (1) a persisted-but-never-read field is a live trap —
+the store round-tripped the dimension for years while the physics
+ignored it, and the first test that combined the row with a surface
+dependence (the persistence test's rail) exposed the gap the moment
+the reads became honest; (2) when a lane makes a previously-blind
+read honest, the tests that pinned the blind behavior are not
+"broken" — they are the lane's own evidence, and the re-pin must name
+which behavior was the blind one.

@@ -387,7 +387,7 @@ class HopperSystemTest {
                 // sits inside the cell above.
                 net.zaminmc.torch.server.entity.vehicle.VehicleEntity cart =
                         server.vehicles().spawnChestMinecart(
-                                new net.zaminmc.torch.util.Position(x + 0.5, y + 1.0, z + 0.5));
+                                new net.zaminmc.torch.util.Position(x + 0.5, y + 1.0, z + 0.5), 0);
                 // The cart's cargo: a stack of diamonds in the first slot.
                 ((net.zaminmc.torch.server.entity.vehicle.ChestMinecartEntity) cart)
                         .chest().setSlot(0, ItemStack.of(
