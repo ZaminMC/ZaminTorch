@@ -33,6 +33,7 @@ public final class TransportMetrics {
     private final LongAdder bytesDropped = new LongAdder();
     private final AtomicLong directWrites = new AtomicLong();
     private final AtomicLong maxQueueDepth = new AtomicLong();
+    private final LongAdder wedgedCloses = new LongAdder();
 
     /** The latency ring's capacity: the newest {@value #LATENCY_SAMPLE_CAPACITY} dwell samples carry the percentiles. */
     static final int LATENCY_SAMPLE_CAPACITY = 4096;
@@ -66,6 +67,16 @@ public final class TransportMetrics {
     /** One packet bypassed the queue through the saturation fallback's direct write. */
     void directWrite() {
         this.directWrites.incrementAndGet();
+    }
+
+    /**
+     * The wedged-loop ceiling closed a connection (§35.13's fail-safely
+     * row): the queue's bytes passed the close bound — an event loop that
+     * far behind is never draining again, and the connection is freed
+     * rather than allowed to hold the queue's memory hostage.
+     */
+    void wedgedClose() {
+        this.wedgedCloses.increment();
     }
 
     /** The drain observed this queue depth; keeps the high-water mark. */
@@ -131,7 +142,8 @@ public final class TransportMetrics {
                 nearestRank(window, 0.50),
                 nearestRank(window, 0.95),
                 nearestRank(window, 0.99),
-                this.latencyMax.get());
+                this.latencyMax.get(),
+                this.wedgedCloses.sum());
     }
 
     /**
@@ -151,6 +163,7 @@ public final class TransportMetrics {
      * @param latencyP95Nanos the nearest-rank p95 of the ring window
      * @param latencyP99Nanos the nearest-rank p99 of the ring window
      * @param latencyMaxNanos the dwell high-water mark over the ring window
+     * @param wedgedCloses    connections the wedged-loop ceiling closed (§35.13's fail-safely row)
      */
     public record Snapshot(long packetsEnqueued, long bytesEnqueued,
                            long packetsWritten, long flushes,
@@ -158,7 +171,8 @@ public final class TransportMetrics {
                            long directWrites, long maxQueueDepth,
                            long latencySamples,
                            long latencyP50Nanos, long latencyP95Nanos,
-                           long latencyP99Nanos, long latencyMaxNanos) {
+                           long latencyP99Nanos, long latencyMaxNanos,
+                           long wedgedCloses) {
 
         /** @return the average packets per flush ({@code 0.0} before any flush). */
         public double packetsPerFlush() {

@@ -689,7 +689,7 @@ THE SECTION TABLE AND THE ATTRIBUTION PASS LANDED (ML-006 + ML-007 — the cycle
 
 Dynamic split/merge and load-driven migration remain future work. First prove migration with in-flight tasks, delayed work, messages, compute results, persistence, shutdown, and stale-generation invalidation; add telemetry and anti-oscillation rules before enabling automatic balancing.
 
-**Next concrete mechanics work:** continue from Section 29: the master ledger's demand-named queue is EMPTY of implementable rows (ML-013, the last — the tick watchdog, landed 2026-10-26 in §29's Wave ML13; ML-008 the /give form aligned the same day; PR #38's audit merge landed 2026-10-23). The 2026-10-26 vanilla-grade census's lanes are ALL LANDED (§29's Waves TF-7 + TF-7-continued, closed whole). Wave ON-1 LANDED 2026-10-26 (DEC-001 executed whole; DEC-002 STAY NATIVE and DEC-003 NO KigPaper config family both stand). Wave TF-8 LANDED 2026-10-27 (§29's Wave TF-8: the undead family's daylight burn 1:1). Wave TF-9 LANDED 2026-10-27 (§29's Wave TF-9: the item-entity family's dimension reads 1:1 — the pigman tail's other half CLOSED, the mob query's 25d shape generalized over the items and the projectiles, the ZID store at v8, the wire's observer-dimension gates). Wave TF-10 LANDED 2026-10-27 (§29's Wave TF-10: the XP-orb family's dimension reads — the orb manager on the shared dimension-aware ground, the stamps, the pickup gate, the wire gates, the XpBottleSink's carry). Wave TF-11 LANDED 2026-10-27 (§29's Wave TF-11: the vehicle family's dimension reads — the ZVD row riding the body, the dimension-aware VehicleWorldQuery, the vehicleAt filter, the wire gates). Wave TF-12 LANDED 2026-10-27 (§29's Wave TF-12: the FX family's sound-broadcast dimension gate — every FxEvent carrying its world, the wire's gate in the reference's own sendPacket order, the entity-driven stamps, the fishing Bobber's carry; the handoff's open verifications — the protocol module whole 203/0, the bukkit 52/0 + launcher 53/0, the acceptance sweep — completed and green at the ledger head). Wave T-1 LANDED 2026-10-27 (§29's Wave T-1: the §35 outbound transport's first slice — the zamin-transport module whole, the 184-site queueing of the v1_8_8 play-state sends, the encode-once FX broadcast, the wire verified over every suite class). Wave T-2 LANDED 2026-10-27 (§29's Wave T-2: the §35.12/§35.13 measurement rows — the outbound dwell percentiles over the 4096-slot ring, the benchmark matrix over every §35.12 scenario with the numbers printed for the ledger, the urgent lane's coalescing repair, Netty's leak detector at advanced/paranoid in the test JVMs, and the pipeline repair the wave's own runs forced — the fat jar's missing transport edge + the compute test's snapshot race). The stats-family envelope is code-complete (the increments wired at their use sites — the compat file's stale "no stats system yet" notes re-pinned by TF-9). The dimension-read family tails are ALL CLOSED; the families that carry no dimension field at all (armor-stand, fireworks, ender-eye) stay honest overworld-0 emitters until their own family slices demand the carry. The §22 evidence bar holds: no concurrency phase opens without the attribution pass's numbers (ML-007 landed — the verdict: none justified at the current loads). Next work (the §35 transport's standing rows, each its own evidenced slice): §35.4's pooled-buffer adoption (before/after evidence first — the §35.12 harness Wave T-2 landed now produces the numbers) and the §35.11 slow-client kill policy (the saturation evidence row now exists in Wave T-2's matrix; the kick decision itself remains) — the §35.8 boundaries need no further slice.
+**Next concrete mechanics work:** continue from Section 29: the master ledger's demand-named queue is EMPTY of implementable rows (ML-013, the last — the tick watchdog, landed 2026-10-26 in §29's Wave ML13; ML-008 the /give form aligned the same day; PR #38's audit merge landed 2026-10-23). The 2026-10-26 vanilla-grade census's lanes are ALL LANDED (§29's Waves TF-7 + TF-7-continued, closed whole). Wave ON-1 LANDED 2026-10-26 (DEC-001 executed whole; DEC-002 STAY NATIVE and DEC-003 NO KigPaper config family both stand). Wave TF-8 LANDED 2026-10-27 (§29's Wave TF-8: the undead family's daylight burn 1:1). Wave TF-9 LANDED 2026-10-27 (§29's Wave TF-9: the item-entity family's dimension reads 1:1 — the pigman tail's other half CLOSED, the mob query's 25d shape generalized over the items and the projectiles, the ZID store at v8, the wire's observer-dimension gates). Wave TF-10 LANDED 2026-10-27 (§29's Wave TF-10: the XP-orb family's dimension reads — the orb manager on the shared dimension-aware ground, the stamps, the pickup gate, the wire gates, the XpBottleSink's carry). Wave TF-11 LANDED 2026-10-27 (§29's Wave TF-11: the vehicle family's dimension reads — the ZVD row riding the body, the dimension-aware VehicleWorldQuery, the vehicleAt filter, the wire gates). Wave TF-12 LANDED 2026-10-27 (§29's Wave TF-12: the FX family's sound-broadcast dimension gate — every FxEvent carrying its world, the wire's gate in the reference's own sendPacket order, the entity-driven stamps, the fishing Bobber's carry; the handoff's open verifications — the protocol module whole 203/0, the bukkit 52/0 + launcher 53/0, the acceptance sweep — completed and green at the ledger head). Wave T-1 LANDED 2026-10-27 (§29's Wave T-1: the §35 outbound transport's first slice — the zamin-transport module whole, the 184-site queueing of the v1_8_8 play-state sends, the encode-once FX broadcast, the wire verified over every suite class). Wave T-2 LANDED 2026-10-27 (§29's Wave T-2: the §35.12/§35.13 measurement rows — the outbound dwell percentiles over the 4096-slot ring, the benchmark matrix over every §35.12 scenario with the numbers printed for the ledger, the urgent lane's coalescing repair, Netty's leak detector at advanced/paranoid in the test JVMs, and the pipeline repair the wave's own runs forced — the fat jar's missing transport edge + the compute test's snapshot race). Wave T-3 LANDED 2026-10-27 (§29's Wave T-3: the §35.4 pooled-allocation adoption — the allocation harness over the engine's own encode shapes, the shape-split verdict the numbers dictate, the chunk-window frames on pooled direct with the 190 small sites keeping their measured heap-unpooled win, and the wire verified over every protocol suite class). Wave T-4 LANDED 2026-10-27 (§29's Wave T-4: the §35.13 wedged-loop ceiling — the §35.11 kill-policy row closed as the fail-safely law, the slow-socket domain staying Netty's own exactly as the reference's own shape). The §35 transport lane's named rows are ALL LANDED (T-1 through T-4): the queue, the encode-once broadcast, the measurements, the pooled adoption, the wedged bound. The stats-family envelope is code-complete (the increments wired at their use sites — the compat file's stale "no stats system yet" notes re-pinned by TF-9). The dimension-read family tails are ALL CLOSED; the families that carry no dimension field at all (armor-stand, fireworks, ender-eye) stay honest overworld-0 emitters until their own family slices demand the carry. The §22 evidence bar holds: no concurrency phase opens without the attribution pass's numbers (ML-007 landed — the verdict: none justified at the current loads). The honest standing tails each transport slice named stay demand-named (the serializer's byte[] intermediates; the small-packet pooled adoption if a future attribution ever shows the arena path winning) — nothing else is owed on the §35 lane.
 
 # 23. COMMITS / PUSHES / RELEASES
 
@@ -5483,6 +5483,96 @@ way were repaired inside the wave.
       loaded-runner flake run 1070ecff's first arm hit) to the
       after-job's COMPLETION — the admission reopening is the
       submit's acceptance, never the snapshot.
+
+## Wave T-3 — the 2026-10-27 §35.4 pooled-allocation adoption (the chunk-window frames ride pooled direct; every other packet keeps the heap-unpooled ask its own measurement favors — landed)
+
+- [x] THE ALLOCATION HARNESS (§35.4's compare list over the
+      engine's own encode shapes — ByteBufOps' varints, strings,
+      uuids, packed positions): three arms — heap-unpooled (the
+      engine's 193 codec sites today), pooled-heap, pooled-direct —
+      over the small (24B world-event), medium (192B
+      metadata/chat), and large (16 KiB chunk window) shapes, each
+      arm measuring packets/sec, bytes/sec, the production
+      p50/p95/p99, the producing thread's ALLOCATED bytes (the
+      GC-pressure proxy), the GC beans' collection delta, the
+      producing thread's CPU, and the pooled arenas' retained
+      footprint. The byte-identity admission row: every arm
+      produces IDENTICAL bytes for the same sequence (the encode
+      law is allocator-independent — an arm failing this is broken,
+      not slower). Correctness assertions only; the numbers print
+      for the ledger.
+- [x] THE VERDICT (the shape-split the numbers dictate): at 16 KiB
+      the pooled arms produce 685K-1.29M pps with ~120 B of thread
+      allocation per packet and ZERO collections, against
+      heap-unpooled's 126K pps and 16,448 B/packet of churn (the
+      whole frame becomes young-gen garbage per packet — the
+      attribution pass's #1 byte[] finding) with a 12 ms collection
+      inside the window — a 5-10x production win and the churn
+      eliminated; at 24-192 B (every other packet the engine
+      writes) heap-unpooled WINS 2-7x (11.7M vs 1.6M pps small,
+      2.1M vs 1.6M medium — the TLAB bump beats the arena path) and
+      the pooled arenas would only add their 4 MiB retained cost.
+      Pooled where the measurement demonstrates the benefit,
+      unpooled where it demonstrates the opposite — §35.4's first
+      sentence, both halves.
+- [x] THE ADOPTION: the engine's ONLY large outbound allocations —
+      the chunk-window frames (the 0x21 single's 16 + data.length,
+      the 0x21 partial's same form, and the 0x26 bulk's
+      16 + 10*columns + total, up to ~800 KiB) — now ask
+      POOLED.directBuffer; the 190 small sites keep Unpooled.buffer
+      (their measured win). The decision rides its own named
+      constant with the numbers in the javadoc. The serializer's
+      byte[] intermediates stay heap honestly (the 1:1-pinned walk,
+      its own future slice if the attribution ever shows them
+      material). The pipeline verified direct-compatible FIRST:
+      zero .array()/hasArray() assumptions on any outbound path
+      (the one .array() site is the inbound decrypt decoder's own
+      heap ask).
+- [x] THE WIRE VERIFIED over every protocol suite class against
+      the pooled frames: all 71 test classes green (the unit batch
+      91/0 incl. the new harness, the integration and wire batches,
+      the chunk suites, the attribution load, the worldgen
+      determinism run); the transport module 21/0; bukkit +
+      launcher green with the packaged console verified.
+
+## Wave T-4 — the 2026-10-27 §35.13 wedged-loop ceiling (the §35.11 kill-policy row closed as the fail-safely law — landed)
+
+- [x] THE DOMAIN SPLIT the evidence dictates: a slow SOCKET never
+      grows the engine queue — the drain still writes, and Netty's
+      own ChannelOutboundBuffer absorbs the backpressure exactly as
+      the reference's per-packet writeAndFlush shape did (the
+      reference itself never kicks a slow socket; §35.8's boundary
+      keeps the socket's law Netty's own). Only a STOPPED event
+      loop grows the queue — the wedged shape the benchmark's own
+      scenario pinned (the 1 MiB observable crossed at enqueue
+      #1024, the caller never blocked, 0 writes). The kill policy
+      therefore closes NOT as a slow-client gameplay policy (vanilla
+      has none to mirror 1:1) but as §35.13's fail-safely bound: the
+      wedged loop's unbounded memory growth is the buffer-lifetime
+      failure the section orders failed safely.
+- [x] THE CEILING: past 64 MiB of queued payload (64x the
+      saturation observable; far past any healthy-loop traffic — the
+      benchmark's healthy face answers 20 packets/flush at a 6us
+      dwell, so 64 MiB is a loop SECONDS behind, a dead loop, not a
+      slow one) the crossing enqueue releases its own ticket
+      (counted, never silent), the connection closes NOW (closeNow:
+      every queued ticket released, nothing leaks), the severe
+      warning names the channel and the bound, and the wedgedCloses
+      row lands in the metrics snapshot. Never throws — the
+      simulation lanes must not see gameplay exceptions from a
+      transport protection.
+- [x] PINNED: the wedged embedded loop (the tasks never pumped) —
+      63 MiB absorbs with the connection alive (the slow-growth
+      face), the 64th MiB closes the connection with every ticket
+      released (the paranoid leak detector at the strongest setting
+      polices the releases), the crossing packet and the wedged mass
+      both counted in the drop rows, one wedgedCloses row (not a
+      storm), admission shut after (later enqueues
+      drop-and-release without throwing). Transport 21/0 whole.
+- [x] THE STANDING TAIL RETIRED: the Wave T-1 honest-tails row's
+      "kick-on-saturation decision stays open" — closed here as the
+      fail-safely ceiling; the slow-SOCKET domain stays Netty's own
+      (the reference's own shape, no change — the honest boundary).
 
 # 33. CODEBASE SCALE, CLASS COHESION, AND MAINTAINABILITY
 

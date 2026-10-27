@@ -307,4 +307,59 @@ class OutboundQueueTest {
         assertTrue(snapshot.latencyP50Nanos() >= 513L);
         assertTrue(snapshot.latencyP50Nanos() <= pushed);
     }
+
+    @Test
+    void wedgedLoopCeilingClosesTheConnectionNothingLeaks() {
+        // The §35.13 fail-safely law: an event loop that never drains (the
+        // embedded channel's tasks are never run — the wedged shape) grows
+        // the queue without bound; past the 64 MiB ceiling the connection
+        // closes NOW — the crossing packet released and counted, every
+        // queued ticket released (the paranoid leak detector polices the
+        // releases), the close visible in the metrics, admission shut, and
+        // the simulation lanes' enqueue never throwing.
+        EmbeddedChannel channel = new EmbeddedChannel();
+        OutboundQueue queue = new OutboundQueue(channel);
+
+        int packetBytes = 1 << 20; // 1 MiB packets: the ceiling in 64 enqueues
+        // One under the ceiling (63 MiB — the 64th would sit AT the bound):
+        // the queue absorbs (the slow-growth shape, exactly the wedged-loop
+        // benchmark's face).
+        int underPackets = (int) ((OutboundQueue.WEDGED_QUEUE_CLOSE_BYTES - 1) / packetBytes);
+        for (int i = 0; i < underPackets; i++) {
+            queue.enqueue(filled(packetBytes));
+        }
+        assertEquals(underPackets, queue.queuedPackets());
+        assertTrue(queue.queuedBytes() < OutboundQueue.WEDGED_QUEUE_CLOSE_BYTES);
+        assertTrue(channel.isActive());
+
+        // The crossing enqueue (the queue's 64th MiB): the connection
+        // closes, the crossing packet itself is released-and-counted (never
+        // queued), every ticket the wedge held releases with it, and the
+        // enqueue never throws.
+        long dropsBefore = queue.metrics().snapshot().packetsDropped();
+        queue.enqueue(filled(packetBytes));
+        assertFalse(channel.isActive(), "the wedged ceiling closed the connection");
+        assertEquals(0, queue.queuedPackets(), "every queued ticket released by the closeNow");
+        assertEquals(0L, queue.queuedBytes());
+        assertEquals(dropsBefore + underPackets + 1, queue.metrics().snapshot().packetsDropped(),
+                "the crossing packet AND the wedged mass release counted, never silent");
+        assertEquals(1, queue.metrics().snapshot().wedgedCloses(),
+                "the wedged close is its own visible row");
+
+        // Admission is shut: later enqueues drop-and-release without throwing.
+        long dropsAfterClose = queue.metrics().snapshot().packetsDropped();
+        queue.enqueue(filled(packetBytes));
+        queue.enqueueUrgent(filled(packetBytes));
+        assertEquals(dropsAfterClose + 2, queue.metrics().snapshot().packetsDropped());
+        assertEquals(1, queue.metrics().snapshot().wedgedCloses(), "one close, not a storm");
+
+        channel.finishAndReleaseAll();
+    }
+
+    /** A filled buffer of exactly {@code bytes} readable bytes (the queue's honest accounting unit). */
+    private static ByteBuf filled(int bytes) {
+        ByteBuf buf = Unpooled.buffer(bytes);
+        buf.writerIndex(bytes);
+        return buf;
+    }
 }

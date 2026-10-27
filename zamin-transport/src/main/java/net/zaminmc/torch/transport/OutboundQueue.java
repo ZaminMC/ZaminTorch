@@ -47,9 +47,15 @@ import java.util.concurrent.atomic.AtomicLong;
  * drop. The queued-byte ceiling is the saturation OBSERVABLE for this
  * slice: past it the queue logs and the depth counter carries the
  * high-water mark — the queue itself degrades no differently than the
- * channel's own outbound buffer would, and the slow-client kill policy is a
- * separately evidenced decision (the kick-on-saturation row stays open in
- * the ledger, §35.11's queue-saturation shape).</p>
+ * channel's own outbound buffer would. The WEDGED-LOOP CEILING
+ * (§35.13's fail-safely law) bounds the one growth a healthy connection
+ * never shows: a queue that far past the bound means the event loop has
+ * stopped draining entirely — the connection closes NOW (every queued
+ * ticket released, the wedged close counted) rather than holding the
+ * queue's memory hostage forever. A slow SOCKET never reaches it: the
+ * drain still writes, and Netty's own outbound buffer absorbs the
+ * backpressure exactly as the reference's per-packet shape did — the
+ * ceiling is the wedged loop's protection alone.</p>
  *
  * <p><b>Shutdown</b> (§35.13): {@link #close()} stops admission, drains
  * what was admitted (one flush), and closes the channel — no retained
@@ -67,6 +73,21 @@ public final class OutboundQueue {
      * shape did — no regression, no silent reordering shortcut).
      */
     static final int SATURATION_LOG_BYTES = 1 << 20; // 1 MiB
+
+    /**
+     * The wedged-loop ceiling (§35.13's fail-safely law): past this many
+     * payload bytes the connection closes NOW — the event loop is never
+     * coming back at that depth, and the memory is freed instead of held.
+     * The bound sits 64x past the saturation observable and far past any
+     * healthy-loop traffic (a healthy loop drains every task cycle; the
+     * benchmark's own face answers 20 packets per flush at a 6us dwell —
+     * 64 MiB of depth is a loop SECONDS behind, which is a dead loop, not
+     * a slow one). Only a stopped loop reaches it: a slow socket's writes
+     * still complete into Netty's own outbound buffer, emptying this
+     * queue — the ceiling never fires for backpressure the reference
+     * itself absorbs the same way.
+     */
+    static final long WEDGED_QUEUE_CLOSE_BYTES = 64L << 20; // 64 MiB
 
     private final Channel channel;
     private final TransportMetrics metrics;
@@ -116,6 +137,9 @@ public final class OutboundQueue {
             TransportLog.get().warning(() -> "Outbound queue past " + SATURATION_LOG_BYTES
                     + " bytes on " + this.channel + " — the event loop is not draining");
         }
+        if (wedged(nowQueued, bytes, packet)) {
+            return;
+        }
         this.queue.add(new QueuedPacket(packet, System.nanoTime()));
         scheduleDrain();
     }
@@ -133,7 +157,10 @@ public final class OutboundQueue {
         }
         int bytes = packet.readableBytes();
         this.metrics.packetEnqueued(bytes);
-        this.queuedBytes.addAndGet(bytes);
+        long nowQueued = this.queuedBytes.addAndGet(bytes);
+        if (wedged(nowQueued, bytes, packet)) {
+            return;
+        }
         this.queue.add(new QueuedPacket(packet, System.nanoTime()));
         // The coalescing law covers both lanes (§35.5: "however many
         // packets a tick walk enqueues, the loop runs one drain") — the
@@ -220,8 +247,37 @@ public final class OutboundQueue {
     }
 
     /**
+     * The wedged-loop ceiling (§35.13): the enqueue that pushed the queue
+     * past the close bound releases its own ticket (counted, never
+     * silent), then the connection closes NOW — every queued ticket
+     * released, the close counted once, the loop's dead connection freed.
+     * Never throws: the simulation lanes that enqueue must not see a
+     * gameplay exception from a transport protection.
+     *
+     * @param nowQueued the queue's byte total INCLUDING this packet
+     * @param bytes     this packet's own payload bytes
+     * @return {@code true} when the ceiling closed the connection (the
+     *         caller must NOT queue the packet — it is released)
+     */
+    private boolean wedged(long nowQueued, int bytes, ByteBuf packet) {
+        if (nowQueued < WEDGED_QUEUE_CLOSE_BYTES) {
+            return false;
+        }
+        this.queuedBytes.addAndGet(-bytes);
+        this.metrics.packetDropped(bytes);
+        packet.release();
+        TransportLog.get().severe(() -> "Outbound queue wedged past " + WEDGED_QUEUE_CLOSE_BYTES
+                + " bytes on " + this.channel + " — closing the connection (the event loop is not draining)");
+        closeNow();
+        this.metrics.wedgedClose();
+        return true;
+    }
+
+    /**
      * The coalesced scheduling: at most one pending drain task at a time;
-     * the urgent path bypasses the flag with its own unconditional task.
+     * both lanes ride it (the urgent lane's packet joins the FIFO queue,
+     * so a pending drain carries it — the queue is the order guarantee,
+     * never the task queue's shape).
      */
     private void scheduleDrain() {
         if (this.drainScheduled.compareAndSet(false, true)) {

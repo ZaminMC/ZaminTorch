@@ -7830,6 +7830,30 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
      */
     private static final class ChunkTracker {
 
+        /**
+         * §35.4's evidenced decision for the CHUNK-WINDOW frames (the two
+         * 0x21 forms and the 0x26 bulk — the engine's only large outbound
+         * allocations, 16 KiB-class and up): the frames ride POOLED DIRECT
+         * buffers, every other packet keeps the heap-unpooled ask its own
+         * measurement favors. The allocation harness (PacketAllocation-
+         * BenchmarkTest, this module's test tree) over the engine's own
+         * encode shapes: at 16 KiB the pooled arms produce 685K-1.29M pps
+         * with ~120 B of thread allocation per packet and zero collections,
+         * against heap-unpooled's 126K pps, 16,448 B/packet of churn (the
+         * whole frame becomes young-gen garbage per packet) and a 12 ms
+         * collection inside the window — while at 24-192 B (every other
+         * packet the engine writes) heap-unpooled WINS 2-7x (11.7M vs 1.6M
+         * pps small, 2.1M vs 1.6M medium; the TLAB bump beats the arena
+         * path) and the pooled arenas would only add their retained cost
+         * (4 MiB measured after release). Pooled where measurement
+         * demonstrates the benefit, unpooled where it demonstrates the
+         * opposite — the section's own law, both halves. The serializer's
+         * byte[] intermediates stay heap (the 1:1-pinned walk, its own
+         * future slice if the attribution ever shows them material).
+         */
+        private static final io.netty.buffer.PooledByteBufAllocator POOLED =
+                io.netty.buffer.PooledByteBufAllocator.DEFAULT;
+
         /** The owning connection — the tracker's writes join the same outbound queue (the FIFO law). */
         private final V18Connection owner;
         private final EngineServer engine;
@@ -8107,7 +8131,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                 return; // every dirtied section vanished: nothing to rebuild
             }
             byte[] data = ChunkSerializer18.serialize(chunk, false, mask);
-            ByteBuf out = Unpooled.buffer(16 + data.length);
+            ByteBuf out = POOLED.directBuffer(16 + data.length);
             ByteBufOps.writeVarInt(out, Protocol18.S2C_CHUNK_DATA);
             out.writeInt(chunk.position().x());
             out.writeInt(chunk.position().z());
@@ -8185,7 +8209,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             long wirePublishStart = wirePublishProfiler.isProfiling()
                     ? System.nanoTime() : 0L;
             byte[] data = ChunkSerializer18.serialize(chunk, groundUp);
-            ByteBuf out = Unpooled.buffer(16 + data.length);
+            ByteBuf out = POOLED.directBuffer(16 + data.length);
             ByteBufOps.writeVarInt(out, Protocol18.S2C_CHUNK_DATA);
             out.writeInt(chunk.position().x());
             out.writeInt(chunk.position().z());
@@ -8348,7 +8372,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             }
             // Phase B — the bulk frame: headers first, then every array
             // (the reference's own two-loop write order).
-            ByteBuf out = Unpooled.buffer(16 + 10 * chunks.size() + total);
+            ByteBuf out = POOLED.directBuffer(16 + 10 * chunks.size() + total);
             ByteBufOps.writeVarInt(out, Protocol18.S2C_CHUNK_BULK);
             out.writeBoolean(true);
             ByteBufOps.writeVarInt(out, chunks.size());
