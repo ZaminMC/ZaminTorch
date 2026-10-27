@@ -238,6 +238,60 @@ public final class DropService {
             return List.of(new ItemStack(dye, age >= 2 ? 3 : 1,
                     net.zaminmc.torch.server.block.CocoaBlocks.BROWN_DYE_DAMAGE));
         }
+        // The tall-grass family (TallPlantBlock lines 63-93 + DeadBushBlock
+        // lines 39-51 — the flora slices' shared shears law): the SHEARS arm
+        // of afterMinedByPlayer drops the family's own item with the variant
+        // in the damage field (the tallgrass item — the grass's TYPE 1, the
+        // fern's TYPE 2 — or the dead bush's own item) and never rolls the
+        // seeds; every other path runs getDropItem's walk alone — the
+        // 1/8 wheat-seeds roll per getDropCount's iteration ({@code 1 +
+        // nextInt(fortune * 2 + 1)}, one seed each), and the dead bush's
+        // null arm yields nothing by hand. The pre-fix behavior table rows
+        // self-dropped at chance 1.0, so every by-hand break yielded the
+        // tallgrass item (the wire's "Shrub") and the fern row even named
+        // the unregistered minecraft:fern item; this arm owns the law now,
+        // mirroring the double-plant break's shears shape (variant damage
+        // over the tallgrass item). The engine merges the per-iteration
+        // single seeds into one stack (vanilla merges at pickup).
+        String tallGrassVariant = net.zaminmc.torch.server.block.TallGrassFamily
+                .variantOf(broken.identifier());
+        if (tallGrassVariant != null) {
+            boolean shears = heldTool != null
+                    && Tools.specOf(heldTool)
+                            .map(spec -> spec.toolClass() == ToolClass.SHEARS)
+                            .orElse(false);
+            if (shears) {
+                Identifier self = net.zaminmc.torch.server.block.TallGrassFamily
+                        .shearsItemOf(tallGrassVariant);
+                ItemType itemType = BuiltinItems.lookup(self).orElse(null);
+                if (itemType == null) {
+                    throw new IllegalStateException(
+                            "Tall-grass family shears item is unregistered: " + self);
+                }
+                return List.of(new ItemStack(itemType, 1,
+                        net.zaminmc.torch.server.block.TallGrassFamily
+                                .shearsDamageOf(tallGrassVariant)));
+            }
+            // DeadBushBlock.getDropItem lines 39-41: null — nothing by hand.
+            if (tallGrassVariant.equals("dead_bush")) {
+                return List.of();
+            }
+            // TallPlantBlock.getDropCount lines 68-70 + getDropItem lines
+            // 63-65: the iteration walk, each iteration's 1/8 seed.
+            int iterations = 1 + random.nextInt(fortune * 2 + 1);
+            int seeds = 0;
+            for (int i = 0; i < iterations; i++) {
+                if (random.nextInt(8) == 0) {
+                    seeds++;
+                }
+            }
+            if (seeds == 0) {
+                return List.of();
+            }
+            ItemType seedItem = BuiltinItems.lookup(
+                    Identifier.parse("minecraft:wheat_seeds")).orElseThrow();
+            return List.of(ItemStack.of(seedItem, seeds));
+        }
         // The melon block's slice walk (Slice 41 — MelonBlock lines 17-31:
         // getDropCount's {@code min(9, 3 + nextInt(5) + nextInt(1 + fortune))}
         // of the melon slice).
