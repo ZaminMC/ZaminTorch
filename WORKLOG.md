@@ -16456,3 +16456,67 @@ the reads became honest; (2) when a lane makes a previously-blind
 read honest, the tests that pinned the blind behavior are not
 "broken" — they are the lane's own evidence, and the re-pin must name
 which behavior was the blind one.
+
+## 2026-10-27 (the lane's completion) — the FX family's sound-broadcast dimension gate 1:1 (Slice TF-12, the last standing dimension tail closed; the interrupted handoff verified and ledgered)
+
+**Scope:** the TF-11 ledger named the FX family's sound-broadcast
+dimension gate as the LAST standing dimension tail. A previous
+instance (the scheduled batch) landed the implementation whole as the
+handoff commit c880cca3 — code-complete, its core claims green
+(the projectile/vehicle/experience/item families 150/0, the entity
+package whole 560/0), but interrupted mid-verification: the protocol
+module suite, the bukkit + launcher modules, and the acceptance sweep
+remained, and the §29 ledger rows with them.
+
+**The handoff's lane (verified at the ledger head):** every FxEvent
+record carries the emitting world's dimension (the reference's
+PlayerManager.sendPacket lines 630-640 gate — serverplayerentity
+.dimension == dimension AHEAD of the range test, read against the
+reference source), dimension-carrying overloads beside every legacy
+emit form (the no-dimension forms stamp the overworld 0 — the ledged
+TF-9 convention for the overworld-bound block systems), EngineServer
+stamps every live-context site (the eat/burp/drink cadence, the
+throw family, the thorns walks over the BittenBy/Biter surfaces' new
+dimension() rows, the sheep/horse/villager/chicken/rabbit sites, the
+TNT-cart pair, the pickups' pops, the ranged sounds, the explosion,
+the potion splash, the fishing surface + the cast's carry, and the
+chickenHatch spawning the chick IN the egg's dimension), the
+FishingSystem's Bobber carries the angler's dimension (the fishing
+family's own carry, closed with the lane), and the wire gates in the
+reference's own order — deliverFx's dimension test ahead of the
+squared-distance range, every sendMob* send gated on the mob's
+dimension, the fans gated where the body is at hand.
+
+**The completion session (this entry):** (1) the handoff's core
+claims re-verified at its head — the fx/fishing/projectile families
+63/0; (2) the open verifications closed — the protocol module whole
+203/0 over every suite class (batched for the runner's ten-minute
+wall: 76/0 light, 41/0 medium, 57/0 heavy integration, 27/0
+acceptance, WorldgenDeterminismRunTest, AttributionLoadTest at 80s),
+the bukkit module 52/0, the launcher module 53/0, and the FX-touching
+acceptance sweep 49/0 (StepSound, DispenserWorldEvent, NoteBlock,
+ArmorStand, GiveCommand, RangedCombat); (3) the ledger — the §29 Wave
+TF-12 rows, all three next-work lines re-pinned (the dimension-read
+tails ALL CLOSED; the armor-stand/fireworks/ender-eye families stay
+honest overworld-0 emitters until their own slices demand the carry),
+the census recounted at 502 classes / 2863 @Test occurrences, and this
+record. A parallel instance of the same scheduled batch had started
+the same lane independently (9a98291f, discarded without push — the
+handoff was strictly more complete: the fishing carry, the chick
+spawn dimension, twenty-plus wire gates); the collision resolved by
+adopting the pushed handoff per the repository-safety law.
+
+**Evidence:** FxDimensionReadsTest 3/0 + FishingSystemTest's
+splash-dimension pin (8/0) at the handoff head; the completion
+verifications above. REGRESSION NET: the protocol module whole, the
+bukkit + launcher modules, the FX-touching acceptance sweep, and the
+handoff's own core families.
+
+**Lessons:** (1) the scheduled batches can collide — two instances
+of the same 3-hour timer landed the same lane within the same window;
+the pushed handoff wins over the local duplicate, and the resolution
+is the repository-safety law (never force-push, preserve the pushed
+work, ledger the decision); (2) a handoff commit with an explicit
+open-verifications list is the cheapest possible recovery shape —
+the next instance's first task was named in the commit message
+itself, and the verification batches finished in one session.
