@@ -5483,8 +5483,6 @@ Judge implementations by correctness, fidelity to reference behavior, concurrenc
 
 Do not use AI-detection scores, stylistic stereotypes, or attempts to imitate a particular author's writing as acceptance criteria. The standard is good engineering, regardless of who or what produced the code.
 
-<-- This section was appened remotly. please adjust it to its best line number in the file, and remove this comment! -->
-
 # 35. VERSION-INDEPENDENT NETWORK TRANSPORT AND OUTBOUND PACKET PIPELINE
 
 Torch's networking architecture must optimize transport and packet handling without changing the Minecraft protocol expected by the connected client.

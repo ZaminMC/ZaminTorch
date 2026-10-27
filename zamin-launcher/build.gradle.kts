@@ -53,6 +53,7 @@ val fatJar = tasks.register<Jar>("fatServerJar") {
     // dependsOn edges the fat jar can silently embed stale module jars.
     dependsOn(":zamin-api:jar")
     dependsOn(":zamin-core:jar")
+    dependsOn(":zamin-transport:jar")
     dependsOn(":zamin-protocol-v1_8_8:jar")
     manifest {
         attributes(

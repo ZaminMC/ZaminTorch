@@ -130,8 +130,28 @@ class ComputeSubsystemTest {
             } finally {
                 domain.exit();
             }
-            compute.submit(domain, "after", (String in) -> in, (r, g) -> { }, () -> { });
-            assertEquals(1, compute.queuedDepth(), "the drain reopens the admission");
+            // The admission reopened: the submit is accepted (a still-full
+            // queue would refuse loudly above) and the job flows through to
+            // its owner-applied result. A queued-depth snapshot here would
+            // race the idle worker stealing the job between submit and
+            // assert — the CI-load flake this arm once carried — so recovery
+            // is pinned by the completion, never by the snapshot.
+            CountDownLatch afterApplied = new CountDownLatch(1);
+            compute.submit(domain, "after", (String in) -> in,
+                    (r, g) -> afterApplied.countDown(), () -> { });
+            deadline = System.currentTimeMillis() + 5_000;
+            while (!afterApplied.await(20, TimeUnit.MILLISECONDS)
+                    && System.currentTimeMillis() < deadline) {
+                domain.enter();
+                try {
+                    compute.drainResults(domain);
+                } finally {
+                    domain.exit();
+                }
+            }
+            assertTrue(afterApplied.await(1, TimeUnit.SECONDS),
+                    "the after-job's result reaches its owner — the drain reopened");
+            assertEquals(0, compute.queuedDepth(), "the recovered pipeline drains whole");
         } finally {
             blockCompute.countDown();
             compute.shutdown();
