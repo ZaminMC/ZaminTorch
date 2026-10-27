@@ -16603,3 +16603,66 @@ adoption split along the measured line; (4) the kill policy's real
 domain is the WEDGED loop, not the slow socket — naming the domain
 correctly closed the row without inventing a gameplay policy the
 reference never had.
+
+## 2026-10-28 — the silk & shears parity audit (PR #57, the second verifier pass after the tall-grass fix)
+
+The verifier role, second pass: the drop-band audit (PR #56) fixed the
+count bands; this pass swept the OTHER half of the same law family —
+the silk-touch and shears gates — and found seventeen gaps in one
+read. The reference law that anchored the whole sweep: the default
+silk gate is `hasSilkTouchDrops() = isCube() && !hasBlockEntity`
+(Block.java lines 784-787) — every full cube silk-harvests ITSELF
+unless the class overrides — and the shears laws ride
+afterMinedByPlayer's own arm. The pre-fix engine carried a
+hand-curated silk set (SILK_TOUCHABLE) that missed every cube whose
+by-hand row diverges from the block.
+
+The finds, in reach order: the glowstone band answered dust under silk
+(the audit's own "ALWAYS" claim in PR #56 missed the silk arm — the
+verifier's first catch was against the previous verifier's own
+commit); the melon's slice walk ignored silk; the LIT redstone ore's
+empty-stack quirk (Item.byBlock of the lit form resolves null — the
+dig-start light swap means the lit form is the one actually broken, so
+silk on redstone ore answers NOTHING in the reference); the mining-XP
+hook fired under silk (the silk arm replaces the whole drop walk —
+the XP carrier never runs); the lit form had no XP row at all, so
+redstone ore paid NO XP (the unlit row was unreachable through the
+same swap); the vine had no shears branch; the double plant's lower
+shears arm was missing entirely and the upper pair arm answered ONE
+tallgrass where the reference drops TWO (line 189's ItemStack count);
+the glass pane and all thirty-two stained glass blocks had no silk
+arm (the stained pair need the COLOR in the damage field — the
+generic silk arm cannot express a damage domain, so a dedicated
+branch owns them); the cobweb had no drop row AT ALL (every break
+answered nothing); the podzol and coarse dirt had no rows either
+(the podzol's hand/silk split rides the dirt item's damage domain);
+and the quartz ore, clay, snow block and mycelium all answered their
+by-hand rows under silk.
+
+Two registrations fell out of the sweep: the vine/cobweb/glass
+pane/quartz ore items (declared nowhere, wire ids already mapped —
+LegacyBlockIds carried 106/30/102/153 all along), and the glowstone
+BLOCK item itself — declared for the cleric's trade stock but never
+in the registration list, the same declared-but-never-registered
+shape the Slice 65 comment warns about, found by the audit's first
+test run when the new silk gate's lookup threw.
+
+**Evidence:** SilkAndShearsParityAcceptanceTest 10/0; the block
+package whole 243/0 (the DropBandParity + TallGrass + DoublePlant +
+Melon + Mineral + Farming seats included); interaction + experience
+24/0; MiningXpAcceptanceTest + Silverfish + RegistryApi +
+DyeFamilyPlacement green; the protocol module's ItemRegistryParity +
+LegacyBlockIdsIntegrity + BlockRegistryTest green over the four new
+registrations.
+
+**Lessons:** (1) an audit's own claims need the same verification as
+the code it audits — the glowstone band was pinned "ALWAYS" against
+every tool while the reference's silk arm sat three lines above the
+walk the band came from; (2) the empty-stack quirk class (lit
+redstone ore has NO registered item, so silk drops nothing) is real
+vanilla law, not an edge to smooth over — the dig-start light swap
+makes the unreachable-looking form the ONLY reachable one, and the
+lit XP row's absence meant the ore paid no XP AT ALL in practice;
+(3) the declared-but-never-registered item shape keeps resurfacing —
+every new item-consuming gate (silk lookups, creative claims, trade
+stock) should sweep the list against the declared constants.
