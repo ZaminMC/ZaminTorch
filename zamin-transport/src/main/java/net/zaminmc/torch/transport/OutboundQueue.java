@@ -69,10 +69,14 @@ public final class OutboundQueue {
 
     private final Channel channel;
     private final TransportMetrics metrics;
-    private final ConcurrentLinkedQueue<ByteBuf> queue = new ConcurrentLinkedQueue<>();
+    private final ConcurrentLinkedQueue<QueuedPacket> queue = new ConcurrentLinkedQueue<>();
     private final AtomicLong queuedBytes = new AtomicLong();
     private final AtomicBoolean drainScheduled = new AtomicBoolean(false);
     private volatile boolean admissionOpen = true;
+
+    /** One queued ticket and its enqueue stamp — the §35.12 dwell row's raw material. */
+    private record QueuedPacket(ByteBuf packet, long enqueuedAtNanos) {
+    }
 
     public OutboundQueue(Channel channel) {
         this(channel, new TransportMetrics());
@@ -111,7 +115,7 @@ public final class OutboundQueue {
             TransportLog.get().warning(() -> "Outbound queue past " + SATURATION_LOG_BYTES
                     + " bytes on " + this.channel + " — the event loop is not draining");
         }
-        this.queue.add(packet);
+        this.queue.add(new QueuedPacket(packet, System.nanoTime()));
         scheduleDrain();
     }
 
@@ -127,7 +131,7 @@ public final class OutboundQueue {
         int bytes = packet.readableBytes();
         this.metrics.packetEnqueued(bytes);
         this.queuedBytes.addAndGet(bytes);
-        this.queue.add(packet);
+        this.queue.add(new QueuedPacket(packet, System.nanoTime()));
         // Unconditional execution: the drain task is ordered with any
         // already-scheduled drain on the same loop, so ordering is exact.
         this.channel.eventLoop().execute(this::drainNow);
@@ -143,7 +147,7 @@ public final class OutboundQueue {
         if (admit(packet)) {
             this.metrics.packetEnqueued(packet.readableBytes());
             this.queuedBytes.addAndGet(packet.readableBytes());
-            this.queue.add(packet);
+            this.queue.add(new QueuedPacket(packet, System.nanoTime()));
         }
         close();
     }
@@ -175,12 +179,12 @@ public final class OutboundQueue {
     public void closeNow() {
         this.admissionOpen = false;
         this.drainScheduled.set(false);
-        ByteBuf packet;
-        while ((packet = this.queue.poll()) != null) {
-            int bytes = packet.readableBytes();
+        QueuedPacket node;
+        while ((node = this.queue.poll()) != null) {
+            int bytes = node.packet().readableBytes();
             this.queuedBytes.addAndGet(-bytes);
             this.metrics.packetDropped(bytes);
-            packet.release();
+            node.packet().release();
         }
         this.channel.close();
     }
@@ -233,8 +237,9 @@ public final class OutboundQueue {
             return;
         }
         int written = 0;
-        ByteBuf packet;
-        while ((packet = this.queue.poll()) != null) {
+        QueuedPacket node;
+        while ((node = this.queue.poll()) != null) {
+            ByteBuf packet = node.packet();
             int bytes = packet.readableBytes();
             this.queuedBytes.addAndGet(-bytes);
             if (!this.channel.isActive()) {
@@ -250,7 +255,9 @@ public final class OutboundQueue {
             // The write hands the ticket to the pipeline: the frame encoder
             // releases it after encoding, and Netty's own failure path
             // releases it when the channel rejects the write. Both are the
-            // channel's law; the queue's ownership ends here.
+            // channel's law; the queue's ownership ends here. The packet's
+            // dwell (enqueue → this write) lands in the §35.12 latency row.
+            this.metrics.recordLatencyNanos(System.nanoTime() - node.enqueuedAtNanos());
             this.channel.write(packet, this.channel.voidPromise());
             this.metrics.packetWritten();
             written++;

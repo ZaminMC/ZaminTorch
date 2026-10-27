@@ -247,4 +247,64 @@ class OutboundQueueTest {
         assertEquals(0, saturated.queuedPackets());
         openChannel.finishAndReleaseAll();
     }
+
+    @Test
+    void writtenPacketsSampleTheDwellRowDroppedOnesNeverDo() {
+        EmbeddedChannel channel = new EmbeddedChannel();
+        OutboundQueue queue = new OutboundQueue(channel);
+
+        // Five packets ride the whole path: five dwell samples.
+        for (int i = 0; i < 5; i++) {
+            queue.enqueue(packet("live" + i));
+        }
+        channel.runPendingTasks();
+
+        TransportMetrics.Snapshot written = queue.metrics().snapshot();
+        assertEquals(5, written.latencySamples());
+        // The nearest-rank ladder holds even on a tied clock (all samples
+        // equal): p50 <= p95 <= p99, and the max is the window's own.
+        assertTrue(written.latencyP50Nanos() >= 0);
+        assertTrue(written.latencyP50Nanos() <= written.latencyP95Nanos());
+        assertTrue(written.latencyP95Nanos() <= written.latencyP99Nanos());
+        assertTrue(written.latencyP99Nanos() <= written.latencyMaxNanos());
+
+        // Dropped packets never rode the wire: no dwell row for them.
+        OutboundQueue dropping = new OutboundQueue(new EmbeddedChannel());
+        dropping.enqueue(packet("dropped1"));
+        dropping.enqueue(packet("dropped2"));
+        dropping.closeNow();
+        TransportMetrics.Snapshot dropped = dropping.metrics().snapshot();
+        assertEquals(0, dropped.latencySamples());
+        assertEquals(2, dropped.packetsDropped());
+
+        // The urgent lane samples too: one more dwell, one more flush
+        // (the embedded loop queues the task; the pump is the join).
+        EmbeddedChannel urgentChannel = new EmbeddedChannel();
+        OutboundQueue urgent = new OutboundQueue(urgentChannel);
+        urgent.enqueueUrgent(packet("now"));
+        urgentChannel.runPendingTasks();
+        TransportMetrics.Snapshot urgentSnapshot = urgent.metrics().snapshot();
+        assertEquals(1, urgentSnapshot.latencySamples());
+        assertEquals(1, urgentSnapshot.flushes());
+        urgentChannel.finishAndReleaseAll();
+
+        channel.finishAndReleaseAll();
+    }
+
+    @Test
+    void latencyRingWrapsAndKeepsTheNewestWindow() {
+        TransportMetrics metrics = new TransportMetrics();
+        // The ring holds 4096; push capacity + 512 through direct recording
+        // (the drain path's same door) and the window must stay bounded.
+        int pushed = TransportMetrics.LATENCY_SAMPLE_CAPACITY + 512;
+        for (int i = 0; i < pushed; i++) {
+            metrics.recordLatencyNanos(i + 1L);
+        }
+        TransportMetrics.Snapshot snapshot = metrics.snapshot();
+        assertEquals(pushed, snapshot.latencySamples());
+        // The window is the NEWEST 4096 (values 513..4520 of the ramp) — the
+        // p50 must sit inside it, never at the ramp's oldest head.
+        assertTrue(snapshot.latencyP50Nanos() >= 513L);
+        assertTrue(snapshot.latencyP50Nanos() <= pushed);
+    }
 }
