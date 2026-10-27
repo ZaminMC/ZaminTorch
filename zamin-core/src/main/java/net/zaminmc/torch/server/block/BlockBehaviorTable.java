@@ -59,11 +59,17 @@ public final class BlockBehaviorTable {
             // The mineral vault's silk arms (Slice 32 — the OreBlock silk
             // gate is the default hasSilkTouchDrops, so lapis/emerald ore
             // take themselves; PackedIceBlock rides the same default with
-            // its bare-hand count 0).
+            // its bare-hand count 0; plain IceBlock carries the same gate
+            // — its bare hand melts it to nothing, silk takes the cube).
             Identifier.parse("minecraft:lapis_ore"),
             Identifier.parse("minecraft:emerald_ore"),
             Identifier.parse("minecraft:redstone_ore"),
             Identifier.parse("minecraft:packed_ice"),
+            Identifier.parse("minecraft:ice"),
+            // The sea lantern's own gate (SeaLanternBlock line 41:
+            // hasSilkTouchDrops true — silk takes the lantern itself,
+            // the bare hand walks the crystals band).
+            Identifier.parse("minecraft:sea_lantern"),
             // The huge-mushroom pair (Slice 40 — the full-cube default's
             // own silk arm: every state takes itself under silk touch).
             Identifier.parse("minecraft:brown_mushroom_block"),
@@ -117,6 +123,15 @@ public final class BlockBehaviorTable {
             Map.entry(Identifier.parse("minecraft:crafting_table"),
                     new BlockBehavior(2.5, true, false, "wood", 0,
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:crafting_table"), 1)))),
+
+            // The bookshelf (BookshelfBlock — setStrength(1.5F), the wood
+            // material, hand-breakable): getDropItem the BOOK with
+            // getBaseDropCount 3 — exactly three books by hand, the shelf
+            // itself under silk (the silk set's own row). The pre-fix
+            // table carried NO row at all, so a break answered nothing.
+            Map.entry(Identifier.parse("minecraft:bookshelf"),
+                    new BlockBehavior(1.5, true, false, null, 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:book"), 3)))),
 
             Map.entry(Identifier.parse("minecraft:torch"),
                     new BlockBehavior(0.0, true, false, "wood", 0,
@@ -292,6 +307,14 @@ public final class BlockBehaviorTable {
             // nothing; silk takes the block itself (the silk set below).
             Map.entry(Identifier.parse("minecraft:packed_ice"),
                     new BlockBehavior(0.5, true, true, "rock", 1, List.of())),
+            // The plain ice (IceBlock — setStrength(0.5F), the ICE
+            // material, hand-breakable): the bare hand melts it to
+            // nothing (getDropItem null / getBaseDropCount 0 — the row's
+            // empty drop list) and silk takes the cube itself (the silk
+            // set's own row above). The pre-fix table carried NO row at
+            // all, so even silk answered nothing.
+            Map.entry(Identifier.parse("minecraft:ice"),
+                    new BlockBehavior(0.5, true, false, null, 0, List.of())),
 
             // The redstone power family (Slice 33): the lamp pair — one
             // item (the dark form — RedstoneLampBlock.getDropItem lines
@@ -676,6 +699,11 @@ public final class BlockBehaviorTable {
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:prismarine"), 1)))),
             Map.entry(Identifier.parse("minecraft:sea_lantern"),
                     new BlockBehavior(0.3, true, false, "glass", 0,
+                            // the SeaLanternBlock band (clamp(2 + nextInt(2)
+                            // + nextInt(fortune + 1), 1, 5)) rides the
+                            // DropService's sea-lantern family arm; the row's
+                            // fixed 2 is the raw-table floor, the lapis-ore
+                            // convention.
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:prismarine_crystals"), 2)))),
             Map.entry(Identifier.parse("minecraft:sponge"),
                     new BlockBehavior(0.6, true, false, "sponge", 0,
@@ -911,10 +939,11 @@ public final class BlockBehaviorTable {
             // pick suffices), drops itself; soul sand 0.5 sand-material
             // shovel-block, drops itself; quartz ore 3.0 rock pickaxe-gated
             // (harvest 0) dropping the quartz item; glowstone 0.3
-            // glass-material instant-diggable dropping the reference
-            // GlowstoneBlock's quantityDropped band (2 + nextInt(3)) through
-            // the table's first-hit-wins chance model (1/3 each of 4, 3, 2
-            // — the range roll restated in the table's vocabulary).
+            // glass-material dropping the GlowstoneBlock band
+            // (clamp(2 + nextInt(3) + nextInt(fortune + 1), 1, 4) — the
+            // DropService's glowstone family arm owns the walk; the row's
+            // fixed 2 only rides non-family callers that read the table raw,
+            // the lapis-ore convention).
             Map.entry(Identifier.parse("minecraft:netherrack"),
                     new BlockBehavior(0.4, true, true, "rock", 0,
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:netherrack"), 1)))),
@@ -926,9 +955,7 @@ public final class BlockBehaviorTable {
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:quartz"), 1)))),
             Map.entry(Identifier.parse("minecraft:glowstone"),
                     new BlockBehavior(0.3, true, false, "glass", 0,
-                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:glowstone_dust"), 4, 1.0 / 3.0),
-                                    new BlockBehavior.Drop(Identifier.parse("minecraft:glowstone_dust"), 3, 1.0 / 3.0),
-                                    new BlockBehavior.Drop(Identifier.parse("minecraft:glowstone_dust"), 2, 1.0 / 3.0)))),
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:glowstone_dust"), 2)))),
 
             // The mushrooms (community blocks.json): instant-break plants
             // dropping themselves (the PlantFeature pair the nether grows on

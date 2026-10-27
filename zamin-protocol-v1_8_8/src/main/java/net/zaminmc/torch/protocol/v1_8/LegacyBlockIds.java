@@ -238,6 +238,8 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:carrot"), 391),
             Map.entry(Identifier.parse("minecraft:potato"), 392),
             Map.entry(Identifier.parse("minecraft:baked_potato"), 393),
+            // The mature potato crop's 1/50 bonus roll (Item.java line 694).
+            Map.entry(Identifier.parse("minecraft:poisonous_potato"), 394),
             Map.entry(Identifier.parse("minecraft:golden_carrot"), 396),
             Map.entry(Identifier.parse("minecraft:rabbit"), 411),
             Map.entry(Identifier.parse("minecraft:cooked_rabbit"), 412),

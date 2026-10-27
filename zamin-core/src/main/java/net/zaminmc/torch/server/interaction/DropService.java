@@ -336,6 +336,112 @@ public final class DropService {
             }
             return List.of(ItemStack.of(self, 1));
         }
+        // The glowstone band (GlowstoneBlock lines 15-29): getDropCount's
+        // clamp(getBaseDropCount + nextInt(fortune + 1), 1, 4) over the
+        // 2 + nextInt(3) base. The pre-fix table carried the band as THREE
+        // independent 1/3 rows and the walk's add-all rolled EACH: ~30% of
+        // breaks dropped NOTHING (all three failed) and ~3.7% dropped NINE
+        // dust (all three hit) where vanilla always answers 1-4.
+        if (broken.identifier().value().equals("glowstone")) {
+            int count = Math.max(1, Math.min(4,
+                    2 + random.nextInt(3) + random.nextInt(fortune + 1)));
+            ItemType dust = BuiltinItems.lookup(
+                    Identifier.parse("minecraft:glowstone_dust")).orElseThrow();
+            return List.of(ItemStack.of(dust, count));
+        }
+        // The gravel XOR (GravelBlock.getDropItem): flint at
+        // nextInt(10 - fortune * 3) == 0 (the fortune clamped at 3 — the
+        // 10/7/4/1 ladder), ELSE the block itself — exactly ONE stack
+        // either way, the count never multiplied. The pre-fix walk rolled
+        // the flint chance then CONTINUED to the gravel row, so a
+        // successful flint roll dropped BOTH stacks, and the generic
+        // foreign-drop multiplier even multiplied the flint's count with
+        // Fortune (vanilla widens only the chance).
+        if (broken.identifier().value().equals("gravel")) {
+            int clampedFortune = Math.min(fortune, 3);
+            if (random.nextInt(Math.max(1, 10 - clampedFortune * 3)) == 0) {
+                ItemType flint = BuiltinItems.lookup(
+                        Identifier.parse("minecraft:flint")).orElseThrow();
+                return List.of(ItemStack.of(flint, 1));
+            }
+            ItemType gravel = BuiltinItems.lookup(
+                    Identifier.parse("minecraft:gravel")).orElseThrow();
+            return List.of(ItemStack.of(gravel, 1));
+        }
+        // The sea lantern's own band (SeaLanternBlock lines 20-28):
+        // clamp(getBaseDropCount + nextInt(fortune + 1), 1, 5) over the
+        // 2 + nextInt(2) base — the pre-fix row folded the whole band to a
+        // flat 2; silk took the lantern itself above (hasSilkTouchDrops
+        // true joined the silk set with this slice).
+        if (broken.identifier().value().equals("sea_lantern")) {
+            int count = Math.max(1, Math.min(5,
+                    2 + random.nextInt(2) + random.nextInt(fortune + 1)));
+            ItemType crystals = BuiltinItems.lookup(
+                    Identifier.parse("minecraft:prismarine_crystals")).orElseThrow();
+            return List.of(ItemStack.of(crystals, count));
+        }
+        // The nether wart's mature band (NetherWartBlock.dropItems lines
+        // 51-63): age 3 answers 2 + nextInt(3) plus the fortune bonus
+        // nextInt(fortune + 1) — rolled ONLY when fortune > 0, the
+        // reference's own gate; the younger stages stay the table's
+        // exact-one rows. The pre-fix stage-3 row folded the band to a
+        // flat 2.
+        if (broken.identifier().value().equals("nether_wart_stage3")) {
+            int count = 2 + random.nextInt(3);
+            if (fortune > 0) {
+                count += random.nextInt(fortune + 1);
+            }
+            ItemType wart = BuiltinItems.lookup(
+                    Identifier.parse("minecraft:nether_wart")).orElseThrow();
+            return List.of(ItemStack.of(wart, count));
+        }
+        // The crops' mature bands (WheatBlock.dropItems lines 91-105 with
+        // the CarrotsBlock/PotatoesBlock overrides): the standard walk
+        // answers EXACTLY ONE item at every age (the plant item at age 7 —
+        // WheatBlock drops the standard walk's fortune to 0), then age 7
+        // alone rolls the seed bonus — 3 + fortune iterations of
+        // nextInt(15) <= 7, one seed each. The wheat's seeds are
+        // wheat_seeds beside the wheat; the carrots' and potatoes' seed
+        // IS the crop item, so the one and the bonus merge into a single
+        // stack; the potatoes add the family's own 1/50 poisonous roll at
+        // age 7 (PotatoesBlock lines 25-31). The pre-fix rows folded each
+        // band to a flat count (wheat 1+1, carrot 2, potato 2 — no bonus
+        // walk, no poison roll).
+        String cropValue = broken.identifier().value();
+        boolean matureWheat = cropValue.equals("wheat_stage7");
+        boolean matureCarrot = cropValue.equals("carrots_stage7");
+        boolean maturePotato = cropValue.equals("potatoes_stage7");
+        if (matureWheat || matureCarrot || maturePotato) {
+            ItemType plantItem = BuiltinItems.lookup(Identifier.parse(matureWheat
+                    ? "minecraft:wheat" : matureCarrot
+                    ? "minecraft:carrot" : "minecraft:potato")).orElseThrow();
+            ItemType seedItem = matureWheat
+                    ? BuiltinItems.lookup(
+                            Identifier.parse("minecraft:wheat_seeds")).orElseThrow()
+                    : plantItem;
+            java.util.List<ItemStack> cropDrops = new ArrayList<>(2);
+            cropDrops.add(ItemStack.of(plantItem, 1));
+            int bonus = 0;
+            for (int i = 0; i < 3 + fortune; i++) {
+                if (random.nextInt(15) <= 7) {
+                    bonus++;
+                }
+            }
+            if (matureWheat) {
+                if (bonus > 0) {
+                    cropDrops.add(ItemStack.of(seedItem, bonus));
+                }
+            } else {
+                // the carrot's and potato's seed IS the crop: the one and
+                // the bonus merge into the single stack
+                cropDrops.set(0, ItemStack.of(plantItem, 1 + bonus));
+            }
+            if (maturePotato && random.nextInt(50) == 0) {
+                cropDrops.add(ItemStack.of(BuiltinItems.lookup(
+                        Identifier.parse("minecraft:poisonous_potato")).orElseThrow(), 1));
+            }
+            return cropDrops;
+        }
         // The lapis ore's variable base (Slice 32 — OreBlock.getBaseDropCount
         // line 42: {@code 4 + nextInt(5)}) with the OreBlock fortune
         // multiplier (getDropCount lines 45-56: {@code nextInt(fortune + 2)
@@ -367,25 +473,11 @@ public final class DropService {
         }
         List<ItemStack> drops = new ArrayList<>();
         for (BlockBehavior.Drop drop : behavior.drops()) {
-            // First successful roll wins (the historical quantityDropped model):
-            // gravel rolls the flint chance, otherwise the next entry takes
-            // the slot.
-            // The namespace never rides value() (the Identifier record's
-            // own split) — the original "minecraft:gravel" comparison
-            // never matched, so Fortune never widened the flint chance
-            // (a latent Slice 32 find; the repair restores the reference's
-            // GravelBlock.getDropItem walk).
-            boolean gravelFlint = broken.identifier().value().equals("gravel")
-                    && drop.item().value().equals("flint");
-            if (gravelFlint) {
-                // The gravel flint walk (GravelBlock.getDropItem): the flint
-                // chance widens with Fortune — nextInt(10 - fortune * 3) == 0
-                // (10% base, 1/7 at I, 1/4 at II, always at III — the vanilla
-                // quirk). The gravel fallback row below then wins the slot.
-                if (random.nextInt(Math.max(1, 10 - fortune * 3)) != 0) {
-                    continue;
-                }
-            } else if (random.nextDouble() > drop.chance()) {
+            // Each row rolls its own chance independently (the reference's
+            // per-quantityDropped walk over one drop entry at a time); the
+            // gravel's flint XOR and the glowstone's band moved to their
+            // own family arms above — the walk below never sees them.
+            if (random.nextDouble() > drop.chance()) {
                 continue;
             }
             ItemType itemType = BuiltinItems.lookup(drop.item()).orElse(null);
@@ -395,11 +487,18 @@ public final class DropService {
                 throw new IllegalStateException(
                         "Behavior table drop references unregistered item: " + drop.item());
             }
-            // The foreign-drop fortune multiplier (OreBlock.getDropCount):
-            // applies only when the row's item differs from the block —
-            // the self-dropping blocks (iron ore, gold ore) gain nothing.
+            // The foreign-drop fortune multiplier (OreBlock.getDropCount
+            // lines 45-56: {@code nextInt(fortune + 2) - 1} clamped at 0,
+            // then {@code base * (i + 1)}) — the reference's OreBlock ALONE
+            // owns this shape, so the walk applies it only to the plain
+            // ore family with foreign rows (coal, diamond, emerald, quartz —
+            // lapis and redstone carry their own arms above): every other
+            // foreign row — the bookshelf's three books, clay's four balls,
+            // the double slabs' pair, the crops' seeds — answers its row's
+            // count FLAT. The pre-fix walk multiplied every foreign row.
             int count = drop.count();
-            if (fortune > 0 && !drop.item().equals(broken.identifier())) {
+            if (fortune > 0 && !drop.item().equals(broken.identifier())
+                    && ORE_FAMILY_WITH_FOREIGN_DROPS.contains(broken.identifier())) {
                 int i = random.nextInt(fortune + 2) - 1;
                 if (i < 0) {
                     i = 0;
@@ -412,4 +511,16 @@ public final class DropService {
         }
         return drops;
     }
+
+    /**
+     * The plain OreBlock family whose foreign rows take the reference's
+     * fortune multiplier (OreBlock.getDropCount — iron and gold ore drop
+     * THEMSELVES so the multiplier never fires there; lapis and redstone
+     * override the shape with their own arms above).
+     */
+    private static final java.util.Set<Identifier> ORE_FAMILY_WITH_FOREIGN_DROPS =
+            java.util.Set.of(Identifier.parse("minecraft:coal_ore"),
+                    Identifier.parse("minecraft:diamond_ore"),
+                    Identifier.parse("minecraft:emerald_ore"),
+                    Identifier.parse("minecraft:quartz_ore"));
 }
