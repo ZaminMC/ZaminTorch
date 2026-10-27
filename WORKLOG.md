@@ -16285,3 +16285,88 @@ an honest re-pin, and the re-pin must restate the LAW not the seed's
 drift; (3) a recorded census number that cannot be reproduced by its
 own stated method is a defect in the record — restate the convention
 with the recount rather than carrying a delta forward on top of it.
+
+## 2026-10-27 (the pigman tail's other half) — the item-entity family's dimension reads 1:1 (Slice TF-9, the mob query's 25d shape generalized)
+
+**Scope:** the re-pinned next-work line named the item-entity family's
+dimension reads as the next ML-100 family tail — the reference's
+Entity.world generalized over the items and the projectiles the way
+Slice 25d carried it for the mobs. The audit found the whole family
+dimension-blind: the shared ShapeGround read the overworld for every
+body (a nether item rested on the overworld's same-coordinate
+terrain), the merge/pickup/hit scans matched bodies across dimensions
+at the same coordinates, the projectile sinks tore the OVERWORLD for a
+nether fireball (the pre-lane bug: detonateAt hard-coded the
+overworld), the wire published every item and projectile to every
+observer whatever their dimension, and the ZID store carried no
+dimension row.
+
+**The lane:** ItemEntity and ProjectileEntity carry their own dimension
+(the reference's Entity.world), every spawn and launch walk stamps it —
+the mob deaths through the LootSink's new dimension row (32 sites), the
+player paths the session's, the mob shooters the mob's, the fishing
+catch the angler's through the retrieve's carry, the dispenser arms
+their honest overworld 0 (the family's own binding, ledged) — and every
+read consults it: the shared ShapeGround flips per body before each
+tick and collision walk (the 25d flip generalized, the falling family
+stamping its overworld 0 explicitly so it never inherits a stale flip),
+the merge walk's same-dimension gate, the pickup walks'
+collector-dimension gates, the hit resolver's dimension-filtered
+mobAt/playerAt consults (MobManager's new variant), the projectile
+sinks carrying the dimension whole (the fire and the detonation land in
+the body's OWN world through worldForSafe + detonateAtIn, the potion
+splash's bodies walk gates on it, the burning arrow's TNT consult reads
+the arrow's world), the piston walk never collecting a cross-dimension
+body with the push reading the item's own world, and the wire's
+observer-dimension gates on every item and projectile send (the id-only
+sends' gates at the listener fan). The ZID store moved to v8 (the
+dimension byte on the flags' bit 3, -1 as the u8 255 — the ZMD v2 row's
+own law; the v1-v7 migration reads every historical body as an
+overworld body).
+
+**Evidence:** ItemDimensionReadsTest 6/0 (the spawn stamps, the ground
+flip — the overworld body settling while the nether body falls past
+the same-coordinate floor — the merge gate, the pickup gate with the
+cross-dimension collector standing ON the item, the ZID v8 round trip,
+the snapshot carry) + ProjectileDimensionReadsTest 5/0 (the launch
+stamps, the solid flip — the overworld arrow sticking while the nether
+arrow flies clean through the same coordinates — the
+fire/explosion/potion sinks' dimension carry, the arrow pickup gate).
+Re-pins: the merge equivalence bar's verbatim copy (the
+same-dimension gate, a no-op over its single-dimension populations),
+the save-split historical walk (v8, the nether row round-tripping),
+and the interface-carrying stubs across the entity/potion/fishing/
+dispenser/piston/spawner/nbt/vehicle/bukkit trees. Regression net:
+the entity package whole (91 suites), the
+potion/fishing/dispenser/piston/block families, the combat/ranged/
+spawn-event/thorns acceptance sweep, the nbt/spawner/leash/endereye
+families, the protocol wire suites, the bukkit module whole, and the
+launcher — one ChestLid full-run EOF observation (the documented
+load-flake class: isolation-green on BOTH the patched and the clean
+tree, the stashed-tree control run proving it).
+
+**Ledger:** the §29 Wave TF-9 rows, all three next-work lines re-pinned
+(the remainder now naming the vehicle/xp-orb/fx dimension tails), the
+Phase-4 wave list, the compat file's pigman tail's other half CLOSED
+with the lane's shape, and the STALE STATS ROWS re-pinned (the
+jukebox's RECORDS_PLAYED and the note block's NOTE_BLOCKS_TUNED/PLAYED
+increments have been wired at their use sites since the stats slice —
+the "no stats system yet" notes were pre-stats-slice text, verified
+against the blame before retiring). The census recounted at 499
+classes / 2853 methods (the reproducible @Test-occurrence convention).
+
+**Lessons:** (1) a family's dimension-blindness hides a CONCRETE
+correctness bug behind a readability gap — the nether fireball tearing
+the overworld was not hypothetical, it was one detonateAt call away,
+and only the per-family audit (spawn stamps, reads, scans, sinks,
+wire, store — the six faces) surfaces which face holds the bug; (2)
+the spawn listener fan fires INSIDE the spawn method, so a dimension
+stamped after the return would publish with the wrong value — the
+stamp must ride the spawn's own signature (the overload), never a
+post-hoc setter at the call site; (3) a shared read surface flipped
+per-body (the ShapeGround) must be stamped by EVERY family that walks
+it — the falling family's explicit 0 is the difference between a
+ledged tail and a latent cross-tick bug; (4) the stale-ledger check
+cuts both ways: the stats rows claimed a gap the code had already
+closed, and only the git blame against the increment sites settled
+which side was stale.

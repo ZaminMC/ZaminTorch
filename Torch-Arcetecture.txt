@@ -667,9 +667,9 @@ Torch has published development releases, so the initial artifact gate has been 
 
 ### Phase 4 — 1.8.8 mechanics foundation — IN PROGRESS
 
-The engine has substantial reference-driven mechanics and API coverage, tracked in Section 29 and `VANILLA_1_8_8_COMPATIBILITY.md`. The current ledger includes completed Waves A–K, the metadata-variant Wave L (L1–L6), the stairs' two-box geometry (L7), Wave M (the swept-box physics solver across every moving family), the first Phase-6 gameplay lane (P6), the use/dig dispatch law family through N7 (the two-stage use law, the use handler's gates, the use packet's tail, the spawn-protection gate, the teleport window, the dig handler's own gates, and the placement reach bands' retirement — the handler's 64.0 is the only band), and the audit-lane ML-018 (the spectator camera: the C2S Spectate handler, the 0x43 Camera packet, the per-tick body follow with the world-stream re-center, all three exits, the broadcastTo visibility law, and the no-clip gate — gamemode 3's core mechanics whole, cross-dimension spectate the honest standing bound). That is progress by mechanic, not full Minecraft 1.8.8 compatibility: keep each remaining behavior, difference, test, and status explicit. Do not replace reference behavior with modern defaults or narrow the native API to match an incomplete compatibility layer.
+The engine has substantial reference-driven mechanics and API coverage, tracked in Section 29 and `VANILLA_1_8_8_COMPATIBILITY.md`. The current ledger includes completed Waves A–K, the metadata-variant Wave L (L1–L6), the stairs' two-box geometry (L7), Wave M (the swept-box physics solver across every moving family), the first Phase-6 gameplay lane (P6), the use/dig dispatch law family through N7 (the two-stage use law, the use handler's gates, the use packet's tail, the spawn-protection gate, the teleport window, the dig handler's own gates, and the placement reach bands' retirement — the handler's 64.0 is the only band), the audit-lane ML-018 (the spectator camera: the C2S Spectate handler, the 0x43 Camera packet, the per-tick body follow with the world-stream re-center, all three exits, the broadcastTo visibility law, and the no-clip gate — gamemode 3's core mechanics whole, cross-dimension spectate the honest standing bound), and the vanilla-grade family waves TF/TF-7/TF-8/TF-9 (the tameable owner-aware lane, the census's named tails, the undead daylight burn, and the item-entity family's dimension reads — the 25d shape generalized). That is progress by mechanic, not full Minecraft 1.8.8 compatibility: keep each remaining behavior, difference, test, and status explicit. Do not replace reference behavior with modern defaults or narrow the native API to match an incomplete compatibility layer.
 
-Next work: the cycle-4 ranked audit backlog (the master ledger's demand-named rows) is now landing one row per lane — ML-003, the sign editor open (0x36 on placement), is closed (§29's Wave ML row); the remaining ranked rows stay next work, each on its own evidence-pinned lane. The vanilla-grade census's named lanes are ALL LANDED (§29's Wave TF: the tameable family's owner-aware lane, the dispenser's world-event 2000/2005 arms, the frame's map-marker cleanup) — the census's remaining standing rows are the family-owned envelopes the compat ledger carries in place.
+Next work: the cycle-4 ranked audit backlog (the master ledger's demand-named rows) is now landing one row per lane — ML-003, the sign editor open (0x36 on placement), is closed (§29's Wave ML row); the remaining ranked rows stay next work, each on its own evidence-pinned lane. The vanilla-grade census's named lanes are ALL LANDED (§29's Wave TF: the tameable family's owner-aware lane, the dispenser's world-event 2000/2005 arms, the frame's map-marker cleanup) — and the census's family-owned envelopes are landing with their families: Wave TF-9 (2026-10-27) closed the item-entity family's dimension reads whole (the pigman tail's other half — the items and the projectiles now read their own worlds through the generalized 25d shape).
 
 ### Phase 5 — Supporting parallel computation — INFRASTRUCTURE IMPLEMENTED; THE WORKLOAD ADOPTION GATES ANSWERED (PATHFINDING REJECTED WITH EVIDENCE; LIGHTING ANSWERED A MEASURED WIN — the contract, the equivalence, and the numbers landed, the wiring itself still demand-named)
 
@@ -689,7 +689,7 @@ THE SECTION TABLE AND THE ATTRIBUTION PASS LANDED (ML-006 + ML-007 — the cycle
 
 Dynamic split/merge and load-driven migration remain future work. First prove migration with in-flight tasks, delayed work, messages, compute results, persistence, shutdown, and stale-generation invalidation; add telemetry and anti-oscillation rules before enabling automatic balancing.
 
-**Next concrete mechanics work:** continue from Section 29: the master ledger's demand-named queue is EMPTY of implementable rows (ML-013, the last — the tick watchdog, landed 2026-10-26 in §29's Wave ML13; ML-008 the /give form aligned the same day; PR #38's audit merge landed 2026-10-23). The 2026-10-26 vanilla-grade census's lanes are ALL LANDED (§29's Waves TF-7 + TF-7-continued, closed whole). Wave ON-1 LANDED 2026-10-26 (DEC-001 executed whole; DEC-002 STAY NATIVE and DEC-003 NO KigPaper config family both stand). Wave TF-8 LANDED 2026-10-27 (§29's Wave TF-8: the undead family's daylight burn 1:1 — the ML-100 pigman tail TF-7e made reachable, the dimension-blind night-window sweep retired for the reference's isSunny/brightness/roll/sky gates, the helmet's wear-and-shatter with the onBrokenItem wire, the wither variant's visual burn). The remainder is ML-100's family-owned standing tails, each picked up only as its family's slice per that row's own rule (the next candidates by family order: the item-entity family's dimension reads riding the pigman tail's other half, the stats family's envelope — RECORDS_PLAYED, NOTE_BLOCKS_TUNED/PLAYED — its own slice when a stats surface opens). The §22 evidence bar holds: no concurrency phase opens without the attribution pass's numbers (ML-007 landed — the verdict: none justified at the current loads).
+**Next concrete mechanics work:** continue from Section 29: the master ledger's demand-named queue is EMPTY of implementable rows (ML-013, the last — the tick watchdog, landed 2026-10-26 in §29's Wave ML13; ML-008 the /give form aligned the same day; PR #38's audit merge landed 2026-10-23). The 2026-10-26 vanilla-grade census's lanes are ALL LANDED (§29's Waves TF-7 + TF-7-continued, closed whole). Wave ON-1 LANDED 2026-10-26 (DEC-001 executed whole; DEC-002 STAY NATIVE and DEC-003 NO KigPaper config family both stand). Wave TF-8 LANDED 2026-10-27 (§29's Wave TF-8: the undead family's daylight burn 1:1). Wave TF-9 LANDED 2026-10-27 (§29's Wave TF-9: the item-entity family's dimension reads 1:1 — the pigman tail's other half CLOSED, the mob query's 25d shape generalized over the items and the projectiles, the ZID store at v8, the wire's observer-dimension gates). The stats-family envelope is code-complete (the increments wired at their use sites — the compat file's stale "no stats system yet" notes re-pinned by TF-9). ML-100's family-owned standing tails now name the NEXT families by the same shape: the VEHICLE family's dimension field (the hit resolver's vehicleAt consult honestly dimension-blind until it carries one), the XP-ORB family's dimension reads (the wire sends and the payout walk), and the FX family's sound-broadcast dimension gate — each its own family slice. The §22 evidence bar holds: no concurrency phase opens without the attribution pass's numbers (ML-007 landed — the verdict: none justified at the current loads).
 
 # 23. COMMITS / PUSHES / RELEASES
 
@@ -3675,7 +3675,7 @@ own tests. Order is by vanilla visibility and dependency, not size.
       StatsCompletenessTest row — coarse_dirt/fern/podzol counting on
       stat rows the 1.8.8 client drops — reproduced on 26d961e1.)
 
-**Next concrete mechanics work:** the master ledger's demand-named queue is empty of implementable rows (ML-013 the tick watchdog landed 2026-10-26, §29's Wave ML13; ML-006/007/021 landed through PR #46; ML-008 aligned 2026-10-26; ML-020 resolved 2026-10-26 — §29's Wave ON-1 landed the online-mode whole; PR #38 merged 2026-10-23). DEC-002 STAY NATIVE indefinitely and DEC-003 NO KigPaper config family both stand. Wave TF-8 landed 2026-10-27 (§29's Wave TF-8: the undead daylight burn 1:1, the ML-100 pigman tail closed). The remainder: ML-100's family-owned tails, each only as its family's slice (the pigman tail's other half — the item-entity/projectile dimension reads — and the stats-family envelope the jukebox/note-block rows carry). The §22 evidence bar holds: no concurrency phase opens without the attribution pass's numbers (ML-007 landed — the verdict: none justified at the current loads).
+**Next concrete mechanics work:** the master ledger's demand-named queue is empty of implementable rows (ML-013 the tick watchdog landed 2026-10-26, §29's Wave ML13; ML-006/007/021 landed through PR #46; ML-008 aligned 2026-10-26; ML-020 resolved 2026-10-26 — §29's Wave ON-1 landed the online-mode whole; PR #38 merged 2026-10-23). DEC-002 STAY NATIVE indefinitely and DEC-003 NO KigPaper config family both stand. Wave TF-8 landed 2026-10-27 (§29's Wave TF-8: the undead daylight burn 1:1, the ML-100 pigman tail closed). Wave TF-9 landed 2026-10-27 (§29's Wave TF-9: the item-entity family's dimension reads 1:1 — the pigman tail's OTHER half closed, the mob query's 25d shape generalized over the items and the projectiles, the ZID store at v8, the wire's observer-dimension gates; the stats-family envelope verified code-complete with the stale ledger notes re-pinned). The remainder: the dimension-read family tails the TF-9 ledger names — the VEHICLE family's dimension field, the XP-ORB family's own reads, the FX family's sound-broadcast gate — each only as its family's slice. The §22 evidence bar holds: no concurrency phase opens without the attribution pass's numbers (ML-007 landed — the verdict: none justified at the current loads).
 
 ## Standing (demand-named, not scheduled)
 
@@ -5042,6 +5042,132 @@ way were repaired inside the wave.
       test census moves to 496 classes / 2841 methods (the @Test-
       occurrence convention, reproducible via git grep — the prior
       2718 superseded; the class counts agree throughout).
+
+## Wave TF-9 — the 2026-10-27 item-entity family's dimension reads 1:1 (the pigman tail's other half, the mob query's Slice-25d shape generalized, landed)
+
+- [x] THE BODIES CARRY THEIR OWN WORLD (the reference's Entity.world —
+      ItemEntity and ProjectileEntity gain the dimension field, 0 the
+      default): every spawn and launch walk stamps it — the mob deaths
+      read the DYING body's dimension through the LootSink's new
+      dimension row (all 32 drop sites inside MobManager, the shears
+      and the wither sweep included), the player's throws and shots the
+      session's own dimension (the Q-drop, the death drop, the held
+      throw, the bow, the potions, the bottle o' enchanting), the mob
+      shooters the mob's (the skeleton's arrow, the ghast's and the
+      blaze's fireballs, the wither's skulls, the witch's potions, the
+      golem's snowballs), the fishing catch the ANGLER's through the
+      retrieve's own dimension carry (the CatchSink's dropCatch row),
+      and the dispenser arms the system's overworld 0 — the family's
+      own overworld binding, ledged, never a silent wrong stamp. The
+      anvil imports keep the overworld 0 (their files are overworld
+      files).
+- [x] EVERY READ CONSULTS IT — the shared ShapeGround (the one
+      surface the item, falling-block and projectile families read)
+      becomes dimension-aware exactly like the mob query's own flip:
+      the item manager flips it to each body's dimension before every
+      tick walk (the item's rest answering from ITS world's blocks —
+      the same-coordinate overworld terrain never holds a nether body
+      again), the projectile manager flips it before every collision
+      walk (the arrow's stick, the fireball's landing reading their
+      own world), the piston's item push flips before the clamped
+      shift AND the piston walk never collects a cross-dimension body
+      (the overworld piston's box never grabs the nether item at the
+      same coordinates), and the falling family's own walk stamps the
+      overworld 0 explicitly — its dimension reads stay the family's
+      ledged tail, never a stale flip inherited from the last item.
+- [x] THE SCANS AND THE WALKS GATE ON IT: the merge walk's
+      same-dimension gate (mergeWithNearbyItems' own-world
+      getEntitiesOfType scan — same coordinates in two dimensions
+      never combine; the spatial bucketing's equivalence bar re-pinned
+      with the gate in its verbatim copy), the item pickup walk's
+      collector-dimension gate (onPlayerCollision runs inside the
+      item's own world), the grounded arrow's pickup gate
+      (ArrowEntity.onPlayerCollision the same), and the hit
+      resolver's dimension-filtered mobAt/playerAt consults
+      (MobManager's new dimension-aware mobAt variant — a nether arrow
+      never wounds the overworld mob at the same coordinates).
+- [x] THE PROJECTILE SINKS CARRY THE DIMENSION WHOLE: the fireball's
+      fire lands in its OWN world (SmallFireballEntity.onHit's
+      world.setBlockState — the FireSink resolves worldForSafe), the
+      ghast fireball's and the skull's detonations tear their OWN
+      world (detonateAtIn with the dimension — a nether fireball
+      never again breaks the overworld at the same coordinates, the
+      pre-lane bug the audit found), the potion splash's bodies walk
+      gates on it (PotionSystem.splash + the Bodies consult's new
+      dimension row — the engine's PotionBodies filters both the mobs
+      and the players), and the burning arrow's TNT consult carries it
+      (the isTnt read consults the arrow's world; the ignition stays
+      the overworld-bound tntSystem's own — its gate makes it
+      unreachable for other dimensions today, the honest shape). The
+      pearl's teleport keeps the reference's own shape (the teleport
+      is within the thrower's current world — the 1.8.8 source's own
+      law); the XP bottle's orbs spawn through the orb family's own
+      dimension-blind system (its standing tail, below).
+- [x] THE WIRE'S OBSERVER-DIMENSION GATES (the mob spawn's own
+      Slice-25d gate generalized): every item send — the spawn, the
+      teleport, the stack update, the collect pair, the mob-collect,
+      the destroy — and every projectile send — the spawn (+ the
+      burning flag), the move, the destroy, the collect — refuse the
+      observer in another dimension (the id-only sends' gates live at
+      the listener fan where the entity is at hand). A nether body
+      never spawns, moves, collects, or destroys for an overworld
+      observer.
+- [x] THE ZID STORE MOVES TO v8: the dimension byte rides the flags'
+      bit 3 exactly like the ZMD v2 row's own law (the byte only when
+      non-zero, -1 landing as the u8 255), the v1-v7 migration reads
+      every historical body as an overworld body (the honest default
+      — no pre-TF-9 item ever lived outside the overworld's reads),
+      and the restore stamps the loaded dimension on the body (the
+      persisted pigman-world drop rejoins ITS world across the
+      restart). The save-split equivalence test's historical walk
+      carried to the v8 shape with the nether row round-tripping.
+- [x] TESTS: ItemDimensionReadsTest 6/0 (the spawn stamps over all
+      three spawn forms + the three-arg overworld default, the ground
+      flip with the overworld body settling while the NETHER body
+      falls past the same-coordinate floor, the merge gate, the
+      pickup gate with the cross-dimension collector standing ON the
+      item's coordinates, the ZID v8 round trip with the nether byte
+      + the implicit overworld default, the snapshot carry) and
+      ProjectileDimensionReadsTest 5/0 (the launch stamps over four
+      launch forms, the solid flip with the overworld arrow sticking
+      in the overworld's ceiling while the nether arrow flies clean
+      through the same coordinates, the fire/explosion/potion sinks'
+      dimension carry, the grounded arrow's pickup gate). RE-PINS: the
+      merge equivalence bar's verbatim copy (the same-dimension gate,
+      a no-op over its single-dimension populations, the copy kept the
+      bar for the CURRENT law), the save-split historical walk (v8),
+      and the interface-carrying test stubs across the entity,
+      potion, fishing, dispenser, piston, spawner, nbt, vehicle and
+      bukkit trees (the LootSink, Bodies, CatchSink, HitResolver,
+      BurningTntArm, FireSink/ExplosionSink/SkullExplosionSink/
+      PotionSink/TntIgniteSink and the launch signatures — the
+      scripted stamps, each the overworld 0 the stubs' worlds are).
+      REGRESSION NET: the entity package whole (91 suites), the
+      potion/fishing/dispenser/piston/block families, the combat/
+      ranged/spawn-event/thorns acceptance sweep, the nbt/spawner/
+      leash/endereye families, the protocol wire suites, the bukkit
+      module whole, and the launcher module — one ChestLid full-run
+      EOF observation on the first protocol module run (the documented
+      load-flake class: isolation-green on BOTH the patched and the
+      clean tree, the stashed-tree control run proving it). The test
+      census moves to 499 classes / 2853 methods (the reproducible
+      @Test-occurrence convention).
+- [x] THE HONEST STANDING TAILS THE LANE LEAVES (each its own family
+      slice, the same shape this lane generalized): the VEHICLE
+      family carries no dimension field (the hit resolver's vehicleAt
+      consult stays dimension-blind — the javadoc names it), the
+      XP-ORB family the same (the bottle's burst spawns through the
+      dimension-blind orb system; the orb wire sends carry no gate),
+      the FX family's sound/particle broadcast (the named sounds
+      reach every dimension's observers — the world events carry their
+      dimension, the sounds do not), the fishing family's water reads
+      (the overworld-bound world query), and the overworld-bound block
+      systems' own drops (the hopper/dispenser/beacon/redstone spills
+      stamp their honest 0). The stats-family envelope the next-work
+      line carried is CODE-COMPLETE since the stats slice (the
+      NOTE_BLOCKS_TUNED/PLAYED and RECORDS_PLAYED increments wired at
+      their use sites 2026-10-15/24) — the compat ledger's "no stats
+      system yet" notes were stale and are re-pinned with this wave.
 
 # 33. CODEBASE SCALE, CLASS COHESION, AND MAINTAINABILITY
 
