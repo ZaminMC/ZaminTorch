@@ -292,10 +292,62 @@ public final class DropService {
                     Identifier.parse("minecraft:wheat_seeds")).orElseThrow();
             return List.of(ItemStack.of(seedItem, seeds));
         }
+        // The vine's shears law (the silk-arm parity audit — VineBlock
+        // lines 303-318: getDropItem NULL and getBaseDropCount 0, so every
+        // non-shears break yields nothing; afterMinedByPlayer's SHEARS
+        // arm drops the vine itself). The pre-fix table row was empty and
+        // no branch existed, so even a shears break yielded nothing.
+        if (broken.identifier().value().equals("vine")) {
+            boolean vineShears = heldTool != null
+                    && Tools.specOf(heldTool)
+                            .map(spec -> spec.toolClass() == ToolClass.SHEARS)
+                            .orElse(false);
+            if (vineShears) {
+                ItemType vine = BuiltinItems.lookup(
+                        Identifier.parse("minecraft:vine")).orElseThrow();
+                return List.of(ItemStack.of(vine, 1));
+            }
+            return List.of();
+        }
+        // The double-plant lower's shears law (the silk-arm parity audit
+        // — DoublePlantBlock.afterMinedByPlayer lines 141-149 +
+        // onMinedByPlayer lines 181-191: SHEARS on the LOWER half of the
+        // grass/fern pair answers TWO of the tallgrass item — the grass
+        // TYPE damage 1, the fern TYPE 2 — REPLACING the by-hand walk;
+        // the flowers' variants answer false from onMinedByPlayer, so
+        // they keep the normal rows (themselves). The pre-fix walk had
+        // no shears arm at all, so a shears break of the double grass
+        // rolled the 1/8 seeds instead.
+        if (net.zaminmc.torch.server.block.DoublePlantBlocks.isDoublePlant(broken)
+                && !net.zaminmc.torch.server.block.DoublePlantBlocks.isUpper(broken.identifier())) {
+            boolean pairShears = heldTool != null
+                    && Tools.specOf(heldTool)
+                            .map(spec -> spec.toolClass() == ToolClass.SHEARS)
+                            .orElse(false);
+            if (pairShears) {
+                int variant = net.zaminmc.torch.server.block.DoublePlantBlocks
+                        .variantOf(broken.identifier());
+                if (variant == 2 || variant == 3) {
+                    ItemType tallGrassItem = BuiltinItems.lookup(
+                            Identifier.parse("minecraft:tall_grass")).orElseThrow();
+                    return List.of(new ItemStack(tallGrassItem, 2, variant == 2 ? 1 : 2));
+                }
+            }
+        }
         // The melon block's slice walk (Slice 41 — MelonBlock lines 17-31:
         // getDropCount's {@code min(9, 3 + nextInt(5) + nextInt(1 + fortune))}
-        // of the melon slice).
+        // of the melon slice). The silk-arm parity audit: the melon is a
+        // full cube without a block entity, so the reference's default
+        // hasSilkTouchDrops gate (Block.java lines 784-787) is TRUE — silk
+        // takes the melon BLOCK itself (Item.byBlock's own 1:1); the
+        // branch runs ahead of the generic silk arm, so the gate rides
+        // here.
         if (broken.identifier().value().equals("melon_block")) {
+            if (silkTouch) {
+                ItemType whole = BuiltinItems.lookup(
+                        Identifier.parse("minecraft:melon_block")).orElseThrow();
+                return List.of(ItemStack.of(whole, 1));
+            }
             int count = Math.min(9, 3 + random.nextInt(5) + random.nextInt(1 + fortune));
             ItemType slice = BuiltinItems.lookup(
                     Identifier.parse("minecraft:melon")).orElseThrow();
@@ -321,6 +373,40 @@ public final class DropService {
                     net.zaminmc.torch.server.block.MelonBlocks.seedsOf(stemFamily))
                     .orElseThrow();
             return List.of(ItemStack.of(seeds, count));
+        }
+        // The silk-arm parity audit — the damage-carrying silk drops the
+        // generic arm cannot express (its Item.byBlock lookup resolves the
+        // block's OWN item, and these blocks ride a shared family item
+        // with the variant in the damage field):
+        if (silkTouch) {
+            // The podzol (DirtBlock + Block.getSilkTouchDrop lines 791-797:
+            // the silk stack keeps the state's metadata — getMetadataFromState
+            // answers PODZOL 2, so the dirt item carries damage 2; the
+            // by-hand row above already carries getDropItemMetadata's own
+            // DIRT downgrade — lines 72-79).
+            if (broken.identifier().value().equals("podzol")) {
+                ItemType dirt = BuiltinItems.lookup(
+                        Identifier.parse("minecraft:dirt")).orElseThrow();
+                return List.of(new ItemStack(dirt, 1, 2));
+            }
+            // The stained glass pair (StainedGlassBlock line 55 +
+            // PaneBlock line 144: hasSilkTouchDrops TRUE — the non-cube
+            // override); the silk stack is the FAMILY item with the COLOR
+            // in the damage field, the by-hand rows stay empty.
+            if (net.zaminmc.torch.server.block.DyeFamilyBlocks.isStainedGlass(broken.identifier())) {
+                ItemType pane = BuiltinItems.lookup(
+                        net.zaminmc.torch.server.block.DyeFamilyBlocks.STAINED_GLASS_ITEM)
+                        .orElseThrow();
+                return List.of(new ItemStack(pane, 1,
+                        net.zaminmc.torch.server.block.DyeFamilyBlocks.colorOf(broken.identifier())));
+            }
+            if (net.zaminmc.torch.server.block.DyeFamilyBlocks.isStainedGlassPane(broken.identifier())) {
+                ItemType pane = BuiltinItems.lookup(
+                        net.zaminmc.torch.server.block.DyeFamilyBlocks.STAINED_GLASS_PANE_ITEM)
+                        .orElseThrow();
+                return List.of(new ItemStack(pane, 1,
+                        net.zaminmc.torch.server.block.DyeFamilyBlocks.colorOf(broken.identifier())));
+            }
         }
         // The silk arm: the block's own item (the reference's
         // getSilkTouchDrop — Item.byBlock with the state metadata), one
@@ -466,6 +552,17 @@ public final class DropService {
         // the OreBlock multiplier shape, never a multiple.
         if (broken.identifier().value().equals("redstone_ore")
                 || broken.identifier().value().equals("lit_redstone_ore")) {
+            // The silk-arm parity audit — the LIT form's own quirk
+            // (Item.byBlock(LIT_REDSTONE_ORE) resolves null: no item is
+            // registered for the lit block in the reference, so the
+            // silk stack is EMPTY and NOTHING drops — and the dig-start
+            // light swap, the reference's own startMining arm, means the
+            // LIT form is the one actually broken). The UNLIT form never
+            // reaches this arm with silk: the silk set's own row takes
+            // the ore itself first.
+            if (silkTouch) {
+                return List.of();
+            }
             int count = 4 + random.nextInt(2) + random.nextInt(fortune + 1);
             ItemType dust = BuiltinItems.lookup(
                     Identifier.parse("minecraft:redstone")).orElseThrow();

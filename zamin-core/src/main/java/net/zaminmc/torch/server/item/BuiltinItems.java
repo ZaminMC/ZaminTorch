@@ -173,6 +173,13 @@ public final class BuiltinItems {
             Identifier.parse("minecraft:sand"), "Sand", 64);
     public static final EngineItemType GLASS = new EngineItemType(
             Identifier.parse("minecraft:glass"), "Glass", 64);
+    /**
+     * The pane's own item (PaneBlock.getSilkTouchDrop — Item.byBlock(this),
+     * legacy 102): the pane shatters to nothing by hand and takes itself
+     * under silk touch, exactly like the glass.
+     */
+    public static final EngineItemType GLASS_PANE = new EngineItemType(
+            Identifier.parse("minecraft:glass_pane"), "Glass Pane", 64);
 
     // Gravity-block items (legacy ids: gravel 13; flint 318 is the historical
     // 10% gravel roll, not a placeable block).
@@ -193,6 +200,13 @@ public final class BuiltinItems {
             Identifier.parse("minecraft:glowstone_dust"), "Glowstone Dust", 64);
     public static final EngineItemType QUARTZ = new EngineItemType(
             Identifier.parse("minecraft:quartz"), "Nether Quartz", 64);
+    /**
+     * The ore's own silk form (the OreBlock default cube gate: silk takes
+     * the block itself, legacy 153 — the block's own id). The hand walk
+     * answers the QUARTZ item (the family's foreign row).
+     */
+    public static final EngineItemType QUARTZ_ORE = new EngineItemType(
+            Identifier.parse("minecraft:quartz_ore"), "Nether Quartz Ore", 64);
     public static final EngineItemType NETHERRACK = new EngineItemType(
             Identifier.parse("minecraft:netherrack"), "Netherrack", 64);
     public static final EngineItemType SOUL_SAND = new EngineItemType(
@@ -861,6 +875,13 @@ public final class BuiltinItems {
             Identifier.parse("minecraft:bone"), "Bone", 64);
     public static final EngineItemType STRING = new EngineItemType(
             Identifier.parse("minecraft:string"), "String", 64);
+    /**
+     * The web's own item (CobwebBlock.getSilkTouchDrop — Item.byBlock(this),
+     * legacy 30): the by-hand break answers ONE string (CobwebBlock
+     * lines 41-45, getDropItem), silk takes the web itself.
+     */
+    public static final EngineItemType COBWEB = new EngineItemType(
+            Identifier.parse("minecraft:cobweb"), "Cobweb", 64);
     public static final EngineItemType GUNPOWDER = new EngineItemType(
             Identifier.parse("minecraft:gunpowder"), "Gunpowder", 64);
     /** The small slime's drop (SlimeEntity.getDropItem: size 1 only; community id 341). */
@@ -970,6 +991,14 @@ public final class BuiltinItems {
             Identifier.parse("minecraft:tall_grass"), "Tall Grass", 64);
     public static final EngineItemType DEAD_BUSH = new EngineItemType(
             Identifier.parse("minecraft:dead_bush"), "Dead Bush", 64);
+    /**
+     * The climbing plant's own item (VineBlock.afterMinedByPlayer lines
+     * 313-318: the SHEARS arm drops the vine — the historical cobweb-family
+     * shape, legacy 106): every other break yields nothing at all
+     * (getDropItem null, getBaseDropCount 0).
+     */
+    public static final EngineItemType VINE = new EngineItemType(
+            Identifier.parse("minecraft:vine"), "Vines", 64);
     public static final EngineItemType DANDELION = new EngineItemType(
             Identifier.parse("minecraft:dandelion"), "Dandelion", 64);
     public static final EngineItemType POPPY = new EngineItemType(
@@ -1074,7 +1103,7 @@ public final class BuiltinItems {
                 MYCELIUM, WATERLILY,
                 WOODEN_SLAB,
                 STICK, CRAFTING_TABLE, NOTE_BLOCK, TORCH, FURNACE, CHEST,
-                COAL, DIAMOND, IRON_INGOT, STONE, SAND, GLASS, GRAVEL, FLINT, BEEF, COOKED_BEEF,
+                COAL, DIAMOND, IRON_INGOT, STONE, SAND, GLASS, GLASS_PANE, GRAVEL, FLINT, BEEF, COOKED_BEEF,
                 PORKCHOP, COOKED_PORKCHOP, RAW_CHICKEN, COOKED_CHICKEN,
                 BOW, ARROW, SNOWBALL, EGG,
                 FEATHER, LEATHER, ROTTEN_FLESH, GOLD_NUGGET, INK_SAC,
@@ -1134,6 +1163,13 @@ public final class BuiltinItems {
                 ENDER_CHEST,
                 LEAD, CARROT_ON_A_STICK, EMERALD,
                 LAPIS, ENCHANTED_BOOK, BOOKSHELF, ENCHANTING_TABLE,
+                // The silk-arm parity audit — the glowstone block item was
+                // declared (the cleric's stock row) but never registered:
+                // the new silk gate's own lookup answered empty and every
+                // silk break of the block threw. The same declared-but-
+                // never-registered shape the Slice 65 comment above warns
+                // about, found by the audit's first test run.
+                GLOWSTONE,
                 CLAY_BALL, BRICK, NETHER_BRICK,
                 LAPIS_ORE_ITEM, EMERALD_ORE_ITEM, LAPIS_BLOCK_ITEM,
                 REDSTONE_BLOCK_ITEM, COAL_BLOCK_ITEM, QUARTZ_BLOCK_ITEM,
@@ -1145,17 +1181,17 @@ public final class BuiltinItems {
                 PRISMARINE, PRISMARINE_CRYSTALS, PRISMARINE_SHARD, SEA_LANTERN,
                 SPONGE, GOLD_BLOCK,
                 DIAMOND_BLOCK, EMERALD_BLOCK, BEACON,
-                BONE, STRING, GUNPOWDER, WOOL, MUTTON, COOKED_MUTTON, SLIME_BALL,
+                BONE, STRING, COBWEB, GUNPOWDER, WOOL, MUTTON, COOKED_MUTTON, SLIME_BALL,
                 SKULL,
                 BUCKET, WATER_BUCKET, LAVA_BUCKET, MILK_BUCKET, COBBLESTONE_WALL, MOSSY_COBBLESTONE, FLOWER_POT, LIGHT_WEIGHTED_PRESSURE_PLATE, HEAVY_WEIGHTED_PRESSURE_PLATE, TRAPPED_CHEST,
                 RED_SANDSTONE, RED_SANDSTONE_STAIRS, STONE_SLAB2, ANVIL_ITEM, BARRIER_ITEM,
                 NETHER_STAR, WRITABLE_BOOK,
                 FLINT_AND_STEEL, GOLD_INGOT,
                 SUGAR_CANE, CACTUS, SUGAR, PAPER, BOOK,
-                TALL_GRASS, DEAD_BUSH, DANDELION, POPPY, RED_FLOWER, DOUBLE_PLANT, SANDSTONE,
+                TALL_GRASS, DEAD_BUSH, VINE, DANDELION, POPPY, RED_FLOWER, DOUBLE_PLANT, SANDSTONE,
                 STAINED_GLASS, STAINED_GLASS_PANE, CARPET,
                 HARDENED_CLAY, STAINED_HARDENED_CLAY,
-                BROWN_MUSHROOM, RED_MUSHROOM, GLOWSTONE_DUST, QUARTZ, NETHERRACK, SOUL_SAND,
+                BROWN_MUSHROOM, RED_MUSHROOM, GLOWSTONE_DUST, QUARTZ, QUARTZ_ORE, NETHERRACK, SOUL_SAND,
                 LEATHER_HELMET, LEATHER_CHESTPLATE, LEATHER_LEGGINGS, LEATHER_BOOTS,
                 CHAINMAIL_HELMET, CHAINMAIL_CHESTPLATE, CHAINMAIL_LEGGINGS, CHAINMAIL_BOOTS,
                 IRON_HELMET, IRON_CHESTPLATE, IRON_LEGGINGS, IRON_BOOTS,

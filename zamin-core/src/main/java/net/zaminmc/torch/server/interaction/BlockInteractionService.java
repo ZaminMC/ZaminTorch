@@ -795,13 +795,15 @@ public final class BlockInteractionService {
                     net.zaminmc.torch.server.stat.EngineStats.mineBlockOf(
                             current.identifier()), 1);
         }
-        publishDrops(target, current, held,
-                heldStack.isEmpty() ? false
-                        : net.zaminmc.torch.server.enchantment.EnchantmentHelper
-                                .hasSilkTouch(heldStack),
-                heldStack.isEmpty() ? 0
-                        : net.zaminmc.torch.server.enchantment.EnchantmentHelper
-                                .fortuneLevel(heldStack));
+        // The loot reads ride the held stack once (the silk-arm parity
+        // audit: the XP gate consults the same flag the drop walk does).
+        boolean silkTouch = !heldStack.isEmpty()
+                && net.zaminmc.torch.server.enchantment.EnchantmentHelper
+                        .hasSilkTouch(heldStack);
+        int fortune = heldStack.isEmpty() ? 0
+                : net.zaminmc.torch.server.enchantment.EnchantmentHelper
+                        .fortuneLevel(heldStack);
+        publishDrops(target, current, held, silkTouch, fortune);
         wearHeldTool(player, behavior);
         // The infested egg's burst (InfestedBlock.dropItems lines 79-88):
         // the survival break spawns the silverfish at the block's own
@@ -814,7 +816,12 @@ public final class BlockInteractionService {
             }
         }
         SurvivalXpHook xp = survivalXpListener;
-        if (xp != null) {
+        if (xp != null && !silkTouch) {
+            // The silk-arm parity audit — Block.afterMinedByPlayer lines
+            // 772-781: the silk arm REPLACES the drop walk wholesale
+            // (dropItems — the OreBlock XP's own carrier — never runs),
+            // so a silk harvest pays NO mining XP; the lit redstone
+            // band rides the award table's own row.
             xp.onSurvivalBreak(player, current, target); // the award sees the broken block
         }
         var listener = blockBrokenListener;

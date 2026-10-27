@@ -12245,6 +12245,9 @@ public final class EngineServer implements Server, EngineBridge {
         // The survival walk: the shears arm first (onMinedByPlayer lines
         // 155-166 — the tall-grass item with the TYPE damage over the
         // grass and fern variants), the lower's own walk otherwise.
+        // The silk-arm parity audit: the reference's own drop is
+        // {@code new ItemStack(Blocks.TALLGRASS, 2, i)} — TWO of the
+        // tallgrass item, never one.
         net.zaminmc.torch.item.ItemStack held = session.inventory().held();
         boolean shears = !held.isEmpty() && held.type().identifier()
                 .equals(Identifier.parse("minecraft:shears"));
@@ -12252,7 +12255,7 @@ public final class EngineServer implements Server, EngineBridge {
         net.zaminmc.torch.item.ItemStack drop;
         if (shears && (variant == 2 || variant == 3)) {
             drop = new net.zaminmc.torch.item.ItemStack(
-                    net.zaminmc.torch.server.item.BuiltinItems.TALL_GRASS, 1,
+                    net.zaminmc.torch.server.item.BuiltinItems.TALL_GRASS, 2,
                     variant == 2 ? 1 : 2);
         } else {
             drop = net.zaminmc.torch.server.block.DoublePlantBlocks.lowerDrop(

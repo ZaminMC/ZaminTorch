@@ -23,6 +23,12 @@ public final class ExperienceAwards {
             Map.entry("minecraft:coal_ore", new int[]{0, 3}),
             Map.entry("minecraft:diamond_ore", new int[]{3, 8}),
             Map.entry("minecraft:redstone_ore", new int[]{1, 6}),
+            // The silk-arm parity audit — the LIT row: the dig-start light
+            // swap (RedstoneOreBlock.startMining → interact, the reference's
+            // own pair) means the LIT form is the one actually broken, so
+            // the unlit row above alone never paid the band; the lit ore
+            // walks the same 1 + nextInt(5) (RedstoneOreBlock line 84).
+            Map.entry("minecraft:lit_redstone_ore", new int[]{1, 6}),
             // The vault's ores (Slice 32 — OreBlock.dropItems lines 58-77 +
             // RedstoneOreBlock line 84's own 1-5): lapis 2-5, emerald 3-7,
             // quartz 2-5.
