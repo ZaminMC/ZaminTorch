@@ -23,11 +23,12 @@ import java.util.concurrent.atomic.AtomicLong;
  *
  * <p><b>The flush policy</b>: ordinary traffic batches. Latency-sensitive
  * traffic rides {@link #enqueueUrgent(ByteBuf)} — the packet joins the
- * queue's tail (order never inverts) and the drain executes at once, so the
- * queued ordinary packets and the urgent packet land in the same single
- * flush. A closing channel rides {@link #closeWith(ByteBuf)}: the final
- * packet (a Disconnect) joins, everything queued writes with one flush, and
- * the channel closes — the disconnect can never overtake packets the client
+ * queue's tail (order never inverts) and rides the soonest drain (a pending
+ * drain carries it; none pending, one schedules at once), so the queued
+ * ordinary packets and the urgent packet land in the same single flush. A
+ * closing channel rides {@link #closeWith(ByteBuf)}: the final packet (a
+ * Disconnect) joins, everything queued writes with one flush, and the
+ * channel closes — the disconnect can never overtake packets the client
  * was already owed.</p>
  *
  * <p><b>Thread boundary</b> (§35.9): enqueues arrive from the simulation
@@ -121,8 +122,10 @@ public final class OutboundQueue {
 
     /**
      * Latency-sensitive traffic: the packet joins the queue's tail (FIFO
-     * never inverts) and the drain executes at once — one flush carries the
-     * queued packets and this one.
+     * never inverts) and rides the SOONEST drain — an already-scheduled
+     * drain carries it (the queue's order puts it behind exactly what was
+     * already owed), otherwise one is scheduled at once. One flush carries
+     * the queued packets and this one.
      */
     public void enqueueUrgent(ByteBuf packet) {
         if (!admit(packet)) {
@@ -132,9 +135,12 @@ public final class OutboundQueue {
         this.metrics.packetEnqueued(bytes);
         this.queuedBytes.addAndGet(bytes);
         this.queue.add(new QueuedPacket(packet, System.nanoTime()));
-        // Unconditional execution: the drain task is ordered with any
-        // already-scheduled drain on the same loop, so ordering is exact.
-        this.channel.eventLoop().execute(this::drainNow);
+        // The coalescing law covers both lanes (§35.5: "however many
+        // packets a tick walk enqueues, the loop runs one drain") — the
+        // ordering guarantee rides the FIFO queue itself, never the task
+        // queue's shape: a pending drain pops this packet in its turn, and
+        // an urgent burst cannot flood the loop with per-packet drain tasks.
+        scheduleDrain();
     }
 
     /**

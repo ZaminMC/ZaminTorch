@@ -29,6 +29,13 @@ subprojects {
 
     tasks.withType<Test>().configureEach {
         useJUnitPlatform()
+        // §35.13's debug/test-build visibility row: leaked reference-counted
+        // buffers must be VISIBLE in the test builds — Netty's leak detector
+        // at `advanced` samples with the acquisition stack trace (the
+        // zamin-transport module's own tests tighten this to `paranoid`,
+        // every buffer sampled, since the queue's ownership law IS its
+        // contract).
+        systemProperty("io.netty.leakDetection.level", "advanced")
         testLogging {
             events("failed", "skipped")
             showStackTraces = true

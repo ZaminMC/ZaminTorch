@@ -10,3 +10,11 @@ dependencies {
     implementation("io.netty:netty-buffer:4.2.1.Final")
     implementation("io.netty:netty-transport:4.2.1.Final")
 }
+
+// §35.13's debug/test-build visibility row, tightened: the transport's OWN
+// tests run the leak detector at `paranoid` — every buffer sampled — because
+// the queue's ownership law IS its contract (a leaked ticket is a law
+// violation, not a sampled accident).
+tasks.withType<Test>().configureEach {
+    systemProperty("io.netty.leakDetection.level", "paranoid")
+}
