@@ -689,7 +689,7 @@ THE SECTION TABLE AND THE ATTRIBUTION PASS LANDED (ML-006 + ML-007 — the cycle
 
 Dynamic split/merge and load-driven migration remain future work. First prove migration with in-flight tasks, delayed work, messages, compute results, persistence, shutdown, and stale-generation invalidation; add telemetry and anti-oscillation rules before enabling automatic balancing.
 
-**Next concrete mechanics work:** continue from Section 29: the master ledger's demand-named queue is EMPTY of implementable rows (ML-013, the last — the tick watchdog, landed 2026-10-26 in §29's Wave ML13; ML-008 the /give form aligned the same day; PR #38's audit merge landed 2026-10-23). The 2026-10-26 vanilla-grade census's lanes are ALL LANDED (§29's Waves TF-7 + TF-7-continued, closed whole). Wave ON-1 LANDED 2026-10-26 (DEC-001 executed whole; DEC-002 STAY NATIVE and DEC-003 NO KigPaper config family both stand). Wave TF-8 LANDED 2026-10-27 (§29's Wave TF-8: the undead family's daylight burn 1:1). Wave TF-9 LANDED 2026-10-27 (§29's Wave TF-9: the item-entity family's dimension reads 1:1 — the pigman tail's other half CLOSED, the mob query's 25d shape generalized over the items and the projectiles, the ZID store at v8, the wire's observer-dimension gates). Wave TF-10 LANDED 2026-10-27 (§29's Wave TF-10: the XP-orb family's dimension reads — the orb manager on the shared dimension-aware ground, the stamps, the pickup gate, the wire gates, the XpBottleSink's carry). Wave TF-11 LANDED 2026-10-27 (§29's Wave TF-11: the vehicle family's dimension reads — the ZVD row riding the body, the dimension-aware VehicleWorldQuery, the vehicleAt filter, the wire gates). Wave TF-12 LANDED 2026-10-27 (§29's Wave TF-12: the FX family's sound-broadcast dimension gate — every FxEvent carrying its world, the wire's gate in the reference's own sendPacket order, the entity-driven stamps, the fishing Bobber's carry; the handoff's open verifications — the protocol module whole 203/0, the bukkit 52/0 + launcher 53/0, the acceptance sweep — completed and green at the ledger head). Wave T-1 LANDED 2026-10-27 (§29's Wave T-1: the §35 outbound transport's first slice — the zamin-transport module whole, the 184-site queueing of the v1_8_8 play-state sends, the encode-once FX broadcast, the wire verified over every suite class). The stats-family envelope is code-complete (the increments wired at their use sites — the compat file's stale "no stats system yet" notes re-pinned by TF-9). The dimension-read family tails are ALL CLOSED; the families that carry no dimension field at all (armor-stand, fireworks, ender-eye) stay honest overworld-0 emitters until their own family slices demand the carry. The §22 evidence bar holds: no concurrency phase opens without the attribution pass's numbers (ML-007 landed — the verdict: none justified at the current loads). Next work (the §35 transport's standing rows, each its own evidenced slice): §35.4's pooled-buffer adoption (before/after evidence first), §35.12's outbound latency percentiles + the benchmark matrix, and the §35.11 slow-client kill policy — the §35.8 boundaries need no further slice.
+**Next concrete mechanics work:** continue from Section 29: the master ledger's demand-named queue is EMPTY of implementable rows (ML-013, the last — the tick watchdog, landed 2026-10-26 in §29's Wave ML13; ML-008 the /give form aligned the same day; PR #38's audit merge landed 2026-10-23). The 2026-10-26 vanilla-grade census's lanes are ALL LANDED (§29's Waves TF-7 + TF-7-continued, closed whole). Wave ON-1 LANDED 2026-10-26 (DEC-001 executed whole; DEC-002 STAY NATIVE and DEC-003 NO KigPaper config family both stand). Wave TF-8 LANDED 2026-10-27 (§29's Wave TF-8: the undead family's daylight burn 1:1). Wave TF-9 LANDED 2026-10-27 (§29's Wave TF-9: the item-entity family's dimension reads 1:1 — the pigman tail's other half CLOSED, the mob query's 25d shape generalized over the items and the projectiles, the ZID store at v8, the wire's observer-dimension gates). Wave TF-10 LANDED 2026-10-27 (§29's Wave TF-10: the XP-orb family's dimension reads — the orb manager on the shared dimension-aware ground, the stamps, the pickup gate, the wire gates, the XpBottleSink's carry). Wave TF-11 LANDED 2026-10-27 (§29's Wave TF-11: the vehicle family's dimension reads — the ZVD row riding the body, the dimension-aware VehicleWorldQuery, the vehicleAt filter, the wire gates). Wave TF-12 LANDED 2026-10-27 (§29's Wave TF-12: the FX family's sound-broadcast dimension gate — every FxEvent carrying its world, the wire's gate in the reference's own sendPacket order, the entity-driven stamps, the fishing Bobber's carry; the handoff's open verifications — the protocol module whole 203/0, the bukkit 52/0 + launcher 53/0, the acceptance sweep — completed and green at the ledger head). Wave T-1 LANDED 2026-10-27 (§29's Wave T-1: the §35 outbound transport's first slice — the zamin-transport module whole, the 184-site queueing of the v1_8_8 play-state sends, the encode-once FX broadcast, the wire verified over every suite class). Wave T-2 LANDED 2026-10-27 (§29's Wave T-2: the §35.12/§35.13 measurement rows — the outbound dwell percentiles over the 4096-slot ring, the benchmark matrix over every §35.12 scenario with the numbers printed for the ledger, the urgent lane's coalescing repair, Netty's leak detector at advanced/paranoid in the test JVMs, and the pipeline repair the wave's own runs forced — the fat jar's missing transport edge + the compute test's snapshot race). The stats-family envelope is code-complete (the increments wired at their use sites — the compat file's stale "no stats system yet" notes re-pinned by TF-9). The dimension-read family tails are ALL CLOSED; the families that carry no dimension field at all (armor-stand, fireworks, ender-eye) stay honest overworld-0 emitters until their own family slices demand the carry. The §22 evidence bar holds: no concurrency phase opens without the attribution pass's numbers (ML-007 landed — the verdict: none justified at the current loads). Next work (the §35 transport's standing rows, each its own evidenced slice): §35.4's pooled-buffer adoption (before/after evidence first — the §35.12 harness Wave T-2 landed now produces the numbers) and the §35.11 slow-client kill policy (the saturation evidence row now exists in Wave T-2's matrix; the kick decision itself remains) — the §35.8 boundaries need no further slice.
 
 # 23. COMMITS / PUSHES / RELEASES
 
@@ -5422,6 +5422,67 @@ way were repaired inside the wave.
       already respected by construction (the queue sits inside the
       plaintext frame layer, the pipeline's own handlers own the
       compressed/encrypted bytes) and need no further slice.
+
+## Wave T-2 — the 2026-10-27 §35.12/§35.13 measurement rows (the latency percentiles, the benchmark matrix, the leak visibility, and the pipeline repair the wave's own runs forced — landed)
+
+- [x] THE OUTBOUND DWELL MEASUREMENT (slice A, §35.12's
+      p50/p95/p99 outbound latency row): every WRITTEN packet
+      samples the nanos between its enqueue and the drain's write
+      into a fixed 4096-slot ring (the newest sample wins on wrap,
+      negative deltas clamp to zero), and the snapshot answers
+      latencySamples (the monotonic total), the nearest-rank
+      p50/p95/p99 over the valid window, and the dwell high-water;
+      dropped packets own no latency row (they never rode the
+      wire). OutboundQueue stamps each ticket at enqueue (the
+      QueuedPacket node — FIFO alignment exact under the
+      single-drain law) and records the dwell at the write. Pinned:
+      the written-samples/dropped-never split, the urgent lane's
+      own dwell, and the ring-wrap window bound.
+- [x] THE BENCHMARK MATRIX (slice B, §35.12's scenario list run at
+      the transport layer over embedded channels): one player
+      (379,737 pps, 20 packets/flush, dwell p50 6.0us / p95 8.1us /
+      p99 65.2us), the encode-once broadcast (2,000 encodes for
+      200,000 deliveries — the 100x reduction the §35.3 law claims,
+      byte-identity verified at every sampled recipient),
+      mostly-different recipients (482,393 pps), high
+      entity-tracking traffic (572,741 pps), chunk streaming
+      (457.8 MiB/s), the join burst (1,000 flushes for the
+      per-packet-storm shape vs the queue's ONE — the flush-count
+      bottleneck's direct evidence), the wedged-loop slow client
+      (the 1 MiB saturation observable crossed at enqueue #1024,
+      the warning logged once, the caller never blocked, 0 writes —
+      the §35.11 kick decision's evidence row), and the overloaded
+      dual lane (10,000 packets from two lanes, 543,347 pps, ONE
+      flush). Every scenario asserts CORRECTNESS invariants only;
+      the numbers print for the ledger — a slow CI host never fails
+      the gate.
+- [x] THE URGENT LANE'S COALESCING REPAIR (slice B, §35.5's law
+      now shared by BOTH lanes): a pending drain carries the urgent
+      packet — the FIFO queue is the order guarantee, never the
+      task queue's shape; the per-packet unconditional drain-task
+      flood is gone, and the embedded-harness stack recursion that
+      came with it.
+- [x] §35.13's LEAK-VISIBILITY ROW (slice B): every test JVM runs
+      Netty's leak detector at advanced (sampled leaks carry their
+      acquisition stack), and the zamin-transport module's own
+      tests at paranoid — every buffer sampled — where the 20/0 run
+      is the ownership law verified at the strongest setting.
+      Protocol spot-check under the new detector:
+      Disconnect/Login/Chat/KeepAlive/JoinFlow/Shutdown 22/0.
+- [x] THE PIPELINE REPAIR the wave's own release runs forced
+      (6c73933d): fatServerJar now dependsOn(:zamin-transport:jar)
+      — the module joined the runtime classpath through the
+      protocol's project dependency when Wave T-1 landed, but the
+      fat jar's explicit jar edges (the eager .files resolution
+      carries no task dependencies — the exact reason
+      api/core/protocol are listed) never gained the transport row,
+      so a clean CI runner could schedule the fat jar before the
+      transport jar existed; and ComputeSubsystemTest's recovery
+      arm re-pinned from the racy queued-depth snapshot (the idle
+      worker can steal the job between submit and assert — the
+      loaded-runner flake run 1070ecff's first arm hit) to the
+      after-job's COMPLETION — the admission reopening is the
+      submit's acceptance, never the snapshot.
 
 # 33. CODEBASE SCALE, CLASS COHESION, AND MAINTAINABILITY
 
