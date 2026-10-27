@@ -72,7 +72,7 @@ class FishingOverrideTest {
             xps.add(amount);
         }
 
-        @Override public void sound(Position at, String key, float volume, float pitch) {
+        @Override public void sound(Position at, String key, float volume, float pitch, int dimension) {
         }
     }
 
@@ -85,7 +85,7 @@ class FishingOverrideTest {
 
     /** Casts straight down and ticks until the bite window opens, then retrieves. */
     private static int fishAndRetrieve(FishingSystem fishing, int anglerId) {
-        fishing.cast(anglerId, new Position(0.0, 65.0, 0.0), 0.0f, -90.0f);
+        fishing.cast(anglerId, new Position(0.0, 65.0, 0.0), 0.0f, -90.0f, 0);
         FishingSystem.Bobber bobber = fishing.bobberOf(anglerId);
         bobber.catchTimer = 1; // the shortest approach
         for (int i = 0; i < 300 && bobber.selfHitTimer <= 0; i++) {

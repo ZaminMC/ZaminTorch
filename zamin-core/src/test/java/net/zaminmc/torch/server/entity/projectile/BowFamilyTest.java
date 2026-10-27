@@ -145,7 +145,7 @@ class BowFamilyTest {
             }
 
             @Override
-            public void chickenHatch(Position position) {
+            public void chickenHatch(Position position, int dimension) {
             }
         };
         ProjectileManager manager = new ProjectileManager(

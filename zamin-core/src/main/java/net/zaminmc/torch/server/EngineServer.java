@@ -2215,7 +2215,7 @@ public final class EngineServer implements Server, EngineBridge {
                             resolveSplashThrower(throwerId), dimension);
                     // The world event 2002 (PotionEntity.onCollision's own
                     // closing doEvent): the color-carrying burst particles.
-                    fxManager.potionSplash(new Position(x, y, z), damage);
+                    fxManager.potionSplash(new Position(x, y, z), damage, dimension);
                 });
                 // The ghast fireball's detonation (Slice 16c —
                 // FireballEntity.onHit's explosion, the reference's own
@@ -2738,8 +2738,8 @@ public final class EngineServer implements Server, EngineBridge {
                                     }
 
                                     @Override public void sound(Position at, String key,
-                                            float volume, float pitch) {
-                                        fxManager.sound(at, key, volume, pitch);
+                                            float volume, float pitch, int dimension) {
+                                        fxManager.sound(at, key, volume, pitch, dimension);
                                     }
                                 },
                                 new java.util.Random(), FISHING_ID_BASE);
@@ -5521,9 +5521,9 @@ public final class EngineServer implements Server, EngineBridge {
             // four ticks, from the mouth height.
             if (ticks % 4 == 1) {
                 Position mouth = mouthPosition(session);
-                fxManager.itemShatter(mouth, held);
+                fxManager.itemShatter(mouth, held, session.dimension());
                 fxManager.sound(mouth, "random.eat", 0.5f,
-                        0.8f + fxRandom.nextFloat() * 0.2f);
+                        0.8f + fxRandom.nextFloat() * 0.2f, session.dimension());
             }
             return;
         }
@@ -5539,7 +5539,7 @@ public final class EngineServer implements Server, EngineBridge {
                 session.saturation() + nutrition.saturation());
         session.setBody(session.health(), newFood, newSaturation);
         fxManager.sound(mouthPosition(session), "random.burp", 0.5f,
-                fxRandom.nextFloat() * 0.1f + 0.9f);
+                fxRandom.nextFloat() * 0.1f + 0.9f, session.dimension());
         // The golden apple's own set (GoldenAppleItem.addEatEffects lines
         // 26-40, installed after the burp exactly like the reference's
         // finishUsing order): the absorption on BOTH apples; the notch pair
@@ -6352,7 +6352,8 @@ public final class EngineServer implements Server, EngineBridge {
                     damageOnTick(attacker, mob.guardianThornsDamage(), true,
                             "was slain by " + titledMobName(mob), 0.0f,
                             net.zaminmc.torch.event.DamageCause.MAGIC);
-                    fxManager.sound(attacker.position(), "damage.thorns", 0.5f, 1.0f);
+                    fxManager.sound(attacker.position(), "damage.thorns", 0.5f, 1.0f,
+                            attacker.dimension());
                 }
                 // Slice 16d — ZombiePigmanEntity.takeDamage's getAngryTo:
                 // a player's hit angers the pigman and its whole nearby
@@ -6640,6 +6641,11 @@ public final class EngineServer implements Server, EngineBridge {
                         public Position position() {
                             return attacker.position();
                         }
+
+                        @Override
+                        public int dimension() {
+                            return attacker.dimension();
+                        }
                     });
             if (victim.health() <= 0) {
                 takeKillScore(attacker, victim);
@@ -6778,6 +6784,12 @@ public final class EngineServer implements Server, EngineBridge {
 
         /** The sound position (the reference plays at {@code target}). */
         Position position();
+
+        /**
+         * The sound's dimension (Wave TF-12 — the reference's
+         * Entity.playSound plays in the bitten body's own world).
+         */
+        int dimension();
     }
 
     /**
@@ -6824,7 +6836,8 @@ public final class EngineServer implements Server, EngineBridge {
                 wear += 3;
                 target.takeThornsDamage(
                         EnchantmentHelper.thornsDamage(level, gameplayRandom), victim);
-                fxManager.sound(target.position(), "damage.thorns", 0.5f, 1.0f);
+                fxManager.sound(target.position(), "damage.thorns", 0.5f, 1.0f,
+                        target.dimension());
             } else {
                 wear += 1;
             }
@@ -6849,6 +6862,12 @@ public final class EngineServer implements Server, EngineBridge {
 
         /** The sound position (the reference plays at {@code target}). */
         Position position();
+
+        /**
+         * The sound's dimension (Wave TF-12 — the reference's
+         * Entity.playSound plays in the bitten body's own world).
+         */
+        int dimension();
     }
 
     /**
@@ -6896,7 +6915,8 @@ public final class EngineServer implements Server, EngineBridge {
                 wear += 3;
                 target.takeThornsDamage(
                         EnchantmentHelper.thornsDamage(level, gameplayRandom), victim);
-                fxManager.sound(target.position(), "damage.thorns", 0.5f, 1.0f);
+                fxManager.sound(target.position(), "damage.thorns", 0.5f, 1.0f,
+                        target.dimension());
             } else {
                 wear += 1;
             }
@@ -6947,6 +6967,11 @@ public final class EngineServer implements Server, EngineBridge {
             public Position position() {
                 return biter.position();
             }
+
+            @Override
+            public int dimension() {
+                return biter.dimension();
+            }
         };
     }
 
@@ -6974,6 +6999,11 @@ public final class EngineServer implements Server, EngineBridge {
             @Override
             public Position position() {
                 return biter.position();
+            }
+
+            @Override
+            public int dimension() {
+                return biter.dimension();
             }
         };
     }
@@ -7579,7 +7609,8 @@ public final class EngineServer implements Server, EngineBridge {
         // The reference bow release sound (BowItem line 55): volume 1.0, the
         // pitch riding the shaped charge fraction (f * 0.5).
         fxManager.sound(mouthPosition(session), "random.bow", 1.0f,
-                1.0f / (fxRandom.nextFloat() * 0.4f + 1.2f) + power * 0.5f);
+                1.0f / (fxRandom.nextFloat() * 0.4f + 1.2f) + power * 0.5f,
+                session.dimension());
         if (!creative && session.inventory().damageHeld(1, gameplayRandom)) {
             // The bow's snap: worn out, the client's held slot re-syncs.
             publishInventoryChanged(session);
@@ -7612,7 +7643,7 @@ public final class EngineServer implements Server, EngineBridge {
             potion.setPotionDamage(metadata);
         }
         fxManager.sound(mouthPosition(session), "random.bow", 0.5f,
-                0.4f / (fxRandom.nextFloat() * 0.4f + 0.8f));
+                0.4f / (fxRandom.nextFloat() * 0.4f + 0.8f), session.dimension());
         publishInventoryChanged(session);
     }
 
@@ -7642,13 +7673,13 @@ public final class EngineServer implements Server, EngineBridge {
             // every 4 — the up-counter's 8, 12, ..., 28.
             if (ticks >= 8 && ticks <= 28 && ticks % 4 == 0) {
                 fxManager.sound(mouthPosition(session), "random.drink", 0.5f,
-                        fxRandom.nextFloat() * 0.1f + 0.9f);
+                        fxRandom.nextFloat() * 0.1f + 0.9f, session.dimension());
             }
             return;
         }
         session.cancelDrinking();
         fxManager.sound(mouthPosition(session), "random.drink", 0.5f,
-                fxRandom.nextFloat() * 0.1f + 0.9f);
+                fxRandom.nextFloat() * 0.1f + 0.9f, session.dimension());
         int metadata = held.damage();
         session.inventory().consumeHeld(1);
         potionSystem.finishDrinking(session, metadata);
@@ -7684,7 +7715,7 @@ public final class EngineServer implements Server, EngineBridge {
         // The shard throw sound (the reference SnowballItem/EggItem line 21):
         // volume 0.5, pitch 0.4 / (rand * 0.4 + 0.8).
         fxManager.sound(mouthPosition(session), "random.bow", 0.5f,
-                0.4f / (fxRandom.nextFloat() * 0.4f + 0.8f));
+                0.4f / (fxRandom.nextFloat() * 0.4f + 0.8f), session.dimension());
         publishInventoryChanged(session);
     }
 
@@ -7705,7 +7736,7 @@ public final class EngineServer implements Server, EngineBridge {
         }
         launchProjectile(session, ProjectileEntity.Kind.ENDER_PEARL, SHARD_SPEED);
         fxManager.sound(mouthPosition(session), "random.bow", 0.5f,
-                0.4f / (fxRandom.nextFloat() * 0.4f + 0.8f));
+                0.4f / (fxRandom.nextFloat() * 0.4f + 0.8f), session.dimension());
         publishInventoryChanged(session);
     }
 
@@ -7748,7 +7779,7 @@ public final class EngineServer implements Server, EngineBridge {
             LOGGER.fine(() -> session.name() + " threw a bottle o' enchanting");
         }
         fxManager.sound(mouthPosition(session), "random.bow", 0.5f,
-                0.4f / (fxRandom.nextFloat() * 0.4f + 0.8f));
+                0.4f / (fxRandom.nextFloat() * 0.4f + 0.8f), session.dimension());
         publishInventoryChanged(session);
     }
 
@@ -14263,7 +14294,7 @@ public final class EngineServer implements Server, EngineBridge {
             }
             player.inventory().damageHeld(1, gameplayRandom); // the shears wear
             publishInventoryChanged(player);
-            fxManager.sound(at, "mob.sheep.shear", 1.0f, 1.0f);
+            fxManager.sound(at, "mob.sheep.shear", 1.0f, 1.0f, mob.dimension());
             return;
         }
         // The sheep's shears (EntitySheep.interactMob: the shears arm runs
@@ -14555,7 +14586,8 @@ public final class EngineServer implements Server, EngineBridge {
             inventory.consumeHeld(1);
             publishInventoryChanged(player);
             publishHorseFlags(mob);
-            fxManager.sound(mob.position(), "mob.horse.armor", 0.8f, 1.0f);
+            fxManager.sound(mob.position(), "mob.horse.armor", 0.8f, 1.0f,
+                    mob.dimension());
             return;
         }
         // The horse armors: tamed horses only (the vanilla gate).
@@ -14568,7 +14600,8 @@ public final class EngineServer implements Server, EngineBridge {
             inventory.consumeHeld(1);
             publishInventoryChanged(player);
             publishHorseFlags(mob);
-            fxManager.sound(mob.position(), "mob.horse.armor", 0.8f, 1.0f);
+            fxManager.sound(mob.position(), "mob.horse.armor", 0.8f, 1.0f,
+                    mob.dimension());
             return;
         }
         // The horse food table (HorseBaseEntity.interactMob): heal f, grow j
@@ -14601,7 +14634,8 @@ public final class EngineServer implements Server, EngineBridge {
             }
             if (flag) {
                 mob.flashEating();
-                fxManager.sound(mob.position(), "eating", 1.0f, 1.0f);
+                fxManager.sound(mob.position(), "eating", 1.0f, 1.0f,
+                        mob.dimension());
                 if (player.gamemode() != GameMode.CREATIVE) {
                     inventory.consumeHeld(1);
                     publishInventoryChanged(player);
@@ -14626,7 +14660,8 @@ public final class EngineServer implements Server, EngineBridge {
                 || mob.horseSubtype() == MobEntity.HORSE_SUBTYPE_MULE)
                 && heldId.equals("minecraft:chest")) {
             mob.setChested(true);
-            fxManager.sound(mob.position(), "mob.chickenplop", 1.0f, 1.0f);
+            fxManager.sound(mob.position(), "mob.chickenplop", 1.0f, 1.0f,
+                    mob.dimension());
             publishHorseFlags(mob);
             if (player.gamemode() != GameMode.CREATIVE) {
                 inventory.consumeHeld(1);
@@ -14856,7 +14891,8 @@ public final class EngineServer implements Server, EngineBridge {
             if (villager.ambientOfferSoundGateOpen()) {
                 villager.resetAmbientSoundDelay();
                 fxManager.sound(villager.position(), "mob.villager.no", 1.0f,
-                        1.0f / (gameplayRandom.nextFloat() * 0.4f + 0.8f));
+                        1.0f / (gameplayRandom.nextFloat() * 0.4f + 0.8f),
+                        villager.dimension());
             }
             ItemStack result = villager.offers()[offerIndex].result();
             for (MobManager.Listener listener : mobListeners) {
@@ -14914,7 +14950,8 @@ public final class EngineServer implements Server, EngineBridge {
         // so a fresh trade silences the haggle cadence for a full interval.
         villager.resetAmbientSoundDelay();
         fxManager.sound(villager.position(), "mob.villager.yes", 1.0f,
-                1.0f / (gameplayRandom.nextFloat() * 0.4f + 0.8f));
+                1.0f / (gameplayRandom.nextFloat() * 0.4f + 0.8f),
+                villager.dimension());
         experienceOrbs.spawnOrb(new Position(villager.position().x(),
                 villager.position().y() + 0.5, villager.position().z()), xp,
                 villager.dimension());
@@ -15439,7 +15476,8 @@ public final class EngineServer implements Server, EngineBridge {
                                 "container.isLocked",
                                 new net.zaminmc.torch.server.text.LiteralText(shown))),
                 2);
-        fxManager.sound(player.position(), "random.door_close", 1.0f, 1.0f);
+        fxManager.sound(player.position(), "random.door_close", 1.0f, 1.0f,
+                player.dimension());
         return true;
     }
 
@@ -15889,7 +15927,7 @@ public final class EngineServer implements Server, EngineBridge {
             if (fxManager != null) {
                 float pitchDelta = gameplayRandom.nextFloat() - gameplayRandom.nextFloat();
                 fxManager.sound(new Position(at.x(), at.y(), at.z()), "random.pop",
-                        0.2F, (pitchDelta * 0.7F + 1.0F) * 2.0F);
+                        0.2F, (pitchDelta * 0.7F + 1.0F) * 2.0F, collector.dimension());
             }
         }
 
@@ -16032,7 +16070,7 @@ public final class EngineServer implements Server, EngineBridge {
             if (fxManager != null) {
                 float pitchDelta = gameplayRandom.nextFloat() - gameplayRandom.nextFloat();
                 fxManager.sound(new Position(at.x(), at.y(), at.z()), "random.pop",
-                        0.2F, (pitchDelta * 0.7F + 1.0F) * 2.0F);
+                        0.2F, (pitchDelta * 0.7F + 1.0F) * 2.0F, collector.dimension());
             }
         }
 
@@ -16243,7 +16281,8 @@ public final class EngineServer implements Server, EngineBridge {
                 net.zaminmc.torch.server.entity.vehicle.TntMinecartEntity cart) {
             // prime lines 148-152: the game.tnt.primed sound at volume 1.0
             // (the world's every listener).
-            fxManager.sound(cart.position(), "game.tnt.primed", 1.0f, 1.0f);
+            fxManager.sound(cart.position(), "game.tnt.primed", 1.0f, 1.0f,
+                    cart.dimension());
             for (VehicleListener listener : vehicleListeners) {
                 listener.onVehiclePrimed(cart);
             }
@@ -16266,7 +16305,8 @@ public final class EngineServer implements Server, EngineBridge {
         @Override
         public void onVehicleFizz(net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle) {
             fxManager.sound(vehicle.position(), "random.fizz", 0.7f,
-                    1.6f + (fxRandom.nextFloat() - fxRandom.nextFloat()) * 0.4f);
+                    1.6f + (fxRandom.nextFloat() - fxRandom.nextFloat()) * 0.4f,
+                    vehicle.dimension());
             for (VehicleListener listener : vehicleListeners) {
                 listener.onVehicleFizz(vehicle);
             }
@@ -17066,9 +17106,10 @@ public final class EngineServer implements Server, EngineBridge {
         }
         // The cast sound (line 25): 0.5 volume, the 0.4/(rand*0.4+0.8) pitch.
         fxManager.sound(mouthPosition(session), "random.bow", 0.5f,
-                0.4f / (fxRandom.nextFloat() * 0.4f + 0.8f));
+                0.4f / (fxRandom.nextFloat() * 0.4f + 0.8f), session.dimension());
         fishing.cast(session.engineEntityId(), mouthPosition(session),
-                session.rotation().yaw(), session.rotation().pitch());
+                session.rotation().yaw(), session.rotation().pitch(),
+                session.dimension());
     }
 
     private final class ProjectileHitResolver implements ProjectileManager.HitResolver {
@@ -18686,9 +18727,14 @@ public final class EngineServer implements Server, EngineBridge {
         }
 
         @Override
-        public void chickenHatch(Position position) {
-            mobManager.spawnAt(MobType.CHICKEN, position);
-            fxManager.sound(position, "mob.chicken.say", 0.5f, 1.0f);
+        public void chickenHatch(Position position, int dimension) {
+            MobEntity chick = mobManager.spawnAt(MobType.CHICKEN, position);
+            if (chick != null) {
+                // The chick's own world rides the egg (Wave TF-12 — the
+                // reference spawns the EntityChicken in the egg's World).
+                chick.setDimension(dimension);
+            }
+            fxManager.sound(position, "mob.chicken.say", 0.5f, 1.0f, dimension);
             LOGGER.fine(() -> "An egg hatched a chick at " + position);
         }
 
@@ -18851,6 +18897,28 @@ public final class EngineServer implements Server, EngineBridge {
                             }
                         }
                         return victim.position();
+                    }
+
+                    @Override
+                    public int dimension() {
+                        // The sound's world rides the same body the position
+                        // resolves (Wave TF-12 — Entity.playSound's own
+                        // world, the shooter's, the victim's the fallback).
+                        if (shooterId > 0) {
+                            for (PlayerSession candidate : players.all()) {
+                                if (candidate.engineEntityId() == shooterId) {
+                                    return candidate.dimension();
+                                }
+                            }
+                            if (mobManager != null) {
+                                for (MobEntity mob : mobManager.all()) {
+                                    if (mob.entityId() == shooterId) {
+                                        return mob.dimension();
+                                    }
+                                }
+                            }
+                        }
+                        return victim.dimension();
                     }
                 });
         if (victim.health() <= 0) {
@@ -19108,6 +19176,11 @@ public final class EngineServer implements Server, EngineBridge {
                 public Position position() {
                     return mob.position();
                 }
+
+                @Override
+                public int dimension() {
+                    return mob.dimension();
+                }
             });
         }
 
@@ -19280,7 +19353,7 @@ public final class EngineServer implements Server, EngineBridge {
             float pitch = (float) -Math.toDegrees(Math.atan2(dy, horizontal));
             projectileManager.launch(ProjectileEntity.Kind.ARROW, mob.entityId(),
                     origin, yaw, pitch, MobEntity.SKELETON_ARROW_SPEED, mob.dimension());
-            fxManager.sound(mob.position(), "random.bow", 1.0f, 1.0f);
+            fxManager.sound(mob.position(), "random.bow", 1.0f, 1.0f, mob.dimension());
             publishMobSwing(mob); // the arm swing rides the animation packet
         }
 
@@ -19308,7 +19381,8 @@ public final class EngineServer implements Server, EngineBridge {
             double dz = target.z() - origin.z();
             projectileManager.launchGhastFireball(mob.entityId(), origin, dx, dy, dz,
                     mob.dimension());
-            fxManager.sound(mob.position(), "mob.ghast.fireball", 10.0f, 1.0f);
+            fxManager.sound(mob.position(), "mob.ghast.fireball", 10.0f, 1.0f,
+                    mob.dimension());
         }
 
         /**
@@ -19358,7 +19432,8 @@ public final class EngineServer implements Server, EngineBridge {
             // World event 1009 (WorldRenderer line 1939): the shot the
             // clients answer with mob.ghast.fireball at volume 2.0.
             fxManager.sound(mob.position(), "mob.ghast.fireball", 2.0f,
-                    (gameplayRandom.nextFloat() - gameplayRandom.nextFloat()) * 0.2f + 1.0f);
+                    (gameplayRandom.nextFloat() - gameplayRandom.nextFloat()) * 0.2f + 1.0f,
+                    mob.dimension());
         }
 
         // ------------------------------------------------------------------
@@ -19951,7 +20026,8 @@ public final class EngineServer implements Server, EngineBridge {
             // dust at the body's band).
             fxManager.blockShatter(new Position(at.x() + 0.5, at.y() + 0.5, at.z() + 0.5),
                     blockRegistry.require(
-                            net.zaminmc.torch.util.Identifier.parse("minecraft:carrots_stage7")));
+                            net.zaminmc.torch.util.Identifier.parse("minecraft:carrots_stage7")),
+                    rabbit.dimension());
             rabbit.completeRabbitFarmEat();
         }
 
@@ -19989,7 +20065,7 @@ public final class EngineServer implements Server, EngineBridge {
             for (MobManager.Listener listener : mobListeners) {
                 listener.onWorldEventAt(center, 1012, mob.dimension());
             }
-            fxManager.blockShatter(center, type);
+            fxManager.blockShatter(center, type, mob.dimension());
         }
 
         /**
@@ -20020,7 +20096,7 @@ public final class EngineServer implements Server, EngineBridge {
             projectileManager.launch(ProjectileEntity.Kind.SNOWBALL,
                     shooter.entityId(), origin, yaw, pitch, 1.6, shooter.dimension());
             fxManager.sound(shooter.position(), "random.bow", 1.0f,
-                    1.0f / (fxRandom.nextFloat() * 0.4f + 0.8f));
+                    1.0f / (fxRandom.nextFloat() * 0.4f + 0.8f), shooter.dimension());
         }
 
         /**
@@ -20072,6 +20148,11 @@ public final class EngineServer implements Server, EngineBridge {
                 @Override
                 public Position position() {
                     return mob.position();
+                }
+
+                @Override
+                public int dimension() {
+                    return mob.dimension();
                 }
             });
         }
@@ -21723,7 +21804,8 @@ public final class EngineServer implements Server, EngineBridge {
             // the destroy loop, destructive flag or not. The pitch walk is
             // the reference's own: (1 + (rand - rand) * 0.2) * 0.7.
             fxManager.sound(new Position(cx, cy, cz), "random.explode", 4.0f,
-                    (1.0f + (gameplayRandom.nextFloat() - gameplayRandom.nextFloat()) * 0.2f) * 0.7f);
+                    (1.0f + (gameplayRandom.nextFloat() - gameplayRandom.nextFloat()) * 0.2f) * 0.7f,
+                    dimension);
             // (The reference's EXPLOSION_HUGE/LARGE addParticle pair rides
             // the CLIENT's own 0x27 rendering — the dedicated server's
             // particle listener is the empty override,
@@ -26617,7 +26699,7 @@ public final class EngineServer implements Server, EngineBridge {
             if (fxManager != null) {
                 float pitchDelta = gameplayRandom.nextFloat() - gameplayRandom.nextFloat();
                 fxManager.soundExcept(new Position(at.x(), at.y(), at.z()), "random.pop",
-                        0.2F, (pitchDelta * 0.7F + 1.0F) * 2.0F, target);
+                        0.2F, (pitchDelta * 0.7F + 1.0F) * 2.0F, target, target.dimension());
             }
             publishInventoryChanged(target);
         }

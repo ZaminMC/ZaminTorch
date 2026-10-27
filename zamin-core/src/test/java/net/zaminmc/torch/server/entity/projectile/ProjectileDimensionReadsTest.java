@@ -69,7 +69,7 @@ class ProjectileDimensionReadsTest {
         }
 
         @Override
-        public void chickenHatch(Position position) { }
+        public void chickenHatch(Position position, int dimension) { }
     }
 
     /** The no-mob hit resolver (the dimension gates live in the consults). */

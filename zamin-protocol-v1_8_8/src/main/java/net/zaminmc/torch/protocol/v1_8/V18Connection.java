@@ -5403,6 +5403,12 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         if (channel == null || !channel.isActive() || state != WireState.PLAY) {
             return;
         }
+        // Wave TF-12 — the mob's own dimension gates the observer (the
+        // same law as the spawn: a nether body's metadata never reaches an
+        // overworld view).
+        if (dimensionOfSession() != mob.dimension()) {
+            return;
+        }
         ByteBuf out = Unpooled.buffer(12);
         ByteBufOps.writeVarInt(out, Protocol18.S2C_ENTITY_METADATA);
         ByteBufOps.writeVarInt(out, mob.entityId());
@@ -5421,6 +5427,12 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     void sendWolfState(MobEntity mob) {
         Channel channel = adapter.channelOf(this);
         if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        // Wave TF-12 — the mob's own dimension gates the observer (the
+        // same law as the spawn: a nether body's metadata never reaches an
+        // overworld view).
+        if (dimensionOfSession() != mob.dimension()) {
             return;
         }
         ByteBuf out = Unpooled.buffer(32);
@@ -5445,6 +5457,12 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         if (channel == null || !channel.isActive() || state != WireState.PLAY) {
             return;
         }
+        // Wave TF-12 — the mob's own dimension gates the observer (the
+        // same law as the spawn: a nether body's metadata never reaches an
+        // overworld view).
+        if (dimensionOfSession() != mob.dimension()) {
+            return;
+        }
         ByteBuf out = Unpooled.buffer(16);
         ByteBufOps.writeVarInt(out, Protocol18.S2C_ENTITY_METADATA);
         ByteBufOps.writeVarInt(out, mob.entityId());
@@ -5462,6 +5480,12 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     void sendMobAgeMetadata(MobEntity mob) {
         Channel channel = adapter.channelOf(this);
         if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        // Wave TF-12 — the mob's own dimension gates the observer (the
+        // same law as the spawn: a nether body's metadata never reaches an
+        // overworld view).
+        if (dimensionOfSession() != mob.dimension()) {
             return;
         }
         ByteBuf out = Unpooled.buffer(16);
@@ -5482,6 +5506,12 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         if (channel == null || !channel.isActive() || state != WireState.PLAY) {
             return;
         }
+        // Wave TF-12 — the mob's own dimension gates the observer (the
+        // same law as the spawn: a nether body's metadata never reaches an
+        // overworld view).
+        if (dimensionOfSession() != mob.dimension()) {
+            return;
+        }
         ByteBuf out = Unpooled.buffer(12);
         ByteBufOps.writeVarInt(out, Protocol18.S2C_ENTITY_METADATA);
         ByteBufOps.writeVarInt(out, mob.entityId());
@@ -5499,6 +5529,12 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     void sendMobLivingFlags(MobEntity mob) {
         Channel channel = adapter.channelOf(this);
         if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        // Wave TF-12 — the mob's own dimension gates the observer (the
+        // same law as the spawn: a nether body's metadata never reaches an
+        // overworld view).
+        if (dimensionOfSession() != mob.dimension()) {
             return;
         }
         ByteBuf out = Unpooled.buffer(12);
@@ -5529,6 +5565,12 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                 || chunkTracker == null) {
             return;
         }
+        // Wave TF-12 — the mob's own dimension gates the observer (the
+        // same law as the spawn: a nether body's equipment never reaches
+        // an overworld view).
+        if (dimensionOfSession() != mob.dimension()) {
+            return;
+        }
         if (!chunkTracker.hasChunk(chunkKeyOf(mob.position()))) {
             return;
         }
@@ -5554,6 +5596,12 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         if (channel == null || !channel.isActive() || state != WireState.PLAY) {
             return;
         }
+        // Wave TF-12 — the mob's own dimension gates the observer (the
+        // same law as the spawn: a nether body's metadata never reaches an
+        // overworld view).
+        if (dimensionOfSession() != mob.dimension()) {
+            return;
+        }
         ByteBuf out = Unpooled.buffer(12);
         ByteBufOps.writeVarInt(out, Protocol18.S2C_ENTITY_METADATA);
         ByteBufOps.writeVarInt(out, mob.entityId());
@@ -5571,6 +5619,12 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     void sendGhastCharging(MobEntity mob) {
         Channel channel = adapter.channelOf(this);
         if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        // Wave TF-12 — the mob's own dimension gates the observer (the
+        // same law as the spawn: a nether body's metadata never reaches an
+        // overworld view).
+        if (dimensionOfSession() != mob.dimension()) {
             return;
         }
         ByteBuf out = Unpooled.buffer(12);
@@ -5592,6 +5646,12 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         if (channel == null || !channel.isActive() || state != WireState.PLAY) {
             return;
         }
+        // Wave TF-12 — the mob's own dimension gates the observer (the
+        // same law as the spawn: a nether body's metadata never reaches an
+        // overworld view).
+        if (dimensionOfSession() != mob.dimension()) {
+            return;
+        }
         ByteBuf out = Unpooled.buffer(12);
         ByteBufOps.writeVarInt(out, Protocol18.S2C_ENTITY_METADATA);
         ByteBufOps.writeVarInt(out, mob.entityId());
@@ -5611,6 +5671,12 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     void sendWitherMetadata(MobEntity mob) {
         Channel channel = adapter.channelOf(this);
         if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        // Wave TF-12 — the mob's own dimension gates the observer (the
+        // same law as the spawn: a nether body's metadata never reaches an
+        // overworld view).
+        if (dimensionOfSession() != mob.dimension()) {
             return;
         }
         ByteBuf out = Unpooled.buffer(28);
@@ -5664,6 +5730,12 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     void sendZombieState(MobEntity mob) {
         Channel channel = adapter.channelOf(this);
         if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        // Wave TF-12 — the mob's own dimension gates the observer (the
+        // same law as the spawn: a nether body's metadata never reaches an
+        // overworld view).
+        if (dimensionOfSession() != mob.dimension()) {
             return;
         }
         ByteBuf out = Unpooled.buffer(14);
@@ -5936,6 +6008,12 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         if (channel == null || !channel.isActive() || state != WireState.PLAY) {
             return;
         }
+        // Wave TF-12 — the mob's own dimension gates the observer (the
+        // same law as the spawn: a nether body's metadata never reaches an
+        // overworld view).
+        if (dimensionOfSession() != mob.dimension()) {
+            return;
+        }
         ByteBuf out = Unpooled.buffer(16);
         ByteBufOps.writeVarInt(out, Protocol18.S2C_ENTITY_METADATA);
         ByteBufOps.writeVarInt(out, mob.entityId());
@@ -5977,6 +6055,12 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     void sendGuardianState(MobEntity mob) {
         Channel channel = adapter.channelOf(this);
         if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        // Wave TF-12 — the mob's own dimension gates the observer (the
+        // same law as the spawn: a nether body's metadata never reaches an
+        // overworld view).
+        if (dimensionOfSession() != mob.dimension()) {
             return;
         }
         ByteBuf out = Unpooled.buffer(16);
@@ -6022,6 +6106,12 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         if (channel == null || !channel.isActive() || state != WireState.PLAY) {
             return;
         }
+        // Wave TF-12 — the mob's own dimension gates the observer (the
+        // same law as the spawn: a nether body's metadata never reaches an
+        // overworld view).
+        if (dimensionOfSession() != mob.dimension()) {
+            return;
+        }
         ByteBuf out = Unpooled.buffer(8);
         ByteBufOps.writeVarInt(out, Protocol18.S2C_ANIMATION);
         ByteBufOps.writeVarInt(out, mob.entityId());
@@ -6039,6 +6129,12 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     void sendMobAnimation(MobEntity mob, int animation) {
         Channel channel = adapter.channelOf(this);
         if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        // Wave TF-12 — the mob's own dimension gates the observer (the
+        // same law as the spawn: a nether body's metadata never reaches an
+        // overworld view).
+        if (dimensionOfSession() != mob.dimension()) {
             return;
         }
         ByteBuf out = Unpooled.buffer(8);
@@ -6225,6 +6321,12 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     void sendMobStatus(net.zaminmc.torch.server.entity.MobEntity mob, int status) {
         Channel channel = adapter.channelOf(this);
         if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        // Wave TF-12 — the mob's own dimension gates the observer (the
+        // same law as the spawn: a nether body's metadata never reaches an
+        // overworld view).
+        if (dimensionOfSession() != mob.dimension()) {
             return;
         }
         ByteBuf out = Unpooled.buffer(12);
@@ -6416,9 +6518,15 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     }
 
     /**
-     * Delivers one engine FX event to this observer: distance-culled by the
-     * reference's own per-kind ranges (ServerWorldEventListener.playSound
-     * line 44: {@code volume > 1.0F ? 16 * volume : 16} for sounds;
+     * Delivers one engine FX event to this observer: dimension-gated by the
+     * event's own world (Wave TF-12 — the reference's PlayerManager.sendPacket
+     * lines 630-640: {@code serverplayerentity.dimension == dimension} ahead
+     * of the range test, the listener resolving
+     * {@code this.world.dimension.getId()} — a sound, particle, or world
+     * event NEVER crosses dimensions however near the same coordinates sit),
+     * then distance-culled by the reference's own per-kind ranges
+     * (ServerWorldEventListener.playSound line 44:
+     * {@code volume > 1.0F ? 16 * volume : 16} for sounds;
      * ServerWorld.addParticle lines 930-936: 16 blocks for the particle
      * family, 256 for the ignore-distance kinds), translated from the
      * semantic bus into this protocol's packets. Any thread.
@@ -6426,6 +6534,12 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     void deliverFx(net.zaminmc.torch.server.fx.FxManager.FxEvent event,
                    net.zaminmc.torch.server.player.PlayerSession observer) {
         if (observer == null) {
+            return;
+        }
+        // Wave TF-12 — the reference's own gate order (the dimension test
+        // inside the send loop, ahead of the squared-distance test): the
+        // observer standing in another world never hears this event.
+        if (event.dimension() != dimensionOfSession()) {
             return;
         }
         Position at;
@@ -7493,6 +7607,12 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                          net.zaminmc.torch.server.leash.LeashKnot holderKnot) {
         Channel channel = adapter.channelOf(this);
         if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        // Wave TF-12 — the mob's own dimension gates the observer (the
+        // same law as the spawn: a nether body's metadata never reaches an
+        // overworld view).
+        if (dimensionOfSession() != mob.dimension()) {
             return;
         }
         int vehicleId;

@@ -133,8 +133,9 @@ public final class FishingSystem {
          * dimension (Wave TF-10). */
         void dropXp(Position at, int amount, int dimension);
 
-        /** A world sound. */
-        void sound(Position at, String key, float volume, float pitch);
+        /** A world sound — in the bobber's own dimension (Wave TF-12: the
+         * reference's playSound on the bobber's World). */
+        void sound(Position at, String key, float volume, float pitch, int dimension);
     }
 
     /**
@@ -216,6 +217,7 @@ public final class FishingSystem {
     public static final class Bobber {
         final int entityId;
         final int throwerId;
+        final int dimension;
         double x;
         double y;
         double z;
@@ -232,9 +234,10 @@ public final class FishingSystem {
         Object hooked;
         boolean removed;
 
-        Bobber(int entityId, int throwerId, double x, double y, double z) {
+        Bobber(int entityId, int throwerId, int dimension, double x, double y, double z) {
             this.entityId = entityId;
             this.throwerId = throwerId;
+            this.dimension = dimension;
             this.x = x;
             this.y = y;
             this.z = z;
@@ -246,6 +249,14 @@ public final class FishingSystem {
 
         public int throwerId() {
             return throwerId;
+        }
+
+        /**
+         * The bobber's own dimension (Wave TF-12 — the reference's
+         * Entity.world): the angler's at the cast, the splash's own world.
+         */
+        public int dimension() {
+            return dimension;
         }
 
         public Position position() {
@@ -441,10 +452,13 @@ public final class FishingSystem {
      * pulled back 0.16 along the look, the 0.4-power direction scaled
      * 1.5 with the gaussian 0.0075 scatter. One bobber per angler (the
      * reference's own field shape — a second cast is unreachable).
+     * The bobber spawns in the angler's own dimension (Wave TF-12 — the
+     * reference spawns it in the angler's World).
      * §27.6: the monitor protocol (the census mutation the public
      * view's snapshot copies serialize against).
      */
-    public synchronized Bobber cast(int throwerId, Position eye, float yaw, float pitch) {
+    public synchronized Bobber cast(int throwerId, Position eye, float yaw, float pitch,
+                                     int dimension) {
         Bobber existing = byAngler.get(throwerId);
         if (existing != null) {
             return existing;
@@ -454,7 +468,7 @@ public final class FishingSystem {
         double x = eye.x() - Math.cos(radiansYaw) * 0.16;
         double y = eye.y() - 0.1;
         double z = eye.z() - Math.sin(radiansYaw) * 0.16;
-        Bobber bobber = new Bobber(nextEntityId++, throwerId, x, y, z);
+        Bobber bobber = new Bobber(nextEntityId++, throwerId, dimension, x, y, z);
         double vx = -Math.sin(radiansYaw) * Math.cos(radiansPitch) * THROW_POWER;
         double vz = Math.cos(radiansYaw) * Math.cos(radiansPitch) * THROW_POWER;
         double vy = -Math.sin(radiansPitch) * THROW_POWER;
@@ -712,7 +726,8 @@ public final class FishingSystem {
                 // The splash (lines 348-355): the bob + the sound.
                 bobber.vy -= 0.2;
                 catches.sound(bobber.position(), "random.splash", 0.25F,
-                        1.0F + (random.nextFloat() - random.nextFloat()) * 0.4F);
+                        1.0F + (random.nextFloat() - random.nextFloat()) * 0.4F,
+                        bobber.dimension());
                 bobber.selfHitTimer = BITE_WINDOW_MIN
                         + random.nextInt(BITE_WINDOW_MAX - BITE_WINDOW_MIN);
             } else {

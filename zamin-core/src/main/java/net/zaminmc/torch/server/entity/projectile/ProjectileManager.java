@@ -230,7 +230,7 @@ public final class ProjectileManager {
         }
 
         /** The egg's chick roll succeeded: spawn a chicken here. */
-        void chickenHatch(Position position);
+        void chickenHatch(Position position, int dimension);
 
         /**
          * A vehicle took a projectile hit (Slice 77 — the reference's
@@ -1341,7 +1341,7 @@ public final class ProjectileManager {
             explosionSink.explode(mob.position(), 1.0f, projectile.dimension());
         }
         if (projectile.kind() == ProjectileEntity.Kind.EGG && rollEggHatch()) {
-            combat.chickenHatch(mob.position());
+            combat.chickenHatch(mob.position(), projectile.dimension());
         }
     }
 
@@ -1384,7 +1384,7 @@ public final class ProjectileManager {
             explosionSink.explode(player.position(), 1.0f, projectile.dimension());
         }
         if (projectile.kind() == ProjectileEntity.Kind.EGG && rollEggHatch()) {
-            combat.chickenHatch(player.position());
+            combat.chickenHatch(player.position(), projectile.dimension());
         }
     }
 
@@ -1435,9 +1435,9 @@ public final class ProjectileManager {
 
     /** The shard break feedback (the splat puff + the glassy click). */
     private void shatter(ProjectileEntity projectile) {
-        fx.poof(projectile.position());
+        fx.poof(projectile.position(), projectile.dimension());
         fx.sound(projectile.position(), "random.glass", 0.5f,
-                0.7f + random.nextFloat() * 0.3f);
+                0.7f + random.nextFloat() * 0.3f, projectile.dimension());
     }
 
     /**

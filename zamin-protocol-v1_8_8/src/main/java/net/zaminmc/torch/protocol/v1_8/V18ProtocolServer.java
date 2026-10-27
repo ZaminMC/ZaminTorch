@@ -469,6 +469,11 @@ public final class V18ProtocolServer implements ProtocolAdapter {
             @Override
             public void onMobHurt(net.zaminmc.torch.server.entity.MobEntity mob) {
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    // Wave TF-12 — the reference's per-world entity map: the
+                    // hurt pair never crosses the body's own dimension.
+                    if (connection.dimensionOfSession() != mob.dimension()) {
+                        continue;
+                    }
                     connection.sendMobStatus(mob, net.zaminmc.torch.protocol.v1_8.Protocol18.ENTITY_STATUS_HURT);
                     connection.sendMobSound(mob.hurtSound(), mob.position(), 1.0f, 1.0f);
                 }
@@ -477,6 +482,10 @@ public final class V18ProtocolServer implements ProtocolAdapter {
             @Override
             public void onMobDied(net.zaminmc.torch.server.entity.MobEntity mob) {
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    // Wave TF-12 — the per-world entity map's own gate.
+                    if (connection.dimensionOfSession() != mob.dimension()) {
+                        continue;
+                    }
                     connection.sendMobStatus(mob, net.zaminmc.torch.protocol.v1_8.Protocol18.ENTITY_STATUS_DEAD);
                     connection.sendMobSound(mob.deathSound(), mob.position(), 1.0f, 1.0f);
                 }
@@ -486,6 +495,11 @@ public final class V18ProtocolServer implements ProtocolAdapter {
             public void onMobSoundAt(net.zaminmc.torch.server.entity.MobEntity mob,
                                      String soundName, float volume, float pitch) {
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    // Wave TF-12 — Entity.playSound resolves the body's own
+                    // World; the sound never leaves it.
+                    if (connection.dimensionOfSession() != mob.dimension()) {
+                        continue;
+                    }
                     connection.sendMobSoundRanged(soundName, mob.position(), volume, pitch);
                 }
             }
@@ -493,6 +507,11 @@ public final class V18ProtocolServer implements ProtocolAdapter {
             @Override
             public void onMobRemoved(net.zaminmc.torch.server.entity.MobEntity mob, String reason) {
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    // Wave TF-12 — the id-only send's gate lives at the fan
+                    // where the body is at hand (the TF-9 convention).
+                    if (connection.dimensionOfSession() != mob.dimension()) {
+                        continue;
+                    }
                     connection.sendMobRemoved(mob.entityId());
                 }
             }
@@ -640,6 +659,11 @@ public final class V18ProtocolServer implements ProtocolAdapter {
             public void onZombieDoorBreakProgress(net.zaminmc.torch.server.entity.MobEntity mob,
                                                    int x, int y, int z, int stage) {
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    // Wave TF-12 — updateBlockMiningProgress's own law
+                    // (serverplayerentity.world == this.world).
+                    if (connection.dimensionOfSession() != mob.dimension()) {
+                        continue;
+                    }
                     connection.sendMobBlockMiningProgress(mob.entityId(),
                             new net.zaminmc.torch.block.BlockPosition(x, y, z), stage);
                 }
@@ -683,6 +707,10 @@ public final class V18ProtocolServer implements ProtocolAdapter {
             @Override
             public void onMobSound(net.zaminmc.torch.server.entity.MobEntity mob, String soundName) {
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    // Wave TF-12 — the body's own World gates the chatter.
+                    if (connection.dimensionOfSession() != mob.dimension()) {
+                        continue;
+                    }
                     connection.sendMobSound(soundName, mob.position(), 1.0f, 1.0f);
                 }
             }
@@ -824,6 +852,10 @@ public final class V18ProtocolServer implements ProtocolAdapter {
         @Override
         public void onMobStatusEvent(net.zaminmc.torch.server.entity.MobEntity mob, int status) {
             for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                // Wave TF-12 — doEntityEvent rides the per-world entity map.
+                if (connection.dimensionOfSession() != mob.dimension()) {
+                    continue;
+                }
                 connection.sendMobStatus(mob, status);
             }
         }
@@ -831,6 +863,10 @@ public final class V18ProtocolServer implements ProtocolAdapter {
         @Override
         public void onMobLoveBurst(net.zaminmc.torch.server.entity.MobEntity mob) {
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    // Wave TF-12 — the love hearts ride the same per-world law.
+                    if (connection.dimensionOfSession() != mob.dimension()) {
+                        continue;
+                    }
                     connection.sendMobStatus(mob, Protocol18.ENTITY_STATUS_LOVE);
                 }
             }
@@ -841,6 +877,11 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                                            net.zaminmc.torch.util.Position at,
                                            double vx, double vy, double vz) {
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    // Wave TF-12 — ServerWorld.addParticle iterates the
+                    // world's own players; the hearts stay in the body's world.
+                    if (connection.dimensionOfSession() != mob.dimension()) {
+                        continue;
+                    }
                     connection.sendDisplayParticle(Protocol18.PARTICLE_HEART, at,
                             (float) vx, (float) vy, (float) vz, 1.0f);
                 }
@@ -855,6 +896,10 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                                           net.zaminmc.torch.util.Position at,
                                           double vx, double vy, double vz) {
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    // Wave TF-12 — the same per-world particle law.
+                    if (connection.dimensionOfSession() != mob.dimension()) {
+                        continue;
+                    }
                     connection.sendDisplayParticle(Protocol18.PARTICLE_WATER_SPLASH, at,
                             (float) vx, (float) vy, (float) vz, 1.0f);
                 }
@@ -868,6 +913,10 @@ public final class V18ProtocolServer implements ProtocolAdapter {
             public void onMobItemShattered(net.zaminmc.torch.server.entity.MobEntity mob,
                                            net.zaminmc.torch.item.ItemStack broken) {
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    // Wave TF-12 — the crumbs stay in the body's own world.
+                    if (connection.dimensionOfSession() != mob.dimension()) {
+                        continue;
+                    }
                     connection.sendMobItemShatter(mob.position(), broken);
                 }
             }
@@ -905,6 +954,10 @@ public final class V18ProtocolServer implements ProtocolAdapter {
         // (Explosion 0x27) ride dedicated observers.
         server.addMobSwingObserver(mob -> {
             for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                // Wave TF-12 — the doEntityEvent per-world law.
+                if (connection.dimensionOfSession() != mob.dimension()) {
+                    continue;
+                }
                 connection.sendMobSwing(mob);
             }
         });
@@ -916,6 +969,10 @@ public final class V18ProtocolServer implements ProtocolAdapter {
             @Override
             public void onMobAnimation(net.zaminmc.torch.server.entity.MobEntity mob, int animation) {
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    // Wave TF-12 — the doEntityEvent per-world law.
+                    if (connection.dimensionOfSession() != mob.dimension()) {
+                        continue;
+                    }
                     connection.sendMobAnimation(mob, animation);
                 }
             }
@@ -1507,6 +1564,12 @@ public final class V18ProtocolServer implements ProtocolAdapter {
         // opener (the historical exclude-one broadcast).
         server.addChestLidListener((position, opener, open) -> {
             for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                // Wave TF-12 — the doBlockEvents relay is per-world; the
+                // overworld-bound chest family's lid stays an overworld
+                // event (the ledged binding).
+                if (connection.dimensionOfSession() != 0) {
+                    continue;
+                }
                 connection.sendChestLid(position, opener, open);
             }
         });
@@ -1515,6 +1578,10 @@ public final class V18ProtocolServer implements ProtocolAdapter {
         // doBlockEvents relay).
         server.noteBlocks().addNoteActionListener((position, instrument, note) -> {
             for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                // Wave TF-12 — the same per-world relay law.
+                if (connection.dimensionOfSession() != 0) {
+                    continue;
+                }
                 connection.sendNoteAction(position, instrument, note);
             }
         });
@@ -1524,6 +1591,13 @@ public final class V18ProtocolServer implements ProtocolAdapter {
         // WorldRenderer lines 1923-1929), 0 stops it.
         server.jukeboxes().addRecordListener((position, disc) -> {
             for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                // Wave TF-12 — the reference's doEvent dimension gate
+                // (PlayerManager.sendPacket's dimension row): the jukebox
+                // system is overworld-bound today, so its records are
+                // overworld events — the family's ledged binding.
+                if (connection.dimensionOfSession() != 0) {
+                    continue;
+                }
                 connection.sendRecordEvent(position, disc);
             }
         });
@@ -1538,6 +1612,12 @@ public final class V18ProtocolServer implements ProtocolAdapter {
             for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
                 PlayerSession observer = connection.currentSession();
                 if (observer == null) {
+                    continue;
+                }
+                // Wave TF-12 — updateBlockMiningProgress's own law
+                // (serverplayerentity.world == this.world): the digger's
+                // dimension gates the observer.
+                if (connection.dimensionOfSession() != digger.dimension()) {
                     continue;
                 }
                 Position at = observer.position();

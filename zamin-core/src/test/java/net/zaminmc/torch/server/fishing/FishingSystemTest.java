@@ -101,7 +101,7 @@ class FishingSystemTest {
             xps.add(amount);
         }
 
-        @Override public void sound(Position at, String key, float volume, float pitch) {
+        @Override public void sound(Position at, String key, float volume, float pitch, int dimension) {
             sounds.add(key);
         }
     }
@@ -113,7 +113,7 @@ class FishingSystemTest {
         FishingSystem fishing = new FishingSystem(new WaterWorld(), new Recording(),
                 new Recording(), new Random(101L), 10_000);
         FishingSystem.Bobber bobber = fishing.cast(7, new Position(0.0, 65.62, 0.0),
-                0.0f, -45.0f); // looking north-down
+                0.0f, -45.0f, 0); // looking north-down
         assertNotNull(bobber);
         assertEquals(7, bobber.throwerId());
         double speed = Math.sqrt(bobber.velocityX() * bobber.velocityX()
@@ -123,7 +123,7 @@ class FishingSystemTest {
         assertTrue(bobber.velocityZ() > 0.0, "yaw 0 faces south (+Z — Minecraft's own convention)");
         assertTrue(bobber.velocityY() > 0.0, "pitch -45 looks up (+Y - Minecraft pitches negative-up)");
         // One bobber per angler.
-        assertEquals(bobber, fishing.cast(7, new Position(0.0, 65.62, 0.0), 0.0f, 0.0f));
+        assertEquals(bobber, fishing.cast(7, new Position(0.0, 65.62, 0.0), 0.0f, 0.0f, 0));
     }
 
     @Test
@@ -134,7 +134,7 @@ class FishingSystemTest {
         Recording sink = new Recording();
         FishingSystem fishing = new FishingSystem(new WaterWorld(), sink, sink,
                 new Random(102L), 10_100);
-        fishing.cast(8, new Position(0.0, 65.0, 0.0), 0.0f, -90.0f); // straight down
+        fishing.cast(8, new Position(0.0, 65.0, 0.0), 0.0f, -90.0f, 0); // straight down
         FishingSystem.Bobber bobber = fishing.bobberOf(8);
         // Force the arming to the shortest approach: the package-private
         // catchTimer is the cycle's own state.
@@ -167,7 +167,7 @@ class FishingSystemTest {
         Recording sink = new Recording();
         FishingSystem fishing = new FishingSystem(new WaterWorld(), sink, sink,
                 new Random(103L), 10_200);
-        fishing.cast(9, new Position(0.0, 65.0, 0.0), 0.0f, -90.0f);
+        fishing.cast(9, new Position(0.0, 65.0, 0.0), 0.0f, -90.0f, 0);
         FishingSystem.Bobber bobber = fishing.bobberOf(9);
         bobber.catchTimer = 10_000; // the approach never comes
         fishing.tick();
@@ -184,7 +184,7 @@ class FishingSystemTest {
         sink.hookBody = new Object();
         FishingSystem fishing = new FishingSystem(new WaterWorld(), sink, sink,
                 new Random(104L), 10_300);
-        fishing.cast(10, new Position(0.0, 65.0, 0.0), 0.0f, -90.0f);
+        fishing.cast(10, new Position(0.0, 65.0, 0.0), 0.0f, -90.0f, 0);
         FishingSystem.Bobber bobber = fishing.bobberOf(10);
         bobber.hooked = sink.hookBody;
         fishing.tick();
@@ -198,7 +198,7 @@ class FishingSystemTest {
         Recording drySink = new Recording();
         FishingSystem dry = new FishingSystem(new DryWorld(), drySink, drySink,
                 new Random(105L), 10_400);
-        dry.cast(11, new Position(0.0, 45.0, 0.0), 0.0f, -90.0f);
+        dry.cast(11, new Position(0.0, 45.0, 0.0), 0.0f, -90.0f, 0);
         FishingSystem.Bobber grounded = dry.bobberOf(11);
         for (int i = 0; i < 100 && !grounded.grounded(); i++) {
             dry.tick();
@@ -214,11 +214,11 @@ class FishingSystemTest {
         // leash broken removes the bobber.
         FishingSystem fishing = new FishingSystem(new WaterWorld(), new Recording(),
                 new Recording(), new Random(106L), 10_500);
-        fishing.cast(12, new Position(0.0, 65.0, 0.0), 0.0f, -90.0f);
+        fishing.cast(12, new Position(0.0, 65.0, 0.0), 0.0f, -90.0f, 0);
         fishing.noteAnglerState(12, true, false, new Position(0.0, 65.0, 0.0));
         assertNull(fishing.bobberOf(12), "the un-held rod removed the bobber");
 
-        fishing.cast(13, new Position(0.0, 65.0, 0.0), 0.0f, -90.0f);
+        fishing.cast(13, new Position(0.0, 65.0, 0.0), 0.0f, -90.0f, 0);
         fishing.noteAnglerState(13, true, true, new Position(100.0, 65.0, 0.0));
         assertNull(fishing.bobberOf(13), "the 32-block leash removed the bobber");
     }
@@ -241,7 +241,7 @@ class FishingSystemTest {
         int leather = 0;
         int bowls = 0;
         for (int i = 0; i < 4000; i++) {
-            fishing.cast(20, new Position(0.0, 65.0, 0.0), 0.0f, -90.0f);
+            fishing.cast(20, new Position(0.0, 65.0, 0.0), 0.0f, -90.0f, 0);
             FishingSystem.Bobber bobber = fishing.bobberOf(20);
             bobber.selfHitTimer = 5; // force the bite window
             fishing.retrieve(20, new Position(0.0, 66.0, 0.0), 0);
@@ -302,7 +302,7 @@ class FishingSystemTest {
         FishingSystem fishing = new FishingSystem(new WaterWorld(), sink, sink,
                 new Random(108L), 10_700);
         fishing.setEnchantReads(id -> 0, id -> 3); // Lure III
-        fishing.cast(21, new Position(0.0, 65.0, 0.0), 0.0f, -90.0f);
+        fishing.cast(21, new Position(0.0, 65.0, 0.0), 0.0f, -90.0f, 0);
         FishingSystem.Bobber bobber = fishing.bobberOf(21);
         bobber.catchTimer = 0; // force the arming
         fishing.tick();
@@ -310,5 +310,60 @@ class FishingSystemTest {
                 "the Lure III cut keeps the timer non-negative: " + bobber.catchTimer);
         assertTrue(bobber.catchTimer <= FishingSystem.CATCH_ARM_MAX - 300,
                 "the cut landed: " + bobber.catchTimer);
+    }
+
+    @Test
+    void theSplashSoundCarriesTheBobbersDimension() {
+        // Wave TF-12 — the reference's playSound on the bobber's own
+        // World: the cast stamps the angler's dimension on the bobber and
+        // the splash sound consults it through the CatchSink's
+        // dimension-carrying form.
+        List<Integer> soundDimensions = new ArrayList<>();
+        FishingSystem.CatchSink dimensionSink = new FishingSystem.CatchSink() {
+            @Override public void dropCatch(Position at, net.zaminmc.torch.item.ItemStack stack,
+                    double anglerX, double anglerY, double anglerZ, int dimension) {
+            }
+
+            @Override public void dropXp(Position at, int amount, int dimension) {
+            }
+
+            @Override public void sound(Position at, String key,
+                    float volume, float pitch, int dimension) {
+                soundDimensions.add(dimension);
+            }
+        };
+        FishingSystem.HookResolver noHooks = new FishingSystem.HookResolver() {
+            @Override public Object hookAlong(Position from, Position to,
+                    int throwerId, int airTicks) {
+                return null;
+            }
+
+            @Override public boolean hookedAlive(Object hooked) {
+                return false;
+            }
+
+            @Override public Position hookedAnchor(Object hooked) {
+                return null;
+            }
+
+            @Override public void pullToward(Object hooked,
+                    double dx, double dy, double dz) {
+            }
+        };
+        FishingSystem fishing = new FishingSystem(new WaterWorld(), noHooks,
+                dimensionSink, new Random(109L), 10_800);
+        FishingSystem.Bobber nether = fishing.cast(7, new Position(0.0, 65.0, 0.0),
+                0.0f, -90.0f, -1);
+        assertEquals(-1, nether.dimension(),
+                "the bobber spawns in the angler's own dimension");
+
+        // Force the bite: the shortest approach arms the catch window, the
+        // fish-travel window trips the splash on a later tick.
+        nether.catchTimer = 1;
+        for (int i = 0; i < 200 && soundDimensions.isEmpty(); i++) {
+            fishing.tick();
+        }
+        assertEquals(List.of(-1), soundDimensions,
+                "the splash sound plays in the bobber's own world");
     }
 }

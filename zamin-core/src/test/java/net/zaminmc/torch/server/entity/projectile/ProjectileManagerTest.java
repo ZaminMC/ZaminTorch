@@ -46,7 +46,7 @@ class ProjectileManagerTest {
         }
 
         @Override
-        public void chickenHatch(Position position) {
+        public void chickenHatch(Position position, int dimension) {
             chickenHatches++;
         }
     }
