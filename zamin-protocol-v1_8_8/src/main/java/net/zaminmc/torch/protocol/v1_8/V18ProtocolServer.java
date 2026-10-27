@@ -845,6 +845,18 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                 }
             }
 
+            /**
+             * A mob's worn piece shattered (the daylight wear's helmet
+             * exhaustion — onBrokenItem's ITEM_CRACK crumbs at the body).
+             */
+            @Override
+            public void onMobItemShattered(net.zaminmc.torch.server.entity.MobEntity mob,
+                                           net.zaminmc.torch.item.ItemStack broken) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendMobItemShatter(mob.position(), broken);
+                }
+            }
+
             @Override
             public void onMobGrewUp(net.zaminmc.torch.server.entity.MobEntity mob) {
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {

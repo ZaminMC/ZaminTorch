@@ -380,6 +380,15 @@ public final class MobManager {
                                         double vx, double vy, double vz) {
         }
 
+        /**
+         * A mob's worn piece shattered (the daylight wear's exhaustion —
+         * the burn arm's helmet breaking at its durability max, the
+         * reference's {@code LivingEntity.onBrokenItem} particle half:
+         * the ITEM_CRACK crumbs at the body over the broken stack).
+         */
+        default void onMobItemShattered(MobEntity mob, ItemStack broken) {
+        }
+
         /** A baby crossed into adulthood (the age metadata byte flips to 0). */
         default void onMobGrewUp(MobEntity mob) {
         }
@@ -1416,26 +1425,14 @@ public final class MobManager {
                 continue;
             }
 
-            // Daylight: the undead ignite (the historical sunlight burn —
-            // re-armed every daylight tick until the fire consumes them); the
-            // day-neutral spider just stops hunting; creepers are sun-proof.
-            // The wither skeleton never joins: it only exists in the nether,
-            // where the reference's own hasSkyAccess gate reads false (the
-            // engine's dimension-blind sweep's own wither arm, Slice 18d).
-            // The wither boss never joins either (WitherEntity carries no
-            // burnInDaylight arm at all — the boss walks the noon sun whole).
-            if (mob.type().hostile && !mob.type().traits.neutralByDay() && !night) {
-                if (mob.type().undead() && !mob.skeletonWither()
-                        && !mob.type().bossFamily()) {
-                    boolean wasBurning = mob.burning();
-                    mob.ignite(MobEntity.FIRE_TICKS);
-                    if (!wasBurning) {
-                        for (Listener listener : listeners) {
-                            listener.onMobBurningChanged(mob, true);
-                        }
-                    }
-                }
-            }
+            // The undead's daylight burn moved INTO the family's own tick
+            // clock (MobEntity.tickDaylightBurn — the reference's mobTick
+            // arms 1:1: the isSunny/brightness/roll/sky gates, the helmet
+            // wear, the baby gate, the pigman and the wither variant
+            // riding their parents' walks under fire immunity). The old
+            // dimension-blind night-window sweep is retired — the walk
+            // consults the body's own dimension's sun through the flipped
+            // shared query below, exactly the reference's per-world read.
 
             // Despawn (Slice 11d — MobEntity.checkDespawn lines 417-438,
             // 1:1): the persistent never leave (the leashed family); the
@@ -1549,6 +1546,18 @@ public final class MobManager {
             if (wasBurning != mob.burning()) {
                 for (Listener listener : listeners) {
                     listener.onMobBurningChanged(mob, mob.burning());
+                }
+            }
+            // The daylight wear's exhaustion (LivingEntity.onBrokenItem
+            // lines 728-735 over the burn arm's helmet shatter): the
+            // reference's own pair — the "random.break" sound at 0.8F
+            // with its staged pitch jitter, and the ITEM_CRACK crumbs at
+            // the body (the adapter's iconcrack burst).
+            MobEntity.EquipmentBreak broke = mob.consumeEquipmentBreak();
+            if (broke != null) {
+                for (Listener listener : listeners) {
+                    listener.onMobSoundAt(mob, "random.break", 0.8f, broke.pitch());
+                    listener.onMobItemShattered(mob, broke.stack());
                 }
             }
             if (wasBegging != mob.wolfBegging() || wasWolfState != mob.wolfFlagsRaw()) {

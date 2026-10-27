@@ -689,7 +689,7 @@ THE SECTION TABLE AND THE ATTRIBUTION PASS LANDED (ML-006 + ML-007 — the cycle
 
 Dynamic split/merge and load-driven migration remain future work. First prove migration with in-flight tasks, delayed work, messages, compute results, persistence, shutdown, and stale-generation invalidation; add telemetry and anti-oscillation rules before enabling automatic balancing.
 
-**Next concrete mechanics work:** continue from Section 29: the master ledger's demand-named queue is EMPTY of implementable rows (ML-013, the last — the tick watchdog, landed 2026-10-26 in §29's Wave ML13; ML-008 the /give form aligned the same day; PR #38's audit merge landed 2026-10-23). The 2026-10-26 vanilla-grade census's lanes are ALL LANDED (§29's Waves TF-7 + TF-7-continued: the silverfish's infest completion, the skeleton's sunlight escape, the fireball punch's Knockback push, the armor stand's EntityTag NBT merge, the nether portal's random-tick pigman spawn, and the skeleton's AvoidSunlightGoal trim — the census closed whole, the last two rows landing 2026-10-26 in §29's Wave TF-7's continuation rows). Wave ON-1 LANDED 2026-10-26 (§29's Wave ON-1, DEC-001 executed whole): the login compression exchange (ON-1a), the online login's whole encryption arm with the session-service hasJoined consult (ON-1b), and the profile's signed properties riding the tab list (ON-1d — the textures lane) — offline stays as the online-mode=false branch; DEC-002 STAY NATIVE indefinitely (no adapter surfaces, absent beats stubbed); DEC-003 NO KigPaper config family (vanilla's own server.properties rows only, both missing rows landing with the wave). The remainder is ML-100's family-owned standing tails, each picked up only as its family's slice per that row's own rule. The §22 evidence bar holds: no concurrency phase opens without the attribution pass's numbers (ML-007 landed — the verdict: none justified at the current loads).
+**Next concrete mechanics work:** continue from Section 29: the master ledger's demand-named queue is EMPTY of implementable rows (ML-013, the last — the tick watchdog, landed 2026-10-26 in §29's Wave ML13; ML-008 the /give form aligned the same day; PR #38's audit merge landed 2026-10-23). The 2026-10-26 vanilla-grade census's lanes are ALL LANDED (§29's Waves TF-7 + TF-7-continued, closed whole). Wave ON-1 LANDED 2026-10-26 (DEC-001 executed whole; DEC-002 STAY NATIVE and DEC-003 NO KigPaper config family both stand). Wave TF-8 LANDED 2026-10-27 (§29's Wave TF-8: the undead family's daylight burn 1:1 — the ML-100 pigman tail TF-7e made reachable, the dimension-blind night-window sweep retired for the reference's isSunny/brightness/roll/sky gates, the helmet's wear-and-shatter with the onBrokenItem wire, the wither variant's visual burn). The remainder is ML-100's family-owned standing tails, each picked up only as its family's slice per that row's own rule (the next candidates by family order: the item-entity family's dimension reads riding the pigman tail's other half, the stats family's envelope — RECORDS_PLAYED, NOTE_BLOCKS_TUNED/PLAYED — its own slice when a stats surface opens). The §22 evidence bar holds: no concurrency phase opens without the attribution pass's numbers (ML-007 landed — the verdict: none justified at the current loads).
 
 # 23. COMMITS / PUSHES / RELEASES
 
@@ -3675,7 +3675,7 @@ own tests. Order is by vanilla visibility and dependency, not size.
       StatsCompletenessTest row — coarse_dirt/fern/podzol counting on
       stat rows the 1.8.8 client drops — reproduced on 26d961e1.)
 
-**Next concrete mechanics work:** the master ledger's demand-named queue is empty of implementable rows (ML-013 the tick watchdog landed 2026-10-26, §29's Wave ML13; ML-006/007/021 landed through PR #46; ML-008 aligned 2026-10-26; ML-020 resolved 2026-10-26 — §29's Wave ON-1 landed the online-mode whole: the compression exchange, the encryption arm with the hasJoined consult, and the tab-list textures lane; PR #38 merged 2026-10-23). DEC-002 STAY NATIVE indefinitely and DEC-003 NO KigPaper config family both stand. The remainder: ML-100's family-owned tails, each only as its family's slice. The §22 evidence bar holds: no concurrency phase opens without the attribution pass's numbers (ML-007 landed — the verdict: none justified at the current loads).
+**Next concrete mechanics work:** the master ledger's demand-named queue is empty of implementable rows (ML-013 the tick watchdog landed 2026-10-26, §29's Wave ML13; ML-006/007/021 landed through PR #46; ML-008 aligned 2026-10-26; ML-020 resolved 2026-10-26 — §29's Wave ON-1 landed the online-mode whole; PR #38 merged 2026-10-23). DEC-002 STAY NATIVE indefinitely and DEC-003 NO KigPaper config family both stand. Wave TF-8 landed 2026-10-27 (§29's Wave TF-8: the undead daylight burn 1:1, the ML-100 pigman tail closed). The remainder: ML-100's family-owned tails, each only as its family's slice (the pigman tail's other half — the item-entity/projectile dimension reads — and the stats-family envelope the jukebox/note-block rows carry). The §22 evidence bar holds: no concurrency phase opens without the attribution pass's numbers (ML-007 landed — the verdict: none justified at the current loads).
 
 ## Standing (demand-named, not scheduled)
 
@@ -4946,6 +4946,102 @@ way were repaired inside the wave.
       landing. Wave ON-1 is now CLOSED WHOLE: the compression exchange,
       the encryption arm, the consult, and the textures lane all
       landed; offline stays as the online-mode=false branch.
+
+## Wave TF-8 — the 2026-10-27 undead family's daylight burn 1:1 (the ML-100 pigman tail, made reachable by TF-7e's portal spawns, landed)
+
+- [x] THE FAMILY'S OWN WALK REPLACING THE DIMENSION-BLIND SWEEP: the
+      burn moved OUT of MobManager's night-window sweep (the old arm
+      ignited every ZOMBIE/SKELETON on any !night tick — no sun
+      consult, no roll, no brightness, no sky, no helmet, and the
+      pigman never joined because undead() never carried it) INTO
+      MobEntity.tickDaylightBurn, the reference's own per-family
+      mobTick arms 1:1 (ZombieEntity lines 160-181 carrying the baby
+      gate, SkeletonEntity lines 115-136 without it), placed after
+      tickBody beside the enderman/witch environment walks — AFTER the
+      fire clock, the reference's own order (Entity's fire decrement
+      walks before mobTick's burn arm; a fresh re-arm keeps its whole
+      8 seconds). The walk runs for the living body only (the dead
+      gate freezes the fire, the engine's own model) and for NoAI
+      bodies too (the reference's pin gates the mind alone — a NoAI
+      zombie burns).
+- [x] THE GATES, THE REFERENCE'S OWN ORDER (the random stream's
+      shape rides it): isSunny first (World.isSunny line 627 —
+      ambientDarkness < 4 through the TF-7b WorldQuery consult: the
+      rain gradients shave it, the exact dawn/dusk bands answer their
+      own darkness, the roofed nether never sunny — the NIGHT WINDOW
+      the old sweep read is retired), the zombie family's baby gate
+      (!isBaby(); the skeleton's arm carries no gate), the eye cell's
+      brightness past 0.5 (Entity.getBrightness(1.0F) — the y +
+      eyeHeight read through the dimension's brightness table), the
+      roll (nextFloat() * 30 < (f - 0.4) * 2 — a 1-in-25 re-arm per
+      tick at full light, coarser at the lower bands), and the sky
+      column above the feet cell (new BlockPos(x, Math.round(y), z)
+      — the ROUNDED feet, not the floored eye). The walk consults the
+      body's own dimension through the manager's flipped shared query
+      (setActiveDimension runs before every mob tick) — the
+      dimension-blind arm's own wither-skeleton exclusion retired with
+      it: the wither variant now rides the skeleton's walk exactly as
+      the reference carries it (setType line 279's immuneToFire =
+      type == 1), burning VISUALLY in an overworld sun under the fire
+      clock's 4x immune drain, never a wound; the wither boss still
+      never joins (WitherEntity carries no burn arm at all).
+- [x] THE PIGMAN'S INHERITED BURN — THE ML-100 TAIL CLOSED
+      (ZombiePigmanEntity extends ZombieEntity with no override, the
+      census row's own "no overworld pigmen spawn anyway" justification
+      retired by TF-7e's portal-spawn lane): the overworld pigman now
+      catches the sun exactly like its zombie parent — the flames
+      visual, the fire immunity holding every wound off forever, the
+      burn clock's immune arm draining four ticks per tick. The tail's
+      other half (the item entities' and projectiles' own dimension
+      reads) stays ledged — the item-entity family's own slice.
+- [x] THE HELMET ARM (getEquipment(4)): any worn head blocks the
+      ignition outright; a damageable one (maxDurability > 0, not
+      Unbreakable — ItemStack line 163's own gate) wears +nextInt(2)
+      per gated tick through the PUBLIC equipment write path
+      (setEquipmentAt — the wired route re-publishes the Entity
+      Equipment row the wear moves), and at the durability max the
+      slot clears with the reference's onBrokenItem pair staged for
+      the manager's drain: the "random.break" sound at 0.8F with its
+      0.8 + nextFloat() * 0.4 pitch and the ITEM_CRACK crumbs over
+      the broken stack. THE DRAIN AND THE WIRE: the manager's post-
+      tick diff drains the staged break into onMobSoundAt + the NEW
+      onMobItemShattered listener face (the seventeen-event lesson
+      applied — the MobEventDispatch re-fans it, and the 1.8 adapter
+      translates it to the iconcrack burst over the FxManager's
+      ItemShatter shape: the item's legacy id + damage nibble as the
+      data pair, count 8, the 0.3 cube, speed 0.15 — the same burst
+      the eat bite rides).
+- [x] TESTS: DaylightBurnTest 9/0 (the pigman's visual burn with the
+      untouched health, the wither variant's visual burn beside the
+      plain archer's real wounds, the helmet's block-and-wear, the
+      shatter arc — the cap at 55 of 56 breaking, the slot clearing,
+      the drain's sound + crumbs, and the bare head catching the sun
+      after, the pumpkin's wear-less block, the baby gate, the dark
+      cell, the covered cell, the unsunny world). RE-PINS: MobManager
+      Test's dawn test re-pinned as the sunny-roll law (the time-aware
+      stub consulting the engine's own ambientDarkness walk — the
+      armed window, the 800-tick consumption, the night's 400-tick
+      stand); EscapeSunlightTest's dry-skeleton arm re-pinned over the
+      pumpkin (a bare dry skeleton now catches the sun through the
+      family's own walk — the arm's premise was the pre-lane engine's
+      sweep-only shape); AvoidSunlightTest's stroll sanity band
+      re-pinned as the displacement form (the burn's roll interleaves
+      the shared random stream, the seed's exact drift is not the
+      law); MobType.undead()'s javadoc re-pinned (the kind
+      classification the conversion consults read — the burn no longer
+      consults it). REGRESSION NET: the entity package whole (89
+      suites, 564/0), the zombie-family acceptance + bridge families
+      (MountSeats/Equipment/Thorns/DoorBreak/MobEventBridge + the 19-
+      family sweep), the boot-level families (BlockEntityApi/
+      DeathXpLadder/EnchantmentEffect/MiningXp), the gamerule family,
+      and the protocol module whole — one cold-scheduling observation
+      on DeathXpLadderAcceptanceTest (a +2 XP orb delta the lane has
+      no surface to mint — a passive kill's 1+nextInt(3); the
+      documented load-flake family's shape, green in isolation and
+      5/6 in combination, CI's documented retry the arbiter). The
+      test census moves to 496 classes / 2841 methods (the @Test-
+      occurrence convention, reproducible via git grep — the prior
+      2718 superseded; the class counts agree throughout).
 
 # 33. CODEBASE SCALE, CLASS COHESION, AND MAINTAINABILITY
 

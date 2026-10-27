@@ -1,5 +1,7 @@
 package net.zaminmc.torch.server.entity;
 
+import net.zaminmc.torch.item.ItemStack;
+import net.zaminmc.torch.server.item.BuiltinItems;
 import net.zaminmc.torch.util.Position;
 import org.junit.jupiter.api.Test;
 
@@ -99,11 +101,18 @@ class EscapeSunlightTest {
         }
 
         // Not burning: no escape (the on-fire gate — a dry skeleton in
-        // the noon sun keeps its own band).
+        // the noon sun keeps its own band). The dry fixture wears a
+        // pumpkin: the burn lane's own helmet gate (getEquipment(4)'s
+        // block) is what holds the body unlit now — a bare head would
+        // catch the sun through the family's own walk and arm the
+        // escape after it (the daylight-burn lane's law).
         SunWorld dry = new SunWorld();
         MobEntity comfortable = skeletonIn(dry, 9L);
+        comfortable.setEquipmentAt(4, ItemStack.of(BuiltinItems.PUMPKIN, 1));
         for (int i = 0; i < 120; i++) {
             comfortable.tick(true);
+            assertFalse(comfortable.burning(),
+                    "the pumpkin holds the noon sun off (the helmet gate)");
             assertFalse(comfortable.escapeSunlightLive(),
                     "an unlit body never escapes the sun");
         }

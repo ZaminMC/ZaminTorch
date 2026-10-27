@@ -1997,6 +1997,17 @@ public final class MobEntity implements LivingEntity {
         if (type == MobType.WITCH) {
             tickWitchDrink(night);
         }
+        // The undead family's daylight burn (ZombieEntity.mobTick lines
+        // 160-181 carrying the zombie's baby gate, SkeletonEntity.mobTick
+        // lines 115-136 without it — the pigman and the wither variant
+        // ride their parents' walks, the flames visual under their fire
+        // immunity). The walk runs AFTER the fire clock above, the
+        // reference's own order (Entity's fire decrement walks before
+        // mobTick's burn arm — a fresh re-arm keeps its whole 8 seconds).
+        if (type == MobType.ZOMBIE || type == MobType.ZOMBIE_PIGMAN
+                || type == MobType.SKELETON) {
+            tickDaylightBurn();
+        }
         return fixedPoint() != before || beforeYaw != yaw || beforeHeadYaw != headYaw;
     }
 
@@ -8226,6 +8237,94 @@ public final class MobEntity implements LivingEntity {
     }
 
     // ------------------------------------------------ fire (the burning slice)
+
+    /**
+     * The undead family's daylight burn, 1:1 (ZombieEntity.mobTick lines
+     * 160-181 over the baby gate, SkeletonEntity.mobTick lines 115-136
+     * without it — the pigman rides its zombie parent's walk and the
+     * wither variant the skeleton's, the flames visual under their own
+     * fire immunity: the burn clock's immune arm drains four ticks per
+     * tick and never wounds). THE GATES, the reference's own order (the
+     * random stream's shape rides it): the sunny world first
+     * ({@code World.isSunny} — ambientDarkness under 4, the rain
+     * gradients' shaves included, the roofed nether never sunny), then
+     * the eye cell's brightness past 0.5 ({@code getBrightness(1.0F)}
+     * — the y + eyeHeight read through the dimension's brightness
+     * table), then the roll ({@code nextFloat() * 30 < (f - 0.4) * 2}
+     * — a 1-in-25 re-arm per tick at full light, the coarser bands at
+     * the lower lights), then the sky column above the feet cell
+     * ({@code new BlockPos(x, Math.round(y), z)} — the rounded feet,
+     * not the floored eye). THE HELMET ARM ({@code getEquipment(4)}):
+     * any worn head blocks the burn outright; a damageable one wears
+     * {@code +nextInt(2)} per gated tick and shatters at its max — the
+     * slot clears and the break stages the reference's
+     * {@code onBrokenItem} pair (the "random.break" sound at 0.8F with
+     * its {@code 0.8 + nextFloat() * 0.4} pitch and the ITEM_CRACK
+     * crumbs the manager's drain fans). A bare head ignites the clock
+     * ({@code setOnFireFor(8)} — the 160-tick re-arm).
+     */
+    private void tickDaylightBurn() {
+        if (!world.isSunny()) {
+            return;
+        }
+        // The zombie family's own baby gate (ZombieEntity line 160's
+        // !isBaby() — the skeleton's arm carries no gate; a skeleton is
+        // never a baby in the reference either, the gate is moot there).
+        if (type != MobType.SKELETON && isBaby()) {
+            return;
+        }
+        float f = world.brightness(
+                (int) Math.floor(position.x()),
+                (int) Math.floor(position.y() + eyeHeight()),
+                (int) Math.floor(position.z()));
+        if (f <= 0.5f) {
+            return;
+        }
+        if (random.nextFloat() * 30.0f >= (f - 0.4f) * 2.0f) {
+            return;
+        }
+        if (!world.hasSkyAccess((int) Math.floor(position.x()),
+                (int) Math.round(position.y()),
+                (int) Math.floor(position.z()))) {
+            return;
+        }
+        ItemStack helmet = equipment(4);
+        if (helmet != null) {
+            if (helmet.type().maxDurability() > 0 && !helmet.unbreakable()) {
+                int wear = helmet.damage() + random.nextInt(2);
+                if (wear >= helmet.type().maxDurability()) {
+                    equipmentBreakStaged = new EquipmentBreak(
+                            helmet, 0.8f + random.nextFloat() * 0.4f);
+                    setEquipmentAt(4, ItemStack.EMPTY); // the slot clears
+                } else {
+                    setEquipmentAt(4, helmet.withDamage(wear));
+                }
+            }
+            return; // the worn head blocks the burn, damageable or not
+        }
+        ignite(FIRE_TICKS); // setOnFireFor(8) — the reference's own clock
+    }
+
+    /** A worn piece the daylight wear exhausted (the drain's staged pair). */
+    public record EquipmentBreak(ItemStack stack, float pitch) {
+    }
+
+    /** The staged equipment break (onBrokenItem's sound + crumbs pair). */
+    private EquipmentBreak equipmentBreakStaged;
+
+    /**
+     * Takes the tick's staged equipment break, if the wear exhausted a
+     * worn piece ({@code LivingEntity.onBrokenItem} — the manager drains
+     * it into the sound face and the item-shatter crumbs).
+     *
+     * @return the broken stack with its sound pitch, or null when
+     *         nothing broke this tick
+     */
+    public EquipmentBreak consumeEquipmentBreak() {
+        EquipmentBreak staged = equipmentBreakStaged;
+        equipmentBreakStaged = null;
+        return staged;
+    }
 
     /** @return ticks of burning left (0 = not on fire). */
     public int fireTicks() {

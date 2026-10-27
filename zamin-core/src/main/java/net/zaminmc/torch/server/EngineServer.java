@@ -19009,6 +19009,14 @@ public final class EngineServer implements Server, EngineBridge {
         }
 
         @Override
+        public void onMobItemShattered(MobEntity mob,
+                                       net.zaminmc.torch.item.ItemStack broken) {
+            for (MobManager.Listener listener : mobListeners) {
+                listener.onMobItemShattered(mob, broken);
+            }
+        }
+
+        @Override
         public void onEndermanStare(MobEntity mob) {
             for (MobManager.Listener listener : mobListeners) {
                 listener.onEndermanStare(mob);

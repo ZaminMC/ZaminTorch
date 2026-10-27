@@ -153,30 +153,64 @@ class MobManagerTest {
     }
 
     @Test
-    void dawnIgnitesTheUndeadAndNightKeepsThem() {
-        Rig rig = rig(7);
-        MobEntity zombie = rig.manager().spawnAt(MobType.ZOMBIE, new Position(0.5, 4.0, 0.5));
-        rig.manager().tick(List.of(), 1_000); // broad daylight
-        assertTrue(rig.events().removals.isEmpty(),
-                "the dawn no longer vaporizes: the undead ignite");
-        assertTrue(zombie.burning(), "the daylight set the zombie on fire");
-        assertTrue(rig.manager().byId(zombie.entityId()) != null,
-                "the burning body stays until the fire consumes it");
+    void theDaylightBurnRidesTheSunnyRollAndTheNightNeverRearms() {
+        // The time-aware stub: isSunny reads the engine's own ambient walk
+        // (the live adapter's law, the same consult the burn's gate rides
+        // — the night window alone never gates it, the ambient does).
+        long[] time = {1_000L};
+        Events events = new Events();
+        Loot loot = new Loot();
+        MobEntity.WorldQuery world = new MobEntity.WorldQuery() {
+            @Override public boolean isSolid(double x, double y, double z) {
+                return y < 4.0;
+            }
 
-        // The sun keeps burning: enough daylight ticks kill the body by fire.
-        for (int i = 0; i < 500 && rig.manager().byId(zombie.entityId()) != null; i++) {
-            rig.manager().tick(List.of(), 1_000);
+            @Override public Position nearestPlayer(double x, double y, double z, double range) {
+                return null;
+            }
+
+            @Override public boolean isSunny() {
+                return net.zaminmc.torch.server.daylight.DaylightDetectorSystem
+                        .ambientDarkness(time[0], 0.0f, 0.0f) < 4;
+            }
+        };
+        MobManager manager = new MobManager(world, new Random(7), loot,
+                1_100_000, SURFACE);
+        manager.addListener(events);
+        MobEntity zombie = manager.spawnAt(MobType.ZOMBIE, new Position(0.5, 4.0, 0.5));
+        // The roll (a 1-in-25 per tick at full light — the reference's own
+        // gate, never a guarantee): the burn arms inside a window.
+        int armedTick = -1;
+        for (int t = 0; t < 300 && armedTick < 0; t++) {
+            manager.tick(List.of(), time[0]);
+            if (zombie.burning()) {
+                armedTick = t;
+            }
         }
-        assertTrue(rig.manager().byId(zombie.entityId()) == null,
+        assertTrue(armedTick >= 0, "the sunny roll armed the burn");
+        assertTrue(events.removals.isEmpty(),
+                "the arming itself vaporizes nothing: the roll's re-arm is the fire alone");
+        // The sun keeps burning: the re-arms hold the fire until it consumes
+        // the body (the re-arm probability makes the 160-tick clock
+        // effectively continuous in full sun).
+        for (int i = 0; i < 800 && manager.byId(zombie.entityId()) != null; i++) {
+            manager.tick(List.of(), time[0]);
+        }
+        assertNull(manager.byId(zombie.entityId()),
                 "the burn consumed the zombie");
-        assertEquals(List.of("died"), rig.events().removals,
+        assertEquals(List.of("died"), events.removals,
                 "the fire death plays the ordinary death flow");
 
-        Rig nightRig = rig(8);
-        nightRig.manager().spawnAt(MobType.ZOMBIE, new Position(0.5, 4.0, 0.5));
-        nightRig.manager().tick(List.of(), MobManager.NIGHT_START + 5);
-        assertEquals(1, nightRig.manager().size(), "night keeps its zombies");
-        assertTrue(nightRig.events().removals.isEmpty());
+        // The night's own ambient (past 4): the roll never re-arms — a
+        // fresh body stands a long window unburnt.
+        time[0] = MobManager.NIGHT_START + 5;
+        MobEntity nightZombie = manager.spawnAt(MobType.ZOMBIE, new Position(0.5, 4.0, 0.5));
+        for (int i = 0; i < 400; i++) {
+            manager.tick(List.of(), time[0]);
+        }
+        assertFalse(nightZombie.burning(), "the night never rolls the burn");
+        assertNotNull(manager.byId(nightZombie.entityId()),
+                "night keeps its zombies");
     }
 
     @Test

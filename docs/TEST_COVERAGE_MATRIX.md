@@ -2,19 +2,23 @@
 
 Cycle-4 exhaustive-audit deliverable. Maps requirement families to the
 tests that establish them, distinguishes coverage states, and names the
-missing evidence. Test census (mechanical recount 2026-10-26, post
-Waves ML13/TF/TF-7/ON-1 — classes containing @Test methods): **495
-test classes / 2718 @Test methods** (core 402/2381, protocol 70/213,
-launcher 10/53, bukkit 9/52, api 4/19).
+missing evidence. Test census (mechanical recount 2026-10-27, post
+Waves ML13/TF/TF-7/ON-1/TF-8 — classes containing @Test methods, the
+@Test-occurrence convention reproducible via `git grep -c "@Test"`):
+**496 test classes / 2841 @Test methods** (core 403/2448, protocol
+70/253, launcher 10/53, bukkit 9/68, api 4/19). The prior row's 2718
+carried a non-reproducible method count (the 2026-10-26 session's own
+convention) — superseded by this recount; the class counts agree
+throughout.
 
 ## The suite's shape
 
 | Module | Classes | Established by (representative, per compat ledger + §29) |
 |---|---|---|
-| zamin-core | 402 | the per-slice behavioral tests every §29 wave cites (reference-shadow sweeps, formula pins, round trips) |
+| zamin-core | 403 | the per-slice behavioral tests every §29 wave cites (reference-shadow sweeps, formula pins, round trips) |
 | zamin-protocol-v1_8_8 | 70 | wire conformance (Protocol18ConformanceTest, VanillaParityIntegrationTest, TestClient18) + the Wave ON-1 login families (LoginCompressionWireTest 5, CompressionCodecTest 8, TorchEncryptionTest 8, EncryptionCodecTest 3, SessionProfileParserTest 11, MojangSessionServiceTest 5, OnlineLoginWireTest 6) |
 | zamin-launcher | 10 (53 tests) | console contract (ADR-21 list) |
-| zamin-bukkit | 9 (52 tests) | the honest-shim event bridges (deferred adapter's test-first core) |
+| zamin-bukkit | 9 (68 tests) | the honest-shim event bridges (deferred adapter's test-first core) |
 | zamin-api | 4 | the §27.10 capability tests (no-cast law) |
 
 CI: `release.yml` runs build + full suite with ONE retry whose documented

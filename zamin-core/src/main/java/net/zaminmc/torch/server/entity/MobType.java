@@ -461,7 +461,15 @@ public enum MobType {
         this.attackDamage = attackDamage;
     }
 
-    /** @return whether the kind is undead (burns in daylight, the historical rule). */
+    /**
+     * @return whether the kind sits in the historical undead set (the
+     * zombie/skeleton/wither trio — the kind classification the
+     * conversion consults read; the DAYLIGHT BURN no longer consults
+     * it: the reference's burn carriers are the per-family mobTick arms
+     * — the zombie family (pigman included, baby-gated) and the
+     * skeleton (wither variant riding) — see MobEntity
+     * .tickDaylightBurn).
+     */
     public boolean undead() {
         return this == ZOMBIE || this == SKELETON || this == WITHER;
     }

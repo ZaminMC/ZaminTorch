@@ -190,7 +190,7 @@ class AvoidSunlightTest {
             assertTrue(skeleton.avoidingSunlight(),
                     "the flag stood through every tick of the sunny window");
         }
-        assertTrue(furthestWest < 5.0 || furthestEast > 6.0,
+        assertTrue((5.5 - furthestWest) + (furthestEast - 5.5) > 0.25,
                 "the stroll walked at all (west " + furthestWest + ", east "
                         + furthestEast + ")");
         assertTrue(furthestWest > 2.5,

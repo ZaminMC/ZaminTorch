@@ -16209,3 +16209,79 @@ numbering gap recorded honestly rather than renumbered against lost
 intent; (3) the workspace re-materialization flips modes and re-packs
 zips — a 740-file "modification" that is ALL noise must be cleaned
 BEFORE the commit, or the lane's diff drowns.
+
+## 2026-10-27 — the undead family's daylight burn 1:1 (Slice TF-8, the ML-100 pigman tail closed)
+
+**Scope:** the ML-100 family-owned tail picked per its own rule — the
+pigman's daylight burn, the tail TF-7e's portal-spawn lane made
+reachable ("no overworld pigmen spawn anyway" retired). The reference
+law: ZombieEntity.mobTick lines 160-181 (the baby gate) and
+SkeletonEntity.mobTick lines 115-136 (no gate), the pigman and the
+wither variant riding their parents' walks under fire immunity.
+
+**The law replaced the sweep:** the burn moved out of MobManager's
+dimension-blind night-window ignite (no sun, no roll, no brightness,
+no sky, no helmet — and the pigman never joined, undead() never
+carried it) into MobEntity.tickDaylightBurn, placed after tickBody
+beside the enderman/witch environment walks and AFTER the fire clock
+(the reference's own order — the fire decrement walks before mobTick's
+burn arm). The gates in the reference's own stream order: isSunny
+(ambientDarkness < 4, the TF-7b consult — rain shaves it, the nether
+never sunny), the zombie family's !isBaby(), the eye cell's brightness
+> 0.5 (y + eyeHeight through the dimension's table), the roll
+(nextFloat() * 30 < (f - 0.4) * 2), and the sky column at the ROUNDED
+feet cell. The walk consults the body's own dimension (the manager's
+per-mob setActiveDimension flip) — the wither-skeleton exclusion arm
+retired with the sweep: the variant burns VISUALLY in an overworld
+sun exactly as the reference carries it (setType's immuneToFire, the
+4x drain, never a wound).
+
+**The helmet arm:** any worn head blocks the ignition; a damageable
+one wears +nextInt(2) per gated tick through the public
+setEquipmentAt (the wired route re-publishes the Entity Equipment
+row), and at the durability max the slot clears staging
+onBrokenItem's pair — the "random.break" sound at 0.8F with its
+0.8+nextFloat()*0.4 pitch and the ITEM_CRACK crumbs. The drain: the
+manager's post-tick diff fans onMobSoundAt + the NEW
+onMobItemShattered listener face, the MobEventDispatch re-fans it
+(the seventeen-event lesson), and the 1.8 adapter translates it to
+the iconcrack burst over the FxManager's ItemShatter shape (the
+legacy id + damage nibble data pair, count 8, the 0.3 cube, 0.15).
+
+**Tests:** DaylightBurnTest 9/0 (the pigman's visual burn with
+untouched health, the wither variant beside the plain archer's real
+wounds, the helmet's block-and-wear, the shatter arc with the drain's
+sound + crumbs and the bare head catching the sun after, the pumpkin's
+wear-less block, the baby gate, the dark/covered/unsunny refusals).
+Re-pins: MobManagerTest's dawn test (the time-aware stub over the
+engine's own ambientDarkness walk — the armed window, the 800-tick
+consumption, the night's stand); EscapeSunlightTest's dry-skeleton
+arm over the pumpkin (a bare dry skeleton now catches the sun through
+the family's own walk); AvoidSunlightTest's stroll sanity band as the
+displacement form (the roll interleaves the shared stream); MobType
+.undead()'s javadoc. Regression net: the entity package whole (89
+suites 564/0), the 19-family zombie/acceptance/bridge sweep, the
+boot-level families, the gamerule family, the protocol module whole
+— 575/0 on the final combined sweep. One cold-scheduling observation
+on DeathXpLadderAcceptanceTest (a +2 XP orb delta — a passive kill's
+1+nextInt(3); the lane has no XP-minting surface; the documented
+load-flake family's shape, green in isolation and 5/6 in combination;
+CI's retry the arbiter).
+
+**Ledger:** the §29 Wave TF-8 rows, both next-work lines re-pinned,
+the compat file's pigman tail closed (the item-entity dimension reads
+stay ledged), and the test census recounted at 496 classes / 2841
+methods under the reproducible @Test-occurrence convention (the prior
+2718 superseded — the class counts agree, the method count did not
+reproduce and is restated rather than carried).
+
+**Lessons:** (1) a family tail's justification can expire under a
+later lane — TF-7e's portal spawns silently retired the pigman tail's
+"no overworld pigmen" premise, and only re-reading the row against
+the landed tree caught it; (2) moving a law from a manager sweep into
+the family's own clock shifts the shared random stream — every
+seed-pinned expectation downstream of the new consumption point owes
+an honest re-pin, and the re-pin must restate the LAW not the seed's
+drift; (3) a recorded census number that cannot be reproduced by its
+own stated method is a defect in the record — restate the convention
+with the recount rather than carrying a delta forward on top of it.

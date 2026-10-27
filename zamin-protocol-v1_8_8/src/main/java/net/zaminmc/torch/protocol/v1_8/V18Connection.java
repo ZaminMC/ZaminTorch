@@ -6297,6 +6297,27 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     }
 
     /**
+     * A mob's worn piece shattering into crumbs (the daylight wear's
+     * helmet exhaustion — the reference's {@code onBrokenItem} ITEM_CRACK
+     * half over the FxManager's ItemShatter burst shape: iconcrack with
+     * the item's legacy id + damage nibble as the data pair, count 8,
+     * the 0.3 cube, speed 0.15). Any thread.
+     */
+    void sendMobItemShatter(Position at, net.zaminmc.torch.item.ItemStack stack) {
+        PlayerSession observer = currentSession();
+        if (observer != null && beyondRange(observer, at, PARTICLE_RANGE)) {
+            return;
+        }
+        Integer legacy = LegacyBlockIds.legacyItemId(stack.type().identifier()).orElse(null);
+        if (legacy == null) {
+            return;
+        }
+        sendParticles(Protocol18.PARTICLE_ICON_CRACK, false, at,
+                0.3f, 0.3f, 0.3f, 0.15f, 8,
+                new int[]{legacy & 0xFFF, stack.damage() & 0xF});
+    }
+
+    /**
      * One server-computed display particle (the ServerWorld.addParticle
      * shape, 1:1): World Particles with {@code count 0} so the client
      * renders a single particle at the exact position with the offsets
