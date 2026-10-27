@@ -16520,3 +16520,86 @@ work, ledger the decision); (2) a handoff commit with an explicit
 open-verifications list is the cheapest possible recovery shape —
 the next instance's first task was named in the commit message
 itself, and the verification batches finished in one session.
+
+## 2026-10-28 — the §35 transport lane closed whole (Waves T-2 ledgered, T-3 the pooled-allocation adoption, T-4 the wedged-loop ceiling; the release pipeline repaired twice over)
+
+**The pipeline repair first (6c73933d):** run 1070ecff failed twice —
+the fat jar could not expand zamin-transport's jar ("does not exist"),
+and ComputeSubsystemTest's recovery arm tripped on the loaded runner.
+Root causes: (1) fatServerJar's explicit jar edges never gained the
+transport row when Wave T-1 brought the module into the runtime
+classpath (the eager .files resolution carries no task dependencies —
+the exact reason api/core/protocol are listed); (2) the test pinned a
+queued-depth SNAPSHOT the idle worker can steal between submit and
+assert. Fixed: the build edge + the recovery arm re-pinned on the
+after-job's completion latch (the admission reopening is the submit's
+acceptance, never the snapshot); the fat-jar failure reproduced from
+the clean-jar state and verified green, the test 3/3 stable. The
+owner's §35 marker comment retired with the same commit (the section
+stands in its numeric position; the owner note already withdrawn).
+
+**Wave T-2 ledgered (0fe24c4e):** slices A+B (the latency ring, the
+benchmark matrix, the urgent-lane coalescing repair, the leak
+detector at advanced/paranoid) had landed as code without their §29
+rows — the rows landed with the pipeline repair recorded inside them.
+
+**Wave T-3 — the §35.4 pooled-allocation adoption:** the harness
+(PacketAllocationBenchmarkTest) runs §35.4's compare list over the
+engine's own encode shapes under three arms (heap-unpooled /
+pooled-heap / pooled-direct) at three sizes, with the byte-identity
+admission row (every arm produces identical bytes — the encode law is
+allocator-independent). The numbers split by SHAPE: at 16 KiB pooled
+wins 5-10x (685K-1.29M pps vs 126K; ~120 B/packet thread-alloc vs
+16,448 — the whole frame became young-gen garbage per packet, the
+attribution pass's #1 byte[] finding; zero collections vs a 12 ms
+one); at 24-192 B heap-unpooled wins 2-7x (11.7M vs 1.6M pps small —
+the TLAB bump beats the arena path) and pooled would only add its
+4 MiB retained arenas. The adoption follows the numbers exactly: the
+three chunk-window frame sites (the 0x21 single, the 0x21 partial,
+the 0x26 bulk — the engine's only large outbound allocations) now ask
+POOLED.directBuffer behind a named constant carrying the measured
+numbers in its javadoc; the 190 small sites keep Unpooled.buffer
+(their measured win); the serializer's byte[] intermediates stay heap
+honestly (the 1:1-pinned walk, its own future slice). The pipeline
+was verified direct-compatible FIRST (zero .array()/hasArray() on any
+outbound path — the one .array() site is the inbound decrypt
+decoder's own heap ask).
+
+**Wave T-4 — the §35.13 wedged-loop ceiling (the §35.11 kill-policy
+row closed as the fail-safely law):** the domain split the evidence
+dictates — a slow SOCKET never grows the engine queue (the drain
+still writes; Netty's own ChannelOutboundBuffer absorbs the
+backpressure exactly as the reference's per-packet writeAndFlush
+shape did — vanilla never kicks a slow socket), only a STOPPED event
+loop does (the wedged benchmark shape: the 1 MiB observable crossed
+at enqueue #1024, the caller never blocked, 0 writes). The ceiling:
+past 64 MiB queued (64x the observable; the healthy face answers 20
+packets/flush at a 6us dwell, so 64 MiB is a loop SECONDS behind — a
+dead loop, not a slow one) the crossing enqueue releases its own
+ticket (counted, never silent), the connection closes NOW (every
+queued ticket released, nothing leaks), the severe warning names the
+channel, and the new wedgedCloses row lands in the metrics snapshot;
+never throws — the simulation lanes must not see gameplay exceptions
+from a transport protection.
+
+**Evidence:** the allocation harness 2/0 with every arm's numbers
+printed for the ledger; OutboundQueueTest's new ceiling pin (63 MiB
+absorbs alive, the 64th MiB closes with every ticket released under
+the paranoid detector, one wedgedCloses row, admission shut after);
+transport 21/0; the protocol module over ALL 71 classes green in
+eight batches (the environment reaps detached gradle processes — the
+batched-with-timeout shape is the runner's law); bukkit + launcher
+green, the packaged console verified on torch-1.8.8-151.
+
+**Lessons:** (1) a new module in the runtime classpath needs its fat-
+jar edge the same day it gains a project dependency — the eager
+.configurations resolution silently hides the missing task dependency
+until a clean runner schedules the merge before the jar exists;
+(2) a queued-depth snapshot after a submit is a race with the worker
+that serves the queue — pin completions, never snapshots; (3) the
+pooled decision is per-SHAPE, not per-engine — the small-packet storm
+is the TLAB's home turf, the chunk windows are the arena's, and the
+adoption split along the measured line; (4) the kill policy's real
+domain is the WEDGED loop, not the slow socket — naming the domain
+correctly closed the row without inventing a gameplay policy the
+reference never had.
