@@ -66,6 +66,20 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
     private volatile int containerMountId = -1;
     /** The selected trade row of the open villager window (the MC|TrSel index); -1 none. */
     private volatile int selectedTrade = -1;
+    /**
+     * The quick-craft drag state (the reference Menu's own clickDragStage /
+     * clickDragMode / clickDragSlots — InventoryMenu lines 96-104): 0 no
+     * drag, 1 a started drag collecting painted slots, 2 the ending stage.
+     * Tick-thread confined exactly like the other window state; the painted
+     * slots hold WIRE slot indices of the drag's own window.
+     */
+    private int clickDragStage;
+    /** The drag's own distribution law: 0 left (even split), 1 right (one), 2 middle (creative clone). */
+    private int clickDragMode;
+    /** The painted wire slots in paint order, deduplicated (the reference's Set). */
+    private final java.util.List<Integer> clickDragSlots = new java.util.ArrayList<>();
+    /** The window the in-flight drag belongs to (0 = the player window; a menu switch drops it). */
+    private int clickDragWindowId;
     /** The anti-cheat violation ledger (reach/nuker/fastplace counters + rings). */
     private final Violations violations = new Violations();
     /** The session's statistics (the stats slice — the tick-lane counters). */
@@ -953,6 +967,7 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
         this.containerPosition = position;
         this.containerMountId = -1;
         this.selectedTrade = -1;
+        dropClickDragging(); // the reference opens a fresh Menu; no drag survives the switch
         if (containerOpenListener != null) {
             containerOpenListener.accept(new ContainerOpenDescriptor(
                     windowId, kind, position, -1));
@@ -1006,6 +1021,7 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
         this.containerPosition = position;
         this.containerMountId = mountId;
         this.selectedTrade = -1;
+        dropClickDragging(); // the fresh Menu's own drag state starts empty
         if (containerOpenListener != null) {
             containerOpenListener.accept(new ContainerOpenDescriptor(
                     windowId, kind, position, mountId));
@@ -1049,6 +1065,67 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
         this.containerPosition = null;
         this.containerMountId = -1;
         this.selectedTrade = -1;
+        dropClickDragging(); // the reference menu dies with its window; its drag state with it
+    }
+
+    /**
+     * The reference's {@code dropClickDragging} (InventoryMenu lines
+     * 503-506): the drag state clears, the painted slots with it. Called by
+     * the engine's quick-craft walk at every interruption, on every
+     * non-quick-craft click (the reference's own {@code clickDragStage != 0}
+     * arm) and whenever a window closes or a menu replaces another. Tick
+     * thread only.
+     */
+    public void dropClickDragging() {
+        this.clickDragStage = 0;
+        this.clickDragSlots.clear();
+    }
+
+    /** The drag's current stage (0 none / 1 collecting / 2 ending). */
+    public int clickDragStage() {
+        return clickDragStage;
+    }
+
+    /**
+     * Starts (or restarts) a drag over the window (the reference's stage-0
+     * arm: the mode records, the painted set clears). Tick thread only.
+     */
+    public void beginClickDragging(int windowId, int dragMode) {
+        this.clickDragWindowId = windowId;
+        this.clickDragMode = dragMode;
+        this.clickDragStage = 1;
+        this.clickDragSlots.clear();
+    }
+
+    /** The window the in-flight drag belongs to. */
+    public int clickDragWindowId() {
+        return clickDragWindowId;
+    }
+
+    /** The drag's distribution mode (0 left / 1 right / 2 middle). */
+    public int clickDragMode() {
+        return clickDragMode;
+    }
+
+    /** The painted wire slots, in paint order, deduplicated. Never null. */
+    public java.util.List<Integer> clickDragSlots() {
+        return clickDragSlots;
+    }
+
+    /**
+     * Paints one more slot onto the in-flight drag (the reference's Set add
+     * — a repeat index is a no-op). The window guard mirrors the reference's
+     * per-Menu identity: a click on another window never feeds an older
+     * window's drag. Tick thread only.
+     */
+    public void addClickDragSlot(int windowId, int wireSlot) {
+        if (clickDragStage != 1 || windowId != clickDragWindowId) {
+            return;
+        }
+        Integer boxed = wireSlot;
+        if (!clickDragSlots.contains(boxed)) {
+            clickDragSlots.add(boxed);
+        }
     }
 
     // --- §27 window family's public surface (the live open-window view) --------

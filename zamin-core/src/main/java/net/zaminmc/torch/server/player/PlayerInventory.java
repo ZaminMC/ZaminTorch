@@ -648,6 +648,24 @@ public final class PlayerInventory implements net.zaminmc.torch.entity.Player.In
         fireChange();
     }
 
+    /**
+     * The quick-craft END's batch slot write (the reference's
+     * {@code Slot.setItem} over the painted set — InventoryMenu lines
+     * 160): exactly {@link #setSlot} but WITHOUT the change callback — the
+     * click's own publish owns the ONE authoritative re-sync after the
+     * whole distribution lands, the reference's single
+     * {@code updateListeners} at the click's end. The per-write fan-out
+     * here would publish partial drag states (each painted slot mid-write);
+     * engine-internal, validated like setSlot. Tick-thread context.
+     */
+    public void setSlotQuietly(int slot, ItemStack stack) {
+        if (slot < 0 || slot >= TOTAL_SLOTS) {
+            throw new IllegalArgumentException("Slot out of range: " + slot);
+        }
+        Objects.requireNonNull(stack, "stack");
+        slots[slot] = stack;
+    }
+
     /** @return an immutable copy of the backing slot array, index-aligned. */
     List<ItemStack> slotsView() {
         return new ArrayList<>(List.of(slots));
