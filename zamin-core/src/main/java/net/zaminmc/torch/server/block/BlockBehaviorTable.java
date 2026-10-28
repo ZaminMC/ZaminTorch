@@ -870,19 +870,27 @@ public final class BlockBehaviorTable {
                     new BlockBehavior(2.0, true, false, "wood", 0,
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:oak_fence"), 1)))),
 
-                        Map.entry(Identifier.parse("minecraft:tall_grass"),
+            // The tall-grass family (TallPlantBlock lines 22-93): the bare
+            // hand rolls ONLY the 1/8 wheat-seed walk (getDropItem lines
+            // 63-65 — never the plant item itself; the self-drop is the
+            // shears arm's alone, afterMinedByPlayer lines 73-80, which the
+            // DropService's family arm owns). The table rows stay the
+            // no-tool walk for the table-driven consumers (the piston
+            // destroy arm's dropItems(pos, 0), the wash-out path and the
+            // BlockData read) — the pre-fix rows also listed a self-drop
+            // at chance 1.0, which made every by-hand break yield the
+            // tallgrass item (wire item 31 damage 0, the "Shrub" the
+            // clients show) and let the fern row reference the never
+            // registered minecraft:fern item (an ISE on every fern break).
+            Map.entry(Identifier.parse("minecraft:tall_grass"),
                     new BlockBehavior(0.0, true, false, "plants", 0,
-                            // the historical seed roll (1/8) first, the
-                            // flora slice's self-drop otherwise
-                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:wheat_seeds"), 1, 0.125),
-                                    new BlockBehavior.Drop(Identifier.parse("minecraft:tall_grass"), 1, 1.0)))),
-                        Map.entry(Identifier.parse("minecraft:fern"),
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:wheat_seeds"), 1, 0.125)))),
+            Map.entry(Identifier.parse("minecraft:fern"),
                     new BlockBehavior(0.0, true, false, "plants", 0,
-                            // the decorators slice: the fern rides the
-                            // tall-grass family's own drop law (both
-                            // variants drop the seed roll first)
-                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:wheat_seeds"), 1, 0.125),
-                                    new BlockBehavior.Drop(Identifier.parse("minecraft:fern"), 1, 1.0)))),
+                            // the fern rides the family's own drop law
+                            // (TallPlantBlock covers TYPE 2 — the same
+                            // 1/8 seed walk, never a self-drop)
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:wheat_seeds"), 1, 0.125)))),
             Map.entry(Identifier.parse("minecraft:dead_bush"),
                     new BlockBehavior(0.0, true, false, "plants", 0, List.of())),
             Map.entry(Identifier.parse("minecraft:dandelion"),
