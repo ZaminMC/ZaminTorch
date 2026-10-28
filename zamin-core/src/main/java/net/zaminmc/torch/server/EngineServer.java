@@ -12325,10 +12325,15 @@ public final class EngineServer implements Server, EngineBridge {
             // Lines 100-120, the reference's own order: the drained potion
             // is the metadata-0 WATER bottle and it ADDS FIRST — a full
             // inventory drops it AT THE CAULDRON'S RIM (pos + 0.5/+1.5/
-            // +0.5, line 105, the ItemEntity ctor's own 10-tick pickup
-            // delay) — and the stat and the bottle's decrement ride INSIDE
-            // the survival guard alone (a creative hand drains the level
-            // but pays neither the stat nor the bottle).
+            // +0.5, line 105, with NO pickup delay — the review fix: the
+            // reference's cauldron drop builds the ItemEntity and calls
+            // addEntity DIRECTLY, never setDefaultPickUpDelay — the ctor
+            // leaves pickUpDelay 0, and the 10-tick row belongs to the
+            // block-drop path (Block.java line 520) and the entity-drop
+            // path (Entity.java line 1255) alone) — and the stat and the
+            // bottle's decrement ride INSIDE the survival guard alone (a
+            // creative hand drains the level but pays neither the stat
+            // nor the bottle).
             if (level > 0) {
                 if (session.gamemode() != GameMode.CREATIVE) {
                     ItemStack potion = new ItemStack(BuiltinItems.POTION, 1, 0);
@@ -12340,7 +12345,7 @@ public final class EngineServer implements Server, EngineBridge {
                         // cell one above the cauldron.
                         itemEntities.spawnDropAtBlock(new Position(
                                 clicked.x(), clicked.y() + 1, clicked.z()),
-                                potion, ItemEntity.PICKUP_DELAY_DROP_TICKS,
+                                potion, 0,
                                 session.dimension());
                     }
                     session.stats().increment(

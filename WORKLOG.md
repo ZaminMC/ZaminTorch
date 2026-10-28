@@ -17461,3 +17461,27 @@ the class section's own family grouping, the class comment naming the full
 membership, and the wood-class test pinning all thirty-eight (the count
 the claim always meant). The ladder exclusion re-verified beside them
 (LadderBlock line 20's Material.DECORATION).
+
+## The PR #64 review fix (the rim drop's pickup delay corrected)
+
+The review of PR #64 (the cauldron wash parity audit) verified all four
+divergence groups against the reference — the fill's hand-slot set law
+(CauldronBlock.use line 93's setItem write, the two impossibility laws),
+the drain's guard reach (the CAULDRONS_USED stat and the bottle decrement
+inside the survival guard alone), the drain's order (the potion adds
+first) and rim-drop geometry (pos + 0.5/+1.5/+0.5), and the leather wash
+arm (the Tier.CLOTH gate over the four leather pieces, the displayColor
+clear, the never-consumed law) — and found ONE defect: the rim drop's
+pickup delay. The audit's comment claimed "the ItemEntity ctor's own
+10-tick pickup delay" — a misread of the reference's delay landscape:
+the ctor sets NO delay (the pickUpDelay field's Java default 0), and the
+10-tick row lives in setDefaultPickUpDelay, which the cauldron path NEVER
+calls — its callers are the block-drop path (Block.java line 520), the
+entity-drop path (Entity.java line 1255), the jukebox, and the villager
+trade alone. The cauldron's drain builds the ItemEntity and calls
+addEntity DIRECTLY, so the dropped potion is pickupable IMMEDIATELY in
+vanilla; the audit's 10-tick pass made the full-inventory drain wait half
+a second. The fix: the drop's delay set to 0 with the corrected comment,
+and the rim-drop test seat pinned (pickupAllowed() at the moment of the
+drop). The audit's own Lesson 4 applied to itself: the drop's timing is
+part of the mechanic exactly as its position is.

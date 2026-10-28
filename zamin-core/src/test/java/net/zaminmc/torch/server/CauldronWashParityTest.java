@@ -187,7 +187,13 @@ class CauldronWashParityTest {
     void theFullInventoryDropsThePotionAtTheRim() throws Exception {
         BlockPosition at = new BlockPosition(23, 40, 23);
         standCauldron(at, 1);
-        PlayerSession packed = join("Packed", new Position(23.5, 40.0, 24.5));
+        // Three blocks south — OUTSIDE the engine's pickup sweep (its
+        // grown 1.425-block horizontal band; the review fix's lesson: a
+        // delay-0 rim drop inside the sweep is collected within the first
+        // tick, so the seat must observe the drop from beyond it — the
+        // reference's own box-intersection pickup would not touch the
+        // potion at any of these distances until the player steps in).
+        PlayerSession packed = join("Packed", new Position(23.5, 40.0, 26.5));
 
         server.ticker().submit(() -> {
             for (int slot = 0; slot < 36; slot++) {
@@ -201,20 +207,29 @@ class CauldronWashParityTest {
         // Line 105's rim drop: the potion entity lands AT THE CAULDRON
         // (pos + 0.5/+1.5/+0.5) — never the player's feet. The pop motion
         // drifts the body a little; the LAW is the drop sits with the
-        // CAULDRON, closer to the rim than to the player standing a block
-        // south (the player-feet drop would sit around z 24.5, the rim's
-        // around z 23.5).
+        // CAULDRON, at the rim's z band around 23.5 (the player stands at
+        // z 26.5, three blocks south — a player-feet drop would sit
+        // around z 26.5 instead).
         await(() -> server.itemEntities().size() >= 1, "the potion dropped");
         var dropped = server.itemEntities().all().get(0);
         double toRim = Math.hypot(dropped.position().x() - 23.5,
                 dropped.position().z() - 23.5);
         double toPlayer = Math.hypot(dropped.position().x() - 23.5,
-                dropped.position().z() - 24.5);
+                dropped.position().z() - 26.5);
         assertTrue(toRim < toPlayer,
                 "the drop sits at the cauldron's rim, not the player's feet");
         assertTrue(dropped.stack().type().equals(BuiltinItems.POTION),
                 "the dropped stack is the potion");
         assertEquals(0, dropped.stack().damage(), "the water potion (metadata 0)");
+        // The review fix's own pin (the reference's delay landscape): the
+        // cauldron's rim drop builds the ItemEntity and calls addEntity
+        // DIRECTLY — no setDefaultPickUpDelay, so pickUpDelay stands 0 and
+        // the dropped potion is pickupable IMMEDIATELY (the 10-tick row
+        // belongs to Block.java line 520's block drops and Entity.java
+        // line 1255's entity drops alone; the cauldron path never rides
+        // either).
+        assertTrue(dropped.pickupAllowed(),
+                "the rim drop carries no pickup delay (the ctor's own 0)");
     }
 
     @Test
