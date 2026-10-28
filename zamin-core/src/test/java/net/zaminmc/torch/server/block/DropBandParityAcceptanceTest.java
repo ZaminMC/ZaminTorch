@@ -288,8 +288,16 @@ class DropBandParityAcceptanceTest {
                     .get(0).count(), "clay's four balls stay flat");
             assertEquals(2, ores.dropsFor(block("minecraft:double_stone_slab"), null, false, 3)
                     .get(0).count(), "the double slab's pair stays flat");
-            assertEquals(4, ores.dropsFor(block("minecraft:snow"), null, false, 3)
-                    .get(0).count(), "the snow block's four balls stay flat");
+            // The mining-speed parity audit re-pinned the seat: the SNOW
+            // material requires the tool (Material line 29) and the
+            // ShovelItem's own canMineBlock is the gate — the four balls
+            // belong to the SHOVEL alone, so the seat's held tool moves off
+            // the bare hand (the reference wins over the pre-fix row).
+            assertEquals(4, ores.dropsFor(block("minecraft:snow"),
+                            net.zaminmc.torch.server.item.BuiltinItems.DIAMOND_SHOVEL, false, 3)
+                    .get(0).count(), "the shovel's four snowballs stay flat");
+            assertTrue(ores.dropsFor(block("minecraft:snow"), null, false, 3).isEmpty(),
+                    "the bare hand harvests nothing (the SNOW material's own gate)");
         }
     }
 

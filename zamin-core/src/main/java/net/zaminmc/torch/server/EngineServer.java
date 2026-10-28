@@ -3115,6 +3115,16 @@ public final class EngineServer implements Server, EngineBridge {
                 // The game-rule read (Slice 24a): doTileDrops gates the
                 // break's drop walk (Block.java's own gate).
                 blockInteraction.setTileDropsRead(() -> gameRules.getBoolean("doTileDrops"));
+                // The dig's status-effect read (the mining-speed parity
+                // audit — PlayerEntity.getMiningSpeed's Haste and mining-
+                // fatigue multipliers): the potion system's live instance
+                // answers the amplifier, its absence the no-effect -1.
+                blockInteraction.setEffectAmplifierRead((session, effectId) -> {
+                    var instance = potionSystem.get(session, effectId);
+                    return instance == null
+                            ? net.zaminmc.torch.server.interaction.MiningRules.NO_EFFECT
+                            : instance.amplifier();
+                });
                 // The placement's BlockEntityTag consult (Wave H2 —
                 // BlockItem.setTileNbt lines 70-100 over the fresh tile's
                 // rows): the held stack's raw compound merged into the tile

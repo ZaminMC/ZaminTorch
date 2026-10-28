@@ -125,29 +125,40 @@ class BlockBehaviorTableTest {
     @Test
     void wrongToolClassNeverHarvestsOrSpeeds() {
         BlockBehavior stone = BlockBehaviorTable.of(Identifier.parse("minecraft:stone")).orElseThrow();
+        net.zaminmc.torch.block.BlockType stoneBlock =
+                block("minecraft:stone");
         // A shovel or axe is no pickaxe: full hand timing, no harvest.
         assertFalse(BlockBehaviorTable.canHarvest(stone, BuiltinItems.DIAMOND_SHOVEL));
         assertFalse(BlockBehaviorTable.canHarvest(stone, BuiltinItems.DIAMOND_AXE));
-        assertEquals(1.0, BlockBehaviorTable.speedMultiplier(stone, BuiltinItems.DIAMOND_SHOVEL));
+        assertEquals(1.0, BlockBehaviorTable.speedMultiplier(stone, stoneBlock, BuiltinItems.DIAMOND_SHOVEL));
 
         BlockBehavior dirt = BlockBehaviorTable.of(Identifier.parse("minecraft:dirt")).orElseThrow();
-        assertEquals(8.0, BlockBehaviorTable.speedMultiplier(dirt, BuiltinItems.DIAMOND_SHOVEL),
+        net.zaminmc.torch.block.BlockType dirtBlock =
+                block("minecraft:dirt");
+        assertEquals(8.0, BlockBehaviorTable.speedMultiplier(dirt, dirtBlock, BuiltinItems.DIAMOND_SHOVEL),
                 "shovels accelerate dirt");
-        assertEquals(1.0, BlockBehaviorTable.speedMultiplier(dirt, BuiltinItems.WOODEN_PICKAXE),
+        assertEquals(1.0, BlockBehaviorTable.speedMultiplier(dirt, dirtBlock, BuiltinItems.WOODEN_PICKAXE),
                 "pickaxes do not accelerate dirt");
 
         BlockBehavior log = BlockBehaviorTable.of(Identifier.parse("minecraft:oak_log")).orElseThrow();
-        assertEquals(4.0, BlockBehaviorTable.speedMultiplier(log, BuiltinItems.STONE_AXE),
+        assertEquals(4.0, BlockBehaviorTable.speedMultiplier(log, block("minecraft:oak_log"), BuiltinItems.STONE_AXE),
                 "axes accelerate wood");
     }
 
     @Test
     void pickaxeSpeedsMatchTheDataset() {
         BlockBehavior stone = BlockBehaviorTable.of(Identifier.parse("minecraft:stone")).orElseThrow();
-        assertEquals(2.0, BlockBehaviorTable.speedMultiplier(stone, BuiltinItems.WOODEN_PICKAXE));
-        assertEquals(4.0, BlockBehaviorTable.speedMultiplier(stone, BuiltinItems.STONE_PICKAXE));
-        assertEquals(6.0, BlockBehaviorTable.speedMultiplier(stone, BuiltinItems.IRON_PICKAXE));
-        assertEquals(8.0, BlockBehaviorTable.speedMultiplier(stone, BuiltinItems.DIAMOND_PICKAXE));
-        assertEquals(12.0, BlockBehaviorTable.speedMultiplier(stone, BuiltinItems.GOLDEN_PICKAXE));
+        net.zaminmc.torch.block.BlockType stoneBlock =
+                block("minecraft:stone");
+        assertEquals(2.0, BlockBehaviorTable.speedMultiplier(stone, stoneBlock, BuiltinItems.WOODEN_PICKAXE));
+        assertEquals(4.0, BlockBehaviorTable.speedMultiplier(stone, stoneBlock, BuiltinItems.STONE_PICKAXE));
+        assertEquals(6.0, BlockBehaviorTable.speedMultiplier(stone, stoneBlock, BuiltinItems.IRON_PICKAXE));
+        assertEquals(8.0, BlockBehaviorTable.speedMultiplier(stone, stoneBlock, BuiltinItems.DIAMOND_PICKAXE));
+        assertEquals(12.0, BlockBehaviorTable.speedMultiplier(stone, stoneBlock, BuiltinItems.GOLDEN_PICKAXE));
+    }
+
+    private static net.zaminmc.torch.block.BlockType block(String value) {
+        return BuiltinBlocks.registerAll(new BlockRegistryBuilder())
+                .freeze().lookup(Identifier.parse(value)).orElseThrow();
     }
 }

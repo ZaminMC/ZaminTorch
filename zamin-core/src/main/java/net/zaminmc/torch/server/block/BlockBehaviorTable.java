@@ -162,9 +162,15 @@ public final class BlockBehaviorTable {
             // material, hand-breakable): getDropItem the BOOK with
             // getBaseDropCount 3 — exactly three books by hand, the shelf
             // itself under silk (the silk set's own row). The pre-fix
-            // table carried NO row at all, so a break answered nothing.
+            // table carried NO row at all, so a break answered nothing;
+            // the mining-speed parity audit re-pinned the material string
+            // to the reference's own WOOD (BookshelfBlock line 12) — the
+            // pre-fix null left the axe at 1.0 where the reference pays
+            // the tier speed on the material branch AND the axe's own
+            // effective-blocks set (AxeItem.EFFECTIVE_BLOCKS' BOOKSHELF
+            // member — both arms agree).
             Map.entry(Identifier.parse("minecraft:bookshelf"),
-                    new BlockBehavior(1.5, true, false, null, 0,
+                    new BlockBehavior(1.5, true, false, "wood", 0,
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:book"), 3)))),
 
             Map.entry(Identifier.parse("minecraft:torch"),
@@ -339,8 +345,16 @@ public final class BlockBehaviorTable {
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:end_stone"), 1)))),
             // PackedIceBlock.getBaseDropCount 0: the bare pickaxe gets
             // nothing; silk takes the block itself (the silk set below).
+            // The mining-speed parity audit re-pinned the tool gate: the
+            // reference's PACKED_ICE material carries NO setRequiresTool
+            // (Material line 27 — unlike the stone family), so EVERY hand
+            // digs at the /30 divisor (Block.getMiningSpeed line 490's
+            // canMineBlock gate passes on isToolNotRequired alone); the
+            // pickaxe's tier speed still rides the effective set
+            // (PICKAXE_EFFECTIVE_ON's PACKED_ICE member) and the empty
+            // drop row stays (the block never drops without silk).
             Map.entry(Identifier.parse("minecraft:packed_ice"),
-                    new BlockBehavior(0.5, true, true, "rock", 1, List.of())),
+                    new BlockBehavior(0.5, true, false, "rock", 1, List.of())),
             // The plain ice (IceBlock — setStrength(0.5F), the ICE
             // material, hand-breakable): the bare hand melts it to
             // nothing (getDropItem null / getBaseDropCount 0 — the row's
@@ -539,9 +553,17 @@ public final class BlockBehaviorTable {
             // (CobwebBlock lines 41-45: getDropItem STRING with the base
             // count ONE — the pre-fix table carried no row at all, so
             // every break answered nothing; silk takes the web itself,
-            // the silk set's own row above).
+            // the silk set's own row above). The mining-speed parity
+            // audit re-pinned the material and the tool gate: the
+            // reference's COBWEB material is setRequiresTool (Material
+            // lines 36-41) and the web's own breakers are the SWORD and
+            // the SHEARS alone (SwordItem.canMineBlock line 84,
+            // ShearsItem.canMineBlock lines 35-37) — every other hand
+            // breaks the web at the /100 divisor and harvests NOTHING
+            // (the pre-fix row left the web tool-free, so a bare hand
+            // took the string at the /30 divisor).
             Map.entry(Identifier.parse("minecraft:cobweb"),
-                    new BlockBehavior(4.0, true, false, null, 0,
+                    new BlockBehavior(4.0, true, true, "web", 0,
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:string"), 1)))),
             Map.entry(Identifier.parse("minecraft:iron_bars"),
                     new BlockBehavior(5.0, true, false, "rock", 1,
@@ -778,25 +800,44 @@ public final class BlockBehaviorTable {
                     new BlockBehavior(0.2, true, false, "plants", 0, List.of())),
 
             // The golem family's blocks (Slice 17d — community blocks.json
-            // 1.8 values): the snow block drops the 4 snowballs
-            // (SnowBlock.getDropItem + quantityDropped 4), the snow layer
-            // drops nothing at all (SnowLayerBlock.getDropItem's null arm
-            // without silk touch), the iron block is a stone-tier pickaxe
+            // 1.8 values; the mining-speed parity audit re-pinned the pair's
+            // tool gate against the reference): the SNOW material is
+            // setRequiresTool (Material line 29) and ShovelItem.canMineBlock
+            // is the snow pair's own gate (lines 22-24), so the snow block
+            // drops its 4 snowballs (SnowBlock.getDropItem + getBaseDropCount
+            // 4) to a SHOVEL ALONE — a bare hand breaks at the /100 divisor
+            // and harvests nothing; the snow layer's own drop law is the
+            // player-dig completion (SnowLayerBlock.afterMinedByPlayer lines
+            // 102-106: LAYERS + 1 snowballs, the caller gating on the same
+            // shovel verdict — the engine's single-layer state answers 2),
+            // and the generic walk alone drops NOTHING (getBaseDropCount 0);
+            // the layer's LAYERS + 1 law is the PLAYER-dig completion alone
+            // (SnowLayerBlock.afterMinedByPlayer lines 102-106 — the row
+            // stays empty because the generic arm the row feeds — the
+            // wash-out, the piston break — carries the reference's own
+            // zero, and the player arm lives at DropService's gated walk);
+            // the iron block is a stone-tier pickaxe
             // rock dropping itself, and the pumpkin pair are woody
             // self-droppers (the historical 1.0 axe family).
             Map.entry(Identifier.parse("minecraft:snow"),
-                    new BlockBehavior(0.2, true, false, "snow", 0,
+                    new BlockBehavior(0.2, true, true, "snow", 0,
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:snowball"), 4)))),
             Map.entry(Identifier.parse("minecraft:snow_layer"),
-                    new BlockBehavior(0.1, true, false, "snow", 0, List.of())),
+                    new BlockBehavior(0.1, true, true, "snow", 0, List.of())),
             Map.entry(Identifier.parse("minecraft:iron_block"),
                     new BlockBehavior(5.0, true, true, "rock", 1,
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:iron_block"), 1)))),
+            // The mining-speed parity audit re-pinned the pair's material
+            // to the reference's own PUMPKIN (PumpkinBlock line 33 — the
+            // pre-fix "wood" string bought the axe tier by accident; the
+            // reference pays the axe tier through AxeItem's EFFECTIVE_BLOCKS
+            // set member, and the sword its own 1.5 band on the PUMPKIN
+            // material — SwordItem.getMiningSpeed's material tail).
             Map.entry(Identifier.parse("minecraft:pumpkin"),
-                    new BlockBehavior(1.0, true, false, "wood", 0,
+                    new BlockBehavior(1.0, true, false, "pumpkin", 0,
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:pumpkin"), 1)))),
             Map.entry(Identifier.parse("minecraft:lit_pumpkin"),
-                    new BlockBehavior(1.0, true, false, "wood", 0,
+                    new BlockBehavior(1.0, true, false, "pumpkin", 0,
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:lit_pumpkin"), 1)))),
 
             Map.entry(Identifier.parse("minecraft:bed"),
@@ -866,19 +907,23 @@ public final class BlockBehaviorTable {
             // The skull family (Slice 60 — block 144, setStrength(1.0F)
             // STONE_SOUNDS): no table drop — the typed drop rides the
             // break hook's tile read (the reference's empty dropItems +
-            // onRemoved's own walk).
+            // onRemoved's own walk). The mining-speed parity audit
+            // re-pinned the material: the reference's skull is
+            // Material.DECORATION (SkullBlock line 49), not stone — no
+            // tool accelerates it (the "stone" string was the dataset's
+            // own, outside every speed band either way).
             Map.entry(Identifier.parse("minecraft:skull"),
-                    new BlockBehavior(1.0, true, false, "stone", 0, List.of())),
+                    new BlockBehavior(1.0, true, false, "decoration", 0, List.of())),
             Map.entry(Identifier.parse("minecraft:skull_down"),
-                    new BlockBehavior(1.0, true, false, "stone", 0, List.of())),
+                    new BlockBehavior(1.0, true, false, "decoration", 0, List.of())),
             Map.entry(Identifier.parse("minecraft:skull_north"),
-                    new BlockBehavior(1.0, true, false, "stone", 0, List.of())),
+                    new BlockBehavior(1.0, true, false, "decoration", 0, List.of())),
             Map.entry(Identifier.parse("minecraft:skull_south"),
-                    new BlockBehavior(1.0, true, false, "stone", 0, List.of())),
+                    new BlockBehavior(1.0, true, false, "decoration", 0, List.of())),
             Map.entry(Identifier.parse("minecraft:skull_west"),
-                    new BlockBehavior(1.0, true, false, "stone", 0, List.of())),
+                    new BlockBehavior(1.0, true, false, "decoration", 0, List.of())),
             Map.entry(Identifier.parse("minecraft:skull_east"),
-                    new BlockBehavior(1.0, true, false, "stone", 0, List.of())),
+                    new BlockBehavior(1.0, true, false, "decoration", 0, List.of())),
 
 
             Map.entry(Identifier.parse("minecraft:oak_door"),
@@ -1119,8 +1164,15 @@ public final class BlockBehaviorTable {
             Map.entry(Identifier.parse("minecraft:sugar_cane"),
                     new BlockBehavior(0.0, true, false, "plants", 0,
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:sugar_cane"), 1)))),
+            // The mining-speed parity audit re-pinned the material: the
+            // reference's cactus is its OWN material (CactusBlock line
+            // 30's Material.CACTUS — not the plant family), so NO tool
+            // accelerates it (the axe's material branch reads WOOD/PLANT/
+            // REPLACEABLE_PLANT alone, the sword's 1.5 band the plant set
+            // — CACTUS sits in neither; the pre-fix "plants" string would
+            // have paid both laws on the re-pinned speed table).
             Map.entry(Identifier.parse("minecraft:cactus"),
-                    new BlockBehavior(0.4, true, false, "plants", 0,
+                    new BlockBehavior(0.4, true, false, "cactus", 0,
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:cactus"), 1)))),
 
             // Community data (pc/1.8 blocks.json): fire hardness 0 (instant
@@ -1749,7 +1801,7 @@ public final class BlockBehaviorTable {
                         FlowerPotBlocks.plantDamageOf(content)));
             }
             behaviors.put(pot.identifier(),
-                    new BlockBehavior(0.0, true, false, "plant", 0,
+                    new BlockBehavior(0.0, true, false, "decoration", 0,
                             java.util.List.copyOf(drops)));
         }
 
@@ -1769,9 +1821,12 @@ public final class BlockBehaviorTable {
         // The melon family (Slice 41 — MelonBlock/StemBlock's own rows:
         // the melon `setStrength(1.0F)` over Material.PUMPKIN like the
         // shipped pumpkin, the stems `setStrength(0.0F)` — the melon's
-        // slice walk and the stems' seed walk ride the DropService).
+        // slice walk and the stems' seed walk ride the DropService; the
+        // mining-speed parity audit re-pinned the melon's material to the
+        // reference's own PUMPKIN (MelonBlock line 13 — the sword's 1.5
+        // band member, the axe's effective-blocks tier).)
         behaviors.put(Identifier.parse("minecraft:melon_block"),
-                new BlockBehavior(1.0, true, false, "wood", 0,
+                new BlockBehavior(1.0, true, false, "pumpkin", 0,
                         List.of(new BlockBehavior.Drop(
                                 Identifier.parse("minecraft:melon"), 1))));
         for (String family : MelonBlocks.STEMS.keySet()) {
@@ -1831,47 +1886,141 @@ public final class BlockBehaviorTable {
 
     /**
      * @return whether the given held item (empty hand = {@code null}) can harvest
-     *         drops from the block. Blocks without a tool requirement are
-     *         harvestable by hand; tool-gated blocks need a tool of the matching
-     *         class whose material tier satisfies the block's harvest level
-     *         (historical: breaking works regardless, it just yields nothing).
+     *         drops from the block. The mining-speed parity audit re-pinned the
+     *         gate to the reference's own shape ({@code PlayerInventory.canMineBlock}
+     *         lines 458-465 — the divisor gate of {@code Block.getMiningSpeed} line
+     *         490): blocks whose material requires no tool answer true for every
+     *         hand; tool-required blocks gate on the held item's own {@code
+     *         canMineBlock} row, which the engine carries as the per-material
+     *         allowed classes — the pickaxe ladder for the stone family (PickaxeItem
+     *         lines 28-48), the SHOVEL alone for the snow pair (ShovelItem lines
+     *         22-24), the SWORD and the SHEARS together for the web (SwordItem
+     *         line 84, ShearsItem lines 35-37 — the pre-fix single-class match
+     *         could not answer a two-class gate, and its leaves/wool/plant
+     *         mapping gated materials the reference never requires a tool for).
      */
     public static boolean canHarvest(BlockBehavior behavior, net.zaminmc.torch.item.ItemType held) {
         if (!behavior.requiresTool()) {
             return true;
         }
+        ToolClass[] allowed = harvestClassesOf(behavior.material());
         return Tools.specOf(held)
-                .map(spec -> spec.toolClass() == requiredToolClass(behavior)
+                .map(spec -> java.util.Arrays.asList(allowed).contains(spec.toolClass())
                         && spec.material().harvestLevel() >= behavior.harvestLevel())
                 .orElse(false);
     }
 
     /**
-     * @return the mining speed multiplier the held item contributes to the
-     *         block: the tool material's speed when its class matches the
-     *         block's material, 1.0 otherwise (hand or mismatched tool).
+     * The reference's per-item {@code canMineBlock} overrides, carried as the
+     * allowed tool classes per material family: the stone family's PICKAXE
+     * ladder, the snow pair's SHOVEL, the web's SWORD+SHEARS pair. Materials
+     * the reference never marks tool-required answer no class at all.
      */
-    public static double speedMultiplier(BlockBehavior behavior, net.zaminmc.torch.item.ItemType held) {
-        return Tools.specOf(held)
-                .filter(spec -> spec.toolClass() == requiredToolClass(behavior))
-                .map(spec -> spec.material().speedMultiplier())
-                .orElse(1.0);
+    private static ToolClass[] harvestClassesOf(String material) {
+        return switch (material == null ? "" : material) {
+            case "rock" -> new ToolClass[] {ToolClass.PICKAXE};
+            case "snow" -> new ToolClass[] {ToolClass.SHOVEL};
+            case "web" -> new ToolClass[] {ToolClass.SWORD, ToolClass.SHEARS};
+            default -> new ToolClass[0];
+        };
     }
 
     /**
-     * The dataset's material-to-tool-class mapping: pickaxes work "rock",
-     * shovels work "dirt", axes work "wood", shears work leaves/wool/web.
-     * Unmapped materials have no accelerating tool class.
+     * @return the mining speed multiplier the held item contributes to the
+     *         block — the mining-speed parity audit's 1:1 restore of the
+     *         reference's own per-item-class {@code getMiningSpeed} rows
+     *         (the pre-fix table had folded all five into one
+     *         material-string class match, which paid the tool's tier on a
+     *         class match alone):
+     *         <ul>
+     *         <li>PICKAXE — {@code PickaxeItem.getMiningSpeed} lines 24-28:
+     *             the tier on the STONE/IRON/ANVIL material branch (the
+     *             engine's "rock" rows) or the explicit EFFECTIVE_BLOCKS set
+     *             — the engine-registered set members the branch never
+     *             covers are the ICE and the RAIL pair, 1.0 otherwise;</li>
+     *         <li>AXE — {@code AxeItem.getMiningSpeed} lines 21-24: the tier
+     *             on the WOOD/PLANT/REPLACEABLE_PLANT material branch or
+     *             the EFFECTIVE_BLOCKS set, 1.0 otherwise;</li>
+     *         <li>SHOVEL — {@code ShovelItem}'s pure EFFECTIVE_BLOCKS set
+     *             (the engine's five dirt-family strings cover its ten
+     *             members exactly), 1.0 otherwise;</li>
+     *         <li>SWORD — {@code SwordItem.getMiningSpeed} lines 33-42: 15.0
+     *             on the WEB block, 1.5 on the PLANT/REPLACEABLE_PLANT/
+     *             CORAL/LEAVES/PUMPKIN material band, 1.0 otherwise (the
+     *             pre-fix table had no sword row at all);</li>
+     *         <li>SHEARS — {@code ShearsItem.getMiningSpeed} lines 39-44:
+     *             15.0 on the WEB and every LEAVES material, 5.0 on the
+     *             WOOL, 1.0 otherwise (the pre-fix class match paid the
+     *             shears' IRON tier everywhere it mapped);</li>
+     *         <li>HOE — no override ({@code HoeItem} extends Item): 1.0.</li>
+     *         </ul>
      */
-    private static ToolClass requiredToolClass(BlockBehavior behavior) {
-        return switch (behavior.material() == null ? "" : behavior.material()) {
-            case "rock" -> ToolClass.PICKAXE;
-            case "dirt", "grass", "snow", "clay", "sand" -> ToolClass.SHOVEL;
-            case "wood" -> ToolClass.AXE;
-            case "leaves", "wool", "web", "plant" -> ToolClass.SHEARS;
-            default -> null;
+    public static double speedMultiplier(BlockBehavior behavior,
+                                        net.zaminmc.torch.block.BlockType broken,
+                                        net.zaminmc.torch.item.ItemType held) {
+        ToolSpec spec = Tools.specOf(held).orElse(null);
+        if (spec == null) {
+            return 1.0; // the bare hand (and every non-tool item)
+        }
+        String material = behavior.material() == null ? "" : behavior.material();
+        String value = broken.identifier().value();
+        double tier = spec.material().speedMultiplier();
+        return switch (spec.toolClass()) {
+            case PICKAXE -> "rock".equals(material) || PICKAXE_EFFECTIVE_ON.contains(value)
+                    ? tier : 1.0;
+            case AXE -> AXE_MATERIALS.contains(material) || AXE_EFFECTIVE_ON.contains(value)
+                    ? tier : 1.0;
+            case SHOVEL -> SHOVEL_MATERIALS.contains(material) ? tier : 1.0;
+            case SWORD -> "cobweb".equals(value) ? 15.0
+                    : SWORD_SPEED_BAND.contains(material) ? 1.5 : 1.0;
+            case SHEARS -> "cobweb".equals(value) || "leaves".equals(material) ? 15.0
+                    : "wool".equals(material) ? 5.0 : 1.0;
+            case HOE -> 1.0;
         };
     }
+
+    /**
+     * The pickaxe's effective-blocks set ({@code PickaxeItem.EFFECTIVE_BLOCKS}
+     * lines 16-40) restricted to the members whose rows do NOT already ride
+     * the stone-material branch: the ICE (Material.ICE) and the rail pair
+     * (Material.DECORATION — the engine's flat rail identifiers). Every
+     * other set member is a "rock" row the branch answers first.
+     */
+    private static final Set<String> PICKAXE_EFFECTIVE_ON = Set.of("ice", "rail", "rail_ew");
+
+    /**
+     * The axe's material branch ({@code AxeItem.getMiningSpeed} lines 21-24:
+     * WOOD, PLANT, REPLACEABLE_PLANT) over the engine's material strings —
+     * the "wood" family and the plant family's two spellings.
+     */
+    private static final Set<String> AXE_MATERIALS = Set.of("wood", "plants", "plant");
+
+    /**
+     * The axe's effective-blocks set ({@code AxeItem.EFFECTIVE_BLOCKS} lines
+     * 19-22) restricted to the members whose own material sits outside the
+     * branch: the PUMPKIN trio (the melon rides the same PUMPKIN material)
+     * and the DECORATION ladder. Planks, logs, chests and bookshelves are
+     * "wood" rows the branch answers.
+     */
+    private static final Set<String> AXE_EFFECTIVE_ON =
+            Set.of("pumpkin", "lit_pumpkin", "melon_block", "ladder");
+
+    /**
+     * The shovel's effective-blocks set ({@code ShovelItem.EFFECTIVE_BLOCKS}
+     * lines 13-15: clay, dirt, farmland, grass, gravel, mycelium, sand,
+     * snow, snow_layer, soul_sand) over the engine's five material strings.
+     */
+    private static final Set<String> SHOVEL_MATERIALS =
+            Set.of("dirt", "grass", "sand", "snow", "clay");
+
+    /**
+     * The sword's 1.5 material band ({@code SwordItem.getMiningSpeed} lines
+     * 36-42: PLANT, REPLACEABLE_PLANT, CORAL, LEAVES, PUMPKIN) over the
+     * engine's strings — the plant family's two spellings, the leaves and
+     * the pumpkin trio.
+     */
+    private static final Set<String> SWORD_SPEED_BAND =
+            Set.of("plants", "plant", "leaves", "pumpkin");
 
     /**
      * The shears durability-wear band (the tool-wear parity audit — the
