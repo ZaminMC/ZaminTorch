@@ -411,6 +411,32 @@ public final class PlayerInventory implements net.zaminmc.torch.entity.Player.In
     }
 
     /**
+     * The stats-carrying twin of {@link #damageHeld(int, Random)} (the
+     * stats family audit — {@code ItemStack.takeDamageAndBreak} lines
+     * 221-243): when the wear BREAKS the stack, the break-item row pays
+     * through the ONE site every wear caller routes through — the
+     * reference's own shape, where the {@code playerentity.incrementStat
+     * (ITEMS_BROKEN[...])} of line 229 rides inside the stack's own walk
+     * and the melee, mining, bow, flint, hoe, fishing-rod and shears
+     * callers never duplicate it.
+     *
+     * @param stats the holder's stats (null: the wear alone, no row)
+     * @return whether the stack changed (worn or broken — the twin's
+     *         own contract, never the break alone)
+     */
+    public boolean damageHeld(int amount, Random random,
+            net.zaminmc.torch.server.stat.PlayerStats stats) {
+        ItemStack current = slots[heldSlot];
+        boolean changed = damageHeld(amount, random);
+        if (changed && current != null && !current.isEmpty()
+                && slots[heldSlot].isEmpty() && stats != null) {
+            stats.increment(net.zaminmc.torch.server.stat.EngineStats
+                    .breakItemOf(current.type().identifier()), 1);
+        }
+        return changed;
+    }
+
+    /**
      * Takes the cursor stack as-is (the death drop): the cursor becomes empty
      * and the stack is handed out, bypassing the inventory fill.
      */
@@ -502,6 +528,19 @@ public final class PlayerInventory implements net.zaminmc.torch.entity.Player.In
      * breaks (leaves the slot). @return whether any slot changed.
      */
     public boolean wearArmor(float incomingDamage, Random random) {
+        return wearArmor(incomingDamage, random, null);
+    }
+
+    /**
+     * The stats-carrying twin (the stats family audit): a piece that breaks
+     * pays its break-item row exactly like the reference's own
+     * {@code takeDamageAndBreak} line 229 — the armor family's wear walk
+     * routes through the same stack walk the held tools do.
+     *
+     * @param stats the wearer's stats (null: the wear alone, no rows)
+     */
+    public boolean wearArmor(float incomingDamage, Random random,
+            net.zaminmc.torch.server.stat.PlayerStats stats) {
         float perPiece = incomingDamage / 4.0F;
         if (perPiece < 1.0F) {
             perPiece = 1.0F;
@@ -520,9 +559,14 @@ public final class PlayerInventory implements net.zaminmc.torch.entity.Player.In
                 continue; // every unit rolled away: this piece is untouched
             }
             int newDamage = piece.damage() + landing;
-            armor[i] = newDamage > piece.type().maxDurability()
+            boolean broke = newDamage > piece.type().maxDurability();
+            armor[i] = broke
                     ? ItemStack.EMPTY // the piece breaks at the exceed, never at the max
                     : piece.withDamage(newDamage);
+            if (broke && stats != null) {
+                stats.increment(net.zaminmc.torch.server.stat.EngineStats
+                        .breakItemOf(piece.type().identifier()), 1);
+            }
             changed = true;
         }
         return changed;
@@ -541,6 +585,19 @@ public final class PlayerInventory implements net.zaminmc.torch.entity.Player.In
      * @return whether the slot changed (wear applied or the piece broke).
      */
     public boolean wearArmorStack(int slot, int amount, Random random) {
+        return wearArmorStack(slot, amount, random, null);
+    }
+
+    /**
+     * The stats-carrying twin (the stats family audit): the targeted wear
+     * pays the break-item row when the piece reaches its limit — the
+     * thorns family's own visit through the reference's single
+     * takeDamageAndBreak site.
+     *
+     * @param stats the wearer's stats (null: the wear alone, no row)
+     */
+    public boolean wearArmorStack(int slot, int amount, Random random,
+            net.zaminmc.torch.server.stat.PlayerStats stats) {
         if (slot < 0 || slot >= ARMOR_SLOTS || amount <= 0) {
             return false;
         }
@@ -555,9 +612,14 @@ public final class PlayerInventory implements net.zaminmc.torch.entity.Player.In
             return false; // every unit rolled away: the piece is untouched
         }
         int newDamage = piece.damage() + landing;
-        armor[slot] = newDamage > piece.type().maxDurability()
+        boolean broke = newDamage > piece.type().maxDurability();
+        armor[slot] = broke
                 ? ItemStack.EMPTY // the piece breaks at the exceed, never at the max
                 : piece.withDamage(newDamage);
+        if (broke && stats != null) {
+            stats.increment(net.zaminmc.torch.server.stat.EngineStats
+                    .breakItemOf(piece.type().identifier()), 1);
+        }
         return true;
     }
 

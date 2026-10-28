@@ -55,6 +55,17 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
      * owned like the ride ids' writers.
      */
     private net.zaminmc.torch.block.BlockPosition minecartTravelStart;
+    /**
+     * The light last-mob-attacker record (the stats family audit — the
+     * reference's ServerPlayerEntity.die lines 391-396 walk over the damage
+     * tracker): which mob last damaged this body and at which world tick.
+     * The consult at death pays the entityKilledBy row when the record is
+     * inside the tracker's own staleness window ({@code resetStatus} line
+     * 164's 300-tick mob-combat clear — a skeleton's arrow five minutes old
+     * never credits). Tick-lane owned with the other body state.
+     */
+    private volatile net.zaminmc.torch.server.entity.MobType lastMobAttacker;
+    private volatile long lastMobAttackerTick = Long.MIN_VALUE;
     private volatile boolean onGround = true;
     /** The open container window id (crafting table, furnace), or -1 when none. Tick-thread written, volatile-read by the adapter's sync. */
     private volatile int containerWindowId = -1;
@@ -1237,6 +1248,37 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
     /** Sets the cart-ride window's anchor (the first move of a cart ride). */
     public void setMinecartTravelStart(net.zaminmc.torch.block.BlockPosition start) {
         this.minecartTravelStart = start;
+    }
+
+    /**
+     * Records a mob's landed damage (the stats family audit — the light
+     * stand-in for the reference's damage tracker: which mob last wounded
+     * this body, and when). Called at every mob-damages-player site before
+     * the damage walk, so the death consult can pay the entityKilledBy row.
+     */
+    public void noteMobAttacker(net.zaminmc.torch.server.entity.MobType type,
+            long worldTick) {
+        this.lastMobAttacker = type;
+        this.lastMobAttackerTick = worldTick;
+    }
+
+    /**
+     * The death consult: the last mob attacker when the record sits inside
+     * the tracker's own staleness window (DamageTracker.resetStatus line
+     * 164: the 300-tick mob-combat clear — an old wound never credits a
+     * fresh death), consumed by the read exactly like the reference's
+     * resetStatus-on-die clears the tracker.
+     */
+    public net.zaminmc.torch.server.entity.MobType takeRecentMobAttacker(
+            long worldTick) {
+        net.zaminmc.torch.server.entity.MobType type = lastMobAttacker;
+        long at = lastMobAttackerTick;
+        lastMobAttacker = null;
+        lastMobAttackerTick = Long.MIN_VALUE;
+        if (type == null || worldTick - at > 300L) {
+            return null; // no record, or a stale one: the tracker cleared it
+        }
+        return type;
     }
 
     public boolean onGround() {

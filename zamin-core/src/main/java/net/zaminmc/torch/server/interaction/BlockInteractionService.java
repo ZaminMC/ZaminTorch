@@ -797,14 +797,24 @@ public final class BlockInteractionService {
         net.zaminmc.torch.item.ItemStack heldStack = player.inventory().held();
         ItemType held = heldStack.isEmpty() ? null : heldStack.type();
         commit(target, world.airType());
-        // The vanilla removedByPlayer exhaustion (0.025 per broken block);
-        // the invulnerable creative body is exempt through the historical
-        // abilities.invulnerable gate in addFatigue.
+        // The vanilla afterMinedByPlayer consult (ServerPlayerInteraction
+        // Manager.tryMineBlock lines 211-225): the creative arm NEVER
+        // reaches the walk (no stat, no fatigue, no drops), and the
+        // survival arm's line-223 gate is flag1 && flag — the block gone
+        // AND the held tool HARVESTS it (PlayerInventory.canMineBlock
+        // lines 458-465: the material's isToolNotRequired or the tool's
+        // own gate). A bare-handed stone break pays NEITHER the
+        // mined-block row nor the 0.025 in the reference — the stats
+        // family audit's B1 restoration (the harvest gate the pre-audit
+        // site lacked).
         GameMode breakMode = gameMode.apply(player);
-        if (breakMode == GameMode.SURVIVAL || breakMode == GameMode.ADVENTURE) {
+        boolean harvested = BlockBehaviorTable.canHarvest(behavior, held);
+        if ((breakMode == GameMode.SURVIVAL || breakMode == GameMode.ADVENTURE)
+                && harvested) {
             player.addExhaustion(0.025f);
-            // The mined-block stat (finishMiningBlock's own incrementStat —
-            // creative never counts, the reference's stat gate).
+            // The mined-block stat (afterMinedByPlayer line 774's own
+            // incrementStat — creative never counts, the reference's
+            // caller gate).
             player.stats().increment(
                     net.zaminmc.torch.server.stat.EngineStats.mineBlockOf(
                             current.identifier()), 1);
@@ -953,6 +963,23 @@ public final class BlockInteractionService {
                 && net.zaminmc.torch.server.item.Tools.specOf(heldStack.type())
                         .map(spec -> spec.toolClass() == net.zaminmc.torch.server.item.ToolClass.SHEARS)
                         .orElse(false);
+        // The used-item row of the dig (the stats family audit —
+        // ItemStack.mineBlock lines 252-257's flag, consulted inside
+        // tryMineBlock's NON-creative arm at lines 216-221): the ToolItem
+        // family and the sword pay for EVERY broken block — the flag sits
+        // outside the hardness gate, so even an instant dig counts while
+        // only the WEAR is hardness-gated — the shears pay their band
+        // alone, and the hoe with the bare hand never pays.
+        if (!heldStack.isEmpty()) {
+            boolean usePays = shears
+                    ? BlockBehaviorTable.inShearsWearBand(broken)
+                    : net.zaminmc.torch.server.item.Tools.mineUsePaysOf(heldStack.type());
+            if (usePays) {
+                player.stats().increment(
+                        net.zaminmc.torch.server.stat.EngineStats.useItemOf(
+                                heldStack.type().identifier()), 1);
+            }
+        }
         int wear;
         if (shears) {
             // The shears' own arm (ShearsItem lines 20-29): the band alone
@@ -971,7 +998,7 @@ public final class BlockInteractionService {
         if (wear <= 0) {
             return;
         }
-        if (player.inventory().damageHeld(wear, gameplayRandom)) {
+        if (player.inventory().damageHeld(wear, gameplayRandom, player.stats())) {
             // Worn or broken: the client's held slot is now stale, re-sync it.
             inventorySync.accept(player);
         }

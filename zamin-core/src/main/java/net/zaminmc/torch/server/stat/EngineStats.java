@@ -193,6 +193,12 @@ public final class EngineStats {
         names.put("bone_meal", "dye");
         names.put("glistering_melon", "speckled_melon");
         names.put("empty_map", "map");
+        // The cobweb's ITEM row (the stats family audit — item id 30's own
+        // name is "web" in the 1.8.8 registry, so the use row the client
+        // resolves folds here exactly like the block map's own row; the
+        // pre-audit vocabulary answered a cobweb row the 1.8.8 statistics
+        // screen never reads).
+        names.put("cobweb", "web");
         // The reed (83's own name) and the portal (90's own name).
         names.put("sugar_cane", "reeds");
         names.put("nether_portal", "portal");

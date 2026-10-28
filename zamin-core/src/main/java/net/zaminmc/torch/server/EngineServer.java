@@ -2733,6 +2733,27 @@ public final class EngineServer implements Server, EngineBridge {
                                     }
                                 },
                                 new net.zaminmc.torch.server.fishing.FishingSystem.CatchSink() {
+                                    /**
+                                     * The roll's stat row (the stats family
+                                     * audit — FishingBobberEntity.getResult
+                                     * lines 499-510): the band's row pays the
+                                     * moment the roll lands, junkFished,
+                                     * treasureFished, fishCaught.
+                                     */
+                                    @Override public void noteCatchBand(int throwerId,
+                                            net.zaminmc.torch.server.fishing.FishingSystem.LootCategory category) {
+                                        PlayerSession angler = sessionByEngineId(throwerId);
+                                        if (angler == null) {
+                                            return;
+                                        }
+                                        String row = switch (category) {
+                                            case JUNK -> net.zaminmc.torch.server.stat.EngineStats.JUNK_FISHED;
+                                            case TREASURE -> net.zaminmc.torch.server.stat.EngineStats.TREASURE_FISHED;
+                                            case FISH -> net.zaminmc.torch.server.stat.EngineStats.FISH_CAUGHT;
+                                        };
+                                        angler.stats().increment(row, 1);
+                                    }
+
                                     /** The catch flies toward the angler (the 0.1 + sqrt law). */
                                     @Override public void dropCatch(Position at,
                                             net.zaminmc.torch.item.ItemStack stack,
@@ -5247,7 +5268,7 @@ public final class EngineServer implements Server, EngineBridge {
      */
     private void tickPlayerBodies() {
         for (PlayerSession session : players.all()) {
-            if (session.state() != PlayerState.PLAYING || session.dead()) {
+            if (session.state() != PlayerState.PLAYING) {
                 continue;
             }
             // The credits body is removed from the world (Slice 64 — the
@@ -5257,14 +5278,20 @@ public final class EngineServer implements Server, EngineBridge {
             if (session.leavingTheEnd()) {
                 continue;
             }
-            session.tickHurtInvulnerability();
-            session.tickGrace();
-            // The stat clocks (the stats slice — ServerPlayerEntity.tick's
-            // own pair): the play time counts ticks (the client's formatter
-            // divides by 20) and the since-death clock accumulates until
-            // the next death resets it.
+            // The play clock (the stats family audit — PlayerEntity.tick
+            // lines 283-289): the MINUTES_PLAYED row rides UNGATED by the
+            // alive check — the dead body on the respawn screen still
+            // ticks its play time, exactly the reference's own shape
+            // where only the TIME_SINCE_DEATH row of line 287 carries
+            // the isAlive gate (the since-death clock stays inside the
+            // dead-skip below).
             session.stats().increment(
                     net.zaminmc.torch.server.stat.EngineStats.MINUTES_PLAYED, 1);
+            if (session.dead()) {
+                continue;
+            }
+            session.tickHurtInvulnerability();
+            session.tickGrace();
             session.stats().tickTimeSinceDeath();
             // The biome census (VIII6 — ServerPlayerEntity.tick lines
             // 325-327: the unearned gate first, then the walk — the
@@ -5355,12 +5382,12 @@ public final class EngineServer implements Server, EngineBridge {
                             || fluidAt(feetX, feetY + 1.0, feetZ))) {
                 session.resetFallDistance();
             }
-            // The movement-exhaustion ledger (the vanilla per-meter rates,
-            // reference/1.8.8 PlayerEntity.tickNonRidingMovementRelatedStats):
-            // swim 0.015/m, sprint 0.1/m, walk 0.01/m — the cm-rounded meter
-            // count times the rate — plus the jump charges (0.2, 0.8
-            // sprinting). Climbing charges nothing (the historical arm).
-            tickMovementExhaustion(session);
+            // The movement-stat walk (the stats family audit — both halves
+            // of the reference's tickNonRidingMovementRelatedStats: the
+            // per-arm stat rows and the per-meter fatigue, swim 0.015/m,
+            // sprint 0.099999994/m, walk 0.01/m, the jump charges 0.2/0.8,
+            // the climb and airborne arms stat-only).
+            tickMovementStats(session);
             // The in-wall suffocation + the world-border damage — the
             // reference's own else-if pair (LivingEntity.baseTick lines
             // 194-202): the eye-band survey FIRST (the in-wall slice — a
@@ -5444,16 +5471,24 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /**
-     * The per-meter exhaustion charges from the body's real displacement
-     * (the vanilla addFatigue sites); the invulnerable modes are exempt
-     * (the vanilla abilities.invulnerable gate).
-     * Tick-thread context.
+     * The movement-stat walk (the stats family audit — PlayerEntity
+     * .tickNonRidingMovementRelatedStats lines 1310-1350 restored to the
+     * reference's OWN branch order, both halves in one walk): every arm
+     * pays its stat row UNGATED by gamemode — the reference's walk carries
+     * no creative gate, and the vanilla statistics screen counts a creative
+     * player's walked meters — while the fatigue half rides
+     * {@code addExhaustion} whose own invulnerable refusal keeps creative
+     * free. The arm order is the law: SUBMERGED pays the dived row over
+     * the 3-D norm (the descent itself is swimming), IN-WATER pays the
+     * surface swim's horizontal band, CLIMBING pays the climb row alone
+     * (the y-only arm, no fatigue, and a ground-touching ladder cell pays
+     * nothing — the climb consult wins before the walk arm), ON-GROUND
+     * pays walked plus the sprint/crouch twins (sprint pays BOTH rows with
+     * the same k; the crouch row rides the non-sprint else exactly), and
+     * the AIRBORNE band pays the flown row when the meter count STRICTLY
+     * exceeds 25 — the creative flight and the fall alike.
      */
-    private void tickMovementExhaustion(PlayerSession session) {
-        if (session.gamemode() == GameMode.CREATIVE
-                || session.gamemode() == GameMode.SPECTATOR) {
-            return;
-        }
+    private void tickMovementStats(PlayerSession session) {
         Position at = session.position();
         /*
          * The unmounted gate (the reference's own walk name:
@@ -5483,30 +5518,81 @@ public final class EngineServer implements Server, EngineBridge {
                 int divedCm = (int) Math.round(
                         Math.sqrt(dx * dx + dy * dy + dz * dz) * 100.0);
                 if (divedCm > 0) {
+                    session.stats().increment(
+                            net.zaminmc.torch.server.stat.EngineStats.CM_DIVEN, divedCm);
                     session.addExhaustion(0.015F * divedCm * 0.01F);
                 }
-            } else {
+            } else if (inWater) {
+                // The surface-swim arm (reference lines 1319-1325): the
+                // horizontal band alone, 0.015/m.
                 int cm = (int) Math.round(Math.sqrt(dx * dx + dz * dz) * 100.0);
                 if (cm > 0) {
-                    if (inWater) {
-                        // The surface-swim arm (reference lines 1319-1325):
-                        // the horizontal band alone, 0.015/m.
-                        session.addExhaustion(0.015F * cm * 0.01F);
-                    } else if (session.onGround()) {
-                        // The walk/sprint split; the ladder arm charges nothing
-                        // and neither does the airborne band (the flown arm).
-                        boolean onLadder = ladderAt(at.x(), at.y(), at.z());
-                        if (!onLadder && session.sprinting()) {
-                            session.addExhaustion(0.099999994F * cm * 0.01F);
-                        } else if (!onLadder) {
-                            session.addExhaustion(0.01F * cm * 0.01F);
+                    session.stats().increment(
+                            net.zaminmc.torch.server.stat.EngineStats.CM_SWUM, cm);
+                    session.addExhaustion(0.015F * cm * 0.01F);
+                }
+            } else if (ladderAt(at.x(), at.y(), at.z())) {
+                // The climbing arm (reference lines 1324-1327): the climb
+                // row alone — the y-only rise, no fatigue, and the consult
+                // wins before the ground arm so a ladder cell's ground
+                // stander pays nothing at all (y == 0).
+                if (dy > 0.0) {
+                    session.stats().increment(
+                            net.zaminmc.torch.server.stat.EngineStats.CM_CLIMB,
+                            (int) Math.round(dy * 100.0));
+                }
+            } else if (session.onGround()) {
+                // The ground arm (reference lines 1328-1342): walked always,
+                // the sprint row riding beside it with the same meter count
+                // (the sprint pays BOTH rows), the crouch row alone in the
+                // non-sprint else.
+                int cm = (int) Math.round(Math.sqrt(dx * dx + dz * dz) * 100.0);
+                if (cm > 0) {
+                    session.stats().increment(
+                            net.zaminmc.torch.server.stat.EngineStats.CM_WALKED, cm);
+                    if (session.sprinting()) {
+                        session.stats().increment(
+                                net.zaminmc.torch.server.stat.EngineStats.SPRINT_ONE_CM, cm);
+                        session.addExhaustion(0.099999994F * cm * 0.01F);
+                    } else {
+                        if (session.sneaking()) {
+                            session.stats().increment(
+                                    net.zaminmc.torch.server.stat.EngineStats.CROUCH_ONE_CM,
+                                    cm);
                         }
+                        session.addExhaustion(0.01F * cm * 0.01F);
                     }
                 }
-                // The jump arm: the ground left under rising motion.
-                if (dy > 0 && session.bodyPrevOnGround() && !session.onGround()) {
-                    session.addExhaustion(session.sprinting() ? 0.8F : 0.2F);
+            } else {
+                // The airborne arm (reference lines 1343-1348): the flown
+                // row when the meter count STRICTLY exceeds 25 — the stat
+                // alone, no fatigue.
+                int cm = (int) Math.round(Math.sqrt(dx * dx + dz * dz) * 100.0);
+                if (cm > 25) {
+                    session.stats().increment(
+                            net.zaminmc.torch.server.stat.EngineStats.CM_FLOWN, cm);
                 }
+            }
+            // The jump arm: the ground left under rising motion — the JUMPS
+            // row (PlayerEntity.jump line 1278) beside the pass-10 fatigue
+            // (0.2 plain / 0.8 sprinting), the stat UNGATED by gamemode like
+            // every row of this walk. THE WATER/LAVA GATE (the review fix —
+            // LivingEntity lines 1446-1456: the jump input's own walk sends
+            // isInWater() to jumpInWater() and isInLava() to jumpInLava()
+            // BEFORE the ground arm, so jump() — with its row and its
+            // fatigue — NEVER fires from water or lava: a shallow-water
+            // leap and a pool-bottom ascent pay nothing in the reference).
+            // The consult reads the SCRATCH's cell (the jump's own origin),
+            // not the post-move position — the reference's input consult
+            // happens at the jump moment, and a leap that lands on dry land
+            // still originated in the water (fluidAt covers both fluids).
+            boolean jumpOriginInFluid = fluidAt(session.bodyPrevX(),
+                    session.bodyPrevY(), session.bodyPrevZ());
+            if (dy > 0 && session.bodyPrevOnGround() && !session.onGround()
+                    && !jumpOriginInFluid) {
+                session.stats().increment(
+                        net.zaminmc.torch.server.stat.EngineStats.JUMPS, 1);
+                session.addExhaustion(session.sprinting() ? 0.8F : 0.2F);
             }
         }
         session.captureBodyDelta(at.x(), at.y(), at.z(), session.onGround());
@@ -5915,6 +6001,22 @@ public final class EngineServer implements Server, EngineBridge {
             return;
         }
         float distance = session.consumeFallDistance();
+        // The fallen row (the stats family audit — PlayerEntity
+        // .takeFallDamage lines 1376-1384): every landing of two meters or
+        // more pays the fallen centimeters — round(distance * 100) — gated
+        // by the flight ABILITY alone (the reference's
+        // {@code !this.abilities.canFly}: creative and spectator bodies
+        // never pay) and paid BEFORE the water/ladder break, exactly the
+        // reference's own order where the stat rides the walk's head and
+        // the damage consults live in the super call — a water landing
+        // still counts its descent.
+        if (distance >= 2.0F
+                && session.gamemode() != GameMode.CREATIVE
+                && session.gamemode() != GameMode.SPECTATOR) {
+            session.stats().increment(
+                    net.zaminmc.torch.server.stat.EngineStats.CM_FALLEN,
+                    Math.round(distance * 100.0f));
+        }
         if (distance > PlayerSession.SAFE_FALL_DISTANCE) {
             // A body that lands in fluid takes no fall damage (the water
             // break), and neither does one that lands on a ladder column
@@ -6478,17 +6580,22 @@ public final class EngineServer implements Server, EngineBridge {
                 // directly and never wear on a hit).
                 int meleeWear = net.zaminmc.torch.server.item.Tools.meleeWearOf(held.type());
                 if (meleeWear > 0) {
-                    int wearBefore = held.damage();
-                    attacker.inventory().damageHeld(meleeWear, gameplayRandom);
-                    // The broken-tool stat (ItemStack.damageItem's own row):
-                    // the wear passing the durability empties the slot (the
-                    // inventory's own exceed-the-max boundary).
-                    if (attacker.inventory().held().isEmpty()
-                            && wearBefore + meleeWear > held.type().maxDurability()) {
+                    // The used-item row of the landed hit (the stats family
+                    // audit — ItemStack.attack lines 245-250's flag inside
+                    // PlayerEntity.attack's landed verdict, lines 1029-1034:
+                    // the sword and the ToolItem family pay once per landed
+                    // hit, whatever the target family).
+                    if (net.zaminmc.torch.server.item.Tools.meleeUsePaysOf(held.type())) {
                         attacker.stats().increment(
-                                net.zaminmc.torch.server.stat.EngineStats.breakItemOf(
+                                net.zaminmc.torch.server.stat.EngineStats.useItemOf(
                                         held.type().identifier()), 1);
                     }
+                    // The broken-tool row rides the damage walk itself now
+                    // (ItemStack.takeDamageAndBreak line 229 — the stats
+                    // family audit's one-site law; the manual detection the
+                    // pre-audit site carried is retired).
+                    attacker.inventory().damageHeld(meleeWear, gameplayRandom,
+                            attacker.stats());
                     publishInventoryChanged(attacker);
                 }
             }
@@ -6631,16 +6738,20 @@ public final class EngineServer implements Server, EngineBridge {
             // shears and hoes never (Item's own default arm).
             int meleeWear2 = net.zaminmc.torch.server.item.Tools.meleeWearOf(held.type());
             if (meleeWear2 > 0) {
-                int wearBefore = held.damage();
-                attacker.inventory().damageHeld(meleeWear2, gameplayRandom);
-                // The broken-tool stat (the melee arm's own row — the
-                // inventory's own exceed-the-max boundary).
-                if (attacker.inventory().held().isEmpty()
-                        && wearBefore + meleeWear2 > held.type().maxDurability()) {
+                // The used-item row of the landed hit (the stats family
+                // audit — ItemStack.attack lines 245-250: the sword and the
+                // ToolItem family pay once per landed hit, the player target
+                // included).
+                if (net.zaminmc.torch.server.item.Tools.meleeUsePaysOf(held.type())) {
                     attacker.stats().increment(
-                            net.zaminmc.torch.server.stat.EngineStats.breakItemOf(
+                            net.zaminmc.torch.server.stat.EngineStats.useItemOf(
                                     held.type().identifier()), 1);
                 }
+                // The broken-tool row rides the damage walk itself now
+                // (ItemStack.takeDamageAndBreak line 229 — the one-site law;
+                // the manual detection the pre-audit site carried is retired).
+                attacker.inventory().damageHeld(meleeWear2, gameplayRandom,
+                        attacker.stats());
                 publishInventoryChanged(attacker);
             }
             // Knockback — the vanilla applyKnockback (reference/1.8.8
@@ -6741,6 +6852,15 @@ public final class EngineServer implements Server, EngineBridge {
      * the death walk.
      */
     private void takeKillScore(PlayerSession killer, PlayerSession victim) {
+        // The player-kill row (the stats family audit — PlayerEntity
+        // .takeKillScore lines 558-560: the victim instanceof PlayerEntity
+        // arm pays PLAYERS_KILLED beside the scoreboard ride, UNGATED by
+        // the scoreboard's own presence — a server with no objectives at
+        // all still counts the kill). Every player-kills-player site routes
+        // through this walk: the melee verdict, the projectile kill, and
+        // both thorns retaliations.
+        killer.stats().increment(
+                net.zaminmc.torch.server.stat.EngineStats.PLAYERS_KILLED, 1);
         net.zaminmc.torch.server.scoreboard.EngineScoreboard board = scoreboard;
         if (board == null) {
             return;
@@ -6803,7 +6923,8 @@ public final class EngineServer implements Server, EngineBridge {
         int points = victim.inventory().totalArmorPoints();
         float reduced = net.zaminmc.torch.server.item.Armor.reduce(points, damage);
         if (points > 0 && reduced < damage
-                && victim.inventory().wearArmor(damage, gameplayRandom)) {
+                && victim.inventory().wearArmor(damage, gameplayRandom,
+                        victim.gamemode() == GameMode.CREATIVE ? null : victim.stats())) {
             publishInventoryChanged(victim); // worn or broken pieces re-sync
         }
         return reduced;
@@ -6917,7 +7038,8 @@ public final class EngineServer implements Server, EngineBridge {
         }
         if (first != null && wear > 0 && firstSlot >= 0
                 && victim.gamemode() != GameMode.CREATIVE) {
-            if (victim.inventory().wearArmorStack(firstSlot, wear, gameplayRandom)) {
+            if (victim.inventory().wearArmorStack(firstSlot, wear, gameplayRandom,
+                    victim.stats())) {
                 publishInventoryChanged(victim); // worn or broken pieces re-sync
             }
         }
@@ -7268,6 +7390,25 @@ public final class EngineServer implements Server, EngineBridge {
      */
     private void dieOnTick(PlayerSession session, String causeMessage) {
         session.markDead();
+        // The victim's killed-by row (the stats family audit —
+        // ServerPlayerEntity.die lines 391-396: the last-attacker walk pays
+        // the entityKilledBy stat when the attacker is a registered
+        // spawn-egg type — the engine's light record consults with the
+        // tracker's own 300-tick staleness window, and the read consumes
+        // exactly like the reference's resetStatus-on-die clears the
+        // tracker; players are not in the spawn-egg band, so a PvP death
+        // pays nothing here).
+        net.zaminmc.torch.server.entity.MobType killedBy =
+                session.takeRecentMobAttacker(world.totalTicks());
+        if (killedBy != null) {
+            String killedByKey = net.zaminmc.torch.server.stat.EngineStats
+                    .entityKeyOf(killedBy.name());
+            if (killedByKey != null) {
+                session.stats().increment(
+                        net.zaminmc.torch.server.stat.EngineStats.killedByEntityOf(
+                                killedByKey), 1);
+            }
+        }
         // The death stats (PlayerEntity.onDeath's own rows): the death
         // counter advances and the since-death clock resets.
         session.stats().increment(net.zaminmc.torch.server.stat.EngineStats.DEATHS, 1);
@@ -7714,7 +7855,7 @@ public final class EngineServer implements Server, EngineBridge {
         fxManager.sound(mouthPosition(session), "random.bow", 1.0f,
                 1.0f / (fxRandom.nextFloat() * 0.4f + 1.2f) + power * 0.5f,
                 session.dimension());
-        if (!creative && session.inventory().damageHeld(1, gameplayRandom)) {
+        if (!creative && session.inventory().damageHeld(1, gameplayRandom, session.stats())) {
             // The bow's snap: worn out, the client's held slot re-syncs.
             publishInventoryChanged(session);
         }
@@ -8333,6 +8474,13 @@ public final class EngineServer implements Server, EngineBridge {
                     if ((mode == 0 || mode == 1) && (button == 0 || button == 1)) {
                         net.zaminmc.torch.item.ItemStack cursor = inventory.cursor();
                         if (!cursor.isEmpty()) {
+                            // The drop row (the stats family audit — the
+                            // reference's dropItem(stack, TRUE) pair of
+                            // InventoryMenu lines 182/187: the outside
+                            // click's throw is a thrownByPlayer drop, so
+                            // the DROPS row pays exactly like the Q-drop).
+                            session.stats().increment(
+                                    net.zaminmc.torch.server.stat.EngineStats.DROPS, 1);
                             if (button == 0) {
                                 throwFromPlayer(session, inventory.takeCursor());
                             } else {
@@ -12479,7 +12627,7 @@ public final class EngineServer implements Server, EngineBridge {
         if (tntSystem.useIgnite(clicked)) {
             if (session.gamemode() == GameMode.SURVIVAL
                     || session.gamemode() == GameMode.ADVENTURE) {
-                session.inventory().damageHeld(1, gameplayRandom);
+                session.inventory().damageHeld(1, gameplayRandom, session.stats());
                 publishInventoryChanged(session);
             }
             return true;
@@ -12505,7 +12653,7 @@ public final class EngineServer implements Server, EngineBridge {
                 "fire.ignite", 1.0f, 0.9f + fxRandom.nextFloat() * 0.2f);
         if (session.gamemode() == GameMode.SURVIVAL
                 || session.gamemode() == GameMode.ADVENTURE) {
-            session.inventory().damageHeld(1, gameplayRandom);
+            session.inventory().damageHeld(1, gameplayRandom, session.stats());
             publishInventoryChanged(session);
         }
         return true;
@@ -13016,7 +13164,7 @@ public final class EngineServer implements Server, EngineBridge {
             fxManager.sound(new Position(clicked.x() + 0.5, clicked.y() + 0.5, clicked.z() + 0.5),
                     "dig.grass", 0.8f, 1.0f);
             if (net.zaminmc.torch.server.item.Tools.specOf(heldType).isPresent()) {
-                session.inventory().damageHeld(1, gameplayRandom);
+                session.inventory().damageHeld(1, gameplayRandom, session.stats());
                 publishInventoryChanged(session);
             }
             return true;
@@ -15025,7 +15173,7 @@ public final class EngineServer implements Server, EngineBridge {
                         ItemStack.of(BuiltinItems.RED_MUSHROOM, 1),
                         ItemEntity.PICKUP_DELAY_DROP_TICKS, mob.dimension());
             }
-            player.inventory().damageHeld(1, gameplayRandom); // the shears wear
+            player.inventory().damageHeld(1, gameplayRandom, player.stats()); // the shears wear
             publishInventoryChanged(player);
             fxManager.sound(at, "mob.sheep.shear", 1.0f, 1.0f, mob.dimension());
             return;
@@ -15063,7 +15211,7 @@ public final class EngineServer implements Server, EngineBridge {
         // before the feeding arm).
         if (mob.type() == MobType.SHEEP && heldId.equals("minecraft:shears")) {
             if (mobManager.shear(mob) > 0) {
-                player.inventory().damageHeld(1, gameplayRandom); // the shears wear one use
+                player.inventory().damageHeld(1, gameplayRandom, player.stats()); // the shears wear one use
                 publishInventoryChanged(player);
             }
             return;
@@ -15464,6 +15612,12 @@ public final class EngineServer implements Server, EngineBridge {
         if (horizontal > MELEE_REACH + villager.type().width * 0.5 || dy < -2.0 || dy > 4.0) {
             return; // out of reach: the server-side refusal
         }
+        // The talked-to row (the stats family audit — VillagerEntity
+        // .interactMob line 405: the trade-window interact arm pays
+        // TALKED_TO_VILLAGER — the row rides the accepted interact,
+        // exactly the reference's own position outside the offers gate).
+        player.stats().increment(
+                net.zaminmc.torch.server.stat.EngineStats.TALKED_TO_VILLAGER, 1);
         closeOpenContainerOnTick(player);
         int windowId = nextContainerWindowId;
         nextContainerWindowId = nextContainerWindowId >= LAST_CONTAINER_WINDOW_ID
@@ -15701,6 +15855,11 @@ public final class EngineServer implements Server, EngineBridge {
         if (!remainder.isEmpty()) {
             throwFromPlayer(session, remainder); // a full inventory drops it (nothing lost)
         }
+        // The traded row (the stats family audit — TradeResultSlot
+        // .onItemRemoved line 58: the taken result with a valid offer and
+        // accepted payment pays TRADED_WITH_VILLAGER).
+        session.stats().increment(
+                net.zaminmc.torch.server.stat.EngineStats.TRADED_WITH_VILLAGER, 1);
         // VillagerEntity.trade (lines 604-633): the use charges with the
         // level-up arm's own bookkeeping, the yes sound at the body, and
         // the XP orb the reference spawns beside it. VIII10: the
@@ -17160,20 +17319,31 @@ public final class EngineServer implements Server, EngineBridge {
                 rider.applyMovement(
                         vehicle.seatAnchor(net.zaminmc.torch.server.entity.vehicle.RiderSeatLaw.PLAYER_RIDE_HEIGHT),
                         rider.rotation(), vehicle.onGround());
-                // The cart-ride travel walk (VIII6 — PlayerEntity
-                // .checkMovementStatistics lines 1355-1370: the per-tick
-                // horizontal delta over the seat's own movement, the
-                // minecartOneCm counter, and the onARail displacement —
-                // the start cell set on the ride's FIRST move, the award
-                // at the squared 1,000,000 — the whole cart family,
-                // whatever the car's own cargo).
-                if (vehicle.kind()
-                        != net.zaminmc.torch.server.entity.vehicle.VehicleEntity.Kind.BOAT) {
-                    double rideDx = rider.position().x() - beforeSeat.x();
-                    double rideDz = rider.position().z() - beforeSeat.z();
-                    int movedCm = (int) Math.round(
-                            Math.sqrt(rideDx * rideDx + rideDz * rideDz) * 100.0);
-                    if (movedCm > 0) {
+                // The ride travel walk (the stats family audit — PlayerEntity
+                // .rideTick line 413's tickRidingRelatedStats, lines
+                // 1352-1373): the rider's own position delta across the
+                // seat's move, the **3-D norm** sqrt(x²+y²+z²)·100 over
+                // i > 0, the vehicle family deciding the row — the whole
+                // cart family pays minecartOneCm (whatever the car's own
+                // cargo) and carries the onARail displacement walk (the
+                // start cell set on the ride's FIRST move, the award at
+                // the squared 1,000,000), the boat pays boatOneCm (the
+                // pre-audit walk's horizontal-only norm never charged the
+                // vertical band a bobbing or riding hull rides through,
+                // and the boat arm paid NOTHING at all).
+                double rideDx = rider.position().x() - beforeSeat.x();
+                double rideDy = rider.position().y() - beforeSeat.y();
+                double rideDz = rider.position().z() - beforeSeat.z();
+                int movedCm = (int) Math.round(
+                        Math.sqrt(rideDx * rideDx + rideDy * rideDy
+                                + rideDz * rideDz) * 100.0);
+                if (movedCm > 0) {
+                    if (vehicle.kind()
+                            == net.zaminmc.torch.server.entity.vehicle.VehicleEntity.Kind.BOAT) {
+                        rider.stats().increment(
+                                net.zaminmc.torch.server.stat.EngineStats.CM_SAILED,
+                                movedCm);
+                    } else {
                         rider.stats().increment(
                                 net.zaminmc.torch.server.stat.EngineStats.CM_MINECART,
                                 movedCm);
@@ -17262,11 +17432,32 @@ public final class EngineServer implements Server, EngineBridge {
                 // reference's updateRiderPositon: mount height + the
                 // rider's getRideHeight — PlayerEntity line 937's -0.35
                 // joins the pig/horse seat height).
+                Position beforeSeat = rider.position();
                 Position seat = new Position(mob.position().x(),
                         mob.position().y() + mob.seatHeight()
                                 + net.zaminmc.torch.server.entity.vehicle.RiderSeatLaw.PLAYER_RIDE_HEIGHT,
                         mob.position().z());
                 rider.applyMovement(seat, rider.rotation(), mob.onGround());
+                // The ride travel walk's mob arm (the stats family audit —
+                // tickRidingRelatedStats lines 1352-1373: the rider's own
+                // 3-D displacement across the seat's move, i > 0, the
+                // mount family deciding the row — the pig pays pigOneCm,
+                // the horse family horseOneCm — UNGATED by gamemode like
+                // every row of the walk; the pre-audit walk moved the seat
+                // with no stat at all).
+                double rideDx = rider.position().x() - beforeSeat.x();
+                double rideDy = rider.position().y() - beforeSeat.y();
+                double rideDz = rider.position().z() - beforeSeat.z();
+                int movedCm = (int) Math.round(
+                        Math.sqrt(rideDx * rideDx + rideDy * rideDy
+                                + rideDz * rideDz) * 100.0);
+                if (movedCm > 0) {
+                    rider.stats().increment(
+                            mob.type() == net.zaminmc.torch.server.entity.MobType.PIG
+                                    ? net.zaminmc.torch.server.stat.EngineStats.CM_PIG
+                                    : net.zaminmc.torch.server.stat.EngineStats.CM_HORSE,
+                            movedCm);
+                }
                 continue;
             }
             // The mob-on-mob follow (the same law as the vehicle seat): a
@@ -17876,7 +18067,7 @@ public final class EngineServer implements Server, EngineBridge {
             if (session.gamemode() != GameMode.CREATIVE && result > 0) {
                 // takeDamageAndBreak(i): the wear = the result (1 fish,
                 // 2 grounded, 3 hooked; a bare retrieve wears nothing).
-                if (session.inventory().damageHeld(result, gameplayRandom)) {
+                if (session.inventory().damageHeld(result, gameplayRandom, session.stats())) {
                     publishInventoryChanged(session);
                 }
             }
@@ -18122,6 +18313,15 @@ public final class EngineServer implements Server, EngineBridge {
         public void hurt(Object body, float amount, String cause, Object attacker,
                          boolean magic) {
             if (body instanceof PlayerSession player) {
+                // The victim's killed-by record (the stats family audit —
+                // the light damage-tracker stand-in): a thrown potion's
+                // LIVING thrower wounds the body, so a death inside the
+                // tracker's staleness window pays the entityKilledBy row —
+                // the witch's splash records the witch, exactly the
+                // reference's indirect-source attacker walk.
+                if (attacker instanceof MobEntity attackerMob) {
+                    player.noteMobAttacker(attackerMob.type(), world.totalTicks());
+                }
                 // The magic damage: no knockback, no protection shave (the
                 // reference's DamageSource.MAGIC pierces armor).
                 damageOnTick(player, amount, true, cause, 0.0f,
@@ -19614,6 +19814,20 @@ public final class EngineServer implements Server, EngineBridge {
         victim.beginHurtInvulnerability(Math.max(damage, 0.01f));
         if (applied > 0) {
             victim.hurt(applied);
+            // The victim's killed-by record (the stats family audit — the
+            // light damage-tracker stand-in): a MOB shooter's landed arrow
+            // or fireball wounds the body, so a death inside the tracker's
+            // own staleness window pays the entityKilledBy row at the death
+            // walk. A player shooter records nothing — players are not in
+            // the spawn-egg band, exactly the reference's own consult.
+            if (shooterId > 0 && mobManager != null) {
+                for (MobEntity shooterMob : mobManager.all()) {
+                    if (shooterMob.entityId() == shooterId) {
+                        victim.noteMobAttacker(shooterMob.type(), world.totalTicks());
+                        break;
+                    }
+                }
+            }
             // The damage-taken exhaustion (reference PlayerEntity line 856:
             // addFatigue(source.getExhaustion()) inside the damage != 0
             // gate): the arrow and the fireball are indirect ENTITY sources
@@ -19966,6 +20180,11 @@ public final class EngineServer implements Server, EngineBridge {
             // 1943-1947), so a killing blow still retaliates through the
             // worn pieces before death scatters them.
             ItemStack[] thornsRow = target.inventory().armorStacks();
+            // The victim's killed-by record (the stats family audit — the
+            // light damage-tracker stand-in): the melee mob wounds the body,
+            // so a death inside the tracker's own staleness window pays the
+            // entityKilledBy row at the death walk.
+            target.noteMobAttacker(mob.type(), world.totalTicks());
             damageOnTick(target,
                     applyEnchantProtection(target, applyArmor(target, damage),
                             DamageKind.MELEE),
@@ -20928,6 +21147,9 @@ public final class EngineServer implements Server, EngineBridge {
                 listener.onMobGuardianLaserHit(mob, target, magicDamage, meleeDamage);
             }
             String cause = "was slain by " + titledMobName(mob);
+            // The victim's killed-by record (the stats family audit — the
+            // light damage-tracker stand-in over both halves of the beam).
+            target.noteMobAttacker(mob.type(), world.totalTicks());
             // The hard-difficulty bump (+2.0F on the magic half — the
             // reference's own arm; the difficulty id: 3 = hard).
             float magic = magicDamage
