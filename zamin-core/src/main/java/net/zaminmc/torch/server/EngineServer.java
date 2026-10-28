@@ -7463,6 +7463,17 @@ public final class EngineServer implements Server, EngineBridge {
                 }
                 return;
             }
+            // The milk bucket (MilkBucketItem.startUsing): the drink rides
+            // the potion family's own 32-tick clock with NO canEat consult
+            // of its own — the item's startUsing sets the item-in-use
+            // outright, so milk begins at ANY hunger (even full; the
+            // FoodItem gate and the always-edible row play no part here),
+            // and the creative hand too (the guard lives at the
+            // completion's stack payment, not the start).
+            if (held.type().equals(BuiltinItems.MILK_BUCKET)) {
+                session.beginDrinking();
+                return;
+            }
             // The spawn egg's in-air use (Slice 20a — SpawnEggItem.
             // startUsing lines 94-131): the crosshair's liquid target is
             // the only in-air spawn — the crosshair's solid target belongs
@@ -7556,9 +7567,9 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /**
-     * The client released a use (dig status 5): an unfinished eat cancels; a
-     * finished one was already applied by the tick timer; a drawn bow fires.
-     * Safe from any thread.
+     * The client released a use (dig status 5): an unfinished eat or drink
+     * cancels; a finished one was already applied by the tick timer; a drawn
+     * bow fires. Safe from any thread.
      */
     @Override
     public void releaseUsingItem(PlayerSession session) {
@@ -7568,6 +7579,15 @@ public final class EngineServer implements Server, EngineBridge {
                 if (session.eatingTicks() < Foods.EAT_TICKS) {
                     session.cancelEating(); // released early: the historical cancel
                 }
+                return;
+            }
+            // The drink window rides the same release law (PlayerEntity.
+            // stopUsingItem's unconditional clearItemInUse — the eat and
+            // the drink windows BOTH clear on the release gesture; the
+            // milk audit caught the potion family never cancelling: a
+            // released-early drink ran to completion server-side).
+            if (session.drinking()) {
+                session.cancelDrinking();
                 return;
             }
             if (session.bowCharging()) {
@@ -7691,8 +7711,9 @@ public final class EngineServer implements Server, EngineBridge {
             return;
         }
         var held = session.inventory().held();
-        if (held.isEmpty() || !held.type().equals(BuiltinItems.POTION)
-                || net.zaminmc.torch.server.potion.PotionHelper.isSplashPotion(held.damage())) {
+        boolean milk = !held.isEmpty() && held.type().equals(BuiltinItems.MILK_BUCKET);
+        if (held.isEmpty() || (!milk && (!held.type().equals(BuiltinItems.POTION)
+                || net.zaminmc.torch.server.potion.PotionHelper.isSplashPotion(held.damage())))) {
             session.cancelDrinking(); // the hand changed mid-drink
             return;
         }
@@ -7709,6 +7730,33 @@ public final class EngineServer implements Server, EngineBridge {
         session.cancelDrinking();
         fxManager.sound(mouthPosition(session), "random.drink", 0.5f,
                 fxRandom.nextFloat() * 0.1f + 0.9f, session.dimension());
+        if (milk) {
+            // MilkBucketItem.finishUsing: the creative hand keeps the stack
+            // (the guard ahead of the decrement), the effects clear
+            // server-side (clearStatusEffects — the item's whole purpose),
+            // and the LAST unit answers the empty bucket through the hand
+            // slot itself (finishUsingItem's returned-stack write: the
+            // bucket replaces the emptied hand; a stacked milk drinks on
+            // WITHOUT the bucket — the remainder fires only at size 0).
+            // The use stat lands for creative too (the increment ahead of
+            // the return); no burp — that is FoodItem's own completion
+            // law, and no nutrition — the drink pays nothing but the
+            // effect clear.
+            if (session.gamemode() != GameMode.CREATIVE) {
+                if (held.count() == 1) {
+                    session.inventory().setSlot(session.inventory().heldSlot(),
+                            ItemStack.of(BuiltinItems.BUCKET, 1));
+                } else {
+                    session.inventory().consumeHeld(1);
+                }
+            }
+            potionSystem.clear(session);
+            session.stats().increment(net.zaminmc.torch.server.stat.EngineStats
+                    .useItemOf(BuiltinItems.MILK_BUCKET.identifier()), 1);
+            publishInventoryChanged(session);
+            publishBodyChanged(session);
+            return;
+        }
         int metadata = held.damage();
         session.inventory().consumeHeld(1);
         potionSystem.finishDrinking(session, metadata);
@@ -14869,6 +14917,35 @@ public final class EngineServer implements Server, EngineBridge {
             player.inventory().damageHeld(1, gameplayRandom); // the shears wear
             publishInventoryChanged(player);
             fxManager.sound(at, "mob.sheep.shear", 1.0f, 1.0f, mob.dimension());
+            return;
+        }
+        // The cow family's milk arm (CowEntity.interactMob lines 95-106):
+        // the empty bucket on an ADULT — the baby and the creative hand
+        // both refused outright (the reference's own guard pair ahead of
+        // the fill), the size-- == 1 idiom the mooshroom's stew arm
+        // shares (the single bucket becomes the milk in the hand outright;
+        // the stacked pair consumes one, then the milk adds through the
+        // pickup — or drops at a full inventory), and the arm consumed
+        // the click (interactMob's true — the feeding walk never runs).
+        // The mooshroom inherits the arm whole (its interactMob's super
+        // call at the foot — the bowl and the shears run first, then the
+        // cow's own milk).
+        if ((mob.type() == MobType.COW || mob.type() == MobType.MOOSHROOM)
+                && heldId.equals("minecraft:bucket")
+                && player.gamemode() != GameMode.CREATIVE
+                && !mob.isBaby()) {
+            if (held.count() == 1) {
+                player.inventory().setSlot(player.inventory().heldSlot(),
+                        ItemStack.of(BuiltinItems.MILK_BUCKET, 1));
+            } else {
+                player.inventory().consumeHeld(1);
+                ItemStack leftover = player.inventory().pickUp(
+                        ItemStack.of(BuiltinItems.MILK_BUCKET, 1));
+                if (!leftover.isEmpty()) {
+                    throwFromPlayer(player, leftover);
+                }
+            }
+            publishInventoryChanged(player);
             return;
         }
         // The sheep's shears (EntitySheep.interactMob: the shears arm runs
