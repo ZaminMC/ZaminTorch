@@ -30,12 +30,19 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  *
  * <p>Scope honesty: these rows measure the queue's own face (packets/sec,
  * flush counts, packets-per-flush, queue depth, the p50/p95/p99 dwell the
- * §35.12 latency row tracks). The compression/encryption scenario rows ride
- * the protocol module's wire suites (the queue sits INSIDE the plaintext
- * frame layer by construction — §35.8's boundary — so those arms change the
- * bytes the pipeline sees, never the queue's behavior). The allocation-rate,
- * GC, serialization-CPU, and event-loop-CPU rows stay with the harnesses
- * that own them (the §35.4 pooled decision's before/after among them).</p>
+ * §35.12 latency row tracks) — 8 of the 10 scenarios §35.12 names. The
+ * compression-enabled/disabled and encryption-enabled/disabled rows are
+ * NOT performance-measured anywhere: the queue sits INSIDE the plaintext
+ * frame layer by construction (§35.8's boundary), so the codec arms change
+ * the bytes the pipeline sees but never the queue's behavior — that is the
+ * argued-away layer justification — and the protocol module's wire suites
+ * cover the codecs for CORRECTNESS only (LoginCompressionWireTest,
+ * CompressionCodecTest, TorchEncryptionTest, EncryptionCodecTest carry no
+ * performance assertions). The two rows stand unmeasured, recorded as such
+ * in §29's Wave T-2 row and §22's master line (corrected 2026-10-28). The
+ * allocation-rate, GC, serialization-CPU, and event-loop-CPU rows stay
+ * with the harnesses that own them (the §35.4 pooled decision's
+ * before/after among them).</p>
  */
 class TransportBenchmarkTest {
 

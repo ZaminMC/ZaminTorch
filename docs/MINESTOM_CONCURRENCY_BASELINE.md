@@ -1,5 +1,19 @@
 # Minestom and Execution Baseline
 
+> **SUPERSEDED / HISTORICAL RECORD (marked 2026-10-28; the underlying
+> decision closed 2026-10-22).** This document is the pre-architecture-era
+> baseline reconnaissance. ADR-0001 is CLOSED — Minestom ABANDONED, the
+> owner's final decision (docs/ENGINEERING_PLAN.md §3 +
+> docs/MASTER_LEDGER.md): not deferred, not trigger-armed, never to be
+> integrated. Torch owns its permanent architecture (Torch-Arcetecture.txt
+> §10-§22, implemented under `zamin-core/.../concurrent/`). The "deferred /
+> should be revisited / if integrated later" language this document carries
+> is the pre-closure framing and is void. The document is retained because
+> its Torch-side execution map was the honest starting baseline of the
+> concurrency work — a historical snapshot, not a live claim about the
+> current tree (the module list and component map below predate
+> zamin-transport, zamin-bukkit, and the entire ownership architecture).**
+
 **Status: source reconnaissance; not a full call-site audit.** This document records what was verified on `develop` at the time of inspection. It must be refreshed if the branch changes.
 
 ## Build and dependency evidence

@@ -15,13 +15,23 @@ client can judge rendering, sounds and feel.
    ./gradlew :zamin-launcher:runServer
    ```
    (or launch `zamin-launcher` with a `zamin.properties` — the default port
-   is 25565). The server runs offline-mode, so no Mojang account is needed
-   and the client connects directly.
+   is 25565). **Online mode is the default** (the vanilla dedicated
+   server's own `online-mode=true` law, landed with Wave ON-1: the
+   Encryption Request/Response pair, AES/CFB8 stream encryption, and the
+   Mojang session-server `hasJoined` consult). To validate with a
+   non-authenticated client, set `online-mode=false` in
+   `zamin.properties` before first boot — the offline branch is also the
+   vanilla shape (UUID v3 of `OfflinePlayer:<name>`, no encryption, no
+   session consult).
 2. Launch Minecraft **1.8.8** (the exact version — protocol 47) and add a
    server: `127.0.0.1` (or the host's IP). Multiplayer -> Direct Connect also
    works.
-3. The world is a flat fixture: bedrock at y=0, dirt to y=3, grass at y=4,
-   spawn at (0.5, 5, 0.5). You join in survival on easy difficulty.
+3. The default world is full terrain (`level-type=normal`, the vanilla
+   default; biome layout, surface builders, features, and structures).
+   For the flat fixture instead — bedrock at y=0, dirt to y=3, grass at
+   y=4, spawn at (0.5, 5, 0.5) — set `level-type=flat` in
+   `zamin.properties`. You join in survival on easy difficulty (all
+   operator-path defaults follow the vanilla dedicated server).
 
 ## Join and world
 

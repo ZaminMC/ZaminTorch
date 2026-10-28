@@ -27,7 +27,10 @@ classification contract.
 
 `Equivalent` (behavior + test evidence) · `Partial` · `Missing` ·
 `Different by design` (cite the decision) · `Not applicable` (reason) ·
-`Unverified` (evidence insufficient; resolution procedure given).
+`Unverified` (evidence insufficient; resolution procedure given) ·
+`Covered by the native capability` (a Torch-native implementation serves
+the same aim; linked ledger row RESOLVED — added 2026-10-28 to match the
+P5/M8 rows' own wording).
 
 Applicability is set by the Phase-1 contract: Folia is engineering evidence,
 not a Torch compatibility target (§0 rule 9). So a patch can be
@@ -109,10 +112,10 @@ while still carrying an Adopt/Adapt lesson, or feeding a Torch-native row.
 | Examined and classified | 24 |
 | Equivalent | 0 |
 | Partial | 0 |
-| Missing (Torch-native capability, not compat debt) | 2 files (P5, M8 — one feature: the watchdog → ML-013) |
+| Missing (Torch-native capability, not compat debt) | 0 **(updated 2026-10-28 — the former P5/M8 watchdog gap is RESOLVED: ML-013 landed the reference-shaped ServerWatchdog; the rows below carry the full record)** |
 | Different by design | 10 (A2, A3, A4, P1, P4, P6, M1, M3, M5, M7) |
 | Not applicable | 9 (A1→DEC-002, P2, P3, M9, M10, M11, B1, B2, B3) |
-| Unverified | 3 (M2→ML-014, M4→ML-015, M6→ML-016) |
+| Unverified | 0 **(updated 2026-10-28 — the former three are all RESOLVED: M2→ML-014 measured+bounded, M4→ML-015 verified-as-vanilla+pinned, M6→ML-016 fixed+pinned)** |
 | Files/layers not inspectable | 0 within this archive; the Paper/Spigot/CraftBukkit/Bukkit layers below `paperRef` are not in the archive at all (recorded as a scope boundary, not a coverage gap of the supplied tree) |
 
 Coverage statement: every patch file in the supplied tree is accounted for

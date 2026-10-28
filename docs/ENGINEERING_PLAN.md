@@ -56,19 +56,38 @@ Dependency additions still require the §31 justification rule.
 zamin-launcher  →  zamin-core  →  zamin-api
                        ↑
         zamin-protocol-v1_8_8 (implements engine-facing protocol interfaces)
+                       ↑
+        zamin-transport (the §35 outbound layer the adapter rides)
+
+        zamin-bukkit   (the §28.7 adapter slice — compile-only, NOT wired
+                        into the launcher or the fat jar; deferred per §27.1)
 ```
 
 - `zamin-api` — public, stable developer API. No implementation types, no protocol types, no Netty. Holds: `Server`, `World`, `WorldView`, `Player`, value types (`BlockPosition`, `ChunkPosition`, `Rotation`, `PlayerState`), registry identifiers (`Identifier`, `BlockType`), event interfaces. Deliberately minimal (§369).
-- `zamin-core` — the engine. Owns lifecycle, configuration, logging boundaries, the world model (chunks, block state, flat generation), the player registry, the simulation tick loop, and the port through which protocol adapters attach. Minestom/Netty-free.
-- `zamin-protocol-v1_8_8` — version adapter. Owns the 1.8.8 wire: transport, framing, encryption-free offline login, packet codecs, legacy ID translation. Depends on engine-facing interfaces only.
+- `zamin-core` — the engine. Owns lifecycle, configuration, logging boundaries, the world model (chunks, block state, full terrain generation), the player registry, the simulation tick loop, and the port through which protocol adapters attach. Minestom/Netty-free.
+- `zamin-transport` — the outbound transport layer (architecture §35, Wave T-1): the `EncodedPayload` encode-once primitive, the per-connection `OutboundQueue` with its coalesced drain, and `TransportMetrics` (dwell percentiles, flush counts, the wedged-loop ceiling). PLAY-state traffic only — LOGIN and STATUS stay direct adapter writes (§35's state boundary).
+- `zamin-protocol-v1_8_8` — version adapter. Owns the 1.8.8 wire: framing, packet codecs, legacy ID translation, the login family whole (offline AND online mode — the encryption pair and session-service consult landed with Wave ON-1, compression exchange with ON-1a; see §5 below), and the compression/encryption codecs the wire arms install. Depends on engine-facing interfaces only.
+- `zamin-bukkit` — the §28.7 Bukkit/Spigot/Paper compatibility adapter's first slice (plugin lifecycle + event + scheduler bridges translated onto the native §27 surfaces). Compile-only against the Spigot API artifact; deliberately not wired into the runtime distribution — the adapter era is deferred per §27.1 and DEC-002 (stay native).
 - `zamin-launcher` — `main()`. Composes configuration → engine → protocol adapter → start. Contains no logic.
 
-Dependency rules enforced: API never depends on core/adapters; core never depends on protocol; adapters depend on core+API. No cycles (§43/§44).
+Dependency rules enforced: API never depends on core/adapters; core never depends on protocol; adapters depend on core+API; zamin-transport carries no protocol or engine types (the §35.8 boundary). No cycles (§43/§44). The module list derives from `settings.gradle.kts` (six modules; verified 2026-10-28).
 
 ## 5. 1.8.8 protocol strategy
 
 - Connection state machine: `HANDSHAKE → (STATUS | LOGIN) → PLAY` with explicit per-state accepted packets (§67, §514). Invalid packets in a state disconnect the client; gameplay never sees raw packets.
-- Offline-mode login: `Login Start` → `Login Success` (UUID v3 of `"OfflinePlayer:" + name`, matching historical behavior). Encryption not implemented (offline); compression disabled at first, threshold introduced when measured necessary.
+- Login (both branches implemented, Wave ON-1, DEC-001 executed whole):
+  - **Offline mode** (`online-mode=false`): `Login Start` → `Login Success`
+    (UUID v3 of `"OfflinePlayer:" + name`, matching historical behavior),
+    no encryption, no session consult.
+  - **Online mode** (the operator default, `online-mode=true` — the vanilla
+    `DedicatedServer` line 103 law): `Login Start` → `Encryption Request` →
+    `Encryption Response` (the shared-secret/token exchange, RSA/OAEP) →
+    the Mojang session-server `hasJoined` consult (the real HTTPS call) →
+    `Set Compression` (when the threshold is enabled; vanilla default 256,
+    `MinecraftServer` line 1122) → `Login Success` (with the authenticated
+    profile and its signed texture properties riding the tab list).
+    The AES/CFB8/NoPadding stream pair installs after the exchange, exactly
+    the reference's codec order.
 - All wire handling stays in the adapter: VarInt framing, packet IDs, chunk binary format (1.8 layout: 16 sections × 4096 legacy block IDs + full skylight), legacy numeric block IDs as *translation data* (§579), not engine identifiers.
 - Engine-facing intents: the adapter translates packets into engine operations (`join`, `move`, `look`, `keep-alive response`, later `place/break`). Engine results translate back through a `ProtocolAdapter` into version-specific frames.
 
@@ -1053,4 +1072,9 @@ with JUL retained as the logging source of truth — no Log4j2, no TerminalConso
 
 - Q1: Can the 1.8.8 chunk serializer be produced incrementally (per-section) to avoid full-chunk copies? → measure at multiplayer slice.
 - Q2: Where exactly does the engine tick boundary sit vs. immediate world mutation (§534)? → decide at block-update slice.
-- Q3: Minestom re-evaluation triggers: which milestone first *needs* its instance/registry infrastructure? → modern-protocol milestone.
+- Q3: ~~Minestom re-evaluation triggers~~ SUPERSEDED (2026-10-22, ADR-0001
+  CLOSED — abandoned, the owner's final decision; the question is retired
+  with it. Torch owns its permanent architecture; no milestone ever needs
+  Minestom's infrastructure. The historical question this row recorded —
+  which milestone first needs instance/registry infrastructure beyond the
+  engine's own — remains answered by Torch-native work only.)

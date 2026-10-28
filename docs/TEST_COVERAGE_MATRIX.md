@@ -2,24 +2,53 @@
 
 Cycle-4 exhaustive-audit deliverable. Maps requirement families to the
 tests that establish them, distinguishes coverage states, and names the
-missing evidence. Test census (mechanical recount 2026-10-27, post
-Waves ML13/TF/TF-7/ON-1/TF-8 — classes containing @Test methods, the
-@Test-occurrence convention reproducible via `git grep -c "@Test"`):
-**496 test classes / 2841 @Test methods** (core 403/2448, protocol
-70/253, launcher 10/53, bukkit 9/68, api 4/19). The prior row's 2718
-carried a non-reproducible method count (the 2026-10-26 session's own
-convention) — superseded by this recount; the class counts agree
-throughout.
+missing evidence. Test census (recount 2026-10-28 at fc756ded, post the
+full transport lane T-1..T-4 — three conventions distinguished, because
+the 2026-10-27 row's `git grep -c "@Test"` number counts raw @Test-line
+occurrences INCLUDING javadoc/comment mentions, not declared methods):
+
+- **Declared test methods** (line-anchored `@Test` annotations):
+  **2,771** across **505 test classes** — core 408/2411, protocol
+  71/215, transport 3/21, launcher 10/53, bukkit 9/52, api 4/19.
+- **Raw @Test-line occurrences** (the 2026-10-27 convention, incl.
+  comments): 2,886 — core 2469, protocol 256 (72 files), bukkit 68 — the
+  prior row's "2841 methods" was this convention at an earlier tree
+  state, not a method count.
+- **Executed and passed** (fresh batched sweep this session, JUnit XML):
+  **2,772 executed / 2,770 passed / 2 failed** (api 19/0, transport
+  21/0, core 2412/1, protocol 215/1, bukkit 52/0, launcher 53/0). Both
+  failures are load flakes, green in isolation on immediate rerun
+  (SpawnEggTest.theEggRetypesTheSpawnerAndTheUnknownIdClearsIt;
+  MobIntegrationTest.mobsSpawnMoveFightAndLootOverTheWire) — see the
+  flake list below. The +1 executed-vs-declared in core is an unexplained
+  batched-read artifact (no test templates, no inheritance, no mid-line
+  annotations found); recorded rather than rounded away.
+
+The prior 2026-10-27 census (496 classes / "2841 methods") predates the
+transport waves and used the raw-occurrence convention; superseded by
+this recount.
 
 ## The suite's shape
 
 | Module | Classes | Established by (representative, per compat ledger + §29) |
 |---|---|---|
-| zamin-core | 403 | the per-slice behavioral tests every §29 wave cites (reference-shadow sweeps, formula pins, round trips) |
-| zamin-protocol-v1_8_8 | 70 | wire conformance (Protocol18ConformanceTest, VanillaParityIntegrationTest, TestClient18) + the Wave ON-1 login families (LoginCompressionWireTest 5, CompressionCodecTest 8, TorchEncryptionTest 8, EncryptionCodecTest 3, SessionProfileParserTest 11, MojangSessionServiceTest 5, OnlineLoginWireTest 6) |
+| zamin-transport | 3 (21 tests) | the §35 queue laws (OutboundQueueTest) + the §35.12 benchmark matrix (TransportBenchmarkTest) + the §35.4 allocation harness (PacketAllocationBenchmarkTest) |
+| zamin-core | 408 (2411 methods) | the per-slice behavioral tests every §29 wave cites (reference-shadow sweeps, formula pins, round trips) |
+| zamin-protocol-v1_8_8 | 71 (215 methods) | wire conformance (Protocol18ConformanceTest, VanillaParityIntegrationTest, TestClient18) + the Wave ON-1 login families (LoginCompressionWireTest 5, CompressionCodecTest 8, TorchEncryptionTest 8, EncryptionCodecTest 3, SessionProfileParserTest 11, MojangSessionServiceTest 5, OnlineLoginWireTest 6) |
 | zamin-launcher | 10 (53 tests) | console contract (ADR-21 list) |
-| zamin-bukkit | 9 (68 tests) | the honest-shim event bridges (deferred adapter's test-first core) |
+| zamin-bukkit | 9 (52 methods; 68 raw @Test-line occurrences) | the honest-shim event bridges (deferred adapter's test-first core) |
 | zamin-api | 4 | the §27.10 capability tests (no-cast law) |
+
+Observed-once load flakes from the 2026-10-28 local sweep (all green in
+isolation on immediate rerun; none yet added to the CI retry list, which
+still names LifecycleEvent/HopperSystem/HopperWindow):
+RangedCombatAcceptanceTest.theBowDrawsConsumesAnArrowAndFiresASpeedScaledArrow,
+MultiplayerSleepAcceptanceTest.theMorningWaitsForEverySleeperThenWakesThemAll,
+SpawnEggTest.theEggRetypesTheSpawnerAndTheUnknownIdClearsIt,
+DonkeyChestIntegrationTest.chestedDonkeyOpensThe53SlotWindowAndStoresStacks,
+MobIntegrationTest.mobsSpawnMoveFightAndLootOverTheWire — all five are
+await/timing-shaped (draw charge, tick waits, movement sync), the
+known flake class of this suite on a loaded host.
 
 CI: `release.yml` runs build + full suite with ONE retry whose documented
 flake list names LifecycleEvent/HopperSystem/HopperWindow — the 2026-10-22

@@ -239,6 +239,66 @@ I=infra/CI/release, S=security/boundary.
   serialization has no dedicated profiler section — NEW ROW ML-024 below.
 - Status: RESOLVED (landed).
 
+### ML-004 — the chest slot-27 rejection lead (cycle-3 B-2): dispositioned
+- Category: vanilla-parity verification (the confirm-transaction law).
+  Layers: P, V. Severity: L-M.
+- Original lead (cycle-3 B-2, 2026-10-24 instrumentation rider): a chest
+  window's slot-27 mode-1 click rejected once, state-dependent, never
+  reproduced; every refused window click now logs its wire context + the
+  named refusing gate at FINE (WindowClickRejectionInstrumentationTest 4/0).
+- Investigation (2026-10-28, the documentation-convergence pass) — three
+  findings:
+  1. THE REJECTION EVENT ITSELF IS EXPECTED WIRE BEHAVIOR under a
+     client/server model divergence; the reference rejects identically.
+     Evidence: `ServerPlayNetworkHandler.handleInventoryMenuClickSlot`
+     (reference lines 778-812) accepts iff `ItemStack.matches(packet's
+     claimed item, the server's onClickSlot result)`; the client's claimed
+     item IS its own predicted result (`ClientPlayerInteractionManager.
+     clickSlot` lines 365-370 runs the same walk client-side); for a
+     QUICK_MOVE on an empty slot `InventoryMenu.onClickSlot` returns null
+     on both sides (`quickMoveItem` returns the slot's item — null when
+     empty). When the models diverge (the client believes the slot holds
+     the stack, the server's slot is empty) the predictions mismatch and
+     the reference answers confirm=false + a full menu resync — that
+     rejection IS the vanilla healing mechanism. The lead's original
+     "wire defect candidate" framing is invalidated as a standalone claim;
+     the B-2 abort severity was partly client-side (mineflayer treats
+     confirm=false as fatal; the vanilla client resyncs and continues).
+  2. THE UNDERLYING DIVERGENCE CAUSE remains unresolved: where the
+     /give'd stack landed engine-side vs what the Set Slot stream told the
+     client was never deterministically reproduced. Disposition: unresolved
+     behavior, bounded and instrumented — the next occurrence names its
+     gate at FINE.
+  3. A CONFIRMED DIVERGENCE surfaced by the investigation: seven container
+     arms reject an empty-PLAYER-side-slot shift-click where the reference
+     accepts it as a confirmed no-op. Evidence: `EngineServer.
+     clickChestWindowOnTick` line 9102 (`peek.isEmpty() → return false`)
+     and the same shape at lines 8734 (hopper), 9197 (ender chest), 9419
+     (dispenser), 9536 (brewing stand), 15044 (chest minecart), 15164
+     (hopper minecart) — `return false` answers confirm=false + resync.
+     The reference accepts (both sides predict null → match); Torch's own
+     player-window arm (lines 8324-8328) and the crafting-table/furnace
+     arms already accept. Deterministically reproducible today: open a
+     chest, shift-click any empty slot of your own inventory area →
+     confirm=false + a full window resync where the reference sends
+     confirm=true and nothing else.
+- Architectural note: the adapter parses the click's claimed stack and
+  discards it (`V18Connection.readClaimedSlot`, line 1211 — "the client's
+  predicted stack: informational only"), so the reference's
+  prediction-match law cannot be implemented without threading the
+  claimed stack through the adapter boundary. The engine decides
+  acceptance from its own semantics alone.
+- Direction (smallest fix): the seven arms accept the no-op — mirror the
+  player-window arm's shape (run the no-op quick-move, return true). The
+  full-vanilla prediction-match law is the larger shape, demand-named.
+- Acceptance: a wire test — chest window open, shift-click an empty
+  player-side slot → Confirm Transaction accepted=true, no resync; the
+  seven arms swept in one parametrized pass.
+- Status: DISPOSITIONED 2026-10-28 (the event = expected-under-divergence;
+  the divergence cause = unresolved/instrumented; the seven-arm empty-slot
+  rejection = CONFIRMED DIVERGENCE, fix deferred to the next-slice
+  decision — no implementation during the documentation phase).
+
 ## Low / papercuts (carried from cycle 3, verified standing)
 
 ### ML-008 — /give form divergence (record-or-align decision)
@@ -280,6 +340,27 @@ I=infra/CI/release, S=security/boundary.
 - Acceptance: CLI override honored or refused loudly; disconnect path logs
 - Resolution (2026-10-23, the coordinator-reviewed wave-3 merge): (a) --port honored with CLI > properties > default precedence (StartupArguments; malformed fails boot loudly; never written back); (b) the IOException family answers one quiet disconnect line — the ReadTimeout reap rides the same quiet law, first in the hand (netty's own subtype order). DisconnectClassificationTest 2/0, 3x green after the review correction (the reason pin relaxed to the quiet family's either delivery — a reset arrives as either the IOException form or a plain channelInactive).
 - Status: RESOLVED (landed, PR #43).
+
+### ML-025 — /tps prints 1m/5m/15m labels over the 1m window (diagnostics honesty)
+- Category: diagnostics defect. Layers: T. Severity: L.
+- Evidence (found by the 2026-10-28 Folia comparison pass; verified in
+  source): the /tps command formats "TPS from last 1m, 5m, 15m" over
+  `ticker.averageTps(60)`, `ticker.averageTps(Math.min(60, 300))` and
+  `ticker.averageTps(Math.min(60, 900))` — both Math.min calls clamp to
+  60, and `EngineTicker`'s `tpsWindow` retains only
+  `TPS_WINDOW_SECONDS = 60` entries anyway. All three printed values are
+  the same 60-second average; the 5m/15m labels are fiction. (The
+  reference server has no /tps; Paper's is 1m/5m/15m, Folia's per-region
+  5s/15s/1m/5m/15m — Torch's own command must at least report windows it
+  actually holds.)
+- Direction (smallest fix): either extend the retained window to 900s (a
+  900-entry ring of long[2] — trivial memory) and drop the Math.min
+  clamps, or print only the honest 1m value.
+- Acceptance: a unit test over the window math at 61s/300s/900s of
+  synthetic second-stamps; the command's output matches the windows it
+  names.
+- Status: OPEN (confirmed, small; not implemented during the
+  documentation phase).
 
 ## Torch-native capabilities surfaced by the fork audit
 

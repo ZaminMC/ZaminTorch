@@ -1,6 +1,17 @@
 # Torch Concurrency Decisions and Rollout (Proposal)
 
-**Status: proposed; awaiting architecture review.** Companion to [`CONCURRENCY_ARCHITECTURE.md`](CONCURRENCY_ARCHITECTURE.md) (the design), [`FOLIA_FORENSIC_AUDIT.md`](FOLIA_FORENSIC_AUDIT.md) (the Folia evidence), and [`MINESTOM_CONCURRENCY_BASELINE.md`](MINESTOM_CONCURRENCY_BASELINE.md) (the Torch baseline). This document carries the three deliverables that belong outside the design core: the explicit comparison, the architecture decision records, and the phased rollout.
+> **STATUS UPDATE (2026-10-28, the documentation-convergence pass): the
+> decision records below are CLOSED in the sense that the core architecture
+> they decided for is IMPLEMENTED (see Torch-Arcetecture.txt §10-§22 and
+> `zamin-core/.../concurrent/` — ownership domains, scheduler, worker pool,
+> compute subsystem, router, migration, region partition, IO lane, save
+> pipeline; the rollout phases that remain open are tracked in §22's
+> per-phase status rows: Phase 6 further parallel lanes gated, Phase 7
+> optimization lanes gated on evidence, Phase 8 not started). ADR-0001/20
+> (Minestom) is closed permanently — see the closure note at ADR-20. This
+> document is the decision HISTORY; §22 is the live status authority.**
+
+**Status: proposed; awaiting architecture review. (Historical banner — see the status update above.)** Companion to [`CONCURRENCY_ARCHITECTURE.md`](CONCURRENCY_ARCHITECTURE.md) (the design), [`FOLIA_FORENSIC_AUDIT.md`](FOLIA_FORENSIC_AUDIT.md) (the Folia evidence), and [`MINESTOM_CONCURRENCY_BASELINE.md`](MINESTOM_CONCURRENCY_BASELINE.md) (the Torch baseline). This document carries the three deliverables that belong outside the design core: the explicit comparison, the architecture decision records, and the phased rollout.
 
 Every decision below names its evidence and the experiment that would reopen it. No decision describes implemented behavior; Torch currently runs the single-domain engine documented in the baseline.
 
@@ -109,9 +120,12 @@ Format: decision, alternatives rejected, rationale, operational consequence, ris
 ### ADR-19. Performance measurement = workload matrix before claims
 - The eight workloads from the design doc (§11) each get a reproducible scenario; no scalability claim ships without its measurement. This ADR exists to make "no speculative performance promises" enforceable in review.
 
-### ADR-20. Minestom compatibility = no dependency today (ADR-0001 stands)
+### ADR-20. Minestom compatibility = no dependency today (ADR-0001 stands) — **SUPERSEDED: ADR-0001 CLOSED 2026-10-22**
 - The baseline verified no Minestom dependency; the concurrency architecture does not change that. Reconsider only with concrete protocol/world integration evidence, as recorded in the design doc's decision table.
 - **Revisit note (2026-10-20):** the §22 roadmap pass re-evaluated ADR-0001 against the current tree — DEFER STANDS. The engine still serves one protocol (47), no modern-client requirement exists on record, both original blockers (single-version modern codec, the second-world-model risk) are unchanged, and the modern-protocol milestone — the revisit's own condition — is not yet armed by any demand. The explicit arming triggers (a modern-client join requirement; a spigot-api-unbridgeable adapter gap; a multi-protocol shared-world requirement) are recorded in `docs/ENGINEERING_PLAN.md` §3 so no future session starts `zamin-minestom` speculatively.
+- **CLOSURE (2026-10-22): ADR-0001 is CLOSED — ABANDONED, the owner's final decision.** The 2026-10-20 revisit note above is a historical record: its DEFER framing and its three arming triggers are RETIRED with the closure — no trigger can arm a `zamin-minestom` module again, and no reconsideration condition exists. Torch owns its permanent architecture. The authoritative record: `docs/ENGINEERING_PLAN.md` §3 ("ADR-0001 — ABANDONED, owner's final decision") + `docs/MASTER_LEDGER.md`. This ADR-20 row is retained as the decision history; its live successor statement is simply "no Minestom, ever."
+
+### ADR-21. The interactive console = JLine 3 behind a Torch adapter, JUL retained (architecture §30)
 
 ### ADR-21. The interactive console = JLine 3 behind a Torch adapter, JUL retained (architecture §30)
 - **Decision.** The launcher's terminal console uses JLine 3.26.3 (terminal + reader, one aligned version) with exactly ONE provider — Jansi (jline-terminal-jansi) — pinned centrally in `gradle/libs.versions.toml`. JUL stays the logging source of truth; no Log4j2, no TerminalConsoleAppender (it is a Log4j2 appender and would force a logging-backend migration to adopt). The adapter lives at the launcher boundary (`launcher/console/`): it owns terminal I/O, rendering, history, and completion presentation only.

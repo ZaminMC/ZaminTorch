@@ -30,7 +30,7 @@ here; a row leaves the table the moment its work lands.
 | Feature | Status |
 |---------|--------|
 | Wither's conditional exemption arms (spawner / cobweb / fall-damage / light-level / armor-protection / no-riding) | pending — each arm rides its own family's slice, tracked as that family lands |
-| Concurrency Phase 5 — the lighting batch's parallel wiring | pending — gated on measured profiling wins (§22) |
+| Concurrency Phase 5 — the lighting batch's parallel wiring | landed but gated OFF by default (`torch.parallel-pregen-light`) — the measured win stands (1.4-1.6x at the boot shape after the storm fix); the gate retires on the lane's own evidence (§22) |
 | Concurrency Phase 6 — further parallel per-region gameplay lanes beyond the random-tick lane | pending — each lane gated on its own evidence (§22) |
 | Concurrency Phase 7 — the heavy-owner optimization lanes | pending — the profiling opener landed; each optimization stays gated on the §22 evidence bar |
 | Concurrency Phase 8 — adaptive balancing (dynamic split/merge, load-driven migration with in-flight tasks, telemetry, anti-oscillation rules) | not started |
@@ -39,7 +39,8 @@ here; a row leaves the table the moment its work lands.
 
 This table is the complete pending list — kept current as work lands, and
 nothing leaves it without an automated test proving the landing. Verified
-against the code on 2026-10-23.
+against the code on 2026-10-28 (the transport waves T-1..T-4 landed since
+the prior verification and none of them was a pending row).
 
 ## Downloading a dev build (no build tools needed)
 
@@ -94,8 +95,19 @@ its push's release to the next push.
 
 - `zamin-api` — the stable public API for plugins. No implementation types.
 - `zamin-core` — the engine: lifecycle, world model, players, simulation.
-- `zamin-protocol-v1_8_8` — the 1.8.8 protocol adapter (wire handling only).
+- `zamin-transport` — the outbound transport layer (architecture §35): the
+  encode-once payload primitive, the per-connection outbound queue with its
+  coalesced drain, and transport metrics.
+- `zamin-protocol-v1_8_8` — the 1.8.8 protocol adapter (wire handling,
+  compression, encryption, session authentication).
+- `zamin-bukkit` — the §28.7 Bukkit/Spigot compatibility adapter's first
+  slice (plugin lifecycle + event + scheduler bridges over the native
+  surfaces). Deliberately not wired into the launcher or the fat jar; the
+  adapter era stays deferred per §27.1 and DEC-002.
 - `zamin-launcher` — bootstrap entry point.
+
+The module list derives from `settings.gradle.kts` (six modules at the
+2026-10-28 verification).
 
 ## License
 

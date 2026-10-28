@@ -12,18 +12,56 @@ Reference inventories derived mechanically from `reference/1.8.8/` this
 cycle (entity/block/item/packet/effect class censuses); engine side from
 `zamin-core`/`zamin-protocol-v1_8_8` source.
 
+## The verification layers (what "triple verification" means here)
+
+The repository validates 1.8.8 behavior through three independent
+layers, plus a human fourth (defined in `MANUAL_CLIENT_VALIDATION.md`,
+reconciled 2026-10-28):
+
+1. **Reference-shadow unit and engine tests** — the 2,771-test suite.
+   The oracle is the reference source under `reference/1.8.8/` itself:
+   every mechanics test pins formulas, constants, order, and edge cases
+   extracted from that source (the per-slice "reference lines X-Y" cites
+   throughout the compat ledger). Independence: the oracle is a
+   decompilation of the actual game, not Torch's own understanding.
+2. **Real-socket integration tests** — the scripted 1.8.8 client
+   (`TestClient18` and the wire suites) over an actual TCP socket
+   against the in-JVM engine. Independence: the bytes cross a real
+   transport and are re-parsed frame-by-frame — but the parser is
+   project-authored, so a shared misconception between the wire writer
+   and the test parser would pass this layer.
+3. **mineflayer as an independent protocol peer** —
+   `scripts/validate-1.8.8.js` drives the packaged server with the
+   PrismarineJS community client implementation: login, chat,
+   dig/pickup, placement, containers, furnace smelting, mob AI/combat/
+   loot, the light engine through parsed chunk data, item NBT.
+   Independence: a third-party protocol implementation with its own
+   parser — the strongest automated signal (this is the layer that
+   caught ML-021, the 0x0C uuid-as-string defect the project's own
+   parser tolerated).
+
+**Disagreement resolution law** (established by ML-021's full loop): an
+independent parser failure is NOT proof Torch is wrong — the resolution
+is byte-level capture of the failing frames + a botless pin of the
+engine's encoding against the reference wire form; whichever side
+mismatches the reference gets the fix, and the exoneration is recorded
+with evidence if the third-party parser was at fault. The human layer
+(the real Mojang client) is the final authority for rendering, sounds,
+and feel, and holds veto over every "VERIFIED-EQ" claim in this matrix
+through the manual checklist.
+
 ## A. Protocol (domain A)
 
 | Family | Reference census | Engine state | Coverage |
 |---|---|---|---|
 | C2S packets | 28 classes (1 handshake, 2 query, 2 login, 23 play) | 31 constants; 28/28 mapped 1:1 (all 23 play + handshake + query pair + LOGIN_START + LOGIN_ENCRYPTION_RESPONSE) | VERIFIED-EQ — the KeyC2S (encryption response) arm landed with Wave ON-1b (5f0d77e1); ML-020 RESOLVED |
-| S2C packets | 77 classes (3 login, 2 query, 72 play) | 69 constants, all IDs verified against protocol 47 | PARTIAL — absent: 0x20 Entity Properties (ML-011), 0x36 Sign Editor Open (ML-003), 0x0A Use Bed (ML-010), 0x41 Server Difficulty (ML-012), 0x43 Camera (ML-018), 0x48 Resource Pack Send (ML-017), 0x22 Multi Block Change + 0x26 Chunk Bulk (ML-019, batching only); the login family is WHOLE (0x01 Encryption Request + 0x03 Set Compression landed with Waves ON-1a/ON-1b) |
+| S2C packets | 77 classes (3 login, 2 query, 72 play) | 77 constants (the full census, `Protocol18`), all IDs verified against protocol 47; every writer wired | VERIFIED-EQ at the constants/writer level — the eight former absences all landed and closed their ledger rows (2026-10-23/24, PRs #39-#44 + #50): 0x20 Entity Properties (ML-011: the trackable pair, the reference's isTrackable law), 0x36 Sign Editor Open (ML-003), 0x0A Use Bed (ML-010), 0x41 Server Difficulty (ML-012), 0x43 Camera (ML-018), 0x48 Resource Pack Send (ML-017), 0x22 Multi Block Change + 0x26 Chunk Bulk (ML-019, the batching forms); the login family is WHOLE (0x01 Encryption Request + 0x03 Set Compression landed with Waves ON-1a/ON-1b). Constants-and-writers is the coverage claim — per-packet behavioral depth stays in the compat ledger |
 | Handshake/login/status | handshake → status/login state machine | `V18Connection` state switch + the login stage machine (HELLO-KEY-AUTHENTICATING-READY) | VERIFIED-EQ (both branches: the online arm's encryption + consult + exchange landed with Waves ON-1a/ON-1b, offline stays as the online-mode=false branch) |
 | Keepalive/latency | KeepAlive both ways | C2S/S2C KEEP_ALIVE wired | VERIFIED-EQ (timeout behavior remainder R-4) |
 | Movement sync | Entity 0x14 + rel/look/teleport/head | all five constants + writers | VERIFIED-EQ |
-| Metadata/equipment/effects | 0x1C/0x04/0x1D/0x1E | all wired | VERIFIED-EQ (0x0C metadata encoding suspect — ML-003 cycle-3 lead, wire bytes never captured) |
-| Chunk/block sync | 0x21 chunk data, 0x23 block change, 0x24 action, 0x25 break anim, 0x35 BE update | all wired (single-update form) | VERIFIED-EQ minus batching (ML-019) |
-| Inventory windows | open/close/set-slot/items/property/confirm | all wired | VERIFIED-EQ (slot-27 rejection unverified — ML-004) |
+| Metadata/equipment/effects | 0x1C/0x04/0x1D/0x1E | all wired | VERIFIED-EQ (the former 0x0C metadata suspect — the cycle-3 PartialReadError lead, later ML-021 — RESOLVED 2026-10-23 as a real engine defect: the 0x0C uuid was written as a length-prefixed string instead of 16 raw bytes; fixed, byte-captured, and pinned by DataWatcherWirePinTest; mineflayer's parser was right) |
+| Chunk/block sync | 0x21 chunk data, 0x23 block change, 0x24 action, 0x25 break anim, 0x35 BE update | all wired; both batching forms landed (0x22 multi-block change at the flush, up to 64 same-chunk records; 0x26 chunk bulk at the view walks with the 1.8.8 sky-light column carry — Wave W6, PR #50) | VERIFIED-EQ (ML-019 RETIRED — MultiBlockChangeWireTest + ChunkBulkWireTest) |
+| Inventory windows | open/close/set-slot/items/property/confirm | all wired | VERIFIED-EQ with one named divergence (ML-004, dispositioned 2026-10-28: seven container arms reject an empty-player-slot shift-click where the reference accepts it as a confirmed no-op — the confirm-transaction criterion diverges; see the ledger row for the evidence and the bounded fix) |
 | Player list/chat/tab | 0x30 PlayerInfo (via PLAYER_INFO), 0x3A tab-complete, header/footer | wired; the ADD_PLAYER carries the profile's signed properties (the textures row online, count 0 offline) | VERIFIED-EQ (the properties lane landed with Wave ON-1d) |
 | Plugin messages | 0x3F/0x17 | wired (MC|TrList rides it) | VERIFIED-EQ |
 | Scoreboard | objective/score/display/teams | all wired | VERIFIED-EQ |
@@ -38,12 +76,12 @@ cycle (entity/block/item/packet/effect class censuses); engine side from
 | Vehicles | Boat + 8 minecart variants (base, chest, cmd-block, furnace, hopper, rideable, spawner, tnt) | BoatEntity + all 8 minecart classes | VERIFIED-EQ |
 | Decorations | Painting, ItemFrame, LeadKnot, ArmorStand | decoration package + armorstand package + LeadSystem | VERIFIED-EQ |
 | Global | LightningBolt | LightningSystem (weather record) | VERIFIED-EQ |
-| Attributes | 9 classes; wire 0x20 | engine attributes (Wave J) full; wire absent | PARTIAL → ML-011 |
+| Attributes | 9 classes; wire 0x20 | engine attributes (Wave J) full; the 0x20 wire face landed (ML-011: the trackable pair maxHealth+movementSpeed at track time and on change, equipment modifiers included; attackDamage never — the reference's isTrackable law) | VERIFIED-EQ at the wire level (EntityPropertiesWireConformanceTest + MobAttributesWireTest) |
 | AI goals | 49 goal classes + 4 controls + 9 pathing | `MobGoals`/`GoalSelector`/ai.pathing (family-by-family per ledger) | VERIFIED-EQ at family level (per-goal depth = ledger rows; wither exemptions = README pending row) |
 | Block states | 153 block classes; full 1.8.8 state space | `BlockRegistryTest` census pin 896 states (full family history: doors/slabs/stairs/wool/glass/carpet/clay/monuments/fortresses/strongholds…) | VERIFIED-EQ at registry level; per-block behavior = ledger rows |
 | Worldgen | biomes, genlayers, structures (village/fortress/stronghold/monument), surfaces, spawn tables | landed slice record (VIII14 family; §29 waves) | VERIFIED-EQ per ledger (deterministic-seed remainder R-5) |
-| Neighbor updates at unloaded boundaries | vanilla drops into unloaded chunks | not verified | UNVERIFIED → ML-015 |
-| Relog remount | vehicle restore on load | `ridingVehicleId` persisted; remount walk unverified | UNVERIFIED → ML-016 |
+| Neighbor updates at unloaded boundaries | vanilla drops into unloaded chunks | verified-as-vanilla (the EmptyChunk dispatch-to-air law; no chunk generation, silent drop) | VERIFIED-EQ (ML-015 resolved — UnloadedEdgeNeighborUpdateTest) |
+| Relog remount | vehicle restore on load | the remount walk landed (quit captures the ride before the seat opens, join consumes it after the burst, the reference's startRiding order) | VERIFIED-EQ (ML-016 resolved — RelogRemountAcceptanceTest) |
 
 ## E-F. Items, inventory, gameplay (domains E, F)
 
@@ -54,8 +92,8 @@ cycle (entity/block/item/packet/effect class censuses); engine side from
 | Crafting/smelting/brewing/anvil/enchanting tables | recipe families | landed (compat ledger §1; anvil import #31) | VERIFIED-EQ per ledger |
 | Items registry | 74 item classes (registry ~440 ids incl. block-items) | item families present (census R-2 remainder: full id-by-id diff not run this cycle) | UNVERIFIED at id level (family coverage per ledger) |
 | Commands | ~41 vanilla commands | 74 registered (superset incl. custom); per-command semantic diff = remainder R-6; known divergences: /op-offline (ML-005, resolved); /give aligned to vanilla (ML-008 resolved 2026-10-26) | PARTIAL |
-| Sleep | pose broadcast + all-sleepers walk | single-player contract only (declared) | PARTIAL → ML-010 |
-| Spectator | gamemode 3 mechanics | gates + flight only | PARTIAL → ML-018 |
+| Sleep | pose broadcast + all-sleepers walk | the multiplayer walk landed over the single-player contract (0x0A pose broadcast, the all-sleepers morning gate, the monster-proximity refusal box, wake fans) | VERIFIED-EQ (ML-010 resolved — MultiplayerSleepAcceptanceTest + MultiplayerSleepWireTest) |
+| Spectator | gamemode 3 mechanics | gates + flight + the spectate core (C2S Spectate resolution, the 0x43 Camera packet, no-clip gate, the visibility law) | VERIFIED-EQ at the core (ML-018 resolved — SpectatorCameraAcceptanceTest + SpectatorCameraWireAcceptanceTest; cross-dimension spectate ledgered as the honest bound) |
 | Combat/hunger/XP | 1.8.8 pipeline | deep record (§29 VIII waves) | VERIFIED-EQ per ledger |
 | Scoreboards/teams/stats/achievements | full families | landed (#28 achievements; stats folds) | VERIFIED-EQ per ledger |
 | Weather/day cycle/lightning | full | landed (Slice 20b/20c/21c records) | VERIFIED-EQ |
@@ -85,9 +123,9 @@ cycle (entity/block/item/packet/effect class censuses); engine side from
 Verified by census this cycle: mob 32/32, projectiles 9/9, vehicles 9/9,
 specials 8/8, decorations 4/4, potion effects 23/23, block-state registry
 896 (test-pinned), enchantment registry (legacy-id scheme), packet
-constants 28/28 C2S (the KeyC2S arm landed with Wave ON-1b) + 69/77 S2C
-with every absence named and ledgered (the login family whole since
-Waves ON-1a/ON-1b).
+constants 28/28 C2S (the KeyC2S arm landed with Wave ON-1b) + 77/77 S2C
+(every former absence landed and its ledger row closed — PRs #39-#44,
+#50; per-packet behavioral depth stays in the compat ledger).
 
 Remainder (quantified, NOT claimed complete — R-1..R-7 resolved this cycle, R-8 left):
 - R-1: RESOLVED (the lifecycle walk, 1:1 — 0ec68c18): the boundary ray fan

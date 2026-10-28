@@ -16,7 +16,7 @@ This file is the governing engineering prompt. It replaces the previous version.
 4. Parallel calculation never grants mutation authority.
 5. Cross-owner gameplay is a first-class protocol, not an edge case.
 6. No routine blocking between simulation owners. Do not depend on `Future.get()`, `join()`, latches, or locks whose progress depends on the same simulation pool.
-7. Minecraft Java Edition **1.8.8 reference behavior** is the gameplay authority. Minestom is infrastructure.
+7. Minecraft Java Edition **1.8.8 reference behavior** is the gameplay authority. Minestom is infrastructure. **[SUPERSEDED 2026-10-22 — ADR-0001 CLOSED: Minestom is ABANDONED, the owner's final decision. Torch owns its permanent architecture; Minestom is not a foundation, target, or dependency of any kind. The historical rule text stands as the record of the original framing; the authoritative decision is docs/ENGINEERING_PLAN.md §3 ("ADR-0001 — ABANDONED, owner's final decision") + docs/MASTER_LEDGER.md. Never reopen. §9's Folia rule below carries the same evidence-not-architecture law for the reference that remains live.]**
 8. Use the actual source in `reference/1.8.8/` and the supplied `1.8.8 - mechanics.zip`. Do not recreate vanilla from memory when the source is available.
 9. Folia is evidence and a source of engineering lessons, not Torch's architecture.
 10. Do not claim Torch is “beyond Folia” without a concrete capability and measurements.
@@ -109,6 +109,8 @@ If evidence is missing, say exactly what is missing. Do not fabricate.
 ---
 
 # 4. MINESTOM BASELINE
+
+**[SECTION SUPERSEDED 2026-10-22 — ADR-0001 CLOSED: Minestom ABANDONED (the owner's final decision; not deferred, not trigger-armed, not on the roadmap — the 2026-10-20 revisit's arming triggers are RETIRED with the closure). Torch will never vendor, wrap, or depend on Minestom; there is no exact version/commit to determine because there is no dependency. This section is retained as the historical investigation prompt of the pre-architecture era; the equivalent baseline work happened Torch-native (docs/MINESTOM_CONCURRENCY_BASELINE.md — itself a historical record — and then the engine's own ownership architecture, Torch-Arcetecture.txt §10-§22). The authoritative decision record: docs/ENGINEERING_PLAN.md §3 + docs/MASTER_LEDGER.md ("Minestom: ADR-0001 abandoned — permanently closed").]**
 
 Determine the **exact** Minestom version/commit Torch uses. Inspect the matching implementation, not current upstream code from memory.
 
@@ -490,8 +492,8 @@ For every mechanic:
 1. locate the original implementation;
 2. trace callers/dependencies;
 3. identify mutations, formulas, constants, side effects, and order;
-4. identify what Minestom already supplies;
-5. classify Minestom support as compatible/configurable/adapter/replacement/additional infrastructure/unsupported;
+4. identify what Minestom already supplies; **[superseded: nothing — ADR-0001 closed; treat this step as vacuous and skip it, or read "the reference and prior art" in its place]**
+5. classify Minestom support as compatible/configurable/adapter/replacement/additional infrastructure/unsupported; **[superseded: same closure — classification now applies to the 1.8.8 reference itself only]**
 6. implement the required behavior;
 7. write behavioral tests;
 8. compare with reference behavior;
@@ -626,7 +628,7 @@ Reuse existing repository documents instead of creating needless duplicates.
 Maintain authoritative documentation for:
 
 - concurrency architecture;
-- Minestom baseline;
+- Minestom baseline; **[superseded 2026-10-22 — ADR-0001 closed; the baseline doc docs/MINESTOM_CONCURRENCY_BASELINE.md is retained as a historical record only]**
 - Folia forensic audit;
 - ownership/state model;
 - scheduling/tick semantics;
@@ -689,7 +691,7 @@ THE SECTION TABLE AND THE ATTRIBUTION PASS LANDED (ML-006 + ML-007 — the cycle
 
 Dynamic split/merge and load-driven migration remain future work. First prove migration with in-flight tasks, delayed work, messages, compute results, persistence, shutdown, and stale-generation invalidation; add telemetry and anti-oscillation rules before enabling automatic balancing.
 
-**Next concrete mechanics work:** continue from Section 29: the master ledger's demand-named queue is EMPTY of implementable rows (ML-013, the last — the tick watchdog, landed 2026-10-26 in §29's Wave ML13; ML-008 the /give form aligned the same day; PR #38's audit merge landed 2026-10-23). The 2026-10-26 vanilla-grade census's lanes are ALL LANDED (§29's Waves TF-7 + TF-7-continued, closed whole). Wave ON-1 LANDED 2026-10-26 (DEC-001 executed whole; DEC-002 STAY NATIVE and DEC-003 NO KigPaper config family both stand). Wave TF-8 LANDED 2026-10-27 (§29's Wave TF-8: the undead family's daylight burn 1:1). Wave TF-9 LANDED 2026-10-27 (§29's Wave TF-9: the item-entity family's dimension reads 1:1 — the pigman tail's other half CLOSED, the mob query's 25d shape generalized over the items and the projectiles, the ZID store at v8, the wire's observer-dimension gates). Wave TF-10 LANDED 2026-10-27 (§29's Wave TF-10: the XP-orb family's dimension reads — the orb manager on the shared dimension-aware ground, the stamps, the pickup gate, the wire gates, the XpBottleSink's carry). Wave TF-11 LANDED 2026-10-27 (§29's Wave TF-11: the vehicle family's dimension reads — the ZVD row riding the body, the dimension-aware VehicleWorldQuery, the vehicleAt filter, the wire gates). Wave TF-12 LANDED 2026-10-27 (§29's Wave TF-12: the FX family's sound-broadcast dimension gate — every FxEvent carrying its world, the wire's gate in the reference's own sendPacket order, the entity-driven stamps, the fishing Bobber's carry; the handoff's open verifications — the protocol module whole 203/0, the bukkit 52/0 + launcher 53/0, the acceptance sweep — completed and green at the ledger head). Wave T-1 LANDED 2026-10-27 (§29's Wave T-1: the §35 outbound transport's first slice — the zamin-transport module whole, the 184-site queueing of the v1_8_8 play-state sends, the encode-once FX broadcast, the wire verified over every suite class). Wave T-2 LANDED 2026-10-27 (§29's Wave T-2: the §35.12/§35.13 measurement rows — the outbound dwell percentiles over the 4096-slot ring, the benchmark matrix over every §35.12 scenario with the numbers printed for the ledger, the urgent lane's coalescing repair, Netty's leak detector at advanced/paranoid in the test JVMs, and the pipeline repair the wave's own runs forced — the fat jar's missing transport edge + the compute test's snapshot race). Wave T-3 LANDED 2026-10-27 (§29's Wave T-3: the §35.4 pooled-allocation adoption — the allocation harness over the engine's own encode shapes, the shape-split verdict the numbers dictate, the chunk-window frames on pooled direct with the 190 small sites keeping their measured heap-unpooled win, and the wire verified over every protocol suite class). Wave T-4 LANDED 2026-10-27 (§29's Wave T-4: the §35.13 wedged-loop ceiling — the §35.11 kill-policy row closed as the fail-safely law, the slow-socket domain staying Netty's own exactly as the reference's own shape). The §35 transport lane's named rows are ALL LANDED (T-1 through T-4): the queue, the encode-once broadcast, the measurements, the pooled adoption, the wedged bound. The stats-family envelope is code-complete (the increments wired at their use sites — the compat file's stale "no stats system yet" notes re-pinned by TF-9). The dimension-read family tails are ALL CLOSED; the families that carry no dimension field at all (armor-stand, fireworks, ender-eye) stay honest overworld-0 emitters until their own family slices demand the carry. The §22 evidence bar holds: no concurrency phase opens without the attribution pass's numbers (ML-007 landed — the verdict: none justified at the current loads). The honest standing tails each transport slice named stay demand-named (the serializer's byte[] intermediates; the small-packet pooled adoption if a future attribution ever shows the arena path winning) — nothing else is owed on the §35 lane.
+**Next concrete mechanics work:** continue from Section 29: the master ledger's demand-named queue is EMPTY of implementable rows (ML-013, the last — the tick watchdog, landed 2026-10-26 in §29's Wave ML13; ML-008 the /give form aligned the same day; PR #38's audit merge landed 2026-10-23). The 2026-10-26 vanilla-grade census's lanes are ALL LANDED (§29's Waves TF-7 + TF-7-continued, closed whole). Wave ON-1 LANDED 2026-10-26 (DEC-001 executed whole; DEC-002 STAY NATIVE and DEC-003 NO KigPaper config family both stand). Wave TF-8 LANDED 2026-10-27 (§29's Wave TF-8: the undead family's daylight burn 1:1). Wave TF-9 LANDED 2026-10-27 (§29's Wave TF-9: the item-entity family's dimension reads 1:1 — the pigman tail's other half CLOSED, the mob query's 25d shape generalized over the items and the projectiles, the ZID store at v8, the wire's observer-dimension gates). Wave TF-10 LANDED 2026-10-27 (§29's Wave TF-10: the XP-orb family's dimension reads — the orb manager on the shared dimension-aware ground, the stamps, the pickup gate, the wire gates, the XpBottleSink's carry). Wave TF-11 LANDED 2026-10-27 (§29's Wave TF-11: the vehicle family's dimension reads — the ZVD row riding the body, the dimension-aware VehicleWorldQuery, the vehicleAt filter, the wire gates). Wave TF-12 LANDED 2026-10-27 (§29's Wave TF-12: the FX family's sound-broadcast dimension gate — every FxEvent carrying its world, the wire's gate in the reference's own sendPacket order, the entity-driven stamps, the fishing Bobber's carry; the handoff's open verifications — the protocol module whole 203/0, the bukkit 52/0 + launcher 53/0, the acceptance sweep — completed and green at the ledger head). Wave T-1 LANDED 2026-10-27 (§29's Wave T-1: the §35 outbound transport's first slice — the zamin-transport module whole, the 184-site queueing of the v1_8_8 play-state sends, the encode-once FX broadcast, the wire verified over every suite class). Wave T-2 LANDED 2026-10-27 (§29's Wave T-2: the §35.12/§35.13 measurement rows — the outbound dwell percentiles over the 4096-slot ring, the benchmark matrix over 8 of the 10 §35.12 scenarios with the numbers printed for the ledger (the compression-on/off and encryption-on/off performance rows remain unmeasured — argued away at the transport layer because the queue sits inside the plaintext boundary by construction, but no protocol-layer performance measurement exists either; corrected 2026-10-28 from the wave row's earlier "every scenario" wording), the urgent lane's coalescing repair, Netty's leak detector at advanced/paranoid in the test JVMs, and the pipeline repair the wave's own runs forced — the fat jar's missing transport edge + the compute test's snapshot race). Wave T-3 LANDED 2026-10-27 (§29's Wave T-3: the §35.4 pooled-allocation adoption — the allocation harness over the engine's own encode shapes, the shape-split verdict the numbers dictate, the chunk-window frames on pooled direct with the 190 small sites keeping their measured heap-unpooled win, and the wire verified over every protocol suite class). Wave T-4 LANDED 2026-10-27 (§29's Wave T-4: the §35.13 wedged-loop ceiling — the §35.11 kill-policy row closed as the fail-safely law, the slow-socket domain staying Netty's own exactly as the reference's own shape). The §35 transport lane's named rows are ALL LANDED (T-1 through T-4): the queue, the encode-once broadcast, the measurements, the pooled adoption, the wedged bound. The stats-family envelope is code-complete (the increments wired at their use sites — the compat file's stale "no stats system yet" notes re-pinned by TF-9). The dimension-read family tails are ALL CLOSED; the families that carry no dimension field at all (armor-stand, fireworks, ender-eye) stay honest overworld-0 emitters until their own family slices demand the carry. The §22 evidence bar holds: no concurrency phase opens without the attribution pass's numbers (ML-007 landed — the verdict: none justified at the current loads). The honest standing tails each transport slice named stay demand-named (the serializer's byte[] intermediates; the small-packet pooled adoption if a future attribution ever shows the arena path winning) — nothing else is owed on the §35 lane.
 
 # 23. COMMITS / PUSHES / RELEASES
 
@@ -754,7 +756,7 @@ Before declaring the concurrency architecture complete, the documentation must a
 14. How does persistence reject stale state?
 15. How does network input become authoritative simulation work?
 16. How is important 1.8.8 tick ordering preserved?
-17. What does Minestom provide, and what does Torch own instead?
+17. What does Minestom provide, and what does Torch own instead? **[superseded 2026-10-22 — ADR-0001 closed: Minestom provides nothing; Torch owns everything. The live form of this question is: "What does the 1.8.8 reference provide as behavior, and what does Torch own as architecture?"]**
 
 If these are vague, the architecture is not finished.
 
@@ -5439,7 +5441,15 @@ way were repaired inside the wave.
       the written-samples/dropped-never split, the urgent lane's
       own dwell, and the ring-wrap window bound.
 - [x] THE BENCHMARK MATRIX (slice B, §35.12's scenario list run at
-      the transport layer over embedded channels): one player
+      the transport layer over embedded channels — 8 of the 10 named
+      scenarios; corrected 2026-10-28: the compression-enabled/disabled
+      and encryption-enabled/disabled rows are NOT performance-measured
+      anywhere — the transport layer's own justification is that the
+      queue sits inside the plaintext boundary so the codec arms change
+      the bytes the pipeline sees but never the queue's behavior, and the
+      protocol module's wire suites cover the codecs for correctness
+      only, so the two rows stand argued-away-at-this-layer, unmeasured):
+      one player
       (379,737 pps, 20 packets/flush, dwell p50 6.0us / p95 8.1us /
       p99 65.2us), the encode-once broadcast (2,000 encodes for
       200,000 deliveries — the 100x reduction the §35.3 law claims,
@@ -5674,6 +5684,56 @@ The common transport layer answers:
 Do not move Minecraft-version semantics into the common transport layer merely because doing so appears convenient.
 
 A later protocol implementation must be able to reuse the transport layer without pretending that its packets have the same wire representation as 1.8.8.
+
+**The connection-state boundary (the PLAY-only queue law — documented 2026-10-28 as the implementation's standing invariant):**
+
+- PLAY-state traffic uses the outbound transport queue. Every packet the
+  1.8.8 adapter sends once the connection state is PLAY rides
+  `OutboundQueue.enqueueOut` / `enqueueOutUrgent` (the ~190 play-state call
+  sites of `V18Connection`), including the entire join burst — Join Game,
+  Server Difficulty, Spawn Position, Time Update, the initial chunk stream,
+  and the authoritative position — which begins inside the Login Success
+  write's completion listener, the same listener that flips the wire state
+  to PLAY.
+- LOGIN-state and STATUS-state traffic uses direct Netty writes. The
+  login family's writes are single-frame protocol exchanges with
+  structural ordering the queue must never reorder: the Encryption
+  Request; the Set Compression exchange, which rides UNCOMPRESSED and
+  whose codec installs only after the exchange frame is out; Login
+  Success itself, which carries the compression data-length varint when
+  enabled. The status family is write-and-close by design (the Response,
+  and the Ping→Pong pair followed by channel close).
+- Why the split is correct: the queue exists to coalesce multi-packet
+  bursts into one drain and one flush — a property only PLAY traffic has.
+  LOGIN/STATUS exchanges are one or two frames whose ordering constraints
+  (write-then-install, write-and-close) are guaranteed structurally by the
+  write itself. Routing them through the queue would add admission and
+  drain scheduling to exchanges whose order must not depend on either.
+- Ordering constraints that the implementation preserves and the tests
+  pin: (1) Set Compression precedes Login Success, and the compression
+  codec installs only after the exchange frame has been written (inline
+  when on the event loop, listener-ordered when off it); (2) the state
+  transition to PLAY happens on the Login Success write's completion, and
+  every subsequent frame — the whole join burst included — rides the
+  queue; (3) encryption, when enabled, installs before all of this (the
+  whole login walk after the Encryption Response rides the AES/CFB8
+  stream); (4) the status ping's write-and-close never waits on a queue
+  drain.
+- Implementation: `V18Connection` — the direct login/status writes at the
+  `writeAndFlush` sites (status pong/response, legacy disconnect,
+  Encryption Request, the compression exchange, Login Success) versus
+  `enqueueOut` for every PLAY writer; `WireState` gates the split.
+- Regression tests: `OutboundQueueTest` (the queue's own laws — FIFO, the
+  coalesced drain, the four shutdown shapes, admission, saturation, the
+  wedged bound), `TransportBenchmarkTest` (the join-burst one-flush law
+  and the encode-once broadcast, byte-identity verified),
+  `LoginCompressionWireTest` + `OnlineLoginWireTest` + `CompressionCodecTest`
+  + `EncryptionCodecTest` (the login ordering both branches), and the
+  T-1 full protocol-suite sweep (every suite class green over the queued
+  wire).
+- This boundary is an invariant, not an accident. Preserve it unless a
+  concrete correctness defect is discovered; the 2026-10-28 architecture
+  audit found none in the audited transport surface.
 
 ## 35.2 Vanilla-client compatibility is a hard requirement
 

@@ -1,6 +1,33 @@
 # Torch Concurrency Architecture (Proposal)
 
-**Status: proposed; awaiting architecture review.** This document is the design core of a five-document set: the Folia evidence lives in [`FOLIA_FORENSIC_AUDIT.md`](FOLIA_FORENSIC_AUDIT.md) (complete: archive extracted, all 21 patches read, 460 modified Java paths inventoried), the full path table in [`FOLIA_PATCH_INVENTORY.md`](FOLIA_PATCH_INVENTORY.md), the comparison table / decision records / rollout in [`CONCURRENCY_DECISIONS_AND_ROLLOUT.md`](CONCURRENCY_DECISIONS_AND_ROLLOUT.md), and the component graph + six lifecycle sequence diagrams in [`CONCURRENCY_DIAGRAMS.md`](CONCURRENCY_DIAGRAMS.md). Nothing here describes implemented behavior; the running engine remains the single-domain baseline of [`MINESTOM_CONCURRENCY_BASELINE.md`](MINESTOM_CONCURRENCY_BASELINE.md).
+> **STATUS UPDATE (2026-10-28, the documentation-convergence pass): this
+> document is now the HISTORICAL DESIGN PROPOSAL, superseded in authority by
+> `Torch-Arcetecture.txt` §10-§22 (the implemented architecture and its
+> per-phase status rows) and the source under
+> `zamin-core/src/main/java/net/zaminmc/torch/server/concurrent/`.** The
+> original banner below ("proposed; awaiting architecture review … nothing
+> here describes implemented behavior") described the tree at authoring
+> time; it no longer does. What has since LANDED, verified in source and
+> tests: the ownership-domain model (`OwnershipDomain` — thread-bound
+> executor, generations, `tryBeginTick`), the scheduler
+> (`SimulationScheduler` — FIFO + delayed tasks, bounded admission,
+> migration holds), the shared bounded worker pool (`DomainWorkerPool`),
+> the snapshot compute subsystem (`ComputeSubsystem` — typed/versioned
+> results, stale-result rejection, owner-context application), the
+> cross-owner router (`CrossOwnerRouter` — per-target FIFO intents,
+> exactly-once admission), the migration protocol (`OwnershipMigration` —
+> begin/drain/transfer/publish with abort), the static region partition
+> (`RegionPartition`), the blocking-IO lane, and the storage save pipeline
+> — with the test fleet under `zamin-core/src/test/.../concurrent/` (13
+> classes incl. the adversarial contract suite). What remains PROPOSED or
+> GATED, tracked in §22's phase rows: Phase 6's further parallel gameplay
+> lanes beyond the gated random-tick lane, Phase 7's heavy-owner
+> optimization lanes (gated on measured evidence), Phase 8's adaptive
+> balancing (dynamic split/merge — not started; Folia's split protocol is
+> the reference). The "future decision open" Minestom row in §2/§7 below
+> is CLOSED — see the superseded markers.**
+
+**Status: proposed; awaiting architecture review.** This document is the design core of a five-document set: the Folia evidence lives in [`FOLIA_FORENSIC_AUDIT.md`](FOLIA_FORENSIC_AUDIT.md) (complete: archive extracted, all 21 patches read, 460 modified Java paths inventoried), the full path table in [`FOLIA_PATCH_INVENTORY.md`](FOLIA_PATCH_INVENTORY.md), the comparison table / decision records / rollout in [`CONCURRENCY_DECISIONS_AND_ROLLOUT.md`](CONCURRENCY_DECISIONS_AND_ROLLOUT.md), and the component graph + six lifecycle sequence diagrams in [`CONCURRENCY_DIAGRAMS.md`](CONCURRENCY_DIAGRAMS.md). Nothing here describes implemented behavior; the running engine remains the single-domain baseline of [`MINESTOM_CONCURRENCY_BASELINE.md`](MINESTOM_CONCURRENCY_BASELINE.md). **[This sentence described the tree at authoring time; see the status update above — the core of this design has since been implemented and tested.]**
 
 ## 1. Verified baseline
 
@@ -11,7 +38,7 @@ The inspected `develop` branch is a Java 21 Gradle multi-module project:
 - `zamin-protocol-v1_8_8`: protocol-47 networking on Netty.
 - `zamin-launcher`: runnable distribution and update check.
 
-The current build does **not** declare Minestom. `docs/ENGINEERING_PLAN.md` records Minestom as deferred (ADR-0001), citing the mismatch between its modern protocol assumptions and the 1.8.8 protocol, plus the risk of creating a second authoritative world model. Any future Minestom integration must be treated as a separate, evidence-driven decision.
+The current build does **not** declare Minestom. `docs/ENGINEERING_PLAN.md` records Minestom as deferred (ADR-0001), citing the mismatch between its modern protocol assumptions and the 1.8.8 protocol, plus the risk of creating a second authoritative world model. Any future Minestom integration must be treated as a separate, evidence-driven decision. **[SUPERSEDED 2026-10-22 — ADR-0001 CLOSED: Minestom ABANDONED, the owner's final decision. Not deferred, not trigger-armed; the 2026-10-20 revisit's arming triggers are RETIRED. There will never be a Minestom integration. Authoritative record: docs/ENGINEERING_PLAN.md §3 + docs/MASTER_LEDGER.md.]**
 
 Current execution facts from source:
 
@@ -191,7 +218,7 @@ Benchmark single-hotspot, distributed players, redstone, entity-heavy, chunk-gen
 | Cross-owner state changes | Immutable intents and target-owner validation | Proposed |
 | Heavy-owner scaling | Snapshot compute first; conflict-aware writes remain research | Proposed |
 | Migration | Disabled until handoff tests pass | Proposed |
-| Minestom | No dependency today; reconsider only with concrete protocol/world integration evidence | Verified baseline; future decision open |
+| Minestom | No dependency today; reconsider only with concrete protocol/world integration evidence | Verified baseline; future decision open **[SUPERSEDED 2026-10-22 — ADR-0001 CLOSED: abandoned, permanently. No future decision exists to open; the row stands as the historical record]** |
 
 ## Evidence status
 
