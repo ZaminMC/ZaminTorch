@@ -17214,6 +17214,95 @@ test draft paid the decay one tick early: the observed 100-vs-97
 re-pinned the seat to the machine's true cadence, the verifier
 verifying its own seats too.
 
+## 2026-10-28 — the food nutrition fold parity audit (PR #62, the verifier's seventh pass)
+
+The seventh sweep, one family over: the food nutrition law — the fold
+the reference pays at every bite (HungerManager.add lines 20-23:
+{@code saturation += food x modifier x 2}, the Item.java FoodItem
+registration's own modifier folded by the hunger manager at apply),
+the six registered foods the table never carried, and the always-edible
+gate (FoodItem.startUsing line 59's canEat(alwaysEdible) over the
+golden apple's single setAlwaysEdible registration, Item.java line
+604). The sixth pass closed the furnace; this one closed the plate.
+
+One root cause, paid three different ways. The engine's Nutrition
+record carries the saturation RESTORED — the community dataset's own
+folded convention, and the FOODS table's rows honor it (cooked beef's
+8 x 0.8 x 2 = 12.8 anchor) — but three sites passed the raw MODIFIER
+where the folded restoration belonged: the FISH family answered its
+Type columns verbatim (raw cod 0.1 where the reference restores 0.4,
+cooked cod 0.6 where 6.0, cooked salmon 0.8 where 9.6 — a QUARTER of
+the cooked cod's true restoration); the RAW CHICKEN row rode the
+dataset's own half-fold (0.6 — the fold without its x 2, where the
+reference answers 2 x 0.3 x 2 = 1.2); and the CAKE's bite added the
+bare 0.1 modifier where CakeBlock line 80's add(2, 0.1F) folds 0.4.
+The fold now rides FishItems' own dispatch (the Type enum keeps the
+reference's raw columns as its own table; nutritionOf folds at the
+answer), the raw chicken row carries the reference's 1.2, and the
+cake's bite pays 0.4.
+
+The six rows the table never carried: the cookie (Item.java line 643:
+FoodItem(2, 0.1F) — 0.4), the melon slice (line 360: FoodItem(2, 0.3F)
+— 1.2), the poisonous potato (line 394: FoodItem(2, 0.3F) — 1.2; its
+60% Poison effect row had sat in the EFFECTS table UNREACHABLE, the
+missing nutrition making the item uneatable), the pumpkin pie (line
+400: FoodItem(8, 0.3F) — 4.8), and the mutton pair (lines 727-728:
+FoodItem(2, 0.3F) and FoodItem(6, 0.8F) — 1.2 and 9.6; the SMELTING
+table had carried the pair since Slice 11i while the FOODS table never
+did, so neither form ever answered eatable).
+
+The always-edible gate: the pre-audit eat-start refused EVERY food at
+the cap, but the reference's canEat consults the item's own
+alwaysEdible flag — the golden apple's single setAlwaysEdible
+registration exempts it from the needsFood arm, so a survival body at
+FULL hunger still begins the eat (the golden pair's effects pay at the
+completion; the nutrition clamps at HungerManager.add's own min). The
+invulnerable bodies keep their refusal (the creative/spectator arms
+match the reference's own !invulnerable row). The cake's bite keeps
+its canEat(false) gate — the cake is not the always-edible pair.
+
+**Evidence:** FoodNutritionParityTest 6/0 (the meat band's folds with
+the raw chicken's corrected 1.2 named against the dataset's half-fold;
+the crop-and-stew band whole; the six new rows with the reference's
+own registrations cited; the fish family's folded restoration through
+both the FishItems dispatch and Foods' two-arg consult; the
+always-edible set riding the golden apple alone; the non-food arms
+answering empty — the cake item included, the block serving its own
+bites); BodySurvivalAcceptanceTest 10/0 (the re-pinned fish saturation
+arms 0.4/6.0/9.6 with the fold law named in each message, the live
+cooked-salmon eat restoring 9.6, the pufferfish comment's corrected
+0.2, and the NEW always-edible seat — the golden apple eaten at full
+hunger for the clamped food 20, the restored 9.6 under the cap, the
+absorption installed at the completion, and the plain bread refused at
+the same cap); the item package whole 39/0 (ArmorTest 5, ToolWear 5,
+Tools 4, WrittenBookFlow 9 beside the new 6); the cake/melon/fishing/
+potion/growth batch 46/0 (CakeBlocks 2, Melon 4, FishingOverride 7,
+FishingSystem 8, PotionSystem 22, GrowthApi 3); the block + interaction
++ player packages 314/0; the protocol wire batch green (SurvivalFlow,
+VanillaParity, FurnaceIntegration); the bukkit + launcher + api modules
+green. The honest standing tails: the MILK bucket carries no use walk
+in the engine (MilkBucketItem's clearStatusEffects + the empty-bucket
+swap — the bucket family's own future audit, the same
+declared-but-never-registered shape the silk pass recorded), and the
+hunger tick's exhaustion economy (the sprint/jump/swim/mine/damage
+sources) rides its own family — the fold, the rows, and the gate were
+this pass's whole plate.
+
+**Lessons:** (1) one record, one convention — the Nutrition field
+means the RESTORED saturation, and any site passing the raw modifier
+is a law violation waiting for a fold-named re-pin (the fish seats had
+pinned the modifiers themselves as historically-true); (2) the
+community dataset is evidence, not authority — its rows fold once, the
+reference's formula folds at apply, and the raw chicken's 0.6 is the
+row where the two disagree: the reference wins, the dataset's error
+named in the row that replaced it; (3) an unreachable effect row is a
+missing nutrition row — the poisonous potato's poison was never wrong,
+it was never REACHED, and the table's completion is what activates the
+family's other halves; (4) the always-edible gate is the ITEM's row,
+not the walk's — one registration (setAlwaysEdible, once in the food
+family) exempts the golden apple from the needsFood arm while the walk
+stays generic: the flag rides the table, the gate consults it.
+
 ## The PR #61 review fix (the wood class completed)
 
 The review of PR #61 (the furnace fuel & cycle parity audit) verified all
