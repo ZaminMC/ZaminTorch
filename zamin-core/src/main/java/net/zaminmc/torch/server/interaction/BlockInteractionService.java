@@ -899,28 +899,46 @@ public final class BlockInteractionService {
      * Historical durability wear — the tool-wear parity audit (the
      * reference's own {@code mineBlock} rows, read before the fix): a
      * successful dig of a block with hardness wears the SWORD two units
-     * (SwordItem line 55: {@code takeDamageAndBreak(2)}) and every other
-     * tool ONE (ToolItem line 42); the SHEARS wear only on the reference's
-     * own band — the web, the tallgrass pair, the vine, the tripwire, the
-     * wool family and the leaves material (ShearsItem lines 20-29 — a
-     * shears dig of stone never wears, the pre-fix walk paid one unit for
-     * EVERY block). Creative players never wear tools; a tool at its limit
-     * breaks and leaves the hand (the boundary itself rides the inventory's
-     * own takeDamage walk).
+     * (SwordItem line 55: {@code takeDamageAndBreak(2)}) and the ToolItem
+     * family ONE (ToolItem line 42, the hardness gate
+     * {@code getMiningTime != 0.0} riding ahead); the SHEARS wear only on
+     * the reference's own band — the web, the tallgrass pair, the vine,
+     * the tripwire, the wool family and the leaves material (ShearsItem
+     * lines 20-29) — with NO hardness gate (the reference's shears arm
+     * wears the instant-break tallgrass and tripwire too; a shears dig
+     * of stone never wears, the pre-fix walk paid one unit for EVERY
+     * block). The HOE never wears (HoeItem extends Item — no mineBlock
+     * arm). Creative players never wear tools; a tool at its limit
+     * breaks and leaves the hand (the boundary itself rides the
+     * inventory's own takeDamage walk).
      */
     private void wearHeldTool(PlayerSession player, BlockBehavior behavior, BlockType broken) {
         GameMode mode = gameMode.apply(player);
-        if (mode == GameMode.CREATIVE || behavior.hardness() <= 0) {
+        if (mode == GameMode.CREATIVE) {
             return;
         }
         net.zaminmc.torch.item.ItemStack heldStack = player.inventory().held();
-        int wear = heldStack.isEmpty() ? 0
-                : net.zaminmc.torch.server.item.Tools.blockWearOf(heldStack.type());
-        if (wear > 0 && net.zaminmc.torch.server.item.Tools.specOf(heldStack.type())
-                .map(spec -> spec.toolClass() == net.zaminmc.torch.server.item.ToolClass.SHEARS)
-                .orElse(false)
-                && !BlockBehaviorTable.inShearsWearBand(broken)) {
-            return; // the shears dig outside the band never wears
+        boolean shears = !heldStack.isEmpty()
+                && net.zaminmc.torch.server.item.Tools.specOf(heldStack.type())
+                        .map(spec -> spec.toolClass() == net.zaminmc.torch.server.item.ToolClass.SHEARS)
+                        .orElse(false);
+        int wear;
+        if (shears) {
+            // The shears' own arm (ShearsItem lines 20-29): the band alone
+            // decides — no hardness gate (the instant-break band members
+            // still wear one unit), everything else never wears.
+            wear = BlockBehaviorTable.inShearsWearBand(broken) ? 1 : 0;
+        } else {
+            // The SwordItem/ToolItem gate (line 53 / line 41:
+            // getMiningTime != 0.0 — the instant dig never wears).
+            if (behavior.hardness() <= 0) {
+                return;
+            }
+            wear = heldStack.isEmpty() ? 0
+                    : net.zaminmc.torch.server.item.Tools.blockWearOf(heldStack.type());
+        }
+        if (wear <= 0) {
+            return;
         }
         if (player.inventory().damageHeld(wear, gameplayRandom)) {
             // Worn or broken: the client's held slot is now stale, re-sync it.

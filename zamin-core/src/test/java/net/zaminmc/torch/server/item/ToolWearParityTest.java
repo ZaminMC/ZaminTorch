@@ -85,6 +85,10 @@ class ToolWearParityTest {
         assertEquals(1, Tools.blockWearOf(BuiltinItems.DIAMOND_AXE));
         assertEquals(1, Tools.blockWearOf(BuiltinItems.IRON_SHOVEL));
         assertEquals(1, Tools.blockWearOf(BuiltinItems.SHEARS));
+        // HoeItem extends Item directly: the default mineBlock returns
+        // false — a hoe dig NEVER wears (the review fix).
+        assertEquals(0, Tools.blockWearOf(BuiltinItems.WOODEN_HOE));
+        assertEquals(0, Tools.blockWearOf(BuiltinItems.IRON_HOE));
         assertEquals(0, Tools.blockWearOf(BuiltinItems.DIRT));
     }
 
@@ -110,6 +114,20 @@ class ToolWearParityTest {
         assertTrue(BlockBehaviorTable.inShearsWearBand(block("minecraft:cobweb")));
         assertTrue(BlockBehaviorTable.inShearsWearBand(block("minecraft:tall_grass")));
         assertTrue(BlockBehaviorTable.inShearsWearBand(block("minecraft:fern")));
+        // The tripwire WIRE sits in the band (the reference's own
+        // Blocks.TRIPWIRE member — the review fix); it is behavior-table
+        // data only, so the seat constructs the type directly.
+        assertTrue(BlockBehaviorTable.inShearsWearBand(new net.zaminmc.torch.server.block
+                .EngineBlockType(Identifier.parse("minecraft:tripwire"), "Tripwire")),
+                "the reference band's own TRIPWIRE member (the review fix)");
+        assertTrue(BlockBehaviorTable.inShearsWearBand(new net.zaminmc.torch.server.block
+                .EngineBlockType(Identifier.parse("minecraft:tripwire_attached_disarmed"),
+                        "Tripwire")),
+                "the state-suffixed wire forms ride the band");
+        assertFalse(BlockBehaviorTable.inShearsWearBand(new net.zaminmc.torch.server.block
+                .EngineBlockType(Identifier.parse("minecraft:tripwire_hook_south"),
+                        "Tripwire Hook")),
+                "the HOOK is its own block, outside the band");
         assertTrue(BlockBehaviorTable.inShearsWearBand(block("minecraft:vine")));
         assertTrue(BlockBehaviorTable.inShearsWearBand(block("minecraft:wool")));
         assertTrue(BlockBehaviorTable.inShearsWearBand(block("minecraft:orange_wool")));

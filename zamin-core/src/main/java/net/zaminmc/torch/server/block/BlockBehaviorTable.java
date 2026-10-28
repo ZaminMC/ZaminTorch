@@ -1890,6 +1890,14 @@ public final class BlockBehaviorTable {
                 || value.equals("tall_grass") || value.equals("fern")) {
             return true;
         }
+        // The tripwire WIRE family (the reference's Blocks.TRIPWIRE, block
+        // 132 — the sixteen state-suffixed forms the behavior table
+        // registers; the HOOK, block 131, is its own block and sits
+        // OUTSIDE the reference's band).
+        if (value.equals("tripwire")
+                || (value.startsWith("tripwire_") && !value.startsWith("tripwire_hook"))) {
+            return true;
+        }
         BlockBehavior behavior = of(broken.identifier()).orElse(null);
         String material = behavior == null ? null : behavior.material();
         return "leaves".equals(material) || "wool".equals(material);

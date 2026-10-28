@@ -83,16 +83,23 @@ public final class Tools {
      * The per-block durability wear of one successful dig (the tool-wear
      * parity audit — the reference's own {@code mineBlock} rows): the
      * SWORD wears TWO (SwordItem line 55: {@code takeDamageAndBreak(2)}),
-     * every other tool wears ONE (ToolItem line 42, ShearsItem line 28),
-     * and a non-tool wears nothing. The hardness gate lives at the call
-     * site ({@code block.getMiningTime != 0.0}).
+     * the ToolItem family and the SHEARS wear ONE (ToolItem line 42,
+     * ShearsItem line 28 — the shears band-gated at the call site), the
+     * HOE wears NOTHING (HoeItem extends Item directly — the default
+     * {@code mineBlock} returns false and never wears), and a non-tool
+     * wears nothing. The hardness gate lives at the call site
+     * ({@code block.getMiningTime != 0.0}).
      */
     public static int blockWearOf(ItemType itemType) {
         ToolSpec spec = specOf(itemType).orElse(null);
         if (spec == null) {
             return 0;
         }
-        return spec.toolClass() == ToolClass.SWORD ? 2 : 1;
+        return switch (spec.toolClass()) {
+            case SWORD -> 2;  // SwordItem line 55
+            case HOE -> 0;    // HoeItem extends Item: no mineBlock arm
+            default -> 1;     // ToolItem line 42 + ShearsItem line 28
+        };
     }
 
     /**
