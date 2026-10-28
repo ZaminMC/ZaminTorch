@@ -521,6 +521,27 @@ public final class BlockUpdateSystem implements WorldChangeListener {
                     plantDrop, ItemEntity.PICKUP_DELAY_DROP_TICKS);
             return;
         }
+        // The nether wart's support rule (the planting-arms pass —
+        // NetherWartBlock.canSurvive lines 33-35 over PlantBlock's
+        // neighborChanged lines 40-43 -> canSurviveOrBreak lines 50-55):
+        // the cell below must be SOUL_SAND; the departure pops the block
+        // with its item, the drop the reference's own age band
+        // (NetherWartBlock.dropItems lines 49-63: age 3 -> 2 + nextInt(3),
+        // else exactly one).
+        if (type.identifier().value().startsWith("nether_wart_stage")) {
+            if (world.getBlock(position.offset(0, -1, 0)).identifier().value()
+                    .equals("soul_sand")) {
+                return; // supported
+            }
+            int age = type.identifier().value().charAt("nether_wart_stage".length()) - '0';
+            world.setBlock(position, world.airType());
+            itemEntities.spawnDropAtBlock(
+                    new Position(position.x(), position.y(), position.z()),
+                    ItemStack.of(net.zaminmc.torch.server.item.BuiltinItems.NETHER_WART,
+                            age >= 3 ? 2 + random.nextInt(3) : 1),
+                    ItemEntity.PICKUP_DELAY_DROP_TICKS);
+            return;
+        }
         // The double-plant family's support rules (Slice 45 —
         // DoublePlantBlock.canSurviveOrBreak lines 65-88: the UPPER pops
         // to air when the cell below stops being the family's own lower
