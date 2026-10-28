@@ -1543,6 +1543,18 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
         this.bodyPrevValid = true;
     }
 
+    /**
+     * Seeds the next tick fresh (no displacement): the teleport's own write
+     * — the reference's movement-stat walk measures the movement walk's own
+     * displacement alone (PlayerEntity.moveRelative's locals, lines
+     * 1287-1303), so a setPosition jump never charges; the scratch's next
+     * capture re-seeds at the destination and honest per-tick movement
+     * resumes from there.
+     */
+    public void resetBodyDelta() {
+        this.bodyPrevValid = false;
+    }
+
     public double bodyPrevX() {
         return bodyPrevX;
     }
