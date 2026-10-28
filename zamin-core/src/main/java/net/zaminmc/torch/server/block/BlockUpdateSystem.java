@@ -627,6 +627,20 @@ public final class BlockUpdateSystem implements WorldChangeListener {
             tickCactusSupport(position);
             return;
         }
+        // The farmland's solid-above law (the farmland state pass —
+        // FarmlandBlock.neighborChanged lines 88-94): a material-SOLID
+        // block arriving on the farmland turns it to DIRT (the crop above
+        // popping through its own support arm). The solidity consult is
+        // the engine's standing WorldSolidity model (the material-model
+        // unification rides the sign family's own class when that pass
+        // merges); a torch or a flower above never reverts the field.
+        if (identifier.value().equals("farmland")
+                || identifier.value().equals("farmland_wet")) {
+            if (WorldSolidity.isSolid(world.getBlock(position.offset(0, 1, 0)))) {
+                world.setBlock(position, BuiltinBlocks.DIRT);
+            }
+            return;
+        }
         if (identifier.equals(GRASS)
                 && isOpaque(world.getBlock(position.offset(0, 1, 0)))) {
             world.setBlock(position, BuiltinBlocks.DIRT);

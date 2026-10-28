@@ -2081,6 +2081,12 @@ public final class EngineServer implements Server, EngineBridge {
                 // rolls, the reference's own breakLeaves shape.
                 randomTicks.setLeafDecayDrops(itemEntities,
                         new DropService(new java.util.Random(worldSeed ^ 0x1EAFDECAL)));
+                // The farmland's rain read (the farmland state pass —
+                // FarmlandBlock.tick line 47's world.isRaining(pos.up())):
+                // the engine's weather sits on the server, the consult
+                // hoisted above so the mob view and the farmland share it.
+                randomTicks.setRainRead(position -> rainAtInWorld(
+                        position.x(), position.y(), position.z()));
                 // Projectiles (arrows, shards): the tick-thread physics system,
                 // with damage semantics staying here in the combat callbacks.
                 ProjectileManager projectiles = new ProjectileManager(
@@ -13336,6 +13342,35 @@ public final class EngineServer implements Server, EngineBridge {
         }
     }
 
+    /**
+     * The hoisted rain consult (the farmland state pass): the ONE walk the
+     * mob view and the farmland's random-tick seam read — the weather's
+     * rain flag, the surface's sky band, and the biome's own rain gate
+     * (the reference's isRainingAt: the deserts never hydrate by rain).
+     */
+    private boolean rainAtInWorld(double x, double y, double z) {
+        net.zaminmc.torch.server.weather.WeatherSystem weatherNow = weather;
+        // The weather's own world IS the server's world (the rain flag
+        // lives on the overworld alone — the inner mob view's activeWorld()
+        // gate answers its own dimension concern; this walk consults the
+        // world the random-tick system owns).
+        if (weatherNow == null || !weatherNow.raining()) {
+            return false;
+        }
+        int height = surfaceY((int) Math.floor(x), (int) Math.floor(z)) + 1;
+        if (y < height) {
+            return false;
+        }
+        String name = world.biomeAt(new BlockPosition(
+                (int) Math.floor(x), 64, (int) Math.floor(z)));
+        try {
+            return net.zaminmc.torch.server.world.Biome
+                    .valueOf(name.toUpperCase(java.util.Locale.ROOT)).rainy();
+        } catch (IllegalArgumentException unknown) {
+            return net.zaminmc.torch.server.world.Biome.PLAINS.rainy();
+        }
+    }
+
     private boolean useFarmingOnTick(PlayerSession session, BlockPosition clicked, int face) {
         net.zaminmc.torch.item.ItemStack heldStack = session.inventory().held();
         if (heldStack.isEmpty()) {
@@ -21864,22 +21899,7 @@ public final class EngineServer implements Server, EngineBridge {
          */
         @Override
         public boolean isRainingAt(double x, double y, double z) {
-            net.zaminmc.torch.server.weather.WeatherSystem weatherNow = weather;
-            if (weatherNow == null || !weatherNow.raining() || activeWorld() != world) {
-                return false;
-            }
-            int height = surfaceY((int) Math.floor(x), (int) Math.floor(z)) + 1;
-            if (y < height) {
-                return false;
-            }
-            String name = world.biomeAt(new BlockPosition(
-                    (int) Math.floor(x), 64, (int) Math.floor(z)));
-            try {
-                return net.zaminmc.torch.server.world.Biome
-                        .valueOf(name.toUpperCase(java.util.Locale.ROOT)).rainy();
-            } catch (IllegalArgumentException unknown) {
-                return net.zaminmc.torch.server.world.Biome.PLAINS.rainy();
-            }
+            return rainAtInWorld(x, y, z);
         }
 
         @Override

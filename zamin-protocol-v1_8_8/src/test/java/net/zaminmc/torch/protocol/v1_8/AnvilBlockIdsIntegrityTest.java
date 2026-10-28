@@ -107,7 +107,14 @@ class AnvilBlockIdsIntegrityTest {
                         + " AnvilBlockIds):\n" + String.join(",\n", missing)
                         + "\nWrong rows:\n" + String.join(";\n", wrong)
                         + "\nUndocumented collisions:\n" + String.join(";\n", collisions));
-        assertEquals(1251, expected.size(), // The metadata slice's re-pin (1251 = 1245 + the pumpkin pair's six rotated states over legacy 86/91, the HORIZONTAL-id nibble band 1-3) // The VIII14 decorators slice's fern row (block 31's variant 2) + the surface slice's podzol/coarse_dirt pair (registered at 11577c52 without the pin moving)
+        // The stale-eight repair (the farmland state pass, second catch of
+        // the same stale-pin class the sign pass found): Wave BN-A's banner
+        // states (176/177 rows) joined the derivation at dc4cb71a without
+        // the pin moving — develop sat stale-red at 1251 against the 1259
+        // derivation. The farming growth pass's branch caught it first
+        // (PR #69, 1251 -> 1289 with its own thirty rows); whichever merges
+        // first, the other carries the same re-pin's arithmetic.
+        assertEquals(1259, expected.size(), // The metadata slice's re-pin (1251 = 1245 + the pumpkin pair's six rotated states over legacy 86/91, the HORIZONTAL-id nibble band 1-3) // The VIII14 decorators slice's fern row (block 31's variant 2) + the surface slice's podzol/coarse_dirt pair (registered at 11577c52 without the pin moving)
                 "the derived table's size (the class's own pinned count; a change means the"
                         + " registry grew — regenerate the class and re-pin this number)."
                         + " The Wave VI fluids band added the 46 still/flowing-0/falling-level"

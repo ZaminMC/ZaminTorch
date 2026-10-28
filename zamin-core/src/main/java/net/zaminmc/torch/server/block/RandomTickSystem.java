@@ -606,28 +606,88 @@ public final class RandomTickSystem {
      * within four blocks (the same row and one above/below, the historical
      * scan box) turns wet; wet farmland without water dries back out.
      */
+    /**
+     * The farmland's own tick (FarmlandBlock.tick lines 44-56, 1:1 — the
+     * farmland state pass): the moisture band 0-7 rides the engine's
+     * documented binary flattening (the dry/wet pair), but the four LAWS
+     * the flattening broke are restored whole —
+     *
+     * <p>THE RAIN ARM (line 47): {@code !world.isRaining(pos.up())} — rain
+     * alone hydrates the field, no water needed; the consult rides the
+     * boot-wired rain read (the engine's weather sits on the server, not
+     * the world — the seam's own shape; null keeps the no-rain default of
+     * the direct-driven seats). THE DRY-TO-DIRT REVERSION (lines 50-51): a
+     * DRY farmland whose crop protection fails turns to DIRT on the tick —
+     * the protection consult is the reference's own class walk
+     * ({@code isUnderCrop} lines 73-76: {@code instanceof WheatBlock ||
+     * instanceof StemBlock} — the WheatBlock class COVERS the carrots and
+     * the potatoes, both subclasses), so every crop family and both stems
+     * protect their field while bare farmland, a flower, or anything else
+     * reverts (the pre-audit engine left empty dry farmland standing
+     * forever).</p>
+     */
     private void tickFarmlandHydration(BlockPosition position, BlockType type) {
         boolean wet = type.identifier().equals(BuiltinBlocks.FARMLAND_WET.identifier());
         boolean waterNear = waterWithinFour(position);
-        if (waterNear && !wet) {
-            world.setBlock(position, BuiltinBlocks.FARMLAND_WET);
-        } else if (!waterNear && wet) {
+        java.util.function.Predicate<BlockPosition> rainRead = this.rainRead;
+        boolean raining = rainRead != null && rainRead.test(position.offset(0, 1, 0));
+        if (waterNear || raining) {
+            if (!wet) {
+                world.setBlock(position, BuiltinBlocks.FARMLAND_WET);
+            }
+            return; // hydrated (the reference's moisture 7 branch)
+        }
+        if (wet) {
             world.setBlock(position, BuiltinBlocks.FARMLAND);
+            return; // the drying flip (the binary flattening's own one-step)
+        }
+        // The dry farmland's reversion (lines 50-51): the crop protection
+        // consult — the wheat family (the carrots and the potatoes are
+        // WheatBlock's own subclasses), the melon and pumpkin stems.
+        String above = world.getBlock(position.offset(0, 1, 0)).identifier().value();
+        boolean underCrop = above.startsWith("wheat_stage")
+                || above.startsWith("carrots_stage")
+                || above.startsWith("potatoes_stage")
+                || above.startsWith("pumpkin_stem_stage")
+                || above.startsWith("melon_stem_stage");
+        if (!underCrop) {
+            world.setBlock(position, BuiltinBlocks.DIRT);
         }
     }
 
-    /** The historical hydration scan: dx in [-4,4], dz in [-4,4], dy in [-1,1]. */
+    /**
+     * The rain consult seam (the farmland state pass): the reference reads
+     * {@code world.isRaining(pos.up())} — the engine's weather state sits
+     * on the server (WeatherSystem), so the boot wires the consult here;
+     * null keeps the no-rain default (the direct-driven seats' shape).
+     */
+    private volatile java.util.function.Predicate<BlockPosition> rainRead;
+
+    /** Wires the rain consult (the boot wiring — the server's own weather read). */
+    public void setRainRead(java.util.function.Predicate<BlockPosition> rainRead) {
+        this.rainRead = java.util.Objects.requireNonNull(rainRead, "rainRead");
+    }
+
+    /**
+     * The reference's hydration scan (FarmlandBlock.isNearWater lines
+     * 78-86): dx/dz in [-4,4] at the farmland's own level and ONE ABOVE
+     * ({@code pos.add(-4, 0, -4)} to {@code pos.add(4, 1, 4)} — water
+     * BELOW the field never hydrates), and the consult is
+     * {@code Material.WATER} ALONE (line 80 — LAVA never hydrates; the
+     * pre-audit isFluid consult admitted the whole LAVA family and scanned
+     * one level below the field too).
+     */
     private boolean waterWithinFour(BlockPosition position) {
         for (int dx = -4; dx <= 4; dx++) {
             for (int dz = -4; dz <= 4; dz++) {
-                for (int dy = -1; dy <= 1; dy++) {
+                for (int dy = 0; dy <= 1; dy++) {
                     int y = position.y() + dy;
                     if (y < BlockPosition.MIN_Y || y > BlockPosition.MAX_Y) {
                         continue;
                     }
                     BlockType at = world.getBlock(new BlockPosition(
                             position.x() + dx, y, position.z() + dz));
-                    if (FluidBlocks.isFluid(at.identifier())) {
+                    if (FluidBlocks.kindOf(at.identifier()) == FluidBlocks.Kind.WATER) {
                         return true;
                     }
                 }
