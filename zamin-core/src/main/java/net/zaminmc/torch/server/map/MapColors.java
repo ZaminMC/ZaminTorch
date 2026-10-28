@@ -481,6 +481,13 @@ public final class MapColors {
         row(t, "melon_block", LIME);  // MelonBlock(PUMPKIN, LIME)
         row(t, "pumpkin", ORANGE);    // PumpkinBlock(PUMPKIN, ORANGE)
         row(t, "lit_pumpkin", ORANGE);
+        // The rotated states (the metadata slice): the same orange body.
+        row(t, "pumpkin_west", ORANGE);
+        row(t, "pumpkin_north", ORANGE);
+        row(t, "pumpkin_east", ORANGE);
+        row(t, "lit_pumpkin_west", ORANGE);
+        row(t, "lit_pumpkin_north", ORANGE);
+        row(t, "lit_pumpkin_east", ORANGE);
         row(t, "hay_block", YELLOW);  // HayBlock(GRASS, YELLOW)
         // The double plants (REPLACEABLE_PLANT -> FOLIAGE).
         for (String plant : new String[] {"double_grass", "double_fern",

@@ -244,4 +244,33 @@ class LegacyBlockIdsIntegrityTest {
                     row[0] + " must carry metadata " + row[2]);
         }
     }
+
+    /**
+     * The pumpkin pair's rotated states (the metadata slice — PumpkinBlock
+     * lines 138-148): the nibble is the HORIZONTAL id (Direction.java
+     * lines 14-17's own idHorizontal assignments — 0 south, 1 west, 2
+     * north, 3 east), a DIFFERENT domain than the chest family's
+     * Direction-id band 2-5. The bare forms carry 0 (the south states,
+     * the dye family's white-wool precedent — every pumpkin in an
+     * existing world stays valid).
+     */
+    @Test
+    void thePumpkinFamilyCarriesTheHorizontalIdBand() {
+        for (String[] row : new String[][] {
+                {"minecraft:pumpkin", "86", "0"},
+                {"minecraft:pumpkin_west", "86", "1"},
+                {"minecraft:pumpkin_north", "86", "2"},
+                {"minecraft:pumpkin_east", "86", "3"},
+                {"minecraft:lit_pumpkin", "91", "0"},
+                {"minecraft:lit_pumpkin_west", "91", "1"},
+                {"minecraft:lit_pumpkin_north", "91", "2"},
+                {"minecraft:lit_pumpkin_east", "91", "3"}}) {
+            assertEquals(Optional.of(Integer.parseInt(row[1])), LegacyBlockIds.legacyId(
+                            net.zaminmc.torch.util.Identifier.parse(row[0])),
+                    row[0] + " must ride legacy " + row[1]);
+            assertEquals(Integer.parseInt(row[2]), LegacyBlockIds.metadataOf(
+                            net.zaminmc.torch.util.Identifier.parse(row[0])),
+                    row[0] + " must carry the horizontal id " + row[2]);
+        }
+    }
 }

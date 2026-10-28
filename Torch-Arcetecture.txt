@@ -6159,6 +6159,53 @@ way were repaired inside the wave.
       wire lanes 13/0 (MobAttributes, MobEquipment, EntityProperties,
       JoinFlow); the bukkit + launcher 105/0.
 
+## Wave PF — the 2026-10-28 pumpkin pair's FACING states (the metadata slice, the stale-ledger sweep pass two's first landed tail — PumpkinBlock 1:1)
+
+- [x] THE FAMILY (PumpkinBlocks): four horizontal states per block over
+      legacy 86/91 — the nibble the reference's OWN domain
+      (FACING.getIdHorizontal(): 0 south, 1 west, 2 north, 3 east —
+      Direction.java lines 14-17, a different band than the chest
+      family's Direction-id 2-5), the bare forms KEPT as the south
+      states (the dye family's white-wool precedent — every pumpkin in
+      an existing world stays valid), six new rotated states registered
+      (the registry's 902 re-pin).
+- [x] THE PLACEMENT (getPlacementState line 129): FACING = the look's
+      OPPOSITE — the pumpkin's face looks back at the placer — over the
+      reference's own centered band formula (floor(yaw/90 + 0.5) & 3,
+      the +45 shift and the & 3 mask; the sign placement's in-house
+      precedent). The half-quadrant law pinned (yaw 45 is a WEST look);
+      the chest/furnace placement sites' older truncation band
+      ((int)(yaw/90) % 4 — divergent at every half-quadrant and for the
+      client's negative yaws) is LEDGERED as their own family audit's
+      row, not silently changed.
+- [x] THE OTHER WRITES' OWN LAWS: the worldgen patch's random
+      horizontal (PumpkinPatchFeature line 16's HORIZONTAL.pick), the
+      dispense arm's and the stem fruit's DEFAULT state (FACING NORTH,
+      horizontal id 2 — the ctor's own setDefaultState, NOT the bare
+      south form the pre-slice engine paid for both), and the stem's
+      already-fruiting gate now the reference's KIND consult (a ROTATED
+      pumpkin beside the stem ends the walk — the old exact-type compare
+      would have grown a second fruit beside a player-placed one).
+- [x] THE SURFACE ROWS: behavior (every facing drops the family item),
+      light (the lit lantern's 15 whatever its facing — the audit's
+      census extended), collision (Material.PUMPKIN never connects),
+      sound, map colors, blast resistance (the EXACT table), the wire's
+      LegacyBlockIds rows (the ids + the METADATA nibbles) and the anvil
+      import's state rows (the 1251 re-pin).
+- [x] EVIDENCE: PumpkinFacingTest 4/0 NEW (the live placement's four
+      cardinals + the half-quadrant + the negative-yaw mask + the lit
+      form; the pure consults; the stem fruit's default NORTH + the kind
+      gate); BlockRegistryTest 3/0 (902); MelonBlocksTest 4/0;
+      VanillaLightAuditTest 5/0 (the census extension); the block +
+      dispenser + map packages whole 304/0; the world/interaction/
+      achievement lanes 239/0; the survival/furnace/chest/mining/
+      collision/notebook lanes green (the stats lane's one failure
+      PRE-EXISTING on clean develop — the cobweb row, verified by
+      stash); the protocol integrity pair green (the anvil 1251
+      re-pin); QuickCraftDragWireTest's chest-window timeout
+      PRE-EXISTING on clean develop (verified by stash) — the next
+      session's opener candidates.
+
 # 33. CODEBASE SCALE, CLASS COHESION, AND MAINTAINABILITY
 
 Torch's server-engine single-JAR codebase has exceeded 12,000 lines of code. This is a scale milestone, not a target for artificial restructuring.

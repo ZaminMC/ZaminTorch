@@ -978,7 +978,10 @@ public final class DispenserSystem implements WorldChangeListener {
             fx.sound(centerOf(pos), "random.click", 1.0f, 1.2f); // the failure click
             return stack;
         }
-        world.setBlock(target, BuiltinBlocks.PUMPKIN); // line 403: the default state
+        // Line 403: pumpkinblock.defaultState() — the ctor's own setDefaultState
+        // (FACING NORTH, horizontal id 2), NOT the bare south form the
+        // pre-slice engine paid.
+        world.setBlock(target, net.zaminmc.torch.server.block.PumpkinBlocks.pumpkinOf(false, 2));
         EngineSurfaces engine = surfaces;
         if (engine != null) {
             // The onAdded walk (PumpkinBlock lines 40-43).

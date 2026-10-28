@@ -367,6 +367,13 @@ public final class BlastResistanceTable {
         Map.entry("lapis_block", 3f),
         Map.entry("lapis_ore", 3f),
         Map.entry("lit_pumpkin", 1f),
+        // The rotated states (the metadata slice): the same 1.0 body.
+        Map.entry("pumpkin_west", 1f),
+        Map.entry("pumpkin_north", 1f),
+        Map.entry("pumpkin_east", 1f),
+        Map.entry("lit_pumpkin_west", 1f),
+        Map.entry("lit_pumpkin_north", 1f),
+        Map.entry("lit_pumpkin_east", 1f),
         Map.entry("lit_redstone_lamp", 0.3f),
         Map.entry("lit_redstone_ore", 3f),
         Map.entry("mob_spawner", 5f),
