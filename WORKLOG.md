@@ -17106,3 +17106,133 @@ re-reading the reference's every-body consults dissolved it; (3) the
 first drag-band pin caught the ghast's steering burst landing on tick
 1 (--burstCooldown from 0) — the blocked-line stub (clearLine false)
 is the clean way to pin a drag band ALONE.
+
+## 2026-10-28 — the furnace fuel & cycle parity audit (PR #61, the verifier's sixth pass)
+
+The sixth sweep, one family over: the furnace's fuel & cycle law — the
+twelve getFuelTime arms (FurnaceBlockEntity lines 262-300), the fuel
+consumption's recipe remainder (lines 182-188), the tick's two
+interruption laws (lines 176-205), and the window's three slot gates
+(FurnaceMenu lines 22-24) — the other half of the same block entity the
+third pass's completion sweep left standing (that pass closed
+SmeltingManager's rows; this one closed the furnace whole).
+
+The burn table had four wood pins, the coal pair, the stick and four
+wooden tools where the reference carries twelve arms. What was missing:
+the WOODEN_SLAB ordering law (150 ticks, checked BEFORE the wood-material
+class — half a plank's burn, and a naive class-only read pays 300; both
+registered ids of legacy 126, the reference's one item); the
+Material.WOOD class whole (300 for every registered block item whose
+BLOCK reads wood — twenty-six rows where four pins stood: the
+planks/log/log2 variant trio, the bookshelf, the note block, the jukebox,
+the sign, the oak door, the trapdoor, the oak fence and the five variant
+fences, the fence gate, and the six wood stairs — with the LADDER read
+OUT of the class, LadderBlock line 20's own Material.DECORATION, the one
+wooden-looking block the class law excludes); the wooden hoe's 200 (the
+reference reads the tier per ITEM class — ToolItem, SwordItem, then
+HoeItem — and the table's four rows never carried the hoe); the lava
+bucket's 20000; the sapling pair's 100; and the blaze rod's 2400.
+
+The consumption had lost the reference's remainder consult: when the
+igniting stack's LAST unit burns away, the item's recipe remainder
+replaces the slot (lines 184-187) — the lava bucket leaves its empty
+bucket (Item.java line 611's setRecipeRemainder) where the engine's
+consumeOne destroyed it. The smelting input keeps its clean consumption
+(finishCooking never consults remainders), so the fuel stack rides the
+arm alone.
+
+The interruption was one fold where the reference pays two laws: the
+engine's tick hard-reset cookTime in EVERY stall, but the reference's
+tick runs its ignite/cook/reset block inside a GUARD — burning, or both
+a fuel item and an input present — and only INSIDE that guard does the
+hard reset apply (a burning furnace with its input pulled loses the
+progress whole, the existing pin); OUTSIDE the guard (not burning, the
+fuel or the input gone) the progress DECAYS by two per tick (lines
+203-204's clamp), never a reset. Restored with the guard's own shape —
+and the decay PRESERVES partial progress: a fresh ignite resumes the
+window where the decay left it, pinned both ways (99 at tick 299, 100 at
+the plank's last burning tick, 98 at the first decay tick, and the
+resume seat).
+
+The window's slots carried none of the menu's gates: the input is a
+plain InventorySlot (dirt may park in it, it never smelts), the fuel
+slot is the FurnaceFuelSlot (isFuel OR the EMPTY bucket — the bucket
+stacking to ONE in the slot, getMaxStackSize's own row), and the output
+is the FurnaceResultSlot, whose isItemAllowed answers FALSE — taking
+only, never placement. The engine's clickSlot filtered nothing, and its
+own javadoc claimed "the historical container slot does not filter" —
+the claim re-pinned: two of the three slots filter. The quick-move
+routing read its own asymmetry kept 1:1: the menu's transfer walk routes
+by isFuel ALONE (line 100), so the empty bucket is admitted by the GUI
+gate yet NOT quick-moved in — the engine's routing already matched, now
+pinned. The hopper-side gates (the fuel-or-bucket push, the
+bucket-only pull from below) were already 1:1 from their own slice and
+ride the new rows for free — a hopper can now feed a furnace its lava
+bucket and pull the empty one out below.
+
+**Evidence:** FurnaceFuelParityTest 18/0 (the twelve arms over one
+table — the slab ordering pair, the wood class's twenty-six rows, the
+ladder's zero, the tool family with the hoe, the item arms, the
+non-fuel zeros including the water/milk/empty buckets; the lava
+bucket's empty-bucket remainder; the mid-stack consumption; the
+burn-out decay's exact 99/100/98 cadence with the clamped tail and the
+resume seat; the two unguarded decay arms — fuel gone with the input
+waiting, input gone with the fuel waiting; the guarded blocked-output
+hard reset; the three slot gates with the bucket-at-one and the
+reverse-merge take; the quick-move asymmetry); the furnace package
+whole 45/0 (FurnaceBlockEntity 8, FurnaceFacing 2, FurnaceManager 4,
+MetadataSmelting 7, SmeltingCompletionParity 6, the new 18); the
+acceptance + container batch 104/0 (LitFurnace 2, FurnaceTakeXp 2,
+FurnaceHopperEvent 5, FurnaceRestart 1, HopperSystem 8, CraftingRecipe
+18, BrewingStandSystem 7, ChestBlockEntity 7, ChestFacing 2,
+ChestManager 4, ContainerPersistence 1, TrappedChest 2); the protocol
+wire batch 8/0 (FurnaceIntegration, WindowClick, WindowResync 4,
+CraftingFlow 2) plus SurvivalFlow 2, VanillaParity 1 and ChestLid 2;
+the bukkit + launcher + api modules green. The honest standing notes:
+ChestIntegrationTest's spill arm timed out on the spawn-item read in
+THIS environment — reproduced identically on the pass's base commit
+(be8e7854, the changes stashed), the documented load-flake class with
+four prior WORKLOG mentions, not a regression of this audit (the
+core-level chest family green in the same session); one
+HopperSystemTest load flake in the first combined run, green on the
+re-run and in isolation.
+
+**Lessons:** (1) a class law is a read, not a guess — the ladder looks
+wood and burns nowhere: Material.WOOD membership answers per BLOCK
+registration, and LadderBlock's own DECORATION line is the difference
+between a right table and a wrong row; (2) an interruption is not one
+law — the reference pays TWO (the guarded reset and the unguarded
+decay), and the fold between them cost every furnace its partial
+progress on a burn-out; the guard's own shape (burning, or fuel AND
+input) decides which arm runs, so the guard is the law; (3) one gate,
+two shapes — the GUI admits the empty bucket into the fuel slot while
+the quick-move walk refuses it (isFuel alone): both paths restored,
+both pinned, the asymmetry named; (4) the audit's own arithmetic rides
+the engine's own tick order — the ignition tick spends no burn
+decrement (the reference decrements before the ignite), and the first
+test draft paid the decay one tick early: the observed 100-vs-97
+re-pinned the seat to the machine's true cadence, the verifier
+verifying its own seats too.
+
+## The PR #61 review fix (the wood class completed)
+
+The review of PR #61 (the furnace fuel & cycle parity audit) verified all
+four divergence groups against the reference — the tick's outer guard and
+its two interruption laws (lines 176-205), the fuel consumption's recipe
+remainder (lines 182-188, Item.java line 611), the window's three slot
+gates (FurnaceMenu lines 22-24), and the fuel arms' own values — and found
+ONE defect: the Material.WOOD class restoration claimed "the registry's
+wood members" but the table carried twenty-six of thirty-eight. The twelve
+missing rows, all registered engine items the reference prices at 300:
+the five variant doors (Block.java lines 1461-1465, every
+DoorBlock(Material.WOOD)), the five variant fence gates (lines 1393-1413,
+FenceGateBlock line 22's own Material.WOOD), the trapped chest
+(ChestBlock line 33's constructor shared by Block.java line 1308's
+registration), and the daylight detector (DaylightDetectorBlock line 27).
+In vanilla 1.8.8 all twelve burn 300 ticks; with the audit's table alone a
+spruce door would not burn while an oak door does — a parity break the
+class law's own claim could not survive. The fix: the twelve rows added in
+the class section's own family grouping, the class comment naming the full
+membership, and the wood-class test pinning all thirty-eight (the count
+the claim always meant). The ladder exclusion re-verified beside them
+(LadderBlock line 20's Material.DECORATION).
