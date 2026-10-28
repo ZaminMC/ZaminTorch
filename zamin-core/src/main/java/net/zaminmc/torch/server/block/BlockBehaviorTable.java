@@ -66,6 +66,23 @@ public final class BlockBehaviorTable {
             Identifier.parse("minecraft:redstone_ore"),
             Identifier.parse("minecraft:packed_ice"),
             Identifier.parse("minecraft:ice"),
+            // The silk-arm parity audit (the follow-up to the drop-band
+            // audit — every cube-without-TE whose normal row DIVERGES from
+            // the block itself, each read from the reference before the
+            // fix): the quartz ore (hand → the quartz item, silk → the
+            // ore itself), the glowstone (hand → the dust band, silk →
+            // the block), the clay (hand → four balls, silk → the block),
+            // the snow block (hand → four snowballs, silk → the block),
+            // the mycelium (hand → dirt, silk → the block), the glass
+            // pane (hand → nothing, silk → the pane item 102), and the
+            // cobweb (hand → one string, silk → the web item 30).
+            Identifier.parse("minecraft:quartz_ore"),
+            Identifier.parse("minecraft:glowstone"),
+            Identifier.parse("minecraft:clay"),
+            Identifier.parse("minecraft:snow"),
+            Identifier.parse("minecraft:mycelium"),
+            Identifier.parse("minecraft:glass_pane"),
+            Identifier.parse("minecraft:cobweb"),
             // The sea lantern's own gate (SeaLanternBlock line 41:
             // hasSilkTouchDrops true — silk takes the lantern itself,
             // the bare hand walks the crystals band).
@@ -96,6 +113,23 @@ public final class BlockBehaviorTable {
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:dirt"), 1)))),
 
             Map.entry(Identifier.parse("minecraft:dirt"),
+                    new BlockBehavior(0.5, true, false, "dirt", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:dirt"), 1)))),
+
+            // The silk-arm parity audit — the dirt band's missing variants
+            // (DirtBlock.getDropItemMetadata lines 72-79: the dropped
+            // item's damage is the variant's own id, with PODZOL
+            // downgraded to plain DIRT for the by-hand walk; the silk arm
+            // keeps the state's metadata instead — the podzol takes
+            // damage 2 under silk, a dedicated branch in the DropService
+            // owns that arm since the generic silk drop cannot carry the
+            // dirt item's damage domain). The coarse dirt answers the
+            // SAME stack under either arm (damage 1 — 1.8's coarse dirt
+            // IS the dirt item), so it rides the plain row alone.
+            Map.entry(Identifier.parse("minecraft:coarse_dirt"),
+                    new BlockBehavior(0.5, true, false, "dirt", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:dirt"), 1, 1)))),
+            Map.entry(Identifier.parse("minecraft:podzol"),
                     new BlockBehavior(0.5, true, false, "dirt", 0,
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:dirt"), 1)))),
 
@@ -501,6 +535,14 @@ public final class BlockBehaviorTable {
             // skin and the sandstone stairs pair the sandstone's own 0.8.
             Map.entry(Identifier.parse("minecraft:glass_pane"),
                     new BlockBehavior(0.3, true, false, null, 0, List.of())),
+            // The silk-arm parity audit — the cobweb's missing row
+            // (CobwebBlock lines 41-45: getDropItem STRING with the base
+            // count ONE — the pre-fix table carried no row at all, so
+            // every break answered nothing; silk takes the web itself,
+            // the silk set's own row above).
+            Map.entry(Identifier.parse("minecraft:cobweb"),
+                    new BlockBehavior(4.0, true, false, null, 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:string"), 1)))),
             Map.entry(Identifier.parse("minecraft:iron_bars"),
                     new BlockBehavior(5.0, true, false, "rock", 1,
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:iron_bars"), 1)))),
