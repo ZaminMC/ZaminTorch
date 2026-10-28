@@ -2081,6 +2081,12 @@ public final class EngineServer implements Server, EngineBridge {
                 // rolls, the reference's own breakLeaves shape.
                 randomTicks.setLeafDecayDrops(itemEntities,
                         new DropService(new java.util.Random(worldSeed ^ 0x1EAFDECAL)));
+                // The plant-pop seam (the farming growth pass): the
+                // random-tick support consults' pops — the cane's
+                // water-loss pop and the cactus's new-cell pop — land
+                // through the engine's own item bodies, the same manager
+                // the neighbour bus's plant-pop arms use.
+                randomTicks.setPlantPopItems(itemEntities);
                 // Projectiles (arrows, shards): the tick-thread physics system,
                 // with damage semantics staying here in the combat callbacks.
                 ProjectileManager projectiles = new ProjectileManager(

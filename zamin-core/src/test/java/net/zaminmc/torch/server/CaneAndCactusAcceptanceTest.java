@@ -119,16 +119,19 @@ class CaneAndCactusAcceptanceTest {
         assertEquals(3, farmer.inventory().held().count(), "planting spent one cane");
 
         // The random-tick clock grows the reed to three, then stops. The
-        // growth is a 1-in-3 roll per probe, so the loops poll until the
-        // stalk appears (the cap, not the pace, is the contract).
+        // growth is the AGE-15 accumulator's 1-in-16 roll per probe (the
+        // farming growth pass — the pre-audit 1-in-3 was 5.33x the
+        // reference's pace), so the loops poll until the stalk appears
+        // (the cap, not the pace, is the contract; 200 probes hold the
+        // (15/16)^200 miss odds at 2.4e-6).
         var ticks = server.randomTicks();
         BlockPosition cane = wet.offset(0, 1, 0);
-        for (int i = 0; i < 30; i++) {
+        for (int i = 0; i < 200; i++) {
             probe(ticks, cane);
         }
         await(() -> server.world().getBlock(cane.offset(0, 1, 0)).equals(BuiltinBlocks.SUGAR_CANE),
                 "the reed grew a second stalk");
-        for (int i = 0; i < 30; i++) {
+        for (int i = 0; i < 200; i++) {
             probe(ticks, cane.offset(0, 1, 0));
         }
         await(() -> server.world().getBlock(cane.offset(0, 2, 0)).equals(BuiltinBlocks.SUGAR_CANE),
