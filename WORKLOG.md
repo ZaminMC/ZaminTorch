@@ -16940,3 +16940,46 @@ while sendEyeLaunched's 1002 arm and the join sends said otherwise, and
 only the scoping pass caught it; (3) the store's byte-identity law
 (TileExtraSaveSplit) is the migration's own guard — the v4 re-pin was
 forced by a 2-byte diff, exactly as designed.
+
+## Wave T-5 — the §35.12 codec rows measured (the compression/encryption scenarios closed with numbers)
+
+**What:** WireCodecBenchmarkTest in the protocol module (the layer that
+owns the codecs) drives the production pipeline ORDER over embedded
+channels — outbound compress -> frame -> encrypt, inbound decrypt ->
+deframe -> decompress — through the four codec arms (plaintext,
+compression, encryption, both) at the production threshold 256, over the
+two representative shapes: chunk streaming (16 KiB terrain-like frames)
+and entity tracking (40 B movement-shaped frames, all below threshold).
+The sampled round-trips assert byte-exactness through the full path; the
+numbers print for the ledger (the T-2 convention — a slow host never
+fails the gate).
+
+**The numbers (this machine):** chunk shape — plaintext 12,331 pps /
+192.7 MiB/s, compression 2,564 pps (wire 3.7 MiB/s — the terrain shrinks
+10.87x), encryption 1,767 pps / 27.6 MiB/s, both 2,245 pps / 35.1 MiB/s.
+Entity shape — plaintext 747,845 pps, compression 374,525 (0.50x),
+encryption 245,769 (0.33x), both 229,847 (0.31x). THE TWO LAWS THE
+MATRIX CARRIES: (1) CFB8 is the dominant per-byte codec cost — each byte
+rides its own AES block op — and with encryption armed, compression PAYS
+FOR ITSELF at every compressible-heavy shape (the both-arm beats
+encryption-alone 2,245 vs 1,767 pps because the deflate shrink means the
+cipher walks 10.87x fewer bytes); (2) at the small-frame shape the codec
+arms cost by the PACKET, not the byte — the full stack at ~230k pps
+single-channel sits far inside any single-connection 1.8.8 traffic
+shape. The §35.12 gate's ten-scenario list is now FULLY measured (8 at
+the transport layer by T-2, the codec rows here); Wave T-2's
+argued-away note retired.
+
+**Evidence:** WireCodecBenchmarkTest 2/0 (the sampled round-trips
+byte-exact at every arm, both shapes; 6.2s whole).
+
+**Lessons:** (1) the argued-away row was honest but incomplete — the
+transport layer's argument ("the queue never sees the codec bytes") held
+at its layer, yet the measurement still had to exist at the layer that
+owns the codecs, and only there could the compression-pays-for-itself
+law surface; (2) the EmbeddedChannel constructor adds handlers
+head-first — the outbound array must be the REVERSE of the outbound walk
+order (a first draft had compress/encrypt swapped, which would have
+measured ciphertext-deflate nonsense); (3) the production threshold
+(256) rides the harness as a constant — the benchmark measures the
+shipped shape, not an idealized one.
