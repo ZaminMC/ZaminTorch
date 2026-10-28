@@ -9147,7 +9147,13 @@ public final class EngineServer implements Server, EngineBridge {
         if (id.equals("cooked_fish")) {
             session.stats().increment(EngineAchievements.COOK_FISH.key(), 1);
         }
-        double xp = net.zaminmc.torch.server.furnace.FurnaceRecipes.takeExperienceOf(taken.type())
+        // The smelting-completion audit — the reference keys the RESULT
+        // STACK (SmeltingManager.getXp: item AND metadata): the coal take
+        // splits by damage (the ore take 0.1, the charcoal 0.15), the
+        // cactus's green dye and the cracked brick and the dried sponge
+        // carry their own bands.
+        double xp = net.zaminmc.torch.server.furnace.FurnaceRecipes.takeExperienceOf(
+                taken.type(), taken.damage())
                 * taken.count();
         int points = (int) Math.floor(xp);
         double remainder = xp - Math.floor(xp);

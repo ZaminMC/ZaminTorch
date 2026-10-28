@@ -90,7 +90,15 @@ public final class FurnaceRecipes {
             Map.entry(Identifier.parse("minecraft:quartz_ore"),
             new SmeltResult(Identifier.parse("minecraft:quartz"), 1, 0)),
             Map.entry(Identifier.parse("minecraft:netherrack"),
-            new SmeltResult(Identifier.parse("minecraft:nether_brick"), 1, 0)));
+            new SmeltResult(Identifier.parse("minecraft:nether_brick"), 1, 0)),
+            // The smelting-completion audit (SmeltingManager lines 25-64 —
+            // the reference's own rows the table never carried): the raw
+            // rabbit smelts like the food band (cooked_rabbit, 0.35 take)
+            // and the cactus smelts to the GREEN dye (damage 2, 0.2 take).
+            Map.entry(Identifier.parse("minecraft:rabbit"),
+            new SmeltResult(Identifier.parse("minecraft:cooked_rabbit"), 1, 0)),
+            Map.entry(Identifier.parse("minecraft:cactus"),
+            new SmeltResult(Identifier.parse("minecraft:dye"), 1, 2)));
     // The oak_log entry is charcoal: output coal with damage 1, the 1.8 dataset
     // variant (items.json: coal metadata 1 = "Charcoal"). Charcoal burns like
     // coal because the fuel table keys by item type; the registry has exactly
@@ -127,6 +135,9 @@ public final class FurnaceRecipes {
             Map.entry(Identifier.parse("minecraft:baked_potato"), 0.35),
             Map.entry(Identifier.parse("minecraft:cooked_fish"), 0.35),
             Map.entry(Identifier.parse("minecraft:coal"), 0.15),
+            // The smelting-completion audit — the raw rabbit's cooked form
+            // joins the food band (SmeltingManager line 33: 0.35).
+            Map.entry(Identifier.parse("minecraft:cooked_rabbit"), 0.35),
             // The vault's take XP (Slice 32 — SmeltingManager's own rows):
             // the brick 0.3, hardened clay 0.35, the ore smelts' bands.
             Map.entry(Identifier.parse("minecraft:brick"), 0.3),
@@ -140,6 +151,59 @@ public final class FurnaceRecipes {
 
     /** @return the experience points one taken output item pays. */
     public static double takeExperienceOf(ItemType output) {
+        return TAKE_EXPERIENCE.getOrDefault(output.identifier(), 0.0);
+    }
+
+    /**
+     * The damage-split take rows (the smelting-completion audit — the
+     * reference keys the RESULT STACK, item AND metadata, so two takes of
+     * the same item id can pay different bands):
+     * <ul>
+     * <li>the coal pair (SmeltingManager lines 60 + 47-48): the ORE take
+     *     (plain coal, damage 0) pays 0.1, the LOG take (charcoal, damage
+     *     1) pays 0.15 — the pre-fix identifier table answered 0.15 for
+     *     both;</li>
+     * <li>the cactus take (line 50): the GREEN dye — damage 2 — pays 0.2
+     *     (no other dye take pays: nothing else smelts to a dye);</li>
+     * <li>the stone-brick take (line 41): the CRACKED brick — damage 2 —
+     *     pays 0.1;</li>
+     * <li>the sponge take (line 63): the DRIED sponge — damage 0 — pays
+     *     0.15 (only the dried form is a smelting result).</li>
+     * </ul>
+     *
+     * @return the damage-keyed take, or a negative when the identifier
+     *         table answers instead.
+     */
+    private static double damageKeyedTakeOf(Identifier output, int damage) {
+        String id = output.value();
+        if (id.equals("coal")) {
+            return damage == 1 ? 0.15 : 0.1;
+        }
+        if (id.equals("dye")) {
+            return damage == 2 ? 0.2 : 0.0;
+        }
+        if (id.equals("stone_bricks")) {
+            return damage == 2 ? 0.1 : 0.0;
+        }
+        if (id.equals("sponge")) {
+            return damage == 0 ? 0.15 : 0.0;
+        }
+        return -1.0;
+    }
+
+    /**
+     * The experience points one taken output STACK pays (the reference's
+     * own keying — {@code SmeltingManager.getXp} consults the result stack's
+     * item AND metadata).
+     *
+     * @param output the taken output's item type
+     * @param damage the taken stack's damage field (the variant domains)
+     */
+    public static double takeExperienceOf(ItemType output, int damage) {
+        double damageKeyed = damageKeyedTakeOf(output.identifier(), damage);
+        if (damageKeyed >= 0.0) {
+            return damageKeyed;
+        }
         return TAKE_EXPERIENCE.getOrDefault(output.identifier(), 0.0);
     }
 
@@ -185,6 +249,26 @@ public final class FurnaceRecipes {
                         net.zaminmc.torch.server.item.FishItems.COOKED_FISH, 1, 1));
                 default -> Optional.empty(); // the non-cookable variants
             };
+        }
+        // The stone-brick take (the smelting-completion audit —
+        // SmeltingManager line 41: the DEFAULT brick alone smelts into the
+        // CRACKED form, damage 2 — the mossy/chiseled pair never enters
+        // the furnace).
+        if (input.identifier().equals(
+                Identifier.parse("minecraft:stone_bricks"))) {
+            return damage == 0
+                    ? Optional.of(new SmeltResult(
+                            Identifier.parse("minecraft:stone_bricks"), 1, 2))
+                    : Optional.empty();
+        }
+        // The sponge take (SmeltingManager line 63: the WET sponge —
+        // damage 1 — dries to the plain form; the dry sponge never
+        // enters the furnace).
+        if (input.identifier().equals(Identifier.parse("minecraft:sponge"))) {
+            return damage == 1
+                    ? Optional.of(new SmeltResult(
+                            Identifier.parse("minecraft:sponge"), 1, 0))
+                    : Optional.empty();
         }
         return resultOf(input);
     }
