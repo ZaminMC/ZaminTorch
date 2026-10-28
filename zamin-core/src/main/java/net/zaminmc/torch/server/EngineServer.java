@@ -2292,6 +2292,11 @@ public final class EngineServer implements Server, EngineBridge {
                     // (line 65 — the armor's enchantment walk only).
                     thrower.setGraceTicks(10); // the knockback window's own
                     thrower.applyMovement(at, thrower.rotation(), false);
+                    // The pearl's carry is a setPosition-class write — the
+                    // reference's stats walk (PlayerEntity lines 1287-1303)
+                    // never sees it, so an upward pearl pays no phantom
+                    // jump (the phantom-jump review fix).
+                    thrower.resetBodyDelta();
                     thrower.resetFallDistance();
                     damageOnTick(thrower,
                             applyEnchantProtection(thrower, ENDER_PEARL_FALL_DAMAGE,
@@ -8204,6 +8209,11 @@ public final class EngineServer implements Server, EngineBridge {
         Position destination = session.bedSpawn() != null
                 ? session.bedSpawn() : world.spawnPosition();
         session.applyMovement(destination, session.rotation(), false);
+        // The credits' landing is a setPosition-class write — the reference's
+        // respawn never charges the stats walk (PlayerEntity lines 1287-1303
+        // measure moveRelative's locals alone), so the End-to-spawn jump pays
+        // no phantom jump (the phantom-jump review fix).
+        session.resetBodyDelta();
         // The fall debt clears (a dimension walk is not a fall) and the
         // grace window rides the re-anchor like every respawn.
         session.consumeFallDistance();
@@ -17005,6 +17015,10 @@ public final class EngineServer implements Server, EngineBridge {
                 // The body steps out beside the vehicle (the re-anchor rides
                 // the wire listener's position-and-look).
                 rider.applyMovement(riderExit, rider.rotation(), true);
+                // The exit-beside step is a setPosition-class write (Entity
+                // lines 1374-1380) — the dismount offset never charges the
+                // walk (the phantom-charge review fix).
+                rider.resetBodyDelta();
                 rider.setGraceTicks(40);
             } else {
                 // The non-session rider's exit (the reference's startRiding
@@ -21098,6 +21112,10 @@ public final class EngineServer implements Server, EngineBridge {
                 // The body steps out beside the mount (the re-anchor rides
                 // the wire listener's position-and-look; the buck throw pops).
                 rider.applyMovement(exit, rider.rotation(), true);
+                // The exit-beside step is a setPosition-class write (Entity
+                // lines 1374-1380) — the bucked dismount offset never
+                // charges the walk (the phantom-charge review fix).
+                rider.resetBodyDelta();
                 rider.setGraceTicks(40);
             }
             for (MobManager.Listener listener : mobListeners) {

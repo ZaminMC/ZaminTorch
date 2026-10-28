@@ -870,6 +870,12 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
         this.dimension = newDimension;
         applyMovement(arrival, new Rotation(yaw, pitch), false);
         consumeFallDistance();
+        // The crossing's position carry is a setPosition-class write — the
+        // reference's stats walk measures moveRelative's own locals alone
+        // (PlayerEntity lines 1287-1303), so the 8:1 nether walk and the
+        // End's forced spawn never charge (the phantom-jump review fix:
+        // the seed re-derives at the arrival).
+        resetBodyDelta();
         // The body left the entered frame's memory behind — the next entry
         // re-derives against the arrival frame (the reference's entity copy
         // carries the memory across, but its placement re-derives at the
