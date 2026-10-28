@@ -246,7 +246,11 @@ count of the wire/import derivation — the sign-rotation pass
 WITHOUT the pin moving (1251 was already stale at 1263; the pass's
 own evidence ran a nine-test wire batch that did not include the
 integrity size pin — the same stale-pin class the test's own comment
-chain documents). This pass re-pins it 1251 -> 1271 (the sign's
+chain documents). This pass re-pinned it 1251 -> 1271 (the sign's
 TWELVE + the rail's EIGHT rows), the missing-rows/wrong-rows/
 collision checks green both before and after (only the count had
-drifted).
+drifted). THE MERGE CATCH: develop's BN-A banner wave (dc4cb71a)
+left the SAME pin stale on its own side (1251 while its derivation
+read 1259) — caught at this pass's develop merge and re-pinned
+1279 (1251 + the sign's twelve + the banner's eight + the rail's
+eight); the same class, now documented twice in the pin's chain.

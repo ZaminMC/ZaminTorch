@@ -349,24 +349,46 @@ class AnvilChunkReaderTest {
 
     @Test
     void anUnknownVanillaIdIsolatesAsAirWithACountedState() {
-        // The banners (176/177) are the engine's one unregistered 1.8.8
-        // family; a mod id (999) has no vanilla existence at all. Both
-        // become air with their exact state counted — never a crash.
+        // A mod id (999) has no vanilla existence at all — it becomes air
+        // with its exact state counted, never a crash. (The banner family
+        // 176/177 used to ride this isolation row; the banner wave
+        // registered both pairs, and the banner import has its own seat
+        // below.)
         byte[] blocks = new byte[4096];
-        blocks[AnvilFixture.cellIndex(0, 0, 0)] = (byte) 176; // standing banner
         blocks[AnvilFixture.cellIndex(1, 0, 0)] = (byte) 255; // (255, 0): unknown
         blocks[AnvilFixture.cellIndex(2, 0, 0)] = (byte) 231; // mod space via Add below
         byte[] add = new byte[2048];
         AnvilFixture.nibble(add, AnvilFixture.cellIndex(2, 0, 0), 3); // id 999
         EngineChunk chunk = read(AnvilFixture.chunkNbt(0, 0,
                 List.of(AnvilFixture.section(0, blocks, new byte[2048], add)), null));
-        assertEquals("minecraft:air", blockAt(chunk, 0, 0, 0), "the banner family is not registered");
         assertEquals("minecraft:air", blockAt(chunk, 1, 0, 0));
         assertEquals("minecraft:air", blockAt(chunk, 2, 0, 0), "the mod id");
-        assertTrue(ledger.summary().contains("id 176 meta 0 x1"),
-                "the banner state is counted: " + ledger.summary());
         assertTrue(ledger.summary().contains("id 999 meta 0 x1"),
                 "the mod state is counted: " + ledger.summary());
+    }
+
+    @Test
+    void theBannerFamilyImportsWithItsRotationAndFacingNibbles() {
+        // Block.java lines 1375-1376: 176 the standing pair (the rotation
+        // nibble folding to the engine's sign-model cardinals), 177 the
+        // wall pair (the FACING nibble 2-5, the byId modulo folding the
+        // out-of-band answers).
+        byte[] blocks = new byte[4096];
+        byte[] meta = new byte[2048];
+        blocks[AnvilFixture.cellIndex(0, 0, 0)] = (byte) 176; // rotation 0: south
+        AnvilFixture.nibble(meta, AnvilFixture.cellIndex(0, 0, 0), 0);
+        blocks[AnvilFixture.cellIndex(1, 0, 0)] = (byte) 176; // rotation 8: north
+        AnvilFixture.nibble(meta, AnvilFixture.cellIndex(1, 0, 0), 8);
+        blocks[AnvilFixture.cellIndex(2, 0, 0)] = (byte) 177; // FACING 5: east
+        AnvilFixture.nibble(meta, AnvilFixture.cellIndex(2, 0, 0), 5);
+        blocks[AnvilFixture.cellIndex(3, 0, 0)] = (byte) 177; // nibble 9: byId south
+        AnvilFixture.nibble(meta, AnvilFixture.cellIndex(3, 0, 0), 9);
+        EngineChunk chunk = read(AnvilFixture.chunkNbt(0, 0,
+                List.of(AnvilFixture.section(0, blocks, meta, null)), null));
+        assertEquals("minecraft:standing_banner", blockAt(chunk, 0, 0, 0));
+        assertEquals("minecraft:standing_banner_north", blockAt(chunk, 1, 0, 0));
+        assertEquals("minecraft:wall_banner_east", blockAt(chunk, 2, 0, 0));
+        assertEquals("minecraft:wall_banner_south", blockAt(chunk, 3, 0, 0));
     }
 
     @Test

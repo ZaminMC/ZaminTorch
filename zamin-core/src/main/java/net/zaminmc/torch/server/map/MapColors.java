@@ -540,10 +540,14 @@ public final class MapColors {
             row(t, "skull_" + facing, AIR);
             row(t, "sign_" + facing, WOOD); // SignBlock(WOOD)
             row(t, "wall_sign_" + facing, WOOD);
+            row(t, "standing_banner_" + facing, WOOD); // BannerBlock(WOOD)
+            row(t, "wall_banner_" + facing, WOOD);
             row(t, "ladder_" + facing, AIR); // LadderBlock(DECORATION)
         }
         row(t, "sign", WOOD);
         row(t, "wall_sign", WOOD);
+        row(t, "standing_banner", WOOD);
+        row(t, "wall_banner", WOOD);
         row(t, "ladder", AIR);
         row(t, "flower_pot", AIR); // FlowerPotBlock(DECORATION)
         for (String potted : new String[] {"potted_oak_sapling",

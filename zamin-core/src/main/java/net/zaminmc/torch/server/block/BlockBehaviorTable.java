@@ -972,6 +972,27 @@ public final class BlockBehaviorTable {
             Map.entry(Identifier.parse("minecraft:wall_sign_east"),
                     new BlockBehavior(1.0, true, false, "wood", 0,
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:sign"), 1)))),
+            // The banner family (blocks 176 standing / 177 wall,
+            // setStrength(1.0F) WOOD_SOUNDS, Material.WOOD): no table
+            // drop — the tagged drop (the item at the tile's base damage
+            // carrying the BlockEntityTag) rides the break hook's tile
+            // read, the reference's own dropItems override.
+            Map.entry(Identifier.parse("minecraft:standing_banner"),
+                    new BlockBehavior(1.0, true, false, "wood", 0, List.of())),
+            Map.entry(Identifier.parse("minecraft:standing_banner_west"),
+                    new BlockBehavior(1.0, true, false, "wood", 0, List.of())),
+            Map.entry(Identifier.parse("minecraft:standing_banner_north"),
+                    new BlockBehavior(1.0, true, false, "wood", 0, List.of())),
+            Map.entry(Identifier.parse("minecraft:standing_banner_east"),
+                    new BlockBehavior(1.0, true, false, "wood", 0, List.of())),
+            Map.entry(Identifier.parse("minecraft:wall_banner"),
+                    new BlockBehavior(1.0, true, false, "wood", 0, List.of())),
+            Map.entry(Identifier.parse("minecraft:wall_banner_south"),
+                    new BlockBehavior(1.0, true, false, "wood", 0, List.of())),
+            Map.entry(Identifier.parse("minecraft:wall_banner_west"),
+                    new BlockBehavior(1.0, true, false, "wood", 0, List.of())),
+            Map.entry(Identifier.parse("minecraft:wall_banner_east"),
+                    new BlockBehavior(1.0, true, false, "wood", 0, List.of())),
             // The skull family (Slice 60 — block 144, setStrength(1.0F)
             // STONE_SOUNDS): no table drop — the typed drop rides the
             // break hook's tile read (the reference's empty dropItems +

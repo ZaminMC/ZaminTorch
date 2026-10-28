@@ -62,8 +62,8 @@ class AnvilImportAcceptanceTest {
 
         // The torch scene in chunk (8,8): a stone floor at y=0, a torch at
         // (130,1,130), open sky above — the light assertions' inputs. The
-        // banner (176) is the engine's one unregistered 1.8.8 family: it
-        // imports as air with a counted unknown state.
+        // standing banner (176) is now a registered family (the banner
+        // wave): it imports as its south state.
         byte[] torchBlocks = new byte[4096];
         for (int z = 0; z < 16; z++) {
             for (int x = 0; x < 16; x++) {
@@ -152,10 +152,10 @@ class AnvilImportAcceptanceTest {
                     world.getBlock(new net.zaminmc.torch.block.BlockPosition(130, 1, 130))
                             .identifier().toString(),
                     "the imported torch is readable through the engine");
-            assertEquals("minecraft:air",
+            assertEquals("minecraft:standing_banner",
                     world.getBlock(new net.zaminmc.torch.block.BlockPosition(131, 1, 131))
                             .identifier().toString(),
-                    "the banner (the engine's unregistered family) imported as air");
+                    "the banner (the registered family) imports as its south state");
             assertEquals("minecraft:dirt",
                     world.getBlock(new net.zaminmc.torch.block.BlockPosition(144, 0, 128))
                             .identifier().toString(),
@@ -191,12 +191,12 @@ class AnvilImportAcceptanceTest {
 
             // The ledger's own rows: installed 2 (the fresh positions),
             // skipped 1 (the boot pregen holds (0,0)), the garbage file
-            // isolated whole, the unknown banner state counted.
+            // isolated whole (the banner 176 is a registered family now —
+            // no isolation row rides its import).
             assertTrue(report.contains("installed 2 chunks"), "the report: " + report);
             assertTrue(report.contains("skipped 1 (already loaded)"), "the report: " + report);
             assertTrue(report.contains("unoccupied 1021"), "1024 entries minus 3 written: " + report);
             assertTrue(report.contains("shorter than the 8 KiB header"), "the garbage file: " + report);
-            assertTrue(report.contains("id 176 meta 0 x1"), "the banner state: " + report);
         } finally {
             consoleLogger.removeHandler(capture);
             server.shutdown(null);

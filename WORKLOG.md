@@ -17910,3 +17910,103 @@ powered branches — the redstone seam's row); the signal-source re-walk
 torch/carpet/sign arms' self-wake divergence (their own audits' rows);
 the hopper cart's transfer quirk cadence and VehicleWorldDamageTest's
 combined-run flake (the documented load class).
+
+## 2026-10-28 — Wave MI + the two PR reviews (the hunger exhaustion + stats families, PRs #65 and #66)
+
+The session opened on the PR lane (the first-priority protocol): two
+open PRs reviewed against the reference, both merged WITH review fixes.
+
+PR #65 (the hunger exhaustion economy, the verifier's tenth pass): all
+five restorations verified against the reference line by line — the
+riding gate (line 1305), the dived arm's 3-D norm + the water-only
+consults (isSubmergedIn's eye read, isInWater's body flag), the IN_WALL
+zero (setBypassesArmor's exhaustion zeroing), the projectile/blast/anvil
+0.3s (line 856 inside the damage != 0 gate), the teleport's seed
+(moveRelative's locals alone). THE REVIEW FINDING: the fifth restoration
+fixed the /tp path alone — the same phantom-jump class lived at FIVE more
+setPosition-class sites: the ender pearl's carry, BOTH dimension
+arrivals (the nether walk's 8:1 + the End's forced spawn), the
+End-credits respawn, and both dismount exits. All five fixed with
+resetBodyDelta (the law stated once: every setPosition-class write
+re-seeds the scratch); three new seats, stash-verified 3/3 failing
+without the fix; merged at efa26693.
+
+PR #66 (the stats family, the eleventh pass): ten claim groups verified
+against the reference — the harvest gate lives at the CALLER
+(tryMineBlock's flag1 && flag), the dead play clock (MINUTES_PLAYED
+ungated by isAlive), the kill-credit pair, the movement walk's both
+halves with the rows ungated by gamemode, the riding rows (the boat's
+CM_SAILED, the pig/horse rows), the fishing trio's roll-time rows, the
+villager pair, the one-site break law (takeDamageAndBreak's row riding
+the shared wear walk), the use rows' two arms, and the outside-click
+drop. THE REVIEW FINDING: the jump arm's new tail placement reads a
+shallow-water leap as a ground jump — the reference's jump INPUT walk
+(LivingEntity lines 1446-1456) sends isInWater/isInLava to their own
+arms BEFORE the ground arm, so jump() never fires from water or lava.
+The water/lava gate added at the scratch's own cell (the jump's
+origin); the water-leap seat stash-verified failing 1/1 without the
+gate; merged at 1087b237.
+
+WAVE MI (the architecture lane, the R-8 family-tail remainder's LAST
+honest row): the mooshroom's mycelium spawn floor. The natural cycle's
+animal arm hardcoded the grass floor for every animal where the
+reference consults the per-kind spawnableBlock FIELD (AnimalEntity
+line 18's grass default, MooshroomEntity line 16's MYCELIUM) — the
+spawner path's animalCanSpawn twin had landed with VT-7h; the natural
+cycle was the missing twin. The fix reads the mooshroom's MYCELIUM
+exactly; the seeding path verified floor-blind in BOTH trees (the
+reference's populateChunk consults isValidSpawnPos alone). The seat:
+the mycelium isle grows mooshrooms (and ONLY mooshrooms), the same
+biome over grass grows nothing, the plains animals over mycelium grow
+nothing — the per-kind law. Stash-verified failing; 60/0 across the
+touched lanes (NaturalSpawn 13, SpawnerManager 10, SpawnerSpawnGates
+15, SpawnerDataStore 3, BiomeSpawnTables 8, GenLayerLayout 8,
+MooshroomEntity 3). The stale ledger notes re-pinned (the compat doc's
+mooshroom row + MobType's javadoc — the "no mushroom island" claim was
+twice stale: the isle's layout/tables/surface landed with the layer
+family; the tail's own slice was the floor consult alone). §29's Wave
+MI row + §22's next-work statement updated: the named family-tail
+remainder CLOSED (TF-7c, TF-7d, MI); the accepted-drift rows stay
+family-owned and demand-named per the ML-100 rule.
+
+## 2026-10-28 — the banner family scoping note (the next session's opener candidate)
+
+The BANNER_CLEANED tail's owner is the banner family itself — absent
+whole (no block, no item, no tile; only lookup-table rows: the blast
+resistance pair, the stats vocabulary, the TileNbt id mapping, the
+wire's LegacyBlockIds). The family is the SIGN family's twin, and the
+sign family is the pattern to follow (EngineServer.placeSignOnTick):
+
+- THE BLOCKS: standing banner (legacy 176, the reference's ROTATION
+  0-15 — the engine's sign model flattens to the 4 cardinals at
+  metadata 0/4/8/12, the banner twin follows) + wall banner (legacy
+  177, FACING metadata 2-5, the four per-face states). The pole shape
+  (0.25 wide), no collision, walk-through, non-cube — the engine's
+  solidity model carries the walk-through via the sign precedent.
+- THE ITEM: one id 425, 16 colored metadata forms (the DyeColor band),
+  stack 16, the DECORATIONS tab. The placement law (BannerItem.useOn):
+  the DOWN face refuses, the UP face plants standing with the
+  floor((yaw + 180) * 16 / 360 + 0.5) & 15 formula (the sign's own),
+  the side faces hang wall banners facing away; the placed tile takes
+  the item's own base (BlockEntity.set(stack) — the metadata carries).
+- THE TILE: Base int + the Patterns list (the color/pattern pairs).
+  The drop law (afterMinedByPlayer + dropItems): the broken banner
+  drops the item WITH the BlockEntityTag (base + patterns survive the
+  break — the same ItemNbt BlockEntityTag arm TF-7d landed for the
+  armor stand).
+- THE NEIGHBOR LAWS: standing drops when the floor below goes
+  non-solid; wall drops when the face's block goes non-solid (the
+  sign family's own neighbor walks).
+- THE CAULDRON ARM: the banner wash (CauldronBlock.use's banner arm —
+  the topmost pattern removed, the BANNER_CLEANED row paid — the stat
+  row already registered in EngineStats).
+- THE WIRE: block ids 176/177 + the item 425 + the tile's id rows
+  (TileNbt already maps the spellings).
+- THE CRAFTING (its own sub-slice, possibly the follow-up wave): the
+  6-wool + stick base recipe per color + BannerRecipes' pattern
+  recipes (the dye patterns) — the engine's crafting system carries
+  the shaped recipes already.
+
+Estimated as one full session wave (the sign family's own scale);
+the scoping verified against the reference's BannerBlock.java,
+BannerItem.java, and the engine's sign placement this session.

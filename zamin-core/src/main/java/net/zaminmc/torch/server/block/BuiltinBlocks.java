@@ -335,6 +335,29 @@ public final class BuiltinBlocks {
     public static final EngineBlockType WALL_SIGN_EAST = new EngineBlockType(
             Identifier.parse("minecraft:wall_sign_east"), "Wall Sign", 5);
 
+    // The banner family (the sign family's twin — BannerBlock over blocks
+    // 176 standing / 177 wall): the standing pair flattened to the four
+    // cardinal rotations exactly like the signs (the reference's ROTATION
+    // 0-15 band, the cardinals at 0/4/8/12 = S/W/N/E), the wall pair's
+    // FACING in the metadata 2-5. The base color and the pattern rows are
+    // tile state (the banner manager), never the block's.
+    public static final EngineBlockType STANDING_BANNER = new EngineBlockType(
+            Identifier.parse("minecraft:standing_banner"), "Banner");
+    public static final EngineBlockType STANDING_BANNER_WEST = new EngineBlockType(
+            Identifier.parse("minecraft:standing_banner_west"), "Banner", 4);
+    public static final EngineBlockType STANDING_BANNER_NORTH = new EngineBlockType(
+            Identifier.parse("minecraft:standing_banner_north"), "Banner", 8);
+    public static final EngineBlockType STANDING_BANNER_EAST = new EngineBlockType(
+            Identifier.parse("minecraft:standing_banner_east"), "Banner", 12);
+    public static final EngineBlockType WALL_BANNER_NORTH = new EngineBlockType(
+            Identifier.parse("minecraft:wall_banner"), "Wall Banner", 2);
+    public static final EngineBlockType WALL_BANNER_SOUTH = new EngineBlockType(
+            Identifier.parse("minecraft:wall_banner_south"), "Wall Banner", 3);
+    public static final EngineBlockType WALL_BANNER_WEST = new EngineBlockType(
+            Identifier.parse("minecraft:wall_banner_west"), "Wall Banner", 4);
+    public static final EngineBlockType WALL_BANNER_EAST = new EngineBlockType(
+            Identifier.parse("minecraft:wall_banner_east"), "Wall Banner", 5);
+
     // The oak door (community blocks.json: block 64). The lower half's
     // metadata carries the facing (historical order W/N/E/S = 0..3) with bit
     // 2 (value 4) as the open flag; the upper half's metadata 8 (right
@@ -944,6 +967,14 @@ public final class BuiltinBlocks {
                 .register(WALL_SIGN_SOUTH)
                 .register(WALL_SIGN_WEST)
                 .register(WALL_SIGN_EAST)
+                .register(STANDING_BANNER)
+                .register(STANDING_BANNER_WEST)
+                .register(STANDING_BANNER_NORTH)
+                .register(STANDING_BANNER_EAST)
+                .register(WALL_BANNER_NORTH)
+                .register(WALL_BANNER_SOUTH)
+                .register(WALL_BANNER_WEST)
+                .register(WALL_BANNER_EAST)
                 .register(OAK_DOOR_LOWER_CLOSED_W)
                 .register(OAK_DOOR_LOWER_CLOSED_N)
                 .register(OAK_DOOR_LOWER_CLOSED_E)
