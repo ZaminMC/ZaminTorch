@@ -5571,8 +5571,20 @@ public final class EngineServer implements Server, EngineBridge {
             // The jump arm: the ground left under rising motion — the JUMPS
             // row (PlayerEntity.jump line 1278) beside the pass-10 fatigue
             // (0.2 plain / 0.8 sprinting), the stat UNGATED by gamemode like
-            // every row of this walk.
-            if (dy > 0 && session.bodyPrevOnGround() && !session.onGround()) {
+            // every row of this walk. THE WATER/LAVA GATE (the review fix —
+            // LivingEntity lines 1446-1456: the jump input's own walk sends
+            // isInWater() to jumpInWater() and isInLava() to jumpInLava()
+            // BEFORE the ground arm, so jump() — with its row and its
+            // fatigue — NEVER fires from water or lava: a shallow-water
+            // leap and a pool-bottom ascent pay nothing in the reference).
+            // The consult reads the SCRATCH's cell (the jump's own origin),
+            // not the post-move position — the reference's input consult
+            // happens at the jump moment, and a leap that lands on dry land
+            // still originated in the water (fluidAt covers both fluids).
+            boolean jumpOriginInFluid = fluidAt(session.bodyPrevX(),
+                    session.bodyPrevY(), session.bodyPrevZ());
+            if (dy > 0 && session.bodyPrevOnGround() && !session.onGround()
+                    && !jumpOriginInFluid) {
                 session.stats().increment(
                         net.zaminmc.torch.server.stat.EngineStats.JUMPS, 1);
                 session.addExhaustion(session.sprinting() ? 0.8F : 0.2F);

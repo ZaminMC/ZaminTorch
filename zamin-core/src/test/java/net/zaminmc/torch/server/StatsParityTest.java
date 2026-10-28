@@ -528,6 +528,50 @@ class StatsParityTest {
         }
     }
 
+    @Test
+    void theWaterLeapPaysNoJumpRow() throws Exception {
+        EngineServer server = boot();
+        try {
+            PlayerSession body = join(server, "Puddled");
+            EngineAwaits.awaitTicks(server.world(), 3, "the scratch seeds");
+            double x = body.position().x();
+            double y = body.position().y();
+            double z = body.position().z();
+            // A one-deep pond at the standing cell: the feet sit in water
+            // (isInWater at the origin), the eye stays above (not
+            // submerged). The leap then originates IN the water — the
+            // reference's jump input walk (LivingEntity lines 1446-1456)
+            // sends isInWater() to jumpInWater() BEFORE the ground arm, so
+            // jump() — the row AND the fatigue — never fires: a
+            // shallow-water leap pays nothing at the jump site.
+            int cellX = (int) Math.floor(x);
+            int cellZ = (int) Math.floor(z);
+            server.ticker().submit(() -> server.world().setBlock(
+                    new BlockPosition(cellX, (int) Math.floor(y), cellZ),
+                    net.zaminmc.torch.server.block.FluidBlocks.sourceOf(
+                            net.zaminmc.torch.server.block.FluidBlocks.Kind.WATER)));
+            EngineAwaits.awaitTicks(server.world(), 3, "the pond settles");
+            assertEquals(0, body.stats().get(EngineStats.JUMPS),
+                    "the pond stand paid no jump");
+            assertEquals(0.0f, body.exhaustion(), 1.0E-6f,
+                    "the pond stand charged nothing");
+            // The leap: up and one cell over, onto the dry neighbor,
+            // mid-air at the walk's consult — the unfixed arm reads it as
+            // a ground-leaving jump (dy > 0 off a standing scratch).
+            server.movementProposal(body, new Position(x + 1.0, y + 0.42, z),
+                    Rotation.ZERO, false);
+            EngineAwaits.awaitTicks(server.world(), 4, "the leap window");
+            assertEquals(0, body.stats().get(EngineStats.JUMPS),
+                    "the water-origin leap pays no JUMPS row (the input "
+                            + "walk's water arm consumed it — jumpInWater, "
+                            + "not jump)");
+            assertEquals(0.0f, body.exhaustion(), 1.0E-6f,
+                    "the water-origin leap pays no jump fatigue");
+        } finally {
+            server.shutdown(null);
+        }
+    }
+
     // ------------------------------------------------------------ the harness
 
     private EngineServer boot() throws Exception {
