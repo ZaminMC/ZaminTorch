@@ -976,6 +976,14 @@ public final class EngineServer implements Server, EngineBridge {
                             if (at.x() >= minX && at.x() <= maxX && at.y() >= minY
                                     && at.y() <= maxY && at.z() >= minZ && at.z() <= maxZ) {
                                 body.hurt(Math.min(i * 2, 40));
+                                // The crush's damage-taken exhaustion
+                                // (reference PlayerEntity line 856): the
+                                // anvil source's constructor (DamageSource
+                                // line 27) carries NO bypass setter, so
+                                // the default 0.3 rides the wound — the
+                                // wrapper's own gate refuses the
+                                // invulnerable bodies.
+                                body.addExhaustion(0.3f);
                             }
                         }
                         // The progression roll (the reference's own band:
@@ -2284,6 +2292,11 @@ public final class EngineServer implements Server, EngineBridge {
                     // (line 65 — the armor's enchantment walk only).
                     thrower.setGraceTicks(10); // the knockback window's own
                     thrower.applyMovement(at, thrower.rotation(), false);
+                    // The pearl's carry is a setPosition-class write — the
+                    // reference's stats walk (PlayerEntity lines 1287-1303)
+                    // never sees it, so an upward pearl pays no phantom
+                    // jump (the phantom-jump review fix).
+                    thrower.resetBodyDelta();
                     thrower.resetFallDistance();
                     damageOnTick(thrower,
                             applyEnchantProtection(thrower, ENDER_PEARL_FALL_DAMAGE,
@@ -5354,16 +5367,20 @@ public final class EngineServer implements Server, EngineBridge {
             // walled body never takes the border wound in the same tick),
             // the border arm the else.
             if (playerIsInWall(session)) {
-                // The in-wall arm (isInWall -> takeDamage(IN_WALL, 1.0):
-                // bypasses armor, exhaustion 0.3) at the hurt-i-frame
-                // cadence — the 10-tick window the reference's
-                // invulnerableTicks/2 carries (a stronger hit out-damages
-                // the frame exactly like the melee window's own rule).
+                // The in-wall arm (isInWall -> takeDamage(IN_WALL, 1.0))
+                // at the hurt-i-frame cadence — the 10-tick window the
+                // reference's invulnerableTicks/2 carries (a stronger hit
+                // out-damages the frame exactly like the melee window's own
+                // rule). The source's exhaustion is ZERO: the reference's
+                // DamageSource.IN_WALL (line 18) rides setBypassesArmor(),
+                // and that setter zeroes the exhaustion field (lines
+                // 121-127) — the suffocating body pays saturation for
+                // nothing. The old 0.3 here mis-read the source family.
                 if (!session.hurtInvulnerable() || session.lastHurtDamage() < 1.0f) {
                     float applied = session.hurtInvulnerable()
                             ? 1.0f - session.lastHurtDamage() : 1.0f;
                     damageOnTick(session, applied,
-                            0.3f, "suffocated in a wall", DamageKind.IN_WALL);
+                            0.0f, "suffocated in a wall", DamageKind.IN_WALL);
                     session.beginHurtInvulnerability(1.0f);
                 }
             } else if (!worldBorder.containsBox(
@@ -5438,28 +5455,58 @@ public final class EngineServer implements Server, EngineBridge {
             return;
         }
         Position at = session.position();
-        if (session.bodyPrevValid()) {
+        /*
+         * The unmounted gate (the reference's own walk name:
+         * PlayerEntity.tickNonRidingMovementRelatedStats line 1305's
+         * {@code if (this.vehicle == null)}): a passenger's displacement
+         * belongs to the vehicle, and neither the movement charges nor the
+         * jump arm fire mounted — the rider's own jump input is the
+         * vehicle's (the horse leaps, the rider pays nothing).
+         */
+        boolean riding = session.ridingAny();
+        if (session.bodyPrevValid() && !riding) {
             double dx = at.x() - session.bodyPrevX();
             double dy = at.y() - session.bodyPrevY();
             double dz = at.z() - session.bodyPrevZ();
-            int cm = (int) Math.round(Math.sqrt(dx * dx + dz * dz) * 100.0);
-            if (cm > 0) {
-                if (fluidAt(at.x(), at.y(), at.z())) {
-                    session.addExhaustion(0.015F * cm * 0.01F); // the swim arm
-                } else if (session.onGround()) {
-                    // The walk/sprint split; the ladder arm charges nothing
-                    // and neither does the airborne band (the flown arm).
-                    boolean onLadder = ladderAt(at.x(), at.y(), at.z());
-                    if (!onLadder && session.sprinting()) {
-                        session.addExhaustion(0.099999994F * cm * 0.01F);
-                    } else if (!onLadder) {
-                        session.addExhaustion(0.01F * cm * 0.01F);
+            // The water consults are water alone (the reference's
+            // isSubmergedIn(Material.WATER) / isInWater() pair): a lava
+            // body falls through to the ground arm's own rates.
+            Position eye = mouthPosition(session);
+            boolean submergedInWater = fluidAt(eye.x(), eye.y(), eye.z())
+                    && !lavaAt(eye.x(), eye.y(), eye.z());
+            boolean inWater = fluidAt(at.x(), at.y(), at.z())
+                    && !lavaAt(at.x(), at.y(), at.z());
+            if (submergedInWater) {
+                // The dived arm (reference lines 1310-1318): the 3-D norm —
+                // the descent itself pays, Math.round(sqrt(x^2+y^2+z^2)*100)
+                // at 0.015/m.
+                int divedCm = (int) Math.round(
+                        Math.sqrt(dx * dx + dy * dy + dz * dz) * 100.0);
+                if (divedCm > 0) {
+                    session.addExhaustion(0.015F * divedCm * 0.01F);
+                }
+            } else {
+                int cm = (int) Math.round(Math.sqrt(dx * dx + dz * dz) * 100.0);
+                if (cm > 0) {
+                    if (inWater) {
+                        // The surface-swim arm (reference lines 1319-1325):
+                        // the horizontal band alone, 0.015/m.
+                        session.addExhaustion(0.015F * cm * 0.01F);
+                    } else if (session.onGround()) {
+                        // The walk/sprint split; the ladder arm charges nothing
+                        // and neither does the airborne band (the flown arm).
+                        boolean onLadder = ladderAt(at.x(), at.y(), at.z());
+                        if (!onLadder && session.sprinting()) {
+                            session.addExhaustion(0.099999994F * cm * 0.01F);
+                        } else if (!onLadder) {
+                            session.addExhaustion(0.01F * cm * 0.01F);
+                        }
                     }
                 }
-            }
-            // The jump arm: the ground left under rising motion.
-            if (dy > 0 && session.bodyPrevOnGround() && !session.onGround()) {
-                session.addExhaustion(session.sprinting() ? 0.8F : 0.2F);
+                // The jump arm: the ground left under rising motion.
+                if (dy > 0 && session.bodyPrevOnGround() && !session.onGround()) {
+                    session.addExhaustion(session.sprinting() ? 0.8F : 0.2F);
+                }
             }
         }
         session.captureBodyDelta(at.x(), at.y(), at.z(), session.onGround());
@@ -7138,7 +7185,10 @@ public final class EngineServer implements Server, EngineBridge {
      * The exhaustion-carrying entry: {@code exhaustionCharge} is the vanilla
      * {@code source.getExhaustion()} — 0.3 for the ordinary sources (melee,
      * projectile, explosion, in-fire, cactus), 0.0 for the bypass family
-     * (fall, drown, starve, the on-fire residual, out-of-world).
+     * (fall, drown, starve, the on-fire residual, out-of-world, and the
+     * in-wall suffocation — every source whose constructor rides
+     * setBypassesArmor() or setUnblockable(), the two setters that zero the
+     * field: reference DamageSource lines 121-136).
      */
     private void damageOnTick(PlayerSession session, float amount, float exhaustionCharge,
                               String causeMessage, DamageKind kind) {
@@ -8159,6 +8209,11 @@ public final class EngineServer implements Server, EngineBridge {
         Position destination = session.bedSpawn() != null
                 ? session.bedSpawn() : world.spawnPosition();
         session.applyMovement(destination, session.rotation(), false);
+        // The credits' landing is a setPosition-class write — the reference's
+        // respawn never charges the stats walk (PlayerEntity lines 1287-1303
+        // measure moveRelative's locals alone), so the End-to-spawn jump pays
+        // no phantom jump (the phantom-jump review fix).
+        session.resetBodyDelta();
         // The fall debt clears (a dimension walk is not a fall) and the
         // grace window rides the re-anchor like every respawn.
         session.consumeFallDistance();
@@ -16969,6 +17024,10 @@ public final class EngineServer implements Server, EngineBridge {
                 // The body steps out beside the vehicle (the re-anchor rides
                 // the wire listener's position-and-look).
                 rider.applyMovement(riderExit, rider.rotation(), true);
+                // The exit-beside step is a setPosition-class write (Entity
+                // lines 1374-1380) — the dismount offset never charges the
+                // walk (the phantom-charge review fix).
+                rider.resetBodyDelta();
                 rider.setGraceTicks(40);
             } else {
                 // The non-session rider's exit (the reference's startRiding
@@ -19555,6 +19614,13 @@ public final class EngineServer implements Server, EngineBridge {
         victim.beginHurtInvulnerability(Math.max(damage, 0.01f));
         if (applied > 0) {
             victim.hurt(applied);
+            // The damage-taken exhaustion (reference PlayerEntity line 856:
+            // addFatigue(source.getExhaustion()) inside the damage != 0
+            // gate): the arrow and the fireball are indirect ENTITY sources
+            // — no setBypassesArmor in their constructors — so the default
+            // 0.3 rides every landed projectile hit. The wrapper itself
+            // refuses the invulnerable bodies (addFatigue's own gate).
+            victim.addExhaustion(0.3f);
         }
         // Knockback — the same vanilla applyKnockback recipe the melee path
         // rides (vanilla projectiles knock back through the damage path,
@@ -21055,6 +21121,10 @@ public final class EngineServer implements Server, EngineBridge {
                 // The body steps out beside the mount (the re-anchor rides
                 // the wire listener's position-and-look; the buck throw pops).
                 rider.applyMovement(exit, rider.rotation(), true);
+                // The exit-beside step is a setPosition-class write (Entity
+                // lines 1374-1380) — the bucked dismount offset never
+                // charges the walk (the phantom-charge review fix).
+                rider.resetBodyDelta();
                 rider.setGraceTicks(40);
             }
             for (MobManager.Listener listener : mobListeners) {
@@ -22722,6 +22792,14 @@ public final class EngineServer implements Server, EngineBridge {
                 player.beginHurtInvulnerability(damage);
                 if (applied > 0) {
                     player.hurt(applied);
+                    // The blast's damage-taken exhaustion (reference
+                    // PlayerEntity line 856): the explosion source's
+                    // constructor (DamageSource line 73) rides
+                    // setScaledWithDifficulty().setExplosive() — neither
+                    // setter zeroes the exhaustion — so the default 0.3
+                    // rides every landed blast, exactly the melee family's
+                    // own charge.
+                    player.addExhaustion(0.3f);
                 }
                 publishPlayerHurt(player);
                 if (player.health() <= 0) {
@@ -23453,6 +23531,10 @@ public final class EngineServer implements Server, EngineBridge {
             session.applyMovement(to, session.rotation(), false);
             session.setGraceTicks(100);
             session.consumeFallDistance(); // the teleport cancels fall debt
+            // The teleport never charges as movement (the reference's
+            // stats walk measures the movement walk's own displacement
+            // alone): the scratch re-seeds at the destination.
+            session.resetBodyDelta();
             publishRespawned(session, to);
             LOGGER.fine(() -> "Teleported " + session.name() + " to " + to);
         });

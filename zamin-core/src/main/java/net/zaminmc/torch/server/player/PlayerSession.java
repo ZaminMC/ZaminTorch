@@ -870,6 +870,12 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
         this.dimension = newDimension;
         applyMovement(arrival, new Rotation(yaw, pitch), false);
         consumeFallDistance();
+        // The crossing's position carry is a setPosition-class write — the
+        // reference's stats walk measures moveRelative's own locals alone
+        // (PlayerEntity lines 1287-1303), so the 8:1 nether walk and the
+        // End's forced spawn never charge (the phantom-jump review fix:
+        // the seed re-derives at the arrival).
+        resetBodyDelta();
         // The body left the entered frame's memory behind — the next entry
         // re-derives against the arrival frame (the reference's entity copy
         // carries the memory across, but its placement re-derives at the
@@ -1541,6 +1547,18 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
         this.bodyPrevZ = z;
         this.bodyPrevOnGround = onGround;
         this.bodyPrevValid = true;
+    }
+
+    /**
+     * Seeds the next tick fresh (no displacement): the teleport's own write
+     * — the reference's movement-stat walk measures the movement walk's own
+     * displacement alone (PlayerEntity.moveRelative's locals, lines
+     * 1287-1303), so a setPosition jump never charges; the scratch's next
+     * capture re-seeds at the destination and honest per-tick movement
+     * resumes from there.
+     */
+    public void resetBodyDelta() {
+        this.bodyPrevValid = false;
     }
 
     public double bodyPrevX() {

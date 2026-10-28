@@ -17587,3 +17587,86 @@ Stage Summary:
   mushroom island biome), the chest/furnace placement sites' truncation
   band (the half-quadrant divergence Wave PF's formula ledgered), and
   the riding pickup band tail.
+
+## 2026-10-28 — the hunger exhaustion economy parity audit (PR #65, the verifier's tenth pass)
+
+The tenth sweep, one family over: the hunger exhaustion economy — the
+fold, the source table, and the spend side of the ledger pass 7's
+nutrition fold began (the reference's HungerManager.tick lines 29-60,
+PlayerEntity's eleven addFatigue sites, and DamageSource's exhaustion
+model), read against the engine's body-delta ledger.
+
+Five restorations. THE RIDING GATE: the reference's whole movement-stat
+walk (tickNonRidingMovementRelatedStats, line 1305) skips while
+`vehicle == null` fails — a passenger's displacement belongs to the
+vehicle, and the rider's jump input is the vehicle's own (the horse
+leaps, the rider pays nothing). The engine charged the mounted body's
+displacement at walk/sprint/jump rates: a boat's motion paid the
+passenger's walking rate and a horse's leap paid the rider's
+sprint-jump. THE DIVED ARM'S 3-D NORM: the submerged consult (the eye
+in water) pays 0.015/m over the 3-D norm — the descent itself is
+swimming, `sqrt(x²+y²+z²)` — where the engine's single swim arm
+measured the horizontal band alone, so a diver's thirty-meter descent
+paid nothing at all. The consult is WATER-ONLY (isSubmergedIn(Material
+.WATER) / isInWater()): a lava body falls through to the ground arm's
+own walk/sprint rates — the engine's any-fluid consult had charged the
+swim rate for wading through lava. THE IN-WALL ZERO: the reference's
+`new DamageSource("inWall").setBypassesArmor()` — and that setter
+ZEROES the source's exhaustion (DamageSource lines 121-127) — so the
+suffocation pays the bypass family's 0.0, where the engine charged
+0.3; the damageOnTick javadoc's own bypass-family list had forgotten
+the arm (pass 9's stale-comment lesson, one pass later). THE
+PROJECTILE/BLAST/ANVIL 0.3s: PlayerEntity line 856 pays
+`addFatigue(source.getExhaustion())` inside the damage != 0 gate, and
+the arrow (an indirect-entity source), the explosion
+(setScaledWithDifficulty().setExplosive() — neither setter zeroes),
+and the anvil crush (line 27, no bypass setter) all carry the default
+0.3 — the engine's projectile walk, blast walk, and crush hook all
+paid nothing. THE TELEPORT'S SEED: the reference's stats walk measures
+the movement walk's own displacement alone (moveRelative's own
+locals), so setPosition jumps never charge — the engine's body-delta
+scratch charged the teleport as movement, a rising teleport paying a
+phantom 0.8 sprint-jump; the scratch now re-seeds at the destination
+(resetBodyDelta).
+
+**Evidence:** HungerExhaustionParityTest 15/0 (NEW — the fold's strict
+> 4.0 boundary, the saturation-first payment flooring before food
+reaches, the peaceful arm's spared food, the walk 0.01 and sprint
+0.099999994 meter rates, the plain/sprint jump 0.2/0.8, the surface
+swim's horizontal band with the vertical bob free, the dived arm's 3-D
+descent, the mounted body's zero with the dismounted resume, the
+rising teleport's zero, the suffocation's zero, the arrow's 0.3, the
+blast's 0.3, the crush's 0.3, the hunger effect's per-amplifier 0.05,
+the mined block's 0.025); BodySurvivalAcceptance + KnockbackAnd
+Exhaustion + PotionSystem + SurvivalMining green; the projectile
+package + CritParity + SpectatorCamera + ExplosionTnt + OpsDifficulty
+green; the entity package whole 565/0; interaction + player + Milk
+12/0 + Cauldron 7/0 + CauldronAcceptance 4/0 (83/0 combined); the
+protocol wire batch 11/0; bukkit/launcher/api green; item + Food
+Nutrition + PlayerApi + dispense 28/0; InWallSuffocation + WorldBorder
++ BlastSource green.
+
+**Lessons:** (1) a family audit's best finds often live in the OTHER
+families' walks — the exhaustion audit found the teleport phantom-jump
+(the movement family's own model leak), the lava consult (the fluid
+family's), and three damage walks that never charged (the projectile,
+explosion, and anvil slices' own shapes); (2) the exhaustion model is
+PER-SOURCE, not per-event — `source.getExhaustion()` with
+setBypassesArmor/setUnblockable zeroing the field means the damage
+family's constructor chain decides the hunger bill, and a walk that
+hardcodes a charge without consulting the source model is guessing;
+(3) the strict inequality is a law: `exhaustion > 4.0F` at exactly 4.0
+never folds — a boundary seat caught nothing because the engine was
+already right, but the seat now pins it forever; (4) the remembered
+community table (mining 0.005, jump 0.05/0.2, sprint 0.1/m, walking
+free) is NOT this reference's tune (mining 0.025, jump 0.2/0.8, sprint
+0.099999994/m, walking 0.01/m) — the reference tree overrules memory,
+again and for the tenth time.
+
+**Standing tails:** the mined-block STAT gate (the engine counts
+BLOCKS_MINED only for survival/adventure hands where the reference's
+stat increment carries no gamemode gate at the site) belongs to the
+stats family's future audit, not the exhaustion economy; the airborne
+band and the climbing arm charge nothing (stat-only arms — verified,
+not restored); the dragon-part melee's refused-source swing still
+exhausts (the engine's own documented quirk, unchanged).
