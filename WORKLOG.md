@@ -17065,6 +17065,61 @@ CowEntity.interactMob's arm through the super call at MooshroomEntity's
 foot — an engine dispatch that forgets the inheritance loses the
 mooshroom's milk silently.
 
+## 2026-10-28 — the cauldron wash parity audit (PR #64, the verifier's ninth pass)
+
+The ninth sweep, one family over: the cauldron's use arms — the second
+half of the bucket family the eighth pass opened (the milk drink and
+the cow's milk arm there; the cauldron's fill/drain/wash here), the
+whole of CauldronBlock.use lines 89-159 read against the engine's
+Slice 23i port.
+
+Four divergences. THE FILL'S HAND-SLOT SET LAW: the reference's
+setItem(selectedSlot, BUCKET) writes the empty bucket straight into the
+hand the water bucket vacates (the water bucket stacks to one, so the
+fill always empties the hand) — the engine's consume-then-pickUp shape
+let a bucket STACK elsewhere absorb the returned bucket (the hand
+emptying while the stack grew) and let a full inventory DROP the
+remainder, two shapes the reference's own write can never produce. THE
+DRAIN'S GUARD LAW: the stat and the bottle's decrement ride INSIDE the
+survival guard alone — the engine paid the CAULDRONS_USED stat for the
+creative hand too; the reference's creative drains the level but pays
+neither stat nor bottle (setLevel's arm stands outside the guard). THE
+DRAIN'S ORDER AND RIM-DROP LAW: the water potion (metadata 0) adds
+FIRST and a full inventory drops it AT THE CAULDRON'S RIM — the
+reference's ItemEntity ctor at pos+0.5/+1.5/+0.5, its own 10-tick
+pickup delay — never the player's feet the throwFromPlayer shape used.
+THE LEATHER WASH ARM, RESTORED: a dyed leather piece (the
+displayColor row the NBT surface has round-tripped since the item-tag
+slice — the pre-audit comment's "no color model" was STALE, and an
+anvil import's dyed piece carried a tint no engine path could clear)
+washes clear through withDisplayColor(null), one level spends, the
+ARMOR_CLEANED stat lands, the piece is never consumed (removeColor
+mutates the tag alone), and the Tier.CLOTH gate spares every colored
+non-leather piece — a tinted iron helmet never washes. The plain
+uncolored leather and the level-0 cauldron refuse the arm (hasColor
+false, the level gate), and the banner arm stays the honest
+fall-through (no banner item exists in the registry).
+
+**Evidence:** CauldronWashParityTest 7/0 (NEW — the hand-slot set over
+a standing bucket stack, the full-inventory keep, the creative drain's
+no-stat-no-bottle, the rim drop's closer-to-the-cauldron law over the
+pop motion, the leather wash's tint-clear + level-spend + stat + the
+piece kept, the plain/empty refusals, the CLOTH gate's iron spare);
+CauldronAcceptanceTest 4/0 re-green (the fill's hand-swap and the
+drain's inventory-add seats stand under the new laws); the dispenser +
+potion + item batches and MilkFamilyParityTest 12/0 re-green.
+
+**Lessons:** (1) a stale comment is a divergence's best hiding place —
+"the engine's armor carries no color model" was written before the NBT
+slice landed displayColor, and nobody re-read the ground when the row
+arrived; (2) setItem-vs-add is a real law, not a style choice — the
+reference's hand-slot write carries two impossibility laws the add
+shape silently violates (no merge, no drop); (3) the guard's REACH is
+a law too — the stat riding outside the survival guard changed the
+creative hand's observable state; (4) the drop's POSITION is part of
+the mechanic — a rim drop and a feet drop differ by a full block and
+the pickup window's geometry with it.
+
 ## Wave SC — the serialized-column memoization (the perf family's head — the last demand-named candidate standing, landed)
 
 **What:** the wire's dominant per-column cost — the 4096-block
@@ -17406,3 +17461,27 @@ the class section's own family grouping, the class comment naming the full
 membership, and the wood-class test pinning all thirty-eight (the count
 the claim always meant). The ladder exclusion re-verified beside them
 (LadderBlock line 20's Material.DECORATION).
+
+## The PR #64 review fix (the rim drop's pickup delay corrected)
+
+The review of PR #64 (the cauldron wash parity audit) verified all four
+divergence groups against the reference — the fill's hand-slot set law
+(CauldronBlock.use line 93's setItem write, the two impossibility laws),
+the drain's guard reach (the CAULDRONS_USED stat and the bottle decrement
+inside the survival guard alone), the drain's order (the potion adds
+first) and rim-drop geometry (pos + 0.5/+1.5/+0.5), and the leather wash
+arm (the Tier.CLOTH gate over the four leather pieces, the displayColor
+clear, the never-consumed law) — and found ONE defect: the rim drop's
+pickup delay. The audit's comment claimed "the ItemEntity ctor's own
+10-tick pickup delay" — a misread of the reference's delay landscape:
+the ctor sets NO delay (the pickUpDelay field's Java default 0), and the
+10-tick row lives in setDefaultPickUpDelay, which the cauldron path NEVER
+calls — its callers are the block-drop path (Block.java line 520), the
+entity-drop path (Entity.java line 1255), the jukebox, and the villager
+trade alone. The cauldron's drain builds the ItemEntity and calls
+addEntity DIRECTLY, so the dropped potion is pickupable IMMEDIATELY in
+vanilla; the audit's 10-tick pass made the full-inventory drain wait half
+a second. The fix: the drop's delay set to 0 with the corrected comment,
+and the rim-drop test seat pinned (pickupAllowed() at the moment of the
+drop). The audit's own Lesson 4 applied to itself: the drop's timing is
+part of the mechanic exactly as its position is.

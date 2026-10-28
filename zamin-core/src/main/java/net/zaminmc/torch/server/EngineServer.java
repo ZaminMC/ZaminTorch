@@ -12303,46 +12303,85 @@ public final class EngineServer implements Server, EngineBridge {
         }
         int level = net.zaminmc.torch.server.cauldron.CauldronBlocks.levelOf(cauldron);
         if (held.type().equals(BuiltinItems.WATER_BUCKET)) {
-            // Lines 89-99: the fill to 3, the bucket swap (survival).
+            // Lines 89-99: the fill to 3, THE HAND-SLOT SET LAW — the
+            // reference swaps the held water bucket for the empty bucket
+            // at the selected slot itself (setItem line 93; the water
+            // bucket stacks to one, so the fill always empties the hand),
+            // never an inventory add: a bucket stack elsewhere absorbs
+            // nothing, and a full inventory never drops the remainder.
             if (level < 3) {
                 if (session.gamemode() != GameMode.CREATIVE) {
-                    session.inventory().consumeHeld(1);
-                    throwOverflow(session, java.util.List.of(session.inventory().pickUp(
-                            ItemStack.of(BuiltinItems.BUCKET, 1))));
+                    session.inventory().setSlot(session.inventory().heldSlot(),
+                            ItemStack.of(BuiltinItems.BUCKET, 1));
                 }
-                setCauldronLevel(clicked, 3);
-                // The fill stat (CauldronBlock.use's own incrementStat).
                 session.stats().increment(
                         net.zaminmc.torch.server.stat.EngineStats.CAULDRONS_FILLED, 1);
+                setCauldronLevel(clicked, 3);
                 publishInventoryChanged(session);
             }
             return true;
         }
         if (held.type().equals(BuiltinItems.GLASS_BOTTLE)) {
-            // Lines 100-120: the drain of one level into the water potion
-            // (metadata 0); the bottle pays one unit (survival); a full
-            // inventory drops the potion at the cauldron's rim.
+            // Lines 100-120, the reference's own order: the drained potion
+            // is the metadata-0 WATER bottle and it ADDS FIRST — a full
+            // inventory drops it AT THE CAULDRON'S RIM (pos + 0.5/+1.5/
+            // +0.5, line 105, with NO pickup delay — the review fix: the
+            // reference's cauldron drop builds the ItemEntity and calls
+            // addEntity DIRECTLY, never setDefaultPickUpDelay — the ctor
+            // leaves pickUpDelay 0, and the 10-tick row belongs to the
+            // block-drop path (Block.java line 520) and the entity-drop
+            // path (Entity.java line 1255) alone) — and the stat and the
+            // bottle's decrement ride INSIDE the survival guard alone (a
+            // creative hand drains the level but pays neither the stat
+            // nor the bottle).
             if (level > 0) {
                 if (session.gamemode() != GameMode.CREATIVE) {
-                    session.inventory().consumeHeld(1);
-                    net.zaminmc.torch.item.ItemStack leftover = session.inventory().pickUp(
-                            new ItemStack(BuiltinItems.POTION, 1, 0));
+                    ItemStack potion = new ItemStack(BuiltinItems.POTION, 1, 0);
+                    ItemStack leftover = session.inventory().pickUp(potion);
                     if (!leftover.isEmpty()) {
-                        throwFromPlayer(session, leftover); // the rim drop (line 105)
+                        // The rim drop (line 105), never the player's feet:
+                        // the reference's ItemEntity ctor at pos + 0.5/
+                        // +1.5/+0.5 — the helper's own +0.5 band over the
+                        // cell one above the cauldron.
+                        itemEntities.spawnDropAtBlock(new Position(
+                                clicked.x(), clicked.y() + 1, clicked.z()),
+                                potion, 0,
+                                session.dimension());
                     }
+                    session.stats().increment(
+                            net.zaminmc.torch.server.stat.EngineStats.CAULDRONS_USED, 1);
+                    session.inventory().consumeHeld(1);
                 }
                 setCauldronLevel(clicked, level - 1);
-                // The drain stat (the same use row's CAULDRONS_USED).
-                session.stats().increment(
-                        net.zaminmc.torch.server.stat.EngineStats.CAULDRONS_USED, 1);
                 publishInventoryChanged(session);
             }
             return true;
         }
-        // The armor/banner wash arms (lines 122-159): the engine's armor
-        // carries no color model and no banner item exists — hasColor
-        // answers false exactly like the reference's uncolored leather, and
-        // the use falls through to the placement proposal.
+        // The leather wash (lines 122-131): ArmorItem.Tier.CLOTH with a
+        // color — the engine's leather family over the displayColor row
+        // the NBT surface carries (an anvil import's dyed piece round-trips
+        // its tint; the wash is the only engine path that clears it) —
+        // loses the tint and spends one level, the ARMOR_CLEANED stat
+        // landing with it. The piece is NEVER consumed (removeColor mutates
+        // the tag alone).
+        if (level > 0 && held.displayColor() != null
+                && (held.type().equals(BuiltinItems.LEATHER_HELMET)
+                        || held.type().equals(BuiltinItems.LEATHER_CHESTPLATE)
+                        || held.type().equals(BuiltinItems.LEATHER_LEGGINGS)
+                        || held.type().equals(BuiltinItems.LEATHER_BOOTS))) {
+            session.inventory().setSlot(session.inventory().heldSlot(),
+                    held.withDisplayColor(null));
+            setCauldronLevel(clicked, level - 1);
+            session.stats().increment(
+                    net.zaminmc.torch.server.stat.EngineStats.ARMOR_CLEANED, 1);
+            publishInventoryChanged(session);
+            return true;
+        }
+        // The banner wash arm (lines 133-159): no banner item exists in
+        // the registry — the honest fall-through to the placement proposal
+        // (the pre-audit comment's "no color model" half was STALE: the
+        // displayColor row has round-tripped since the NBT slice, and the
+        // leather arm above now rides it).
         return false;
     }
 
