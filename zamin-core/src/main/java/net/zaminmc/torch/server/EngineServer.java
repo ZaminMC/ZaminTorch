@@ -2292,6 +2292,11 @@ public final class EngineServer implements Server, EngineBridge {
                     // (line 65 — the armor's enchantment walk only).
                     thrower.setGraceTicks(10); // the knockback window's own
                     thrower.applyMovement(at, thrower.rotation(), false);
+                    // The pearl's carry is a setPosition-class write — the
+                    // reference's stats walk (PlayerEntity lines 1287-1303)
+                    // never sees it, so an upward pearl pays no phantom
+                    // jump (the phantom-jump review fix).
+                    thrower.resetBodyDelta();
                     thrower.resetFallDistance();
                     damageOnTick(thrower,
                             applyEnchantProtection(thrower, ENDER_PEARL_FALL_DAMAGE,
@@ -8345,6 +8350,11 @@ public final class EngineServer implements Server, EngineBridge {
         Position destination = session.bedSpawn() != null
                 ? session.bedSpawn() : world.spawnPosition();
         session.applyMovement(destination, session.rotation(), false);
+        // The credits' landing is a setPosition-class write — the reference's
+        // respawn never charges the stats walk (PlayerEntity lines 1287-1303
+        // measure moveRelative's locals alone), so the End-to-spawn jump pays
+        // no phantom jump (the phantom-jump review fix).
+        session.resetBodyDelta();
         // The fall debt clears (a dimension walk is not a fall) and the
         // grace window rides the re-anchor like every respawn.
         session.consumeFallDistance();
@@ -11653,14 +11663,16 @@ public final class EngineServer implements Server, EngineBridge {
 
     /**
      * The pumpkin placement (Slice 17d — PumpkinBlock.onAdded +
-     * trySpawnGolem lines 53-112): the block lands like any woody block
-     * (the historical FACING rotation ledgers with the metadata slice —
-     * the engine registers the unrotated form), then the build scan runs:
-     * the snow pattern (two snow blocks under the head) builds the snow
-     * golem, the iron cross (the 3-wide chest row + the base, the ~ air
-     * guards at the head's sides and the base's sides) builds the iron
-     * golem — player-created, both bodies landing at the pattern's own
-     * spawn cell with the +0.05 hop. Tick-thread context.
+     * trySpawnGolem lines 53-112, the metadata slice's facing law added):
+     * the block lands with the FACING the reference's own placement
+     * carries (getPlacementState line 129: the look's OPPOSITE — the
+     * pumpkin's face looks back at the placer, the horizontal-id nibble
+     * 0-3 the states carry), then the build scan runs: the snow pattern
+     * (two snow blocks under the head) builds the snow golem, the iron
+     * cross (the 3-wide chest row + the base, the ~ air guards at the
+     * head's sides and the base's sides) builds the iron golem —
+     * player-created, both bodies landing at the pattern's own spawn cell
+     * with the +0.05 hop. Tick-thread context.
      */
     private void placePumpkinOnTick(PlayerSession session, BlockPosition clicked, int face,
                                     java.util.Optional<BlockType> creativeHeld, boolean lit) {
@@ -11677,7 +11689,14 @@ public final class EngineServer implements Server, EngineBridge {
         if (!WorldSolidity.isSolid(world.getBlock(target.offset(0, -1, 0)))) {
             return;
         }
-        world.setBlock(target, lit ? BuiltinBlocks.LIT_PUMPKIN : BuiltinBlocks.PUMPKIN);
+        // getPlacementState line 129: FACING = getHorizontalFacing().
+        // getOpposite() — the look band the reference's own formula
+        // centers (the +45 shift, the & 3 mask; the sign placement's own
+        // in-house precedent), the opposite the band's own ^2.
+        int lookBand = net.zaminmc.torch.server.block.PumpkinBlocks.lookBandOf(
+                session.rotation().yaw());
+        int facing = net.zaminmc.torch.server.block.PumpkinBlocks.oppositeHorizontal(lookBand);
+        world.setBlock(target, net.zaminmc.torch.server.block.PumpkinBlocks.pumpkinOf(lit, facing));
         consumePlaced(session, creativeHeld);
         // The build scan rides the family file (GolemSpawns — the law the
         // dispenser's pumpkin arm consults too, the reference's own shape:
@@ -17164,6 +17183,10 @@ public final class EngineServer implements Server, EngineBridge {
                 // The body steps out beside the vehicle (the re-anchor rides
                 // the wire listener's position-and-look).
                 rider.applyMovement(riderExit, rider.rotation(), true);
+                // The exit-beside step is a setPosition-class write (Entity
+                // lines 1374-1380) — the dismount offset never charges the
+                // walk (the phantom-charge review fix).
+                rider.resetBodyDelta();
                 rider.setGraceTicks(40);
             } else {
                 // The non-session rider's exit (the reference's startRiding
@@ -21320,6 +21343,10 @@ public final class EngineServer implements Server, EngineBridge {
                 // The body steps out beside the mount (the re-anchor rides
                 // the wire listener's position-and-look; the buck throw pops).
                 rider.applyMovement(exit, rider.rotation(), true);
+                // The exit-beside step is a setPosition-class write (Entity
+                // lines 1374-1380) — the bucked dismount offset never
+                // charges the walk (the phantom-charge review fix).
+                rider.resetBodyDelta();
                 rider.setGraceTicks(40);
             }
             for (MobManager.Listener listener : mobListeners) {

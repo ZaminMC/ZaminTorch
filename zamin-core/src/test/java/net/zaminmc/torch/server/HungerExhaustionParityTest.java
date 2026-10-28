@@ -428,6 +428,108 @@ class HungerExhaustionParityTest {
         }
     }
 
+    @Test
+    void thePearlTeleportPaysNoPhantomJump() throws Exception {
+        EngineServer server = boot();
+        try {
+            PlayerSession body = join(server, "Pearlist");
+            EngineAwaits.awaitTicks(server.world(), 3, "the scratch seeds");
+            double x = body.position().x();
+            double y = body.position().y();
+            double z = body.position().z();
+            // A 3x3 cap three cells above the thrower's cell: a pearl
+            // launched straight up impacts the cap's underside, and the
+            // teleport lands the thrower UP at the last crossed air cell —
+            // the phantom-jump shape (dy > 0 off a standing scratch). The
+            // 3x3 spread swallows the launch divergence (sigma 0.0075).
+            int cellX = (int) Math.floor(x);
+            int cellZ = (int) Math.floor(z);
+            int capY = (int) Math.floor(y) + 3;
+            for (int dx = -1; dx <= 1; dx++) {
+                for (int dz = -1; dz <= 1; dz++) {
+                    int fxDx = dx;
+                    int fxDz = dz;
+                    server.ticker().submit(() -> server.world().setBlock(
+                            new BlockPosition(cellX + fxDx, capY, cellZ + fxDz),
+                            BuiltinBlocks.STONE));
+                }
+            }
+            EngineAwaits.awaitTicks(server.world(), 3, "the cap settles");
+            // The pearl: straight up (pitch -90) from the eye — the
+            // thrower's own engine id rides the shot (the sink resolves
+            // the teleport target through it).
+            server.projectiles().launch(ProjectileEntity.Kind.ENDER_PEARL,
+                    body.engineEntityId(),
+                    new Position(x, y + 1.62, z), 0.0f, -90.0f, 1.5f, 0);
+            // The 5.0 fall toll proves the teleport fired (the FALL family
+            // carries exhaustion 0.0 — the health drop is the only trace).
+            await(() -> body.position().y() > y + 1.0, "the pearl carried the body up");
+            EngineAwaits.awaitTicks(server.world(), 4, "the phantom window");
+            assertTrue(body.exhaustion() < 0.005f,
+                    "the upward pearl's position carry never charges the jump arm "
+                            + "(the reference's setPositionAndUpdate never reaches "
+                            + "the stats walk — PlayerEntity lines 1287-1303)");
+        } finally {
+            server.shutdown(null);
+        }
+    }
+
+    @Test
+    void theDimensionArrivalWriteNeverCharges() throws Exception {
+        EngineServer server = boot();
+        try {
+            PlayerSession body = join(server, "Crosser");
+            EngineAwaits.awaitTicks(server.world(), 3, "the scratch seeds");
+            double x = body.position().x();
+            double y = body.position().y();
+            double z = body.position().z();
+            // The portal class's own write: applyDimensionArrival is the
+            // nether walk's and the End entry's shared landing (the 8:1
+            // coordinate carry + the forced spawn) — an upward arrival off
+            // a standing scratch is exactly the phantom-jump shape.
+            server.ticker().submit(() -> body.applyDimensionArrival(
+                    0, new Position(x, y + 6.0, z), 0.0f, 0.0f));
+            EngineAwaits.awaitTicks(server.world(), 6, "the crossing window");
+            assertEquals(0.0f, body.exhaustion(), 1.0E-6f,
+                    "the 8:1 nether walk and the End's forced spawn never "
+                            + "charge the walk (setPositionAndAngles never "
+                            + "reaches the stats walk)");
+        } finally {
+            server.shutdown(null);
+        }
+    }
+
+    @Test
+    void theEndCreditsRespawnPaysNoPhantomJump() throws Exception {
+        EngineServer server = boot();
+        try {
+            PlayerSession body = join(server, "Returner");
+            EngineAwaits.awaitTicks(server.world(), 3, "the scratch seeds");
+            double x = body.position().x();
+            double y = body.position().y();
+            double z = body.position().z();
+            // The credits' landing: a high bed spawn makes the End-to-
+            // overworld jump an upward one (the phantom-jump shape). The
+            // arm keeps the whole body by design — only the position
+            // carries.
+            server.ticker().submit(() -> body.setBedSpawn(
+                    new Position(x, y + 6.0, z)));
+            await(() -> body.bedSpawn() != null, "the bed spawn landed");
+            server.ticker().submit(body::markLeavingTheEnd);
+            await(body::leavingTheEnd, "the credits armed");
+            server.performRespawn(body);
+            await(() -> !body.leavingTheEnd(), "the credits answered");
+            EngineAwaits.awaitTicks(server.world(), 4, "the phantom window");
+            assertEquals(0.0f, body.exhaustion(), 1.0E-6f,
+                    "the End-credits respawn's landing never charges the "
+                            + "jump arm (the reference's alive respawn is a "
+                            + "setPosition — PlayerManager.respawn's "
+                            + "movePlayer never reaches the stats walk)");
+        } finally {
+            server.shutdown(null);
+        }
+    }
+
     // --- the harness (the house pattern) -----------------------------------
 
     private EngineServer boot() throws Exception {

@@ -30,10 +30,26 @@ public final class MelonBlocks {
             "pumpkin_stem", 104,
             "melon_stem", 105);
 
-    /** The fruit each stem spawns at AGE 7 (StemBlock.tick's plant field). */
+    /** The fruit each stem spawns at AGE 7 (StemBlock.tick's plant field — the DEFAULT state, FACING NORTH). */
     public static BlockType fruitOf(String stemFamily) {
+        // StemBlock line 77: world.setBlockState(pos, this.plant.defaultState())
+        // — the pumpkin's default FACING is NORTH (horizontal id 2, the
+        // ctor's own setDefaultState), not the bare south form.
         return stemFamily.equals("pumpkin_stem")
-                ? BuiltinBlocks.PUMPKIN : BuiltinBlocks.MELON_BLOCK;
+                ? net.zaminmc.torch.server.block.PumpkinBlocks.pumpkinOf(false, 2)
+                : BuiltinBlocks.MELON_BLOCK;
+    }
+
+    /**
+     * Whether the block at a stem's side is the family's fruit — the
+     * reference's KIND consult (StemBlock lines 70-73: getBlock() ==
+     * this.plant, every facing state counts), not an exact-type compare.
+     */
+    public static boolean isFruitOf(String stemFamily, BlockType block) {
+        if (stemFamily.equals("pumpkin_stem")) {
+            return net.zaminmc.torch.server.block.PumpkinBlocks.isPlainFamily(block);
+        }
+        return block != null && block.equals(BuiltinBlocks.MELON_BLOCK);
     }
 
     /** The seeds item each stem's drop walk yields (getSeedsItem). */
@@ -87,10 +103,11 @@ public final class MelonBlocks {
             BlockPosition stem, String family, java.util.Random random) {
         int[][] steps = {{0, -1}, {0, 1}, {-1, 0}, {1, 0}};
         // The already-fruiting check (lines 70-73): any horizontal fruit
-        // beside the stem ends the walk.
+        // BESIDE the stem — the reference's own KIND consult (getBlock() ==
+        // this.plant), so every facing state counts — ends the walk.
         BlockType fruit = fruitOf(family);
         for (int[] step : steps) {
-            if (world.getBlock(stem.offset(step[0], 0, step[1])).equals(fruit)) {
+            if (isFruitOf(family, world.getBlock(stem.offset(step[0], 0, step[1])))) {
                 return false;
             }
         }

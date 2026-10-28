@@ -17508,6 +17508,86 @@ box); a riding player's vertical pickup band differs (ledgered beside
 the thrower family's row). The test seat's three-block stand remains
 the right shape — outside the band the drop sits at the rim in vanilla
 and the engine alike.
+
+---
+Task ID: 1
+Agent: main (ZaminTorch session, 2026-10-28 continued — the PR wave + the pumpkin slice)
+Task: The four open PRs reviewed in arrival order (each merged or closed),
+then the standard work protocol's next lane (the pumpkin FACING slice).
+
+Work Log:
+- PR #61 (the furnace fuel & cycle audit): all four divergence groups
+  verified 1:1 against the reference (the tick's outer guard + the two
+  interruption laws, the lava-bucket remainder, the three slot gates,
+  the twelve getFuelTime arms) — ONE defect found: the Material.WOOD
+  class restoration claimed "the registry's wood members" but carried
+  26 of 38 (the five variant doors, the five variant fence gates, the
+  trapped chest, and the daylight detector all burn 300 in vanilla).
+  The review fix landed in-branch (f6e4daf9) before the MERGE.
+- PR #62 (the food nutrition fold audit): every claim verified (the
+  fold law HungerManager.add lines 20-23, the fish modifiers, the raw
+  chicken's half-fold, the cake bite, the six new rows, the
+  always-edible law — and every pre-existing row re-verified, including
+  the potato's CropItem(1, 0.3F) and the stew's 0.6F default
+  constructor). MERGED clean (the stacked base reconciled with develop,
+  keeping #61's review fix whole).
+- PR #63 (the milk family audit): every claim verified (MilkBucketItem
+  1:1, the cow's milk arm with the size-- idiom, the mooshroom's
+  inheritance order bowl->shears->super, and the genuine cross-family
+  release-cancel bug the audit itself fixed). MERGED clean.
+- PR #64 (the cauldron wash audit): the four divergence groups verified
+  — ONE defect found: the rim drop's pickup delay. The audit claimed
+  "the ItemEntity ctor's own 10-tick delay" — a misread: the ctor sets
+  NO delay and the 10-tick row lives in setDefaultPickUpDelay, whose
+  callers (the block-drop path, the entity-drop path, the jukebox, the
+  villager trade) do NOT include the cauldron's direct addEntity. The
+  delay corrected to the reference's own 0 in-branch (6103ae87) before
+  the MERGE.
+- THE REVIEWER'S OWN REVIEW (the correction, 5f738c27): the #64 review
+  fix's "adjacent finding" MISREAD the reference's pickup geometry —
+  the claim that the engine's 1.425-block sweep is generous where the
+  reference is a true box intersection is WRONG: PlayerEntity lines
+  483-489 grow the player's box (1.0, 0.5, 1.0) and the engine's
+  withinPickupRange is the FAITHFUL 1:1 port. The delay-0 fix stands;
+  the characterization corrected in the test comment, the WORKLOG, and
+  the compat ledger's thrower-family row (which now pins the geometry
+  1:1). The one honest tail: the RIDING case (the reference grows the
+  player-vehicle UNION box by (1.0, 0.0, 1.0) — vertical growth 0 over
+  the union's height — where the engine always uses the walking
+  shape's +0.5); ledgered.
+- THE STALE-LEDGER SWEEP PASS TWO: the compat doc's 21 Ledgered rows
+  enumerated and verified — the silverfish step-sound clause
+  self-resolving (VT-7j's shared step walk + the makesSteps gate), the
+  wither-skeleton family confirmed ABSENT whole (the fortress variant
+  roll rides its own slice — the biggest honest standing tail), and the
+  pumpkin's FACING rotation picked as the first landable tail.
+- WAVE PF (the pumpkin FACING slice): PumpkinBlocks' four horizontal
+  states per block over legacy 86/91 (the HORIZONTAL-id nibble band,
+  the bare forms the south states), the placement's look-opposite law
+  over the reference's centered band formula, the worldgen patch's
+  random pick, the dispense arm's and the stem fruit's default NORTH
+  state, the stem's already-fruiting gate as the KIND consult, and the
+  six tables' + the wire's + the anvil import's rows. Evidence:
+  PumpkinFacingTest 4/0 NEW, the block/dispenser/map lanes 304/0, the
+  world/interaction/achievement lanes 239/0, the registry's 902 and
+  the anvil's 1251 re-pins, the protocol integrity pair green.
+
+Stage Summary:
+- FOUR PRs handled in arrival order: #61 MERGED + the wood-class review
+  fix, #62 MERGED clean, #63 MERGED clean, #64 MERGED + the rim-drop
+  delay review fix and the reviewer's own correction after it. Zero
+  open PRs.
+- TWO pre-existing develop failures found by the sweeps (both verified
+  by stash on clean develop): StatsCompletenessTest's cobweb row and
+  QuickCraftDragWireTest's chest-window packet-48 timeout — the next
+  session's opener candidates.
+- The ML-100 honest remainder after Wave PF: the wither-skeleton family
+  (the biggest tail — a whole mob kind absent), the armor-stand's
+  EntityTag NBT merge, the mooshroom's mycelium spawn floor (needs the
+  mushroom island biome), the chest/furnace placement sites' truncation
+  band (the half-quadrant divergence Wave PF's formula ledgered), and
+  the riding pickup band tail.
+
 ## 2026-10-28 — the hunger exhaustion economy parity audit (PR #65, the verifier's tenth pass)
 
 The tenth sweep, one family over: the hunger exhaustion economy — the

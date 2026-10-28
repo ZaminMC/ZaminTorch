@@ -222,6 +222,13 @@ public final class BlockSoundMap {
         row(m, "melon_block", SoundFamily.WOOD);
         row(m, "pumpkin", SoundFamily.WOOD);
         row(m, "lit_pumpkin", SoundFamily.WOOD);
+        // The rotated states (the metadata slice): the same woody family.
+        row(m, "pumpkin_west", SoundFamily.WOOD);
+        row(m, "pumpkin_north", SoundFamily.WOOD);
+        row(m, "pumpkin_east", SoundFamily.WOOD);
+        row(m, "lit_pumpkin_west", SoundFamily.WOOD);
+        row(m, "lit_pumpkin_north", SoundFamily.WOOD);
+        row(m, "lit_pumpkin_east", SoundFamily.WOOD);
         row(m, "fence_gate", SoundFamily.WOOD);
         row(m, "pumpkin_stem", SoundFamily.WOOD);
         row(m, "melon_stem", SoundFamily.WOOD);

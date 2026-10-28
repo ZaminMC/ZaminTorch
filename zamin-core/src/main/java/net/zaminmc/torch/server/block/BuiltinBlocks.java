@@ -1096,6 +1096,10 @@ public final class BuiltinBlocks {
         // The furnace pair's facing states (Slice L3 — the four plain + the
         // four lit, the same Direction-id nibble band).
         builder = net.zaminmc.torch.server.furnace.FurnaceFacingBlocks.registerAll(builder);
+        // The pumpkin pair's rotated states (the metadata slice — the
+        // horizontal-id nibble band 0-3; the bare forms ARE the south
+        // states, registered among the constants above).
+        builder = PumpkinBlocks.registerAll(builder);
         // The complete door families (Slice 34 — DoorBlock/DoorItem 1:1):
         // the five new woods' twelve states each, the oak hinge pair, and
         // the iron door's open + hinge states. The shipped oak/iron

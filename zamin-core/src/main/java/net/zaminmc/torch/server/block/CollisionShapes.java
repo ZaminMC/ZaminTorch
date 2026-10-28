@@ -637,7 +637,10 @@ public final class CollisionShapes {
         if (value.contains("_fence_gate")) {
             return true;
         }
-        if (value.equals("pumpkin") || value.equals("lit_pumpkin")) {
+        if (value.equals("pumpkin") || value.equals("lit_pumpkin")
+                || value.equals("pumpkin_west") || value.equals("pumpkin_north")
+                || value.equals("pumpkin_east") || value.equals("lit_pumpkin_west")
+                || value.equals("lit_pumpkin_north") || value.equals("lit_pumpkin_east")) {
             return false; // Material.PUMPKIN: solid and cube, never connects
         }
         return isFullCube(neighbor);

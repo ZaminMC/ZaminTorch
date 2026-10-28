@@ -325,7 +325,11 @@ final class FloraFeatures {
                 int bz = z + random.nextInt(8) - random.nextInt(8);
                 String below = world.blockAt(bx, by - 1, bz).identifier().value();
                 if (world.isAirAt(bx, by, bz) && below.equals("grass_block")) {
-                    world.setBlockAt(bx, by, bz, BuiltinBlocks.PUMPKIN);
+                    // PumpkinPatchFeature line 16: defaultState().set(FACING,
+                    // Direction.Plane.HORIZONTAL.pick(random)) — a random
+                    // facing for every patch pumpkin (HORIZONTALS[nextInt(4)]).
+                    world.setBlockAt(bx, by, bz, net.zaminmc.torch.server.block
+                            .PumpkinBlocks.pumpkinOf(false, random.nextInt(4)));
                 }
             }
             return true;
