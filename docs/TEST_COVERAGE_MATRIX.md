@@ -8,8 +8,10 @@ the 2026-10-27 row's `git grep -c "@Test"` number counts raw @Test-line
 occurrences INCLUDING javadoc/comment mentions, not declared methods):
 
 - **Declared test methods** (line-anchored `@Test` annotations):
-  **2,771** across **505 test classes** — core 408/2411, protocol
-  71/215, transport 3/21, launcher 10/53, bukkit 9/52, api 4/19.
+  **2,782** across **507 test classes** — core 410/2422, protocol
+  71/215, transport 3/21, launcher 10/53, bukkit 9/52, api 4/19 (the
+  2026-10-28 confirm-transaction slice added EmptyShiftClickAcceptanceTest
+  8 + EngineTickerTpsWindowTest 3 to core).
 - **Raw @Test-line occurrences** (the 2026-10-27 convention, incl.
   comments): 2,886 — core 2469, protocol 256 (72 files), bukkit 68 — the
   prior row's "2841 methods" was this convention at an earlier tree
@@ -33,7 +35,7 @@ this recount.
 | Module | Classes | Established by (representative, per compat ledger + §29) |
 |---|---|---|
 | zamin-transport | 3 (21 tests) | the §35 queue laws (OutboundQueueTest) + the §35.12 benchmark matrix (TransportBenchmarkTest) + the §35.4 allocation harness (PacketAllocationBenchmarkTest) |
-| zamin-core | 408 (2411 methods) | the per-slice behavioral tests every §29 wave cites (reference-shadow sweeps, formula pins, round trips) |
+| zamin-core | 410 (2422 methods) | the per-slice behavioral tests every §29 wave cites (reference-shadow sweeps, formula pins, round trips) |
 | zamin-protocol-v1_8_8 | 71 (215 methods) | wire conformance (Protocol18ConformanceTest, VanillaParityIntegrationTest, TestClient18) + the Wave ON-1 login families (LoginCompressionWireTest 5, CompressionCodecTest 8, TorchEncryptionTest 8, EncryptionCodecTest 3, SessionProfileParserTest 11, MojangSessionServiceTest 5, OnlineLoginWireTest 6) |
 | zamin-launcher | 10 (53 tests) | console contract (ADR-21 list) |
 | zamin-bukkit | 9 (52 methods; 68 raw @Test-line occurrences) | the honest-shim event bridges (deferred adapter's test-first core) |

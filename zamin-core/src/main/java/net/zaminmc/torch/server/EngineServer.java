@@ -8731,7 +8731,13 @@ public final class EngineServer implements Server, EngineBridge {
                     // reference's plain InventorySlots). Remainder returns.
                     net.zaminmc.torch.item.ItemStack peek = inventory.snapshot().get(engineSlot);
                     if (peek.isEmpty()) {
-                        return false; // empty slot shift-click: nothing moves
+                        // The empty shift-click is a CONFIRMED no-op (ML-004,
+                        // the reference's prediction-match law): quickMoveItem
+                        // answers the slot's item — null when empty — so both
+                        // sides predict null and the packet handler's
+                        // ItemStack.matches(null, null) accepts; the client's
+                        // model already equals the server's, nothing moves.
+                        return true;
                     }
                     net.zaminmc.torch.item.ItemStack moving = inventory.dropFromSlot(engineSlot, true);
                     net.zaminmc.torch.item.ItemStack remainder = hopper.quickMoveIn(moving);
@@ -9099,7 +9105,13 @@ public final class EngineServer implements Server, EngineBridge {
                     // historical TileEntityChest). Remainder returns to the slot.
                     net.zaminmc.torch.item.ItemStack peek = inventory.snapshot().get(engineSlot);
                     if (peek.isEmpty()) {
-                        return false; // empty slot shift-click: nothing moves
+                        // The empty shift-click is a CONFIRMED no-op (ML-004,
+                        // the reference's prediction-match law): quickMoveItem
+                        // answers the slot's item — null when empty — so both
+                        // sides predict null and the packet handler's
+                        // ItemStack.matches(null, null) accepts; the client's
+                        // model already equals the server's, nothing moves.
+                        return true;
                     }
                     net.zaminmc.torch.item.ItemStack moving = inventory.dropFromSlot(engineSlot, true);
                     net.zaminmc.torch.item.ItemStack remainder = chest.quickMoveIn(moving);
@@ -9194,7 +9206,13 @@ public final class EngineServer implements Server, EngineBridge {
                     // returns to the slot.
                     net.zaminmc.torch.item.ItemStack peek = inventory.snapshot().get(engineSlot);
                     if (peek.isEmpty()) {
-                        return false; // empty slot shift-click: nothing moves
+                        // The empty shift-click is a CONFIRMED no-op (ML-004,
+                        // the reference's prediction-match law): quickMoveItem
+                        // answers the slot's item — null when empty — so both
+                        // sides predict null and the packet handler's
+                        // ItemStack.matches(null, null) accepts; the client's
+                        // model already equals the server's, nothing moves.
+                        return true;
                     }
                     net.zaminmc.torch.item.ItemStack moving = inventory.dropFromSlot(engineSlot, true);
                     net.zaminmc.torch.item.ItemStack remainder = ender.quickMoveIn(moving);
@@ -9291,7 +9309,10 @@ public final class EngineServer implements Server, EngineBridge {
                 if (wireSlot == 0) {
                     // Quick-move the payment back into the inventory.
                     if (beacon.payment().isEmpty()) {
-                        return false;
+                        // An empty payment slot shift-clicks as a confirmed
+                        // no-op (ML-004 — the same prediction-match law as
+                        // the player-side arms; quickMoveItem answers null).
+                        return true;
                     }
                     net.zaminmc.torch.item.ItemStack payment = beacon.payment();
                     beacon.setPayment(net.zaminmc.torch.item.ItemStack.EMPTY);
@@ -9305,7 +9326,11 @@ public final class EngineServer implements Server, EngineBridge {
                 if (engineSlot >= 0) {
                     net.zaminmc.torch.item.ItemStack peek = inventory.snapshot().get(engineSlot);
                     if (peek.isEmpty()) {
-                        return false;
+                        // The empty shift-click is a CONFIRMED no-op (ML-004,
+                        // the reference's prediction-match law): quickMoveItem
+                        // answers null for an empty slot, both sides predict
+                        // null, the match accepts — nothing moves.
+                        return true;
                     }
                     if (beacon.payment().isEmpty()
                             && net.zaminmc.torch.server.beacon.BeaconBlockEntity
@@ -9416,7 +9441,13 @@ public final class EngineServer implements Server, EngineBridge {
                     // Remainder returns to the slot.
                     net.zaminmc.torch.item.ItemStack peek = inventory.snapshot().get(engineSlot);
                     if (peek.isEmpty()) {
-                        return false; // empty slot shift-click: nothing moves
+                        // The empty shift-click is a CONFIRMED no-op (ML-004,
+                        // the reference's prediction-match law): quickMoveItem
+                        // answers the slot's item — null when empty — so both
+                        // sides predict null and the packet handler's
+                        // ItemStack.matches(null, null) accepts; the client's
+                        // model already equals the server's, nothing moves.
+                        return true;
                     }
                     net.zaminmc.torch.item.ItemStack moving = inventory.dropFromSlot(engineSlot, true);
                     net.zaminmc.torch.item.ItemStack remainder = container.quickMoveIn(moving);
@@ -9533,7 +9564,13 @@ public final class EngineServer implements Server, EngineBridge {
                     // potion slots; anything else never leaves.
                     net.zaminmc.torch.item.ItemStack peek = inventory.snapshot().get(engineSlot);
                     if (peek.isEmpty()) {
-                        return false; // empty slot shift-click: nothing moves
+                        // The empty shift-click is a CONFIRMED no-op (ML-004,
+                        // the reference's prediction-match law): quickMoveItem
+                        // answers the slot's item — null when empty — so both
+                        // sides predict null and the packet handler's
+                        // ItemStack.matches(null, null) accepts; the client's
+                        // model already equals the server's, nothing moves.
+                        return true;
                     }
                     net.zaminmc.torch.item.ItemStack moving = inventory.dropFromSlot(engineSlot, true);
                     net.zaminmc.torch.item.ItemStack remainder = container.quickMoveIn(moving);
@@ -15041,7 +15078,13 @@ public final class EngineServer implements Server, EngineBridge {
                 if (engineSlot >= 0) {
                     net.zaminmc.torch.item.ItemStack peek = inventory.snapshot().get(engineSlot);
                     if (peek.isEmpty()) {
-                        return false; // empty slot shift-click: nothing moves
+                        // The empty shift-click is a CONFIRMED no-op (ML-004,
+                        // the reference's prediction-match law): quickMoveItem
+                        // answers the slot's item — null when empty — so both
+                        // sides predict null and the packet handler's
+                        // ItemStack.matches(null, null) accepts; the client's
+                        // model already equals the server's, nothing moves.
+                        return true;
                     }
                     net.zaminmc.torch.item.ItemStack moving = inventory.dropFromSlot(engineSlot, true);
                     net.zaminmc.torch.item.ItemStack remainder = chest.quickMoveIn(moving);
@@ -15161,7 +15204,13 @@ public final class EngineServer implements Server, EngineBridge {
                     // returns.
                     net.zaminmc.torch.item.ItemStack peek = inventory.snapshot().get(engineSlot);
                     if (peek.isEmpty()) {
-                        return false; // empty slot shift-click: nothing moves
+                        // The empty shift-click is a CONFIRMED no-op (ML-004,
+                        // the reference's prediction-match law): quickMoveItem
+                        // answers the slot's item — null when empty — so both
+                        // sides predict null and the packet handler's
+                        // ItemStack.matches(null, null) accepts; the client's
+                        // model already equals the server's, nothing moves.
+                        return true;
                     }
                     net.zaminmc.torch.item.ItemStack moving = inventory.dropFromSlot(engineSlot, true);
                     net.zaminmc.torch.item.ItemStack remainder = hopper.quickMoveIn(moving);
@@ -22595,8 +22644,8 @@ public final class EngineServer implements Server, EngineBridge {
                 2, (sender, args) -> String.format(java.util.Locale.ROOT,
                         "TPS from last 1m, 5m, 15m: %.1f, %.1f, %.1f",
                         ticker.averageTps(60),
-                        ticker.averageTps(Math.min(60, 300)),
-                        ticker.averageTps(Math.min(60, 900)))));
+                        ticker.averageTps(300),
+                        ticker.averageTps(900))));
         commands.register(new CommandService.Command("plugins",
                 "List the installed plugins",
                 0, (sender, args) -> {

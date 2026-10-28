@@ -102,13 +102,16 @@ public final class EngineTicker {
     private volatile Thread tickThread;
     private volatile long lastTickOverrunNanos;
     // The /tps window (the Paper 1m/5m/15m report): ticks completed per
-    // elapsed second, the last sixty seconds kept for the 1-minute average.
+    // elapsed second, the last fifteen minutes kept so every reported
+    // window is real data (ML-004's sibling fix ML-025: the window once
+    // held only sixty seconds, so the 5m/15m columns printed the 1m
+    // average under Math.min clamps — fiction, now retired).
     private final java.util.concurrent.ConcurrentLinkedQueue<long[]> tpsWindow =
             new java.util.concurrent.ConcurrentLinkedQueue<>();
     private long tpsSecondStamp;
     private long tpsSecondTicks;
     private static final long TPS_SECOND_NANOS = TimeUnit.SECONDS.toNanos(1);
-    private static final int TPS_WINDOW_SECONDS = 60;
+    private static final int TPS_WINDOW_SECONDS = 900;
 
     EngineTicker(int tickRateHz) {
         this.tickIntervalNanos = TimeUnit.SECONDS.toNanos(1) / tickRateHz;
@@ -281,18 +284,39 @@ public final class EngineTicker {
         }
         tpsSecondTicks++;
         if (now - tpsSecondStamp >= TPS_SECOND_NANOS) {
-            tpsWindow.add(new long[]{tpsSecondStamp, tpsSecondTicks});
+            appendTpsSecond(tpsSecondStamp, tpsSecondTicks);
             tpsSecondStamp = now;
             tpsSecondTicks = 0;
-            while (tpsWindow.size() > TPS_WINDOW_SECONDS) {
-                tpsWindow.poll();
-            }
         }
+    }
+
+    /**
+     * Records one completed second (stamp, ticks) into the rolling window,
+     * evicting past the retained span. Package-private: the window math's
+     * own test drives synthetic seconds through here (ML-025's acceptance —
+     * a 900-second history cannot be lived out in a unit test).
+     */
+    void appendTpsSecond(long stampNanos, long tickCount) {
+        tpsWindow.add(new long[]{stampNanos, tickCount});
+        while (tpsWindow.size() > TPS_WINDOW_SECONDS) {
+            tpsWindow.poll();
+        }
+    }
+
+    /**
+     * @return the number of per-second entries currently retained (bounded
+     * by the fifteen-minute window). Package-private for the window math's
+     * own retention test.
+     */
+    int tpsWindowRetainedSeconds() {
+        return tpsWindow.size();
     }
 
     /**
      * @return the average ticks per second over roughly the given window
      * seconds (1, 5 or 15 in the Paper report); 20.0 before enough data.
+     * The window itself retains fifteen minutes so every reported span is
+     * real history.
      */
     public double averageTps(int seconds) {
         long now = System.nanoTime();
@@ -312,7 +336,10 @@ public final class EngineTicker {
         if (span <= 0) {
             return 20.0;
         }
-        return Math.min(20.0, ticks / span);
+        // ticks/span is long-over-long — WITHOUT the double cast this
+        // truncates to a whole number and every /tps column reads x.0
+        // (the second half of ML-025, found by the window math's own test).
+        return Math.min(20.0, ticks / (double) span);
     }
 
     /**

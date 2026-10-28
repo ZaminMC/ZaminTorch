@@ -294,10 +294,26 @@ I=infra/CI/release, S=security/boundary.
 - Acceptance: a wire test — chest window open, shift-click an empty
   player-side slot → Confirm Transaction accepted=true, no resync; the
   seven arms swept in one parametrized pass.
-- Status: DISPOSITIONED 2026-10-28 (the event = expected-under-divergence;
-  the divergence cause = unresolved/instrumented; the seven-arm empty-slot
-  rejection = CONFIRMED DIVERGENCE, fix deferred to the next-slice
-  decision — no implementation during the documentation phase).
+- Resolution (2026-10-28, the confirm-transaction slice): LANDED. The
+  exhaustive code-pattern rescan (the disposition's own "seven arms" was a
+  comment-based census) found NINE sites: the eight player-side empty-slot
+  rejections — hopper, chest, ender chest, beacon, dispenser, brewing
+  stand, chest minecart, hopper minecart — plus the beacon's empty
+  PAYMENT slot (wire 0), which rejected where the reference's quickMoveItem
+  answers null for any empty slot. All nine now accept the no-op (the
+  reference's prediction-match law: both sides predict null, the match
+  confirms, nothing moves — the enchanting/anvil arms already carried this
+  exact shape, "an empty player slot: nothing to move, nothing changed").
+  Pinned by EmptyShiftClickAcceptanceTest 8/0 — every family's REAL window
+  opened through the live use/interact path, the empty shift-click
+  accepted, nothing moved, and the ML-004 instrumentation stayed silent
+  (the rejection-log capture is the double-check that the click reached
+  the fixed arm, not a refusal path). The full prediction-match law
+  (threading the click's claimed stack through the adapter) stays
+  demand-named — the engine's own semantics now agree with the reference
+  on every reachable empty-slot shape.
+- Status: RESOLVED (landed; the divergent-set-slot cause stays
+  instrumented for the next state-dependent occurrence).
 
 ## Low / papercuts (carried from cycle 3, verified standing)
 
@@ -359,8 +375,20 @@ I=infra/CI/release, S=security/boundary.
 - Acceptance: a unit test over the window math at 61s/300s/900s of
   synthetic second-stamps; the command's output matches the windows it
   names.
-- Status: OPEN (confirmed, small; not implemented during the
-  documentation phase).
+- Resolution (2026-10-28, the /tps honesty slice): LANDED — and the fix
+  found a SECOND defect the row had missed. (a) The window now retains
+  fifteen minutes (TPS_WINDOW_SECONDS 60 -> 900, ~trivial memory) and the
+  command's Math.min clamps are gone — averageTps(300)/averageTps(900)
+  read real history. (b) THE SECOND DEFECT, found by the new window-math
+  test's own arithmetic: `ticks / span` was long-over-long INTEGER
+  DIVISION — every /tps column ever printed was truncated to a whole
+  number (x.0 forever); now `ticks / (double) span`. The synthetic-window
+  seam: appendTpsSecond (package-private) + tpsWindowRetainedSeconds, so
+  the 900-second history is driven in microseconds instead of lived out.
+  Pinned by EngineTickerTpsWindowTest 3/0 — the three eras read their own
+  windows (10/14/18 over a 10-15-20 history), the young-engine 20.0
+  default, and the 900-entry retention bound.
+- Status: RESOLVED (landed).
 
 ## Torch-native capabilities surfaced by the fork audit
 
