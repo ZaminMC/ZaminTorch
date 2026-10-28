@@ -10600,7 +10600,17 @@ public final class EngineServer implements Server, EngineBridge {
                     maps.applyScaleUp(session.dimension(), inventory.takeCursor()));
         }
         awardCraftAchievements(session, result);
+        // The banner duplicate's mold (DuplicatePattern.getRemainder): the
+        // carrier's pre-consumption snapshot writes its unit back after
+        // the consumption empties the cell.
+        var preConsume = grid.snapshotArray();
+        boolean duplicateCraft = net.zaminmc.torch.server.crafting.BannerCrafting
+                .duplicateMatches(preConsume, grid.cols());
         grid.consumeOne();
+        if (duplicateCraft) {
+            net.zaminmc.torch.server.crafting.BannerCrafting
+                    .restoreCarrierMold(grid, preConsume);
+        }
         return true;
     }
 
@@ -10681,6 +10691,9 @@ public final class EngineServer implements Server, EngineBridge {
      * reference's size-9 recipes, the shaped-first order's own head, and
      * their ingredient sets (filled_map + empty_map / paper) are disjoint
      * from every static row so the position never crosses a static match).
+     * The banner family's dynamic pair (the pattern-add and the duplicate)
+     * rides the same head — its ingredient sets (banners and dyes) are
+     * disjoint from every static row the same way.
      */
     private net.zaminmc.torch.item.ItemStack craftingResultOf(
             PlayerSession session, net.zaminmc.torch.server.player.CraftingGrid grid) {
@@ -10693,6 +10706,16 @@ public final class EngineServer implements Server, EngineBridge {
             if (maps.cloneMatches(snapshot, grid.cols())) {
                 return maps.cloneResult(snapshot, grid.cols());
             }
+        }
+        if (net.zaminmc.torch.server.crafting.BannerCrafting
+                .addPatternMatches(snapshot, grid.cols())) {
+            return net.zaminmc.torch.server.crafting.BannerCrafting
+                    .addPatternResult(snapshot, grid.cols());
+        }
+        if (net.zaminmc.torch.server.crafting.BannerCrafting
+                .duplicateMatches(snapshot, grid.cols())) {
+            return net.zaminmc.torch.server.crafting.BannerCrafting
+                    .duplicateResult(snapshot, grid.cols());
         }
         return (grid.cols() == 3
                         ? crafting.resultOf3x3(snapshot)
@@ -10721,7 +10744,17 @@ public final class EngineServer implements Server, EngineBridge {
             if (maps != null && result.mapScaling()) {
                 result = maps.applyScaleUp(session.dimension(), result);
             }
+            var preConsume = grid.snapshotArray();
+            boolean duplicateCraft = net.zaminmc.torch.server.crafting.BannerCrafting
+                    .duplicateMatches(preConsume, grid.cols());
             grid.consumeOne();
+            if (duplicateCraft) {
+                // The mold law: the carrier's unit writes back, and the
+                // next iteration's consult (the carrier alone) stops the
+                // loop exactly like the reference's recursion.
+                net.zaminmc.torch.server.crafting.BannerCrafting
+                        .restoreCarrierMold(grid, preConsume);
+            }
             // The crafted-item stat (ContainerWorkbench.onTake's own
             // incrementStat — the craftItem row over the result's id).
             session.stats().increment(
@@ -12709,11 +12742,48 @@ public final class EngineServer implements Server, EngineBridge {
             publishInventoryChanged(session);
             return true;
         }
-        // The banner wash arm (lines 133-159): no banner item exists in
-        // the registry — the honest fall-through to the placement proposal
-        // (the pre-audit comment's "no color model" half was STALE: the
-        // displayColor row has round-tripped since the NBT slice, and the
-        // leather arm above now rides it).
+        // The banner wash arm (CauldronBlock.use lines 133-159): a
+        // patterned banner loses its TOPMOST pattern row to the water.
+        // The washed COPY lands per the reference's own shape — the last
+        // held banner replaces the hand slot directly, a bigger stack
+        // ADDs the copy first (a full inventory drops it at the cauldron's
+        // rim with NO pickup delay, the bottle arm's own pos+0.5/+1.5/
+        // +0.5 law), the stat landing with the ADD branch alone (a
+        // creative stack pays the stat too — only the level and the held
+        // unit are the survival pair's own).
+        if (level > 0 && held.type().equals(BuiltinItems.BANNER)
+                && net.zaminmc.torch.server.banner.BannerManager
+                        .patternCountOf(held) > 0) {
+            net.zaminmc.torch.item.ItemStack washed =
+                    net.zaminmc.torch.server.banner.BannerManager
+                            .withoutLastPattern(held.withCount(1));
+            if (held.count() <= 1
+                    && session.gamemode() != GameMode.CREATIVE) {
+                session.inventory().setSlot(session.inventory().heldSlot(), washed);
+            } else {
+                net.zaminmc.torch.item.ItemStack leftover =
+                        session.inventory().pickUp(washed);
+                if (!leftover.isEmpty()) {
+                    // The rim drop (line 142): the reference's ItemEntity
+                    // ctor at pos + 0.5/+1.5/+0.5, never a pickup delay —
+                    // the UNFITTED remainder alone (the reference's addItem
+                    // consumes what fits in place).
+                    itemEntities.spawnDropAtBlock(new Position(
+                            clicked.x(), clicked.y() + 1, clicked.z()),
+                            leftover, 0, session.dimension());
+                }
+                session.stats().increment(
+                        net.zaminmc.torch.server.stat.EngineStats.BANNER_CLEANED, 1);
+                if (session.gamemode() != GameMode.CREATIVE) {
+                    session.inventory().consumeHeld(1);
+                }
+            }
+            if (session.gamemode() != GameMode.CREATIVE) {
+                setCauldronLevel(clicked, level - 1);
+            }
+            publishInventoryChanged(session);
+            return true;
+        }
         return false;
     }
 
