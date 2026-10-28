@@ -558,10 +558,16 @@ public final class NaturalSpawnSystem {
                     world.blockLightAt(cell));
             return brightness <= random.nextInt(8);
         }
-        // AnimalEntity.canSpawn lines 90-95: the grass floor (the
-        // mooshroom's mycelium rides its own slice) and the actual
-        // light max(sky, block) over 8.
-        if (!Objects.equals(identifierOf(belowType), "minecraft:grass_block")) {
+        // AnimalEntity.canSpawn lines 90-95: the spawnableBlock floor (the
+        // grass every animal reads; the mooshroom's own MYCELIUM —
+        // MooshroomEntity line 16's {@code this.spawnableBlock =
+        // Blocks.MYCELIUM} over the AnimalEntity line-18 grass default)
+        // and the actual light max(sky, block) over 8. The floor is
+        // per-KIND, exactly the reference's field consult — the spawner
+        // path's own animalCanSpawn twin (SpawnerManager).
+        String animalFloor = type == MobType.MOOSHROOM
+                ? "minecraft:mycelium" : "minecraft:grass_block";
+        if (!Objects.equals(identifierOf(belowType), animalFloor)) {
             return false;
         }
         int actualLight = Math.max(world.skyLightAt(cell), world.blockLightAt(cell));
