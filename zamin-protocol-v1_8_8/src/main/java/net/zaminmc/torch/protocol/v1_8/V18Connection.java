@@ -1866,6 +1866,50 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     }
 
     /**
+     * Update Block Entity (0x35, action 6) for one banner
+     * (BannerBlockEntity.createUpdatePacket lines 71-75): the position,
+     * the action byte, and the writeNbt compound — Base always, Patterns
+     * when the tile carries rows. Any thread.
+     */
+    void sendBannerTile(net.zaminmc.torch.block.BlockPosition position,
+                        net.zaminmc.torch.server.banner.BannerManager.BannerTile tile) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        enqueueOut(encodeBannerTile(position, tile));
+    }
+
+    /** The banner tile packet's own writer (the chunk-send path's form). */
+    private static ByteBuf encodeBannerTile(
+            net.zaminmc.torch.block.BlockPosition position,
+            net.zaminmc.torch.server.banner.BannerManager.BannerTile tile) {
+        ByteBuf out = Unpooled.buffer(64);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_UPDATE_BLOCK_ENTITY);
+        ByteBufOps.writePackedBlockPosition(out, position.x(), position.y(), position.z());
+        out.writeByte(Protocol18.BLOCK_ENTITY_TYPE_BANNER);
+        out.writeByte(10);              // TAG_Compound (the root marker)
+        out.writeShort(0);              // the root name: empty
+        writeNbtInt(out, "x", position.x());
+        writeNbtInt(out, "y", position.y());
+        writeNbtInt(out, "z", position.z());
+        writeNbtInt(out, "Base", tile.base());
+        if (!tile.patterns().isEmpty()) {
+            out.writeByte(9);           // TAG_LIST
+            SlotNbt.writeShortString(out, "Patterns");
+            out.writeByte(10);          // the element type: compounds
+            out.writeInt(tile.patterns().size());
+            for (var pattern : tile.patterns()) {
+                writeNbtString(out, "Pattern", pattern.hash());
+                writeNbtInt(out, "Color", pattern.color());
+                out.writeByte(0);       // end of the pattern compound
+            }
+        }
+        out.writeByte(0);               // end of the root
+        return out;
+    }
+
+    /**
      * One command tile's re-publish (Slice 72 — CommandBlockBlockEntity
      * .createUpdatePacket line 75: BlockEntityUpdateS2CPacket action 2
      * over the writeNbt rows — Command/SuccessCount/TrackOutput/
@@ -8310,6 +8354,16 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             if (engine.skulls() != null) {
                 for (var tile : engine.skulls().tilesIn(chunk.position().packed())) {
                     owner.enqueueOut(encodeSkullTile(tile));
+                }
+            }
+            // The banner tile replay (the same protocol 47 gap): every
+            // banner in the freshly sent column re-sends its Update Block
+            // Entity action 6 (the Base + Patterns rows the client's own
+            // renderer reads — without it every placed banner renders as
+            // the plain white default).
+            if (engine.banners() != null) {
+                for (var entry : engine.banners().tilesIn(chunk.position().packed())) {
+                    owner.enqueueOut(encodeBannerTile(entry.getKey(), entry.getValue()));
                 }
             }
             // The command tile replay (Slice 73 — the same protocol 47 gap):

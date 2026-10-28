@@ -161,6 +161,8 @@ final class Protocol18 {
     static final byte BLOCK_ENTITY_TYPE_SKULL = 4;
     /** Update Block Entity action 2 — the command block (CommandBlockBlockEntity line 76). */
     static final byte BLOCK_ENTITY_TYPE_COMMAND_BLOCK = 2;
+    /** Update Block Entity action 6 — the banner (BannerBlockEntity line 74). */
+    static final byte BLOCK_ENTITY_TYPE_BANNER = 6;
     /** The spawner's legacy block id (the block event's type word). */
     static final int SPAWNER_LEGACY_BLOCK_ID = 52;
     /** The fired cycle's flame burst (MobSpawner.tick line 108: doEvent 2004). */

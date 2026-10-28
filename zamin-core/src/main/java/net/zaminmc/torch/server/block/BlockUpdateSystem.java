@@ -105,6 +105,19 @@ public final class BlockUpdateSystem implements WorldChangeListener {
     }
 
     /**
+     * The banner tile seam: the support-drop arms read the tile for the
+     * tagged item (the base + the patterns ride the drop). Null until the
+     * engine wires it (the standalone-constructed test rig drops the plain
+     * item — the tile-less fallback walk).
+     */
+    private volatile net.zaminmc.torch.server.banner.BannerManager banners;
+
+    /** Wires the banner tile read onto the support-drop arms. */
+    public void setBanners(net.zaminmc.torch.server.banner.BannerManager banners) {
+        this.banners = banners;
+    }
+
+    /**
      * A block was committed: request updates for it and its neighbors (§466
      * "neighbor/update request"). Runs on the simulation thread through the
      * world-listener path.
@@ -327,6 +340,47 @@ public final class BlockUpdateSystem implements WorldChangeListener {
                     new Position(position.x(), position.y(), position.z()),
                     ItemStack.of(net.zaminmc.torch.server.item.BuiltinItems.TORCH, 1),
                     ItemEntity.PICKUP_DELAY_DROP_TICKS);
+            return;
+        }
+        // The banner family's support rules (BannerBlock.Standing /
+        // .Wall neighborChanged, lines 128-135 + 184-192): the standing
+        // banner consults the floor's SOLIDITY (the material's isSolid,
+        // never the air-only read — water and torches under a banner pop
+        // it too), the wall banner the cell OPPOSITE its facing (the wall
+        // it hangs on); the departure drops the TAGGED item through the
+        // tile read (dropItems' own walk) and clears the cell.
+        if (net.zaminmc.torch.server.block.BannerBlocks.isBanner(identifier)) {
+            boolean supported;
+            if (net.zaminmc.torch.server.block.BannerBlocks.isStanding(identifier)) {
+                supported = WorldSolidity.isSolid(
+                        world.getBlock(position.offset(0, -1, 0)));
+            } else {
+                int facing = net.zaminmc.torch.server.block.BannerBlocks.facingOf(type);
+                // The wall sits OPPOSITE the facing (the banner looks away
+                // from its wall): facing north (-Z) hangs on the south
+                // wall (+Z), and so on.
+                int[] away = switch (facing) {
+                    case 2 -> new int[]{0, 0, 1};  // faces north: the wall is south
+                    case 3 -> new int[]{0, 0, -1}; // faces south: the wall is north
+                    case 4 -> new int[]{1, 0, 0};  // faces west: the wall is east
+                    default -> new int[]{-1, 0, 0}; // faces east: the wall is west
+                };
+                supported = WorldSolidity.isSolid(
+                        world.getBlock(position.offset(away[0], away[1], away[2])));
+            }
+            if (supported) {
+                return;
+            }
+            net.zaminmc.torch.server.banner.BannerManager bannerStore = banners;
+            net.zaminmc.torch.server.banner.BannerManager.BannerTile tile =
+                    bannerStore != null ? bannerStore.remove(position) : null;
+            ItemStack drop = tile != null
+                    ? net.zaminmc.torch.server.banner.BannerManager.dropStack(tile)
+                    : net.zaminmc.torch.server.banner.BannerManager.dropStackWithoutTile();
+            world.setBlock(position, world.airType());
+            itemEntities.spawnDropAtBlock(
+                    new Position(position.x(), position.y(), position.z()),
+                    drop, ItemEntity.PICKUP_DELAY_DROP_TICKS);
             return;
         }
         // The carpet family's support rule (Slice 31 — CarpetBlock's

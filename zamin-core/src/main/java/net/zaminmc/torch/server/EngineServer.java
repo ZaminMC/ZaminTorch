@@ -319,6 +319,9 @@ public final class EngineServer implements Server, EngineBridge {
     private net.zaminmc.torch.server.spawner.SpawnerManager spawners;
     private SignManager signManager;
     private SignDataStore signStore;
+    /** The banner tiles (the sign family's twin — the base + pattern store). */
+    private net.zaminmc.torch.server.banner.BannerManager bannerManager;
+    private net.zaminmc.torch.server.banner.BannerDataStore bannerStore;
     private volatile ItemEntityManager itemEntities;
     private volatile MobManager mobManager;
     private volatile FallingBlockEntityManager fallingEntities;
@@ -838,6 +841,13 @@ public final class EngineServer implements Server, EngineBridge {
                 net.zaminmc.torch.server.sign.SignDataStore.Loaded signLoaded = signStore.load();
                 signManager.restoreAll(signLoaded.signs());
                 signManager.restoreStats(signLoaded.stats());
+                // Banner block entities: the base + pattern tiles, ZBD
+                // persistence (the crafted patterns are expensive player
+                // work — the tile survives the restart).
+                bannerManager = new net.zaminmc.torch.server.banner.BannerManager();
+                bannerStore = new net.zaminmc.torch.server.banner.BannerDataStore(
+                        config.worldDataDir().resolve("banners.bin"));
+                bannerManager.restoreAll(bannerStore.load());
                 // Living mobs: simulation-owned population, loot flows into items.
                 MobManager mobs = new MobManager(
                         new MobWorldQuery(),
@@ -1061,6 +1071,10 @@ public final class EngineServer implements Server, EngineBridge {
                 // the dragon egg) dispatches on the reference's own
                 // scheduleTick surface.
                 blockUpdateSystem.setScheduledTicks(scheduledTickSystem);
+                // The banner support-drop arms read the tile for the tagged
+                // item (the seam keeps the block package off the manager's
+                // boot order).
+                blockUpdateSystem.setBanners(bannerManager);
                 net.zaminmc.torch.server.block.GravityFalls.registerTicker(
                         scheduledTickSystem, world, falling);
                 // The surface's own persistence (the in-memory envelope
@@ -3120,7 +3134,7 @@ public final class EngineServer implements Server, EngineBridge {
                                 chestManager, furnaceManager, hopperSystem,
                                 dispenserSystem, brewingStands, beaconSystem,
                                 signManager, spawners, commandBlocks, noteBlocks,
-                                skulls, jukeboxes));
+                                skulls, jukeboxes, bannerManager));
                 blockInteraction = new BlockInteractionService(world, ticker,
                         change -> world.republish(change.position()), // the resync path (§441)
                         session -> session.gamemode(), new DropService(new java.util.Random()), itemEntities,
@@ -3290,6 +3304,18 @@ public final class EngineServer implements Server, EngineBridge {
                                             .PICKUP_DELAY_DROP_TICKS);
                         }
                     }
+                    // The banner tile dies with its block in EVERY mode
+                    // (the reference's setBlockState removes the block
+                    // entity when the block leaves): the survival DROP
+                    // reads the tile first in the afterMinedByPlayer hook
+                    // (which fires before this listener), so this arm's
+                    // second remove is the survival no-op and the creative
+                    // cleanup.
+                    if (bannerManager != null
+                            && net.zaminmc.torch.server.block.BannerBlocks.isBanner(
+                                    brokenType.identifier())) {
+                        bannerManager.remove(position);
+                    }
                     furnaceManager.onBlockBroken(position, itemEntities);
                     chestManager.onBlockBroken(position, itemEntities);
                     hopperSystem.onBlockBroken(position);
@@ -3316,6 +3342,32 @@ public final class EngineServer implements Server, EngineBridge {
                     // world (the session's dimension).
                     experienceOrbs.spawnBurst(new Position(at.x() + 0.5, at.y() + 0.5,
                             at.z() + 0.5), amount, 3, player.dimension());
+                });
+                // The banner's tagged drop (BannerBlock.afterMinedByPlayer
+                // lines 109-120 — the survival branch alone, creative drops
+                // nothing): the banner item at the tile's base damage
+                // carrying the BlockEntityTag (Base + Patterns — the
+                // patterns survive the break, the craft's whole point); a
+                // tile-less banner cell drops the plain item (the
+                // reference's super.dropItems walk, getDropItemMetadata's 0).
+                blockInteraction.setSurvivalMinedListener((player, brokenType, at) -> {
+                    if (bannerManager == null
+                            || !net.zaminmc.torch.server.block.BannerBlocks.isBanner(
+                                    brokenType.identifier())) {
+                        return;
+                    }
+                    var bannerTile = bannerManager.remove(at);
+                    net.zaminmc.torch.item.ItemStack bannerDrop =
+                            bannerTile != null
+                                    ? net.zaminmc.torch.server.banner.BannerManager
+                                            .dropStack(bannerTile)
+                                    : net.zaminmc.torch.server.banner.BannerManager
+                                            .dropStackWithoutTile();
+                    itemEntities.spawnDropAtBlock(new Position(
+                            at.x() + 0.5, at.y() + 0.5, at.z() + 0.5),
+                            bannerDrop,
+                            net.zaminmc.torch.server.entity.ItemEntity
+                                    .PICKUP_DELAY_DROP_TICKS);
                 });
                 // The infested egg's burst (Slice 18c —
                 // InfestedBlock.dropItems lines 79-88): the survival break
@@ -4101,6 +4153,11 @@ public final class EngineServer implements Server, EngineBridge {
         return signManager;
     }
 
+    /** The world's banner tile registry (public: the wire's chunk replay reads it). */
+    public net.zaminmc.torch.server.banner.BannerManager banners() {
+        return bannerManager;
+    }
+
     /**
      * A client submitted sign text (Update Sign 0x12): the block must be a
      * sign within reach of the sender. Safe from any thread; the application
@@ -4198,6 +4255,63 @@ public final class EngineServer implements Server, EngineBridge {
             publishInventoryChanged(session);
         }
         openSignEditorOnPlacement(session, target);
+    }
+
+    /**
+     * Banner placement (BannerItem.useOn, the sign family's twin): DOWN
+     * refuses (line 29), a top-face use plants the standing banner with the
+     * reference's own rotation formula (lines 50-52 — floor((yaw + 180) *
+     * 16 / 360 + 0.5) & 15, the engine's sign model keeping the four
+     * cardinals), a side-face use hangs the wall banner facing away from
+     * the wall (the metadata 2-5 band). The tile takes the stack's base
+     * through the banner's own set() (lines 58-61 — the BlockEntityTag's
+     * Patterns copy + Base row, the stack's damage the fallback). The
+     * survival path consumes one item; the stack's own metadata reads
+     * BEFORE the consumption. Tick-thread context.
+     */
+    private void placeBannerOnTick(PlayerSession session, BlockPosition clicked, int face,
+                                   java.util.Optional<BlockType> creativeHeld) {
+        if (face == 0) {
+            return; // line 29: the DOWN face never plants a banner
+        }
+        BlockPosition target = offsetByFace(clicked, face);
+        if (target == null || world.getBlock(clicked).equals(world.airType())
+                || !canOccupyForPlacement(target)) {
+            return; // the generic placement gates (bad face / clicked air / occupied)
+        }
+        if (intersectsPlayerBox(session.position(), target)) {
+            return; // the vanilla body rule (the reference's own entity collision check)
+        }
+        net.zaminmc.torch.item.ItemStack held = session.inventory().held();
+        if (creativeHeld.isEmpty()
+                && session.gamemode() != GameMode.CREATIVE
+                && held.isEmpty()) {
+            return; // nothing to place
+        }
+        // The tile reads the placing stack BEFORE the consumption (the
+        // reference's set(stack) at line 60 runs on the same — already
+        // decremented — stack, its damage and tag untouched by the count).
+        net.zaminmc.torch.item.ItemStack placing = creativeHeld.isPresent() || held.isEmpty()
+                ? new net.zaminmc.torch.item.ItemStack(BuiltinItems.BANNER, 1, 0)
+                : held;
+        if (face >= 2 && face <= 5) {
+            // Lines 53-54: the side face hangs the wall banner, FACING the
+            // face (away from the wall it hangs on).
+            world.setBlock(target,
+                    net.zaminmc.torch.server.block.BannerBlocks.wallFor(face));
+        } else {
+            // Lines 50-52: the standing rotation formula, the engine's
+            // sign model flattening the 0-15 band to the cardinals.
+            int rotation = (int) Math.floor(
+                    (session.rotation().yaw() + 180.0f) * 16.0f / 360.0f + 0.5f) & 15;
+            world.setBlock(target,
+                    net.zaminmc.torch.server.block.BannerBlocks.standingFor(rotation));
+        }
+        if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE) {
+            session.inventory().consumeHeld(1);
+            publishInventoryChanged(session);
+        }
+        bannerManager.place(target, placing);
     }
 
     /**
@@ -11232,6 +11346,12 @@ public final class EngineServer implements Server, EngineBridge {
                 || creativeHeld.map(t -> SignManager.isSignType(t)).orElse(false)) {
             placeSignOnTick(session, clicked, face, creativeHeld);
             return; // the sign's facing overrides the generic placement
+        }
+        if (heldId.equals("minecraft:banner")
+                || creativeHeld.map(t -> net.zaminmc.torch.server.block.BannerBlocks
+                        .isBanner(t.identifier())).orElse(false)) {
+            placeBannerOnTick(session, clicked, face, creativeHeld);
+            return; // the banner's facing + tile override the generic placement
         }
         if (net.zaminmc.torch.server.block.TrapdoorBlocks.isTrapdoorItem(heldId)
                 || creativeHeld.map(t -> net.zaminmc.torch.server.block.TrapdoorBlocks
@@ -28085,6 +28205,18 @@ public final class EngineServer implements Server, EngineBridge {
                                 signStore::writeSerialized));
                     } else {
                         signStore.save(signManager.snapshot(), signManager.statsSnapshot());
+                    }
+                }
+                if (bannerStore != null && bannerManager != null) {
+                    // S4: the same ride — the banner tiles (the typed row
+                    // lists are immutable, the snapshot a fresh map).
+                    if (pipeline != null) {
+                        publications.add(pipeline.submitSave("banner",
+                                bannerManager.snapshot(),
+                                bannerStore::serialize,
+                                bannerStore::writeSerialized));
+                    } else {
+                        bannerStore.save(bannerManager.snapshot());
                     }
                 }
                 if (commandBlockStore != null && commandBlocks != null) {

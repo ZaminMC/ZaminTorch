@@ -75,7 +75,8 @@ public final class TileNbt {
             CommandBlockManager commandBlocks,
             NoteBlockSystem noteBlocks,
             SkullManager skulls,
-            JukeboxBlockSystem jukeboxes) {
+            JukeboxBlockSystem jukeboxes,
+            net.zaminmc.torch.server.banner.BannerManager banners) {
     }
 
     private final Seams seams;
@@ -277,9 +278,28 @@ public final class TileNbt {
                     }
                 }
             }
+            case "Banner" -> {
+                // BannerBlockEntity.writeNbt lines 47-57: Base always,
+                // Patterns when the tile carries rows; readNbt lines 60-68
+                // reads both back (the reference's getList with a missing
+                // row reads empty).
+                var bannerTile = seams.banners().tileAt(pos);
+                int base = bannerTile != null ? bannerTile.base() : 0;
+                NbtOps.putInt(rows, "Base", base);
+                if (bannerTile != null && !bannerTile.patterns().isEmpty()) {
+                    List<Snbt.Tag> patternRows = new java.util.ArrayList<>();
+                    for (var pattern : bannerTile.patterns()) {
+                        Map<String, Snbt.Tag> row = new java.util.LinkedHashMap<>();
+                        NbtOps.putString(row, "Pattern", pattern.hash());
+                        NbtOps.putInt(row, "Color", pattern.color());
+                        patternRows.add(Snbt.Tag.ofCompound(row));
+                    }
+                    NbtOps.putList(rows, "Patterns", patternRows);
+                }
+            }
             // Music (the note lives in the block state), EnderChest,
             // EnchantTable, Airportal, DLDetector, Comparator, Piston,
-            // FlowerPot, Banner: the engine's standing envelopes — the
+            // FlowerPot: the engine's standing envelopes — the
             // id/x/y/z rows alone.
             default -> { }
         }
@@ -422,6 +442,27 @@ public final class TileNbt {
                     }
                 }
                 seams.skulls().place(pos, skullType, rotation, profile);
+            }
+            case "Banner" -> {
+                // readNbt lines 60-68: the Base row and the Patterns list
+                // back into the tile (an absent Patterns reads empty).
+                int base = NbtOps.getInt(rows, "Base") & 0xF;
+                List<Snbt.Tag> patternRows = NbtOps.getList(rows, "Patterns",
+                        Snbt.Tag.Type.COMPOUND);
+                java.util.List<net.zaminmc.torch.server.banner.BannerManager.Pattern> patterns =
+                        new java.util.ArrayList<>();
+                for (Snbt.Tag row : patternRows) {
+                    Map<String, Snbt.Tag> compound = row.asCompound();
+                    String hash = NbtOps.getString(compound, "Pattern");
+                    if (hash.isEmpty()) {
+                        continue; // a malformed row: the reference's byHash null skip
+                    }
+                    patterns.add(new net.zaminmc.torch.server.banner.BannerManager.Pattern(
+                            hash, NbtOps.getInt(compound, "Color") & 0xF));
+                }
+                seams.banners().place(pos,
+                        new net.zaminmc.torch.server.banner.BannerManager.BannerTile(
+                                base, patterns));
             }
             default -> { }
         }

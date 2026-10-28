@@ -212,6 +212,16 @@ public final class BlockLightTable {
             Map.entry(Identifier.parse("minecraft:wall_sign_south"), new LightData(0, 0)),
             Map.entry(Identifier.parse("minecraft:wall_sign_west"), new LightData(0, 0)),
             Map.entry(Identifier.parse("minecraft:wall_sign_east"), new LightData(0, 0)),
+            // The banner family (the WOOD material's non-cube —
+            // isSolidRender false, light passes whole like the signs).
+            Map.entry(Identifier.parse("minecraft:standing_banner"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:standing_banner_west"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:standing_banner_north"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:standing_banner_east"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:wall_banner"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:wall_banner_south"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:wall_banner_west"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:wall_banner_east"), new LightData(0, 0)),
             // The skull family (Slice 60 — the DECORATION material:
             // non-cube, light passes whole).
             Map.entry(Identifier.parse("minecraft:skull"), new LightData(0, 0)),

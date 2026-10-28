@@ -38,6 +38,7 @@ public final class WorldSolidity {
                 && !isNetherPortal(id)
                 && !isEndPortal(id)
                 && !isSign(id)
+                && !isBanner(id)
                 && !isLadder(id)
                 && !isOpenDoorHalf(id)
                 && !isOpenFenceGate(id)
@@ -281,6 +282,18 @@ public final class WorldSolidity {
         return id.namespace().equals("minecraft")
                 && (id.value().equals("sign") || id.value().startsWith("sign_")
                     || id.value().equals("wall_sign") || id.value().startsWith("wall_sign_"));
+    }
+
+    /**
+     * The banners (standing 176, wall 177 — BannerBlock's null collision
+     * shape and canWalkThrough true): the thin cloth models, walk-through
+     * exactly like the signs.
+     */
+    public static boolean isBanner(Identifier id) {
+        return id.namespace().equals("minecraft")
+                && (id.value().equals("standing_banner")
+                    || id.value().startsWith("standing_banner_")
+                    || id.value().equals("wall_banner") || id.value().startsWith("wall_banner_"));
     }
 
     /** The wheat crop stages (block 59, ages 0..7): walk-through plants. */
