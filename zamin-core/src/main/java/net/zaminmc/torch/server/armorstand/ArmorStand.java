@@ -15,6 +15,14 @@ import net.zaminmc.torch.item.ItemStack;
  * <p>The default pose is the reference's own: the arms at (-10, 0, -10)
  * and (-15, 0, 10), the legs at (-1, 0, -1) and (1, 0, 1), the head and
  * body straight.</p>
+ *
+ * <p><b>Wave AS — the body's own world:</b> the reference's every
+ * ArmorStandEntity ctor takes the {@code world} (ArmorStandItem.useOn
+ * line 51 births the stand in the PLACER's world; the drops read
+ * {@code this.world} back — onBrokenByPlayer lines 476-484), and the
+ * engine carries the world as the dimension int (the TF-9 shape),
+ * stamped once at the construction, read by every world-touching
+ * consult.</p>
  */
 public final class ArmorStand {
 
@@ -55,6 +63,8 @@ public final class ArmorStand {
     static final Pose DEFAULT_RIGHT_LEG = new Pose(1.0f, 0.0f, 1.0f);
 
     private final int entityId;
+    /** The world the stand stands in (the reference's {@code this.world}). */
+    private final int dimension;
     private double x;
     private double y;
     private double z;
@@ -90,8 +100,9 @@ public final class ArmorStand {
      */
     private int disabledSlots;
 
-    ArmorStand(int entityId, double x, double y, double z, float yaw) {
+    ArmorStand(int entityId, int dimension, double x, double y, double z, float yaw) {
         this.entityId = entityId;
+        this.dimension = dimension;
         this.x = x;
         this.y = y;
         this.z = z;
@@ -101,6 +112,11 @@ public final class ArmorStand {
     /** The stand's engine entity id (the Spawn Object 78 wire id). */
     public int entityId() {
         return entityId;
+    }
+
+    /** The world the stand stands in (the reference's {@code this.world}). */
+    public int dimension() {
+        return dimension;
     }
 
     /** The stand's feet position. */

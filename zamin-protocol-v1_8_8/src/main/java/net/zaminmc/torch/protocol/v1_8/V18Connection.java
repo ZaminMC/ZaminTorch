@@ -5944,6 +5944,11 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                 || chunkTracker == null) {
             return;
         }
+        // Wave AS's EYFW repair — the rocket's own dimension gates the
+        // observer (the 25d mob shape; the join walk's central gate).
+        if (dimensionOfSession() != rocket.dimension()) {
+            return; // another world's rocket
+        }
         var blockPos = rocket.position().toBlockPosition();
         if (!chunkTracker.hasChunk(blockPos.chunkPosition().packed())) {
             return; // outside this observer's loaded window
@@ -6049,6 +6054,13 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                 || chunkTracker == null) {
             return;
         }
+        // Wave AS's EYFW repair — the eye's own dimension gates the
+        // observer (the 25d mob shape; the join walk's central gate —
+        // the live adapter arm keeps its own gate, the mob family's
+        // established redundancy).
+        if (dimensionOfSession() != eye.dimension()) {
+            return; // another world's eye
+        }
         var blockPos = eye.position().toBlockPosition();
         if (!chunkTracker.hasChunk(blockPos.chunkPosition().packed())) {
             return; // outside this observer's loaded window
@@ -6074,12 +6086,12 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         enqueueOut(velocity);
         if (withThrowEvent) {
             // The throw's 1002 (the fire-charge smoke at the player's own
-            // position — the eye's spawn point). The eye system is
-            // dimension-blind (the pre-existing boundary the hit resolver
-            // records): the event rides the overworld's id until the eye
-            // carries its own world.
+            // position — the eye's spawn point), in the EYE'S OWN WORLD
+            // (Wave AS's EYFW repair: the pre-fix comment's own promise —
+            // the body now carries its world, so the event rides the
+            // eye's dimension, never the hardcoded overworld id).
             sendWorldEvent(eye.position(),
-                    Protocol18.WORLD_EVENT_FIRE_CHARGE_SMOKE, 0);
+                    Protocol18.WORLD_EVENT_FIRE_CHARGE_SMOKE, eye.dimension());
         }
     }
 
@@ -7568,6 +7580,13 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         Channel channel = adapter.channelOf(this);
         if (channel == null || !channel.isActive() || state != WireState.PLAY
                 || chunkTracker == null) {
+            return;
+        }
+        // Wave AS — the stand's own dimension gates the observer (the
+        // 25d mob shape: the same chunk coordinates exist in both
+        // worlds — a nether stand never spawns for an overworld
+        // observer, whatever the chunk view holds).
+        if (dimensionOfSession() != stand.dimension()) {
             return;
         }
         net.zaminmc.torch.block.BlockPosition cell =

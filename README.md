@@ -42,9 +42,11 @@ against the code on 2026-10-28 (the wither's conditional exemption arms —
 the last pending parity row — landed with the exemption-arms slice: the
 armor hull and the never-despawn law fixed, the fall/summon arms already
 landed, the light-level/cobweb/no-riding arms retired with evidence; the
-transport waves T-1..T-4, the five parity-audit PRs #54-#59, and the
-mining-speed parity audit PR #60 also landed since the prior
-verification).
+transport waves T-1..T-4, the five parity-audit PRs #54-#59, the
+mining-speed parity audit PR #60, and the eye/firework/armor-stand
+dimension carries — Waves EYFW + AS, the LAST overworld-0 family closed,
+plus the EYFW join-view repairs the AS scoping surfaced — also landed
+since the prior verification).
 
 ## Downloading a dev build (no build tools needed)
 

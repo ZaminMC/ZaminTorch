@@ -257,9 +257,9 @@ class PistonEntityPushTest {
                 // control's (two past the landing).
                 server.world().setBlock(new BlockPosition(x + 2, y - 1, z), BuiltinBlocks.STONE);
                 server.world().setBlock(new BlockPosition(x + 4, y - 1, z), BuiltinBlocks.STONE);
-                server.armorStands().place(new BlockPosition(x + 2, y - 1, z), 1, 0.0f,
+                server.armorStands().place(new BlockPosition(x + 2, y - 1, z), 0, 1, 0.0f,
                         new java.util.Random(1));
-                server.armorStands().place(new BlockPosition(x + 4, y - 1, z), 1, 0.0f,
+                server.armorStands().place(new BlockPosition(x + 4, y - 1, z), 0, 1, 0.0f,
                         new java.util.Random(1));
                 for (net.zaminmc.torch.server.armorstand.ArmorStand placed
                         : server.armorStands().allStands()) {
@@ -445,7 +445,7 @@ class PistonEntityPushTest {
                 server.world().setBlock(new BlockPosition(x + 2, y - 1, z), BuiltinBlocks.STONE);
                 orb.set(server.experienceOrbs().spawnRestored(
                         new Position(x + 2.5, y + 0.125, z + 0.4), 5, 0));
-                server.armorStands().place(new BlockPosition(x + 2, y - 1, z), 1, 0.0f,
+                server.armorStands().place(new BlockPosition(x + 2, y - 1, z), 0, 1, 0.0f,
                         new java.util.Random(1));
                 server.tnt().spawnPrimedAt(x + 2.5, y, z + 0.6);
                 arrow.set(server.projectiles().launchVector(

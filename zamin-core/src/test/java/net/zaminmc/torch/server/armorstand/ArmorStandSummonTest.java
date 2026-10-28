@@ -55,7 +55,7 @@ class ArmorStandSummonTest {
                     .identifier().value().equals("stone"), "the floor placed");
             AtomicReference<ArmorStand> spawned = new AtomicReference<>();
             server.ticker().submit(() -> spawned.set(
-                    server.armorStands().summonAt(10.5, 40.0, 10.5, null)));
+                    server.armorStands().summonAt(10.5, 40.0, 10.5, 0, null)));
             await(server, () -> spawned.get() != null, "the summon answered");
             ArmorStand stand = spawned.get();
             await(server, () -> stand.onGround() && stand.y() == 40.0,
@@ -101,7 +101,7 @@ class ArmorStandSummonTest {
                             + "NoGravity:1b,Invisible:1b,DisabledSlots:65793}");
             AtomicReference<ArmorStand> spawned = new AtomicReference<>();
             server.ticker().submit(() -> spawned.set(
-                    server.armorStands().summonAt(10.5, 40.0, 10.5, nbt)));
+                    server.armorStands().summonAt(10.5, 40.0, 10.5, 0, nbt)));
             await(server, () -> spawned.get() != null, "the summon answered");
             ArmorStand stand = spawned.get();
             // The status byte: small 0x01 | noGravity 0x02 | showArms 0x04
@@ -131,7 +131,7 @@ class ArmorStandSummonTest {
                     parse("{Pose:{Head:[15f,25f,35f],LeftLeg:[2f,4f,6f]}}");
             AtomicReference<ArmorStand> spawned = new AtomicReference<>();
             server.ticker().submit(() -> spawned.set(
-                    server.armorStands().summonAt(10.5, 40.0, 10.5, nbt)));
+                    server.armorStands().summonAt(10.5, 40.0, 10.5, 0, nbt)));
             await(server, () -> spawned.get() != null, "the summon answered");
             ArmorStand stand = spawned.get();
             assertEquals(new ArmorStand.Pose(15.0f, 25.0f, 35.0f), stand.head(),
@@ -162,7 +162,7 @@ class ArmorStandSummonTest {
                             + "{id:\"minecraft:golden_helmet\",Count:1b}]}");
             AtomicReference<ArmorStand> spawned = new AtomicReference<>();
             server.ticker().submit(() -> spawned.set(
-                    server.armorStands().summonAt(10.5, 40.0, 10.5, nbt)));
+                    server.armorStands().summonAt(10.5, 40.0, 10.5, 0, nbt)));
             await(server, () -> spawned.get() != null, "the summon answered");
             ArmorStand stand = spawned.get();
             assertEquals(BuiltinItems.DIAMOND_SWORD, stand.equipment(0).type(),
@@ -194,7 +194,7 @@ class ArmorStandSummonTest {
                             + "OnGround:1b,NoGravity:1b}");
             AtomicReference<ArmorStand> spawned = new AtomicReference<>();
             server.ticker().submit(() -> spawned.set(
-                    server.armorStands().summonAt(10.5, 40.0, 10.5, nbt)));
+                    server.armorStands().summonAt(10.5, 40.0, 10.5, 0, nbt)));
             await(server, () -> spawned.get() != null, "the summon answered");
             ArmorStand stand = spawned.get();
             assertEquals(90.0f, stand.yaw(), 1e-6, "the Rotation row's yaw");
@@ -228,7 +228,7 @@ class ArmorStandSummonTest {
                             + "Pose:{Body:[5f,10f,15f]}}");
             AtomicReference<ArmorStand> spawned = new AtomicReference<>();
             server.ticker().submit(() -> spawned.set(
-                    server.armorStands().summonAt(20.5, 40.0, 20.5, nbt)));
+                    server.armorStands().summonAt(20.5, 40.0, 20.5, 0, nbt)));
             await(server, () -> spawned.get() != null, "the summon answered");
             AtomicReference<List<ArmorStandSystem.StandRecord>> snapshot =
                     new AtomicReference<>();

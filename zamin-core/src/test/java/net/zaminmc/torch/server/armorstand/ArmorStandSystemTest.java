@@ -56,14 +56,14 @@ class ArmorStandSystemTest {
             // The DOWN face refuses outright.
             AtomicReference<Boolean> down = new AtomicReference<>();
             server.ticker().submit(() -> down.set(server.armorStands().place(
-                    new BlockPosition(10, 40, 10), 0, 0.0f, new java.util.Random(1))));
+                    new BlockPosition(10, 40, 10), 0, 0, 0.0f, new java.util.Random(1))));
             await(server, () -> down.get() != null, "the DOWN face answered");
             assertFalse(down.get(), "the DOWN face never places");
 
             // The UP face lands the stand on top of the floor block.
             AtomicReference<Boolean> up = new AtomicReference<>();
             server.ticker().submit(() -> up.set(server.armorStands().place(
-                    new BlockPosition(10, 39, 10), 1, 10.0f, new java.util.Random(1))));
+                    new BlockPosition(10, 39, 10), 0, 1, 10.0f, new java.util.Random(1))));
             await(server, () -> up.get() != null, "the UP face answered");
             assertTrue(up.get(), "the stand landed");
             ArmorStand stand = standAt(server, 10, 40, 10);
@@ -85,7 +85,7 @@ class ArmorStandSystemTest {
             // A second stand never lands in the same box (the entity gate).
             AtomicReference<Boolean> again = new AtomicReference<>();
             server.ticker().submit(() -> again.set(server.armorStands().place(
-                    new BlockPosition(10, 39, 10), 1, 0.0f, new java.util.Random(2))));
+                    new BlockPosition(10, 39, 10), 0, 1, 0.0f, new java.util.Random(2))));
             await(server, () -> again.get() != null, "the second attempt answered");
             assertFalse(again.get(), "the occupied box refused the second stand");
 
@@ -96,7 +96,7 @@ class ArmorStandSystemTest {
                     .identifier().value().equals("stone"), "the ceiling placed");
             AtomicReference<Boolean> crushed = new AtomicReference<>();
             server.ticker().submit(() -> crushed.set(server.armorStands().place(
-                    new BlockPosition(10, 44, 10), 1, 0.0f, new java.util.Random(3))));
+                    new BlockPosition(10, 44, 10), 0, 1, 0.0f, new java.util.Random(3))));
             await(server, () -> crushed.get() != null, "the crushed attempt answered");
             assertFalse(crushed.get(), "the missing headroom refused the stand");
         } finally {
@@ -116,7 +116,7 @@ class ArmorStandSystemTest {
             await(server, () -> server.world().getBlock(new BlockPosition(10, 39, 10))
                     .identifier().value().equals("stone"), "the floor placed");
             server.ticker().submit(() -> server.armorStands().place(
-                    new BlockPosition(10, 39, 10), 1, 0.0f, new java.util.Random(1)));
+                    new BlockPosition(10, 39, 10), 0, 1, 0.0f, new java.util.Random(1)));
             await(server, () -> standAt(server, 10, 40, 10) != null, "the stand landed");
             ArmorStand stand = standAt(server, 10, 40, 10);
             List<ItemStack> hand = new ArrayList<>();
@@ -207,7 +207,7 @@ class ArmorStandSystemTest {
             await(server, () -> server.world().getBlock(new BlockPosition(10, 39, 10))
                     .identifier().value().equals("stone"), "the floor placed");
             server.ticker().submit(() -> server.armorStands().place(
-                    new BlockPosition(10, 39, 10), 1, 0.0f, new java.util.Random(1)));
+                    new BlockPosition(10, 39, 10), 0, 1, 0.0f, new java.util.Random(1)));
             await(server, () -> standAt(server, 10, 40, 10) != null, "the stand landed");
             ArmorStand stand = standAt(server, 10, 40, 10);
             // Wear a helmet so the break's equipment drop is observable.
@@ -244,7 +244,7 @@ class ArmorStandSystemTest {
 
             // The creative hand removes without any drop.
             server.ticker().submit(() -> server.armorStands().place(
-                    new BlockPosition(10, 39, 10), 1, 0.0f, new java.util.Random(4)));
+                    new BlockPosition(10, 39, 10), 0, 1, 0.0f, new java.util.Random(4)));
             await(server, () -> standAt(server, 10, 40, 10) != null, "the stand re-placed");
             ArmorStand creative = standAt(server, 10, 40, 10);
             int beforeCreative = countItems(server);
@@ -269,7 +269,7 @@ class ArmorStandSystemTest {
             await(server, () -> server.world().getBlock(new BlockPosition(10, 39, 10))
                     .identifier().value().equals("stone"), "the floor placed");
             server.ticker().submit(() -> server.armorStands().place(
-                    new BlockPosition(10, 39, 10), 1, 0.0f, new java.util.Random(1)));
+                    new BlockPosition(10, 39, 10), 0, 1, 0.0f, new java.util.Random(1)));
             await(server, () -> standAt(server, 10, 40, 10) != null, "the stand landed");
             ArmorStand stand = standAt(server, 10, 40, 10);
             List<ItemStack> hand = new ArrayList<>();
@@ -310,7 +310,7 @@ class ArmorStandSystemTest {
             await(server, () -> server.world().getBlock(new BlockPosition(10, 39, 10))
                     .identifier().value().equals("stone"), "the floor placed");
             server.ticker().submit(() -> server.armorStands().place(
-                    new BlockPosition(10, 39, 10), 1, -90.0f, new java.util.Random(1)));
+                    new BlockPosition(10, 39, 10), 0, 1, -90.0f, new java.util.Random(1)));
             await(server, () -> standAt(server, 10, 40, 10) != null, "the stand landed");
             ArmorStand stand = standAt(server, 10, 40, 10);
             List<ItemStack> hand = new ArrayList<>();
@@ -354,7 +354,7 @@ class ArmorStandSystemTest {
             await(server, () -> server.world().getBlock(new BlockPosition(10, 39, 10))
                     .identifier().value().equals("stone"), "the floor placed");
             server.ticker().submit(() -> server.armorStands().place(
-                    new BlockPosition(10, 39, 10), 1, 0.0f, new java.util.Random(1)));
+                    new BlockPosition(10, 39, 10), 0, 1, 0.0f, new java.util.Random(1)));
             await(server, () -> standAt(server, 10, 40, 10) != null, "the stand landed");
             ArmorStand stand = standAt(server, 10, 40, 10);
             List<ItemStack> hand = new ArrayList<>();
@@ -501,7 +501,7 @@ class ArmorStandSystemTest {
             place(server, 14, 39, 14, BuiltinBlocks.STONE);
             AtomicReference<Boolean> landed = new AtomicReference<>();
             server.ticker().submit(() -> landed.set(server.armorStands().place(
-                    new BlockPosition(12, 39, 12), 1, 0.0f, new java.util.Random(3))));
+                    new BlockPosition(12, 39, 12), 0, 1, 0.0f, new java.util.Random(3))));
             await(server, () -> landed.get() != null, "the placement answered");
             assertTrue(landed.get(), "the stand landed at 40");
             ArmorStand stand = standAt(server, 12, 40, 12);
@@ -511,7 +511,7 @@ class ArmorStandSystemTest {
             // walks (the reference's noGravity gate).
             AtomicReference<Boolean> flaggedLanded = new AtomicReference<>();
             server.ticker().submit(() -> flaggedLanded.set(server.armorStands().place(
-                    new BlockPosition(14, 39, 14), 1, 0.0f, new java.util.Random(4))));
+                    new BlockPosition(14, 39, 14), 0, 1, 0.0f, new java.util.Random(4))));
             await(server, () -> flaggedLanded.get() != null, "the twin placed");
             ArmorStand flagged = standAt(server, 14, 40, 14);
             assertNotNull(flagged, "the twin stands at (14.5, 40, 14.5)");
@@ -549,7 +549,7 @@ class ArmorStandSystemTest {
             place(server, 16, 39, 13, BuiltinBlocks.STONE);
             AtomicReference<Boolean> landed = new AtomicReference<>();
             server.ticker().submit(() -> landed.set(server.armorStands().place(
-                    new BlockPosition(13, 39, 13), 1, 0.0f, new java.util.Random(5))));
+                    new BlockPosition(13, 39, 13), 0, 1, 0.0f, new java.util.Random(5))));
             await(server, () -> landed.get() != null, "the stand placed");
             ArmorStand stand = standAt(server, 13, 40, 13);
             assertNotNull(stand, "the stand stands at (13.5, 40, 13.5)");
@@ -612,7 +612,7 @@ class ArmorStandSystemTest {
             place(server, 11, 39, 11, BuiltinBlocks.STONE);
             AtomicReference<Boolean> landed = new AtomicReference<>();
             server.ticker().submit(() -> landed.set(server.armorStands().place(
-                    new BlockPosition(11, 39, 11), 1, 0.0f, new java.util.Random(6))));
+                    new BlockPosition(11, 39, 11), 0, 1, 0.0f, new java.util.Random(6))));
             await(server, () -> landed.get() != null, "the stand placed");
             ArmorStand stand = standAt(server, 11, 40, 11);
             assertNotNull(stand, "the stand stands at (11.5, 40, 11.5)");
@@ -645,7 +645,7 @@ class ArmorStandSystemTest {
             // broke there; its cell is free again).
             AtomicReference<Boolean> creativeLanded = new AtomicReference<>();
             server.ticker().submit(() -> creativeLanded.set(server.armorStands().place(
-                    new BlockPosition(11, 39, 11), 1, 0.0f, new java.util.Random(7))));
+                    new BlockPosition(11, 39, 11), 0, 1, 0.0f, new java.util.Random(7))));
             await(server, () -> creativeLanded.get() != null, "the creative stand placed");
             ArmorStand creative = standAt(server, 11, 40, 11);
             assertNotNull(creative, "the second stand stands at 40");
@@ -677,14 +677,14 @@ class ArmorStandSystemTest {
             }
             AtomicReference<Boolean> iceLanded = new AtomicReference<>();
             server.ticker().submit(() -> iceLanded.set(server.armorStands().place(
-                    new BlockPosition(13, 39, 13), 1, 0.0f, new java.util.Random(8))));
+                    new BlockPosition(13, 39, 13), 0, 1, 0.0f, new java.util.Random(8))));
             await(server, () -> iceLanded.get() != null, "the ice stand placed");
             ArmorStand iceStand = standAt(server, 13, 40, 13);
             assertNotNull(iceStand, "the ice stand stands");
 
             AtomicReference<Boolean> controlLanded = new AtomicReference<>();
             server.ticker().submit(() -> controlLanded.set(server.armorStands().place(
-                    new BlockPosition(17, 39, 13), 1, 0.0f, new java.util.Random(9))));
+                    new BlockPosition(17, 39, 13), 0, 1, 0.0f, new java.util.Random(9))));
             await(server, () -> controlLanded.get() != null, "the control placed");
             ArmorStand control = standAt(server, 17, 40, 13);
             assertNotNull(control, "the control stands");
@@ -722,7 +722,7 @@ class ArmorStandSystemTest {
             place(server, 19, 39, 19, BuiltinBlocks.STONE);
             AtomicReference<Boolean> landed = new AtomicReference<>();
             server.ticker().submit(() -> landed.set(server.armorStands().place(
-                    new BlockPosition(19, 39, 19), 1, 0.0f, new java.util.Random(10))));
+                    new BlockPosition(19, 39, 19), 0, 1, 0.0f, new java.util.Random(10))));
             await(server, () -> landed.get() != null, "the stand placed");
             ArmorStand stand = standAt(server, 19, 40, 19);
             assertNotNull(stand, "the stand stands");
@@ -786,7 +786,7 @@ class ArmorStandSystemTest {
 
             AtomicReference<Boolean> landed = new AtomicReference<>();
             server.ticker().submit(() -> landed.set(server.armorStands().place(
-                    new BlockPosition(20, 39, 20), 1, 0.0f,
+                    new BlockPosition(20, 39, 20), 0, 1, 0.0f,
                     new java.util.Random(21), entityTag)));
             await(server, () -> landed.get() != null, "the tagged placement answered");
             assertTrue(landed.get(), "the tagged stand landed");
@@ -820,7 +820,7 @@ class ArmorStandSystemTest {
             smallOnly.put("Small", (byte) 1);
             AtomicReference<Boolean> plain = new AtomicReference<>();
             server.ticker().submit(() -> plain.set(server.armorStands().place(
-                    new BlockPosition(22, 39, 20), 1, 10.0f,
+                    new BlockPosition(22, 39, 20), 0, 1, 10.0f,
                     new java.util.Random(22), smallOnly)));
             await(server, () -> plain.get() != null, "the small-only placement answered");
             assertTrue(plain.get(), "the small-only stand landed");

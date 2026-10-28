@@ -1750,6 +1750,12 @@ public final class EngineServer implements Server, EngineBridge {
                         if (stand.marker()) {
                             continue; // updateSize(0, 0): no box to intersect
                         }
+                        // Wave AS — the piston family's own overworld
+                        // binding: the walk never collects a cross-dimension
+                        // body (the TF-9 item gate's own shape).
+                        if (stand.dimension() != 0) {
+                            continue;
+                        }
                         double standHalf = stand.small() ? 0.125 : 0.25;
                         double standHeight = stand.small() ? 0.9875 : 1.975;
                         if (stand.x() + standHalf < minX || stand.x() - standHalf > maxX
@@ -11394,8 +11400,8 @@ public final class EngineServer implements Server, EngineBridge {
         if (!held.isEmpty()) {
             entityTag = held.entityTag();
         }
-        if (armorStands.place(clicked, face, session.rotation().yaw(), gameplayRandom,
-                entityTag)) {
+        if (armorStands.place(clicked, session.dimension(), face, session.rotation().yaw(),
+                gameplayRandom, entityTag)) {
             consumePlaced(session, creativeHeld);
         }
     }
@@ -18528,30 +18534,34 @@ public final class EngineServer implements Server, EngineBridge {
         }
     }
 
-    /** The armor stands' engine surface (the world gates + the drops). */
+    /** The armor stands' engine surface (the world gates + the drops —
+     *  Wave AS: every consult carries the stand's own dimension, the
+     *  worldForSafe row the TF-9 ground named). */
     private final class ArmorStandSurface
             implements net.zaminmc.torch.server.armorstand.ArmorStandSystem.Surface {
         @Override
-        public boolean replaceableAt(net.zaminmc.torch.block.BlockPosition pos) {
-            return WorldSolidity.isReplaceable(world.getBlock(pos).identifier());
+        public boolean replaceableAt(net.zaminmc.torch.block.BlockPosition pos, int dimension) {
+            return WorldSolidity.isReplaceable(
+                    worldForSafe(dimension).getBlock(pos).identifier());
         }
 
         @Override
-        public boolean airAt(net.zaminmc.torch.block.BlockPosition pos) {
+        public boolean airAt(net.zaminmc.torch.block.BlockPosition pos, int dimension) {
+            EngineWorld world = worldForSafe(dimension);
             return world.getBlock(pos).equals(world.airType());
         }
 
         @Override
-        public boolean solidAt(net.zaminmc.torch.block.BlockPosition pos) {
-            return WorldSolidity.isSolid(world.getBlock(pos));
+        public boolean solidAt(net.zaminmc.torch.block.BlockPosition pos, int dimension) {
+            return WorldSolidity.isSolid(worldForSafe(dimension).getBlock(pos));
         }
 
         @Override
-        public float blockSlipperinessAt(net.zaminmc.torch.block.BlockPosition pos) {
+        public float blockSlipperinessAt(net.zaminmc.torch.block.BlockPosition pos, int dimension) {
             // The reference's Block.slipperiness table: Block.java line
             // 117's 0.6 default, IceBlock line 20 / PackedIceBlock line
             // 10's 0.98, SlimeBlock line 15's 0.8.
-            String value = world.getBlock(pos).identifier().value();
+            String value = worldForSafe(dimension).getBlock(pos).identifier().value();
             return switch (value) {
                 case "ice", "packed_ice" -> 0.98f;
                 case "slime_block" -> 0.8f;
@@ -18560,12 +18570,13 @@ public final class EngineServer implements Server, EngineBridge {
         }
 
         @Override
-        public void standBreakingBurst(Position at) {
-            fxManager.standShatter(at);
+        public void standBreakingBurst(Position at, int dimension) {
+            fxManager.standShatter(at, dimension);
         }
 
         @Override
-        public java.util.List<net.zaminmc.torch.server.armorstand.ArmorStandSystem.CartView> rideableCarts() {
+        public java.util.List<net.zaminmc.torch.server.armorstand.ArmorStandSystem.CartView> rideableCarts(
+                int dimension) {
             java.util.List<net.zaminmc.torch.server.armorstand.ArmorStandSystem.CartView> carts =
                     new java.util.ArrayList<>();
             if (vehicleManager == null) {
@@ -18574,6 +18585,9 @@ public final class EngineServer implements Server, EngineBridge {
             for (net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle : vehicleManager.all()) {
                 if (vehicle.kind() != net.zaminmc.torch.server.entity.vehicle.VehicleEntity.Kind.MINECART) {
                     continue; // the reference reads only the RIDEABLE family
+                }
+                if (vehicle.dimension() != dimension) {
+                    continue; // Wave AS — the stand's own world's carts alone
                 }
                 net.zaminmc.torch.server.entity.vehicle.VehicleEntity cart = vehicle;
                 carts.add(new net.zaminmc.torch.server.armorstand.ArmorStandSystem.CartView() {
@@ -18603,16 +18617,23 @@ public final class EngineServer implements Server, EngineBridge {
         }
 
         @Override
-        public void dropItem(Position at, ItemStack stack) {
+        public void dropItem(Position at, int dimension, ItemStack stack) {
             if (!stack.isEmpty()) {
-                itemEntities.spawnDropAtBlock(at, stack, ItemEntity.PICKUP_DELAY_DROP_TICKS);
+                // The reference's Block.dropItem(this.world, ...) — the
+                // drop form carries the stand's own dimension (the TF-9
+                // item spawn's own row).
+                itemEntities.spawnDropAtBlock(at, stack, ItemEntity.PICKUP_DELAY_DROP_TICKS,
+                        dimension);
             }
         }
 
         @Override
         public boolean entityOccupies(double minX, double minY, double minZ,
-                                      double maxX, double maxY, double maxZ) {
+                                      double maxX, double maxY, double maxZ, int dimension) {
             for (PlayerSession player : players.all()) {
+                if (player.dimension() != dimension) {
+                    continue; // another world's body never blocks the box
+                }
                 Position p = player.position();
                 if (p.x() >= minX - 0.3 && p.x() <= maxX + 0.3
                         && p.y() >= minY && p.y() <= maxY
@@ -18621,6 +18642,9 @@ public final class EngineServer implements Server, EngineBridge {
                 }
             }
             for (MobEntity mob : mobManager.all()) {
+                if (mob.dimension() != dimension) {
+                    continue; // another world's body never blocks the box
+                }
                 Position p = mob.position();
                 if (p.x() >= minX - mob.type().width * 0.5
                         && p.x() <= maxX + mob.type().width * 0.5
@@ -18631,6 +18655,9 @@ public final class EngineServer implements Server, EngineBridge {
                 }
             }
             for (net.zaminmc.torch.server.armorstand.ArmorStand other : armorStands.allStands()) {
+                if (other.dimension() != dimension) {
+                    continue; // another world's stand never blocks the box
+                }
                 if (other.x() >= minX && other.x() <= maxX
                         && other.z() >= minZ && other.z() <= maxZ
                         && other.y() >= minY - 1.975 && other.y() <= maxY) {
@@ -18641,10 +18668,11 @@ public final class EngineServer implements Server, EngineBridge {
         }
 
         @Override
-        public long now() {
-            // The reference's world.getTime() — the TOTAL clock, never the
-            // wrapping day clock (the double-hit window's own base).
-            return world.totalTicks();
+        public long now(int dimension) {
+            // The reference's world.getTime() — the STAND'S OWN world's
+            // total clock, never the wrapping day clock (the double-hit
+            // window's own base).
+            return worldForSafe(dimension).totalTicks();
         }
     }
 
@@ -27093,7 +27121,9 @@ public final class EngineServer implements Server, EngineBridge {
         // default pose, no random roll) with the whole NBT read before
         // the spawn publish (the factory's own order).
         if ("ArmorStand".equals(name)) {
-            armorStands.summonAt(x, y, z, nbt);
+            // Wave AS — the summon's source world: the console source is
+            // overworld-anchored, the explicit 0 (never a silent stamp).
+            armorStands.summonAt(x, y, z, 0, nbt);
             return "Object successfully summoned";
         }
         MobType type = MobType.byVanillaName(name);

@@ -16892,3 +16892,51 @@ armor-stand family (1,706 lines, its own DataStore, block consults,
 equipment drops, piston and explosion interactions) stays the last
 standing overworld-0 tail, its own future family slice with the
 conventions now proven three times over.
+
+## Wave AS — the armor-stand family's dimension carry (the LAST standing overworld-0 family closed) + the EYFW join-view repairs
+
+**What:** ArmorStand gains the dimension int (the TF-9 shape, stamped at
+the construction): the placement births the stand in the PLACER's world
+(EngineServer's place passing session.dimension()), the /summon route
+stamps the console source's explicit overworld 0, and the restore walk
+stamps the FILE's row back (the ZAD store at v4 — the dimension byte in
+the ZID v8 form, the v1-v3 files defaulting the overworld 0). All nine
+Surface consults carry the dimension: the placement's gates (the
+occupancy walk now filtering players/mobs/stands by dimension), the
+gravity walk's floor/wall/friction reads, the piston push's solid
+consults, the minecart push consult (memoized per dimension over the
+tick), the double-hit clock's world.getTime(), the break's BLOCK_DUST
+burst, and both drop arms through the TF-9 item spawn. The wire's four
+adapter arms (spawn/destroy/equipment/teleport) gate on the observer's
+dimension and sendStandSpawned carries its own internal gate (the 25d
+mob shape) so the join walk streams a newcomer their own world's stands
+alone. The piston walk never collects a cross-dimension stand (the
+TF-9/TF-10 overworld binding). The scoping also surfaced and retired two
+real EYFW leftovers: the eye's 1002 throw event was still hardcoded to
+dimension 0 (the stale pre-fix comment's own promise — a nether thrower
+lost their throw smoke and an overworld bystander at the same
+coordinates saw a phantom), and the eye/firework join sends lacked the
+internal dimension gate (a joining nether player received overworld
+eyes/rockets mid-flight when the chunk windows coincide).
+
+**Evidence:** ArmorStandDimensionReadsTest 5/0 NEW (the nether
+placement's every gate consult stamped -1, the three-dimension launch
+order, the break's burst + drop + clock rows, the walk's and cart
+consults' per-world reads, the ZAD round-trip carrying both the -1 and
+the 1 rows, the hand-built v3 file loading the overworld 0); the family
+batch whole 23/0 (the system 12, the summon 6, the dimension reads 5);
+the save-split re-pin (the v4 walk's bytes); the integration batches —
+the piston 17/0, the decorations + save-split 6/0, the eye insertion +
+placement gates 10/0, the dispenser 23/0, the vehicle 12/0; the protocol
+wire batch 25/0; the bukkit + launcher 105/0.
+
+**Lessons:** (1) the conventions held on the third and largest family —
+the eye/firework pattern (stamp at birth, read at every consult, gate
+the wire, carry the file) mapped onto the stand family without a single
+design decision, closing the overworld-0 class whole; (2) re-reading a
+landed wave's own claims against its code is not busywork — the EYFW
+row promised "every publication reaches same-dimension observers alone"
+while sendEyeLaunched's 1002 arm and the join sends said otherwise, and
+only the scoping pass caught it; (3) the store's byte-identity law
+(TileExtraSaveSplit) is the migration's own guard — the v4 re-pin was
+forced by a 2-byte diff, exactly as designed.

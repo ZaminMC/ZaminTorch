@@ -1244,7 +1244,12 @@ public final class V18ProtocolServer implements ProtocolAdapter {
         server.addArmorStandListener(new net.zaminmc.torch.server.armorstand.ArmorStandSystem.Listener() {
             @Override
             public void onStandSpawned(net.zaminmc.torch.server.armorstand.ArmorStand stand) {
+                // Wave AS — the stand's own-world gate (the reference's
+                // per-world tracker, the TF-9 shape).
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    if (connection.dimensionOfSession() != stand.dimension()) {
+                        continue; // another world's stand
+                    }
                     connection.sendStandSpawned(stand);
                 }
             }
@@ -1252,6 +1257,9 @@ public final class V18ProtocolServer implements ProtocolAdapter {
             @Override
             public void onStandRemoved(net.zaminmc.torch.server.armorstand.ArmorStand stand) {
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    if (connection.dimensionOfSession() != stand.dimension()) {
+                        continue; // another world's stand
+                    }
                     connection.sendStandRemoved(stand.entityId());
                 }
             }
@@ -1260,6 +1268,9 @@ public final class V18ProtocolServer implements ProtocolAdapter {
             public void onStandEquipmentChanged(
                     net.zaminmc.torch.server.armorstand.ArmorStand stand, int slot) {
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    if (connection.dimensionOfSession() != stand.dimension()) {
+                        continue; // another world's stand
+                    }
                     connection.sendStandEquipment(stand, slot);
                 }
             }
@@ -1270,6 +1281,9 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                 // sync — the relative-move optimization stays the
                 // tracker's own envelope).
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    if (connection.dimensionOfSession() != stand.dimension()) {
+                        continue; // another world's stand
+                    }
                     connection.sendEntityTeleport(stand.entityId(),
                             new net.zaminmc.torch.util.Position(stand.x(), stand.y(), stand.z()),
                             stand.onGround());

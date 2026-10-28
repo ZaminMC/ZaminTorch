@@ -58,42 +58,50 @@ public final class ArmorStandSystem {
         default void onStandMoved(ArmorStand stand) { }
     }
 
-    /** The engine surface the system reads (the world + the drops). */
+    /** The engine surface the system reads (the world + the drops —
+     *  Wave AS: every consult carries the stand's own dimension, the
+     *  reference's {@code this.world} row). */
     public interface Surface {
-        /** Whether a block can be replaced (the tall grass/flora family). */
-        boolean replaceableAt(BlockPosition pos);
+        /** Whether a block can be replaced (the tall grass/flora family)
+         *  in the named world. */
+        boolean replaceableAt(BlockPosition pos, int dimension);
 
-        /** Whether the cell holds air. */
-        boolean airAt(BlockPosition pos);
+        /** Whether the cell holds air in the named world. */
+        boolean airAt(BlockPosition pos, int dimension);
 
-        /** Whether the cell is solid (the walk's floor/wall consult — WorldSolidity's own family). */
-        boolean solidAt(BlockPosition pos);
+        /** Whether the cell is solid in the named world (the walk's
+         *  floor/wall consult — WorldSolidity's own family). */
+        boolean solidAt(BlockPosition pos, int dimension);
 
         /**
-         * The block's slipperiness at a cell (the reference's
-         * Block.slipperiness read — the walk's ground friction consult):
+         * The block's slipperiness at a cell in the named world (the
+         * reference's Block.slipperiness read — the walk's ground friction consult):
          * 0.98 for the ice family, 0.8 for the slime block, 0.6 for
          * everything else (Block.java line 117's default).
          */
-        float blockSlipperinessAt(BlockPosition pos);
+        float blockSlipperinessAt(BlockPosition pos, int dimension);
 
-        /** An item drop at a position. */
-        void dropItem(Position at, ItemStack stack);
+        /** An item drop at a position in the named world (the reference's
+         *  Block.dropItem(this.world, ...) rows). */
+        void dropItem(Position at, int dimension, ItemStack stack);
 
-        /** The engine's entity-occupancy probe (the placement's box gate). */
+        /** The engine's entity-occupancy probe (the placement's box gate)
+         *  in the named world. */
         boolean entityOccupies(double minX, double minY, double minZ,
-                               double maxX, double maxY, double maxZ);
+                               double maxX, double maxY, double maxZ, int dimension);
 
-        /** The engine's tick clock (the double-hit window's stamp). */
-        long now();
+        /** The engine's tick clock in the named world (the reference's
+         *  world.getTime() — the double-hit window's own base). */
+        long now(int dimension);
 
         /** The breaking-particles burst (the reference's addBreakingParticles:
-         *  BLOCK_DUST over the PLANKS state). */
-        void standBreakingBurst(Position at);
+         *  BLOCK_DUST over the PLANKS state) in the named world. */
+        void standBreakingBurst(Position at, int dimension);
 
-        /** The live RIDEABLE minecarts (the push consult — the reference's
-         *  pushAwayCollidingEntities reads only the rideable family). */
-        java.util.List<CartView> rideableCarts();
+        /** The live RIDEABLE minecarts in the named world (the push
+         *  consult — the reference's pushAwayCollidingEntities reads
+         *  only the rideable family, and only the stand's own world's). */
+        java.util.List<CartView> rideableCarts(int dimension);
     }
 
     /** One rideable minecart through the push consult's eyes. */
@@ -154,8 +162,9 @@ public final class ArmorStandSystem {
      *
      * @return whether a stand landed (the stack consumes one unit).
      */
-    public synchronized boolean place(BlockPosition clicked, int face, float playerYaw, Random random) {
-        return place(clicked, face, playerYaw, random, null);
+    public synchronized boolean place(BlockPosition clicked, int dimension, int face,
+                                      float playerYaw, Random random) {
+        return place(clicked, dimension, face, playerYaw, random, null);
     }
 
     /**
@@ -172,25 +181,31 @@ public final class ArmorStandSystem {
      * @param entityTag the held stack's EntityTag rows in the boxed
      *                  form, or null when the item carries none
      * @return whether a stand landed (the stack consumes one unit).
+     *
+     * <p>Wave AS — the placement's every gate reads the PLACER's world
+     * (the reference's useOn consults the caller's own {@code world}
+     * parameter, lines 27-43) and the fresh body is stamped with it
+     * (line 51's {@code new ArmorStandEntity(world, ...)}).</p>
      */
-    public synchronized boolean place(BlockPosition clicked, int face, float playerYaw,
-                                      Random random, Map<String, Object> entityTag) {
+    public synchronized boolean place(BlockPosition clicked, int dimension, int face,
+                                      float playerYaw, Random random,
+                                      Map<String, Object> entityTag) {
         if (face == 0) {
             return false; // DOWN: the reference's own refusal
         }
-        BlockPosition cell = surface.replaceableAt(clicked) ? clicked : offsetFace(clicked, face);
+        BlockPosition cell = surface.replaceableAt(clicked, dimension) ? clicked : offsetFace(clicked, face);
         BlockPosition above = cell.offset(0, 1, 0);
         // The two-cell gate (useOn lines 33-38): both the cell and the
         // headroom must be air or replaceable.
-        boolean blocked = !(surface.airAt(cell) || surface.replaceableAt(cell));
-        blocked |= !(surface.airAt(above) || surface.replaceableAt(above));
+        boolean blocked = !(surface.airAt(cell, dimension) || surface.replaceableAt(cell, dimension));
+        blocked |= !(surface.airAt(above, dimension) || surface.replaceableAt(above, dimension));
         if (blocked) {
             return false;
         }
         // The entity box gate (useOn lines 40-46): nothing may stand in
         // the 1x2x1 box the body claims.
         if (surface.entityOccupies(cell.x(), cell.y(), cell.z(),
-                cell.x() + 1.0, cell.y() + 2.0, cell.z() + 1.0)) {
+                cell.x() + 1.0, cell.y() + 2.0, cell.z() + 1.0, dimension)) {
             return false;
         }
         // The yaw snap (useOn line 52): floor((wrapDegrees(yaw - 180) +
@@ -203,7 +218,7 @@ public final class ArmorStandSystem {
             wrapped += 360.0f;
         }
         float yaw = (float) (Math.floor((wrapped + 22.5f) / 45.0f) * 45.0f);
-        ArmorStand stand = new ArmorStand(nextId, cell.x() + 0.5, cell.y(), cell.z() + 0.5, yaw);
+        ArmorStand stand = new ArmorStand(nextId, dimension, cell.x() + 0.5, cell.y(), cell.z() + 0.5, yaw);
         pickRotation(stand, random);
         if (entityTag != null && !entityTag.isEmpty()) {
             applyEntityTag(stand, net.zaminmc.torch.server.nbt.NbtOps.fromBoxed(entityTag));
@@ -481,11 +496,11 @@ public final class ArmorStandSystem {
         if (creative) {
             // The reference's creative arm (lines 416-419): the breaking
             // particles, then the outright remove (no drops).
-            surface.standBreakingBurst(breakingBurstAt(stand));
+            surface.standBreakingBurst(breakingBurstAt(stand), stand.dimension());
             remove(stand);
             return true;
         }
-        long now = surface.now();
+        long now = surface.now(stand.dimension());
         if (now - stand.lastDamageTime() > DOUBLE_HIT_WINDOW) {
             stand.setLastDamageTime(now); // the wobble: the first hit stamps
             return true;
@@ -493,9 +508,9 @@ public final class ArmorStandSystem {
         // The break (onBrokenByPlayer lines 475-478): the breaking
         // particles, then the stand item at the feet, then the equipment
         // at the head cell (onBroken's own up() offset).
-        surface.standBreakingBurst(breakingBurstAt(stand));
+        surface.standBreakingBurst(breakingBurstAt(stand), stand.dimension());
         remove(stand);
-        surface.dropItem(new Position(stand.x(), stand.y(), stand.z()),
+        surface.dropItem(new Position(stand.x(), stand.y(), stand.z()), stand.dimension(),
                 ItemStack.of(BuiltinItems.ARMOR_STAND, 1));
         dropEquipment(stand);
         return true;
@@ -509,12 +524,13 @@ public final class ArmorStandSystem {
         return new Position(stand.x(), stand.y() + 1.975 / 1.5, stand.z());
     }
 
-    /** The equipment drop (onBroken lines 480-490): every piece at the head cell. */
+    /** The equipment drop (onBroken lines 480-490): every piece at the head cell,
+     *  in the STAND'S OWN WORLD (the reference's Block.dropItem(this.world, ...)). */
     private void dropEquipment(ArmorStand stand) {
         Position at = new Position(stand.x(), stand.y() + 1.0, stand.z());
         for (ItemStack piece : stand.equipment()) {
             if (!piece.isEmpty()) {
-                surface.dropItem(at, piece);
+                surface.dropItem(at, stand.dimension(), piece);
             }
         }
     }
@@ -608,7 +624,7 @@ public final class ArmorStandSystem {
             int belowCell = (int) Math.floor(stand.y() - 0.06);
             BlockPosition below = new BlockPosition(
                     (int) Math.floor(feetX), belowCell, (int) Math.floor(feetZ));
-            boolean landed = surface.solidAt(below);
+            boolean landed = surface.solidAt(below, stand.dimension());
 
             double vy = stand.velocityY() - 0.08;
             vy *= 0.98;
@@ -622,7 +638,7 @@ public final class ArmorStandSystem {
                 // walk's javadoc is retired: the stand slides a marker's
                 // push across the ice nearly as far as the reference's
                 // own stands do.
-                double friction = surface.blockSlipperinessAt(below) * 0.91;
+                double friction = surface.blockSlipperinessAt(below, stand.dimension()) * 0.91;
                 vx *= friction;
                 vz *= friction;
             } else {
@@ -647,8 +663,8 @@ public final class ArmorStandSystem {
             if (Math.abs(vx) >= 1e-9) {
                 double targetX = feetX + vx;
                 int cellX = (int) Math.floor(targetX);
-                if (!surface.solidAt(new BlockPosition(cellX, feetCell, (int) Math.floor(feetZ)))
-                        && !surface.solidAt(new BlockPosition(cellX, feetCell + 1, (int) Math.floor(feetZ)))) {
+                if (!surface.solidAt(new BlockPosition(cellX, feetCell, (int) Math.floor(feetZ)), stand.dimension())
+                        && !surface.solidAt(new BlockPosition(cellX, feetCell + 1, (int) Math.floor(feetZ)), stand.dimension())) {
                     newX = targetX;
                 } else {
                     vx = 0.0;
@@ -657,8 +673,8 @@ public final class ArmorStandSystem {
             if (Math.abs(vz) >= 1e-9) {
                 double targetZ = feetZ + vz;
                 int cellZ = (int) Math.floor(targetZ);
-                if (!surface.solidAt(new BlockPosition((int) Math.floor(newX), feetCell, cellZ))
-                        && !surface.solidAt(new BlockPosition((int) Math.floor(newX), feetCell + 1, cellZ))) {
+                if (!surface.solidAt(new BlockPosition((int) Math.floor(newX), feetCell, cellZ), stand.dimension())
+                        && !surface.solidAt(new BlockPosition((int) Math.floor(newX), feetCell + 1, cellZ), stand.dimension())) {
                     newZ = targetZ;
                 } else {
                     vz = 0.0;
@@ -722,8 +738,8 @@ public final class ArmorStandSystem {
             int cellX = (int) Math.floor(targetX);
             int feetCell = (int) Math.floor(stand.y());
             int cellZ = (int) Math.floor(stand.z());
-            if (!surface.solidAt(new BlockPosition(cellX, feetCell, cellZ))
-                    && !surface.solidAt(new BlockPosition(cellX, feetCell + 1, cellZ))) {
+            if (!surface.solidAt(new BlockPosition(cellX, feetCell, cellZ), stand.dimension())
+                    && !surface.solidAt(new BlockPosition(cellX, feetCell + 1, cellZ), stand.dimension())) {
                 newX = targetX;
             }
         }
@@ -732,8 +748,8 @@ public final class ArmorStandSystem {
             int cellZ = (int) Math.floor(targetZ);
             int feetCell = (int) Math.floor(newY);
             int cellX = (int) Math.floor(newX);
-            if (!surface.solidAt(new BlockPosition(cellX, feetCell, cellZ))
-                    && !surface.solidAt(new BlockPosition(cellX, feetCell + 1, cellZ))) {
+            if (!surface.solidAt(new BlockPosition(cellX, feetCell, cellZ), stand.dimension())
+                    && !surface.solidAt(new BlockPosition(cellX, feetCell + 1, cellZ), stand.dimension())) {
                 newZ = targetZ;
             }
         }
@@ -744,7 +760,7 @@ public final class ArmorStandSystem {
                 // feet holds the stand at its top.
                 int belowCell = (int) Math.floor(targetY - 0.06);
                 if (surface.solidAt(new BlockPosition((int) Math.floor(newX), belowCell,
-                        (int) Math.floor(newZ))) && targetY < belowCell + 1.0) {
+                        (int) Math.floor(newZ)), stand.dimension()) && targetY < belowCell + 1.0) {
                     newY = belowCell + 1.0;
                 } else {
                     newY = targetY;
@@ -797,11 +813,17 @@ public final class ArmorStandSystem {
      * never carry riders).
      */
     private void pushRideableCarts() {
-        java.util.List<CartView> carts = surface.rideableCarts();
-        if (carts.isEmpty()) {
-            return;
-        }
+        // The stand's own world's carts alone (the reference's
+        // pushAwayCollidingEntities consults this.world's entities —
+        // Wave AS retires the cross-dimension read).
+        java.util.Map<Integer, java.util.List<CartView>> cartsByDimension =
+                new java.util.HashMap<>();
         for (ArmorStand stand : stands.values()) {
+            java.util.List<CartView> carts = cartsByDimension.computeIfAbsent(
+                    stand.dimension(), surface::rideableCarts);
+            if (carts.isEmpty()) {
+                continue;
+            }
             for (CartView cart : carts) {
                 double dx = stand.x() - cart.x();
                 double dy = stand.y() - cart.y();
@@ -855,13 +877,28 @@ public final class ArmorStandSystem {
     // The persistence (the ZAD snapshot form)
     // ------------------------------------------------------------------
 
-    /** One stand's persistable view (writeCustomNbt's own fields). */
+    /** One stand's persistable view (writeCustomNbt's own fields + the
+     *  world row — Wave AS: the dimension rides the FILE like every
+     *  engine family's store, never the entity's own NBT rows). */
     public record StandRecord(double x, double y, double z, float yaw,
                               List<ItemStack> equipment, byte status,
                               ArmorStand.Pose head, ArmorStand.Pose body,
                               ArmorStand.Pose leftArm, ArmorStand.Pose rightArm,
                               ArmorStand.Pose leftLeg, ArmorStand.Pose rightLeg,
-                              int disabledSlots, boolean invisible) {
+                              int disabledSlots, boolean invisible, int dimension) {
+        /** The v3 shape (Wave AS's compat arm — the world row defaults
+         *  the overworld 0, the migration law: every historical stand is
+         *  an overworld stand). */
+        public StandRecord(double x, double y, double z, float yaw,
+                           List<ItemStack> equipment, byte status,
+                           ArmorStand.Pose head, ArmorStand.Pose body,
+                           ArmorStand.Pose leftArm, ArmorStand.Pose rightArm,
+                           ArmorStand.Pose leftLeg, ArmorStand.Pose rightLeg,
+                           int disabledSlots, boolean invisible) {
+            this(x, y, z, yaw, equipment, status, head, body, leftArm,
+                    rightArm, leftLeg, rightLeg, disabledSlots, invisible, 0);
+        }
+
         /** The v2 shape (VT-7i's compat arm — the invisible row defaults false). */
         public StandRecord(double x, double y, double z, float yaw,
                            List<ItemStack> equipment, byte status,
@@ -870,7 +907,7 @@ public final class ArmorStandSystem {
                            ArmorStand.Pose leftLeg, ArmorStand.Pose rightLeg,
                            int disabledSlots) {
             this(x, y, z, yaw, equipment, status, head, body, leftArm,
-                    rightArm, leftLeg, rightLeg, disabledSlots, false);
+                    rightArm, leftLeg, rightLeg, disabledSlots, false, 0);
         }
 
         /** The v1 shape (VT-7g's compat arm — the disabled row defaults 0). */
@@ -880,7 +917,7 @@ public final class ArmorStandSystem {
                            ArmorStand.Pose leftArm, ArmorStand.Pose rightArm,
                            ArmorStand.Pose leftLeg, ArmorStand.Pose rightLeg) {
             this(x, y, z, yaw, equipment, status, head, body, leftArm,
-                    rightArm, leftLeg, rightLeg, 0, false);
+                    rightArm, leftLeg, rightLeg, 0, false, 0);
         }
     }
 
@@ -895,7 +932,7 @@ public final class ArmorStandSystem {
             records.add(new StandRecord(stand.x(), stand.y(), stand.z(), stand.yaw(),
                     equipment, stand.status(), stand.head(), stand.body(),
                     stand.leftArm(), stand.rightArm(), stand.leftLeg(), stand.rightLeg(),
-                    stand.disabledSlots(), stand.invisible()));
+                    stand.disabledSlots(), stand.invisible(), stand.dimension()));
         }
         return records;
     }
@@ -903,8 +940,8 @@ public final class ArmorStandSystem {
     /** The restore: the saved stands land back through the spawn listener. */
     public synchronized void restore(List<StandRecord> records) {
         for (StandRecord record : records) {
-            ArmorStand stand = new ArmorStand(nextId++, record.x(), record.y(), record.z(),
-                    record.yaw());
+            ArmorStand stand = new ArmorStand(nextId++, record.dimension(),
+                    record.x(), record.y(), record.z(), record.yaw());
             for (int slot = 0; slot < 5 && slot < record.equipment().size(); slot++) {
                 stand.setEquipment(slot, record.equipment().get(slot));
             }
@@ -940,13 +977,18 @@ public final class ArmorStandSystem {
      * command's own coordinates overriding the Pos rows alone (the
      * reference's setPositionAndAngles keeps the NBT's yaw).
      *
+     * <p>Wave AS — the source's own world: the reference's factory reads
+     * the SENDER's world ({@code Entities.create(nbt, world)}); the
+     * engine's console source is overworld-anchored, so the caller
+     * passes the explicit 0 — never a silent stamp.</p>
+     *
      * @param nbt the parsed compound, or null for a plain summon
      * @return the spawned stand (never null — the engine's stand
      *         surface carries no refusal gate)
      */
-    public synchronized ArmorStand summonAt(double x, double y, double z,
+    public synchronized ArmorStand summonAt(double x, double y, double z, int dimension,
                                             Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> nbt) {
-        ArmorStand stand = new ArmorStand(nextId, x, y, z, 0.0f);
+        ArmorStand stand = new ArmorStand(nextId, dimension, x, y, z, 0.0f);
         nextId++;
         if (nbt != null) {
             readSummonNbt(stand, nbt);

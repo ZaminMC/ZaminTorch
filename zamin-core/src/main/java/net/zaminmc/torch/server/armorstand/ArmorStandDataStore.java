@@ -20,14 +20,18 @@ import java.util.Optional;
 import java.util.logging.Logger;
 
 /**
- * File-backed armor stand state ("ZAD" format, version 1), one file per
+ * File-backed armor stand state ("ZAD" format, version 4), one file per
  * world — the jukebox store's own durability rules.
  *
- * <p>Layout: magic 'Z','A','D',1 - stands(varint count; each: x/y/z
+ * <p>Layout: magic 'Z','A','D',4 - stands(varint count; each: x/y/z
  * (f64) yaw(f32) status(u8) then five equipment slots in the ZCD item
  * form + the six pose triples (f32 x3 each: head, body, leftArm,
- * rightArm, leftLeg, rightLeg)) — the reference's writeCustomNbt fields
- * (Equipment, the status booleans, Pose).</p>
+ * rightArm, leftLeg, rightLeg) + the DisabledSlots int + the Invisible
+ * boolean + the dimension byte) — the reference's writeCustomNbt fields
+ * (Equipment, the status booleans, Pose) plus the world row the file
+ * itself carries (Wave AS — the ZID v8 shape: the engine's stores own
+ * the dimension, never the entity's own NBT rows; -1 lands as the u8
+ * 255 and reads back signed).</p>
  *
  * <p>Writes are atomic (temp file then atomic move), corrupt files load
  * as absent and are preserved beside the storage path instead of being
@@ -40,7 +44,7 @@ public final class ArmorStandDataStore {
     private static final int MAGIC_0 = 'Z';
     private static final int MAGIC_1 = 'A';
     private static final int MAGIC_2 = 'D';
-    private static final int FORMAT_VERSION = 3;
+    private static final int FORMAT_VERSION = 4;
 
     private final Path file;
 
@@ -99,6 +103,10 @@ public final class ArmorStandDataStore {
                 // VT-7i — the v3 row: the Invisible flag (the reference's
                 // NBT row at line 138).
                 out.writeBoolean(stand.invisible());
+                // Wave AS — the v4 row: the body's own dimension (the
+                // ZID v8 byte form: -1 lands as the u8 255, read back
+                // signed).
+                out.writeByte(stand.dimension());
             }
         } catch (IOException e) {
             // The sink is an in-memory buffer; an IOException here is a
@@ -153,7 +161,7 @@ public final class ArmorStandDataStore {
                 return new ArrayList<>();
             }
             int version = in.readByte() & 0xFF;
-            if (version != FORMAT_VERSION && version != 2 && version != 1) {
+            if (version != FORMAT_VERSION && version != 3 && version != 2 && version != 1) {
                 LOGGER.warning("Armor stand state " + file + " version " + version
                         + " unsupported; loading empty");
                 return new ArrayList<>();
@@ -185,9 +193,13 @@ public final class ArmorStandDataStore {
                 // VT-7i — the v3 row: the v2 files answer the default
                 // false (the reference's own default — a visible stand).
                 boolean invisible = version >= 3 && in.readBoolean();
+                // Wave AS — the v4 row: the v1-v3 files never carry it
+                // (every historical stand is an overworld stand, the
+                // migration law — the ZID v8 convention).
+                int dimension = version >= 4 ? in.readByte() : 0;
                 loaded.add(new ArmorStandSystem.StandRecord(x, y, z, yaw, equipment, status,
                         head, body, leftArm, rightArm, leftLeg, rightLeg, disabledSlots,
-                        invisible));
+                        invisible, dimension));
             }
             return loaded;
         } catch (IOException | RuntimeException corrupt) {

@@ -480,7 +480,7 @@ class DataWatcherWirePinTest extends ProtocolTestBase {
             boolean placed = server.armorStands().place(
                     new net.zaminmc.torch.block.BlockPosition(
                             clicked.x() + 1, clicked.y(), clicked.z()),
-                    1, 0f, new Random(1234));
+                    0, 1, 0f, new Random(1234));
             assertTrue(placed, "the stand placed");
             byte[] frame = awaitFrame(observer, Protocol18.S2C_ENTITY_METADATA,
                     f -> true, "the stand's pose metadata");

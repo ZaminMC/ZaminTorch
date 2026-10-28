@@ -132,7 +132,7 @@ class DecorationsApiAcceptanceTest {
         // floor block, the same seeded pose roll the package test pins.
         AtomicReference<Boolean> stood = new AtomicReference<>();
         server.ticker().submit(() -> stood.set(server.armorStands().place(
-                new BlockPosition(20, 39, 10), 1, 10.0f, new java.util.Random(1))));
+                new BlockPosition(20, 39, 10), 0, 1, 10.0f, new java.util.Random(1))));
         await(() -> stood.get() != null, "the stand attempt answered");
         assertTrue(stood.get(), "the stand landed");
         var engineStand = server.armorStands().byId(
