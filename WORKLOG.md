@@ -17590,3 +17590,85 @@ stats family's future audit, not the exhaustion economy; the airborne
 band and the climbing arm charge nothing (stat-only arms — verified,
 not restored); the dragon-part melee's refused-source swing still
 exhausts (the engine's own documented quirk, unchanged).
+## 2026-10-28 — the stats family parity audit (PR #66, the verifier's eleventh pass)
+
+The eleventh sweep, one family over: the statistics — the counter model
+(`PlayerStats`, verified 1:1 first) and every INCREMENT SITE the reference
+pays, read against `Stats.java`, `PlayerEntity`, `ServerPlayerEntity.die`,
+`LivingEntity.die`, `ItemStack`, `FishingBobberEntity.getResult`,
+`VillagerEntity.interactMob`, `TradeResultSlot`, and the interaction
+family. The findings doc (docs/STATS_FAMILY_AUDIT_FINDINGS.md) records
+the whole discovery before any code changed — the discipline the pass
+owes — and the three-verification record closes it.
+
+Ten restorations and one bonus find. THE MINED ROW'S HARVEST GATE: the
+reference's caller (tryMineBlock lines 211-225) carries BOTH gates — the
+creative arm never reaches afterMinedByPlayer, and the survival arm pays
+only when the held tool HARVESTS the block (`flag1 && flag`); the engine
+paid the row and the 0.025 for every survival break, so a bare-handed
+stone break counted where vanilla counts NOTHING — and the pass-10 tail
+note ("the reference's increment carries no gamemode gate at the site")
+was itself the mischaracterization: the SITE carries no gate but the
+CALLER carries both. THE DEAD BODY'S PLAY CLOCK: MINUTES_PLAYED rides
+ungated (line 285); only TIME_SINCE_DEATH carries the isAlive gate — the
+engine's dead-skip stalled the play clock through the respawn screen.
+THE PLAYER-KILL ROW: takeKillScore's instanceof arm pays PLAYERS_KILLED
+beside the scoreboard ride — the engine's one score-walk site covers
+every PvP kill path. THE VICTIM'S KILLED-BY ROW: entityKilledBy.<X> pays
+on the victim at the death walk when the last attacker is a spawn-egg
+mob — the engine's light last-mob-attacker record consults with the
+reference tracker's own 300-tick staleness window, set at the melee,
+guardian-laser, mob-shot-projectile, and thrown-potion sites. THE
+MOVEMENT-STAT WALK: restored to the reference's own branch order with
+both halves in one walk — the rows UNGATED by gamemode (the vanilla
+statistics screen counts a creative player's meters; the fatigue half
+rides addExhaustion's own refusal) — walked with the sprint paying BOTH
+rows, the surface swim, the dive's 3-D norm, the climb's y-only arm, the
+flown row's STRICT l > 25, JUMPS beside the pass-10 fatigue, and
+CM_FALLEN at the landing (distance >= 2.0, the flight ability gate
+alone, paid before the water break). THE RIDING ROWS: the seat walks pay
+the rider's 3-D displacement — the boat's row the pre-audit walk skipped
+entirely, the pig and horse rows the mob-seat walk never paid, the cart
+row's horizontal-only norm corrected. THE FISHING TRIO: the ROLL pays
+its band's row before the interceptors and the drop. THE VILLAGER PAIR:
+the trade-window interact and the taken result. THE BREAK ROW'S ONE-SITE
+LAW: the row rides the stack's own wear walk (the stats-carrying
+damageHeld overload + the armor twins), retiring the two manual melee
+detections and covering the mining, bow, flint, hoe, rod, shears, armor,
+and thorns paths. THE USE ROW'S TWO ARMS: the dig pays for every
+tool/sword-broken block (the flag outside the hardness gate), the landed
+swing once per hit. THE OUTSIDE-CLICK DROP: the slot -999 throw is a
+thrownByPlayer drop and pays DROPS like the Q-drop. THE BONUS: the
+cobweb's ITEM row folds to "web" (item id 30's own registry name) — the
+missing VANILLA_NAMES fold StatsCompletenessTest's pre-existing failure
+(verified on the BASE commit) surfaced.
+
+**Evidence:** StatsParityTest 15/0 (NEW); the stat package 32/0; the
+food/hunger/crit/mining batches 51/0; the window/villager/fishing
+batches 26/0; the entity package whole 574/0; interaction + player +
+item 89/0; the protocol wire batch (MobIntegration's combined-run flake
+green in isolation — the documented load class); ToolWear + MountSeats +
+the vehicle package + Milk + Cauldron 88/0; bukkit 52/0 + launcher 53/0
++ api 19/0.
+
+**Lessons:** (1) a "no gate at the site" claim must be checked at the
+CALLER — the reference buries its laws in the walk that reaches the
+site, and the pass-10 tail note survived three reviews on the site's own
+shape; (2) a family audit's vocabulary is part of the mechanic — the
+cobweb's row was a live parity break (a row the client never reads)
+sitting in a test failure nobody had audited; (3) the one-site law is
+the reference's own shape — when a stat rides inside a shared walk
+(takeDamageAndBreak, the movement walk), every caller inherits it, and
+an engine that duplicates the stat per caller (the two manual melee
+detections) is one refactor away from paying twice or never; (4) the
+reference's stats are UNGATED by gamemode almost everywhere — the
+vanilla statistics screen counts creative play, and the engine's
+creative early-returns were silently swallowing rows.
+
+**Standing tails:** BANNER_CLEANED (no banner item in the registry —
+pass 9's tail); the light last-attacker model's last-vs-highest-damage
+distinction (identical in the single-attacker case — the full
+DamageTracker is its own future family); the dragon's no-killed-by-row
+(entityKeyOf's own spawn-egg exclusion — correct 1:1); the window
+family's hotbar↔main shuffle tail (pass 6's recorded divergence,
+unchanged).
