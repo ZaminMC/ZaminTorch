@@ -86,6 +86,22 @@ public final class DropService {
         if (!BlockBehaviorTable.canHarvest(behavior, heldTool)) {
             return List.of(); // historical: breakable but yields nothing by hand
         }
+        // The snow layer's own player arm (the mining-speed parity audit —
+        // SnowLayerBlock.afterMinedByPlayer lines 102-106): the LAYERS + 1
+        // snowballs belong to the PLAYER-DIG COMPLETION alone, over the
+        // shovel verdict the gate above just answered — the generic walk the
+        // row feeds (the wash-out, the piston break) carries the class's own
+        // getBaseDropCount ZERO, so the engine keeps the row empty and the
+        // player law here, exactly the reference's own split. The engine's
+        // single-layer state answers 2.
+        if (broken.identifier().value().equals("snow_layer")) {
+            ItemType snowball = BuiltinItems.lookup(Identifier.parse("minecraft:snowball"))
+                    .orElse(null);
+            if (snowball == null) {
+                throw new IllegalStateException("Snow layer's snowball is unregistered");
+            }
+            return List.of(ItemStack.of(snowball, 2));
+        }
         return dropWalk(broken, behavior, heldTool, silkTouch, fortune);
     }
 

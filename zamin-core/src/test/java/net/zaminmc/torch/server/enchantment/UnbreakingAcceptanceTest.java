@@ -198,10 +198,22 @@ class UnbreakingAcceptanceTest {
         ItemStack dying = ItemStack.of(BuiltinItems.IRON_CHESTPLATE);
         inventory.setArmor(1, dying.withDamage(dying.type().maxDurability() - 1));
 
-        // The last unit lands (float 0.1 fails the gate): the piece breaks.
+        // The tool-wear parity audit's boundary (ItemStack.takeDamage line
+        // 204: the break lands at metadata > maxDamage, never >=): the
+        // piece at damage 240 takes its last unit to EXACTLY the maximum
+        // 241 and SURVIVES there — the seat was pinned to the pre-fix >=
+        // shape (the fourth pass's sweep missed the enchantment package;
+        // the fifth pass's net caught it and re-pinned the seat with the
+        // law named).
         assertTrue(inventory.wearArmor(4.0F, new ForcedRandom(new float[]{0.1F}, new int[]{5})),
-                "the breaking wear changed the slot");
-        assertTrue(inventory.armorAt(1).isEmpty(), "the piece left the slot");
+                "the wear changed the slot");
+        assertFalse(inventory.armorAt(1).isEmpty(),
+                "the piece survives AT its maximum — the break lands at the exceed");
+        org.junit.jupiter.api.Assertions.assertEquals(dying.type().maxDurability(),
+                inventory.armorAt(1).damage(), "the damage sits exactly at the maximum");
+        assertTrue(inventory.wearArmor(4.0F, new ForcedRandom(new float[]{0.1F}, new int[]{5})),
+                "the exceeding wear changed the slot");
+        assertTrue(inventory.armorAt(1).isEmpty(), "the piece left the slot at the exceed");
 
         // And the roll can spare it: a fresh dying enchanted piece rolls
         // the unit away.

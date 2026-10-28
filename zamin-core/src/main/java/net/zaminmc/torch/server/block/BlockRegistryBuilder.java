@@ -107,13 +107,14 @@ public final class BlockRegistryBuilder {
         }
 
         /**
-         * The exact engine multiplier: the tool material's speed on a
-         * class match, 1.0 otherwise (the table's own rule).
+         * The exact engine multiplier: the reference's per-item-class speed
+         * law (the mining-speed parity audit — BlockBehaviorTable's own
+         * table), 1.0 otherwise.
          */
         @Override
         public double miningSpeedMultiplier(BlockType type, net.zaminmc.torch.item.ItemType held) {
             return BlockBehaviorTable.of(type.identifier())
-                    .map(behavior -> BlockBehaviorTable.speedMultiplier(behavior, held))
+                    .map(behavior -> BlockBehaviorTable.speedMultiplier(behavior, type, held))
                     .orElse(1.0);
         }
     }

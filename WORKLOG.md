@@ -16757,3 +16757,88 @@ message; (3) one law, one shape — the zombie's own setDamage walk
 carrying its own boundary is the counterexample that proves the wear
 family is not one law but several, and each was read before it was
 touched.
+
+## 2026-10-28 — the mining-speed parity audit (PR #60, the verifier's fifth pass)
+
+The fifth sweep, one family over: the mining-speed law — the five
+per-item getMiningSpeed overrides, the canMineBlock gate the /30-vs-/100
+divisor rides, and the two status-effect multipliers the five-arg
+MiningRules shape's own javadoc had promised "once the engine grows a
+status-effect system" (the system — potions, the beacon's haste, the
+elder-guardian fatigue aura — had since grown without the multipliers
+landing).
+
+The speed table had folded all five item classes into one material-string
+class match paying the tool's tier on a match alone. What that lost: the
+SWORD's whole law (15.0 on the web block identity, 1.5 on the
+PLANT/REPLACEABLE_PLANT/CORAL/LEAVES/PUMPKIN band — the table answered
+1.0 everywhere, a diamond sword never out-digging a fist on its own web);
+the SHEARS' own band (15.0 web and leaves, 5.0 wool — the class match
+paid the shears' IRON 6.0 on leaves and wool both, and the web row's null
+material answered 1.0); the PICKAXE's effective-blocks set beyond its
+material branch (the ICE and the RAIL pair — "rock" alone answered 1.0 on
+all three); and the AXE's plant material branch (an iron axe digs tall
+grass at the FULL 6.0 tier in the reference — the engine's "plants"
+string sat outside every class map, so the whole flora answered 1.0, and
+the map's own "plant" arm was dead code against the rows' "plants"
+spelling).
+
+The gate was the same fold: the reference's COBWEB material requires the
+tool and the web's own breakers are the SWORD and the SHEARS together —
+a two-class gate the single-class match could not answer, and the pre-fix
+row was tool-free besides, so a bare hand took the string at the /30
+divisor. The SNOW material requires the SHOVEL alone (the pre-fix rows
+left both snow shapes hand-harvestable — a bare hand pocketed the snow
+block's four snowballs, and the snow layer's own LAYERS+1 player arm
+(afterMinedByPlayer lines 102-106) was missing ENTIRELY, the Slice 17d
+comment having folded the player arm into the generic arm's empty walk
+— the misread this pass re-pinned at the row AND at the gated walk, so
+the player dig answers 2 while the generic arm the wash-out feeds keeps
+the reference's own zero). PACKED_ICE requires NO tool (Material line 27
+— the row's requires-tool had every non-pickaxe hand digging at /100
+where the reference answers /30). And the material strings the speed
+table exposed went honest one row at a time: the CACTUS is its own
+material (out of both the axe branch and the sword band), the PUMPKIN
+trio is Material.PUMPKIN (the sword's 1.5 band member, the axe's set
+member), the BOOKSHELF is WOOD (the null material had the axe at 1.0),
+the skull family is DECORATION, and the flower pots' slice comment said
+DECORATION while its string said "plant".
+
+The haste/fatigue multipliers landed in MiningRules' own order (between
+the Efficiency add and the environment divisors, the reference's lines
+663-695) over a new effect-amplifier hook the server wires to the potion
+system. The fourth pass's own boundary law found one missed seat in the
+net: UnbreakingAcceptanceTest's breaking-piece seat had stayed pinned to
+the pre-fix >= boundary in the enchantment package the fourth pass's
+sweep never listed — re-pinned with the law named (the piece survives AT
+its maximum, the exceed breaks it).
+
+**Evidence:** MiningSpeedParityTest 11/0 (the sword's 15/1.5 rows, the
+shears' 15/5/1 band, the pickaxe's effective set, the axe's plant branch
+and set, the shovel family whole, the hoe's never, the web's two-class
+gate with the 8-tick/400-tick divisor split, the snow pair's shovel gate
+with the 10-tick/1-tick layer split and the wash-out's generic zero, the
+packed-ice 15-tick hand dig, the haste/fatigue multipliers in the
+reference's own order, the plant family's four-class split with the
+shears' wear band kept beside its 1.0 speed); the re-pinned seats green
+(DropBand's shovel-snow seat, SilkAndShears' silk-shovel snow and
+sword-web seats, Unbreaking's boundary seat); the block package whole
+254/0; item + interaction + potion 49/0; enchantment 58/0; the timing and
+family batch 75/0 (VanillaMiningTiming, SurvivalMining, DigHandlerGates,
+MiningXp, BlockInteraction, Melon, CaneAndCactus, DyeFamily,
+GroundCover, RailBlocks, MapColors, StepSound); the combat and player
+batch 109/0.
+
+**Lessons:** (1) the speed family is five laws over one table, not one
+class-match — the reference answers per ITEM class (the sword and the
+shears both carry their own full rows, and the axe's material branch
+covers blocks its effective set never named); (2) the same flag gates
+three walks — the divisor, the drops, and the wear's hardness gate all
+consult canMineBlock, so a wrong requiresTool is never just a timing
+bug (the bare hand was TAKING the string and the snowballs); (3) a
+player-only drop law cannot ride the drop ROW — the reference's own
+split (getBaseDropCount 0 + afterMinedByPlayer layers+1) needs the
+player arm at the gated walk or the wash-out pays it too; (4) a promised
+law's javadoc is a ledger — "once the engine grows a status-effect
+system" was written by an author who did not know the system had already
+grown; the verifier reads the promise AND the ground.

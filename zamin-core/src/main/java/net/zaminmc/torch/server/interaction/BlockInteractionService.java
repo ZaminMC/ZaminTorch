@@ -103,6 +103,20 @@ public final class BlockInteractionService {
     private volatile java.util.function.BooleanSupplier tileDropsRead;
 
     /**
+     * The status-effect amplifier read the dig consults (the mining-speed
+     * parity audit — {@code PlayerEntity.hasStatusEffect} + {@code
+     * getEffectInstance(...).getAmplifier()}); the server wires it to the
+     * potion system, the no-hook default answering the no-effect amplifier.
+     */
+    private volatile java.util.function.BiFunction<PlayerSession, Integer, Integer> effectAmplifierRead;
+
+    /** Wires the dig's status-effect read ({@code amplifierOf} shape). */
+    public void setEffectAmplifierRead(
+            java.util.function.BiFunction<PlayerSession, Integer, Integer> read) {
+        this.effectAmplifierRead = read;
+    }
+
+    /**
      * The placement-support gate (Slice 44 — PlantBlock.canBePlaced over
      * canBePlacedOn: the flora consult refusing a placement whose soil is
      * wrong BEFORE any placement is attempted, the reference's own
@@ -839,6 +853,11 @@ public final class BlockInteractionService {
      * the tool tier, the environment divisors, the /30 or /100 harvest split.
      * The enchantment reads ride the reference walk — the held stack's
      * Efficiency level and the helmet's Aqua Affinity gate the water divisor.
+     * The mining-speed parity audit added the status-effect multipliers
+     * (PlayerEntity.getMiningSpeed lines 663-695): Haste and mining fatigue
+     * read through the effect-amplifier hook the server wires to the potion
+     * system, between the Efficiency add and the environment divisors exactly
+     * as the reference orders them.
      */
     private double perTickProgress(PlayerSession player, BlockPosition target, BlockBehavior behavior) {
         net.zaminmc.torch.item.ItemStack heldStack = player.inventory().held();
@@ -849,10 +868,22 @@ public final class BlockInteractionService {
         boolean aquaAffinity = net.zaminmc.torch.server.enchantment.EnchantmentHelper
                 .highestLevel(net.zaminmc.torch.server.enchantment.Enchantments.AQUA_AFFINITY.id,
                         player.inventory().armorStacks()) > 0;
+        int haste = effectAmplifier(player,
+                net.zaminmc.torch.server.potion.StatusEffects.HASTE);
+        int fatigue = effectAmplifier(player,
+                net.zaminmc.torch.server.potion.StatusEffects.MINING_FATIGUE);
         return MiningRules.perTickProgress(behavior.hardness(),
-                MiningRules.miningSpeed(BlockBehaviorTable.speedMultiplier(behavior, held),
-                        efficiency, isSubmerged(player), aquaAffinity, player.onGround()),
+                MiningRules.miningSpeed(BlockBehaviorTable.speedMultiplier(behavior,
+                                world.getBlock(target), held),
+                        efficiency, isSubmerged(player), aquaAffinity, player.onGround(),
+                        haste, fatigue),
                 canHarvest);
+    }
+
+    /** The status-effect read the dig consults ({@code hasStatusEffect} + amplifier). */
+    private int effectAmplifier(PlayerSession player, int effectId) {
+        java.util.function.BiFunction<PlayerSession, Integer, Integer> read = effectAmplifierRead;
+        return read == null ? MiningRules.NO_EFFECT : read.apply(player, effectId);
     }
 
     /** The vanilla removal stage: the client clears the animation above stage 10. */

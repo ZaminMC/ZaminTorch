@@ -13,6 +13,12 @@ package net.zaminmc.torch.server.interaction;
  *   <li>the Efficiency enchantment adds {@code level^2 + 1} — but only when the
  *       base speed is already above the bare fist's 1.0 (vanilla gates the
  *       bonus on {@code f > 1.0F}, so an enchanted bare fist stays slow);</li>
+ *   <li>Haste multiplies by {@code 1 + 0.2*(amplifier+1)} and mining fatigue
+ *       by {@code 0.3 / 0.09 / 0.0027 / 8.1e-4} by amplifier — the
+ *       mining-speed parity audit (PlayerEntity.getMiningSpeed lines 663-695:
+ *       both multipliers sit between the Efficiency add and the environment
+ *       divisors, and the effect read is -1 when the body carries no live
+ *       instance);</li>
  *   <li>being submerged in water without Aqua Affinity divides the speed by 5;</li>
  *   <li>not standing on the ground divides the speed by 5;</li>
  *   <li>the per-tick progress is {@code speed / hardness / (30 | 100)} — 30
@@ -20,15 +26,17 @@ package net.zaminmc.torch.server.interaction;
  *       (unbreakable) for negative hardness.</li>
  * </ul>
  *
- * <p>Haste and mining fatigue enter the same function once the engine grows a
- * status-effect system (the vanilla multipliers are haste
- * {@code 1 + 0.2*(amplifier+1)} and fatigue {@code 0.3/0.09/0.0027/8.1e-4} by
- * amplifier); the hook is the {@code speed} parameter chain here.</p>
+ * <p>The status-effect system the promise below named has since grown
+ * (potions Slice 11b, the beacon's haste, the elder-guardian's fatigue aura),
+ * and the mining-speed parity audit landed the promised multipliers in
+ * {@link #miningSpeed(double, int, boolean, boolean, boolean, int, int)}.</p>
  */
 public final class MiningRules {
 
     /** The vanilla bare-fist speed ({@code PlayerInventory.getMiningSpeed}). */
     public static final double BARE_FIST_SPEED = 1.0;
+    /** The no-live-instance amplifier ({@code hasStatusEffect} false). */
+    public static final int NO_EFFECT = -1;
     /** The vanilla harvestable divisor ({@code Block.getMiningSpeed}). */
     public static final double HARVEST_DIVISOR = 30.0;
     /** The vanilla non-harvestable divisor (the same method, the wrong tool). */
@@ -55,9 +63,43 @@ public final class MiningRules {
      */
     public static double miningSpeed(double baseToolSpeed, int efficiencyLevel,
                                      boolean submerged, boolean aquaAffinity, boolean onGround) {
+        return miningSpeed(baseToolSpeed, efficiencyLevel, submerged, aquaAffinity,
+                onGround, NO_EFFECT, NO_EFFECT);
+    }
+
+    /**
+     * The mining-speed parity audit's full walk — the reference's own
+     * {@code PlayerEntity.getMiningSpeed} lines 654-706 with the two
+     * status-effect multipliers the five-arg shape had promised: the
+     * Efficiency add first (gated on {@code f > 1.0F}), then Haste
+     * ({@code f *= 1 + 0.2*(amplifier+1)}), then mining fatigue
+     * ({@code 0.3 / 0.09 / 0.0027 / 8.1e-4} by amplifier, the amp-3-and-up
+     * arm folding every deeper amplifier into {@code 8.1e-4} exactly), then
+     * the water and airborne divisors — the reference's own order, the
+     * environment divisors last.
+     *
+     * @param hasteAmplifier    the digger's live Haste amplifier, or
+     *                          {@link #NO_EFFECT} when the body carries none
+     * @param fatigueAmplifier  the digger's live mining-fatigue amplifier, or
+     *                          {@link #NO_EFFECT} when the body carries none
+     */
+    public static double miningSpeed(double baseToolSpeed, int efficiencyLevel,
+                                     boolean submerged, boolean aquaAffinity, boolean onGround,
+                                     int hasteAmplifier, int fatigueAmplifier) {
         double speed = baseToolSpeed;
         if (speed > BARE_FIST_SPEED && efficiencyLevel > 0) {
             speed += efficiencyLevel * efficiencyLevel + 1;
+        }
+        if (hasteAmplifier > NO_EFFECT) {
+            speed *= 1.0 + 0.2 * (hasteAmplifier + 1);
+        }
+        if (fatigueAmplifier > NO_EFFECT) {
+            speed *= switch (fatigueAmplifier) {
+                case 0 -> 0.3;
+                case 1 -> 0.09;
+                case 2 -> 0.0027;
+                default -> 8.1e-4;
+            };
         }
         if (submerged && !aquaAffinity) {
             speed /= PENALTY_DIVISOR;

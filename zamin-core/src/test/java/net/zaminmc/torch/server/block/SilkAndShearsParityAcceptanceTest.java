@@ -139,16 +139,24 @@ class SilkAndShearsParityAcceptanceTest {
         // clay's four balls, the snow block's four snowballs, the
         // mycelium's dirt, the quartz ore's gem — silk takes the BLOCK
         // itself for each (the pre-fix walk answered the by-hand rows
-        // under silk too).
+        // under silk too). The mining-speed parity audit re-pinned the
+        // snow seat: the SNOW material requires the tool (Material line
+        // 29) with the ShovelItem's own canMineBlock as the gate — the
+        // silk and the by-hand reads move to a SHOVEL, the bare hand
+        // answering the gate's own nothing.
         DropService drops = new DropService(new Random(0xF11L));
         List<ItemStack> clay = drops.dropsFor(block("minecraft:clay"), null, true, 0);
         assertEquals(List.of("minecraft:clay"), droppedItems(clay));
         assertEquals(4, drops.dropsFor(block("minecraft:clay"), null, false, 0)
                 .get(0).count(), "the by-hand clay keeps four balls");
-        List<ItemStack> snow = drops.dropsFor(block("minecraft:snow"), null, true, 0);
+        List<ItemStack> snow = drops.dropsFor(block("minecraft:snow"),
+                BuiltinItems.DIAMOND_SHOVEL, true, 0);
         assertEquals(List.of("minecraft:snow"), droppedItems(snow));
-        assertEquals(4, drops.dropsFor(block("minecraft:snow"), null, false, 0)
-                .get(0).count(), "the by-hand snow keeps four snowballs");
+        assertEquals(4, drops.dropsFor(block("minecraft:snow"),
+                        BuiltinItems.DIAMOND_SHOVEL, false, 0)
+                .get(0).count(), "the shovel's four snowballs stay flat");
+        assertTrue(drops.dropsFor(block("minecraft:snow"), null, false, 0).isEmpty(),
+                "the bare hand harvests nothing (the SNOW material's own gate)");
         List<ItemStack> mycelium = drops.dropsFor(block("minecraft:mycelium"), null, true, 0);
         assertEquals(List.of("minecraft:mycelium"), droppedItems(mycelium));
         assertEquals(List.of("minecraft:dirt"),
@@ -195,16 +203,33 @@ class SilkAndShearsParityAcceptanceTest {
     void theCobwebAnswersOneStringByHandAndItselfUnderSilk() {
         // CobwebBlock lines 41-45: getDropItem STRING, base ONE — the
         // pre-fix table carried NO row, so every break answered nothing;
-        // line 47's own gate: silk takes the web itself.
+        // line 47's own gate: silk takes the web itself. The mining-speed
+        // parity audit re-pinned the seat's held tools: the COBWEB
+        // material requires the tool (Material lines 36-41) and the web's
+        // breakers are the SWORD and the SHEARS (SwordItem line 84,
+        // ShearsItem lines 35-37), so the string and the silk web belong
+        // to that pair — the bare hand and every other tool answer the
+        // gate's own nothing (the pre-fix row had left the web tool-free,
+        // a bare hand taking the string).
         DropService drops = new DropService(new Random(0x3E8L));
         for (int i = 0; i < 64; i++) {
-            List<ItemStack> hand = drops.dropsFor(block("minecraft:cobweb"), null, false, 0);
-            assertEquals(List.of("minecraft:string"), droppedItems(hand));
-            assertEquals(1, hand.get(0).count());
+            List<ItemStack> sword = drops.dropsFor(block("minecraft:cobweb"),
+                    BuiltinItems.IRON_SWORD, false, 0);
+            assertEquals(List.of("minecraft:string"), droppedItems(sword));
+            assertEquals(1, sword.get(0).count());
+            List<ItemStack> shears = drops.dropsFor(block("minecraft:cobweb"),
+                    BuiltinItems.SHEARS, false, 0);
+            assertEquals(List.of("minecraft:string"), droppedItems(shears));
+            assertTrue(drops.dropsFor(block("minecraft:cobweb"), null, false, 0).isEmpty(),
+                    "the bare hand harvests nothing from the web");
         }
-        List<ItemStack> silk = drops.dropsFor(block("minecraft:cobweb"), null, true, 0);
+        List<ItemStack> silk = drops.dropsFor(block("minecraft:cobweb"),
+                BuiltinItems.IRON_SWORD, true, 0);
         assertEquals(1, silk.size());
         assertEquals("minecraft:cobweb", silk.get(0).type().identifier().toString());
+        assertTrue(drops.dropsFor(block("minecraft:cobweb"),
+                        BuiltinItems.DIAMOND_PICKAXE, true, 0).isEmpty(),
+                "the pickaxe never harvests the web, even under silk");
     }
 
     @Test
