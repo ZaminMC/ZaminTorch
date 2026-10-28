@@ -17752,3 +17752,66 @@ DamageTracker is its own future family); the dragon's no-killed-by-row
 (entityKeyOf's own spawn-egg exclusion — correct 1:1); the window
 family's hotbar↔main shuffle tail (pass 6's recorded divergence,
 unchanged).
+
+## 2026-10-28 — the sign rotation family parity audit (PR #67, the verifier's twelfth pass)
+
+The twelfth sweep, one family over: the sign — the standing sign's rotation
+model, the placement walk, the support-break laws, and the import/wire
+surface. The findings doc (docs/SIGN_FAMILY_AUDIT_FINDINGS.md) records the
+whole discovery before any code changed; the three-verification record
+closes it.
+
+Seven restorations. THE SIXTEEN ROTATIONS: SignItem line 44's
+`floor((yaw + 180) * 16 / 360 + 0.5) & 15` places one of SIXTEEN states
+(StandingSignBlock.ROTATION 0-15, the wire nibble the rotation itself) —
+the engine folded them to the four cardinals and every diagonal look
+rendered the sign at the wrong angle (yaw 22.5 vanilla NNE vs the engine's
+N; yaw 45 vanilla NE vs E). The compass-16 states registered, the 4-band
+pick retired. THE ANVIL IMPORT: the twelve missing rows — the pre-audit
+import isolated a vanilla world's angled sign AS AIR, the block and the
+text both lost. THE GATES in the reference's own order: the bottom-face
+refusal (a face-0 click planted a floating sign below the clicked block);
+the clicked-MATERIAL consult (the new MaterialSolidity helper — the
+reference's Material.isSolid model, not the collision model: the cobweb
+and the pressure plates are material-solid, the torch's DECORATION refuses,
+the sign's own WOOD stacks); the cactus-neighbour gate (the four
+horizontals of the target); and the body-collision consult REMOVED (the
+reference's item walk carries no entity gate — a sign plants into the
+placer's own cell, the sign's collision shape is null). THE SUPPORT ARMS:
+the standing sign's floor consult and the wall sign's behind-consult (the
+per-state facing's opposite), both in the floor-torch arm's own pattern —
+a sign on leaves STANDS (the LEAVES material is solid; the torch arm's
+air-only consult would have popped it), a sign on a carpet pops.
+
+THE STALE LEDGER NOTE RETIRED: the Wave PF commit's claim "the
+chest/furnace placement sites' older truncation band" does not describe
+the code — all fifteen lookBand sites were re-read and every one carries
+the +45-shift centered form, mathematically the reference's byRotation
+band. A ledgered note is a claim about the code at its writing time.
+
+**Evidence:** SignRotationParityTest 6/0 (NEW — the band's seventeen seats
+through the live use dispatch, the gates, the three support scenes, the
+nibble/import surface); the sign package + registry + update system 22/0;
+the block + skull packages 263/0; the anvil import + light census 49/0;
+the protocol wire batch 9/0; BlockRegistryTest re-pinned 902 -> 914.
+
+**Lessons:** (1) an offset-table helper's ARRAY SHAPE is part of the law —
+the wall-sign offsets shipped as three-element {0,0,1} rows while the
+consult read the (dx,dz) pair at [0]/[1], the sign reading its own cell as
+its own support: every symptom (the arm "not firing", the consult "lying")
+was the same two-element read of a three-element array, and the seat that
+finally pinned it printed the array AND the indexed reads in one
+statement; (2) a live-vs-unit split in the seats pays — the band seats
+through the real use dispatch caught the shared-spawn-column collision the
+pure consults never would; (3) the Material.isSolid model is its own
+consult — the collision model (WorldSolidity) answers a different
+question, and the cobweb/plates/signs/doors rows differ between them; the
+cactus arm and the floor-torch arm carry the substitution as their own
+future rows.
+
+**Standing tails:** BlockItem.setBlockNbt (the sign stack carrying
+BlockEntityTag skips the editor open — the item-NBT family's row); the
+banner family (no banner item in the registry); the engine's cactus arm
+substitutes the collision model for Material.isSolid (a cobweb beside a
+cactus is spared where vanilla breaks it); the floor torch's air-only
+consult (a torch on leaves or a cobweb pops where vanilla keeps it).
