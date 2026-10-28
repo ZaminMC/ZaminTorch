@@ -104,20 +104,87 @@ public final class FurnaceRecipes {
     // coal because the fuel table keys by item type; the registry has exactly
     // one log, so the key covers every log variant the world can produce.
 
+    // The fuel family (the furnace fuel & cycle parity audit — the reference's
+    // own arms, FurnaceBlockEntity.getFuelTime lines 262-300, carried in the
+    // reference's own ORDER): the pre-audit table pinned four wood rows, the
+    // coal pair, the stick and the four wooden tools — and never carried the
+    // wooden-slab arm, the Material.WOOD class beyond its four pins, the
+    // wooden hoe, the lava bucket, the sapling pair, or the blaze rod. The
+    // arms below name the reference's law they restore; the set grows with
+    // the registry, never speculatively (this file's own provenance rule).
     private static final Map<Identifier, Integer> FUEL = Map.ofEntries(
-            Map.entry(Identifier.parse("minecraft:coal"), 1600),
-            // The coal block's burn (Slice 32 — FurnaceBlockEntity
-            // getFuelTime line 279: 16000 ticks, the 16-smelt block).
-            Map.entry(Identifier.parse("minecraft:coal_block"), 16000),
+            // The WOODEN_SLAB arm FIRST (lines 270-272): 150 ticks — checked
+            // BEFORE the wood-material class, the reference's own ordering
+            // law (half a plank's burn; a naive class-only read pays 300).
+            // Both registered ids of the one reference item (Block.java line
+            // 1275's legacy 126, SingleWoodenSlabBlock).
+            Map.entry(Identifier.parse("minecraft:wooden_slab"), 150),
+            Map.entry(Identifier.parse("minecraft:oak_slab"), 150),
+            // The Material.WOOD class (lines 274-276): 300 ticks for every
+            // registered block item whose BLOCK reads wood — the reference
+            // answers the CLASS, so the rows below are the registry's wood
+            // members, not a hand-picked four: the planks/log/log2 variant
+            // trio, the workbench, the chest, the bookshelf (BookshelfBlock
+            // line 12's own Material.WOOD), the note block (NoteBlock line
+            // 21), the jukebox (JukeboxBlock line 24), the sign (SignBlock
+            // line 19), the oak door (Block.java line 1130's explicit
+            // Material.WOOD), the trapdoor (line 1198), the oak fence and the
+            // five variant fences (FenceBlock(Material.WOOD) — Block.java
+            // lines 1185 / 1419-1455), the fence gate (FenceGateBlock line
+            // 22), and the six wood stairs (StairsBlock line 37 — the
+            // modeled planks state's own material). The LADDER is NOT a
+            // member: LadderBlock line 20 reads Material.DECORATION — the
+            // one wooden-looking block the class law excludes.
             Map.entry(Identifier.parse("minecraft:oak_planks"), 300),
+            Map.entry(Identifier.parse("minecraft:planks"), 300),
             Map.entry(Identifier.parse("minecraft:oak_log"), 300),
-            Map.entry(Identifier.parse("minecraft:stick"), 100),
+            Map.entry(Identifier.parse("minecraft:log"), 300),
+            Map.entry(Identifier.parse("minecraft:log2"), 300),
             Map.entry(Identifier.parse("minecraft:crafting_table"), 300),
             Map.entry(Identifier.parse("minecraft:chest"), 300),
+            Map.entry(Identifier.parse("minecraft:bookshelf"), 300),
+            Map.entry(Identifier.parse("minecraft:noteblock"), 300),
+            Map.entry(Identifier.parse("minecraft:jukebox"), 300),
+            Map.entry(Identifier.parse("minecraft:sign"), 300),
+            Map.entry(Identifier.parse("minecraft:oak_door"), 300),
+            Map.entry(Identifier.parse("minecraft:trapdoor"), 300),
+            Map.entry(Identifier.parse("minecraft:oak_fence"), 300),
+            Map.entry(Identifier.parse("minecraft:spruce_fence"), 300),
+            Map.entry(Identifier.parse("minecraft:birch_fence"), 300),
+            Map.entry(Identifier.parse("minecraft:jungle_fence"), 300),
+            Map.entry(Identifier.parse("minecraft:dark_oak_fence"), 300),
+            Map.entry(Identifier.parse("minecraft:acacia_fence"), 300),
+            Map.entry(Identifier.parse("minecraft:oak_fence_gate"), 300),
+            Map.entry(Identifier.parse("minecraft:oak_stairs"), 300),
+            Map.entry(Identifier.parse("minecraft:spruce_stairs"), 300),
+            Map.entry(Identifier.parse("minecraft:birch_stairs"), 300),
+            Map.entry(Identifier.parse("minecraft:jungle_stairs"), 300),
+            Map.entry(Identifier.parse("minecraft:acacia_stairs"), 300),
+            Map.entry(Identifier.parse("minecraft:dark_oak_stairs"), 300),
+            // The coal block (Slice 32 — FurnaceBlockEntity getFuelTime
+            // line 279: 16000 ticks, the 16-smelt block).
+            Map.entry(Identifier.parse("minecraft:coal_block"), 16000),
+            // The wooden TOOL / SWORD / HOE arms (lines 283-288): 200 each —
+            // the reference reads the tier per ITEM CLASS (ToolItem, then
+            // SwordItem, then HoeItem), and the pre-audit table's four rows
+            // never carried the hoe.
             Map.entry(Identifier.parse("minecraft:wooden_pickaxe"), 200),
             Map.entry(Identifier.parse("minecraft:wooden_axe"), 200),
             Map.entry(Identifier.parse("minecraft:wooden_shovel"), 200),
-            Map.entry(Identifier.parse("minecraft:wooden_sword"), 200));
+            Map.entry(Identifier.parse("minecraft:wooden_sword"), 200),
+            Map.entry(Identifier.parse("minecraft:wooden_hoe"), 200),
+            // The item arms (lines 289-298): the stick 100, the coal 1600
+            // (charcoal rides the type key — the one registry item covers
+            // the damage-1 variant, the historical charcoal law), the lava
+            // bucket 20000 (the ten-smelt bucket the pre-audit table never
+            // carried), the sapling 100 (both registered ids of legacy 6),
+            // and the blaze rod 2400 (the twelve-smelt rod).
+            Map.entry(Identifier.parse("minecraft:stick"), 100),
+            Map.entry(Identifier.parse("minecraft:coal"), 1600),
+            Map.entry(Identifier.parse("minecraft:lava_bucket"), 20000),
+            Map.entry(Identifier.parse("minecraft:sapling"), 100),
+            Map.entry(Identifier.parse("minecraft:oak_sapling"), 100),
+            Map.entry(Identifier.parse("minecraft:blaze_rod"), 2400));
 
     /**
      * The experience points one taken output item pays. The cooked fish
@@ -276,5 +343,25 @@ public final class FurnaceRecipes {
     /** @return the burn duration of one fuel unit in ticks, or 0 when not fuel. */
     public static int burnTicksOf(ItemType type) {
         return FUEL.getOrDefault(type.identifier(), 0);
+    }
+
+    /**
+     * The fuel consumption's leftover (the reference tick's own consult,
+     * FurnaceBlockEntity lines 184-187: when the igniting stack's LAST unit
+     * burns away, the item's recipe remainder replaces the whole stack —
+     * {@code Item.getRecipeRemainder}, whose rows live at the item
+     * registrations: Item.java line 611 pins the lava bucket's
+     * {@code setRecipeRemainder(bucket)}). Every other fuel leaves nothing
+     * (the reference's null row) — smelting consumes its input clean, and
+     * only the fuel stack ever rides this arm.
+     *
+     * @return the leftover stack's item type, or null when the fuel leaves
+     *         nothing behind.
+     */
+    public static ItemType fuelRemainderOf(ItemType fuel) {
+        if (fuel.identifier().value().equals("lava_bucket")) {
+            return BuiltinItems.lookup(Identifier.parse("minecraft:bucket")).orElse(null);
+        }
+        return null;
     }
 }
