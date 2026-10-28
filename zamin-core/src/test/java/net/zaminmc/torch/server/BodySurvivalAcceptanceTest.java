@@ -65,6 +65,44 @@ class BodySurvivalAcceptanceTest {
     }
 
     @Test
+    void theGoldenAppleEatsAtFullHungerButBreadRefuses() throws Exception {
+        EngineServer server = boot();
+        try {
+            // FoodItem.startUsing line 59 consults canEat(this.alwaysEdible)
+            // — the golden apple's own setAlwaysEdible (Item.java line 604,
+            // the food family's single always-edible registration): a
+            // SURVIVAL body at FULL hunger still begins the eat. The gate
+            // the pre-audit engine paid refused everything at the cap.
+            PlayerSession saint = join(server, "Saint");
+            server.chatService().submitChat(saint, "/give " + saint.name() + " golden_apple 1");
+            await(() -> !saint.inventory().held().isEmpty(), "the golden apple given");
+            saint.setBody(20.0f, 20, 0.0f); // FULL hunger, zero saturation
+            server.useItem(saint);
+            await(() -> saint.eating(), "the always-edible eat begins at the cap");
+            await(() -> !saint.eating(), "the 32-tick eat completes");
+            assertEquals(20, saint.food(), "the nutrition clamps at the cap (add's own min)");
+            assertEquals(9.6f, saint.saturation(), 0.0001f,
+                    "the fold still pays: 4 x 1.2 x 2 = 9.6 restored under the cap");
+            var potions = server.potions();
+            await(() -> potions.hasEffect(saint,
+                            net.zaminmc.torch.server.potion.StatusEffects.ABSORPTION),
+                    "the effects pay at the full-hunger completion");
+            assertTrue(saint.inventory().held().isEmpty(), "the apple consumed");
+
+            // The plain food at the cap still refuses (needsFood alone —
+            // PlayerEntity.canEat line 1488's first arm).
+            server.chatService().submitChat(saint, "/give " + saint.name() + " bread 1");
+            await(() -> !saint.inventory().held().isEmpty(), "the bread given");
+            server.useItem(saint);
+            Thread.sleep(150); // the submit lands within three ticks; no eat begins
+            assertFalse(saint.eating(), "a plain food never begins at the cap");
+            assertEquals(1, saint.inventory().held().count(), "nothing was consumed");
+        } finally {
+            server.shutdown(null);
+        }
+    }
+
+    @Test
     void theGoldenAppleInstallsItsEffectSet() throws Exception {
         EngineServer server = boot();
         try {
@@ -228,7 +266,8 @@ class BodySurvivalAcceptanceTest {
         try {
             // The pufferfish's eat triple (FishItem.addEatEffects lines 38-47):
             // Poison IV 1200 (60 s), Hunger III 300 (15 s), Nausea II 300
-            // (15 s) — all certain, no chance roll. One food, 0.1 saturation.
+            // (15 s) — all certain, no chance roll. One food, 0.2 saturation
+            // (the fold: 1 x 0.1 x 2).
             PlayerSession swimmer = join(server, "Swimmer");
             server.chatService().submitChat(swimmer, "/give " + swimmer.name() + " fish 1 3");
             await(() -> !swimmer.inventory().held().isEmpty(), "the pufferfish given");
@@ -264,24 +303,36 @@ class BodySurvivalAcceptanceTest {
         try {
             // The reference's own Type table (FishItem.Type lines 64-97):
             // the raw cod 2 food, the raw salmon 2, the clownfish 1; the
-            // cooked cod 5, the cooked salmon 6 (raw saturation 0.1 across
-            // the board, cooked 0.6 / 0.8).
+            // cooked cod 5, the cooked salmon 6. The saturation seats were
+            // re-pinned by the seventh pass against HungerManager.add lines
+            // 20-23 — the reference's Type columns carry the raw MODIFIERS
+            // (0.1 across the board, cooked 0.6 / 0.8) and the hunger
+            // manager folds food x modifier x 2 at every bite, so the
+            // restored saturation is 0.4 raw, 6.0 cooked cod, 9.6 cooked
+            // salmon (the pre-audit seats had pinned the modifiers
+            // themselves as the restoration).
             assertEquals(2, net.zaminmc.torch.server.item.FishItems
                             .nutritionOf(BuiltinItems.FISH.identifier(), 0).foodPoints());
-            assertEquals(0.1f, net.zaminmc.torch.server.item.FishItems
-                            .nutritionOf(BuiltinItems.FISH.identifier(), 0).saturation(), 0.0001f);
+            assertEquals(0.4f, net.zaminmc.torch.server.item.FishItems
+                            .nutritionOf(BuiltinItems.FISH.identifier(), 0).saturation(),
+                    0.0001f, "the fold: 2 x 0.1 x 2 (HungerManager.add line 22)");
             assertEquals(2, net.zaminmc.torch.server.item.FishItems
                             .nutritionOf(BuiltinItems.FISH.identifier(), 1).foodPoints());
             assertEquals(1, net.zaminmc.torch.server.item.FishItems
                             .nutritionOf(BuiltinItems.FISH.identifier(), 2).foodPoints());
+            assertEquals(0.2f, net.zaminmc.torch.server.item.FishItems
+                            .nutritionOf(BuiltinItems.FISH.identifier(), 3).saturation(),
+                    0.0001f, "the pufferfish's fold: 1 x 0.1 x 2");
             assertEquals(5, net.zaminmc.torch.server.item.FishItems
                             .nutritionOf(BuiltinItems.COOKED_FISH.identifier(), 0).foodPoints());
-            assertEquals(0.6f, net.zaminmc.torch.server.item.FishItems
-                            .nutritionOf(BuiltinItems.COOKED_FISH.identifier(), 0).saturation(), 0.0001f);
+            assertEquals(6.0f, net.zaminmc.torch.server.item.FishItems
+                            .nutritionOf(BuiltinItems.COOKED_FISH.identifier(), 0).saturation(),
+                    0.0001f, "the fold: 5 x 0.6 x 2");
             assertEquals(6, net.zaminmc.torch.server.item.FishItems
                             .nutritionOf(BuiltinItems.COOKED_FISH.identifier(), 1).foodPoints());
-            assertEquals(0.8f, net.zaminmc.torch.server.item.FishItems
-                            .nutritionOf(BuiltinItems.COOKED_FISH.identifier(), 1).saturation(), 0.0001f);
+            assertEquals(9.6f, net.zaminmc.torch.server.item.FishItems
+                            .nutritionOf(BuiltinItems.COOKED_FISH.identifier(), 1).saturation(),
+                    0.0001f, "the fold: 6 x 0.8 x 2");
             // The reference's own quirks: a cooked clownfish (non-cookable)
             // answers the RAW values, and an unknown metadata answers COD.
             assertEquals(1, net.zaminmc.torch.server.item.FishItems
@@ -299,7 +350,8 @@ class BodySurvivalAcceptanceTest {
             diner.setBody(20.0f, 12, 0.0f);
             server.useItem(diner);
             await(() -> diner.food() == 18, "the cooked salmon eaten: food 12 + 6");
-            assertEquals(0.8f, diner.saturation(), 0.0001f);
+            assertEquals(9.6f, diner.saturation(), 0.0001f,
+                    "the fold's live arm: 6 x 0.8 x 2 restored (HungerManager.add)");
 
             // The reference's own quirk: a cooked fish WITH pufferfish
             // metadata eats (and poisons) like a raw pufferfish —

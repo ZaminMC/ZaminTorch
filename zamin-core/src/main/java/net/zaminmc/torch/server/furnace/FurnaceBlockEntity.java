@@ -14,13 +14,17 @@ import java.util.Optional;
  * closing and the server restarting (ZFD persistence), exactly like the
  * historical model.
  *
- * <p>The tick reproduces the historical 1.8 {@code TileEntityFurnace} cycle:
- * burning decrements the remaining burn time; when the furnace can smelt and
- * is not burning, one fuel item is consumed to ignite a cycle of its burn
- * value; while burning and smeltable, {@code cookTime} advances one per tick
- * and reaching {@link FurnaceRecipes#COOK_TICKS} smelts one result; any
- * interruption (no fuel, no smeltable input) resets {@code cookTime} to zero —
- * the historical punishment for pausing a furnace.</p>
+ * <p>The tick reproduces the historical 1.8 {@code TileEntityFurnace} cycle
+ * (FurnaceBlockEntity.tick lines 168-216): burning decrements the remaining
+ * burn time; when the furnace can smelt and is not burning, one fuel item is
+ * consumed to ignite a cycle of its burn value — the last unit leaving the
+ * item's recipe remainder when it carries one (the lava bucket's empty
+ * bucket); while burning and smeltable, {@code cookTime} advances one per
+ * tick and reaching {@link FurnaceRecipes#COOK_TICKS} smelts one result; the
+ * interruption pays the reference's own two laws — the GUARDED block (the
+ * furnace burning, or both a fuel item and an input present) hard-resets
+ * {@code cookTime} to zero, while outside that guard the progress DECAYS by
+ * two per tick, never a whole reset (lines 203-204).</p>
  *
  * <p>Ownership: mutated only by the simulation context (the furnace manager's
  * tick and the engine's click routing on the tick thread). Change serials let
@@ -127,9 +131,20 @@ public final class FurnaceBlockEntity {
     }
 
     /**
-     * One simulation tick of the smelting state machine. @return whether the
-     * furnace is still (or newly) burning after the tick — used by tests and
-     * the manager for lit-state decisions.
+     * One simulation tick of the smelting state machine, the reference's own
+     * shape (FurnaceBlockEntity.tick lines 168-216): the burn decrement runs
+     * first; then the tick's outer GUARD — burning, or both a fuel item and
+     * an input present — decides which interruption law applies. INSIDE the
+     * guard the furnace ignites when it can smelt, and the cook either
+     * advances or hard-resets (the reference's {@code else { cookTime = 0 }
+     * — a burning furnace with its input pulled loses the progress, the
+     * historical punishment). OUTSIDE the guard — not burning with the fuel
+     * or the input gone — the progress DECAYS by two per tick (lines
+     * 203-204's {@code clamp(cookTime - 2, 0, totalCookTime)}), never the
+     * hard reset the pre-audit fold paid both arms alike.
+     *
+     * @return whether the furnace is still (or newly) burning after the
+     *         tick — used by tests and the manager for lit-state decisions.
      */
     public boolean tick() {
         boolean wasBurning = burnTimeRemaining > 0;
@@ -137,29 +152,43 @@ public final class FurnaceBlockEntity {
             burnTimeRemaining--;
             propsSerial++;
         }
-        if (!burning() && canSmelt()) {
-            // Ignite: consume one fuel unit, start its burn cycle (historical).
-            int burn = fuelBurnValue();
-            if (burn > 0 && (gates == null || gates.allowIgnite(slots[SLOT_FUEL], burn))) {
-                burnTimeRemaining = burn;
-                burnTimeTotal = burn;
-                consumeOne(SLOT_FUEL);
-                propsSerial++;
-            }
-        }
-        if (burning() && canSmelt()) {
-            cookTime++;
-            propsSerial++;
-            if (cookTime >= FurnaceRecipes.COOK_TICKS) {
-                cookTime = 0;
-                if (gates == null || gates.allowSmelt(slots[SLOT_INPUT], smeltResultOf(slots[SLOT_INPUT]))) {
-                    smeltOne();
-                    bump();
+        boolean fuelPresent = !slots[SLOT_FUEL].isEmpty();
+        boolean inputPresent = !slots[SLOT_INPUT].isEmpty();
+        if (burning() || (fuelPresent && inputPresent)) {
+            // The guarded block (reference lines 177-202).
+            if (!burning() && canSmelt()) {
+                // Ignite: consume one fuel unit, start its burn cycle
+                // (historical) — the last unit leaves the item's recipe
+                // remainder in the slot when it carries one.
+                int burn = fuelBurnValue();
+                if (burn > 0 && (gates == null || gates.allowIgnite(slots[SLOT_FUEL], burn))) {
+                    burnTimeRemaining = burn;
+                    burnTimeTotal = burn;
+                    consumeFuel();
+                    propsSerial++;
                 }
             }
-        } else if (cookTime != 0) {
-            // Not cooking: the historical reset (progress never persists).
-            cookTime = 0;
+            if (burning() && canSmelt()) {
+                cookTime++;
+                propsSerial++;
+                if (cookTime >= FurnaceRecipes.COOK_TICKS) {
+                    cookTime = 0;
+                    if (gates == null || gates.allowSmelt(slots[SLOT_INPUT], smeltResultOf(slots[SLOT_INPUT]))) {
+                        smeltOne();
+                        bump();
+                    }
+                }
+            } else if (cookTime != 0) {
+                // The guarded hard reset: burning without a smeltable input
+                // (or blocked by a full output) loses the progress whole.
+                cookTime = 0;
+                propsSerial++;
+            }
+        } else if (!burning() && cookTime > 0) {
+            // The unguarded decay (reference lines 203-204): two points per
+            // tick, clamped at zero — the cook window closes slowly when the
+            // fire and the input part between smelts.
+            cookTime = Math.max(cookTime - 2, 0);
             propsSerial++;
         }
         return burning() || wasBurning;
@@ -207,6 +236,30 @@ public final class FurnaceBlockEntity {
         bump();
     }
 
+    /**
+     * The fuel stack's own consumption (the reference tick lines 182-188:
+     * {@code size--}, then the recipe-remainder consult when the stack
+     * empties) — one unit burns per ignition, and the LAST unit leaves
+     * {@link FurnaceRecipes#fuelRemainderOf its leftover} in the slot when
+     * the item carries one: the lava bucket's empty bucket (Item.java line
+     * 611's {@code setRecipeRemainder}). The smelting input consumes clean
+     * ({@code finishCooking} never consults remainders) — only the fuel
+     * stack rides this arm.
+     */
+    private void consumeFuel() {
+        ItemStack current = slots[SLOT_FUEL];
+        int left = current.count() - 1;
+        if (left > 0) {
+            slots[SLOT_FUEL] = current.withCount(left);
+        } else {
+            ItemType remainder = FurnaceRecipes.fuelRemainderOf(current.type());
+            slots[SLOT_FUEL] = remainder == null
+                    ? ItemStack.EMPTY
+                    : new ItemStack(remainder, 1, 0);
+        }
+        bump();
+    }
+
     /** Moves one smelt result into the output slot (validated by {@link #canSmelt}). */
     private void smeltOne() {
         ItemStack in = slots[SLOT_INPUT];
@@ -228,13 +281,38 @@ public final class FurnaceBlockEntity {
     /**
      * Semantic left/right click on one furnace slot (window click mode 0),
      * sharing the inventory's cursor through the historical click semantics.
-     * The output slot accepts placement of anything (the historical container
-     * slot does not filter), but the tick machine only ever produces valid
-     * results there.
+     * The window's three slots carry the menu's own gates (FurnaceMenu
+     * lines 22-24): the input is a plain InventorySlot (no filter — dirt may
+     * wait in it, it just never smelts); the fuel slot is the
+     * FurnaceFuelSlot (isFuel OR the empty bucket — the bucket the
+     * remainder leaves behind — stacking to ONE in the slot,
+     * FurnaceFuelSlot.getMaxStackSize's own row); the output is the
+     * FurnaceResultSlot, whose {@code isItemAllowed} answers FALSE: taking
+     * only, never placement (the pre-audit comment claimed no slot filtered
+     * — two of the three do).
      */
     public void clickSlot(int slot, int button, net.zaminmc.torch.server.player.PlayerInventory inventory) {
         rangeCheck(slot);
-        net.zaminmc.torch.server.player.WindowClicks.click(slots, slot, button, inventory.cursorBox());
+        ItemStack carried = inventory.cursor();
+        int slotMax = 64;
+        net.zaminmc.torch.server.player.WindowClicks.SlotFilter filter =
+                net.zaminmc.torch.server.player.WindowClicks.ANY;
+        if (slot == SLOT_FUEL) {
+            // FurnaceFuelSlot lines 14-25: fuel or the EMPTY bucket, and the
+            // bucket caps at one unit in the slot.
+            filter = stack -> FurnaceRecipes.burnTicksOf(stack.type()) > 0
+                    || stack.type().identifier().value().equals("bucket");
+            if (carried.type() != null
+                    && carried.type().identifier().value().equals("bucket")) {
+                slotMax = 1;
+            }
+        } else if (slot == SLOT_OUTPUT) {
+            // FurnaceResultSlot lines 21-24: placement refused outright;
+            // taking never gates.
+            filter = stack -> false;
+        }
+        net.zaminmc.torch.server.player.WindowClicks.click(
+                slots, slot, button, inventory.cursorBox(), slotMax, filter);
         bump();
     }
 

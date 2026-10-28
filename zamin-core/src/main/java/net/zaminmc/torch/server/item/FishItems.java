@@ -78,14 +78,27 @@ public final class FishItems {
      * the cooked item of a cookable variant answers the cooked values,
      * everything else the raw values — the raw item never sees the cooked
      * arm, and a cooked clownfish/pufferfish falls back to the raw pair.
+     *
+     * <p>The fold (the verifier's seventh pass — HungerManager.add lines
+     * 20-23): the reference's Type columns carry the raw MODIFIERS (the
+     * 0.1F/0.6F/0.8F of FishItem.Type's own table) and the hunger manager
+     * folds {@code food x modifier x 2} at every bite. This table answers
+     * the Nutrition record's own convention — the saturation RESTORED —
+     * so the fold rides the answer: raw cod 2 x 0.1 x 2 = 0.4, cooked cod
+     * 5 x 0.6 x 2 = 6.0, cooked salmon 6 x 0.8 x 2 = 9.6, and the
+     * clownfish/pufferfish pair 1 x 0.1 x 2 = 0.2 (the pre-audit answer
+     * passed the modifier itself, a quarter of the cooked cod's true
+     * restoration).</p>
      */
     public static Foods.Nutrition nutritionOf(Identifier item, int metadata) {
         Type type = byId(metadata);
         boolean cooked = COOKED_FISH.equals(item);
         if (cooked && type.cookable) {
-            return new Foods.Nutrition(type.hungerCooked, type.saturationCooked);
+            return new Foods.Nutrition(type.hungerCooked,
+                    type.hungerCooked * type.saturationCooked * 2.0f);
         }
-        return new Foods.Nutrition(type.hungerRaw, type.saturationRaw);
+        return new Foods.Nutrition(type.hungerRaw,
+                type.hungerRaw * type.saturationRaw * 2.0f);
     }
 
     /**
