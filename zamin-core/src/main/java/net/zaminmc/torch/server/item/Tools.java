@@ -123,6 +123,51 @@ public final class Tools {
     }
 
     /**
+     * Whether one successful dig pays the used-item row (the stats family
+     * audit — {@code ItemStack.mineBlock} lines 252-257's flag over
+     * {@code item.mineBlock}): the ToolItem family and the SWORD answer TRUE
+     * for EVERY broken block (ToolItem line 45, SwordItem line 58 — the
+     * return sits OUTSIDE the hardness gate, so even an instant dig pays
+     * while only the WEAR is hardness-gated), while the HOE and every
+     * non-tool answer FALSE (HoeItem extends Item directly — the default
+     * {@code mineBlock} of Item line 146). The SHEARS answer their own band
+     * at the call site (ShearsItem lines 18-29: leaves, web, tallgrass,
+     * vine, tripwire, wool — the engine's {@code inShearsWearBand}), exactly
+     * the reference's own shape where the band override calls super outside
+     * it.
+     */
+    public static boolean mineUsePaysOf(ItemType itemType) {
+        ToolSpec spec = specOf(itemType).orElse(null);
+        if (spec == null) {
+            return false;
+        }
+        return switch (spec.toolClass()) {
+            case PICKAXE, AXE, SHOVEL, SWORD -> true;
+            default -> false; // shears: the band at the call site; hoe: never
+        };
+    }
+
+    /**
+     * Whether one landed melee hit pays the used-item row (the stats family
+     * audit — {@code ItemStack.attack} lines 245-250's flag over
+     * {@code item.attack}): the ToolItem family (ToolItem line 36) and the
+     * SWORD (SwordItem line 49) answer TRUE, while the SHEARS, the HOE, and
+     * every non-tool answer FALSE (Item's own default {@code attack}) — the
+     * asymmetric twin of {@link #mineUsePaysOf}, whose shears arm pays the
+     * band on digs but never on hits.
+     */
+    public static boolean meleeUsePaysOf(ItemType itemType) {
+        ToolSpec spec = specOf(itemType).orElse(null);
+        if (spec == null) {
+            return false;
+        }
+        return switch (spec.toolClass()) {
+            case PICKAXE, AXE, SHOVEL, SWORD -> true;
+            default -> false;
+        };
+    }
+
+    /**
      * The held stack's melee damage (Wave J — the reference's whole walk):
      * the attackDamage-named modifiers of {@code tag.AttributeModifiers}
      * folded over the bare-hand base 1.0 (EntityPlayer's own registered

@@ -129,6 +129,16 @@ public final class FishingSystem {
         void dropCatch(Position at, net.zaminmc.torch.item.ItemStack stack,
                        double anglerX, double anglerY, double anglerZ, int dimension);
 
+        /**
+         * The roll's own stat row (the stats family audit —
+         * FishingBobberEntity.getResult lines 491-513: the ROLL pays the
+         * band's row — junkFished, treasureFished, fishCaught — before
+         * the drop consults run; the sink resolves the angler by the
+         * thrower's engine id).
+         */
+        default void noteCatchBand(int throwerId, LootCategory category) {
+        }
+
         /** The catch's XP orb (nextInt(6) + 1) — in the angler's own
          * dimension (Wave TF-10). */
         void dropXp(Position at, int amount, int dimension);
@@ -520,6 +530,12 @@ public final class FishingSystem {
             // The §27.7 wave: the roll carries its band, the interceptors
             // observe/replace/cancel before the drop.
             LootRoll loot = getResult(throwerId);
+            // The band's own stat row (the stats family audit — getResult
+            // lines 499-510: the roll pays junkFished / treasureFished /
+            // fishCaught the moment the band is known, before the
+            // interceptors and the drop — exactly the reference's own
+            // position inside the roll walk).
+            catches.noteCatchBand(throwerId, loot.category());
             net.zaminmc.torch.item.ItemStack caught = loot.stack();
             boolean cancelled = false;
             if (!interceptors.isEmpty()) {
