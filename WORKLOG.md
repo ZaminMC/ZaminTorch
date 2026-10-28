@@ -16983,3 +16983,72 @@ order (a first draft had compress/encrypt swapped, which would have
 measured ciphertext-deflate nonsense); (3) the production threshold
 (256) rides the harness as a constant — the benchmark measures the
 shipped shape, not an idealized one.
+
+## Wave SC — the serialized-column memoization (the perf family's head — the last demand-named candidate standing, landed)
+
+**What:** the wire's dominant per-column cost — the 4096-block
+(id << 4) | metadata LE u16 walk inside ChunkSerializer18 — is now
+memoized per section against a content revision, so an UNCHANGED
+section re-serves its packed bytes instead of re-walking. The design
+the prior session's close note scoped (and called too
+correctness-critical to rush) landed with the invalidation surface
+the scoping itself named smaller than feared: the memo rides the
+BLOCK arm alone, so the surface is `ChunkSection.set` — verified the
+one mutation path engine-wide — and light/biome writes never touch it
+(they ride their own live reads, exactly the pre-memo behavior).
+
+**The protocol (the safety linchpin):** every state-changing `set`
+bumps a volatile revision AFTER the index write, so a revision-N
+reader is guaranteed every index write up to N; the serving arm
+(ChunkSerializer18.packedSection) reads the revision FIRST, then the
+memo slot, compares — and the store records the revision read BEFORE
+its walk. Under the volatile total order this admits exactly one
+imprecision — serving a pack that includes a committed-NEWER mutation
+— and never a stale serve (the phantom-blocks direction is
+structurally impossible; the admitted direction is the same tearing
+window the unmemoized cross-lane walk always rode). The wireMemo slot
+is opaque to the engine (core carries the slot, the protocol module
+owns the record type — the layer boundary kept whole); the null
+section serves a shared ALL_AIR constant; a no-op set never bumps.
+
+**The numbers (WireColumnMemoBenchmarkTest, the ML-024 re-stream
+shape — view-distance 4, 81 columns):** cold 1,361 us/column, warm
+9.4 us/column (the pure re-serve, against the attribution's measured
+0.50 ms average per column), partial 486 us/column. THE STORM ANSWER:
+the warm re-stream cycle 0.765 ms for all 81 columns against the
+ML-024 measured ~32 ms/cycle (the W2 storm's 4.5-5.3 ms/tick
+wirePublish row — the window's second-largest); the storm's real
+mixed shape (the death-site column changed, the other 80 unchanged)
+1.242 ms.
+
+**The stale-pin repair the sweep surfaced:** BiomeWorldTest's flora
+row still pinned the retired pre-PR54-59 tall-grass convention (the
+2-drop seeds+self table the parity audit fixed at its root — that
+wave never ran the world package). Re-pinned to the vanilla 1:1 law:
+TallPlantBlock's seeds row alone at 1/8, the by-hand self-drop an
+explicit negative, the plant itself riding the shears gate.
+
+**Evidence:** SectionPackMemoTest 10/0 NEW (the byte-identity drift
+guard — a verbatim copy of the pre-memo stream walk the memoized
+serializer must stay byte-identical to, over every serialize form;
+the memo's own laws — the re-served record identity, the
+exactly-the-mutated-section invalidation, the no-op set, light/biome
+never invalidating, the revision count);
+SectionPackMemoConcurrencyTest 1/0 NEW (two mutator lanes against two
+serializer lanes, the size law every iteration, the quieted state
+serving its true bytes); WireColumnMemoBenchmarkTest 1/0 NEW; the
+serializer lane 8/0; the core world lanes whole 231/0 over 34 classes
+(the stale-pin repair included); the protocol wire batch 22/0; the
+bukkit + launcher 105/0.
+
+**Lessons:** (1) the feared invalidation surface was the design
+note's own scoping artifact — slicing the memo to the BLOCK arm alone
+(light and biome never riding it) collapses the surface to the single
+mutation path the engine already funnels through setBlock; (2) the
+prior session's honest "not started" close left a half-landed tree —
+the recovery protocol (assess the diff against the reference, verify
+the ordering law, run the tests, then ledger) is the pattern for any
+uncommitted work the environment hands over; (3) the drift-guard
+convention (a verbatim copy of the replaced law inside the test) is
+what lets a perf change carry a byte-identity proof — the memo cannot
+silently diverge from the walk it replaced.
