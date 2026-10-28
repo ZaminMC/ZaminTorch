@@ -51,6 +51,24 @@ public final class BlockUpdateSystem implements WorldChangeListener {
     private static final int[][] NEIGHBOR_OFFSETS = {
             {0, 0, 0}, {1, 0, 0}, {-1, 0, 0}, {0, 1, 0}, {0, -1, 0}, {0, 0, 1}, {0, 0, -1}};
 
+    /**
+     * The wall sign's support-cell offset (WallSignBlock's FACING
+     * opposite): the sign faces north (metadata 2) hanging on the block to
+     * its SOUTH, and so on around the compass.
+     */
+    private static int[] wallSignSupportOffset(String value) {
+        if (value.equals("wall_sign")) {
+            return new int[]{0, 1};     // faces north: the wall behind is south (+z)
+        }
+        if (value.equals("wall_sign_south")) {
+            return new int[]{0, -1};    // faces south: the wall behind is north (-z)
+        }
+        if (value.equals("wall_sign_west")) {
+            return new int[]{1, 0};     // faces west: the wall behind is east (+x)
+        }
+        return new int[]{-1, 0};          // wall_sign_east: the wall behind is west (-x)
+    }
+
     private static final Identifier TORCH = Identifier.parse("minecraft:torch");
     private static final Identifier GRASS = Identifier.parse("minecraft:grass_block");
     private static final Identifier NETHER_PORTAL = Identifier.parse("minecraft:nether_portal");
@@ -326,6 +344,46 @@ public final class BlockUpdateSystem implements WorldChangeListener {
             itemEntities.spawnDropAtBlock(
                     new Position(position.x(), position.y(), position.z()),
                     ItemStack.of(net.zaminmc.torch.server.item.BuiltinItems.TORCH, 1),
+                    ItemEntity.PICKUP_DELAY_DROP_TICKS);
+            return;
+        }
+        // The standing sign's support rule (the twelfth verifier pass —
+        // StandingSignBlock.neighborChanged lines 22-29): the floor below
+        // must be MATERIAL-solid (Material.isSolid, not the collision
+        // model — a sign on a torch, a carpet, tall grass or a snow layer
+        // pops, a sign on leaves or a cobweb stands), the drop the sign
+        // item through the standard block-drop delay.
+        if (identifier.namespace().equals("minecraft")
+                && (identifier.value().equals("sign")
+                    || identifier.value().startsWith("sign_"))) {
+            if (MaterialSolidity.isSolid(world.getBlock(position.offset(0, -1, 0)).identifier())) {
+                return; // supported
+            }
+            world.setBlock(position, world.airType());
+            itemEntities.spawnDropAtBlock(
+                    new Position(position.x(), position.y(), position.z()),
+                    ItemStack.of(net.zaminmc.torch.server.item.BuiltinItems.SIGN, 1),
+                    ItemEntity.PICKUP_DELAY_DROP_TICKS);
+            return;
+        }
+        // The wall sign's support rule (WallSignBlock.neighborChanged lines
+        // 43-51): the block BEHIND the sign — the cell it hangs on, the
+        // facing's own opposite — must be material-solid, else the sign
+        // pops the same way. The per-state facing: metadata 2-5 name the
+        // direction the sign faces (away from its wall), so the support
+        // cell sits at the facing's opposite offset.
+        if (identifier.namespace().equals("minecraft")
+                && (identifier.value().equals("wall_sign")
+                    || identifier.value().startsWith("wall_sign_"))) {
+            int[] behind = wallSignSupportOffset(identifier.value());
+            if (MaterialSolidity.isSolid(
+                    world.getBlock(position.offset(behind[0], 0, behind[1])).identifier())) {
+                return; // supported
+            }
+            world.setBlock(position, world.airType());
+            itemEntities.spawnDropAtBlock(
+                    new Position(position.x(), position.y(), position.z()),
+                    ItemStack.of(net.zaminmc.torch.server.item.BuiltinItems.SIGN, 1),
                     ItemEntity.PICKUP_DELAY_DROP_TICKS);
             return;
         }

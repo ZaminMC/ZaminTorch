@@ -192,9 +192,11 @@ public final class WorldSolidity {
     /**
      * The walk-through flora (the historical replaceable Material set): tall
      * grass, the dead bush, the two flowers, the wheat crop and the sugar
-     * cane never block a body.
+     * cane never block a body. Public since the sign family's material
+     * consult (MaterialSolidity — the twelfth verifier pass) reads the same
+     * PLANT-material set the collision model does.
      */
-    private static boolean isFlora(Identifier id) {
+    public static boolean isFlora(Identifier id) {
         return id.equals(BuiltinBlocks.TALL_GRASS.identifier())
                 || id.equals(BuiltinBlocks.FERN.identifier()) // the 31-family's fern (the decorators slice)
                 || id.equals(BuiltinBlocks.DEAD_BUSH.identifier())

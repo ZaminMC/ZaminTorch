@@ -279,17 +279,48 @@ public final class BuiltinBlocks {
     public static final EngineBlockType RED_MUSHROOM = new EngineBlockType(
             Identifier.parse("minecraft:red_mushroom"), "Red Mushroom");
 
-    // The standing signs (community blocks.json: block 63, the rotation in
-    // the metadata nibble's 45-degree band 0/4/8/12 = S/W/N/E). The sign
-    // faces its placer, the historical placement rule.
+    // The standing signs (block 63, the reference's StandingSignBlock.ROTATION
+    // IntegerProperty 0-15 — SIXTEEN rotations 22.5 degrees apart, the wire
+    // metadata nibble the rotation itself, getStateFromMetadata lines 26-29).
+    // The cardinal four keep their historical names (metadata 0/4/8/12 =
+    // S/W/N/E, existing worlds valid); the twelve intermediate rotations carry
+    // the compass-16 names. The sign faces its placer (SignItem.useOn line
+    // 44's floor((yaw + 180) * 16 / 360 + 0.5) & 15 — the twelfth-pass
+    // restoration; the pre-audit engine folded the sixteen to the four
+    // cardinals and every diagonal look rendered the sign at the wrong
+    // angle).
     public static final EngineBlockType SIGN_SOUTH = new EngineBlockType(
             Identifier.parse("minecraft:sign"), "Sign");
+    public static final EngineBlockType SIGN_SSW = new EngineBlockType(
+            Identifier.parse("minecraft:sign_ssw"), "Sign", 1);
+    public static final EngineBlockType SIGN_SW = new EngineBlockType(
+            Identifier.parse("minecraft:sign_sw"), "Sign", 2);
+    public static final EngineBlockType SIGN_WSW = new EngineBlockType(
+            Identifier.parse("minecraft:sign_wsw"), "Sign", 3);
     public static final EngineBlockType SIGN_WEST = new EngineBlockType(
             Identifier.parse("minecraft:sign_west"), "Sign", 4);
+    public static final EngineBlockType SIGN_WNW = new EngineBlockType(
+            Identifier.parse("minecraft:sign_wnw"), "Sign", 5);
+    public static final EngineBlockType SIGN_NW = new EngineBlockType(
+            Identifier.parse("minecraft:sign_nw"), "Sign", 6);
+    public static final EngineBlockType SIGN_NNW = new EngineBlockType(
+            Identifier.parse("minecraft:sign_nnw"), "Sign", 7);
     public static final EngineBlockType SIGN_NORTH = new EngineBlockType(
             Identifier.parse("minecraft:sign_north"), "Sign", 8);
+    public static final EngineBlockType SIGN_NNE = new EngineBlockType(
+            Identifier.parse("minecraft:sign_nne"), "Sign", 9);
+    public static final EngineBlockType SIGN_NE = new EngineBlockType(
+            Identifier.parse("minecraft:sign_ne"), "Sign", 10);
+    public static final EngineBlockType SIGN_ENE = new EngineBlockType(
+            Identifier.parse("minecraft:sign_ene"), "Sign", 11);
     public static final EngineBlockType SIGN_EAST = new EngineBlockType(
             Identifier.parse("minecraft:sign_east"), "Sign", 12);
+    public static final EngineBlockType SIGN_ESE = new EngineBlockType(
+            Identifier.parse("minecraft:sign_ese"), "Sign", 13);
+    public static final EngineBlockType SIGN_SE = new EngineBlockType(
+            Identifier.parse("minecraft:sign_se"), "Sign", 14);
+    public static final EngineBlockType SIGN_SSE = new EngineBlockType(
+            Identifier.parse("minecraft:sign_sse"), "Sign", 15);
 
     // The wall signs (community blocks.json: block 68, the metadata 2-5
     // naming the direction the sign faces — away from the wall it hangs
@@ -890,9 +921,21 @@ public final class BuiltinBlocks {
                 .register(WHEAT_STAGE6)
                 .register(WHEAT_STAGE7)
                 .register(SIGN_SOUTH)
+                .register(SIGN_SSW)
+                .register(SIGN_SW)
+                .register(SIGN_WSW)
                 .register(SIGN_WEST)
+                .register(SIGN_WNW)
+                .register(SIGN_NW)
+                .register(SIGN_NNW)
                 .register(SIGN_NORTH)
+                .register(SIGN_NNE)
+                .register(SIGN_NE)
+                .register(SIGN_ENE)
                 .register(SIGN_EAST)
+                .register(SIGN_ESE)
+                .register(SIGN_SE)
+                .register(SIGN_SSE)
                 .register(WALL_SIGN_NORTH)
                 .register(WALL_SIGN_SOUTH)
                 .register(WALL_SIGN_WEST)

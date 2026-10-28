@@ -4144,21 +4144,46 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /**
-     * Sign placement (the historical ItemSign): the standing sign faces its
-     * placer (the opposite of the look direction, the 45-degree rotation
-     * band folded to the four cardinals), and the survival path consumes one
-     * item. Creative placements pass the client-claimed block like the
-     * generic path. Tick-thread context.
+     * Sign placement (the historical ItemSign — SignItem.useOn lines 19-54,
+     * the twelfth verifier pass's restoration): the reference's own gate
+     * ORDER — a bottom-face click refuses outright (lines 21-23); the
+     * CLICKED block's MATERIAL must be solid (lines 25-27 — Material.isSolid
+     * via MaterialSolidity, not the collision model: a torch, a wire, tall
+     * grass or a lily pad refuses the click, while the sign's own WOOD
+     * material lets a sign stack on a sign); the cactus-neighbour gate
+     * (SignBlock.canBePlaced lines 82-84 over BlockWithBlockEntity lines
+     * 22-31 — the FOUR horizontal neighbours of the target consult for a
+     * cactus, the placement that would break the cactus's own law refused);
+     * NO body-collision consult (the sign's collision shape is null and the
+     * reference's item walk carries no entity gate — a sign plants into the
+     * placer's own cell, StandingSignBlock.getCollisionShape returning
+     * null); the standing sign carries SIXTEEN rotations (line 44's
+     * {@code floor((yaw + 180) * 16 / 360 + 0.5) & 15} — the +180 the sign
+     * faces its placer, 22.5 degrees a step, the skull floor mount's own
+     * 16-step precedent + the shift); the side-face arm hangs a wall sign
+     * facing away from the wall (FACING = the clicked face, lines 46-47,
+     * metadata 2-5); the survival decrement after the block lands (line
+     * 49); the editor open for the placing player alone (lines 50-53 over
+     * ServerPlayerEntity lines 547-550). Tick-thread context.
      */
     private void placeSignOnTick(PlayerSession session, BlockPosition clicked, int face,
                                  java.util.Optional<BlockType> creativeHeld) {
-        BlockPosition target = offsetByFace(clicked, face);
-        if (target == null || world.getBlock(clicked).equals(world.airType())
-                || !canOccupyForPlacement(target)) {
-            return; // the generic placement gates (bad face / clicked air / occupied)
+        if (face == 0) {
+            return; // the reference's own first gate (lines 21-23): a bottom click places nothing
         }
-        if (intersectsPlayerBox(session.position(), target)) {
-            return; // the vanilla body rule (the reference's own entity collision check)
+        BlockPosition target = offsetByFace(clicked, face);
+        if (target == null) {
+            return; // the generic placement gate (bad face)
+        }
+        if (!net.zaminmc.torch.server.block.MaterialSolidity.isSolid(
+                world.getBlock(clicked).identifier())) {
+            return; // the clicked-material gate (lines 25-27): the clicked cell must be material-solid
+        }
+        if (!canOccupyForPlacement(target)) {
+            return; // canBePlaced's replaceable half (Block lines 664-666)
+        }
+        if (isNeighboringCactus(target)) {
+            return; // SignBlock.canBePlaced's cactus arm (lines 82-84): no sign beside a cactus
         }
         if (creativeHeld.isEmpty()
                 && session.gamemode() != GameMode.CREATIVE
@@ -4183,21 +4208,54 @@ public final class EngineServer implements Server, EngineBridge {
             openSignEditorOnPlacement(session, target);
             return;
         }
-        // Standing facing: the sign fronts the placer. Yaw 0 = south (+Z),
-        // the sign north; the cardinals at 90-degree bands, metadata 0/4/8/12.
-        double yaw = ((session.rotation().yaw() % 360.0) + 360.0 + 45.0) % 360.0;
-        int oppositeBand = (int) (yaw / 90.0) % 4; // 0=S,1=W,2=N,3=E of the LOOK
-        BlockType[] facings = {
-                BuiltinBlocks.SIGN_NORTH,   // looking south: sign faces north
-                BuiltinBlocks.SIGN_EAST,    // looking west: sign faces east
-                BuiltinBlocks.SIGN_SOUTH,   // looking north: sign faces south
-                BuiltinBlocks.SIGN_WEST};   // looking east: sign faces west
-        world.setBlock(target, facings[oppositeBand]);
+        // The standing sign's rotation (SignItem line 44): the 16-step band
+        // with the 180-degree shift — the sign faces its placer. Yaw 0 (a
+        // south look) lands rotation 8 (north), yaw 22.5 lands 9, yaw 45
+        // lands 10 — every 22.5-degree step its own state, where the
+        // pre-audit engine folded the sixteen to the four cardinals and
+        // every diagonal look rendered the sign at the wrong angle.
+        int rotation = (int) Math.floor(
+                (session.rotation().yaw() + 180.0f) * 16.0f / 360.0f + 0.5f) & 15;
+        BlockType[] rotations = {
+                BuiltinBlocks.SIGN_SOUTH,  // 0:  facing south
+                BuiltinBlocks.SIGN_SSW,    // 1
+                BuiltinBlocks.SIGN_SW,     // 2
+                BuiltinBlocks.SIGN_WSW,    // 3
+                BuiltinBlocks.SIGN_WEST,   // 4:  facing west
+                BuiltinBlocks.SIGN_WNW,    // 5
+                BuiltinBlocks.SIGN_NW,     // 6
+                BuiltinBlocks.SIGN_NNW,    // 7
+                BuiltinBlocks.SIGN_NORTH,  // 8:  facing north (a south look)
+                BuiltinBlocks.SIGN_NNE,    // 9
+                BuiltinBlocks.SIGN_NE,     // 10
+                BuiltinBlocks.SIGN_ENE,    // 11
+                BuiltinBlocks.SIGN_EAST,   // 12: facing east (a west look)
+                BuiltinBlocks.SIGN_ESE,    // 13
+                BuiltinBlocks.SIGN_SE,     // 14
+                BuiltinBlocks.SIGN_SSE};  // 15
+        world.setBlock(target, rotations[rotation]);
         if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE) {
             session.inventory().consumeHeld(1);
             publishInventoryChanged(session);
         }
         openSignEditorOnPlacement(session, target);
+    }
+
+    /**
+     * The cactus-neighbour consult (BlockWithBlockEntity lines 22-31): the
+     * FOUR horizontal neighbours of the cell, each read for the cactus —
+     * SignBlock.canBePlaced's own arm, the placement beside a cactus
+     * refused (the cactus's own law would break at the neighbour update).
+     */
+    private boolean isNeighboringCactus(BlockPosition pos) {
+        return world.getBlock(pos.offset(0, 0, -1)).identifier()
+                       .equals(BuiltinBlocks.CACTUS.identifier())
+               || world.getBlock(pos.offset(0, 0, 1)).identifier()
+                       .equals(BuiltinBlocks.CACTUS.identifier())
+               || world.getBlock(pos.offset(-1, 0, 0)).identifier()
+                       .equals(BuiltinBlocks.CACTUS.identifier())
+               || world.getBlock(pos.offset(1, 0, 0)).identifier()
+                       .equals(BuiltinBlocks.CACTUS.identifier());
     }
 
     /**
