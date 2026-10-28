@@ -1,6 +1,7 @@
 package net.zaminmc.torch.protocol.v1_8;
 
 import net.zaminmc.torch.block.BlockType;
+import net.zaminmc.torch.server.world.ChunkSection;
 import net.zaminmc.torch.server.world.EngineChunk;
 
 import java.io.ByteArrayOutputStream;
@@ -35,6 +36,23 @@ final class ChunkSerializer18 {
     private static final int SECTION_LIGHT_BYTES = SECTION_BLOCKS / 2;
     private static final int SECTION_TOTAL_BYTES =
             SECTION_BLOCK_BYTES + SECTION_LIGHT_BYTES * 2;
+
+    /**
+     * The packed form of an implicitly-empty (null) section: every cell
+     * air — legacy id 0, metadata 0 — so the whole 8192-byte array is zero.
+     * A shared immutable constant (pinned against the per-block walk by the
+     * memo test): callers only ever copy from it.
+     */
+    private static final byte[] ALL_AIR_SECTION = new byte[SECTION_BLOCK_BYTES];
+
+    /**
+     * The per-section memo record stored in {@link ChunkSection}'s opaque
+     * slot: the packed block array against the revision it was walked at.
+     * Effectively immutable after store (the array is never mutated once
+     * published — the serializer only ever copies from it).
+     */
+    private record PackedSectionMemo(long revision, byte[] packed) {
+    }
 
     private ChunkSerializer18() {
     }
@@ -100,14 +118,19 @@ final class ChunkSerializer18 {
         try {
             // Pass 1: block ids packed (id << 4) | metadata, one LE u16 per
             // block, y -> z -> x, for every included section in y order.
+            // The per-section packed array rides the memo (an unchanged
+            // section re-serves its bytes; the walk runs on change alone).
             for (int sectionY = 0; sectionY < EngineChunk.SECTION_COUNT; sectionY++) {
                 if ((bitmask & (1 << sectionY)) == 0) {
                     continue;
                 }
-                writeBlockArray(out, chunk, sectionY);
+                out.write(packedSection(chunk, sectionY));
             }
             // Pass 2: block light nibbles for every included section, from the
             // world's light storage (verbatim: identical nibble packing).
+            // Light is NEVER memoized — every serialize reads the live
+            // arrays, exactly the pre-memo behavior (light changes do not
+            // touch the block memo, and vice versa).
             for (int sectionY = 0; sectionY < EngineChunk.SECTION_COUNT; sectionY++) {
                 if ((bitmask & (1 << sectionY)) != 0) {
                     out.write(chunk.blockLightArray(sectionY));
@@ -122,7 +145,8 @@ final class ChunkSerializer18 {
             if (includeBiomes) {
                 // The generation-derived 16x16 row (x fastest — the wire's
                 // exact layout). A chunk generation never wrote carries the
-                // plains default in the array itself.
+                // plains default in the array itself. Never memoized — the
+                // live row every serialize, exactly the pre-memo behavior.
                 out.write(chunk.biomeArray());
             }
         } catch (IOException e) {
@@ -131,22 +155,72 @@ final class ChunkSerializer18 {
         return out.toByteArray();
     }
 
-    private static void writeBlockArray(ByteArrayOutputStream out, EngineChunk chunk,
-                                        int sectionY) throws IOException {
+    /**
+     * The serialized-column memoization's serving arm: this section's packed
+     * block array — the memo's when the section's content revision is
+     * unchanged since the last walk, a fresh walk (stored) when it is not.
+     *
+     * <p><b>The read/store protocol</b> (the safety linchpin — the volatile
+     * ordering is what makes a stale serve impossible): the REVISION is read
+     * FIRST, then the memo slot; a store records the revision read BEFORE
+     * its walk. Under the volatile total order this admits exactly one
+     * imprecision — serving a pack that includes a mutation the reader's
+     * revision read could not yet see (a committed, real state — the same
+     * tearing window the unmemoized per-block walk always rode on the
+     * cross-lane serialize paths) — and NEVER a pack staler than the
+     * revision it was served against. The bump inside {@code ChunkSection
+     * .set} lands AFTER the index write, so a revision-N packer observes
+     * every index write up to N: the stored pair (N, bytes) always carries
+     * bytes at least as fresh as state-at-N.</p>
+     *
+     * <p>The returned array — memo or fresh — is owned by the serializer:
+     * callers copy from it, never into it. A null (implicitly empty)
+     * section serves the shared all-air constant (air is legacy id 0 with
+     * metadata 0 — the whole array zero, pinned by test against the walk).</p>
+     *
+     * <p>Invalidation surface: {@code ChunkSection.set} alone — the single
+     * method every block mutation in the engine flows through. Light and
+     * biome writes never invalidate (they never ride this memo).</p>
+     */
+    private static byte[] packedSection(EngineChunk chunk, int sectionY) {
+        ChunkSection section = chunk.section(sectionY);
+        if (section == null) {
+            return ALL_AIR_SECTION;
+        }
+        long revision = section.revision();
+        Object slot = section.wireMemo();
+        if (slot instanceof PackedSectionMemo memo && memo.revision() == revision) {
+            return memo.packed();
+        }
+        byte[] packed = packBlocks(section);
+        section.storeWireMemo(new PackedSectionMemo(revision, packed));
+        return packed;
+    }
+
+    /**
+     * The per-block pack walk — verbatim the pre-memo law (same cell order,
+     * same {@code (id << 4) | metadata} LE u16 packing), into a standalone
+     * array instead of the shared stream. The memo test carries a verbatim
+     * copy of the original stream walk to pin this against drift.
+     */
+    private static byte[] packBlocks(ChunkSection section) {
+        byte[] packed = new byte[SECTION_BLOCK_BYTES];
+        int offset = 0;
         for (int y = 0; y < 16; y++) {
             for (int z = 0; z < 16; z++) {
                 for (int x = 0; x < 16; x++) {
-                    BlockType type = chunk.getBlock(x, (sectionY << 4) | y, z);
+                    BlockType type = section.get(x, y, z);
                     // (id << 4) | metadata — fluids carry their flow level in
                     // the nibble (0 source, 1..7 flowing, 8 falling), the
                     // historical 1.8 encoding; plain blocks ride metadata 0.
                     int stateId = legacyStateId(type) << 4
                             | LegacyBlockIds.metadataOf(type.identifier());
-                    out.write(stateId & 0xFF);          // low byte first (LE)
-                    out.write((stateId >> 8) & 0xFF);
+                    packed[offset++] = (byte) (stateId & 0xFF);   // low byte first (LE)
+                    packed[offset++] = (byte) ((stateId >> 8) & 0xFF);
                 }
             }
         }
+        return packed;
     }
 
     private static int legacyStateId(BlockType type) {

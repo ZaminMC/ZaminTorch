@@ -16984,6 +16984,129 @@ measured ciphertext-deflate nonsense); (3) the production threshold
 (256) rides the harness as a constant — the benchmark measures the
 shipped shape, not an idealized one.
 
+## Wave SC — the serialized-column memoization (the perf family's head — the last demand-named candidate standing, landed)
+
+**What:** the wire's dominant per-column cost — the 4096-block
+(id << 4) | metadata LE u16 walk inside ChunkSerializer18 — is now
+memoized per section against a content revision, so an UNCHANGED
+section re-serves its packed bytes instead of re-walking. The design
+the prior session's close note scoped (and called too
+correctness-critical to rush) landed with the invalidation surface
+the scoping itself named smaller than feared: the memo rides the
+BLOCK arm alone, so the surface is `ChunkSection.set` — verified the
+one mutation path engine-wide — and light/biome writes never touch it
+(they ride their own live reads, exactly the pre-memo behavior).
+
+**The protocol (the safety linchpin):** every state-changing `set`
+bumps a volatile revision AFTER the index write, so a revision-N
+reader is guaranteed every index write up to N; the serving arm
+(ChunkSerializer18.packedSection) reads the revision FIRST, then the
+memo slot, compares — and the store records the revision read BEFORE
+its walk. Under the volatile total order this admits exactly one
+imprecision — serving a pack that includes a committed-NEWER mutation
+— and never a stale serve (the phantom-blocks direction is
+structurally impossible; the admitted direction is the same tearing
+window the unmemoized cross-lane walk always rode). The wireMemo slot
+is opaque to the engine (core carries the slot, the protocol module
+owns the record type — the layer boundary kept whole); the null
+section serves a shared ALL_AIR constant; a no-op set never bumps.
+
+**The numbers (WireColumnMemoBenchmarkTest, the ML-024 re-stream
+shape — view-distance 4, 81 columns):** cold 1,361 us/column, warm
+9.4 us/column (the pure re-serve, against the attribution's measured
+0.50 ms average per column), partial 486 us/column. THE STORM ANSWER:
+the warm re-stream cycle 0.765 ms for all 81 columns against the
+ML-024 measured ~32 ms/cycle (the W2 storm's 4.5-5.3 ms/tick
+wirePublish row — the window's second-largest); the storm's real
+mixed shape (the death-site column changed, the other 80 unchanged)
+1.242 ms.
+
+**The stale-pin repair the sweep surfaced:** BiomeWorldTest's flora
+row still pinned the retired pre-PR54-59 tall-grass convention (the
+2-drop seeds+self table the parity audit fixed at its root — that
+wave never ran the world package). Re-pinned to the vanilla 1:1 law:
+TallPlantBlock's seeds row alone at 1/8, the by-hand self-drop an
+explicit negative, the plant itself riding the shears gate.
+
+**Evidence:** SectionPackMemoTest 10/0 NEW (the byte-identity drift
+guard — a verbatim copy of the pre-memo stream walk the memoized
+serializer must stay byte-identical to, over every serialize form;
+the memo's own laws — the re-served record identity, the
+exactly-the-mutated-section invalidation, the no-op set, light/biome
+never invalidating, the revision count);
+SectionPackMemoConcurrencyTest 1/0 NEW (two mutator lanes against two
+serializer lanes, the size law every iteration, the quieted state
+serving its true bytes); WireColumnMemoBenchmarkTest 1/0 NEW; the
+serializer lane 8/0; the core world lanes whole 231/0 over 34 classes
+(the stale-pin repair included); the protocol wire batch 22/0; the
+bukkit + launcher 105/0.
+
+**Lessons:** (1) the feared invalidation surface was the design
+note's own scoping artifact — slicing the memo to the BLOCK arm alone
+(light and biome never riding it) collapses the surface to the single
+mutation path the engine already funnels through setBlock; (2) the
+prior session's honest "not started" close left a half-landed tree —
+the recovery protocol (assess the diff against the reference, verify
+the ordering law, run the tests, then ledger) is the pattern for any
+uncommitted work the environment hands over; (3) the drift-guard
+convention (a verbatim copy of the replaced law inside the test) is
+what lets a perf change carry a byte-identity proof — the memo cannot
+silently diverge from the walk it replaced.
+
+## Wave FC — the flight families' contact arms (the 93/D2 ledger's standing tail, landed)
+
+**What:** the reference carries NO family skip — Entity.tick's lava
+arm, Entity.move's fire contact + the water douse, baseTick's
+suffocation and the block-collision cactus walk run for every body
+whatever owns its movement. The engine's five flight-family branches
+(ghast, dragon, bat, squid, guardian) returned before the shared
+environmental walk and skipped them all: a bat or a squid could stand
+in lava unwounded, a ghast drifted over lava lakes with the air's
+0.91 drag, a burning flight body never doused in water.
+
+**The fix, three pieces:** (1) THE EVERY-BODY CONTACT BLOCK — the
+five consults hoisted above the flight branches (the fire-immune
+kinds ride takeLavaDamage's own exemption, the dragon's noClip body
+never suffocates, the NoAI pins sit below the block so a pinned
+flight body still wounds and burns — the pin gates the mind and the
+movement alone); (2) THE SWIM GATES' WATER SPLIT — the squid's and
+the guardian's swim branches consulted the shared inFluid (water OR
+lava) where their own isInWater overrides gate on WATER alone: in
+lava the squid takes the stranded fall and the guardian the land
+body, both while the contact block wounds and burns them; (3) THE
+GHAST'S FLUID DRAG BANDS — FlyingMobEntity.moveRelative's own arms
+(water *0.8, lava *0.5, air 0.91, all three axes, no gravity).
+
+**The envelope recorded:** the bat's fluid TRAVEL arms stay in the
+16e envelope (the engine's bat model carries no travel walk in any
+fluid — the reference's sinking-in-lava bat is the residual); the
+dragon rides the contact block through its own immunity.
+
+**The stale pins repaired beside it:** the compat ledger's D2 row
+still carried the pre-F1 text for the lava motion drag (landed in
+93/F1 — its own row said so, the D2 row never re-pinned). Both rows
+re-pinned: the motion drag LANDED (F1), the flight families' arm
+LANDED (this wave).
+
+**Evidence:** FlightFamiliesContactTest 9/0 NEW (the bat's lava
+wounds + burn + death, the squid's stranded fall, the guardian's
+land fall, the ghast's three drag bands + the immune never-wound,
+the dragon's exemption, the fire ignite + the burn residual, the
+douse, the suffocation, the cactus); the entity package whole 574/0
+over 67 classes; the adjacent fire/mob lanes 20/0; the protocol wire
+lanes 13/0; the bukkit + launcher 105/0.
+
+**Lessons:** (1) the early-return dispatch shape silently waives the
+shared consults for every family that rides it — the contact block
+belongs ABOVE the dispatch, not below it (the same law the §22
+phase-gate holds for the tick's own arms); (2) the family-skip
+"precedent" the D2 ledger cited (the fire-contact skip) was never a
+decision, just the same structural accident named after itself —
+re-reading the reference's every-body consults dissolved it; (3) the
+first drag-band pin caught the ghast's steering burst landing on tick
+1 (--burstCooldown from 0) — the blocked-line stub (clearLine false)
+is the clean way to pin a drag band ALONE.
+
 ## 2026-10-28 — the furnace fuel & cycle parity audit (PR #61, the verifier's sixth pass)
 
 The sixth sweep, one family over: the furnace's fuel & cycle law — the
@@ -17179,3 +17302,26 @@ family's other halves; (4) the always-edible gate is the ITEM's row,
 not the walk's — one registration (setAlwaysEdible, once in the food
 family) exempts the golden apple from the needsFood arm while the walk
 stays generic: the flag rides the table, the gate consults it.
+
+## The PR #61 review fix (the wood class completed)
+
+The review of PR #61 (the furnace fuel & cycle parity audit) verified all
+four divergence groups against the reference — the tick's outer guard and
+its two interruption laws (lines 176-205), the fuel consumption's recipe
+remainder (lines 182-188, Item.java line 611), the window's three slot
+gates (FurnaceMenu lines 22-24), and the fuel arms' own values — and found
+ONE defect: the Material.WOOD class restoration claimed "the registry's
+wood members" but the table carried twenty-six of thirty-eight. The twelve
+missing rows, all registered engine items the reference prices at 300:
+the five variant doors (Block.java lines 1461-1465, every
+DoorBlock(Material.WOOD)), the five variant fence gates (lines 1393-1413,
+FenceGateBlock line 22's own Material.WOOD), the trapped chest
+(ChestBlock line 33's constructor shared by Block.java line 1308's
+registration), and the daylight detector (DaylightDetectorBlock line 27).
+In vanilla 1.8.8 all twelve burn 300 ticks; with the audit's table alone a
+spruce door would not burn while an oak door does — a parity break the
+class law's own claim could not survive. The fix: the twelve rows added in
+the class section's own family grouping, the class comment naming the full
+membership, and the wood-class test pinning all thirty-eight (the count
+the claim always meant). The ladder exclusion re-verified beside them
+(LadderBlock line 20's Material.DECORATION).
