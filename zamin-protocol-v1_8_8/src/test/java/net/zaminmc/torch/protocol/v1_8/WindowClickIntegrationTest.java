@@ -100,10 +100,16 @@ class WindowClickIntegrationTest extends ProtocolTestBase {
             assertEquals(-1, craftNoop[1], "cursor still empty");
             assertEquals(36, craftNoop[3], "the authoritative state still holds the dirt");
 
-            // drag painting rejected as well
+            // The quick-craft walk (mode 5) is the reference Menu's own state
+            // machine now: the drag's stage/mode ride the button, the -999
+            // markers are the drag's own start/end (never the outside-drop).
+            // A quick-craft packet processes (and confirms) even with an
+            // empty cursor — the reference's dropClickDragging arm is still a
+            // processed click (the null-arm match accepts); the dedicated
+            // QuickCraftDragWireTest suite carries the full distribution law.
             client.sendWindowClick(-1, 0, 5, 5);
-            int[] dragRejected = readClickResponse(client);
-            assertEquals(0, dragRejected[0], "drag painting rejected");
+            int[] dragPacket = readClickResponse(client);
+            assertEquals(1, dragPacket[0], "the quick-craft packet processed");
 
             // right-click splits half onto the cursor (slot 36: 30 dirt)
             client.sendWindowClick(36, 1, 0, 0);

@@ -8170,38 +8170,68 @@ public final class EngineServer implements Server, EngineBridge {
         var inventory = session.inventory();
         boolean accepted = false;
         try {
-            if (wireSlot == -999) {
-                // Clicking outside the window throws the carried stack
-                // (ServerPlayNetworkHandler's own arm: the cursor's stack
-                // drops, the cursor empties — ONE copy leaves the hand, the
-                // reference's takeCursor shape. The pre-Slice-93 pair here
-                // — throw the stack THEN returnCursor() — duplicated it:
-                // the world copy AND the inventory refill both carried the
-                // same units).
-                if (!inventory.cursor().isEmpty()) {
-                    throwFromPlayer(session, inventory.takeCursor());
-                    accepted = true;
+            if (mode == 5) {
+                // The quick craft (the reference Menu.onClickSlot's action-5
+                // state machine — InventoryMenu lines 113-175): the drag's
+                // stage/mode ride the button (unpackClickData), the slot
+                // -999 markers ARE the drag's own start/end (never the
+                // outside-click drop). The engine's old -999 arm ignored the
+                // mode, so every real client's drag START (-999, mode 5)
+                // THREW THE WHOLE CURSOR STACK INTO THE WORLD — the reported
+                // item loss; the machine below owns the law now.
+                accepted = clickQuickCraftOnTick(session, windowId, wireSlot, button);
+            } else {
+                // The reference's own interruption arm (InventoryMenu line
+                // 176): any non-quick-craft click drops an in-flight drag.
+                session.dropClickDragging();
+                if (wireSlot == -999) {
+                    // Clicking outside the window drops the carried stack —
+                    // the reference's (action 0 || 1) && (clickData 0 || 1)
+                    // arm at slot -999 (InventoryMenu lines 178-192): button
+                    // 0 throws the WHOLE cursor stack, button 1 exactly ONE
+                    // unit (the pre-fix whole-stack throw on right-clicks
+                    // was the reference's split(1) law missing). The
+                    // processed click always confirms (the reference's own
+                    // null-arm match); nothing carries when the cursor is
+                    // already empty.
+                    if ((mode == 0 || mode == 1) && (button == 0 || button == 1)) {
+                        net.zaminmc.torch.item.ItemStack cursor = inventory.cursor();
+                        if (!cursor.isEmpty()) {
+                            if (button == 0) {
+                                throwFromPlayer(session, inventory.takeCursor());
+                            } else {
+                                net.zaminmc.torch.item.ItemStack thrown = cursor.split(1);
+                                int left = cursor.count() - thrown.count();
+                                inventory.cursorBox().set(
+                                        left == 0
+                                                ? net.zaminmc.torch.item.ItemStack.EMPTY
+                                                : cursor.withCount(left));
+                                throwFromPlayer(session, thrown);
+                            }
+                        }
+                        accepted = true;
+                    }
+                } else if (windowId == WIRE_WINDOW_PLAYER) {
+                    accepted = clickPlayerWindowOnTick(session, wireSlot, button, mode);
+                } else if (windowId == session.openContainerWindowId()) {
+                    accepted = switch (session.openContainerKind()) {
+                        case CRAFTING_TABLE -> clickContainerWindowOnTick(session, wireSlot, button, mode);
+                        case FURNACE -> clickFurnaceWindowOnTick(session, wireSlot, button, mode);
+                        case CHEST -> clickChestWindowOnTick(session, wireSlot, button, mode);
+                        case CHEST_MINECART -> clickChestMinecartWindowOnTick(session, wireSlot, button, mode);
+                        case HOPPER_MINECART -> clickHopperMinecartWindowOnTick(session, wireSlot, button, mode);
+                        case HOPPER -> clickHopperWindowOnTick(session, wireSlot, button, mode);
+                        case ENDER_CHEST -> clickEnderChestWindowOnTick(session, wireSlot, button, mode);
+                        case BEACON -> clickBeaconWindowOnTick(session, wireSlot, button, mode);
+                        case DISPENSER -> clickDispenserWindowOnTick(session, wireSlot, button, mode);
+                        case BREWING_STAND -> clickBrewingStandWindowOnTick(session, wireSlot, button, mode);
+                        case HORSE -> clickHorseWindowOnTick(session, wireSlot, button, mode);
+                        case VILLAGER -> clickVillagerWindowOnTick(session, wireSlot, button, mode);
+                        case ENCHANTING_TABLE -> clickEnchantingWindowOnTick(session, wireSlot, button, mode);
+                        case ANVIL -> clickAnvilWindowOnTick(session, wireSlot, button, mode);
+                        default -> false;
+                    };
                 }
-            } else if (windowId == WIRE_WINDOW_PLAYER) {
-                accepted = clickPlayerWindowOnTick(session, wireSlot, button, mode);
-            } else if (windowId == session.openContainerWindowId()) {
-                accepted = switch (session.openContainerKind()) {
-                    case CRAFTING_TABLE -> clickContainerWindowOnTick(session, wireSlot, button, mode);
-                    case FURNACE -> clickFurnaceWindowOnTick(session, wireSlot, button, mode);
-                    case CHEST -> clickChestWindowOnTick(session, wireSlot, button, mode);
-                    case CHEST_MINECART -> clickChestMinecartWindowOnTick(session, wireSlot, button, mode);
-                    case HOPPER_MINECART -> clickHopperMinecartWindowOnTick(session, wireSlot, button, mode);
-                    case HOPPER -> clickHopperWindowOnTick(session, wireSlot, button, mode);
-                    case ENDER_CHEST -> clickEnderChestWindowOnTick(session, wireSlot, button, mode);
-                    case BEACON -> clickBeaconWindowOnTick(session, wireSlot, button, mode);
-                    case DISPENSER -> clickDispenserWindowOnTick(session, wireSlot, button, mode);
-                    case BREWING_STAND -> clickBrewingStandWindowOnTick(session, wireSlot, button, mode);
-                    case HORSE -> clickHorseWindowOnTick(session, wireSlot, button, mode);
-                    case VILLAGER -> clickVillagerWindowOnTick(session, wireSlot, button, mode);
-                    case ENCHANTING_TABLE -> clickEnchantingWindowOnTick(session, wireSlot, button, mode);
-                    case ANVIL -> clickAnvilWindowOnTick(session, wireSlot, button, mode);
-                    default -> false;
-                };
             }
             // Unknown window ids: rejected per packet, the resync restores truth.
         } catch (IllegalArgumentException invalid) {
@@ -8280,6 +8310,473 @@ public final class EngineServer implements Server, EngineBridge {
             }
         }
         return "unclassified";
+    }
+
+    // --------------------------------------------------------------
+    // The quick craft (window click mode 5) — the reference Menu's drag law
+    // --------------------------------------------------------------
+
+    /**
+     * One drag-paintable slot of any window: the current stack, the
+     * validated write, the slot's own placement filter (the reference
+     * {@code Slot.isItemAllowed}) and its stack cap ({@code
+     * Slot.getMaxStackSize}). Quick-craft state is per-session
+     * ({@link PlayerSession#beginClickDragging}); this accessor is the
+     * window-side half the distribution walk needs. Tick-thread context.
+     */
+    private interface QuickCraftSlot {
+        ItemStack read();
+
+        void write(ItemStack stack);
+
+        boolean allows(ItemStack cursor);
+
+        int slotMax(ItemStack stack);
+    }
+
+    /**
+     * The quick-craft walk (window click mode 5 — the reference
+     * InventoryMenu.onClickSlot lines 113-175, ported 1:1): the button
+     * carries the drag's stage and mode ({@code unpackClickData} — stage in
+     * the low two bits, mode in bits 2-3), the slot -999 markers are the
+     * drag's own START/END, and a slot number paints a slot onto the drag.
+     * The transition law, the interruption reset, the START validity gate
+     * (left/right always, middle clone creative-only —
+     * isValidClickDragMode), the ADD gates (empty-or-mergeable, the slot's
+     * filter, one more unit available than painted slots, the reference's
+     * Set dedup) and the END distribution (updateClickDragStackSize's
+     * floor-split / one-per-slot / full-stack law with the item and slot
+     * caps, the cursor keeping the remainder) all ride below. Every
+     * processed packet confirms — the reference's own null-arm match.
+     * Tick-thread context.
+     */
+    private boolean clickQuickCraftOnTick(PlayerSession session, int windowId, int wireSlot,
+                                          int button) {
+        // The routing gate (the engine's own convention — unknown windows
+        // reject per packet, the resync restores truth).
+        if (windowId != WIRE_WINDOW_PLAYER && windowId != session.openContainerWindowId()) {
+            return false;
+        }
+        var inventory = session.inventory();
+        int previous = session.clickDragStage();
+        int stage = button & 3;          // unpackClickDragStage (line 491-493)
+        int dragMode = (button >> 2) & 3; // unpackClickDragMode (line 487-489)
+        // The interruption law (line 116): every transition that is neither
+        // the same stage repeated nor the 1->2 ending resets the drag —
+        // an out-of-order START (a second drag while collecting), an ADD
+        // before any START, an END before any START, all consumed.
+        if ((previous != 1 || stage != 2) && previous != stage) {
+            session.dropClickDragging();
+        } else if (inventory.cursor().isEmpty()) {
+            // Line 118: a drag with nothing carried cannot collect.
+            session.dropClickDragging();
+        } else if (stage == 0) {
+            // The START arm (lines 120-127): the mode records, the validity
+            // gate runs, the painted set clears for a fresh drag.
+            if (dragMode == 0 || dragMode == 1
+                    || (dragMode == 2 && session.gamemode() == GameMode.CREATIVE)) {
+                session.beginClickDragging(windowId, dragMode);
+            } else {
+                session.dropClickDragging(); // middle-clone outside creative
+            }
+        } else if (stage == 1) {
+            // The ADD arm (lines 128-136): the painted slot must accept the
+            // carried stack — empty, or matching with room (canClickDragInto
+            // at stackable=true) — pass the slot's own filter, and the
+            // cursor must hold more units than the slots painted so far;
+            // the reference's Set never double-paints one slot.
+            QuickCraftSlot slot = quickCraftSlotAt(session, windowId, wireSlot);
+            if (slot != null
+                    && quickCraftDraggable(slot.read(), inventory.cursor())
+                    && slot.allows(inventory.cursor())
+                    && inventory.cursor().count() > session.clickDragSlots().size()
+                    && !session.clickDragSlots().contains(wireSlot)) {
+                session.addClickDragSlot(windowId, wireSlot);
+            }
+        } else if (stage == 2) {
+            // The END arm (lines 137-172): the distribution over the painted
+            // slots, then the drag clears either way.
+            applyQuickCraftDistribution(session, windowId);
+            session.dropClickDragging();
+        } else {
+            session.dropClickDragging();
+        }
+        return true;
+    }
+
+    /**
+     * The reference's canClickDragInto at {@code stackable = true}
+     * (InventoryMenu lines 508-516): an empty slot always joins; an occupied
+     * slot joins only when it matches the carried stack (item, metadata,
+     * NBT — the engine's merge rule) with room to the item's own cap.
+     */
+    private static boolean quickCraftDraggable(ItemStack slotStack, ItemStack cursor) {
+        if (slotStack.isEmpty()) {
+            return true;
+        }
+        return ItemStack.mergeable(slotStack, cursor)
+                && slotStack.count() <= cursor.type().maxStackSize();
+    }
+
+    /**
+     * The furnace fuel slot's drag gate (the reference FurnaceFuelSlot
+     * lines 12-19): a fuel item OR the empty bucket — the same law the
+     * furnace's own ignite cycle consults (a non-fuel stack can never sit
+     * under the drag's paint).
+     */
+    private static boolean furnaceFuelAllowed(ItemStack stack) {
+        if (stack.isEmpty()) {
+            return false;
+        }
+        return net.zaminmc.torch.server.furnace.FurnaceRecipes.burnTicksOf(stack.type()) > 0
+                || furnaceBucket(stack);
+    }
+
+    /** @return whether the stack is the empty bucket (the fuel slot's one exception). */
+    private static boolean furnaceBucket(ItemStack stack) {
+        return stack.type().identifier()
+                .equals(net.zaminmc.torch.util.Identifier.parse("minecraft:bucket"));
+    }
+
+    /**
+     * The furnace fuel slot's stack cap (the reference FurnaceFuelSlot
+     * lines 21-23): the bucket alone caps at ONE, every other fuel stacks
+     * to the item's own limit.
+     */
+    private static int furnaceFuelMax(ItemStack stack) {
+        return furnaceBucket(stack) ? 1 : 64;
+    }
+
+    /**
+     * The END distribution (InventoryMenu lines 137-170 +
+     * updateClickDragStackSize lines 518-531): each painted slot takes its
+     * share — the LEFT drag an even split ({@code floor(cursor / slots)}),
+     * the RIGHT drag exactly one unit, the MIDDLE clone a full stack —
+     * added onto the slot's own existing count, clamped to the item's cap
+     * then the slot's, the cursor keeping the running remainder. The
+     * per-slot gates re-run (the slot may have changed since the paint),
+     * and the cursor must still cover the painted count.
+     */
+    private void applyQuickCraftDistribution(PlayerSession session, int windowId) {
+        java.util.List<Integer> painted = session.clickDragSlots();
+        if (painted.isEmpty()) {
+            return;
+        }
+        var inventory = session.inventory();
+        ItemStack cursor = inventory.cursor();
+        if (cursor.isEmpty()) {
+            return;
+        }
+        ItemStack cursorCopy = cursor.withCount(cursor.count());
+        int remaining = cursor.count();
+        for (int wireSlot : painted) {
+            QuickCraftSlot slot = quickCraftSlotAt(session, windowId, wireSlot);
+            if (slot == null
+                    || !quickCraftDraggable(slot.read(), cursor)
+                    || !slot.allows(cursor)
+                    || cursor.count() < painted.size()) {
+                continue; // the slot changed under the drag: skipped like the reference
+            }
+            ItemStack per = cursorCopy.withCount(cursorCopy.count());
+            int existing = slot.read().isEmpty() ? 0 : slot.read().count();
+            // updateClickDragStackSize (lines 518-531): the mode's share,
+            // then the existing count added back on top.
+            switch (session.clickDragMode()) {
+                case 0 -> per = per.withCount(
+                        (int) Math.floor(per.count() / (double) painted.size()));
+                case 1 -> per = per.withCount(1);
+                default -> per = per.withCount(per.type().maxStackSize());
+            }
+            per = per.withCount(per.count() + existing);
+            if (per.count() > per.type().maxStackSize()) {
+                per = per.withCount(per.type().maxStackSize());
+            }
+            if (per.count() > slot.slotMax(per)) {
+                per = per.withCount(slot.slotMax(per));
+            }
+            remaining -= per.count() - existing;
+            slot.write(per);
+        }
+        ItemStack leftover = remaining <= 0
+                ? ItemStack.EMPTY
+                : cursorCopy.withCount(remaining);
+        inventory.cursorBox().set(leftover);
+    }
+
+    /**
+     * Resolves one wire slot of any window into the quick-craft accessor —
+     * the drag's read/write/filter/max view of that slot. The families the
+     * engine routes with plain slot models (the player window's grid,
+     * armor and inventory; the crafting table's grid; the chest, furnace,
+     * hopper, dispenser, brewing and beacon containers; every window's
+     * player tail) all join drags exactly like the reference; the result
+     * previews and the bespoke menus' own gated slots (the anvil's inputs,
+     * the enchanting table's two slots, the horse's saddle/armor, the
+     * villager's display-only pseudo-slots) never paint — the engine holds
+     * no plain slot storage behind them (the resync keeps the truth).
+     * Tick-thread context.
+     */
+    private QuickCraftSlot quickCraftSlotAt(PlayerSession session, int windowId, int wireSlot) {
+        var inventory = session.inventory();
+        // The player inventory window: the 2x2 grid, the armor row (the kind
+        // gate), the main inventory and the hotbar. The result preview never
+        // paints (its storage is the computation, not a slot).
+        if (windowId == WIRE_WINDOW_PLAYER) {
+            if (wireSlot >= WIRE_SLOT_CRAFT_FIRST && wireSlot <= WIRE_SLOT_CRAFT_LAST) {
+                var grid = session.crafting();
+                int cell = wireSlot - WIRE_SLOT_CRAFT_FIRST;
+                return new QuickCraftSlot() {
+                    @Override public ItemStack read() { return grid.cell(cell); }
+                    @Override public void write(ItemStack stack) { grid.setCell(cell, stack); }
+                    @Override public boolean allows(ItemStack cursor) { return true; }
+                    @Override public int slotMax(ItemStack stack) { return 64; }
+                };
+            }
+            int armorSlot = armorIndexForWireSlot(wireSlot);
+            if (armorSlot >= 0) {
+                net.zaminmc.torch.server.item.Armor.Slot kind =
+                        net.zaminmc.torch.server.item.Armor.Slot.values()[armorSlot];
+                return new QuickCraftSlot() {
+                    @Override public ItemStack read() { return inventory.armorAt(armorSlot); }
+                    @Override public void write(ItemStack stack) { inventory.setArmor(armorSlot, stack); }
+                    @Override
+                    public boolean allows(ItemStack cursor) {
+                        return net.zaminmc.torch.server.item.Armor.fitsSlot(cursor.type(), kind);
+                    }
+                    @Override public int slotMax(ItemStack stack) { return 64; }
+                };
+            }
+            int engineSlot = engineSlotOf(wireSlot);
+            if (engineSlot >= 0) {
+                return new QuickCraftSlot() {
+                    @Override public ItemStack read() { return inventory.snapshot().get(engineSlot); }
+                    @Override public void write(ItemStack stack) { inventory.setSlotQuietly(engineSlot, stack); }
+                    @Override public boolean allows(ItemStack cursor) { return true; }
+                    @Override public int slotMax(ItemStack stack) { return 64; }
+                };
+            }
+            return null;
+        }
+        // Everything else is the open container's window.
+        if (windowId != session.openContainerWindowId()) {
+            return null;
+        }
+        // The plain container families: raw slot read/write beside the
+        // player-tail mapping; the per-family filters mirror each family's
+        // own click law (the brewing stand's gates, the beacon's payment
+        // gate; the rest accept anything like the reference's plain slots).
+        switch (session.openContainerKind()) {
+            case CRAFTING_TABLE -> {
+                var grid = session.tableCrafting();
+                if (wireSlot >= TABLE_WIRE_SLOT_GRID_FIRST
+                        && wireSlot <= TABLE_WIRE_SLOT_GRID_LAST) {
+                    int cell = wireSlot - TABLE_WIRE_SLOT_GRID_FIRST;
+                    return new QuickCraftSlot() {
+                        @Override public ItemStack read() { return grid.cell(cell); }
+                        @Override public void write(ItemStack stack) { grid.setCell(cell, stack); }
+                        @Override public boolean allows(ItemStack cursor) { return true; }
+                        @Override public int slotMax(ItemStack stack) { return 64; }
+                    };
+                }
+                return playerTailSlot(inventory, tableEngineSlotOf(wireSlot));
+            }
+            case CHEST, ENDER_CHEST -> {
+                net.zaminmc.torch.server.chest.ChestBlockEntity chest =
+                        session.openContainerKind() == PlayerSession.ContainerKind.CHEST
+                                ? chestManager.peek(session.openContainerPosition())
+                                : session.enderChest();
+                if (chest == null) {
+                    return null;
+                }
+                if (wireSlot >= 0 && wireSlot <= CHEST_WIRE_SLOT_LAST) {
+                    return containerSlot(
+                            () -> chest.getItem(wireSlot),
+                            stack -> chest.setSlot(wireSlot, stack), 64);
+                }
+                return playerTailSlot(inventory, chestEngineSlotOf(wireSlot));
+            }
+            case CHEST_MINECART -> {
+                var cart = session.containerMountId() >= 0 && vehicleManager != null
+                        ? vehicleManager.byId(session.containerMountId()) : null;
+                if (!(cart instanceof net.zaminmc.torch.server.entity.vehicle.ChestMinecartEntity chestCart)) {
+                    return null;
+                }
+                var chest = chestCart.chest();
+                if (wireSlot >= 0 && wireSlot <= CHEST_WIRE_SLOT_LAST) {
+                    return containerSlot(
+                            () -> chest.getItem(wireSlot),
+                            stack -> chest.setSlot(wireSlot, stack), 64);
+                }
+                return playerTailSlot(inventory, chestEngineSlotOf(wireSlot));
+            }
+            case FURNACE -> {
+                var furnace = furnaceManager.peek(session.openContainerPosition());
+                if (furnace == null) {
+                    return null;
+                }
+                if (wireSlot >= 0 && wireSlot <= FURNACE_WIRE_SLOT_LAST) {
+                    // The reference's own slot filters (slot/FurnaceFuelSlot
+                    // lines 12-24 + FurnaceResultSlot lines 20-23): slot 0
+                    // the plain input, slot 1 the fuel gate (a fuel item OR
+                    // the empty bucket, the bucket capped at ONE), slot 2
+                    // the result that never accepts a paint.
+                    if (wireSlot == 1) {
+                        return new QuickCraftSlot() {
+                            @Override public ItemStack read() { return furnace.snapshotSlots()[1]; }
+                            @Override public void write(ItemStack stack) { furnace.setSlot(1, stack); }
+                            @Override
+                            public boolean allows(ItemStack cursor) {
+                                return furnaceFuelAllowed(cursor);
+                            }
+                            @Override
+                            public int slotMax(ItemStack stack) {
+                                return furnaceFuelMax(stack);
+                            }
+                        };
+                    }
+                    if (wireSlot == 2) {
+                        return new QuickCraftSlot() {
+                            @Override public ItemStack read() { return furnace.snapshotSlots()[2]; }
+                            @Override public void write(ItemStack stack) { furnace.setSlot(2, stack); }
+                            @Override public boolean allows(ItemStack cursor) {
+                                return false; // FurnaceResultSlot.isItemAllowed: never
+                            }
+                            @Override public int slotMax(ItemStack stack) { return 64; }
+                        };
+                    }
+                    return containerSlot(
+                            () -> furnace.snapshotSlots()[wireSlot],
+                            stack -> furnace.setSlot(wireSlot, stack), 64);
+                }
+                return playerTailSlot(inventory, furnaceEngineSlotOf(wireSlot));
+            }
+            case HOPPER -> {
+                var hopper = hopperSystem.peek(session.openContainerPosition());
+                if (hopper == null) {
+                    return null;
+                }
+                if (wireSlot >= 0 && wireSlot <= HOPPER_WIRE_SLOT_LAST) {
+                    return containerSlot(
+                            () -> hopper.getItem(wireSlot),
+                            stack -> hopper.setItem(wireSlot, stack), 64);
+                }
+                return playerTailSlot(inventory, hopperEngineSlotOf(wireSlot));
+            }
+            case HOPPER_MINECART -> {
+                var cart = session.containerMountId() >= 0 && vehicleManager != null
+                        ? vehicleManager.byId(session.containerMountId()) : null;
+                if (!(cart instanceof net.zaminmc.torch.server.entity.vehicle.HopperMinecartEntity hopperCart)) {
+                    return null;
+                }
+                var hopper = hopperCart.hopper();
+                if (wireSlot >= 0 && wireSlot <= HOPPER_WIRE_SLOT_LAST) {
+                    return containerSlot(
+                            () -> hopper.getItem(wireSlot),
+                            stack -> hopper.setItem(wireSlot, stack), 64);
+                }
+                return playerTailSlot(inventory, hopperEngineSlotOf(wireSlot));
+            }
+            case DISPENSER -> {
+                var container = dispenserSystem.peek(session.openContainerPosition());
+                if (container == null) {
+                    return null;
+                }
+                if (wireSlot >= 0 && wireSlot <= DISPENSER_WIRE_SLOT_LAST) {
+                    return containerSlot(
+                            () -> container.getItem(wireSlot),
+                            stack -> container.setItem(wireSlot, stack), 64);
+                }
+                return playerTailSlot(inventory, dispenserEngineSlotOf(wireSlot));
+            }
+            case BREWING_STAND -> {
+                var stand = brewingStands.peek(session.openContainerPosition());
+                if (stand == null) {
+                    return null;
+                }
+                if (wireSlot >= 0 && wireSlot <= BREWING_WIRE_SLOT_LAST) {
+                    // The stand's own click law: the slot's item gate and its
+                    // one-per-bottle cap (the reference's slot filters).
+                    return new QuickCraftSlot() {
+                        @Override public ItemStack read() { return stand.getItem(wireSlot); }
+                        @Override public void write(ItemStack stack) { stand.setItem(wireSlot, stack); }
+                        @Override
+                        public boolean allows(ItemStack cursor) {
+                            return stand.isItemAllowed(wireSlot, cursor);
+                        }
+                        @Override public int slotMax(ItemStack stack) {
+                            return net.zaminmc.torch.server.brewing.BrewingStandBlockEntity
+                                    .maxStackOf(wireSlot);
+                        }
+                    };
+                }
+                return playerTailSlot(inventory, brewingEngineSlotOf(wireSlot));
+            }
+            case BEACON -> {
+                var beacon = beaconSystem.peek(session.openContainerPosition());
+                if (beacon == null) {
+                    return null;
+                }
+                if (wireSlot == 0) {
+                    return new QuickCraftSlot() {
+                        @Override public ItemStack read() { return beacon.payment(); }
+                        @Override public void write(ItemStack stack) { beacon.setPayment(stack); }
+                        @Override
+                        public boolean allows(ItemStack cursor) {
+                            return net.zaminmc.torch.server.beacon.BeaconBlockEntity
+                                    .isPaymentItem(cursor.type());
+                        }
+                        @Override public int slotMax(ItemStack stack) { return 1; }
+                    };
+                }
+                return playerTailSlot(inventory, beaconEngineSlotOf(wireSlot));
+            }
+            case ANVIL -> {
+                return playerTailSlot(inventory, anvilEngineSlotOf(wireSlot));
+            }
+            case ENCHANTING_TABLE -> {
+                return playerTailSlot(inventory, enchantingEngineSlotOf(wireSlot));
+            }
+            case HORSE -> {
+                MobEntity mount = mobManager.byId(session.containerMountId());
+                int engineSlot = mount == null ? -1
+                        : mount.chested()
+                                ? chestedHorsePlayerSlotOf(wireSlot)
+                                : horsePlayerSlotOf(wireSlot);
+                return playerTailSlot(inventory, engineSlot);
+            }
+            default -> {
+                // The villager's pseudo-slots are display-only in the engine
+                // (the trade executes from the real inventory); they never
+                // paint, and no player tail is routed for that window.
+                return null;
+            }
+        }
+    }
+
+    /** The player tail (main inventory + hotbar) of any container window. */
+    private static QuickCraftSlot playerTailSlot(PlayerInventory inventory, int engineSlot) {
+        if (engineSlot < 0) {
+            return null;
+        }
+        return new QuickCraftSlot() {
+            @Override public ItemStack read() { return inventory.snapshot().get(engineSlot); }
+            @Override public void write(ItemStack stack) { inventory.setSlotQuietly(engineSlot, stack); }
+            @Override public boolean allows(ItemStack cursor) { return true; }
+            @Override public int slotMax(ItemStack stack) { return 64; }
+        };
+    }
+
+    /** A plain container slot over a read/write pair (the caller closes over the fixed slot index). */
+    private static QuickCraftSlot containerSlot(
+            java.util.function.Supplier<ItemStack> read,
+            java.util.function.Consumer<ItemStack> write,
+            int slotMax) {
+        return new QuickCraftSlot() {
+            @Override public ItemStack read() { return read.get(); }
+            @Override public void write(ItemStack stack) { write.accept(stack); }
+            @Override public boolean allows(ItemStack cursor) { return true; }
+            @Override public int slotMax(ItemStack stack) { return slotMax; }
+        };
     }
 
     /** Click routing for the player inventory window (window 0). Tick-thread context. */
@@ -8381,8 +8878,10 @@ public final class EngineServer implements Server, EngineBridge {
                 return false;
             }
             case 5 -> {
-                // Drag painting: rejected per packet; the end-of-drag resync
-                // restores the authoritative state on the client.
+                // Unreachable today: the dispatch routes every mode-5 packet
+                // through the quick-craft machine before any window's own
+                // click path (kept as the defensive default for the day a new
+                // dispatch arm forgets the route).
                 return false;
             }
             default -> {
