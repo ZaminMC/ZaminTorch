@@ -14,11 +14,18 @@ import java.util.Optional;
  * {@code data/pc/1.8/foods.json} (MIT license,
  * https://github.com/PrismarineJS/minecraft-data, snapshot 2026-10). The
  * dataset's {@code foodPoints} is the hunger restored and its
- * {@code saturation} the saturation restored (it already folds in the
- * historical foodPoints x saturationModifier x 2 computation — cooked beef's
- * 8 food yields 12.8 saturation, the dataset anchor). The set grows with the
- * registry, never speculatively. Eating takes 32 ticks (1.6 s), the
- * historical {@code ItemFood} duration.</p>
+ * {@code saturation} the saturation restored. The fold both speak is the
+ * reference's own apply-time law — HungerManager.add lines 20-23:
+ * {@code saturation += food x modifier x 2}, the item's registered
+ * modifier (Item.java's FoodItem rows) folded by the hunger manager at
+ * every bite — cooked beef's 8 food over 0.8 answers 12.8, the anchor.
+ * The verifier's seventh pass re-pinned every row against that formula
+ * (the raw chicken had ridden the dataset's own half-fold at 0.6; the
+ * reference folds 2 x 0.3 x 2 = 1.2), added the six registered foods the
+ * table never carried, and moved the fold for the fish family into
+ * {@link FishItems} at the answer. The set grows with the registry, never
+ * speculatively. Eating takes 32 ticks (1.6 s), the historical
+ * {@code ItemFood} duration.</p>
  */
 public final class Foods {
 
@@ -43,7 +50,8 @@ public final class Foods {
             Map.entry(net.zaminmc.torch.util.Identifier.parse("minecraft:cooked_beef"), new Nutrition(8, 12.8f)),
             Map.entry(net.zaminmc.torch.util.Identifier.parse("minecraft:porkchop"), new Nutrition(3, 1.8f)),
             Map.entry(net.zaminmc.torch.util.Identifier.parse("minecraft:cooked_porkchop"), new Nutrition(8, 12.8f)),
-            Map.entry(net.zaminmc.torch.util.Identifier.parse("minecraft:chicken"), new Nutrition(2, 0.6f)),
+            Map.entry(net.zaminmc.torch.util.Identifier.parse("minecraft:chicken"),
+                    new Nutrition(2, 1.2f)),
             Map.entry(net.zaminmc.torch.util.Identifier.parse("minecraft:cooked_chicken"), new Nutrition(6, 7.2f)),
             Map.entry(net.zaminmc.torch.util.Identifier.parse("minecraft:rotten_flesh"), new Nutrition(4, 0.8f)),
             // The spider eye's own nutrition (the reference's FoodItem(2, 0.8F,
@@ -73,7 +81,43 @@ public final class Foods {
             Map.entry(net.zaminmc.torch.util.Identifier.parse("minecraft:rabbit_stew"), new Nutrition(10, 12.0f)),
             // The mooshroom's stew (Slice 17b — the reference's Item.java:
             // FoodItem(6, 0.6F); the dataset saturation fold 6*0.6*2=7.2).
-            Map.entry(net.zaminmc.torch.util.Identifier.parse("minecraft:mushroom_stew"), new Nutrition(6, 7.2f)));
+            Map.entry(net.zaminmc.torch.util.Identifier.parse("minecraft:mushroom_stew"), new Nutrition(6, 7.2f)),
+            // The food-table completion audit (the verifier's seventh pass —
+            // the registered foods the table never carried, each folded from
+            // the reference's own Item.java registration):
+            // the cookie (line 643: FoodItem(2, 0.1F) — 2x0.1x2 = 0.4);
+            // the melon slice (line 360: FoodItem(2, 0.3F) — 1.2);
+            // the poisonous potato (line 394: FoodItem(2, 0.3F) — 1.2; its
+            // 60% Poison effect row sat in the EFFECTS table below while
+            // the missing nutrition row made the item UNEATABLE, the effect
+            // unreachable);
+            // the pumpkin pie (line 400: FoodItem(8, 0.3F) — 4.8);
+            // the mutton pair (lines 727-728: FoodItem(2, 0.3F) and
+            // FoodItem(6, 0.8F) — 1.2 and 9.6; the SMELTING table carried
+            // the pair since Slice 11i while the FOODS table never did, so
+            // neither form answered eatable).
+            Map.entry(net.zaminmc.torch.util.Identifier.parse("minecraft:cookie"), new Nutrition(2, 0.4f)),
+            Map.entry(net.zaminmc.torch.util.Identifier.parse("minecraft:melon"), new Nutrition(2, 1.2f)),
+            Map.entry(net.zaminmc.torch.util.Identifier.parse("minecraft:poisonous_potato"), new Nutrition(2, 1.2f)),
+            Map.entry(net.zaminmc.torch.util.Identifier.parse("minecraft:pumpkin_pie"), new Nutrition(8, 4.8f)),
+            Map.entry(net.zaminmc.torch.util.Identifier.parse("minecraft:mutton"), new Nutrition(2, 1.2f)),
+            Map.entry(net.zaminmc.torch.util.Identifier.parse("minecraft:cooked_mutton"), new Nutrition(6, 9.6f)));
+
+    /**
+     * The always-edible pair (Item.java line 604: the golden apple's own
+     * {@code setAlwaysEdible()} — the registration the food family carries
+     * once): FoodItem.startUsing line 59 consults
+     * {@code player.canEat(this.alwaysEdible)}, so a survival body at FULL
+     * hunger still begins the golden apple's eat (the effects pay; the
+     * nutrition clamps). Every other food gates on needsFood alone.
+     */
+    private static final java.util.Set<net.zaminmc.torch.util.Identifier> ALWAYS_EDIBLE =
+            java.util.Set.of(net.zaminmc.torch.util.Identifier.parse("minecraft:golden_apple"));
+
+    /** @return whether the item eats at full hunger (the always-edible law). */
+    public static boolean isAlwaysEdible(ItemType type) {
+        return ALWAYS_EDIBLE.contains(type.identifier());
+    }
 
     private Foods() {
     }

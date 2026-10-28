@@ -5542,10 +5542,22 @@ public final class MobEntity implements LivingEntity {
                 ghastMoving = false; // a blocked line stops the steering
             }
         }
-        // FlyingMobEntity.moveRelative's own drag: 0.91 per tick.
-        velocityX *= 0.91;
-        velocityY *= 0.91;
-        velocityZ *= 0.91;
+        // FlyingMobEntity.moveRelative's drag arms (lines 19-49): the
+        // fluid consult picks the band — WATER *0.8, LAVA *0.5, the air
+        // 0.91 — over all three axes, with NO gravity arm in any (the
+        // flying family's own model). The consult is the engine's own
+        // y+0.2 point convention (the reference's box-grown read, the
+        // standing named difference); the drag lands before the move like
+        // the walker's F1 phase note.
+        double ghastDrag;
+        if (world.inFluid(position.x(), position.y() + 0.2, position.z())) {
+            ghastDrag = world.inLava(position.x(), position.y() + 0.2, position.z()) ? 0.5 : 0.8;
+        } else {
+            ghastDrag = 0.91;
+        }
+        velocityX *= ghastDrag;
+        velocityY *= ghastDrag;
+        velocityZ *= ghastDrag;
         if (mode == Mode.CHASE || mode == Mode.STRAFE || mode == Mode.FUSE) {
             mode = Mode.IDLE;
             modeTicks = 0;
@@ -10808,67 +10820,20 @@ public final class MobEntity implements LivingEntity {
         if (position.y() < VOID_KILL_Y) {
             hurt(VOID_DAMAGE_PER_TICK);
         }
-        // The ghast's flight (Slice 16c — FlyingMobEntity): the drift owns
-        // the whole vertical + horizontal integration; no gravity, no
-        // ground snap, no walk.
-        if (type == MobType.GHAST && !dead) {
-            // The NoAI pin (Slice 92 — the reference's isLocallyControlled
-            // gate covers the flight families too: the drift rides
-            // moveRelative, a pinned ghast freezes midair with the *0.98
-            // decay, the same arm the walker takes).
-            if (noAi) {
-                decayVelocity();
-                return;
-            }
-            tickGhastBody();
-            integrateFlight();
-            return;
-        }
-        // The dragon's flight (Slice 63 — EnderDragonEntity's noClip body):
-        // the mind's steering walk owns the whole integration (the
-        // velocity shaping + the move); no gravity, no ground snap, no
-        // walk, no contact arms (noClip never touches the cactus).
-        if (type == MobType.ENDER_DRAGON && !dead) {
-            onGround = false;
-            return;
-        }
-        // The bat's flight (Slice 16e — BatEntity.tick): the roost snap or
-        // the hangPos wander; no gravity, no walk.
-        if (type == MobType.BAT && !dead) {
-            if (noAi) { // the pin (Slice 92 — the reference gates the bat's own move)
-                decayVelocity();
-                return;
-            }
-            tickBatBody();
-            return;
-        }
-        // The squid's swim (Slice 16e — SquidEntity.mobTick): the tentacle
-        // stroke owns the velocity; the position integrates it directly
-        // (no gravity, no walk).
-        if (type == MobType.SQUID && !dead) {
-            if (noAi) { // the pin (Slice 92 — the stroke rides moveRelative)
-                decayVelocity();
-                return;
-            }
-            boolean squidInFluid = world.inFluid(position.x(), position.y() + 0.2, position.z());
-            tickSquidBody(squidInFluid);
-            position = new Position(position.x() + velocityX, position.y() + velocityY,
-                    position.z() + velocityZ);
-            onGround = false;
-            return;
-        }
-        // The guardian's swim (Slice 17a — GuardianEntity.moveRelative +
-        // the movement control): the sinusoidal water body or the land
-        // flop owns the whole integration (no walk, no ground snap).
-        if (type == MobType.GUARDIAN && !dead) {
-            if (noAi) { // the pin (Slice 92 — the swim rides moveRelative)
-                decayVelocity();
-                return;
-            }
-            boolean guardianInFluid = world.inFluid(position.x(), position.y() + 0.2, position.z());
-            tickGuardianBody(guardianInFluid);
-            return;
-        }
+        // THE EVERY-BODY CONTACT BLOCK (hoisted above the flight families'
+        // early returns — the reference carries NO family skip: Entity.tick
+        // lines 337-341's lava arm, Entity.move's fire contact + the water
+        // douse, LivingEntity.baseTick lines 195-197's suffocation, and the
+        // block-collision cactus walk run for every body whatever owns its
+        // movement — the walker, the rider, and the flight families alike.
+        // The pre-hoist engine's early returns skipped them for the ghast,
+        // the dragon, the bat, the squid and the guardian — the family
+        // skip the 93/D2 ledger named as the flight families' lava arm.
+        // The fire-immune kinds (the ghast, the dragon) ride takeLavaDamage's
+        // own exemption; the dragon's noClip body never suffocates.)
+        boolean inLava = !dead
+                && world.inLava(position.x(), position.y() + 0.2, position.z());
+        boolean inFluid = world.inFluid(position.x(), position.y() + 0.2, position.z());
         // Fire contact arms the burn (the historical setFire on
         // collision) — the fire-immune kinds (immuneToFire) never ignite,
         // the wither variant joining them (setType line 291).
@@ -10889,8 +10854,6 @@ public final class MobEntity implements LivingEntity {
         // single-point convention the vehicle lava walk established). The
         // store's own halving rides the fall walk below (Entity.tick's own
         // split: the halving in the tick, the water zero in the move).
-        boolean inLava = !dead
-                && world.inLava(position.x(), position.y() + 0.2, position.z());
         if (inLava && !fireImmune()) {
             ignite(LAVA_BURN_TICKS);
             if (++lavaDamageTimer >= LAVA_WOUND_CADENCE_TICKS
@@ -10919,6 +10882,95 @@ public final class MobEntity implements LivingEntity {
                 && ++cactusDamageTimer % 10 == 0) {
             hurt(1.0f);
         }
+        // The douse is the WATER consult alone (checkWaterCollisions'
+        // own family — Slice 93/D2's split of the shared fluid model: a
+        // body in lava keeps its burn, the reference's own shape; the
+        // pre-split engine extinguished it because the fluid test covered
+        // both kinds).
+        if (inFluid && !inLava && fireTicks > 0) {
+            extinguish(); // the water douses the burn (the historical rule)
+        }
+        // The ghast's flight (Slice 16c — FlyingMobEntity): the drift owns
+        // the whole vertical + horizontal integration; no gravity, no
+        // ground snap, no walk.
+        if (type == MobType.GHAST && !dead) {
+            // The NoAI pin (Slice 92 — the reference's isLocallyControlled
+            // gate covers the flight families too: the drift rides
+            // moveRelative, a pinned ghast freezes midair with the *0.98
+            // decay, the same arm the walker takes).
+            if (noAi) {
+                decayVelocity();
+                return;
+            }
+            tickGhastBody();
+            integrateFlight();
+            return;
+        }
+        // The dragon's flight (Slice 63 — EnderDragonEntity's noClip body):
+        // the mind's steering walk owns the whole integration (the
+        // velocity shaping + the move); no gravity, no ground snap, no
+        // walk. The contact block above still consults — the fire and
+        // lava arms exempt through the dragon's own immunity, the
+        // suffocation through its noClip body (the cactus consult alone
+        // can reach it, the same block-collision walk every body rides).
+        if (type == MobType.ENDER_DRAGON && !dead) {
+            onGround = false;
+            return;
+        }
+        // The bat's flight (Slice 16e — BatEntity.tick): the roost snap or
+        // the hangPos wander; no gravity, no walk.
+        if (type == MobType.BAT && !dead) {
+            if (noAi) { // the pin (Slice 92 — the reference gates the bat's own move)
+                decayVelocity();
+                return;
+            }
+            tickBatBody();
+            return;
+        }
+        // The squid's swim (Slice 16e — SquidEntity.mobTick): the tentacle
+        // stroke owns the velocity; the position integrates it directly
+        // (no gravity, no walk).
+        if (type == MobType.SQUID && !dead) {
+            if (noAi) { // the pin (Slice 92 — the stroke rides moveRelative)
+                decayVelocity();
+                return;
+            }
+            // The swim gates on WATER alone (SquidEntity's own isInWater
+            // override — the WATER material consult, never the shared
+            // fluid): a squid in LAVA is not swimming, it is the stranded
+            // fall plus the lava contact above (the reference's own shape
+            // — the stroke arms sit inside the inWater branch, the else
+            // arm the fall).
+            boolean squidInWater = !world.inLava(position.x(), position.y() + 0.2, position.z())
+                    && world.inFluid(position.x(), position.y() + 0.2, position.z());
+            tickSquidBody(squidInWater);
+            position = new Position(position.x() + velocityX, position.y() + velocityY,
+                    position.z() + velocityZ);
+            onGround = false;
+            return;
+        }
+        // The guardian's swim (Slice 17a — GuardianEntity.moveRelative +
+        // the movement control): the sinusoidal water body or the land
+        // flop owns the whole integration (no walk, no ground snap).
+        if (type == MobType.GUARDIAN && !dead) {
+            if (noAi) { // the pin (Slice 92 — the swim rides moveRelative)
+                decayVelocity();
+                return;
+            }
+            // The swim gates on WATER alone (GuardianEntity.moveRelative's
+            // own isInWater consult): a guardian in LAVA falls to the land
+            // body — the reference's super.moveRelative fallback — while
+            // the contact block above wounds and burns it.
+            boolean guardianInWater = !world.inLava(position.x(), position.y() + 0.2, position.z())
+                    && world.inFluid(position.x(), position.y() + 0.2, position.z());
+            tickGuardianBody(guardianInWater);
+            return;
+        }
+        // (The fire contact, the lava walk, the suffocation, the cactus
+        // prick and the water douse now ride THE EVERY-BODY CONTACT BLOCK
+        // hoisted above the flight families' early returns — every body
+        // takes them, exactly the reference's no-family-skip shape; the
+        // inLava/inFluid consults it computed feed the movement arms below.)
         // The blaze's fall dampening (BlazeEntity.mobTick lines 79-82): an
         // airborne falling body drifts at 60% per tick before the gravity
         // arm — the hover's descent stays slow (takeFallDamage's empty
@@ -10928,29 +10980,23 @@ public final class MobEntity implements LivingEntity {
             velocityY *= 0.6;
         }
         // Vertical: gravity + ground snap (the item-entity model). A body in
-        // fluid sinks slowly and bobs (the historical fluid buoyancy).
-        boolean inFluid = world.inFluid(position.x(), position.y() + 0.2, position.z());
-        // The douse is the WATER consult alone (checkWaterCollisions'
-        // own family — Slice 93/D2's split of the shared fluid model: a
-        // body in lava keeps its burn, the reference's own shape; the
-        // pre-split engine extinguished it because the fluid test covered
-        // both kinds).
-        if (inFluid && !inLava && fireTicks > 0) {
-            extinguish(); // the water douses the burn (the historical rule)
-        }
+        // fluid sinks slowly and bobs (the historical fluid buoyancy) — the
+        // inFluid consult rides the contact block above.
         // The NoAI pin (the reference's isLocallyControlled gate over
         // moveRelative, LivingEntity lines 1134-1145 + the non-controlled
         // else arm at 1415): a pinned body integrates NO motion — no
         // gravity, no walk, no ground snap (the vanilla midair freeze);
         // the velocity decays (the *0.98 family). The contact arms above
-        // (void, fire, cactus, the water douse) keep running, and the
-        // wounds/despawn windows continue (the pin gates the MIND and the
-        // MOVEMENT alone). The special flight families above (ghast,
-        // dragon, bat, squid, guardian) carry their own pin at their own
-        // branches (Slice 92 — the reference gates them through
-        // moveRelative exactly like the walker; the dragon's steering
-        // rides the already-pinned mind, its body does nothing on its
-        // own).
+        // (void, fire, lava, cactus, the water douse) keep running — for
+        // the walker AND for the flight families (their branch pins sit
+        // below the hoisted contact block, so a pinned bat in lava still
+        // wounds and burns — the pin gates the MIND and the MOVEMENT
+        // alone). The wounds/despawn windows continue. The special flight
+        // families (ghast, dragon, bat, squid, guardian) carry their own
+        // pin at their own branches (Slice 92 — the reference gates them
+        // through moveRelative exactly like the walker; the dragon's
+        // steering rides the already-pinned mind, its body does nothing
+        // on its own).
         if (noAi) {
             decayVelocity();
             return;

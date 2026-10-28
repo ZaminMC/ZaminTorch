@@ -7552,15 +7552,19 @@ public final class EngineServer implements Server, EngineBridge {
             if (Foods.nutritionOf(held.type(), held.damage()).isEmpty()) {
                 return;
             }
-            // canEat(false) = needsFood() && !invulnerable (the reference
-            // PlayerEntity.canEat line 1487-1489): the invulnerable bodies
-            // (creative, spectator) never eat — even the always-edible pair.
+            // canEat(alwaysEdible) — the reference PlayerEntity.canEat lines
+            // 1487-1489 over FoodItem.startUsing line 59: the invulnerable
+            // bodies (creative, spectator) never eat — even the
+            // always-edible pair — while a SURVIVAL body at full hunger
+            // still begins the golden apple's eat (the always-edible row
+            // ignores the needsFood arm; the effects pay at completion).
             if (session.gamemode() == GameMode.CREATIVE
                     || session.gamemode() == GameMode.SPECTATOR) {
                 return;
             }
-            if (session.food() >= net.zaminmc.torch.server.player.PlayerSession.MAX_FOOD) {
-                return; // not hungry: the historical refusal
+            if (session.food() >= net.zaminmc.torch.server.player.PlayerSession.MAX_FOOD
+                    && !Foods.isAlwaysEdible(held.type())) {
+                return; // not hungry: the historical refusal (the golden apple exempt)
             }
             session.beginEating();
         });
@@ -12747,7 +12751,11 @@ public final class EngineServer implements Server, EngineBridge {
                 net.zaminmc.torch.server.stat.EngineStats.CAKE_SLICES_EATEN, 1);
         int newFood = Math.min(net.zaminmc.torch.server.player.PlayerSession.MAX_FOOD,
                 session.food() + 2);
-        float newSaturation = Math.min(newFood, session.saturation() + 0.1f);
+        // The bite's saturation folds at apply (HungerManager.add lines
+        // 20-23 — the verifier's seventh pass: CakeBlock line 80's add(2,
+        // 0.1F) folds 2 x 0.1 x 2 = 0.4, the pre-audit bite added the bare
+        // modifier).
+        float newSaturation = Math.min(newFood, session.saturation() + 0.4f);
         session.setBody(session.health(), newFood, newSaturation);
         if (bites < net.zaminmc.torch.server.block.CakeBlocks.MAX_BITES) {
             world.setBlock(at, blockRegistry.require(

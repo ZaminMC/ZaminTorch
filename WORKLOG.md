@@ -17064,3 +17064,345 @@ calls are load-bearing: the mooshroom's milk inheritance rides
 CowEntity.interactMob's arm through the super call at MooshroomEntity's
 foot — an engine dispatch that forgets the inheritance loses the
 mooshroom's milk silently.
+
+## Wave SC — the serialized-column memoization (the perf family's head — the last demand-named candidate standing, landed)
+
+**What:** the wire's dominant per-column cost — the 4096-block
+(id << 4) | metadata LE u16 walk inside ChunkSerializer18 — is now
+memoized per section against a content revision, so an UNCHANGED
+section re-serves its packed bytes instead of re-walking. The design
+the prior session's close note scoped (and called too
+correctness-critical to rush) landed with the invalidation surface
+the scoping itself named smaller than feared: the memo rides the
+BLOCK arm alone, so the surface is `ChunkSection.set` — verified the
+one mutation path engine-wide — and light/biome writes never touch it
+(they ride their own live reads, exactly the pre-memo behavior).
+
+**The protocol (the safety linchpin):** every state-changing `set`
+bumps a volatile revision AFTER the index write, so a revision-N
+reader is guaranteed every index write up to N; the serving arm
+(ChunkSerializer18.packedSection) reads the revision FIRST, then the
+memo slot, compares — and the store records the revision read BEFORE
+its walk. Under the volatile total order this admits exactly one
+imprecision — serving a pack that includes a committed-NEWER mutation
+— and never a stale serve (the phantom-blocks direction is
+structurally impossible; the admitted direction is the same tearing
+window the unmemoized cross-lane walk always rode). The wireMemo slot
+is opaque to the engine (core carries the slot, the protocol module
+owns the record type — the layer boundary kept whole); the null
+section serves a shared ALL_AIR constant; a no-op set never bumps.
+
+**The numbers (WireColumnMemoBenchmarkTest, the ML-024 re-stream
+shape — view-distance 4, 81 columns):** cold 1,361 us/column, warm
+9.4 us/column (the pure re-serve, against the attribution's measured
+0.50 ms average per column), partial 486 us/column. THE STORM ANSWER:
+the warm re-stream cycle 0.765 ms for all 81 columns against the
+ML-024 measured ~32 ms/cycle (the W2 storm's 4.5-5.3 ms/tick
+wirePublish row — the window's second-largest); the storm's real
+mixed shape (the death-site column changed, the other 80 unchanged)
+1.242 ms.
+
+**The stale-pin repair the sweep surfaced:** BiomeWorldTest's flora
+row still pinned the retired pre-PR54-59 tall-grass convention (the
+2-drop seeds+self table the parity audit fixed at its root — that
+wave never ran the world package). Re-pinned to the vanilla 1:1 law:
+TallPlantBlock's seeds row alone at 1/8, the by-hand self-drop an
+explicit negative, the plant itself riding the shears gate.
+
+**Evidence:** SectionPackMemoTest 10/0 NEW (the byte-identity drift
+guard — a verbatim copy of the pre-memo stream walk the memoized
+serializer must stay byte-identical to, over every serialize form;
+the memo's own laws — the re-served record identity, the
+exactly-the-mutated-section invalidation, the no-op set, light/biome
+never invalidating, the revision count);
+SectionPackMemoConcurrencyTest 1/0 NEW (two mutator lanes against two
+serializer lanes, the size law every iteration, the quieted state
+serving its true bytes); WireColumnMemoBenchmarkTest 1/0 NEW; the
+serializer lane 8/0; the core world lanes whole 231/0 over 34 classes
+(the stale-pin repair included); the protocol wire batch 22/0; the
+bukkit + launcher 105/0.
+
+**Lessons:** (1) the feared invalidation surface was the design
+note's own scoping artifact — slicing the memo to the BLOCK arm alone
+(light and biome never riding it) collapses the surface to the single
+mutation path the engine already funnels through setBlock; (2) the
+prior session's honest "not started" close left a half-landed tree —
+the recovery protocol (assess the diff against the reference, verify
+the ordering law, run the tests, then ledger) is the pattern for any
+uncommitted work the environment hands over; (3) the drift-guard
+convention (a verbatim copy of the replaced law inside the test) is
+what lets a perf change carry a byte-identity proof — the memo cannot
+silently diverge from the walk it replaced.
+
+## Wave FC — the flight families' contact arms (the 93/D2 ledger's standing tail, landed)
+
+**What:** the reference carries NO family skip — Entity.tick's lava
+arm, Entity.move's fire contact + the water douse, baseTick's
+suffocation and the block-collision cactus walk run for every body
+whatever owns its movement. The engine's five flight-family branches
+(ghast, dragon, bat, squid, guardian) returned before the shared
+environmental walk and skipped them all: a bat or a squid could stand
+in lava unwounded, a ghast drifted over lava lakes with the air's
+0.91 drag, a burning flight body never doused in water.
+
+**The fix, three pieces:** (1) THE EVERY-BODY CONTACT BLOCK — the
+five consults hoisted above the flight branches (the fire-immune
+kinds ride takeLavaDamage's own exemption, the dragon's noClip body
+never suffocates, the NoAI pins sit below the block so a pinned
+flight body still wounds and burns — the pin gates the mind and the
+movement alone); (2) THE SWIM GATES' WATER SPLIT — the squid's and
+the guardian's swim branches consulted the shared inFluid (water OR
+lava) where their own isInWater overrides gate on WATER alone: in
+lava the squid takes the stranded fall and the guardian the land
+body, both while the contact block wounds and burns them; (3) THE
+GHAST'S FLUID DRAG BANDS — FlyingMobEntity.moveRelative's own arms
+(water *0.8, lava *0.5, air 0.91, all three axes, no gravity).
+
+**The envelope recorded:** the bat's fluid TRAVEL arms stay in the
+16e envelope (the engine's bat model carries no travel walk in any
+fluid — the reference's sinking-in-lava bat is the residual); the
+dragon rides the contact block through its own immunity.
+
+**The stale pins repaired beside it:** the compat ledger's D2 row
+still carried the pre-F1 text for the lava motion drag (landed in
+93/F1 — its own row said so, the D2 row never re-pinned). Both rows
+re-pinned: the motion drag LANDED (F1), the flight families' arm
+LANDED (this wave).
+
+**Evidence:** FlightFamiliesContactTest 9/0 NEW (the bat's lava
+wounds + burn + death, the squid's stranded fall, the guardian's
+land fall, the ghast's three drag bands + the immune never-wound,
+the dragon's exemption, the fire ignite + the burn residual, the
+douse, the suffocation, the cactus); the entity package whole 574/0
+over 67 classes; the adjacent fire/mob lanes 20/0; the protocol wire
+lanes 13/0; the bukkit + launcher 105/0.
+
+**Lessons:** (1) the early-return dispatch shape silently waives the
+shared consults for every family that rides it — the contact block
+belongs ABOVE the dispatch, not below it (the same law the §22
+phase-gate holds for the tick's own arms); (2) the family-skip
+"precedent" the D2 ledger cited (the fire-contact skip) was never a
+decision, just the same structural accident named after itself —
+re-reading the reference's every-body consults dissolved it; (3) the
+first drag-band pin caught the ghast's steering burst landing on tick
+1 (--burstCooldown from 0) — the blocked-line stub (clearLine false)
+is the clean way to pin a drag band ALONE.
+
+## 2026-10-28 — the furnace fuel & cycle parity audit (PR #61, the verifier's sixth pass)
+
+The sixth sweep, one family over: the furnace's fuel & cycle law — the
+twelve getFuelTime arms (FurnaceBlockEntity lines 262-300), the fuel
+consumption's recipe remainder (lines 182-188), the tick's two
+interruption laws (lines 176-205), and the window's three slot gates
+(FurnaceMenu lines 22-24) — the other half of the same block entity the
+third pass's completion sweep left standing (that pass closed
+SmeltingManager's rows; this one closed the furnace whole).
+
+The burn table had four wood pins, the coal pair, the stick and four
+wooden tools where the reference carries twelve arms. What was missing:
+the WOODEN_SLAB ordering law (150 ticks, checked BEFORE the wood-material
+class — half a plank's burn, and a naive class-only read pays 300; both
+registered ids of legacy 126, the reference's one item); the
+Material.WOOD class whole (300 for every registered block item whose
+BLOCK reads wood — twenty-six rows where four pins stood: the
+planks/log/log2 variant trio, the bookshelf, the note block, the jukebox,
+the sign, the oak door, the trapdoor, the oak fence and the five variant
+fences, the fence gate, and the six wood stairs — with the LADDER read
+OUT of the class, LadderBlock line 20's own Material.DECORATION, the one
+wooden-looking block the class law excludes); the wooden hoe's 200 (the
+reference reads the tier per ITEM class — ToolItem, SwordItem, then
+HoeItem — and the table's four rows never carried the hoe); the lava
+bucket's 20000; the sapling pair's 100; and the blaze rod's 2400.
+
+The consumption had lost the reference's remainder consult: when the
+igniting stack's LAST unit burns away, the item's recipe remainder
+replaces the slot (lines 184-187) — the lava bucket leaves its empty
+bucket (Item.java line 611's setRecipeRemainder) where the engine's
+consumeOne destroyed it. The smelting input keeps its clean consumption
+(finishCooking never consults remainders), so the fuel stack rides the
+arm alone.
+
+The interruption was one fold where the reference pays two laws: the
+engine's tick hard-reset cookTime in EVERY stall, but the reference's
+tick runs its ignite/cook/reset block inside a GUARD — burning, or both
+a fuel item and an input present — and only INSIDE that guard does the
+hard reset apply (a burning furnace with its input pulled loses the
+progress whole, the existing pin); OUTSIDE the guard (not burning, the
+fuel or the input gone) the progress DECAYS by two per tick (lines
+203-204's clamp), never a reset. Restored with the guard's own shape —
+and the decay PRESERVES partial progress: a fresh ignite resumes the
+window where the decay left it, pinned both ways (99 at tick 299, 100 at
+the plank's last burning tick, 98 at the first decay tick, and the
+resume seat).
+
+The window's slots carried none of the menu's gates: the input is a
+plain InventorySlot (dirt may park in it, it never smelts), the fuel
+slot is the FurnaceFuelSlot (isFuel OR the EMPTY bucket — the bucket
+stacking to ONE in the slot, getMaxStackSize's own row), and the output
+is the FurnaceResultSlot, whose isItemAllowed answers FALSE — taking
+only, never placement. The engine's clickSlot filtered nothing, and its
+own javadoc claimed "the historical container slot does not filter" —
+the claim re-pinned: two of the three slots filter. The quick-move
+routing read its own asymmetry kept 1:1: the menu's transfer walk routes
+by isFuel ALONE (line 100), so the empty bucket is admitted by the GUI
+gate yet NOT quick-moved in — the engine's routing already matched, now
+pinned. The hopper-side gates (the fuel-or-bucket push, the
+bucket-only pull from below) were already 1:1 from their own slice and
+ride the new rows for free — a hopper can now feed a furnace its lava
+bucket and pull the empty one out below.
+
+**Evidence:** FurnaceFuelParityTest 18/0 (the twelve arms over one
+table — the slab ordering pair, the wood class's twenty-six rows, the
+ladder's zero, the tool family with the hoe, the item arms, the
+non-fuel zeros including the water/milk/empty buckets; the lava
+bucket's empty-bucket remainder; the mid-stack consumption; the
+burn-out decay's exact 99/100/98 cadence with the clamped tail and the
+resume seat; the two unguarded decay arms — fuel gone with the input
+waiting, input gone with the fuel waiting; the guarded blocked-output
+hard reset; the three slot gates with the bucket-at-one and the
+reverse-merge take; the quick-move asymmetry); the furnace package
+whole 45/0 (FurnaceBlockEntity 8, FurnaceFacing 2, FurnaceManager 4,
+MetadataSmelting 7, SmeltingCompletionParity 6, the new 18); the
+acceptance + container batch 104/0 (LitFurnace 2, FurnaceTakeXp 2,
+FurnaceHopperEvent 5, FurnaceRestart 1, HopperSystem 8, CraftingRecipe
+18, BrewingStandSystem 7, ChestBlockEntity 7, ChestFacing 2,
+ChestManager 4, ContainerPersistence 1, TrappedChest 2); the protocol
+wire batch 8/0 (FurnaceIntegration, WindowClick, WindowResync 4,
+CraftingFlow 2) plus SurvivalFlow 2, VanillaParity 1 and ChestLid 2;
+the bukkit + launcher + api modules green. The honest standing notes:
+ChestIntegrationTest's spill arm timed out on the spawn-item read in
+THIS environment — reproduced identically on the pass's base commit
+(be8e7854, the changes stashed), the documented load-flake class with
+four prior WORKLOG mentions, not a regression of this audit (the
+core-level chest family green in the same session); one
+HopperSystemTest load flake in the first combined run, green on the
+re-run and in isolation.
+
+**Lessons:** (1) a class law is a read, not a guess — the ladder looks
+wood and burns nowhere: Material.WOOD membership answers per BLOCK
+registration, and LadderBlock's own DECORATION line is the difference
+between a right table and a wrong row; (2) an interruption is not one
+law — the reference pays TWO (the guarded reset and the unguarded
+decay), and the fold between them cost every furnace its partial
+progress on a burn-out; the guard's own shape (burning, or fuel AND
+input) decides which arm runs, so the guard is the law; (3) one gate,
+two shapes — the GUI admits the empty bucket into the fuel slot while
+the quick-move walk refuses it (isFuel alone): both paths restored,
+both pinned, the asymmetry named; (4) the audit's own arithmetic rides
+the engine's own tick order — the ignition tick spends no burn
+decrement (the reference decrements before the ignite), and the first
+test draft paid the decay one tick early: the observed 100-vs-97
+re-pinned the seat to the machine's true cadence, the verifier
+verifying its own seats too.
+
+## 2026-10-28 — the food nutrition fold parity audit (PR #62, the verifier's seventh pass)
+
+The seventh sweep, one family over: the food nutrition law — the fold
+the reference pays at every bite (HungerManager.add lines 20-23:
+{@code saturation += food x modifier x 2}, the Item.java FoodItem
+registration's own modifier folded by the hunger manager at apply),
+the six registered foods the table never carried, and the always-edible
+gate (FoodItem.startUsing line 59's canEat(alwaysEdible) over the
+golden apple's single setAlwaysEdible registration, Item.java line
+604). The sixth pass closed the furnace; this one closed the plate.
+
+One root cause, paid three different ways. The engine's Nutrition
+record carries the saturation RESTORED — the community dataset's own
+folded convention, and the FOODS table's rows honor it (cooked beef's
+8 x 0.8 x 2 = 12.8 anchor) — but three sites passed the raw MODIFIER
+where the folded restoration belonged: the FISH family answered its
+Type columns verbatim (raw cod 0.1 where the reference restores 0.4,
+cooked cod 0.6 where 6.0, cooked salmon 0.8 where 9.6 — a QUARTER of
+the cooked cod's true restoration); the RAW CHICKEN row rode the
+dataset's own half-fold (0.6 — the fold without its x 2, where the
+reference answers 2 x 0.3 x 2 = 1.2); and the CAKE's bite added the
+bare 0.1 modifier where CakeBlock line 80's add(2, 0.1F) folds 0.4.
+The fold now rides FishItems' own dispatch (the Type enum keeps the
+reference's raw columns as its own table; nutritionOf folds at the
+answer), the raw chicken row carries the reference's 1.2, and the
+cake's bite pays 0.4.
+
+The six rows the table never carried: the cookie (Item.java line 643:
+FoodItem(2, 0.1F) — 0.4), the melon slice (line 360: FoodItem(2, 0.3F)
+— 1.2), the poisonous potato (line 394: FoodItem(2, 0.3F) — 1.2; its
+60% Poison effect row had sat in the EFFECTS table UNREACHABLE, the
+missing nutrition making the item uneatable), the pumpkin pie (line
+400: FoodItem(8, 0.3F) — 4.8), and the mutton pair (lines 727-728:
+FoodItem(2, 0.3F) and FoodItem(6, 0.8F) — 1.2 and 9.6; the SMELTING
+table had carried the pair since Slice 11i while the FOODS table never
+did, so neither form ever answered eatable).
+
+The always-edible gate: the pre-audit eat-start refused EVERY food at
+the cap, but the reference's canEat consults the item's own
+alwaysEdible flag — the golden apple's single setAlwaysEdible
+registration exempts it from the needsFood arm, so a survival body at
+FULL hunger still begins the eat (the golden pair's effects pay at the
+completion; the nutrition clamps at HungerManager.add's own min). The
+invulnerable bodies keep their refusal (the creative/spectator arms
+match the reference's own !invulnerable row). The cake's bite keeps
+its canEat(false) gate — the cake is not the always-edible pair.
+
+**Evidence:** FoodNutritionParityTest 6/0 (the meat band's folds with
+the raw chicken's corrected 1.2 named against the dataset's half-fold;
+the crop-and-stew band whole; the six new rows with the reference's
+own registrations cited; the fish family's folded restoration through
+both the FishItems dispatch and Foods' two-arg consult; the
+always-edible set riding the golden apple alone; the non-food arms
+answering empty — the cake item included, the block serving its own
+bites); BodySurvivalAcceptanceTest 10/0 (the re-pinned fish saturation
+arms 0.4/6.0/9.6 with the fold law named in each message, the live
+cooked-salmon eat restoring 9.6, the pufferfish comment's corrected
+0.2, and the NEW always-edible seat — the golden apple eaten at full
+hunger for the clamped food 20, the restored 9.6 under the cap, the
+absorption installed at the completion, and the plain bread refused at
+the same cap); the item package whole 39/0 (ArmorTest 5, ToolWear 5,
+Tools 4, WrittenBookFlow 9 beside the new 6); the cake/melon/fishing/
+potion/growth batch 46/0 (CakeBlocks 2, Melon 4, FishingOverride 7,
+FishingSystem 8, PotionSystem 22, GrowthApi 3); the block + interaction
++ player packages 314/0; the protocol wire batch green (SurvivalFlow,
+VanillaParity, FurnaceIntegration); the bukkit + launcher + api modules
+green. The honest standing tails: the MILK bucket carries no use walk
+in the engine (MilkBucketItem's clearStatusEffects + the empty-bucket
+swap — the bucket family's own future audit, the same
+declared-but-never-registered shape the silk pass recorded), and the
+hunger tick's exhaustion economy (the sprint/jump/swim/mine/damage
+sources) rides its own family — the fold, the rows, and the gate were
+this pass's whole plate.
+
+**Lessons:** (1) one record, one convention — the Nutrition field
+means the RESTORED saturation, and any site passing the raw modifier
+is a law violation waiting for a fold-named re-pin (the fish seats had
+pinned the modifiers themselves as historically-true); (2) the
+community dataset is evidence, not authority — its rows fold once, the
+reference's formula folds at apply, and the raw chicken's 0.6 is the
+row where the two disagree: the reference wins, the dataset's error
+named in the row that replaced it; (3) an unreachable effect row is a
+missing nutrition row — the poisonous potato's poison was never wrong,
+it was never REACHED, and the table's completion is what activates the
+family's other halves; (4) the always-edible gate is the ITEM's row,
+not the walk's — one registration (setAlwaysEdible, once in the food
+family) exempts the golden apple from the needsFood arm while the walk
+stays generic: the flag rides the table, the gate consults it.
+
+## The PR #61 review fix (the wood class completed)
+
+The review of PR #61 (the furnace fuel & cycle parity audit) verified all
+four divergence groups against the reference — the tick's outer guard and
+its two interruption laws (lines 176-205), the fuel consumption's recipe
+remainder (lines 182-188, Item.java line 611), the window's three slot
+gates (FurnaceMenu lines 22-24), and the fuel arms' own values — and found
+ONE defect: the Material.WOOD class restoration claimed "the registry's
+wood members" but the table carried twenty-six of thirty-eight. The twelve
+missing rows, all registered engine items the reference prices at 300:
+the five variant doors (Block.java lines 1461-1465, every
+DoorBlock(Material.WOOD)), the five variant fence gates (lines 1393-1413,
+FenceGateBlock line 22's own Material.WOOD), the trapped chest
+(ChestBlock line 33's constructor shared by Block.java line 1308's
+registration), and the daylight detector (DaylightDetectorBlock line 27).
+In vanilla 1.8.8 all twelve burn 300 ticks; with the audit's table alone a
+spruce door would not burn while an oak door does — a parity break the
+class law's own claim could not survive. The fix: the twelve rows added in
+the class section's own family grouping, the class comment naming the full
+membership, and the wood-class test pinning all thirty-eight (the count
+the claim always meant). The ladder exclusion re-verified beside them
+(LadderBlock line 20's Material.DECORATION).
