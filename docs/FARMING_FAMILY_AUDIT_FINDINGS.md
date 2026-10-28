@@ -177,11 +177,15 @@ the discovery record; the fix commits close each finding's §G row.
 ### B3. The dry-farmland-to-dirt reversion is absent (with the wheat/stem quirk)
 - Reference: `FarmlandBlock.tick` lines 50-51 — at MOISTURE 0, when the
   block above is NOT a `WheatBlock` or `StemBlock` (`isUnderCrop` lines
-  73-76), the farmland turns to DIRT on the next random tick. THE QUIRK:
-  carrots and potatoes are NOT in `isUnderCrop` (only wheat and the
-  melon/pumpkin stems) — vanilla farmland dries to dirt UNDER a carrot
-  or potato crop, popping the crop (the neighbour bus). Empty dry
-  farmland reverts to dirt the same way.
+  73-76), the farmland turns to DIRT on the next random tick.
+  CORRECTED AT THE FIX: the first record of this row claimed a carrot
+  quirk (`carrots/potatoes are NOT in isUnderCrop`) — FALSE, and the
+  correction is the reference's own class hierarchy: `CarrotsBlock` and
+  `PotatoesBlock` both EXTEND `WheatBlock`, so the `instanceof WheatBlock`
+  consult covers all three crops; the protection set is wheat, carrots,
+  potatoes and both stems, and only bare farmland (or a flower, or
+  anything else) reverts. The fix implemented the corrected walk
+  (PR #71's seat pins the carrot and the potato protecting).
 - Engine: `tickFarmlandHydration`'s else-arm only flips wet→dry; a dry
   farmland stays farmland forever, whatever sits on it.
 - Fix: the dry arm consults the cell above — a wheat or stem state
@@ -399,15 +403,23 @@ pass carried). The closure per finding:
       (the 1-in-16 statistical bands, the cactus new-cell consult with the
       same-tick pop + item, the stacked-cane short-circuit, the
       water-loss pop, the (81/83, 0..15) import seat, the pin 1251 → 1289).
-- [ ] B1 (the nibble-7 wire): OPEN — the serializer seat reads 7 for wet.
-- [ ] B2+B3+B5 (rain, the dry→dirt reversion with the wheat/stem
-      exception, the solid-above arm): OPEN — the scene seats.
-- [ ] B4 (the trample): OPEN — the fall-path seat (the player hop, the
-      mob drop, the mobGriefing gate, the items-never-trample band).
-- [ ] B6 (the water-only consult): PART-CLOSED — the CANE's water-only
-      consult landed with PR #69 (the lava-beside refusal rides the
-      waterBeside consult); the FARMLAND's scan box (dy [0,+1] and the
-      water-only consult) stays OPEN with the B pass.
+- [x] B1 (the nibble-7 wire): CLOSED — PR #71 (the wet form writes
+      nibble 7 on the wire; the serializer seat reads it out of the real
+      section; the dry form stays 0).
+- [x] B2+B3+B5 (rain, the dry→dirt reversion with the corrected class
+      walk, the solid-above arm): CLOSED — PR #71 (the setRainRead seam
+      over the hoisted rainAtInWorld walk — the biome's rain gate
+      included; the reversion with the wheat/carrot/potato/stem
+      protection family; the bus arm with the torch's never). The B3
+      row's quirk claim CORRECTED above — the instanceof class walk
+      covers the carrots and the potatoes.
+- [ ] B4 (the trample): OPEN — its own pass (the fall-path consult on
+      both the mob and the player landings: the nextFloat <
+      fallDistance - 0.5 roll, the mobGriefing gate, the
+      items-never-trample band — FarmlandBlock.onFallenOn lines 59-71).
+- [x] B6 (the water-only consult): CLOSED — the cane's consult with
+      PR #69, the farmland's scan box (dy [0,+1], the WATER kind alone)
+      with PR #71.
 - [x] C1+C2+C3 (the planting arms): CLOSED — PR #70
       (`FarmingAcceptanceTest`'s four live seats +
       `NetherWartGrowthParityTest`; stash-verified 6/6 failing), the

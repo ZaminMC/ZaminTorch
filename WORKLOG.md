@@ -17905,3 +17905,26 @@ model + the (106, 1..14) import isolation) after it, and the doc's §H
 carries the wider candidate list (the snow/ice laws, the doors, the
 noteblock/jukebox/daylight bands, the fire spread ladder, the falling
 blocks).
+
+PR #71 (fix/farmland-state-parity-audit): the B-section's five laws —
+the moisture nibble written as SEVEN on the wire (the vanilla client
+renders the moist skin iff metadata == 7; every engine farmland had
+rendered dry on a real client), the rain arm (the setRainRead seam over
+the hoisted rainAtInWorld walk — the mob view and the farmland now share
+ONE consult, the biome's rain gate included), the dry-to-dirt reversion
+(with the honest correction: the first record claimed a carrot quirk —
+FALSE, the instanceof class walk covers the carrots and the potatoes as
+WheatBlock's subclasses; the corrected walk pinned by the seats), the
+scan box (dy [0,+1], the WATER kind alone — lava and the water table
+below never hydrate), and the solid-abive bus arm (a stone on the field
+turns it to dirt; a torch never). The stale-eight integrity pin
+repaired a SECOND independent time (1251 -> 1259 here; PR #69's branch
+carries 1251 -> 1289 — the same arithmetic's merge-repair at the merge).
+FarmlandStateParityTest 4/0 NEW + the wire seat in ChunkSerializer18Test,
+stash-verified 5/5 failing. THE TRAMPLE (B4) stays open for its own
+fall-path pass — the doc's §G carries it as the family's named tail.
+
+The pass's honest remainder after three PRs: the trample B4, the vine
+family whole (§E), and the §H candidate list. The session ends with
+PRs #69/#70/#71 open (never self-merged, per the rule) and the discovery
+branch pushed with the findings doc + the closure records.
