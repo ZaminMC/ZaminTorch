@@ -38,7 +38,7 @@ public final class BuiltinRecipes {
     }
 
     /** All generated recipes, in dataset order (deterministic matching). */
-    public static final List<CraftingRecipe> ALL = withMineralRecipes(withDyeRecipes(List.of(
+    public static final List<CraftingRecipe> ALL = withBannerRecipes(withMineralRecipes(withDyeRecipes(List.of(
             CraftingRecipe.shaped(new Ingredient[][] {
                     { ing("minecraft:oak_log", true, 0) }
             },
@@ -641,7 +641,7 @@ public final class BuiltinRecipes {
                     { ing("minecraft:cobblestone", false, 0), ing("minecraft:cobblestone", false, 0), ing("minecraft:cobblestone", false, 0) }
             },
                     res("minecraft:cobblestone_stairs", 4, 0))
-    )));
+    ))));
 
     /**
      * The mineral vault's recipe set (Slice 32 — MineralRecipes.java's own
@@ -654,6 +654,28 @@ public final class BuiltinRecipes {
      * fortress block, the quartz's block) and the gold ingot/nugget pair
      * (MineralRecipes' own tail rows).
      */
+    /**
+     * The sixteen banner base recipes (BannerRecipes.register lines 16-27,
+     * 1:1): the "###"/"###"/" | " shape — six wool of the color over one
+     * stick — yielding the banner of the SAME color. The domains differ
+     * exactly like the reference's own rows: the wool ingredient consults
+     * the color's ID (white 0), the result carries the color's DYE
+     * metadata (white 15) — the banner item's own inverted domain.
+     */
+    private static List<CraftingRecipe> withBannerRecipes(List<CraftingRecipe> base) {
+        List<CraftingRecipe> recipes = new java.util.ArrayList<>(base);
+        for (int color = 0; color < 16; color++) {
+            Ingredient wool = ing("minecraft:wool", true, color);
+            recipes.add(CraftingRecipe.shaped(new Ingredient[][] {
+                    { wool, wool, wool },
+                    { wool, wool, wool },
+                    { null, ing("minecraft:stick", false, 0), null }
+            },
+                    res("minecraft:banner", 1, 15 - color)));
+        }
+        return recipes;
+    }
+
     private static List<CraftingRecipe> withMineralRecipes(List<CraftingRecipe> base) {
         List<CraftingRecipe> recipes = new java.util.ArrayList<>(base);
         // The nine-of-a-kind storage families: "###","###","###" packs,

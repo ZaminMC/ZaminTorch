@@ -383,6 +383,17 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:wall_sign_south"), 68),
             Map.entry(Identifier.parse("minecraft:wall_sign_west"), 68),
             Map.entry(Identifier.parse("minecraft:wall_sign_east"), 68),
+            // The banner family (Block.java lines 1375-1376): the standing
+            // pair over 176 (the rotation nibble), the wall pair over 177
+            // (the FACING nibble 2-5).
+            Map.entry(Identifier.parse("minecraft:standing_banner"), 176),
+            Map.entry(Identifier.parse("minecraft:standing_banner_west"), 176),
+            Map.entry(Identifier.parse("minecraft:standing_banner_north"), 176),
+            Map.entry(Identifier.parse("minecraft:standing_banner_east"), 176),
+            Map.entry(Identifier.parse("minecraft:wall_banner"), 177),
+            Map.entry(Identifier.parse("minecraft:wall_banner_south"), 177),
+            Map.entry(Identifier.parse("minecraft:wall_banner_west"), 177),
+            Map.entry(Identifier.parse("minecraft:wall_banner_east"), 177),
             // The building vocabulary slice (community blocks.json): oak
             // door 64 (facing+open in the metadata), ladder 65 (facing),
             // oak fence 85.
@@ -1315,6 +1326,9 @@ final class LegacyBlockIds {
      */
     private static final Map<Identifier, Integer> ITEM_OVERRIDES = Map.ofEntries(
             Map.entry(Identifier.parse("minecraft:sign"), 323),
+            // The banner item (Item.java line 729): legacy 425 — the
+            // blocks keep 176/177 (the sign's own block/item split).
+            Map.entry(Identifier.parse("minecraft:banner"), 425),
             // The skull item (Slice 60 — community id 397; the block keeps
             // 144 — the sign's own block/item split, the damage field
             // carrying the head type).
@@ -1445,6 +1459,16 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:wall_sign_south"), 3),
             Map.entry(Identifier.parse("minecraft:wall_sign_west"), 4),
             Map.entry(Identifier.parse("minecraft:wall_sign_east"), 5),
+            // The banner family's nibbles: the standing pair's rotations
+            // (the sign family's own 0/4/8/12 cardinals) and the wall
+            // pair's facings (2-5).
+            Map.entry(Identifier.parse("minecraft:standing_banner_west"), 4),
+            Map.entry(Identifier.parse("minecraft:standing_banner_north"), 8),
+            Map.entry(Identifier.parse("minecraft:standing_banner_east"), 12),
+            Map.entry(Identifier.parse("minecraft:wall_banner"), 2),
+            Map.entry(Identifier.parse("minecraft:wall_banner_south"), 3),
+            Map.entry(Identifier.parse("minecraft:wall_banner_west"), 4),
+            Map.entry(Identifier.parse("minecraft:wall_banner_east"), 5),
             Map.entry(Identifier.parse("minecraft:oak_door_north"), 1),
             // The jukebox's HAS_RECORD variant (Slice 27b — the reference's
             // getMetadataFromState: has_record ? 1 : 0 over legacy id 84).

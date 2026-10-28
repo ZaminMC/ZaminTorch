@@ -266,6 +266,13 @@ public final class BuiltinItems {
     // the standing sign block; the text rides Update Sign after placement.
     public static final EngineItemType SIGN = new EngineItemType(
             Identifier.parse("minecraft:sign"), "Sign", 16);
+    // The banner item (community items.json: legacy 425, stack 16 —
+    // BannerItem's own maxStackSize): the damage field carries the base
+    // color in the DYE item's own inverted domain (damage 0 black, 15
+    // white — DyeColor.getMetadata, the wool domain's mirror); the
+    // pattern rows ride the stack's BlockEntityTag.
+    public static final EngineItemType BANNER = new EngineItemType(
+            Identifier.parse("minecraft:banner"), "Banner", 16);
     // The building vocabulary (community items.json: oak door 324,
     // ladder 65, oak fence 85). The door item places both halves; the
     // block identifier "minecraft:oak_door" is the lower's closed state.
@@ -1114,7 +1121,7 @@ public final class BuiltinItems {
                 WOODEN_SWORD, STONE_SWORD, IRON_SWORD, DIAMOND_SWORD, GOLDEN_SWORD,
                 SHEARS,
                 WOODEN_HOE, STONE_HOE, IRON_HOE, DIAMOND_HOE, GOLDEN_HOE,
-                WHEAT_SEEDS, MELON_SEEDS, PUMPKIN_SEEDS, WHEAT, BREAD, BONE_MEAL, SIGN,
+                WHEAT_SEEDS, MELON_SEEDS, PUMPKIN_SEEDS, WHEAT, BREAD, BONE_MEAL, SIGN, BANNER,
                 CARROT, POTATO, BAKED_POTATO, POISONOUS_POTATO, APPLE, GOLDEN_CARROT, GOLDEN_APPLE, HAY_BLOCK,
                 OAK_DOOR, SPRUCE_DOOR, BIRCH_DOOR, JUNGLE_DOOR, ACACIA_DOOR, DARK_OAK_DOOR,
                 LADDER, OAK_FENCE, BED,

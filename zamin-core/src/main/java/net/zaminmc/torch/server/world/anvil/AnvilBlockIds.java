@@ -48,9 +48,8 @@ import java.util.Map;
  * </ul>
  *
  * <p><b>THE COVERAGE (the integrity test's own ledger):</b> every 1.8.8
- * overworld block id 0..175 resolves — the one family the engine does not
- * register is the banners (176 standing, 177 wall), which import as air
- * with a counted isolation. Ids 198..255 are item ids in 1.8.8 and never
+ * overworld block id 0..177 resolves (the banner family's 176/177 rows
+ * landed with the banner wave). Ids 198..255 are item ids in 1.8.8 and never
  * appear in chunk {@code Blocks} arrays; ids above 255 (the {@code Add}
  * nibble's mod space) have no vanilla existence and isolate the same
  * way.</p>
@@ -1171,6 +1170,44 @@ public final class AnvilBlockIds {
             state(175, 9, "minecraft:double_grass_upper"),
             state(175, 10, "minecraft:double_grass_upper"),
             state(175, 11, "minecraft:double_grass_upper"),
+            // The banner family (Block.java lines 1375-1376): the standing
+            // pair's rotations fold to the engine's sign-model cardinals
+            // (the 0-15 nibble, 0/4/8/12 the states; every other rotation
+            // reads its nearest quarter), the wall pair's FACING nibble
+            // through the reference's own getStateFromMetadata walk
+            // (byId's abs(nibble % 6), the Y-axis answers reading NORTH).
+            state(176, 0, "minecraft:standing_banner"),
+            state(176, 1, "minecraft:standing_banner"),
+            state(176, 2, "minecraft:standing_banner_west"),
+            state(176, 3, "minecraft:standing_banner_west"),
+            state(176, 4, "minecraft:standing_banner_west"),
+            state(176, 5, "minecraft:standing_banner_west"),
+            state(176, 6, "minecraft:standing_banner_north"),
+            state(176, 7, "minecraft:standing_banner_north"),
+            state(176, 8, "minecraft:standing_banner_north"),
+            state(176, 9, "minecraft:standing_banner_north"),
+            state(176, 10, "minecraft:standing_banner_east"),
+            state(176, 11, "minecraft:standing_banner_east"),
+            state(176, 12, "minecraft:standing_banner_east"),
+            state(176, 13, "minecraft:standing_banner_east"),
+            state(176, 14, "minecraft:standing_banner"),
+            state(176, 15, "minecraft:standing_banner"),
+            state(177, 0, "minecraft:wall_banner"),
+            state(177, 1, "minecraft:wall_banner"),
+            state(177, 2, "minecraft:wall_banner"),
+            state(177, 3, "minecraft:wall_banner_south"),
+            state(177, 4, "minecraft:wall_banner_west"),
+            state(177, 5, "minecraft:wall_banner_east"),
+            state(177, 6, "minecraft:wall_banner"),
+            state(177, 7, "minecraft:wall_banner"),
+            state(177, 8, "minecraft:wall_banner"),
+            state(177, 9, "minecraft:wall_banner_south"),
+            state(177, 10, "minecraft:wall_banner_west"),
+            state(177, 11, "minecraft:wall_banner_east"),
+            state(177, 12, "minecraft:wall_banner"),
+            state(177, 13, "minecraft:wall_banner"),
+            state(177, 14, "minecraft:wall_banner"),
+            state(177, 15, "minecraft:wall_banner_south"),
             state(178, 0, "minecraft:daylight_detector_inverted_p0"),
             state(178, 1, "minecraft:daylight_detector_inverted_p1"),
             state(178, 2, "minecraft:daylight_detector_inverted_p2"),

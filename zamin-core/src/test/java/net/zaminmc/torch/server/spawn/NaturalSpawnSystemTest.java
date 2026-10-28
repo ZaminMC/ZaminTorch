@@ -343,6 +343,75 @@ class NaturalSpawnSystemTest {
     }
 
     @Test
+    void theMooshroomsMyceliumFloor() {
+        // The mushroom isle: the biome's creature table carries the
+        // mooshroom ALONE (MushroomBiome lines 15-18 — passiveEntries
+        // cleared then the mooshroom's own 8/4-8 row), and the mooshroom's
+        // spawnableBlock is MYCELIUM (MooshroomEntity line 16 over the
+        // AnimalEntity line-18 grass default) — the per-KIND floor the
+        // tick cycle's animal arm must read.
+        FakeWorld isle = new FakeWorld(4);
+        for (int x = -30; x <= 30; x++) {
+            for (int z = -30; z <= 30; z++) {
+                isle.ground(x, z, net.zaminmc.torch.server.block.BuiltinBlocks.MYCELIUM);
+            }
+        }
+        isle.biome = net.zaminmc.torch.server.world.Biome.MUSHROOM_ISLAND;
+        PlayerSession farmer = player("Mycologist", 0.5, 0.5);
+        Spawned onMycelium = new Spawned();
+        NaturalSpawnSystem myceliumSystem = new NaturalSpawnSystem(
+                spawnSink(onMycelium), isle, new Random(7));
+        int mooshrooms = 0;
+        for (int cycle = 0; cycle < 60; cycle++) {
+            myceliumSystem.tick(List.of(farmer), 6000L, true);
+        }
+        for (MobType type : onMycelium.types) {
+            mooshrooms += type == MobType.MOOSHROOM ? 1 : 0;
+        }
+        assertTrue(mooshrooms > 0,
+                "the daylight mycelium isle grows the mooshrooms");
+        assertEquals(onMycelium.types.size(), mooshrooms,
+                "the isle's creature table carries the mooshroom alone");
+        // The grass-field refusal: the same biome over GRASS spawns
+        // nothing — the mooshroom's own floor refuses the wrong ground
+        // (the per-kind law, not the biome's).
+        FakeWorld grassIsle = new FakeWorld(4);
+        for (int x = -30; x <= 30; x++) {
+            for (int z = -30; z <= 30; z++) {
+                grassIsle.ground(x, z, net.zaminmc.torch.server.block.BuiltinBlocks.GRASS_BLOCK);
+            }
+        }
+        grassIsle.biome = net.zaminmc.torch.server.world.Biome.MUSHROOM_ISLAND;
+        Spawned onGrass = new Spawned();
+        NaturalSpawnSystem grassSystem = new NaturalSpawnSystem(
+                spawnSink(onGrass), grassIsle, new Random(7));
+        for (int cycle = 0; cycle < 60; cycle++) {
+            grassSystem.tick(List.of(farmer), 6000L, true);
+        }
+        assertEquals(0, onGrass.countOf(NaturalSpawnSystem.Category.CREATURE),
+                "the mooshroom refuses the grass floor — MYCELIUM alone");
+        // And the mirror: a cow over MYCELIUM never lands (the grass
+        // family's own floor) — the plains table's cow consulted against
+        // the mycelium ground.
+        FakeWorld plainsOnMycelium = new FakeWorld(4);
+        for (int x = -30; x <= 30; x++) {
+            for (int z = -30; z <= 30; z++) {
+                plainsOnMycelium.ground(x, z,
+                        net.zaminmc.torch.server.block.BuiltinBlocks.MYCELIUM);
+            }
+        }
+        plainsOnMycelium.biome = net.zaminmc.torch.server.world.Biome.PLAINS;
+        Spawned none = new Spawned();
+        NaturalSpawnSystem plainsSystem = new NaturalSpawnSystem(
+                spawnSink(none), plainsOnMycelium, new Random(7));
+        for (int cycle = 0; cycle < 60; cycle++) {
+            plainsSystem.tick(List.of(farmer), 6000L, true);
+        }
+        assertEquals(0, none.countOf(NaturalSpawnSystem.Category.CREATURE),
+                "the grass animals refuse the mycelium floor — the floor is per-kind");
+    }
+
+    @Test
     void theCapsScaleWithTheChunkCount() {
         FakeWorld world = new FakeWorld(4);
         for (int x = -30; x <= 30; x++) {

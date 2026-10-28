@@ -86,6 +86,12 @@ public final class BlockInteractionService {
     private volatile java.util.function.BiConsumer<BlockPosition, net.zaminmc.torch.block.BlockType> blockBrokenListener;
     /** The survival-break XP hook (mining awards; creative breaks never fire it). */
     private volatile SurvivalXpHook survivalXpListener;
+    /**
+     * The survival-break afterMinedByPlayer hook (the tile-reading drops —
+     * the reference's arm runs in tryMineBlock's non-creative branch alone;
+     * creative breaks never fire it).
+     */
+    private volatile SurvivalMinedHook survivalMinedListener;
     /** The world-mutation feedback hook (break/place FX); null until registered. */
     private volatile java.util.function.Consumer<Commit> commitFeedbackListener;
     /** The dig-progress broadcast hook (the 0x28 fan-out); null until registered. */
@@ -809,8 +815,15 @@ public final class BlockInteractionService {
         // site lacked).
         GameMode breakMode = gameMode.apply(player);
         boolean harvested = BlockBehaviorTable.canHarvest(behavior, held);
+        // The banner family's own afterMinedByPlayer override (BannerBlock
+        // lines 109-120) never calls super — no 0.025 fatigue, no
+        // mined-block stat (the registration's own disableStats); the
+        // survival drop rides the afterMinedByPlayer hook below instead
+        // of the generic walk.
+        boolean bannerBreak = net.zaminmc.torch.server.block.BannerBlocks.isBanner(
+                current.identifier());
         if ((breakMode == GameMode.SURVIVAL || breakMode == GameMode.ADVENTURE)
-                && harvested) {
+                && harvested && !bannerBreak) {
             player.addExhaustion(0.025f);
             // The mined-block stat (afterMinedByPlayer line 774's own
             // incrementStat — creative never counts, the reference's
@@ -849,6 +862,15 @@ public final class BlockInteractionService {
             xp.onSurvivalBreak(player, current, target); // the award sees the broken block
         }
         var listener = blockBrokenListener;
+        // The afterMinedByPlayer hook (the survival arm's own tail — the
+        // reference's else-branch at tryMineBlock line 224; creative never
+        // reaches it, exactly like the XP awards). It fires BEFORE the
+        // block-broken listener: the tile-reading drops consult the tile
+        // before the mode-agnostic cleanup arms remove it.
+        SurvivalMinedHook mined = survivalMinedListener;
+        if (mined != null) {
+            mined.onSurvivalMined(player, current, target);
+        }
         if (listener != null) {
             listener.accept(target, current); // container spill runs after the block is gone
         }
@@ -1042,12 +1064,25 @@ public final class BlockInteractionService {
         void onSurvivalBreak(PlayerSession player, BlockType broken, BlockPosition position);
     }
 
+    /** The survival-break afterMinedByPlayer hook (the tile-reading drops). */
+    public interface SurvivalMinedHook {
+        void onSurvivalMined(PlayerSession player, BlockType broken, BlockPosition position);
+    }
+
     /**
      * Registers the survival-break XP hook (the engine's mining award wiring).
      * Tick-thread context.
      */
     public void setSurvivalXpListener(SurvivalXpHook listener) {
         this.survivalXpListener = listener;
+    }
+
+    /**
+     * Registers the survival-break afterMinedByPlayer hook (the tile-reading
+     * drops — the banner's tagged item). Tick-thread context.
+     */
+    public void setSurvivalMinedListener(SurvivalMinedHook listener) {
+        this.survivalMinedListener = listener;
     }
 
     /**

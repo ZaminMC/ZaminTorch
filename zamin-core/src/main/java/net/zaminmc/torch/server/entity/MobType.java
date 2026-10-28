@@ -301,9 +301,10 @@ public enum MobType {
      * raw beef drops — the mooshroom's own arms are the interaction pair:
      * the bowl fills with the mushroom stew (the adult only), the shears
      * shear it INTO a plain cow with five red mushrooms (the tool wear +
-     * the {@code mob.sheep.shear} sound). The mycelium spawn floor rides
-     * the mushroom-biome slice (ledgered: the engine's biome family
-     * carries no mushroom island).
+     * the {@code mob.sheep.shear} sound). The mycelium spawn floor
+     * LANDED (2026-10-28 — the natural cycle's animal arm reads the
+     * per-kind spawnableBlock: MooshroomEntity line 16's MYCELIUM over
+     * AnimalEntity line 18's grass default, the spawner path's twin).
      */
     MOOSHROOM(96, 0.9, 1.3, 10.0f, 0.035, false, Traits.NONE,
             List.of(new ItemRoll(BuiltinItems.BEEF, 1, 3),

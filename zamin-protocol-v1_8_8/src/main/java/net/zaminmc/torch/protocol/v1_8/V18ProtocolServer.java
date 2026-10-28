@@ -1102,6 +1102,24 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                 }
             });
         }
+        // The banner tiles (the same PlayerChunkMap law): every placement
+        // re-publishes the 0x35 action-6 tile (the Base + Patterns rows
+        // the client's renderer reads); the removal arm needs no packet
+        // (the block's own update carries the vanish).
+        if (server.banners() != null) {
+            server.banners().addListener(
+                    new net.zaminmc.torch.server.banner.BannerManager.Listener() {
+                        @Override
+                        public void onBannerTileChanged(
+                                net.zaminmc.torch.block.BlockPosition position,
+                                net.zaminmc.torch.server.banner.BannerManager.BannerTile tile) {
+                            for (V18Connection connection
+                                    : connections.keySet().toArray(new V18Connection[0])) {
+                                connection.sendBannerTile(position, tile);
+                            }
+                        }
+                    });
+        }
         // The command-block tile re-publish (Slice 72 — the edit/run rows'
         // 0x35 action 2 fan); the chunk-send replay rides the chunk packet's
         // own tile walk (writeCommandTile's static form).
