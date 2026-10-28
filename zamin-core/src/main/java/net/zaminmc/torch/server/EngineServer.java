@@ -11515,14 +11515,16 @@ public final class EngineServer implements Server, EngineBridge {
 
     /**
      * The pumpkin placement (Slice 17d — PumpkinBlock.onAdded +
-     * trySpawnGolem lines 53-112): the block lands like any woody block
-     * (the historical FACING rotation ledgers with the metadata slice —
-     * the engine registers the unrotated form), then the build scan runs:
-     * the snow pattern (two snow blocks under the head) builds the snow
-     * golem, the iron cross (the 3-wide chest row + the base, the ~ air
-     * guards at the head's sides and the base's sides) builds the iron
-     * golem — player-created, both bodies landing at the pattern's own
-     * spawn cell with the +0.05 hop. Tick-thread context.
+     * trySpawnGolem lines 53-112, the metadata slice's facing law added):
+     * the block lands with the FACING the reference's own placement
+     * carries (getPlacementState line 129: the look's OPPOSITE — the
+     * pumpkin's face looks back at the placer, the horizontal-id nibble
+     * 0-3 the states carry), then the build scan runs: the snow pattern
+     * (two snow blocks under the head) builds the snow golem, the iron
+     * cross (the 3-wide chest row + the base, the ~ air guards at the
+     * head's sides and the base's sides) builds the iron golem —
+     * player-created, both bodies landing at the pattern's own spawn cell
+     * with the +0.05 hop. Tick-thread context.
      */
     private void placePumpkinOnTick(PlayerSession session, BlockPosition clicked, int face,
                                     java.util.Optional<BlockType> creativeHeld, boolean lit) {
@@ -11539,7 +11541,14 @@ public final class EngineServer implements Server, EngineBridge {
         if (!WorldSolidity.isSolid(world.getBlock(target.offset(0, -1, 0)))) {
             return;
         }
-        world.setBlock(target, lit ? BuiltinBlocks.LIT_PUMPKIN : BuiltinBlocks.PUMPKIN);
+        // getPlacementState line 129: FACING = getHorizontalFacing().
+        // getOpposite() — the look band the reference's own formula
+        // centers (the +45 shift, the & 3 mask; the sign placement's own
+        // in-house precedent), the opposite the band's own ^2.
+        int lookBand = net.zaminmc.torch.server.block.PumpkinBlocks.lookBandOf(
+                session.rotation().yaw());
+        int facing = net.zaminmc.torch.server.block.PumpkinBlocks.oppositeHorizontal(lookBand);
+        world.setBlock(target, net.zaminmc.torch.server.block.PumpkinBlocks.pumpkinOf(lit, facing));
         consumePlaced(session, creativeHeld);
         // The build scan rides the family file (GolemSpawns — the law the
         // dispenser's pumpkin arm consults too, the reference's own shape:

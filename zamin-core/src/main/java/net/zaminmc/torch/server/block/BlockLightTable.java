@@ -414,6 +414,14 @@ public final class BlockLightTable {
             Map.entry(Identifier.parse("minecraft:ice"), new LightData(0, 3)),
             Map.entry(Identifier.parse("minecraft:iron_block"), new LightData(0, 15)),
             Map.entry(Identifier.parse("minecraft:pumpkin"), new LightData(0, 15)),
+            // The rotated states (the metadata slice): the same laws — the
+            // lit lantern's 15 whatever its facing, the plain block opaque.
+            Map.entry(Identifier.parse("minecraft:pumpkin_west"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:pumpkin_north"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:pumpkin_east"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:lit_pumpkin_west"), new LightData(15, 0)),
+            Map.entry(Identifier.parse("minecraft:lit_pumpkin_north"), new LightData(15, 0)),
+            Map.entry(Identifier.parse("minecraft:lit_pumpkin_east"), new LightData(15, 0)),
 
             // The temple set (Slice 12f): the chiseled sandstone + the clay
             // pair + the mossy cobblestone are full opaque cubes; the vine's

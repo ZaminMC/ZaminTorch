@@ -631,6 +631,15 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:ice"), 79),
             Map.entry(Identifier.parse("minecraft:iron_block"), 42),
             Map.entry(Identifier.parse("minecraft:pumpkin"), 86),
+            // The pumpkin pair's rotated states (the metadata slice —
+            // PumpkinBlock lines 138-148: the HORIZONTAL-id nibble band,
+            // a different domain than the chest family's Direction band).
+            Map.entry(Identifier.parse("minecraft:pumpkin_west"), 86),
+            Map.entry(Identifier.parse("minecraft:pumpkin_north"), 86),
+            Map.entry(Identifier.parse("minecraft:pumpkin_east"), 86),
+            Map.entry(Identifier.parse("minecraft:lit_pumpkin_west"), 91),
+            Map.entry(Identifier.parse("minecraft:lit_pumpkin_north"), 91),
+            Map.entry(Identifier.parse("minecraft:lit_pumpkin_east"), 91),
             Map.entry(Identifier.parse("minecraft:lit_pumpkin"), 91)));
 
     /**
@@ -1434,6 +1443,16 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:ender_chest_south"), 3),
             Map.entry(Identifier.parse("minecraft:ender_chest_west"), 4),
             Map.entry(Identifier.parse("minecraft:ender_chest_east"), 5),
+            // The pumpkin pair's rotated states (the metadata slice —
+            // PumpkinBlock lines 138-148: the metadata IS the HORIZONTAL
+            // id, 1 west / 2 north / 3 east; the bare forms carry 0 =
+            // south, the map's own default).
+            Map.entry(Identifier.parse("minecraft:pumpkin_west"), 1),
+            Map.entry(Identifier.parse("minecraft:pumpkin_north"), 2),
+            Map.entry(Identifier.parse("minecraft:pumpkin_east"), 3),
+            Map.entry(Identifier.parse("minecraft:lit_pumpkin_west"), 1),
+            Map.entry(Identifier.parse("minecraft:lit_pumpkin_north"), 2),
+            Map.entry(Identifier.parse("minecraft:lit_pumpkin_east"), 3),
             // The chest pair's facing nibbles (Slice L2 — the same
             // Direction-id band the ender chest shipped).
             Map.entry(Identifier.parse("minecraft:chest_north"), 2),

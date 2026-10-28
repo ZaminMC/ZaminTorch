@@ -116,6 +116,9 @@ class VanillaLightAuditTest {
                 Map.entry("minecraft:nether_portal", 11),        // setLight(0.75F), line 1192
                 Map.entry("minecraft:nether_portal_z", 11),      // the axis pair
                 Map.entry("minecraft:lit_pumpkin", 15),          // setLight(1.0F), line 1193
+                Map.entry("minecraft:lit_pumpkin_west", 15),     // the facing states (the
+                Map.entry("minecraft:lit_pumpkin_north", 15),    // metadata slice — one glow
+                Map.entry("minecraft:lit_pumpkin_east", 15),     // family over legacy 91)
                 Map.entry("minecraft:sea_lantern", 15),          // setLight(1.0F), line 1357
                 Map.entry("minecraft:redstone_torch", 7),        // setLight(0.5F), line 1172
                 Map.entry("minecraft:redstone_torch_west", 7),   // the wall arms
@@ -203,7 +206,9 @@ class VanillaLightAuditTest {
                 "minecraft:falling_lava_4", "minecraft:falling_lava_5", "minecraft:falling_lava_6",
                 "minecraft:falling_lava_7",
                 "minecraft:glowstone", "minecraft:nether_portal", "minecraft:nether_portal_z",
-                "minecraft:lit_pumpkin", "minecraft:sea_lantern",
+                "minecraft:lit_pumpkin", "minecraft:lit_pumpkin_west",
+                "minecraft:lit_pumpkin_north", "minecraft:lit_pumpkin_east",
+                "minecraft:sea_lantern",
                 "minecraft:redstone_torch", "minecraft:redstone_torch_east", "minecraft:redstone_torch_west",
                 "minecraft:redstone_torch_south", "minecraft:redstone_torch_north",
                 "minecraft:lit_redstone_ore", "minecraft:lit_redstone_lamp",
