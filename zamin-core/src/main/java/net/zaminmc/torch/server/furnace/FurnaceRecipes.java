@@ -124,17 +124,22 @@ public final class FurnaceRecipes {
             // registered block item whose BLOCK reads wood — the reference
             // answers the CLASS, so the rows below are the registry's wood
             // members, not a hand-picked four: the planks/log/log2 variant
-            // trio, the workbench, the chest, the bookshelf (BookshelfBlock
-            // line 12's own Material.WOOD), the note block (NoteBlock line
-            // 21), the jukebox (JukeboxBlock line 24), the sign (SignBlock
-            // line 19), the oak door (Block.java line 1130's explicit
-            // Material.WOOD), the trapdoor (line 1198), the oak fence and the
-            // five variant fences (FenceBlock(Material.WOOD) — Block.java
-            // lines 1185 / 1419-1455), the fence gate (FenceGateBlock line
-            // 22), and the six wood stairs (StairsBlock line 37 — the
-            // modeled planks state's own material). The LADDER is NOT a
-            // member: LadderBlock line 20 reads Material.DECORATION — the
-            // one wooden-looking block the class law excludes.
+            // trio, the workbench, the chest pair (ChestBlock line 33's own
+            // Material.WOOD — the trapped chest rides the same constructor,
+            // Block.java line 1308), the bookshelf (BookshelfBlock line 12),
+            // the note block (NoteBlock line 21), the jukebox (JukeboxBlock
+            // line 24), the sign (SignBlock line 19), the daylight detector
+            // (DaylightDetectorBlock line 27's own Material.WOOD), the SIX
+            // doors (Block.java line 1130's oak plus lines 1461-1465's five
+            // variants, every DoorBlock(Material.WOOD)), the trapdoor (line
+            // 1198), the oak fence and the five variant fences
+            // (FenceBlock(Material.WOOD) — Block.java lines 1185 / 1419-1455),
+            // the six fence gates (FenceGateBlock line 22's Material.WOOD —
+            // the oak at line 1215 plus the five variants at lines 1393-1413),
+            // and the six wood stairs (StairsBlock line 37 — the modeled
+            // planks state's own material). The LADDER is NOT a member:
+            // LadderBlock line 20 reads Material.DECORATION — the one
+            // wooden-looking block the class law excludes.
             Map.entry(Identifier.parse("minecraft:oak_planks"), 300),
             Map.entry(Identifier.parse("minecraft:planks"), 300),
             Map.entry(Identifier.parse("minecraft:oak_log"), 300),
@@ -142,11 +147,18 @@ public final class FurnaceRecipes {
             Map.entry(Identifier.parse("minecraft:log2"), 300),
             Map.entry(Identifier.parse("minecraft:crafting_table"), 300),
             Map.entry(Identifier.parse("minecraft:chest"), 300),
+            Map.entry(Identifier.parse("minecraft:trapped_chest"), 300),
             Map.entry(Identifier.parse("minecraft:bookshelf"), 300),
             Map.entry(Identifier.parse("minecraft:noteblock"), 300),
             Map.entry(Identifier.parse("minecraft:jukebox"), 300),
             Map.entry(Identifier.parse("minecraft:sign"), 300),
+            Map.entry(Identifier.parse("minecraft:daylight_detector"), 300),
             Map.entry(Identifier.parse("minecraft:oak_door"), 300),
+            Map.entry(Identifier.parse("minecraft:spruce_door"), 300),
+            Map.entry(Identifier.parse("minecraft:birch_door"), 300),
+            Map.entry(Identifier.parse("minecraft:jungle_door"), 300),
+            Map.entry(Identifier.parse("minecraft:acacia_door"), 300),
+            Map.entry(Identifier.parse("minecraft:dark_oak_door"), 300),
             Map.entry(Identifier.parse("minecraft:trapdoor"), 300),
             Map.entry(Identifier.parse("minecraft:oak_fence"), 300),
             Map.entry(Identifier.parse("minecraft:spruce_fence"), 300),
@@ -155,6 +167,11 @@ public final class FurnaceRecipes {
             Map.entry(Identifier.parse("minecraft:dark_oak_fence"), 300),
             Map.entry(Identifier.parse("minecraft:acacia_fence"), 300),
             Map.entry(Identifier.parse("minecraft:oak_fence_gate"), 300),
+            Map.entry(Identifier.parse("minecraft:spruce_fence_gate"), 300),
+            Map.entry(Identifier.parse("minecraft:birch_fence_gate"), 300),
+            Map.entry(Identifier.parse("minecraft:jungle_fence_gate"), 300),
+            Map.entry(Identifier.parse("minecraft:dark_oak_fence_gate"), 300),
+            Map.entry(Identifier.parse("minecraft:acacia_fence_gate"), 300),
             Map.entry(Identifier.parse("minecraft:oak_stairs"), 300),
             Map.entry(Identifier.parse("minecraft:spruce_stairs"), 300),
             Map.entry(Identifier.parse("minecraft:birch_stairs"), 300),

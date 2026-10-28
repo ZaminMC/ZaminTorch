@@ -17090,3 +17090,26 @@ decrement (the reference decrements before the ignite), and the first
 test draft paid the decay one tick early: the observed 100-vs-97
 re-pinned the seat to the machine's true cadence, the verifier
 verifying its own seats too.
+
+## The PR #61 review fix (the wood class completed)
+
+The review of PR #61 (the furnace fuel & cycle parity audit) verified all
+four divergence groups against the reference — the tick's outer guard and
+its two interruption laws (lines 176-205), the fuel consumption's recipe
+remainder (lines 182-188, Item.java line 611), the window's three slot
+gates (FurnaceMenu lines 22-24), and the fuel arms' own values — and found
+ONE defect: the Material.WOOD class restoration claimed "the registry's
+wood members" but the table carried twenty-six of thirty-eight. The twelve
+missing rows, all registered engine items the reference prices at 300:
+the five variant doors (Block.java lines 1461-1465, every
+DoorBlock(Material.WOOD)), the five variant fence gates (lines 1393-1413,
+FenceGateBlock line 22's own Material.WOOD), the trapped chest
+(ChestBlock line 33's constructor shared by Block.java line 1308's
+registration), and the daylight detector (DaylightDetectorBlock line 27).
+In vanilla 1.8.8 all twelve burn 300 ticks; with the audit's table alone a
+spruce door would not burn while an oak door does — a parity break the
+class law's own claim could not survive. The fix: the twelve rows added in
+the class section's own family grouping, the class comment naming the full
+membership, and the wood-class test pinning all thirty-eight (the count
+the claim always meant). The ladder exclusion re-verified beside them
+(LadderBlock line 20's Material.DECORATION).

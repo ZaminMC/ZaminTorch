@@ -50,11 +50,21 @@ class FurnaceFuelParityTest {
         assertEquals(300, burn(BuiltinItems.LOG2));
         assertEquals(300, burn(BuiltinItems.CRAFTING_TABLE));
         assertEquals(300, burn(BuiltinItems.CHEST));
+        assertEquals(300, burn(BuiltinItems.TRAPPED_CHEST),
+                "the trapped chest rides ChestBlock's own Material.WOOD");
         assertEquals(300, burn(BuiltinItems.BOOKSHELF));
         assertEquals(300, burn(BuiltinItems.NOTE_BLOCK));
         assertEquals(300, burn(BuiltinItems.JUKEBOX));
         assertEquals(300, burn(BuiltinItems.SIGN));
+        assertEquals(300, burn(BuiltinItems.DAYLIGHT_DETECTOR),
+                "the detector's own Material.WOOD (DaylightDetectorBlock line 27)");
         assertEquals(300, burn(BuiltinItems.OAK_DOOR));
+        assertEquals(300, burn(BuiltinItems.SPRUCE_DOOR),
+                "the five variant doors are DoorBlock(Material.WOOD) too (lines 1461-1465)");
+        assertEquals(300, burn(BuiltinItems.BIRCH_DOOR));
+        assertEquals(300, burn(BuiltinItems.JUNGLE_DOOR));
+        assertEquals(300, burn(BuiltinItems.ACACIA_DOOR));
+        assertEquals(300, burn(BuiltinItems.DARK_OAK_DOOR));
         assertEquals(300, burn(BuiltinItems.TRAPDOOR));
         assertEquals(300, burn(BuiltinItems.OAK_FENCE));
         assertEquals(300, burn(BuiltinItems.SPRUCE_FENCE));
@@ -63,6 +73,12 @@ class FurnaceFuelParityTest {
         assertEquals(300, burn(BuiltinItems.DARK_OAK_FENCE));
         assertEquals(300, burn(BuiltinItems.ACACIA_FENCE));
         assertEquals(300, burn(BuiltinItems.OAK_FENCE_GATE));
+        assertEquals(300, burn(BuiltinItems.SPRUCE_FENCE_GATE),
+                "the five variant gates ride FenceGateBlock's Material.WOOD (lines 1393-1413)");
+        assertEquals(300, burn(BuiltinItems.BIRCH_FENCE_GATE));
+        assertEquals(300, burn(BuiltinItems.JUNGLE_FENCE_GATE));
+        assertEquals(300, burn(BuiltinItems.DARK_OAK_FENCE_GATE));
+        assertEquals(300, burn(BuiltinItems.ACACIA_FENCE_GATE));
         assertEquals(300, burn(BuiltinItems.OAK_STAIRS));
         assertEquals(300, burn(BuiltinItems.SPRUCE_STAIRS));
         assertEquals(300, burn(BuiltinItems.BIRCH_STAIRS));
