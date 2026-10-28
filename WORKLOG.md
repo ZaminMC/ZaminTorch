@@ -17815,3 +17815,98 @@ banner family (no banner item in the registry); the engine's cactus arm
 substitutes the collision model for Material.isSolid (a cobweb beside a
 cactus is spared where vanilla breaks it); the floor torch's air-only
 consult (a torch on leaves or a cobweb pops where vanilla keeps it).
+
+## 2026-10-28 — the rail family placement & connection parity audit (the verifier's thirteenth pass)
+
+**The scope (the findings doc docs/RAIL_FAMILY_AUDIT_FINDINGS.md, §A-§G):**
+the rails — the plain rail's TEN-state vocabulary (the pre-audit engine
+carried TWO of the ten: the four ASCENDING and four CURVE shapes
+unregistered, a vanilla slope or curve isolating AS AIR at import), the
+placement's LOOK LAW the reference does not carry (RailBlock line 15's
+default NORTH_SOUTH + onAdded's walk; no getPlacementState anywhere in
+the family), the RailNode connection walk ENTIRELY ABSENT (the engine's
+rails never connected, never re-oriented, never curved — write-once at
+placement), the floor consult's wrong family (isSolid where the
+reference reads World.hasSolidTop — a bottom slab, a fence, a wall or
+thin snow is NOT a rail bed), the support-pop arms absent (a rail's
+floor removed floats where vanilla pops it with its drop), and the
+body-collision gate the reference's null-shape walk does not carry (a
+vanilla rail plants into the placer's own cell).
+
+**The restoration:** the ten states registered (wire id 66's nibble 0-9,
+the import rows (66, 0-9) — the pre-audit (66, 0-1) isolated slopes and
+curves AS AIR), RailConnections 1:1 over AbstractRailBlock's RailNode
+lines 143-477 — the updateConnections lists, the up/down neighbour
+search, the reciprocation prune (hasConnection's X/Z-ONLY compare), the
+updateState selection table (the exclusive bands, the alwaysStraight-
+gated curve branches, the null fallback with the unpowered curve picks,
+the ASCENDING upgrades in the reference's own two-if order), the
+reciprocation loop that bends the EXISTING rails to meet the newcomer;
+the placement site (default state lands, the look band retired, the
+hasSolidTop consult, the no-body-gate, the trio's own explicit
+neighborChanged pop); the update bus's rail arm (the floor + each
+ASCENDING run's own cell, the family-item drop).
+
+**THE OWN-COMMIT EXEMPTION (the pass's own find, surfaced LIVE):** the
+engine's update bus carries a {0,0,0} self-offset — every commit wakes
+the CHANGED CELL ITSELF, where the reference's dispatch
+(World.updateNeighbors lines 342-349) notifies the SIX NEIGHBOURS ALONE.
+The rail arm riding the self-offset popped every DIRECTLY-WRITTEN rail
+on its own commit: HopperMinecartTest's cart-rail scene (a plugin-path
+floating rail at height, green on develop only because the pre-audit
+engine carried no rail arm at all) regressed the window-click seat —
+the arm popped the rail, the cart fell, the click refused. Vanilla's
+law: onAdded (lines 76-83) runs the walk with NO support consult — a
+directly-written rail FLOATS until a NEIGHBOUR changes; only the item
+path's canBePlaced consult guards the bed. The exemption: when the
+changed cell's new type is a rail, the self-schedule skips. LOAD-BEARING
+BOTH DIRECTIONS (verified by disabling the guard): without it scene F
+fails AND the hopper regression returns; with it both green and the
+command-block/spawner cart scenes' floating rails persist exactly like
+vanilla's. The torch/carpet/sign arms' own self-wake divergence is
+LEDGERED as their own audits' rows.
+
+**The stale pin repaired (the sign pass's tail):** the protocol
+module's AnvilBlockIdsIntegrityTest derived-count pin — 47ad888b
+registered the standing sign's twelve intermediate states WITHOUT the
+pin moving (its evidence ran a nine-test wire batch that did not include
+the size pin). Re-pinned 1251 -> 1271 (the sign's twelve + the rail's
+eight); the missing/wrong/collision checks were green before and after.
+
+**Evidence:** RailPlacementParityTest 10/0 NEW (the default-not-look
+seats; the walk's both-rails re-orient; the curve from two orthogonal
+neighbours; the ascending upgrade from a one-level slope; the trio
+straight-only corner; the no-re-walk-on-removal boundary; the bottom
+slab + fence refusals with the stone control; the underfoot plant; the
+support pops with the family items + the imported rail's first wake +
+scene F's own-commit float-then-neighbour-pop; the ten-state
+registry/nibble/import/blast vocabulary); the stash-verified probe —
+eight seats over the PRE-FIX tree, ALL failing with their documented
+divergences (rail_ew-vs-rail, no-walk, no-curve, slab-lands, floats,
+air-vs-underfoot, unregistered, unimported); the block + registry +
+anvil + item + vehicle packages green (the hopper restored by the
+exemption); the protocol integrity + chunk serializer + bulk wire +
+light census green; VehicleWorldDamageTest's one combined-run flake
+reproduced ONCE, green in isolation AND on the re-run (the documented
+load class); BlockRegistryTest re-pinned 914 -> 922.
+
+**Lessons:** (1) a support arm copied from a sibling arm inherits the
+sibling's DIVERGENCES — the {0,0,0} self-offset is the torch/carpet/sign
+convention, and the rail arm rode it into a live regression the sibling
+families' audits never saw because no test ever directly-writes a
+floating torch/sign at height with a body depending on it; the
+reference's DISPATCH law (who receives the wake) is part of every
+support arm's mechanic, not plumbing; (2) the stash-verification probe
+that compiles against PRE-FIX surfaces only (separate from the new
+suite) is the clean way to pin divergences when the new tests reference
+the new vocabulary; (3) a scene's y is part of its law — the flat
+world's grass top sits at y 4, so a "floating" rail at y 5 was
+supported all along, and the seat that tried to pin the exemption
+passed vacuously until the y moved.
+
+**Standing tails:** the POWERED curve preference arm (updateState's
+powered branches — the redstone seam's row); the signal-source re-walk
+(RailBlock lines 19-23's count==3 arm — the redstone family's row); the
+torch/carpet/sign arms' self-wake divergence (their own audits' rows);
+the hopper cart's transfer quirk cadence and VehicleWorldDamageTest's
+combined-run flake (the documented load class).

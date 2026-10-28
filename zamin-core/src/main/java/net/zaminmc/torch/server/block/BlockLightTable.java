@@ -278,6 +278,17 @@ public final class BlockLightTable {
             // The rails: walk-through track, light passes (the flora rule).
             Map.entry(Identifier.parse("minecraft:rail"), new LightData(0, 0)),
             Map.entry(Identifier.parse("minecraft:rail_ew"), new LightData(0, 0)),
+            // The plain rail's slope + curve states (the thirteenth
+            // verifier pass — the same walk-through rows over the eight
+            // new shapes).
+            Map.entry(Identifier.parse("minecraft:rail_ascending_east"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:rail_ascending_west"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:rail_ascending_north"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:rail_ascending_south"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:rail_south_east"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:rail_south_west"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:rail_north_west"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:rail_north_east"), new LightData(0, 0)),
             Map.entry(Identifier.parse("minecraft:bed"), new LightData(0, 0)),
             Map.entry(Identifier.parse("minecraft:bed_west"), new LightData(0, 0)),
             Map.entry(Identifier.parse("minecraft:bed_north"), new LightData(0, 0)),

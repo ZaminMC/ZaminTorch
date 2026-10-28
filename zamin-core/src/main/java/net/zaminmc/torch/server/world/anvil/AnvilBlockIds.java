@@ -473,6 +473,19 @@ public final class AnvilBlockIds {
             state(65, 5, "minecraft:ladder_east"),
             state(66, 0, "minecraft:rail"),
             state(66, 1, "minecraft:rail_ew"),
+            // The plain rail's slope + curve nibbles (the thirteenth
+            // verifier pass — RailBlock.getStateFromMetadata lines 31-33,
+            // Shape.byId over the FULL ten-shape enum: the pre-audit
+            // import isolated a vanilla world's ascending rails and every
+            // curve AS AIR, the block lost with the cell).
+            state(66, 2, "minecraft:rail_ascending_east"),
+            state(66, 3, "minecraft:rail_ascending_west"),
+            state(66, 4, "minecraft:rail_ascending_north"),
+            state(66, 5, "minecraft:rail_ascending_south"),
+            state(66, 6, "minecraft:rail_south_east"),
+            state(66, 7, "minecraft:rail_south_west"),
+            state(66, 8, "minecraft:rail_north_west"),
+            state(66, 9, "minecraft:rail_north_east"),
             state(67, 0, "minecraft:cobblestone_stairs_east")
     );
 

@@ -11429,7 +11429,7 @@ public final class EngineServer implements Server, EngineBridge {
                 || net.zaminmc.torch.server.block.RailBlocks.isRailItem(heldId)
                 || creativeHeld.map(t -> WorldSolidity.isRail(t.identifier())).orElse(false)) {
             placeRailOnTick(session, clicked, face, creativeHeld);
-            return; // the rail's look orientation overrides the generic placement
+            return; // the default placement + the connection walk overrides the generic seat
         }
         if (heldId.equals("minecraft:redstone")
                 || creativeHeld.map(t -> t.identifier().value().equals("redstone")).orElse(false)) {
@@ -14386,12 +14386,16 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /**
-     * The rail placement (the historical ItemRail): the flat orientation
-     * follows the placer's look (north-south or east-west), the cell must
-     * be open with a solid floor beneath (the vanilla rail gate —
-     * AbstractRailBlock.canBePlaced's World.hasSolidTop). The Slice 38
-     * trio families place their own state through the same walk.
-     * Tick-thread.
+     * The rail placement (the thirteenth verifier pass — the reference's
+     * own AbstractRailBlock.onAdded + RailBlock line 15, 1:1): the DEFAULT
+     * north-south state lands (the look NEVER consulted — the pre-audit
+     * engine's look band retired), the cell must carry a solid TOP
+     * beneath (canBePlaced lines 71-73 — the has-solid-top family, not
+     * the collision model), and onAdded's force walk (lines 76-83) then
+     * re-orients the landing to its neighbours with the reciprocation
+     * that bends the existing track; the alwaysStraight trio families
+     * close with the explicit neighborChanged supports consult. No
+     * entity gate anywhere (the collision-null law, B7). Tick-thread.
      */
     private void placeRailOnTick(PlayerSession session, BlockPosition clicked, int face,
                                  java.util.Optional<BlockType> creativeHeld) {
@@ -14400,29 +14404,51 @@ public final class EngineServer implements Server, EngineBridge {
                 || !canOccupyForPlacement(target)) {
             return;
         }
-        if (intersectsPlayerBox(session.position(), target)) {
-            return; // the vanilla body rule (the reference's own entity collision check)
-        }
+        // No body-collision gate: the reference's item walk consults the
+        // entity box only through canBlockBePlaced's COLLIDE flag, and the
+        // use path passes FALSE — the rail's own collision shape is null
+        // (AbstractRailBlock lines 38-41), a vanilla rail plants under the
+        // placer's feet (the thirteenth pass's B7, the sign pass's F7
+        // precedent).
         if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE
                 && session.inventory().held().isEmpty()) {
             return;
         }
-        BlockType floor = world.getBlock(target.offset(0, -1, 0));
-        if (!WorldSolidity.isSolid(floor)) {
-            return; // the rail needs its solid bed (the vanilla gate)
+        if (!net.zaminmc.torch.server.block.FireBlocks
+                .hasSolidTop(world, target.offset(0, -1, 0))) {
+            return; // canBePlaced (lines 71-73): the has-solid-top family,
+                    // not the collision model — a bottom slab, a fence, a
+                    // wall or the thin snow is not a rail bed
         }
-        double yaw = ((session.rotation().yaw() % 360.0) + 360.0 + 45.0) % 360.0;
-        int lookBand = (int) (yaw / 90.0) % 4; // 0=S,1=W,2=N,3=E
-        // The look along an axis lays the track along it: S/N -> north-south.
-        boolean northSouth = lookBand == 0 || lookBand == 2;
+        // The DEFAULT state lands (RailBlock line 15 / PoweredRailBlock
+        // line 29: NORTH_SOUTH — the look is never consulted anywhere in
+        // the family; the pre-audit engine's look band retired by the
+        // thirteenth pass), then onAdded's force walk (lines 76-78)
+        // re-orients the landing to its neighbours — and the existing
+        // rails bend to meet it through the walk's own reciprocation.
         String held = heldIdentifierOf(session, creativeHeld);
         String railFamily = net.zaminmc.torch.server.block.RailBlocks.isRailItem(held)
                 ? (held.contains(":") ? held.substring(held.indexOf(':') + 1) : held) : null;
-        if (railFamily != null) {
-            world.setBlock(target, net.zaminmc.torch.server.block.RailBlocks
-                    .placementState(railFamily, !northSouth));
-        } else {
-            world.setBlock(target, northSouth ? BuiltinBlocks.RAIL : BuiltinBlocks.RAIL_EW);
+        world.setBlock(target, railFamily != null
+                ? net.zaminmc.torch.server.block.RailBlocks.defaultState(railFamily)
+                : BuiltinBlocks.RAIL);
+        net.zaminmc.torch.server.block.RailConnections.updateShape(world, target, true);
+        if (net.zaminmc.torch.server.block.RailBlocks.alwaysStraightOf(world.getBlock(target))) {
+            // The alwaysStraight families' own explicit neighborChanged
+            // (onAdded lines 79-81): the walk may lift the landing into an
+            // ASCENDING shape whose run cell carries no solid top — the
+            // pop drops the family item (neighborChanged's dropItems +
+            // removeBlock, lines 104-106).
+            BlockType placed = world.getBlock(target);
+            if (!net.zaminmc.torch.server.block.RailConnections.survivesAt(world, target)) {
+                world.setBlock(target, world.airType());
+                itemEntities.spawnDropAtBlock(
+                        new Position(target.x(), target.y(), target.z()),
+                        ItemStack.of(BuiltinItems.lookup(
+                                net.zaminmc.torch.server.block.RailBlocks.familyItemOf(placed))
+                                .orElseThrow(), 1),
+                        ItemEntity.PICKUP_DELAY_DROP_TICKS);
+            }
         }
         consumePlaced(session, creativeHeld);
     }

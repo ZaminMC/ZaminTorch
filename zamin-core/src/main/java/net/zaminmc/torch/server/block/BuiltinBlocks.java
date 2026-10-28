@@ -469,9 +469,13 @@ public final class BuiltinBlocks {
     public static final EngineBlockType COBBLESTONE_STAIRS_NORTH_TOP = new EngineBlockType(
             Identifier.parse("minecraft:cobblestone_stairs_north_top"), "Cobblestone Stairs", 7);
 
-    // The rail (community blocks.json: block 66, the flat orientation in
-    // the metadata nibble: 0 = north-south, 1 = east-west). Walk-through
-    // (the vanilla rail never blocks a body); the minecart reads the axis.
+    // The rail (community blocks.json: block 66 — the thirteenth pass
+    // joined the plain rail to the family map: the TEN-shape band in the
+    // metadata nibble 0-9, Shape.byId over the FULL enum — the bare
+    // north-south 0 and the historical rail_ew 1 the registered
+    // constants, the four ascents + the four curves the family loop).
+    // Walk-through (the vanilla rail never blocks a body); the minecart
+    // reads the axis.
     public static final EngineBlockType RAIL = new EngineBlockType(
             Identifier.parse("minecraft:rail"), "Rail");
     public static final EngineBlockType RAIL_EW = new EngineBlockType(
@@ -1159,6 +1163,14 @@ public final class BuiltinBlocks {
         // states each (the bare north_south form shares the family item's
         // own identifier).
         for (EngineBlockType rail : RailBlocks.familyBlocks()) {
+            builder = builder.register(rail);
+        }
+        // The plain rail's own eight NEW states (the thirteenth verifier
+        // pass — RailBlock's TEN-shape band over wire id 66: the four
+        // ASCENDING + the four CURVE states the pre-audit engine never
+        // registered, the bare north_south and the historical rail_ew
+        // riding the constants above).
+        for (EngineBlockType rail : RailBlocks.plainFamilyBlocks()) {
             builder = builder.register(rail);
         }
         // The trapdoor pair (Slice 39 — TrapdoorBlock 1:1): the wood 96 and
