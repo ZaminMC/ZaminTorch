@@ -17852,3 +17852,56 @@ sign family is the pattern to follow (EngineServer.placeSignOnTick):
 Estimated as one full session wave (the sign family's own scale);
 the scoping verified against the reference's BannerBlock.java,
 BannerItem.java, and the engine's sign placement this session.
+
+## 2026-10-28 — Pass 14: the farming family (the discovery + the two fix PRs)
+
+The session opened as the BROAD sweep the owner asked for (a repo-wide
+verifier audit, discovery first, findings in the branch's own doc). The
+farming family surfaced as the first un-audited territory —
+docs/FARMING_FAMILY_AUDIT_FINDINGS.md (branch
+audit/verifier-pass-14-discovery) records the whole harvest: the growth
+cadences (the crops' flat nextInt(3)/nextInt(6) vs the reference's 25/f
+formula — the wet centre's 1-in-7, the dry 1-in-13, the eight-wet-ring
+acceleration to 1-in-3, the same-crop row half; the stems' every-tick
+fruit vs the roll-gated walk; the cane/cactus 1-in-3 vs the AGE-15
+accumulators' 1-in-16), the farmland's five missing laws (the nibble-7
+wire, the rain hydration, the dry-to-dirt reversion with the
+wheat/stem-only quirk, the absent trample on BOTH fall paths, the
+solid-above arm, the lava-admitting hydration consult), the three
+unplantable families (carrots, potatoes, nether wart — the crop family
+present whole but unreachable by the player), the AGE import isolation
+((81/83, 1..15) importing AS AIR — a lived-in world's canes and cacti
+deleted), and the adjacent vine family recorded for its own pass.
+
+PR #69 (fix/farming-growth-cadence-parity-audit): the A-section whole —
+the 25/f formula ported with the row half and the family match, the stem
+roll gate, the AGE-15 bands, the cane's stacked short-circuit + the
+water-loss pop (the pop riding the random tick itself — the water cell
+is DIAGONAL to the cane, the bus never fires), the water-only consult,
+the cactus new-cell consult (place-then-pop with the item), the AGE
+import bands, and the derived-table pin 1251 → 1289 REPAIRING develop's
+own stale eight (BN-A's banner states joined the derivation without the
+pin moving — the stale-pin class the sign pass caught, caught a second
+time). FarmingGrowthCadenceParityTest 14/0 NEW, stash-verified 7/7
+failing; the two acceptance lanes' probe counts re-pinned for the
+restored cadences.
+
+PR #70 (fix/planting-arms-parity-audit): the C-section — the carrot and
+potato planting (CropItem — the eat path staying live on the refused
+use), the nether wart's planting AND its growth arm (1-in-10, no light
+gate) AND its support arms (the tick consult in the reference's own
+order + the bus arm, the pop's age-band drop), the hoe's coarse-dirt
+conversion, the seeds' UP-face gate, and the sound laws aligned
+(vanilla planting is silent; the till sound's arguments were swapped).
+FarmingAcceptanceTest 10/0 (4 new live seats) + NetherWartGrowthParityTest
+3/0 NEW, stash-verified 6/6 failing. The setPlantPopItems seam is
+identical text in both PRs — the hunks coalesce at the merge.
+
+The honest remainder stays family-owned: the farmland moisture laws
+(B1-B6 — the nibble-7 wire, the rain arm, the dry-to-dirt reversion,
+the trample, the solid-above arm, the scan box) are the next pass's
+opening candidate, the vine family (the spread walk + the connection
+model + the (106, 1..14) import isolation) after it, and the doc's §H
+carries the wider candidate list (the snow/ice laws, the doors, the
+noteblock/jukebox/daylight bands, the fire spread ladder, the falling
+blocks).

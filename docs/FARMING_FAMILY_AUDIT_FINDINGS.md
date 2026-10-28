@@ -291,22 +291,45 @@ the discovery record; the fix commits close each finding's §G row.
 
 ## D. The crop drop bands (the harvest rolls)
 
-### D1. The age-7 seed rolls are a fixed-count table today
-- Reference: `WheatBlock.dropItems` lines 113-128 — at AGE 7 the block
-  drops its PLANT item once (the `getDropItem` age-7 arm) plus
-  `3 + fortuneLevel` rolls of `nextInt(15) <= i` (at i=7, a 53.3%
-  chance each) for SEED items; below 7 the drop is one SEED
-  (`getDropItem`'s else). Carrots/potatoes inherit (the "seed" IS the
-  carrot/potato item); `PotatoesBlock.dropItems` adds the 1-in-50
-  POISONOUS_POTATO roll at AGE 7 (lines 23-31).
-- Engine: `BlockBehaviorTable`'s crop rows carry fixed drops (verified:
-  carrot stages 0-6 → 1 carrot, stage 7 → 2 fixed; the potato rows the
-  same shape; the wheat rows read at the fix). The vanilla rolls
-  (wheat: 1 wheat + 0-3 seeds at 8/15 each; carrots/potatoes: 1 + 0-3
-  at 8/15; the 1-in-50 poison potato) are absent.
-- Fix: the crop drop rows take the roll laws (the tall-grass pass's own
-  precedent — the 1/8 seed roll the BlockUpdateSystem's flora arm
-  carries is the in-tree pattern).
+### D1. RESOLVED-STALE — the drop bands were already whole (the V2 miss, recorded honestly)
+- The finding as first recorded claimed the fixed-count drop rows as the
+  engine's law. FALSE, and the miss was mine: `DropService.dropsFor`
+  (the drop walk every break consults) already carries the full
+  reference bands — the wheat/carrot/potato mature walk
+  (`3 + fortune` rolls of `nextInt(15) <= 7`, the plant item first, the
+  carrots'/potatoes' merged stack, the 1-in-50 POISONOUS_POTATO roll at
+  age 7) and the nether wart's age-3 band (`2 + nextInt(3)` + the
+  fortune gate) — the javadoc's own "pre-fix rows folded each band to a
+  flat count" note records the earlier drop-bands pass that landed it.
+  `BlockBehaviorTable`'s fixed rows are the FALLBACK surface
+  `dropsFor` never reaches for these families, not the live law.
+- The lesson (the taiga wolf row's own class): a V2 read that stops at
+  the first table that spells the family has not found the law — the
+  DROP WALK sites (`DropService.dropsFor`) own these bands. No fix owed;
+  this row stays as the correction record.
+
+## D2. The sub-finds the fix passes surfaced (both landed with them)
+
+### D2a. The seeds' UP-face gate was missing (fixed in PR #70)
+- Reference: `WheatSeedsItem.useOn`'s first gate — `face != UP → false`:
+  a side click never plants, nothing is spent. The engine's seeds arm
+  planted on ANY face. Fixed with the carrot/potato/wart arms carrying
+  the same gate.
+
+### D2b. The planting was not silent (fixed in PR #70)
+- Reference: `WheatSeedsItem.useOn`/`CropItem.useOn` carry NO playSound —
+  vanilla seed planting is silent. The engine's seeds arm played a
+  `dig.grass` pair (an engine-side addition); the hoe's till sound also
+  had its volume/pitch arguments swapped against the reference's own
+  form (`tillBlock` lines 51-58: `(volume+1)/2`, `pitch*0.8`). Both
+  aligned.
+
+### D2c. The derived-table pin was stale on develop (repaired in PR #69)
+- The banner's eight states (176/177) joined the import derivation at
+  dc4cb71a (Wave BN-A) without `AnvilBlockIdsIntegrityTest`'s pinned
+  count moving — develop's pin sat stale-red at 1251 against the 1259
+  derivation, the same stale-pin class the sign pass caught. PR #69's
+  re-pin (1251 → 1289) carries both increments and the attribution.
 
 ## E. The vine family (the adjacent discovery — its own pass)
 
@@ -368,21 +391,35 @@ fix lands with a parity test that pins the restored law, and the
 pre-fix tree verified failing (the stash-verified pattern every prior
 pass carried). The closure per finding:
 
-- [ ] A1+A2 (the growth formula + the stem roll): the seat drives the
-      seeded roll distribution over the farmland shapes (wet/dry center,
-      the neighbour-ring acceleration, the row-half) and the stem's
-      fruit cadence.
-- [ ] A3+A4+A5 (the AGE-15 cadences + the import bands): the seat pins
-      the 1-in-16 column cadence statistically, the cactus new-cell
-      consult, and the import of every (81/83, 0..15) nibble.
-- [ ] B1 (the nibble-7 wire): the serializer seat reads 7 for wet.
+- [x] A1+A2 (the growth formula + the stem roll): CLOSED — PR #69
+      (`FarmingGrowthCadenceParityTest`: the f-speed pins per shape, the
+      seeded statistical bands, the stem's exact first-pass index;
+      stash-verified 7/7 failing).
+- [x] A3+A4+A5 (the AGE-15 cadences + the import bands): CLOSED — PR #69
+      (the 1-in-16 statistical bands, the cactus new-cell consult with the
+      same-tick pop + item, the stacked-cane short-circuit, the
+      water-loss pop, the (81/83, 0..15) import seat, the pin 1251 → 1289).
+- [ ] B1 (the nibble-7 wire): OPEN — the serializer seat reads 7 for wet.
 - [ ] B2+B3+B5 (rain, the dry→dirt reversion with the wheat/stem
-      exception, the solid-above arm): the scene seats.
-- [ ] B4 (the trample): the fall-path seat (the player hop, the mob
-      drop, the mobGriefing gate, the items-never-trample band).
-- [ ] B6 (the water-only consult): the lava-beside refusals.
-- [ ] C1+C2+C3 (the planting arms): the use seats.
-- [ ] D1 (the drop rolls): the seeded drop seats.
+      exception, the solid-above arm): OPEN — the scene seats.
+- [ ] B4 (the trample): OPEN — the fall-path seat (the player hop, the
+      mob drop, the mobGriefing gate, the items-never-trample band).
+- [ ] B6 (the water-only consult): PART-CLOSED — the CANE's water-only
+      consult landed with PR #69 (the lava-beside refusal rides the
+      waterBeside consult); the FARMLAND's scan box (dy [0,+1] and the
+      water-only consult) stays OPEN with the B pass.
+- [x] C1+C2+C3 (the planting arms): CLOSED — PR #70
+      (`FarmingAcceptanceTest`'s four live seats +
+      `NetherWartGrowthParityTest`; stash-verified 6/6 failing), the
+      sub-finds D2a/D2b (the face gate, the silent planting, the till
+      sound form) landing with it.
+- [x] D1 (the drop rolls): CLOSED-STALE — no fix owed (§D1: the bands
+      were already whole; the V2 miss recorded).
+- NOTE: the cane's neighbour-arm water consult (the bus-side
+      `tickCaneSupport` reading soil alone where the reference's
+      `neighborChanged → canSurviveOrBreak` consults the water too)
+      was noted during PR #69's review and rides the B pass (the
+      farmland/cane bus arms share the consult's shape).
 
 ## H. The future passes' candidate list (recorded, not owed)
 
