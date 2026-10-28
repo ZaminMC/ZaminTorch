@@ -17485,3 +17485,26 @@ a second. The fix: the drop's delay set to 0 with the corrected comment,
 and the rim-drop test seat pinned (pickupAllowed() at the moment of the
 drop). The audit's own Lesson 4 applied to itself: the drop's timing is
 part of the mechanic exactly as its position is.
+
+THE CORRECTION (the reviewer's own review, one commit later): the
+review-fix commit's adjacent finding MISREAD the reference's pickup
+geometry — the claim "the engine's pickup sweep is generous where the
+reference's onPlayerCollision is a true box intersection (~0.425)" is
+WRONG. The reference's collision walk (PlayerEntity lines 483-489)
+consults getShape().grown(1.0, 0.5, 1.0) — the player's box GROWN by
+1.0 horizontally and 0.5 vertically — so an item within |dx|/|dz| of
+1.3 + its own half 0.125 = 1.425 collects, and the engine's
+withinPickupRange (0.3 + 0.125 + PICKUP_GROWTH_HORIZONTAL = 1.425, the
+vertical y-0.5..y+2.3 band) is the FAITHFUL 1:1 port, not an engine
+generosity. The delay-0 fix itself stands (the cauldron's direct
+addEntity path sets no delay — that verification is independent); what
+changes is only the characterization: a delay-0 rim drop collected
+within a tick by a player one block south is VANILLA behavior, not an
+engine artifact. The one honest tail the walk DOES carry: the RIDING
+case — the reference grows the player-vehicle UNION box by (1.0, 0.0,
+1.0) (vertical growth 0.0, the union's own height), where the engine
+always uses the walking shape (+0.5 vertical over the player's own
+box); a riding player's vertical pickup band differs (ledgered beside
+the thrower family's row). The test seat's three-block stand remains
+the right shape — outside the band the drop sits at the rim in vanilla
+and the engine alike.

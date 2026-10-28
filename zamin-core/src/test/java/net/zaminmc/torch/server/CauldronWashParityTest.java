@@ -187,12 +187,15 @@ class CauldronWashParityTest {
     void theFullInventoryDropsThePotionAtTheRim() throws Exception {
         BlockPosition at = new BlockPosition(23, 40, 23);
         standCauldron(at, 1);
-        // Three blocks south — OUTSIDE the engine's pickup sweep (its
-        // grown 1.425-block horizontal band; the review fix's lesson: a
-        // delay-0 rim drop inside the sweep is collected within the first
-        // tick, so the seat must observe the drop from beyond it — the
-        // reference's own box-intersection pickup would not touch the
-        // potion at any of these distances until the player steps in).
+        // Three blocks south — OUTSIDE the pickup sweep's reach (the
+        // reference's OWN grown box, PlayerEntity lines 483-489: the
+        // walking player's collision walk consults getShape().grown(1.0,
+        // 0.5, 1.0), so an item at |dx| or |dz| under 1.3 + the item's
+        // half 0.125 = 1.425 collects — the engine's withinPickupRange is
+        // the 1:1 port, and a delay-0 rim drop inside the band is
+        // collected within the first tick, so the seat observes from
+        // beyond it; the drop would sit at the rim for ANY player outside
+        // the band, vanilla and engine alike).
         PlayerSession packed = join("Packed", new Position(23.5, 40.0, 26.5));
 
         server.ticker().submit(() -> {
