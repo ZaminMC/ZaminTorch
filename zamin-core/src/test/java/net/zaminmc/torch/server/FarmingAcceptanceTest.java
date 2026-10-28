@@ -213,7 +213,7 @@ class FarmingAcceptanceTest {
     }
 
     @Test
-    void matureHarvestYieldsWheatAndASeed() throws Exception {
+    void matureHarvestYieldsWheatAndTheSeedBonusWalk() throws Exception {
         server = boot();
         PlayerSession farmer = join("Harvester");
         BlockPosition soil = new BlockPosition(0, 64, 0);
@@ -221,13 +221,25 @@ class FarmingAcceptanceTest {
         BlockPosition crop = soil.offset(0, 1, 0);
         setBlock(crop, BuiltinBlocks.WHEAT_STAGE7);
 
-        var drops = new net.zaminmc.torch.server.interaction.DropService(new java.util.Random())
+        // The reference's mature law (WheatBlock.dropItems lines 91-105):
+        // exactly ONE wheat plus the 3 + fortune bonus rolls, each
+        // nextInt(15) <= 7 → one seed (0-3 at fortune 0 — never a flat one
+        // seed; the seed stack only appears when the walk lands at least
+        // one). The DropBandParityAcceptanceTest carries the exhaustive
+        // band; this seat pins the gesture end-to-end.
+        var drops = new net.zaminmc.torch.server.interaction.DropService(
+                new java.util.Random(0x5EEDL))
                 .dropsFor(BuiltinBlocks.WHEAT_STAGE7, ItemStack.EMPTY.type());
-        assertEquals(2, drops.size(), "the mature crop yields wheat plus a seed");
         assertEquals(item("minecraft:wheat"), drops.get(0).type());
-        assertEquals(item("minecraft:wheat_seeds"), drops.get(1).type());
+        assertEquals(1, drops.get(0).count(), "exactly one wheat, first");
+        int seeds = drops.size() == 2 ? drops.get(1).count() : 0;
+        assertTrue(seeds >= 0 && seeds <= 3, "the bonus stays in the 0-3 band: " + seeds);
+        if (drops.size() == 2) {
+            assertEquals(item("minecraft:wheat_seeds"), drops.get(1).type());
+        }
 
-        var young = new net.zaminmc.torch.server.interaction.DropService(new java.util.Random())
+        var young = new net.zaminmc.torch.server.interaction.DropService(
+                new java.util.Random(0x5EEDL))
                 .dropsFor(BuiltinBlocks.WHEAT_STAGE2, ItemStack.EMPTY.type());
         assertEquals(1, young.size(), "a young crop yields only the seed");
         assertEquals(item("minecraft:wheat_seeds"), young.get(0).type());

@@ -227,11 +227,16 @@ public final class BuiltinItems {
             Identifier.parse("minecraft:carrot"), "Carrot", 64);
     // The potato family (Slice 12b — the village farm's second crop, the
     // community items.json pair 392/393): the raw potato 1/0.6, the baked
-    // pair 5/6.0 (the smelting row in FurnaceRecipes).
+    // pair 5/6.0 (the smelting row in FurnaceRecipes). The poisonous
+    // potato (legacy 394 — Item.java line 694, FoodItem(2, 0.3F) with the
+    // POISON status 5/0/0.6): the mature potato crop's own 1/50 bonus
+    // roll (PotatoesBlock.dropItems lines 25-31).
     public static final EngineItemType POTATO = new EngineItemType(
             Identifier.parse("minecraft:potato"), "Potato", 64);
     public static final EngineItemType BAKED_POTATO = new EngineItemType(
             Identifier.parse("minecraft:baked_potato"), "Baked Potato", 64);
+    public static final EngineItemType POISONOUS_POTATO = new EngineItemType(
+            Identifier.parse("minecraft:poisonous_potato"), "Poisonous Potato", 64);
     public static final EngineItemType APPLE = new EngineItemType(
             Identifier.parse("minecraft:apple"), "Apple", 64);
     public static final EngineItemType GOLDEN_CARROT = new EngineItemType(
@@ -603,6 +608,10 @@ public final class BuiltinItems {
             Identifier.parse("minecraft:end_stone"), "End Stone", 64);
     public static final EngineItemType PACKED_ICE_ITEM = new EngineItemType(
             Identifier.parse("minecraft:packed_ice"), "Packed Ice", 64);
+    // The plain ice's own item (IceBlock — the silk arm's cube; legacy 79,
+    // the block-id item the reference's Item.java registers from Blocks.ICE).
+    public static final EngineItemType ICE_ITEM = new EngineItemType(
+            Identifier.parse("minecraft:ice"), "Ice", 64);
     // The lamp's single item (Slice 33 — Item.java's register(Blocks.
     // REDSTONE_LAMP): both wire states drop the DARK form (the reference's
     // getDropItem), so the lit twin never registers an item of its own.
@@ -1077,7 +1086,7 @@ public final class BuiltinItems {
                 SHEARS,
                 WOODEN_HOE, STONE_HOE, IRON_HOE, DIAMOND_HOE, GOLDEN_HOE,
                 WHEAT_SEEDS, MELON_SEEDS, PUMPKIN_SEEDS, WHEAT, BREAD, BONE_MEAL, SIGN,
-                CARROT, POTATO, BAKED_POTATO, APPLE, GOLDEN_CARROT, GOLDEN_APPLE, HAY_BLOCK,
+                CARROT, POTATO, BAKED_POTATO, POISONOUS_POTATO, APPLE, GOLDEN_CARROT, GOLDEN_APPLE, HAY_BLOCK,
                 OAK_DOOR, SPRUCE_DOOR, BIRCH_DOOR, JUNGLE_DOOR, ACACIA_DOOR, DARK_OAK_DOOR,
                 LADDER, OAK_FENCE, BED,
                 REDSTONE, REDSTONE_TORCH, REPEATER, COMPARATOR, PISTON, STICKY_PISTON, TNT,
@@ -1129,7 +1138,7 @@ public final class BuiltinItems {
                 LAPIS_ORE_ITEM, EMERALD_ORE_ITEM, LAPIS_BLOCK_ITEM,
                 REDSTONE_BLOCK_ITEM, COAL_BLOCK_ITEM, QUARTZ_BLOCK_ITEM,
                 BRICK_BLOCK_ITEM, CLAY_ITEM, SLIME_ITEM, END_STONE_ITEM,
-                PACKED_ICE_ITEM, REDSTONE_LAMP_ITEM,
+                PACKED_ICE_ITEM, ICE_ITEM, REDSTONE_LAMP_ITEM,
                 ITEM_FRAME, PAINTING, ARMOR_STAND,
                 ENDER_PEARL, EMPTY_MAP, FILLED_MAP, COMPASS, IRON_DOOR,
                 NETHER_BRICKS, NETHER_BRICK_FENCE, NETHER_BRICK_STAIRS,
