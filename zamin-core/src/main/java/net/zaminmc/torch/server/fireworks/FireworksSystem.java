@@ -57,8 +57,10 @@ public final class FireworksSystem {
 
     /** The engine surface the system reads (the launch sound at age 0). */
     public interface Surface {
-        /** The world-scope sound (the reference's playSound at volume 3.0). */
-        void launchSound(Position at);
+        /** The world-scope sound (the reference's playSound at volume 3.0)
+         * in the ROCKET'S OWN WORLD (tick line 94's {@code this.world.
+         * playSound} — the launch's own dimension). */
+        void launchSound(Position at, int dimension);
     }
 
     private final Surface surface;
@@ -106,16 +108,17 @@ public final class FireworksSystem {
 
     /**
      * The launch (FireworksItem.useOn lines 28-38 + the ctor lines 55-73):
-     * the rocket starts at the clicked face's point, the fuse rolls, and
+     * the rocket starts at the clicked face's point IN THE PLACING
+     * PLAYER'S WORLD (the reference's ctor world row), the fuse rolls, and
      * the spawn's near-zero velocity carries the gaussian drift. The item
      * payload rides the synced slot 8 — the client's own burst reads it
      * (the Fireworks compound's Explosions list rides the wire whole).
      * Tick-thread context.
      */
-    public FireworksEntity launch(Position at, ItemStack payload) {
+    public FireworksEntity launch(Position at, int dimension, ItemStack payload) {
         Objects.requireNonNull(at, "at");
         Objects.requireNonNull(payload, "payload");
-        FireworksEntity rocket = new FireworksEntity(nextId++, at,
+        FireworksEntity rocket = new FireworksEntity(nextId++, dimension, at,
                 random.nextGaussian() * FireworksEntity.LAUNCH_DRIFT_SIGMA,
                 FireworksEntity.LAUNCH_LIFT,
                 random.nextGaussian() * FireworksEntity.LAUNCH_DRIFT_SIGMA,
@@ -156,13 +159,15 @@ public final class FireworksSystem {
      * live path carries (the Spawn Object 76 + the slot-8 item). The
      * launch sound's age-0 gate in the tick owns the restored form's
      * own quirk: a loaded rocket at Life &gt; 0 never sounds — the
-     * reference's own age==0 check, 1:1. Tick-thread context.
+     * reference's own age==0 check, 1:1. The restored form keeps the
+     * OVERWORLD 0 (the TF-9 anvil convention — the import files are
+     * overworld files). Tick-thread context.
      */
     public FireworksEntity launchRestored(Position at, double vx, double vy, double vz,
                                           int restoredAge, int lifeTime, ItemStack payload) {
         Objects.requireNonNull(at, "at");
         Objects.requireNonNull(payload, "payload");
-        FireworksEntity rocket = new FireworksEntity(nextId++, at, vx, vy, vz,
+        FireworksEntity rocket = new FireworksEntity(nextId++, 0, at, vx, vy, vz,
                 restoredAge, lifeTime, payload);
         rockets.add(rocket);
         for (Listener listener : listeners) {
@@ -182,7 +187,7 @@ public final class FireworksSystem {
         while (iterator.hasNext()) {
             FireworksEntity rocket = iterator.next();
             if (rocket.age() == 0) {
-                surface.launchSound(rocket.position());
+                surface.launchSound(rocket.position(), rocket.dimension());
             }
             rocket.advance();
             if (rocket.age() % 10 == 0) {

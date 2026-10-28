@@ -16842,3 +16842,53 @@ player arm at the gated walk or the wash-out pays it too; (4) a promised
 law's javadoc is a ledger — "once the engine grows a status-effect
 system" was written by an author who did not know the system had already
 grown; the verifier reads the promise AND the ground.
+
+## 2026-10-28 — Wave EYFW, the eye + firework families' dimension carries (two of the three honest overworld-0 families retired)
+
+The reference's Entity.world over the two smallest standing island
+families, the TF-9 shape applied whole: the bodies (EnderEyeEntity,
+FireworksEntity) gain the dimension int stamped once at the launch —
+the eye's throw births it in the THROWER's world (EngineServer's
+useEnderEyeInAir passing session.dimension()), the rocket's placement
+in the PLACER's, the dispenser's fireworks arm the ledged overworld 0.
+
+Every world-touching site reads the row back: the eye's throw sound
+rides the dimension-aware FX fan, the eye's end-of-flight item drop
+spawns through the item manager stamped with the EYE'S OWN dimension
+(the reference's tick line 162 — a nether eye's dropped eye is a
+nether item), the eye's 2003 smoke event carries the eye's dimension
+(retiring the dimension-blind boundary the adapter's own pre-fix
+comment recorded: "the event rides the overworld's id until the eye
+carries its own world" — it now does), and the rocket's age-0 launch
+sound the same (tick line 94's this.world.playSound). The wire gates
+(the TF-9 shape over both adapters): every eye and rocket publication
+— the Spawn Object 23/76, the 4-tick/10-tick velocity re-syncs, the
+burst's Entity Status 17, the Destroy fan-outs — reaches the
+same-dimension observers alone. The restored (anvil-load) forms keep
+the overworld 0 (the TF-9 convention — the import files are overworld
+files; both families' writeCustomNbt carries no world row), and the
+restored rocket's age-0 sound gate keeps its own law (a Life > 0 load
+never sounds).
+
+**Evidence:** EyeAndFireworksDimensionReadsTest 5/0 (the nether eye's
+throw sound + end drop both stamped -1, the two-dimension launch
+order, the restored eye's overworld 0 + the 2003-only end, the nether
+rocket's launch sound stamped -1, the restored rocket's overworld 0 +
+the never-sound gate); the family batch whole 15/0; the integration
+batch 37/0 (the eye insertion family, the two-stage use law, the
+anvil import, the save split, the vehicle persistence, the dispenser
+arms); the protocol wire batch 15/0 (WorldEventRadius + SlotNbt over
+the real wire).
+
+**Lessons:** (1) the island families' Listener/Surface seams were
+ALREADY the dimension-carry shape — the eye adapter's own pre-fix
+comment had ledged the debt ("until the eye carries its own world"),
+so the slice was a debt retirement, not a new design; (2) the
+restored-form convention (overworld 0) rides the FILE, never the
+entity's NBT rows — both reference writeCustomNbt bodies are empty of
+a world row, exactly why the anvil imports stamp 0 without a store
+change; (3) the smallest families first was the right order — the
+armor-stand family (1,706 lines, its own DataStore, block consults,
+equipment drops, piston and explosion interactions) stays the last
+standing overworld-0 tail, its own future family slice with the
+conventions now proven three times over.

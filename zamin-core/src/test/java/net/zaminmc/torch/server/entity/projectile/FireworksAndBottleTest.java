@@ -193,10 +193,12 @@ class FireworksAndBottleTest {
     /** The recording surface: the age-0 launch sound. */
     private static final class LaunchSounds implements FireworksSystem.Surface {
         final List<Position> heard = new ArrayList<>();
+        final List<Integer> dimensions = new ArrayList<>();
 
         @Override
-        public void launchSound(Position at) {
+        public void launchSound(Position at, int dimension) {
             heard.add(at);
+            dimensions.add(dimension);
         }
     }
 
@@ -209,7 +211,7 @@ class FireworksAndBottleTest {
         net.zaminmc.torch.item.ItemStack payload =
                 net.zaminmc.torch.item.ItemStack.of(
                         net.zaminmc.torch.server.item.BuiltinItems.FIREWORKS, 1);
-        FireworksEntity rocket = system.launch(new Position(10.0, 64.0, 10.0), payload);
+        FireworksEntity rocket = system.launch(new Position(10.0, 64.0, 10.0), 0, payload);
         assertEquals(1, events.launched, "the spawn went out");
         assertTrue(rocket.maxAge() >= 10 && rocket.maxAge() <= 22,
                 "the fuse's plain band 10 + rand(6) + rand(7): " + rocket.maxAge());
@@ -245,7 +247,7 @@ class FireworksAndBottleTest {
         net.zaminmc.torch.item.ItemStack payload =
                 net.zaminmc.torch.item.ItemStack.of(
                         net.zaminmc.torch.server.item.BuiltinItems.FIREWORKS, 1);
-        FireworksEntity rocket = system.launch(new Position(100.75, 65.0, -20.25), payload);
+        FireworksEntity rocket = system.launch(new Position(100.75, 65.0, -20.25), 0, payload);
         assertEquals(100.75, rocket.position().x(), 1e-9);
         assertEquals(65.0, rocket.position().y(), 1e-9);
         assertEquals(-20.25, rocket.position().z(), 1e-9);
@@ -273,7 +275,7 @@ class FireworksAndBottleTest {
             net.zaminmc.torch.item.ItemStack bare =
                     net.zaminmc.torch.item.ItemStack.of(
                             net.zaminmc.torch.server.item.BuiltinItems.FIREWORKS, 1);
-            FireworksEntity rocket = system.launch(new Position(0, 64, 0), bare);
+            FireworksEntity rocket = system.launch(new Position(0, 64, 0), 0, bare);
             assertTrue(rocket.maxAge() >= 10 && rocket.maxAge() <= 21,
                     "the bare band 10..21: " + rocket.maxAge());
         }
@@ -285,7 +287,7 @@ class FireworksAndBottleTest {
                     net.zaminmc.torch.item.ItemStack.of(
                             net.zaminmc.torch.server.item.BuiltinItems.FIREWORKS, 1)
                             .withFireworks(java.util.Map.of("Flight", (byte) 2));
-            FireworksEntity rocket = system.launch(new Position(0, 64, 0), payload);
+            FireworksEntity rocket = system.launch(new Position(0, 64, 0), 0, payload);
             assertTrue(rocket.maxAge() >= 30 && rocket.maxAge() <= 41,
                     "the Flight 2 band 30..41: " + rocket.maxAge());
         }
@@ -298,7 +300,7 @@ class FireworksAndBottleTest {
                     net.zaminmc.torch.item.ItemStack.of(
                             net.zaminmc.torch.server.item.BuiltinItems.FIREWORKS, 1)
                             .withFireworks(java.util.Map.of("Flight", 2));
-            FireworksEntity rocket = system.launch(new Position(0, 64, 0), payload);
+            FireworksEntity rocket = system.launch(new Position(0, 64, 0), 0, payload);
             assertTrue(rocket.maxAge() >= 10 && rocket.maxAge() <= 21,
                     "the non-byte Flight row reads 0 — the plain band: " + rocket.maxAge());
         }
@@ -311,7 +313,7 @@ class FireworksAndBottleTest {
                     net.zaminmc.torch.item.ItemStack.of(
                             net.zaminmc.torch.server.item.BuiltinItems.FIREWORKS, 1)
                             .withFireworks(java.util.Map.of("Explosions", java.util.List.of()));
-            FireworksEntity rocket = system.launch(new Position(0, 64, 0), payload);
+            FireworksEntity rocket = system.launch(new Position(0, 64, 0), 0, payload);
             assertTrue(rocket.maxAge() >= 10 && rocket.maxAge() <= 21,
                     "the absent Flight row reads 0 — the plain band: " + rocket.maxAge());
         }

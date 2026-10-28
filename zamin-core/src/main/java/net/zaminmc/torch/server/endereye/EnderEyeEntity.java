@@ -14,6 +14,15 @@ import net.zaminmc.torch.util.Rotation;
  * the end (the reference's {@code nextInt(5) > 0} roll — a loaded eye
  * never rolls: the drops row is transient, the reference's own empty
  * writeCustomNbt).
+ *
+ * <p><b>Wave EYFW — the body's own world:</b> the reference's every
+ * EnderEyeEntity ctor takes the {@code world} (the throw spawns it in
+ * the THROWER's world, EnderEyeItem's use arm), and the end's two
+ * forms read it back — the item drop is {@code new ItemEntity(this.
+ * world, ...)} and the smoke is {@code this.world.doEvent(2003, ...)}
+ * (tick lines 160-165). The engine carries the world as the dimension
+ * int (the TF-9 shape), stamped once at the launch, read by the drop,
+ * the event, and the wire's same-dimension observers.</p>
  */
 public final class EnderEyeEntity {
 
@@ -21,6 +30,7 @@ public final class EnderEyeEntity {
     public static final int LIFESPAN_TICKS = 80;
 
     private final int entityId;
+    private final int dimension;
     private Position position;
     private double vx;
     private double vy;
@@ -32,8 +42,10 @@ public final class EnderEyeEntity {
     private boolean dropsItem;
     private Rotation rotation = new Rotation(0.0f, 0.0f);
 
-    EnderEyeEntity(int entityId, Position position, double vx, double vy, double vz) {
+    EnderEyeEntity(int entityId, int dimension, Position position,
+                    double vx, double vy, double vz) {
         this.entityId = entityId;
+        this.dimension = dimension;
         this.position = position;
         this.vx = vx;
         this.vy = vy;
@@ -42,6 +54,11 @@ public final class EnderEyeEntity {
 
     public int entityId() {
         return entityId;
+    }
+
+    /** The world the eye flies in (the reference's {@code this.world}). */
+    public int dimension() {
+        return dimension;
     }
 
     public Position position() {

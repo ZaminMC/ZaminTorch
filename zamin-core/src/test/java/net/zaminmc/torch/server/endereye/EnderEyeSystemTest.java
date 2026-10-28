@@ -40,17 +40,21 @@ class EnderEyeSystemTest {
 
     private static final class RecordingSurface implements EnderEyeSystem.Surface {
         Position droppedAt;
+        Integer droppedDimension;
         ItemStack droppedStack;
         int throwSounds;
+        Integer lastThrowDimension;
 
         @Override
-        public void throwSound(Position at, Random random) {
+        public void throwSound(Position at, int dimension, Random random) {
             throwSounds++;
+            lastThrowDimension = dimension;
         }
 
         @Override
-        public void dropEyeItem(Position at, ItemStack stack) {
+        public void dropEyeItem(Position at, int dimension, ItemStack stack) {
             droppedAt = at;
+            droppedDimension = dimension;
             droppedStack = stack;
         }
     }
@@ -61,7 +65,7 @@ class EnderEyeSystemTest {
         EnderEyeSystem system = new EnderEyeSystem(surface, new FixedRoll(1), 1000);
         // A target 100 blocks east: the clamp form lands 12 along the line
         // with the +8 targetY (the reference's setTarget lines 63-79).
-        EnderEyeEntity eye = system.launch(new Position(0, 64, 0), 100, 64, 0);
+        EnderEyeEntity eye = system.launch(new Position(0, 64, 0), 0, 100, 64, 0);
         assertEquals(12.0, eye.target().x(), 1e-9, "the clamp form's X");
         assertEquals(72.0, eye.target().y(), 1e-9, "the +8 targetY lift");
         assertEquals(0.0, eye.target().z(), 1e-9, "the line's Z");
@@ -72,7 +76,7 @@ class EnderEyeSystemTest {
     @Test
     void theNearTargetLandsWhole() {
         EnderEyeSystem system = new EnderEyeSystem(new RecordingSurface(), new FixedRoll(1), 1000);
-        EnderEyeEntity eye = system.launch(new Position(0, 64, 0), 5, 70, 3);
+        EnderEyeEntity eye = system.launch(new Position(0, 64, 0), 0, 5, 70, 3);
         assertEquals(5.0, eye.target().x(), 1e-9, "the near form lands whole");
         assertEquals(70.0, eye.target().y(), 1e-9, "the near targetY");
         assertEquals(3.0, eye.target().z(), 1e-9, "the near Z");
@@ -83,7 +87,7 @@ class EnderEyeSystemTest {
         RecordingSurface surface = new RecordingSurface();
         // The roll 3 of 5: the drop form.
         EnderEyeSystem system = new EnderEyeSystem(surface, new FixedRoll(3), 1000);
-        EnderEyeEntity eye = system.launch(new Position(0, 64, 0), 100, 64, 0);
+        EnderEyeEntity eye = system.launch(new Position(0, 64, 0), 0, 100, 64, 0);
         // 80 flight ticks: the steering walks the eye toward the clamped
         // target; the lifespan end is the > 80 gate.
         for (int i = 0; i < 81; i++) {

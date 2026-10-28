@@ -10908,7 +10908,7 @@ public final class EngineServer implements Server, EngineBridge {
                 fireworks.launch(new Position(
                         clicked.x() + cursorX, clicked.y() + cursorY,
                         clicked.z() + cursorZ),
-                        fireworksHeld);
+                        session.dimension(), fireworksHeld);
                 if (session.gamemode() != GameMode.CREATIVE) {
                     session.inventory().consumeHeld(1);
                 }
@@ -12522,7 +12522,7 @@ public final class EngineServer implements Server, EngineBridge {
         if (target == null || eyes == null) {
             return; // the not-found no-op (the reference's no-throw)
         }
-        eyes.launch(session.position(), target[0], target[1], target[2]);
+        eyes.launch(session.position(), session.dimension(), target[0], target[1], target[2]);
         if (session.gamemode() != GameMode.CREATIVE) {
             session.inventory().consumeHeld(1);
             publishInventoryChanged(session);
@@ -18439,42 +18439,50 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /**
-     * The fireworks' engine surface (Slice 65): the age-0 launch sound —
-     * the world-scope 3.0-volume whoosh every listener hears.
+     * The fireworks' engine surface (Slice 65 + Wave EYFW): the age-0
+     * launch sound — the world-scope 3.0-volume whoosh every listener
+     * hears, in the ROCKET'S OWN WORLD (the reference's tick line 94:
+     * {@code this.world.playSound} — the same-dimension FX fan carries
+     * it, the TF-12 shape).
      */
     private final class FireworksSurface
             implements net.zaminmc.torch.server.fireworks.FireworksSystem.Surface {
         @Override
-        public void launchSound(Position at) {
+        public void launchSound(Position at, int dimension) {
             fxManager.sound(at, "fireworks.launch",
                     net.zaminmc.torch.server.fireworks.FireworksEntity.LAUNCH_VOLUME,
-                    net.zaminmc.torch.server.fireworks.FireworksEntity.LAUNCH_PITCH);
+                    net.zaminmc.torch.server.fireworks.FireworksEntity.LAUNCH_PITCH,
+                    dimension);
         }
     }
 
     /**
-     * The eyes' engine surface (the import-families slice — the
-     * reference's EnderEyeItem.startUsing lines 118-136): the throw
-     * sound and the end's item drop through the item manager's own
-     * exact-position spawn (the 2003 event rides the listener's wire
-     * publication, never the engine surface).
+     * The eyes' engine surface (the import-families slice + Wave EYFW —
+     * the reference's EnderEyeItem.startUsing lines 118-136): the throw
+     * sound in the THROWER'S OWN WORLD and the end's item drop through
+     * the item manager's own exact-position spawn stamped with the EYE'S
+     * OWN dimension (the reference's tick line 162: {@code new
+     * ItemEntity(this.world, ...)} — the 2003 event rides the listener's
+     * wire publication, never the engine surface).
      */
     private final class EnderEyeSurface
             implements net.zaminmc.torch.server.endereye.EnderEyeSystem.Surface {
         @Override
-        public void throwSound(Position at, java.util.Random random) {
+        public void throwSound(Position at, int dimension, java.util.Random random) {
             // The reference's playSound(random.bow, 0.5,
-            // 0.4 / (rand*0.4+0.8)) — the eye's own throw.
+            // 0.4 / (rand*0.4+0.8)) — the eye's own throw, its own world.
             fxManager.sound(at, "random.bow", 0.5f,
-                    0.4f / (random.nextFloat() * 0.4f + 0.8f));
+                    0.4f / (random.nextFloat() * 0.4f + 0.8f), dimension);
         }
 
         @Override
-        public void dropEyeItem(Position at, net.zaminmc.torch.item.ItemStack stack) {
+        public void dropEyeItem(Position at, int dimension,
+                               net.zaminmc.torch.item.ItemStack stack) {
             // The reference's new ItemEntity(world, x, y, z, stack) — the
-            // exact-position form, no pop, no velocity.
+            // exact-position form, no pop, no velocity, the EYE'S OWN
+            // world (the TF-9 item spawn carries the dimension).
             if (itemEntities != null) {
-                itemEntities.spawnRestored(at, stack);
+                itemEntities.spawnRestored(at, stack, dimension);
             }
         }
     }

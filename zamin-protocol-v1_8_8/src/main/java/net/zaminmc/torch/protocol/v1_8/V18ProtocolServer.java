@@ -1751,7 +1751,13 @@ public final class V18ProtocolServer implements ProtocolAdapter {
             engine.fireworks().addListener(new net.zaminmc.torch.server.fireworks.FireworksSystem.Listener() {
                 @Override
                 public void onFireworksLaunched(net.zaminmc.torch.server.fireworks.FireworksEntity rocket) {
+                    // Wave EYFW — the rocket's own-world gate (the
+                    // reference's per-world tracker: the spawn reaches the
+                    // same-dimension observers alone, the TF-9 shape).
                     for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                        if (connection.dimensionOfSession() != rocket.dimension()) {
+                            continue; // another world's rocket
+                        }
                         connection.sendFireworksLaunched(rocket);
                     }
                 }
@@ -1759,6 +1765,9 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                 @Override
                 public void onFireworksVelocity(net.zaminmc.torch.server.fireworks.FireworksEntity rocket) {
                     for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                        if (connection.dimensionOfSession() != rocket.dimension()) {
+                            continue;
+                        }
                         connection.sendFireworksVelocity(rocket);
                     }
                 }
@@ -1766,6 +1775,9 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                 @Override
                 public void onFireworksBurst(net.zaminmc.torch.server.fireworks.FireworksEntity rocket) {
                     for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                        if (connection.dimensionOfSession() != rocket.dimension()) {
+                            continue;
+                        }
                         connection.sendFireworksBurst(rocket);
                     }
                 }
@@ -1773,6 +1785,9 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                 @Override
                 public void onFireworksRemoved(net.zaminmc.torch.server.fireworks.FireworksEntity rocket) {
                     for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                        if (connection.dimensionOfSession() != rocket.dimension()) {
+                            continue;
+                        }
                         connection.sendFireworksRemoved(rocket.entityId());
                     }
                 }
@@ -1807,7 +1822,12 @@ public final class V18ProtocolServer implements ProtocolAdapter {
             engine.eyes().addListener(new net.zaminmc.torch.server.endereye.EnderEyeSystem.Listener() {
                 @Override
                 public void onEyeLaunched(net.zaminmc.torch.server.endereye.EnderEyeEntity eye) {
+                    // Wave EYFW — the eye's own-world gate (the
+                    // reference's per-world tracker, the TF-9 shape).
                     for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                        if (connection.dimensionOfSession() != eye.dimension()) {
+                            continue; // another world's eye
+                        }
                         connection.sendEyeLaunched(eye, true);
                     }
                 }
@@ -1815,6 +1835,9 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                 @Override
                 public void onEyeVelocity(net.zaminmc.torch.server.endereye.EnderEyeEntity eye) {
                     for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                        if (connection.dimensionOfSession() != eye.dimension()) {
+                            continue;
+                        }
                         connection.sendEyeVelocity(eye);
                     }
                 }
@@ -1822,25 +1845,29 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                 @Override
                 public void onEyeDropped(net.zaminmc.torch.server.endereye.EnderEyeEntity eye) {
                     // The item manager's own spawn publication carries the
-                    // drop (the exact-position item spawn).
+                    // drop (the exact-position item spawn) — the item's
+                    // own dimension stamp (Wave EYFW) rides it.
                 }
 
                 @Override
                 public void onEyeSmokeEnded(net.zaminmc.torch.server.endereye.EnderEyeEntity eye) {
                     // The 1-in-5 end (the reference's world.doEvent(2003,
-                    // pos, 0)): the wire's world event at the eye's rest.
-                    // The eye system is dimension-blind (the pre-existing
-                    // boundary the hit resolver records): the event rides
-                    // the overworld's id until the eye carries its own world.
+                    // pos, 0)): the wire's world event at the eye's rest,
+                    // in the EYE'S OWN WORLD (the reference's this.world
+                    // row — Wave EYFW retires the dimension-blind boundary
+                    // the pre-fix comment recorded).
                     for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
                         connection.sendWorldEvent(eye.position(),
-                                Protocol18.WORLD_EVENT_ENDER_EYE_END, 0);
+                                Protocol18.WORLD_EVENT_ENDER_EYE_END, eye.dimension());
                     }
                 }
 
                 @Override
                 public void onEyeRemoved(net.zaminmc.torch.server.endereye.EnderEyeEntity eye) {
                     for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                        if (connection.dimensionOfSession() != eye.dimension()) {
+                            continue;
+                        }
                         connection.sendEyeRemoved(eye.entityId());
                     }
                 }

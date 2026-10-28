@@ -708,7 +708,12 @@ public final class DispenserSystem implements WorldChangeListener {
         double x = pos.x() + 0.5 + OFFSETS[facing][0];
         double y = pos.y() + 0.2;
         double z = pos.z() + 0.5 + OFFSETS[facing][2];
-        engine.fireworks().launch(new Position(x, y, z), stack);
+        // Wave EYFW — the dispenser's own overworld binding (the TF-9
+        // convention, ledged): the engine's dispensers live in the
+        // overworld, so the launched rocket stamps dimension 0 — never a
+        // silent wrong stamp when the family grows its own dimensioned
+        // dispenser reads.
+        engine.fireworks().launch(new Position(x, y, z), 0, stack);
         fx.sound(centerOf(pos), "random.bow", 1.0f, 1.2f); // the 1002 override
         return consumeOne(stack);
     }

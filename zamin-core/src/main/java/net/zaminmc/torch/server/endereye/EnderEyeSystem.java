@@ -45,11 +45,17 @@ public final class EnderEyeSystem {
 
     /** The engine surface the system reads. */
     public interface Surface {
-        /** The throw sound (the reference's random.bow at 0.5, the 0.4/(rand*0.4+0.8) pitch). */
-        void throwSound(Position at, Random random);
+        /** The throw sound (the reference's random.bow at 0.5, the
+         * 0.4/(rand*0.4+0.8) pitch) in the eye's own world (the
+         * reference's World.playSound — the thrower's world). */
+        void throwSound(Position at, int dimension, Random random);
 
-        /** The item drop at the eye's end (the fresh ENDER_EYE stack at the eye's position — the exact-position form; the item's own spawn publication flows through the item manager). */
-        void dropEyeItem(Position at, net.zaminmc.torch.item.ItemStack stack);
+        /** The item drop at the eye's end (the fresh ENDER_EYE stack at
+         * the eye's position — the exact-position form; the item's own
+         * spawn publication flows through the item manager) in the
+         * EYE'S OWN WORLD (the reference's {@code new ItemEntity(this.
+         * world, x, y, z, stack)} — tick line 162). */
+        void dropEyeItem(Position at, int dimension, net.zaminmc.torch.item.ItemStack stack);
     }
 
     private final Surface surface;
@@ -92,20 +98,23 @@ public final class EnderEyeSystem {
 
     /**
      * The throw (the item's startUsing arm, EnderEyeItem lines 118-136):
-     * the eye spawns AT the caller's position, the target set rides the
+     * the eye spawns AT the caller's position IN THE CALLER'S WORLD (the
+     * reference's {@code new EnderEyeEntity(world, player.x, player.y,
+     * player.z)} — the ctor's own world row), the target set rides the
      * stronghold answer (the 12-block clamp + the drops roll inside),
-     * the throw sound follows, and the consume is the caller's own arm.
-     * Tick-thread context.
+     * the throw sound follows in the same world, and the consume is the
+     * caller's own arm. Tick-thread context.
      */
-    public EnderEyeEntity launch(Position at, double targetX, double targetY, double targetZ) {
+    public EnderEyeEntity launch(Position at, int dimension,
+                                 double targetX, double targetY, double targetZ) {
         Objects.requireNonNull(at, "at");
-        EnderEyeEntity eye = new EnderEyeEntity(nextId++, at, 0.0, 0.0, 0.0);
+        EnderEyeEntity eye = new EnderEyeEntity(nextId++, dimension, at, 0.0, 0.0, 0.0);
         eye.setTarget(targetX, targetY, targetZ, random);
         eyes.add(eye);
         for (Listener listener : listeners) {
             listener.onEyeLaunched(eye);
         }
-        surface.throwSound(at, random);
+        surface.throwSound(at, dimension, random);
         return eye;
     }
 
@@ -118,11 +127,14 @@ public final class EnderEyeSystem {
      * load quirk: a saved eye flies toward (0, 0, 0) until its 80 ticks
      * end) and its drops row stays false (the roll only rides the live
      * setTarget — a loaded eye never drops, the event 2003 always ends
-     * it; the counted ledger note).
+     * it; the counted ledger note). The restored form keeps the
+     * OVERWORLD 0 (the TF-9 anvil convention: the import files are
+     * overworld files — the reference's world row rides the FILE, never
+     * the entity's own rows).
      */
     public EnderEyeEntity launchRestored(Position at, double vx, double vy, double vz) {
         Objects.requireNonNull(at, "at");
-        EnderEyeEntity eye = new EnderEyeEntity(nextId++, at, vx, vy, vz);
+        EnderEyeEntity eye = new EnderEyeEntity(nextId++, 0, at, vx, vy, vz);
         eyes.add(eye);
         for (Listener listener : listeners) {
             listener.onEyeLaunched(eye);
@@ -152,7 +164,7 @@ public final class EnderEyeSystem {
                     for (Listener listener : listeners) {
                         listener.onEyeDropped(eye);
                     }
-                    surface.dropEyeItem(eye.position(), eye.dropStack());
+                    surface.dropEyeItem(eye.position(), eye.dimension(), eye.dropStack());
                 } else {
                     // The 1-in-5 end: the block event 2003 (the reference's
                     // world.doEvent(2003, pos, 0)) — the listener's own wire

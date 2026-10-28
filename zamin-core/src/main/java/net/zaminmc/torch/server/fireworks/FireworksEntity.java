@@ -27,6 +27,15 @@ import net.zaminmc.torch.util.Position;
  * compound; without NBT the client's burst is the plain dud) and the body
  * leaves the world. The rocket never collides with anything — no block
  * arm, no hit law, {@code canBePunched} false.</p>
+ *
+ * <p><b>Wave EYFW — the body's own world:</b> the reference's ctor takes
+ * the {@code world} (the launch spawns the rocket in the PLACING
+ * player's world, FireworksItem.useOn), and every world-touching site
+ * reads it back — the age-0 launch sound is {@code this.world.playSound}
+ * (tick line 94) and the burst's entity event is {@code this.world.
+ * doEntityEvent} (tick line 112). The engine carries the world as the
+ * dimension int (the TF-9 shape), stamped once at the launch, read by
+ * the launch sound and the wire's same-dimension observers.</p>
  */
 public final class FireworksEntity {
 
@@ -48,6 +57,7 @@ public final class FireworksEntity {
     public static final double VERTICAL_GAIN = 0.04;
 
     private final int entityId;
+    private final int dimension;
     private final ItemStack payload;
     private Position position;
     private double vx;
@@ -56,9 +66,9 @@ public final class FireworksEntity {
     private int age;
     private final int maxAge;
 
-    FireworksEntity(int entityId, Position position, double vx, double vy, double vz,
-                    int maxAge, ItemStack payload) {
-        this(entityId, position, vx, vy, vz, 0, maxAge, payload);
+    FireworksEntity(int entityId, int dimension, Position position,
+                    double vx, double vy, double vz, int maxAge, ItemStack payload) {
+        this(entityId, dimension, position, vx, vy, vz, 0, maxAge, payload);
     }
 
     /**
@@ -67,11 +77,15 @@ public final class FireworksEntity {
      * resumes the age clock (the loaded rocket bursts after the
      * REMAINING ticks, never a fresh roll), the LifeTime row carries the
      * whole fuse, and the loaded Motion lands as-is (the reference's
-     * load never re-derives the launch drift).
+     * load never re-derives the launch drift). The restored form keeps
+     * the OVERWORLD 0 (the TF-9 anvil convention — the import files are
+     * overworld files).
      */
-    FireworksEntity(int entityId, Position position, double vx, double vy, double vz,
+    FireworksEntity(int entityId, int dimension, Position position,
+                    double vx, double vy, double vz,
                     int restoredAge, int maxAge, ItemStack payload) {
         this.entityId = entityId;
+        this.dimension = dimension;
         this.position = position;
         this.vx = vx;
         this.vy = vy;
@@ -83,6 +97,11 @@ public final class FireworksEntity {
 
     public int entityId() {
         return entityId;
+    }
+
+    /** The world the rocket flies in (the reference's {@code this.world}). */
+    public int dimension() {
+        return dimension;
     }
 
     public Position position() {
