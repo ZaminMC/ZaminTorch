@@ -16666,3 +16666,45 @@ lit XP row's absence meant the ore paid no XP AT ALL in practice;
 (3) the declared-but-never-registered item shape keeps resurfacing —
 every new item-consuming gate (silk lookups, creative claims, trade
 stock) should sweep the list against the declared constants.
+
+## 2026-10-28 — the smelting-completion parity audit (PR #58, the verifier's third pass)
+
+The third sweep, one family over: the smelting tables. The reference's
+SmeltingManager keys BOTH sides of the law on the result STACK — the
+recipe by input item AND metadata, the take XP by output item AND
+metadata (lines 25-64). The engine's tables keyed the plain identifiers
+alone, so every row whose input or output rode the damage field never
+landed: the rabbit had NO smelting row at all (the item registered with
+its own smelt comment back in Slice 11i — the row never landed, the
+same declared-but-never-carried shape the silk audit caught twice), the
+cactus's green dye, the default stone brick's cracked form, the wet
+sponge's dried form — and the coal pair's take split: the ore take
+pays 0.1 and the charcoal take 0.15 over the SAME item id, so the
+pre-fix identifier-keyed table paid the charcoal's band for every coal
+ore take.
+
+The fix followed the reference's own keying: two plain rows (rabbit,
+cactus→dye:2), two damage-aware resultOf gates (stone bricks damage 0
+alone → cracked; sponge damage 1 alone → dried — the furnace entity
+already consulted resultOf(type, damage) for the fish family, so the
+rows flow unchanged), and a damage-keyed take law beside the identifier
+table. The take path in EngineServer now passes the taken stack's
+damage exactly like the reference's getXp consult.
+
+**Evidence:** SmeltingCompletionParityTest 6/0 (the rabbit's smelt and
+take, the cactus's green dye with the no-other-dye-pays pins, the stone
+brick's plain-only gate with the mossy/chiseled exclusions, the wet
+sponge's damage-1 gate, the coal pair's 0.1/0.15 split, the cactus's
+end-to-end entity walk); MetadataSmeltingTest + FurnaceTakeXpAcceptanceTest
+green unchanged (the fractional take split untouched); the furnace
+package whole 35/0.
+
+**Lessons:** (1) the damage field is a second key axis everywhere an
+identifier-keyed table answers — the coal split hid in plain sight
+because BOTH smelts were already implemented and green-tested; the law
+was right for one and wrong for the other; (2) the take XP can never
+key the item id alone when the id hosts a damage domain (the dye item
+answers ink sac AND the cactus's green — only the green is a smelting
+result); (3) the registered-with-a-comment pattern is the declared-but-
+never-carried shape's signature — the rabbit's own registration comment
+NAMED the smelt the table never carried.
