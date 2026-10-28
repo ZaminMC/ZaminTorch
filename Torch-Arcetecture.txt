@@ -691,7 +691,7 @@ THE SECTION TABLE AND THE ATTRIBUTION PASS LANDED (ML-006 + ML-007 — the cycle
 
 Dynamic split/merge and load-driven migration remain future work. First prove migration with in-flight tasks, delayed work, messages, compute results, persistence, shutdown, and stale-generation invalidation; add telemetry and anti-oscillation rules before enabling automatic balancing.
 
-**Next concrete mechanics work:** continue from Section 29: the master ledger's demand-named queue is EMPTY of implementable rows (ML-013, the last — the tick watchdog, landed 2026-10-26 in §29's Wave ML13; ML-008 the /give form aligned the same day; PR #38's audit merge landed 2026-10-23). The 2026-10-26 vanilla-grade census's lanes are ALL LANDED (§29's Waves TF-7 + TF-7-continued, closed whole). Wave ON-1 LANDED 2026-10-26 (DEC-001 executed whole; DEC-002 STAY NATIVE and DEC-003 NO KigPaper config family both stand). Wave TF-8 LANDED 2026-10-27 (§29's Wave TF-8: the undead family's daylight burn 1:1). Wave TF-9 LANDED 2026-10-27 (§29's Wave TF-9: the item-entity family's dimension reads 1:1 — the pigman tail's other half CLOSED, the mob query's 25d shape generalized over the items and the projectiles, the ZID store at v8, the wire's observer-dimension gates). Wave TF-10 LANDED 2026-10-27 (§29's Wave TF-10: the XP-orb family's dimension reads — the orb manager on the shared dimension-aware ground, the stamps, the pickup gate, the wire gates, the XpBottleSink's carry). Wave TF-11 LANDED 2026-10-27 (§29's Wave TF-11: the vehicle family's dimension reads — the ZVD row riding the body, the dimension-aware VehicleWorldQuery, the vehicleAt filter, the wire gates). Wave TF-12 LANDED 2026-10-27 (§29's Wave TF-12: the FX family's sound-broadcast dimension gate — every FxEvent carrying its world, the wire's gate in the reference's own sendPacket order, the entity-driven stamps, the fishing Bobber's carry; the handoff's open verifications — the protocol module whole 203/0, the bukkit 52/0 + launcher 53/0, the acceptance sweep — completed and green at the ledger head). Wave T-1 LANDED 2026-10-27 (§29's Wave T-1: the §35 outbound transport's first slice — the zamin-transport module whole, the 184-site queueing of the v1_8_8 play-state sends, the encode-once FX broadcast, the wire verified over every suite class). Wave T-2 LANDED 2026-10-27 (§29's Wave T-2: the §35.12/§35.13 measurement rows — the outbound dwell percentiles over the 4096-slot ring, the benchmark matrix over 8 of the 10 §35.12 scenarios with the numbers printed for the ledger (the compression-on/off and encryption-on/off performance rows remain unmeasured — argued away at the transport layer because the queue sits inside the plaintext boundary by construction, but no protocol-layer performance measurement exists either; corrected 2026-10-28 from the wave row's earlier "every scenario" wording), the urgent lane's coalescing repair, Netty's leak detector at advanced/paranoid in the test JVMs, and the pipeline repair the wave's own runs forced — the fat jar's missing transport edge + the compute test's snapshot race). Wave T-3 LANDED 2026-10-27 (§29's Wave T-3: the §35.4 pooled-allocation adoption — the allocation harness over the engine's own encode shapes, the shape-split verdict the numbers dictate, the chunk-window frames on pooled direct with the 190 small sites keeping their measured heap-unpooled win, and the wire verified over every protocol suite class). Wave T-4 LANDED 2026-10-27 (§29's Wave T-4: the §35.13 wedged-loop ceiling — the §35.11 kill-policy row closed as the fail-safely law, the slow-socket domain staying Netty's own exactly as the reference's own shape). The §35 transport lane's named rows are ALL LANDED (T-1 through T-4): the queue, the encode-once broadcast, the measurements, the pooled adoption, the wedged bound. The stats-family envelope is code-complete (the increments wired at their use sites — the compat file's stale "no stats system yet" notes re-pinned by TF-9). The dimension-read family tails are ALL CLOSED; the families that carry no dimension field at all (armor-stand, fireworks, ender-eye) stay honest overworld-0 emitters until their own family slices demand the carry. The §22 evidence bar holds: no concurrency phase opens without the attribution pass's numbers (ML-007 landed — the verdict: none justified at the current loads). The honest standing tails each transport slice named stay demand-named (the serializer's byte[] intermediates; the small-packet pooled adoption if a future attribution ever shows the arena path winning) — nothing else is owed on the §35 lane. Wave ML-004/025 LANDED 2026-10-28 (§29's Wave ML-004/025: the audit's Decision-C slice — the nine-site confirm-transaction fix, every container family's empty shift-click now the reference's confirmed no-op, pinned 8/0 over the real windows; and the /tps honesty pair — the 900-second window + the integer-truncation repair the fix's own test surfaced, pinned 3/0). The master ledger's demand-named queue is empty again; the next candidates stand ranked in the 2026-10-28 audit follow-through report (the serialized-column memoization against the measured wirePublish cost first among the perf family; the wither exemption arms first among the parity family).
+**Next concrete mechanics work:** continue from Section 29: the master ledger's demand-named queue is EMPTY of implementable rows (ML-013, the last — the tick watchdog, landed 2026-10-26 in §29's Wave ML13; ML-008 the /give form aligned the same day; PR #38's audit merge landed 2026-10-23). The 2026-10-26 vanilla-grade census's lanes are ALL LANDED (§29's Waves TF-7 + TF-7-continued, closed whole). Wave ON-1 LANDED 2026-10-26 (DEC-001 executed whole; DEC-002 STAY NATIVE and DEC-003 NO KigPaper config family both stand). Wave TF-8 LANDED 2026-10-27 (§29's Wave TF-8: the undead family's daylight burn 1:1). Wave TF-9 LANDED 2026-10-27 (§29's Wave TF-9: the item-entity family's dimension reads 1:1 — the pigman tail's other half CLOSED, the mob query's 25d shape generalized over the items and the projectiles, the ZID store at v8, the wire's observer-dimension gates). Wave TF-10 LANDED 2026-10-27 (§29's Wave TF-10: the XP-orb family's dimension reads — the orb manager on the shared dimension-aware ground, the stamps, the pickup gate, the wire gates, the XpBottleSink's carry). Wave TF-11 LANDED 2026-10-27 (§29's Wave TF-11: the vehicle family's dimension reads — the ZVD row riding the body, the dimension-aware VehicleWorldQuery, the vehicleAt filter, the wire gates). Wave TF-12 LANDED 2026-10-27 (§29's Wave TF-12: the FX family's sound-broadcast dimension gate — every FxEvent carrying its world, the wire's gate in the reference's own sendPacket order, the entity-driven stamps, the fishing Bobber's carry; the handoff's open verifications — the protocol module whole 203/0, the bukkit 52/0 + launcher 53/0, the acceptance sweep — completed and green at the ledger head). Wave T-1 LANDED 2026-10-27 (§29's Wave T-1: the §35 outbound transport's first slice — the zamin-transport module whole, the 184-site queueing of the v1_8_8 play-state sends, the encode-once FX broadcast, the wire verified over every suite class). Wave T-2 LANDED 2026-10-27 (§29's Wave T-2: the §35.12/§35.13 measurement rows — the outbound dwell percentiles over the 4096-slot ring, the benchmark matrix over 8 of the 10 §35.12 scenarios with the numbers printed for the ledger (the compression-on/off and encryption-on/off performance rows remain unmeasured — argued away at the transport layer because the queue sits inside the plaintext boundary by construction, but no protocol-layer performance measurement exists either; corrected 2026-10-28 from the wave row's earlier "every scenario" wording), the urgent lane's coalescing repair, Netty's leak detector at advanced/paranoid in the test JVMs, and the pipeline repair the wave's own runs forced — the fat jar's missing transport edge + the compute test's snapshot race). Wave T-3 LANDED 2026-10-27 (§29's Wave T-3: the §35.4 pooled-allocation adoption — the allocation harness over the engine's own encode shapes, the shape-split verdict the numbers dictate, the chunk-window frames on pooled direct with the 190 small sites keeping their measured heap-unpooled win, and the wire verified over every protocol suite class). Wave T-4 LANDED 2026-10-27 (§29's Wave T-4: the §35.13 wedged-loop ceiling — the §35.11 kill-policy row closed as the fail-safely law, the slow-socket domain staying Netty's own exactly as the reference's own shape). The §35 transport lane's named rows are ALL LANDED (T-1 through T-4): the queue, the encode-once broadcast, the measurements, the pooled adoption, the wedged bound. The stats-family envelope is code-complete (the increments wired at their use sites — the compat file's stale "no stats system yet" notes re-pinned by TF-9). The dimension-read family tails are ALL CLOSED; the families that carry no dimension field at all (armor-stand, fireworks, ender-eye) stay honest overworld-0 emitters until their own family slices demand the carry. The §22 evidence bar holds: no concurrency phase opens without the attribution pass's numbers (ML-007 landed — the verdict: none justified at the current loads). The honest standing tails each transport slice named stay demand-named (the serializer's byte[] intermediates; the small-packet pooled adoption if a future attribution ever shows the arena path winning) — nothing else is owed on the §35 lane. Wave ML-004/025 LANDED 2026-10-28 (§29's Wave ML-004/025: the audit's Decision-C slice — the nine-site confirm-transaction fix, every container family's empty shift-click now the reference's confirmed no-op, pinned 8/0 over the real windows; and the /tps honesty pair — the 900-second window + the integer-truncation repair the fix's own test surfaced, pinned 3/0). Wave PR54-59 LANDED 2026-10-28 (§29's Wave PR54-59: the owner's five parity-audit PRs — the tall-grass drop law, the quick-craft drag machine, the drop bands, the silk & shears gates, the smelting rows, the tool-wear family — reviewed against the reference one by one and merged whole, four review corrections carried in: the furnace's drag-slot filters, the hoe's zero dig wear, the tripwire band member, and the shears arm's hardness-gate removal). Wave WX LANDED 2026-10-28 (§29's Wave WX: the wither's conditional exemption arms — the README's LAST pending parity row — closed: the flat-four armor hull and the boss family's never-despawn law fixed, the remaining arms retired with evidence). The README's pending table now carries the concurrency lanes alone; the demand-named next candidates are the serialized-column memoization against the measured wirePublish cost (the perf family's head) and the honest overworld-0 families (armor-stand, fireworks, ender-eye) whose dimension carries ride their own future slices.
 
 # 23. COMMITS / PUSHES / RELEASES
 
@@ -5632,6 +5632,127 @@ way were repaired inside the wave.
       open-window timeout observed once under batch load — green
       isolated, the known await/timing flake class, already in the
       coverage matrix's flake observations).
+
+## Wave PR54-59 — the 2026-10-28 parity-audit PR wave (the owner's five verifier passes, reviewed and merged whole; every review correction carried in the merge)
+
+- [x] THE REVIEW PASS over the owner's six open PRs, merged in arrival
+      order (the user's directive: review correctly, never assume the
+      author was right). Every diff read against the reference before the
+      merge verdict; every correction landed on its own branch and rode
+      the merge.
+  - PR #54 (the tall-grass family's drop law — TallPlantBlock lines
+    63-93 + DeadBushBlock 39-51): VERIFIED CORRECT as authored — the
+    by-hand 1/8 seed walk per the 1 + nextInt(fortune*2+1) iteration law,
+    the dead bush's null arm, the shears family item with the variant
+    damage (grass 1, fern 2 over the shared tallgrass item, the dead
+    bush its own), the table rows scoped to the piston/wash/BlockData
+    consumers. MERGED CLEAN (bc6ff8b9).
+  - PR #55 (the quick craft — window click mode 5, InventoryMenu
+    .onClickSlot lines 113-192 ported whole): the state machine, the
+    interruption reset, the START validity gate, the ADD gates, the END
+    distribution (updateClickDragStackSize's floor-split/one-per-slot/
+    clone law with the existing-count add-back at line 530) and the -999
+    outside-drop's whole-stack/one-unit button law all verified 1:1.
+    REVIEW FIX carried in (7f9fb6da): the furnace window's drag slots
+    carried NO slot filters — the fuel slot's fuel-or-bucket law with
+    the bucket's one-stack cap (slot/FurnaceFuelSlot lines 12-24) and
+    the result slot's never-accept (FurnaceResultSlot lines 20-23) now
+    gate the drag, the QuickCraftSlot cap taking the placed stack (the
+    reference's getMaxStackSize(ItemStack) shape). The new
+    theFurnaceWindowDragHonorsTheFuelAndResultSlotGates seat pins both
+    gates over the real wire. MERGED (51195405).
+  - PR #56 (the drop-band parity audit — nine laws): every band verified
+    1:1 (glowstone clamp(2+nextInt(3)+nextInt(fortune+1),1,4), gravel's
+    flint XOR with the 10/7/4/1 fortune ladder, the sea lantern's band
+    + silk, the nether wart's stage-3 band with the fortune>0 gate, the
+    crops' bonus walk nextInt(15)<=age with the potato's 1/50 poison,
+    the Fortune multiplier SCOPED to the OreBlock family with foreign
+    rows — the reference's Item.byBlock(getDropItem) gate at OreBlock
+    line 47 — the bookshelf's flat three, the ice pair). MERGED CLEAN
+    (e90ba6ad).
+  - PR #57 (the silk & shears parity audit — seventeen gates): verified
+    1:1 with the ARM-ORDER audit (the generic silk arm at dropWalk line
+    411 intercepts the silk-set members BEFORE the band arms — the set
+    membership is what carries glowstone/gravel/sea-lantern silk) and
+    the Drop record's int-overload resolution confirmed (the coarse
+    dirt's "count 1, damage 1" row is the (Identifier,int,int) ctor, not
+    the chance form — Java overload resolution picks the exact int
+    match). One harmless redundancy noted (the stained-glass silk block
+    at line 396 is dead code under the Slice-31 arm at 146 — identical
+    results, no action). MERGED CLEAN (1159e65b).
+  - PR #58 (the smelting-completion audit — five SmeltingManager rows):
+    verified against the reference's registration chain (lines 25-66)
+    row by row — the rabbit (line 32), the cactus green dye (line 40,
+    DyeColor.GREEN metadata 2), the default-only stone brick to cracked
+    (lines 35-37), the wet-sponge damage gate (line 46), and the
+    result-stack-keyed take split (coal:0 pays the ore row's 0.1 at line
+    54, coal:1 the log rows' 0.15 at 41-42 — the reference keys BOTH
+    maps on the ItemStack, item AND metadata). MERGED CLEAN (7c2412a0).
+  - PR #59 (the tool-wear durability family): the takeDamage boundary
+    (ItemStack line 218 — metadata > max, the stack survives AT its
+    maximum), the sword's dig-TWO/melee-ONE split and the ToolItem
+    family's melee-TWO verified 1:1. THREE REVIEW FIXES carried in
+    (1fb66310): (1) the HOE never wears on a dig (HoeItem extends Item —
+    the default mineBlock returns false; the SWORD-2/other-1 split paid
+    the hoe one unit per dig); (2) the tripwire WIRE family joins the
+    shears wear band (the reference's Blocks.TRIPWIRE member at
+    ShearsItem line 24 — the hook excluded as its own block); (3) the
+    shears arm DROPS the shared hardness gate — the reference's
+    ShearsItem.mineBlock wears the instant-break band members (the
+    tallgrass pair, the tripwire) one unit with NO getMiningTime gate,
+    the hardness gate riding the sword/tool arms alone where the
+    reference carries it (SwordItem line 53 / ToolItem line 41).
+    MERGED (236e320d).
+- [x] THE REGRESSION EVIDENCE: the review ran each branch's own suites
+      plus the touched-family batches (the block+interaction batch
+      227/0 and 243/0 and 258/0, the furnace batch 36/0, the wear batch
+      98/0, the quick-craft wire suite 9/0 with the two load-flakes
+      — the chest give-sync timeout and the login-flood inhabited-time
+      assertion — re-verified green isolated, the known await/timing
+      class already in the coverage matrix's flake observations).
+
+## Wave WX — the 2026-10-28 wither exemption-arms slice (the README's last pending parity row, closed)
+
+- [x] THE TWO REAL GAPS FIXED (the README row's armor-protection and
+      never-despawn arms):
+  - THE ARMOR HULL (WitherEntity.getArmorProtection lines 338-340): the
+    boss answers a FLAT FOUR — the equipment walk never runs. The
+    pre-fix engine answered the equipment sum (zero for a bare wither),
+    so every melee/arrow/explosion wound the engine ever landed on the
+    boss overshot the reference by the hull's four points of envelope
+    (a 160-wound landed 160 where the reference lands 134.4). The
+    wither's own WitherBossTest half-health setup re-pinned (the wound
+    raised to 200 — 200 * 21/25 = 168 crosses the half; the pre-hull
+    160 no longer does).
+  - THE NEVER-DESPAWN LAW (WitherEntity.checkDespawn lines 462-464 +
+    EnderDragonEntity.checkDespawn lines 587-589): the reference's boss
+    overrides REPLACE the whole despawn walk — neither the 128-block
+    instant arm (MobEntity line 427) nor the 600-tick idle window (line
+    431) ever fires for a boss, whatever the distance. The pre-fix
+    engine's canDespawn() answered type.hostile (true) for both bosses —
+    a wither left alone vanished at 128 blocks. The family gate now
+    answers false for the wither AND the dragon (the boss family's
+    shared law; the dragon is the row's natural rider).
+- [x] THE ROW'S OTHER ARMS RETIRED WITH EVIDENCE: the fall-damage arm
+      was already landed (the empty-override list, MobEntity
+      takeFallDamage); the spawner/summon arm was already landed (the
+      SkullManager's build detection + summonWither — onSummoned's
+      220-tick window and third-health start, Slice 60/VIII6); the
+      light-level arm (getLightLevel 15728880) has NO SERVER SURFACE
+      (the reference's callers are client particles and renderers
+      alone — a headless engine never consults it); the cobweb and
+      no-riding arms are satisfied BY CONSTRUCTION (the engine's mob
+      model has no cobweb slow and its mobs never ride — RiderSeatLaw's
+      own note: the jockey's mount carries the steps). The potion
+      immunity (addStatusEffect's empty body) landed with Slice 59's
+      refusesEffects gate. WitherExemptionArmsAcceptanceTest 5/0 pins
+      the hull (bare 4, the equipment never overriding, the 8.4
+      envelope), the never-despawn law (both bosses over both despawn
+      bands, the ordinary monster contrast), the fall exemption, and
+      the summon shape; the entity/spawn/armor batch 582/0 green.
+- [x] THE README ROW RETIRED: the wither's conditional exemption arms
+      were the table's LAST pending parity row — the pending list now
+      carries the concurrency lanes alone (§22's gated families).
 
 # 33. CODEBASE SCALE, CLASS COHESION, AND MAINTAINABILITY
 

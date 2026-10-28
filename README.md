@@ -29,7 +29,6 @@ here; a row leaves the table the moment its work lands.
 
 | Feature | Status |
 |---------|--------|
-| Wither's conditional exemption arms (spawner / cobweb / fall-damage / light-level / armor-protection / no-riding) | pending — each arm rides its own family's slice, tracked as that family lands |
 | Concurrency Phase 5 — the lighting batch's parallel wiring | landed but gated OFF by default (`torch.parallel-pregen-light`) — the measured win stands (1.4-1.6x at the boot shape after the storm fix); the gate retires on the lane's own evidence (§22) |
 | Concurrency Phase 6 — further parallel per-region gameplay lanes beyond the random-tick lane | pending — each lane gated on its own evidence (§22) |
 | Concurrency Phase 7 — the heavy-owner optimization lanes | pending — the profiling opener landed; each optimization stays gated on the §22 evidence bar |
@@ -39,8 +38,12 @@ here; a row leaves the table the moment its work lands.
 
 This table is the complete pending list — kept current as work lands, and
 nothing leaves it without an automated test proving the landing. Verified
-against the code on 2026-10-28 (the transport waves T-1..T-4 landed since
-the prior verification and none of them was a pending row).
+against the code on 2026-10-28 (the wither's conditional exemption arms —
+the last pending parity row — landed with the exemption-arms slice: the
+armor hull and the never-despawn law fixed, the fall/summon arms already
+landed, the light-level/cobweb/no-riding arms retired with evidence; the
+transport waves T-1..T-4 and the five parity-audit PRs #54-#59 also landed
+since the prior verification).
 
 ## Downloading a dev build (no build tools needed)
 

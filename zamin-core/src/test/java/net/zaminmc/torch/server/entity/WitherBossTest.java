@@ -162,8 +162,11 @@ class WitherBossTest {
         assertFalse(manager.hurt(wither, 1.0f, 0.0,
                 net.zaminmc.torch.event.DamageCause.DROWN), "the drown never lands");
         // Below half health: the arrow shield stands, the fireball lands.
+        // The 200 wound crosses the half even through the hull's four
+        // armor points (the exemption-arms slice: 200 * 21/25 = 168 —
+        // the pre-hull 160 no longer reaches below half).
         wither.heal(300.0f);
-        manager.hurt(wither, 160.0f, 0.0, net.zaminmc.torch.event.DamageCause.MELEE);
+        manager.hurt(wither, 200.0f, 0.0, net.zaminmc.torch.event.DamageCause.MELEE);
         assertTrue(wither.health() <= 150.0f, "the body sits below half");
         float beforeArrow = wither.health();
         assertFalse(manager.hurt(wither, 5.0f, 0.0,

@@ -924,12 +924,23 @@ public final class MobEntity implements LivingEntity {
      * (AnimalEntity's own override — a penned cow stays penned); the wolf
      * answers true only UNTAMED and past 2400 ticks (its own override —
      * a lone wild wolf moves on after two minutes, a tamed one never
-     * leaves its owner behind).
+     * leaves its owner behind); the BOSS family answers false outright
+     * (the wither's and the dragon's checkDespawn overrides replace the
+     * whole walk — the reference's bosses never leave, whatever the
+     * distance).
      */
     public boolean canDespawn() {
         // ZombieEntity.canDespawn (line 511): the converting body never
         // leaves — the cure's countdown outlives every despawn window.
         if (type == MobType.ZOMBIE && zombieConverting()) {
+            return false;
+        }
+        // The boss family's never-despawn law (WitherEntity.checkDespawn
+        // lines 462-464 + EnderDragonEntity.checkDespawn lines 587-589 —
+        // the reference's overrides REPLACE the whole walk, so neither
+        // the 128-block instant arm nor the 600-tick idle window ever
+        // fires: a boss stays until it is killed, whatever the distance).
+        if (type == MobType.WITHER || type == MobType.ENDER_DRAGON) {
             return false;
         }
         if (isTameableKind()) {
@@ -4986,11 +4997,20 @@ public final class MobEntity implements LivingEntity {
      * slot). Non-armor stacks (the pumpkin, the skull) contribute nothing.
      * The magma cube's own override (MagmaCubeEntity lines 34-37) replaces
      * the whole walk: {@code size * 3} — the hull's own protection, the
-     * equipment never consulted.
+     * equipment never consulted. The wither's own override
+     * (WitherEntity lines 338-340) answers a flat {@code 4} the same way.
      */
     public int armorProtectionPoints() {
         if (type == MobType.MAGMA_CUBE) {
             return slimeSize() * 3; // the reference's own override
+        }
+        // WitherEntity.getArmorProtection lines 338-340: the boss's own
+        // hull answers a FLAT FOUR — the equipment walk never runs (a
+        // bare wither carries the same four points a diamond chestplate's
+        // wearer would sum from that piece, and no held helmet can raise
+        // it).
+        if (type == MobType.WITHER) {
+            return 4;
         }
         int points = 0;
         for (int slot = 0; slot <= armorEquipment.length; slot++) {
