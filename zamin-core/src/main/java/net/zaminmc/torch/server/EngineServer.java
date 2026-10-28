@@ -8331,7 +8331,7 @@ public final class EngineServer implements Server, EngineBridge {
 
         boolean allows(ItemStack cursor);
 
-        int slotMax();
+        int slotMax(ItemStack stack);
     }
 
     /**
@@ -8419,6 +8419,35 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /**
+     * The furnace fuel slot's drag gate (the reference FurnaceFuelSlot
+     * lines 12-19): a fuel item OR the empty bucket — the same law the
+     * furnace's own ignite cycle consults (a non-fuel stack can never sit
+     * under the drag's paint).
+     */
+    private static boolean furnaceFuelAllowed(ItemStack stack) {
+        if (stack.isEmpty()) {
+            return false;
+        }
+        return net.zaminmc.torch.server.furnace.FurnaceRecipes.burnTicksOf(stack.type()) > 0
+                || furnaceBucket(stack);
+    }
+
+    /** @return whether the stack is the empty bucket (the fuel slot's one exception). */
+    private static boolean furnaceBucket(ItemStack stack) {
+        return stack.type().identifier()
+                .equals(net.zaminmc.torch.util.Identifier.parse("minecraft:bucket"));
+    }
+
+    /**
+     * The furnace fuel slot's stack cap (the reference FurnaceFuelSlot
+     * lines 21-23): the bucket alone caps at ONE, every other fuel stacks
+     * to the item's own limit.
+     */
+    private static int furnaceFuelMax(ItemStack stack) {
+        return furnaceBucket(stack) ? 1 : 64;
+    }
+
+    /**
      * The END distribution (InventoryMenu lines 137-170 +
      * updateClickDragStackSize lines 518-531): each painted slot takes its
      * share — the LEFT drag an even split ({@code floor(cursor / slots)}),
@@ -8462,8 +8491,8 @@ public final class EngineServer implements Server, EngineBridge {
             if (per.count() > per.type().maxStackSize()) {
                 per = per.withCount(per.type().maxStackSize());
             }
-            if (per.count() > slot.slotMax()) {
-                per = per.withCount(slot.slotMax());
+            if (per.count() > slot.slotMax(per)) {
+                per = per.withCount(slot.slotMax(per));
             }
             remaining -= per.count() - existing;
             slot.write(per);
@@ -8500,7 +8529,7 @@ public final class EngineServer implements Server, EngineBridge {
                     @Override public ItemStack read() { return grid.cell(cell); }
                     @Override public void write(ItemStack stack) { grid.setCell(cell, stack); }
                     @Override public boolean allows(ItemStack cursor) { return true; }
-                    @Override public int slotMax() { return 64; }
+                    @Override public int slotMax(ItemStack stack) { return 64; }
                 };
             }
             int armorSlot = armorIndexForWireSlot(wireSlot);
@@ -8514,7 +8543,7 @@ public final class EngineServer implements Server, EngineBridge {
                     public boolean allows(ItemStack cursor) {
                         return net.zaminmc.torch.server.item.Armor.fitsSlot(cursor.type(), kind);
                     }
-                    @Override public int slotMax() { return 64; }
+                    @Override public int slotMax(ItemStack stack) { return 64; }
                 };
             }
             int engineSlot = engineSlotOf(wireSlot);
@@ -8523,7 +8552,7 @@ public final class EngineServer implements Server, EngineBridge {
                     @Override public ItemStack read() { return inventory.snapshot().get(engineSlot); }
                     @Override public void write(ItemStack stack) { inventory.setSlotQuietly(engineSlot, stack); }
                     @Override public boolean allows(ItemStack cursor) { return true; }
-                    @Override public int slotMax() { return 64; }
+                    @Override public int slotMax(ItemStack stack) { return 64; }
                 };
             }
             return null;
@@ -8546,7 +8575,7 @@ public final class EngineServer implements Server, EngineBridge {
                         @Override public ItemStack read() { return grid.cell(cell); }
                         @Override public void write(ItemStack stack) { grid.setCell(cell, stack); }
                         @Override public boolean allows(ItemStack cursor) { return true; }
-                        @Override public int slotMax() { return 64; }
+                        @Override public int slotMax(ItemStack stack) { return 64; }
                     };
                 }
                 return playerTailSlot(inventory, tableEngineSlotOf(wireSlot));
@@ -8586,6 +8615,35 @@ public final class EngineServer implements Server, EngineBridge {
                     return null;
                 }
                 if (wireSlot >= 0 && wireSlot <= FURNACE_WIRE_SLOT_LAST) {
+                    // The reference's own slot filters (slot/FurnaceFuelSlot
+                    // lines 12-24 + FurnaceResultSlot lines 20-23): slot 0
+                    // the plain input, slot 1 the fuel gate (a fuel item OR
+                    // the empty bucket, the bucket capped at ONE), slot 2
+                    // the result that never accepts a paint.
+                    if (wireSlot == 1) {
+                        return new QuickCraftSlot() {
+                            @Override public ItemStack read() { return furnace.snapshotSlots()[1]; }
+                            @Override public void write(ItemStack stack) { furnace.setSlot(1, stack); }
+                            @Override
+                            public boolean allows(ItemStack cursor) {
+                                return furnaceFuelAllowed(cursor);
+                            }
+                            @Override
+                            public int slotMax(ItemStack stack) {
+                                return furnaceFuelMax(stack);
+                            }
+                        };
+                    }
+                    if (wireSlot == 2) {
+                        return new QuickCraftSlot() {
+                            @Override public ItemStack read() { return furnace.snapshotSlots()[2]; }
+                            @Override public void write(ItemStack stack) { furnace.setSlot(2, stack); }
+                            @Override public boolean allows(ItemStack cursor) {
+                                return false; // FurnaceResultSlot.isItemAllowed: never
+                            }
+                            @Override public int slotMax(ItemStack stack) { return 64; }
+                        };
+                    }
                     return containerSlot(
                             () -> furnace.snapshotSlots()[wireSlot],
                             stack -> furnace.setSlot(wireSlot, stack), 64);
@@ -8645,7 +8703,7 @@ public final class EngineServer implements Server, EngineBridge {
                         public boolean allows(ItemStack cursor) {
                             return stand.isItemAllowed(wireSlot, cursor);
                         }
-                        @Override public int slotMax() {
+                        @Override public int slotMax(ItemStack stack) {
                             return net.zaminmc.torch.server.brewing.BrewingStandBlockEntity
                                     .maxStackOf(wireSlot);
                         }
@@ -8667,7 +8725,7 @@ public final class EngineServer implements Server, EngineBridge {
                             return net.zaminmc.torch.server.beacon.BeaconBlockEntity
                                     .isPaymentItem(cursor.type());
                         }
-                        @Override public int slotMax() { return 1; }
+                        @Override public int slotMax(ItemStack stack) { return 1; }
                     };
                 }
                 return playerTailSlot(inventory, beaconEngineSlotOf(wireSlot));
@@ -8704,7 +8762,7 @@ public final class EngineServer implements Server, EngineBridge {
             @Override public ItemStack read() { return inventory.snapshot().get(engineSlot); }
             @Override public void write(ItemStack stack) { inventory.setSlotQuietly(engineSlot, stack); }
             @Override public boolean allows(ItemStack cursor) { return true; }
-            @Override public int slotMax() { return 64; }
+            @Override public int slotMax(ItemStack stack) { return 64; }
         };
     }
 
@@ -8717,7 +8775,7 @@ public final class EngineServer implements Server, EngineBridge {
             @Override public ItemStack read() { return read.get(); }
             @Override public void write(ItemStack stack) { write.accept(stack); }
             @Override public boolean allows(ItemStack cursor) { return true; }
-            @Override public int slotMax() { return slotMax; }
+            @Override public int slotMax(ItemStack stack) { return slotMax; }
         };
     }
 

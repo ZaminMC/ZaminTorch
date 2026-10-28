@@ -41,6 +41,8 @@ class QuickCraftDragWireTest extends ProtocolTestBase {
     /** legacy ids used by the assertions (community data). */
     private static final int DIRT = 3;
     private static final int CHEST = 54;
+    private static final int FURNACE = 61;
+    private static final int COAL = 263;
 
     /** One processed click's full answer: the verdict, the cursor, the window table. */
     private record ClickResult(boolean accepted, int[] cursor, int[][] window) {
@@ -119,7 +121,7 @@ class QuickCraftDragWireTest extends ProtocolTestBase {
     @org.junit.jupiter.api.BeforeAll
     void bootStack() throws Exception {
         String[] names = {"Dragger", "Splitter", "Painter", "Interrupter",
-                "Dropper", "Placer", "Straggler", "ChestDragger"};
+                "Dropper", "Placer", "Straggler", "ChestDragger", "FurnaceDragger"};
         StringBuilder ops = new StringBuilder();
         for (int i = 0; i < names.length; i++) {
             ops.append("{\"uuid\": \"")
@@ -409,6 +411,93 @@ class QuickCraftDragWireTest extends ProtocolTestBase {
             assertEquals(2, ended.window()[1][1]);
             assertEquals(1, ended.cursorCount(), "the remainder carries");
             assertNothingThrown(client, "the chest-window drag");
+        }
+        awaitCondition(() -> server.players().isEmpty(), "player removed after disconnect");
+    }
+
+    @Test
+    void theFurnaceWindowDragHonorsTheFuelAndResultSlotGates() throws Exception {
+        try (TestClient18 client = new TestClient18("127.0.0.1", adapter.boundPort())) {
+            // The reference's own slot filters under the drag: the fuel slot
+            // takes only fuel (FurnaceFuelSlot.isItemAllowed lines 12-19) and
+            // the result slot NEVER accepts a paint (FurnaceResultSlot line
+            // 20-23) — a non-fuel cursor paints neither.
+            client.sendHandshake(47, 2);
+            client.sendLoginStart("FurnaceDragger");
+            client.readLoginSuccess();
+            client.readUntilPositionAndLook();
+            awaitCondition(() -> server.playerRegistry().byName("FurnaceDragger").isPresent(),
+                    "player joined");
+            client.readWindowItems(10_000);
+            client.sendChat("/give FurnaceDragger furnace 1");
+            client.drainGiveGhostWake(150);
+            client.readWindowSlotTable(10_000);
+            client.sendChat("/give FurnaceDragger dirt 5");
+            client.drainGiveGhostWake(150);
+            client.readWindowSlotTable(10_000);
+            client.sendChat("/give FurnaceDragger coal 4");
+            client.drainGiveGhostWake(150);
+            client.readWindowSlotTable(10_000);
+
+            // place the furnace at the flat world's ground and open it (the
+            // FurnaceIntegrationTest's proven flow)
+            client.sendBlockPlacement(2, 4, 2, 1, FURNACE);
+            client.readWindowSlotTable(10_000);
+            client.readBlockChangeAt(2, 5, 2, FURNACE, 10_000);
+            client.sendBlockPlacement(2, 5, 2, 1, -1);
+            Object[] open = client.readOpenWindow(10_000);
+            int windowId = (Integer) open[0];
+            client.readWindowSlotTable(10_000, windowId);
+
+            // pick the DIRT (non-fuel) up from the furnace window's
+            // hotbar band (wire 31 = hotbar slot 1)
+            client.sendWindowClick(windowId, 31, 0, 0, 1);
+            ClickResult picked = readContainerClickResponse(client, windowId);
+            assertTrue(picked.accepted(), "the container pickup accepted");
+            assertEquals(DIRT, picked.cursorId());
+            assertEquals(5, picked.cursorCount());
+
+            // paint the INPUT (0), the FUEL (1) and the RESULT (2) slots
+            client.sendWindowClick(windowId, -999, 0, 5, 2);
+            assertTrue(readContainerClickResponse(client, windowId).accepted(), "START");
+            client.sendWindowClick(windowId, 0, 1, 5, 3);
+            assertTrue(readContainerClickResponse(client, windowId).accepted(), "ADD input");
+            client.sendWindowClick(windowId, 1, 1, 5, 4);
+            assertTrue(readContainerClickResponse(client, windowId).accepted(), "ADD fuel");
+            client.sendWindowClick(windowId, 2, 1, 5, 5);
+            assertTrue(readContainerClickResponse(client, windowId).accepted(), "ADD result");
+            client.sendWindowClick(windowId, -999, 2, 5, 6);
+            ClickResult ended = readContainerClickResponse(client, windowId);
+            assertTrue(ended.accepted(), "the END processed");
+
+            // The fuel and result ADDs failed the reference's paint-time
+            // isItemAllowed gate (the fuel slot's fuel-or-bucket law, the
+            // result slot's never), so only the INPUT slot painted — and the
+            // END's share floor(5 / 1) = 5 landed there alone.
+            assertEquals(DIRT, ended.window()[0][0], "the input slot took the share");
+            assertEquals(5, ended.window()[0][1]);
+            assertEquals(-1, ended.window()[1][0], "the fuel slot rejected the non-fuel paint");
+            assertEquals(-1, ended.window()[2][0], "the result slot never accepts a paint");
+            assertEquals(-1, ended.cursorId(), "the cursor emptied into the one legal slot");
+            assertNothingThrown(client, "the gated furnace drag");
+
+            // and the fuel gate passes REAL fuel: pick the coal (wire 32 =
+            // hotbar 2) up and paint the fuel slot alone — it takes the lot.
+            client.sendWindowClick(windowId, 32, 0, 0, 7);
+            ClickResult coalPicked = readContainerClickResponse(client, windowId);
+            assertTrue(coalPicked.accepted(), "the coal pickup accepted");
+            assertEquals(COAL, coalPicked.cursorId());
+            client.sendWindowClick(windowId, -999, 0, 5, 8);
+            assertTrue(readContainerClickResponse(client, windowId).accepted(), "coal START");
+            client.sendWindowClick(windowId, 1, 1, 5, 9);
+            assertTrue(readContainerClickResponse(client, windowId).accepted(), "coal ADD fuel");
+            client.sendWindowClick(windowId, -999, 2, 5, 10);
+            ClickResult coalEnded = readContainerClickResponse(client, windowId);
+            assertTrue(coalEnded.accepted(), "the coal END processed");
+            assertEquals(COAL, coalEnded.window()[1][0], "the fuel slot took the coal");
+            assertEquals(4, coalEnded.window()[1][1], "all four coal landed (floor(4/1))");
+            assertEquals(-1, coalEnded.cursorId(), "the cursor emptied");
+            assertNothingThrown(client, "the coal fuel drag");
         }
         awaitCondition(() -> server.players().isEmpty(), "player removed after disconnect");
     }
