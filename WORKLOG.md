@@ -16983,3 +16983,84 @@ order (a first draft had compress/encrypt swapped, which would have
 measured ciphertext-deflate nonsense); (3) the production threshold
 (256) rides the harness as a constant — the benchmark measures the
 shipped shape, not an idealized one.
+
+## 2026-10-28 — the milk family parity audit (PR #63, the verifier's eighth pass)
+
+The eighth sweep, one family over: the eldest standing tail the seventh
+pass's ledger left ("the milk bucket carries no use walk — the bucket
+family's future audit"). The registration comment had promised "the
+drink rides the food slice" — a promise the ground never kept: the eat
+dispatch gates on Foods.nutritionOf (milk carries no nutrition row), so
+a held milk bucket right-clicked in the air was a silent no-op. The
+family's two halves both restored 1:1: MilkBucketItem's drink walk and
+CowEntity.interactMob's milk arm (lines 95-106).
+
+The drink: milk rides the POTION family's 32-tick drinking clock — the
+reference's own shape (getUseDuration 32, UseAction.DRINK, the same
+per-four-tick "random.drink" cadence the potion slice already pinned at
+the reference's down-counter law) — with NO canEat consult of its own:
+MilkBucketItem.startUsing sets the item-in-use outright, so milk begins
+at ANY hunger (even full; the FoodItem gate and the always-edible row
+the seventh pass installed play no part here) and the creative hand
+drinks too (the guard lives at the completion's stack payment alone).
+The completion clears every status effect server-side (clearStatusEffects
+— the item's whole purpose), the LAST unit answers the empty bucket
+through the hand slot itself (finishUsingItem's returned-stack write:
+the milk bucket stacks to ONE, so the remainder fires on every survival
+drink), the creative hand keeps the stack but still clears and still
+pays the use stat (both ahead of the reference's return), no burp
+(FoodItem's own completion law) and no nutrition.
+
+The milk arm: the empty bucket on an ADULT cow — the baby and the
+creative hand both refused outright (the reference's own guard pair
+ahead of the fill) — with the size-- == 1 idiom the mooshroom's stew arm
+shares: the single bucket becomes the milk in the hand outright; the
+stacked pair consumes one, then the milk adds through the pickup or
+drops at a full inventory. The arm consumes the click (interactMob's
+true — the feeding walk never runs), and the MOOSHROOM inherits the
+whole arm (its interactMob's super call at the foot: the bowl and the
+shears run first, then the cow's own milk — a mooshroom milks like a
+cow, the ladder's own order).
+
+THE CROSS-FAMILY BUG the audit surfaced: the release gesture (dig
+status 5) never cancelled the DRINKING window — PlayerEntity.
+stopUsingItem's clearItemInUse is unconditional, the eat and the drink
+windows BOTH clear on release, and the engine's release handler carried
+the eat cancel alone. A potion drinker who released early kept drinking
+to completion server-side — a live non-vanilla behavior since the
+potion slice. The fix cancels the drinking window at the release
+handler (the milk seats would have kept the bug invisible: the milk
+test's early-release seat caught it through the milk arm, but the law
+is the potion family's repair too).
+
+**Evidence:** MilkFamilyParityTest 12/0 (NEW — the drink at full hunger,
+the completion's effect clear + bucket remainder over the single-unit
+stack, the registration's stack-to-one law named in the impossible-seat
+lesson, the creative keep + clear + stat, the use stat, the early
+release's cancel with nothing paid, the single-bucket hand swap, the
+stacked pair's consume-and-add, the full-inventory drop, the creative
+and baby refusals, the mooshroom's inheritance); BodySurvivalAcceptance
+10/0 (one death-drop load flake in the first combined run, green in
+isolation and twice after — the documented environmental class);
+PotionSystemTest 22/0; MooshroomEntityTest 3/0 + WolfCollarDye 2/0; the
+item + interaction + TwoStageUse + EmptyShiftClick batch green; the
+entity package whole 565/0; the furnace package 45/0 + Milk 12/0 +
+potion 22/0 combined; the protocol wire spot batch green (Furnace,
+SurvivalFlow, VanillaParity, ChestLid, Disconnect).
+
+**Lessons:** (1) the eighth pass's own first test draft paid the
+stack-to-one lesson the sixth pass had already taught — the lava bucket
+and the milk bucket both carry setMaxStackSize(1), so a "stacked milk
+drinks on without the bucket" seat is an impossible shape (removed, the
+registration law pinned in its place); (2) a family's vehicle matters —
+milk is NOT a food (no nutrition row, no canEat gate, no burp) but a
+DRINK sharing the potion's clock, and riding the existing drinking
+window made the whole restore three sites instead of a new timer; (3)
+the audit's best find was OUTSIDE its family — the release-cancel law
+covers both windows, and the potion family had shipped with a live
+divergence its own tests never pinned (nobody releases a drink
+mid-window in a completion-only test); (4) the interact ladder's super
+calls are load-bearing: the mooshroom's milk inheritance rides
+CowEntity.interactMob's arm through the super call at MooshroomEntity's
+foot — an engine dispatch that forgets the inheritance loses the
+mooshroom's milk silently.
