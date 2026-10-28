@@ -17052,3 +17052,57 @@ uncommitted work the environment hands over; (3) the drift-guard
 convention (a verbatim copy of the replaced law inside the test) is
 what lets a perf change carry a byte-identity proof — the memo cannot
 silently diverge from the walk it replaced.
+
+## Wave FC — the flight families' contact arms (the 93/D2 ledger's standing tail, landed)
+
+**What:** the reference carries NO family skip — Entity.tick's lava
+arm, Entity.move's fire contact + the water douse, baseTick's
+suffocation and the block-collision cactus walk run for every body
+whatever owns its movement. The engine's five flight-family branches
+(ghast, dragon, bat, squid, guardian) returned before the shared
+environmental walk and skipped them all: a bat or a squid could stand
+in lava unwounded, a ghast drifted over lava lakes with the air's
+0.91 drag, a burning flight body never doused in water.
+
+**The fix, three pieces:** (1) THE EVERY-BODY CONTACT BLOCK — the
+five consults hoisted above the flight branches (the fire-immune
+kinds ride takeLavaDamage's own exemption, the dragon's noClip body
+never suffocates, the NoAI pins sit below the block so a pinned
+flight body still wounds and burns — the pin gates the mind and the
+movement alone); (2) THE SWIM GATES' WATER SPLIT — the squid's and
+the guardian's swim branches consulted the shared inFluid (water OR
+lava) where their own isInWater overrides gate on WATER alone: in
+lava the squid takes the stranded fall and the guardian the land
+body, both while the contact block wounds and burns them; (3) THE
+GHAST'S FLUID DRAG BANDS — FlyingMobEntity.moveRelative's own arms
+(water *0.8, lava *0.5, air 0.91, all three axes, no gravity).
+
+**The envelope recorded:** the bat's fluid TRAVEL arms stay in the
+16e envelope (the engine's bat model carries no travel walk in any
+fluid — the reference's sinking-in-lava bat is the residual); the
+dragon rides the contact block through its own immunity.
+
+**The stale pins repaired beside it:** the compat ledger's D2 row
+still carried the pre-F1 text for the lava motion drag (landed in
+93/F1 — its own row said so, the D2 row never re-pinned). Both rows
+re-pinned: the motion drag LANDED (F1), the flight families' arm
+LANDED (this wave).
+
+**Evidence:** FlightFamiliesContactTest 9/0 NEW (the bat's lava
+wounds + burn + death, the squid's stranded fall, the guardian's
+land fall, the ghast's three drag bands + the immune never-wound,
+the dragon's exemption, the fire ignite + the burn residual, the
+douse, the suffocation, the cactus); the entity package whole 574/0
+over 67 classes; the adjacent fire/mob lanes 20/0; the protocol wire
+lanes 13/0; the bukkit + launcher 105/0.
+
+**Lessons:** (1) the early-return dispatch shape silently waives the
+shared consults for every family that rides it — the contact block
+belongs ABOVE the dispatch, not below it (the same law the §22
+phase-gate holds for the tick's own arms); (2) the family-skip
+"precedent" the D2 ledger cited (the fire-contact skip) was never a
+decision, just the same structural accident named after itself —
+re-reading the reference's every-body consults dissolved it; (3) the
+first drag-band pin caught the ghast's steering burst landing on tick
+1 (--burstCooldown from 0) — the blocked-line stub (clearLine false)
+is the clean way to pin a drag band ALONE.

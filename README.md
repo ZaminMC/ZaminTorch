@@ -47,9 +47,13 @@ mining-speed parity audit PR #60, the eye/firework/armor-stand
 dimension carries — Waves EYFW + AS, the LAST overworld-0 family closed,
 plus the EYFW join-view repairs the AS scoping surfaced — the
 §35.12 codec measurements (Wave T-5, the compression/encryption rows),
-and the serialized-column memoization (Wave SC — the perf family's head;
+the serialized-column memoization (Wave SC — the perf family's head;
 the warm 81-column re-stream cycle drops from the measured ~32 ms to
-0.765 ms) also landed since the prior verification).
+0.765 ms), and the flight families' contact arms (Wave FC — the
+ML-100 tail: bats, squids and guardians now wound and burn in lava
+like every body in the reference, the squid/guardian swim gates split
+to water alone, the ghast's fluid drag bands) also landed since the
+prior verification).
 
 ## Downloading a dev build (no build tools needed)
 
