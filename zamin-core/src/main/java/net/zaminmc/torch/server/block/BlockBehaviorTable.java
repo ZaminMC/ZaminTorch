@@ -1872,4 +1872,26 @@ public final class BlockBehaviorTable {
             default -> null;
         };
     }
+
+    /**
+     * The shears durability-wear band (the tool-wear parity audit — the
+     * reference's ShearsItem.mineBlock lines 20-29: the WEB, the TALLGRASS
+     * block's own pair, the VINE, the TRIPWIRE, the WOOL family and every
+     * leaves material; a shears dig of anything else delegates to Item's
+     * own default and never wears). The DEADBUSH and the double plants sit
+     * OUTSIDE the band exactly (the reference registers the band by block,
+     * not by flora).
+     *
+     * @return whether a shears dig of the block wears one unit.
+     */
+    public static boolean inShearsWearBand(net.zaminmc.torch.block.BlockType broken) {
+        String value = broken.identifier().value();
+        if (value.equals("cobweb") || value.equals("vine")
+                || value.equals("tall_grass") || value.equals("fern")) {
+            return true;
+        }
+        BlockBehavior behavior = of(broken.identifier()).orElse(null);
+        String material = behavior == null ? null : behavior.material();
+        return "leaves".equals(material) || "wool".equals(material);
+    }
 }

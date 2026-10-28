@@ -136,11 +136,15 @@ class PlayerInventoryTest {
         PlayerInventory inventory = new PlayerInventory();
         inventory.pickUp(ItemStack.of(BuiltinItems.GOLDEN_PICKAXE)); // 32 durability
 
-        for (int i = 0; i < 31; i++) {
+        for (int i = 0; i < 32; i++) {
             assertTrue(inventory.damageHeld(1, new java.util.Random()));
         }
-        assertEquals(31, inventory.held().damage());
-        // The 32nd wear point breaks it: the slot empties, exactly as historically.
+        assertEquals(32, inventory.held().damage(),
+                "the stack survives AT its maximum (ItemStack.takeDamage line 204: the break lands at > max)");
+        assertFalse(inventory.held().isEmpty());
+        // The 33rd wear point exceeds the maximum and breaks it: the slot
+        // empties — the reference's own count (the pre-fix >= boundary
+        // cost every tool exactly one use).
         assertTrue(inventory.damageHeld(1, new java.util.Random()));
         assertTrue(inventory.held().isEmpty());
         // Breaking an empty hand is a no-op.

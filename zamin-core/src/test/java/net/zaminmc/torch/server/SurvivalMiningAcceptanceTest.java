@@ -286,8 +286,12 @@ class SurvivalMiningAcceptanceTest {
         PlayerSession player = join("ToolBreaker");
         player.inventory().pickUp(
                 net.zaminmc.torch.item.ItemStack.of(net.zaminmc.torch.server.item.BuiltinItems.GOLDEN_PICKAXE));
-        // Wear the golden pickaxe (32 durability) to one point before breaking.
-        while (player.inventory().held().damage() < 31) {
+        // Wear the golden pickaxe (32 durability) to its maximum — the
+        // reference's own survival point (ItemStack.takeDamage line 204:
+        // the break lands at damage > max, never >=): the dig's one wear
+        // unit EXCEEDS the maximum and the tool breaks. The pre-fix
+        // >= boundary broke it one dig early.
+        while (player.inventory().held().damage() < 32) {
             player.inventory().damageHeld(1, new java.util.Random());
         }
 

@@ -80,6 +80,42 @@ public final class Tools {
     }
 
     /**
+     * The per-block durability wear of one successful dig (the tool-wear
+     * parity audit — the reference's own {@code mineBlock} rows): the
+     * SWORD wears TWO (SwordItem line 55: {@code takeDamageAndBreak(2)}),
+     * every other tool wears ONE (ToolItem line 42, ShearsItem line 28),
+     * and a non-tool wears nothing. The hardness gate lives at the call
+     * site ({@code block.getMiningTime != 0.0}).
+     */
+    public static int blockWearOf(ItemType itemType) {
+        ToolSpec spec = specOf(itemType).orElse(null);
+        if (spec == null) {
+            return 0;
+        }
+        return spec.toolClass() == ToolClass.SWORD ? 2 : 1;
+    }
+
+    /**
+     * The melee durability wear of one landed hit on a living entity (the
+     * tool-wear parity audit — the reference's own {@code attack} rows):
+     * the ToolItem family wears TWO (ToolItem line 35 — pickaxe, axe,
+     * shovel), the SWORD wears ONE (SwordItem line 48), and the shears
+     * and hoes wear NOTHING (ShearsItem/HoeItem extend Item directly —
+     * the default {@code attack} returns false and never wears).
+     */
+    public static int meleeWearOf(ItemType itemType) {
+        ToolSpec spec = specOf(itemType).orElse(null);
+        if (spec == null) {
+            return 0;
+        }
+        return switch (spec.toolClass()) {
+            case SWORD -> 1;
+            case PICKAXE, AXE, SHOVEL -> 2;
+            default -> 0; // shears + hoe: Item's own default — no attack arm
+        };
+    }
+
+    /**
      * The held stack's melee damage (Wave J — the reference's whole walk):
      * the attackDamage-named modifiers of {@code tag.AttributeModifiers}
      * folded over the bare-hand base 1.0 (EntityPlayer's own registered

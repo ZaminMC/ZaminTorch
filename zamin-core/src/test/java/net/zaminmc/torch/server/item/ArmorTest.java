@@ -74,9 +74,15 @@ class ArmorTest {
                 .withDamage(BuiltinItems.LEATHER_HELMET.maxDurability() - 1)));
         assertTrue(inventory.setArmor(1, ItemStack.of(BuiltinItems.IRON_CHESTPLATE, 1)));
         assertTrue(inventory.wearArmor(4.0F, new java.util.Random()));
-        assertTrue(inventory.armorAt(0).isEmpty(), "the last-wear helmet breaks");
+        // The reference's takeDamage boundary (ItemStack.takeDamage line
+        // 204: the break lands at damage > max): the helmet at its maximum
+        // SURVIVES this wear — the pre-fix >= boundary broke it one use
+        // early.
+        assertFalse(inventory.armorAt(0).isEmpty(), "the helmet survives AT its maximum");
+        assertEquals(BuiltinItems.LEATHER_HELMET.maxDurability(), inventory.armorAt(0).damage());
         assertEquals(1, inventory.armorAt(1).damage(), "the chestplate took one wear");
-        assertTrue(inventory.wearArmor(4.0F, new java.util.Random())); // keep wearing the chestplate down
+        assertTrue(inventory.wearArmor(4.0F, new java.util.Random())); // keep wearing the pieces down
+        assertTrue(inventory.armorAt(0).isEmpty(), "the next wear exceeds the maximum and breaks the helmet");
         assertEquals(2, inventory.armorAt(1).damage());
     }
 
