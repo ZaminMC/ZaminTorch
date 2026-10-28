@@ -17810,3 +17810,45 @@ family; the tail's own slice was the floor consult alone). §29's Wave
 MI row + §22's next-work statement updated: the named family-tail
 remainder CLOSED (TF-7c, TF-7d, MI); the accepted-drift rows stay
 family-owned and demand-named per the ML-100 rule.
+
+## 2026-10-28 — the banner family scoping note (the next session's opener candidate)
+
+The BANNER_CLEANED tail's owner is the banner family itself — absent
+whole (no block, no item, no tile; only lookup-table rows: the blast
+resistance pair, the stats vocabulary, the TileNbt id mapping, the
+wire's LegacyBlockIds). The family is the SIGN family's twin, and the
+sign family is the pattern to follow (EngineServer.placeSignOnTick):
+
+- THE BLOCKS: standing banner (legacy 176, the reference's ROTATION
+  0-15 — the engine's sign model flattens to the 4 cardinals at
+  metadata 0/4/8/12, the banner twin follows) + wall banner (legacy
+  177, FACING metadata 2-5, the four per-face states). The pole shape
+  (0.25 wide), no collision, walk-through, non-cube — the engine's
+  solidity model carries the walk-through via the sign precedent.
+- THE ITEM: one id 425, 16 colored metadata forms (the DyeColor band),
+  stack 16, the DECORATIONS tab. The placement law (BannerItem.useOn):
+  the DOWN face refuses, the UP face plants standing with the
+  floor((yaw + 180) * 16 / 360 + 0.5) & 15 formula (the sign's own),
+  the side faces hang wall banners facing away; the placed tile takes
+  the item's own base (BlockEntity.set(stack) — the metadata carries).
+- THE TILE: Base int + the Patterns list (the color/pattern pairs).
+  The drop law (afterMinedByPlayer + dropItems): the broken banner
+  drops the item WITH the BlockEntityTag (base + patterns survive the
+  break — the same ItemNbt BlockEntityTag arm TF-7d landed for the
+  armor stand).
+- THE NEIGHBOR LAWS: standing drops when the floor below goes
+  non-solid; wall drops when the face's block goes non-solid (the
+  sign family's own neighbor walks).
+- THE CAULDRON ARM: the banner wash (CauldronBlock.use's banner arm —
+  the topmost pattern removed, the BANNER_CLEANED row paid — the stat
+  row already registered in EngineStats).
+- THE WIRE: block ids 176/177 + the item 425 + the tile's id rows
+  (TileNbt already maps the spellings).
+- THE CRAFTING (its own sub-slice, possibly the follow-up wave): the
+  6-wool + stick base recipe per color + BannerRecipes' pattern
+  recipes (the dye patterns) — the engine's crafting system carries
+  the shaped recipes already.
+
+Estimated as one full session wave (the sign family's own scale);
+the scoping verified against the reference's BannerBlock.java,
+BannerItem.java, and the engine's sign placement this session.
