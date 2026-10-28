@@ -6409,14 +6409,19 @@ public final class EngineServer implements Server, EngineBridge {
             }
             if (landed) {
                 attacker.addExhaustion(ATTACK_EXHAUSTION);
-                // Tool durability: the historical wear on a living-entity hit.
-                if (net.zaminmc.torch.server.item.Tools.specOf(held.type()).isPresent()) {
+                // Tool durability — the tool-wear parity audit: the
+                // reference's own attack rows (ToolItem line 35 wears TWO,
+                // SwordItem line 48 wears ONE, the shears and hoes extend Item
+                // directly and never wear on a hit).
+                int meleeWear = net.zaminmc.torch.server.item.Tools.meleeWearOf(held.type());
+                if (meleeWear > 0) {
                     int wearBefore = held.damage();
-                    attacker.inventory().damageHeld(1, gameplayRandom);
+                    attacker.inventory().damageHeld(meleeWear, gameplayRandom);
                     // The broken-tool stat (ItemStack.damageItem's own row):
-                    // the wear passing the durability empties the slot.
+                    // the wear passing the durability empties the slot (the
+                    // inventory's own exceed-the-max boundary).
                     if (attacker.inventory().held().isEmpty()
-                            && wearBefore + 1 >= held.type().maxDurability()) {
+                            && wearBefore + meleeWear > held.type().maxDurability()) {
                         attacker.stats().increment(
                                 net.zaminmc.torch.server.stat.EngineStats.breakItemOf(
                                         held.type().identifier()), 1);
@@ -6558,12 +6563,17 @@ public final class EngineServer implements Server, EngineBridge {
                 attacker.stats().increment(
                         EngineAchievements.DEAL_OVERKILL_DAMAGE.key(), 1);
             }
-            if (net.zaminmc.torch.server.item.Tools.specOf(held.type()).isPresent()) {
+            // The tool-wear parity audit — the reference's attack rows: the
+            // ToolItem family wears TWO on a landed hit, the sword ONE, the
+            // shears and hoes never (Item's own default arm).
+            int meleeWear2 = net.zaminmc.torch.server.item.Tools.meleeWearOf(held.type());
+            if (meleeWear2 > 0) {
                 int wearBefore = held.damage();
-                attacker.inventory().damageHeld(1, gameplayRandom);
-                // The broken-tool stat (the melee arm's own row).
+                attacker.inventory().damageHeld(meleeWear2, gameplayRandom);
+                // The broken-tool stat (the melee arm's own row — the
+                // inventory's own exceed-the-max boundary).
                 if (attacker.inventory().held().isEmpty()
-                        && wearBefore + 1 >= held.type().maxDurability()) {
+                        && wearBefore + meleeWear2 > held.type().maxDurability()) {
                     attacker.stats().increment(
                             net.zaminmc.torch.server.stat.EngineStats.breakItemOf(
                                     held.type().identifier()), 1);
@@ -7035,7 +7045,10 @@ public final class EngineServer implements Server, EngineBridge {
             return false; // every unit rolled away: the piece is untouched
         }
         int newDamage = piece.damage() + landing;
-        mob.setEquipment(slot, newDamage >= piece.type().maxDurability()
+        // The tool-wear parity audit — the reference's takeDamage boundary
+        // (metadata > max, never >=): the piece survives at exactly its
+        // maximum and breaks on the next exceed.
+        mob.setEquipment(slot, newDamage > piece.type().maxDurability()
                 ? ItemStack.EMPTY // the piece breaks: the slot empties
                 : piece.withDamage(newDamage));
         if (mobManager != null) {

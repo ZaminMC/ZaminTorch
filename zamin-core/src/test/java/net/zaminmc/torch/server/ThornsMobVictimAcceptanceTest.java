@@ -192,12 +192,14 @@ class ThornsMobVictimAcceptanceTest {
         PlayerSession attacker = join(server, "Attacker");
         server.chatService().submitChat(attacker, "/spawnmob pig 1");
         MobEntity pig = awaitMob(server, MobType.PIG);
-        // One wear unit from the end: the next visit (proc 3 or miss 1)
-        // crosses the durability and the piece leaves the slot — the
-        // reference's own break shape over the mob's equipment row.
+        // AT the maximum exactly — the reference's own survival point
+        // (ItemStack.takeDamage line 204: the break lands at damage > max,
+        // never >=): the next thorns visit (proc 3 or miss 1) EXCEEDS the
+        // durability and the piece leaves the slot — the pre-fix >=
+        // boundary broke the piece one visit early.
         ItemStack frail = ItemStack.of(BuiltinItems.IRON_HELMET)
                 .withEnchantment(Enchantments.THORNS.id, 3)
-                .withDamage(BuiltinItems.IRON_HELMET.maxDurability() - 1);
+                .withDamage(BuiltinItems.IRON_HELMET.maxDurability());
         pig.setEquipment(4, frail);
 
         Position at = pig.position();

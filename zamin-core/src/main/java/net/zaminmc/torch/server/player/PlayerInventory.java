@@ -396,7 +396,13 @@ public final class PlayerInventory implements net.zaminmc.torch.entity.Player.In
             return false; // every unit rolled away: the stack is untouched
         }
         int newDamage = current.damage() + landing;
-        if (newDamage >= current.type().maxDurability()) {
+        // The tool-wear parity audit — the reference's takeDamage boundary
+        // (ItemStack.takeDamage line 204: {@code metadata > max}): the
+        // stack SURVIVES at exactly the maximum and breaks only when the
+        // wear EXCEEDS it — the pre-fix {@code >=} boundary cost every
+        // damageable item exactly one use (a 250-durability iron pickaxe
+        // answered 250 uses where the reference answers 251).
+        if (newDamage > current.type().maxDurability()) {
             slots[heldSlot] = ItemStack.EMPTY; // the tool breaks
         } else {
             slots[heldSlot] = current.withDamage(newDamage);
@@ -514,8 +520,8 @@ public final class PlayerInventory implements net.zaminmc.torch.entity.Player.In
                 continue; // every unit rolled away: this piece is untouched
             }
             int newDamage = piece.damage() + landing;
-            armor[i] = newDamage >= piece.type().maxDurability()
-                    ? ItemStack.EMPTY // the piece breaks
+            armor[i] = newDamage > piece.type().maxDurability()
+                    ? ItemStack.EMPTY // the piece breaks at the exceed, never at the max
                     : piece.withDamage(newDamage);
             changed = true;
         }
@@ -549,8 +555,8 @@ public final class PlayerInventory implements net.zaminmc.torch.entity.Player.In
             return false; // every unit rolled away: the piece is untouched
         }
         int newDamage = piece.damage() + landing;
-        armor[slot] = newDamage >= piece.type().maxDurability()
-                ? ItemStack.EMPTY // the piece breaks
+        armor[slot] = newDamage > piece.type().maxDurability()
+                ? ItemStack.EMPTY // the piece breaks at the exceed, never at the max
                 : piece.withDamage(newDamage);
         return true;
     }

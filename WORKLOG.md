@@ -16708,3 +16708,52 @@ answers ink sac AND the cactus's green — only the green is a smelting
 result); (3) the registered-with-a-comment pattern is the declared-but-
 never-carried shape's signature — the rabbit's own registration comment
 NAMED the smelt the table never carried.
+
+## 2026-10-28 — the tool-wear parity audit (PR #59, the verifier's fourth pass)
+
+The fourth sweep, one family over: the durability wear. The anchor law
+lives in the item classes, not the block path — ToolItem.mineBlock wears
+ONE (line 42), SwordItem.mineBlock TWO (line 55), ToolItem.attack TWO
+(line 35), SwordItem.attack ONE (line 48), ShearsItem.mineBlock ONE on
+its own six-member band alone (lines 20-29), and the shears and hoes
+extend Item directly so their attack arm NEVER wears. The engine had
+folded all of it into one flat wear-one-everywhere row — and broke the
+stack at damage >= maxDurability where the reference's takeDamage
+breaks at metadata > maxDamage (line 204).
+
+The boundary was the silent find: the >= shape cost every damageable
+item exactly ONE use (an iron pickaxe answered 250 where the reference
+answers 251, a gold pickaxe 32 where it answers 33), every wear site
+carried it (damageHeld, wearArmor, wearArmorStack, the mob thorns
+walk), and FOUR existing tests had pinned it — the gold-pickaxe seat,
+the armor helmet seat, the thorns frail-helmet seat, the survival
+tool-break dig — each re-pinned to the reference's own count. The
+zombie's sun-helmet walk was verified BEFORE touching it: the
+reference's own setDamage walk (ZombieEntity lines 165-172) carries its
+own >= boundary, the one place the flat shape was already 1:1 — left
+alone with a note.
+
+The wear split landed as two shared rows (Tools.blockWearOf /
+meleeWearOf) and one block band (BlockBehaviorTable.inShearsWearBand),
+so the dig site, the two melee sites and the tests read one table; the
+shears band keeps the dead bush and the double plants OUTSIDE exactly
+(the reference registers the band by block, never by flora — the
+contrast the tall-grass slice's own shears law needed spelled out).
+
+**Evidence:** ToolWearParityTest 5/0 (the survive-at-max law over both
+edges, the 251-use full walk, the two wear tables, the band's six
+members and four exclusions); the four re-pinned seats green;
+PlayerInventoryTest + ToolsTest + ArmorTest + SurvivalMining +
+ThornsMobVictim + SilkAndShears + DropBandParity + BlockBehaviorTable
+green; the block + interaction packages and the combat seats 274/0.
+
+**Lessons:** (1) a boundary constant is a law — one character of >=
+vs > silently cost every damageable item in the engine one use, and
+four green tests had pinned the wrong answer as "exactly as
+historically"; (2) the re-pin test is the verifier's sharpest tool:
+when a test's assertion contradicts the reference source, the
+reference wins and the seat gets re-pinned with the law named in its
+message; (3) one law, one shape — the zombie's own setDamage walk
+carrying its own boundary is the counterexample that proves the wear
+family is not one law but several, and each was read before it was
+touched.
