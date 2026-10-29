@@ -7,28 +7,38 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * The rail trio (Slice 38 — AbstractRailBlock/PoweredRailBlock/
- * DetectorRailBlock over the reference's registrations): the powered
- * golden rail 27, the detector rail 28, and the activator rail 157 (the
- * reference's own twin of the golden rail — register(157, "activator_rail",
- * new PoweredRailBlock()...) — every one
- * {@code setStrength(0.7F)} METAL_SOUNDS over Material.DECORATION).
+ * The rail quartet (Slice 38 — AbstractRailBlock/PoweredRailBlock/
+ * DetectorRailBlock over the reference's registrations): the plain
+ * rail 66 (the thirteenth verifier pass — the reference's own
+ * RailBlock, alwaysStraight FALSE, the four curves its family alone),
+ * the powered golden rail 27, the detector rail 28, and the activator
+ * rail 157 (the reference's own twin of the golden rail —
+ * register(157, "activator_rail", new PoweredRailBlock()...) — every
+ * one {@code setStrength(0.7F)} METAL_SOUNDS over Material.DECORATION).
  *
  * <p>The state vocabulary is the reference's own
- * {@code getStateFromMetadata} band: the six straight shapes over
- * metadata 0-5 (north_south, east_west, ascending_east/west/north/south
- * — Shape.byId, the curves are the plain rail's own family) with the
- * POWERED bit 8 — twelve states per family. The shape's axis is the
- * minecart's rail walk read; the POWERED bit is the golden family's
- * boost/brake and the detector's own emission.</p>
+ * {@code getStateFromMetadata} band: the plain rail's TEN shapes over
+ * metadata 0-9 (the six straight + the four curves — Shape.byId over
+ * the full enum; the historical {@code rail_ew} keeps shape 1's name
+ * for existing worlds, the eight new states the reference's own keys)
+ * with NO POWERED bit; the trio's six straight shapes over metadata
+ * 0-5 with the POWERED bit 8 — twelve states per family. The shape's
+ * axis is the minecart's rail walk read; the POWERED bit is the golden
+ * family's boost/brake and the detector's own emission.</p>
  */
 public final class RailBlocks {
 
     private RailBlocks() {
     }
 
-    /** The three families: name -> wire id (Block.java's own rows). */
+    /** The three powered families: name -> wire id (Block.java's own rows). */
     public static final Map<String, Integer> RAILS = buildRails();
+
+    /** The plain rail's own family name (RailBlock's register row). */
+    public static final String PLAIN_FAMILY = "rail";
+
+    /** The plain rail's wire id (Block.java's row 66). */
+    public static final int PLAIN_WIRE_ID = 66;
 
     private static Map<String, Integer> buildRails() {
         java.util.LinkedHashMap<String, Integer> rails = new java.util.LinkedHashMap<>();
@@ -42,6 +52,19 @@ public final class RailBlocks {
     static final List<String> SHAPES = List.of(
             "north_south", "east_west",
             "ascending_east", "ascending_west", "ascending_north", "ascending_south");
+
+    /**
+     * The plain rail's TEN shape suffixes over metadata 0-9 (the
+     * reference's Shape enum, AbstractRailBlock lines 479-489): the
+     * bare north_south 0, the historical east-west name 1 (the
+     * pre-audit engine's own rail_ew, kept for existing worlds), the
+     * four ascents, then the four curves (the alwaysStraight-gated
+     * family's own).
+     */
+    static final List<String> PLAIN_SHAPES = List.of(
+            "", "_ew",
+            "_ascending_east", "_ascending_west", "_ascending_north", "_ascending_south",
+            "_south_east", "_south_west", "_north_west", "_north_east");
 
     /** One state's identifier: the bare north_south unpowered form keeps the
      *  plain name (the family item shares it — Item.java's own
@@ -87,6 +110,116 @@ public final class RailBlocks {
                     blocks.add(state(family, shape, powered));
                 }
             }
+        }
+        return List.copyOf(blocks);
+    }
+
+    // ------------------------------------------------------------------
+    // The plain rail's ten-state band (the thirteenth verifier pass —
+    // RailBlock.getStateFromMetadata lines 31-33: Shape.byId over the
+    // FULL ten-shape enum, the curves this family's own alone)
+    // ------------------------------------------------------------------
+
+    /** One plain-rail state's identifier (the bare north_south keeps the
+     *  item's own name — Item.java's register(Blocks.RAIL) row). */
+    private static Identifier plainStateId(int shape) {
+        return Identifier.parse("minecraft:" + PLAIN_FAMILY + PLAIN_SHAPES.get(shape));
+    }
+
+    /**
+     * One plain-rail state over the shape id's own nibble (the bare
+     * north_south and the historical {@code rail_ew} keep their
+     * registered constants — existing worlds stay valid).
+     */
+    public static EngineBlockType plainState(int shape) {
+        if (shape <= 0) {
+            return BuiltinBlocks.RAIL;
+        }
+        if (shape == 1) {
+            return BuiltinBlocks.RAIL_EW;
+        }
+        return new EngineBlockType(plainStateId(shape), "Rail", shape);
+    }
+
+    /** @return whether the type is the plain rail's own state. */
+    public static boolean isPlainRail(net.zaminmc.torch.block.BlockType type) {
+        if (type == null || !type.identifier().namespace().equals("minecraft")) {
+            return false;
+        }
+        String value = type.identifier().value();
+        return value.equals(PLAIN_FAMILY) || value.startsWith(PLAIN_FAMILY + "_");
+    }
+
+    /** @return whether the type is any rail family's state (the
+     *  reference's own isRail, AbstractRailBlock lines 22-29 — all four
+     *  families, the plain rail with its curves included). */
+    public static boolean isRailFamily(net.zaminmc.torch.block.BlockType type) {
+        return isPlainRail(type) || isTrioRail(type);
+    }
+
+    /** The family's own straight-flag (the AbstractRailBlock ctor's
+     *  parameter): FALSE for the plain rail (the four curves are its own
+     *  family alone), TRUE for the trio. */
+    public static boolean alwaysStraightOf(net.zaminmc.torch.block.BlockType type) {
+        return !isPlainRail(type) && isTrioRail(type);
+    }
+
+    /** The state's shape over its family's own whole band (the plain
+     *  rail 0-9, the trio 0-5 — the walk's own read). */
+    public static int familyShapeOf(net.zaminmc.torch.block.BlockType type) {
+        return isPlainRail(type) ? plainShapeOf(type) : shapeOf(type);
+    }
+
+    /** The plain rail's own shape read (the nibble's inverse). */
+    public static int plainShapeOf(net.zaminmc.torch.block.BlockType type) {
+        String value = type.identifier().value();
+        if (!value.startsWith(PLAIN_FAMILY)) {
+            return 0;
+        }
+        String tail = value.substring(PLAIN_FAMILY.length());
+        for (int i = 0; i < PLAIN_SHAPES.size(); i++) {
+            if (tail.equals(PLAIN_SHAPES.get(i))) {
+                return i;
+            }
+        }
+        return 0; // the bare north_south
+    }
+
+    /**
+     * The state's rewrite with a new shape (the RailNode walk's own
+     * {@code state.set(SHAPE, ...)} — the trio's POWERED bit kept, the
+     * plain rail's nibble the shape id itself).
+     */
+    public static net.zaminmc.torch.block.BlockType withShape(
+            net.zaminmc.torch.block.BlockType type, int shape) {
+        if (isPlainRail(type)) {
+            return plainState(shape);
+        }
+        String family = familyOf(type);
+        if (family == null) {
+            return type;
+        }
+        return state(family, Math.min(shape, 5), isPowered(type));
+    }
+
+    /** The state's own family item (dropItems' drop): the plain rail's
+     *  66 item, the trio's family items. */
+    public static Identifier familyItemOf(net.zaminmc.torch.block.BlockType type) {
+        if (isPlainRail(type)) {
+            return Identifier.parse("minecraft:" + PLAIN_FAMILY);
+        }
+        return railItem(familyOf(type));
+    }
+
+    /**
+     * The plain rail's eight NEW states (the four ascents + the four
+     * curves — the bare north_south and the historical east_west ride
+     * the registered constants).
+     */
+    public static List<EngineBlockType> plainFamilyBlocks() {
+        List<EngineBlockType> blocks = new ArrayList<>();
+        for (int shape = 2; shape < PLAIN_SHAPES.size(); shape++) {
+            blocks.add(plainState(shape));
         }
         return List.copyOf(blocks);
     }
@@ -177,8 +310,14 @@ public final class RailBlocks {
         return Identifier.parse("minecraft:" + family);
     }
 
-    /** The placement state (the historical ItemRail): the look's own axis, unpowered. */
-    public static net.zaminmc.torch.block.BlockType placementState(String family, boolean eastWest) {
-        return state(family, eastWest ? 1 : 0, false);
+    /**
+     * The family's placement default (RailBlock line 15 /
+     * PoweredRailBlock line 29: the default state is NORTH_SOUTH, the
+     * look NEVER consulted anywhere in the family — the thirteenth
+     * pass's own retirement of the pre-audit look law; the connection
+     * walk re-orients the landing).
+     */
+    public static net.zaminmc.torch.block.BlockType defaultState(String family) {
+        return state(family, 0, false);
     }
 }

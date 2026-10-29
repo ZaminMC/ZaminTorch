@@ -507,6 +507,17 @@ final class LegacyBlockIds {
             // rail block 66 (orientation in the metadata), the boat item
             // 333, the minecart item 328.
             Map.entry(Identifier.parse("minecraft:rail"), 66),
+            // The plain rail's slope + curve states (the thirteenth
+            // verifier pass — the TEN-shape band, the same wire id 66
+            // with the shape id in the metadata nibble).
+            Map.entry(Identifier.parse("minecraft:rail_ascending_east"), 66),
+            Map.entry(Identifier.parse("minecraft:rail_ascending_west"), 66),
+            Map.entry(Identifier.parse("minecraft:rail_ascending_north"), 66),
+            Map.entry(Identifier.parse("minecraft:rail_ascending_south"), 66),
+            Map.entry(Identifier.parse("minecraft:rail_south_east"), 66),
+            Map.entry(Identifier.parse("minecraft:rail_south_west"), 66),
+            Map.entry(Identifier.parse("minecraft:rail_north_west"), 66),
+            Map.entry(Identifier.parse("minecraft:rail_north_east"), 66),
             // The cobweb (Slice 12a, community blocks.json): legacy 30.
             Map.entry(Identifier.parse("minecraft:cobweb"), 30),
             Map.entry(Identifier.parse("minecraft:rail_ew"), 66),
@@ -1578,6 +1589,17 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:cobblestone_stairs_north_top"), 7),
             // The vehicle slice: the rail's flat orientation (0 = NS default).
             Map.entry(Identifier.parse("minecraft:rail_ew"), 1),
+            // The plain rail's slope + curve nibbles (the thirteenth
+            // verifier pass — RailBlock.getMetadataFromState line 37 over
+            // the FULL ten-shape enum: the ascents 2-5, the curves 6-9).
+            Map.entry(Identifier.parse("minecraft:rail_ascending_east"), 2),
+            Map.entry(Identifier.parse("minecraft:rail_ascending_west"), 3),
+            Map.entry(Identifier.parse("minecraft:rail_ascending_north"), 4),
+            Map.entry(Identifier.parse("minecraft:rail_ascending_south"), 5),
+            Map.entry(Identifier.parse("minecraft:rail_south_east"), 6),
+            Map.entry(Identifier.parse("minecraft:rail_south_west"), 7),
+            Map.entry(Identifier.parse("minecraft:rail_north_west"), 8),
+            Map.entry(Identifier.parse("minecraft:rail_north_east"), 9),
             // The nether portal's axis (the reference PortalBlock.getMetadata:
             // 1 the X plane, 2 the Z plane).
             Map.entry(Identifier.parse("minecraft:nether_portal"), 1),

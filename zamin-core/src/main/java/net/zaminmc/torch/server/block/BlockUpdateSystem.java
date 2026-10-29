@@ -144,7 +144,24 @@ public final class BlockUpdateSystem implements WorldChangeListener {
     public void onBlockChanged(EngineWorld changedWorld, BlockPosition position, BlockType newType) {
         Objects.requireNonNull(newType, "newType");
         long now = changedWorld.totalTicks();
+        // THE RAIL FAMILIES' OWN-COMMIT EXEMPTION (the thirteenth verifier
+        // pass — the reference's dispatch law, World.updateNeighbors lines
+        // 342-349 over setBlockState's flag-1 walk): a block's own change
+        // notifies its SIX NEIGHBOURS alone; the changed cell ITSELF never
+        // receives neighborChanged — the placed rail's own commit runs
+        // onAdded's connection walk with NO support consult
+        // (AbstractRailBlock.onAdded lines 76-83, the consult the item
+        // path's canBePlaced arm carries), so a directly-written rail (the
+        // plugin path, the test harness, a world import) FLOATS exactly
+        // like vanilla's until a NEIGHBOUR changes; the support pops ride
+        // the neighbour wakes alone. The {0,0,0} self-offset stays for
+        // the other families (the torch/carpet/sign arms' own established
+        // convention — their own audits' rows).
+        boolean changedCellIsRail = RailBlocks.isRailFamily(newType);
         for (int[] offset : NEIGHBOR_OFFSETS) {
+            if (changedCellIsRail && offset[0] == 0 && offset[1] == 0 && offset[2] == 0) {
+                continue; // the rail's own commit never wakes itself
+            }
             schedule(position.offset(offset[0], offset[1], offset[2]), now);
         }
     }
@@ -400,6 +417,30 @@ public final class BlockUpdateSystem implements WorldChangeListener {
                     ItemEntity.PICKUP_DELAY_DROP_TICKS);
             return;
         }
+        // The rail families' support rule (the thirteenth verifier pass —
+        // AbstractRailBlock.neighborChanged lines 86-111, all four families
+        // through the isRailFamily consult): the floor below must carry a
+        // solid TOP (the has-solid-top family — a bottom slab, a fence, a
+        // wall or the thin snow is not a rail bed), and each ASCENDING
+        // shape's own run cell (the ascent's horizontal direction) must
+        // too; a violation pops the rail with its family item's drop
+        // (dropItems + removeBlock, lines 104-106). No re-walk rides
+        // this arm — the reference's neighborChanged re-walks only on a
+        // redstone signal (RailBlock lines 19-23 — the honest tail: the
+        // redstone family's row).
+        if (RailBlocks.isRailFamily(type)) {
+            if (RailConnections.survivesAt(world, position)) {
+                return; // supported
+            }
+            world.setBlock(position, world.airType());
+            itemEntities.spawnDropAtBlock(
+                    new Position(position.x(), position.y(), position.z()),
+                    ItemStack.of(net.zaminmc.torch.server.item.BuiltinItems.lookup(
+                            RailBlocks.familyItemOf(type)).orElseThrow(), 1),
+                    ItemEntity.PICKUP_DELAY_DROP_TICKS);
+            return;
+        }
+
         // The banner family's support rules (BannerBlock.Standing /
         // .Wall neighborChanged, lines 128-135 + 184-192 — the sign
         // family's twins): the standing banner consults the floor's
