@@ -242,6 +242,18 @@ public final class WorldSolidity {
         if (DoublePlantBlocks.isDoublePlantIdentifier(id)) {
             return DoublePlantBlocks.isReplaceableVariant(id);
         }
+        // The vine family (VN-B1 — VineBlock's Material.REPLACEABLE_PLANT +
+        // canBeReplaced lines 60-62 returning true): every vine state is a
+        // placement target — a vine held against an existing vine replaces
+        // it (the reference's World.canPlace replaceable half), the tree
+        // growth's replace consult and the armor stand's ground gate the
+        // same. Added HERE alone — the walk-through flora read (isFlora)
+        // stays untouched: the vine's own walk-through rides the VN-A
+        // collision exclusion, not the flora set.
+        if (id.namespace().equals("minecraft")
+                && (id.value().equals("vine") || id.value().startsWith("vine_"))) {
+            return true;
+        }
         return isFlora(id);
     }
 

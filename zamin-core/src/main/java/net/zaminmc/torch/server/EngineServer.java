@@ -11986,6 +11986,21 @@ public final class EngineServer implements Server, EngineBridge {
             placeCarpetOnTick(session, clicked, face, creativeHeld);
             return;
         }
+        // The vine family's placement (VN-B1 — VineBlock.canBePlaced lines
+        // 132-148 over World.canPlace lines 2274-2282 + getPlacementState
+        // lines 296-300): the face gate — UP requires the solid cube ABOVE
+        // the placement cell (the hanging form), a horizontal face requires
+        // the CLICKED WALL itself to be the growable solid, DOWN refuses (a
+        // vine never attaches to a ceiling); the placement state carries
+        // exactly ONE face bit, the face TOWARD the clicked wall (the
+        // opposite of the clicked face) — a vertical placement keeps the
+        // all-clear form.
+        if (heldId.equals("minecraft:vine")
+                || creativeHeld.map(net.zaminmc.torch.server.block.VineBlocks::isVineFamily)
+                        .orElse(false)) {
+            placeVineOnTick(session, clicked, face, creativeHeld);
+            return; // the vine's face gate + single-bit state override the generic placement
+        }
         blockInteraction.placeFromUseOnTick(session, clicked, face, creativeHeld);
     }
 
@@ -12390,6 +12405,72 @@ public final class EngineServer implements Server, EngineBridge {
             return;
         }
         world.setBlock(target, carpet);
+        consumePlaced(session, creativeHeld);
+    }
+
+    /**
+     * The vine family's placement arm (VN-B1 — the reference's
+     * VineBlock.canBePlaced lines 132-148 over World.canPlace lines
+     * 2274-2282 + getPlacementState lines 296-300): the gate reads the
+     * CLICKED FACE — UP requires the solid cube ABOVE the placement
+     * cell ({@code canGrowOn(pos.up())} — the vine hangs from it; a
+     * plain floor placement with open sky above never lands), a
+     * horizontal face requires the CLICKED WALL itself (the target's
+     * cell opposite the face) to be the growable solid
+     * ({@code canGrowOn} — {@code isCube && blocksMovement}, VN-A's
+     * own {@code isGrowableSupport}), and DOWN never places (a vine
+     * never attaches to a ceiling). The state is the reference's own
+     * placement state: exactly ONE face bit, the face TOWARD the wall
+     * (the opposite of the clicked face — clicking the wall's NORTH
+     * face carries the vine's SOUTH bit); a vertical (UP) placement
+     * keeps the all-clear form (metadata 0, the dormant vine_none VN-A
+     * named). The vine's collision shape is null, so the reference's
+     * body rule never blocks it ({@code World.canPlace}'s
+     * {@code box == null || isUnobstructed} — the box gate is skipped,
+     * unlike the solid families' arms).
+     */
+    private void placeVineOnTick(PlayerSession session, BlockPosition clicked, int face,
+                                  java.util.Optional<BlockType> creativeHeld) {
+        BlockPosition target = offsetByFace(clicked, face);
+        if (target == null || world.getBlock(clicked).equals(world.airType())
+                || !canOccupyForPlacement(target)) {
+            return;
+        }
+        if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE
+                && session.inventory().held().isEmpty()) {
+            return;
+        }
+        int bit;
+        if (face == 1) { // UP — the hanging form: the solid cube above the cell
+            if (!net.zaminmc.torch.server.block.VineBlocks.isGrowableSupport(
+                    world.getBlock(target.offset(0, 1, 0)))) {
+                return; // the gate's refusal: nothing places, nothing consumes
+            }
+            bit = 0; // the all-clear top-placed form (the vertical placement state)
+        } else if (face == 2) { // the wall's NORTH face: the vine's SOUTH bit
+            if (!net.zaminmc.torch.server.block.VineBlocks.isGrowableSupport(world.getBlock(clicked))) {
+                return;
+            }
+            bit = net.zaminmc.torch.server.block.VineBlocks.BIT_SOUTH;
+        } else if (face == 3) { // the SOUTH face: the NORTH bit
+            if (!net.zaminmc.torch.server.block.VineBlocks.isGrowableSupport(world.getBlock(clicked))) {
+                return;
+            }
+            bit = net.zaminmc.torch.server.block.VineBlocks.BIT_NORTH;
+        } else if (face == 4) { // the WEST face: the EAST bit
+            if (!net.zaminmc.torch.server.block.VineBlocks.isGrowableSupport(world.getBlock(clicked))) {
+                return;
+            }
+            bit = net.zaminmc.torch.server.block.VineBlocks.BIT_EAST;
+        } else if (face == 5) { // the EAST face: the WEST bit
+            if (!net.zaminmc.torch.server.block.VineBlocks.isGrowableSupport(world.getBlock(clicked))) {
+                return;
+            }
+            bit = net.zaminmc.torch.server.block.VineBlocks.BIT_WEST;
+        } else { // DOWN (0) — a vine never places against a ceiling
+            return;
+        }
+        world.setBlock(target, net.zaminmc.torch.server.block.VineBlocks.stateFor(bit));
         consumePlaced(session, creativeHeld);
     }
 
