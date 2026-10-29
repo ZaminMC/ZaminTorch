@@ -754,12 +754,15 @@ public final class BlockUpdateSystem implements WorldChangeListener {
         // FarmlandBlock.neighborChanged lines 88-94): a material-SOLID
         // block arriving on the farmland turns it to DIRT (the crop above
         // popping through its own support arm). The solidity consult is
-        // the engine's standing WorldSolidity model (the material-model
-        // unification rides the sign family's own class when that pass
-        // merges); a torch or a flower above never reverts the field.
+        // the MATERIAL model (getMaterial().isSolid() — MaterialSolidity,
+        // the sign family's twelfth-pass class, merged since the audit
+        // was written): a torch or a flower above never reverts the
+        // field, a sign or a banner above DOES (their WOOD material is
+        // solid where the collision model answers null).
         if (identifier.value().equals("farmland")
                 || identifier.value().equals("farmland_wet")) {
-            if (WorldSolidity.isSolid(world.getBlock(position.offset(0, 1, 0)))) {
+            if (MaterialSolidity.isSolid(
+                    world.getBlock(position.offset(0, 1, 0)).identifier())) {
                 world.setBlock(position, BuiltinBlocks.DIRT);
             }
             return;

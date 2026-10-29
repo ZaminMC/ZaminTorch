@@ -2081,14 +2081,12 @@ public final class EngineServer implements Server, EngineBridge {
                 // rolls, the reference's own breakLeaves shape.
                 randomTicks.setLeafDecayDrops(itemEntities,
                         new DropService(new java.util.Random(worldSeed ^ 0x1EAFDECAL)));
-<<<<<<< HEAD
                 // The farmland's rain read (the farmland state pass —
                 // FarmlandBlock.tick line 47's world.isRaining(pos.up())):
                 // the engine's weather sits on the server, the consult
                 // hoisted above so the mob view and the farmland share it.
                 randomTicks.setRainRead(position -> rainAtInWorld(
                         position.x(), position.y(), position.z()));
-=======
                 // The plant-pop seam (the farming growth pass + the
                 // planting-arms pass, the identical wiring both added —
                 // the hunks coalesced at the merge): the random-tick
@@ -2097,7 +2095,6 @@ public final class EngineServer implements Server, EngineBridge {
                 // through the engine's own item bodies, the same manager
                 // the neighbour bus's plant-pop arms use.
                 randomTicks.setPlantPopItems(itemEntities);
->>>>>>> develop
                 // Projectiles (arrows, shards): the tick-thread physics system,
                 // with damage semantics staying here in the combat callbacks.
                 ProjectileManager projectiles = new ProjectileManager(
@@ -22077,6 +22074,16 @@ public final class EngineServer implements Server, EngineBridge {
          */
         @Override
         public boolean isRainingAt(double x, double y, double z) {
+            // The dimension gate the hoist must keep (the pre-pass read's
+            // own law): the rain flag lives on the overworld alone — the
+            // roofed dimensions NEVER rain (the reference's per-world
+            // weather, World.isRaining's own world consult), and the mob
+            // view answers bodies in every dimension (a blaze in the
+            // nether must never read the overworld's storm — the drown
+            // arm's own regression class the farmland hoist dropped).
+            if (activeWorld() != world) {
+                return false;
+            }
             return rainAtInWorld(x, y, z);
         }
 
