@@ -360,7 +360,7 @@ Mobs never sneak — the reference's isSneaking() is false for every mob.
 | B1 | CLOSED-REDUCED: the mob/player arms landed by Wave SG 5429b60b; the item/orb extension REJECTED in §H/3 (makesSteps false for both); the gate's own gaps CLOSED by PR #74 (the squid colliding move + the mob gate) and PR #75 (the flying player) | develop + PR #74/#75 |
 | B2 | REJECTED — see §H/2 (the empty-stub chain); PR #73 CLOSED unmerged with the evidence | — |
 | B3 | CLOSED by PR #72 (stash-verified failing on the pre-fix tree) | fix/lit-ore-silk-drop-parity-audit |
-| A4/F-FRICTION | suspected (V1 evidence; the family broader than this pass) — the next pass's loudest candidate | a future pass |
+| A4/F-FRICTION | item/orb slice CLOSED by PR #76 (the slipperiness consult + the ice slide, stash-verified — the probe caught its own first vacuous thresholds before shipping); the MOB slice (LivingEntity's 0.91 * slipperiness + the movement factors — a different reference chain) remains queued | fix/item-orb-slipperiness-parity-audit |
 | F-RIDER-SPARE | suspected | a future pass |
 | F-DUST | suspected | a future pass |
 | F-ITEMSTEP | REJECTED in §H/3 (makesSteps false for items/orbs) | — |
