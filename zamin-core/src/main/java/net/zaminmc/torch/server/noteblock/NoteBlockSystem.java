@@ -207,6 +207,18 @@ public final class NoteBlockSystem implements WorldChangeListener {
             "spruce_log", "birch_log", "jungle_log", "acacia_log", "dark_oak_log",
             "oak_slab", "oak_slab_top",
             "sign", "sign_east", "sign_north", "sign_west",
+            "sign_ssw",
+            "sign_sw",
+            "sign_wsw",
+            "sign_wnw",
+            "sign_nw",
+            "sign_nnw",
+            "sign_nne",
+            "sign_ne",
+            "sign_ene",
+            "sign_ese",
+            "sign_se",
+            "sign_sse",
             "wall_sign", "wall_sign_east", "wall_sign_south", "wall_sign_west");
 
     /** The reference's instrument selection: the block BELOW's material. */

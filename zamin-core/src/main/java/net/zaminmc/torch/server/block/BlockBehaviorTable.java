@@ -910,6 +910,54 @@ public final class BlockBehaviorTable {
                     new BlockBehavior(1.0, true, false, "wood", 0,
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:sign"), 1)))),
 
+            Map.entry(Identifier.parse("minecraft:sign_ssw"),
+                    new BlockBehavior(1.0, true, false, "wood", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:sign"), 1)))),
+
+            Map.entry(Identifier.parse("minecraft:sign_sw"),
+                    new BlockBehavior(1.0, true, false, "wood", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:sign"), 1)))),
+
+            Map.entry(Identifier.parse("minecraft:sign_wsw"),
+                    new BlockBehavior(1.0, true, false, "wood", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:sign"), 1)))),
+
+            Map.entry(Identifier.parse("minecraft:sign_wnw"),
+                    new BlockBehavior(1.0, true, false, "wood", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:sign"), 1)))),
+
+            Map.entry(Identifier.parse("minecraft:sign_nw"),
+                    new BlockBehavior(1.0, true, false, "wood", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:sign"), 1)))),
+
+            Map.entry(Identifier.parse("minecraft:sign_nnw"),
+                    new BlockBehavior(1.0, true, false, "wood", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:sign"), 1)))),
+
+            Map.entry(Identifier.parse("minecraft:sign_nne"),
+                    new BlockBehavior(1.0, true, false, "wood", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:sign"), 1)))),
+
+            Map.entry(Identifier.parse("minecraft:sign_ne"),
+                    new BlockBehavior(1.0, true, false, "wood", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:sign"), 1)))),
+
+            Map.entry(Identifier.parse("minecraft:sign_ene"),
+                    new BlockBehavior(1.0, true, false, "wood", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:sign"), 1)))),
+
+            Map.entry(Identifier.parse("minecraft:sign_ese"),
+                    new BlockBehavior(1.0, true, false, "wood", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:sign"), 1)))),
+
+            Map.entry(Identifier.parse("minecraft:sign_se"),
+                    new BlockBehavior(1.0, true, false, "wood", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:sign"), 1)))),
+
+            Map.entry(Identifier.parse("minecraft:sign_sse"),
+                    new BlockBehavior(1.0, true, false, "wood", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:sign"), 1)))),
+
             // The wall signs (block 68): the hanging model, same wood feel,
             // the same sign item drop (legacy 323).
             Map.entry(Identifier.parse("minecraft:wall_sign"),
