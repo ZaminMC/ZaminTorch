@@ -822,7 +822,8 @@ public final class EngineServer implements Server, EngineBridge {
                 ItemEntityManager itemEntities = new ItemEntityManager(
                         shapeGround,
                         new java.util.Random(),
-                        ENTITY_ID_BASE);
+                        ENTITY_ID_BASE,
+                        lavaEnvelopeSounds());
                 this.itemEntities = itemEntities;
                 itemEntities.setEventBus(eventBus); // §27.7: the public item-spawn gate
                 itemEntities.addListener(new ItemEventDispatch());
@@ -2020,7 +2021,8 @@ public final class EngineServer implements Server, EngineBridge {
                 // ShapeGround (the per-body flip drives the reads; the old
                 // this::solidAt binding read the overworld for every body).
                 experienceOrbs = new ExperienceOrbManager(shapeGround,
-                        new java.util.Random(), ORB_ID_BASE);
+                        new java.util.Random(), ORB_ID_BASE,
+                        orbLavaEnvelopeSounds());
                 experienceOrbs.addListener(new OrbEventDispatch());
                 // Random ticks (§471 pattern): grass growth and decay.
                 randomTicks = new RandomTickSystem(world, new java.util.Random());
@@ -30261,6 +30263,23 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /**
+     * The item/orb families' fizz sink (Wave LF — the reference's
+     * {@code Entity.playSound} over {@code World.playSound(x, y, z, ...)}):
+     * the FX broadcast with the body's own dimension, the same wire the
+     * TF-12 dimension gate rides.
+     */
+    private ItemEntity.Sounds lavaEnvelopeSounds() {
+        return (at, name, volume, pitch, dimension) ->
+                fxManager.sound(at, name, volume, pitch, dimension);
+    }
+
+    /** The orb family's own sink type (the same broadcast). */
+    private net.zaminmc.torch.server.experience.ExperienceOrbEntity.Sounds orbLavaEnvelopeSounds() {
+        return (at, name, volume, pitch, dimension) ->
+                fxManager.sound(at, name, volume, pitch, dimension);
+    }
+
+    /**
      * One adapter serves the three physics query interfaces (items, falling
      * blocks, projectiles): the boolean methods keep the full-cube rule for
      * existing callers, the shape methods answer the collision-shape slice.
@@ -30431,6 +30450,25 @@ public final class EngineServer implements Server, EngineBridge {
                 case "slime_block" -> 0.8;
                 default -> 0.6;
             };
+        }
+
+        /**
+         * The lava consult at the body's feet cell (Wave LF — the
+         * reference's fizz gate consult, the ACTIVE dimension's read):
+         * the cell CONTAINING the body position,
+         * {@code floor(x), floor(feetY), floor(z)} — the item family's
+         * gated band and the orb family's unconditional band both read
+         * it, FluidBlocks.isLava over the cell's block.
+         */
+        @Override
+        public boolean lavaAtCell(double centerX, double feetY, double centerZ) {
+            if (feetY < net.zaminmc.torch.block.BlockPosition.MIN_Y
+                    || feetY > net.zaminmc.torch.block.BlockPosition.MAX_Y) {
+                return false;
+            }
+            return FluidBlocks.isLava(activeGroundWorld().getBlock(new net.zaminmc.torch.block.BlockPosition(
+                    (int) Math.floor(centerX), (int) Math.floor(feetY),
+                    (int) Math.floor(centerZ))).identifier());
         }
 
         /** The shape-aware point test over the ACTIVE dimension's blocks. */

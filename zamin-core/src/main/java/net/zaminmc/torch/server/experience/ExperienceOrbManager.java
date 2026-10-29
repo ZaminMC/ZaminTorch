@@ -20,7 +20,7 @@ import java.util.Random;
  * hears the collect chime through the adapter, the points ride the player's
  * total through {@code Set Experience}.</p>
  */
-public final class ExperienceOrbManager {
+public final class ExperienceOrbManager implements ExperienceOrbEntity.Players {
 
     /** The orb pickup box (the item rule: player box grown 1.0 h / 0.5 v). */
     static final double PICKUP_GROWTH_HORIZONTAL = 1.0;
@@ -28,8 +28,19 @@ public final class ExperienceOrbManager {
 
     private final ExperienceOrbEntity.Ground ground;
     private final Random random;
+    /**
+     * The fizz band's sound sink (Wave LF) — null keeps the entities'
+     * fizz-free pre-wave walk.
+     */
+    private final ExperienceOrbEntity.Sounds sounds;
     private final List<ExperienceOrbEntity> orbs = new ArrayList<>();
     private final List<Listener> listeners = new ArrayList<>();
+    /**
+     * The attraction's consult source (Wave LF): the tick walk's own
+     * players, held for the per-orb {@link ExperienceOrbEntity.Players}
+     * reads — null outside the walk (the consults are tick-thread only).
+     */
+    private Iterable<PlayerSession> currentPlayers;
     private int nextEntityId;
 
     /** Events the protocol adapter translates into wire updates. */
@@ -44,9 +55,75 @@ public final class ExperienceOrbManager {
     }
 
     public ExperienceOrbManager(ExperienceOrbEntity.Ground ground, Random random, int firstEntityId) {
+        this(ground, random, firstEntityId, null);
+    }
+
+    /**
+     * The full form (Wave LF — the lava envelope + the attraction):
+     * the {@code sounds} sink wires the fizz band over the FX broadcast;
+     * null keeps the pre-wave silent walk (the seats' three-arg form).
+     */
+    public ExperienceOrbManager(ExperienceOrbEntity.Ground ground, Random random, int firstEntityId,
+                                ExperienceOrbEntity.Sounds sounds) {
         this.ground = Objects.requireNonNull(ground, "ground");
         this.random = Objects.requireNonNull(random, "random");
         this.nextEntityId = firstEntityId;
+        this.sounds = sounds;
+    }
+
+    /**
+     * The attraction's nearest consult (Wave LF — the reference's
+     * World.getNearestPlayer over EntityFilter.NOT_SPECTATOR): the
+     * closest strictly-inside-range player of the dimension, the
+     * player's FEET position to the point, the first of equals kept
+     * (the reference's own {@code d1 < d0} preference).
+     */
+    @Override
+    public ExperienceOrbEntity.Players.Target nearest(double x, double y, double z,
+                                                       int dimension, double range) {
+        ExperienceOrbEntity.Players.Target best = null;
+        double bestSquared = -1.0;
+        for (PlayerSession player : currentPlayers) {
+            if (player.state() != PlayerState.PLAYING || player.dimension() != dimension
+                    || player.gamemode() == net.zaminmc.torch.GameMode.SPECTATOR) {
+                continue;
+            }
+            Position at = player.position();
+            double dx = at.x() - x;
+            double dy = at.y() - y;
+            double dz = at.z() - z;
+            double squared = dx * dx + dy * dy + dz * dz;
+            if (squared < range * range && (bestSquared == -1.0 || squared < bestSquared)) {
+                bestSquared = squared;
+                best = targetOf(player);
+            }
+        }
+        return best;
+    }
+
+    /** The attraction's held-igniter consult: the live same-dimension player. */
+    @Override
+    public ExperienceOrbEntity.Players.Target byId(int entityId, int dimension) {
+        for (PlayerSession player : currentPlayers) {
+            if (player.state() == PlayerState.PLAYING && player.dimension() == dimension
+                    && player.engineEntityId() == entityId) {
+                return targetOf(player);
+            }
+        }
+        return null;
+    }
+
+    /**
+     * The player view the pull reads — the feet position, the EYE aim
+     * (PlayerEntity.getEyeHeight lines 1648-1655: 1.62 standing, 1.54
+     * sneaking, 0.2 lying), the spectator flag.
+     */
+    private static ExperienceOrbEntity.Players.Target targetOf(PlayerSession player) {
+        Position at = player.position();
+        double eye = player.sleeping() ? 0.2 : 1.62 - (player.sneaking() ? 0.08 : 0.0);
+        return new ExperienceOrbEntity.Players.Target(
+                player.engineEntityId(), at.x(), at.y(), at.y() + eye, at.z(),
+                player.gamemode() == net.zaminmc.torch.GameMode.SPECTATOR);
     }
 
     public void addListener(Listener listener) {
@@ -257,6 +334,15 @@ public final class ExperienceOrbManager {
 
     /** Advances all orbs one tick: physics, pickup, despawn, void. */
     public void tick(Iterable<PlayerSession> players) {
+        currentPlayers = players;
+        try {
+            tickOrbs(players);
+        } finally {
+            currentPlayers = null;
+        }
+    }
+
+    private void tickOrbs(Iterable<PlayerSession> players) {
         Iterator<ExperienceOrbEntity> iterator = orbs.iterator();
         while (iterator.hasNext()) {
             ExperienceOrbEntity orb = iterator.next();
@@ -276,7 +362,7 @@ public final class ExperienceOrbManager {
             // flips to the body's own dimension before its physics walk (the
             // TF-9 item family's own per-body flip, generalized).
             ground.setActiveDimension(orb.dimension());
-            if (orb.tick(ground)) {
+            if (orb.tick(ground, random, sounds, this)) {
                 for (Listener listener : listeners) {
                     listener.onOrbMoved(orb);
                 }

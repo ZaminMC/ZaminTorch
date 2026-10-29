@@ -3,6 +3,7 @@ package net.zaminmc.torch.server.experience;
 import net.zaminmc.torch.util.Position;
 
 import java.util.Objects;
+import java.util.Random;
 
 /**
  * One experience orb in the world (the historical EntityXPOrb): a small
@@ -77,6 +78,61 @@ public final class ExperienceOrbEntity implements net.zaminmc.torch.entity.Exper
         default double slipperinessBelow(double centerX, double bottomY, double centerZ) {
             return 0.6;
         }
+
+        /**
+         * The lava consult at the body's feet cell (Wave LF — the
+         * reference's ExperienceOrbEntity.tick line 71 over
+         * {@code new BlockPos(this)} / {@code getMaterial() == LAVA}):
+         * the cell CONTAINING the body position, the engine's feet =
+         * {@code position.y - HALF_HEIGHT} (the reference's Entity.y IS
+         * the feet). The orb's fizz is UNCONDITIONAL — every tick, no
+         * gate — so the default false keeps the stub walks dry.
+         */
+        default boolean lavaAtCell(double centerX, double feetY, double centerZ) {
+            return false;
+        }
+    }
+
+    /**
+     * The entity's sound emission seam (Wave LF — the same shape the
+     * item family carries: the reference's {@code Entity.playSound} over
+     * {@code World.playSound(x, y, z, ...)}); the manager wires it over
+     * the FX broadcast, the entity decides when.
+     */
+    public interface Sounds {
+
+        /** Emits a named sound at a position in the dimension. */
+        void sound(Position at, String name, float volume, float pitch, int dimension);
+    }
+
+    /**
+     * The attraction's player consult (Wave LF — the reference's
+     * {@code world.getNearestPlayer(this, 8.0)} and the held
+     * {@code igniter} field's own live reads): the manager resolves
+     * both over the tick walk's players. The view carries exactly the
+     * facts the attraction reads — the id (the sticky hold), the
+     * FEET position (the retarget's own squaredDistanceTo compare,
+     * entity position to entity position), the EYE height
+     * ({@code y + getEyeHeight()} — 1.62 standing, 1.54 sneaking, 0.2
+     * lying, the reference PlayerEntity lines 1648-1655 — the pull's
+     * own aim point), and the spectator flag.
+     */
+    public interface Players {
+
+        /**
+         * The nearest non-spectator player within {@code range} of the
+         * point in the dimension (the reference's NOT_SPECTATOR filter,
+         * strictly-inside range), or null.
+         */
+        Target nearest(double x, double y, double z, int dimension, double range);
+
+        /** The live same-dimension player with the id, or null. */
+        Target byId(int entityId, int dimension);
+
+        /** The attraction's own player view. */
+        record Target(int entityId, double x, double feetY, double eyeY, double z,
+                      boolean spectator) {
+        }
     }
 
     private final int entityId;
@@ -88,6 +144,19 @@ public final class ExperienceOrbEntity implements net.zaminmc.torch.entity.Exper
     private int age;
     private int pickupDelay;
     private boolean onGround;
+    /**
+     * The attraction's held igniter id (Wave LF — the reference's
+     * {@code igniter} PlayerEntity field, id form): 0 holds nobody.
+     * The throttle keeps the hold STICKY — a player inside the 8-block
+     * radius keeps the pull until they leave it, the nearest search
+     * runs only on the retarget cadence.
+     */
+    private int igniterId;
+    /**
+     * The retarget cadence stamp (Wave LF — the reference's
+     * {@code lastTargetUpdateTick}, renderTicks frame).
+     */
+    private int lastTargetUpdateTick;
     /**
      * The body's dimension (Wave TF-10 — the reference's Entity.world, the
      * TF-9 shape over the orb family): 0 the overworld, -1 the nether. The
@@ -271,6 +340,16 @@ public final class ExperienceOrbEntity implements net.zaminmc.torch.entity.Exper
      * position changed (the publisher's sync hint).
      */
     public boolean tick(Ground ground) {
+        return tick(ground, null, null, null);
+    }
+
+    /**
+     * Advances one tick with the full envelope (Wave LF — the
+     * unconditional lava fizz + the igniter attraction): the null
+     * consults keep the pre-wave physics-only semantics (the seats the
+     * landing family drives).
+     */
+    public boolean tick(Ground ground, Random random, Sounds sounds, Players players) {
         long before = fixedPoint(position);
         age++;
         if (pickupDelay > 0) {
@@ -282,6 +361,24 @@ public final class ExperienceOrbEntity implements net.zaminmc.torch.entity.Exper
         // POST-move (line 117); the pre-fix engine had fused the pair into
         // (v - g) * 0.98 and gated it on !onGround.
         velocityY -= GRAVITY_PER_TICK;
+
+        // THE LAVA FIZZ (Wave LF — the reference's lines 69-74): UNLIKE
+        // the item family there is NO gate — every tick the feet cell's
+        // lava pops the body straight up (velocityY = 0.2, the
+        // horizontals re-rolled at (rand - rand) * 0.2, the fizz sound
+        // at 0.4 / 2.0 + rand * 0.4) BEFORE the move, so the pop feeds
+        // THIS tick's rise (the orb in lava climbs 0.2/tick, dragging
+        // to 0.196 after the move).
+        if (random != null && sounds != null
+                && ground.lavaAtCell(position.x(), position.y() - HALF_HEIGHT, position.z())) {
+            velocityY = 0.2;
+            velocityX = (random.nextFloat() - random.nextFloat()) * 0.2;
+            velocityZ = (random.nextFloat() - random.nextFloat()) * 0.2;
+            sounds.sound(position, "random.fizz", 0.4f,
+                    2.0f + random.nextFloat() * 0.4f, dimension);
+        }
+
+        applyIgniterAttraction(players);
 
         double newY = position.y() + velocityY;
         double newX = position.x() + velocityX;
@@ -355,6 +452,71 @@ public final class ExperienceOrbEntity implements net.zaminmc.torch.entity.Exper
         if (onGround) {
             velocityY *= -0.9;
         }
+    }
+
+    /**
+     * THE IGNITER ATTRACTION (Wave LF — the reference's
+     * ExperienceOrbEntity.tick lines 76-100): the 8-block pull toward
+     * the nearest player, the retarget THROTTLED — every ~20 ticks
+     * (staggered by {@code networkId % 100} so a burst of orbs does not
+     * retarget the same tick) the hold re-arms only when empty or the
+     * held player left the 8-block radius; the held igniter's live
+     * state is read EVERY tick (a spectator release, the pull itself).
+     * The pull: {@code d = (target - orb) / 8}, {@code d4 = |d|},
+     * {@code d5 = (1 - d4)²} — the velocity gains
+     * {@code d/d4 * d5 * 0.1}, nothing beyond the radius (d4 >= 1
+     * leaves d5 <= 0). The orb's own position reads the FEET frame
+     * (position.y - HALF_HEIGHT — the reference's Entity.y), the
+     * player's the EYE (y + 1.62 standing).
+     */
+    private void applyIgniterAttraction(Players players) {
+        if (players == null) {
+            return; // the pre-wave physics-only walk
+        }
+        // The reference's renderTicks frame: the counter increments at
+        // the tick's TAIL, so at this site it counts the COMPLETED
+        // ticks — the engine's age already counted this tick.
+        int renderTicks = age - 1;
+        if (lastTargetUpdateTick < renderTicks - 20 + entityId % 100) {
+            Players.Target held = igniterId == 0 ? null : players.byId(igniterId, dimension);
+            double feetY = position.y() - HALF_HEIGHT;
+            boolean lost = held == null
+                    || squaredDistance(held.x(), held.feetY(), held.z()) > 8.0 * 8.0;
+            if (lost) {
+                Players.Target nearest = players.nearest(
+                        position.x(), feetY, position.z(), dimension, 8.0);
+                igniterId = nearest == null ? 0 : nearest.entityId();
+            }
+            lastTargetUpdateTick = renderTicks;
+        }
+
+        Players.Target igniter = igniterId == 0 ? null : players.byId(igniterId, dimension);
+        if (igniter != null && igniter.spectator()) {
+            igniterId = 0;
+            igniter = null;
+        }
+        if (igniter == null) {
+            return;
+        }
+        double d1 = (igniter.x() - position.x()) / 8.0;
+        double d2 = (igniter.eyeY() - (position.y() - HALF_HEIGHT)) / 8.0;
+        double d3 = (igniter.z() - position.z()) / 8.0;
+        double d4 = Math.sqrt(d1 * d1 + d2 * d2 + d3 * d3);
+        double d5 = 1.0 - d4;
+        if (d5 > 0.0) {
+            d5 *= d5;
+            velocityX += d1 / d4 * d5 * 0.1;
+            velocityY += d2 / d4 * d5 * 0.1;
+            velocityZ += d3 / d4 * d5 * 0.1;
+        }
+    }
+
+    /** The squared distance to a world point from the orb's position. */
+    private double squaredDistance(double x, double y, double z) {
+        double dx = x - position.x();
+        double dy = y - (position.y() - HALF_HEIGHT);
+        double dz = z - position.z();
+        return dx * dx + dy * dy + dz * dz;
     }
 
     private static long fixedPoint(Position position) {

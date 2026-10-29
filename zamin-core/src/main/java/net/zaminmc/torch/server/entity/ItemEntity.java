@@ -5,6 +5,7 @@ import net.zaminmc.torch.util.Identifier;
 import net.zaminmc.torch.util.Position;
 
 import java.util.Objects;
+import java.util.Random;
 
 /**
  * One dropped item in the world: identity, position, motion, contents and the
@@ -117,6 +118,34 @@ public final class ItemEntity implements net.zaminmc.torch.entity.DroppedItem {
         default double slipperinessBelow(double centerX, double bottomY, double centerZ) {
             return 0.6;
         }
+
+        /**
+         * The lava consult at the body's feet cell (Wave LF — the
+         * reference's ItemEntity.tick line 82:
+         * {@code new BlockPos(this)} over {@code getMaterial() == LAVA}):
+         * the cell CONTAINING the body position — {@code floor(x)},
+         * {@code floor(feetY)}, {@code floor(z)}, the engine's feet =
+         * {@code position.y - HALF_HEIGHT} (the reference's Entity.y IS
+         * the feet). The fizz gate's own consult. The default answers
+         * false so stub grounds keep the pre-wave fizz-free semantics.
+         */
+        default boolean lavaAtCell(double centerX, double feetY, double centerZ) {
+            return false;
+        }
+    }
+
+    /**
+     * The entity's sound emission seam (Wave LF — the reference's
+     * {@code Entity.playSound(String, float, float)} over
+     * {@code World.playSound(x, y, z, ...)}): the tick walk hands the
+     * fizz band a sink the manager wires over the FX broadcast. The
+     * entity never touches the FX system itself (§6.1 ownership — the
+     * manager owns the emission, the entity owns the decision).
+     */
+    public interface Sounds {
+
+        /** Emits a named sound at a position in the dimension. */
+        void sound(Position at, String name, float volume, float pitch, int dimension);
     }
 
     private final int entityId;
@@ -322,11 +351,27 @@ public final class ItemEntity implements net.zaminmc.torch.entity.DroppedItem {
      * publisher can decide to sync).
      */
     public boolean tick(Ground ground) {
+        return tick(ground, null, null);
+    }
+
+    /**
+     * Advances one tick with the full envelope (Wave LF — the lava fizz
+     * band): {@code random} and {@code sounds} carry the reference's own
+     * {@code this.random} / {@code playSound} arms; either null keeps
+     * the pre-wave fizz-free semantics (the two-arg walk the physics
+     * seats drive).
+     */
+    public boolean tick(Ground ground, Random random, Sounds sounds) {
         long before = fixedPoint(position);
         age++;
         if (pickupDelay > 0) {
             pickupDelay--;
         }
+        // The reference's lastX/lastY/lastZ writes (lines 68-70): the
+        // PRE-move position the fizz gate's block-boundary flag reads.
+        double lastX = position.x();
+        double lastY = position.y();
+        double lastZ = position.z();
         // THE PRE-MOVE GRAVITY (Wave IO-F — the reference's ItemEntity.tick
         // line 72, the engine's order repair): gravity lands BEFORE the
         // move, UNCONDITIONALLY — never fused with the drag. The reference
@@ -380,6 +425,7 @@ public final class ItemEntity implements net.zaminmc.torch.entity.DroppedItem {
                 // setPositionFromShape — the same cell either way).
                 beforeCollisionAt(ground);
             }
+            fizzIfLavaTick(ground, random, sounds, lastX, lastY, lastZ);
             applyPostMoveDrag(ground);
             return fixedPoint(position) != before;
         }
@@ -431,8 +477,46 @@ public final class ItemEntity implements net.zaminmc.torch.entity.DroppedItem {
             // placement of the consult.
             beforeCollisionAt(ground);
         }
+        fizzIfLavaTick(ground, random, sounds, lastX, lastY, lastZ);
         applyPostMoveDrag(ground);
         return fixedPoint(position) != before;
+    }
+
+    /**
+     * THE LAVA FIZZ BAND (Wave LF — the reference's ItemEntity.tick lines
+     * 78-87): the gate opens when the move crossed a BLOCK BOUNDARY
+     * ({@code (int)lastX != (int)x ...} — the Java int CAST, truncation
+     * toward zero, NOT floor: a crossing from x=-0.4 to x=0.4 leaves the
+     * flag dark, cells -1 to 0 by floor but 0 to 0 by cast — the
+     * reference's own quirk kept 1:1) or every 25th tick
+     * ({@code this.ticks % 25 == 0} — the engine's {@code age}, already
+     * incremented at the tick's head, is the reference's {@code ticks}
+     * at this site). Open, the band consults the feet cell for lava and
+     * POPS: {@code velocityY = 0.2}, the horizontals re-rolled at
+     * {@code (rand - rand) * 0.2}, the fizz sound at 0.4 volume and
+     * pitch {@code 2.0 + rand * 0.4}. The pop lands BETWEEN the move
+     * and the drag — the popped velocity IS dragged this tick (the
+     * reference's own order).
+     */
+    private void fizzIfLavaTick(Ground ground, Random random, Sounds sounds,
+                                double lastX, double lastY, double lastZ) {
+        if (random == null || sounds == null) {
+            return; // the pre-wave two-arg walk (the physics seats)
+        }
+        boolean crossedCell = (int) lastX != (int) position.x()
+                || (int) lastY != (int) position.y()
+                || (int) lastZ != (int) position.z();
+        if (!crossedCell && age % 25 != 0) {
+            return;
+        }
+        if (!ground.lavaAtCell(position.x(), position.y() - HALF_HEIGHT, position.z())) {
+            return;
+        }
+        velocityY = 0.2;
+        velocityX = (random.nextFloat() - random.nextFloat()) * 0.2;
+        velocityZ = (random.nextFloat() - random.nextFloat()) * 0.2;
+        sounds.sound(position, "random.fizz", 0.4f,
+                2.0f + random.nextFloat() * 0.4f, dimension);
     }
 
     /**

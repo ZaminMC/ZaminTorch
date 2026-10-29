@@ -18229,3 +18229,70 @@ arrival pair), both merged whole
   the onGround/sneak/vehicle gates. The flying gate added; merged at
   dbfddfda after the develop re-merge (the #74 landing carried in).
 - The queue EMPTY again at the close.
+
+## 2026-10-29 — Wave LF: the item/orb lava envelope + the orb's igniter
+attraction (the IO-F remainder's envelope tails closed; F-DUST
+adjudicated a non-row; the session opened with the status report and
+0 open PRs — the validator lane idle, the architecture wave the whole
+session)
+
+- THE ITEM'S FIZZ (ItemEntity.tick lines 78-87): the gate — the move
+  crossed a block boundary ((int)lastX != (int)x ..., the Java int
+  CAST, truncation toward zero NOT floor: -0.4 to +0.4 crosses cells
+  -1 to 0 by floor but reads 0 to 0 by cast, the gate stays dark —
+  the reference's own quirk kept 1:1) OR every 25th tick (the
+  engine's age plays the reference's ticks at this site); open, the
+  feet cell's lava (the new Ground.lavaAtCell — new BlockPos(this)
+  over getMaterial() == LAVA, the engine's feet = position.y -
+  HALF_HEIGHT) pops velocityY = 0.2, re-rolls the horizontals at
+  (rand - rand) * 0.2, and plays random.fizz at 0.4 / 2.0 + rand *
+  0.4 — the pop lands BETWEEN the move and the drag (the dragged
+  remainder 0.196 vertical).
+- THE ORB'S FIZZ (lines 69-74): NO gate — every tick the feet cell's
+  lava pops BEFORE the move (the pop feeds THIS tick's rise — the orb
+  in lava climbs 0.2/tick), the same law and the same sound.
+- THE ORB'S ATTRACTION (lines 76-100) whole: the 8-block pull toward
+  the nearest non-spectator player; the retarget throttled to every
+  ~20 ticks staggered by networkId % 100 (a fresh orb holds nothing
+  for its first ~21 ticks — lastTargetUpdateTick starts 0, the
+  reference's own start); the hold STICKY inside the radius (a lost
+  hold re-searches at the next cadence); the held igniter read LIVE
+  every tick (a spectator releases; the pull resumes the tick the
+  player returns); the pull velocity += dir/|d| * (1 - |d|)^2 * 0.1
+  with d = (player - orb) / 8, the orb in the FEET frame, the player
+  the EYE aim (1.62 standing / 1.54 sneaking / 0.2 lying — the
+  manager's Target view reads the session's sneak/sleep flags);
+  nothing at or beyond 8 blocks.
+- THE SEAMS (the ownership shape): the entities decide, the managers
+  emit — the per-family Sounds interface wired over the FX broadcast
+  with the body's own dimension; the Ground.lavaAtCell consult on the
+  shared ShapeGround reading the ACTIVE dimension (FluidBlocks.isLava,
+  bounds-safe); the orb manager itself implementing the new Players
+  consult over the tick walk's players (nearest: PLAYING, same
+  dimension, non-spectator, strictly-inside, first-of-equals; byId:
+  the live same-dimension player).
+- F-DUST adjudicated a NON-ROW (the B2 class): the landing-dust burst
+  is LivingEntity.checkFallDamage lines 165-179's BLOCK_DUST
+  addParticle call, and the dedicated server's
+  ServerWorldEventListener.addParticle is the EMPTY STUB — the dust
+  is the client's own prediction, nothing broadcast 1:1, no code
+  owed.
+- Evidence: ItemOrbLavaEnvelopeParityTest 8/0 NEW (the boundary-cross
+  pop with the dragged 0.196; the int-cast quirk pair with its
+  popping control; the 60-tick bob's per-tick gate law, both arms
+  live; the orb's every-tick fizz with the dry control; the
+  attraction — the 21-tick dark start, the pinned vectors
+  0.028972371/0.015645081 standing and 0.029770310/0.015282092
+  sneaking, the sticky hold through the far window, the re-arm's
+  re-search at tick 43, the live-hold resume, the spectator release,
+  the never-held arm; the manager wiring seat) — the stash
+  verification failing unfixed WHOLE (the pre-fix tree refuses to
+  compile the seat file: the seams absent in no partial shape). The
+  regression: the item + orb families 64/0; the entity package whole
+  574/0; the stats/hunger/sign/pad/rider/farmland lanes 56/0; the
+  drop lanes 10/0; bukkit + launcher green.
+- The status report at the open: ~96-97% of the 1.8.8 gameplay
+  surface landed; the demand-named queue after this wave carries
+  F-VINE alone (the vine family's own pass — the 5-face state, the
+  placement gate, the neighborChanged decay, the random-tick growth)
+  plus the stale-ledger sweep tails.

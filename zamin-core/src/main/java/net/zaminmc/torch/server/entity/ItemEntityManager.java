@@ -40,6 +40,11 @@ public final class ItemEntityManager {
 
     private final ItemEntity.Ground ground;
     private final Random random;
+    /**
+     * The fizz band's sound sink (Wave LF) — null keeps the entities'
+     * fizz-free pre-wave walk.
+     */
+    private final ItemEntity.Sounds sounds;
     private final List<ItemEntity> entities = new ArrayList<>();
     private final List<Listener> listeners = new ArrayList<>();
     private int nextEntityId;
@@ -84,9 +89,20 @@ public final class ItemEntityManager {
     }
 
     public ItemEntityManager(ItemEntity.Ground ground, Random random, int firstEntityId) {
+        this(ground, random, firstEntityId, null);
+    }
+
+    /**
+     * The full form (Wave LF — the lava envelope): the {@code sounds}
+     * sink wires the fizz band over the FX broadcast; null keeps the
+     * pre-wave silent walk (the seats' three-arg form).
+     */
+    public ItemEntityManager(ItemEntity.Ground ground, Random random, int firstEntityId,
+                             ItemEntity.Sounds sounds) {
         this.ground = Objects.requireNonNull(ground, "ground");
         this.random = Objects.requireNonNull(random, "random");
         this.nextEntityId = firstEntityId;
+        this.sounds = sounds;
     }
 
     /** The manager's own ground consult (the VIII13 piston-push adapter reads it). */
@@ -282,7 +298,7 @@ public final class ItemEntityManager {
             // nether item lands on the nether's blocks, never on the
             // overworld's same-coordinate terrain.
             ground.setActiveDimension(entity.dimension());
-            if (entity.tick(ground)) {
+            if (entity.tick(ground, random, sounds)) {
                 for (Listener listener : listeners) {
                     listener.onItemMoved(entity);
                 }

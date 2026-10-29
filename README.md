@@ -66,7 +66,15 @@ the seated player through the delegate at takeFallDamage's head; the
 ridden body's own fall walk the pre-fix engine swallowed whole; the
 vehicles' whole fall walk with the base-alone payment — a vehicle
 pays nothing itself, the seated player pays) also landed since the
-prior verification.
+prior verification. The item/orb lava envelope + the orb's igniter
+attraction (Wave LF 2026-10-29: the item's fizz — the
+boundary-cross/25-tick gate with the reference's (int)-cast quirk,
+the pop between the move and the drag; the orb's UNCONDITIONAL fizz;
+the 8-block attraction with the staggered retarget, the sticky live
+hold, the spectator release, the eye-aimed pull) landed with the
+same session's verification, and F-DUST closed as a non-row (the
+server's addParticle is the empty stub — the landing dust is the
+client's own prediction).
 
 ## Downloading a dev build (no build tools needed)
 
