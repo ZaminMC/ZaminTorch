@@ -18329,3 +18329,51 @@ commit — LF then VN-A)
   green after the re-pins; the anvil/fire/fluid lanes green. VN-B
   remains: the placement gate + the opposite-face state, the
   neighborChanged decay, the random-tick growth whole.
+
+- **Wave CF — the fizz site's clock + frame** (2026-10-29, one commit —
+  the Wave LF review the parallel-lane collision forced):
+- THE COLLISION: a parallel lane landed the same item/orb envelope
+  family directly on develop (Wave LF 14:23) while the sixteenth
+  pass's Wave ENV branch was in flight (14:51, PR #77). PR #77 CLOSED
+  AS SUPERSEDED with the adjudication comment; the line-by-line review
+  it forced found three translation defects in the LANDED wave —
+  repaired as one focused correction, not a re-landing (the
+  superseded branch's seam shapes would have been churn against
+  landed, tested code).
+- DEFECT 1 (the item's poll clock): the reference's `ticks % 25 == 0`
+  rides the World.updateEntity lifetime counter (World.java line
+  1355) — an INDEPENDENT clock from the despawn age (setTicksExisted
+  does not exist anywhere in the 1.8.8 source; the age is seeded by
+  the NBT tag, the merge min, the -32768 sentinel). Wave LF fused the
+  poll onto age: a restored item (AnvilWorldImport line 692, the store
+  round trip, the ghost item's 5999) with age ≡ 0 (mod 25) polled on
+  its FIRST tick back — 24 ticks early. The ItemEntity gains the
+  `ticks` field at the tick's head.
+- DEFECT 2 (the crossing flag's Y frame): the reference reads
+  `(int)lastY != (int)y` with y the box BOTTOM; the engine's center
+  translates as `position.y - HALF_HEIGHT` (the convention the lava
+  consult three lines below already carried). The center-frame flag
+  popped on center-only crossings and missed feet-only entries into
+  the lava cell. The flag reads the feet frame now.
+- DEFECT 3 (the orb's retarget clock): the reference's window rides
+  the body's OWN renderTicks counter (tick's TAIL, line 123, never
+  persisted — the NBT writes Health/Age/Value alone). Wave LF's
+  `renderTicks = age - 1` was correct only for fresh orbs: a reloaded
+  orb acquired its igniter and pulled on its FIRST tick back where
+  the reference waits out the id-staggered window (id % 100 <= 20
+  waits ~21 ticks). The orb gains the `renderTicks` field at the
+  tick's tail.
+- THE SOUND FRAMES (riding along): both fizz emissions had carried
+  the center's y a half-height high; the reference plays at the box
+  bottom.
+- Evidence: FizzClockFrameParityTest 3/0 + OrbRetargetClockParityTest
+  2/0 NEW — the stash verification 6/13 failing unfixed (exactly the
+  discriminating seats) and 13/13 with the fix; the LF bob seat
+  re-pinned to the reference's feet-frame crossing law. The
+  regression: the item + orb family lanes 48/0; the entity package
+  whole 574/0. The three-pass record: source (the reference lines +
+  the engine's seeding paths), behavioral (the stash probe), the
+  independent re-verification (the setTicksExisted nonexistence
+  challenge; both NBT round trips carrying Age alone; the fresh-body
+  seats staying green). PR #78 opened; PR #77 closed with the
+  adjudication. The queue after CF: VN-B alone.
