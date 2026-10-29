@@ -2081,9 +2081,11 @@ public final class EngineServer implements Server, EngineBridge {
                 // rolls, the reference's own breakLeaves shape.
                 randomTicks.setLeafDecayDrops(itemEntities,
                         new DropService(new java.util.Random(worldSeed ^ 0x1EAFDECAL)));
-                // The plant-pop seam (the farming growth pass): the
-                // random-tick support consults' pops — the cane's
-                // water-loss pop and the cactus's new-cell pop — land
+                // The plant-pop seam (the farming growth pass + the
+                // planting-arms pass, the identical wiring both added —
+                // the hunks coalesced at the merge): the random-tick
+                // support consults' pops — the cane's water-loss pop, the
+                // cactus's new-cell pop, the nether wart's soul-sand pop — land
                 // through the engine's own item bodies, the same manager
                 // the neighbour bus's plant-pop arms use.
                 randomTicks.setPlantPopItems(itemEntities);
@@ -13426,14 +13428,29 @@ public final class EngineServer implements Server, EngineBridge {
         String held = heldType.identifier().toString();
         if (held.endsWith("_hoe")) {
             BlockType soil = world.getBlock(clicked);
-            boolean tillable = soil.identifier().equals(BuiltinBlocks.GRASS_BLOCK.identifier())
-                    || soil.identifier().equals(BuiltinBlocks.DIRT.identifier());
-            if (!tillable || !world.getBlock(clicked.offset(0, 1, 0)).equals(world.airType())) {
+            // HoeItem.useOn lines 30-46: GRASS -> farmland, the DIRT
+            // variant DIRT -> farmland, and the COARSE_DIRT variant ->
+            // REGULAR DIRT (not farmland — the second click tills it);
+            // the face must not be DOWN and the cell above must be AIR.
+            Identifier soilId = soil.identifier();
+            boolean coarseDirt = soilId.value().equals("coarse_dirt");
+            boolean tillable = soilId.equals(BuiltinBlocks.GRASS_BLOCK.identifier())
+                    || soilId.equals(BuiltinBlocks.DIRT.identifier())
+                    || coarseDirt;
+            if (face == 0
+                    || !tillable || !world.getBlock(clicked.offset(0, 1, 0)).equals(world.airType())) {
                 return false; // nothing to till (or no headroom): the no-op
             }
-            world.setBlock(clicked, BuiltinBlocks.FARMLAND);
+            world.setBlock(clicked, coarseDirt
+                    ? BuiltinBlocks.DIRT : BuiltinBlocks.FARMLAND);
+            // tillBlock's own sound (HoeItem lines 51-58): the TILLED
+            // block's STEPPING sound (getStepping — farmland carries the
+            // grass family) at (volume + 1) / 2 and pitch * 0.8 — the
+            // grass family's 1.0 volume and 1.0 pitch give 1.0f / 0.8f
+            // (the dig.grass name the pre-fix engine carried is the
+            // breaking sound, a different 1.8.8 event than step.grass).
             fxManager.sound(new Position(clicked.x() + 0.5, clicked.y() + 0.5, clicked.z() + 0.5),
-                    "dig.grass", 0.8f, 1.0f);
+                    "step.grass", 1.0f, 0.8f);
             if (net.zaminmc.torch.server.item.Tools.specOf(heldType).isPresent()) {
                 session.inventory().damageHeld(1, gameplayRandom, session.stats());
                 publishInventoryChanged(session);
@@ -13442,6 +13459,12 @@ public final class EngineServer implements Server, EngineBridge {
         }
         if (held.equals("minecraft:wheat_seeds") || held.equals("minecraft:pumpkin_seeds")
                 || held.equals("minecraft:melon_seeds")) {
+            // WheatSeedsItem.useOn's own first gate: the face must be UP
+            // (a side click never plants — the use falls through to
+            // nothing, the seeds staying in hand).
+            if (face != 1) {
+                return false;
+            }
             BlockType soil = world.getBlock(clicked);
             boolean farmland = soil.identifier().equals(BuiltinBlocks.FARMLAND.identifier())
                     || soil.identifier().equals(BuiltinBlocks.FARMLAND_WET.identifier());
@@ -13457,8 +13480,53 @@ public final class EngineServer implements Server, EngineBridge {
                     : BuiltinBlocks.WHEAT_STAGE0;
             world.setBlock(clicked.offset(0, 1, 0), crop);
             session.inventory().consumeHeld(1);
-            fxManager.sound(new Position(clicked.x() + 0.5, clicked.y() + 1.5, clicked.z() + 0.5),
-                    "dig.grass", 0.6f, 1.1f);
+            // No sound: the reference's own seed planting is silent
+            // (WheatSeedsItem.useOn carries no playSound).
+            publishInventoryChanged(session);
+            return true;
+        }
+        // The carrot/potato planting (CropItem.useOn — Item.java lines
+        // 691-692 register the pair: the carrot CropItem(3, 0.6F,
+        // Blocks.CARROTS, Blocks.FARMLAND), the potato CropItem(1, 0.3F,
+        // Blocks.POTATOES, Blocks.FARMLAND)): the seed-food's own use —
+        // the face must be UP, the soil farmland with air above, the
+        // stage-0 crop planted and one spent, the eat path staying live
+        // when the use does not plant (the CropItem extends FoodItem:
+        // the refused use falls through to the food arm, exactly like
+        // the reference's own dispatch).
+        if (held.equals("minecraft:carrot") || held.equals("minecraft:potato")) {
+            if (face != 1) {
+                return false; // CropItem.useOn's own UP gate
+            }
+            BlockType soil = world.getBlock(clicked);
+            boolean farmland = soil.identifier().equals(BuiltinBlocks.FARMLAND.identifier())
+                    || soil.identifier().equals(BuiltinBlocks.FARMLAND_WET.identifier());
+            if (!farmland || !world.getBlock(clicked.offset(0, 1, 0)).equals(world.airType())) {
+                return false; // the eat arm owns the fall-through
+            }
+            BlockType crop = held.equals("minecraft:carrot")
+                    ? BuiltinBlocks.CARROTS_STAGE0 : BuiltinBlocks.POTATOES_STAGE0;
+            world.setBlock(clicked.offset(0, 1, 0), crop);
+            session.inventory().consumeHeld(1);
+            publishInventoryChanged(session);
+            return true;
+        }
+        // The nether wart planting (Item.java line 658: register(372,
+        // "nether_wart", new WheatSeedsItem(Blocks.NETHER_WART,
+        // Blocks.SOUL_SAND)) — the SAME seed law over SOUL_SAND): the
+        // UP face, the soul sand soil with air above, the stage-0 wart
+        // planted and one spent.
+        if (held.equals("minecraft:nether_wart")) {
+            if (face != 1) {
+                return false; // WheatSeedsItem.useOn's own UP gate
+            }
+            BlockType soil = world.getBlock(clicked);
+            if (!soil.identifier().value().equals("soul_sand")
+                    || !world.getBlock(clicked.offset(0, 1, 0)).equals(world.airType())) {
+                return false;
+            }
+            world.setBlock(clicked.offset(0, 1, 0), BuiltinBlocks.NETHER_WART_STAGE0);
+            session.inventory().consumeHeld(1);
             publishInventoryChanged(session);
             return true;
         }

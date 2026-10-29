@@ -191,6 +191,131 @@ class FarmingAcceptanceTest {
         server.shutdown(null);
     }
 
+    // ------------------------------------------------------------------
+    // The planting arms (the verifier's fourteenth pass — CropItem's
+    // carrot/potato pair, WheatSeedsItem's nether wart over soul sand,
+    // HoeItem's coarse-dirt conversion, and the seeds' UP-face gate)
+    // ------------------------------------------------------------------
+
+    @Test
+    void theCarrotAndPotatoPlantOverFarmland() throws Exception {
+        server = boot();
+        PlayerSession farmer = join("Rooter");
+        // The handler's 8-block body gate (Slice N2): stand near the soils.
+        server.ticker().submit(() -> farmer.applyMovement(
+                new Position(0.5, 65.5, 0.5),
+                net.zaminmc.torch.util.Rotation.ZERO, true));
+        EngineAwaits.awaitTicks(server.world(), 3, "engine progress");
+
+        BlockPosition soil = new BlockPosition(0, 64, 0);
+        setBlock(soil, BuiltinBlocks.FARMLAND);
+        BlockPosition carrotCell = soil.offset(0, 1, 0);
+        hold(farmer, item("minecraft:carrot"), 3);
+        useOn(farmer, soil);
+        assertEquals(BuiltinBlocks.CARROTS_STAGE0, server.world().getBlock(carrotCell),
+                "the carrot plants its stage-0 crop (CropItem.useOn — Item.java line 691)");
+        assertEquals(2, farmer.inventory().held().count(), "planting consumed one carrot");
+
+        // The potato over wet farmland: the same law.
+        BlockPosition wetSoil = new BlockPosition(4, 64, 0);
+        setBlock(wetSoil, BuiltinBlocks.FARMLAND);
+        setBlock(wetSoil.offset(1, 0, 0),
+                net.zaminmc.torch.server.block.FluidBlocks.sourceOf(
+                        net.zaminmc.torch.server.block.FluidBlocks.Kind.WATER));
+        BlockPosition potatoCell = wetSoil.offset(0, 1, 0);
+        hold(farmer, item("minecraft:potato"), 2);
+        useOn(farmer, wetSoil);
+        assertEquals(BuiltinBlocks.POTATOES_STAGE0, server.world().getBlock(potatoCell),
+                "the potato plants its stage-0 crop (Item.java line 692)");
+        assertEquals(1, farmer.inventory().held().count(), "planting consumed one potato");
+
+        // The refused use: a carrot on plain DIRT never plants, and with a
+        // full hunger bar the eat arm refuses too — nothing spent.
+        BlockPosition dirt = new BlockPosition(8, 64, 0);
+        setBlock(dirt, BuiltinBlocks.DIRT);
+        hold(farmer, item("minecraft:carrot"), 3);
+        useOn(farmer, dirt);
+        assertEquals(BuiltinBlocks.AIR, server.world().getBlock(dirt.offset(0, 1, 0)),
+                "a carrot never plants on plain dirt");
+        assertEquals(3, farmer.inventory().held().count(), "the refused use spent nothing");
+        server.shutdown(null);
+    }
+
+    @Test
+    void theNetherWartPlantsOverSoulSandAndPopsWhenItDeparts() throws Exception {
+        server = boot();
+        PlayerSession warlock = join("Warlock");
+        server.ticker().submit(() -> warlock.applyMovement(
+                new Position(0.5, 65.5, 0.5),
+                net.zaminmc.torch.util.Rotation.ZERO, true));
+        EngineAwaits.awaitTicks(server.world(), 3, "engine progress");
+
+        BlockPosition sand = new BlockPosition(0, 64, 0);
+        setBlock(sand, BuiltinBlocks.SOUL_SAND);
+        BlockPosition wart = sand.offset(0, 1, 0);
+        hold(warlock, item("minecraft:nether_wart"), 2);
+        useOn(warlock, sand);
+        assertEquals(BuiltinBlocks.NETHER_WART_STAGE0, server.world().getBlock(wart),
+                "the wart plants its stage-0 over soul sand (Item.java line 658 —"
+                        + " the SAME WheatSeedsItem law over SOUL_SAND)");
+        assertEquals(1, warlock.inventory().held().count(), "planting consumed one wart");
+
+        // The soul sand departs: PlantBlock.neighborChanged -> 
+        // canSurviveOrBreak (lines 40-43 over 50-55) pops the wart.
+        setBlock(sand, BuiltinBlocks.AIR);
+        await(() -> server.world().getBlock(wart).equals(BuiltinBlocks.AIR),
+                "the wart popped when its soul sand left (the neighbour bus arm)");
+        server.shutdown(null);
+    }
+
+    @Test
+    void theHoeConvertsCoarseDirtToRegularDirtFirst() throws Exception {
+        server = boot();
+        PlayerSession farmer = join("Digger");
+        server.ticker().submit(() -> farmer.applyMovement(
+                new Position(0.5, 65.5, 0.5),
+                net.zaminmc.torch.util.Rotation.ZERO, true));
+        EngineAwaits.awaitTicks(server.world(), 3, "engine progress");
+
+        // HoeItem.useOn lines 38-45: the COARSE_DIRT variant tills to
+        // REGULAR DIRT (never straight to farmland) — the second click
+        // tills the result.
+        BlockPosition coarse = new BlockPosition(0, 64, 0);
+        setBlock(coarse, BuiltinBlocks.COARSE_DIRT);
+        hold(farmer, item("minecraft:wooden_hoe"), 1);
+        useOn(farmer, coarse);
+        assertEquals(BuiltinBlocks.DIRT, server.world().getBlock(coarse),
+                "the first till converts coarse dirt to regular dirt");
+        useOn(farmer, coarse);
+        assertEquals(BuiltinBlocks.FARMLAND, server.world().getBlock(coarse),
+                "the second click tills the regular dirt to farmland");
+        server.shutdown(null);
+    }
+
+    @Test
+    void theSeedsRefuseTheSideFaces() throws Exception {
+        server = boot();
+        PlayerSession farmer = join("Sower");
+        server.ticker().submit(() -> farmer.applyMovement(
+                new Position(0.5, 65.5, 0.5),
+                net.zaminmc.torch.util.Rotation.ZERO, true));
+        EngineAwaits.awaitTicks(server.world(), 3, "engine progress");
+
+        // WheatSeedsItem.useOn's first gate: face != UP -> false — a side
+        // click never plants and nothing is spent.
+        BlockPosition soil = new BlockPosition(0, 64, 0);
+        setBlock(soil, BuiltinBlocks.FARMLAND);
+        BlockPosition cropCell = soil.offset(0, 1, 0);
+        hold(farmer, item("minecraft:wheat_seeds"), 4);
+        server.useItemOnBlock(farmer, soil, 3, java.util.Optional.empty(),
+                windowId -> { }); // face 3: a horizontal side
+        EngineAwaits.awaitTicks(server.world(), 3, "engine progress");
+        assertEquals(BuiltinBlocks.AIR, server.world().getBlock(cropCell),
+                "the side click never planted (the UP-face gate)");
+        assertEquals(4, farmer.inventory().held().count(), "nothing spent");
+        server.shutdown(null);
+    }
+
     @Test
     void boneMealJumpsTheCropForward() throws Exception {
         server = boot();

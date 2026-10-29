@@ -155,12 +155,13 @@ public final class RandomTickSystem {
     }
 
     /**
-     * The plant-pop drop seam (the farming growth pass): the body the
-     * random-tick support consults' pops land through — the same item
-     * manager the neighbour bus's plant-pop arms use, wired at the same
-     * boot site (the cane's water-loss pop and the cactus's new-cell pop
-     * ride it; null keeps the pops drop-less, the direct-driven seats'
-     * own shape).
+     * The plant-pop drop seam (the farming growth pass + the planting-arms
+     * pass, the identical seam both added — the hunks coalesced at the
+     * merge): the body the random-tick support consults' pops land
+     * through — the same item manager the neighbour bus's plant-pop arms
+     * use, wired at the same boot site (the cane's water-loss pop, the
+     * cactus's new-cell pop, and the nether wart's soul-sand pop ride it;
+     * null keeps the pops drop-less, the direct-driven seats' own shape).
      */
     private volatile net.zaminmc.torch.server.entity.ItemEntityManager popItems;
 
@@ -356,6 +357,35 @@ public final class RandomTickSystem {
                 int age = CocoaBlocks.ageOf(type);
                 if (age < 2) {
                     world.setBlock(position, CocoaBlocks.withAge(type, age + 1));
+                }
+            }
+            return;
+        }
+        // The nether wart's growth + support consult (NetherWartBlock.tick
+        // lines 38-46 over PlantBlock.tick lines 46-48): the 1-in-10 AGE
+        // advance to 3 with NO LIGHT GATE (the wart grows in the dark —
+        // the nether has no sky), then the super's canSurviveOrBreak — the
+        // soul-sand consult, the failed check DROPPING the block with its
+        // item and removing it (the reference's own tick order: the roll
+        // first, the consult after, the popped stage's drop the age band
+        // lines 49-63: age 3 -> 2 + nextInt(3), else exactly one).
+        if (type.identifier().value().startsWith("nether_wart_stage")) {
+            int age = type.identifier().value().charAt("nether_wart_stage".length()) - '0';
+            if (age < 3 && random.nextInt(10) == 0) {
+                world.setBlock(position, netherWartStage(age + 1));
+                age++;
+            }
+            if (!world.getBlock(position.offset(0, -1, 0)).identifier().value()
+                    .equals("soul_sand")) {
+                world.setBlock(position, world.airType());
+                if (popItems != null) {
+                    popItems.spawnDropAtBlock(
+                            new net.zaminmc.torch.util.Position(
+                                    position.x(), position.y(), position.z()),
+                            net.zaminmc.torch.item.ItemStack.of(
+                                    net.zaminmc.torch.server.item.BuiltinItems.NETHER_WART,
+                                    age >= 3 ? 2 + random.nextInt(3) : 1),
+                            net.zaminmc.torch.server.entity.ItemEntity.PICKUP_DELAY_DROP_TICKS);
                 }
             }
             return;
@@ -570,6 +600,16 @@ public final class RandomTickSystem {
 
     private int wheatStageAt(BlockPosition position) {
         return wheatStageAt(world, position);
+    }
+
+    /** The block type of the nether wart's stage 0..3 (NetherWartBlock.AGE). */
+    static net.zaminmc.torch.block.BlockType netherWartStage(int age) {
+        return switch (age) {
+            case 0 -> BuiltinBlocks.NETHER_WART_STAGE0;
+            case 1 -> BuiltinBlocks.NETHER_WART_STAGE1;
+            case 2 -> BuiltinBlocks.NETHER_WART_STAGE2;
+            default -> BuiltinBlocks.NETHER_WART_STAGE3;
+        };
     }
 
     /** The block type of the crop family's stage 0..7 (the family of the source identifier). */
