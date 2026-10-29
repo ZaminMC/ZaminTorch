@@ -18174,3 +18174,39 @@ family whole (the fifteenth pass's §D/§F queue, adjudicated then landed)
   client-prediction row needing the B2-class adjudication), F-VINE,
   and the item/orb envelope tails (the item's lava fizz with the
   flag/25-tick gate, the orb's own fizz + the igniter attraction).
+
+## 2026-10-29 — Wave RS: the rider-spare fall (F-RIDER-SPARE closed)
+
+- THE LAW: Entity.takeFallDamage lines 748-752 — the non-living base
+  forwards the landing UP to the rider; LivingEntity line 824's super
+  call runs the delegate FIRST for the mounts. A seated player pays the
+  mount's landing with the SAME (distance, multiplier) pair the body's
+  own formula reads: the pad's ZERO spares both, the common blocks' 1.0
+  wounds both, the grief-refused farmland skips both.
+- THE MOUNTS: the delegate at MobEntity.takeFallDamage's head (the
+  manager-injected RiderFall seam, the playerStatAward pattern);
+  paySeatedRiderFall resolves the session and pays the fallen row +
+  the wound ceil((d-3)*mult) through the enchant consult.
+- THE WAVE'S OWN FIND: the pre-fix engine's RIDDEN walk swallowed the
+  fall WHOLE — a ridden mount landing from any height took nothing.
+  tickRiddenBody now runs checkFallDamage for both its paths (the
+  extracted payLandedFall — the walker's own consult, shared).
+- THE DOUBLE-CHARGE FIX: the seat's writes fed applyMovement — the
+  player's own store accumulated the ride's descent and the
+  own-landing walk paid it ON TOP of the delegate. tickLanding now
+  skips seated riders and resets the store (the reference's rider
+  store stays 0 through the ride — updateRiderPosition moves the body
+  outright, the rider's own move never runs).
+- THE VEHICLES: the whole fall walk (the store was persistence-only):
+  the accumulation while airborne, the lava halving (the pre-wave
+  comment's promise made real), the landing's cell consult, and the
+  base-ALONE payment — the seated player pays, the vehicle's health
+  never moves; the farmland's instanceof LivingEntity gate skips
+  vehicles whole.
+- Evidence: RiderSpareFallParityTest 3/0 NEW; the stash verification
+  FAILING unfixed (the pig unwounded from a ten-block fall). The
+  regression: the vehicle + riding lanes 101/0 after ONE re-pin
+  (VehiclePersistenceTest's imported-store round trip — the 3.75
+  spends at the settle's first landing, the reference's own line-733
+  law); the stats + hunger + entity package whole 608/0; the wire's
+  body/relog/mob batch green; bukkit + launcher green.

@@ -1285,6 +1285,29 @@ public final class MobEntity implements LivingEntity {
         this.playerStatAward = award;
     }
 
+    /**
+     * The rider's fall payment (F-RIDER-SPARE — the delegate the
+     * reference's landing carries and the engine's mounts lacked):
+     * {@code Entity.takeFallDamage} lines 748-752 forwards the landing UP
+     * to the rider — {@code if (this.rider != null)
+     * this.rider.takeFallDamage(distance, damageMultiplier)} — and
+     * {@code LivingEntity.takeFallDamage} line 824's {@code super} call
+     * runs it FIRST, before the body's own formula. The seated player
+     * pays the SAME (distance, multiplier) pair the mount's own wound
+     * reads: the pad's ZERO spares both bodies, the common blocks' 1.0
+     * wounds both, the grief-refused farmland's early return skips both.
+     */
+    public interface RiderFall {
+        void pay(int riderEngineId, float distance, float damageMultiplier);
+    }
+
+    private RiderFall riderFall;
+
+    /** Wires the rider-fall seam (the manager's own spawn walk). */
+    public void setRiderFall(RiderFall fall) {
+        this.riderFall = fall;
+    }
+
     /** The mate scanner ({@code World.getEntitiesOfType} in the goal). */
     public interface BreedFinder {
         MobEntity findMate(MobEntity seeker);
@@ -8251,6 +8274,11 @@ public final class MobEntity implements LivingEntity {
      * stop at walls like every other body; the fluid rules carry over too.
      */
     private void tickRiddenBody() {
+        // THE RIDDEN FALL WALK'S ANCHORS (F-RIDER-SPARE — the ground state
+        // and the height the walk's accumulation reads, captured before
+        // the seat's own physics).
+        boolean wasGroundedBefore = onGround;
+        double preRideY = position.y();
         float turn = steerSideways * RIDDEN_TURN_RATE;
         if (turn != 0.0f) {
             yaw += turn;
@@ -8319,6 +8347,10 @@ public final class MobEntity implements LivingEntity {
                 solverMove(moveX, mountDrift, moveZ,
                         type == MobType.HORSE ? HORSE_STEP_HEIGHT : WALK_STEP_HEIGHT);
         if (swept != null) {
+            // THE RIDDEN FALL WALK (F-RIDER-SPARE — the solver path's
+            // arm): the reference runs the SAME checkFallDamage for the
+            // ridden body; the pre-fix walk swallowed the fall whole.
+            rideFallWalk(inLava, inFluid, wasGroundedBefore, swept.dy());
             return;
         }
 
@@ -8352,6 +8384,91 @@ public final class MobEntity implements LivingEntity {
             onGround = false;
         }
         position = new Position(newX, newY, newZ);
+        // THE RIDDEN FALL WALK (F-RIDER-SPARE — the point path's arm,
+        // the same walk the solver path carries).
+        rideFallWalk(inLava, inFluid, wasGroundedBefore, position.y() - preRideY);
+    }
+
+    /**
+     * THE LANDED FALL'S PAYMENT (the reference's Entity.checkFallDamage
+     * lines 719-733 over Block.onFallenOn — the block consult every
+     * landing rides, extracted so the walker and the ridden body share
+     * it): the landed cell at floor(y - 0.2) with the air-cell fence
+     * fallback — the farmland's TRAMPLE rides it (FarmlandBlock
+     * .onFallenOn lines 57-71): the roll nextFloat() < fallDistance - 0.5,
+     * the mobGriefing gate (a non-player body refused grief tramples
+     * NOTHING AND SKIPS THE DAMAGE — the early return before super), the
+     * DIRT write pending through the manager's listener. THE SLIME PAD'S
+     * SOFT LANDING (SlimeBlock.onFallenOn lines 27-33, the same landed
+     * cell): the pad's walk pays the ZERO multiplier — and F-RIDER-SPARE
+     * rides the SAME pair UP to the seated player through the delegate
+     * at takeFallDamage's head. The store spends whatever the consult
+     * paid (line 733).
+     */
+    private void payLandedFall() {
+        int landX = (int) Math.floor(position.x());
+        int landY = (int) Math.floor(position.y() - 0.2);
+        int landZ = (int) Math.floor(position.z());
+        net.zaminmc.torch.util.Identifier landed =
+                world.blockIdAt(landX, landY, landZ);
+        boolean fellToAir = isAir(landed);
+        if (fellToAir) {
+            net.zaminmc.torch.util.Identifier under =
+                    world.blockIdAt(landX, landY - 1, landZ);
+            if (isFenceLike(under)) {
+                landed = under;
+                landY--;
+            }
+        }
+        String landedName = landed == null ? "" : landed.value();
+        boolean farmland = landedName.equals("farmland")
+                || landedName.equals("farmland_wet");
+        boolean damage = true;
+        if (farmland && random.nextFloat() < fallDistance - 0.5f) {
+            if (world.mobGriefing()) {
+                trampleX = landX;
+                trampleY = landY;
+                trampleZ = landZ;
+                tramplePending = true;
+            } else {
+                // The griefing-off early return: no trample AND
+                // no fall damage (lines 64-66 — the mob lands
+                // soft when its grief is refused).
+                damage = false;
+            }
+        }
+        float landingMultiplier =
+                landedName.equals("slime_block") ? 0.0f : 1.0f;
+        if (damage) {
+            takeFallDamage(fallDistance, landingMultiplier);
+        }
+        fallDistance = 0.0f;
+    }
+
+    /**
+     * THE RIDDEN BODY'S FALL WALK (F-RIDER-SPARE — the reference's
+     * Entity.checkFallDamage lines 719-733 + Entity.tick's lava halving
+     * and the water zeroing, the tickBody walk's own shape): the
+     * pre-fix engine's ridden walk swallowed the fall whole — a ridden
+     * mount landing from any height took nothing, paid nothing, and the
+     * delegate never fired. The reference runs the SAME checkFallDamage
+     * for every body whatever owns its movement.
+     */
+    private void rideFallWalk(boolean inLava, boolean inFluid,
+            boolean wasGroundedBefore, double movedDown) {
+        if (inLava) {
+            fallDistance *= 0.5f;
+        }
+        if (inFluid && !inLava) {
+            fallDistance = 0.0f;
+        }
+        if (onGround) {
+            if (!wasGroundedBefore && fallDistance > 0.0f) {
+                payLandedFall();
+            }
+        } else if (movedDown < 0.0) {
+            fallDistance = (float) (fallDistance - movedDown);
+        }
     }
 
     /** @return the ridden forward speed (0 when the mount answers no reins). */
@@ -11400,62 +11517,7 @@ public final class MobEntity implements LivingEntity {
             }
             if (onGround) {
                 if (!wasOnGround && fallDistance > 0.0f) {
-                    // The fall path's block consult (Entity.move lines
-                    // 569-581 + checkFallDamage 719-733): the landed cell
-                    // at floor(y - 0.2) with the air-cell fence fallback —
-                    // the farmland's TRAMPLE rides it (FarmlandBlock
-                    // .onFallenOn lines 57-71): the roll
-                    // nextFloat() < fallDistance - 0.5, the mobGriefing
-                    // gate (a non-player body refused grief tramples
-                    // NOTHING AND SKIPS THE DAMAGE — the early return
-                    // before super), the DIRT write. The world write rides
-                    // the pending-intent pattern (the enderman carry's own
-                    // shape — the manager's listener owns the world).
-                    int landX = (int) Math.floor(position.x());
-                    int landY = (int) Math.floor(position.y() - 0.2);
-                    int landZ = (int) Math.floor(position.z());
-                    net.zaminmc.torch.util.Identifier landed =
-                            world.blockIdAt(landX, landY, landZ);
-                    boolean fellToAir = isAir(landed);
-                    if (fellToAir) {
-                        net.zaminmc.torch.util.Identifier under =
-                                world.blockIdAt(landX, landY - 1, landZ);
-                        if (isFenceLike(under)) {
-                            landed = under;
-                            landY--;
-                        }
-                    }
-                    String landedName = landed == null ? "" : landed.value();
-                    boolean farmland = landedName.equals("farmland")
-                            || landedName.equals("farmland_wet");
-                    boolean damage = true;
-                    if (farmland && random.nextFloat() < fallDistance - 0.5f) {
-                        if (world.mobGriefing()) {
-                            trampleX = landX;
-                            trampleY = landY;
-                            trampleZ = landZ;
-                            tramplePending = true;
-                        } else {
-                            // The griefing-off early return: no trample AND
-                            // no fall damage (lines 64-66 — the mob lands
-                            // soft when its grief is refused).
-                            damage = false;
-                        }
-                    }
-                    // THE SLIME PAD'S SOFT LANDING (SlimeBlock.onFallenOn
-                    // lines 27-33, the same landed cell): the pad's own
-                    // walk pays the ZERO multiplier — takeFallDamage's
-                    // ceil((distance - 3 - boost) * 0.0) never wounds. A
-                    // mob never sneaks (the reference's sneak arm keeps
-                    // the 1.0 multiplier for sneaking bodies alone), and
-                    // the pad never rides the farmland consult above (the
-                    // identifiers disjoint).
-                    float landingMultiplier =
-                            landedName.equals("slime_block") ? 0.0f : 1.0f;
-                    if (damage) {
-                        takeFallDamage(fallDistance, landingMultiplier);
-                    }
-                    fallDistance = 0.0f;
+                    payLandedFall();
                 }
             } else {
                 if (swept.dy() < 0.0) {
@@ -11588,6 +11650,17 @@ public final class MobEntity implements LivingEntity {
      * at {@code fuseTime - 5}.
      */
     public void takeFallDamage(float distance, float damageMultiplier) {
+        // THE RIDER DELEGATE (F-RIDER-SPARE — Entity.takeFallDamage lines
+        // 748-752 over LivingEntity line 824's super call, the head of the
+        // walk): the base forwards the landing UP to the seated player
+        // FIRST, with the SAME (distance, multiplier) pair — the pad's
+        // ZERO spares the rider with the mount, the common blocks' 1.0
+        // wounds the rider with the mount, and the grief-refused
+        // farmland's early return never reaches here (the landing site's
+        // damage gate refuses the whole call).
+        if (riderId >= 0 && riderFall != null) {
+            riderFall.pay(riderId, distance, damageMultiplier);
+        }
         // The pig's rider fall (VIII6 — PigEntity.takeFallDamage lines
         // 162-168: the super walk runs whole, then a fall past five blocks
         // with a rider aboard earns the flyPig row — the rider's own stat

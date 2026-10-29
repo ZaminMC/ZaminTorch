@@ -2422,6 +2422,22 @@ public final class EngineServer implements Server, EngineBridge {
                         earned.stats().increment(statKey, 1);
                     }
                 });
+                // THE RIDER'S FALL DELEGATE (F-RIDER-SPARE — Entity
+                // .takeFallDamage lines 748-752 over LivingEntity line
+                // 824's super call, the engine's resolution of the seated
+                // player): the mount's landing forwards the SAME
+                // (distance, multiplier) pair UP to the rider — the pad's
+                // ZERO spares the rider with the mount, the common
+                // blocks' 1.0 wounds the rider with the mount. The rider
+                // pays the PlayerEntity walk the own-landing tickLanding
+                // carries (the fallen centimeters row gated by the flight
+                // ability alone, then the formula's wound through the
+                // enchant-protection consult); a seated body never
+                // accumulates its own store (the seat moves the position
+                // outright), so the delegate is the rider's only payment
+                // path — no double charge.
+                mobs.setRiderFall((engineId, distance, multiplier) ->
+                        paySeatedRiderFall(engineId, distance, multiplier));
                 // The leashes (Slice 11c): the knots + the per-tick walk.
                 leadSystem = new net.zaminmc.torch.server.leash.LeadSystem(
                         new LeadSurface(), KNOT_ID_BASE);
@@ -2598,6 +2614,12 @@ public final class EngineServer implements Server, EngineBridge {
                         VEHICLE_ID_BASE);
                 this.vehicleManager = vehicles;
                 vehicles.setEventBus(eventBus); // §27.7: the public vehicle spawn gate
+                // THE VEHICLES' RIDER-FALL DELEGATE (F-RIDER-SPARE — the
+                // same payment walk the mounts' seam carries, the
+                // non-living base's shape: a vehicle has NO fall formula
+                // of its own, the seated player pays the landing alone).
+                vehicles.setRiderFall((engineId, distance, multiplier) ->
+                        paySeatedRiderFall(engineId, distance, multiplier));
                 // The TNT carts' blast sink factory (Slice 74): EVERY
                 // spawned cart — the item-use path, the restore, the test
                 // spawns — arms the engine's detonation walk (the 8*power+1
@@ -6201,6 +6223,20 @@ public final class EngineServer implements Server, EngineBridge {
 
     /** Landing damage: falls beyond three blocks hurt ceil(distance - 3). */
     private void tickLanding(PlayerSession session) {
+        if (session.ridingAny()) {
+            // THE SEATED RIDER'S OWN LANDING NEVER RUNS (F-RIDER-SPARE —
+            // the reference's updateRiderPosition: the seat moves the
+            // rider's body outright, the rider's own move never runs, so
+            // the rider's fall store stays 0 through the ride and the
+            // DELEGATE alone pays the mount's landing. The pre-fix engine
+            // fed the seat's writes through applyMovement — the store
+            // accumulated the ride's descent and the own-landing walk
+            // paid it at the seat's touchdown: a double charge on top of
+            // the delegate. The reset keeps the store at the reference's
+            // 0 whatever the seat writes carried in.
+            session.resetFallDistance();
+            return;
+        }
         if (!session.onGround()) {
             return;
         }
@@ -6271,6 +6307,46 @@ public final class EngineServer implements Server, EngineBridge {
         if ((landedName.equals("farmland") || landedName.equals("farmland_wet"))
                 && gameplayRandom.nextFloat() < distance - 0.5f) {
             worldFor(session.dimension()).setBlock(landCell, BuiltinBlocks.DIRT);
+        }
+    }
+
+    /**
+     * THE SEATED RIDER'S FALL PAYMENT (F-RIDER-SPARE — Entity.takeFallDamage
+     * lines 748-752 over LivingEntity line 824's super call): the mount's
+     * and the vehicle's landing forwards the SAME (distance, multiplier)
+     * pair UP to the seated player. The rider pays the PlayerEntity walk
+     * the own-landing tickLanding carries (the fallen centimeters row
+     * gated by the flight ability alone, then the formula's wound through
+     * the enchant-protection consult); a seated body never accumulates
+     * its own store (the seat moves the position outright), so the
+     * delegate is the rider's only payment path — no double charge.
+     */
+    private void paySeatedRiderFall(int engineId, float distance, float multiplier) {
+        PlayerSession rider = sessionByEngineId(engineId);
+        if (rider == null || rider.state() != PlayerState.PLAYING) {
+            return;
+        }
+        // The fallen row (PlayerEntity.takeFallDamage lines 1376-1384):
+        // every landing of two meters or more pays round(distance * 100),
+        // gated by the flight ABILITY alone (the tickLanding walk's own
+        // shape).
+        if (distance >= 2.0F
+                && rider.gamemode() != GameMode.CREATIVE
+                && rider.gamemode() != GameMode.SPECTATOR) {
+            rider.stats().increment(
+                    net.zaminmc.torch.server.stat.EngineStats.CM_FALLEN,
+                    Math.round(distance * 100.0f));
+        }
+        // The wound (LivingEntity.takeFallDamage lines 823-841):
+        // ceil((distance - 3) * multiplier) through the enchant-protection
+        // consult — the same payment the own-landing tickLanding carries
+        // (the FALL source's bypass zeroes the exhaustion).
+        int wound = (int) Math.ceil(
+                (distance - PlayerSession.SAFE_FALL_DISTANCE) * multiplier);
+        if (wound > 0) {
+            damageOnTick(rider,
+                    applyEnchantProtection(rider, wound, DamageKind.FALL),
+                    0.0f, "hit the ground too hard", DamageKind.FALL);
         }
     }
 

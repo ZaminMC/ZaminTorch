@@ -59,8 +59,14 @@ IO-F 2026-10-29: the item's pre-move gravity, the vertical-clip
 beforeCollision consult — the slime flip, the post-move drag reading
 the support cell's slipperiness, the grounded -0.5/-0.9 flips; the
 mob's damping at all three sites reading the block's own slipperiness
-* 0.91 with the reference's 0.91 air base — the ice slide) also
-landed since the prior verification.
+* 0.91 with the reference's 0.91 air base — the ice slide), and the
+rider-spare fall (Wave RS 2026-10-29: F-RIDER-SPARE closed — the
+mount's landing forwards the same (distance, multiplier) pair UP to
+the seated player through the delegate at takeFallDamage's head; the
+ridden body's own fall walk the pre-fix engine swallowed whole; the
+vehicles' whole fall walk with the base-alone payment — a vehicle
+pays nothing itself, the seated player pays) also landed since the
+prior verification.
 
 ## Downloading a dev build (no build tools needed)
 
