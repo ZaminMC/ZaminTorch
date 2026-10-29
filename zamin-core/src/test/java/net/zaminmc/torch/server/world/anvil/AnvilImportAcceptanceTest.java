@@ -1187,7 +1187,14 @@ class AnvilImportAcceptanceTest {
             assertEquals(chestUuid, chest.uuid(), "the UUID pair form landed");
             assertEquals("Express", chest.customName());
             assertTrue(chest.customNameVisible());
-            assertEquals(2.5f, chest.fallDistance(), 0.0001f);
+            // The fall store re-pinned (Wave VN-A's sweep caught the
+            // stale twin of VehiclePersistenceTest's RS re-pin): the
+            // imported 2.5 spends at the settle's FIRST LANDING — the
+            // reference's own checkFallDamage line-733 law (the store
+            // resets on the ground contact), Wave RS's vehicle fall
+            // walk. The pre-RS engine never touched the store in the
+            // tick; the seat pinned that dead behavior.
+            assertEquals(0.0f, chest.fallDistance(), 0.0001f);
             assertEquals(250, chest.breath());
             // The OnGround row landed false; the engine's own physics
             // re-derived it since (the cart settled onto the imported

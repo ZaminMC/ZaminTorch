@@ -18296,3 +18296,36 @@ session)
   F-VINE alone (the vine family's own pass — the 5-face state, the
   placement gate, the neighborChanged decay, the random-tick growth)
   plus the stale-ledger sweep tails.
+
+## 2026-10-29 — Wave VN-A: the vine family's state vocabulary + the
+climbable pair (the F-VINE pass's first slice; the session's second
+commit — LF then VN-A)
+
+- THE STATE FAMILY: legacy 106's metadata nibble packs SOUTH=1/WEST=2/
+  NORTH=4/EAST=8 (the reference's own write order; the UP property is
+  virtual, never persisted). Sixteen states — the bare vine keeps the
+  ALL-FACES form (metadata 15, the historical wire nibble), the
+  all-clear vine_none (metadata 0, the top-placed form), the fourteen
+  faceful names in the bit order. The anvil import's sixteen rows; the
+  MapColors/BlockSoundMap/BlastResistance coverage.
+- THE CLIMBABLE PAIR (isClimbing: LADDER || VINE): WorldSolidity
+  .isClimbable over the fall catch, the ladderAt consult (the climb
+  stat, the fatigue gates, the movement guard) — SPLIT from isLadder
+  (the fluid system's liquid-blocking consult stays ladder-only: water
+  REPLACES a vine, never a ladder).
+- THE WAVE'S OWN FIND: the pre-fix isSolid exclusion had no vine row —
+  every vine carried the FULL-CUBE collision (bodies collided with
+  vines); the reference's getCollisionShape returns null. The family
+  joined the exclusion; the growable-support consult rides
+  CollisionShapes.isFullCube.
+- THE SWEEP'S REPAIRS (all pre-existing on develop, stash-verified):
+  the rail pass's eight plain-rail states had no MapColors rows; the
+  blast census pin stale at 896 (the rail +46 never re-pinned);
+  AnvilImportAcceptanceTest's vehicle seat pinned the pre-RS dead
+  imported fall store — re-pinned to the RS line-733 law.
+- Evidence: VineStateFamilyParityTest 4/0 NEW (the collision find
+  proven by the seat — the support assertion failed on the pre-fix
+  consult); the block + entity packages whole 867/0; the table suites
+  green after the re-pins; the anvil/fire/fluid lanes green. VN-B
+  remains: the placement gate + the opposite-face state, the
+  neighborChanged decay, the random-tick growth whole.

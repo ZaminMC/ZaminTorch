@@ -251,6 +251,10 @@ public final class BlastResistanceTable {
     /** The engine identifiers mapped 1:1 (the behavior table's surface). */
     private static final Map<String, Float> EXACT = Map.ofEntries(
         Map.entry("air", 0f),
+        // The vine family's all-clear state (Wave VN-A — the suffix fold
+        // strips the face words but not the "none" word; the exact row
+        // answers it, the whole family 0.2 like the bare form).
+        Map.entry("vine_none", 0.2f),
         Map.entry("beacon", 3f),
         Map.entry("bed", 0.2f),
         Map.entry("bed_east", 0.2f),

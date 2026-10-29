@@ -432,7 +432,15 @@ public final class MapColors {
         // The rails (AbstractRailBlock's DECORATION material -> AIR).
         for (String rail : new String[] {"rail", "rail_ew", "golden_rail",
                 "golden_rail_powered", "detector_rail", "detector_rail_powered",
-                "activator_rail", "activator_rail_powered"}) {
+                "activator_rail", "activator_rail_powered",
+                // The plain rail's TEN-shape band's eight slope/curve
+                // states (the thirteenth verifier pass's rows — Wave
+                // VN-A's regression sweep caught the pass's coverage
+                // miss: the states registered without color rows).
+                "rail_ascending_east", "rail_ascending_west",
+                "rail_ascending_north", "rail_ascending_south",
+                "rail_south_east", "rail_south_west",
+                "rail_north_west", "rail_north_east"}) {
             row(t, rail, AIR);
         }
         for (String family : new String[] {"golden_rail", "detector_rail",
@@ -454,7 +462,15 @@ public final class MapColors {
                 "pink_tulip", "white_tulip", "oxeye_daisy", "sugar_cane",
                 "waterlily", "brown_mushroom", "red_mushroom", "cactus",
                 "nether_wart_stage0", "nether_wart_stage1", "nether_wart_stage2",
-                "nether_wart_stage3", "cocoa", "vine"}) {
+                "nether_wart_stage3", "cocoa", "vine",
+                // The vine family's fifteen face states (Wave VN-A — the
+                // REPLACEABLE_PLANT material's FOLIAGE color, the whole
+                // family).
+                "vine_none", "vine_south", "vine_west", "vine_south_west",
+                "vine_north", "vine_south_north", "vine_west_north",
+                "vine_south_west_north", "vine_east", "vine_south_east",
+                "vine_west_east", "vine_south_west_east", "vine_north_east",
+                "vine_south_north_east", "vine_west_north_east"}) {
             row(t, plant, FOLIAGE);
         }
         row(t, "dead_bush", WOOD); // DeadBushBlock override

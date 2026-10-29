@@ -40,7 +40,7 @@ class BlastResistanceTableTest {
         }
         assertEquals("", missing.toString(),
                 "the fold must cover every registered identifier (missing:" + missing + ")");
-        assertEquals(896, covered, "the census rides the registry's own 896-row pin");
+        assertEquals(957, covered, "the census rides the registry's own row pin (Wave VN-A: 957 = the rail pass's already-resolving 942 + the vine family's fifteen face states — the stale 896 pin the rail pass missed re-pinning, caught by this wave's regression sweep)");
     }
 
     @Test

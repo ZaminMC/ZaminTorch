@@ -756,6 +756,25 @@ public final class AnvilBlockIds {
             state(105, 5, "minecraft:melon_stem_stage5"),
             state(105, 6, "minecraft:melon_stem_stage6"),
             state(105, 7, "minecraft:melon_stem_stage7"),
+            // The vine family's sixteen face states (Wave VN-A — legacy
+            // 106's metadata nibble packs SOUTH=1/WEST=2/NORTH=4/EAST=8;
+            // the bare all-faces form keeps the plain name, the
+            // historical row's own round trip).
+            state(106, 0, "minecraft:vine_none"),
+            state(106, 1, "minecraft:vine_south"),
+            state(106, 2, "minecraft:vine_west"),
+            state(106, 3, "minecraft:vine_south_west"),
+            state(106, 4, "minecraft:vine_north"),
+            state(106, 5, "minecraft:vine_south_north"),
+            state(106, 6, "minecraft:vine_west_north"),
+            state(106, 7, "minecraft:vine_south_west_north"),
+            state(106, 8, "minecraft:vine_east"),
+            state(106, 9, "minecraft:vine_south_east"),
+            state(106, 10, "minecraft:vine_west_east"),
+            state(106, 11, "minecraft:vine_south_west_east"),
+            state(106, 12, "minecraft:vine_north_east"),
+            state(106, 13, "minecraft:vine_south_north_east"),
+            state(106, 14, "minecraft:vine_west_north_east"),
             state(106, 15, "minecraft:vine"),
             state(107, 0, "minecraft:oak_fence_gate"),
             state(107, 1, "minecraft:oak_fence_gate_west"),

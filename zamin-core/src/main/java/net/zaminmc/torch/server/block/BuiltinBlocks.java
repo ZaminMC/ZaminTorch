@@ -1219,6 +1219,10 @@ public final class BuiltinBlocks {
         // horizontal-id nibble band 0-3; the bare forms ARE the south
         // states, registered among the constants above).
         builder = PumpkinBlocks.registerAll(builder);
+        // The vine family's face states (Wave VN-A — the four persisted
+        // face bits over the metadata nibble 0-15; the bare form IS the
+        // all-faces state, registered among the constants above).
+        builder = VineBlocks.registerAll(builder);
         // The complete door families (Slice 34 — DoorBlock/DoorItem 1:1):
         // the five new woods' twelve states each, the oak hinge pair, and
         // the iron door's open + hinge states. The shipped oak/iron

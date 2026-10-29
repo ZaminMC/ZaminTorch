@@ -42,6 +42,7 @@ public final class WorldSolidity {
                 && !isLadder(id)
                 && !isOpenDoorHalf(id)
                 && !isOpenFenceGate(id)
+                && !isVine(id) // Wave VN-A's own find: the vine family has NO collision (getCollisionShape returns null) — the pre-fix exclusion miss made every vine a full cube
                 && !isFlora(id)
                 && !WoodVariantBlocks.isSapling(id) // the six saplings: walk-through, never replaceable
                 && !isCarpet(id)
@@ -191,6 +192,17 @@ public final class WorldSolidity {
     }
 
     /**
+     * The vine family (block 106, every face state — Wave VN-A's own
+     * find): no collision, walk-through — the reference's
+     * getCollisionShape returns null; the pre-fix exclusion miss made
+     * every vine a full cube.
+     */
+    private static boolean isVine(Identifier id) {
+        return id.namespace().equals("minecraft")
+                && (id.value().equals("vine") || id.value().startsWith("vine_"));
+    }
+
+    /**
      * The walk-through flora (the historical replaceable Material set): tall
      * grass, the dead bush, the two flowers, the wheat crop and the sugar
      * cane never block a body. Public since the sign family's material
@@ -237,6 +249,22 @@ public final class WorldSolidity {
     public static boolean isLadder(Identifier id) {
         return id.namespace().equals("minecraft")
                 && (id.value().equals("ladder") || id.value().startsWith("ladder_"));
+    }
+
+    /**
+     * The CLIMBABLE pair (Wave VN-A — the reference's
+     * LivingEntity.isClimbing lines 809-813: {@code block == LADDER ||
+     * block == VINE}, the spectator gate the callers' own): the ladder
+     * family and the vine family's every face state. Distinct from
+     * {@link #isLadder} — the fluid system's liquid-blocking consult
+     * stays ladder-only (the reference's canBeReplaced split: flowing
+     * water REPLACES a vine, VineBlock line 74, but never a ladder).
+     */
+    public static boolean isClimbable(Identifier id) {
+        return isLadder(id)
+                || (id.namespace().equals("minecraft")
+                        && (id.value().equals("vine")
+                                || id.value().startsWith("vine_")));
     }
 
     /**

@@ -489,6 +489,9 @@ public final class BlockSoundMap {
             new Rule("minecraft:wall_banner", SoundFamily.WOOD),
             new Rule("minecraft:sapling", SoundFamily.GRASS),
             new Rule("minecraft:leaves", SoundFamily.GRASS),
+            // The vine family's face states (Wave VN-A — GRASS_SOUNDS on
+            // the whole family, the reference's own register row).
+            new Rule("minecraft:vine", SoundFamily.GRASS),
             new Rule("minecraft:cake", SoundFamily.CLOTH),
             new Rule("minecraft:fire", SoundFamily.CLOTH),
             new Rule("minecraft:flowing_water", SoundFamily.STONE),

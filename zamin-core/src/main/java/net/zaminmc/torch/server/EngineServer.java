@@ -6286,7 +6286,7 @@ public final class EngineServer implements Server, EngineBridge {
             var feet = session.position().toBlockPosition();
             var at = world.getBlock(feet);
             if ((FluidBlocks.kindOf(at.identifier()) == null
-                    && !WorldSolidity.isLadder(at.identifier()))
+                    && !WorldSolidity.isClimbable(at.identifier()))
                     && !slimePad) {
                 // The fall damage carries no exhaustion (the vanilla FALL
                 // source's setBypassesArmor zeroes it).
@@ -15343,13 +15343,18 @@ public final class EngineServer implements Server, EngineBridge {
         }
     }
 
-    /** The ladder query for the movement guard: climbing bodies hover honestly. */
+    /**
+     * The climbable query for the movement guard and the stat/fatigue
+     * arms (Wave VN-A — the reference's LivingEntity.isClimbing lines
+     * 809-813: the ladder family OR the vine family): climbing bodies
+     * hover honestly, the climb row pays, the fall store zeroes.
+     */
     private boolean ladderAt(double x, double y, double z) {
         if (y < net.zaminmc.torch.block.BlockPosition.MIN_Y
                 || y > net.zaminmc.torch.block.BlockPosition.MAX_Y) {
             return false;
         }
-        return WorldSolidity.isLadder(world.getBlock(blockAt(x, y, z)).identifier());
+        return WorldSolidity.isClimbable(world.getBlock(blockAt(x, y, z)).identifier());
     }
 
     /** Whether the block AABB intersects the player's bounding box. */
