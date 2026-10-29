@@ -247,9 +247,22 @@ wall-attach bit set). The stash probe must fail pre-fix on every arm
 missing seam, the strongest failing form, or must be written against
 the seams the fix introduces).
 
-**Verification state**: pass 1 (source) complete for VN-B1/B2/B3 —
-every line citation above was read this pass from
+**Verification state**: VN-B1 COMPLETE (all three passes) — the fix
+wave landed it the same day as PR #79 (branch
+`fix/vine-placement-parity-audit`): pass 1 (source) the line citations
+above; pass 2 (behavioral) the VinePlacementParityTest seat failing
+unfixed (the bare all-faces form at the side cell) and green with the
+fix; pass 3 (independent) the isReplaceable call-site sweep (the door
+arm, the tree growth, the armor stand gate, the generic occupy — each
+vanilla-correct with vines), the dispatch intercept covering the
+survival held stack and the creative claim both, the anvil import
+placing states directly (correctly bypassing the player gate), and
+the compass mapping double-checked. The material row below VN-B1's
+own header (the REPLACEABLE_PLANT verification named in the
+verified-1:1 list) landed WITH VN-B1 — the replaceable set had no
+vine row. VN-B2 and VN-B3 remain at pass 1 (source) — every line
+citation above was read this pass from
 `reference/1.8.8/net/minecraft/block/VineBlock.java` (387 lines),
 `item/BlockItem.java`, `world/World.java` (canPlace), and
-`util/math/Direction.java`. Passes 2 (behavioral) and 3 (independent
-re-verification) belong to the fix wave.
+`util/math/Direction.java`; their passes 2 and 3 belong to their own
+fix waves.
