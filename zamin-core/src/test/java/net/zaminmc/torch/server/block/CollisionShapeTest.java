@@ -88,6 +88,16 @@ class CollisionShapeTest {
         public void setActiveDimension(int dimension) {
         }
 
+        /**
+         * The two families' shared consult (Wave IO-F — the friction
+         * row): the stub resolves the diamond the two interfaces'
+         * identical 0.6 defaults would otherwise raise, keeping the
+         * common-case drag both declare.
+         */
+        public double slipperinessBelow(double x, double feetY, double z) {
+            return 0.6;
+        }
+
         /** The open-plains shape: no corridor walls (the historical stub). */
         ShapeWorld(int slabX, int slabZ, WorldSolidityProbe probe, Position player) {
             this(slabX, slabZ, probe, player, false);

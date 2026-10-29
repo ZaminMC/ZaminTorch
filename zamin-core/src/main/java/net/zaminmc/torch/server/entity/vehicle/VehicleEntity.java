@@ -199,6 +199,55 @@ public abstract class VehicleEntity implements net.zaminmc.torch.entity.Vehicle 
     private boolean silent;
     /** The fall-damage accumulator (Entity.fallDistance). */
     private float fallDistance;
+    /**
+     * The rider's fall payment (F-RIDER-SPARE — the vehicles' own delegate,
+     * the reference's {@code Entity.takeFallDamage} lines 748-752): a
+     * vehicle has NO fall formula of its own (the non-living base is the
+     * delegate ALONE) — the seated player pays the landing, the vehicle
+     * pays nothing. The manager wires the seam at spawn; null keeps the
+     * payment a no-op (the manager-less test bodies).
+     */
+    public interface RiderFall {
+        void pay(int riderEngineId, float distance, float damageMultiplier);
+    }
+
+    private RiderFall riderFall;
+
+    /** Wires the rider-fall seam (the manager's own spawn walk). */
+    public void setRiderFall(RiderFall fall) {
+        this.riderFall = fall;
+    }
+
+    /**
+     * The fall walk's accumulate arm (Entity.checkFallDamage lines
+     * 728-731: {@code else if (dy < 0.0) fallDistance -= dy}): the
+     * descent accumulates only while airborne.
+     */
+    public void accumulateFall(double descent) {
+        if (descent > 0.0) {
+            fallDistance += (float) descent;
+        }
+    }
+
+    /** The lava halving (the reference's {@code fallDistance *= 0.5} in the lava walk). */
+    public void halveFall() {
+        fallDistance *= 0.5f;
+    }
+
+    /** The landing's store spend (checkFallDamage line 733: fallDistance = 0). */
+    public void spendFall() {
+        fallDistance = 0.0f;
+    }
+
+    /**
+     * The landing's payment (the base Entity.takeFallDamage alone — the
+     * vehicle's own fall is the RIDER DELEGATE, nothing else).
+     */
+    public void payRiderFall(float distance, float damageMultiplier) {
+        if (passengerId >= 0 && riderFall != null) {
+            riderFall.pay(passengerId, distance, damageMultiplier);
+        }
+    }
     /** The breath clock (Entity.setBreath — Air's short, the 300 default). */
     private int breath = 300;
     /** The invulnerable flag. */
@@ -574,6 +623,16 @@ public abstract class VehicleEntity implements net.zaminmc.torch.entity.Vehicle 
      */
     public double seatMountHeight() {
         return 0.0; // MinecartEntity.getMountHeight (the cart kinds' table)
+    }
+
+    /**
+     * The body's own box half-height (the kind's collision box — the
+     * carts' 0.2, the boat's hull): the landing consult's feet derivation
+     * (F-RIDER-SPARE — the -0.2 cell reads the box bottom, the same
+     * convention the solver's boundary carries).
+     */
+    public double boxHalfHeight() {
+        return 0.2; // the cart family's box (MinecartEntity's own)
     }
 
     /**

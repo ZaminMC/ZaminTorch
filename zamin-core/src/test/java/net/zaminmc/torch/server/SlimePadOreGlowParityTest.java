@@ -128,11 +128,11 @@ class SlimePadOreGlowParityTest {
     @Test
     void theStickyFloorDampsTheWalker() {
         // The boost (SlimeBlock.onSteppedOn lines 43-51): a standing
-        // body's horizontal pair scaled by 0.4 + |velocityY| * 0.2 —
-        // over the engine's own 0.6 ground damping (the tick's move
-        // carries the pre-damping snapshot, the StepSoundFamilyTest's
-        // own pinned cadence), one tick from velocityX 2.0 lands in
-        // (1.2 * 0.4, 1.2 * 0.42) = (0.48, 0.504).
+        // body's horizontal pair scaled by 0.4 + |velocityY| * 0.2 — on
+        // top of the ground friction, which reads the support cell's OWN
+        // slipperiness * 0.91 (Wave IO-F's re-pin: the pad's 0.8, not the
+        // pre-fix flat 0.6), so one tick from velocityX 2.0 lands in
+        // (2.0 * 0.728 * 0.4, 2.0 * 0.728 * 0.42) = (0.5824, 0.6115).
         PadStubWorld slime = new PadStubWorld();
         slime.slimeFloor();
         MobEntity onSlime = new MobEntity(7, MobType.COW,
@@ -141,12 +141,12 @@ class SlimePadOreGlowParityTest {
         onSlime.setVelocity(2.0, 0.0, 0.0);
         onSlime.tick(false);
         double damped = onSlime.velocityX();
-        assertTrue(damped > 0.47 && damped < 0.51,
+        assertTrue(damped > 0.58 && damped < 0.612,
                 "the sticky floor's own 0.4-band damping on top of the"
                         + " ground friction: " + damped);
 
         // The control: the stone floor's tick answers the damping alone
-        // (2.0 * 0.6 = 1.2 — no step arm touches it).
+        // (2.0 * 0.6 * 0.91 = 1.092 — no step arm touches it).
         PadStubWorld stone = new PadStubWorld();
         stone.stoneFloor();
         MobEntity onStone = new MobEntity(7, MobType.COW,
@@ -154,7 +154,7 @@ class SlimePadOreGlowParityTest {
         onStone.setOnGround(true);
         onStone.setVelocity(2.0, 0.0, 0.0);
         onStone.tick(false);
-        assertEquals(1.2, onStone.velocityX(), 1e-9,
+        assertEquals(1.092, onStone.velocityX(), 1e-9,
                 "the stone control keeps the plain ground damping alone");
     }
 
@@ -433,6 +433,23 @@ class SlimePadOreGlowParityTest {
         @Override
         public Identifier blockIdAt(int x, int y, int z) {
             return read(x, y, z).identifier();
+        }
+
+        /**
+         * The support cell's slipperiness (Wave IO-F's re-pin — the
+         * friction consult the walker's damping line reads): the stub
+         * answers from its own map like the production adapter, the
+         * reference's table over the cell below the feet.
+         */
+        public double slipperinessBelow(double x, double feetY, double z) {
+            int supportY = (int) Math.floor(feetY) - 1;
+            String value = read((int) Math.floor(x), supportY,
+                    (int) Math.floor(z)).identifier().value();
+            return switch (value) {
+                case "ice", "packed_ice" -> 0.98;
+                case "slime_block" -> 0.8;
+                default -> 0.6;
+            };
         }
 
         @Override

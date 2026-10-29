@@ -718,6 +718,20 @@ public final class MobManager {
         this.playerStatAward = java.util.Objects.requireNonNull(award, "award");
     }
 
+    /**
+     * The rider's fall payment (F-RIDER-SPARE — the mount's landing
+     * delegate): the engine resolves the seated player's session by id
+     * and pays the same (distance, multiplier) pair the mount's own
+     * wound reads. Injected into every spawned body (the spawn walk);
+     * null keeps the site a no-op.
+     */
+    private volatile MobEntity.RiderFall riderFall;
+
+    /** Wires the rider-fall seam (the engine's own resolution walk). */
+    public void setRiderFall(MobEntity.RiderFall fall) {
+        this.riderFall = java.util.Objects.requireNonNull(fall, "fall");
+    }
+
     /** @return whether mob loot may drop (the doMobLoot rule's view). */
     boolean mobLootEnabled() {
         java.util.function.BooleanSupplier read = mobLootRead;
@@ -1031,6 +1045,12 @@ public final class MobManager {
             // VIII6: the body-side award sites' seam (the pig's rider fall —
             // the engine resolves the rider session by id at the award).
             mob.setPlayerStatAward(playerStatAward);
+        }
+        var fall = riderFall;
+        if (fall != null) {
+            // F-RIDER-SPARE: the mount's landing delegate (the seated
+            // player pays the fall with the mount's own multiplier).
+            mob.setRiderFall(fall);
         }
         var detacher = leashDetacher;
         if (detacher != null) {

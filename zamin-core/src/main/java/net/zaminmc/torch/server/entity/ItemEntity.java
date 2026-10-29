@@ -89,6 +89,34 @@ public final class ItemEntity implements net.zaminmc.torch.entity.DroppedItem {
         default double supportYAtBox(double centerX, double bottomY, double centerZ) {
             return supportY(centerX, bottomY, centerZ);
         }
+
+        /**
+         * The block id at the body's -0.2 feet cell (Wave IO-F — the
+         * reference's Entity.move line 572 consult cell
+         * {@code floor(x), floor(y - 0.2), floor(z)} with y the box
+         * bottom; the engine's bottom = {@code position.y - HALF_HEIGHT}).
+         * The vertical-clip consult (line 599's {@code beforeCollision})
+         * reads it — the slime block's own override flips a falling
+         * body's velocityY at full speed while the default zeroes it.
+         * The default answers null so stub grounds keep the pre-wave
+         * zeroing semantics (null is never the pad).
+         */
+        default net.zaminmc.torch.util.Identifier blockIdAt(double centerX, double bottomY, double centerZ) {
+            return null;
+        }
+
+        /**
+         * The block slipperiness at the support cell (Wave IO-F — the
+         * reference's ItemEntity.tick lines 89-96 over Block.slipperiness:
+         * the drag band reads {@code floor(x), floor(minY) - 1, floor(z)}
+         * — the cell BELOW the feet cell, the engine's bottom =
+         * {@code position.y - HALF_HEIGHT}). The default answers the
+         * common case 0.6 (Block.java line 117) so stub grounds keep the
+         * pre-wave drag.
+         */
+        default double slipperinessBelow(double centerX, double bottomY, double centerZ) {
+            return 0.6;
+        }
     }
 
     private final int entityId;
@@ -286,9 +314,12 @@ public final class ItemEntity implements net.zaminmc.torch.entity.DroppedItem {
     private static final double GROUND_EPSILON = 1.0E-7;
 
     /**
-     * Advances one tick of simplified physics: gravity, drag, ground snap
-     * against the world's solid blocks. Returns true when the rounded
-     * fixed-point position changed (so the publisher can decide to sync).
+     * Advances one tick of the item's physics — the reference's own
+     * ItemEntity.tick model (Wave IO-F): the pre-move gravity, the swept
+     * move with its vertical-clip consult, the post-move drag with the
+     * slipperiness band, and the grounded vertical's -0.5 flip. Returns
+     * true when the rounded fixed-point position changed (so the
+     * publisher can decide to sync).
      */
     public boolean tick(Ground ground) {
         long before = fixedPoint(position);
@@ -296,14 +327,18 @@ public final class ItemEntity implements net.zaminmc.torch.entity.DroppedItem {
         if (pickupDelay > 0) {
             pickupDelay--;
         }
-        if (onGround) {
-            velocityY = 0.0;
-        } else {
-            velocityY = (velocityY - GRAVITY_PER_TICK) * 0.98;
-        }
-        double damping = onGround ? 0.6 : 0.98;
-        velocityX *= damping;
-        velocityZ *= damping;
+        // THE PRE-MOVE GRAVITY (Wave IO-F — the reference's ItemEntity.tick
+        // line 72, the engine's order repair): gravity lands BEFORE the
+        // move, UNCONDITIONALLY — never fused with the drag. The reference
+        // applies {@code velocityY -= 0.04} here and the *0.98 vertical
+        // drag POST-move (line 99); the pre-fix engine had fused the pair
+        // into (v - 0.04) * 0.98 and gated it on !onGround — a resting
+        // body never re-armed its vertical, the exact cycle the old
+        // standing-drift hack then had to restore at the solver door.
+        // With the unconditional pre-move arm the drift hack RETIRES: a
+        // resting body always enters the move carrying a small negative
+        // vertical, so the solver's ground flag stays on every tick.
+        velocityY -= GRAVITY_PER_TICK;
 
         // THE SWEPT-BOX APPLICATION (the physics-solver slice): the
         // item's own Entity.move — the 0.25 box clipped axis by axis
@@ -320,15 +355,9 @@ public final class ItemEntity implements net.zaminmc.torch.entity.DroppedItem {
                             position.x(), position.y() - HALF_HEIGHT, position.z(),
                             HALF_WIDTH * 2.0, HALF_HEIGHT * 2.0);
             body.onGround = onGround;
-            // The standing drift (the reference's gravity-AFTER-move cycle:
-            // a resting body enters with (0 - g) * 0.98, never the zeroed
-            // vertical — a zero dy never grounds and the flag would
-            // flicker every other tick).
-            double driftY = onGround && velocityY == 0.0
-                    ? (0.0 - GRAVITY_PER_TICK) * 0.98 : velocityY;
             net.zaminmc.torch.server.physics.EntityMoveSolver.Result result =
                     net.zaminmc.torch.server.physics.EntityMoveSolver.move(
-                            collisionWorld, body, velocityX, driftY, velocityZ,
+                            collisionWorld, body, velocityX, velocityY, velocityZ,
                             net.zaminmc.torch.server.physics.EntityMoveSolver.MoveLaw.plain());
             position = new Position(body.x, body.y + HALF_HEIGHT, body.z);
             onGround = result.onGround();
@@ -339,8 +368,19 @@ public final class ItemEntity implements net.zaminmc.torch.entity.DroppedItem {
                 velocityZ = 0.0;
             }
             if (result.zeroVelocityY()) {
-                velocityY = 0.0;
+                // THE VERTICAL-CLIP CONSULT (Wave IO-F — the reference's
+                // Entity.move line 599 over Block.beforeCollision line
+                // 882): the clip consults the -0.2 feet cell — the slime
+                // block's own override (SlimeBlock lines 33-39) flips a
+                // falling body's velocityY at full speed and keeps a
+                // rising one (the velocityY >= 0 no-op quirk), the default
+                // zeroes it. Items never sneak (the override's other arm
+                // is vacuous here). The consult rides the post-move
+                // position (the reference consults inside move, after
+                // setPositionFromShape — the same cell either way).
+                beforeCollisionAt(ground);
             }
+            applyPostMoveDrag(ground);
             return fixedPoint(position) != before;
         }
 
@@ -367,23 +407,82 @@ public final class ItemEntity implements net.zaminmc.torch.entity.DroppedItem {
             }
         }
 
+        double clipConsultY = Double.NaN;
         if (velocityY <= 0 && ground.isSolidAtBox(newX, newY - HALF_HEIGHT - GROUND_EPSILON, newZ)) {
             // Snap the item's bottom onto the surface it landed on (the
             // slab half or the full cube's ceiling) — the box footprint's
             // own support (the highest shape top the bottom face touches).
             newY = ground.supportYAtBox(newX, newY - HALF_HEIGHT - GROUND_EPSILON, newZ) + HALF_HEIGHT;
-            velocityY = 0.0;
             onGround = true;
+            clipConsultY = newY; // the landing clip (the vertical consult below)
         } else if (velocityY > 0 && ground.isSolidAtBox(newX, newY + HALF_HEIGHT + GROUND_EPSILON, newZ)) {
-            velocityY = 0.0; // bumped a ceiling; do not pass through
             newY = position.y();
             onGround = false;
+            clipConsultY = newY; // bumped a ceiling (the same consult below)
         } else {
             onGround = false;
         }
 
         position = new Position(newX, newY, newZ);
+        if (!Double.isNaN(clipConsultY)) {
+            // The vertical-clip consult (the reference's beforeCollision at
+            // the clip — the slime flip over the default zeroing), riding
+            // the POST-move position exactly like the solver path's own
+            // placement of the consult.
+            beforeCollisionAt(ground);
+        }
+        applyPostMoveDrag(ground);
         return fixedPoint(position) != before;
+    }
+
+    /**
+     * The vertical-clip consult (Wave IO-F — Entity.move line 599's
+     * {@code block1.beforeCollision(world, this)}): the -0.2 feet cell's
+     * block id decides the vertical response — the slime block's override
+     * (SlimeBlock lines 33-39) flips a falling body at full speed, keeps a
+     * rising one (the velocityY >= 0 no-op quirk), and every other block
+     * rides the default (Block.beforeCollision line 882: velocityY = 0).
+     * The consult cell is the reference's own (Entity.move line 572:
+     * {@code floor(x), floor(y - 0.2), floor(z)}, y the box bottom — the
+     * engine's bottom = position.y - HALF_HEIGHT).
+     */
+    private void beforeCollisionAt(Ground ground) {
+        net.zaminmc.torch.util.Identifier underfoot = ground.blockIdAt(
+                position.x(), position.y() - HALF_HEIGHT, position.z());
+        if (underfoot != null && underfoot.value().equals("slime_block")) {
+            if (velocityY < 0.0) {
+                velocityY = -velocityY;
+            }
+            // velocityY >= 0: the no-op quirk (SlimeBlock line 38's else) —
+            // a rising body clipped over the pad keeps its rise.
+        } else {
+            velocityY = 0.0;
+        }
+    }
+
+    /**
+     * The post-move drag (Wave IO-F — the reference's ItemEntity.tick lines
+     * 89-103): the horizontal band reads the SUPPORT cell's slipperiness
+     * on the ground ({@code floor(x), floor(minY) - 1, floor(z)} — the
+     * reference's own consult, the ice family's 0.98 and the pad's 0.8
+     * against the common case's 0.6, all * 0.98), the air band is the flat
+     * 0.98, the vertical drags at 0.98 — and a grounded body's vertical
+     * flips at -0.5 (line 102: the resting micro-hop — the reference's
+     * own anti-jitter law; over the pad the flip halves the
+     * beforeCollision bounce, over the common blocks it acts on the zero
+     * the default consult left).
+     */
+    private void applyPostMoveDrag(Ground ground) {
+        double f = 0.98;
+        if (onGround) {
+            f = ground.slipperinessBelow(position.x(), position.y() - HALF_HEIGHT, position.z()) * 0.98;
+        }
+        velocityX *= f;
+        velocityY *= 0.98;
+        velocityZ *= f;
+        if (onGround) {
+            velocityY *= -0.5;
+        }
     }
 
     private static long fixedPoint(Position position) {
