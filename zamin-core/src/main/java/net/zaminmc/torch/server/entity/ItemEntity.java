@@ -160,6 +160,20 @@ public final class ItemEntity implements net.zaminmc.torch.entity.DroppedItem {
     /** The never-despawn flag (Slice 59 — ItemEntity.setNeverDespawn: the wither's nether star stays until collected). */
     private boolean neverDespawn;
     /**
+     * The body's lifetime tick counter (the clock-frame repair — the
+     * reference's {@code Entity.ticks}, Entity.java line 100, incremented
+     * by {@code World.updateEntity} BEFORE every {@code tick()} (World.java
+     * line 1355)). An INDEPENDENT clock from the despawn {@code age}: the
+     * reference seeds the age (the NBT {@code Age} tag on load, the merge
+     * {@code Math.min} of the pair at ItemEntity line 165, the {@code -32768}
+     * sentinel that skips the increment at lines 105-107) but NEVER this
+     * counter — the fizz gate's {@code ticks % 25 == 0} poll (line 76) rides
+     * this one, so a reloaded item polls on the existence grid, not the
+     * seeded-age grid. Never persisted (the reference writes the Age tag
+     * alone), so it restarts at 0 exactly like the reference's own load.
+     */
+    private int ticks;
+    /**
      * The throwing player's name (Slice 93/D1 — ItemEntity lines 24-25: the
      * private string the drop site stamps through
      * {@code PlayerEntity.dropItem(item, false, true)}'s
@@ -363,6 +377,10 @@ public final class ItemEntity implements net.zaminmc.torch.entity.DroppedItem {
      */
     public boolean tick(Ground ground, Random random, Sounds sounds) {
         long before = fixedPoint(position);
+        // World.updateEntity's own increment (World.java line 1355) — the
+        // lifetime counter the % 25 poll rides, BEFORE the tick body exactly
+        // like the reference's placement, and independent of the age seed.
+        ticks++;
         age++;
         if (pickupDelay > 0) {
             pickupDelay--;
@@ -488,25 +506,40 @@ public final class ItemEntity implements net.zaminmc.torch.entity.DroppedItem {
      * ({@code (int)lastX != (int)x ...} — the Java int CAST, truncation
      * toward zero, NOT floor: a crossing from x=-0.4 to x=0.4 leaves the
      * flag dark, cells -1 to 0 by floor but 0 to 0 by cast — the
-     * reference's own quirk kept 1:1) or every 25th tick
-     * ({@code this.ticks % 25 == 0} — the engine's {@code age}, already
-     * incremented at the tick's head, is the reference's {@code ticks}
-     * at this site). Open, the band consults the feet cell for lava and
-     * POPS: {@code velocityY = 0.2}, the horizontals re-rolled at
-     * {@code (rand - rand) * 0.2}, the fizz sound at 0.4 volume and
-     * pitch {@code 2.0 + rand * 0.4}. The pop lands BETWEEN the move
-     * and the drag — the popped velocity IS dragged this tick (the
-     * reference's own order).
+     * reference's own quirk kept 1:1; the Y axis reads the FEET frame —
+     * the reference's entity y IS the box bottom, the engine's center
+     * translates as {@code position.y - HALF_HEIGHT}, the same convention
+     * the lava consult three lines below carries) or every 25th tick
+     * ({@code this.ticks % 25 == 0} — the World.updateEntity lifetime
+     * counter, the engine's own {@code ticks} field, an INDEPENDENT clock
+     * from the despawn {@code age}: the reference seeds the age (the NBT
+     * Age tag on load, the merge {@code Math.min} at line 165, the
+     * {@code -32768} sentinel at lines 105-107) but never the counter, so
+     * the clock-frame repair rides the existence grid — a reloaded item
+     * polls 25 ticks after its LOAD, not on the seeded-age grid). Open, the
+     * band consults the feet cell for lava and POPS: {@code velocityY =
+     * 0.2}, the horizontals re-rolled at {@code (rand - rand) * 0.2}, the
+     * fizz sound at 0.4 volume and pitch {@code 2.0 + rand * 0.4} played
+     * at the BODY's position — the reference's own y the box bottom (the
+     * engine's center translates as {@code y - HALF_HEIGHT}, the same
+     * frame the consult reads). The pop lands BETWEEN the move and the
+     * drag — the popped velocity IS dragged this tick (the reference's
+     * own order).
      */
     private void fizzIfLavaTick(Ground ground, Random random, Sounds sounds,
                                 double lastX, double lastY, double lastZ) {
         if (random == null || sounds == null) {
             return; // the pre-wave two-arg walk (the physics seats)
         }
+        // The reference's line 75: every axis reads the (int) cast of the
+        // pre-move against the post-move position, the Y in the FEET frame
+        // (the reference's y IS the box bottom; the engine's center
+        // translates as y - HALF_HEIGHT — a center crossing without a feet
+        // crossing never fired the reference's flag, and the converse).
         boolean crossedCell = (int) lastX != (int) position.x()
-                || (int) lastY != (int) position.y()
+                || (int) (lastY - HALF_HEIGHT) != (int) (position.y() - HALF_HEIGHT)
                 || (int) lastZ != (int) position.z();
-        if (!crossedCell && age % 25 != 0) {
+        if (!crossedCell && ticks % 25 != 0) {
             return;
         }
         if (!ground.lavaAtCell(position.x(), position.y() - HALF_HEIGHT, position.z())) {
@@ -515,7 +548,10 @@ public final class ItemEntity implements net.zaminmc.torch.entity.DroppedItem {
         velocityY = 0.2;
         velocityX = (random.nextFloat() - random.nextFloat()) * 0.2;
         velocityZ = (random.nextFloat() - random.nextFloat()) * 0.2;
-        sounds.sound(position, "random.fizz", 0.4f,
+        // The reference's playSound at the entity: x/z the box center, y
+        // the box BOTTOM (the engine's feet frame, position.y - HALF_HEIGHT).
+        sounds.sound(new Position(position.x(), position.y() - HALF_HEIGHT, position.z()),
+                "random.fizz", 0.4f,
                 2.0f + random.nextFloat() * 0.4f, dimension);
     }
 

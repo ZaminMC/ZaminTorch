@@ -74,7 +74,18 @@ the 8-block attraction with the staggered retarget, the sticky live
 hold, the spectator release, the eye-aimed pull) landed with the
 same session's verification, and F-DUST closed as a non-row (the
 server's addParticle is the empty stub — the landing dust is the
-client's own prediction).
+client's own prediction). The vine family's first slice (Wave VN-A
+2026-10-29: the sixteen-state metadata vocabulary, the climbable pair
+split from the ladder-only consult, and the collision miss repaired —
+every vine had carried the full-cube collision) also landed since,
+and the Wave LF review (Wave CF 2026-10-29: the parallel-lane
+collision's adjudication — PR #77 closed as superseded — with the
+three translation defects the review surfaced in the landed wave
+repaired: the item's fizz poll clock returned to the reference's
+independent lifetime counter, the crossing flag's Y axis returned to
+the feet frame, the orb's retarget window returned to the reference's
+own renderTicks counter; both fizz sounds' y returned to the box
+bottom).
 
 ## Downloading a dev build (no build tools needed)
 

@@ -145,6 +145,20 @@ public final class ExperienceOrbEntity implements net.zaminmc.torch.entity.Exper
     private int pickupDelay;
     private boolean onGround;
     /**
+     * The reference's own {@code renderTicks} counter (the clock-frame
+     * repair — ExperienceOrbEntity line 12's public field, incremented at
+     * the tick's TAIL, line 123, INDEPENDENT from the despawn {@code age}
+     * incremented beside it): the retarget window
+     * {@code lastTargetUpdateTick < renderTicks - 20 + networkId % 100}
+     * (line 80) rides THIS counter, and the NBT round trip writes the Age
+     * tag alone — a RELOADED orb restarts renderTicks at 0 while its age
+     * keeps the stored value, so the two clocks diverge exactly where a
+     * fused {@code age - 1} frame would misplace the first-acquire window
+     * (an orb with {@code id % 100 <= 20} waits out its staggered window
+     * after load; the age frame would acquire on the first tick).
+     */
+    private int renderTicks;
+    /**
      * The attraction's held igniter id (Wave LF — the reference's
      * {@code igniter} PlayerEntity field, id form): 0 holds nobody.
      * The throttle keeps the hold STICKY — a player inside the 8-block
@@ -374,7 +388,10 @@ public final class ExperienceOrbEntity implements net.zaminmc.torch.entity.Exper
             velocityY = 0.2;
             velocityX = (random.nextFloat() - random.nextFloat()) * 0.2;
             velocityZ = (random.nextFloat() - random.nextFloat()) * 0.2;
-            sounds.sound(position, "random.fizz", 0.4f,
+            // The reference's playSound at the entity: x/z the box center,
+            // y the box BOTTOM (the engine's feet frame).
+            sounds.sound(new Position(position.x(), position.y() - HALF_HEIGHT, position.z()),
+                    "random.fizz", 0.4f,
                     2.0f + random.nextFloat() * 0.4f, dimension);
         }
 
@@ -410,6 +427,11 @@ public final class ExperienceOrbEntity implements net.zaminmc.torch.entity.Exper
             beforeCollisionAt(ground);
         }
         applyPostMoveDrag(ground);
+        // The reference's renderTicks++ (ExperienceOrbEntity line 123, the
+        // tick's TAIL — after the drag bands and after the retarget gate's
+        // read): the counter the NEXT tick's retarget window reads, its own
+        // clock independent of the age (the clock-frame repair).
+        renderTicks++;
         return fixedPoint(position) != before;
     }
 
@@ -459,11 +481,15 @@ public final class ExperienceOrbEntity implements net.zaminmc.torch.entity.Exper
      * ExperienceOrbEntity.tick lines 76-100): the 8-block pull toward
      * the nearest player, the retarget THROTTLED — every ~20 ticks
      * (staggered by {@code networkId % 100} so a burst of orbs does not
-     * retarget the same tick) the hold re-arms only when empty or the
-     * held player left the 8-block radius; the held igniter's live
-     * state is read EVERY tick (a spectator release, the pull itself).
-     * The pull: {@code d = (target - orb) / 8}, {@code d4 = |d|},
-     * {@code d5 = (1 - d4)²} — the velocity gains
+     * retarget the same tick; the window rides the body's OWN
+     * {@code renderTicks} counter — the clock-frame repair, the
+     * reference's line-123 tail-incremented field never persisted, so a
+     * reloaded orb waits out its staggered window exactly like a fresh
+     * one whatever its restored age) the hold re-arms only when empty
+     * or the held player left the 8-block radius; the held igniter's
+     * live state is read EVERY tick (a spectator release, the pull
+     * itself). The pull: {@code d = (target - orb) / 8}, {@code d4 =
+     * |d|}, {@code d5 = (1 - d4)²} — the velocity gains
      * {@code d/d4 * d5 * 0.1}, nothing beyond the radius (d4 >= 1
      * leaves d5 <= 0). The orb's own position reads the FEET frame
      * (position.y - HALF_HEIGHT — the reference's Entity.y), the
@@ -473,10 +499,12 @@ public final class ExperienceOrbEntity implements net.zaminmc.torch.entity.Exper
         if (players == null) {
             return; // the pre-wave physics-only walk
         }
-        // The reference's renderTicks frame: the counter increments at
-        // the tick's TAIL, so at this site it counts the COMPLETED
-        // ticks — the engine's age already counted this tick.
-        int renderTicks = age - 1;
+        // The reference's retarget window (line 80) over the body's OWN
+        // renderTicks counter — incremented at the tick's TAIL (line 123),
+        // never persisted (the NBT writes the Age tag alone), so a reloaded
+        // orb restarts the window fresh while its age keeps the stored
+        // value. The clock-frame repair: a fused age frame would misplace
+        // the first-acquire window wherever the age was seeded.
         if (lastTargetUpdateTick < renderTicks - 20 + entityId % 100) {
             Players.Target held = igniterId == 0 ? null : players.byId(igniterId, dimension);
             double feetY = position.y() - HALF_HEIGHT;
