@@ -478,6 +478,23 @@ public final class BlastResistanceTable {
         Map.entry("skull_north", 1f),
         Map.entry("skull_south", 1f),
         Map.entry("skull_west", 1f),
+        // The standing banner's twelve intermediate rotations (the
+        // compass-16 — the state fold's suffix patterns cannot strip the
+        // compass names, the sign family's own explicit rows the
+        // twelfth-pass precedent; the cardinal states fold on _west/
+        // _north/_east onto the family's REFERENCE_VALUES row).
+        Map.entry("standing_banner_ssw", 1f),
+        Map.entry("standing_banner_sw", 1f),
+        Map.entry("standing_banner_wsw", 1f),
+        Map.entry("standing_banner_wnw", 1f),
+        Map.entry("standing_banner_nw", 1f),
+        Map.entry("standing_banner_nnw", 1f),
+        Map.entry("standing_banner_nne", 1f),
+        Map.entry("standing_banner_ne", 1f),
+        Map.entry("standing_banner_ene", 1f),
+        Map.entry("standing_banner_ese", 1f),
+        Map.entry("standing_banner_se", 1f),
+        Map.entry("standing_banner_sse", 1f),
         Map.entry("slime_block", 0f),
         Map.entry("smooth_sandstone", 0.8f),
         Map.entry("snow", 0.2f),

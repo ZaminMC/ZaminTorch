@@ -1184,27 +1184,30 @@ public final class AnvilBlockIds {
             state(175, 10, "minecraft:double_grass_upper"),
             state(175, 11, "minecraft:double_grass_upper"),
             // The banner family (Block.java lines 1375-1376): the standing
-            // pair's rotations fold to the engine's sign-model cardinals
-            // (the 0-15 nibble, 0/4/8/12 the states; every other rotation
-            // reads its nearest quarter), the wall pair's FACING nibble
-            // through the reference's own getStateFromMetadata walk
-            // (byId's abs(nibble % 6), the Y-axis answers reading NORTH).
+            // pair's rotation nibble 0-15 passes straight through
+            // (BannerBlock.Standing's own getStateFromMetadata — the
+            // compass-16 states the sign family's twelfth-pass
+            // restoration registered; the pre-fix fold silently
+            // substituted a cardinal for every intermediate rotation),
+            // the wall pair's FACING nibble through the reference's own
+            // getStateFromMetadata walk (byId's abs(nibble % 6), the
+            // Y-axis answers reading NORTH).
             state(176, 0, "minecraft:standing_banner"),
-            state(176, 1, "minecraft:standing_banner"),
-            state(176, 2, "minecraft:standing_banner_west"),
-            state(176, 3, "minecraft:standing_banner_west"),
+            state(176, 1, "minecraft:standing_banner_ssw"),
+            state(176, 2, "minecraft:standing_banner_sw"),
+            state(176, 3, "minecraft:standing_banner_wsw"),
             state(176, 4, "minecraft:standing_banner_west"),
-            state(176, 5, "minecraft:standing_banner_west"),
-            state(176, 6, "minecraft:standing_banner_north"),
-            state(176, 7, "minecraft:standing_banner_north"),
+            state(176, 5, "minecraft:standing_banner_wnw"),
+            state(176, 6, "minecraft:standing_banner_nw"),
+            state(176, 7, "minecraft:standing_banner_nnw"),
             state(176, 8, "minecraft:standing_banner_north"),
-            state(176, 9, "minecraft:standing_banner_north"),
-            state(176, 10, "minecraft:standing_banner_east"),
-            state(176, 11, "minecraft:standing_banner_east"),
+            state(176, 9, "minecraft:standing_banner_nne"),
+            state(176, 10, "minecraft:standing_banner_ne"),
+            state(176, 11, "minecraft:standing_banner_ene"),
             state(176, 12, "minecraft:standing_banner_east"),
-            state(176, 13, "minecraft:standing_banner_east"),
-            state(176, 14, "minecraft:standing_banner"),
-            state(176, 15, "minecraft:standing_banner"),
+            state(176, 13, "minecraft:standing_banner_ese"),
+            state(176, 14, "minecraft:standing_banner_se"),
+            state(176, 15, "minecraft:standing_banner_sse"),
             state(177, 0, "minecraft:wall_banner"),
             state(177, 1, "minecraft:wall_banner"),
             state(177, 2, "minecraft:wall_banner"),

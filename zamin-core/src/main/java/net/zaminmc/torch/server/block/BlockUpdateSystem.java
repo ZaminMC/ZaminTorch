@@ -442,17 +442,20 @@ public final class BlockUpdateSystem implements WorldChangeListener {
         }
 
         // The banner family's support rules (BannerBlock.Standing /
-        // .Wall neighborChanged, lines 128-135 + 184-192): the standing
-        // banner consults the floor's SOLIDITY (the material's isSolid,
-        // never the air-only read — water and torches under a banner pop
-        // it too), the wall banner the cell OPPOSITE its facing (the wall
-        // it hangs on); the departure drops the TAGGED item through the
-        // tile read (dropItems' own walk) and clears the cell.
+        // .Wall neighborChanged, lines 128-135 + 184-192 — the sign
+        // family's twins): the standing banner consults the floor's
+        // MATERIAL solidity (Material.isSolid via MaterialSolidity, not
+        // the collision model — a banner on a torch, a carpet, tall grass
+        // or a snow layer pops, a banner on leaves, a cobweb, a sign or
+        // another banner stands), the wall banner the cell OPPOSITE its
+        // facing (the wall it hangs on) the same material consult; the
+        // departure drops the TAGGED item through the tile read
+        // (dropItems' own walk) and clears the cell.
         if (net.zaminmc.torch.server.block.BannerBlocks.isBanner(identifier)) {
             boolean supported;
             if (net.zaminmc.torch.server.block.BannerBlocks.isStanding(identifier)) {
-                supported = WorldSolidity.isSolid(
-                        world.getBlock(position.offset(0, -1, 0)));
+                supported = MaterialSolidity.isSolid(
+                        world.getBlock(position.offset(0, -1, 0)).identifier());
             } else {
                 int facing = net.zaminmc.torch.server.block.BannerBlocks.facingOf(type);
                 // The wall sits OPPOSITE the facing (the banner looks away
@@ -464,8 +467,8 @@ public final class BlockUpdateSystem implements WorldChangeListener {
                     case 4 -> new int[]{1, 0, 0};  // faces west: the wall is east
                     default -> new int[]{-1, 0, 0}; // faces east: the wall is west
                 };
-                supported = WorldSolidity.isSolid(
-                        world.getBlock(position.offset(away[0], away[1], away[2])));
+                supported = MaterialSolidity.isSolid(
+                        world.getBlock(position.offset(away[0], away[1], away[2])).identifier());
             }
             if (supported) {
                 return;

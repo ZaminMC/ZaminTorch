@@ -544,6 +544,14 @@ public final class MapColors {
             row(t, "wall_banner_" + facing, WOOD);
             row(t, "ladder_" + facing, AIR); // LadderBlock(DECORATION)
         }
+        // The standing sign/banner pairs' twelve intermediate rotations
+        // (the compass-16, the twelfth-pass treatment — SignBlock and
+        // BannerBlock both WOOD).
+        for (String compass : new String[] {"ssw", "sw", "wsw", "wnw", "nw", "nnw",
+                "nne", "ne", "ene", "ese", "se", "sse"}) {
+            row(t, "sign_" + compass, WOOD);
+            row(t, "standing_banner_" + compass, WOOD);
+        }
         row(t, "sign", WOOD);
         row(t, "wall_sign", WOOD);
         row(t, "standing_banner", WOOD);

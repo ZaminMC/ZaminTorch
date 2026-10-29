@@ -4316,29 +4316,46 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /**
-     * Banner placement (BannerItem.useOn, the sign family's twin): DOWN
-     * refuses (line 29), a top-face use plants the standing banner with the
-     * reference's own rotation formula (lines 50-52 — floor((yaw + 180) *
-     * 16 / 360 + 0.5) & 15, the engine's sign model keeping the four
-     * cardinals), a side-face use hangs the wall banner facing away from
-     * the wall (the metadata 2-5 band). The tile takes the stack's base
-     * through the banner's own set() (lines 58-61 — the BlockEntityTag's
-     * Patterns copy + Base row, the stack's damage the fallback). The
-     * survival path consumes one item; the stack's own metadata reads
-     * BEFORE the consumption. Tick-thread context.
+     * Banner placement (BannerItem.useOn lines 28-64, the sign family's
+     * twin — the twelfth-pass treatment the sign restoration carried
+     * across): the reference's own gate ORDER — a bottom-face click
+     * refuses outright (lines 29-31); the CLICKED block's MATERIAL must be
+     * solid (lines 33-35 — Material.isSolid via MaterialSolidity, not the
+     * collision model: a torch, a wire, tall grass or a lily pad refuses
+     * the click, while the banner's own WOOD material lets a banner stack
+     * on a banner and a sign); the cactus-neighbour gate
+     * (BannerBlock.canBePlaced, the same isNeighboringCactus arm the sign
+     * carries — the placement beside a cactus refused); NO body-collision
+     * consult (the banner's collision shape is null, BannerBlock lines
+     * 32-35, and the reference's item walk carries no entity gate — a
+     * banner plants into the placer's own cell); a top-face use plants the
+     * standing banner with the reference's own SIXTEEN-rotation formula
+     * (lines 50-52 — floor((yaw + 180) * 16 / 360 + 0.5) & 15, every
+     * 22.5-degree step its own state), a side-face use hangs the wall
+     * banner facing away from the wall (the metadata 2-5 band). The tile
+     * takes the stack's base through the banner's own set() (lines 58-61 —
+     * the BlockEntityTag's Patterns copy + Base row, the stack's damage
+     * the fallback). The survival path consumes one item; the stack's own
+     * metadata reads BEFORE the consumption. Tick-thread context.
      */
     private void placeBannerOnTick(PlayerSession session, BlockPosition clicked, int face,
                                    java.util.Optional<BlockType> creativeHeld) {
         if (face == 0) {
-            return; // line 29: the DOWN face never plants a banner
+            return; // lines 29-31: the DOWN face never plants a banner
         }
         BlockPosition target = offsetByFace(clicked, face);
-        if (target == null || world.getBlock(clicked).equals(world.airType())
-                || !canOccupyForPlacement(target)) {
-            return; // the generic placement gates (bad face / clicked air / occupied)
+        if (target == null) {
+            return; // the generic placement gate (bad face)
         }
-        if (intersectsPlayerBox(session.position(), target)) {
-            return; // the vanilla body rule (the reference's own entity collision check)
+        if (!net.zaminmc.torch.server.block.MaterialSolidity.isSolid(
+                world.getBlock(clicked).identifier())) {
+            return; // the clicked-material gate (lines 33-35): the clicked cell must be material-solid
+        }
+        if (!canOccupyForPlacement(target)) {
+            return; // canBePlaced's replaceable half (Block lines 664-666)
+        }
+        if (isNeighboringCactus(target)) {
+            return; // BannerBlock.canBePlaced's cactus arm: no banner beside a cactus
         }
         net.zaminmc.torch.item.ItemStack held = session.inventory().held();
         if (creativeHeld.isEmpty()
@@ -4358,8 +4375,8 @@ public final class EngineServer implements Server, EngineBridge {
             world.setBlock(target,
                     net.zaminmc.torch.server.block.BannerBlocks.wallFor(face));
         } else {
-            // Lines 50-52: the standing rotation formula, the engine's
-            // sign model flattening the 0-15 band to the cardinals.
+            // Lines 50-52: the standing rotation formula, the reference's
+            // 0-15 band whole — every 22.5-degree step its own state.
             int rotation = (int) Math.floor(
                     (session.rotation().yaw() + 180.0f) * 16.0f / 360.0f + 0.5f) & 15;
             world.setBlock(target,

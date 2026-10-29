@@ -384,9 +384,22 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:wall_sign_west"), 68),
             Map.entry(Identifier.parse("minecraft:wall_sign_east"), 68),
             // The banner family (Block.java lines 1375-1376): the standing
-            // pair over 176 (the rotation nibble), the wall pair over 177
-            // (the FACING nibble 2-5).
+            // pair over 176 (the rotation nibble 0-15, the compass-16 —
+            // the sign family's twelfth-pass treatment), the wall pair
+            // over 177 (the FACING nibble 2-5).
             Map.entry(Identifier.parse("minecraft:standing_banner"), 176),
+            Map.entry(Identifier.parse("minecraft:standing_banner_ssw"), 176),
+            Map.entry(Identifier.parse("minecraft:standing_banner_sw"), 176),
+            Map.entry(Identifier.parse("minecraft:standing_banner_wsw"), 176),
+            Map.entry(Identifier.parse("minecraft:standing_banner_wnw"), 176),
+            Map.entry(Identifier.parse("minecraft:standing_banner_nw"), 176),
+            Map.entry(Identifier.parse("minecraft:standing_banner_nnw"), 176),
+            Map.entry(Identifier.parse("minecraft:standing_banner_nne"), 176),
+            Map.entry(Identifier.parse("minecraft:standing_banner_ne"), 176),
+            Map.entry(Identifier.parse("minecraft:standing_banner_ene"), 176),
+            Map.entry(Identifier.parse("minecraft:standing_banner_ese"), 176),
+            Map.entry(Identifier.parse("minecraft:standing_banner_se"), 176),
+            Map.entry(Identifier.parse("minecraft:standing_banner_sse"), 176),
             Map.entry(Identifier.parse("minecraft:standing_banner_west"), 176),
             Map.entry(Identifier.parse("minecraft:standing_banner_north"), 176),
             Map.entry(Identifier.parse("minecraft:standing_banner_east"), 176),
@@ -1470,12 +1483,24 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:wall_sign_south"), 3),
             Map.entry(Identifier.parse("minecraft:wall_sign_west"), 4),
             Map.entry(Identifier.parse("minecraft:wall_sign_east"), 5),
-            // The banner family's nibbles: the standing pair's rotations
-            // (the sign family's own 0/4/8/12 cardinals) and the wall
-            // pair's facings (2-5).
+            // The banner family's nibbles: the standing pair's rotation
+            // nibble 0-15 (the compass-16, the sign family's twelfth-pass
+            // treatment) and the wall pair's facings (2-5).
+            Map.entry(Identifier.parse("minecraft:standing_banner_ssw"), 1),
+            Map.entry(Identifier.parse("minecraft:standing_banner_sw"), 2),
+            Map.entry(Identifier.parse("minecraft:standing_banner_wsw"), 3),
             Map.entry(Identifier.parse("minecraft:standing_banner_west"), 4),
+            Map.entry(Identifier.parse("minecraft:standing_banner_wnw"), 5),
+            Map.entry(Identifier.parse("minecraft:standing_banner_nw"), 6),
+            Map.entry(Identifier.parse("minecraft:standing_banner_nnw"), 7),
             Map.entry(Identifier.parse("minecraft:standing_banner_north"), 8),
+            Map.entry(Identifier.parse("minecraft:standing_banner_nne"), 9),
+            Map.entry(Identifier.parse("minecraft:standing_banner_ne"), 10),
+            Map.entry(Identifier.parse("minecraft:standing_banner_ene"), 11),
             Map.entry(Identifier.parse("minecraft:standing_banner_east"), 12),
+            Map.entry(Identifier.parse("minecraft:standing_banner_ese"), 13),
+            Map.entry(Identifier.parse("minecraft:standing_banner_se"), 14),
+            Map.entry(Identifier.parse("minecraft:standing_banner_sse"), 15),
             Map.entry(Identifier.parse("minecraft:wall_banner"), 2),
             Map.entry(Identifier.parse("minecraft:wall_banner_south"), 3),
             Map.entry(Identifier.parse("minecraft:wall_banner_west"), 4),
