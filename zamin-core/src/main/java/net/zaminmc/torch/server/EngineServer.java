@@ -5520,6 +5520,7 @@ public final class EngineServer implements Server, EngineBridge {
             tickBowCharge(session);
             tickFoodEconomy(session);
             tickLanding(session);
+            tickStepOn(session); // the onSteppedOn consult (the glow swap's player arm)
             tickBreath(session);
             tickPortalStand(session);
             tickFireBody(session);
@@ -6220,14 +6221,35 @@ public final class EngineServer implements Server, EngineBridge {
                     net.zaminmc.torch.server.stat.EngineStats.CM_FALLEN,
                     Math.round(distance * 100.0f));
         }
+        // The landing consult (Entity.move lines 569-581 — the -0.2
+        // feet cell, the cell BELOW the body's feet, never the body's
+        // own), hoisted above both landing arms so the slime consult and
+        // the trample consult below read the SAME cell the reference's
+        // block1 answers.
+        int landY = (int) Math.floor(session.position().y() - 0.2);
+        var landCell = new BlockPosition(
+                (int) Math.floor(session.position().x()), landY,
+                (int) Math.floor(session.position().z()));
+        var landed = worldFor(session.dimension()).getBlock(landCell);
+        String landedName = landed.identifier().value();
         if (distance > PlayerSession.SAFE_FALL_DISTANCE) {
+            // THE SLIME PAD'S SOFT LANDING (SlimeBlock.onFallenOn lines
+            // 27-33 — the player's own arm): a SNEAKING body takes the
+            // super's full walk (the 1.0 multiplier), a standing body the
+            // pad's ZERO (takeFallDamage's ceil((distance - 3) * 0.0)
+            // never wounds — the stat above already paid, the reference's
+            // own order). The water/ladder break still consults first,
+            // exactly the engine's landed shape.
+            boolean slimePad = landedName.equals("slime_block")
+                    && !session.sneaking();
             // A body that lands in fluid takes no fall damage (the water
             // break), and neither does one that lands on a ladder column
             // (the historical ladder catch).
             var feet = session.position().toBlockPosition();
             var at = world.getBlock(feet);
-            if (FluidBlocks.kindOf(at.identifier()) == null
-                    && !WorldSolidity.isLadder(at.identifier())) {
+            if ((FluidBlocks.kindOf(at.identifier()) == null
+                    && !WorldSolidity.isLadder(at.identifier()))
+                    && !slimePad) {
                 // The fall damage carries no exhaustion (the vanilla FALL
                 // source's setBypassesArmor zeroes it).
                 damageOnTick(session,
@@ -6242,20 +6264,74 @@ public final class EngineServer implements Server, EngineBridge {
         // player ALWAYS tramples, the mobGriefing gate never applies —
         // the reference's {@code !(entity instanceof PlayerEntity)} consult
         // passes for every player). The landing cell rides the fall path's
-        // own -0.2 consult (Entity.move lines 569-581) — the cell BELOW the
-        // body's feet, never the body's own cell; the roll
+        // own -0.2 consult (Entity.move lines 569-581); the roll
         // {@code nextFloat() < fallDistance - 0.5} never passes at a
         // half-block-or-less descent; a passing roll turns BOTH farmland
         // forms to DIRT and the neighbor bus carries the crop's pop.
-        int landY = (int) Math.floor(session.position().y() - 0.2);
-        var landCell = new BlockPosition(
-                (int) Math.floor(session.position().x()), landY,
-                (int) Math.floor(session.position().z()));
-        var landed = worldFor(session.dimension()).getBlock(landCell);
-        String landedName = landed.identifier().value();
         if ((landedName.equals("farmland") || landedName.equals("farmland_wet"))
                 && gameplayRandom.nextFloat() < distance - 0.5f) {
             worldFor(session.dimension()).setBlock(landCell, BuiltinBlocks.DIRT);
+        }
+    }
+
+    /**
+     * The player's onSteppedOn consult (RedstoneOreBlock.onSteppedOn
+     * lines 39-43 over Entity.move lines 607-609, the player's own arm):
+     * the reference's server runs the verification move
+     * (ServerPlayNetworkHandler.onPlayerMove line 316) for every move
+     * packet, and the move's step arm dispatches onSteppedOn over the
+     * -0.2 feet cell — a walking or standing body lights the plain ore
+     * underfoot. The engine's movement is proposal-driven (no
+     * verification move), so the consult rides the player tick instead:
+     * the same -0.2 cell read, gated exactly like the reference's own
+     * band — {@code onGround} (the landing body), {@code !sneaking}
+     * (the step arm's {@code !flag} skip), and no vehicle (a riding
+     * body's mount carries the step; the rider sends no moves). The
+     * swap is idempotent (the LIT form never re-swaps — interact's
+     * {@code this == REDSTONE_ORE} gate), so the per-tick cadence
+     * matches the per-packet band's observable outcome. The slime
+     * pad's step boost carries NO player arm: the reference's server
+     * applies it to the server's own velocity fields alone (the
+     * client-authoritative walk never reads them back — the boost's
+     * observable feel is the client's own prediction). The particles
+     * ride the client's randomDisplayTick band — the dedicated server's
+     * addParticle is a no-op stub (ServerWorldEventListener lines
+     * 23-28), nothing to broadcast. Tick-thread context.
+     */
+    private void tickStepOn(PlayerSession session) {
+        if (!session.onGround() || session.sneaking()
+                || session.ridingAny()) {
+            return;
+        }
+        // The -0.2 feet cell (Entity.move lines 568-573) with the
+        // air-cell fence fallback — the same consult the mob path's
+        // step walk reads (a fence cell can never be the ore; the
+        // fallback keeps the consult's shape exact for the family).
+        int feetX = (int) Math.floor(session.position().x());
+        int feetY = (int) Math.floor(session.position().y() - 0.2);
+        int feetZ = (int) Math.floor(session.position().z());
+        EngineWorld bodyWorld = worldFor(session.dimension());
+        var cell = bodyWorld.getBlock(new BlockPosition(feetX, feetY, feetZ));
+        String cellName = cell.identifier().value();
+        if (cellName.equals("air")) {
+            var under = bodyWorld.getBlock(
+                    new BlockPosition(feetX, feetY - 1, feetZ));
+            String underName = under.identifier().value();
+            boolean fenceLike = underName.equals("oak_fence")
+                    || underName.equals("spruce_fence") || underName.equals("birch_fence")
+                    || underName.equals("jungle_fence") || underName.equals("dark_oak_fence")
+                    || underName.equals("acacia_fence")
+                    || underName.equals("nether_brick_fence")
+                    || underName.equals("cobblestone_wall")
+                    || underName.equals("mossy_cobblestone_wall")
+                    || underName.contains("_fence_gate");
+            if (fenceLike) {
+                cellName = underName;
+            }
+        }
+        if (cellName.equals("redstone_ore")) {
+            bodyWorld.setBlock(new BlockPosition(feetX, feetY, feetZ),
+                    BuiltinBlocks.LIT_REDSTONE_ORE);
         }
     }
 
@@ -18244,6 +18320,17 @@ public final class EngineServer implements Server, EngineBridge {
             this.activeDimension = dimension;
         }
 
+        /**
+         * The block identity at a cell (the beforeCollision consult — the
+         * slime pad's bounce reads the ACTIVE dimension's own blocks, the
+         * TF-11 convention).
+         */
+        @Override
+        public net.zaminmc.torch.util.Identifier blockIdAt(int x, int y, int z) {
+            return activeVehicleWorld().getBlock(
+                    new net.zaminmc.torch.block.BlockPosition(x, y, z)).identifier();
+        }
+
         /** The world the active dimension lives in (the unbooted stand-in: the overworld). */
         private EngineWorld activeVehicleWorld() {
             return worldForSafe(activeDimension);
@@ -21437,6 +21524,28 @@ public final class EngineServer implements Server, EngineBridge {
                 return; // the cell changed under the roll
             }
             world.setBlock(at, BuiltinBlocks.DIRT);
+        }
+
+        /**
+         * The redstone ore's step glow (the fall-path family's twin —
+         * RedstoneOreBlock.onSteppedOn lines 39-43 over interact lines
+         * 52-57): the stepped cell's PLAIN form turns LIT. The host
+         * re-check keeps the swap honest (a crossed write never lights a
+         * non-ore cell), the LIT form never re-swaps (interact's
+         * {@code this == REDSTONE_ORE} gate), and the read rides the
+         * body's OWN dimension (the TF-9 convention — a nether-walking
+         * body lights the nether's ore).
+         */
+        @Override
+        public void onMobStepOre(net.zaminmc.torch.server.entity.MobEntity mob) {
+            BlockPosition at = new BlockPosition(mob.oreStepX(),
+                    mob.oreStepY(), mob.oreStepZ());
+            EngineWorld host = worldFor(mob.dimension());
+            if (!host.getBlock(at).identifier().equals(
+                    BuiltinBlocks.REDSTONE_ORE.identifier())) {
+                return; // the cell changed under the step (or was never the plain form)
+            }
+            host.setBlock(at, BuiltinBlocks.LIT_REDSTONE_ORE);
         }
 
         /**

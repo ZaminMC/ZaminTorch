@@ -18070,3 +18070,29 @@ BannerItem.java, and the engine's sign placement this session.
   aspirational — no arm existed). FarmlandTrampleParityTest 5/0; the
   regression 314/0. The fall-path family's honest remainder demand-named
   in the ledger: the slime pad's trio, the redstone ore's glow family.
+- Wave SG (the next window's architecture lane, the demand-named tail
+  closed whole): the slime pad trio (the zero-multiplier soft landing
+  with the sneak gate at the mob swept arm + the player's tickLanding;
+  the beforeCollision bounce at solverMove's zeroVy with the
+  velocityY>=0 no-op quirk + the vehicle twin over the WorldQuery's new
+  blockIdAt consult; the onSteppedOn horizontal damping inside
+  stepSoundWalk — the javadoc's 'onSteppedOn is a no-op' claim re-pinned
+  STALE) + the redstone ore's step glow (the mob path through the
+  pending intent — the trample's own shape; the player path through the
+  per-tick standing consult tickStepOn, the reference's own arm riding
+  the verification move; the sneaking player skipped; the LIT form never
+  re-swaps; the server's addParticle no-op stub honored — the particles
+  are the client's randomDisplayTick band) + THE SILK REPAIR the glow
+  tail's own swap made live (getSilkTouchDrop's explicit override
+  returns the ore itself for BOTH forms — the pre-fix empty stack for
+  the LIT form had starved every silk harvest, and the landed dig-start
+  swap means the LIT form is the one a silk dig actually breaks).
+  SlimePadOreGlowParityTest 8/0 NEW (two seat lessons: the cow's
+  ten-heart hull; the default spawn (0.5, 5.0, 0.5) makes a y==5.0
+  await pass instantly — the proposal fired pre-teleport and the guard
+  rejected it, the seat awaits x instead; the cart seat's bounce await
+  redesigned — the original was vacuously true at the spawn position);
+  the stash verification 7/8 failing unfixed (the stone control alone
+  passing); the regression lanes 256/0 over three batches. The ledgers:
+  the Wave SG row, the section 22 statement, the compat file's three
+  drift rows re-pinned.

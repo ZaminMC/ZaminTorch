@@ -62,6 +62,16 @@ public abstract class VehicleEntity implements net.zaminmc.torch.entity.Vehicle 
     /** Minimal world query the vehicle needs (tick-thread context only). */
     public interface WorldQuery extends net.zaminmc.torch.server.physics.HasCollisionWorld {
         /**
+         * The block identity at a cell (the beforeCollision consult's own
+         * read — the slime pad's bounce, SlimeBlock.beforeCollision lines
+         * 35-41). The default answers null so stub queries never bounce
+         * (no cell is the pad); the production wiring maps the active
+         * dimension's blocks.
+         */
+        default net.zaminmc.torch.util.Identifier blockIdAt(int x, int y, int z) {
+            return null;
+        }
+        /**
          * The dimension context switch (Wave TF-11 — the reference's
          * Entity.world, the TF-9 shape over the vehicle family): the
          * manager flips the shared query to the body's own dimension
@@ -691,7 +701,26 @@ public abstract class VehicleEntity implements net.zaminmc.torch.entity.Vehicle 
             setVelocity(velocityX(), velocityY(), 0.0);
         }
         if (result.zeroVelocityY()) {
-            setVelocity(velocityX(), 0.0, velocityZ());
+            // beforeCollision (Entity.move lines 588-590 over Block lines
+            // 882-885 — the vehicles run the same Entity.move): the
+            // vertical clip consults the -0.2 feet cell of the post-move
+            // body — the slime pad's override FLIPS a falling cart's
+            // negative back positive (the bounce, SlimeBlock lines
+            // 35-41), the default zero otherwise. A vehicle never sneaks
+            // (the reference's synced flag stays false); the velocityY
+            // >= 0 NO-OP quirk kept 1:1 (an upward clip over a pad keeps
+            // the rising velocity).
+            net.zaminmc.torch.util.Identifier underfoot = world.blockIdAt(
+                    (int) Math.floor(position.x()),
+                    (int) Math.floor(position.y() - halfHeight - 0.2),
+                    (int) Math.floor(position.z()));
+            if (underfoot != null && underfoot.value().equals("slime_block")) {
+                if (velocityY() < 0.0) {
+                    setVelocity(velocityX(), -velocityY(), velocityZ());
+                }
+            } else {
+                setVelocity(velocityX(), 0.0, velocityZ());
+            }
         }
         return result;
     }
