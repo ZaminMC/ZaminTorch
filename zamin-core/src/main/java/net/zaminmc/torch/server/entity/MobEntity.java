@@ -2098,6 +2098,14 @@ public final class MobEntity implements LivingEntity {
     private int trampleX;
     private int trampleY;
     private int trampleZ;
+    /** A pending step-spark intent (the steps band's own consult — the
+     *  -0.2 feet cell is an ORE form; the manager's listener consumes it
+     *  and the engine performs the interact: the spark band and the
+     *  unlit form's swap, the trample's own pending shape). */
+    private boolean stepSparkPending;
+    private int stepSparkX;
+    private int stepSparkY;
+    private int stepSparkZ;
     /** A pending place intent: the cell the carried block goes to. */
     private int endermanPlaceX;
     private int endermanPlaceY;
@@ -2155,6 +2163,32 @@ public final class MobEntity implements LivingEntity {
             return true;
         }
         return false;
+    }
+
+    /** The manager's drain: the step-spark intent (the steps band's own
+     *  consult — the engine's onSteppedOn listener performs the ore's
+     *  whole interact at the staged cell). */
+    public boolean consumeStepSpark() {
+        if (stepSparkPending) {
+            stepSparkPending = false;
+            return true;
+        }
+        return false;
+    }
+
+    /** The step-spark intent's cell x. */
+    public int stepSparkX() {
+        return stepSparkX;
+    }
+
+    /** The step-spark intent's cell y. */
+    public int stepSparkY() {
+        return stepSparkY;
+    }
+
+    /** The step-spark intent's cell z. */
+    public int stepSparkZ() {
+        return stepSparkZ;
     }
 
     /** The trample intent's cell x. */
@@ -10717,10 +10751,22 @@ public final class MobEntity implements LivingEntity {
      * ({@code vehicle == null}) has no engine surface — the engine's
      * mobs never ride (a jockey's mount carries the steps). The
      * sneaking-player skip ({@code !flag}) is player-only in the
-     * reference — a mob never skips. The reference's
-     * {@code onSteppedOn} call is a 1.8.8 no-op (no block class
-     * overrides it — the farmland trample rides the fall path) and
-     * carries nothing here.</p>
+     * reference — a mob never skips.</p>
+     *
+     * <p>The band's own consult — {@code onSteppedOn} (Entity.move lines
+     * 602-604) — IS 1.8.8-live: THREE reference classes override it
+     * (this step path's earlier no-op claim was STALE, re-pinned by the
+     * fall-path family's fifteenth pass). {@code SlimeBlock.onSteppedOn}
+     * (lines 42-50) carries the horizontal damping; {@code
+     * RedstoneOreBlock.onSteppedOn} (lines 40-43) carries the walk-on
+     * lighting — staged here as the step-spark intent (the engine's
+     * listener performs the whole interact: the spark band and the unlit
+     * form's swap); {@code StairsBlock.onSteppedOn} (lines 468-469)
+     * delegates to the base block — a 1.8.8 no-op in practice (no
+     * vanilla stair base is a slime or an ore), so the stairs carry no
+     * arm. The consult fires per move while onGround, BEFORE the
+     * distance-walked band — standing still on the ore lights it on
+     * the first tick (the reference's own order).</p>
      */
     private void stepSoundWalk(double preX, double preY, double preZ) {
         if (!makesSteps()) {
@@ -10740,6 +10786,24 @@ public final class MobEntity implements LivingEntity {
             if (isFenceLike(below)) {
                 ground = below;
                 feetY--;
+            }
+        }
+        // The band's own consult (Entity.move lines 602-604): the
+        // onSteppedOn dispatch — per move while onGround, BEFORE the
+        // distance-walked band below. The redstone ore's walk-on lighting
+        // (RedstoneOreBlock.onSteppedOn lines 40-43 over interact
+        // lines 51-56) is staged as the step-spark intent; the engine's
+        // listener performs the whole interact at the staged cell (the
+        // spark band and the unlit form's swap — the trample's own
+        // pending shape over this pass's own consult).
+        if (onGround && ground != null) {
+            String groundName = ground.value();
+            if (groundName.equals("redstone_ore")
+                    || groundName.equals("lit_redstone_ore")) {
+                stepSparkX = feetX;
+                stepSparkY = feetY;
+                stepSparkZ = feetZ;
+                stepSparkPending = true;
             }
         }
         double d12 = position.x() - preX;

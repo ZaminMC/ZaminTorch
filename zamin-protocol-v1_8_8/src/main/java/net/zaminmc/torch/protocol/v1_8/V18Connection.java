@@ -6760,6 +6760,11 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             return !beyondRange(observer, poof.position(), PARTICLE_RANGE);
         } else if (event instanceof net.zaminmc.torch.server.fx.FxManager.Smoke smoke) {
             return !beyondRange(observer, smoke.position(), PARTICLE_RANGE);
+        } else if (event instanceof net.zaminmc.torch.server.fx.FxManager.RedstoneOreSpark spark) {
+            // The interact burst rides the standard block-particle band
+            // (the /particle law's own 16-block radius, the smoke family's
+            // own gate).
+            return !beyondRange(observer, spark.position(), PARTICLE_RANGE);
         } else if (event instanceof net.zaminmc.torch.server.fx.FxManager.PotionSplash splash) {
             return !beyondRange(observer, splash.position(), PARTICLE_RANGE);
         } else if (event instanceof net.zaminmc.torch.server.fx.FxManager.WorldEvent worldEvent) {
@@ -6813,6 +6818,13 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             // sixteen-particle band assembles one event per particle —
             // the caller emits each at its own offset).
             return encodeParticles(Protocol18.PARTICLE_SMOKE_NORMAL, false, smoke.position(),
+                    0.0f, 0.0f, 0.0f, 0.0f, 1, new int[0]);
+        } else if (event instanceof net.zaminmc.torch.server.fx.FxManager.RedstoneOreSpark spark) {
+            // The interact burst's own single reddust (the same
+            // one-event-per-particle shape: count 0's velocity-less form
+            // — the reference's addParticle(REDSTONE, x, y, z, 0, 0, 0)
+            // spawns one static spark at the computed offset).
+            return encodeParticles(Protocol18.PARTICLE_REDSTONE, false, spark.position(),
                     0.0f, 0.0f, 0.0f, 0.0f, 1, new int[0]);
         } else if (event instanceof net.zaminmc.torch.server.fx.FxManager.PotionSplash splash) {
             Position at = splash.position();

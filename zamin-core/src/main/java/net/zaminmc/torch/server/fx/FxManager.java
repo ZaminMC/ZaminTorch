@@ -47,7 +47,7 @@ public final class FxManager {
     private static final Logger LOGGER = Logger.getLogger(FxManager.class.getName());
 
     /** One broadcast unit. The adapter translates each kind per its version. */
-    public sealed interface FxEvent permits Sound, SoundExcept, BlockShatter, StandShatter, ItemShatter, Poof, Smoke, PotionSplash, WorldEvent {
+    public sealed interface FxEvent permits Sound, SoundExcept, BlockShatter, StandShatter, ItemShatter, Poof, Smoke, RedstoneOreSpark, PotionSplash, WorldEvent {
 
         /**
          * The dimension the event plays in (Wave TF-12 — the reference's
@@ -112,6 +112,19 @@ public final class FxManager {
         public ItemShatter {
             Objects.requireNonNull(position, "position");
             Objects.requireNonNull(stack, "stack");
+        }
+    }
+
+    /** The redstone ore's spark (RedstoneOreBlock.addParticles lines 96-132 —
+     * the interact's own burst): ONE reddust particle at its computed
+     * offset, the smoke family's own one-event-per-particle shape (the
+     * caller's six-pass band emits each at its own position). The band's
+     * own law — the six face passes, the solid-render consults, the
+     * 0.0625 face bands, the bounds clamp — lives with the interact at
+     * the engine's single consult site. */
+    public record RedstoneOreSpark(Position position, int dimension) implements FxEvent {
+        public RedstoneOreSpark {
+            Objects.requireNonNull(position, "position");
         }
     }
 
@@ -301,6 +314,13 @@ public final class FxManager {
      * @see #poof(Position, int) */
     public void poof(Position position) {
         emit(new Poof(position, OVERWORLD));
+    }
+
+    /** The redstone ore's spark at a computed offset (ONE reddust particle —
+     * the interact band emits one event per particle) in the given
+     * dimension. Any thread. */
+    public void redstoneOreSpark(Position position, int dimension) {
+        emit(new RedstoneOreSpark(position, dimension));
     }
 
     /** The smoke puff at a position (SMOKE_NORMAL — the eye's insertion) in

@@ -41,6 +41,15 @@ public final class ExperienceOrbManager {
         void onOrbCollected(ExperienceOrbEntity orb, PlayerSession collector);
 
         void onOrbRemoved(ExperienceOrbEntity orb, String reason);
+
+        /** The steps band's own consult (Entity.move lines 594-604 — the
+         * orb family rides the reference's default makesSteps() TRUE, so
+         * the onSteppedOn dispatch fires for a resting orb every tick; the
+         * engine's listener performs the ore's whole interact at the
+         * body's own -0.2 consult cell). Default no-op — the stub
+         * managers keep their tests free of the world consult. */
+        default void onOrbSteppedOn(ExperienceOrbEntity orb) {
+        }
     }
 
     public ExperienceOrbManager(ExperienceOrbEntity.Ground ground, Random random, int firstEntityId) {
@@ -279,6 +288,17 @@ public final class ExperienceOrbManager {
             if (orb.tick(ground)) {
                 for (Listener listener : listeners) {
                     listener.onOrbMoved(orb);
+                }
+            }
+            // The steps band's own consult (Entity.move lines 594-604 —
+            // the orb family's makesSteps() is the reference's default
+            // TRUE): a resting body consults its -0.2 feet cell every
+            // tick, exactly the item family's own band. The engine's
+            // listener reads the consult cell and performs the ore's
+            // whole interact (the spark band and the unlit swap).
+            if (orb.onGround()) {
+                for (Listener listener : listeners) {
+                    listener.onOrbSteppedOn(orb);
                 }
             }
 

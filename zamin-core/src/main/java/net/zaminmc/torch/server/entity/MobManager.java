@@ -298,7 +298,14 @@ public final class MobManager {
          */
         default void onMobTrample(MobEntity mob) {
         }
-
+        /**
+         * The mob's step consult found an ore cell (the steps band's own
+         * dispatch — RedstoneOreBlock.onSteppedOn lines 40-43 over
+         * interact lines 51-56): the intent's cell — the engine performs
+         * the whole interact (the spark band and the unlit form's swap).
+         */
+        default void onMobStepSpark(MobEntity mob) {
+        }
         /**
          * The enderman set its carried block down (PlaceBlockGoal.tick
          * lines 483-496): the intent's cell — the engine writes the
@@ -1807,6 +1814,11 @@ public final class MobManager {
             if (mob.consumeTrample()) {
                 for (Listener listener : listeners) {
                     listener.onMobTrample(mob);
+                }
+            }
+            if (mob.consumeStepSpark()) {
+                for (Listener listener : listeners) {
+                    listener.onMobStepSpark(mob);
                 }
             }
             if (mob.consumeEndermanPlace()) {

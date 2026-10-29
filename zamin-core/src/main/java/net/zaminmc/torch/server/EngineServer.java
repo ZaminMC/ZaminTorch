@@ -3286,13 +3286,18 @@ public final class EngineServer implements Server, EngineBridge {
                     if (noteBlocks != null) {
                         noteBlocks.attackFromTick(position);
                     }
-                    // RedstoneOreBlock.startMining lines 33-37 -> interact:
-                    // the mining start lights the plain ore too (the same
-                    // swap the use arm carries — the reference's own pair).
-                    if (world.getBlock(position).identifier().equals(
-                            net.zaminmc.torch.server.block.BuiltinBlocks.REDSTONE_ORE.identifier())) {
-                        world.setBlock(position,
-                                net.zaminmc.torch.server.block.BuiltinBlocks.LIT_REDSTONE_ORE);
+                    // RedstoneOreBlock.startMining lines 33-37 -> interact
+                    // (lines 51-56): the mining start carries the SAME
+                    // walk the use arm rides — the spark band AND the swap
+                    // (the unlit form alone; the lit form's dig-start only
+                    // sparks — the reference's own pair).
+                    String dug = world.getBlock(position).identifier().value();
+                    if (dug.equals("redstone_ore") || dug.equals("lit_redstone_ore")) {
+                        // The dig-start hook's own world IS the overworld —
+                        // the ore generates there alone in 1.8.8 (the
+                        // nether's ores end at quartz), so the dimension
+                        // row rides the hook's own world.
+                        redstoneOreInteractAt(position, 0);
                     }
                 });
                 // A survival-broken furnace spills its slots, and a survival-
@@ -4854,6 +4859,27 @@ public final class EngineServer implements Server, EngineBridge {
                 listener.onOrbRemoved(orb, reason);
             }
         }
+
+        /**
+         * The orb family's steps band (Entity.move lines 594-604 — the
+         * orb's makesSteps() is the reference's default TRUE): the same
+         * consult the item family carries, over the orb's own box — the
+         * ore forms alone answer (the interact's own re-check keeps the
+         * form honest).
+         */
+        @Override
+        public void onOrbSteppedOn(ExperienceOrbEntity orb) {
+            var cell = new BlockPosition(
+                    (int) Math.floor(orb.position().x()),
+                    (int) Math.floor(orb.position().y()
+                            - ExperienceOrbEntity.HALF_HEIGHT - 0.2),
+                    (int) Math.floor(orb.position().z()));
+            String value = worldFor(orb.dimension()).getBlock(cell)
+                    .identifier().value();
+            if (value.equals("redstone_ore") || value.equals("lit_redstone_ore")) {
+                redstoneOreInteractAt(cell, orb.dimension());
+            }
+        }
     }
 
     private void publishChunkRelit(ChunkPosition position) {
@@ -5520,6 +5546,7 @@ public final class EngineServer implements Server, EngineBridge {
             tickBowCharge(session);
             tickFoodEconomy(session);
             tickLanding(session);
+            tickStepOn(session); // the steps band's own consult (Entity.move 594-604)
             tickBreath(session);
             tickPortalStand(session);
             tickFireBody(session);
@@ -6256,6 +6283,89 @@ public final class EngineServer implements Server, EngineBridge {
         if ((landedName.equals("farmland") || landedName.equals("farmland_wet"))
                 && gameplayRandom.nextFloat() < distance - 0.5f) {
             worldFor(session.dimension()).setBlock(landCell, BuiltinBlocks.DIRT);
+        }
+    }
+
+    /**
+     * The steps band's own consult (Entity.move lines 594-604 — the
+     * {@code onSteppedOn} dispatch, the stepSoundWalk family's twin for
+     * the server-driven bodies): every per-tick move of an on-ground body
+     * consults the -0.2 feet cell BEFORE the distance-walked band that
+     * gates only the step SOUND — standing still on the ore lights it on
+     * the first tick. The band's {@code !flag} gate (line 412: {@code
+     * onGround && isSneaking() && instanceof PlayerEntity}) skips the
+     * GROUND-SNEAKING player alone; a mob never sneaks. The air-cell
+     * fence fallback (lines 573-578) reaches only fences — never an ore
+     * cell — so its absence is observably equivalent for this family:
+     * the bare -0.2 cell answers air exactly when the reference would
+     * consult the fence below, and neither lights anything.
+     */
+    private void tickStepOn(PlayerSession session) {
+        if (!session.onGround() || session.sneaking()) {
+            return;
+        }
+        int feetY = (int) Math.floor(session.position().y() - 0.2);
+        var cell = new BlockPosition(
+                (int) Math.floor(session.position().x()), feetY,
+                (int) Math.floor(session.position().z()));
+        String value = worldFor(session.dimension()).getBlock(cell).identifier().value();
+        if (value.equals("redstone_ore") || value.equals("lit_redstone_ore")) {
+            redstoneOreInteractAt(cell, session.dimension());
+        }
+    }
+
+    /**
+     * The ore's own interact (RedstoneOreBlock lines 51-56): the spark
+     * band (addParticles 96-132) then the swap — the UNLIT form alone
+     * turns LIT; the lit form only sparks. The band's law whole: SIX
+     * passes, one per face, each starting at {@code pos + nextFloat()} on
+     * its axis, the pass's face particle relocating to the
+     * {@code ±0.0625} band ONLY when that face's neighbor is NOT
+     * solid-render (the engine's light-table filter 15 — the reference's
+     * {@code opacity 255}, Block.java line 216's own model), and a
+     * particle spawning only when its computed point falls OUTSIDE the
+     * cell's own box (line 128's clamp consult, the {@code d2 < 0.0} arm
+     * verbatim — the reference's own quirk at the world's floor). One
+     * FX event per particle (the smoke family's own shape), each riding
+     * the standard particle broadcast band. Tick-thread context.
+     */
+    private void redstoneOreInteractAt(BlockPosition pos, int dimension) {
+        EngineWorld world = worldFor(dimension);
+        // addParticles' six-pass band (lines 96-132), verbatim.
+        double d0 = 0.0625;
+        for (int i = 0; i < 6; i++) {
+            double d1 = pos.x() + gameplayRandom.nextFloat();
+            double d2 = pos.y() + gameplayRandom.nextFloat();
+            double d3 = pos.z() + gameplayRandom.nextFloat();
+            // The reference's own face order (lines 104-126): up, down,
+            // south (+z), north (-z), east (+x), west (-x).
+            if (i == 0 && net.zaminmc.torch.server.block.BlockLightTable.filter(world.getBlock(pos.offset(0, 1, 0))) != 15) {
+                d2 = pos.y() + d0 + 1.0;
+            }
+            if (i == 1 && net.zaminmc.torch.server.block.BlockLightTable.filter(world.getBlock(pos.offset(0, -1, 0))) != 15) {
+                d2 = pos.y() - d0;
+            }
+            if (i == 2 && net.zaminmc.torch.server.block.BlockLightTable.filter(world.getBlock(pos.offset(0, 0, 1))) != 15) {
+                d3 = pos.z() + d0 + 1.0;
+            }
+            if (i == 3 && net.zaminmc.torch.server.block.BlockLightTable.filter(world.getBlock(pos.offset(0, 0, -1))) != 15) {
+                d3 = pos.z() - d0;
+            }
+            if (i == 4 && net.zaminmc.torch.server.block.BlockLightTable.filter(world.getBlock(pos.offset(1, 0, 0))) != 15) {
+                d1 = pos.x() + d0 + 1.0;
+            }
+            if (i == 5 && net.zaminmc.torch.server.block.BlockLightTable.filter(world.getBlock(pos.offset(-1, 0, 0))) != 15) {
+                d1 = pos.x() - d0;
+            }
+            if (d1 < pos.x() || d1 > pos.x() + 1 || d2 < 0.0 || d2 > pos.y() + 1
+                    || d3 < pos.z() || d3 > pos.z() + 1) {
+                fxManager.redstoneOreSpark(
+                        new Position(d1, d2, d3), dimension);
+            }
+        }
+        // The swap (interact lines 52-55): the unlit form alone.
+        if (world.getBlock(pos).identifier().equals(BuiltinBlocks.REDSTONE_ORE.identifier())) {
+            world.setBlock(pos, BuiltinBlocks.LIT_REDSTONE_ORE);
         }
     }
 
@@ -11150,13 +11260,17 @@ public final class EngineServer implements Server, EngineBridge {
                                       int face, java.util.function.IntConsumer onTableOpened) {
         net.zaminmc.torch.block.BlockType current = world.getBlock(clicked);
         if (current.identifier().equals(
-                net.zaminmc.torch.server.block.BuiltinBlocks.REDSTONE_ORE.identifier())) {
-            // RedstoneOreBlock.use lines 45-50 -> interact (lines 52-57):
-            // the click lights the ore (the particles ride the client's
-            // randomDisplayTick band) — the reference's use returns
+                net.zaminmc.torch.server.block.BuiltinBlocks.REDSTONE_ORE.identifier())
+                || current.identifier().equals(
+                        net.zaminmc.torch.server.block.BuiltinBlocks.LIT_REDSTONE_ORE.identifier())) {
+            // RedstoneOreBlock.use lines 45-50 -> interact (lines 51-56):
+            // the spark band AND the swap (the unlit form alone — the
+            // lit form's use only sparks) — the reference's use returns
             // super.use, so the click falls through to the placement
-            // proposal too; no consumption here either.
-            world.setBlock(clicked, net.zaminmc.torch.server.block.BuiltinBlocks.LIT_REDSTONE_ORE);
+            // proposal too; no consumption here either. The arm's own
+            // world read IS the overworld — the ore generates there
+            // alone in 1.8.8 — so the consult rides the same world.
+            redstoneOreInteractAt(clicked, 0);
         }
         if (WorldSolidity.isFurnaceBlock(current.identifier())) {
             openFurnaceOnTick(session, clicked, onTableOpened);
@@ -17297,6 +17411,30 @@ public final class EngineServer implements Server, EngineBridge {
                 listener.onItemRemoved(entity, reason);
             }
         }
+
+        /**
+         * The item family's steps band (Entity.move lines 594-604 — the
+         * item's makesSteps() is the reference's default TRUE): the
+         * resting body's own -0.2 consult cell
+         * ({@code floor(bottom - 0.2)}, the centre convention translated
+         * at the boundary). The ore forms alone answer (the interact's
+         * own re-check inside the consult keeps the form honest — the
+         * spark band and the unlit form's swap, RedstoneOreBlock lines
+         * 40-43 over 51-56).
+         */
+        @Override
+        public void onItemSteppedOn(ItemEntity entity) {
+            var cell = new BlockPosition(
+                    (int) Math.floor(entity.position().x()),
+                    (int) Math.floor(entity.position().y()
+                            - ItemEntity.HALF_HEIGHT - 0.2),
+                    (int) Math.floor(entity.position().z()));
+            String value = worldFor(entity.dimension()).getBlock(cell)
+                    .identifier().value();
+            if (value.equals("redstone_ore") || value.equals("lit_redstone_ore")) {
+                redstoneOreInteractAt(cell, entity.dimension());
+            }
+        }
     }
 
     /**
@@ -21437,6 +21575,23 @@ public final class EngineServer implements Server, EngineBridge {
                 return; // the cell changed under the roll
             }
             world.setBlock(at, BuiltinBlocks.DIRT);
+        }
+
+        /**
+         * The mob's step consult (RedstoneOreBlock.onSteppedOn lines
+         * 40-43 over interact lines 51-56): the whole interact at the
+         * intent's cell — the re-check keeps the form honest (the
+         * cell's current form decides the swap; both forms spark).
+         */
+        @Override
+        public void onMobStepSpark(net.zaminmc.torch.server.entity.MobEntity mob) {
+            BlockPosition at = new BlockPosition(mob.stepSparkX(),
+                    mob.stepSparkY(), mob.stepSparkZ());
+            String value = world.getBlock(at).identifier().value();
+            if (!value.equals("redstone_ore") && !value.equals("lit_redstone_ore")) {
+                return; // the cell changed under the step
+            }
+            redstoneOreInteractAt(at, 0);
         }
 
         /**

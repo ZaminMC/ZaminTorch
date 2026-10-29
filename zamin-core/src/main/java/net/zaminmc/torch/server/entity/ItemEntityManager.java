@@ -81,6 +81,15 @@ public final class ItemEntityManager {
         void onItemStackChanged(ItemEntity entity);
 
         void onItemRemoved(ItemEntity entity, String reason);
+
+        /** The steps band's own consult (Entity.move lines 594-604 — the
+         * item family rides the reference's default makesSteps() TRUE, so
+         * the onSteppedOn dispatch fires for a resting item every tick;
+         * the engine's listener performs the ore's whole interact at the
+         * body's own -0.2 consult cell). Default no-op — the stub
+         * managers keep their tests free of the world consult. */
+        default void onItemSteppedOn(ItemEntity entity) {
+        }
     }
 
     public ItemEntityManager(ItemEntity.Ground ground, Random random, int firstEntityId) {
@@ -285,6 +294,17 @@ public final class ItemEntityManager {
             if (entity.tick(ground)) {
                 for (Listener listener : listeners) {
                     listener.onItemMoved(entity);
+                }
+            }
+            // The steps band's own consult (Entity.move lines 594-604 —
+            // the item family's makesSteps() is the default TRUE): a
+            // resting body consults its -0.2 feet cell every tick,
+            // exactly the mob stepSoundWalk's own band. The engine's
+            // listener reads the consult cell and performs the ore's
+            // whole interact (the spark band and the unlit swap).
+            if (entity.onGround()) {
+                for (Listener listener : listeners) {
+                    listener.onItemSteppedOn(entity);
                 }
             }
 

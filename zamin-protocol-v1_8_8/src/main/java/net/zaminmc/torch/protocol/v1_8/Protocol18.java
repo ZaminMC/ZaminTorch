@@ -544,6 +544,7 @@ final class Protocol18 {
     static final int PARTICLE_VILLAGER_HAPPY = 21;
     static final int PARTICLE_PORTAL = 24;
     static final int PARTICLE_HEART = 34;
+    static final int PARTICLE_REDSTONE = 30;    // "reddust" — the redstone ore's interact spark
 
     // Entity Status (0x1A) codes the client animates from: the hurt flash
     // (2), the death fall (3), and 18 the love heart burst
