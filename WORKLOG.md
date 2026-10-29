@@ -18210,3 +18210,22 @@ family whole (the fifteenth pass's §D/§F queue, adjudicated then landed)
   spends at the settle's first landing, the reference's own line-733
   law); the stats + hunger + entity package whole 608/0; the wire's
   body/relog/mob batch green; bukkit + launcher green.
+
+## 2026-10-29 — the PR wave: #74 + #75 (the verifier's seventeenth
+arrival pair), both merged whole
+
+- #74 reviewed against the reference line by line: SquidEntity
+  .moveRelative lines 154-157 IS the full colliding this.move(vX, vY,
+  vZ) — the pre-fix Slice 16e read it as a raw integration and every
+  squid phased through blocks (a stranded squid sank through the
+  seabed; a swimming squid crossed aquarium glass). The stroke now
+  rides the swept solver. The bat and the squid joined the makesSteps
+  FALSE list (BatEntity 144-146, SquidEntity 73-75). StepsBandGate
+  ParityTest 1/0; the merged tree 594/0 over the entity package + the
+  step/glow/landing/riderspare lanes. Merged at e215adae.
+- #75 reviewed the same way: PlayerEntity.makesSteps lines 1568-1570
+  returns !abilities.flying — a creative body flying at ground contact
+  never lights the ore in vanilla; the engine's tickStepOn had only
+  the onGround/sneak/vehicle gates. The flying gate added; merged at
+  dbfddfda after the develop re-merge (the #74 landing carried in).
+- The queue EMPTY again at the close.
