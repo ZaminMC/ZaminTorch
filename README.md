@@ -74,7 +74,15 @@ the 8-block attraction with the staggered retarget, the sticky live
 hold, the spectator release, the eye-aimed pull) landed with the
 same session's verification, and F-DUST closed as a non-row (the
 server's addParticle is the empty stub — the landing dust is the
-client's own prediction).
+client's own prediction). The vine family's first two slices also
+landed since (Wave VN-A 2026-10-29: the sixteen-state metadata
+vocabulary, the climbable pair split from the ladder-only consult,
+and the collision miss repaired — every vine had carried the
+full-cube collision; Wave VN-B1 2026-10-29: the placement laws — the
+face gate with the DOWN refusal and the solid-above hanging form, the
+single opposite-face placement state where every placed vine had
+carried the bare all-faces form, and the REPLACEABLE_PLANT material
+row over every isReplaceable consumer).
 
 ## Downloading a dev build (no build tools needed)
 

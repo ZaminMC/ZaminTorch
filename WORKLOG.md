@@ -18329,3 +18329,32 @@ commit — LF then VN-A)
   green after the re-pins; the anvil/fire/fluid lanes green. VN-B
   remains: the placement gate + the opposite-face state, the
   neighborChanged decay, the random-tick growth whole.
+
+- **Wave VN-B1 — the vine family's placement laws** (2026-10-29, one
+  commit — the F-VINE pass's second slice, over the pass-17 discovery
+  record):
+- THE GATE (canBePlaced lines 132-148): the clicked face decides — UP
+  requires the solid cube ABOVE the placement cell (the hanging form),
+  a horizontal face requires the CLICKED WALL itself to be the
+  growable solid, DOWN never places. The pre-fix engine's generic
+  path placed a vine ANYWHERE — mid-air, ceilings, torches.
+- THE STATE (getPlacementState lines 296-300): exactly ONE face bit,
+  the face TOWARD the clicked wall; a vertical placement keeps the
+  all-clear form. The pre-fix path carried the BARE ALL-FACES FORM
+  (metadata 15) — every placed vine rendered connected on all four
+  sides.
+- THE BODY RULE: the null collision shape means World.canPlace's box
+  gate never blocks a vine — the solid families' box gate is skipped.
+- THE MATERIAL (REPLACEABLE_PLANT, canBeReplaced lines 60-62): every
+  vine state joins WorldSolidity.isReplaceable — a vine held against
+  an existing vine cell replaces it; the row rides isReplaceable
+  ALONE (the flora walk-through read untouched), the four consumers
+  (the door arm, the tree growth, the armor stand gate, the generic
+  occupy) each vanilla-correct with vines included.
+- Evidence: VinePlacementParityTest 1/0 NEW (four arms over the
+  sky-platform scene) — the stash verification failing unfixed (the
+  bare all-faces form at the side cell) and 1/0 with the fix. The
+  regression: the block + vine + banner families 305/0; the
+  placement/growth-adjacent lanes 30/0; the armor-stand + tree lanes
+  40/0. VN-B2 (the decay) + VN-B3 (the growth) remain — the
+  discovery doc's rows.
