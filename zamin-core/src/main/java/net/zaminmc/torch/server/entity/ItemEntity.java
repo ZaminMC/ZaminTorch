@@ -62,6 +62,20 @@ public final class ItemEntity implements net.zaminmc.torch.entity.DroppedItem {
         }
 
         /**
+         * The block's slipperiness at a cell (the reference's
+         * Block.slipperiness read — the ground-friction consult both
+         * friction blocks carry: ItemEntity.tick lines 93-101 and
+         * ExperienceOrbEntity.tick lines 116-124 read the cell BELOW
+         * the feet): 0.98 for the ice family, 0.8 for the slime block,
+         * 0.6 for everything else (Block.java line 117's default).
+         * The default answers the common block so stub grounds keep
+         * their historical decay.
+         */
+        default double blockSlipperinessAt(int x, int y, int z) {
+            return 0.6;
+        }
+
+        /**
          * The item's own half-width (the historical EntityItem box is
          * 0.25 wide — the box-footprint physics constant).
          */
@@ -301,7 +315,24 @@ public final class ItemEntity implements net.zaminmc.torch.entity.DroppedItem {
         } else {
             velocityY = (velocityY - GRAVITY_PER_TICK) * 0.98;
         }
-        double damping = onGround ? 0.6 : 0.98;
+        // THE GROUND-FRICTION CONSULT (ItemEntity.tick lines 93-104 —
+        // the F-FRICTION row): the reference reads the block's own
+        // slipperiness from the cell BELOW the feet —
+        // {@code f = world.getBlockState(new BlockPos(floor(x),
+        // floor(shape.minY) - 1, floor(z))).getBlock().slipperiness
+        // * 0.98F} — the ICE family's 0.98 making the ground band
+        // 0.9604 (the slide), the slime's 0.8 making it 0.784, the
+        // common block's 0.6 making it 0.588 (the engine's old flat
+        // 0.6 was wrong on EVERY surface, the ice the loudest half:
+        // the pre-fix item on ice kept ~0.6% of its speed after ten
+        // ticks where the reference keeps 67%).
+        double damping = 0.98;
+        if (onGround) {
+            int underY = (int) Math.floor(position.y() - HALF_HEIGHT) - 1;
+            damping = ground.blockSlipperinessAt(
+                    (int) Math.floor(position.x()), underY,
+                    (int) Math.floor(position.z())) * 0.98;
+        }
         velocityX *= damping;
         velocityZ *= damping;
 

@@ -47,6 +47,19 @@ public final class ExperienceOrbEntity implements net.zaminmc.torch.entity.Exper
 
         /** @return whether the block containing this point is solid. */
         boolean isSolid(double x, double y, double z);
+
+        /**
+         * The block's slipperiness at a cell (the reference's
+         * Block.slipperiness read — the ground-friction consult the
+         * orb's own friction block carries, ExperienceOrbEntity.tick
+         * lines 116-124: the cell BELOW the feet, the same shape the
+         * item's Ground answers): 0.98 for the ice family, 0.8 for the
+         * slime block, 0.6 for everything else. The default answers the
+         * common block so stub grounds keep their historical decay.
+         */
+        default double blockSlipperinessAt(int x, int y, int z) {
+            return 0.6;
+        }
     }
 
     private final int entityId;
@@ -246,7 +259,20 @@ public final class ExperienceOrbEntity implements net.zaminmc.torch.entity.Exper
         } else {
             velocityY = (velocityY - GRAVITY_PER_TICK) * 0.98;
         }
-        double damping = onGround ? 0.6 : 0.98;
+        // THE GROUND-FRICTION CONSULT (ExperienceOrbEntity.tick lines
+        // 116-130 — the F-FRICTION row, the item's own shape): the
+        // reference reads the block's own slipperiness from the cell
+        // BELOW the feet — {@code f = slipperiness(under) * 0.98} —
+        // the ice family's 0.9604 ground band (the slide), the common
+        // block's 0.588. The engine's old flat 0.6 was wrong on every
+        // surface.
+        double damping = 0.98;
+        if (onGround) {
+            int underY = (int) Math.floor(position.y() - HALF_HEIGHT) - 1;
+            damping = ground.blockSlipperinessAt(
+                    (int) Math.floor(position.x()), underY,
+                    (int) Math.floor(position.z())) * 0.98;
+        }
         velocityX *= damping;
         velocityZ *= damping;
 

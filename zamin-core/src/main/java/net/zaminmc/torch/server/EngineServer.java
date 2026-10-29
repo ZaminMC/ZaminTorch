@@ -30183,6 +30183,28 @@ public final class EngineServer implements Server, EngineBridge {
         }
 
         /**
+         * The block's slipperiness at a cell (the reference's
+         * Block.slipperiness table — the ground-friction consult the
+         * item and the orb read from the cell BELOW the feet,
+         * ItemEntity.tick lines 93-101 / ExperienceOrbEntity.tick
+         * lines 116-124): Block.java line 117's 0.6 default,
+         * IceBlock line 20 / PackedIceBlock line 10's 0.98, SlimeBlock
+         * line 15's 0.8 — the same law the armor stand's own consult
+         * carries. The ACTIVE dimension's cells answer.
+         */
+        @Override
+        public double blockSlipperinessAt(int x, int y, int z) {
+            String value = activeGroundWorld().getBlock(
+                    new net.zaminmc.torch.block.BlockPosition(x, y, z))
+                    .identifier().value();
+            return switch (value) {
+                case "ice", "packed_ice" -> 0.98;
+                case "slime_block" -> 0.8;
+                default -> 0.6;
+            };
+        }
+
+        /**
          * The swept-box surface (the physics-solver slice): the ACTIVE
          * dimension's block reads the item bodies and the falling blocks
          * clip against — the same one-surface shape the mob query carries,
