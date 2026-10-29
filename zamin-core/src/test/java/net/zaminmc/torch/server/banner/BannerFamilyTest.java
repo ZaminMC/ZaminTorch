@@ -136,7 +136,7 @@ class BannerFamilyTest {
         BlockPosition standingCell = floor.offset(0, 1, 0);
         await(() -> world.getBlock(standingCell).equals(BuiltinBlocks.STANDING_BANNER_NORTH),
                 "the standing banner lands on its north cardinal (the yaw-0 formula)");
-        assertEquals(1, placer.inventory().held().count(),
+        await(() -> placer.inventory().held().count() == 1,
                 "the survival placement consumed one item");
         var tile = server.banners().tileAt(standingCell);
         assertEquals(RED, tile.base(), "the tile takes the stack's damage as its base");
@@ -153,7 +153,8 @@ class BannerFamilyTest {
         BlockPosition hungCell = postTop.offset(0, 0, -1);
         await(() -> world.getBlock(hungCell).equals(BuiltinBlocks.WALL_BANNER_NORTH),
                 "the wall banner hangs facing away from its wall");
-        assertEquals(0, placer.inventory().held().count(), "the wall placement consumed the last");
+        await(() -> placer.inventory().held().count() == 0,
+                "the wall placement consumed the last");
         server.shutdown(null);
     }
 
@@ -305,5 +306,201 @@ class BannerFamilyTest {
         await(() -> world.getBlock(hungCell).equals(BuiltinBlocks.AIR),
                 "the wall's departure popped the hung banner");
         server.shutdown(null);
+    }
+
+    /**
+     * THE TWELFTH-PASS TREATMENT (the sign rotation restoration carried
+     * across the family): the standing banner's SIXTEEN rotations
+     * (BannerItem.useOn line 51's own formula — the pre-fix engine folded
+     * the band to the four cardinals), the clicked-MATERIAL gate
+     * (BannerItem lines 33-35 — Material.isSolid, not the collision
+     * model: a torch's DECORATION refuses, the banner's own WOOD stacks),
+     * the cactus-neighbour gate (BannerBlock.canBePlaced's own arm), and
+     * the support arms' MATERIAL consult (Standing.neighborChanged lines
+     * 128-135 — a banner on a cobweb or a sign STANDS, both
+     * material-solid where the collision model pops them; a banner on a
+     * torch pops).
+     */
+    @Test
+    void theTwelfthPassBandGatesAndMaterialSupport() throws Exception {
+        server = boot();
+        PlayerSession placer = join("Twelfth");
+        var world = server.world();
+        int gx = (int) Math.floor(placer.position().x()) + 2;
+        int gy = (int) Math.floor(placer.position().y()) - 1;
+        int gz = (int) Math.floor(placer.position().z());
+        BlockPosition floor = new BlockPosition(gx, gy, gz);
+        server.ticker().submit(() -> world.setBlock(floor, BuiltinBlocks.STONE));
+        await(() -> world.getBlock(floor).equals(BuiltinBlocks.STONE), "floor seeded");
+
+        // THE INTERMEDIATE BAND: yaw 45 (a north-west look) lands rotation
+        // 10 — the NE compass state, never the pre-fix fold's EAST.
+        placer.applyMovement(new net.zaminmc.torch.util.Position(gx + 0.5, gy + 1,
+                gz - 1.5), new net.zaminmc.torch.util.Rotation(45, 0), true);
+        EngineAwaits.awaitTicks(world, 2, "engine settle");
+        hold(placer, new ItemStack(
+                net.zaminmc.torch.server.item.BuiltinItems.BANNER, 4, RED));
+        useOn(placer, floor, 1);
+        BlockPosition bandCell = floor.offset(0, 1, 0);
+        await(() -> world.getBlock(bandCell).equals(BuiltinBlocks.STANDING_BANNER_NE),
+                "yaw 45 lands the NE rotation 10 (the band whole, never the folded east)");
+        await(() -> placer.inventory().held().count() == 3,
+                "one banner consumed");
+
+        // THE CLICKED-MATERIAL GATE: clicking a TORCH with the banner
+        // refuses (the DECORATION material is not solid — lines 33-35);
+        // clicking the standing BANNER stacks another on it (WOOD).
+        BlockPosition torchAt = floor.offset(2, 0, 0);
+        BlockPosition torchFloor = torchAt.offset(0, -1, 0);
+        server.ticker().submit(() -> {
+            world.setBlock(torchFloor, BuiltinBlocks.STONE);
+            world.setBlock(torchAt, BuiltinBlocks.TORCH);
+        });
+        await(() -> world.getBlock(torchAt).equals(BuiltinBlocks.TORCH), "torch seeded");
+        placer.applyMovement(new net.zaminmc.torch.util.Position(gx + 0.5, gy + 1,
+                gz + 1.5), new net.zaminmc.torch.util.Rotation(0, 0), true);
+        EngineAwaits.awaitTicks(world, 2, "engine settle");
+        hold(placer, new ItemStack(
+                net.zaminmc.torch.server.item.BuiltinItems.BANNER, 2, RED));
+        useOn(placer, torchAt, 1);
+        EngineAwaits.awaitTicks(world, 3, "engine settle");
+        assertEquals(BuiltinBlocks.TORCH, world.getBlock(torchAt),
+                "the torch's cell is untouched — the material gate refused");
+        assertEquals(2, placer.inventory().held().count(), "the refusal consumed nothing");
+        // The banner stack: clicking the standing banner plants above it
+        // (yaw 0's own formula lands the north rotation 8).
+        useOn(placer, bandCell, 1);
+        BlockPosition stackedCell = bandCell.offset(0, 1, 0);
+        await(() -> world.getBlock(stackedCell).equals(BuiltinBlocks.STANDING_BANNER_NORTH),
+                "a banner stacks on a banner (the WOOD material is solid)");
+        await(() -> placer.inventory().held().count() == 1,
+                "the stack placement consumed one");
+
+        // THE CACTUS-NEIGHBOUR GATE: a banner beside a cactus refuses. The
+        // cactus stands one cell WEST of the target cell (the gate's four
+        // horizontal neighbours), the click's floor the stone between.
+        BlockPosition cactusSand = floor.offset(-2, 0, 0);
+        BlockPosition cactusCell = cactusSand.offset(0, 1, 0);
+        BlockPosition targetFloor = floor.offset(-1, 0, 0);
+        server.ticker().submit(() -> {
+            world.setBlock(cactusSand, BuiltinBlocks.SAND);
+            world.setBlock(targetFloor, BuiltinBlocks.STONE);
+        });
+        await(() -> world.getBlock(cactusSand).equals(BuiltinBlocks.SAND)
+                && world.getBlock(targetFloor).equals(BuiltinBlocks.STONE), "sand and floor seeded");
+        server.ticker().submit(() -> world.setBlock(cactusCell, BuiltinBlocks.CACTUS));
+        await(() -> world.getBlock(cactusCell).equals(BuiltinBlocks.CACTUS), "cactus seeded");
+        useOn(placer, targetFloor, 1); // the target cell sits BESIDE the cactus
+        EngineAwaits.awaitTicks(world, 3, "engine settle");
+        assertEquals(BuiltinBlocks.AIR, world.getBlock(targetFloor.offset(0, 1, 0)),
+                "BannerBlock.canBePlaced: no banner beside a cactus");
+        assertEquals(BuiltinBlocks.CACTUS, world.getBlock(cactusCell),
+                "the cactus itself is untouched");
+        server.shutdown(null);
+    }
+
+    /**
+     * THE SUPPORT ARMS' MATERIAL CONSULT (the collision model retired): a
+     * standing banner on a COBWEB stands (the COBWEB material is the base
+     * class — Material.java lines 36-41, solid; the collision model pops
+     * it), a banner on a SIGN stands (WOOD), and a banner on a TORCH pops
+     * (DECORATION — both models agree, the negative control).
+     */
+    @Test
+    void theSupportConsultReadsTheMaterialModel() throws Exception {
+        server = boot();
+        PlayerSession seeder = join("Materials");
+        var world = server.world();
+        int gx = (int) Math.floor(seeder.position().x()) + 2;
+        int gy = (int) Math.floor(seeder.position().y()) - 1;
+        int gz = (int) Math.floor(seeder.position().z());
+        hold(seeder, new ItemStack(
+                net.zaminmc.torch.server.item.BuiltinItems.BANNER, 4, RED));
+        seeder.applyMovement(new net.zaminmc.torch.util.Position(gx + 0.5, gy + 1,
+                gz - 1.5), new net.zaminmc.torch.util.Rotation(0, 0), true);
+
+        // Scene A: a banner standing on a COBWEB — the material model keeps
+        // it (the cobweb's base Material is solid; only blocksMovement is
+        // overridden).
+        BlockPosition webA = new BlockPosition(gx, gy, gz);
+        BlockPosition bannerA = webA.offset(0, 1, 0);
+        server.ticker().submit(() -> world.setBlock(webA, BuiltinBlocks.COBWEB));
+        await(() -> world.getBlock(webA).equals(BuiltinBlocks.COBWEB), "the cobweb seeded");
+        useOn(seeder, webA, 1);
+        await(() -> BannerBlocks.isBanner(world.getBlock(bannerA).identifier()),
+                "the banner planted on the cobweb");
+        // An unrelated neighbour departure never disturbs it (the consult
+        // reads the cobweb alone).
+        server.ticker().submit(() -> world.setBlock(webA.offset(1, 0, 0), BuiltinBlocks.STONE));
+        EngineAwaits.awaitTicks(world, 4, "engine settle");
+        assertTrue(BannerBlocks.isBanner(world.getBlock(bannerA).identifier()),
+                "a banner on a cobweb STANDS (the material model, not the collision model)");
+
+        // Scene B: a banner standing on a SIGN — WOOD material-solid.
+        BlockPosition signB = new BlockPosition(gx + 4, gy, gz);
+        BlockPosition signFloor = signB.offset(0, -1, 0);
+        BlockPosition bannerB = signB.offset(0, 1, 0);
+        server.ticker().submit(() -> {
+            world.setBlock(signFloor, BuiltinBlocks.STONE);
+            world.setBlock(signB, BuiltinBlocks.SIGN_NORTH);
+        });
+        await(() -> world.getBlock(signB).equals(BuiltinBlocks.SIGN_NORTH), "the sign seeded");
+        seeder.applyMovement(new net.zaminmc.torch.util.Position(gx + 4.5, gy + 1,
+                gz - 1.5), new net.zaminmc.torch.util.Rotation(0, 0), true);
+        EngineAwaits.awaitTicks(world, 2, "engine settle");
+        useOn(seeder, signB, 1);
+        await(() -> BannerBlocks.isBanner(world.getBlock(bannerB).identifier()),
+                "the banner planted on the sign");
+        EngineAwaits.awaitTicks(world, 4, "engine settle");
+        assertTrue(BannerBlocks.isBanner(world.getBlock(bannerB).identifier()),
+                "a banner on a sign STANDS (the sign's WOOD material is solid)");
+
+        // Scene C: a banner standing over a TORCH pops — DECORATION, the
+        // negative control both models agree on. The material gate refuses
+        // a torch CLICK, so the banner plants on a stone column and the
+        // stone then becomes a torch through the block write (the support
+        // arm's own consult).
+        BlockPosition pillarC = new BlockPosition(gx + 8, gy, gz);
+        BlockPosition bannerC = pillarC.offset(0, 1, 0);
+        server.ticker().submit(() -> world.setBlock(pillarC, BuiltinBlocks.STONE));
+        await(() -> world.getBlock(pillarC).equals(BuiltinBlocks.STONE), "the pillar seeded");
+        seeder.applyMovement(new net.zaminmc.torch.util.Position(gx + 8.5, gy + 1,
+                gz - 1.5), new net.zaminmc.torch.util.Rotation(0, 0), true);
+        EngineAwaits.awaitTicks(world, 2, "engine settle");
+        useOn(seeder, pillarC, 1);
+        await(() -> BannerBlocks.isBanner(world.getBlock(bannerC).identifier()),
+                "the banner planted on the pillar");
+        server.ticker().submit(() -> world.setBlock(pillarC, BuiltinBlocks.TORCH));
+        await(() -> world.getBlock(bannerC).equals(BuiltinBlocks.AIR),
+                "a banner over a torch pops (DECORATION never supports)");
+        server.shutdown(null);
+    }
+
+    /**
+     * THE SURFACE: all sixteen standing states register their wire nibbles
+     * and the anvil import resolves every vanilla rotation (176, 0-15) —
+     * the pre-fix import silently substituted the nearest cardinal for
+     * every intermediate rotation (the §31.6 forbidden fold).
+     */
+    @Test
+    void allSixteenBannerStatesRegisterTheirNibblesAndImport() {
+        String[] names = {"standing_banner", "standing_banner_ssw", "standing_banner_sw",
+                "standing_banner_wsw", "standing_banner_west", "standing_banner_wnw",
+                "standing_banner_nw", "standing_banner_nnw", "standing_banner_north",
+                "standing_banner_nne", "standing_banner_ne", "standing_banner_ene",
+                "standing_banner_east", "standing_banner_ese", "standing_banner_se",
+                "standing_banner_sse"};
+        var registry = BuiltinBlocks.registerAll(new net.zaminmc.torch.server.block.BlockRegistryBuilder()).freeze();
+        for (int meta = 0; meta < 16; meta++) {
+            var id = net.zaminmc.torch.util.Identifier.parse("minecraft:" + names[meta]);
+            java.util.Optional<net.zaminmc.torch.block.BlockType> found = registry.lookup(id);
+            assertTrue(found.isPresent(), names[meta] + " is registered");
+            assertEquals(meta,
+                    ((net.zaminmc.torch.server.block.EngineBlockType) found.get()).legacyMetadata(),
+                    names[meta] + " carries the wire nibble " + meta);
+            assertEquals(java.util.Optional.of(id),
+                    net.zaminmc.torch.server.world.anvil.AnvilBlockIds.resolve(176, meta),
+                    "(176, " + meta + ") imports as " + names[meta]);
+        }
     }
 }

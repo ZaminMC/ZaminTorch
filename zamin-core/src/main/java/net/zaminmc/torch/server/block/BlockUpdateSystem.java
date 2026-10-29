@@ -51,6 +51,24 @@ public final class BlockUpdateSystem implements WorldChangeListener {
     private static final int[][] NEIGHBOR_OFFSETS = {
             {0, 0, 0}, {1, 0, 0}, {-1, 0, 0}, {0, 1, 0}, {0, -1, 0}, {0, 0, 1}, {0, 0, -1}};
 
+    /**
+     * The wall sign's support-cell offset (WallSignBlock's FACING
+     * opposite): the sign faces north (metadata 2) hanging on the block to
+     * its SOUTH, and so on around the compass.
+     */
+    private static int[] wallSignSupportOffset(String value) {
+        if (value.equals("wall_sign")) {
+            return new int[]{0, 1};     // faces north: the wall behind is south (+z)
+        }
+        if (value.equals("wall_sign_south")) {
+            return new int[]{0, -1};    // faces south: the wall behind is north (-z)
+        }
+        if (value.equals("wall_sign_west")) {
+            return new int[]{1, 0};     // faces west: the wall behind is east (+x)
+        }
+        return new int[]{-1, 0};          // wall_sign_east: the wall behind is west (-x)
+    }
+
     private static final Identifier TORCH = Identifier.parse("minecraft:torch");
     private static final Identifier GRASS = Identifier.parse("minecraft:grass_block");
     private static final Identifier NETHER_PORTAL = Identifier.parse("minecraft:nether_portal");
@@ -126,7 +144,24 @@ public final class BlockUpdateSystem implements WorldChangeListener {
     public void onBlockChanged(EngineWorld changedWorld, BlockPosition position, BlockType newType) {
         Objects.requireNonNull(newType, "newType");
         long now = changedWorld.totalTicks();
+        // THE RAIL FAMILIES' OWN-COMMIT EXEMPTION (the thirteenth verifier
+        // pass — the reference's dispatch law, World.updateNeighbors lines
+        // 342-349 over setBlockState's flag-1 walk): a block's own change
+        // notifies its SIX NEIGHBOURS alone; the changed cell ITSELF never
+        // receives neighborChanged — the placed rail's own commit runs
+        // onAdded's connection walk with NO support consult
+        // (AbstractRailBlock.onAdded lines 76-83, the consult the item
+        // path's canBePlaced arm carries), so a directly-written rail (the
+        // plugin path, the test harness, a world import) FLOATS exactly
+        // like vanilla's until a NEIGHBOUR changes; the support pops ride
+        // the neighbour wakes alone. The {0,0,0} self-offset stays for
+        // the other families (the torch/carpet/sign arms' own established
+        // convention — their own audits' rows).
+        boolean changedCellIsRail = RailBlocks.isRailFamily(newType);
         for (int[] offset : NEIGHBOR_OFFSETS) {
+            if (changedCellIsRail && offset[0] == 0 && offset[1] == 0 && offset[2] == 0) {
+                continue; // the rail's own commit never wakes itself
+            }
             schedule(position.offset(offset[0], offset[1], offset[2]), now);
         }
     }
@@ -342,18 +377,85 @@ public final class BlockUpdateSystem implements WorldChangeListener {
                     ItemEntity.PICKUP_DELAY_DROP_TICKS);
             return;
         }
+        // The standing sign's support rule (the twelfth verifier pass —
+        // StandingSignBlock.neighborChanged lines 22-29): the floor below
+        // must be MATERIAL-solid (Material.isSolid, not the collision
+        // model — a sign on a torch, a carpet, tall grass or a snow layer
+        // pops, a sign on leaves or a cobweb stands), the drop the sign
+        // item through the standard block-drop delay.
+        if (identifier.namespace().equals("minecraft")
+                && (identifier.value().equals("sign")
+                    || identifier.value().startsWith("sign_"))) {
+            if (MaterialSolidity.isSolid(world.getBlock(position.offset(0, -1, 0)).identifier())) {
+                return; // supported
+            }
+            world.setBlock(position, world.airType());
+            itemEntities.spawnDropAtBlock(
+                    new Position(position.x(), position.y(), position.z()),
+                    ItemStack.of(net.zaminmc.torch.server.item.BuiltinItems.SIGN, 1),
+                    ItemEntity.PICKUP_DELAY_DROP_TICKS);
+            return;
+        }
+        // The wall sign's support rule (WallSignBlock.neighborChanged lines
+        // 43-51): the block BEHIND the sign — the cell it hangs on, the
+        // facing's own opposite — must be material-solid, else the sign
+        // pops the same way. The per-state facing: metadata 2-5 name the
+        // direction the sign faces (away from its wall), so the support
+        // cell sits at the facing's opposite offset.
+        if (identifier.namespace().equals("minecraft")
+                && (identifier.value().equals("wall_sign")
+                    || identifier.value().startsWith("wall_sign_"))) {
+            int[] behind = wallSignSupportOffset(identifier.value());
+            if (MaterialSolidity.isSolid(
+                    world.getBlock(position.offset(behind[0], 0, behind[1])).identifier())) {
+                return; // supported
+            }
+            world.setBlock(position, world.airType());
+            itemEntities.spawnDropAtBlock(
+                    new Position(position.x(), position.y(), position.z()),
+                    ItemStack.of(net.zaminmc.torch.server.item.BuiltinItems.SIGN, 1),
+                    ItemEntity.PICKUP_DELAY_DROP_TICKS);
+            return;
+        }
+        // The rail families' support rule (the thirteenth verifier pass —
+        // AbstractRailBlock.neighborChanged lines 86-111, all four families
+        // through the isRailFamily consult): the floor below must carry a
+        // solid TOP (the has-solid-top family — a bottom slab, a fence, a
+        // wall or the thin snow is not a rail bed), and each ASCENDING
+        // shape's own run cell (the ascent's horizontal direction) must
+        // too; a violation pops the rail with its family item's drop
+        // (dropItems + removeBlock, lines 104-106). No re-walk rides
+        // this arm — the reference's neighborChanged re-walks only on a
+        // redstone signal (RailBlock lines 19-23 — the honest tail: the
+        // redstone family's row).
+        if (RailBlocks.isRailFamily(type)) {
+            if (RailConnections.survivesAt(world, position)) {
+                return; // supported
+            }
+            world.setBlock(position, world.airType());
+            itemEntities.spawnDropAtBlock(
+                    new Position(position.x(), position.y(), position.z()),
+                    ItemStack.of(net.zaminmc.torch.server.item.BuiltinItems.lookup(
+                            RailBlocks.familyItemOf(type)).orElseThrow(), 1),
+                    ItemEntity.PICKUP_DELAY_DROP_TICKS);
+            return;
+        }
+
         // The banner family's support rules (BannerBlock.Standing /
-        // .Wall neighborChanged, lines 128-135 + 184-192): the standing
-        // banner consults the floor's SOLIDITY (the material's isSolid,
-        // never the air-only read — water and torches under a banner pop
-        // it too), the wall banner the cell OPPOSITE its facing (the wall
-        // it hangs on); the departure drops the TAGGED item through the
-        // tile read (dropItems' own walk) and clears the cell.
+        // .Wall neighborChanged, lines 128-135 + 184-192 — the sign
+        // family's twins): the standing banner consults the floor's
+        // MATERIAL solidity (Material.isSolid via MaterialSolidity, not
+        // the collision model — a banner on a torch, a carpet, tall grass
+        // or a snow layer pops, a banner on leaves, a cobweb, a sign or
+        // another banner stands), the wall banner the cell OPPOSITE its
+        // facing (the wall it hangs on) the same material consult; the
+        // departure drops the TAGGED item through the tile read
+        // (dropItems' own walk) and clears the cell.
         if (net.zaminmc.torch.server.block.BannerBlocks.isBanner(identifier)) {
             boolean supported;
             if (net.zaminmc.torch.server.block.BannerBlocks.isStanding(identifier)) {
-                supported = WorldSolidity.isSolid(
-                        world.getBlock(position.offset(0, -1, 0)));
+                supported = MaterialSolidity.isSolid(
+                        world.getBlock(position.offset(0, -1, 0)).identifier());
             } else {
                 int facing = net.zaminmc.torch.server.block.BannerBlocks.facingOf(type);
                 // The wall sits OPPOSITE the facing (the banner looks away
@@ -365,8 +467,8 @@ public final class BlockUpdateSystem implements WorldChangeListener {
                     case 4 -> new int[]{1, 0, 0};  // faces west: the wall is east
                     default -> new int[]{-1, 0, 0}; // faces east: the wall is west
                 };
-                supported = WorldSolidity.isSolid(
-                        world.getBlock(position.offset(away[0], away[1], away[2])));
+                supported = MaterialSolidity.isSolid(
+                        world.getBlock(position.offset(away[0], away[1], away[2])).identifier());
             }
             if (supported) {
                 return;
@@ -519,6 +621,27 @@ public final class BlockUpdateSystem implements WorldChangeListener {
             itemEntities.spawnDropAtBlock(
                     new Position(position.x(), position.y(), position.z()),
                     plantDrop, ItemEntity.PICKUP_DELAY_DROP_TICKS);
+            return;
+        }
+        // The nether wart's support rule (the planting-arms pass —
+        // NetherWartBlock.canSurvive lines 33-35 over PlantBlock's
+        // neighborChanged lines 40-43 -> canSurviveOrBreak lines 50-55):
+        // the cell below must be SOUL_SAND; the departure pops the block
+        // with its item, the drop the reference's own age band
+        // (NetherWartBlock.dropItems lines 49-63: age 3 -> 2 + nextInt(3),
+        // else exactly one).
+        if (type.identifier().value().startsWith("nether_wart_stage")) {
+            if (world.getBlock(position.offset(0, -1, 0)).identifier().value()
+                    .equals("soul_sand")) {
+                return; // supported
+            }
+            int age = type.identifier().value().charAt("nether_wart_stage".length()) - '0';
+            world.setBlock(position, world.airType());
+            itemEntities.spawnDropAtBlock(
+                    new Position(position.x(), position.y(), position.z()),
+                    ItemStack.of(net.zaminmc.torch.server.item.BuiltinItems.NETHER_WART,
+                            age >= 3 ? 2 + random.nextInt(3) : 1),
+                    ItemEntity.PICKUP_DELAY_DROP_TICKS);
             return;
         }
         // The double-plant family's support rules (Slice 45 —

@@ -2081,12 +2081,23 @@ public final class EngineServer implements Server, EngineBridge {
                 // rolls, the reference's own breakLeaves shape.
                 randomTicks.setLeafDecayDrops(itemEntities,
                         new DropService(new java.util.Random(worldSeed ^ 0x1EAFDECAL)));
+<<<<<<< HEAD
                 // The farmland's rain read (the farmland state pass —
                 // FarmlandBlock.tick line 47's world.isRaining(pos.up())):
                 // the engine's weather sits on the server, the consult
                 // hoisted above so the mob view and the farmland share it.
                 randomTicks.setRainRead(position -> rainAtInWorld(
                         position.x(), position.y(), position.z()));
+=======
+                // The plant-pop seam (the farming growth pass + the
+                // planting-arms pass, the identical wiring both added —
+                // the hunks coalesced at the merge): the random-tick
+                // support consults' pops — the cane's water-loss pop, the
+                // cactus's new-cell pop, the nether wart's soul-sand pop — land
+                // through the engine's own item bodies, the same manager
+                // the neighbour bus's plant-pop arms use.
+                randomTicks.setPlantPopItems(itemEntities);
+>>>>>>> develop
                 // Projectiles (arrows, shards): the tick-thread physics system,
                 // with damage semantics staying here in the combat callbacks.
                 ProjectileManager projectiles = new ProjectileManager(
@@ -4207,21 +4218,46 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /**
-     * Sign placement (the historical ItemSign): the standing sign faces its
-     * placer (the opposite of the look direction, the 45-degree rotation
-     * band folded to the four cardinals), and the survival path consumes one
-     * item. Creative placements pass the client-claimed block like the
-     * generic path. Tick-thread context.
+     * Sign placement (the historical ItemSign — SignItem.useOn lines 19-54,
+     * the twelfth verifier pass's restoration): the reference's own gate
+     * ORDER — a bottom-face click refuses outright (lines 21-23); the
+     * CLICKED block's MATERIAL must be solid (lines 25-27 — Material.isSolid
+     * via MaterialSolidity, not the collision model: a torch, a wire, tall
+     * grass or a lily pad refuses the click, while the sign's own WOOD
+     * material lets a sign stack on a sign); the cactus-neighbour gate
+     * (SignBlock.canBePlaced lines 82-84 over BlockWithBlockEntity lines
+     * 22-31 — the FOUR horizontal neighbours of the target consult for a
+     * cactus, the placement that would break the cactus's own law refused);
+     * NO body-collision consult (the sign's collision shape is null and the
+     * reference's item walk carries no entity gate — a sign plants into the
+     * placer's own cell, StandingSignBlock.getCollisionShape returning
+     * null); the standing sign carries SIXTEEN rotations (line 44's
+     * {@code floor((yaw + 180) * 16 / 360 + 0.5) & 15} — the +180 the sign
+     * faces its placer, 22.5 degrees a step, the skull floor mount's own
+     * 16-step precedent + the shift); the side-face arm hangs a wall sign
+     * facing away from the wall (FACING = the clicked face, lines 46-47,
+     * metadata 2-5); the survival decrement after the block lands (line
+     * 49); the editor open for the placing player alone (lines 50-53 over
+     * ServerPlayerEntity lines 547-550). Tick-thread context.
      */
     private void placeSignOnTick(PlayerSession session, BlockPosition clicked, int face,
                                  java.util.Optional<BlockType> creativeHeld) {
-        BlockPosition target = offsetByFace(clicked, face);
-        if (target == null || world.getBlock(clicked).equals(world.airType())
-                || !canOccupyForPlacement(target)) {
-            return; // the generic placement gates (bad face / clicked air / occupied)
+        if (face == 0) {
+            return; // the reference's own first gate (lines 21-23): a bottom click places nothing
         }
-        if (intersectsPlayerBox(session.position(), target)) {
-            return; // the vanilla body rule (the reference's own entity collision check)
+        BlockPosition target = offsetByFace(clicked, face);
+        if (target == null) {
+            return; // the generic placement gate (bad face)
+        }
+        if (!net.zaminmc.torch.server.block.MaterialSolidity.isSolid(
+                world.getBlock(clicked).identifier())) {
+            return; // the clicked-material gate (lines 25-27): the clicked cell must be material-solid
+        }
+        if (!canOccupyForPlacement(target)) {
+            return; // canBePlaced's replaceable half (Block lines 664-666)
+        }
+        if (isNeighboringCactus(target)) {
+            return; // SignBlock.canBePlaced's cactus arm (lines 82-84): no sign beside a cactus
         }
         if (creativeHeld.isEmpty()
                 && session.gamemode() != GameMode.CREATIVE
@@ -4246,16 +4282,32 @@ public final class EngineServer implements Server, EngineBridge {
             openSignEditorOnPlacement(session, target);
             return;
         }
-        // Standing facing: the sign fronts the placer. Yaw 0 = south (+Z),
-        // the sign north; the cardinals at 90-degree bands, metadata 0/4/8/12.
-        double yaw = ((session.rotation().yaw() % 360.0) + 360.0 + 45.0) % 360.0;
-        int oppositeBand = (int) (yaw / 90.0) % 4; // 0=S,1=W,2=N,3=E of the LOOK
-        BlockType[] facings = {
-                BuiltinBlocks.SIGN_NORTH,   // looking south: sign faces north
-                BuiltinBlocks.SIGN_EAST,    // looking west: sign faces east
-                BuiltinBlocks.SIGN_SOUTH,   // looking north: sign faces south
-                BuiltinBlocks.SIGN_WEST};   // looking east: sign faces west
-        world.setBlock(target, facings[oppositeBand]);
+        // The standing sign's rotation (SignItem line 44): the 16-step band
+        // with the 180-degree shift — the sign faces its placer. Yaw 0 (a
+        // south look) lands rotation 8 (north), yaw 22.5 lands 9, yaw 45
+        // lands 10 — every 22.5-degree step its own state, where the
+        // pre-audit engine folded the sixteen to the four cardinals and
+        // every diagonal look rendered the sign at the wrong angle.
+        int rotation = (int) Math.floor(
+                (session.rotation().yaw() + 180.0f) * 16.0f / 360.0f + 0.5f) & 15;
+        BlockType[] rotations = {
+                BuiltinBlocks.SIGN_SOUTH,  // 0:  facing south
+                BuiltinBlocks.SIGN_SSW,    // 1
+                BuiltinBlocks.SIGN_SW,     // 2
+                BuiltinBlocks.SIGN_WSW,    // 3
+                BuiltinBlocks.SIGN_WEST,   // 4:  facing west
+                BuiltinBlocks.SIGN_WNW,    // 5
+                BuiltinBlocks.SIGN_NW,     // 6
+                BuiltinBlocks.SIGN_NNW,    // 7
+                BuiltinBlocks.SIGN_NORTH,  // 8:  facing north (a south look)
+                BuiltinBlocks.SIGN_NNE,    // 9
+                BuiltinBlocks.SIGN_NE,     // 10
+                BuiltinBlocks.SIGN_ENE,    // 11
+                BuiltinBlocks.SIGN_EAST,   // 12: facing east (a west look)
+                BuiltinBlocks.SIGN_ESE,    // 13
+                BuiltinBlocks.SIGN_SE,     // 14
+                BuiltinBlocks.SIGN_SSE};  // 15
+        world.setBlock(target, rotations[rotation]);
         if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE) {
             session.inventory().consumeHeld(1);
             publishInventoryChanged(session);
@@ -4264,29 +4316,63 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /**
-     * Banner placement (BannerItem.useOn, the sign family's twin): DOWN
-     * refuses (line 29), a top-face use plants the standing banner with the
-     * reference's own rotation formula (lines 50-52 — floor((yaw + 180) *
-     * 16 / 360 + 0.5) & 15, the engine's sign model keeping the four
-     * cardinals), a side-face use hangs the wall banner facing away from
-     * the wall (the metadata 2-5 band). The tile takes the stack's base
-     * through the banner's own set() (lines 58-61 — the BlockEntityTag's
-     * Patterns copy + Base row, the stack's damage the fallback). The
-     * survival path consumes one item; the stack's own metadata reads
-     * BEFORE the consumption. Tick-thread context.
+     * The cactus-neighbour consult (BlockWithBlockEntity lines 22-31): the
+     * FOUR horizontal neighbours of the cell, each read for the cactus —
+     * SignBlock.canBePlaced's own arm, the placement beside a cactus
+     * refused (the cactus's own law would break at the neighbour update).
+     */
+    private boolean isNeighboringCactus(BlockPosition pos) {
+        return world.getBlock(pos.offset(0, 0, -1)).identifier()
+                       .equals(BuiltinBlocks.CACTUS.identifier())
+               || world.getBlock(pos.offset(0, 0, 1)).identifier()
+                       .equals(BuiltinBlocks.CACTUS.identifier())
+               || world.getBlock(pos.offset(-1, 0, 0)).identifier()
+                       .equals(BuiltinBlocks.CACTUS.identifier())
+               || world.getBlock(pos.offset(1, 0, 0)).identifier()
+                       .equals(BuiltinBlocks.CACTUS.identifier());
+    }
+
+    /**
+     * Banner placement (BannerItem.useOn lines 28-64, the sign family's
+     * twin — the twelfth-pass treatment the sign restoration carried
+     * across): the reference's own gate ORDER — a bottom-face click
+     * refuses outright (lines 29-31); the CLICKED block's MATERIAL must be
+     * solid (lines 33-35 — Material.isSolid via MaterialSolidity, not the
+     * collision model: a torch, a wire, tall grass or a lily pad refuses
+     * the click, while the banner's own WOOD material lets a banner stack
+     * on a banner and a sign); the cactus-neighbour gate
+     * (BannerBlock.canBePlaced, the same isNeighboringCactus arm the sign
+     * carries — the placement beside a cactus refused); NO body-collision
+     * consult (the banner's collision shape is null, BannerBlock lines
+     * 32-35, and the reference's item walk carries no entity gate — a
+     * banner plants into the placer's own cell); a top-face use plants the
+     * standing banner with the reference's own SIXTEEN-rotation formula
+     * (lines 50-52 — floor((yaw + 180) * 16 / 360 + 0.5) & 15, every
+     * 22.5-degree step its own state), a side-face use hangs the wall
+     * banner facing away from the wall (the metadata 2-5 band). The tile
+     * takes the stack's base through the banner's own set() (lines 58-61 —
+     * the BlockEntityTag's Patterns copy + Base row, the stack's damage
+     * the fallback). The survival path consumes one item; the stack's own
+     * metadata reads BEFORE the consumption. Tick-thread context.
      */
     private void placeBannerOnTick(PlayerSession session, BlockPosition clicked, int face,
                                    java.util.Optional<BlockType> creativeHeld) {
         if (face == 0) {
-            return; // line 29: the DOWN face never plants a banner
+            return; // lines 29-31: the DOWN face never plants a banner
         }
         BlockPosition target = offsetByFace(clicked, face);
-        if (target == null || world.getBlock(clicked).equals(world.airType())
-                || !canOccupyForPlacement(target)) {
-            return; // the generic placement gates (bad face / clicked air / occupied)
+        if (target == null) {
+            return; // the generic placement gate (bad face)
         }
-        if (intersectsPlayerBox(session.position(), target)) {
-            return; // the vanilla body rule (the reference's own entity collision check)
+        if (!net.zaminmc.torch.server.block.MaterialSolidity.isSolid(
+                world.getBlock(clicked).identifier())) {
+            return; // the clicked-material gate (lines 33-35): the clicked cell must be material-solid
+        }
+        if (!canOccupyForPlacement(target)) {
+            return; // canBePlaced's replaceable half (Block lines 664-666)
+        }
+        if (isNeighboringCactus(target)) {
+            return; // BannerBlock.canBePlaced's cactus arm: no banner beside a cactus
         }
         net.zaminmc.torch.item.ItemStack held = session.inventory().held();
         if (creativeHeld.isEmpty()
@@ -4306,8 +4392,8 @@ public final class EngineServer implements Server, EngineBridge {
             world.setBlock(target,
                     net.zaminmc.torch.server.block.BannerBlocks.wallFor(face));
         } else {
-            // Lines 50-52: the standing rotation formula, the engine's
-            // sign model flattening the 0-15 band to the cardinals.
+            // Lines 50-52: the standing rotation formula, the reference's
+            // 0-15 band whole — every 22.5-degree step its own state.
             int rotation = (int) Math.floor(
                     (session.rotation().yaw() + 180.0f) * 16.0f / 360.0f + 0.5f) & 15;
             world.setBlock(target,
@@ -11530,7 +11616,7 @@ public final class EngineServer implements Server, EngineBridge {
                 || net.zaminmc.torch.server.block.RailBlocks.isRailItem(heldId)
                 || creativeHeld.map(t -> WorldSolidity.isRail(t.identifier())).orElse(false)) {
             placeRailOnTick(session, clicked, face, creativeHeld);
-            return; // the rail's look orientation overrides the generic placement
+            return; // the default placement + the connection walk overrides the generic seat
         }
         if (heldId.equals("minecraft:redstone")
                 || creativeHeld.map(t -> t.identifier().value().equals("redstone")).orElse(false)) {
@@ -13380,14 +13466,29 @@ public final class EngineServer implements Server, EngineBridge {
         String held = heldType.identifier().toString();
         if (held.endsWith("_hoe")) {
             BlockType soil = world.getBlock(clicked);
-            boolean tillable = soil.identifier().equals(BuiltinBlocks.GRASS_BLOCK.identifier())
-                    || soil.identifier().equals(BuiltinBlocks.DIRT.identifier());
-            if (!tillable || !world.getBlock(clicked.offset(0, 1, 0)).equals(world.airType())) {
+            // HoeItem.useOn lines 30-46: GRASS -> farmland, the DIRT
+            // variant DIRT -> farmland, and the COARSE_DIRT variant ->
+            // REGULAR DIRT (not farmland — the second click tills it);
+            // the face must not be DOWN and the cell above must be AIR.
+            Identifier soilId = soil.identifier();
+            boolean coarseDirt = soilId.value().equals("coarse_dirt");
+            boolean tillable = soilId.equals(BuiltinBlocks.GRASS_BLOCK.identifier())
+                    || soilId.equals(BuiltinBlocks.DIRT.identifier())
+                    || coarseDirt;
+            if (face == 0
+                    || !tillable || !world.getBlock(clicked.offset(0, 1, 0)).equals(world.airType())) {
                 return false; // nothing to till (or no headroom): the no-op
             }
-            world.setBlock(clicked, BuiltinBlocks.FARMLAND);
+            world.setBlock(clicked, coarseDirt
+                    ? BuiltinBlocks.DIRT : BuiltinBlocks.FARMLAND);
+            // tillBlock's own sound (HoeItem lines 51-58): the TILLED
+            // block's STEPPING sound (getStepping — farmland carries the
+            // grass family) at (volume + 1) / 2 and pitch * 0.8 — the
+            // grass family's 1.0 volume and 1.0 pitch give 1.0f / 0.8f
+            // (the dig.grass name the pre-fix engine carried is the
+            // breaking sound, a different 1.8.8 event than step.grass).
             fxManager.sound(new Position(clicked.x() + 0.5, clicked.y() + 0.5, clicked.z() + 0.5),
-                    "dig.grass", 0.8f, 1.0f);
+                    "step.grass", 1.0f, 0.8f);
             if (net.zaminmc.torch.server.item.Tools.specOf(heldType).isPresent()) {
                 session.inventory().damageHeld(1, gameplayRandom, session.stats());
                 publishInventoryChanged(session);
@@ -13396,6 +13497,12 @@ public final class EngineServer implements Server, EngineBridge {
         }
         if (held.equals("minecraft:wheat_seeds") || held.equals("minecraft:pumpkin_seeds")
                 || held.equals("minecraft:melon_seeds")) {
+            // WheatSeedsItem.useOn's own first gate: the face must be UP
+            // (a side click never plants — the use falls through to
+            // nothing, the seeds staying in hand).
+            if (face != 1) {
+                return false;
+            }
             BlockType soil = world.getBlock(clicked);
             boolean farmland = soil.identifier().equals(BuiltinBlocks.FARMLAND.identifier())
                     || soil.identifier().equals(BuiltinBlocks.FARMLAND_WET.identifier());
@@ -13411,8 +13518,53 @@ public final class EngineServer implements Server, EngineBridge {
                     : BuiltinBlocks.WHEAT_STAGE0;
             world.setBlock(clicked.offset(0, 1, 0), crop);
             session.inventory().consumeHeld(1);
-            fxManager.sound(new Position(clicked.x() + 0.5, clicked.y() + 1.5, clicked.z() + 0.5),
-                    "dig.grass", 0.6f, 1.1f);
+            // No sound: the reference's own seed planting is silent
+            // (WheatSeedsItem.useOn carries no playSound).
+            publishInventoryChanged(session);
+            return true;
+        }
+        // The carrot/potato planting (CropItem.useOn — Item.java lines
+        // 691-692 register the pair: the carrot CropItem(3, 0.6F,
+        // Blocks.CARROTS, Blocks.FARMLAND), the potato CropItem(1, 0.3F,
+        // Blocks.POTATOES, Blocks.FARMLAND)): the seed-food's own use —
+        // the face must be UP, the soil farmland with air above, the
+        // stage-0 crop planted and one spent, the eat path staying live
+        // when the use does not plant (the CropItem extends FoodItem:
+        // the refused use falls through to the food arm, exactly like
+        // the reference's own dispatch).
+        if (held.equals("minecraft:carrot") || held.equals("minecraft:potato")) {
+            if (face != 1) {
+                return false; // CropItem.useOn's own UP gate
+            }
+            BlockType soil = world.getBlock(clicked);
+            boolean farmland = soil.identifier().equals(BuiltinBlocks.FARMLAND.identifier())
+                    || soil.identifier().equals(BuiltinBlocks.FARMLAND_WET.identifier());
+            if (!farmland || !world.getBlock(clicked.offset(0, 1, 0)).equals(world.airType())) {
+                return false; // the eat arm owns the fall-through
+            }
+            BlockType crop = held.equals("minecraft:carrot")
+                    ? BuiltinBlocks.CARROTS_STAGE0 : BuiltinBlocks.POTATOES_STAGE0;
+            world.setBlock(clicked.offset(0, 1, 0), crop);
+            session.inventory().consumeHeld(1);
+            publishInventoryChanged(session);
+            return true;
+        }
+        // The nether wart planting (Item.java line 658: register(372,
+        // "nether_wart", new WheatSeedsItem(Blocks.NETHER_WART,
+        // Blocks.SOUL_SAND)) — the SAME seed law over SOUL_SAND): the
+        // UP face, the soul sand soil with air above, the stage-0 wart
+        // planted and one spent.
+        if (held.equals("minecraft:nether_wart")) {
+            if (face != 1) {
+                return false; // WheatSeedsItem.useOn's own UP gate
+            }
+            BlockType soil = world.getBlock(clicked);
+            if (!soil.identifier().value().equals("soul_sand")
+                    || !world.getBlock(clicked.offset(0, 1, 0)).equals(world.airType())) {
+                return false;
+            }
+            world.setBlock(clicked.offset(0, 1, 0), BuiltinBlocks.NETHER_WART_STAGE0);
+            session.inventory().consumeHeld(1);
             publishInventoryChanged(session);
             return true;
         }
@@ -14553,12 +14705,16 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /**
-     * The rail placement (the historical ItemRail): the flat orientation
-     * follows the placer's look (north-south or east-west), the cell must
-     * be open with a solid floor beneath (the vanilla rail gate —
-     * AbstractRailBlock.canBePlaced's World.hasSolidTop). The Slice 38
-     * trio families place their own state through the same walk.
-     * Tick-thread.
+     * The rail placement (the thirteenth verifier pass — the reference's
+     * own AbstractRailBlock.onAdded + RailBlock line 15, 1:1): the DEFAULT
+     * north-south state lands (the look NEVER consulted — the pre-audit
+     * engine's look band retired), the cell must carry a solid TOP
+     * beneath (canBePlaced lines 71-73 — the has-solid-top family, not
+     * the collision model), and onAdded's force walk (lines 76-83) then
+     * re-orients the landing to its neighbours with the reciprocation
+     * that bends the existing track; the alwaysStraight trio families
+     * close with the explicit neighborChanged supports consult. No
+     * entity gate anywhere (the collision-null law, B7). Tick-thread.
      */
     private void placeRailOnTick(PlayerSession session, BlockPosition clicked, int face,
                                  java.util.Optional<BlockType> creativeHeld) {
@@ -14567,29 +14723,51 @@ public final class EngineServer implements Server, EngineBridge {
                 || !canOccupyForPlacement(target)) {
             return;
         }
-        if (intersectsPlayerBox(session.position(), target)) {
-            return; // the vanilla body rule (the reference's own entity collision check)
-        }
+        // No body-collision gate: the reference's item walk consults the
+        // entity box only through canBlockBePlaced's COLLIDE flag, and the
+        // use path passes FALSE — the rail's own collision shape is null
+        // (AbstractRailBlock lines 38-41), a vanilla rail plants under the
+        // placer's feet (the thirteenth pass's B7, the sign pass's F7
+        // precedent).
         if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE
                 && session.inventory().held().isEmpty()) {
             return;
         }
-        BlockType floor = world.getBlock(target.offset(0, -1, 0));
-        if (!WorldSolidity.isSolid(floor)) {
-            return; // the rail needs its solid bed (the vanilla gate)
+        if (!net.zaminmc.torch.server.block.FireBlocks
+                .hasSolidTop(world, target.offset(0, -1, 0))) {
+            return; // canBePlaced (lines 71-73): the has-solid-top family,
+                    // not the collision model — a bottom slab, a fence, a
+                    // wall or the thin snow is not a rail bed
         }
-        double yaw = ((session.rotation().yaw() % 360.0) + 360.0 + 45.0) % 360.0;
-        int lookBand = (int) (yaw / 90.0) % 4; // 0=S,1=W,2=N,3=E
-        // The look along an axis lays the track along it: S/N -> north-south.
-        boolean northSouth = lookBand == 0 || lookBand == 2;
+        // The DEFAULT state lands (RailBlock line 15 / PoweredRailBlock
+        // line 29: NORTH_SOUTH — the look is never consulted anywhere in
+        // the family; the pre-audit engine's look band retired by the
+        // thirteenth pass), then onAdded's force walk (lines 76-78)
+        // re-orients the landing to its neighbours — and the existing
+        // rails bend to meet it through the walk's own reciprocation.
         String held = heldIdentifierOf(session, creativeHeld);
         String railFamily = net.zaminmc.torch.server.block.RailBlocks.isRailItem(held)
                 ? (held.contains(":") ? held.substring(held.indexOf(':') + 1) : held) : null;
-        if (railFamily != null) {
-            world.setBlock(target, net.zaminmc.torch.server.block.RailBlocks
-                    .placementState(railFamily, !northSouth));
-        } else {
-            world.setBlock(target, northSouth ? BuiltinBlocks.RAIL : BuiltinBlocks.RAIL_EW);
+        world.setBlock(target, railFamily != null
+                ? net.zaminmc.torch.server.block.RailBlocks.defaultState(railFamily)
+                : BuiltinBlocks.RAIL);
+        net.zaminmc.torch.server.block.RailConnections.updateShape(world, target, true);
+        if (net.zaminmc.torch.server.block.RailBlocks.alwaysStraightOf(world.getBlock(target))) {
+            // The alwaysStraight families' own explicit neighborChanged
+            // (onAdded lines 79-81): the walk may lift the landing into an
+            // ASCENDING shape whose run cell carries no solid top — the
+            // pop drops the family item (neighborChanged's dropItems +
+            // removeBlock, lines 104-106).
+            BlockType placed = world.getBlock(target);
+            if (!net.zaminmc.torch.server.block.RailConnections.survivesAt(world, target)) {
+                world.setBlock(target, world.airType());
+                itemEntities.spawnDropAtBlock(
+                        new Position(target.x(), target.y(), target.z()),
+                        ItemStack.of(BuiltinItems.lookup(
+                                net.zaminmc.torch.server.block.RailBlocks.familyItemOf(placed))
+                                .orElseThrow(), 1),
+                        ItemEntity.PICKUP_DELAY_DROP_TICKS);
+            }
         }
         consumePlaced(session, creativeHeld);
     }
