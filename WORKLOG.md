@@ -18096,3 +18096,27 @@ BannerItem.java, and the engine's sign placement this session.
   passing); the regression lanes 256/0 over three batches. The ledgers:
   the Wave SG row, the section 22 statement, the compat file's three
   drift rows re-pinned.
+- The session's second half: PR #72 (the verifier's fifteenth pass, B3 —
+  the lit ore's silk drop) arrived minutes after the Wave SG landing
+  carried the same fix; the review verified the reference independently,
+  found the wave's landing had broken the silk lane's stale seat (the
+  pre-fix empty drop pinned by redstoneOreSilkAnswersTheOreAndTheLitFormNothing
+  — a lane the wave's regression batches missed), merged the PR's seat
+  repair via the house pattern (the DropService comment conflict resolved
+  to the PR's correct 134-137 citation; the merged tree 27/0) at
+  6b22af1b. The fifteenth pass's findings doc adjudicated against the
+  reference: the wave's arms confirmed by its V-records; ITS B2 CLAIM
+  (the interact burst is a server broadcast) REJECTED — the dedicated
+  server's ServerWorldEventListener.addParticle is an EMPTY STUB (the
+  same listener's playSound/notifyBlockChanged DO send packets — the
+  stub is deliberate; the burst is the client's own prediction, nothing
+  owed 1:1); the adjudication recorded in the architecture's §22 for
+  the incoming B2 PR's review. The next waves' demand-named queue
+  recorded: the ITEM and ORB bodies' arms (bounce/damping/ore-lighting
+  — makesSteps defaults true for both; the item's Ground lacks
+  blockIdAt, the default-method extension is the seam) + the
+  F-candidates (F-FRICTION the slipperiness consult — the loudest,
+  mobs/items/orbs hardcode 0.6 where the reference reads the block's
+  own slipperiness; F-RIDER-SPARE the vehicle landing's rider delegate;
+  F-DUST the landing-dust burst; F-ITEMSTEP the non-mob step sounds;
+  F-VINE the vine family's own pass).
