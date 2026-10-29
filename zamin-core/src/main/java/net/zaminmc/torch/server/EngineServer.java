@@ -6361,8 +6361,14 @@ public final class EngineServer implements Server, EngineBridge {
      * verification move), so the consult rides the player tick instead:
      * the same -0.2 cell read, gated exactly like the reference's own
      * band — {@code onGround} (the landing body), {@code !sneaking}
-     * (the step arm's {@code !flag} skip), and no vehicle (a riding
-     * body's mount carries the step; the rider sends no moves). The
+     * (the step arm's {@code !flag} skip), no vehicle (a riding
+     * body's mount carries the step; the rider sends no moves), and
+     * NOT FLYING: the player's own {@code makesSteps()} override is
+     * {@code !this.abilities.flying} (PlayerEntity lines 1568-1570) —
+     * a creative body flying at ground contact never enters the
+     * steps band, whatever its feet touch. The engine reads the
+     * client's reported abilities bit (the 0x13 packet's own flag).
+     * The
      * swap is idempotent (the LIT form never re-swaps — interact's
      * {@code this == REDSTONE_ORE} gate), so the per-tick cadence
      * matches the per-packet band's observable outcome. The slime
@@ -6376,7 +6382,7 @@ public final class EngineServer implements Server, EngineBridge {
      */
     private void tickStepOn(PlayerSession session) {
         if (!session.onGround() || session.sneaking()
-                || session.ridingAny()) {
+                || session.ridingAny() || session.flying()) {
             return;
         }
         // The -0.2 feet cell (Entity.move lines 568-573) with the
