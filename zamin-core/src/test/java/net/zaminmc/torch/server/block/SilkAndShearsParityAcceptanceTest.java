@@ -26,11 +26,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  *     the clay's four balls, the snow block's four snowballs, the
  *     mycelium's dirt, the quartz ore's gem. The pre-fix walk answered
  *     the by-hand drops under silk for every one of them.</li>
- * <li>The lit redstone ore's own quirk: {@code Item.byBlock(LIT_REDSTONE_ORE)}
- *     resolves NULL (no item is registered for the lit block), so the
- *     reference's silk stack is empty — a silk break of the LIT form (the
- *     one the dig-start light swap actually leaves under the pickaxe)
- *     answers NOTHING. The pre-fix walk answered the dust band.</li>
+ * <li>The redstone ore's own silk override: {@code getSilkTouchDrop}
+ *     (RedstoneOreBlock lines 134-137) answers
+ *     {@code new ItemStack(Blocks.REDSTONE_ORE)} — the PLAIN ORE's item
+ *     — for BOTH forms, so a silk break of the LIT form (the one the
+ *     dig-start light swap actually leaves under the pickaxe) answers
+ *     the ORE, never nothing. The pre-fix walk answered NOTHING for the
+ *     lit form (the default {@code Item.byBlock} walk's null, read
+ *     without the override).</li>
  * <li>PaneBlock line 144 and StainedGlassBlock line 55 override the silk
  *     gate TRUE (the non-cube override): the plain pane takes itself, the
  *     stained pair take the FAMILY item with the COLOR in the damage
@@ -107,14 +110,20 @@ class SilkAndShearsParityAcceptanceTest {
     }
 
     @Test
-    void redstoneOreSilkAnswersTheOreAndTheLitFormNothing() {
-        // The unlit form's silk gate is the default cube gate: the ORE
-        // itself. The LIT form's own quirk: no item is registered for the
-        // lit block, so the reference's silk stack is EMPTY — and the
-        // dig-start light swap means the lit form is the one actually
-        // broken under a silk pickaxe. The pre-fix walk answered the
-        // dust band for both. (The ore is pickaxe-gated: the held tool
-        // rides the walk like the reference's own afterMinedByPlayer.)
+    void redstoneOreSilkAnswersTheOreForBothForms() {
+        // The class's OWN silk override (RedstoneOreBlock.getSilkTouchDrop
+        // lines 134-137): {@code new ItemStack(Blocks.REDSTONE_ORE)} — the
+        // PLAIN ORE's registered item, answered for BOTH forms (the
+        // override rides the class, and the dig-start light swap means
+        // the lit form is the one actually broken under a silk pickaxe:
+        // silk-touching a redstone ore returns the ORE, never nothing).
+        // The pre-fix walk answered NOTHING for the lit form — the
+        // audit that pinned the empty list had read the DEFAULT
+        // Item.byBlock walk ({@code Item.byBlock(LIT)} → null, no item
+        // registered for the lit block) and never saw the override; a
+        // silk pick lost the block ENTIRELY. (The ore is pickaxe-gated:
+        // the held tool rides the walk like the reference's own
+        // afterMinedByPlayer.)
         DropService drops = new DropService(new Random(0xED5L));
         List<ItemStack> unlitSilk = drops.dropsFor(
                 block("minecraft:redstone_ore"), BuiltinItems.DIAMOND_PICKAXE, true, 0);
@@ -123,7 +132,11 @@ class SilkAndShearsParityAcceptanceTest {
                 unlitSilk.get(0).type().identifier().toString());
         List<ItemStack> litSilk = drops.dropsFor(
                 block("minecraft:lit_redstone_ore"), BuiltinItems.DIAMOND_PICKAXE, true, 0);
-        assertTrue(litSilk.isEmpty(), "the lit form answers nothing under silk");
+        assertEquals(1, litSilk.size(),
+                "the lit form's silk answers the plain ore item");
+        assertEquals("minecraft:redstone_ore",
+                litSilk.get(0).type().identifier().toString());
+        assertEquals(1, litSilk.get(0).count());
         for (int i = 0; i < 256; i++) {
             List<ItemStack> litHand = drops.dropsFor(
                     block("minecraft:lit_redstone_ore"), BuiltinItems.DIAMOND_PICKAXE, false, 0);

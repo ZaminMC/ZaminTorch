@@ -568,15 +568,22 @@ public final class DropService {
         // the OreBlock multiplier shape, never a multiple.
         if (broken.identifier().value().equals("redstone_ore")
                 || broken.identifier().value().equals("lit_redstone_ore")) {
-            // The silk arm (RedstoneOreBlock.getSilkTouchDrop lines 95-97):
-            // the EXPLICIT override returns the ORE ITSELF for BOTH forms
-            // — the base class's Item.byBlock(this) null (no item is
-            // registered for the lit block) never rides this family. The
-            // dig-start light swap (the reference's own startMining arm)
-            // means the LIT form is the one a silk dig actually breaks —
-            // the pre-fix arm's empty stack starved every silk harvest of
-            // the ore (the unlit form only escaped through the generic
-            // silk set's own row above).
+            // The silk consult — the CLASS'S OWN OVERRIDE (RedstoneOreBlock
+            // .getSilkTouchDrop lines 134-137): the ore is the one family
+            // that does not walk the default {@code Item.byBlock(this)}
+            // consult at all — the override answers
+            // {@code new ItemStack(Blocks.REDSTONE_ORE)}, the PLAIN ORE's
+            // registered item, for BOTH forms (the override rides the
+            // class, and the dig-start light swap — the reference's own
+            // startMining arm — means the LIT form is the one every
+            // survival silk break sees: silk-touching a redstone ore
+            // returns the ORE, never nothing). The pre-fix arm's comment
+            // read the DEFAULT walk ({@code Item.byBlock(LIT)} → null, no
+            // item registered for the lit block) and never saw the
+            // override — a silk pick lost the block ENTIRELY. The UNLIT
+            // form never reaches this arm with silk: the silk set's own
+            // row (the general arm above, the override's twin) takes the
+            // ore itself first.
             if (silkTouch) {
                 ItemType ore = BuiltinItems.lookup(
                         Identifier.parse("minecraft:redstone_ore")).orElseThrow();
