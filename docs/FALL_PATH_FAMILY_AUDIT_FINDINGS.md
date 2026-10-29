@@ -337,10 +337,12 @@ Mobs never sneak — the reference's isSneaking() is false for every mob.
   161-179: the > 3-block landing broadcasts the BLOCK_DUST count
   `150 * min(0.2 + (dist-3)/15, 10)` — a server-side particle family
   the engine has not modeled (the blockShatter seam exists for it).
-- **F-ITEMSTEP: the non-mob bodies' step sounds.** The reference's
-  steps band plays the ground's stepping sound for ITEM bodies too
-  (EntityItem rides Entity.move whole); the engine's ItemEntity.tick
-  has no sound arm. A quiet-family row.
+- **F-ITEMSTEP: the non-mob bodies' step sounds — REJECTED WITH THE
+  PASS (the re-adjudication below, §H/3):** `ItemEntity.makesSteps()`
+  (lines 44-46) and `ExperienceOrbEntity.makesSteps()` (lines 32-34)
+  are FALSE — items and orbs never enter the steps band at all, no
+  step sounds, no ore lighting, no damping. The row's premise ('items
+  ride Entity.move whole') missed the makesSteps overrides.
 - **F-VINE (carried from the fourteenth pass §F): the vine family's
   own pass** — the 1-in-4 spread walk, the no-connections drop, the
   (106, 1..14) import isolation.
@@ -348,18 +350,147 @@ Mobs never sneak — the reference's isSneaking() is false for every mob.
   note) is pinned INSIDE this pass's fix as a faithful edge, not a
   candidate.
 
-## G. The closure ledger (updated by the fix commits)
+## G. The closure ledger (updated by the fix commits, RE-ADJUDICATED in §H)
 
 | ID | Status | Closed by |
 |----|--------|-----------|
-| A1 | confirmed (V1+V2 done; V3 = the fix branch's stash run) | the slime PR (in flight) |
-| A2 | confirmed (V1+V2 done; V3 = the fix branch's stash run) | the slime PR (in flight) |
-| A3 | confirmed (V1+V2 done; V3 = the fix branch's stash run) | the slime PR (in flight) |
-| B1 | CLOSED by PR #73 (stash-verified 4/5 failing on the pre-fix tree) | fix/redstone-ore-glow-parity-audit |
-| B2 | CLOSED by PR #73 (the six-pass band + the d2 < 0.0 quirk pinned by the seats) | fix/redstone-ore-glow-parity-audit |
+| A1 | CLOSED by Wave SG 5429b60b (the soft landing, the sneak gate) | develop |
+| A2 | CLOSED for mobs/vehicles by Wave SG 5429b60b (the bounce; the cart twin); items/orbs REJECTED in §H/4 (the -0.5/-0.9 ground negations shadow the flip) | develop |
+| A3 | CLOSED for mobs by Wave SG 5429b60b (the damping inside stepSoundWalk); items/orbs REJECTED in §H/4 (makesSteps false) | develop |
+| B1 | CLOSED-REDUCED: the mob/player arms landed by Wave SG 5429b60b; the item/orb extension REJECTED in §H/3 (makesSteps false for both); the gate's own gaps CLOSED by PR #74 (the squid colliding move + the mob gate) and PR #75 (the flying player) | develop + PR #74/#75 |
+| B2 | REJECTED — see §H/2 (the empty-stub chain); PR #73 CLOSED unmerged with the evidence | — |
 | B3 | CLOSED by PR #72 (stash-verified failing on the pre-fix tree) | fix/lit-ore-silk-drop-parity-audit |
-| A4/F-FRICTION | suspected (V1 evidence; the family broader than this pass) | a future pass |
+| A4/F-FRICTION | suspected (V1 evidence; the family broader than this pass) — the next pass's loudest candidate | a future pass |
 | F-RIDER-SPARE | suspected | a future pass |
 | F-DUST | suspected | a future pass |
-| F-ITEMSTEP | suspected | a future pass |
+| F-ITEMSTEP | REJECTED in §H/3 (makesSteps false for items/orbs) | — |
 | F-VINE | suspected (the fourteenth pass's own record) | a future pass |
+| F-SQUID-WALK | CLOSED by PR #74 (the colliding move restored; the phasing repaired) | fix/step-band-gate-parity-audit |
+| F-FLY-GATE | CLOSED by PR #75 (the flying player never enters the band) | fix/flying-step-gate-parity-audit |
+| F-ORB-GLUE | suspected (§H/4 — the narrow surviving observable) | a future pass |
+| F-BAT-WALK | suspected (§H/5 — the bat's flight still integrates raw) | a future pass |
+| F-GUARDIAN-WALK | suspected (§H/5 — the same moveRelative family) | a future pass |
+| F-SQUID-LANDING | suspected (§H/6 — the landing consult arms absent) | a future pass |
+| F-STEPHEIGHT | suspected (§H/7 — LivingEntity 0.6 vs the engine's 0.5) | a future pass |
+
+## H. The re-adjudication (the pass's own claims against the reference — the
+## session after the PR #73 opening)
+
+The fifteenth pass's §B1/§B2 claims, the §A item/orb arms, and the
+§22 queue's item/orb slice were re-verified against the reference
+from cold, three independent reads each. Four claims of this pass
+were DISPROVEN by its own reference; the corrections follow.
+
+### H1. B2 REJECTED — the interact spark burst is NOT a server broadcast
+
+The reference chain, end to end: `RedstoneOreBlock.addParticles`
+line 129 calls the 7-double-arg `World.addParticle(ParticleType,
+double x6, int...)` (World.java:796) → the private dispatch
+(World.java:806-812) over `eventListeners` ALONE — and the dedicated
+server's listener is `ServerWorldEventListener`, whose `addParticle`
+override (lines 23-26) is an EMPTY STUB, while its `playSound`/
+`doEvent`/`notifyBlockChanged` DO send packets. The broadcasting form
+`ServerWorld.addParticle` (ServerWorld.java:899-932, the
+`ParticleS2CPacket` + the 256-radius walk) has a DIFFERENT SIGNATURE
+(the `count` + `velocityScale` parameters); blocks hold a `World`
+reference and the 7-double form can never resolve to it.
+Singleplayer's visible burst rides the integrated server's
+client-bridge listener — a dedicated server lacks it. NOTHING is
+owed 1:1. The pass's '0x2A wire over the six-pass band' ports a packet
+vanilla's dedicated server never sends. PR #73 closed unmerged with
+this evidence (the comment of record).
+
+### H2. The makeSteps law re-read — five mob kinds, not three; items
+### and orbs NEVER ride the band
+
+`Entity.makesSteps()` defaults TRUE (line 715). The overrides to
+FALSE: the guardian (229), the endermite (51), the silverfish (57),
+the BAT (BatEntity 144-146), and the SQUID (SquidEntity 73-75) — the
+engine's gate carried three. The bodies this pass claimed as band
+riders are NOT: `ItemEntity.makesSteps()` (44-46) and
+`ExperienceOrbEntity.makesSteps()` (32-34) are FALSE, as are the
+arrow (444), the falling block (53), the ender crystal (29), the TNT
+(37), the boat (41), and the minecart (82).
+
+### H3. B1's item/orb extension REJECTED — and the seats that pinned it
+
+The claim 'items and XP orbs light the ore by standing on it' is
+contradicted by the makesSteps law above: items and orbs never enter
+the steps band, never trigger `onSteppedOn`, never light redstone
+ore, never take the slime damping, never make step sounds. PR #73's
+item/orb arms and its 'the item's rest' / 'the orb's rest' seats
+encoded a law vanilla contradicts — the stash probe passed 4/5 over
+the pre-fix tree only because the seats asserted the WRONG law. The
+lesson, recorded: a probe verifies only the law it is told to assert;
+the reference read is the authority, not the seat's green.
+
+### H4. §A's item/orb bounce arms RE-ADJUDICATED — the flip is shadowed
+
+The reference's own friction chains negate the slime flip every
+tick: the item's `if (onGround) velocityY *= -0.5` (ItemEntity
+96-104, after the x0.98) and the orb's `*= -0.9` (ExperienceOrbEntity
+116-130). The post-tick velocityY stays NEGATIVE on slime (the
+item's steady state ~-0.0384, the orb's ~-0.224) and the POSITION
+NEVER RISES — the §A 'resting micro-hop cycle' was a mis-prediction;
+no visible hop exists for items in 1.8.8, and the engine's flat rest
+is CORRECT. The sole surviving observable, narrow: the ORB's glue
+delay — the negative internal state swallows the +0.1 attraction for
+~3-5 ticks before the orb lifts off slime toward a collecting player
+(the engine lifts instantly). Recorded as F-ORB-GLUE (narrow; needs
+its own three-pass verification before any fix).
+
+### H5. The NEW find the re-adjudication uncovered — the squid phasing (CLOSED by PR #74)
+
+The seat that disproved H3 timed out: the squid spawned over a
+redstone-ore floor never grounded. The reference's
+`SquidEntity.moveRelative` override (lines 154-157) is the FULL
+COLLIDING `this.move(vX, vY, vZ)` — the reference's own Entity.move
+with the clip and the steps band — but the engine's Slice 16e read
+it as RAW POSITION INTEGRATION (`position += velocity; onGround =
+false`): every squid in ZaminTorch PHASED THROUGH BLOCKS (a stranded
+squid sank out of the world; a swimmer crossed aquarium glass). The
+squid now rides the swept solver with the steps band over the
+applied move, the makesSteps gate completed (the squid AND the bat —
+the bat currently unreachable, see F-BAT-WALK), the stub worlds keep
+the legacy raw fallback (the walker's own shape). Stash-verified:
+the grounding await fails over the pre-fix tree. The GUARDIAN carries
+the same engine pattern ('owns the whole integration, no walk') where
+the reference's moveRelative rides the colliding move in water and
+the super's walk on land (GuardianEntity 441-458) — recorded as
+F-GUARDIAN-WALK for its own pass. The BAT likewise
+('no gravity, no walk' where the reference bat rides the standard
+chain) — F-BAT-WALK.
+
+### H6. The flying-player gate (CLOSED by PR #75)
+
+The landed tickStepOn review: the reference's player overrides
+makesSteps with `!this.abilities.flying` (PlayerEntity 1568-1570) — a
+creative body flying at ground contact never enters the band, never
+lights the ore. The engine's consult carried only the
+onGround/sneak/vehicle gates; the client's reported abilities bit
+(PlayerSession.flying, the 0x13 packet's own flag) joins them.
+Stash-verified: 'expected redstone_ore but was lit_redstone_ore'
+over the pre-fix tree.
+
+### H7. Follow-ups recorded
+
+- **F-SQUID-LANDING:** the walk adoption covers the clip + the steps
+  band; the reference's move also carries checkFallDamage (the
+  squid's landing consult — the trample, the slime soft-landing, the
+  fall damage) — needs its own pass.
+- **F-STEPHEIGHT:** LivingEntity sets stepHeight 0.6 (line 143); the
+  engine's walkers carry 0.5 (WALK_STEP_HEIGHT) — a family-wide
+  candidate.
+- **THE PRE-EXISTING RED ON DEVELOP** (flagged for the next wave's
+  review, nothing to do with the PR #74/#75 diffs): MobSolverWalkTest
+  7/7, SpiderWallClimbTest 3/4, VillageReturnWalkTest 4/5 fail
+  IDENTICALLY on the pristine develop tree (verified by stash before
+  either branch's first line) — a landing between 5429b60b and now
+  broke the walker lanes.
+- **F-FRICTION remains the loudest queued candidate** (the
+  slipperiness consult: the mobs/items/orbs hardcode 0.6 where the
+  reference reads the block's own slipperiness — the item's ground
+  band `slipperiness * 0.98` (ItemEntity 96-101), the orb's (116-124),
+  the mob travel's `slipperiness * 0.91` family) — the next pass's
+  own demand-named slice; the §22 item/orb 'bounce/damping/lighting'
+  arms are NOT owed (see H3/H4) and MUST NOT be implemented.
