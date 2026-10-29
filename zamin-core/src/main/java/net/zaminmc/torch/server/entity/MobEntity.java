@@ -353,6 +353,20 @@ public final class MobEntity implements LivingEntity {
         }
 
         /**
+         * The block slipperiness at the support cell (Wave IO-F — the
+         * F-FRICTION consult: the reference's moveRelative friction law,
+         * LivingEntity lines 1136-1161 and its second computation at the
+         * drag, reads {@code floor(x), floor(minY) - 1, floor(z)} — the
+         * cell BELOW the feet — and answers the block's own slipperiness
+         * (Block.java line 117's 0.6 common case, the ice family's 0.98,
+         * the pad's 0.8). The default answers the common case so stub
+         * worlds keep the pre-wave drag.
+         */
+        default double slipperinessBelow(double x, double feetY, double z) {
+            return 0.6;
+        }
+
+        /**
          * The {@code mobGriefing} rule's view (Slice 24a — the reference
          * reads it at the mob's own world: the enderman's carry pair, the
          * rabbit's garden raid, the farmland trample, the creeper's
@@ -5614,9 +5628,16 @@ public final class MobEntity implements LivingEntity {
         // y+0.2 point convention (the reference's box-grown read, the
         // standing named difference); the drag lands before the move like
         // the walker's F1 phase note.
+        // THE FRICTION CONSULT (Wave IO-F — FlyingMobEntity lines 36-49's
+        // own on-ground band: f = slipperiness * 0.91 when the body
+        // stands — a ghast knocked onto the floor drags at the support
+        // cell's own family, the same consult as the walker's; the air
+        // band stays the reference's 0.91 base).
         double ghastDrag;
         if (world.inFluid(position.x(), position.y() + 0.2, position.z())) {
             ghastDrag = world.inLava(position.x(), position.y() + 0.2, position.z()) ? 0.5 : 0.8;
+        } else if (onGround) {
+            ghastDrag = world.slipperinessBelow(position.x(), position.y(), position.z()) * 0.91;
         } else {
             ghastDrag = 0.91;
         }
@@ -8274,7 +8295,15 @@ public final class MobEntity implements LivingEntity {
         double radians = Math.toRadians(yaw);
         double moveX = velocityX - Math.sin(radians) * walk;
         double moveZ = velocityZ + Math.cos(radians) * walk;
-        double damping = inLava ? 0.5 : inFluid ? 0.8 : (onGround ? 0.6 : 0.98);
+        // THE FRICTION CONSULT (Wave IO-F — the F-FRICTION row, the same
+        // fix as the walker's own line: the ridden body's drag — the
+        // reference's PlayerControlGoal lines 79-84 reads the support
+        // cell's slipperiness * 0.91 on the ground, the air band the
+        // 0.91 base; the pre-fix engine carried the flat 0.6/0.98).
+        double damping = inLava ? 0.5 : inFluid ? 0.8
+                : (onGround
+                        ? world.slipperinessBelow(position.x(), position.y(), position.z()) * 0.91
+                        : 0.91);
         velocityX *= damping;
         velocityZ *= damping;
 
@@ -10740,7 +10769,14 @@ public final class MobEntity implements LivingEntity {
                 cell = under;
             }
         }
-        return cell.value().equals("slime_block");
+        // The null guard (the review fix this wave's regression surfaced —
+        // a latent Wave SG bug): the interface default answers null (the
+        // stub worlds that never override the consult), and the unguarded
+        // .value() NPE'd the whole solver walk the moment a stub body
+        // clipped vertically — MobSolverWalkTest had not run since Wave SG
+        // landed the consult. Null is never the pad, exactly the shape
+        // every other blockIdAt call site already guards with.
+        return cell != null && cell.value().equals("slime_block");
     }
 
     /**
@@ -11258,7 +11294,19 @@ public final class MobEntity implements LivingEntity {
         // The damping's lava arm (Slice 93/F1 — the reference's *0.5
         // horizontal drag vs the water's 0.8: a body crawling through
         // lava loses half its horizontal motion every tick).
-        double damping = inLava ? 0.5 : inFluid ? 0.8 : (onGround ? 0.6 : 0.98);
+        // THE FRICTION CONSULT (Wave IO-F — the F-FRICTION row, the
+        // reference's moveRelative law, LivingEntity lines 1136-1161 +
+        // the second computation at the drag): the grounded band reads
+        // the support cell's OWN slipperiness * 0.91 (the common case
+        // 0.6*0.91=0.546, the ice family's 0.98*0.91=0.892 — the ice
+        // slide, the loudest half of the row — the pad's 0.8*0.91=0.728)
+        // and the AIR band is the reference's own 0.91 base (line 1137's
+        // f4 = 0.91F — the pre-fix engine carried 0.98 here, the item
+        // family's air band, never the mob's).
+        double damping = inLava ? 0.5 : inFluid ? 0.8
+                : (onGround
+                        ? world.slipperinessBelow(position.x(), position.y(), position.z()) * 0.91
+                        : 0.91);
         velocityX *= damping;
         velocityZ *= damping;
 

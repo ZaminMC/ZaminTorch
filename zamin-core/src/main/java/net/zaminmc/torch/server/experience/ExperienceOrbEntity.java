@@ -21,7 +21,8 @@ public final class ExperienceOrbEntity implements net.zaminmc.torch.entity.Exper
             net.zaminmc.torch.util.Identifier.parse("minecraft:xp_orb");
 
     /** Shared with items (the physics slice will unify the small-body model). */
-    public static final double GRAVITY_PER_TICK = 0.04;
+    /** The reference's own orb gravity (Wave IO-F — ExperienceOrbEntity line 70: velocityY -= 0.03F, NOT the item family's 0.04). */
+    public static final double GRAVITY_PER_TICK = 0.03;
     public static final double HALF_HEIGHT = 0.125;
     public static final double HALF_WIDTH = 0.125;
     /** Historical orb lifespan: 5 minutes, then it fades (the item rule). */
@@ -47,6 +48,35 @@ public final class ExperienceOrbEntity implements net.zaminmc.torch.entity.Exper
 
         /** @return whether the block containing this point is solid. */
         boolean isSolid(double x, double y, double z);
+
+        /**
+         * The block id at the body's -0.2 feet cell (Wave IO-F — the
+         * reference's Entity.move line 572 consult cell
+         * {@code floor(x), floor(y - 0.2), floor(z)} with y the box
+         * bottom; the engine's bottom = {@code position.y - HALF_HEIGHT}).
+         * The vertical-clip consult (line 599's {@code beforeCollision})
+         * reads it — the slime block's own override flips a falling
+         * body's velocityY at full speed while the default zeroes it.
+         * The default answers null so stub grounds keep the pre-wave
+         * zeroing semantics (null is never the pad).
+         */
+        default net.zaminmc.torch.util.Identifier blockIdAt(double centerX, double bottomY, double centerZ) {
+            return null;
+        }
+
+        /**
+         * The block slipperiness at the support cell (Wave IO-F — the
+         * reference's ExperienceOrbEntity.tick lines 107-114 over
+         * Block.slipperiness: the drag band reads
+         * {@code floor(x), floor(minY) - 1, floor(z)} — the cell BELOW
+         * the feet cell, the engine's bottom =
+         * {@code position.y - HALF_HEIGHT}). The default answers the
+         * common case 0.6 (Block.java line 117) so stub grounds keep the
+         * pre-wave drag.
+         */
+        default double slipperinessBelow(double centerX, double bottomY, double centerZ) {
+            return 0.6;
+        }
     }
 
     private final int entityId;
@@ -232,8 +262,13 @@ public final class ExperienceOrbEntity implements net.zaminmc.torch.entity.Exper
     }
 
     /**
-     * Advances one tick of the item-entity physics model. Returns true when
-     * the rounded fixed-point position changed (the publisher's sync hint).
+     * Advances one tick of the orb's physics — the reference's own
+     * ExperienceOrbEntity.tick model (Wave IO-F): the pre-move gravity
+     * (0.03, the orb's own constant), the point-test move with its
+     * vertical-clip consult, the post-move drag with the slipperiness
+     * band, and the grounded vertical's -0.9 flip (line 121 — the orb's
+     * own landing law). Returns true when the rounded fixed-point
+     * position changed (the publisher's sync hint).
      */
     public boolean tick(Ground ground) {
         long before = fixedPoint(position);
@@ -241,34 +276,85 @@ public final class ExperienceOrbEntity implements net.zaminmc.torch.entity.Exper
         if (pickupDelay > 0) {
             pickupDelay--;
         }
-        if (onGround) {
-            velocityY = 0.0;
-        } else {
-            velocityY = (velocityY - GRAVITY_PER_TICK) * 0.98;
-        }
-        double damping = onGround ? 0.6 : 0.98;
-        velocityX *= damping;
-        velocityZ *= damping;
+        // THE PRE-MOVE GRAVITY (Wave IO-F — the reference's line 70,
+        // {@code velocityY -= 0.03F}): gravity lands BEFORE the move,
+        // UNCONDITIONALLY — the reference applies the *0.98 vertical drag
+        // POST-move (line 117); the pre-fix engine had fused the pair into
+        // (v - g) * 0.98 and gated it on !onGround.
+        velocityY -= GRAVITY_PER_TICK;
 
         double newY = position.y() + velocityY;
         double newX = position.x() + velocityX;
         double newZ = position.z() + velocityZ;
 
         double groundEpsilon = 1.0E-7;
+        double clipConsultY = Double.NaN;
         if (velocityY <= 0 && ground.isSolid(newX, newY - HALF_HEIGHT - groundEpsilon, newZ)) {
             newY = Math.floor(newY - HALF_HEIGHT - groundEpsilon) + 1.0 + HALF_HEIGHT;
-            velocityY = 0.0;
             onGround = true;
+            clipConsultY = newY; // the landing clip (the vertical consult below)
         } else if (velocityY > 0 && ground.isSolid(newX, newY + HALF_HEIGHT + groundEpsilon, newZ)) {
-            velocityY = 0.0;
             newY = position.y();
             onGround = false;
+            clipConsultY = newY; // bumped a ceiling (the same consult below)
         } else {
             onGround = false;
         }
 
         position = new Position(newX, newY, newZ);
+        if (!Double.isNaN(clipConsultY)) {
+            // THE VERTICAL-CLIP CONSULT (the reference's Entity.move line
+            // 599 over Block.beforeCollision line 882): the clip consults
+            // the -0.2 feet cell — the slime block's override (SlimeBlock
+            // lines 33-39) flips a falling body's velocityY at full speed
+            // and keeps a rising one (the velocityY >= 0 no-op quirk), the
+            // default zeroes it. Orbs never sneak. Riding the POST-move
+            // position exactly like the reference's own placement.
+            beforeCollisionAt(ground);
+        }
+        applyPostMoveDrag(ground);
         return fixedPoint(position) != before;
+    }
+
+    /**
+     * The vertical-clip consult (the reference's beforeCollision at the
+     * clip): the -0.2 feet cell's block id decides the vertical response.
+     */
+    private void beforeCollisionAt(Ground ground) {
+        net.zaminmc.torch.util.Identifier underfoot = ground.blockIdAt(
+                position.x(), position.y() - HALF_HEIGHT, position.z());
+        if (underfoot != null && underfoot.value().equals("slime_block")) {
+            if (velocityY < 0.0) {
+                velocityY = -velocityY;
+            }
+            // velocityY >= 0: the no-op quirk — a rising body clipped over
+            // the pad keeps its rise.
+        } else {
+            velocityY = 0.0;
+        }
+    }
+
+    /**
+     * The post-move drag (the reference's ExperienceOrbEntity.tick lines
+     * 107-121): the horizontal band reads the SUPPORT cell's slipperiness
+     * on the ground (all * 0.98 — the ice family's 0.98 and the pad's 0.8
+     * against the common case's 0.6), the air band is the flat 0.98, the
+     * vertical drags at 0.98 — and a grounded body's vertical flips at
+     * -0.9 (line 121: the orb's own landing law — over the pad it keeps
+     * most of the beforeCollision bounce, over the common blocks it acts
+     * on the zero the default consult left).
+     */
+    private void applyPostMoveDrag(Ground ground) {
+        double f = 0.98;
+        if (onGround) {
+            f = ground.slipperinessBelow(position.x(), position.y() - HALF_HEIGHT, position.z()) * 0.98;
+        }
+        velocityX *= f;
+        velocityY *= 0.98;
+        velocityZ *= f;
+        if (onGround) {
+            velocityY *= -0.9;
+        }
     }
 
     private static long fixedPoint(Position position) {

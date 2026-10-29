@@ -22207,6 +22207,33 @@ public final class EngineServer implements Server, EngineBridge {
             return supportYInDimension(x, y, z);
         }
 
+        /**
+         * The block slipperiness at the support cell (Wave IO-F — the
+         * F-FRICTION consult, the mob family's own read): the cell BELOW
+         * the feet (the reference's moveRelative law, LivingEntity lines
+         * 1136-1161, {@code floor(x), floor(minY) - 1, floor(z)}), the
+         * ACTIVE dimension's block, the reference's own slipperiness
+         * table (Block.java line 117's 0.6 default, IceBlock line 20 /
+         * PackedIceBlock line 10's 0.98, SlimeBlock line 15's 0.8 — the
+         * same table the armor-stand surface and the shape ground read).
+         */
+        @Override
+        public double slipperinessBelow(double x, double feetY, double z) {
+            int supportY = (int) Math.floor(feetY) - 1;
+            if (supportY < net.zaminmc.torch.block.BlockPosition.MIN_Y
+                    || supportY > net.zaminmc.torch.block.BlockPosition.MAX_Y) {
+                return 0.6;
+            }
+            String value = activeWorld().getBlock(new net.zaminmc.torch.block.BlockPosition(
+                    (int) Math.floor(x), supportY, (int) Math.floor(z)))
+                    .identifier().value();
+            return switch (value) {
+                case "ice", "packed_ice" -> 0.98;
+                case "slime_block" -> 0.8;
+                default -> 0.6;
+            };
+        }
+
         @Override
         public boolean inFluid(double x, double y, double z) {
             return fluidInDimension(x, y, z);
@@ -30275,6 +30302,53 @@ public final class EngineServer implements Server, EngineBridge {
             best = Math.max(best, groundSupportYAt(centerX + w, bottomY, centerZ - w));
             best = Math.max(best, groundSupportYAt(centerX + w, bottomY, centerZ + w));
             return best;
+        }
+
+        /**
+         * The block id at the body's -0.2 feet cell (Wave IO-F — the
+         * reference's Entity.move line 572 consult, the ACTIVE dimension's
+         * read): the vertical-clip consult's cell, the slime flip's own
+         * pad test. The cell derivation is the reference's own
+         * {@code floor(x), floor(y - 0.2), floor(z)} with y the box
+         * bottom.
+         */
+        @Override
+        public net.zaminmc.torch.util.Identifier blockIdAt(double centerX, double bottomY, double centerZ) {
+            double consultY = bottomY - 0.2;
+            if (consultY < net.zaminmc.torch.block.BlockPosition.MIN_Y
+                    || consultY > net.zaminmc.torch.block.BlockPosition.MAX_Y) {
+                return null;
+            }
+            return activeGroundWorld().getBlock(new net.zaminmc.torch.block.BlockPosition(
+                    (int) Math.floor(centerX), (int) Math.floor(consultY),
+                    (int) Math.floor(centerZ))).identifier();
+        }
+
+        /**
+         * The block slipperiness at the support cell (Wave IO-F — the
+         * F-FRICTION consult, the ACTIVE dimension's read): the drag
+         * band's cell BELOW the feet (the reference's ItemEntity lines
+         * 89-96 / ExperienceOrbEntity lines 107-114
+         * {@code floor(x), floor(minY) - 1, floor(z)}), the reference's
+         * own slipperiness table (Block.java line 117's 0.6 default,
+         * IceBlock line 20 / PackedIceBlock line 10's 0.98, SlimeBlock
+         * line 15's 0.8 — the same table the armor-stand surface reads).
+         */
+        @Override
+        public double slipperinessBelow(double centerX, double bottomY, double centerZ) {
+            int supportY = (int) Math.floor(bottomY) - 1;
+            if (supportY < net.zaminmc.torch.block.BlockPosition.MIN_Y
+                    || supportY > net.zaminmc.torch.block.BlockPosition.MAX_Y) {
+                return 0.6;
+            }
+            String value = activeGroundWorld().getBlock(new net.zaminmc.torch.block.BlockPosition(
+                    (int) Math.floor(centerX), supportY, (int) Math.floor(centerZ)))
+                    .identifier().value();
+            return switch (value) {
+                case "ice", "packed_ice" -> 0.98;
+                case "slime_block" -> 0.8;
+                default -> 0.6;
+            };
         }
 
         /** The shape-aware point test over the ACTIVE dimension's blocks. */

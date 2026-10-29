@@ -18120,3 +18120,57 @@ BannerItem.java, and the engine's sign placement this session.
   own slipperiness; F-RIDER-SPARE the vehicle landing's rider delegate;
   F-DUST the landing-dust burst; F-ITEMSTEP the non-mob step sounds;
   F-VINE the vine family's own pass).
+
+## 2026-10-29 — Wave IO-F: the item/orb landing physics + the friction
+family whole (the fifteenth pass's §D/§F queue, adjudicated then landed)
+
+- PR #73 (the verifier's sixteenth arrival, the fifteenth pass's
+  §B1/§B2 redstone-ore remainder) reviewed against the reference line by
+  line and CLOSED: B1's mob/player arms were already landed by Wave SG
+  (the pass's own V-records confirmed them); B1's item/orb arms are NOT
+  OWED 1:1 (ItemEntity.makesSteps line 44 and ExperienceOrbEntity
+  .makesSteps line 32 both return FALSE — Entity.move line 591's steps
+  band never runs for either body, so a resting item or orb never lights
+  the ore in vanilla; the PR's onItemSteppedOn/onOrbSteppedOn arms
+  would have ADDED lighting the reference does not have); B2's spark
+  broadcast REJECTED (ServerWorldEventListener.addParticle lines 23-28
+  is an EMPTY STUB — the dedicated server broadcasts nothing; the burst
+  is the client's own prediction; the PR's RedstoneOreSpark FX arm
+  would have sent particles the vanilla server never sends). The full
+  adjudication posted on the PR.
+- Wave IO-F landed: the §D/§F queue adjudicated FIRST (three of the
+  pass's claims WRONG — the step rows and F-ITEMSTEP non-rows), then
+  the honest rows whole. THE ITEM: ItemEntity.tick rewritten 1:1 (the
+  pre-move gravity unconditional, the (v-0.04)*0.98 fusion and the
+  !onGround gate retired, the standing-drift solver hack retired with
+  it; the vertical clip's beforeCollision consult through the new
+  Ground.blockIdAt — the -0.2 feet cell, the slime flip / the
+  velocityY>=0 no-op quirk / the default zero, at the POST-move
+  position; the post-move drag through the new Ground
+  .slipperinessBelow — the support cell floor(x), floor(minY)-1,
+  floor(z); the grounded flip -0.5). THE ORB: the same shape with its
+  own constants (gravity 0.03, the flip -0.9). F-FRICTION: the mob's
+  damping at all three sites (tickBody, tickRiddenBody, the ghast's
+  on-ground band) reads the support cell's own slipperiness * 0.91
+  through the new WorldQuery.slipperinessBelow, the air band the
+  reference's 0.91 base (the pre-fix engine carried the flat 0.6 on
+  the ground and the item family's 0.98 in the air). The production
+  adapters (ShapeGround + MobWorldQuery) read the ACTIVE dimension
+  through the reference's slipperiness table.
+- Evidence: ItemOrbLandingPhysicsParityTest 9/0 NEW; the stash
+  verification 7/9 failing unfixed (the two stone-landing controls
+  alone passing). The regression: item + orb families 101/0; the mob
+  physics lanes 49/0 after ONE re-pin (the sticky-floor seat to the
+  pad's 0.728 over the pre-fix flat 0.6) and ONE latent-bug fix the
+  run surfaced (slimeUnderfoot's null guard — a Wave SG latent NPE on
+  the interface's null default; MobSolverWalkTest had not run since
+  Wave SG landed the consult); the entity package whole 574/0; the
+  vehicle/armorstand/drop/stats/hunger/projectile lanes 169/0 (one
+  StatsParity use-row flake once in five runs, not wave-caused); the
+  protocol wire's entity-sync batch green (QuickCraft's chest-window
+  packet-48 timeout the documented pre-existing flake); bukkit +
+  launcher green.
+- The named remainder: F-RIDER-SPARE, F-DUST (likely another
+  client-prediction row needing the B2-class adjudication), F-VINE,
+  and the item/orb envelope tails (the item's lava fizz with the
+  flag/25-tick gate, the orb's own fizz + the igniter attraction).
