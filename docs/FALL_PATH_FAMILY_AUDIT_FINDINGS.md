@@ -319,6 +319,14 @@ Mobs never sneak — the reference's isSneaking() is false for every mob.
   0.98, slime 0.8, the default 0.6). The table itself is already in
   the engine (`blockSlipperinessAt`) — the armor-stand family alone
   consults it. The ICE slide is the loudest half of this family.
+- **F-VEHICLE-BOUNCE: the vehicle family's own bounce consult.** The
+  reference's `beforeCollision` fires for every body — the cart and the
+  boat included (they ride `Entity.move` whole; a dropped cart bounces
+  on a slime pad). The engine's `VehicleEntity.solverMove` (693-695)
+  zeroes `velocityY` on the vertical clip with no consult; the vehicle's
+  `WorldQuery` surface needs its own block-id read to carry the -0.2
+  consult — the family row rides the F-RIDER-SPARE pass (the vehicle
+  landing family's own slice; the mobs/items/orbs carry this PR's trio).
 - **F-RIDER-SPARE: the vehicle's landing rider-delegate.**
   Entity.takeFallDamage 749-753 delegates to the rider; a cart/boat
   landing on slime spares its rider the wound (the multiplier consult
@@ -344,12 +352,12 @@ Mobs never sneak — the reference's isSneaking() is false for every mob.
 
 | ID | Status | Closed by |
 |----|--------|-----------|
-| A1 | confirmed (V1+V2 done) | pending the fix PR |
-| A2 | confirmed (V1+V2 done) | pending the fix PR |
-| A3 | confirmed (V1+V2 done) | pending the fix PR |
-| B1 | confirmed (V1+V2 done) | pending the fix PR |
-| B2 | confirmed (V1+V2 done) | pending the fix PR |
-| B3 | confirmed (V1+V2 done) | pending the fix PR |
+| A1 | confirmed (V1+V2 done; V3 = the fix branch's stash run) | the slime PR (in flight) |
+| A2 | confirmed (V1+V2 done; V3 = the fix branch's stash run) | the slime PR (in flight) |
+| A3 | confirmed (V1+V2 done; V3 = the fix branch's stash run) | the slime PR (in flight) |
+| B1 | CLOSED by PR #73 (stash-verified 4/5 failing on the pre-fix tree) | fix/redstone-ore-glow-parity-audit |
+| B2 | CLOSED by PR #73 (the six-pass band + the d2 < 0.0 quirk pinned by the seats) | fix/redstone-ore-glow-parity-audit |
+| B3 | CLOSED by PR #72 (stash-verified failing on the pre-fix tree) | fix/lit-ore-silk-drop-parity-audit |
 | A4/F-FRICTION | suspected (V1 evidence; the family broader than this pass) | a future pass |
 | F-RIDER-SPARE | suspected | a future pass |
 | F-DUST | suspected | a future pass |
