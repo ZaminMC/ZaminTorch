@@ -11680,6 +11680,13 @@ public final class EngineServer implements Server, EngineBridge {
             return; // the wall-facing ladder overrides the generic placement
         }
         if (heldId
+                .equals("minecraft:vine")
+                || creativeHeld.map(t -> net.zaminmc.torch.server.block.VineBlocks
+                        .isVineFamily(t)).orElse(false)) {
+            placeVineOnTick(session, clicked, face, creativeHeld);
+            return; // the face-dependent placement state overrides the generic walk
+        }
+        if (heldId
                 .equals("minecraft:bed")
                 || creativeHeld.map(t -> t.identifier().value().equals("bed")).orElse(false)) {
             placeBedOnTick(session, clicked, face, creativeHeld);
@@ -14296,6 +14303,59 @@ public final class EngineServer implements Server, EngineBridge {
             return;
         }
         world.setBlock(target, facing);
+        if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE) {
+            session.inventory().consumeHeld(1);
+            publishInventoryChanged(session);
+        }
+    }
+
+    /**
+     * The vine placement (Wave VN-B — the historical ItemBlock walk,
+     * BlockItem.useOn lines 20-65 over VineBlock's own pair): the
+     * replaceable-clicked arm (lines 24-28 — a vine cell takes the
+     * placement IN PLACE, the family's own canBeReplaced row); the
+     * occupied gate over the vine's REPLACEABLE_PLANT material
+     * (World.canPlace lines 2279-2287 — a vine replaces air, another
+     * vine, the tall grass); NO body-collision consult (the vine's
+     * collision shape is null — the box==null arm passes, a vine places
+     * inside any body); the face gate (VineBlock.canBePlaced lines
+     * 131-143 — a bottom click never places, an UP click reads the
+     * CEILING above the placement cell, a horizontal click the clicked
+     * block itself); and the face-dependent placement state
+     * (getPlacementState lines 305-308 — the OPPOSITE-face bit on a
+     * horizontal click, the FACELESS default on a vertical click).
+     * Tick-thread context.
+     */
+    private void placeVineOnTick(PlayerSession session, BlockPosition clicked, int face,
+                                 java.util.Optional<BlockType> creativeHeld) {
+        // The replaceable clicked arm (useOn lines 24-28): the vine family
+        // itself (and every other replaceable flora) takes the placement at
+        // the CLICKED cell — the offset walk never runs. The WorldSolidity
+        // row (VN-B's own isReplaceable vine row) carries the family.
+        BlockType clickedType = world.getBlock(clicked);
+        if (clickedType.equals(world.airType())) {
+            return; // the stale air click (the house arms' own guard)
+        }
+        BlockPosition target = WorldSolidity.isReplaceable(clickedType.identifier())
+                ? clicked : offsetByFace(clicked, face);
+        if (target == null) {
+            return; // the generic face gate (a bad face value)
+        }
+        if (!canOccupyForPlacement(target)) {
+            return; // World.canPlace's occupied half: air or replaceable alone
+        }
+        if (!net.zaminmc.torch.server.block.VineBlocks.canPlaceAt(world, target, face)) {
+            return; // VineBlock.canBePlaced's own face consult
+        }
+        if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE
+                && session.inventory().held().isEmpty()) {
+            return; // nothing to consume
+        }
+        // getPlacementState (lines 305-308): the horizontal click's
+        // OPPOSITE-face state, the vertical click's faceless default —
+        // the metadata nibble the wire carries, never the held damage.
+        world.setBlock(target,
+                net.zaminmc.torch.server.block.VineBlocks.placementStateFor(face));
         if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE) {
             session.inventory().consumeHeld(1);
             publishInventoryChanged(session);

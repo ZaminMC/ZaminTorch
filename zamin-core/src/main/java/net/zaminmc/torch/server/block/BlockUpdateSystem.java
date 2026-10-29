@@ -144,23 +144,32 @@ public final class BlockUpdateSystem implements WorldChangeListener {
     public void onBlockChanged(EngineWorld changedWorld, BlockPosition position, BlockType newType) {
         Objects.requireNonNull(newType, "newType");
         long now = changedWorld.totalTicks();
-        // THE RAIL FAMILIES' OWN-COMMIT EXEMPTION (the thirteenth verifier
-        // pass — the reference's dispatch law, World.updateNeighbors lines
-        // 342-349 over setBlockState's flag-1 walk): a block's own change
-        // notifies its SIX NEIGHBOURS alone; the changed cell ITSELF never
+        // THE RAIL + VINE FAMILIES' OWN-COMMIT EXEMPTION (the rail's:
+        // the thirteenth verifier pass — the reference's dispatch law,
+        // World.updateNeighbors lines 342-349 over setBlockState's flag-1
+        // walk; the vine's: Wave VN-B): a block's own change notifies
+        // its SIX NEIGHBOURS alone; the changed cell ITSELF never
         // receives neighborChanged — the placed rail's own commit runs
         // onAdded's connection walk with NO support consult
         // (AbstractRailBlock.onAdded lines 76-83, the consult the item
         // path's canBePlaced arm carries), so a directly-written rail (the
         // plugin path, the test harness, a world import) FLOATS exactly
         // like vanilla's until a NEIGHBOUR changes; the support pops ride
-        // the neighbour wakes alone. The {0,0,0} self-offset stays for
+        // the neighbour wakes alone. THE VINE'S OWN ROW: the placed
+        // faceless form (metadata 0, a top-face click under a ceiling —
+        // getPlacementState's vertical arm) and every directly-written
+        // state (the worldgen drape, the anvil import) SURVIVE their own
+        // commit exactly like vanilla's — VineBlock.neighborChanged
+        // lines 172-178 never fires on the changed cell, so the transient
+        // form lingers until a NEIGHBOUR changes and the decay's
+        // hasConnections walk runs. The {0,0,0} self-offset stays for
         // the other families (the torch/carpet/sign arms' own established
         // convention — their own audits' rows).
-        boolean changedCellIsRail = RailBlocks.isRailFamily(newType);
+        boolean changedCellNeverWakesItself = RailBlocks.isRailFamily(newType)
+                || VineBlocks.isVineFamily(newType);
         for (int[] offset : NEIGHBOR_OFFSETS) {
-            if (changedCellIsRail && offset[0] == 0 && offset[1] == 0 && offset[2] == 0) {
-                continue; // the rail's own commit never wakes itself
+            if (changedCellNeverWakesItself && offset[0] == 0 && offset[1] == 0 && offset[2] == 0) {
+                continue; // the rail's and the vine's own commits never wake themselves
             }
             schedule(position.offset(offset[0], offset[1], offset[2]), now);
         }
@@ -438,6 +447,21 @@ public final class BlockUpdateSystem implements WorldChangeListener {
                     ItemStack.of(net.zaminmc.torch.server.item.BuiltinItems.lookup(
                             RailBlocks.familyItemOf(type)).orElseThrow(), 1),
                     ItemEntity.PICKUP_DELAY_DROP_TICKS);
+            return;
+        }
+
+        // The vine family's support decay (Wave VN-B — VineBlock
+        // .neighborChanged lines 172-178 over hasConnections lines
+        // 145-168): each horizontal face bit whose face-neighbour is no
+        // growable support is CLEARED unless the vine above carries the
+        // same bit (the hanging chain); every bit gone and the cell
+        // clears — with NO drop (dropItems over getDropItem NULL and
+        // getBaseDropCount 0, lines 172-175: the decay pops silently,
+        // only the SHEARS harvest drops, the DropService walk's own arm).
+        if (VineBlocks.isVineFamily(type)) {
+            if (!VineBlocks.hasConnections(world, position, type)) {
+                world.setBlock(position, world.airType());
+            }
             return;
         }
 

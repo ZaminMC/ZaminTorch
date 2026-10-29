@@ -331,6 +331,14 @@ public final class RandomTickSystem {
             MushroomBlocks.spreadTick(world, position, type, random);
             return;
         }
+        // The vine family's growth (Wave VN-B — VineBlock.tick lines
+        // 180-304 over the reference's randomTick → tick delegation,
+        // Block lines 434-436): the 1-in-4 roll, the 9x9x3 density
+        // census, and the up/down/side spread arms.
+        if (VineBlocks.isVineFamily(type)) {
+            VineBlocks.growthTick(world, position, type, random);
+            return;
+        }
         // The lit redstone ore's revert (Slice 33 — RedstoneOreBlock.tick
         // lines 59-63 over the default Block.randomTick delegation lines
         // 434-436): the LIT variant is setTicksRandomly(true), so the

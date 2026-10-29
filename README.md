@@ -85,7 +85,14 @@ repaired: the item's fizz poll clock returned to the reference's
 independent lifetime counter, the crossing flag's Y axis returned to
 the feet frame, the orb's retarget window returned to the reference's
 own renderTicks counter; both fizz sounds' y returned to the box
-bottom).
+bottom). The vine family's mechanics whole followed (Wave VN-B
+2026-10-29: the placement pair — the face gate, the opposite-face
+state, the replaceable clicked/target arms, the glass exclusion over
+the render-cube consult — the neighborChanged decay with the hanging
+chain, the breakability rows for the fifteen face states, and the
+random-tick growth whole — the 1-in-4 roll, the 9x9x3 density census,
+the three spread arms; PR #78 merged the same session with all three
+repairs verified, PR #79 closed as superseded by the wave's superset).
 
 ## Downloading a dev build (no build tools needed)
 

@@ -1988,6 +1988,19 @@ public final class BlockBehaviorTable {
             }
         }
 
+        // The vine family's fifteen face states (Wave VN-B — every state
+        // breaks exactly like the bare form's own row above:
+        // `setStrength(0.2F)` GRASS_SOUNDS over REPLACEABLE_PLANT, no tool
+        // required, and the DROPS stay in the DropService's shears walk
+        // (getDropItem NULL + getBaseDropCount 0: the bare hand yields
+        // nothing from any state, the shears arm drops the vine item —
+        // the pre-wave engine had NO rows here, so the fifteen states
+        // were UNBREAKABLE: the null behavior answer's own gate).
+        BlockBehavior vineState = new BlockBehavior(0.2, true, false, "plants", 0, List.of());
+        for (int bits = 0; bits <= 14; bits++) {
+            behaviors.put(VineBlocks.stateFor(bits).identifier(), vineState);
+        }
+
         // The complete door families (Slice 34 — DoorBlock's own
         // registrations: every wood door `setStrength(3.0F)` WOOD_SOUNDS,
         // the iron door `setStrength(5.0F)` Material.IRON — the material's

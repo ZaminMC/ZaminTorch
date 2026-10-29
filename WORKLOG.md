@@ -18377,3 +18377,58 @@ commit — LF then VN-A)
   challenge; both NBT round trips carrying Age alone; the fresh-body
   seats staying green). PR #78 opened; PR #77 closed with the
   adjudication. The queue after CF: VN-B alone.
+
+---
+
+## Wave VN-B — 2026-10-29 (the vine family's mechanics whole, the
+F-VINE pass's second and final slice)
+
+- PR #78 MERGED first (the CF wave's vehicle): all three repairs
+  verified against the reference line by line — the item's fizz poll
+  clock IS Entity.ticks (an independent lifetime counter; the age is
+  NBT-seeded at ItemEntity lines 223/241, so the fused age clock
+  mispolled every restored item), the crossing flag and both fizz
+  sounds read the FEET frame (the reference's y IS the box bottom;
+  World.playSound reads source.x/y/z), and the orb's retarget window
+  rides the body's OWN renderTicks (line 12's field, tail-incremented
+  at line 123, never persisted while the age IS persisted). The
+  branch verified green on its own tree (its suites 5/0, the entity +
+  experience packages 596/0) and merged at 5a64d572.
+- PR #79 adjudicated: a correct-but-partial VN-B1 with two reference
+  gaps — no replaceable-CLICKED arm (useOn lines 24-28 place a
+  replaceable clicked cell IN PLACE) and no glass exclusion
+  (GlassBlock.isCube overrides false; the PR's gate would have grown
+  vines on glass). The wave's superset landed the same session; the
+  PR closed as superseded with the adjudication comment, its
+  real-dispatch seat shape adopted into the wave's own dispatch seat
+  with credit.
+- THE WAVE (the in-flight VN-B work the session resumed, completed
+  and verified whole): the grow-surface refinement (canGrowOn's
+  RENDER-cube consult — the glass excluded, the glowstone and the sea
+  lantern and every wood's leaves accepted), the placement pair
+  (placeVineOnTick in useItemArmOnTick's dispatch: the face gate —
+  DOWN refuses, UP reads the ceiling, horizontal reads the clicked
+  wall; the opposite-face state; the replaceable clicked + target
+  arms; no body consult over the null collision shape), the decay
+  (BlockUpdateSystem's vine arm: hasConnections' bit-clearing with
+  the hanging chain, the silent pop, the own-commit exemption widened
+  to the vine family, the fifteen states' breakability rows — they
+  were UNBREAKABLE before, the DropService arm widened to the family),
+  and the growth whole (RandomTickSystem's vine arm: the 1-in-4 roll,
+  the 9x9x3 census with the DOWN arm's own asymmetry, the three
+  spread arms with the SIDE arm's five sub-arms, the face gain
+  against the OPAQUE cubes alone — the translucent family never takes
+  the bit).
+- Evidence: VineGrowthDecayParityTest 11/0 + VinePlacement
+  DispatchParityTest 1/0 NEW (the end-to-end seat over the real use
+  wire — the six arms including the glass refusal and the
+  replaceable-clicked IN PLACE the PR missed). The stash
+  verification: the consult seats failing unfixed WHOLE (the tree
+  refuses to compile them — the seams absent in no partial shape),
+  the dispatch seat failing at its FIRST assertion unfixed (the
+  pre-fix generic placement lands the BARE all-faces form). The
+  regression: the block + dispatch + drop lanes 305/0; the entity +
+  experience + fizz lanes 607/0; the anvil/tree/armorstand/rail/
+  worldgen consumer lanes 80/0.
+- The F-VINE family is retired END TO END; the sixteenth-pass
+  F-candidate list is fully adjudicated. The queue: EMPTY.

@@ -313,7 +313,10 @@ public final class DropService {
         // non-shears break yields nothing; afterMinedByPlayer's SHEARS
         // arm drops the vine itself). The pre-fix table row was empty and
         // no branch existed, so even a shears break yielded nothing.
-        if (broken.identifier().value().equals("vine")) {
+        // Wave VN-B widened the consult to the WHOLE family (the fifteen
+        // face states break exactly like the bare form — the state bits
+        // never change the drop law).
+        if (net.zaminmc.torch.server.block.VineBlocks.isVineFamily(broken)) {
             boolean vineShears = heldTool != null
                     && Tools.specOf(heldTool)
                             .map(spec -> spec.toolClass() == ToolClass.SHEARS)

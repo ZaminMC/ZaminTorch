@@ -237,8 +237,19 @@ public final class WorldSolidity {
      * targets like any normal block. The family stays walk-through as a
      * whole ({@link #isFlora} is the solidity read, unchanged) —
      * replaceability and walk-through are two different laws.</p>
+     *
+     * <p>THE VINE FAMILY (Wave VN-B — Material.REPLACEABLE_PLANT, the
+     * vine's own constructor row over canBeReplaced lines 60-62): every
+     * state answers true — a block placed into a vine cell REPLACES it
+     * (World.canPlace's occupied half), the tree growth grows THROUGH
+     * vines (the classic isAirOrLeaves || REPLACEABLE_PLANT consult),
+     * and clicking a vine with a block item takes the clicked cell in
+     * place (BlockItem.useOn lines 24-28).</p>
      */
     public static boolean isReplaceable(Identifier id) {
+        if (VineBlocks.isVineFamily(id)) {
+            return true;
+        }
         if (DoublePlantBlocks.isDoublePlantIdentifier(id)) {
             return DoublePlantBlocks.isReplaceableVariant(id);
         }
