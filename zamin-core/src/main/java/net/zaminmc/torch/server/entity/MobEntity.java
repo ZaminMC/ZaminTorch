@@ -2098,6 +2098,13 @@ public final class MobEntity implements LivingEntity {
     private int trampleX;
     private int trampleY;
     private int trampleZ;
+    /** The redstone-ore step intent (the step path's world write —
+     *  RedstoneOreBlock.onSteppedOn's glow swap, the trample's own
+     *  pending shape: the body cannot write the world itself). */
+    private boolean oreStepPending;
+    private int oreStepX;
+    private int oreStepY;
+    private int oreStepZ;
     /** A pending place intent: the cell the carried block goes to. */
     private int endermanPlaceX;
     private int endermanPlaceY;
@@ -2170,6 +2177,31 @@ public final class MobEntity implements LivingEntity {
     /** The trample intent's cell z. */
     public int trampleZ() {
         return trampleZ;
+    }
+
+    /** The redstone-ore step intent's cell x (the glow swap's write). */
+    public int oreStepX() {
+        return oreStepX;
+    }
+
+    /** The redstone-ore step intent's cell y. */
+    public int oreStepY() {
+        return oreStepY;
+    }
+
+    /** The redstone-ore step intent's cell z. */
+    public int oreStepZ() {
+        return oreStepZ;
+    }
+
+    /** The manager's drain: the redstone-ore step intent
+     *  (RedstoneOreBlock.onSteppedOn -> interact's LIT write). */
+    public boolean consumeOreStep() {
+        if (oreStepPending) {
+            oreStepPending = false;
+            return true;
+        }
+        return false;
     }
 
     /** The pickup intent's cell x. */
@@ -10668,9 +10700,47 @@ public final class MobEntity implements LivingEntity {
             velocityZ = 0.0;
         }
         if (result.zeroVelocityY()) {
-            velocityY = 0.0;
+            // beforeCollision (Entity.move lines 588-590 over Block lines
+            // 882-885): the vertical clip consults the SAME -0.2 feet cell
+            // the step arm reads (the post-move consult, the air-cell
+            // fence fallback included) — the default zeroes velocityY, the
+            // slime pad's override FLIPS a falling body's negative back
+            // positive (the bounce, SlimeBlock lines 35-41). A mob never
+            // sneaks (the reference's synced flag stays false for engine
+            // bodies — the sneak arm keeps the default zero); the
+            // velocityY >= 0 NO-OP quirk is kept 1:1 (a body clipping
+            // upward over a pad keeps its rising velocity — the reference's
+            // own else-if shape).
+            if (slimeUnderfoot()) {
+                if (velocityY < 0.0) {
+                    velocityY = -velocityY;
+                }
+            } else {
+                velocityY = 0.0;
+            }
         }
         return result;
+    }
+
+    /**
+     * The beforeCollision cell consult (Entity.move lines 569-581, the
+     * block1 read the step and fall arms share): the {@code floor(y - 0.2)}
+     * feet cell of the POST-move position, with the air-cell fence
+     * fallback — true when that cell is the slime pad.
+     */
+    private boolean slimeUnderfoot() {
+        int cellX = (int) Math.floor(position.x());
+        int cellY = (int) Math.floor(position.y() - 0.2);
+        int cellZ = (int) Math.floor(position.z());
+        net.zaminmc.torch.util.Identifier cell = world.blockIdAt(cellX, cellY, cellZ);
+        if (isAir(cell)) {
+            net.zaminmc.torch.util.Identifier under =
+                    world.blockIdAt(cellX, cellY - 1, cellZ);
+            if (isFenceLike(under)) {
+                cell = under;
+            }
+        }
+        return cell.value().equals("slime_block");
     }
 
     /**
@@ -10718,9 +10788,13 @@ public final class MobEntity implements LivingEntity {
      * mobs never ride (a jockey's mount carries the steps). The
      * sneaking-player skip ({@code !flag}) is player-only in the
      * reference — a mob never skips. The reference's
-     * {@code onSteppedOn} call is a 1.8.8 no-op (no block class
-     * overrides it — the farmland trample rides the fall path) and
-     * carries nothing here.</p>
+     * {@code onSteppedOn} call (Entity.move lines 607-609, gated
+     * {@code block1 != null && this.onGround}) is LIVE for two block
+     * families — the slime pad's horizontal damping (SlimeBlock lines
+     * 43-51) and the redstone ore's glow swap (RedstoneOreBlock lines
+     * 39-43): dispatched below over the same feet cell, before the
+     * {@code distanceMoved} accumulation exactly like the reference's
+     * own order.</p>
      */
     private void stepSoundWalk(double preX, double preY, double preZ) {
         if (!makesSteps()) {
@@ -10740,6 +10814,40 @@ public final class MobEntity implements LivingEntity {
             if (isFenceLike(below)) {
                 ground = below;
                 feetY--;
+            }
+        }
+        // THE onSteppedOn DISPATCH (Entity.move lines 607-609 — the
+        // {@code block1 != null && this.onGround} band, every applied
+        // move, BEFORE the distance accumulation): the two live families
+        // — the slime pad's damping and the redstone ore's glow swap.
+        if (onGround && !isAir(ground)) {
+            String steppedName = ground.value();
+            if (steppedName.equals("slime_block") && Math.abs(velocityY) < 0.1) {
+                // SlimeBlock.onSteppedOn lines 43-51 (a mob never sneaks
+                // — the reference's isSneaking gate stays open): the
+                // sticky floor's own horizontal damping,
+                // d0 = 0.4 + |velocityY| * 0.2 over both horizontal
+                // terms. The |velocityY| < 0.1 gate reads the standing
+                // oscillation (the bounce train's ±0.08 band) — a body
+                // mid-bounce carries more and is never damped.
+                double d0 = 0.4 + Math.abs(velocityY) * 0.2;
+                velocityX *= d0;
+                velocityZ *= d0;
+            } else if (steppedName.equals("redstone_ore")) {
+                // RedstoneOreBlock.onSteppedOn lines 39-43 -> interact
+                // (lines 52-57): the step lights the plain ore — the
+                // LIT write rides the pending intent (the trample's own
+                // shape; the body cannot write the world itself), the
+                // manager's listener consumes it. The interact's
+                // particles ride the client's own randomDisplayTick band
+                // — the dedicated server's addParticle is a no-op stub
+                // (ServerWorldEventListener lines 23-28), nothing to
+                // broadcast. The LIT form never re-swaps (interact's
+                // {@code this == REDSTONE_ORE} gate).
+                oreStepX = feetX;
+                oreStepY = feetY;
+                oreStepZ = feetZ;
+                oreStepPending = true;
             }
         }
         double d12 = position.x() - preX;
@@ -11286,8 +11394,18 @@ public final class MobEntity implements LivingEntity {
                             damage = false;
                         }
                     }
+                    // THE SLIME PAD'S SOFT LANDING (SlimeBlock.onFallenOn
+                    // lines 27-33, the same landed cell): the pad's own
+                    // walk pays the ZERO multiplier — takeFallDamage's
+                    // ceil((distance - 3 - boost) * 0.0) never wounds. A
+                    // mob never sneaks (the reference's sneak arm keeps
+                    // the 1.0 multiplier for sneaking bodies alone), and
+                    // the pad never rides the farmland consult above (the
+                    // identifiers disjoint).
+                    float landingMultiplier =
+                            landedName.equals("slime_block") ? 0.0f : 1.0f;
                     if (damage) {
-                        takeFallDamage(fallDistance, 1.0f);
+                        takeFallDamage(fallDistance, landingMultiplier);
                     }
                     fallDistance = 0.0f;
                 }

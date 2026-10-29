@@ -300,6 +300,17 @@ public final class MobManager {
         }
 
         /**
+         * A body stepped on the plain redstone ore (RedstoneOreBlock
+         * .onSteppedOn lines 39-43 over interact lines 52-57 — the step
+         * path's glow write): the intent's cell — the engine writes the
+         * LIT form (the host re-check keeps the swap honest; the
+         * particles are the client's own randomDisplayTick band, the
+         * dedicated server's addParticle a no-op stub).
+         */
+        default void onMobStepOre(MobEntity mob) {
+        }
+
+        /**
          * The enderman set its carried block down (PlaceBlockGoal.tick
          * lines 483-496): the intent's cell — the engine writes the
          * carried block and the hands empty.
@@ -1807,6 +1818,11 @@ public final class MobManager {
             if (mob.consumeTrample()) {
                 for (Listener listener : listeners) {
                     listener.onMobTrample(mob);
+                }
+            }
+            if (mob.consumeOreStep()) {
+                for (Listener listener : listeners) {
+                    listener.onMobStepOre(mob);
                 }
             }
             if (mob.consumeEndermanPlace()) {

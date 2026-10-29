@@ -568,16 +568,19 @@ public final class DropService {
         // the OreBlock multiplier shape, never a multiple.
         if (broken.identifier().value().equals("redstone_ore")
                 || broken.identifier().value().equals("lit_redstone_ore")) {
-            // The silk-arm parity audit — the LIT form's own quirk
-            // (Item.byBlock(LIT_REDSTONE_ORE) resolves null: no item is
-            // registered for the lit block in the reference, so the
-            // silk stack is EMPTY and NOTHING drops — and the dig-start
-            // light swap, the reference's own startMining arm, means the
-            // LIT form is the one actually broken). The UNLIT form never
-            // reaches this arm with silk: the silk set's own row takes
-            // the ore itself first.
+            // The silk arm (RedstoneOreBlock.getSilkTouchDrop lines 95-97):
+            // the EXPLICIT override returns the ORE ITSELF for BOTH forms
+            // — the base class's Item.byBlock(this) null (no item is
+            // registered for the lit block) never rides this family. The
+            // dig-start light swap (the reference's own startMining arm)
+            // means the LIT form is the one a silk dig actually breaks —
+            // the pre-fix arm's empty stack starved every silk harvest of
+            // the ore (the unlit form only escaped through the generic
+            // silk set's own row above).
             if (silkTouch) {
-                return List.of();
+                ItemType ore = BuiltinItems.lookup(
+                        Identifier.parse("minecraft:redstone_ore")).orElseThrow();
+                return List.of(ItemStack.of(ore, 1));
             }
             int count = 4 + random.nextInt(2) + random.nextInt(fortune + 1);
             ItemType dust = BuiltinItems.lookup(
