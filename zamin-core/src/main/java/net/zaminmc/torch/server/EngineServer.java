@@ -2081,6 +2081,12 @@ public final class EngineServer implements Server, EngineBridge {
                 // rolls, the reference's own breakLeaves shape.
                 randomTicks.setLeafDecayDrops(itemEntities,
                         new DropService(new java.util.Random(worldSeed ^ 0x1EAFDECAL)));
+                // The farmland's rain read (the farmland state pass —
+                // FarmlandBlock.tick line 47's world.isRaining(pos.up())):
+                // the engine's weather sits on the server, the consult
+                // hoisted above so the mob view and the farmland share it.
+                randomTicks.setRainRead(position -> rainAtInWorld(
+                        position.x(), position.y(), position.z()));
                 // The plant-pop seam (the farming growth pass + the
                 // planting-arms pass, the identical wiring both added —
                 // the hunks coalesced at the merge): the random-tick
@@ -13419,6 +13425,35 @@ public final class EngineServer implements Server, EngineBridge {
         }
     }
 
+    /**
+     * The hoisted rain consult (the farmland state pass): the ONE walk the
+     * mob view and the farmland's random-tick seam read — the weather's
+     * rain flag, the surface's sky band, and the biome's own rain gate
+     * (the reference's isRainingAt: the deserts never hydrate by rain).
+     */
+    private boolean rainAtInWorld(double x, double y, double z) {
+        net.zaminmc.torch.server.weather.WeatherSystem weatherNow = weather;
+        // The weather's own world IS the server's world (the rain flag
+        // lives on the overworld alone — the inner mob view's activeWorld()
+        // gate answers its own dimension concern; this walk consults the
+        // world the random-tick system owns).
+        if (weatherNow == null || !weatherNow.raining()) {
+            return false;
+        }
+        int height = surfaceY((int) Math.floor(x), (int) Math.floor(z)) + 1;
+        if (y < height) {
+            return false;
+        }
+        String name = world.biomeAt(new BlockPosition(
+                (int) Math.floor(x), 64, (int) Math.floor(z)));
+        try {
+            return net.zaminmc.torch.server.world.Biome
+                    .valueOf(name.toUpperCase(java.util.Locale.ROOT)).rainy();
+        } catch (IllegalArgumentException unknown) {
+            return net.zaminmc.torch.server.world.Biome.PLAINS.rainy();
+        }
+    }
+
     private boolean useFarmingOnTick(PlayerSession session, BlockPosition clicked, int face) {
         net.zaminmc.torch.item.ItemStack heldStack = session.inventory().held();
         if (heldStack.isEmpty()) {
@@ -22039,22 +22074,17 @@ public final class EngineServer implements Server, EngineBridge {
          */
         @Override
         public boolean isRainingAt(double x, double y, double z) {
-            net.zaminmc.torch.server.weather.WeatherSystem weatherNow = weather;
-            if (weatherNow == null || !weatherNow.raining() || activeWorld() != world) {
+            // The dimension gate the hoist must keep (the pre-pass read's
+            // own law): the rain flag lives on the overworld alone — the
+            // roofed dimensions NEVER rain (the reference's per-world
+            // weather, World.isRaining's own world consult), and the mob
+            // view answers bodies in every dimension (a blaze in the
+            // nether must never read the overworld's storm — the drown
+            // arm's own regression class the farmland hoist dropped).
+            if (activeWorld() != world) {
                 return false;
             }
-            int height = surfaceY((int) Math.floor(x), (int) Math.floor(z)) + 1;
-            if (y < height) {
-                return false;
-            }
-            String name = world.biomeAt(new BlockPosition(
-                    (int) Math.floor(x), 64, (int) Math.floor(z)));
-            try {
-                return net.zaminmc.torch.server.world.Biome
-                        .valueOf(name.toUpperCase(java.util.Locale.ROOT)).rainy();
-            } catch (IllegalArgumentException unknown) {
-                return net.zaminmc.torch.server.world.Biome.PLAINS.rainy();
-            }
+            return rainAtInWorld(x, y, z);
         }
 
         @Override

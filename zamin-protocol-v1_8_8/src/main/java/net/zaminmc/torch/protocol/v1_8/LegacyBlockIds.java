@@ -1666,6 +1666,14 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:prismarine_bricks"), 1),
             Map.entry(Identifier.parse("minecraft:prismarine_dark"), 2),
             Map.entry(Identifier.parse("minecraft:wet_sponge"), 1),
+            // The farmland moisture nibble (the farmland state pass —
+            // FarmlandBlock.MOISTURE 0-7, getMetadataFromState lines
+            // 127-130): the WET form writes SEVEN — the vanilla client's
+            // own blockstate consult renders the moist skin iff the
+            // received metadata is exactly 7, and the pre-audit table's
+            // 0-default wrote the wet form indistinguishable from dry
+            // (every engine farmland rendered dry on the real client).
+            Map.entry(Identifier.parse("minecraft:farmland_wet"), 7),
             // The temple set (Slice 12f): the sandstone variant band + the
             // clay variant band + the vine's attached state.
             Map.entry(Identifier.parse("minecraft:chiseled_sandstone"), 3),

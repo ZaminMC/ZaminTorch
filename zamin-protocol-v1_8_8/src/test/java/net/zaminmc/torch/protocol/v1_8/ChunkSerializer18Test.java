@@ -84,6 +84,30 @@ class ChunkSerializer18Test {
     }
 
     @Test
+    void theWetFarmlandNibbleIsTheMoistureSeven() {
+        // The farmland state pass — FarmlandBlock.getMetadataFromState
+        // lines 127-130: the MOISTURE level rides the wire nibble, and the
+        // vanilla client renders the moist skin iff the received metadata
+        // is exactly SEVEN (the blockstate's own moist variant). The
+        // pre-audit table's 0-default wrote the wet form indistinguishable
+        // from dry — every engine farmland rendered dry on the real client.
+        EngineChunk chunk = flatChunk(0, 0);
+        chunk.setBlock(0, 5, 0, registry.require(
+                Identifier.parse("minecraft:farmland_wet")));
+        chunk.setBlock(1, 5, 0, registry.require(
+                Identifier.parse("minecraft:farmland")));
+        byte[] data = ChunkSerializer18.serialize(chunk, true);
+        int wet = readStateId(data, 5 * 256 + 0);
+        assertEquals(60, wet >> 4, "farmland's legacy id");
+        assertEquals(7, wet & 0xF,
+                "the wet form's moisture nibble is SEVEN (the client's own"
+                        + " moist-skin consult reads metadata == 7)");
+        int dry = readStateId(data, 5 * 256 + 1);
+        assertEquals(60, dry >> 4);
+        assertEquals(0, dry & 0xF, "the dry form stays zero");
+    }
+
+    @Test
     void emptyChunkProducesOnlyBiomes() {
         EngineChunk chunk = new EngineChunk(new ChunkPosition(10, 10),
                 registry.require(Identifier.parse("minecraft:air")));
