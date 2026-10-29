@@ -236,8 +236,15 @@ class ItemOrbLavaEnvelopeParityTest {
             double preZ = item.position().z();
             int before = sounds.heard.size();
             item.tick(ground, random, sounds);
+            // The crossing flag's own frame (the clock-frame repair's
+            // re-pin): the reference's line 75 reads (int) of the entity's
+            // y — the 1.8.8 position IS the box BOTTOM, the engine's
+            // center translates as y - HALF_HEIGHT (the same convention
+            // the lava consult reads below). The pre-fix pin read the
+            // raw center.
             boolean crossed = (int) preX != (int) item.position().x()
-                    || (int) preY != (int) item.position().y()
+                    || (int) (preY - ItemEntity.HALF_HEIGHT)
+                    != (int) (item.position().y() - ItemEntity.HALF_HEIGHT)
                     || (int) preZ != (int) item.position().z();
             boolean ageArm = tick % 25 == 0;
             boolean inLava = ground.lavaAtCell(item.position().x(),
