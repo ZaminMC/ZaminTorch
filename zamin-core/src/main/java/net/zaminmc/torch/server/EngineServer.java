@@ -13443,11 +13443,14 @@ public final class EngineServer implements Server, EngineBridge {
             }
             world.setBlock(clicked, coarseDirt
                     ? BuiltinBlocks.DIRT : BuiltinBlocks.FARMLAND);
-            // tillBlock's own sound (HoeItem lines 51-58): the stepping
-            // sound at (volume + 1) / 2 and pitch * 0.8 — the grass family's
-            // 1.0 volume and 1.0 pitch give 1.0f / 0.8f.
+            // tillBlock's own sound (HoeItem lines 51-58): the TILLED
+            // block's STEPPING sound (getStepping — farmland carries the
+            // grass family) at (volume + 1) / 2 and pitch * 0.8 — the
+            // grass family's 1.0 volume and 1.0 pitch give 1.0f / 0.8f
+            // (the dig.grass name the pre-fix engine carried is the
+            // breaking sound, a different 1.8.8 event than step.grass).
             fxManager.sound(new Position(clicked.x() + 0.5, clicked.y() + 0.5, clicked.z() + 0.5),
-                    "dig.grass", 1.0f, 0.8f);
+                    "step.grass", 1.0f, 0.8f);
             if (net.zaminmc.torch.server.item.Tools.specOf(heldType).isPresent()) {
                 session.inventory().damageHeld(1, gameplayRandom, session.stats());
                 publishInventoryChanged(session);
