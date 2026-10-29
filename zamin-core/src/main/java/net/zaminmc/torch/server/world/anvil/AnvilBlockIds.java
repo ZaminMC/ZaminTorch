@@ -38,6 +38,13 @@ import java.util.Map;
  *   <li>{@code (60, 2..7) -> minecraft:farmland_wet} — the 1.8.8 moisture
  *       band 0..7 flattened to the engine's dry/wet pair (any moisture
  *       above zero is the wet skin).</li>
+ *   <li>{@code (81, 1..15) -> minecraft:cactus} and
+ *       {@code (83, 1..15) -> minecraft:sugar_cane} — the AGE 0-15
+ *       accumulators flattened to the engine's single types (the farming
+ *       growth pass): the AGE nibble is client-invisible (no model, sound
+ *       or logic consumes it) but a lived-in vanilla world carries every
+ *       value, and the nibble-0-only rows isolated the rest AS AIR —
+ *       the growth cadences ride the random-tick law.</li>
  *   <li>{@code (175, 8..11) -> minecraft:double_grass_upper} — the upper
  *       half's band ({@code 8 | horizontal facing}); the SPECIES is virtual
  *       in 1.8.8 (the reference's own
@@ -564,9 +571,49 @@ public final class AnvilBlockIds {
             state(78, 0, "minecraft:snow_layer"),
             state(79, 0, "minecraft:ice"),
             state(80, 0, "minecraft:snow"),
+            // The AGE-15 import bands (the farming growth pass — the
+            // reference's SugarCaneBlock.AGE / CactusBlock.AGE 0-15, the
+            // accumulators whose nibbles a lived-in vanilla world carries
+            // at every value: 15 of 16 loaded canes and cacti are NOT at
+            // age 0, and the pre-audit table's nibble-0-only rows isolated
+            // every one of them as AIR): the single-type flattening the
+            // family's own documented decision carries (the AGE nibble is
+            // client-invisible — no model, sound or logic consumes it —
+            // so the whole band folds to the one type, the farmland
+            // moisture band's own precedent).
             state(81, 0, "minecraft:cactus"),
+            state(81, 1, "minecraft:cactus"),
+            state(81, 2, "minecraft:cactus"),
+            state(81, 3, "minecraft:cactus"),
+            state(81, 4, "minecraft:cactus"),
+            state(81, 5, "minecraft:cactus"),
+            state(81, 6, "minecraft:cactus"),
+            state(81, 7, "minecraft:cactus"),
+            state(81, 8, "minecraft:cactus"),
+            state(81, 9, "minecraft:cactus"),
+            state(81, 10, "minecraft:cactus"),
+            state(81, 11, "minecraft:cactus"),
+            state(81, 12, "minecraft:cactus"),
+            state(81, 13, "minecraft:cactus"),
+            state(81, 14, "minecraft:cactus"),
+            state(81, 15, "minecraft:cactus"),
             state(82, 0, "minecraft:clay"),
             state(83, 0, "minecraft:sugar_cane"),
+            state(83, 1, "minecraft:sugar_cane"),
+            state(83, 2, "minecraft:sugar_cane"),
+            state(83, 3, "minecraft:sugar_cane"),
+            state(83, 4, "minecraft:sugar_cane"),
+            state(83, 5, "minecraft:sugar_cane"),
+            state(83, 6, "minecraft:sugar_cane"),
+            state(83, 7, "minecraft:sugar_cane"),
+            state(83, 8, "minecraft:sugar_cane"),
+            state(83, 9, "minecraft:sugar_cane"),
+            state(83, 10, "minecraft:sugar_cane"),
+            state(83, 11, "minecraft:sugar_cane"),
+            state(83, 12, "minecraft:sugar_cane"),
+            state(83, 13, "minecraft:sugar_cane"),
+            state(83, 14, "minecraft:sugar_cane"),
+            state(83, 15, "minecraft:sugar_cane"),
             state(84, 0, "minecraft:jukebox"),
             state(84, 1, "minecraft:jukebox_record"),
             state(85, 0, "minecraft:oak_fence"),
