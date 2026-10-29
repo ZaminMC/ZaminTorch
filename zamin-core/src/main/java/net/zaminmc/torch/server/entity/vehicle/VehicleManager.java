@@ -16,6 +16,20 @@ import java.util.Random;
  */
 public final class VehicleManager {
 
+    /**
+     * The rider's fall payment (F-RIDER-SPARE — the vehicles' landing
+     * delegate): the engine resolves the seated player's session by id
+     * and pays the landing with the landed cell's multiplier. Injected
+     * into every spawned body (the spawn walk); null keeps the payment
+     * a no-op.
+     */
+    private volatile VehicleEntity.RiderFall riderFall;
+
+    /** Wires the rider-fall seam (the engine's own resolution walk). */
+    public void setRiderFall(VehicleEntity.RiderFall fall) {
+        this.riderFall = java.util.Objects.requireNonNull(fall, "fall");
+    }
+
     /** Events the protocol adapter translates into wire updates. */
     public interface Listener {
         /** A vehicle spawned: Spawn Object to every observer. */
@@ -299,6 +313,12 @@ public final class VehicleManager {
         // Wave TF-11 — the dimension stamps the body BEFORE the listener
         // fan (the spawn publications read it; the TF-9 lesson).
         vehicle.setDimension(dimension);
+        var fall = riderFall;
+        if (fall != null) {
+            // F-RIDER-SPARE: the vehicle's landing delegate (the seated
+            // player pays the fall; the vehicle pays nothing itself).
+            vehicle.setRiderFall(fall);
+        }
         vehicles.add(vehicle);
         for (Listener listener : listeners) {
             listener.onVehicleSpawned(vehicle);
@@ -697,6 +717,10 @@ public final class VehicleManager {
                     vehicle.position().z())) {
                 hurt(vehicle, 4.0f, VehicleEntity.DamageSource.FIRE);
                 vehicle.setOnFireFor(15);
+                // The fall's lava halving (the reference's fallDistance
+                // *= 0.5 in the lava walk — the note the pre-wave comment
+                // carried, made real by F-RIDER-SPARE's fall walk).
+                vehicle.halveFall();
             }
             // The state flips (Slice 66): the TNT cart's prime and the
             // furnace cart's lit byte — the wire's own tracked data.
@@ -735,7 +759,62 @@ public final class VehicleManager {
                         vehicle.position().y() + 0.4,
                         vehicle.position().z()) > 0);
             }
+            boolean wasGrounded = vehicle.onGround();
+            double beforeTickY = vehicle.position().y();
             vehicle.tick(world);
+            // THE FALL WALK (F-RIDER-SPARE — the reference's
+            // Entity.checkFallDamage lines 719-733, the vehicles' own arm
+            // the engine lacked whole): the descent accumulates only
+            // while airborne (line 728-731's {@code else if (dy < 0.0)
+            // fallDistance -= dy}); the landing (a fresh ground after a
+            // fall, the store positive) pays ONCE through the landed
+            // cell's consult then spends the store (line 733). The
+            // payment is the base Entity.takeFallDamage ALONE (lines
+            // 748-752 — the non-living base is the RIDER DELEGATE: the
+            // seated player pays, the vehicle itself pays nothing) with
+            // the cell's own multiplier: the pad's ZERO (a vehicle never
+            // sneaks — the override's other arm is vacuous here), the
+            // common blocks' 1.0. The farmland's instanceof LivingEntity
+            // gate (FarmlandBlock.onFallenOn lines 57-71) skips vehicles
+            // WHOLE — no trample, no payment, the store still spent.
+            if (!vehicle.onGround()) {
+                if (vehicle.position().y() < beforeTickY) {
+                    vehicle.accumulateFall(beforeTickY - vehicle.position().y());
+                }
+            } else if (!wasGrounded && vehicle.fallDistance() > 0.0f) {
+                float fallen = vehicle.fallDistance();
+                // The landed-cell consult (Entity.move lines 569-581 —
+                // the -0.2 feet cell with the air-cell fence fallback,
+                // the mob landing's own derivation).
+                int landX = (int) Math.floor(vehicle.position().x());
+                int landY = (int) Math.floor(vehicle.position().y()
+                        - vehicle.boxHalfHeight() - 0.2);
+                int landZ = (int) Math.floor(vehicle.position().z());
+                net.zaminmc.torch.util.Identifier landed =
+                        world.blockIdAt(landX, landY, landZ);
+                if (landed == null || landed.value().equals("air")) {
+                    net.zaminmc.torch.util.Identifier under =
+                            world.blockIdAt(landX, landY - 1, landZ);
+                    if (under != null && (under.value().equals("oak_fence")
+                            || under.value().equals("spruce_fence")
+                            || under.value().equals("birch_fence")
+                            || under.value().equals("jungle_fence")
+                            || under.value().equals("dark_oak_fence")
+                            || under.value().equals("acacia_fence")
+                            || under.value().equals("nether_brick_fence"))) {
+                        landed = under;
+                    }
+                }
+                String landedName = landed == null ? "" : landed.value();
+                if (landedName.equals("farmland") || landedName.equals("farmland_wet")) {
+                    // The instanceof LivingEntity gate: a vehicle lands
+                    // soft — nothing owed, nothing trampled.
+                } else {
+                    float multiplier = landedName.equals("slime_block") ? 0.0f : 1.0f;
+                    vehicle.payRiderFall(fallen, multiplier);
+                }
+                vehicle.spendFall();
+            }
             // The fire-source contact walk (Slice 78 — Entity.java lines
             // 635-651, the move() fire arm): the body inside a fire-source
             // cell (the fire block, the lava cells — containsFireSource's

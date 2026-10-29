@@ -119,7 +119,14 @@ class VehiclePersistenceTest {
             assertEquals("Night Cart", cart.customName());
             assertTrue(cart.customNameVisible());
             assertTrue(cart.silent());
-            assertEquals(3.75f, cart.fallDistance(), 0.0001f);
+            // The imported fall store (3.75 at the import) spends at the
+            // settle's first landing — F-RIDER-SPARE's fall walk, the
+            // reference's own checkFallDamage line 733: every landing
+            // spends the store, whatever it carried in (the pre-fix
+            // engine never touched the store in the tick, so the 3.75
+            // rode the save whole; the reference imports it only until
+            // the first touchdown).
+            assertEquals(0.0f, cart.fallDistance(), 0.0001f);
             assertEquals(190, cart.breath());
             assertTrue(cart.invulnerable());
             assertEquals(0, cart.dimension(),
