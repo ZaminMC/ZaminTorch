@@ -336,19 +336,48 @@ public final class BuiltinBlocks {
             Identifier.parse("minecraft:wall_sign_east"), "Wall Sign", 5);
 
     // The banner family (the sign family's twin — BannerBlock over blocks
-    // 176 standing / 177 wall): the standing pair flattened to the four
-    // cardinal rotations exactly like the signs (the reference's ROTATION
-    // 0-15 band, the cardinals at 0/4/8/12 = S/W/N/E), the wall pair's
-    // FACING in the metadata 2-5. The base color and the pattern rows are
-    // tile state (the banner manager), never the block's.
+    // 176 standing / 177 wall): the standing pair carries the reference's
+    // ROTATION 0-15 band WHOLE (BannerBlock.Standing's getStateFromMetadata
+    // passing the nibble straight through, the sign family's own compass-16
+    // — the twelfth-pass treatment the sign restoration carried across:
+    // the cardinals at 0/4/8/12 = S/W/N/E keep their historical names and
+    // the base minecraft:standing_banner its metadata 0, the twelve
+    // intermediate rotations the compass names, every 22.5-degree step its
+    // own state), the wall pair's FACING in the metadata 2-5. The base
+    // color and the pattern rows are tile state (the banner manager),
+    // never the block's.
     public static final EngineBlockType STANDING_BANNER = new EngineBlockType(
             Identifier.parse("minecraft:standing_banner"), "Banner");
+    public static final EngineBlockType STANDING_BANNER_SSW = new EngineBlockType(
+            Identifier.parse("minecraft:standing_banner_ssw"), "Banner", 1);
+    public static final EngineBlockType STANDING_BANNER_SW = new EngineBlockType(
+            Identifier.parse("minecraft:standing_banner_sw"), "Banner", 2);
+    public static final EngineBlockType STANDING_BANNER_WSW = new EngineBlockType(
+            Identifier.parse("minecraft:standing_banner_wsw"), "Banner", 3);
     public static final EngineBlockType STANDING_BANNER_WEST = new EngineBlockType(
             Identifier.parse("minecraft:standing_banner_west"), "Banner", 4);
+    public static final EngineBlockType STANDING_BANNER_WNW = new EngineBlockType(
+            Identifier.parse("minecraft:standing_banner_wnw"), "Banner", 5);
+    public static final EngineBlockType STANDING_BANNER_NW = new EngineBlockType(
+            Identifier.parse("minecraft:standing_banner_nw"), "Banner", 6);
+    public static final EngineBlockType STANDING_BANNER_NNW = new EngineBlockType(
+            Identifier.parse("minecraft:standing_banner_nnw"), "Banner", 7);
     public static final EngineBlockType STANDING_BANNER_NORTH = new EngineBlockType(
             Identifier.parse("minecraft:standing_banner_north"), "Banner", 8);
+    public static final EngineBlockType STANDING_BANNER_NNE = new EngineBlockType(
+            Identifier.parse("minecraft:standing_banner_nne"), "Banner", 9);
+    public static final EngineBlockType STANDING_BANNER_NE = new EngineBlockType(
+            Identifier.parse("minecraft:standing_banner_ne"), "Banner", 10);
+    public static final EngineBlockType STANDING_BANNER_ENE = new EngineBlockType(
+            Identifier.parse("minecraft:standing_banner_ene"), "Banner", 11);
     public static final EngineBlockType STANDING_BANNER_EAST = new EngineBlockType(
             Identifier.parse("minecraft:standing_banner_east"), "Banner", 12);
+    public static final EngineBlockType STANDING_BANNER_ESE = new EngineBlockType(
+            Identifier.parse("minecraft:standing_banner_ese"), "Banner", 13);
+    public static final EngineBlockType STANDING_BANNER_SE = new EngineBlockType(
+            Identifier.parse("minecraft:standing_banner_se"), "Banner", 14);
+    public static final EngineBlockType STANDING_BANNER_SSE = new EngineBlockType(
+            Identifier.parse("minecraft:standing_banner_sse"), "Banner", 15);
     public static final EngineBlockType WALL_BANNER_NORTH = new EngineBlockType(
             Identifier.parse("minecraft:wall_banner"), "Wall Banner", 2);
     public static final EngineBlockType WALL_BANNER_SOUTH = new EngineBlockType(
@@ -964,9 +993,21 @@ public final class BuiltinBlocks {
                 .register(WALL_SIGN_WEST)
                 .register(WALL_SIGN_EAST)
                 .register(STANDING_BANNER)
+                .register(STANDING_BANNER_SSW)
+                .register(STANDING_BANNER_SW)
+                .register(STANDING_BANNER_WSW)
                 .register(STANDING_BANNER_WEST)
+                .register(STANDING_BANNER_WNW)
+                .register(STANDING_BANNER_NW)
+                .register(STANDING_BANNER_NNW)
                 .register(STANDING_BANNER_NORTH)
+                .register(STANDING_BANNER_NNE)
+                .register(STANDING_BANNER_NE)
+                .register(STANDING_BANNER_ENE)
                 .register(STANDING_BANNER_EAST)
+                .register(STANDING_BANNER_ESE)
+                .register(STANDING_BANNER_SE)
+                .register(STANDING_BANNER_SSE)
                 .register(WALL_BANNER_NORTH)
                 .register(WALL_BANNER_SOUTH)
                 .register(WALL_BANNER_WEST)

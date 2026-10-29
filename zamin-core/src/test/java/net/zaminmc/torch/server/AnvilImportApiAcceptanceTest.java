@@ -80,9 +80,9 @@ class AnvilImportApiAcceptanceTest {
     /**
      * The gold-mine scene the command's own acceptance test drives: a
      * level.dat (spawn + day clock + seed), a torch chunk (8,8) with a
-     * stone floor + a torch + the banner (176 — the engine's one
-     * unregistered 1.8.8 family, importing as air with a counted unknown
-     * state), a dirt neighbor (9,8), the already-loaded skip chunk (0,0)
+     * stone floor + a torch + the banner (176 — the registered banner
+     * family's south state at meta 0 importing whole since Wave BN-A),
+     * a dirt neighbor (9,8), the already-loaded skip chunk (0,0)
      * inside the boot pregen's view, a garbage region file beside the good
      * one, an empty third region file, and a non-region file.
      */
@@ -200,7 +200,8 @@ class AnvilImportApiAcceptanceTest {
         assertTrue(row.contains("skipped 1 (already loaded)"), "the publication rule's skip: " + row);
         assertTrue(row.contains("shorter than the 8 KiB header"),
                 "the garbage region file's counted isolation: " + row);
-        assertTrue(row.contains("id 176 meta 0 x1"), "the banner's counted unknown state: " + row);
+        assertTrue(!row.contains("id 176"),
+                "the registered banner family never rides the unknown-state ledger: " + row);
 
         // ------------------------------------------------------------ the engine state, through the api reads
         assertEquals("minecraft:stone",
@@ -209,9 +210,9 @@ class AnvilImportApiAcceptanceTest {
         assertEquals("minecraft:torch",
                 apiWorld.getBlock(new BlockPosition(130, 1, 130)).identifier().toString(),
                 "the imported torch is readable through the api world");
-        assertEquals("minecraft:air",
+        assertEquals("minecraft:standing_banner",
                 apiWorld.getBlock(new BlockPosition(131, 1, 131)).identifier().toString(),
-                "the banner imported as air (the unregistered family)");
+                "the banner imports as its south state (the registered family, meta 0)");
         assertEquals("minecraft:dirt",
                 apiWorld.getBlock(new BlockPosition(144, 0, 128)).identifier().toString(),
                 "the neighbor chunk's block");

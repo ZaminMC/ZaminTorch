@@ -17917,3 +17917,25 @@ sign family is the pattern to follow (EngineServer.placeSignOnTick):
 Estimated as one full session wave (the sign family's own scale);
 the scoping verified against the reference's BannerBlock.java,
 BannerItem.java, and the engine's sign placement this session.
+
+---
+
+## Session 2026-10-29 (first window) — PR #67 merged + Wave BN-C
+
+- PR #67 (the sign rotation family parity audit, the verifier's twelfth
+  pass): the develop merge the previous window left unpushed completed —
+  the merged state verified (sign lanes 13/0, banner 8/0, update system
+  6/0, block package 258/0, registry + anvil reader 24/0), the branch
+  pushed, the PR API-merged at 685a79b5. The AnvilImportApiAcceptanceTest
+  failure the battery surfaced was verified PRE-EXISTING on clean develop
+  in a worktree (the BN-A wave registered 176/177 but re-pinned
+  AnvilImportAcceptanceTest alone, missing the API twin) — not the PR's.
+- Wave BN-C (the banner twelfth-pass alignment, recovered from the
+  interrupted window's uncommitted tree and verified against the
+  reference line by line before landing): the compass-16 standing band
+  whole, the placement gates in BannerItem.useOn's own order, the
+  support arms' material consult, the note block's WOOD surface, the
+  API-twin re-pin. The band + gates seat stash-verified failing 1/1 with
+  the old gates surgically restored. BannerFamilyTest 7/0; the battery
+  61/0; the regression 304/0. The ledgers: §29's Wave BN-C row + the
+  §22 statement.

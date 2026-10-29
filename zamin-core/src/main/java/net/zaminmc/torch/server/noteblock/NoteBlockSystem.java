@@ -195,10 +195,12 @@ public final class NoteBlockSystem implements WorldChangeListener {
             "stained_glass_pane_red", "stained_glass_pane_black");
 
     /** The WOOD-material set (instrument 4 — bass guitar): the planks/log
-     *  family, the containers, the fence, the wooden slab, the signs, and
-     *  the note block itself (Material.WOOD — the six wooden door
-     *  families' every state ride the isWoodDoor test, not this set; the
-     *  six fence-gate families' states ride the isFenceGate test). */
+     *  family, the containers, the fence, the wooden slab, the signs, the
+     *  banners, and the note block itself (Material.WOOD — the six wooden
+     *  door families' every state ride the isWoodDoor test, not this set;
+     *  the six fence-gate families' states ride the isFenceGate test).
+     *  The banners' own membership is BannerBlock line 21's WOOD — the
+     *  note block's bass guitar on a banner, the sign family's twin. */
     private static final Set<String> WOOD_MATERIAL = Set.of(
             "oak_planks", "oak_log", "crafting_table", "chest", "bookshelf",
             "oak_fence", "noteblock",
@@ -207,19 +209,16 @@ public final class NoteBlockSystem implements WorldChangeListener {
             "spruce_log", "birch_log", "jungle_log", "acacia_log", "dark_oak_log",
             "oak_slab", "oak_slab_top",
             "sign", "sign_east", "sign_north", "sign_west",
-            "sign_ssw",
-            "sign_sw",
-            "sign_wsw",
-            "sign_wnw",
-            "sign_nw",
-            "sign_nnw",
-            "sign_nne",
-            "sign_ne",
-            "sign_ene",
-            "sign_ese",
-            "sign_se",
-            "sign_sse",
-            "wall_sign", "wall_sign_east", "wall_sign_south", "wall_sign_west");
+            "sign_ssw", "sign_sw", "sign_wsw", "sign_wnw", "sign_nw", "sign_nnw",
+            "sign_nne", "sign_ne", "sign_ene", "sign_ese", "sign_se", "sign_sse",
+            "wall_sign", "wall_sign_east", "wall_sign_south", "wall_sign_west",
+            "standing_banner", "standing_banner_west", "standing_banner_north",
+            "standing_banner_east", "standing_banner_ssw", "standing_banner_sw",
+            "standing_banner_wsw", "standing_banner_wnw", "standing_banner_nw",
+            "standing_banner_nnw", "standing_banner_nne", "standing_banner_ne",
+            "standing_banner_ene", "standing_banner_ese", "standing_banner_se",
+            "standing_banner_sse",
+            "wall_banner", "wall_banner_south", "wall_banner_west", "wall_banner_east");
 
     /** The reference's instrument selection: the block BELOW's material. */
     public static int instrumentOf(String belowValue) {
