@@ -10896,15 +10896,22 @@ public final class MobEntity implements LivingEntity {
 
     /**
      * The reference's {@code makesSteps()} (Entity line 715): true for
-     * every body except the seven overrides — the mob kinds among them
-     * are the guardian, the endermite, and the silverfish
-     * (GuardianEntity 229, EndermiteEntity 51, SilverfishEntity 57; the
-     * TNT, the falling block, the minecart, and the boat are not mob
-     * bodies on this engine).
+     * every body except the overrides — the MOB kinds among them are
+     * the FIVE false overrides: the guardian, the endermite, the
+     * silverfish, the bat, and the squid (GuardianEntity 229,
+     * EndermiteEntity 51, SilverfishEntity 57, BatEntity 144-146,
+     * SquidEntity 73-75; the TNT, the falling block, the minecart, and
+     * the boat are not mob bodies on this engine). The band's gate
+     * covers every step consult together: the footsteps, the walked
+     * distance, the ore's step glow, and the slime's sticky-floor
+     * damping — a grounded bat or a beached squid makes no step sound,
+     * never lights the ore, and never takes the damping in the
+     * reference, whatever its physics walk does.
      */
     private boolean makesSteps() {
         return type != MobType.GUARDIAN && type != MobType.ENDERMITE
-                && type != MobType.SILVERFISH;
+                && type != MobType.SILVERFISH
+                && type != MobType.BAT && type != MobType.SQUID;
     }
 
     /** Whether the identifier is the empty cell (the reference's Material.AIR). */
@@ -11068,9 +11075,24 @@ public final class MobEntity implements LivingEntity {
             tickBatBody();
             return;
         }
-        // The squid's swim (Slice 16e — SquidEntity.mobTick): the tentacle
-        // stroke owns the velocity; the position integrates it directly
-        // (no gravity, no walk).
+        // The squid's swim (Slice 16e — SquidEntity.mobTick over its
+        // moveRelative override, lines 154-157): the tentacle stroke OWNS
+        // THE VELOCITY, but the override's body is the FULL COLLIDING
+        // {@code this.move(velocityX, velocityY, velocityZ)} — the
+        // reference's own Entity.move with the clip, the ground, the
+        // beforeCollision consult and the steps band, NOT a raw
+        // position integration. The pre-fix engine read the override as
+        // integration and the squid PHASED THROUGH BLOCKS: a stranded
+        // squid sank through the seabed out of the world (the void plane
+        // finished it), a swimming squid crossed aquarium glass. The
+        // stroke now rides the same swept solver every walker uses
+        // (solverMove — the clip, onGround, the axis zeroing, the
+        // slime-flip beforeCollision consult), and the steps band runs
+        // over the applied move exactly like the reference's own
+        // (stepSoundWalk) — where the squid's makesSteps() FALSE
+        // override (SquidEntity lines 73-75) silences every consult:
+        // the beached squid grounds on the ore and never lights it,
+        // makes no footstep, never takes the sticky-floor damping.
         if (type == MobType.SQUID && !dead) {
             if (noAi) { // the pin (Slice 92 — the stroke rides moveRelative)
                 decayVelocity();
@@ -11085,9 +11107,24 @@ public final class MobEntity implements LivingEntity {
             boolean squidInWater = !world.inLava(position.x(), position.y() + 0.2, position.z())
                     && world.inFluid(position.x(), position.y() + 0.2, position.z());
             tickSquidBody(squidInWater);
-            position = new Position(position.x() + velocityX, position.y() + velocityY,
-                    position.z() + velocityZ);
-            onGround = false;
+            double preMoveX = position.x();
+            double preMoveY = position.y();
+            double preMoveZ = position.z();
+            if (solverMove(velocityX, velocityY, velocityZ,
+                    WALK_STEP_HEIGHT) != null) {
+                // The steps band over the applied move (Entity.move lines
+                // 607-609) — the makesSteps gate inside silences the
+                // squid's own consults, exactly the reference's law.
+                stepSoundWalk(preMoveX, preMoveY, preMoveZ);
+            } else {
+                // The legacy stub path (the walker's own fallback shape
+                // below its swept block): a world with no collision
+                // surface integrates the stroke raw — the stub seats'
+                // own pinned shape.
+                position = new Position(position.x() + velocityX,
+                        position.y() + velocityY, position.z() + velocityZ);
+                onGround = false;
+            }
             return;
         }
         // The guardian's swim (Slice 17a — GuardianEntity.moveRelative +
