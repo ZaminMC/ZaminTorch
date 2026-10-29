@@ -155,12 +155,13 @@ public final class RandomTickSystem {
     }
 
     /**
-     * The plant-pop drop seam (the planting-arms pass; the growth-cadence
-     * pass's own identical seam — the hunks coalesce at the merge): the
-     * body the random-tick support consults' pops land through — the same
-     * item manager the neighbour bus's plant-pop arms use, wired at the
-     * same boot site (the nether wart's soul-sand pop rides it; null
-     * keeps the pops drop-less, the direct-driven seats' own shape).
+     * The plant-pop drop seam (the farming growth pass + the planting-arms
+     * pass, the identical seam both added — the hunks coalesced at the
+     * merge): the body the random-tick support consults' pops land
+     * through — the same item manager the neighbour bus's plant-pop arms
+     * use, wired at the same boot site (the cane's water-loss pop, the
+     * cactus's new-cell pop, and the nether wart's soul-sand pop ride it;
+     * null keeps the pops drop-less, the direct-driven seats' own shape).
      */
     private volatile net.zaminmc.torch.server.entity.ItemEntityManager popItems;
 
@@ -468,29 +469,125 @@ public final class RandomTickSystem {
      * The historical BlockCrops growth (Slice 12b generalized to the whole
      * family — the wheat, the carrots and the potatoes all extend the
      * reference's BlockCrops with the same 0..7 age band): a randomly-ticked
-     * stage advances one age when the light above is at least 9, twice as
-     * likely over hydrated farmland.
+     * stage advances one age when the light above is at least 9, at the
+     * reference's own {@code 25 / growthSpeed} cadence (WheatBlock.tick
+     * lines 34-45: {@code random.nextInt((int)(25.0F / f) + 1) == 0}).
+     *
+     * <p>THE F SPEED (the reference's {@code getGrowthSpeed} lines 56-98,
+     * ported whole — the pre-audit engine's flat {@code nextInt(3)} wet /
+     * {@code nextInt(6)} dry pair grew 2.33x/2.17x the reference's pace and
+     * skipped both the neighbour-ring acceleration and the row half): the
+     * 3x3 soil ring under the crop contributes {@code +1.0} per farmland
+     * cell — {@code +3.0} when its moisture is above zero (the engine's
+     * {@code farmland_wet} pair, the documented 0..7 flattening) — with the
+     * eight non-center cells divided by 4; a crop ringed by eight wet
+     * farmlands grows at 1-in-3 where a lone wet crop takes 1-in-7 and a
+     * dry one 1-in-13. The same-crop row pattern then halves {@code f}: a
+     * crop with its own kind both north/south and east/west, or in the four
+     * corners of that cross (lines 79-95). THE STEM ROLL GATE
+     * (StemBlock.tick lines 57-82): a mature stem attempts its fruit walk
+     * ONLY on a passing roll — the pre-audit engine attempted it on every
+     * random tick, ~7x the reference's fruit cadence.</p>
      */
     private void tickCropGrowth(BlockPosition position, BlockType type) {
         if (lightAt(position.offset(0, 1, 0)) < 9) {
             return;
         }
+        float f = cropGrowthSpeed(world, position, type.identifier());
+        if (random.nextInt((int) (25.0f / f) + 1) != 0) {
+            return; // the failed roll: no age advance, no fruit attempt
+        }
         int stage = WorldSolidity.cropStageOf(type.identifier());
         if (stage >= 7) {
-            // The stems' fruit arm (Slice 41 — StemBlock.tick lines 60-84):
-            // a fully-grown stem tries to spawn its fruit beside it (the
-            // engine's crop model carries the same random-tick gate).
+            // The stems' fruit arm (Slice 41 — StemBlock.tick lines 66-79):
+            // a passing roll reaches the walk; the engine's crop model
+            // carries the same random-tick gate. The walk itself is 1:1
+            // (MelonBlocks.trySpawnFruit — the existing-fruit consult, one
+            // random horizontal, air over farmland/dirt/grass).
             String stemFamily = MelonBlocks.stemFamilyOf(type.identifier());
             if (stemFamily != null) {
                 MelonBlocks.trySpawnFruit(world, position, stemFamily, random);
             }
             return; // fully grown: nothing to advance
         }
-        BlockType soil = world.getBlock(position.offset(0, -1, 0));
-        boolean hydrated = soil.identifier().equals(BuiltinBlocks.FARMLAND_WET.identifier());
-        if (random.nextInt(hydrated ? 3 : 6) == 0) {
-            world.setBlock(position, cropStage(type.identifier(), stage + 1));
+        world.setBlock(position, cropStage(type.identifier(), stage + 1));
+    }
+
+    /**
+     * The reference's growth-speed consult (WheatBlock.getGrowthSpeed
+     * lines 56-98), 1:1: the 3x3 soil ring's farmland contributions with the
+     * wet moisture bonus ({@code MOISTURE > 0}, line 66 — any of the six
+     * drying levels grows at the wet pace in the reference; the engine's
+     * binary farmland answers the pair through its {@code farmland_wet}
+     * form) and the non-center /4, then the same-crop row halving
+     * (lines 79-95 — the neighbour consult compares the crop's OWN kind:
+     * wheat against wheat, a melon stem against a melon stem, never the
+     * cross pair).
+     *
+     * <p>Package-private static: the parity seats pin the computed speed
+     * and its derived roll band for every farmland shape without sampling
+     * randomness.</p>
+     */
+    static float cropGrowthSpeed(net.zaminmc.torch.server.world.EngineWorld world,
+            BlockPosition position, net.zaminmc.torch.util.Identifier cropId) {
+        float f = 1.0f;
+        BlockPosition soilRow = position.offset(0, -1, 0);
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dz = -1; dz <= 1; dz++) {
+                float contribution = 0.0f;
+                String soil = world.getBlock(soilRow.offset(dx, 0, dz)).identifier().value();
+                if (soil.equals("farmland") || soil.equals("farmland_wet")) {
+                    contribution = 1.0f;
+                    if (soil.equals("farmland_wet")) {
+                        contribution = 3.0f; // MOISTURE > 0 (line 66)
+                    }
+                }
+                if (dx != 0 || dz != 0) {
+                    contribution /= 4.0f;
+                }
+                f += contribution;
+            }
         }
+        // The row half (lines 79-95): the same-crop pair on both axes, or
+        // the same crop in one of the four corner cells of that cross.
+        boolean sameX = isSameCrop(world, position.offset(-1, 0, 0), cropId)
+                || isSameCrop(world, position.offset(1, 0, 0), cropId);
+        boolean sameZ = isSameCrop(world, position.offset(0, 0, -1), cropId)
+                || isSameCrop(world, position.offset(0, 0, 1), cropId);
+        if (sameX && sameZ) {
+            f /= 2.0f;
+        } else if (isSameCrop(world, position.offset(-1, 0, -1), cropId)
+                || isSameCrop(world, position.offset(1, 0, -1), cropId)
+                || isSameCrop(world, position.offset(1, 0, 1), cropId)
+                || isSameCrop(world, position.offset(-1, 0, 1), cropId)) {
+            f /= 2.0f;
+        }
+        return f;
+    }
+
+    /**
+     * @return whether the crop at the position is the SAME kind as the
+     *         reference's {@code block == this} consult (the family match:
+     *         wheat against wheat, a melon stem against a melon stem).
+     */
+    private static boolean isSameCrop(net.zaminmc.torch.server.world.EngineWorld world,
+            BlockPosition position, net.zaminmc.torch.util.Identifier cropId) {
+        net.zaminmc.torch.util.Identifier other = world.getBlock(position).identifier();
+        if (!other.namespace().equals(cropId.namespace())) {
+            return false;
+        }
+        String mine = cropId.value();
+        String theirs = other.value();
+        // The engine's crop families: wheat_stage*, carrots_stage*,
+        // potatoes_stage*, and the stems' *_stem_stage* — the stage suffix
+        // stripped, the family compared (the reference's own class
+        // identity: melon_stem never matches pumpkin_stem).
+        int mineCut = mine.lastIndexOf("_stage");
+        int theirsCut = theirs.lastIndexOf("_stage");
+        if (mineCut < 0 || theirsCut < 0) {
+            return false;
+        }
+        return mine.substring(0, mineCut).equals(theirs.substring(0, theirsCut));
     }
 
     /** @return the wheat stage (0..7) at the position, -1 when not a crop. */
@@ -573,48 +670,93 @@ public final class RandomTickSystem {
     }
 
     /**
-     * The reed's growth (the historical BlockReed shape): only the top of a
-     * column under three grows, on a wet base (water beside the soil), at
-     * the same 1-in-3 pace hydrated crops use.
+     * The reed's growth (the reference's SugarCaneBlock.tick lines 28-49,
+     * 1:1 — the pre-audit engine grew at a flat 1-in-3 where the reference
+     * rides the AGE 0-15 accumulator's 1-in-16 band, and re-consulted the
+     * BASE's water for every stacked block where the reference's stacked
+     * canes short-circuit at line 30):
+     *
+     * <p>THE SUPPORT CONSULT (line 30): a cane standing on another cane
+     * skips it; the BASE re-validates itself — and this random-tick
+     * consult is the law that pops a cane whose water departed, because
+     * the water cell is DIAGONAL to the cane (never a neighbour-bus
+     * notification): the failed consult DROPS the block with its item and
+     * removes it (canSurviveOrBreak lines 76-84), felling the column as
+     * the bus carries each upper cane's own departure. A stacked cane
+     * over a base whose water left still GROWS until the base's own tick
+     * pops it — the reference's own short-circuit order.</p>
+     *
+     * <p>THE CADENCE: only a block with air above accumulates; the column
+     * (the ticked block and every cane below it) must be under three; the
+     * AGE accumulator's 16-tick prelude is the growth time vanilla
+     * players know ({@code nextInt(16) == 0} — statistically the
+     * accumulator itself; the AGE nibble is client-invisible and rides
+     * the documented single-type flattening).</p>
      */
     private void tickCaneGrowth(BlockPosition position) {
+        // Line 30: the stacked short-circuit; the base's own consult pops
+        // on failure (the drop rides the family's pop seam).
+        if (!WorldSolidity.isSugarCane(
+                world.getBlock(position.offset(0, -1, 0)).identifier())) {
+            if (!canCaneSurviveOrPop(position)) {
+                return; // dropped and removed by the consult
+            }
+        }
         if (!world.getBlock(position.offset(0, 1, 0)).equals(world.airType())) {
-            return; // something is on top: only the topmost reed grows
+            return; // something is on top: only the topmost reed accumulates
         }
-        int height = reedColumnHeight(position);
-        if (height >= 3) {
-            return; // the historical three-block cap
+        int column = 1; // the ticked block itself
+        BlockPosition cursor = position;
+        while (WorldSolidity.isSugarCane(
+                world.getBlock(cursor.offset(0, -1, 0)).identifier())) {
+            column++;
+            cursor = cursor.offset(0, -1, 0);
         }
-        BlockPosition base = position.offset(0, -(height - 1), 0);
-        BlockType soil = world.getBlock(base.offset(0, -1, 0));
-        boolean supported = soil.identifier().equals(BuiltinBlocks.GRASS_BLOCK.identifier())
-                || soil.identifier().equals(BuiltinBlocks.DIRT.identifier())
-                || soil.identifier().equals(BuiltinBlocks.SAND.identifier());
-        if (!supported || !waterBeside(base.offset(0, -1, 0))) {
-            return; // the base lost its wet soil: no growth (the support rule breaks it)
+        if (column >= 3) {
+            return; // the historical three-block cap (line 38's i < 3)
         }
-        if (random.nextInt(3) == 0) {
+        if (random.nextInt(16) == 0) { // the AGE-15 accumulator's band
             world.setBlock(position.offset(0, 1, 0), BuiltinBlocks.SUGAR_CANE);
         }
     }
 
-    /** @return the reed column height counting down from (and including) the ticked block. */
-    private int reedColumnHeight(BlockPosition position) {
-        int height = 1;
-        BlockPosition cursor = position;
-        while (height < 3
-                && WorldSolidity.isSugarCane(world.getBlock(cursor.offset(0, -1, 0)).identifier())) {
-            cursor = cursor.offset(0, -1, 0);
-            height++;
+    /**
+     * The base cane's own support consult (SugarCaneBlock.canBePlaced
+     * lines 52-69 over canSurviveOrBreak lines 76-84): the soil below is
+     * grass, dirt or sand, and WATER (the WATER fluid kind alone —
+     * Material.WATER at line 63, LAVA never hydrates a reed; the
+     * pre-audit engine's isFluid consult admitted lava) sits beside the
+     * soil cell. A failure drops the block with its item and removes it.
+     */
+    private boolean canCaneSurviveOrPop(BlockPosition position) {
+        BlockType soil = world.getBlock(position.offset(0, -1, 0));
+        String soilName = soil.identifier().value();
+        boolean soilOk = soilName.equals("grass_block")
+                || soilName.equals("dirt") || soilName.equals("sand");
+        if (soilOk && waterBeside(position.offset(0, -1, 0))) {
+            return true;
         }
-        return height;
+        world.setBlock(position, world.airType());
+        if (popItems != null) {
+            popItems.spawnDropAtBlock(
+                    new net.zaminmc.torch.util.Position(position.x(), position.y(), position.z()),
+                    net.zaminmc.torch.item.ItemStack.of(
+                            net.zaminmc.torch.server.item.BuiltinItems.SUGAR_CANE, 1),
+                    net.zaminmc.torch.server.entity.ItemEntity.PICKUP_DELAY_DROP_TICKS);
+        }
+        return false;
     }
 
-    /** @return whether any horizontal neighbor of the soil cell holds a fluid. */
+    /**
+     * @return whether any horizontal neighbour of the SOIL cell below the
+     *         cane carries the WATER fluid kind (the reference's
+     *         {@code pos.offset(direction).down()} walk, Material.WATER
+     *         alone — SugarCaneBlock lines 62-68).
+     */
     private boolean waterBeside(BlockPosition soil) {
         for (int[] dir : new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
             BlockType side = world.getBlock(soil.offset(dir[0], 0, dir[1]));
-            if (FluidBlocks.isFluid(side.identifier())) {
+            if (FluidBlocks.kindOf(side.identifier()) == FluidBlocks.Kind.WATER) {
                 return true;
             }
         }
@@ -622,36 +764,71 @@ public final class RandomTickSystem {
     }
 
     /**
-     * The cactus's growth (the historical BlockCactus shape): only the top
-     * of a column under three on sand grows, and never beside a solid block
-     * (the same rule the neighbor update enforces).
+     * The cactus's growth (the reference's CactusBlock.tick lines 28-49,
+     * 1:1 — the pre-audit engine's flat 1-in-3 was 5.33x the AGE-15
+     * accumulator's band, and its consult read the CURRENT top's
+     * horizontals where the reference consults the NEW cell's):
+     *
+     * <p>THE CADENCE: only a block with air above accumulates, the column
+     * under three grows, the AGE accumulator's band is
+     * {@code nextInt(16) == 0}.</p>
+     *
+     * <p>THE NEW-CELL CONSULT (line 43): the spawn places the new block
+     * with no neighbour fanout (the reference's flag 4) and THEN runs the
+     * new cell's own support consult — {@code canSurvive} lines 85-94: the
+     * cell below is cactus or sand, no material-solid block beside it. A
+     * solid beside the new cell pops it WITH its item, same tick — the
+     * engine's setBlock fans the placement out one extra wake (the
+     * engine's own bus shape, ledgered) before the pop consult runs.
+     * The solidity model at this site is the engine's standing
+     * {@link WorldSolidity#isSolid} (the material-model unification
+     * rides the sign family's own class when that pass merges — the
+     * seat pins the members where the two models agree).</p>
      */
     private void tickCactusGrowth(BlockPosition position) {
-        if (!world.getBlock(position.offset(0, 1, 0)).equals(world.airType())) {
-            return;
+        BlockPosition above = position.offset(0, 1, 0);
+        if (!world.getBlock(above).equals(world.airType())) {
+            return; // only the topmost cactus accumulates (line 30)
         }
-        int height = 1;
+        int column = 1; // the ticked block itself
         BlockPosition cursor = position;
-        while (height < 3
-                && WorldSolidity.isCactus(world.getBlock(cursor.offset(0, -1, 0)).identifier())) {
+        while (WorldSolidity.isCactus(world.getBlock(cursor.offset(0, -1, 0)).identifier())) {
+            column++;
             cursor = cursor.offset(0, -1, 0);
-            height++;
         }
-        if (height >= 3) {
+        if (column >= 3) {
+            return; // the three-block cap (line 37's i < 3)
+        }
+        if (random.nextInt(16) != 0) { // the AGE-15 accumulator's band
             return;
         }
-        BlockType soil = world.getBlock(cursor.offset(0, -1, 0));
-        if (!soil.identifier().equals(BuiltinBlocks.SAND.identifier())
-                && !WorldSolidity.isCactus(soil.identifier())) {
+        world.setBlock(above, BuiltinBlocks.CACTUS);
+        // Line 43: the new cell's own consult, after the placement — a
+        // solid beside the new cell pops it WITH its drop, same tick.
+        boolean supported = WorldSolidity.isCactus(world.getBlock(above.offset(0, -1, 0)).identifier())
+                || world.getBlock(above.offset(0, -1, 0)).identifier().value().equals("sand")
+                || world.getBlock(above.offset(0, -1, 0)).identifier().value().equals("red_sand");
+        if (!supported) {
+            popCactusAt(above);
             return;
         }
         for (int[] dir : new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
-            if (WorldSolidity.isSolid(world.getBlock(position.offset(dir[0], 0, dir[1])))) {
-                return; // a solid neighbor blocks the growth (the historical rule)
+            if (WorldSolidity.isSolid(world.getBlock(above.offset(dir[0], 0, dir[1])))) {
+                popCactusAt(above); // canSurvive lines 85-94, neighborChanged line 79-83
+                return;
             }
         }
-        if (random.nextInt(3) == 0) {
-            world.setBlock(position.offset(0, 1, 0), BuiltinBlocks.CACTUS);
+    }
+
+    /** The pop the failed consult carries (breakBlock's drop, the family's own pop law). */
+    private void popCactusAt(BlockPosition position) {
+        world.setBlock(position, world.airType());
+        if (popItems != null) {
+            popItems.spawnDropAtBlock(
+                    new net.zaminmc.torch.util.Position(position.x(), position.y(), position.z()),
+                    net.zaminmc.torch.item.ItemStack.of(
+                            net.zaminmc.torch.server.item.BuiltinItems.CACTUS, 1),
+                    net.zaminmc.torch.server.entity.ItemEntity.PICKUP_DELAY_DROP_TICKS);
         }
     }
 

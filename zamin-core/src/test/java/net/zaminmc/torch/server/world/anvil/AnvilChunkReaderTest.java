@@ -370,25 +370,66 @@ class AnvilChunkReaderTest {
     @Test
     void theBannerFamilyImportsWithItsRotationAndFacingNibbles() {
         // Block.java lines 1375-1376: 176 the standing pair (the rotation
-        // nibble folding to the engine's sign-model cardinals), 177 the
-        // wall pair (the FACING nibble 2-5, the byId modulo folding the
-        // out-of-band answers).
+        // nibble 0-15 passing straight through — BannerBlock.Standing's
+        // own getStateFromMetadata, the compass-16 the sign family's
+        // twelfth-pass restoration registered), 177 the wall pair (the
+        // FACING nibble 2-5, the byId modulo folding the out-of-band
+        // answers).
         byte[] blocks = new byte[4096];
         byte[] meta = new byte[2048];
         blocks[AnvilFixture.cellIndex(0, 0, 0)] = (byte) 176; // rotation 0: south
         AnvilFixture.nibble(meta, AnvilFixture.cellIndex(0, 0, 0), 0);
         blocks[AnvilFixture.cellIndex(1, 0, 0)] = (byte) 176; // rotation 8: north
         AnvilFixture.nibble(meta, AnvilFixture.cellIndex(1, 0, 0), 8);
-        blocks[AnvilFixture.cellIndex(2, 0, 0)] = (byte) 177; // FACING 5: east
-        AnvilFixture.nibble(meta, AnvilFixture.cellIndex(2, 0, 0), 5);
-        blocks[AnvilFixture.cellIndex(3, 0, 0)] = (byte) 177; // nibble 9: byId south
-        AnvilFixture.nibble(meta, AnvilFixture.cellIndex(3, 0, 0), 9);
+        blocks[AnvilFixture.cellIndex(2, 0, 0)] = (byte) 176; // rotation 9: nne (an intermediate)
+        AnvilFixture.nibble(meta, AnvilFixture.cellIndex(2, 0, 0), 9);
+        blocks[AnvilFixture.cellIndex(3, 0, 0)] = (byte) 177; // FACING 5: east
+        AnvilFixture.nibble(meta, AnvilFixture.cellIndex(3, 0, 0), 5);
+        blocks[AnvilFixture.cellIndex(4, 0, 0)] = (byte) 177; // nibble 9: byId south
+        AnvilFixture.nibble(meta, AnvilFixture.cellIndex(4, 0, 0), 9);
         EngineChunk chunk = read(AnvilFixture.chunkNbt(0, 0,
                 List.of(AnvilFixture.section(0, blocks, meta, null)), null));
         assertEquals("minecraft:standing_banner", blockAt(chunk, 0, 0, 0));
         assertEquals("minecraft:standing_banner_north", blockAt(chunk, 1, 0, 0));
-        assertEquals("minecraft:wall_banner_east", blockAt(chunk, 2, 0, 0));
-        assertEquals("minecraft:wall_banner_south", blockAt(chunk, 3, 0, 0));
+        assertEquals("minecraft:standing_banner_nne", blockAt(chunk, 2, 0, 0),
+                "the intermediate rotation imports as its OWN state (the pre-fix fold substituted the north cardinal)");
+        assertEquals("minecraft:wall_banner_east", blockAt(chunk, 3, 0, 0));
+        assertEquals("minecraft:wall_banner_south", blockAt(chunk, 4, 0, 0));
+    }
+
+    @Test
+    void theAgedCanesAndCactiImportWithTheirWholeAgeBand() {
+        // The farming growth pass — the reference's AGE 0-15 accumulators
+        // (SugarCaneBlock.AGE / CactusBlock.AGE, the getStateFromMetadata
+        // nibble bands): a lived-in vanilla world carries every value (the
+        // accumulator advances on every random tick a loaded block sits
+        // near a player — 15 of 16 are NOT at 0), and the pre-audit
+        // nibble-0-only rows isolated the rest AS AIR, deleting the cane
+        // stands and cactus fields on import. The single-type flattening
+        // carries the whole band (the farmland moisture band's own
+        // precedent); the growth cadences ride the random-tick law.
+        byte[] blocks = new byte[4096];
+        byte[] meta = new byte[2048];
+        blocks[AnvilFixture.cellIndex(0, 0, 0)] = (byte) 83; // fresh cane
+        AnvilFixture.nibble(meta, AnvilFixture.cellIndex(0, 0, 0), 0);
+        blocks[AnvilFixture.cellIndex(1, 0, 0)] = (byte) 83; // one tick from growing
+        AnvilFixture.nibble(meta, AnvilFixture.cellIndex(1, 0, 0), 15);
+        blocks[AnvilFixture.cellIndex(2, 0, 0)] = (byte) 83; // mid accumulator
+        AnvilFixture.nibble(meta, AnvilFixture.cellIndex(2, 0, 0), 7);
+        blocks[AnvilFixture.cellIndex(3, 0, 0)] = (byte) 81; // fresh cactus
+        AnvilFixture.nibble(meta, AnvilFixture.cellIndex(3, 0, 0), 0);
+        blocks[AnvilFixture.cellIndex(4, 0, 0)] = (byte) 81; // aged cactus
+        AnvilFixture.nibble(meta, AnvilFixture.cellIndex(4, 0, 0), 5);
+        blocks[AnvilFixture.cellIndex(5, 0, 0)] = (byte) 81; // the band's edge
+        AnvilFixture.nibble(meta, AnvilFixture.cellIndex(5, 0, 0), 1);
+        EngineChunk chunk = read(AnvilFixture.chunkNbt(0, 0,
+                List.of(AnvilFixture.section(0, blocks, meta, null)), null));
+        assertEquals("minecraft:sugar_cane", blockAt(chunk, 0, 0, 0));
+        assertEquals("minecraft:sugar_cane", blockAt(chunk, 1, 0, 0), "age 15 imports");
+        assertEquals("minecraft:sugar_cane", blockAt(chunk, 2, 0, 0), "age 7 imports");
+        assertEquals("minecraft:cactus", blockAt(chunk, 3, 0, 0));
+        assertEquals("minecraft:cactus", blockAt(chunk, 4, 0, 0), "age 5 imports");
+        assertEquals("minecraft:cactus", blockAt(chunk, 5, 0, 0), "age 1 imports");
     }
 
     @Test

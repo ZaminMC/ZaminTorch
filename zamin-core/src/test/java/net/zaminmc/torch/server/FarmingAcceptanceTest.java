@@ -178,7 +178,11 @@ class FarmingAcceptanceTest {
 
         // Growth: full daylight crops advance (seeded, so deterministic);
         // over enough ticks the crop reaches maturity from either soil.
-        for (int i = 0; i < 40; i++) {
+        // The band is the reference's 25/f roll (the farming growth pass:
+        // the dry-center 1-in-13, the wet 1-in-7 — the pre-audit flat
+        // 1-in-6/1-in-3 pair grew 2.17-2.33x too fast); 150 probes hold
+        // the (12/13)^150 dry miss odds at 7.5e-6.
+        for (int i = 0; i < 150; i++) {
             probe(ticks, dryCrop);
         }
         assertTrue(RandomTickSystem.wheatStageAt(world, dryCrop) > 0,

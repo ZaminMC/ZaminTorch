@@ -124,8 +124,12 @@ public final class TileNbt {
         if (blockName.startsWith("furnace")) {
             return "Furnace";
         }
+        // The banner family (every state — the standing pair's sixteen
+        // rotations and the wall pair's four facings, the tile id the
+        // reference's own "Banner" whatever the block state).
         if (blockName.equals("banner") || blockName.equals("standing_banner")
-                || blockName.equals("wall_banner")) {
+                || blockName.startsWith("standing_banner_")
+                || blockName.equals("wall_banner") || blockName.startsWith("wall_banner_")) {
             return "Banner";
         }
         return switch (blockName) {
