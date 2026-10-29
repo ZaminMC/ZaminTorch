@@ -18229,3 +18229,90 @@ arrival pair), both merged whole
   the onGround/sneak/vehicle gates. The flying gate added; merged at
   dbfddfda after the develop re-merge (the #74 landing carried in).
 - The queue EMPTY again at the close.
+
+## 2026-10-29 — Wave ENV: the item/orb envelope family (the sixteenth
+pass's B1-B3 landed whole — the §22 queue's eldest named remainder
+closed)
+
+- The ITEM's lava fizz (ItemEntity.tick lines 75-87, verbatim): the
+  gate — the block-crossing flag (the Java (int) truncation of the
+  pre-move position against the post-move one, the Y axis read at the
+  box BOTTOM — the 1.8.8 position IS the feet, the engine's center
+  translates as y - HALF_HEIGHT like the -0.2 clip cell and the
+  support cell already do) OR the entity's own ticks % 25 poll (the
+  World.updateEntity line-1355 lifetime counter, an INDEPENDENT clock
+  from the despawn age — a fused age poll would drift wherever
+  setNeverDespawn -6000 / resetAge 4800 / makeFakeItem 5999 landed);
+  the consult — the body's OWN cell (new BlockPos(this) — floor(x),
+  floor(bottom), floor(z)) through the new Ground.blockIdAtCell seam
+  (default null — stub grounds never fizz), against Material.LAVA
+  (FluidBlocks.Kind.LAVA, the same set); the response — the 0.2
+  vertical pop, the ±0.2 horizontal scatter (two nextFloat draws per
+  axis from the body's own Random — the reference's Entity.random,
+  Entity.java 99/158), and random.fizz at 0.4F / 2.0F..2.4F; the
+  placement — between the move and the drag, so the popped velocity
+  rides the same tick's bands (airborne 0.196; a resting body under a
+  shallow lake pops through the grounded flip to -0.098).
+- The ORB's fizz (ExperienceOrbEntity.tick lines 71-76): the same
+  consult and response UNCONDITIONAL — every tick, no crossing flag,
+  no poll — after the pre-move gravity, before the move.
+- The IGNITER ATTRACTION (lines 79-104 over World.getNearestPlayer
+  2399-2413 + EntityFilter.NOT_SPECTATOR 27-31 + PlayerEntity
+  .getEyeHeight 1648): the retarget cadence lastTargetUpdateTick <
+  renderTicks - 20 + id % 100 (renderTicks incremented at the tick's
+  END, line 123 — an independent clock from the Anvil-seeded age);
+  the STICKY target (kept unless null or beyond 64 squared — a closer
+  player never steals the lock; only the out-of-range exit
+  re-acquires, the nearest then wins); the spectator clear EVERY tick
+  (before the pull arm); the eye-height aim (1.62 standing, 0.2
+  sleeping, -0.08 sneaking — the sleeping-sets/sneaking-subtracts
+  order); the QUADRATIC pull — the unit direction toward the player's
+  eye times (1 - D/8)^2 * 0.1, added to the velocity, feeding the
+  same tick's move. The manager's per-tick Attraction walk applies
+  the reference's ONLY filter (NOT_SPECTATOR — a dead player still
+  attracts) with the TF-10 same-dimension scoping (the other world's
+  player is gone from this world's walk, never re-acquired; a stored
+  igniter whose dimension diverged drops at the every-tick clear).
+- The sound arms: the take-once fizz-pitch read the managers drain
+  after each tick and publish through the new DEFAULT Listener arms
+  (onItemFizzed / onOrbFizzed); the server's dispatches play
+  random.fizz 0.4F at the BODY's position (the reference's own y the
+  box bottom) and the body's own dimension — an entity playSound
+  with NO except-player, every player in earshot hears it. The
+  production ShapeGround gains the blockIdAtCell override (the ACTIVE
+  dimension's plain own-cell read) — one override serves both Ground
+  families.
+- Evidence: ItemOrbEnvelopeParityTest 8/0 NEW — the item's
+  crossing-gate pop at the crossing tick itself (the bottom crossing
+  into the lava cell, 0.196 through the airborne drag, the scatter
+  band, the 2.0..2.4 pitch); the 25-tick poll popping a RESTING body
+  at exactly its 25th lifetime tick through the grounded flip
+  -0.098; the stone-rest negative (the polls arrive, the material
+  consult fails); the orb's first-tick unconditional pop; the pull's
+  closed-form velocity delta through the airborne drag; the retarget
+  stagger's exact first-acquire tick (id 320 missing its first window
+  at renderTicks 0, ids 321/322 acquiring at tick 1); the spectator
+  clear stopping the pull the same tick and staying stopped; the
+  sticky law (a CLOSER far player never stealing the lock, the
+  out-of-range exit re-acquiring and the pull crossing to the new
+  side) — the stash verification 7/8 failing unfixed (the stone-rest
+  negative alone passing — the pre-fix engine never fizzed) and 8/0
+  with the fix.
+- The regression: the item + orb families 70/0; the entity package
+  whole + the step/glow/landing/trample/riderspare/mob-walk lanes
+  592/0 over 94 classes; the protocol wire's entity-sync batch green
+  except QuickCraftDragWireTest's chest-window packet-48 timeout —
+  verified FAILING IDENTICALLY on the pristine baseline (the
+  documented pre-existing flake, consistent in this session's
+  environment, not wave-caused — named for its own investigation);
+  bukkit + launcher green (one BukkitEventBridgeGroupTwo monitor
+  flake observed once, then green on both trees).
+- The sixteenth pass's discovery record
+  (audit/verifier-pass-16-discovery's
+  docs/ITEM_ORB_ENVELOPE_AUDIT_FINDINGS.md): B1/B2/B3 landed whole;
+  the honest tails named for their own families — T1 the item/orb
+  burn clock (the base-tick lava damage the fizz never carries), T2
+  the merge gate's own cadence (the reference's merge rides the SAME
+  flag-or-poll gate the engine runs every tick), T3 the water arms
+  (the splash effect + the 0.8 sinking band). The §22 queue's
+  remainder: F-DUST and F-VINE.

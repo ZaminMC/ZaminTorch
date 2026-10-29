@@ -65,7 +65,15 @@ mount's landing forwards the same (distance, multiplier) pair UP to
 the seated player through the delegate at takeFallDamage's head; the
 ridden body's own fall walk the pre-fix engine swallowed whole; the
 vehicles' whole fall walk with the base-alone payment — a vehicle
-pays nothing itself, the seated player pays) also landed since the
+pays nothing itself, the seated player pays), and the item/orb
+envelope family (Wave ENV 2026-10-29: the item's gated lava fizz —
+the block-crossing flag + the entity's own 25-tick poll over the
+body's own cell, the 0.2 pop + the scatter + the fizz sound; the
+orb's unconditional fizz — the same consult every tick; and the
+igniter attraction — the id-staggered retarget, the sticky target a
+closer player never steals, the every-tick spectator clear, and the
+8-block quadratic eye-aimed pull that makes vanilla XP orbs swim to
+their collector) also landed since the
 prior verification.
 
 ## Downloading a dev build (no build tools needed)

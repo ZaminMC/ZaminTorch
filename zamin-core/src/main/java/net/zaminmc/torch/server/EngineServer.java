@@ -4871,6 +4871,24 @@ public final class EngineServer implements Server, EngineBridge {
         }
 
         @Override
+        public void onOrbFizzed(ExperienceOrbEntity orb, float pitch) {
+            for (ExperienceOrbManager.Listener listener : orbListeners) {
+                listener.onOrbFizzed(orb, pitch);
+            }
+            // random.fizz (the sixteenth pass — the reference's
+            // ExperienceOrbEntity.tick line 75: the same entity playSound
+            // with NO except-player). The sound rides the BODY's position
+            // (the reference's own y the box bottom) and the body's own
+            // dimension (the TF-10 world carry).
+            Position at = orb.position();
+            if (fxManager != null) {
+                fxManager.sound(new Position(at.x(),
+                        at.y() - net.zaminmc.torch.server.experience.ExperienceOrbEntity.HALF_HEIGHT,
+                        at.z()), "random.fizz", 0.4F, pitch, orb.dimension());
+            }
+        }
+
+        @Override
         public void onOrbRemoved(ExperienceOrbEntity orb, String reason) {
             for (ExperienceOrbManager.Listener listener : orbListeners) {
                 listener.onOrbRemoved(orb, reason);
@@ -17439,6 +17457,25 @@ public final class EngineServer implements Server, EngineBridge {
                 float pitchDelta = gameplayRandom.nextFloat() - gameplayRandom.nextFloat();
                 fxManager.sound(new Position(at.x(), at.y(), at.z()), "random.pop",
                         0.2F, (pitchDelta * 0.7F + 1.0F) * 2.0F, collector.dimension());
+            }
+        }
+
+        @Override
+        public void onItemFizzed(ItemEntity entity, float pitch) {
+            for (ItemEntityManager.Listener listener : itemListeners) {
+                listener.onItemFizzed(entity, pitch);
+            }
+            // random.fizz (the sixteenth pass — the reference's
+            // ItemEntity.tick line 81: {@code playSound("random.fizz",
+            // 0.4F, 2.0F + nextFloat() * 0.4F)}, an entity playSound with
+            // NO except-player — every player in earshot hears it). The
+            // sound rides the BODY's position (the reference's own y the
+            // box bottom) and the body's own dimension (the TF-9 world
+            // carry).
+            Position at = entity.position();
+            if (fxManager != null) {
+                fxManager.sound(new Position(at.x(), at.y() - ItemEntity.HALF_HEIGHT, at.z()),
+                        "random.fizz", 0.4F, pitch, entity.dimension());
             }
         }
 
@@ -30403,6 +30440,28 @@ public final class EngineServer implements Server, EngineBridge {
             }
             return activeGroundWorld().getBlock(new net.zaminmc.torch.block.BlockPosition(
                     (int) Math.floor(centerX), (int) Math.floor(consultY),
+                    (int) Math.floor(centerZ))).identifier();
+        }
+
+        /**
+         * The block id at the body's OWN cell (the sixteenth pass — the
+         * reference's lava-fizz consult {@code new BlockPos(this)}, the
+         * ACTIVE dimension's read): the fizz consult's cell, plain
+         * {@code floor(x), floor(bottom), floor(z)} with the y the box
+         * BOTTOM (the 1.8.8 position = the feet — never the -0.2 feet
+         * cell the clip consult rides, never the support cell the drag
+         * reads). One override serves both Ground families — the item
+         * family's gated fizz (the crossing flag || the 25-tick poll)
+         * and the orb's UNCONDITIONAL one consult this same cell.
+         */
+        @Override
+        public net.zaminmc.torch.util.Identifier blockIdAtCell(double centerX, double bottomY, double centerZ) {
+            if (bottomY < net.zaminmc.torch.block.BlockPosition.MIN_Y
+                    || bottomY > net.zaminmc.torch.block.BlockPosition.MAX_Y) {
+                return null;
+            }
+            return activeGroundWorld().getBlock(new net.zaminmc.torch.block.BlockPosition(
+                    (int) Math.floor(centerX), (int) Math.floor(bottomY),
                     (int) Math.floor(centerZ))).identifier();
         }
 

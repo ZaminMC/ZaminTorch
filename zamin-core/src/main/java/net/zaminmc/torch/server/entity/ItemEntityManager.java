@@ -78,6 +78,19 @@ public final class ItemEntityManager {
                 int collectedCount) {
         }
 
+        /**
+         * THE ITEM'S LAVA FIZZ (the sixteenth pass — the reference's
+         * ItemEntity.tick lines 75-87: the block-crossing gate || the
+         * entity's own {@code ticks % 25 == 0} poll, the own-cell lava
+         * consult, the 0.2 pop + the ±0.2 scatter + {@code random.fizz}
+         * at 0.4F / 2.0F..2.4F). The adapter plays the sound at the
+         * body's position — an entity playSound with NO except-player:
+         * every player in earshot hears it, exactly the reference's
+         * own broadcast.
+         */
+        default void onItemFizzed(ItemEntity entity, float pitch) {
+        }
+
         void onItemStackChanged(ItemEntity entity);
 
         void onItemRemoved(ItemEntity entity, String reason);
@@ -285,6 +298,15 @@ public final class ItemEntityManager {
             if (entity.tick(ground)) {
                 for (Listener listener : listeners) {
                     listener.onItemMoved(entity);
+                }
+            }
+            // The fizz drain (the sixteenth pass): the tick's pop, if any,
+            // publishes through the Listener arm — the take-once read
+            // the wire adapter turns into the random.fizz sound.
+            float fizzPitch = entity.takeFizzPitch();
+            if (!Float.isNaN(fizzPitch)) {
+                for (Listener listener : listeners) {
+                    listener.onItemFizzed(entity, fizzPitch);
                 }
             }
 

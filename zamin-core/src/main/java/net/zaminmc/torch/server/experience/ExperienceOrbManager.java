@@ -41,6 +41,18 @@ public final class ExperienceOrbManager {
         void onOrbCollected(ExperienceOrbEntity orb, PlayerSession collector);
 
         void onOrbRemoved(ExperienceOrbEntity orb, String reason);
+
+        /**
+         * THE ORB'S LAVA FIZZ (the sixteenth pass — the reference's
+         * ExperienceOrbEntity.tick lines 71-76: the UNCONDITIONAL
+         * own-cell lava consult, the 0.2 pop + the ±0.2 scatter +
+         * {@code random.fizz} at 0.4F / 2.0F..2.4F). The adapter plays
+         * the sound at the body's position — an entity playSound with
+         * NO except-player: every player in earshot hears it, exactly
+         * the reference's own broadcast.
+         */
+        default void onOrbFizzed(ExperienceOrbEntity orb, float pitch) {
+        }
     }
 
     public ExperienceOrbManager(ExperienceOrbEntity.Ground ground, Random random, int firstEntityId) {
@@ -257,6 +269,47 @@ public final class ExperienceOrbManager {
 
     /** Advances all orbs one tick: physics, pickup, despawn, void. */
     public void tick(Iterable<PlayerSession> players) {
+        // THE ATTRACTION CONSULT (the sixteenth pass — the reference's
+        // World.getNearestPlayer lines 2399-2413 over EntityFilter
+        // .NOT_SPECTATOR lines 27-31): the per-tick nearest walk the
+        // orbs' retarget arms consult. The filters: the world's own
+        // player set (the PLAYING sessions — the engine's world.players
+        // proxy; a dead player still qualifies, the reference keeps
+        // dead entities in the walk), the same dimension (the TF-10
+        // world scoping — the other world's player is not in THIS
+        // world's walk), and the spectator gate (the reference's ONLY
+        // filter). The minimum squared distance under the 8-block
+        // sphere (squared < 64) wins — the acquire's own law.
+        ExperienceOrbEntity.Attraction attraction = (dimension, centerX, bottomY, centerZ) -> {
+            PlayerSession best = null;
+            double bestSquared = 8.0 * 8.0;
+            for (PlayerSession player : players) {
+                if (player.state() != PlayerState.PLAYING) {
+                    continue; // not in this world's player set
+                }
+                if (player.dimension() != dimension) {
+                    continue; // the other world's player is not in this walk
+                }
+                if (player.gamemode() == net.zaminmc.torch.GameMode.SPECTATOR) {
+                    continue; // EntityFilter.NOT_SPECTATOR — the only vanilla filter
+                }
+                Position feet = player.position();
+                double dx = feet.x() - centerX;
+                double dy = feet.y() - bottomY;
+                double dz = feet.z() - centerZ;
+                double squared = dx * dx + dy * dy + dz * dz;
+                // The reference's own two gates (lines 2407-2410): the
+                // range gate {@code d1 < range * range} and the minimum
+                // gate {@code d1 < d0} — the watermark tightens as the
+                // walk proceeds, so the LAST strict winner is the
+                // nearest player.
+                if (squared < bestSquared) {
+                    best = player;
+                    bestSquared = squared;
+                }
+            }
+            return best;
+        };
         Iterator<ExperienceOrbEntity> iterator = orbs.iterator();
         while (iterator.hasNext()) {
             ExperienceOrbEntity orb = iterator.next();
@@ -276,9 +329,18 @@ public final class ExperienceOrbManager {
             // flips to the body's own dimension before its physics walk (the
             // TF-9 item family's own per-body flip, generalized).
             ground.setActiveDimension(orb.dimension());
-            if (orb.tick(ground)) {
+            if (orb.tick(ground, attraction)) {
                 for (Listener listener : listeners) {
                     listener.onOrbMoved(orb);
+                }
+            }
+            // The fizz drain (the sixteenth pass): the tick's pop, if any,
+            // publishes through the Listener arm — the take-once read
+            // the wire adapter turns into the random.fizz sound.
+            float fizzPitch = orb.takeFizzPitch();
+            if (!Float.isNaN(fizzPitch)) {
+                for (Listener listener : listeners) {
+                    listener.onOrbFizzed(orb, fizzPitch);
                 }
             }
 

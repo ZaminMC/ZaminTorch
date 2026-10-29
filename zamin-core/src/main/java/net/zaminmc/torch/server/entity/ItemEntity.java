@@ -3,8 +3,10 @@ package net.zaminmc.torch.server.entity;
 import net.zaminmc.torch.item.ItemStack;
 import net.zaminmc.torch.util.Identifier;
 import net.zaminmc.torch.util.Position;
+import net.zaminmc.torch.server.block.FluidBlocks;
 
 import java.util.Objects;
+import java.util.Random;
 
 /**
  * One dropped item in the world: identity, position, motion, contents and the
@@ -117,6 +119,22 @@ public final class ItemEntity implements net.zaminmc.torch.entity.DroppedItem {
         default double slipperinessBelow(double centerX, double bottomY, double centerZ) {
             return 0.6;
         }
+
+        /**
+         * The block id at the body's OWN cell (the sixteenth pass — the
+         * reference's lava-fizz consult {@code new BlockPos(this)}, the
+         * 1.8.8 position the box BOTTOM: {@code floor(x), floor(y),
+         * floor(z)} — the OWN cell, never the -0.2 feet cell the clip
+         * consult rides). ItemEntity.tick lines 76-82 test the material
+         * against it (both lava blocks answer {@code Material.LAVA}; the
+         * engine's {@code FluidBlocks.Kind.LAVA} carries the same set —
+         * the source, every flowing/falling/still form, every level).
+         * The default answers null so stub grounds never fizz (null is
+         * never lava).
+         */
+        default net.zaminmc.torch.util.Identifier blockIdAtCell(double centerX, double bottomY, double centerZ) {
+            return null;
+        }
     }
 
     private final int entityId;
@@ -130,6 +148,28 @@ public final class ItemEntity implements net.zaminmc.torch.entity.DroppedItem {
     private boolean onGround;
     /** The never-despawn flag (Slice 59 — ItemEntity.setNeverDespawn: the wither's nether star stays until collected). */
     private boolean neverDespawn;
+    /**
+     * The body's own Random (the sixteenth pass — the reference's
+     * {@code Entity.random}, Entity.java lines 99/158: {@code new Random()}
+     * at construction). The lava fizz's three scatter draws and the pitch
+     * draw come from it (ItemEntity.tick lines 78-81: the reference draws
+     * {@code this.random.nextFloat()}), exactly like the reference's own
+     * per-entity field.
+     */
+    private final Random random = new Random();
+    /**
+     * The body's lifetime tick counter (the reference's {@code ticks},
+     * Entity.java line 100 — incremented by {@code World.updateEntity}
+     * (World.java line 1355) BEFORE every {@code tick()}). An INDEPENDENT
+     * clock from the despawn {@code age}: the reference seeds the age
+     * (setNeverDespawn -6000, resetAge 4800, makeFakeItem 5999) but never
+     * the counter — the fizz's {@code ticks % 25 == 0} poll (line 76)
+     * rides this one, and a fused poll would drift wherever an age seed
+     * landed.
+     */
+    private int ticks;
+    /** This tick's fizz pitch (NaN when the tick carried no pop). Take-once. */
+    private float fizzPitch = Float.NaN;
     /**
      * The throwing player's name (Slice 93/D1 — ItemEntity lines 24-25: the
      * private string the drop site stamps through
@@ -323,6 +363,12 @@ public final class ItemEntity implements net.zaminmc.torch.entity.DroppedItem {
      */
     public boolean tick(Ground ground) {
         long before = fixedPoint(position);
+        // The pre-move position (the reference's lastX/lastY/lastZ, tick
+        // lines 69-71): the crossing flag's own read.
+        Position beforePosition = position;
+        // World.updateEntity's own increment (World.java line 1355) — the
+        // lifetime counter the % 25 poll rides.
+        ticks++;
         age++;
         if (pickupDelay > 0) {
             pickupDelay--;
@@ -380,9 +426,7 @@ public final class ItemEntity implements net.zaminmc.torch.entity.DroppedItem {
                 // setPositionFromShape — the same cell either way).
                 beforeCollisionAt(ground);
             }
-            applyPostMoveDrag(ground);
-            return fixedPoint(position) != before;
-        }
+        } else {
 
         double newY = position.y() + velocityY;
         double newX = position.x() + velocityX;
@@ -431,8 +475,63 @@ public final class ItemEntity implements net.zaminmc.torch.entity.DroppedItem {
             // placement of the consult.
             beforeCollisionAt(ground);
         }
+        }
+        // THE LAVA FIZZ (the reference's ItemEntity.tick lines 75-87,
+        // between the move and the drag — the popped velocity rides the
+        // same tick's bands).
+        maybeLavaFizz(ground, beforePosition);
         applyPostMoveDrag(ground);
         return fixedPoint(position) != before;
+    }
+
+    /**
+     * The tick's fizz pitch — the reference's {@code playSound(
+     * "random.fizz", 0.4F, 2.0F + nextFloat() * 0.4F)} (line 81) — NaN
+     * when the tick carried no pop. Take-once: the manager drains it and
+     * publishes the Listener arm the wire adapter turns into the sound.
+     */
+    public float takeFizzPitch() {
+        float pitch = fizzPitch;
+        fizzPitch = Float.NaN;
+        return pitch;
+    }
+
+    /**
+     * THE LAVA FIZZ (the sixteenth pass — the reference's ItemEntity.tick
+     * lines 75-87): the gate is the block-crossing flag — the Java
+     * {@code (int)} truncation of the pre-move position against the
+     * post-move one, verbatim (lines 69-75) — OR the body's own
+     * {@code ticks % 25 == 0} poll (the World.updateEntity counter, never
+     * the despawn age); the consult is the body's OWN cell
+     * ({@code new BlockPos(this)} — floor(x), floor(bottom), floor(z))
+     * against the LAVA material (both lava blocks answer it — the
+     * engine's {@code FluidBlocks.Kind.LAVA} the same set); the response
+     * is the 0.2 vertical pop, the ±0.2 horizontal scatter (two
+     * nextFloat draws per axis) and the fizz pitch. The pop feeds the
+     * same tick's drag bands (a popping body inside lava is airborne —
+     * 0.2 * 0.98; a RESTING body under a shallow lake pops through the
+     * grounded flip — 0.2 * 0.98 * -0.5).
+     */
+    private void maybeLavaFizz(Ground ground, Position beforePosition) {
+        // The reference's y IS the box bottom (the 1.8.8 position = the
+        // feet) — the engine's center translates as {@code y -
+        // HALF_HEIGHT} on the vertical axis exactly like every other
+        // reference-y consult this family carries (the -0.2 cell, the
+        // support cell); the horizontal axes read the center verbatim
+        // (the reference's x/z ARE the box center).
+        boolean crossed = (int) beforePosition.x() != (int) position.x()
+                || (int) (beforePosition.y() - HALF_HEIGHT) != (int) (position.y() - HALF_HEIGHT)
+                || (int) beforePosition.z() != (int) position.z();
+        if (crossed || ticks % 25 == 0) {
+            Identifier inCell = ground.blockIdAtCell(
+                    position.x(), position.y() - HALF_HEIGHT, position.z());
+            if (inCell != null && FluidBlocks.kindOf(inCell) == FluidBlocks.Kind.LAVA) {
+                velocityY = 0.2;
+                velocityX = (random.nextFloat() - random.nextFloat()) * 0.2;
+                velocityZ = (random.nextFloat() - random.nextFloat()) * 0.2;
+                fizzPitch = 2.0f + random.nextFloat() * 0.4f;
+            }
+        }
     }
 
     /**
