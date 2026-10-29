@@ -291,6 +291,15 @@ public final class MobManager {
         }
 
         /**
+         * A body trampled its farmland landing (FarmlandBlock.onFallenOn
+         * lines 57-71 — the fall path's DIRT write): the intent's cell —
+         * the engine writes the dirt and the neighbor bus carries the
+         * crop's own pop.
+         */
+        default void onMobTrample(MobEntity mob) {
+        }
+
+        /**
          * The enderman set its carried block down (PlaceBlockGoal.tick
          * lines 483-496): the intent's cell — the engine writes the
          * carried block and the hands empty.
@@ -1793,6 +1802,11 @@ public final class MobManager {
             if (mob.consumeEndermanPickup()) {
                 for (Listener listener : listeners) {
                     listener.onEndermanPickup(mob);
+                }
+            }
+            if (mob.consumeTrample()) {
+                for (Listener listener : listeners) {
+                    listener.onMobTrample(mob);
                 }
             }
             if (mob.consumeEndermanPlace()) {

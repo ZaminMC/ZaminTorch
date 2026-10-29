@@ -2090,6 +2090,14 @@ public final class MobEntity implements LivingEntity {
     private int endermanPickupY;
     private int endermanPickupZ;
     private boolean endermanPickupPending;
+
+    /** The farmland-trample intent (the fall path's world write — the
+     *  manager's listener consumes it and writes the DIRT, the enderman
+     *  carry's own pending shape). */
+    private boolean tramplePending;
+    private int trampleX;
+    private int trampleY;
+    private int trampleZ;
     /** A pending place intent: the cell the carried block goes to. */
     private int endermanPlaceX;
     private int endermanPlaceY;
@@ -2137,6 +2145,31 @@ public final class MobEntity implements LivingEntity {
             return true;
         }
         return false;
+    }
+
+    /** The manager's drain: the farmland-trample intent (the fall path's
+     *  DIRT write — FarmlandBlock.onFallenOn's setBlockState). */
+    public boolean consumeTrample() {
+        if (tramplePending) {
+            tramplePending = false;
+            return true;
+        }
+        return false;
+    }
+
+    /** The trample intent's cell x. */
+    public int trampleX() {
+        return trampleX;
+    }
+
+    /** The trample intent's cell y. */
+    public int trampleY() {
+        return trampleY;
+    }
+
+    /** The trample intent's cell z. */
+    public int trampleZ() {
+        return trampleZ;
     }
 
     /** The pickup intent's cell x. */
@@ -11211,7 +11244,51 @@ public final class MobEntity implements LivingEntity {
             }
             if (onGround) {
                 if (!wasOnGround && fallDistance > 0.0f) {
-                    takeFallDamage(fallDistance, 1.0f);
+                    // The fall path's block consult (Entity.move lines
+                    // 569-581 + checkFallDamage 719-733): the landed cell
+                    // at floor(y - 0.2) with the air-cell fence fallback —
+                    // the farmland's TRAMPLE rides it (FarmlandBlock
+                    // .onFallenOn lines 57-71): the roll
+                    // nextFloat() < fallDistance - 0.5, the mobGriefing
+                    // gate (a non-player body refused grief tramples
+                    // NOTHING AND SKIPS THE DAMAGE — the early return
+                    // before super), the DIRT write. The world write rides
+                    // the pending-intent pattern (the enderman carry's own
+                    // shape — the manager's listener owns the world).
+                    int landX = (int) Math.floor(position.x());
+                    int landY = (int) Math.floor(position.y() - 0.2);
+                    int landZ = (int) Math.floor(position.z());
+                    net.zaminmc.torch.util.Identifier landed =
+                            world.blockIdAt(landX, landY, landZ);
+                    boolean fellToAir = isAir(landed);
+                    if (fellToAir) {
+                        net.zaminmc.torch.util.Identifier under =
+                                world.blockIdAt(landX, landY - 1, landZ);
+                        if (isFenceLike(under)) {
+                            landed = under;
+                            landY--;
+                        }
+                    }
+                    String landedName = landed == null ? "" : landed.value();
+                    boolean farmland = landedName.equals("farmland")
+                            || landedName.equals("farmland_wet");
+                    boolean damage = true;
+                    if (farmland && random.nextFloat() < fallDistance - 0.5f) {
+                        if (world.mobGriefing()) {
+                            trampleX = landX;
+                            trampleY = landY;
+                            trampleZ = landZ;
+                            tramplePending = true;
+                        } else {
+                            // The griefing-off early return: no trample AND
+                            // no fall damage (lines 64-66 — the mob lands
+                            // soft when its grief is refused).
+                            damage = false;
+                        }
+                    }
+                    if (damage) {
+                        takeFallDamage(fallDistance, 1.0f);
+                    }
                     fallDistance = 0.0f;
                 }
             } else {

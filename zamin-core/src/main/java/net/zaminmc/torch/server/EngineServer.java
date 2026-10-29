@@ -6237,6 +6237,26 @@ public final class EngineServer implements Server, EngineBridge {
                         0.0f, "hit the ground too hard", DamageKind.FALL);
             }
         }
+        // THE FARMLAND TRAMPLE (the fall-path family —
+        // FarmlandBlock.onFallenOn lines 57-71, the player's own arm: a
+        // player ALWAYS tramples, the mobGriefing gate never applies —
+        // the reference's {@code !(entity instanceof PlayerEntity)} consult
+        // passes for every player). The landing cell rides the fall path's
+        // own -0.2 consult (Entity.move lines 569-581) — the cell BELOW the
+        // body's feet, never the body's own cell; the roll
+        // {@code nextFloat() < fallDistance - 0.5} never passes at a
+        // half-block-or-less descent; a passing roll turns BOTH farmland
+        // forms to DIRT and the neighbor bus carries the crop's pop.
+        int landY = (int) Math.floor(session.position().y() - 0.2);
+        var landCell = new BlockPosition(
+                (int) Math.floor(session.position().x()), landY,
+                (int) Math.floor(session.position().z()));
+        var landed = worldFor(session.dimension()).getBlock(landCell);
+        String landedName = landed.identifier().value();
+        if ((landedName.equals("farmland") || landedName.equals("farmland_wet"))
+                && gameplayRandom.nextFloat() < distance - 0.5f) {
+            worldFor(session.dimension()).setBlock(landCell, BuiltinBlocks.DIRT);
+        }
     }
 
     /**
@@ -21396,6 +21416,27 @@ public final class EngineServer implements Server, EngineBridge {
             mob.completeEndermanPickup(type);
             world.setBlock(at, blockRegistry.require(
                     net.zaminmc.torch.util.Identifier.parse("minecraft:air")));
+        }
+
+        /**
+         * The farmland trample (the fall-path family —
+         * FarmlandBlock.onFallenOn lines 57-71): the body's landing cell
+         * turns to DIRT. The host re-check keeps the intent honest (the
+         * roll's read and the write share the same tick lane, but a
+         * crossed write never turns a non-farmland cell) — both farmland
+         * forms trample, and the neighbor bus carries the crop's own pop
+         * off the reversion.
+         */
+        @Override
+        public void onMobTrample(net.zaminmc.torch.server.entity.MobEntity mob) {
+            BlockPosition at = new BlockPosition(mob.trampleX(),
+                    mob.trampleY(), mob.trampleZ());
+            var type = world.getBlock(at);
+            String value = type.identifier().value();
+            if (!value.equals("farmland") && !value.equals("farmland_wet")) {
+                return; // the cell changed under the roll
+            }
+            world.setBlock(at, BuiltinBlocks.DIRT);
         }
 
         /**

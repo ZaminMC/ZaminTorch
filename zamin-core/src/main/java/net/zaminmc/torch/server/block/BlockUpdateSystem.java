@@ -750,6 +750,82 @@ public final class BlockUpdateSystem implements WorldChangeListener {
             tickCactusSupport(position);
             return;
         }
+        // The farmland crops' support rule (the fall-path family's own
+        // find — PlantBlock.neighborChanged lines 40-43 over
+        // canSurviveOrBreak lines 50-55 with WheatBlock.canBePlacedOn
+        // lines 23-25: FARMLAND alone): the wheat, the carrots and the
+        // potatoes (the WheatBlock class whole — both subclasses) and
+        // both stems pop off a reverted field with the reference's own
+        // drop laws (fortune 0, the pop's case): the base drop 1 x
+        // getDropItem (age 7 the plant item, below the seed — the carrot
+        // family's own pair folds to the carrot both ways), the age-7
+        // extra three rolls of nextInt(15) <= 7 each one seed
+        // (WheatBlock.dropItems lines 114-127), the potato's 1-in-50
+        // poison twin (PotatoesBlock lines 28-34), the stems' three
+        // rolls at every age (StemBlock lines 121-134). The farmland
+        // trample's reversion and the solid-above arm's both carry the
+        // crop's pop off this arm.
+        String cropName = identifier.value();
+        boolean farmlandCrop = cropName.startsWith("wheat_stage")
+                || cropName.startsWith("carrots_stage")
+                || cropName.startsWith("potatoes_stage")
+                || cropName.startsWith("melon_stem_stage")
+                || cropName.startsWith("pumpkin_stem_stage");
+        if (farmlandCrop) {
+            var floor = world.getBlock(position.offset(0, -1, 0)).identifier().value();
+            if (floor.equals("farmland") || floor.equals("farmland_wet")) {
+                return; // supported (canBePlacedOn: FARMLAND alone)
+            }
+            int stage = cropName.charAt(cropName.lastIndexOf("_stage") + 6) - '0';
+            net.zaminmc.torch.server.item.EngineItemType seed;
+            net.zaminmc.torch.server.item.EngineItemType plant = null;
+            if (cropName.startsWith("wheat")) {
+                seed = net.zaminmc.torch.server.item.BuiltinItems.WHEAT_SEEDS;
+                plant = net.zaminmc.torch.server.item.BuiltinItems.WHEAT;
+            } else if (cropName.startsWith("carrots")) {
+                seed = net.zaminmc.torch.server.item.BuiltinItems.CARROT;
+                plant = net.zaminmc.torch.server.item.BuiltinItems.CARROT;
+            } else if (cropName.startsWith("potatoes")) {
+                seed = net.zaminmc.torch.server.item.BuiltinItems.POTATO;
+                plant = net.zaminmc.torch.server.item.BuiltinItems.POTATO;
+            } else if (cropName.startsWith("melon")) {
+                seed = net.zaminmc.torch.server.item.BuiltinItems.MELON_SEEDS;
+            } else {
+                seed = net.zaminmc.torch.server.item.BuiltinItems.PUMPKIN_SEEDS;
+            }
+            world.setBlock(position, world.airType());
+            // The base drop (getDropItem): the plant at age 7, the seed
+            // below; the stems carry the seed alone (their own pair).
+            boolean stem = plant == null;
+            boolean ripe = stage >= 7;
+            net.zaminmc.torch.server.item.EngineItemType base =
+                    ripe && plant != null ? plant : seed;
+            itemEntities.spawnDropAtBlock(
+                    new Position(position.x(), position.y(), position.z()),
+                    ItemStack.of(base, 1),
+                    ItemEntity.PICKUP_DELAY_DROP_TICKS);
+            // The extra rolls: the crops at age 7 alone (three rolls of
+            // nextInt(15) <= 7), the stems at every age (<= stage).
+            int rollBound = stem ? stage : (ripe ? 7 : -1);
+            for (int j = 0; j < 3; j++) {
+                if (rollBound >= 0 && random.nextInt(15) <= rollBound) {
+                    itemEntities.spawnDropAtBlock(
+                            new Position(position.x(), position.y(), position.z()),
+                            ItemStack.of(seed, 1),
+                            ItemEntity.PICKUP_DELAY_DROP_TICKS);
+                }
+            }
+            // The potato's poison twin (PotatoesBlock lines 28-34): the
+            // 1-in-50 roll at age 7 alone.
+            if (cropName.startsWith("potatoes") && ripe && random.nextInt(50) == 0) {
+                itemEntities.spawnDropAtBlock(
+                        new Position(position.x(), position.y(), position.z()),
+                        ItemStack.of(
+                                net.zaminmc.torch.server.item.BuiltinItems.POISONOUS_POTATO, 1),
+                        ItemEntity.PICKUP_DELAY_DROP_TICKS);
+            }
+            return;
+        }
         // The farmland's solid-above law (the farmland state pass —
         // FarmlandBlock.neighborChanged lines 88-94): a material-SOLID
         // block arriving on the farmland turns it to DIRT (the crop above

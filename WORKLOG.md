@@ -18037,3 +18037,36 @@ BannerItem.java, and the engine's sign placement this session.
   the old gates surgically restored. BannerFamilyTest 7/0; the battery
   61/0; the regression 304/0. The ledgers: §29's Wave BN-C row + the
   §22 statement.
+
+---
+
+## Session 2026-10-29 (second window) — the five-PR wave + Wave BN-C + Wave TR
+
+- THE PR WAVE (five PRs, all merged): #67 the sign rotation (the develop
+  merge the prior window left unpushed, completed + merged at 685a79b5);
+  #68 the rail family (the ten states, the RailNode walk 1:1, the
+  own-commit exemption — verified line by line, merged at e7fc45b9 after
+  the develop merge's pin unions 942/1291); #69 the farming growth
+  cadence (the 25/f formula whole, the AGE bands, the water-loss pop —
+  merged at 94f0f296 with the integrity pin 1321); #70 the planting arms
+  (the carrot/potato/wart planting, the hoe's coarse-dirt law — merged
+  WITH the step.grass review fix: the till plays the STEPPING sound per
+  tillBlock's getStepping, never the breaking event); #71 the farmland
+  state laws (the moisture-7 nibble, the rain arm, the reversion, the
+  scan box — merged with TWO review fixes: the mob view's isRainingAt
+  dimension gate the hoist dropped (a nether blaze would have drowned
+  during an overworld rainstorm — the pre-pass gate restored verbatim)
+  and the solid-above consult switched to MaterialSolidity (the class
+  landed with #67 after the audit was written — a sign above farmland
+  now reverts it). The grep-after-merge discipline lesson: the #71 merge
+  reported one conflict but left a second unmarked — the broken commit
+  was caught by the compile, resolved with both wirings kept.
+- Wave BN-C (0747e6c6): the banner twelfth-pass alignment — recovered
+  from the interrupted window's uncommitted tree, verified against the
+  reference line by line, the band + gates seat stash-verified.
+- Wave TR (this window's architecture lane): the farmland trample (the
+  B4 row) + the crop support arm the trample seat's own timeout found
+  absent (the farmland PR's 'the crop above popping' comment was
+  aspirational — no arm existed). FarmlandTrampleParityTest 5/0; the
+  regression 314/0. The fall-path family's honest remainder demand-named
+  in the ledger: the slime pad's trio, the redstone ore's glow family.
