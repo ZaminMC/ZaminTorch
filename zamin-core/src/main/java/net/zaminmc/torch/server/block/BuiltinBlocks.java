@@ -279,17 +279,48 @@ public final class BuiltinBlocks {
     public static final EngineBlockType RED_MUSHROOM = new EngineBlockType(
             Identifier.parse("minecraft:red_mushroom"), "Red Mushroom");
 
-    // The standing signs (community blocks.json: block 63, the rotation in
-    // the metadata nibble's 45-degree band 0/4/8/12 = S/W/N/E). The sign
-    // faces its placer, the historical placement rule.
+    // The standing signs (block 63, the reference's StandingSignBlock.ROTATION
+    // IntegerProperty 0-15 — SIXTEEN rotations 22.5 degrees apart, the wire
+    // metadata nibble the rotation itself, getStateFromMetadata lines 26-29).
+    // The cardinal four keep their historical names (metadata 0/4/8/12 =
+    // S/W/N/E, existing worlds valid); the twelve intermediate rotations carry
+    // the compass-16 names. The sign faces its placer (SignItem.useOn line
+    // 44's floor((yaw + 180) * 16 / 360 + 0.5) & 15 — the twelfth-pass
+    // restoration; the pre-audit engine folded the sixteen to the four
+    // cardinals and every diagonal look rendered the sign at the wrong
+    // angle).
     public static final EngineBlockType SIGN_SOUTH = new EngineBlockType(
             Identifier.parse("minecraft:sign"), "Sign");
+    public static final EngineBlockType SIGN_SSW = new EngineBlockType(
+            Identifier.parse("minecraft:sign_ssw"), "Sign", 1);
+    public static final EngineBlockType SIGN_SW = new EngineBlockType(
+            Identifier.parse("minecraft:sign_sw"), "Sign", 2);
+    public static final EngineBlockType SIGN_WSW = new EngineBlockType(
+            Identifier.parse("minecraft:sign_wsw"), "Sign", 3);
     public static final EngineBlockType SIGN_WEST = new EngineBlockType(
             Identifier.parse("minecraft:sign_west"), "Sign", 4);
+    public static final EngineBlockType SIGN_WNW = new EngineBlockType(
+            Identifier.parse("minecraft:sign_wnw"), "Sign", 5);
+    public static final EngineBlockType SIGN_NW = new EngineBlockType(
+            Identifier.parse("minecraft:sign_nw"), "Sign", 6);
+    public static final EngineBlockType SIGN_NNW = new EngineBlockType(
+            Identifier.parse("minecraft:sign_nnw"), "Sign", 7);
     public static final EngineBlockType SIGN_NORTH = new EngineBlockType(
             Identifier.parse("minecraft:sign_north"), "Sign", 8);
+    public static final EngineBlockType SIGN_NNE = new EngineBlockType(
+            Identifier.parse("minecraft:sign_nne"), "Sign", 9);
+    public static final EngineBlockType SIGN_NE = new EngineBlockType(
+            Identifier.parse("minecraft:sign_ne"), "Sign", 10);
+    public static final EngineBlockType SIGN_ENE = new EngineBlockType(
+            Identifier.parse("minecraft:sign_ene"), "Sign", 11);
     public static final EngineBlockType SIGN_EAST = new EngineBlockType(
             Identifier.parse("minecraft:sign_east"), "Sign", 12);
+    public static final EngineBlockType SIGN_ESE = new EngineBlockType(
+            Identifier.parse("minecraft:sign_ese"), "Sign", 13);
+    public static final EngineBlockType SIGN_SE = new EngineBlockType(
+            Identifier.parse("minecraft:sign_se"), "Sign", 14);
+    public static final EngineBlockType SIGN_SSE = new EngineBlockType(
+            Identifier.parse("minecraft:sign_sse"), "Sign", 15);
 
     // The wall signs (community blocks.json: block 68, the metadata 2-5
     // naming the direction the sign faces — away from the wall it hangs
@@ -305,19 +336,48 @@ public final class BuiltinBlocks {
             Identifier.parse("minecraft:wall_sign_east"), "Wall Sign", 5);
 
     // The banner family (the sign family's twin — BannerBlock over blocks
-    // 176 standing / 177 wall): the standing pair flattened to the four
-    // cardinal rotations exactly like the signs (the reference's ROTATION
-    // 0-15 band, the cardinals at 0/4/8/12 = S/W/N/E), the wall pair's
-    // FACING in the metadata 2-5. The base color and the pattern rows are
-    // tile state (the banner manager), never the block's.
+    // 176 standing / 177 wall): the standing pair carries the reference's
+    // ROTATION 0-15 band WHOLE (BannerBlock.Standing's getStateFromMetadata
+    // passing the nibble straight through, the sign family's own compass-16
+    // — the twelfth-pass treatment the sign restoration carried across:
+    // the cardinals at 0/4/8/12 = S/W/N/E keep their historical names and
+    // the base minecraft:standing_banner its metadata 0, the twelve
+    // intermediate rotations the compass names, every 22.5-degree step its
+    // own state), the wall pair's FACING in the metadata 2-5. The base
+    // color and the pattern rows are tile state (the banner manager),
+    // never the block's.
     public static final EngineBlockType STANDING_BANNER = new EngineBlockType(
             Identifier.parse("minecraft:standing_banner"), "Banner");
+    public static final EngineBlockType STANDING_BANNER_SSW = new EngineBlockType(
+            Identifier.parse("minecraft:standing_banner_ssw"), "Banner", 1);
+    public static final EngineBlockType STANDING_BANNER_SW = new EngineBlockType(
+            Identifier.parse("minecraft:standing_banner_sw"), "Banner", 2);
+    public static final EngineBlockType STANDING_BANNER_WSW = new EngineBlockType(
+            Identifier.parse("minecraft:standing_banner_wsw"), "Banner", 3);
     public static final EngineBlockType STANDING_BANNER_WEST = new EngineBlockType(
             Identifier.parse("minecraft:standing_banner_west"), "Banner", 4);
+    public static final EngineBlockType STANDING_BANNER_WNW = new EngineBlockType(
+            Identifier.parse("minecraft:standing_banner_wnw"), "Banner", 5);
+    public static final EngineBlockType STANDING_BANNER_NW = new EngineBlockType(
+            Identifier.parse("minecraft:standing_banner_nw"), "Banner", 6);
+    public static final EngineBlockType STANDING_BANNER_NNW = new EngineBlockType(
+            Identifier.parse("minecraft:standing_banner_nnw"), "Banner", 7);
     public static final EngineBlockType STANDING_BANNER_NORTH = new EngineBlockType(
             Identifier.parse("minecraft:standing_banner_north"), "Banner", 8);
+    public static final EngineBlockType STANDING_BANNER_NNE = new EngineBlockType(
+            Identifier.parse("minecraft:standing_banner_nne"), "Banner", 9);
+    public static final EngineBlockType STANDING_BANNER_NE = new EngineBlockType(
+            Identifier.parse("minecraft:standing_banner_ne"), "Banner", 10);
+    public static final EngineBlockType STANDING_BANNER_ENE = new EngineBlockType(
+            Identifier.parse("minecraft:standing_banner_ene"), "Banner", 11);
     public static final EngineBlockType STANDING_BANNER_EAST = new EngineBlockType(
             Identifier.parse("minecraft:standing_banner_east"), "Banner", 12);
+    public static final EngineBlockType STANDING_BANNER_ESE = new EngineBlockType(
+            Identifier.parse("minecraft:standing_banner_ese"), "Banner", 13);
+    public static final EngineBlockType STANDING_BANNER_SE = new EngineBlockType(
+            Identifier.parse("minecraft:standing_banner_se"), "Banner", 14);
+    public static final EngineBlockType STANDING_BANNER_SSE = new EngineBlockType(
+            Identifier.parse("minecraft:standing_banner_sse"), "Banner", 15);
     public static final EngineBlockType WALL_BANNER_NORTH = new EngineBlockType(
             Identifier.parse("minecraft:wall_banner"), "Wall Banner", 2);
     public static final EngineBlockType WALL_BANNER_SOUTH = new EngineBlockType(
@@ -461,9 +521,13 @@ public final class BuiltinBlocks {
     public static final EngineBlockType COBBLESTONE_STAIRS_NORTH_TOP = new EngineBlockType(
             Identifier.parse("minecraft:cobblestone_stairs_north_top"), "Cobblestone Stairs", 7);
 
-    // The rail (community blocks.json: block 66, the flat orientation in
-    // the metadata nibble: 0 = north-south, 1 = east-west). Walk-through
-    // (the vanilla rail never blocks a body); the minecart reads the axis.
+    // The rail (community blocks.json: block 66 — the thirteenth pass
+    // joined the plain rail to the family map: the TEN-shape band in the
+    // metadata nibble 0-9, Shape.byId over the FULL enum — the bare
+    // north-south 0 and the historical rail_ew 1 the registered
+    // constants, the four ascents + the four curves the family loop).
+    // Walk-through (the vanilla rail never blocks a body); the minecart
+    // reads the axis.
     public static final EngineBlockType RAIL = new EngineBlockType(
             Identifier.parse("minecraft:rail"), "Rail");
     public static final EngineBlockType RAIL_EW = new EngineBlockType(
@@ -913,17 +977,41 @@ public final class BuiltinBlocks {
                 .register(WHEAT_STAGE6)
                 .register(WHEAT_STAGE7)
                 .register(SIGN_SOUTH)
+                .register(SIGN_SSW)
+                .register(SIGN_SW)
+                .register(SIGN_WSW)
                 .register(SIGN_WEST)
+                .register(SIGN_WNW)
+                .register(SIGN_NW)
+                .register(SIGN_NNW)
                 .register(SIGN_NORTH)
+                .register(SIGN_NNE)
+                .register(SIGN_NE)
+                .register(SIGN_ENE)
                 .register(SIGN_EAST)
+                .register(SIGN_ESE)
+                .register(SIGN_SE)
+                .register(SIGN_SSE)
                 .register(WALL_SIGN_NORTH)
                 .register(WALL_SIGN_SOUTH)
                 .register(WALL_SIGN_WEST)
                 .register(WALL_SIGN_EAST)
                 .register(STANDING_BANNER)
+                .register(STANDING_BANNER_SSW)
+                .register(STANDING_BANNER_SW)
+                .register(STANDING_BANNER_WSW)
                 .register(STANDING_BANNER_WEST)
+                .register(STANDING_BANNER_WNW)
+                .register(STANDING_BANNER_NW)
+                .register(STANDING_BANNER_NNW)
                 .register(STANDING_BANNER_NORTH)
+                .register(STANDING_BANNER_NNE)
+                .register(STANDING_BANNER_NE)
+                .register(STANDING_BANNER_ENE)
                 .register(STANDING_BANNER_EAST)
+                .register(STANDING_BANNER_ESE)
+                .register(STANDING_BANNER_SE)
+                .register(STANDING_BANNER_SSE)
                 .register(WALL_BANNER_NORTH)
                 .register(WALL_BANNER_SOUTH)
                 .register(WALL_BANNER_WEST)
@@ -1147,6 +1235,14 @@ public final class BuiltinBlocks {
         // states each (the bare north_south form shares the family item's
         // own identifier).
         for (EngineBlockType rail : RailBlocks.familyBlocks()) {
+            builder = builder.register(rail);
+        }
+        // The plain rail's own eight NEW states (the thirteenth verifier
+        // pass — RailBlock's TEN-shape band over wire id 66: the four
+        // ASCENDING + the four CURVE states the pre-audit engine never
+        // registered, the bare north_south and the historical rail_ew
+        // riding the constants above).
+        for (EngineBlockType rail : RailBlocks.plainFamilyBlocks()) {
             builder = builder.register(rail);
         }
         // The trapdoor pair (Slice 39 — TrapdoorBlock 1:1): the wood 96 and

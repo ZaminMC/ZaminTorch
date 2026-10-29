@@ -17753,6 +17753,168 @@ DamageTracker is its own future family); the dragon's no-killed-by-row
 family's hotbar↔main shuffle tail (pass 6's recorded divergence,
 unchanged).
 
+## 2026-10-28 — the sign rotation family parity audit (PR #67, the verifier's twelfth pass)
+
+The twelfth sweep, one family over: the sign — the standing sign's rotation
+model, the placement walk, the support-break laws, and the import/wire
+surface. The findings doc (docs/SIGN_FAMILY_AUDIT_FINDINGS.md) records the
+whole discovery before any code changed; the three-verification record
+closes it.
+
+Seven restorations. THE SIXTEEN ROTATIONS: SignItem line 44's
+`floor((yaw + 180) * 16 / 360 + 0.5) & 15` places one of SIXTEEN states
+(StandingSignBlock.ROTATION 0-15, the wire nibble the rotation itself) —
+the engine folded them to the four cardinals and every diagonal look
+rendered the sign at the wrong angle (yaw 22.5 vanilla NNE vs the engine's
+N; yaw 45 vanilla NE vs E). The compass-16 states registered, the 4-band
+pick retired. THE ANVIL IMPORT: the twelve missing rows — the pre-audit
+import isolated a vanilla world's angled sign AS AIR, the block and the
+text both lost. THE GATES in the reference's own order: the bottom-face
+refusal (a face-0 click planted a floating sign below the clicked block);
+the clicked-MATERIAL consult (the new MaterialSolidity helper — the
+reference's Material.isSolid model, not the collision model: the cobweb
+and the pressure plates are material-solid, the torch's DECORATION refuses,
+the sign's own WOOD stacks); the cactus-neighbour gate (the four
+horizontals of the target); and the body-collision consult REMOVED (the
+reference's item walk carries no entity gate — a sign plants into the
+placer's own cell, the sign's collision shape is null). THE SUPPORT ARMS:
+the standing sign's floor consult and the wall sign's behind-consult (the
+per-state facing's opposite), both in the floor-torch arm's own pattern —
+a sign on leaves STANDS (the LEAVES material is solid; the torch arm's
+air-only consult would have popped it), a sign on a carpet pops.
+
+THE STALE LEDGER NOTE RETIRED: the Wave PF commit's claim "the
+chest/furnace placement sites' older truncation band" does not describe
+the code — all fifteen lookBand sites were re-read and every one carries
+the +45-shift centered form, mathematically the reference's byRotation
+band. A ledgered note is a claim about the code at its writing time.
+
+**Evidence:** SignRotationParityTest 6/0 (NEW — the band's seventeen seats
+through the live use dispatch, the gates, the three support scenes, the
+nibble/import surface); the sign package + registry + update system 22/0;
+the block + skull packages 263/0; the anvil import + light census 49/0;
+the protocol wire batch 9/0; BlockRegistryTest re-pinned 902 -> 914.
+
+**Lessons:** (1) an offset-table helper's ARRAY SHAPE is part of the law —
+the wall-sign offsets shipped as three-element {0,0,1} rows while the
+consult read the (dx,dz) pair at [0]/[1], the sign reading its own cell as
+its own support: every symptom (the arm "not firing", the consult "lying")
+was the same two-element read of a three-element array, and the seat that
+finally pinned it printed the array AND the indexed reads in one
+statement; (2) a live-vs-unit split in the seats pays — the band seats
+through the real use dispatch caught the shared-spawn-column collision the
+pure consults never would; (3) the Material.isSolid model is its own
+consult — the collision model (WorldSolidity) answers a different
+question, and the cobweb/plates/signs/doors rows differ between them; the
+cactus arm and the floor-torch arm carry the substitution as their own
+future rows.
+
+**Standing tails:** BlockItem.setBlockNbt (the sign stack carrying
+BlockEntityTag skips the editor open — the item-NBT family's row); the
+banner family (no banner item in the registry); the engine's cactus arm
+substitutes the collision model for Material.isSolid (a cobweb beside a
+cactus is spared where vanilla breaks it); the floor torch's air-only
+consult (a torch on leaves or a cobweb pops where vanilla keeps it).
+
+## 2026-10-28 — the rail family placement & connection parity audit (the verifier's thirteenth pass)
+
+**The scope (the findings doc docs/RAIL_FAMILY_AUDIT_FINDINGS.md, §A-§G):**
+the rails — the plain rail's TEN-state vocabulary (the pre-audit engine
+carried TWO of the ten: the four ASCENDING and four CURVE shapes
+unregistered, a vanilla slope or curve isolating AS AIR at import), the
+placement's LOOK LAW the reference does not carry (RailBlock line 15's
+default NORTH_SOUTH + onAdded's walk; no getPlacementState anywhere in
+the family), the RailNode connection walk ENTIRELY ABSENT (the engine's
+rails never connected, never re-oriented, never curved — write-once at
+placement), the floor consult's wrong family (isSolid where the
+reference reads World.hasSolidTop — a bottom slab, a fence, a wall or
+thin snow is NOT a rail bed), the support-pop arms absent (a rail's
+floor removed floats where vanilla pops it with its drop), and the
+body-collision gate the reference's null-shape walk does not carry (a
+vanilla rail plants into the placer's own cell).
+
+**The restoration:** the ten states registered (wire id 66's nibble 0-9,
+the import rows (66, 0-9) — the pre-audit (66, 0-1) isolated slopes and
+curves AS AIR), RailConnections 1:1 over AbstractRailBlock's RailNode
+lines 143-477 — the updateConnections lists, the up/down neighbour
+search, the reciprocation prune (hasConnection's X/Z-ONLY compare), the
+updateState selection table (the exclusive bands, the alwaysStraight-
+gated curve branches, the null fallback with the unpowered curve picks,
+the ASCENDING upgrades in the reference's own two-if order), the
+reciprocation loop that bends the EXISTING rails to meet the newcomer;
+the placement site (default state lands, the look band retired, the
+hasSolidTop consult, the no-body-gate, the trio's own explicit
+neighborChanged pop); the update bus's rail arm (the floor + each
+ASCENDING run's own cell, the family-item drop).
+
+**THE OWN-COMMIT EXEMPTION (the pass's own find, surfaced LIVE):** the
+engine's update bus carries a {0,0,0} self-offset — every commit wakes
+the CHANGED CELL ITSELF, where the reference's dispatch
+(World.updateNeighbors lines 342-349) notifies the SIX NEIGHBOURS ALONE.
+The rail arm riding the self-offset popped every DIRECTLY-WRITTEN rail
+on its own commit: HopperMinecartTest's cart-rail scene (a plugin-path
+floating rail at height, green on develop only because the pre-audit
+engine carried no rail arm at all) regressed the window-click seat —
+the arm popped the rail, the cart fell, the click refused. Vanilla's
+law: onAdded (lines 76-83) runs the walk with NO support consult — a
+directly-written rail FLOATS until a NEIGHBOUR changes; only the item
+path's canBePlaced consult guards the bed. The exemption: when the
+changed cell's new type is a rail, the self-schedule skips. LOAD-BEARING
+BOTH DIRECTIONS (verified by disabling the guard): without it scene F
+fails AND the hopper regression returns; with it both green and the
+command-block/spawner cart scenes' floating rails persist exactly like
+vanilla's. The torch/carpet/sign arms' own self-wake divergence is
+LEDGERED as their own audits' rows.
+
+**The stale pin repaired (the sign pass's tail):** the protocol
+module's AnvilBlockIdsIntegrityTest derived-count pin — 47ad888b
+registered the standing sign's twelve intermediate states WITHOUT the
+pin moving (its evidence ran a nine-test wire batch that did not include
+the size pin). Re-pinned 1251 -> 1271 (the sign's twelve + the rail's
+eight); the missing/wrong/collision checks were green before and after.
+
+**Evidence:** RailPlacementParityTest 10/0 NEW (the default-not-look
+seats; the walk's both-rails re-orient; the curve from two orthogonal
+neighbours; the ascending upgrade from a one-level slope; the trio
+straight-only corner; the no-re-walk-on-removal boundary; the bottom
+slab + fence refusals with the stone control; the underfoot plant; the
+support pops with the family items + the imported rail's first wake +
+scene F's own-commit float-then-neighbour-pop; the ten-state
+registry/nibble/import/blast vocabulary); the stash-verified probe —
+eight seats over the PRE-FIX tree, ALL failing with their documented
+divergences (rail_ew-vs-rail, no-walk, no-curve, slab-lands, floats,
+air-vs-underfoot, unregistered, unimported); the block + registry +
+anvil + item + vehicle packages green (the hopper restored by the
+exemption); the protocol integrity + chunk serializer + bulk wire +
+light census green; VehicleWorldDamageTest's one combined-run flake
+reproduced ONCE, green in isolation AND on the re-run (the documented
+load class); BlockRegistryTest re-pinned 914 -> 922.
+
+**Lessons:** (1) a support arm copied from a sibling arm inherits the
+sibling's DIVERGENCES — the {0,0,0} self-offset is the torch/carpet/sign
+convention, and the rail arm rode it into a live regression the sibling
+families' audits never saw because no test ever directly-writes a
+floating torch/sign at height with a body depending on it; the
+reference's DISPATCH law (who receives the wake) is part of every
+support arm's mechanic, not plumbing; (2) the stash-verification probe
+that compiles against PRE-FIX surfaces only (separate from the new
+suite) is the clean way to pin divergences when the new tests reference
+the new vocabulary; (3) a scene's y is part of its law — the flat
+world's grass top sits at y 4, so a "floating" rail at y 5 was
+supported all along, and the seat that tried to pin the exemption
+passed vacuously until the y moved.
+
+**Standing tails:** the POWERED curve preference arm (updateState's
+powered branches — the redstone seam's row); the signal-source re-walk
+(RailBlock lines 19-23's count==3 arm — the redstone family's row); the
+torch/carpet/sign arms' self-wake divergence (their own audits' rows);
+the hopper cart's transfer quirk cadence and VehicleWorldDamageTest's
+combined-run flake (the documented load class).
+
+---
+
+---
+
 ## 2026-10-28 — Wave MI + the two PR reviews (the hunger exhaustion + stats families, PRs #65 and #66)
 
 The session opened on the PR lane (the first-priority protocol): two
@@ -17852,3 +18014,26 @@ sign family is the pattern to follow (EngineServer.placeSignOnTick):
 Estimated as one full session wave (the sign family's own scale);
 the scoping verified against the reference's BannerBlock.java,
 BannerItem.java, and the engine's sign placement this session.
+
+
+---
+
+## Session 2026-10-29 (first window) — PR #67 merged + Wave BN-C
+
+- PR #67 (the sign rotation family parity audit, the verifier's twelfth
+  pass): the develop merge the previous window left unpushed completed —
+  the merged state verified (sign lanes 13/0, banner 8/0, update system
+  6/0, block package 258/0, registry + anvil reader 24/0), the branch
+  pushed, the PR API-merged at 685a79b5. The AnvilImportApiAcceptanceTest
+  failure the battery surfaced was verified PRE-EXISTING on clean develop
+  in a worktree (the BN-A wave registered 176/177 but re-pinned
+  AnvilImportAcceptanceTest alone, missing the API twin) — not the PR's.
+- Wave BN-C (the banner twelfth-pass alignment, recovered from the
+  interrupted window's uncommitted tree and verified against the
+  reference line by line before landing): the compass-16 standing band
+  whole, the placement gates in BannerItem.useOn's own order, the
+  support arms' material consult, the note block's WOOD surface, the
+  API-twin re-pin. The band + gates seat stash-verified failing 1/1 with
+  the old gates surgically restored. BannerFamilyTest 7/0; the battery
+  61/0; the regression 304/0. The ledgers: §29's Wave BN-C row + the
+  §22 statement.

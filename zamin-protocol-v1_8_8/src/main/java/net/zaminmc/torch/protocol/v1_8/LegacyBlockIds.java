@@ -357,6 +357,18 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:sign_west"), 63),
             Map.entry(Identifier.parse("minecraft:sign_north"), 63),
             Map.entry(Identifier.parse("minecraft:sign_east"), 63),
+            Map.entry(Identifier.parse("minecraft:sign_ssw"), 63),
+            Map.entry(Identifier.parse("minecraft:sign_sw"), 63),
+            Map.entry(Identifier.parse("minecraft:sign_wsw"), 63),
+            Map.entry(Identifier.parse("minecraft:sign_wnw"), 63),
+            Map.entry(Identifier.parse("minecraft:sign_nw"), 63),
+            Map.entry(Identifier.parse("minecraft:sign_nnw"), 63),
+            Map.entry(Identifier.parse("minecraft:sign_nne"), 63),
+            Map.entry(Identifier.parse("minecraft:sign_ne"), 63),
+            Map.entry(Identifier.parse("minecraft:sign_ene"), 63),
+            Map.entry(Identifier.parse("minecraft:sign_ese"), 63),
+            Map.entry(Identifier.parse("minecraft:sign_se"), 63),
+            Map.entry(Identifier.parse("minecraft:sign_sse"), 63),
             Map.entry(Identifier.parse("minecraft:skull_down"), 144),
             Map.entry(Identifier.parse("minecraft:skull_north"), 144),
             Map.entry(Identifier.parse("minecraft:skull_south"), 144),
@@ -372,9 +384,22 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:wall_sign_west"), 68),
             Map.entry(Identifier.parse("minecraft:wall_sign_east"), 68),
             // The banner family (Block.java lines 1375-1376): the standing
-            // pair over 176 (the rotation nibble), the wall pair over 177
-            // (the FACING nibble 2-5).
+            // pair over 176 (the rotation nibble 0-15, the compass-16 —
+            // the sign family's twelfth-pass treatment), the wall pair
+            // over 177 (the FACING nibble 2-5).
             Map.entry(Identifier.parse("minecraft:standing_banner"), 176),
+            Map.entry(Identifier.parse("minecraft:standing_banner_ssw"), 176),
+            Map.entry(Identifier.parse("minecraft:standing_banner_sw"), 176),
+            Map.entry(Identifier.parse("minecraft:standing_banner_wsw"), 176),
+            Map.entry(Identifier.parse("minecraft:standing_banner_wnw"), 176),
+            Map.entry(Identifier.parse("minecraft:standing_banner_nw"), 176),
+            Map.entry(Identifier.parse("minecraft:standing_banner_nnw"), 176),
+            Map.entry(Identifier.parse("minecraft:standing_banner_nne"), 176),
+            Map.entry(Identifier.parse("minecraft:standing_banner_ne"), 176),
+            Map.entry(Identifier.parse("minecraft:standing_banner_ene"), 176),
+            Map.entry(Identifier.parse("minecraft:standing_banner_ese"), 176),
+            Map.entry(Identifier.parse("minecraft:standing_banner_se"), 176),
+            Map.entry(Identifier.parse("minecraft:standing_banner_sse"), 176),
             Map.entry(Identifier.parse("minecraft:standing_banner_west"), 176),
             Map.entry(Identifier.parse("minecraft:standing_banner_north"), 176),
             Map.entry(Identifier.parse("minecraft:standing_banner_east"), 176),
@@ -482,6 +507,17 @@ final class LegacyBlockIds {
             // rail block 66 (orientation in the metadata), the boat item
             // 333, the minecart item 328.
             Map.entry(Identifier.parse("minecraft:rail"), 66),
+            // The plain rail's slope + curve states (the thirteenth
+            // verifier pass — the TEN-shape band, the same wire id 66
+            // with the shape id in the metadata nibble).
+            Map.entry(Identifier.parse("minecraft:rail_ascending_east"), 66),
+            Map.entry(Identifier.parse("minecraft:rail_ascending_west"), 66),
+            Map.entry(Identifier.parse("minecraft:rail_ascending_north"), 66),
+            Map.entry(Identifier.parse("minecraft:rail_ascending_south"), 66),
+            Map.entry(Identifier.parse("minecraft:rail_south_east"), 66),
+            Map.entry(Identifier.parse("minecraft:rail_south_west"), 66),
+            Map.entry(Identifier.parse("minecraft:rail_north_west"), 66),
+            Map.entry(Identifier.parse("minecraft:rail_north_east"), 66),
             // The cobweb (Slice 12a, community blocks.json): legacy 30.
             Map.entry(Identifier.parse("minecraft:cobweb"), 30),
             Map.entry(Identifier.parse("minecraft:rail_ew"), 66),
@@ -1447,12 +1483,24 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:wall_sign_south"), 3),
             Map.entry(Identifier.parse("minecraft:wall_sign_west"), 4),
             Map.entry(Identifier.parse("minecraft:wall_sign_east"), 5),
-            // The banner family's nibbles: the standing pair's rotations
-            // (the sign family's own 0/4/8/12 cardinals) and the wall
-            // pair's facings (2-5).
+            // The banner family's nibbles: the standing pair's rotation
+            // nibble 0-15 (the compass-16, the sign family's twelfth-pass
+            // treatment) and the wall pair's facings (2-5).
+            Map.entry(Identifier.parse("minecraft:standing_banner_ssw"), 1),
+            Map.entry(Identifier.parse("minecraft:standing_banner_sw"), 2),
+            Map.entry(Identifier.parse("minecraft:standing_banner_wsw"), 3),
             Map.entry(Identifier.parse("minecraft:standing_banner_west"), 4),
+            Map.entry(Identifier.parse("minecraft:standing_banner_wnw"), 5),
+            Map.entry(Identifier.parse("minecraft:standing_banner_nw"), 6),
+            Map.entry(Identifier.parse("minecraft:standing_banner_nnw"), 7),
             Map.entry(Identifier.parse("minecraft:standing_banner_north"), 8),
+            Map.entry(Identifier.parse("minecraft:standing_banner_nne"), 9),
+            Map.entry(Identifier.parse("minecraft:standing_banner_ne"), 10),
+            Map.entry(Identifier.parse("minecraft:standing_banner_ene"), 11),
             Map.entry(Identifier.parse("minecraft:standing_banner_east"), 12),
+            Map.entry(Identifier.parse("minecraft:standing_banner_ese"), 13),
+            Map.entry(Identifier.parse("minecraft:standing_banner_se"), 14),
+            Map.entry(Identifier.parse("minecraft:standing_banner_sse"), 15),
             Map.entry(Identifier.parse("minecraft:wall_banner"), 2),
             Map.entry(Identifier.parse("minecraft:wall_banner_south"), 3),
             Map.entry(Identifier.parse("minecraft:wall_banner_west"), 4),
@@ -1541,6 +1589,17 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:cobblestone_stairs_north_top"), 7),
             // The vehicle slice: the rail's flat orientation (0 = NS default).
             Map.entry(Identifier.parse("minecraft:rail_ew"), 1),
+            // The plain rail's slope + curve nibbles (the thirteenth
+            // verifier pass — RailBlock.getMetadataFromState line 37 over
+            // the FULL ten-shape enum: the ascents 2-5, the curves 6-9).
+            Map.entry(Identifier.parse("minecraft:rail_ascending_east"), 2),
+            Map.entry(Identifier.parse("minecraft:rail_ascending_west"), 3),
+            Map.entry(Identifier.parse("minecraft:rail_ascending_north"), 4),
+            Map.entry(Identifier.parse("minecraft:rail_ascending_south"), 5),
+            Map.entry(Identifier.parse("minecraft:rail_south_east"), 6),
+            Map.entry(Identifier.parse("minecraft:rail_south_west"), 7),
+            Map.entry(Identifier.parse("minecraft:rail_north_west"), 8),
+            Map.entry(Identifier.parse("minecraft:rail_north_east"), 9),
             // The nether portal's axis (the reference PortalBlock.getMetadata:
             // 1 the X plane, 2 the Z plane).
             Map.entry(Identifier.parse("minecraft:nether_portal"), 1),
