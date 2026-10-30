@@ -9,6 +9,7 @@ import net.zaminmc.torch.item.ItemStack;
 import net.zaminmc.torch.server.EngineTicker;
 import net.zaminmc.torch.server.block.BlockBehavior;
 import net.zaminmc.torch.server.block.BlockBehaviorTable;
+import net.zaminmc.torch.server.block.BuiltinBlocks;
 import net.zaminmc.torch.GameMode;
 import net.zaminmc.torch.server.entity.ItemEntity;
 import net.zaminmc.torch.server.entity.ItemEntityManager;
@@ -802,7 +803,43 @@ public final class BlockInteractionService {
         }
         net.zaminmc.torch.item.ItemStack heldStack = player.inventory().held();
         ItemType held = heldStack.isEmpty() ? null : heldStack.type();
-        commit(target, world.airType());
+        // The loot reads ride the held stack once (the silk-arm parity
+        // audit: the XP gate consults the same flag the drop walk does) —
+        // hoisted above the commit so the ICE BREAK LAW below consults the
+        // same pair (the reference's afterMinedByPlayer runs after the
+        // removal; the engine's commit is the single write, so the law
+        // must know the silk flag BEFORE it commits).
+        boolean silkTouch = !heldStack.isEmpty()
+                && net.zaminmc.torch.server.enchantment.EnchantmentHelper
+                        .hasSilkTouch(heldStack);
+        int fortune = heldStack.isEmpty() ? 0
+                : net.zaminmc.torch.server.enchantment.EnchantmentHelper
+                        .fortuneLevel(heldStack);
+        // THE ICE BREAK LAW (IceBlock.afterMinedByPlayer lines 42-55, the
+        // else arm): a non-silk break of ice over a movement-blocking or
+        // liquid floor turns the cell to FLOWING_WATER (the reference's
+        // {@code Blocks.FLOWING_WATER.defaultState()} — the FLOWING form,
+        // not the melt arm's source); silk takes the cube (the drop
+        // walk's own row) and the water never forms. The vaporizing
+        // profile consult follows the world the break commits to (the
+        // reference's {@code world.dimension.yeetsWater()} — the nether
+        // alone; the engine's consult reads the same world's dimension
+        // row, so the VT-002 routing lands it whole).
+        boolean iceToWater = false;
+        if (current.identifier().equals(BuiltinBlocks.ICE.identifier())
+                && !silkTouch
+                && world.dimension() != -1) {
+            BlockType below = world.getBlock(target.offset(0, -1, 0));
+            iceToWater = net.zaminmc.torch.server.block.MaterialSolidity
+                    .blocksMovement(below.identifier())
+                    || net.zaminmc.torch.server.block.FluidBlocks.kindOf(
+                            below.identifier()) != null;
+        }
+        commit(target, iceToWater
+                ? net.zaminmc.torch.server.block.FluidBlocks.typeOf(
+                        net.zaminmc.torch.server.block.FluidBlocks.Kind.WATER,
+                        net.zaminmc.torch.server.block.FluidBlocks.Form.FLOWING, 0)
+                : world.airType());
         // The vanilla afterMinedByPlayer consult (ServerPlayerInteraction
         // Manager.tryMineBlock lines 211-225): the creative arm NEVER
         // reaches the walk (no stat, no fatigue, no drops), and the
@@ -833,13 +870,9 @@ public final class BlockInteractionService {
                             current.identifier()), 1);
         }
         // The loot reads ride the held stack once (the silk-arm parity
-        // audit: the XP gate consults the same flag the drop walk does).
-        boolean silkTouch = !heldStack.isEmpty()
-                && net.zaminmc.torch.server.enchantment.EnchantmentHelper
-                        .hasSilkTouch(heldStack);
-        int fortune = heldStack.isEmpty() ? 0
-                : net.zaminmc.torch.server.enchantment.EnchantmentHelper
-                        .fortuneLevel(heldStack);
+        // audit: the XP gate consults the same flag the drop walk does) —
+        // the pair computed above the commit is the same read the walk
+        // uses below.
         publishDrops(target, current, held, silkTouch, fortune);
         wearHeldTool(player, behavior, current);
         // The infested egg's burst (InfestedBlock.dropItems lines 79-88):

@@ -349,6 +349,36 @@ public final class RandomTickSystem {
             world.setBlock(position, BuiltinBlocks.REDSTONE_ORE);
             return;
         }
+        // The ice family's melt (IceBlock.tick lines 66-77 + SnowLayerBlock
+        // .tick lines 115-119 over the reference's randomTick → tick
+        // delegation, Block lines 434-436): the BLOCK-light consult alone
+        // (LightType.BLOCK — the SKY never melts a surface ice at noon),
+        // each family's own opacity row in the gate
+        // (IceBlock's registration carries setOpacity(3) — Block.java line
+        // 1176 — so the ice gate reads {@code light > 11 - 3 = 8}: the
+        // light AT an ice cell is itself attenuated by the ice's own
+        // opacity, an adjacent torch's 14 arrives as 11 and still melts;
+        // the snow layer's setOpacity(0) — line 1175 — keeps its gate at
+        // {@code > 11}); the nether's vaporizing profile removing where
+        // the overworld and the End take the melt water (the ICE MELT
+        // writes the SOURCE form — {@code Blocks.WATER}; the player
+        // break's FLOWING form is the afterMinedByPlayer law alone); and
+        // the snow layer never yielding water at all (its drops walk is
+        // the class's own zero — nothing lands).
+        if (type.identifier().equals(BuiltinBlocks.ICE.identifier())) {
+            if (world.blockLightAt(position) > 11 - 3) {
+                world.setBlock(position, world.dimension() == -1
+                        ? world.airType()
+                        : FluidBlocks.sourceOf(FluidBlocks.Kind.WATER));
+            }
+            return;
+        }
+        if (type.identifier().equals(BuiltinBlocks.SNOW_LAYER.identifier())) {
+            if (world.blockLightAt(position) > 11) {
+                world.setBlock(position, world.airType());
+            }
+            return;
+        }
         if (WorldSolidity.isCropStage(type.identifier())) {
             tickCropGrowth(position, type);
             return;
