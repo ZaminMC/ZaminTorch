@@ -370,18 +370,128 @@ class FluidFlowTest {
     // ------------------------------------------------------------------
 
     @Test
-    void theOpenDoorBlocksTheFlowDespiteBeingWalkThrough() {
+    void theOpenWoodDoorsBlockTheFlowInEveryFamily() {
+        // The reference's DoorBlock instanceof — the state never matters,
+        // the BLOCK does: every open state of every wood family blocks
+        // the liquid (the pre-fix consult's stale wooden_door* names
+        // matched NO registered id — the six woods washed away).
+        for (String wood : new String[] {"oak", "spruce", "birch", "jungle", "acacia", "dark_oak"}) {
+            scene();
+            BlockType openDoor = new EngineBlockType(
+                    Identifier.parse("minecraft:" + wood + "_door_open_north"),
+                    "Door", 5);
+            commit(new BlockPosition(1, 6, 0), openDoor);
+            commit(new BlockPosition(0, 6, 0),
+                    FluidBlocks.typeOf(FluidBlocks.Kind.WATER, FluidBlocks.Form.FLOWING, 0));
+            advance(20);
+            assertEquals(wood + "_door_open_north", idAt(1, 6, 0),
+                    "the " + wood + " open door cell never took the flow");
+            assertFalse(washes.contains(wood + "_door_open_north"),
+                    "the " + wood + " open door was never washed out");
+        }
+        // The open UPPER half too (the family's own bit-8 states).
         scene();
-        // The open lower door: walk-through (WorldSolidity's open-half
-        // carve) but liquid-blocking (the reference's DoorBlock
-        // instanceof — the state never matters, the BLOCK does).
         commit(new BlockPosition(1, 6, 0),
-                Identifier.parse("minecraft:wooden_door_open") == null ? BuiltinBlocks.STONE
-                        : lookupDoorOpen());
+                new EngineBlockType(Identifier.parse("minecraft:oak_door_upper_open"),
+                        "Oak Door", 12));
         commit(new BlockPosition(0, 6, 0),
                 FluidBlocks.typeOf(FluidBlocks.Kind.WATER, FluidBlocks.Form.FLOWING, 0));
         advance(20);
-        assertEquals("wooden_door_open", idAt(1, 6, 0), "the door cell never took the flow");
+        assertEquals("oak_door_upper_open", idAt(1, 6, 0),
+                "the open upper door cell never took the flow");
+    }
+
+    @Test
+    void theWallSignsAndTheBannersBlockTheFlow() {
+        // The wall sign: the reference consults SignBlock's WOOD material
+        // (the explicit row names the STANDING form alone — the wall form
+        // blocks through the material arm, exactly like vanilla).
+        scene();
+        commit(new BlockPosition(1, 6, 0), BuiltinBlocks.WALL_SIGN_EAST);
+        commit(new BlockPosition(0, 6, 0),
+                FluidBlocks.typeOf(FluidBlocks.Kind.WATER, FluidBlocks.Form.FLOWING, 0));
+        advance(20);
+        assertEquals("wall_sign_east", idAt(1, 6, 0), "the wall sign cell never took the flow");
+        // The banners — both forms (BannerBlock's WOOD material).
+        scene();
+        commit(new BlockPosition(1, 6, 0), BuiltinBlocks.STANDING_BANNER);
+        commit(new BlockPosition(2, 6, 0), BuiltinBlocks.WALL_BANNER_EAST);
+        commit(new BlockPosition(0, 6, 0),
+                FluidBlocks.typeOf(FluidBlocks.Kind.WATER, FluidBlocks.Form.FLOWING, 0));
+        advance(20);
+        assertEquals("standing_banner", idAt(1, 6, 0),
+                "the standing banner cell never took the flow");
+        assertEquals("wall_banner_east", idAt(2, 6, 0),
+                "the wall banner cell never took the flow");
+    }
+
+    @Test
+    void theOpenFenceGateAndThePressurePlatesBlockTheFlow() {
+        // The open fence gate: walk-through (the null collision shape)
+        // but liquid-blocking (FenceGateBlock's WOOD material — the
+        // material consult is state-independent).
+        scene();
+        commit(new BlockPosition(1, 6, 0),
+                FenceGateBlocks.state("oak", 2, true, false));
+        commit(new BlockPosition(0, 6, 0),
+                FluidBlocks.typeOf(FluidBlocks.Kind.WATER, FluidBlocks.Form.FLOWING, 0));
+        advance(20);
+        assertEquals("oak_fence_gate_open_north", idAt(1, 6, 0),
+                "the open gate cell never took the flow");
+        // The pressure plates — the ctor's own material parameter
+        // (STONE/WOOD), never DECORATION: the thin disc still blocks the
+        // liquid exactly like vanilla.
+        scene();
+        commit(new BlockPosition(1, 6, 0),
+                new EngineBlockType(Identifier.parse("minecraft:stone_pressure_plate"),
+                        "Stone Pressure Plate"));
+        commit(new BlockPosition(2, 6, 0),
+                new EngineBlockType(Identifier.parse("minecraft:wooden_pressure_plate"),
+                        "Wooden Pressure Plate"));
+        commit(new BlockPosition(0, 6, 0),
+                FluidBlocks.typeOf(FluidBlocks.Kind.WATER, FluidBlocks.Form.FLOWING, 0));
+        advance(20);
+        assertEquals("stone_pressure_plate", idAt(1, 6, 0),
+                "the stone plate cell never took the flow");
+        assertEquals("wooden_pressure_plate", idAt(2, 6, 0),
+                "the wooden plate cell never took the flow");
+    }
+
+    @Test
+    void theFlowerPotAndTheSkullWashOut() {
+        // The washable side of the material law — FlowerPotBlock and
+        // SkullBlock carry Material.DECORATION (PlantMaterial): the
+        // stream ENTERS their cells and pops the items (the pre-fix
+        // consult blocked them forever).
+        scene();
+        commit(new BlockPosition(1, 6, 0),
+                new EngineBlockType(Identifier.parse("minecraft:flower_pot"),
+                        "Flower Pot"));
+        commit(new BlockPosition(2, 6, 0), BuiltinBlocks.SKULL_NORTH);
+        commit(new BlockPosition(0, 6, 0),
+                FluidBlocks.typeOf(FluidBlocks.Kind.WATER, FluidBlocks.Form.FLOWING, 0));
+        advance(20);
+        assertTrue(FluidBlocks.isFluid(Identifier.parse("minecraft:" + idAt(1, 6, 0))),
+                "the stream took the flower pot's cell");
+        assertTrue(FluidBlocks.isFluid(Identifier.parse("minecraft:" + idAt(2, 6, 0))),
+                "the stream took the skull's cell");
+        assertTrue(washes.contains("flower_pot"), "the wash-out popped the pot's item");
+        assertTrue(washes.contains("skull_north"), "the wash-out popped the skull's item");
+    }
+
+    @Test
+    void theMovingPistonCarrierBlocksTheFlow() {
+        // The in-flight carrier (MovingBlock's PISTON material): the
+        // two-tick window never lets the liquid into the cell.
+        scene();
+        commit(new BlockPosition(1, 6, 0),
+                new EngineBlockType(Identifier.parse("minecraft:moving_piston_east"),
+                        "Piston Moving", 5));
+        commit(new BlockPosition(0, 6, 0),
+                FluidBlocks.typeOf(FluidBlocks.Kind.WATER, FluidBlocks.Form.FLOWING, 0));
+        advance(20);
+        assertEquals("moving_piston_east", idAt(1, 6, 0),
+                "the carrier cell never took the flow");
     }
 
     @Test
@@ -483,9 +593,4 @@ class FluidFlowTest {
     // ------------------------------------------------------------------
     // Helpers
     // ------------------------------------------------------------------
-
-    private BlockType lookupDoorOpen() {
-        return new EngineBlockType(Identifier.parse("minecraft:wooden_door_open"),
-                "Oak Door", 4);
-    }
 }

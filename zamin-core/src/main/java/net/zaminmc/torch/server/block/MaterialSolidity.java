@@ -61,12 +61,16 @@ public final class MaterialSolidity {
         }
         // The DECORATION family (PlantMaterial) — the torch, the rails, the
         // wire, the diodes, the levers, the buttons, the tripwire, the
-        // ladders. The PRESSURE PLATES are carved out: their material is
-        // the ctor's own parameter (WOOD/ROCK/GOLD/IRON — the base class,
-        // solid), unlike every other redstone member's DECORATION.
+        // ladders, the SKULLS (SkullBlock's own super(Material.DECORATION))
+        // and the FLOWER POTS (FlowerPotBlock's — the empty pot and the
+        // thirteen potted contents). The PRESSURE PLATES are carved out:
+        // their material is the ctor's own parameter (WOOD/ROCK/GOLD/IRON
+        // — the base class, solid), unlike every other redstone member's
+        // DECORATION.
         if (WorldSolidity.isLadder(id) || WorldSolidity.isRail(id)
                 || WorldSolidity.isTripwireFamily(id)
                 || id.equals(BuiltinBlocks.TORCH.identifier())
+                || isSkull(value) || isFlowerPot(value)
                 || isDecorationRedstone(value)) {
             return false;
         }
@@ -169,5 +173,21 @@ public final class MaterialSolidity {
                 || value.startsWith("lever_")
                 || value.startsWith("stone_button_")
                 || value.startsWith("wooden_button_");
+    }
+
+    /**
+     * The skull family (SkullBlock's DECORATION material — the floor form
+     * and the five wall/floor rotations the engine flattens).
+     */
+    private static boolean isSkull(String value) {
+        return value.equals("skull") || value.startsWith("skull_");
+    }
+
+    /**
+     * The flower-pot family (FlowerPotBlock's DECORATION material — the
+     * empty pot and the thirteen potted contents).
+     */
+    private static boolean isFlowerPot(String value) {
+        return value.equals("flower_pot") || value.startsWith("potted_");
     }
 }
