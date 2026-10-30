@@ -7029,6 +7029,61 @@ adjudication: closed as superseded — the correct-but-partial VN-B1
 with the two reference gaps above, its seat shape adopted with
 credit, the #77 precedent applied.
 
+## Wave TERR-A — 2026-10-30 (the terrain worldgen family audit opens: the
+owner's demand-named pass — T-SEED + T-SPAWN fixed, seven stable IDs ledgered,
+the family queue named)
+
+THE OWNER'S REPORT opened the terrain family as the demand-named priority
+(same seed every fresh boot; players spawning under terrain; bats in the
+surface air; ores/caves/terrain "all messed up"). The pass's discovery
+record: docs/TERRAIN_WORLDGEN_AUDIT_FINDINGS.md (the audit branch
+fix/worldgen-terrain-parity-audit), seven stable IDs, three independent
+passes each, the scratch probe TerrainSpawnProbeTest kept for the record.
+
+THE LANDED ROWS. T-SEED (PR #83): the pre-fix engine derived the world
+seed from the world NAME alone and never read level-seed; the fix is the
+reference's own law (DedicatedServer lines 170-183: the random roll, the
+numeric parse kept when != 0, else the string hash) persisted per world
+(world/data/seed.json — the delta-overlay model's cross-reboot stability),
+with the pre-fix MIGRATION (an engine-touched world adopts its historical
+name seed, never re-rolls — the delta alignment IS the seed) and the
+fresh-world derivation resolved BEFORE StorageManifest.open (the freshness
+check must not see the boot's own marker). T-SPAWN (PR #84): the pre-fix
+spawn was the pure height function's answer fixed at construction, never
+consulting the generated chunk — the census found both faces (the
+decoration-coincidence burials AND two of twelve names spawning over open
+water); the fix is the reference's three walks (the grass-column walk of
+initSpawnPoint, the leaves-skipping getSurfaceHeight consult, the unstuck
+walk of the fresh-body placement) resolved at boot right after pregen, the
+/setspawn anchor keeping its precedence, the per-player scatter band
+ledgered as the single-spawn model's named adaptation.
+
+THE QUEUED ROWS (the family's own demand-named queue, each verified against
+the reference before its fix): T-ORE — the per-block hash ladder instead of
+veins, AND the ladder's hash catastrophically biased (the census measured
+diamond ~1,728/chunk against the reference's ~8; the independent 64-bit
+check pinned hash3 % 10,000 < 12 holding for 38.88% of the sub-13 volume
+— 324x the ladder's own 0.12%); the vein stage re-enters through the same
+populate region window the trees ride. T-CAVE — isCave's sealed noise
+blobs (never above h-3, the surface never opens) against the reference's
+region-walked worm carvers + ravines. T-NOISE — the terrain shape itself
+(the custom fbm heightmap against the reference's 4-noise density stack;
+the nether generator already IS the full 1:1 port over the same noise
+package — the overworld never got its port). T-ANIMALS — the populate-time
+animal seeding reads the pre-decoration heights array (the reference reads
+getSurfaceHeight per attempt against the live chunk). T-BAT — REJECTED as
+a standalone defect (the natural spawn cycle is a faithful port, the
+reported symptom terrain-driven); the Halloween window (Oct 20-Nov 3's
+nextInt(7) band) rides no engine clock, ledgered.
+
+Evidence: WorldSeedStoreParityTest 8/0 + WorldSpawnResolverParityTest 5/0
+NEW + TerrainSpawnProbeTest 3/0 (the census record); the stash verification
+(the pre-fix tree refuses to compile both seat files — the seams absent in
+no partial shape). The regression: the config lanes green; the worldgen
+family lane net.zaminmc.torch.server.world.* green; the entity package
+lane net.zaminmc.torch.server.entity.* green (the engine-booting tests
+tolerate the fresh-world random seeds).
+
 # 33. CODEBASE SCALE, CLASS COHESION, AND MAINTAINABILITY
 
 Torch's server-engine single-JAR codebase has exceeded 12,000 lines of code. This is a scale milestone, not a target for artificial restructuring.

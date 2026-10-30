@@ -18,7 +18,7 @@ proof lives in the T-ORE row's verification record.
 
 ## T-SEED — the world seed is name-derived, never random, `level-seed` unread — CONFIRMED (FIXED this wave)
 
-**Status:** confirmed (three passes complete) → **FIXED on this branch** (Wave TERR-A:
+**Status:** confirmed (three passes complete) → **FIXED — PR #83** (Wave TERR-A:
 `WorldSeedStore` + the `EngineConfig.levelSeed` row + the boot resolution +
 `WorldSeedStoreParityTest` 8/0; the stash verification: the pre-fix tree
 refuses to compile the seat files — the seams absent in no partial shape).
@@ -78,7 +78,7 @@ any surfaced).
 
 ## T-SPAWN — the spawn point never consults the generated blocks — CONFIRMED (FIXED this wave)
 
-**Status:** confirmed (three passes complete) → **FIXED on this branch** (Wave TERR-A:
+**Status:** confirmed (three passes complete) → **FIXED — PR #84** (Wave TERR-A:
 `WorldSpawnResolver` + the boot-time resolution after pregen (the anchor
 gated) + `WorldSpawnResolverParityTest` 5/0; the stash verification: the
 pre-fix tree refuses to compile the seat files — the seams absent in no

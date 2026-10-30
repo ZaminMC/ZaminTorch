@@ -18432,3 +18432,44 @@ F-VINE pass's second and final slice)
   worldgen consumer lanes 80/0.
 - The F-VINE family is retired END TO END; the sixteenth-pass
   F-candidate list is fully adjudicated. The queue: EMPTY.
+
+## Wave TERR-A — 2026-10-30 (the terrain worldgen family audit opens: the owner's demand-named pass)
+
+- THE OWNER'S REPORT opened the terrain family as the demand-named
+  priority: "same seed everytime", "player spawns under terrain",
+  "bats spawn in air at surface", "ores/caves/terrain all messed up",
+  "the terrain looks highly sphiscicated".
+- The discovery record: docs/TERRAIN_WORLDGEN_AUDIT_FINDINGS.md (the
+  audit branch fix/worldgen-terrain-parity-audit) — seven stable IDs
+  (T-SEED, T-SPAWN, T-ORE, T-CAVE, T-NOISE, T-ANIMALS, T-BAT), three
+  independent passes each; the scratch probe TerrainSpawnProbeTest kept
+  for the record (the seed determinism pinned, the spawn burial census
+  with the ocean fallbacks, the ore census diamond ~1,728/chunk, the
+  cave volume).
+- T-SEED FIXED (PR #83): the name-derived seed retired — the reference's
+  own law (DedicatedServer lines 170-183: random / level-seed parse /
+  string hash) persisted per world (world/data/seed.json), the pre-fix
+  migration (an engine-touched world adopts its historical name seed —
+  the delta alignment IS the seed), the resolution BEFORE
+  StorageManifest.open, EngineConfig's levelSeed row (a 25-arg compat
+  constructor keeps the 238 sites whole), the generator's new
+  long-seed constructor with the name overload kept as the test
+  fixture.
+- T-SPAWN FIXED (PR #84): the constructor-time pure spawn retired —
+  WorldSpawnResolver's three reference walks (the grass-column walk,
+  the leaves-skipping surface consult, the unstuck walk) resolved at
+  boot after pregen (the /setspawn anchor gated), the scatter band
+  ledgered as the single-spawn model's named adaptation.
+- THE QUEUED ROWS: T-ORE (the per-block ladder instead of veins AND the
+  hash3 bias — 38.88% of the sub-13 volume rolls under 12, 324x the
+  intended 0.12%), T-CAVE (the sealed noise blobs against the reference
+  worm carvers + ravines), T-NOISE (the custom fbm heightmap against
+  the reference's density stack — the nether already IS the 1:1 port
+  over the same noise package), T-ANIMALS (the pre-decoration heights
+  array), T-BAT REJECTED as a standalone defect (the cycle is a faithful
+  port; the Halloween window rides no engine clock, ledgered).
+- Evidence: WorldSeedStoreParityTest 8/0 + WorldSpawnResolverParityTest
+  5/0 NEW + TerrainSpawnProbeTest 3/0; the stash verification (the
+  pre-fix tree refuses to compile both seat files). The regression: the
+  config lanes green; the worldgen family lane green; the entity
+  package lane green.
