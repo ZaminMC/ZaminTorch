@@ -232,7 +232,17 @@ have no existing seats to break.
 ## VT-003 — the ice family's melt and break-to-water arms are absent
 
 **Subsystem:** random ticks + the survival break walk (ice, snow layer).
-**Status:** CONFIRMED — three verification passes complete, fix-ready.
+**Status:** RESOLVED-BY-PR — the correction landed on
+`fix/ice-family-parity-audit` and PR #89 (2026-10-31): the melt arms (the
+BLOCK-light consult with the ice's own opacity-3 gate `> 8` and the snow
+layer's `> 11`, the nether's vaporizing profile, the source-form write) and
+the break's FLOWING_WATER write over a solid-or-liquid floor (the silk
+negative, the over-air negative). `IceFamilyParityTest` 11/0 with the
+stash verification (exactly the six positive seats fail pre-fix). The
+fix's own find recorded for the seats: the settle law — the level-0
+flowing form converts to the source on its own flow tick
+(FlowingLiquidBlock.tick lines 91-94), so the break seats pin both
+moments.
 
 **Affected engine files and methods:**
 - `server/interaction/BlockInteractionService.java` — `tryMineBlock`: the
@@ -358,8 +368,8 @@ client movement packets, which parks the dig's airborne 5x divisor
 
 ## The queue for the next pass
 
-1. **The VT-003 fix branch** (the ice family's two arms — the bounded,
-   overworld-first slice, the per-dimension gate riding the FL4 profiles).
+1. ~~The VT-003 fix branch~~ — LANDED (PR #89, `IceFamilyParityTest` 11/0,
+   the stash verification).
 2. **The VT-001 fix branch** (the fire family's per-dimension seam + the
    sixteen registrations on the nether/End systems).
 3. **The VT-002 bounded first slice** (the dig path + the flint arm
