@@ -18735,3 +18735,58 @@ stats table's concurrent law + the relief pin's noise guard)
   + launcher green.
 - The queue: run 527 (pre-fix tree) in flight, run 528 (the fix)
   pending behind it.
+
+## Wave FL4 + FL4-F1 — the per-dimension fluid simulation (the F-FL4
+architecture pass) + the portal placement's flag1 law (2026-10-30)
+
+- THE FLUID FAMILY AUDIT'S STANDING TAIL RETIRED: the reference gives
+  every ServerWorld its own scheduled-tick queue, its own random-tick
+  walk, and its own liquid family; the engine's single-mechanics-world
+  shape left the nether's lava inert beside a broken block forever and
+  an End pour sitting still.
+- LANDED (d695de77): the nether/End ScheduledTickSystems with their
+  own ZST persistence (loaded before the domains attach — the restart
+  seat's ownership find), the per-dimension RandomTickSystem walks
+  with dimension-filtered players (the nether's carrying NO pigman
+  sink — PortalBlock.tick line 35's own isNatural gate), the End's
+  tick clock (EngineTicker's attachEndWorld — never advanced before),
+  the FluidSystem pair over parameterized FluidWorld adapters with the
+  reference's dimension profiles (the nether's yeetsWater+noSky lava
+  at cadence 10 with the FULL seven-block reach; the End's noSky-alone
+  water at 5, lava at 10 with the j=2 decay), the FluidSink's
+  dimension stamps (the TF-9 drops + the TF-12 sounds), the bucket
+  path's dimension routing (the pre-fix path wrote the OVERWORLD field
+  whatever the player's dimension), and EngineWorld.dimension() with
+  the pops + leaf-decay drops stamped.
+- THE SEATS' FINDS: the real-boot spread runs toward the gaps (the
+  seats carve full plate floors); the LAVA wash-out fizzles with no
+  drop (only WATER drops items — the reference's spreadTo pair); the
+  restart's chunks arrive through the player-arrival stand-in (the
+  reference's line-505 re-arm-until-loaded shape).
+- RUN 532's REGRESSION (PR #83's random seed exposing a LATENT mirror
+  error): the reference's flag1 shifts the width origin ONLY for the
+  SOUTH forward (clockwiseY N->E->S->W, only SOUTH maps to the
+  negative WEST); the engine read !forwardPositive at both sites —
+  the name-seed's forcer frames never exposed it, the random seed's
+  SOUTH-facing frames landed the arrival ON the frame column (the
+  body buried in obsidian, the round trip never arming).
+- LANDED THE FIX (9dc333e7): both sites read the reference's own
+  condition (forwardAxis == Z && forwardPositive);
+  PortalForcerTest's hand-built-frame seat re-pinned to the
+  reference's value (12.0 — both old and new land inside the 2-wide
+  interior; the old seat pinned the wrong math's coincidence).
+- PRs #83 (the world seed law, 4ba8b148) + #84 (the world spawn
+  resolution, 6b9cb007 + the flat-family review correction 5d692dc9)
+  reviewed against the reference line by line and merged the same
+  session.
+- Evidence: PerDimensionFluidAcceptanceTest 6/0 NEW; DimensionWalkTest
+  5/5 fresh random-seed boots; the world package whole 246/0; block +
+  world 555/0; the player lanes 56/0; the acceptance + persistence +
+  anvil + cauldron lanes green; entity 573/574 (one load-flake, 3/3
+  isolated).
+- The newly-ledgered tails (each its own pass): the fire family's
+  per-dimension scheduling, the placement families' use-path world
+  routing, the ice family's melt arms.
+- The CI queue: run 533 (the pre-fix checkout) still in flight; run
+  535 (the full current tree) queued behind it — the release
+  pipeline's first build since torch-1.8.8-153 (2026-10-27).
