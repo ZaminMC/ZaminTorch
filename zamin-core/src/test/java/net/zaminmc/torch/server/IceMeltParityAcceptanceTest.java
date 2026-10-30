@@ -154,6 +154,90 @@ class IceMeltParityAcceptanceTest {
     }
 
     /**
+     * SEAT 2b — THE OPACITY-CORRECTED BAND (PR #89's review rider): a torch
+     * TWO cells out lands block light 10 at the ice cell (14 minus one
+     * air step minus the ice's OWN opacity 3 on entering the cell) — UNDER
+     * the registration's {@code setOpacity(3)} band
+     * ({@code > 11 - 3 = 8}) the ice MELTS; the naive {@code > 11}
+     * threshold (the first landing's error — the constructor's
+     * isSolidRender-false opacity 0 read without the registration's own
+     * row) would refuse it. This seat pins the band where the two
+     * readings DISAGREE.
+     */
+    @Test
+    void theTwoCellsOutTorchMeltsTheIce() throws Exception {
+        EngineWorld overworld = server.world();
+        // The torch at (66,5,64) lands 14 - 1 (the air step) - 3 (the
+        // ice's own opacity on entering the cell) = 10 at the ice cell
+        // (64,5,64).
+        BlockPosition iceAt = new BlockPosition(64, 5, 64);
+        BlockPosition torchAt = new BlockPosition(66, 5, 64);
+        server.ticker().submit(() -> {
+            overworld.setBlock(iceAt, BuiltinBlocks.ICE);
+            overworld.setBlock(torchAt, BuiltinBlocks.TORCH);
+        });
+        EngineAwaits.awaitCondition(server.world(),
+                () -> BuiltinBlocks.ICE.equals(overworld.getBlock(iceAt))
+                        && overworld.blockLightAt(iceAt) == 10,
+                40, "the ice landed under the two-cells-out torch's light 10");
+
+        probe(server.randomTicks(), iceAt);
+        assertEquals(FluidBlocks.WATER_SOURCE,
+                overworld.getBlock(iceAt).identifier(),
+                "light 10 melts the ice under the registration's opacity-3 band (> 8)");
+    }
+
+    /**
+     * SEAT 2c — THE SNOW LAYER'S MELT (SnowLayerBlock.tick lines 115-119 —
+     * PR #89's family row): a torch-adjacent snow layer dissolves to AIR
+     * with NOTHING dropped (the layer's getBaseDropCount 0 — the melt
+     * yields no snowballs) and NO water in ANY dimension (the layer's tick
+     * carries no yeetsWater consult — it removes, never melts-to-water).
+     */
+    @Test
+    void theTorchlitSnowLayerDissolvesToAirWithNoDrops() throws Exception {
+        EngineWorld overworld = server.world();
+        BlockPosition snowAt = new BlockPosition(64, 5, 64);
+        BlockPosition torchAt = new BlockPosition(65, 5, 64);
+        server.ticker().submit(() -> {
+            overworld.setBlock(snowAt, BuiltinBlocks.SNOW_LAYER);
+            overworld.setBlock(torchAt, BuiltinBlocks.TORCH);
+        });
+        EngineAwaits.awaitCondition(server.world(),
+                () -> BuiltinBlocks.SNOW_LAYER.equals(overworld.getBlock(snowAt))
+                        && overworld.blockLightAt(snowAt) > 11,
+                40, "the snow layer landed under the torch's light");
+
+        int itemsBefore = server.itemEntities().all().size();
+        probe(server.randomTicks(), snowAt);
+        assertEquals(overworld.airType(), overworld.getBlock(snowAt),
+                "the torchlit snow layer dissolved to air");
+        assertTrue(server.itemEntities().all().size() == itemsBefore,
+                "the melt dropped nothing (getBaseDropCount 0)");
+    }
+
+    /**
+     * SEAT 2d — THE SNOW LAYER'S SKY GUARD: the daylit snow layer (skylight
+     * 15, block light 0) never melts — the same LightType.BLOCK channel
+     * law the ice carries.
+     */
+    @Test
+    void theDaylitSnowLayerNeverMelts() throws Exception {
+        EngineWorld overworld = server.world();
+        BlockPosition snowAt = new BlockPosition(24, 5, 64);
+        server.ticker().submit(() -> overworld.setBlock(snowAt, BuiltinBlocks.SNOW_LAYER));
+        EngineAwaits.awaitCondition(server.world(),
+                () -> BuiltinBlocks.SNOW_LAYER.equals(overworld.getBlock(snowAt)),
+                40, "the daylight snow layer landed");
+        assertEquals(0, overworld.blockLightAt(snowAt), "the cell carries no block light");
+
+        probe(server.randomTicks(), snowAt);
+        probe(server.randomTicks(), snowAt);
+        assertEquals(BuiltinBlocks.SNOW_LAYER, overworld.getBlock(snowAt),
+                "the daylit snow layer never melts (LightType.BLOCK alone)");
+    }
+
+    /**
      * SEAT 3 — the nether removes: the nether's placed ice under a lit
      * cell dissolves to AIR, never water — the {@code yeetsWater()}
      * consult (the same dimension profile that vaporizes the bucket's
