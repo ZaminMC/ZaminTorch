@@ -578,7 +578,30 @@ public final class BlockLightTable {
             Map.entry(Identifier.parse("minecraft:powered_comparator_west_subtract"), new LightData(9, 0)),
             Map.entry(Identifier.parse("minecraft:powered_comparator_north_compare"), new LightData(9, 0)),
             Map.entry(Identifier.parse("minecraft:powered_comparator_north_subtract"), new LightData(9, 0)),
-            Map.entry(Identifier.parse("minecraft:vine"), new LightData(0, 0)));
+            Map.entry(Identifier.parse("minecraft:vine"), new LightData(0, 0)),
+            // The vine family's fifteen face states (Wave VN-A's state
+            // vocabulary — the full-suite light coverage walk): the
+            // reference's law is the family's one registration
+            // (Block.java line 1212), VineBlock.isSolidRender() FALSE
+            // (line 50) over the opacity default (Block.java line 216:
+            // isSolidRender() ? 255 : 0) — the thin shape passes light
+            // whatever face bits the metadata nibble carries, and the
+            // family emits nothing.
+            Map.entry(Identifier.parse("minecraft:vine_none"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:vine_south"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:vine_west"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:vine_south_west"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:vine_north"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:vine_south_north"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:vine_west_north"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:vine_south_west_north"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:vine_east"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:vine_south_east"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:vine_west_east"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:vine_south_west_east"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:vine_north_east"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:vine_south_north_east"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:vine_west_north_east"), new LightData(0, 0)));
 
     /**
      * The redstone family's light rows (Slice 9a) and the mechanical

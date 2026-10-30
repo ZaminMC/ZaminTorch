@@ -264,9 +264,17 @@ public final class DispenserSystem implements WorldChangeListener {
         boolean triggered = DispenserBlocks.triggered(type);
         if (signal && !triggered) {
             redstone.scheduleDispense(pos, TICK_RATE);
-            world.setBlock(pos, DispenserBlocks.ofTriggerState(type, true));
+            // The reference's flip is a FLAG-4 write (line 124:
+            // setBlockState(pos, state.set(TRIGGERED, true), 4)) — no
+            // neighbor updates, no client sync, no onAdded (same block).
+            // The pre-fix engine's notifying write woke the six
+            // neighbours on every trigger flip: a wheat crop planted on
+            // a dispenser (the CI seat) took the crop support arm's
+            // not-farmland pop from the flip alone — vanilla never
+            // notifies the crop at all.
+            world.setBlockStateSilently(pos, DispenserBlocks.ofTriggerState(type, true));
         } else if (!signal && triggered) {
-            world.setBlock(pos, DispenserBlocks.ofTriggerState(type, false));
+            world.setBlockStateSilently(pos, DispenserBlocks.ofTriggerState(type, false));
         }
     }
 

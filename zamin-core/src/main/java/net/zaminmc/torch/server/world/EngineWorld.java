@@ -239,6 +239,36 @@ public final class EngineWorld implements World,
         return changed;
     }
 
+    /**
+     * The flag-4 state write (World.setBlockState's {@code (flags & 4)}
+     * family — DispenserBlock.neighborChanged line 124's TRIGGERED flip,
+     * {@code setBlockState(pos, state.set(TRIGGERED, true), 4)}): the
+     * chunk write + the persistence delta ALONE. No neighbor updates
+     * (flag 1 absent — the six-neighbor walk never runs, so no family's
+     * support arm hears the flip), no client sync (flag 2 absent — the
+     * server sends nothing for the flip; the TRIGGERED bit renders
+     * nothing client-side in 1.8.8), no onAdded
+     * (WorldChunk.setBlockState lines 536-538 gate it on
+     * {@code block1 != block} — a same-family state flip keeps the
+     * block), no onRemoved (the material never changes). The contract:
+     * SAME-FAMILY, LIGHT-IDENTICAL state flips alone — a write that
+     * changes the family, the material, or the light pair must ride the
+     * notifying {@link #setBlock} (the SC memo stays correct either
+     * way: the section's content revision bumps inside the chunk write
+     * itself, never on the listener bus).
+     */
+    public boolean setBlockStateSilently(BlockPosition position, BlockType type) {
+        Objects.requireNonNull(type, "type");
+        requireOwnership("setBlockStateSilently", position);
+        EngineChunk chunk = getOrGenerate(position.chunkPosition());
+        boolean changed = chunk.setBlock(position.localX(), position.y(), position.localZ(), type);
+        if (changed) {
+            // Deltas are the persistence projection of runtime changes (slice 2).
+            recordDelta(position.chunkPosition(), localIndex(position.localX(), position.y(), position.localZ()), type);
+        }
+        return changed;
+    }
+
     /** The combined pair fan-out (the public event's own shape, Slice 14a). */
     private void fireReplaced(BlockPosition position, BlockType oldType, BlockType newType) {
         for (WorldChangeListener listener : changeListeners) {

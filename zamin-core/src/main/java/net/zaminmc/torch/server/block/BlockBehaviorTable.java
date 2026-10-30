@@ -798,6 +798,42 @@ public final class BlockBehaviorTable {
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:mossy_cobblestone"), 1)))),
             Map.entry(Identifier.parse("minecraft:vine"),
                     new BlockBehavior(0.2, true, false, "plants", 0, List.of())),
+            // The vine family's fifteen face states (Wave VN-A's state
+            // vocabulary): the family's ONE registration row carries them
+            // all (Block.java line 1212 — setStrength(0.2F), the plant
+            // material, no tool gate); the shears drop consult reads the
+            // family through VineBlocks.isVineFamily, the drops list alone
+            // empty here exactly like the bare form.
+            Map.entry(Identifier.parse("minecraft:vine_none"),
+                    new BlockBehavior(0.2, true, false, "plants", 0, List.of())),
+            Map.entry(Identifier.parse("minecraft:vine_south"),
+                    new BlockBehavior(0.2, true, false, "plants", 0, List.of())),
+            Map.entry(Identifier.parse("minecraft:vine_west"),
+                    new BlockBehavior(0.2, true, false, "plants", 0, List.of())),
+            Map.entry(Identifier.parse("minecraft:vine_south_west"),
+                    new BlockBehavior(0.2, true, false, "plants", 0, List.of())),
+            Map.entry(Identifier.parse("minecraft:vine_north"),
+                    new BlockBehavior(0.2, true, false, "plants", 0, List.of())),
+            Map.entry(Identifier.parse("minecraft:vine_south_north"),
+                    new BlockBehavior(0.2, true, false, "plants", 0, List.of())),
+            Map.entry(Identifier.parse("minecraft:vine_west_north"),
+                    new BlockBehavior(0.2, true, false, "plants", 0, List.of())),
+            Map.entry(Identifier.parse("minecraft:vine_south_west_north"),
+                    new BlockBehavior(0.2, true, false, "plants", 0, List.of())),
+            Map.entry(Identifier.parse("minecraft:vine_east"),
+                    new BlockBehavior(0.2, true, false, "plants", 0, List.of())),
+            Map.entry(Identifier.parse("minecraft:vine_south_east"),
+                    new BlockBehavior(0.2, true, false, "plants", 0, List.of())),
+            Map.entry(Identifier.parse("minecraft:vine_west_east"),
+                    new BlockBehavior(0.2, true, false, "plants", 0, List.of())),
+            Map.entry(Identifier.parse("minecraft:vine_south_west_east"),
+                    new BlockBehavior(0.2, true, false, "plants", 0, List.of())),
+            Map.entry(Identifier.parse("minecraft:vine_north_east"),
+                    new BlockBehavior(0.2, true, false, "plants", 0, List.of())),
+            Map.entry(Identifier.parse("minecraft:vine_south_north_east"),
+                    new BlockBehavior(0.2, true, false, "plants", 0, List.of())),
+            Map.entry(Identifier.parse("minecraft:vine_west_north_east"),
+                    new BlockBehavior(0.2, true, false, "plants", 0, List.of())),
 
             // The golem family's blocks (Slice 17d — community blocks.json
             // 1.8 values; the mining-speed parity audit re-pinned the pair's

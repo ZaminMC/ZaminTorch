@@ -95,6 +95,33 @@ public final class BlockUpdateSystem implements WorldChangeListener {
     private final ArrayDeque<Scheduled> queue = new ArrayDeque<>();
     private final Set<Long> pending = new HashSet<>();
 
+    /**
+     * The ADDRESSEE pin (the stale-wake repair — the dispenser/crop CI
+     * seat's own law): the reference delivers {@code neighborChanged}
+     * SYNCHRONOUSLY inside the neighbor's own change
+     * (World.updateNeighbors lines 342-349 → neighborChanged lines
+     * 377-382 reading the block AT THE DISPATCH MOMENT), so a
+     * notification can only ever run against the block that occupied
+     * the cell when the neighbor changed. The engine's §466 design
+     * defers the dispatch to the same tick's drain — a block placed
+     * into the cell between the schedule and the drain would receive
+     * a notification vanilla addressed to whatever was there BEFORE
+     * (usually AIR — a no-op in the reference, a pop in the engine:
+     * the dispenser's own commit woke the air cell above it, the wheat
+     * crop planted there in the same tick received the stale wake at
+     * the drain, and the crop support arm felled a crop vanilla never
+     * notifies — Wave TR's arm surfacing the queue's own divergence).
+     * The pin: every scheduled notification records the block it is
+     * addressed to; the drain skips the entry when the cell has since
+     * changed (the addressee is gone — the reference delivered it
+     * synchronously to the block that was there, and the new block's
+     * own onAdded handled its own arrival). A null addressee (the
+     * public {@code requestUpdate} arm) runs against whatever the
+     * cell holds at the drain — the API's own law. Tick-thread
+     * confined like the queue it shadows.
+     */
+    private final java.util.Map<Long, BlockType> addressee = new java.util.HashMap<>();
+
     /** The vanilla fuse kept for the unwired window ({@code FallingBlock.getTickRate} is 2 game ticks); the wired seam reads GravityFalls.DELAY. */
     static final int FALL_CHECK_DELAY = 2;
     private final ArrayDeque<FallCheck> fallChecks = new ArrayDeque<>();
@@ -144,43 +171,67 @@ public final class BlockUpdateSystem implements WorldChangeListener {
     public void onBlockChanged(EngineWorld changedWorld, BlockPosition position, BlockType newType) {
         Objects.requireNonNull(newType, "newType");
         long now = changedWorld.totalTicks();
-        // THE RAIL + VINE FAMILIES' OWN-COMMIT EXEMPTION (the rail's:
-        // the thirteenth verifier pass — the reference's dispatch law,
-        // World.updateNeighbors lines 342-349 over setBlockState's flag-1
-        // walk; the vine's: Wave VN-B): a block's own change notifies
-        // its SIX NEIGHBOURS alone; the changed cell ITSELF never
-        // receives neighborChanged — the placed rail's own commit runs
-        // onAdded's connection walk with NO support consult
-        // (AbstractRailBlock.onAdded lines 76-83, the consult the item
-        // path's canBePlaced arm carries), so a directly-written rail (the
-        // plugin path, the test harness, a world import) FLOATS exactly
-        // like vanilla's until a NEIGHBOUR changes; the support pops ride
-        // the neighbour wakes alone. THE VINE'S OWN ROW: the placed
-        // faceless form (metadata 0, a top-face click under a ceiling —
-        // getPlacementState's vertical arm) and every directly-written
-        // state (the worldgen drape, the anvil import) SURVIVE their own
-        // commit exactly like vanilla's — VineBlock.neighborChanged
-        // lines 172-178 never fires on the changed cell, so the transient
-        // form lingers until a NEIGHBOUR changes and the decay's
-        // hasConnections walk runs. The {0,0,0} self-offset stays for
-        // the other families (the torch/carpet/sign arms' own established
-        // convention — their own audits' rows).
-        boolean changedCellNeverWakesItself = RailBlocks.isRailFamily(newType)
-                || VineBlocks.isVineFamily(newType);
+        // THE OWN-COMMIT DISPATCH (the reference's onAdded law — the CI
+        // regression the sign trio surfaced, the twelfth pass's support
+        // arms riding a self-wake the reference never runs): the changed
+        // cell's own commit runs its family's onAdded arm ALONE, never
+        // its neighborChanged arm. The reference runs onAdded from the
+        // chunk write itself (WorldChunk.setBlockState lines 536-538:
+        // `if (!world.isClient && block1 != block) block.onAdded(...)`)
+        // for EVERY server-side write (the item path, /setblock, a
+        // plugin write, the test harness) — but only the OVERRIDING
+        // families do work there: FallingBlock.onAdded schedules the
+        // fall fuse (lines 24-26) and TorchBlock.onAdded pops an
+        // unsupported torch (canSurviveOrBreak, lines 91-93). Every
+        // other family — the sign pair, the banner pair, the carpet,
+        // the cocoa, the lily, the flora, the nether wart, the double
+        // plant, the farmland, the grass, the cane, the cactus, the
+        // rail (its onAdded is the connection walk alone, translated at
+        // the placement site), the vine — carries NO onAdded override:
+        // a directly-written unsupported block FLOATS exactly like
+        // vanilla's until a NEIGHBOUR changes (World.updateNeighbors
+        // lines 342-349 wakes the six neighbours alone; the changed
+        // cell itself never receives neighborChanged). The pre-fix
+        // engine woke the changed cell for every family — the
+        // twelfth-pass support arm popped a midair SIGN on its own
+        // commit where vanilla floats it (the placed-cell store then
+        // discarded the text on the next tick sweep — three CI
+        // failures: the public-view lookup, the staged edit, the tile
+        // round trip).
+        boolean changedCellRunsItsOwnAddedArm =
+                GravityFalls.isGravityFamily(newType.identifier())
+                        || newType.identifier().equals(TORCH);
         for (int[] offset : NEIGHBOR_OFFSETS) {
-            if (changedCellNeverWakesItself && offset[0] == 0 && offset[1] == 0 && offset[2] == 0) {
-                continue; // the rail's and the vine's own commits never wake themselves
+            boolean self = offset[0] == 0 && offset[1] == 0 && offset[2] == 0;
+            if (self && !changedCellRunsItsOwnAddedArm) {
+                continue; // no onAdded override: the own commit never wakes itself
             }
-            schedule(position.offset(offset[0], offset[1], offset[2]), now);
+            BlockPosition woken = position.offset(offset[0], offset[1], offset[2]);
+            // The addressee pin: the notification is addressed to the
+            // cell's occupant AT THE SCHEDULE MOMENT (the reference's
+            // synchronous dispatch moment) — the changed cell itself
+            // carries the new type.
+            schedule(woken, now, self ? newType : changedWorld.getBlock(woken));
         }
     }
 
-    /** Schedules one update (one pending update per position; earliest wins). */
-    private void schedule(BlockPosition position, long dueTick) {
+    /**
+     * Schedules one update (one pending update per position; earliest
+     * due wins, the newest addressee wins — a coalesced pair of
+     * notifications rides the LATEST addressee's block, the reference
+     * delivering each one synchronously against its own moment's
+     * block).
+     *
+     * @param addresseeType the block the notification is addressed to
+     *                      (the cell's occupant at the schedule moment;
+     *                      null — the public request arm — pins nothing)
+     */
+    private void schedule(BlockPosition position, long dueTick, BlockType addresseeType) {
         if (position.y() < BlockPosition.MIN_Y || position.y() > BlockPosition.MAX_Y) {
             return; // off-world neighbors have no rules to run
         }
         long key = key(position);
+        addressee.put(key, addresseeType);
         if (!pending.add(key)) {
             return;
         }
@@ -241,6 +292,7 @@ public final class BlockUpdateSystem implements WorldChangeListener {
     public boolean cancelUpdate(BlockPosition position) {
         if (pending.remove(key(position))) {
             queue.removeIf(entry -> entry.position().equals(position));
+            addressee.remove(key(position)); // the cancelled entry's pin dies with it
             return true;
         }
         return false;
@@ -274,10 +326,12 @@ public final class BlockUpdateSystem implements WorldChangeListener {
     /**
      * Requests a neighbor update for the position due the current tick
      * (the engine's own schedule arm — a cell already pending keeps its
-     * earlier due tick).
+     * earlier due tick). The public arm pins NO addressee: the request
+     * runs against whatever the cell holds at the drain (the API's own
+     * law — an explicit request, not a neighbor notification).
      */
     public void requestUpdate(BlockPosition position) {
-        schedule(position, world.totalTicks());
+        schedule(position, world.totalTicks(), null);
     }
 
     /** The immutable public view of one pending scheduled tick. */
@@ -300,10 +354,23 @@ public final class BlockUpdateSystem implements WorldChangeListener {
             if (entry == null) {
                 break; // drained everything reachable (defensive)
             }
-            pending.remove(key(entry.position()));
+            long key = key(entry.position());
+            BlockType addresseeType = addressee.remove(key);
+            pending.remove(key);
             if (entry.dueTick() > now) {
-                schedule(entry.position(), entry.dueTick()); // re-arm, due tick preserved
+                schedule(entry.position(), entry.dueTick(), addresseeType); // re-arm, due + addressee preserved
                 continue;
+            }
+            // The stale-wake skip (the addressee pin's drain arm): the
+            // notification was addressed to addresseeType at the
+            // schedule moment — the reference delivered it synchronously
+            // to THAT block. A cell that has since changed occupants
+            // never receives it: the new block's own onAdded handled its
+            // arrival, and an unpinned request (null) runs against the
+            // current occupant (the public arm's law).
+            if (addresseeType != null
+                    && !addresseeType.equals(world.getBlock(entry.position()))) {
+                continue; // the addressee is gone — the notification is void
             }
             runUpdate(entry.position());
         }

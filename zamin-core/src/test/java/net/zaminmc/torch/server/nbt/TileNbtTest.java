@@ -108,10 +108,14 @@ class TileNbtTest {
     /** The placement counter (the collision-free band — a random pair could land two reads on one chest). */
     private int placeCounter;
 
+    /** The placement band's cell arithmetic (place()'s own formula, shared). */
+    private static BlockPosition cellAt(int cell) {
+        return new BlockPosition(8 + (cell % 8), 40, 8 + ((cell / 8) % 8));
+    }
+
     private BlockPosition place(String blockName) throws Exception {
         int cell = placeCounter++;
-        BlockPosition pos = new BlockPosition(
-                8 + (cell % 8), 40, 8 + ((cell / 8) % 8));
+        BlockPosition pos = cellAt(cell);
         tick(() -> server.world().setBlock(pos,
                 server.world().blockRegistry().byKey("minecraft:" + blockName).orElseThrow()));
         await(() -> server.world().getBlock(pos).identifier().value().equals(blockName),
@@ -296,7 +300,18 @@ class TileNbtTest {
         assertEquals("say hi", loadedControl.command());
         assertEquals(3, loadedControl.successCount());
 
-        // The sign: the text rows.
+        // The sign: the text rows. The pair plants on a seeded stone
+        // floor first — a floating sign pops on the first NEIGHBOUR
+        // change (StandingSignBlock.neighborChanged lines 17-24, the
+        // twelfth pass's support arm: the next placement's wake would
+        // fell the pair, and the pop's own air-commit cascade with it —
+        // vanilla's own law), so the round trip rides supported signs.
+        tick(() -> {
+            server.world().setBlock(cellAt(placeCounter).offset(0, -1, 0),
+                    net.zaminmc.torch.server.block.BuiltinBlocks.STONE);
+            server.world().setBlock(cellAt(placeCounter + 1).offset(0, -1, 0),
+                    net.zaminmc.torch.server.block.BuiltinBlocks.STONE);
+        });
         BlockPosition signPos = place("sign");
         tick(() -> server.signs().set(signPos,
                 new String[]{"Line one", "Line two", "Line three", "Line four"}));
