@@ -34,9 +34,9 @@ fourth, larger shape underneath the second: the whole dig/use/place surface
   (CONFIRMED, three passes complete, fix-ready).
 - **VT-002** — the entire dig/use/place surface reads and writes the
   overworld field: nether gameplay is dead and nether actions corrupt the
-  overworld (CONFIRMED, three passes complete, architecture-scoped — the
-  bounded correction is specified below, its implementation is its own
-  pass).
+  overworld (CONFIRMED, three passes complete; the use-path family arms
+  landed as Wave FL4-F3, the remaining dig/place GENERIC slice landed as
+  PR #90 — see the twenty-second pass's record below).
 - **VT-003** — the ice family's melt and break-to-water arms are absent
   (CONFIRMED, three passes complete, fix-ready).
 
@@ -348,35 +348,195 @@ reasons); and the stand rides `applyMovement(..., onGround=true)` —
 `teleportPlayer` writes `onGround=false` and nothing re-arms it without
 client movement packets, which parks the dig's airborne 5x divisor
 (PlayerEntity.getMiningSpeed line 695) below the finish floor.
+[Twenty-second-pass correction: the re-cross this note describes is NOT
+the reference's law — it is VT-004 below, a genuine divergence. The
+shipped PR #90 seats use the FL4-F3 `setDimension(-1)` harness instead.]
 
-## Coverage ledger (the twenty-first pass's sweep)
+---
+
+## The twenty-second pass — the VT-002 remaining slice landed (PR #90) + the portal re-fire discovered (VT-004)
+
+Baseline: `origin/develop` at `684ee7ff` (Waves FL4-F2 + FL4-F3 landed —
+the fire family's per-dimension scheduling retired VT-001's fix, and the
+use-path world routing retired the family arms of VT-002; the ice family's
+PR #89 open). The pass took up the queue's head — VT-002's remaining
+slice, the FL4-F3 ledger's "dig/place GENERIC surface" tail — carried it
+through the fix discipline, and surfaced one new suspected finding under
+the harness work (VT-004).
+
+### VT-002's remaining slice — RESOLVED-BY-PR #90
+
+**What landed** (`fix/dig-path-dimension-parity-audit`, PR #90): the
+per-call world resolution over `BlockInteractionService` whole — every
+`*OnTick` arm resolves the digger's own world (`worldOf(player)` over the
+engine's `worldFor` consult, the reference's own
+`this.server.getWorld(this.player.dimension)` per-packet shape); the
+helpers thread it (`extinguishFireAt`, `miningFinishWalk`, `tryMineBlock`,
+`perTickProgress`, `isSubmerged`, `canOccupy`, `fireBreak`, `firePlace`,
+`commit`, `publishDrops`, `resync`, `survivalBreakAllowed`); `tickMining`
+resolves per session; `publishDrops` stamps `world.dimension()` (the
+four-arg TF-9 form — the coverage ledger's TF-9 row closes with it); the
+`placementTagConsult`'s hardcoded dimension 0 becomes the player's; the
+resync publisher seam carries the walk's world. The hooks the walk invokes
+carry the world too (the redstone-ore start-light, the dragon-egg
+startMining teleport, the door/bed sibling cleanups, the placement soil
+gate, the banner drop's dimension stamp).
+
+**Evidence:** `DigPathDimensionParityTest` 4/0 NEW — the survival dig seat
+(the VT-002 discovery seat's law, the FL4-F3 stable harness), the creative
+break seat, the generic placement seat, and the overworld control. The
+stash verification (the production pair stashed): exactly the three
+nether seats fail — the survival dig's BOTH halves (`expected: <air> but
+was: <dirt>` on the nether cell + `expected: <dirt> but was: <air>` on the
+overworld probe — the corruption), the control green on both trees.
+Regressions: the interaction/dig/mining package 79/0, the
+containers/banners/beds lane 26/0, the placement families 57/0, the
+protocol wire lane 7/0, `BukkitEventBridgeTest` green (~173 targeted
+tests, 0 failures).
+
+**The rider fixed in passing (an FL4-F3 incomplete migration):**
+`useDragonEggOnTick` gated on its threaded world but `dragonEggWorld()`
+closed over the overworld field for the teleport itself — a nether dragon
+egg's use passed the gate and then no-opped the teleport against the
+overworld's cell. Both now take the walk's world.
+
+**The tails this slice ledgers** (each its own pass, recorded in the
+coverage ledger below): the per-dimension tile families (the
+furnace/chest/skull/banner spill + cleanup ride the single-instance
+managers — the FL4 fluids/fire precedent applies), the infested burst's
+mob dimension stamp (`MobManager.spawnAt` takes no dimension), the FX
+broadcast's dimension awareness (the FxManager position-only API), the
+per-dimension world border (the reference's per-World border vs the
+engine's shared one), and the zombie door-break arm's own world binding
+(the mob path keeps the bare overworld-bound form — its own mob dimension
+tail).
+
+**Coordination:** PR #89 (the ice family) also edits `tryMineBlock`'s
+commit region — a small textual overlap only; the changes compose (the
+ice law's `world.dimension()` consults become dimension-correct once the
+routing lands, exactly as #89's own comment anticipates).
+
+## VT-004 — the portal stand clock re-fires while the body stays pinned in the arrival frame (SUSPECTED)
+
+**Subsystem:** portal mechanics (the stand clock / the crossing's re-fire
+law). **Status:** suspected — one source pass recorded (the
+twenty-second); the behavioral and independent passes owed.
+
+**The reference's law** (reference/1.8.8 `entity/Entity.java`):
+`onPortalCollision` (lines 1426-1454) consults the cooldown FIRST — `if
+(this.portalCooldown > 0) { this.portalCooldown = this.getPortalCooldown();
+}` with no `inPortal` arm in that branch; the memory derive and
+`this.inPortal = true` ride the ELSE (the expired-cooldown arm) alone. The
+cooldown RE-ARMS on every collision tick while cooling, and `inPortal` is
+armed ONLY when the cooldown is expired. The stand walk (`baseTick` lines
+284-313) then accumulates `portalTime++` only while `inPortal` — so a body
+that arrives inside the destination frame's portal cells (cooldown = 10,
+the player override, PlayerEntity line 315) NEVER re-crosses while it
+stands in the cells: every collision tick re-arms the cooldown and
+`inPortal` stays false while `portalTime` decays (-4/tick, the not-inPortal
+arm). The return requires the body to LEAVE the cells (the cooldown then
+counts down to 0) and re-enter — and the fresh entry re-accumulates the
+full 80-tick stand (portalTime decayed to 0 on the way).
+
+**The engine's shape** (`PlayerSession.advancePortalClock`, lines 782-805):
+the crossing gate is `old = portalTime++; if (old >= max)` with NO cooldown
+consult, and `portalTime` is never reset on the dimension change
+(`applyDimensionArrival` lines 893-908 clears the portal memory but not the
+stand clock — it stays clamped at `max` = 80 after the crossing). The
+cooldown consult exists only on the ENTRY EDGE (`portalCooldown > 0 &&
+!portalOccupiedLastTick` — a re-arm), not on the standing clock. So a body
+whose arrival lands inside the destination frame's portal cells re-fires
+the crossing on the very next touching tick: the body ping-pongs between
+the dimensions until an arrival happens to land outside cells.
+
+**The engine's own javadoc claims the reference's shape** ("The crossing
+re-fires while the body stays pinned in the portal — the reference's own
+shape, because its changeDimension moves the body out of the portal on the
+same tick") — a misreading: the reference's `changeDimension` →
+`placeInPortal` lands the body INSIDE the destination frame's cells, and
+what holds the return there is the `onPortalCollision` cooldown consult,
+not the placement. `DimensionWalkTest` documents the auto-return as "the
+10-tick cooldown runs out, the stand clock crosses again" — the observed
+round trip IS this divergence's symptom (in vanilla the body stays in the
+nether until it walks out of the arrival cells and back in).
+
+**Observed behavior (the twenty-second pass's harness work):** the
+portal-crossing form of the dig seat was seed-flaky — a boot whose random
+seed rolled an arrival inside the frame's cells bounced the body back to
+the overworld within a tick of the crossing (the body pinned at the
+chamber's coordinates in dimension 0), while other boots (arrivals outside
+the cells) held the nether stably. The flake is the divergence's own
+signature: the re-fire's timing is arrival-placement-dependent, not
+cooldown-gated.
+
+**Verification history:** pass 1 (source, this pass): the reference walk
+read whole (`onPortalCollision` lines 1426-1454 + `baseTick` lines 284-313
++ the player cooldown override line 315) against the engine's
+`advancePortalClock` (the un-gated crossing + the entry-edge-only re-arm +
+the missing stand-clock reset in `applyDimensionArrival`); the empirical
+bounce observed once in four boots of the crossing harness. **Passes 2
+and 3 owed:** a focused behavioral seat (a body standing inside the
+arrival frame's cells must hold its dimension past any cooldown window)
+and an independent re-verification (the compensating-behavior hunt —
+whether any other gate holds the re-fire, and whether the
+`DimensionWalkTest` round trip's own expectations pin the divergence as
+intentional).
+
+**Proposed minimal correction (once verified):** the reference's own gate
+shape — the standing clock consults the cooldown (`inPortal` armed only
+when the cooldown is expired; the cooldown re-arms on every collision
+while cooling) — plus the stand clock's decay across the crossing. The
+`DimensionWalkTest` round-trip seat would need re-pinning to the
+reference's law (the body must walk out and back in for the return).
+
+**Confidence:** medium-high on the source reading (the reference's gate is
+unambiguous); the engine's intent claim ("the reference's own shape")
+makes the independent pass especially important before any correction.
+
+## Coverage ledger (updated by the twenty-second pass)
 
 | Area | Status |
 |---|---|
-| Fire family — overworld tick/spread/burn (FireBlocks vs FireBlock) | inspected, verified 1:1 on the overworld path (the fourteenth-pass-era migration); the per-dimension arm is VT-001 |
-| Fire family — nether/End scheduling | VT-001 (CONFIRMED) |
+| Fire family — overworld tick/spread/burn (FireBlocks vs FireBlock) | inspected, verified 1:1 on the overworld path (the fourteenth-pass-era migration); the per-dimension arm LANDED by Wave FL4-F2 (VT-001 resolved) |
+| Fire family — nether/End scheduling | LANDED by Wave FL4-F2 (the VT-001 correction; `PerDimensionFireAcceptanceTest` is the record) |
 | Fluid family — per-dimension simulation | landed by FL4; not re-audited (the FL4 seats are the record) |
-| Dig path — dimension routing | VT-002 (CONFIRMED) |
-| Use/place families — dimension routing | VT-002 (CONFIRMED; the family-level scan is the finding's list) |
-| Ice family — break-to-water, melt | VT-003 (CONFIRMED) |
+| Dig path — dimension routing | LANDED by PR #90 (the VT-002 remaining slice; `DigPathDimensionParityTest` 4/0) |
+| Use/place families — dimension routing | the family arms LANDED by Wave FL4-F3; the generic surface LANDED by PR #90 |
+| Generic placement (placeOnTick/survivalPlaceOnTick) — dimension routing | LANDED by PR #90 |
+| Ice family — break-to-water, melt | PR #89 open (VT-003's correction) |
 | Snow layer — placement support/melt/drops | drops landed (the mining-speed audit); melt + the 7-layer state surface recorded as VT-003's tail |
 | Packed ice — melt/break laws | inspected: the reference's PackedIceBlock carries no melt arm (the `setTicksRandomly` false, the silk-drop row landed); nothing owed |
-| Portal mechanics (flag1, forcer) | landed by FL4-F1; not re-audited |
-| Drops — the TF-9 dimension stamp | the overworld-bound `publishDrops` three-arg form recorded inside VT-002 (rides the same correction) |
-| Explosions — dimension routing | not inspected this pass (secondary: no nether placement path exists until VT-002 lands — the tail is noted for the next pass) |
-| Item entities / pickup — dimension | not inspected this pass (the TF-9 stamped sites are the FL4 record) |
+| Portal mechanics (flag1, forcer) | landed by FL4-F1; not re-audited — the stand clock's re-fire law is VT-004 (SUSPECTED, the twenty-second pass) |
+| Drops — the TF-9 dimension stamp | LANDED by PR #90 (the dig/place walks stamp `world.dimension()`; the tile-family spill sites remain the per-dimension tile tail) |
+| Tile families — per-dimension stores | NOT INSPECTED as its own pass (the PR #90 ledger: the furnace/chest/skull/banner spill + cleanup ride the single-instance managers — the FL4 fluids/fire precedent applies; the nether tile placement/cleanup is its own architectural pass) |
+| Mob spawns — the dimension stamp | NOT INSPECTED (the PR #90 ledger names `MobManager.spawnAt`; the infested burst is the surfaced site) |
+| FX broadcasts — the dimension awareness | NOT INSPECTED (the FxManager position-only API; the PR #90 ledger) |
+| World border — per-dimension | NOT INSPECTED (the reference's per-World border vs the engine's shared one; surfaced by the dig-start gate review) |
+| Zombie/mob arms — world binding | NOT INSPECTED (the zombie door-break consults the overworld field; surfaced by PR #90's cleanup threading) |
+| Explosions — dimension routing | not inspected (secondary until the dimension surface lands; the crystal arm's dimension gate landed with PR #85's rider) |
+| Item entities / pickup — dimension | the TF-9 stamped sites are the record; the pickup consult un-audited
 
 ## The queue for the next pass
 
 1. ~~The VT-003 fix branch~~ — LANDED (PR #89, `IceFamilyParityTest` 11/0,
    the stash verification).
-2. **The VT-001 fix branch** (the fire family's per-dimension seam + the
-   sixteen registrations on the nether/End systems).
-3. **The VT-002 bounded first slice** (the dig path + the flint arm
-   through `worldFor(session.dimension())`), with the remaining family
-   arms ledgered for their own passes.
-4. The explosion-path dimension audit (the ledger row above).
-5. The standing lanes from the earlier passes, untouched by this one:
-   F-TC1 (the trapped chest's viewer signal, the twentieth pass's own
-   confirmed queue head) and F-EC1 (the ender chest's solid-above gate,
-   suspected).
+2. ~~The VT-001 fix branch~~ — LANDED (Wave FL4-F2 on develop, the fire
+   family's per-dimension scheduling).
+3. ~~The VT-002 bounded first slice~~ — LANDED (Wave FL4-F3 took the
+   family arms; PR #90 took the remaining dig/place GENERIC surface,
+   `DigPathDimensionParityTest` 4/0).
+4. **VT-004's verification passes 2 and 3** (the portal stand clock's
+   re-fire): the behavioral seat (a body standing inside the arrival
+   frame's cells must hold its dimension past any cooldown window — the
+   reference's `onPortalCollision` cooldown consult) and the independent
+   re-verification (the compensating-behavior hunt; the
+   `DimensionWalkTest` round-trip seat's own expectations).
+5. The explosion-path dimension audit (the ledger row above — now
+   unblocked: nether placement exists post-PR #90).
+6. The standing lanes from the earlier passes, untouched by this one:
+   F-TC1 (the trapped chest's viewer signal — PR #87 open) and F-EC1
+   (the ender chest's solid-above gate, suspected).
+7. The newly-ledgered dimension tails (each its own discovery pass, the
+   PR #90 ledger): the per-dimension tile families, the mob spawn's
+   dimension stamp, the FX dimension awareness, the per-dimension world
+   border, the zombie arm's world binding.
