@@ -25,7 +25,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
-import java.util.function.Consumer;
 import java.util.logging.Logger;
 
 /**
@@ -73,7 +72,17 @@ public final class BlockInteractionService {
 
     private final EngineWorld world;
     private final EngineTicker ticker;
-    private final Consumer<BlockChange> publisher;
+    private final java.util.function.BiConsumer<EngineWorld, BlockPosition> publisher;
+    /**
+     * The per-dimension world router (Wave FL4-F5 — the dig/place generic
+     * surface): the reference's every interaction arm receives the world
+     * the player is in ({@code player.world}, the dig and use wires' own
+     * parameter), so a nether or End player's dig, placement, extinguish,
+     * resync and drops consult and write THEIR OWN dimension's cells.
+     * The boot wires {@code worldFor(dimension)}; null keeps the
+     * constructor's world (the standalone-harness shape).
+     */
+    private volatile java.util.function.IntFunction<EngineWorld> worldRouter;
     /** The service's gameplay random (the wear walks' roll source). Tick-thread only. */
     private final java.util.Random gameplayRandom = new java.util.Random();
     /** Per-player game mode resolver: the session's own mode decides the rule. */
@@ -246,9 +255,6 @@ public final class BlockInteractionService {
     /** Active survival mining sessions, keyed by player. Tick-thread confined. */
     private final Map<UUID, MiningSession> miningSessions = new HashMap<>();
 
-    /** A committed block change, published to observers (adapter sync). */
-    public record BlockChange(BlockPosition position, BlockType newType) {
-    }
 
     /**
      * One survival dig state, the vanilla two-slot model tick-thread confined:
@@ -274,7 +280,8 @@ public final class BlockInteractionService {
     }
 
     public BlockInteractionService(EngineWorld world, EngineTicker ticker,
-                                   Consumer<BlockChange> publisher, java.util.function.Function<PlayerSession, GameMode> gameMode,
+                                   java.util.function.BiConsumer<EngineWorld, BlockPosition> publisher,
+                                   java.util.function.Function<PlayerSession, GameMode> gameMode,
                                    DropService dropService, ItemEntityManager itemEntities,
                                    java.util.function.BiFunction<net.zaminmc.torch.item.ItemType, Integer,
                                            java.util.Optional<BlockType>> blockItemResolver,
@@ -399,7 +406,22 @@ public final class BlockInteractionService {
 
     // ---- tick-thread execution ---------------------------------------------
 
+    /** The acting player's own world (Wave FL4-F5 — the FL4-F3 shadow-local form over the router). */
+    private EngineWorld worldOf(PlayerSession player) {
+        java.util.function.IntFunction<EngineWorld> router = worldRouter;
+        return router != null ? router.apply(player.dimension()) : world;
+    }
+
+    /** Registers the per-dimension world router (the boot's worldFor wiring). */
+    public void setWorldRouter(java.util.function.IntFunction<EngineWorld> router) {
+        this.worldRouter = router;
+    }
+
     private void creativeBreakOnTick(PlayerSession player, BlockPosition position, int face) {
+        // Wave FL4-F5: the reference's tryMineBlock reads the interaction
+        // manager's world — the player's own (a nether dig consults the
+        // nether's cells, never the overworld's at the same coordinates).
+        EngineWorld world = worldOf(player);
         BlockType current = world.getBlock(position);
         if (current.equals(world.airType())) {
             return; // nothing to break: no-op, no error
@@ -420,7 +442,7 @@ public final class BlockInteractionService {
         // face-offset cell consumes the click itself: the fire dies with
         // its fizz, the block behind it SURVIVES (no break event, no
         // drops, nothing spends).
-        if (extinguishFireAt(face >= 0 ? position : null, face)) {
+        if (extinguishFireAt(face >= 0 ? position : null, face, world)) {
             return; // the extinguish consumed the click
         }
         // The adventure mine gate (Wave I — a restricted placer's held
@@ -428,7 +450,7 @@ public final class BlockInteractionService {
         // passes through mayModifyWorld untouched).
         if (!canMineBlock(player, heldOf(player), current)) {
             LOGGER.fine(() -> "Rejected break (adventure CanDestroy) by " + player.name());
-            resync(position);
+            resync(position, world);
             return;
         }
         // The nuker guard runs creative too (the higher creative budget).
@@ -436,7 +458,7 @@ public final class BlockInteractionService {
         if (!player.violations().recordBreak(nowNanos, BREAK_WINDOW_NANOS, CREATIVE_BREAK_BUDGET)
                 || player.violations().isMultiBreak(nowNanos, position)) {
             player.violations().addNukerViolation();
-            resync(position);
+            resync(position, world);
             LOGGER.warning(() -> "Nuker violation (creative) for " + player.name()
                     + " (vl " + player.violations().nukerViolations() + ")");
             if (player.violations().nukerViolations() >= NUKER_KICK_VIOLATIONS) {
@@ -447,10 +469,10 @@ public final class BlockInteractionService {
         player.violations().noteBreakTarget(nowNanos, position);
         BlockType previous = world.getBlock(position);
         if (!fireBreak(player, position, previous)) {
-            resync(position); // drop the client's prediction: the break was cancelled
+            resync(position, world); // drop the client's prediction: the break was cancelled
             return;
         }
-        commit(position, world.airType());
+        commit(position, world.airType(), world);
         // The break hook fires in creative too: door halves die as a unit and
         // container contents spill (the historical creative-break behavior).
         var listener = blockBrokenListener;
@@ -469,6 +491,8 @@ public final class BlockInteractionService {
      * starts accumulating and broadcasts its initial stage.
      */
     private void miningStartOnTick(PlayerSession player, BlockPosition target, int face) {
+        // Wave FL4-F5: the dig opens against the player's own world's cells.
+        EngineWorld world = worldOf(player);
         // THE DIG REACH BAND (handlePlayerDig lines 424-433, 1:1): the
         // dig's own six-block band from the feet raised by the
         // reference's + 1.5 — a START beyond it answers NOTHING (no dig
@@ -510,7 +534,7 @@ public final class BlockInteractionService {
         // fizz; the return is discarded, the dig still opens. THE ORDER
         // 1:1: the reference's mode gates run FIRST (the spectator and
         // CanDestroy refusals above) — a refused dig never extinguishes.
-        extinguishFireAt(face >= 0 ? target : null, face);
+        extinguishFireAt(face >= 0 ? target : null, face, world);
         // The reference's startMining arm (ServerPlayerInteractionManager
         // line 133: block.startMining before the speed consult) — the note
         // block plays here; creative never reaches this path.
@@ -528,7 +552,7 @@ public final class BlockInteractionService {
         // change); a pending wasMining accumulation keeps running.
         session.target = target;
         session.startTick = world.totalTicks();
-        double perTick = perTickProgress(player, target, behavior);
+        double perTick = perTickProgress(player, target, behavior, world);
         if (perTick >= 1.0) {
             // The vanilla instant rule: f >= 1.0 at start mines immediately.
             session.target = null;
@@ -557,6 +581,9 @@ public final class BlockInteractionService {
      * tail echo covers them all).
      */
     private void miningFinishOnTick(PlayerSession player, BlockPosition target) {
+        // Wave FL4-F5: the finish's walk and tail echo read the player's
+        // own world's cells (the session opened against them).
+        EngineWorld world = worldOf(player);
         // THE DIG REACH BAND: a finish beyond six blocks answers NOTHING.
         if (!InteractionRules.withinDigReach(player.position(), target)) {
             LOGGER.fine(() -> "Rejected mining finish (beyond the dig band) by "
@@ -564,7 +591,7 @@ public final class BlockInteractionService {
             return;
         }
         try {
-            miningFinishWalk(player, target);
+            miningFinishWalk(player, target, world);
         } finally {
             // THE TAIL ECHO (handlePlayerDig lines 449-452, 1:1): after
             // the finish — accepted, parked, refused, or cancelled — the
@@ -579,7 +606,7 @@ public final class BlockInteractionService {
     }
 
     /** The finish walk itself (the reference's finishMiningBlock shape). */
-    private void miningFinishWalk(PlayerSession player, BlockPosition target) {
+    private void miningFinishWalk(PlayerSession player, BlockPosition target, EngineWorld world) {
         BlockType current = world.getBlock(target);
         if (current.equals(world.airType())) {
             return; // already gone (race or double finish): no-op
@@ -601,7 +628,7 @@ public final class BlockInteractionService {
             return;
         }
         long elapsedTicks = world.totalTicks() - session.startTick;
-        double progress = perTickProgress(player, target, behavior) * (elapsedTicks + 1);
+        double progress = perTickProgress(player, target, behavior, world) * (elapsedTicks + 1);
         if (progress >= VANILLA_FINISH_ACCEPT) {
             // The vanilla accepted finish: the animation dies, the block mines.
             session.target = null;
@@ -635,6 +662,8 @@ public final class BlockInteractionService {
      * tail, the pre-N6 behavior.
      */
     private void stopMiningOnTick(PlayerSession player, BlockPosition packetTarget) {
+        // Wave FL4-F5: the abort's tail echo reads the player's own world.
+        EngineWorld world = worldOf(player);
         if (packetTarget != null) {
             // THE DIG REACH BAND: an abort beyond six blocks is IGNORED.
             if (!InteractionRules.withinDigReach(player.position(), packetTarget)) {
@@ -684,7 +713,7 @@ public final class BlockInteractionService {
      * start (the reference itself passes null), so the fizz reaches
      * everyone in earshot.
      */
-    private boolean extinguishFireAt(BlockPosition base, int face) {
+    private boolean extinguishFireAt(BlockPosition base, int face, EngineWorld world) {
         if (base == null) {
             return false; // the face-less internal path: no arm
         }
@@ -699,7 +728,7 @@ public final class BlockInteractionService {
         if (fx != null) {
             fx.accept(offset); // the doEvent 1004: the fizz at the fire cell
         }
-        commit(offset, world.airType());
+        commit(offset, world.airType(), world);
         return true;
     }
 
@@ -712,6 +741,9 @@ public final class BlockInteractionService {
      */
     public void tickMining() {
         for (MiningSession session : miningSessions.values().toArray(new MiningSession[0])) {
+            // Wave FL4-F5: each dig walks its OWN digger's world (the
+            // session opened against that world's cells and clock).
+            EngineWorld world = worldOf(session.digger);
             if (session.prevTarget != null) {
                 BlockBehavior behavior = BlockBehaviorTable.of(
                         world.getBlock(session.prevTarget).identifier()).orElse(null);
@@ -720,7 +752,7 @@ public final class BlockInteractionService {
                     session.prevTarget = null; // the target died some other way
                 } else {
                     long elapsedTicks = world.totalTicks() - session.prevStartTick;
-                    double progress = perTickProgress(session.digger, session.prevTarget, behavior)
+                    double progress = perTickProgress(session.digger, session.prevTarget, behavior, world)
                             * (elapsedTicks + 1);
                     int stage = (int) (progress * 10.0);
                     if (stage != session.prevLastStage) {
@@ -744,7 +776,7 @@ public final class BlockInteractionService {
                     session.target = null;
                 } else {
                     long elapsedTicks = world.totalTicks() - session.startTick;
-                    double progress = perTickProgress(session.digger, session.target, behavior)
+                    double progress = perTickProgress(session.digger, session.target, behavior, world)
                             * (elapsedTicks + 1);
                     int stage = (int) (progress * 10.0);
                     if (stage != session.lastStage) {
@@ -773,7 +805,7 @@ public final class BlockInteractionService {
         boolean multiBreak = player.violations().isMultiBreak(nowNanos, target);
         if (overBudget || multiBreak) {
             player.violations().addNukerViolation();
-            resync(target);
+            resync(target, worldOf(player));
             LOGGER.warning(() -> "Nuker violation for " + player.name() + " (vl "
                     + player.violations().nukerViolations() + ") overBudget=" + overBudget
                     + " multiBreak=" + multiBreak + " target=" + target);
@@ -792,54 +824,25 @@ public final class BlockInteractionService {
      * run — the same chain every accepted dig path takes.
      */
     private void tryMineBlock(PlayerSession player, BlockPosition target, BlockBehavior behavior) {
+        // Wave FL4-F5: the reference's tryMineBlock walks the interaction
+        // manager's world — the player's own (the dig's consults, commit,
+        // drops and resync all land in the dimension the player stands
+        // in; the pre-fix service read the overworld field for every
+        // player, so a nether dig broke the OVERWORLD's cell at those
+        // coordinates and dropped its items into the overworld).
+        EngineWorld world = worldOf(player);
         BlockType current = world.getBlock(target);
         if (current.equals(world.airType())) {
             return; // gone between the decision and the mine: no-op
         }
         if (!fireBreak(player, target, current)) {
-            resync(target); // the cancelled break: the digging client re-sees the block
+            resync(target, world); // the cancelled break: the digging client re-sees the block
                 publishProgress(player, target, REMOVAL_STAGE);
             return;
         }
         net.zaminmc.torch.item.ItemStack heldStack = player.inventory().held();
         ItemType held = heldStack.isEmpty() ? null : heldStack.type();
-        // The loot reads ride the held stack once (the silk-arm parity
-        // audit: the XP gate consults the same flag the drop walk does) —
-        // hoisted above the commit so the ICE BREAK LAW below consults the
-        // same pair (the reference's afterMinedByPlayer runs after the
-        // removal; the engine's commit is the single write, so the law
-        // must know the silk flag BEFORE it commits).
-        boolean silkTouch = !heldStack.isEmpty()
-                && net.zaminmc.torch.server.enchantment.EnchantmentHelper
-                        .hasSilkTouch(heldStack);
-        int fortune = heldStack.isEmpty() ? 0
-                : net.zaminmc.torch.server.enchantment.EnchantmentHelper
-                        .fortuneLevel(heldStack);
-        // THE ICE BREAK LAW (IceBlock.afterMinedByPlayer lines 42-55, the
-        // else arm): a non-silk break of ice over a movement-blocking or
-        // liquid floor turns the cell to FLOWING_WATER (the reference's
-        // {@code Blocks.FLOWING_WATER.defaultState()} — the FLOWING form,
-        // not the melt arm's source); silk takes the cube (the drop
-        // walk's own row) and the water never forms. The vaporizing
-        // profile consult follows the world the break commits to (the
-        // reference's {@code world.dimension.yeetsWater()} — the nether
-        // alone; the engine's consult reads the same world's dimension
-        // row, so the VT-002 routing lands it whole).
-        boolean iceToWater = false;
-        if (current.identifier().equals(BuiltinBlocks.ICE.identifier())
-                && !silkTouch
-                && world.dimension() != -1) {
-            BlockType below = world.getBlock(target.offset(0, -1, 0));
-            iceToWater = net.zaminmc.torch.server.block.MaterialSolidity
-                    .blocksMovement(below.identifier())
-                    || net.zaminmc.torch.server.block.FluidBlocks.kindOf(
-                            below.identifier()) != null;
-        }
-        commit(target, iceToWater
-                ? net.zaminmc.torch.server.block.FluidBlocks.typeOf(
-                        net.zaminmc.torch.server.block.FluidBlocks.Kind.WATER,
-                        net.zaminmc.torch.server.block.FluidBlocks.Form.FLOWING, 0)
-                : world.airType());
+        commit(target, world.airType(), world);
         // The vanilla afterMinedByPlayer consult (ServerPlayerInteraction
         // Manager.tryMineBlock lines 211-225): the creative arm NEVER
         // reaches the walk (no stat, no fatigue, no drops), and the
@@ -870,10 +873,14 @@ public final class BlockInteractionService {
                             current.identifier()), 1);
         }
         // The loot reads ride the held stack once (the silk-arm parity
-        // audit: the XP gate consults the same flag the drop walk does) —
-        // the pair computed above the commit is the same read the walk
-        // uses below.
-        publishDrops(target, current, held, silkTouch, fortune);
+        // audit: the XP gate consults the same flag the drop walk does).
+        boolean silkTouch = !heldStack.isEmpty()
+                && net.zaminmc.torch.server.enchantment.EnchantmentHelper
+                        .hasSilkTouch(heldStack);
+        int fortune = heldStack.isEmpty() ? 0
+                : net.zaminmc.torch.server.enchantment.EnchantmentHelper
+                        .fortuneLevel(heldStack);
+        publishDrops(target, current, held, silkTouch, fortune, world);
         wearHeldTool(player, behavior, current);
         // The infested egg's burst (InfestedBlock.dropItems lines 79-88):
         // the survival break spawns the silverfish at the block's own
@@ -883,6 +890,31 @@ public final class BlockInteractionService {
             InfestedBurstHook burst = infestedBurstHook;
             if (burst != null) {
                 burst.onEggBroken(target);
+            }
+        }
+        // The ice's own water law (Wave FL4-F6 — IceBlock.afterMinedByPlayer
+        // lines 39-51, the non-silk else arm riding the caller's flag1 &&
+        // flag gate): the nether's yeetsWater consult leaves the dug cell
+        // air (the reference's removeBlock over the already-removed cell —
+        // the early return's whole point is that NO water ever forms
+        // there); everywhere else the BELOW cell's material consult
+        // decides — blocksMovement or liquid holds a FLOWING_WATER at
+        // level 0 (the reference's own pour form, never the melt arm's
+        // still source; the pool wakes the fluid neighbours through the
+        // world's own change bus), anything else (air, a torch, a rail)
+        // leaves the dug cell empty. The silk arm drops the cube itself
+        // and never forms water; creative never reaches the law.
+        if (harvested && !silkTouch
+                && current.identifier().equals(
+                        net.zaminmc.torch.server.block.BuiltinBlocks.ICE.identifier())
+                && world.dimension() != -1) {
+            BlockType below = world.getBlock(target.offset(0, -1, 0));
+            if (net.zaminmc.torch.server.block.MaterialSolidity
+                            .blocksMovement(below.identifier())
+                    || net.zaminmc.torch.server.block.FluidBlocks.isFluid(below.identifier())) {
+                world.setBlock(target, net.zaminmc.torch.server.block.FluidBlocks.typeOf(
+                        net.zaminmc.torch.server.block.FluidBlocks.Kind.WATER,
+                        net.zaminmc.torch.server.block.FluidBlocks.Form.FLOWING, 0));
             }
         }
         SurvivalXpHook xp = survivalXpListener;
@@ -924,7 +956,8 @@ public final class BlockInteractionService {
      * system, between the Efficiency add and the environment divisors exactly
      * as the reference orders them.
      */
-    private double perTickProgress(PlayerSession player, BlockPosition target, BlockBehavior behavior) {
+    private double perTickProgress(PlayerSession player, BlockPosition target, BlockBehavior behavior,
+                                   EngineWorld world) {
         net.zaminmc.torch.item.ItemStack heldStack = player.inventory().held();
         ItemType held = heldStack.isEmpty() ? null : heldStack.type();
         boolean canHarvest = BlockBehaviorTable.canHarvest(behavior, held);
@@ -940,7 +973,7 @@ public final class BlockInteractionService {
         return MiningRules.perTickProgress(behavior.hardness(),
                 MiningRules.miningSpeed(BlockBehaviorTable.speedMultiplier(behavior,
                                 world.getBlock(target), held),
-                        efficiency, isSubmerged(player), aquaAffinity, player.onGround(),
+                        efficiency, isSubmerged(player, world), aquaAffinity, player.onGround(),
                         haste, fatigue),
                 canHarvest);
     }
@@ -959,7 +992,7 @@ public final class BlockInteractionService {
      * at the eye point (1.62 standing / 1.54 sneaking, the same eye constants
      * the reach check uses) is water.
      */
-    private boolean isSubmerged(PlayerSession player) {
+    private boolean isSubmerged(PlayerSession player, EngineWorld world) {
         Position eye = player.position();
         double eyeY = eye.y() + (player.sneaking()
                 ? net.zaminmc.torch.server.player.AntiCheat.EYE_HEIGHT_SNEAKING
@@ -1136,7 +1169,7 @@ public final class BlockInteractionService {
         if (bus == null) {
             return true;
         }
-        return !bus.fire(new BlockBreakEvent(player, world, position, block)).cancelled();
+        return !bus.fire(new BlockBreakEvent(player, worldOf(player), position, block)).cancelled();
     }
 
     // ------------------------------------------------------------------
@@ -1183,7 +1216,7 @@ public final class BlockInteractionService {
      * Safe from the tick thread only (reads the live inventory and world).
      */
     public boolean canUseItemOnForPlacement(PlayerSession player, BlockPosition clicked) {
-        return canUseItemOn(player, heldOf(player), world.getBlock(clicked));
+        return canUseItemOn(player, heldOf(player), worldOf(player).getBlock(clicked));
     }
 
     /**
@@ -1226,7 +1259,7 @@ public final class BlockInteractionService {
         if (bus == null) {
             return true;
         }
-        return !bus.fire(new BlockPlaceEvent(player, world, position, block)).cancelled();
+        return !bus.fire(new BlockPlaceEvent(player, worldOf(player), position, block)).cancelled();
     }
 
     /**
@@ -1239,13 +1272,16 @@ public final class BlockInteractionService {
      * update system's own support arm, and the replaced flora drops
      * nothing — exactly the reference's walk.
      */
-    private boolean canOccupy(BlockPosition target) {
+    private boolean canOccupy(BlockPosition target, EngineWorld world) {
         BlockType existing = world.getBlock(target);
         return existing.equals(world.airType())
                 || WorldSolidity.isReplaceable(existing.identifier());
     }
 
     private void placeOnTick(PlayerSession player, BlockPosition clicked, int face, BlockType held) {
+        // Wave FL4-F5: the placement consults and writes land in the
+        // player's own world (the reference's useOn receives player.world).
+        EngineWorld world = worldOf(player);
         BlockPosition target = InteractionRules.offsetByFace(clicked, face);
         if (target == null) {
             return; // invalid face value
@@ -1253,7 +1289,7 @@ public final class BlockInteractionService {
         if (world.getBlock(clicked).equals(world.airType())) {
             return; // must click an existing block face (§215)
         }
-        if (!canOccupy(target)) {
+        if (!canOccupy(target, world)) {
             return; // air or replaceable flora (Block.canBeReplaced, Wave L6)
         }
         // The vanilla body rule: a block WITH a collision box never places
@@ -1269,14 +1305,14 @@ public final class BlockInteractionService {
         java.util.function.BiPredicate<BlockPosition, BlockType> supportGate = placementSupportGate;
         if (supportGate != null && !supportGate.test(target, held)) {
             LOGGER.fine(() -> "Rejected placement (unsupported soil) by " + player.name());
-            resync(target);
+            resync(target, world);
             return;
         }
         // The fastplace guard runs the creative path too (the same budget —
         // the creative 1.8 client cannot legitimately outpace it either).
         if (!player.violations().recordPlace(System.nanoTime(), PLACE_WINDOW_NANOS, PLACE_BUDGET)) {
             player.violations().addFastPlaceViolation();
-            resync(target);
+            resync(target, world);
             LOGGER.warning(() -> "Fastplace violation (creative) for " + player.name()
                     + " (vl " + player.violations().fastPlaceViolations() + ")");
             if (player.violations().fastPlaceViolations() >= FASTPLACE_KICK_VIOLATIONS) {
@@ -1285,10 +1321,10 @@ public final class BlockInteractionService {
             return;
         }
         if (!firePlace(player, target, held)) {
-            resync(target); // drop the client's prediction: the place was cancelled
+            resync(target, world); // drop the client's prediction: the place was cancelled
             return;
         }
-        commit(target, held);
+        commit(target, held, world);
         // BlockItem.useOn lines 46-51: the placement's setTileNbt consult —
         // the claimed block's tile already exists (the TilePlacementListener
         // created the family's model during the commit), and the reference's
@@ -1299,12 +1335,14 @@ public final class BlockInteractionService {
         if (consult != null) {
             net.zaminmc.torch.item.ItemStack heldStack = player.inventory().held();
             if (!heldStack.isEmpty()) {
-                consult.apply(world, 0, target, heldStack, player.opLevel());
+                consult.apply(world, world.dimension(), target, heldStack, player.opLevel());
             }
         }
     }
 
     private void survivalPlaceOnTick(PlayerSession player, BlockPosition clicked, int face) {
+        // Wave FL4-F5: the survival placement rides the player's own world.
+        EngineWorld world = worldOf(player);
         net.zaminmc.torch.item.ItemStack heldStack = player.inventory().held();
         if (heldStack.isEmpty()) {
             return; // nothing held: no-op
@@ -1316,14 +1354,14 @@ public final class BlockInteractionService {
         }
         BlockPosition target = InteractionRules.offsetByFace(clicked, face);
         if (target == null || world.getBlock(clicked).equals(world.airType())
-                || !canOccupy(target)
+                || !canOccupy(target, world)
                 || (WorldSolidity.isSolid(heldBlock)
                         && InteractionRules.intersectsPlayer(player.position(), target))) {
             if (target == null) {
                 LOGGER.fine(() -> "Rejected survival placement (bad face) by " + player.name());
             } else if (world.getBlock(clicked).equals(world.airType())) {
                 LOGGER.fine(() -> "Rejected survival placement (clicked air) by " + player.name());
-            } else if (!canOccupy(target)) {
+            } else if (!canOccupy(target, world)) {
                 LOGGER.fine(() -> "Rejected survival placement (target not placeable: "
                         + world.getBlock(target).identifier() + " at " + target + ") by " + player.name());
             } else {
@@ -1333,7 +1371,7 @@ public final class BlockInteractionService {
                 // Real clients predict the placement locally; an unanswered
                 // reject leaves the ghost block until the next chunk sync.
                 // The authoritative cell re-sync drops the prediction.
-                resync(target);
+                resync(target, world);
             }
             return;
         }
@@ -1342,7 +1380,7 @@ public final class BlockInteractionService {
         java.util.function.BiPredicate<BlockPosition, BlockType> supportGate = placementSupportGate;
         if (supportGate != null && !supportGate.test(target, heldBlock)) {
             LOGGER.fine(() -> "Rejected survival placement (unsupported soil) by " + player.name());
-            resync(target);
+            resync(target, world);
             return;
         }
         // The adventure place gate (Wave I — BlockItem.useOn line 39 ->
@@ -1352,7 +1390,7 @@ public final class BlockInteractionService {
         // canPlace, nothing places, nothing consumes).
         if (!canUseItemOn(player, heldStack, world.getBlock(clicked))) {
             LOGGER.fine(() -> "Rejected placement (adventure CanPlaceOn) by " + player.name());
-            resync(target);
+            resync(target, world);
             return;
         }
         // The fastplace guard (the NCP shape): the rolling 10-tick budget;
@@ -1360,7 +1398,7 @@ public final class BlockInteractionService {
         // client's prediction drops).
         if (!player.violations().recordPlace(System.nanoTime(), PLACE_WINDOW_NANOS, PLACE_BUDGET)) {
             player.violations().addFastPlaceViolation();
-            resync(target);
+            resync(target, world);
             LOGGER.warning(() -> "Fastplace violation for " + player.name() + " (vl "
                     + player.violations().fastPlaceViolations() + ")");
             if (player.violations().fastPlaceViolations() >= FASTPLACE_KICK_VIOLATIONS) {
@@ -1369,17 +1407,17 @@ public final class BlockInteractionService {
             return;
         }
         if (!firePlace(player, target, heldBlock)) {
-            resync(target); // the cancelled place: the client's prediction drops
+            resync(target, world); // the cancelled place: the client's prediction drops
             return;
         }
-        commit(target, heldBlock);
+        commit(target, heldBlock, world);
         // BlockItem.useOn lines 46-51: the placement's setTileNbt consult —
         // the freshly-placed tile's rows merged with the held stack's
         // BlockEntityTag, BEFORE the consume (the reference's own order:
         // setBlockState, then setTileNbt, then the stack's size--).
         PlacementTagConsult consult = placementTagConsult;
         if (consult != null) {
-            consult.apply(world, 0, target, heldStack, player.opLevel());
+            consult.apply(world, world.dimension(), target, heldStack, player.opLevel());
         }
         player.inventory().consumeHeld(1); // atomic with the commit above (§431)
         // The used-item stat (ItemStack.useOn's own row over the placed
@@ -1423,7 +1461,7 @@ public final class BlockInteractionService {
      * the same listener path). The feedback hook (break/place sounds and
      * particles) fires after the mutation, before the caller continues.
      */
-    private void commit(BlockPosition position, BlockType type) {
+    private void commit(BlockPosition position, BlockType type, EngineWorld world) {
         BlockType previous = world.getBlock(position);
         world.setBlock(position, type);
         java.util.function.Consumer<Commit> feedback = commitFeedbackListener;
@@ -1446,7 +1484,7 @@ public final class BlockInteractionService {
 
     /** Drop calculation (§434): committed break -&gt; drops -&gt; item entities. */
     private void publishDrops(BlockPosition broken, BlockType brokenType, ItemType heldTool,
-                              boolean silkTouch, int fortune) {
+                              boolean silkTouch, int fortune, EngineWorld world) {
         // doTileDrops (Slice 24a — Block.java: the world's dropBlock runs
         // only under the rule; the break itself already committed).
         java.util.function.BooleanSupplier dropsRead = tileDropsRead;
@@ -1460,12 +1498,16 @@ public final class BlockInteractionService {
         // The manager positions drops around the block's center from its min corner.
         var blockOrigin = new net.zaminmc.torch.util.Position(broken.x(), broken.y(), broken.z());
         for (ItemStack drop : drops) {
-            itemEntities.spawnDropAtBlock(blockOrigin, drop, ItemEntity.PICKUP_DELAY_DROP_TICKS);
+            // Wave FL4-F5: the dig's drops stamp the digger's own dimension
+            // (the three-arg form's honest 0 stranded every nether/End drop
+            // in the overworld at the same coordinates).
+            itemEntities.spawnDropAtBlock(blockOrigin, drop, ItemEntity.PICKUP_DELAY_DROP_TICKS,
+                    world.dimension());
         }
     }
 
     /** Re-publishes the authoritative current state so clients drop predictions. */
-    private void resync(BlockPosition position) {
-        publisher.accept(new BlockChange(position, world.getBlock(position)));
+    private void resync(BlockPosition position, EngineWorld world) {
+        publisher.accept(world, position);
     }
 }

@@ -355,7 +355,7 @@ public final class RandomTickSystem {
         // (LightType.BLOCK — the SKY never melts a surface ice at noon),
         // each family's own opacity row in the gate
         // (IceBlock's registration carries setOpacity(3) — Block.java line
-        // 1176 — so the ice gate reads {@code light > 11 - 3 = 8}: the
+        // 1179 — so the ice gate reads {@code light > 11 - 3 = 8}: the
         // light AT an ice cell is itself attenuated by the ice's own
         // opacity, an adjacent torch's 14 arrives as 11 and still melts;
         // the snow layer's setOpacity(0) — line 1175 — keeps its gate at

@@ -145,6 +145,15 @@ public final class ExperienceOrbEntity implements net.zaminmc.torch.entity.Exper
     private int pickupDelay;
     private boolean onGround;
     /**
+     * The body's own health (the reference's ExperienceOrbEntity line 15:
+     * {@code private int health = 5}). The BLAST wound decrements it
+     * (takeDamage lines 141-151 over the explosion's own source) and the
+     * body dies at zero — removed whole, no payout. Not yet persisted
+     * (the reference's {@code Health} tag rides the orb store's own
+     * excepted row — the family's documented tail).
+     */
+    private int health = 5;
+    /**
      * The reference's own {@code renderTicks} counter (the clock-frame
      * repair — ExperienceOrbEntity line 12's public field, incremented at
      * the tick's TAIL, line 123, INDEPENDENT from the despawn {@code age}
@@ -201,6 +210,19 @@ public final class ExperienceOrbEntity implements net.zaminmc.torch.entity.Exper
 
     public int entityId() {
         return entityId;
+    }
+
+    /** The body's current health (the blast wound's own ledger). */
+    public int health() {
+        return health;
+    }
+
+    /**
+     * The blast wound's decrement (the manager's explosion arm is the
+     * only caller). Package-private over the manager's verb.
+     */
+    void takeExplosionDamage(float amount) {
+        this.health = (int) (this.health - amount);
     }
 
     public int amount() {

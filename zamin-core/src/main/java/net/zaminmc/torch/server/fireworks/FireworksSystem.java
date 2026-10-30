@@ -177,6 +177,18 @@ public final class FireworksSystem {
     }
 
     /**
+     * The blast's scatter add over one rocket (the reference's
+     * Explosion.damageEntities lines 135-137 — {@code velocityX/Y/Z +=
+     * dir * d11}, the add riding outside the takeDamage verdict; the
+     * firework carries the Entity-default wound, so the impulse alone
+     * lands). The flight's own growth walk carries the impulse out.
+     */
+    public void addVelocity(FireworksEntity rocket, double dx, double dy, double dz) {
+        Objects.requireNonNull(rocket, "rocket");
+        rocket.addVelocity(dx, dy, dz);
+    }
+
+    /**
      * One flight step over every rocket (tick lines 76-127): the launch
      * sound at age 0, the velocity growth + the move, the tracker's
      * 10-tick velocity re-sync, and the burst (the entity event 17) with

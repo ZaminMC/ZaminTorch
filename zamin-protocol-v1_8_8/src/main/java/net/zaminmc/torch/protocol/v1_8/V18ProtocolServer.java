@@ -1047,11 +1047,11 @@ public final class V18ProtocolServer implements ProtocolAdapter {
         // setSlot, the hopper system's transfers, and the world side's own
         // writes all bump the container's serial; the per-tick view fan
         // re-syncs the open viewer's Window Items only on a real change.
-        server.addChestViewListener((viewer, chest) -> {
+        server.addChestViewListener((viewer, chest, secondHalf) -> {
             for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
                 if (connection.currentSession() == viewer) {
                     connection.sendChestViewTick(channelOf(connection),
-                            viewer.openContainerWindowId(), chest);
+                            viewer.openContainerWindowId(), chest, secondHalf);
                 }
             }
         });
