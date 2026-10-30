@@ -19120,3 +19120,32 @@ Stage Summary:
 Next: the redstone binding wave (or the owner's direction); watch run
 553 go green and confirm build 154 publishes; the CI Phase A proposal
 still awaits the owner's approval decision.
+- WAVE FL4-F9 LANDED (cbbd33c5 — the falling family's per-dimension
+  row, FL4-F8's named remainder retired the same day): the falling body
+  carries its OWN dimension stamp; the manager's per-body ground flip
+  (ItemEntityManager's own shape — the pre-fix falling walk never
+  flipped, so every body consulted the overworld's cells); the landing
+  consult + commit and the occupied-landing drop routing the body's OWN
+  world through the worldRouter seam; the anvil crush's mob/player walks
+  filtered to the body's dimension; the wire fan filtered by the stamp.
+  EVIDENCE: the landing seat in NetherBlockUpdateRoutingAcceptanceTest
+  (the nether sand's body lands back IN THE NETHER, the overworld's
+  same-coordinate cells never gaining it), stash-verified failing
+  unfixed; the falling-family regression lanes green whole.
+
+Stage Summary (final for this session):
+- develop at cbbd33c5, zero uncommitted, pushed as Abasing. THREE FL4
+  tails retired this session (TNT + block-update + falling), each with
+  its acceptance evidence stash-verified failing unfixed.
+- CI: run 551 (the 120-min-timeout release run, 73 minutes into the
+  test step on the 3a6127a0 tree) carries through toward the tag +
+  publish steps; run 555 queued on this session's head. The next green
+  run publishes torch-1.8.8-154.
+
+Next: the redstone system's world binding (the comparator/lever/button
+use consults — the biggest remaining tail: per-world RedstoneSystem
+instances cascade into the piston/noteblock/hopper/dispenser/beacon/
+tripwire bindings and the comparator ZCD store's per-dimension files)
+and the block-broken listener's container cleanups over the
+per-dimension tile stores (FL4-F5's named remainder). The CI Phase A
+proposal still awaits the owner's approval decision.
