@@ -3,9 +3,13 @@ package net.zaminmc.torch.server;
 import net.zaminmc.torch.GameMode;
 import net.zaminmc.torch.block.BlockPosition;
 import net.zaminmc.torch.block.BlockType;
+import net.zaminmc.torch.item.ItemStack;
 import net.zaminmc.torch.server.block.BuiltinBlocks;
 import net.zaminmc.torch.server.block.FluidBlocks;
 import net.zaminmc.torch.server.config.EngineConfig;
+import net.zaminmc.torch.server.net.ClientLink;
+import net.zaminmc.torch.server.net.EngineBridge;
+import net.zaminmc.torch.server.player.PlayerSession;
 import net.zaminmc.torch.server.world.EngineWorld;
 import net.zaminmc.torch.testing.EngineAwaits;
 import org.junit.jupiter.api.AfterEach;
@@ -14,8 +18,10 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Path;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -201,5 +207,168 @@ class IceMeltParityAcceptanceTest {
         probe(server.randomTicksFor(1), iceAt);
         assertEquals(FluidBlocks.WATER_SOURCE, end.getBlock(iceAt).identifier(),
                 "the lit End ice melted to the still source water");
+    }
+
+    // ------------------------------------------------------------------
+    // THE DIG ARM (Wave FL4-F6 — IceBlock.afterMinedByPlayer lines 39-51,
+    // the non-silk else branch over the real dig wire)
+    // ------------------------------------------------------------------
+
+    private PlayerSession join(String name) {
+        ClientLink link = new ClientLink() {
+            @Override public boolean isActive() { return true; }
+            @Override public void kick(String reason) { }
+        };
+        var result = server.joinRequest(link, name, UUID.nameUUIDFromBytes(name.getBytes()));
+        return ((EngineBridge.Accepted) result).session();
+    }
+
+    /** Runs one survival dig of the ice cell over the real wire (a bare hand — ice is tool-not-required, 15 ticks). */
+    private void digIce(PlayerSession digger, BlockPosition target) throws InterruptedException {
+        server.blockInteraction().submitMiningStart(digger, target);
+        EngineAwaits.awaitTicks(server.world(), 18, "the ice dig accumulates (15 nominal)");
+        server.blockInteraction().submitMiningFinished(digger, target);
+        EngineAwaits.awaitCondition(server.world(),
+                () -> !BuiltinBlocks.ICE.equals(server.world().getBlock(target)),
+                40, "the ice dig committed");
+    }
+
+    /**
+     * SEAT 5 — the dig's water law: a bare-handed survival dig of ice over
+     * STONE places the FLOWING form at level 0 in the dug cell (the
+     * reference's own pour form — {@code Blocks.FLOWING_WATER}, never the
+     * melt arm's still source); the bare hand harvests ice (the ICE
+     * material is tool-not-required) so the law runs with nothing dropped
+     * ({@code getBaseDropCount} 0).
+     */
+    @Test
+    void theIceDigOverStonePlacesFlowingWater() throws Exception {
+        EngineWorld overworld = server.world();
+        PlayerSession digger = join("IceDigger");
+        // The surface pair: ice at y=5 on the flat world's grass (y=4) —
+        // the grass below blocks movement, the water law holds.
+        BlockPosition iceAt = new BlockPosition(64, 5, 64);
+        server.ticker().submit(() -> overworld.setBlock(iceAt, BuiltinBlocks.ICE));
+        EngineAwaits.awaitCondition(server.world(),
+                () -> BuiltinBlocks.ICE.equals(overworld.getBlock(iceAt)),
+                40, "the dig seat's ice landed");
+        digger.applyMovement(new net.zaminmc.torch.util.Position(64.5, 5, 65.5),
+                new net.zaminmc.torch.util.Rotation(0, 0), true);
+        EngineAwaits.awaitTicks(server.world(), 2, "the digger settles");
+
+        digIce(digger, iceAt);
+        assertEquals(FluidBlocks.levelId(FluidBlocks.Kind.WATER, FluidBlocks.Form.FLOWING, 0),
+                overworld.getBlock(iceAt).identifier(),
+                "the dug ice over stone holds the FLOWING water form (the reference's pour form)");
+        assertFalse(FluidBlocks.WATER_SOURCE.equals(overworld.getBlock(iceAt).identifier()),
+                "never the melt arm's still source");
+    }
+
+    /**
+     * SEAT 6 — the below consult's other arm: the same dig over AIR (the
+     * ice floats one cell above the surface) leaves the dug cell EMPTY —
+     * the reference's material consult ({@code blocksMovement() ||
+     * isLiquid()}) refuses the water when nothing holds it.
+     */
+    @Test
+    void theIceDigOverAirLeavesTheCellEmpty() throws Exception {
+        EngineWorld overworld = server.world();
+        PlayerSession digger = join("FloatIceDigger");
+        // The floating ice: y=6, air at y=5 below (the flat world's
+        // surface ends at y=4).
+        BlockPosition iceAt = new BlockPosition(64, 6, 64);
+        server.ticker().submit(() -> overworld.setBlock(iceAt, BuiltinBlocks.ICE));
+        EngineAwaits.awaitCondition(server.world(),
+                () -> BuiltinBlocks.ICE.equals(overworld.getBlock(iceAt)),
+                40, "the floating ice landed");
+        digger.applyMovement(new net.zaminmc.torch.util.Position(64.5, 5, 65.5),
+                new net.zaminmc.torch.util.Rotation(0, 0), true);
+        EngineAwaits.awaitTicks(server.world(), 2, "the digger settles");
+
+        digIce(digger, iceAt);
+        assertEquals(overworld.airType(), overworld.getBlock(iceAt),
+                "the dug floating ice leaves the cell empty (the below consult refused the water)");
+    }
+
+    /**
+     * SEAT 7 — the silk arm never forms water: a silk pickaxe's dig drops
+     * the ICE CUBE itself (the silk set's own row) and the cell stays
+     * empty — the reference's silk branch replaces the whole else arm.
+     */
+    @Test
+    void theSilkDigDropsTheCubeAndNeverFormsWater() throws Exception {
+        EngineWorld overworld = server.world();
+        PlayerSession digger = join("SilkIceDigger");
+        BlockPosition iceAt = new BlockPosition(64, 5, 64);
+        server.ticker().submit(() -> overworld.setBlock(iceAt, BuiltinBlocks.ICE));
+        EngineAwaits.awaitCondition(server.world(),
+                () -> BuiltinBlocks.ICE.equals(overworld.getBlock(iceAt)),
+                40, "the silk seat's ice landed");
+        digger.applyMovement(new net.zaminmc.torch.util.Position(64.5, 5, 65.5),
+                new net.zaminmc.torch.util.Rotation(0, 0), true);
+        EngineAwaits.awaitTicks(server.world(), 2, "the digger settles");
+        digger.inventory().setSlot(0, ItemStack.of(
+                net.zaminmc.torch.server.item.BuiltinItems.DIAMOND_PICKAXE, 1)
+                .withEnchantment(net.zaminmc.torch.server.enchantment.Enchantments.SILK_TOUCH.id, 1));
+        digger.inventory().selectHotbarSlot(0);
+
+        server.blockInteraction().submitMiningStart(digger, iceAt);
+        EngineAwaits.awaitTicks(server.world(), 8, "the silk dig accumulates");
+        server.blockInteraction().submitMiningFinished(digger, iceAt);
+        EngineAwaits.awaitCondition(server.world(),
+                () -> !BuiltinBlocks.ICE.equals(overworld.getBlock(iceAt)),
+                40, "the silk dig committed");
+        assertEquals(overworld.airType(), overworld.getBlock(iceAt),
+                "the silk dig leaves the cell empty — no water under silk");
+        EngineAwaits.awaitCondition(server.world(),
+                () -> server.itemEntities().all().stream()
+                        .anyMatch(item -> item.dimension() == 0
+                                && item.stack().type().identifier().value().equals("ice")),
+                40, "the silk dig dropped the ice cube itself");
+    }
+
+    /**
+     * SEAT 8 — the nether's dig never forms water: the nether player's
+     * bare-handed dig over nether stone leaves the cell AIR (the
+     * {@code yeetsWater()} consult's early return — the same dimension
+     * profile that vaporizes the bucket's pour and the melt's pool).
+     */
+    @Test
+    void theNetherIceDigNeverFormsWater() throws Exception {
+        EngineWorld nether = server.worldFor(-1);
+        PlayerSession digger = join("NetherIceDigger");
+        digger.setDimension(-1);
+        int fy = 100;
+        BlockPosition iceAt = new BlockPosition(64, fy + 1, 64);
+        server.ticker().submit(() -> {
+            for (int dx = -1; dx <= 1; dx++) {
+                for (int dz = -1; dz <= 1; dz++) {
+                    nether.setBlock(new BlockPosition(64 + dx, fy, 64 + dz),
+                            BuiltinBlocks.STONE);
+                    for (int y = fy + 1; y <= fy + 3; y++) {
+                        nether.setBlock(new BlockPosition(64 + dx, y, 64 + dz),
+                                nether.airType());
+                    }
+                }
+            }
+            nether.setBlock(iceAt, BuiltinBlocks.ICE);
+        });
+        EngineAwaits.awaitCondition(server.world(),
+                () -> BuiltinBlocks.ICE.equals(nether.getBlock(iceAt)),
+                40, "the nether dig seat's ice landed");
+        digger.applyMovement(new net.zaminmc.torch.util.Position(64.5, fy + 1, 65.5),
+                new net.zaminmc.torch.util.Rotation(0, 0), true);
+        EngineAwaits.awaitTicks(server.world(), 2, "the digger settles");
+
+        server.blockInteraction().submitMiningStart(digger, iceAt);
+        EngineAwaits.awaitTicks(server.world(), 18, "the nether ice dig accumulates");
+        server.blockInteraction().submitMiningFinished(digger, iceAt);
+        EngineAwaits.awaitCondition(server.world(),
+                () -> !BuiltinBlocks.ICE.equals(nether.getBlock(iceAt)),
+                40, "the nether ice dig committed");
+        assertEquals(nether.airType(), nether.getBlock(iceAt),
+                "the nether dig leaves the cell air — yeetsWater never forms water");
+        assertFalse(FluidBlocks.isFluid(nether.getBlock(iceAt).identifier()),
+                "no fluid ever forms in the nether's dug ice cell");
     }
 }

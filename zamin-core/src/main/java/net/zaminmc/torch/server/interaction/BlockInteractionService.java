@@ -891,6 +891,31 @@ public final class BlockInteractionService {
                 burst.onEggBroken(target);
             }
         }
+        // The ice's own water law (Wave FL4-F6 — IceBlock.afterMinedByPlayer
+        // lines 39-51, the non-silk else arm riding the caller's flag1 &&
+        // flag gate): the nether's yeetsWater consult leaves the dug cell
+        // air (the reference's removeBlock over the already-removed cell —
+        // the early return's whole point is that NO water ever forms
+        // there); everywhere else the BELOW cell's material consult
+        // decides — blocksMovement or liquid holds a FLOWING_WATER at
+        // level 0 (the reference's own pour form, never the melt arm's
+        // still source; the pool wakes the fluid neighbours through the
+        // world's own change bus), anything else (air, a torch, a rail)
+        // leaves the dug cell empty. The silk arm drops the cube itself
+        // and never forms water; creative never reaches the law.
+        if (harvested && !silkTouch
+                && current.identifier().equals(
+                        net.zaminmc.torch.server.block.BuiltinBlocks.ICE.identifier())
+                && world.dimension() != -1) {
+            BlockType below = world.getBlock(target.offset(0, -1, 0));
+            if (net.zaminmc.torch.server.block.MaterialSolidity
+                            .blocksMovement(below.identifier())
+                    || net.zaminmc.torch.server.block.FluidBlocks.isFluid(below.identifier())) {
+                world.setBlock(target, net.zaminmc.torch.server.block.FluidBlocks.typeOf(
+                        net.zaminmc.torch.server.block.FluidBlocks.Kind.WATER,
+                        net.zaminmc.torch.server.block.FluidBlocks.Form.FLOWING, 0));
+            }
+        }
         SurvivalXpHook xp = survivalXpListener;
         if (xp != null && !silkTouch) {
             // The silk-arm parity audit — Block.afterMinedByPlayer lines
