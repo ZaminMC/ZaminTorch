@@ -24069,7 +24069,7 @@ public final class EngineServer implements Server, EngineBridge {
             woundProjectilesFromBlast(blastWorld, dimension, cx, cy, cz, f3, blastSourceMob,
                     projectileBodies);
             woundPrimedTntFromBlast(blastWorld, dimension, cx, cy, cz, f3, tntBodies);
-            woundCrystalsFromBlast(cx, cy, cz, f3, crystalBodies);
+            woundCrystalsFromBlast(dimension, cx, cy, cz, f3, crystalBodies);
             woundArmorStandsFromBlast(dimension, cx, cy, cz, f3, standBodies);
             woundFireworksFromBlast(blastWorld, dimension, cx, cy, cz, f3, fireworkBodies);
 
@@ -24640,8 +24640,16 @@ public final class EngineServer implements Server, EngineBridge {
      * reference's nested explode inside damageEntities, the outer blast's
      * cells still uncommitted when the nested one reads the world).
      */
-    private void woundCrystalsFromBlast(double cx, double cy, double cz, float f3,
+    private void woundCrystalsFromBlast(int dimension, double cx, double cy, double cz, float f3,
                                          java.util.List<net.zaminmc.torch.server.endcrystal.EnderCrystal> bodies) {
+        // THE DIMENSION GATE (the review rider): the crystal registry
+        // carries no dimension row (the End-only family), so the gather
+        // must gate on the blast's own dimension — the reference's
+        // world.getEntities is per-World, an overworld/nether blast can
+        // never touch an End crystal however the coordinates coincide.
+        if (dimension != 1) {
+            return;
+        }
         for (net.zaminmc.torch.server.endcrystal.EnderCrystal crystal
                 : bodies) {
             double feetDx = crystal.x() - cx;

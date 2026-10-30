@@ -328,6 +328,47 @@ class ExplosionEntityGatherParityTest {
         }
     }
 
+    /**
+     * SEAT 8 — the crystal arm's dimension gate (the review rider over the
+     * merge): the crystal registry is the END's own family (Slice 62 — the
+     * system's surface IS the End world), and the reference's
+     * {@code world.getEntities} never crosses worlds. An OVERWORLD blast
+     * at exactly coinciding coordinates can never touch an End crystal:
+     * no pop, no chained 6.0F detonation in the End.
+     */
+    @Test
+    void theOverworldBlastNeverTouchesTheEndCrystals() throws Exception {
+        EngineServer server = boot();
+        try {
+            // The End crystal at the very coordinates the overworld creeper
+            // will occupy — the leak's own worst case.
+            AtomicReference<Boolean> spawned = new AtomicReference<>();
+            server.ticker().submit(() -> spawned.set(
+                    server.enderCrystals().spawn(12.5, 5, 10.5, 0.0f)));
+            await(server, () -> spawned.get() != null, "the End crystal spawned");
+            assertTrue(spawned.get(), "the crystal stands in the End registry");
+            List<ExplosionEvent> events = new java.util.concurrent.CopyOnWriteArrayList<>();
+            var sub = ((net.zaminmc.torch.Server) server).events()
+                    .on(ExplosionEvent.class, events::add);
+
+            detonateCreeperAt(server, new Position(12.5, 5, 10.5));
+            await(server, () -> events.size() >= 1, "the creeper blast detonated");
+            // Let the wound phase (and any would-be chain) settle: five
+            // ticks of overworld time.
+            long atBlast = server.world().timeOfDay();
+            await(server, () -> server.world().timeOfDay() >= atBlast + 5,
+                    "the blast settled");
+            sub.unsubscribe();
+
+            assertNotNull(server.enderCrystals().at(12.5, 5, 10.5),
+                    "the End crystal never heard the overworld blast");
+            assertEquals(1, events.size(),
+                    "exactly the creeper's own blast — no chained End detonation");
+        } finally {
+            server.shutdown(() -> { });
+        }
+    }
+
     // ------------------------------------------------------------------
     // Harness
     // ------------------------------------------------------------------
