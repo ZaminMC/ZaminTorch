@@ -18708,3 +18708,56 @@ release pipeline resumed, PRs #80/#81/#82 merged)
 - THE LEDGERS: §29's Wave BU-1 row + the §22 statement (F-FL4 — the
   nether/End fluid simulation — named the next queue head over the
   standing demand-named tails).
+
+## The twentieth verifier pass — 2026-10-30 (the explosion family's
+F-EX1 verified whole, the gather restored, the PR opened)
+
+- RECOVERED from the reset: the 19th pass's discovery record
+  (EXPLOSION_FAMILY_AUDIT_FINDINGS.md on develop), F-HP2's pass-1
+  record, the BU-1 wave's queue statement (F-FL4 the named head).
+  The explosion candidates F-EX1..EX4 awaited their three passes;
+  F-EX1 named the highest value (the item scatter + the crystal
+  chain).
+- THE NINETEENTH PASS'S ARMOR-STAND ADJUDICATION CORRECTED: the
+  record claimed the reference EXCLUDES armor stands (immune). The
+  consult re-read: isImmuneToExplosions answers isInvisible() — a
+  VISIBLE stand takes the blast, and takeDamage's explosive arm
+  (lines 382-386) breaks it through onBroken — the equipment drops,
+  the stand item does NOT (lines 480-490 vs onBrokenByPlayer
+  475-478). The armor-stand family joined F-EX1 (the engine's
+  breakByExplosion verb existed, never called from the walk).
+- THE THREE PASSES (the full record in the findings doc): source
+  (the reference chain whole per family + the census re-run + the
+  compensating-site search clean); behavioral
+  (ExplosionEntityGatherParityTest's seven seats, the stash
+  verification failing UNFIXED on exactly all seven and green
+  whole with the fix); independent (the box-vs-gate equivalence,
+  the chain's region reentrancy, all()'s copy semantics, the
+  gate-event fire position, the no-intentional-exclusion check).
+- THE FIX: the walk's seven new arms (items — the health model with
+  the nether star refusal, orbs, projectiles — the mob-sourced
+  re-aim + the scatter, primed TNT, the END CRYSTAL CHAIN, armor
+  stands — the equipment-only drops, fireworks) over the gather's
+  SNAPSHOT law (the seven family lists gathered before any wound
+  lands — a mid-walk spawn never takes the same blast's wound; a
+  nested detonation gathers fresh, the reference's own nested
+  explode).
+- THE REGRESSION THE FIRST CUT EXPOSED + THE RE-PINS: the live-list
+  iteration destroyed DecorationBlastTest's frame drops (the
+  snapshot law repaired it); the vehicle seats' stale pins
+  re-pinned to the reference's drop-then-detonate law
+  (TntMinecartEntity.dropItems 73-81 — the death blast's fresh
+  gather eats the just-dropped cart items; vanilla's census counts
+  zero), the censuses re-read on the tick thread (the direct
+  cross-thread reads race — the probe pair all=0 vs 2), the lava
+  seat's lone survivor re-pinned with the dry-control's own death
+  (d12 0.48, damage 26 over the break threshold).
+- F-EX5 DISCOVERED: the punch deflection's skull exclusion —
+  WitherSkullEntity extends ProjectileEntity, the re-aim arm the
+  engine's deflect surface refuses. Suspected, awaiting its passes.
+- Evidence: the stash-verified discrimination (7/7 vs 7/0); the
+  family lanes 56/0; the vehicle lane 67/0 post-re-pin; the entity
+  package 595/0 beside the re-pinned pair; the full suite rides
+  the CI.
+- The queue after this pass: F-EX2/F-EX3/F-EX4/F-EX5 + the standing
+  F-FL4 architecture tail (the §22 queue head).
