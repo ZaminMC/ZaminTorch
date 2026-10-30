@@ -7981,3 +7981,744 @@ census vs the fallback), F-EX4 (the createFire arm — the wrong-world
 bed + the mobGriefing ghast fireball), F-EX5 (the punch deflection's
 skull exclusion), and the standing F-FL4 architecture tail (the
 nether/End fluid simulation) over the demand-named transport tails.
+
+< -- Scalable Future -- >
+# X. FORWARD-COMPATIBLE ENGINE ARCHITECTURE — MODERN FOUNDATIONS, HISTORICAL GAMEPLAY
+
+## X.1 Purpose
+
+Torch 1.8.8 is the first gameplay target of the Torch engine, not a permanent architectural constraint.
+
+The objective is to make the **engine architecture scalable across Minecraft versions** without changing the observable gameplay of the version currently being implemented.
+
+This distinction is mandatory:
+
+> **Modernize the engine architecture where doing so removes historical scalability limitations. Do not modernize the 1.8.8 gameplay unless the 1.8.8 reference itself requires it.**
+
+Torch 1.8.8 must remain recognizable and mechanically faithful to Minecraft Java Edition 1.8.8 while being built on internal abstractions that can support later Minecraft versions without requiring another architectural rewrite.
+
+The intended progression is:
+
+```text
+Torch Engine Architecture
+          │
+          ├── Torch 1.8.8 gameplay
+          │
+          ├── Torch 1.9 gameplay
+          │
+          ├── Torch 1.10 gameplay
+          │
+          ├── ...
+          │
+          └── future Minecraft versions
+```
+
+The architecture should be shared wherever the underlying concept remains valid. Version-specific behavior belongs in version-specific definitions and implementations.
+
+The purpose is specifically to avoid this failure mode:
+
+```text
+Torch 1.8.8
+    ↓
+1.8.8-specific internal architecture
+    ↓
+new Minecraft version
+    ↓
+architecture becomes obsolete
+    ↓
+large rewrite
+    ↓
+repeat for every major version
+```
+
+Instead, Torch should converge toward:
+
+```text
+Stable Torch engine architecture
+    ↓
+version-specific behavior/content
+    ↓
+version-specific protocol/compatibility
+```
+
+The first 1.8.8 implementation therefore has two simultaneous requirements:
+
+1. **Behavioral fidelity:** preserve Minecraft 1.8.8.
+2. **Architectural forward compatibility:** avoid unnecessary historical implementation constraints that later Minecraft versions already demonstrated can be removed.
+
+These requirements are complementary, not contradictory.
+
+---
+
+## X.2 1.8.8 Gameplay Is the Authority
+
+The forward-compatible architecture MUST NOT be interpreted as permission to turn Torch 1.8.8 into a modern Minecraft implementation.
+
+The following remain explicitly 1.8.8 unless the compatibility ledger proves otherwise:
+
+- terrain generation;
+- terrain shape and generation algorithms;
+- world height;
+- caves;
+- ravines;
+- ore generation;
+- ore vein sizes and distributions;
+- structures;
+- villages;
+- villagers;
+- villager professions and behavior;
+- mob AI;
+- pathfinding behavior;
+- entity behavior;
+- entity attributes;
+- combat;
+- attack behavior;
+- damage formulas;
+- knockback;
+- enchantments;
+- potions;
+- brewing;
+- hunger;
+- health;
+- regeneration;
+- redstone;
+- pistons;
+- fluids;
+- block updates;
+- scheduled ticks;
+- random ticks;
+- block physics;
+- inventories;
+- containers;
+- hoppers;
+- crafting;
+- furnace behavior;
+- fishing;
+- spawning;
+- despawning;
+- lighting behavior;
+- world time;
+- weather;
+- gamerules;
+- commands;
+- packets;
+- protocol behavior;
+- player movement;
+- collision behavior;
+- entity tracking;
+- legacy quirks;
+- tick ordering;
+- numerical constants;
+- rounding behavior;
+- observable cross-system interactions.
+
+Do not replace a 1.8.8 system with a later Minecraft system merely because the later system is cleaner, more scalable, or easier to implement.
+
+For example:
+
+```text
+WRONG:
+
+Torch 1.8.8
+    ↓
+modern terrain generator
+    ↓
+modify output until it looks approximately like 1.8.8
+```
+
+The correct approach is:
+
+```text
+Torch 1.8.8
+    ↓
+1.8.8 terrain implementation
+    ↓
+modern engine interfaces underneath it
+```
+
+The same rule applies to AI, villagers, combat, redstone, world generation, entities, and every other gameplay system.
+
+A modern architecture is not a license to modernize gameplay.
+
+---
+
+## X.3 Architecture Is Not Gameplay
+
+The project MUST distinguish between:
+
+### Engine architecture
+
+The internal representation and infrastructure used to execute Minecraft.
+
+Examples include:
+
+- registries;
+- identifiers;
+- block-state representation;
+- item representation;
+- item components;
+- serialization;
+- data codecs;
+- world storage abstractions;
+- scheduling;
+- ownership;
+- entity lifecycle infrastructure;
+- networking abstractions;
+- resource identifiers;
+- tags;
+- event infrastructure;
+- immutable snapshots;
+- persistence abstractions;
+- concurrency infrastructure.
+
+### Version gameplay
+
+The rules that determine what Minecraft actually does.
+
+Examples include:
+
+- how a villager behaves;
+- how an ore vein is generated;
+- how a zombie chooses a target;
+- how redstone propagates;
+- how a piston moves blocks;
+- how an entity takes damage;
+- how a village is generated;
+- how a chunk is populated.
+
+An architectural improvement MUST NOT silently alter the second category.
+
+---
+
+## X.4 Historical Architecture Must Not Become a Permanent Constraint
+
+Minecraft 1.8.8 contains implementation decisions that were appropriate for that version but are not necessarily appropriate as the foundation of a multi-version server engine.
+
+Where a later Minecraft version demonstrates a substantially better general-purpose representation, Torch MAY adopt the architectural concept internally while preserving 1.8.8 behavior at the compatibility boundary.
+
+The canonical example is the Flattening.
+
+Torch MUST NOT preserve legacy numeric block/item IDs as the fundamental internal architecture merely because the 1.8.8 protocol uses them.
+
+Instead, the engine should use a representation capable of supporting the much larger and more expressive registry model used by later versions.
+
+The compatibility layer then translates between:
+
+```text
+Torch internal representation
+        ↓
+1.8.8 protocol representation
+```
+
+rather than forcing the entire engine to use:
+
+```text
+1.8.8 protocol representation
+```
+
+internally.
+
+This principle applies generally:
+
+> **Legacy protocol representation is a compatibility concern, not automatically an engine concern.**
+
+---
+
+## X.5 Flattening-Style Architectural Modernization
+
+Torch SHOULD implement the architectural lessons of the Flattening where they provide a real long-term benefit.
+
+The goal is not to make 1.8.8 contain modern blocks.
+
+The goal is to prevent the internal engine from depending on the limitations of the 1.8.8 block/item ID model.
+
+The canonical internal model should therefore support concepts such as:
+
+```text
+ResourceLocation
+    namespace + path
+
+Block
+    └── BlockState definition
+
+BlockState
+    ├── block type
+    └── typed properties
+
+Item
+    └── stable registry identity
+
+Registry<T>
+    └── ResourceLocation → T
+```
+
+The exact implementation is an engineering decision and must be validated against actual Torch requirements, but the architectural direction is mandatory:
+
+**Do not build new Torch systems around assumptions that were removed by Minecraft's later registry/block-state architecture.**
+
+For example, new engine code should not introduce APIs whose fundamental model is:
+
+```text
+int blockId
+byte metadata
+```
+
+when the same concept can be represented through the engine's canonical block/state model.
+
+The 1.8.8 compatibility layer may still need to translate that canonical representation into legacy IDs and metadata for protocol/storage compatibility where required.
+
+That translation belongs at the boundary.
+
+---
+
+## X.6 Modern Item Architecture Without Modern Item Gameplay
+
+Torch SHOULD likewise use a forward-compatible item architecture.
+
+Modern Minecraft's component model demonstrates an important architectural principle: an ItemStack should not require every future item property to be added as another special field or another layer of legacy NBT conventions.
+
+Torch should therefore be designed so that item state can be represented through an extensible component system.
+
+Conceptually:
+
+```text
+ItemStack
+    ├── ItemType
+    ├── Count
+    └── ComponentMap
+          ├── component A
+          ├── component B
+          ├── component C
+          └── ...
+```
+
+This does NOT mean that Torch 1.8.8 should acquire modern item mechanics.
+
+Torch 1.8.8 must still reproduce the actual 1.8.8 behavior of:
+
+- ItemStack state;
+- durability;
+- enchantments;
+- display data;
+- attributes;
+- repair behavior;
+- container behavior;
+- crafting behavior;
+- item interactions;
+- serialization.
+
+The component architecture exists so that later Torch versions can introduce new item capabilities without redesigning the fundamental ItemStack model.
+
+Therefore:
+
+```text
+modern representation
+        ≠
+modern gameplay
+```
+
+A component system is an architectural foundation.
+
+A modern food component, tool component, weapon component, or other later-version behavior is version-specific gameplay and must not be imported into the 1.8.8 implementation unless independently required.
+
+---
+
+## X.7 Registries Must Be Designed for Future Growth
+
+Registries are foundational engine infrastructure and MUST NOT be designed around the assumption that the 1.8.8 content set is permanent.
+
+The engine should be capable of registering additional:
+
+- blocks;
+- items;
+- entities;
+- biomes;
+- dimensions;
+- effects;
+- enchantments;
+- sounds;
+- particles;
+- recipes;
+- structures;
+- data types;
+- other registry-backed objects.
+
+A later version should be able to add entries to an existing registry architecture rather than replacing the registry system.
+
+Avoid architecture such as:
+
+```text
+switch (numericId) {
+    case 1:
+    case 2:
+    case 3:
+    ...
+}
+```
+
+as the fundamental engine abstraction.
+
+Version-specific mappings may exist in compatibility code.
+
+The core should operate on canonical registered objects and identifiers.
+
+---
+
+## X.8 Version Layers
+
+Future Torch versions MUST be implemented as changes to a stable engine foundation wherever practical.
+
+A conceptual version structure is:
+
+```text
+                    Torch Engine
+                         │
+          ┌──────────────┼──────────────┐
+          │              │              │
+       1.8.8            1.9           1.10
+       layer            layer          layer
+          │              │              │
+          └──────────────┼──────────────┘
+                         │
+                 shared infrastructure
+```
+
+A version layer owns things that genuinely differ between Minecraft versions.
+
+Examples:
+
+```text
+Version 1.8.8
+    ├── terrain rules
+    ├── mob AI
+    ├── villager behavior
+    ├── combat
+    ├── generation
+    ├── protocol mapping
+    └── version-specific mechanics
+```
+
+while shared infrastructure owns things that do not need to be rewritten for every version:
+
+```text
+Torch Engine
+    ├── ownership
+    ├── scheduler
+    ├── entity lifecycle infrastructure
+    ├── registry infrastructure
+    ├── canonical identifiers
+    ├── canonical block/state representation
+    ├── item architecture
+    ├── component infrastructure
+    ├── serialization
+    ├── persistence abstractions
+    ├── networking infrastructure
+    └── concurrency infrastructure
+```
+
+Do not create artificial version abstractions merely to satisfy this model.
+
+The boundary should be established where the underlying semantics actually differ.
+
+---
+
+## X.9 Do Not Backport Modern Gameplay Into 1.8.8
+
+This is a hard rule.
+
+The following reasoning is invalid:
+
+> "Modern Minecraft does this better, therefore Torch 1.8.8 should use the modern implementation."
+
+The correct reasoning is:
+
+> "Modern Minecraft solved an architectural scalability problem. Can Torch adopt the architectural solution without changing 1.8.8's observable behavior?"
+
+If yes, adopt the architecture.
+
+If no, preserve the 1.8.8 implementation.
+
+Examples:
+
+### Terrain
+
+Do NOT replace the 1.8.8 generator with a modern generator.
+
+DO allow the terrain generator to use modernized engine interfaces for blocks, registries, storage, scheduling, and world access.
+
+### AI
+
+Do NOT replace 1.8.8 AI with modern mob goals or modern decision behavior.
+
+DO allow AI computation to use Torch's concurrency and snapshot infrastructure where this can be proven behaviorally equivalent.
+
+### Villagers
+
+Do NOT import modern villager professions, POIs, gossip, trading behavior, schedules, or AI.
+
+DO build villager state on engine abstractions that will not require a complete rewrite when later villager systems are implemented.
+
+### World representation
+
+Do NOT force the engine to use 1.8.8's legacy representation internally.
+
+DO translate the canonical engine representation to 1.8.8-compatible formats at the boundary.
+
+### Items
+
+Do NOT import modern item gameplay.
+
+DO build an extensible item-state architecture capable of representing later item systems.
+
+---
+
+## X.10 Compatibility Boundary Rule
+
+The compatibility layer is responsible for translating between the canonical Torch representation and the representation required by a particular Minecraft version.
+
+The preferred architecture is:
+
+```text
+                 Canonical Torch Engine
+                          │
+             ┌────────────┼────────────┐
+             │            │            │
+       1.8.8 adapter    1.x adapter   future adapter
+             │            │            │
+       protocol 47     newer protocol
+             │            │
+       1.8.8 client    newer client
+```
+
+The engine MUST NOT be polluted with version-specific protocol assumptions merely because the first target is 1.8.8.
+
+At the same time, the adapter MUST NOT become a second authoritative world model.
+
+There must be one authoritative gameplay state.
+
+Translation should occur at explicit boundaries.
+
+This is especially important for:
+
+- blocks;
+- block states;
+- items;
+- entities;
+- metadata;
+- packets;
+- registries;
+- serialization;
+- chunk data;
+- player state.
+
+If two competing representations can both independently become authoritative, the architecture has failed.
+
+---
+
+## X.11 No Accidental 26.x Backport
+
+Implementers MUST NOT interpret this section as a request to make Torch 1.8.8 behave like the current Minecraft version.
+
+Torch 1.8.8 is NOT:
+
+```text
+"modern Minecraft with an old protocol"
+```
+
+It is:
+
+```text
+"1.8.8 Minecraft gameplay running on a forward-compatible Torch engine"
+```
+
+This distinction must remain explicit in implementation work.
+
+A pull request that introduces a modern gameplay system into the 1.8.8 target MUST justify:
+
+1. why the change is required for 1.8.8 correctness;
+2. which 1.8.8 reference behavior requires it;
+3. why the change does not alter observable 1.8.8 behavior;
+4. whether the change belongs in shared engine infrastructure or the 1.8.8 version layer;
+5. what later-version architectural benefit it provides, if any.
+
+"Modern Minecraft does it this way" is not sufficient justification.
+
+---
+
+## X.12 Evidence Requirement for Architectural Backports
+
+A historical Minecraft architectural change may be adopted when there is evidence that it solves a genuine Torch scalability or maintainability problem.
+
+The implementation record should identify:
+
+```text
+Historical limitation
+        ↓
+Architectural improvement
+        ↓
+Torch equivalent
+        ↓
+1.8.8 compatibility impact
+        ↓
+Future-version benefit
+```
+
+For example:
+
+```text
+Legacy numeric block IDs
+        ↓
+Flattening
+        ↓
+Canonical Torch block/state registry
+        ↓
+1.8.8 adapter performs legacy translation
+        ↓
+future versions can reuse the same engine representation
+```
+
+This is a valid architectural backport.
+
+By contrast:
+
+```text
+Modern villager AI
+        ↓
+copy into Torch 1.8.8
+        ↓
+hope it behaves like 1.8.8
+```
+
+is not.
+
+The second approach changes gameplay rather than solving an architectural constraint.
+
+---
+
+## X.13 Version-Fidelity Gate
+
+Every implementation must be classified as one of:
+
+### A. Shared infrastructure
+
+Version-independent engine capability.
+
+Examples:
+
+- ownership;
+- scheduler;
+- registry framework;
+- canonical identifiers;
+- component framework;
+- serialization framework.
+
+### B. Forward-compatible representation
+
+A modernized internal representation that does not itself change 1.8.8 behavior.
+
+Examples:
+
+- flattened-style block representation;
+- typed block states;
+- extensible item components;
+- namespaced registries.
+
+### C. 1.8.8 gameplay
+
+Must match the 1.8.8 reference.
+
+Examples:
+
+- terrain;
+- AI;
+- villagers;
+- combat;
+- redstone;
+- generation;
+- entity behavior.
+
+### D. 1.8.8 compatibility adapter
+
+Required only to communicate with or serialize for the 1.8.8 ecosystem.
+
+Examples:
+
+- protocol 47;
+- legacy block IDs;
+- legacy metadata;
+- 1.8.8 packet structures.
+
+### E. Future-version implementation
+
+Must NOT be silently introduced into the 1.8.8 gameplay layer.
+
+Examples:
+
+- modern villager systems;
+- modern combat;
+- modern world generation;
+- modern entity behavior;
+- later-version-only mechanics.
+
+If an implementation cannot be classified, stop and resolve the architectural boundary before proceeding.
+
+---
+
+## X.14 The Long-Term Objective
+
+The success criterion is not:
+
+> "Torch 1.8.8 looks modern internally."
+
+The success criterion is:
+
+> **A future Torch version can be built by changing the parts of Minecraft that actually changed, while retaining the already-proven engine infrastructure.**
+
+Ideally:
+
+```text
+Torch 1.8.8
+    │
+    ├── establishes engine foundations
+    ├── establishes concurrency model
+    ├── establishes registry model
+    ├── establishes canonical state model
+    ├── establishes item/component model
+    └── faithfully implements 1.8.8 gameplay
+            │
+            ▼
+Torch 1.9
+    │
+    ├── reuses engine
+    ├── reuses concurrency
+    ├── reuses registries
+    ├── reuses state representation
+    └── implements only required 1.9 changes
+            │
+            ▼
+Torch 1.10+
+    │
+    └── same principle
+```
+
+The amount of work required to implement a new Minecraft version should therefore trend toward **version-specific behavioral work**, not repeated replacement of Torch's fundamental engine architecture.
+
+The ultimate architectural test is simple:
+
+> **If implementing the next Minecraft version requires rewriting a fundamental Torch subsystem that should have been version-independent, the previous version's architecture was insufficient.**
+
+Conversely:
+
+> **If achieving architectural reuse requires changing 1.8.8 gameplay away from the reference behavior, the reuse boundary is wrong.**
+
+Torch must optimize for both.
+
+### Final rule
+
+**Build the engine for the future. Build the gameplay for the version.**
+
+1.8.8 is the gameplay contract.
+
+Forward compatibility is the engine contract.
+
+Neither contract may silently override the other.
