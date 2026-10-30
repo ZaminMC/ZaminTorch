@@ -18506,3 +18506,85 @@ eighteenth verifier pass's first finding)
   the own-shape fallback (`grown(0.25, 0, 0.25)`, the y band and the
   feet-vs-center frame both to verify against the reference before any
   fix).
+
+---
+
+## F-HP2 pass 1 (source) — 2026-10-30 (the hopper cart's twin gather
+arms: under verification, the seat banked, the fix routed behind the
+cart's own position convention)
+
+- THE REFERENCE LAW (HopperMinecartEntity lines 84-130 over
+  HopperBlockEntity's statics): the cart's mouth accessors are its
+  OWN x/z and its box bottom + 0.5 (getX = this.x, getY = this.y +
+  0.5, getZ = this.z — NOT a cell center: the rolling mouth rides the
+  cart, not the grid); the no-container gather = the Box ±0.5 around
+  (x, y + 1.5, z) = [x ±0.5] x [y + 1.0, y + 2.0] x [z ±0.5], gathered
+  by each item's OWN box strictly intersecting (the same
+  WorldChunk/Box law F-HP1 pinned); the FALLBACK arm = the cart's own
+  shape [x ±0.49] x [y, y + 0.7] x [z ±0.49] `grown(0.25, 0.0, 0.25)`
+  = [x ±0.74] x [y, y + 0.7] x [z ±0.74], the FIRST intersecting item
+  (list.get(0)) pushed whole, the arm never arming the cooldown. The
+  pickup semantics themselves are 1:1 in the engine (pickUpInto's
+  full-consume/partial-keep/next-item loop over pullItem's
+  pickUpItem; the fallback's discarded return + return false) — the
+  divergence is the GATHER BANDS alone.
+- THE CONVENTION ACCIDENT (the pass's own find): the engine's cart
+  position.y is the box BOTTOM on-rail (the walk's own cell-snapped
+  commit at MinecartEntity line 208: cellY + RIDE_Y_OFFSET = cellY +
+  0.06, the rail top — the frame the 1.8.8 client's render reads
+  correctly through the wire) but the box CENTER off-rail (the
+  settle at line 231: floor(y - HALF_HEIGHT - ε) + 1.0 + HALF_HEIGHT
+  — the probe at y - 0.35 only makes sense for the center frame).
+  ON-RAIL the transfer host's `mouthY = position.y() + 0.5` lands
+  EXACTLY on the reference's getY() = this.y + 0.5 — by the accident
+  of the mixed frames, Arm A's band is correctly CENTERED on-rail.
+- ARM A ON-RAIL (the divergence): the engine's center band
+  [cellY + 1.06, cellY + 2.06] INCLUSIVE vs the reference's
+  (cellY + 0.935, cellY + 2.185) — the box-vs-center test's 0.125
+  rims + the strict bounds, no shift, no eat-side (everything the
+  engine takes the reference takes too — a pure under-reach).
+- THE BANKED DISCRIMINATING SEAT (at-rest, deterministic,
+  constructible NOW): a top slab in the cell above the cart's rail
+  cell at the same x/z; an item restored at rest on the slab's top:
+  center = cellY + 2.125. The reference's mouth box top = this.y +
+  2.0 = cellY + 2.0625 — the item's box [cellY + 2.0, cellY + 2.25]
+  OVERLAPS the last 0.0625 (the rail's lift buys the overlap) →
+  vanilla TAKES the rest; the engine's band caps at cellY + 2.06 →
+  NEVER takes it. The F-HP1 strict-top seat's mirror image: there the
+  BLOCK hopper's cell-aligned box top = by + 2.0 exactly — touching,
+  refused; here the cart's rail-lifted box makes the same rest an
+  intersection. Seat wire: VehicleManager.spawnHopperMinecart on the
+  rail cell + BuiltinBlocks.STONE_SLAB_TOP above + spawnRestored on
+  the slab top + the cart hopper's snapshotSlots.
+- ARM B ON-RAIL (the rims): the engine's y band [cellY - 0.19,
+  cellY + 0.76] (at.y() + 0.25 >= centerY && at.y() <= centerY + 0.7
+  over the bottom-like centerY) vs the reference's center band
+  (cellY - 0.065, cellY + 0.885): a 0.125 low-rim EAT + a 0.125
+  high-rim MISS + inclusive bounds; the horizontal ±(0.74 + 0.125)
+  inclusive vs ±0.865 strict. The rims are NOT seat-constructible
+  with at-rest items (no natural support height lands in
+  (cellY + 0.76, cellY + 0.885] or [cellY - 0.19, cellY - 0.065]:
+  the natural tops 0 / 0.0625 / 0.125 / 0.5 / 1.0 put item centers at
+  0.125 / 0.1875 / 0.25 / 0.625 / 1.125 — all inside or outside BOTH
+  laws alike); the descent windows differ by a single tick, under
+  the 50ms poll granularity. Documented, not seated.
+- THE OFF-RAIL ENTANGLEMENT (why the fix waits): off-rail the engine's
+  position.y is the CENTER, so Arm A's mouthY = position.y + 0.5 is
+  0.35 HIGH against the reference's bottom + 0.5 — and a naive
+  box-law translation written for the on-rail (bottom) convention
+  would shift the off-rail band 0.35 FURTHER UP, WORSE than the
+  current band (which at least overlaps the reference's). The two
+  arms cannot be translated 1:1 against a mixed position convention:
+  the fix routes behind the convention's unification — F-HP3, the
+  vehicle-family pass (the convention split's own observable
+  candidate: the derail transition's wire y — on-rail the bottom
+  frame cellY + 0.06, off-rail the center frame cellTop + 0.35 — a
+  hypothesis for that pass to verify against the client render, not
+  claimed here).
+- DISPOSITION: F-HP2 UNDER VERIFICATION — pass 1 (source) complete;
+  the behavioral pass BLOCKED by the off-rail entanglement (no honest
+  fix exists until F-HP3 resolves the frame); the one constructible
+  discriminating seat BANKED above for the fix's arrival. No PR this
+  session: the threshold is not met, and the house rule stands — a
+  real mismatch with an unsafe complete fix is documented and routed,
+  not forced.
