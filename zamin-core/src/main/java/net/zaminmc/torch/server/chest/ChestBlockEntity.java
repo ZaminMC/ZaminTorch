@@ -146,6 +146,71 @@ public final class ChestBlockEntity {
         return moving; // chest full: the whole remainder comes back
     }
 
+    /**
+     * Semantic shift-click from the player inventory into a MERGED pair
+     * (the reference's quick-move over the {@code DoubleInventory}: the
+     * merge order is the merged slot order — this half's 27 partials
+     * first, the second half's after, then the first empty slot across
+     * the pair). A remainder comes back like the single walk. The PAIR's
+     * mark-dirty law wakes both halves' comparators.
+     */
+    public ItemStack quickMoveInPair(ChestBlockEntity secondHalf, ItemStack moving) {
+        Objects.requireNonNull(moving, "moving");
+        if (moving.isEmpty()) {
+            return ItemStack.EMPTY;
+        }
+        ChestBlockEntity[] halves = secondHalf == null
+                ? new ChestBlockEntity[]{this} : new ChestBlockEntity[]{this, secondHalf};
+        boolean changed = false;
+        // Pass 1: merge into matching partial stacks (the merged order).
+        for (ChestBlockEntity half : halves) {
+            for (int slot = 0; slot < SLOT_COUNT && !moving.isEmpty(); slot++) {
+                ItemStack current = half.slots[slot];
+                if (!current.isEmpty()
+                        && WindowClicks.stacksMergeable(current, moving)
+                        && current.count() < current.type().maxStackSize()) {
+                    int capacity = current.type().maxStackSize() - current.count();
+                    int transfer = Math.min(capacity, moving.count());
+                    half.slots[slot] = current.withCount(current.count() + transfer);
+                    moving = moving.withCount(moving.count() - transfer);
+                    changed = true;
+                }
+            }
+        }
+        if (moving.isEmpty()) {
+            if (changed) {
+                markDirty();
+                if (secondHalf != null) {
+                    secondHalf.markDirty();
+                }
+            }
+            return ItemStack.EMPTY;
+        }
+        // Pass 2: the first empty slot across the pair.
+        for (ChestBlockEntity half : halves) {
+            for (int slot = 0; slot < SLOT_COUNT; slot++) {
+                if (half.slots[slot].isEmpty()) {
+                    half.slots[slot] = moving;
+                    markDirty();
+                    if (half != this) {
+                        half.markDirty();
+                    }
+                    return ItemStack.EMPTY;
+                }
+            }
+        }
+        if (changed) {
+            // Partial merges landed even though the remainder came back
+            // (the pair had partial room but no empty slot): both halves'
+            // comparators still re-arm.
+            markDirty();
+            if (secondHalf != null) {
+                secondHalf.markDirty();
+            }
+        }
+        return moving; // the pair is full: the whole remainder comes back
+    }
+
     /** @return a defensive copy of the 27 slots, index-aligned. */
     public ItemStack[] snapshotSlots() {
         return slots.clone();
@@ -161,6 +226,17 @@ public final class ChestBlockEntity {
     public void setSlot(int slot, ItemStack stack) {
         rangeCheck(slot);
         slots[slot] = Objects.requireNonNull(stack, "stack");
+        bump();
+    }
+
+    /**
+     * The reference's own {@code markDirty} (BlockEntity lines 95-103): the
+     * mutation bump — the serial moves and the comparators reading this
+     * chest re-arms. The PAIR's merged view calls it on BOTH halves (the
+     * reference's {@code DoubleInventory.markDirty} lines 99-102: a write
+     * through the pair wakes the comparators reading either half).
+     */
+    public void markDirty() {
         bump();
     }
 
