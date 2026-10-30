@@ -426,3 +426,166 @@ throw-gesture origin at line ~6167, the random-tick cell walk at line
 reference comparison (the reference itself hardcodes 1.62 at SOME of
 these sites and reads getEyeHeight at others; the census is its own
 verification item, not this fix's scope).
+
+---
+
+## F-EX4 — VERIFIED and FIXED (the 2026-10-31 session, the twenty-first verifier pass)
+
+**Status: resolved** (the three passes complete — V1 by the nineteenth
+pass, V2 + V3 this session; the fix on
+`audit/verifier-pass-21-explosion-fire`).
+
+### The three-pass record
+
+- **V1 (source, the nineteenth pass + this session's completion):** the
+  reference's `Explosion.damageBlocks` (lines 191-199) carries the fire
+  arm as the FIELD `this.createFire`'s own walk AFTER the destructive
+  clear: every `damagedBlocks` cell that holds AIR NOW, sits on an
+  OPAQUE cube (`blockpos1.down().getBlock().isOpaque()`), and wins
+  `this.random.nextInt(3) == 0` becomes `Blocks.FIRE` — the roll
+  consuming the Explosion's OWN private `new Random()` (line 30, NEVER
+  the world's stream; the particle arm at line 159 alone reads the
+  world random through the PARAMETER). `World.explode` (lines
+  1597-1606): the six-arg form delegates `createFire=false` and BOTH
+  forms call `damageBlocks(true)` — the param feeds the particles, the
+  field feeds the fire. The complete call-site census: the wrong-world
+  bed (BedBlock.java:78 — `5.0F, true, true`, fire ALWAYS) and the
+  ghast fireball (FireballEntity.java:33 — `flag, flag` over
+  mobGriefing) are the ONLY fire sites; PrimedTnt, the TNT cart, the
+  ender crystal, the creeper, the wither and the skull all pass false.
+  The engine's `detonateAtIn` had NO createFire parameter and NO fire
+  arm anywhere; its stand-in was the LARGE_FIREBALL hit paths' single
+  `fireSink.tryPlaceFire` at the impact cell — a structural NO-OP on
+  the block-hit path against un-cleared solid ground (the cell the
+  blast just cleared is the only one its air gate ever accepts),
+  UN-gated by mobGriefing, UN-floored, and absent on the player-hit
+  path whole.
+- **V2 (behavioral, 2026-10-31):** `ExplosionFireArmParityTest`'s four
+  seats — the stash verification failing UNFIXED on EXACTLY the three
+  predicted seats: (1) three ghast fireballs into a grass plain answer
+  **3 fires** ("the stand-in law caps at three" — one per blast at the
+  blast's own cleared center cell, the only cell the air-gated sink can
+  accept on the ground path) where the 1-in-3 roll over the craters'
+  air cells answers several; (2) the struck-body blast answers **1
+  fire** ("the stand-in law answers at most one"); (3) mobGriefing off
+  still answers **1 fire** at (10,5,12) — the ungated mob-hit stand-in,
+  vanilla refuses the fire whole with the flag; (4) the glass floor-law
+  guard green both trees (the post-fix pin). GREEN WHOLE with the fix.
+- **V3 (independent, 2026-10-31):** (a) the floor-gate equivalence
+  proof: `opaqueCube = isSolidRender()` at construction (Block.java
+  line 215) and the light table's default `isSolidRender() ? 255 : 0`
+  (line 216, folded to 15) — so filter 15 IS the opaque-cube answer
+  for every block WITHOUT a setOpacity override, and the COMPLETE
+  setOpacity census (eight non-zero sites) leaves exactly THREE
+  divergence families (stairs line 65, farmland line 35, the SINGLE
+  slabs — SlabBlock line 70's `isDouble()`, the constructor's own line
+  25 setting the doubles true) which the gate excludes by name;
+  (b) the placed flame SURVIVES its own onAdded (FireBlock lines
+  322-324 remove a flame with neither solid top nor fuel — an isOpaque
+  floor implies `World.hasSolidTop`, and the engine's
+  `FireBlocks.hasSolidTop` is the same law 1:1 — the probe's mid-air
+  control flame vanishing WAS vanilla, not an interference);
+  (c) `doFireTick` is NOT a gate on the reference's fire arm (no
+  gamerule consult in the walk — the fix must not invent one);
+  (d) the compensating-site census clean: no other engine site places
+  fire for a ghast blast (the lightning bolt, the small fireball's own
+  landing arm, the End portal fire — none serve the blast path);
+  (e) the edge set: y==0 cells skip the below consult (the engine's
+  BlockPosition ctor throws where the reference reads the void as
+  non-opaque); the AIR cells the rays collected ARE candidates (the
+  engine's `collectDamaged` set-add rides outside the material check —
+  the reference's own shape); the nested detonations (the crystal
+  chain, the TNT cart's death) roll their own private streams exactly
+  as the reference's nested `new Explosion` does; (f) the
+  intentionality check: the `FireBlocks` family is ported whole (age
+  progression, spread, the no-fuel death — fire is in scope by design),
+  the missing arm was an omission, not a choice.
+
+### The fix
+
+`detonateAtIn` gains the `createFire` parameter (false at every caller
+except the ghast fireball's sink, which passes the SAME mobGriefing
+consult as its destructive flag — FireballEntity.onHit's `flag, flag`)
+and the fire arm after `commitDamaged` inside the region scope: the
+post-clear AIR gate, `isOpaqueCubeFloor` (the filter-15 floor with the
+stairs/single-slab/farmland exclusions), the per-detonation private
+`new Random()`'s `nextInt(3) == 0`, the FIRE write riding the scope's
+ownership. The two LARGE_FIREBALL `tryPlaceFire` stand-ins (block-hit
++ mob-hit) are REMOVED — the blast's own arm replaces them.
+
+### Evidence
+
+`ExplosionFireArmParityTest` 4/0 NEW (the stash verification failing
+UNFIXED on exactly the three seats above, green whole with the fix);
+the stale stand-in pin in
+`ProjectileDimensionReadsTest.theFireAndExplosionSinksCarryTheDimension`
+re-pinned (the fire sink answers the SMALL fireball alone — the ghast
+shot's fire rides its blast's own arm now).
+
+### Regression record
+
+The explosion family lane 7/0 (ExplosionEntityGatherParityTest); the
+projectile lanes green whole (FireballDeflection, WitherSkull,
+ProjectileDimensionReads re-pinned, FireworksAndBottle); the fire
+family + combat lanes green (FireBlocks 8, Blaze, NetherMonster,
+ThornsMobVictim, CombatTargetTails); the vehicle blast lanes 15/0
+(VehicleDamageSource 4, VehicleWorldDamage 3, VehicleFire 8); the
+TNT/dispenser/creeper/crystal lanes 46/0; IceMelt 11/0; Lightning 4/0
+(the bolt's own fire untouched); DimensionWalk green in isolation (the
+documented load-flake signature, unrelated). The full suite rides the
+CI run itself.
+
+### The side-discoveries this pass recorded (candidates, NOT repaired)
+
+- **F-EX6 — the wrong-world bed never blasts at all.** The engine's
+  bed use routes straight to `sleepOnTick` (EngineServer ~11867):
+  NO dimension gate, NO removal of the halves, NO power-5
+  createFire-true blast (BedBlock.use lines 68-79 — the
+  `!dimension.hasSpawnPoint() || biome == HELL` arm; both the Nether
+  and the End answer `hasSpawnPoint()` false, verified in the
+  reference's dimension classes). A bed clicked in the engine's nether
+  reads the OVERWORLD's clock and tries the ordinary sleep walk (it
+  can even SET A BED SPAWN there). The fire arm this pass landed is
+  the bed blast's own fire substrate — the bed family's arm is its own
+  finding awaiting its three passes.
+- **F-EX7 — the TNT minecart's destructive flag rides mobGriefing; the
+  reference hardcodes true.** TntMinecartEntity.java:92 calls the
+  six-arg `explode(this, ..., power, true)` — the cart's blast breaks
+  blocks with mobGriefing OFF. The engine's blast sink factory
+  (EngineServer ~2846) passes `gameRules.getBoolean("mobGriefing")`.
+  A no-grief world: vanilla's cart still craters, the engine's does
+  not. Thin, one flag, awaiting its own passes.
+- **F-EX8 — the wither birth blast's destructive flag is hardcoded
+  false; the reference rides mobGriefing.** WitherEntity.java:217
+  calls the seven-arg `(7.0F, false, mobGriefing)` — createFire false,
+  DESTRUCTIVE mobGriefing. The engine's birth site
+  (EngineServer ~21885) passes `false` whole. A griefing world:
+  vanilla's birth blast breaks blocks, the engine's never does.
+  Awaiting its own passes.
+- **F-EX9 — the ghast fireball flies with throwable gravity; the
+  reference's fireball family is gravity-free.** The reference's
+  `ProjectileEntity.tick` (the fireball family's base — FireballEntity
+  extends it directly, NOT ThrownEntity) applies
+  `velocity += acceleration; velocity *= drag` with NO gravity term;
+  the gravity walk lives in `ThrownEntity.tick` (line ~218) alone. The
+  engine's `gravityOf` (ProjectileManager) answers
+  `THROWABLE_GRAVITY` (0.03) for LARGE_FIREBALL — it excludes
+  SMALL_FIREBALL and WITHER_SKULL but not the ghast shot. A long ghast
+  shot droops in the engine, flies straight in vanilla. Awaiting its
+  own passes.
+- **F-EX3 data point — the stairs family's blast resistance rows read
+  0f in the engine's BlastResistanceTable; the reference delegates to
+  the base block** (StairsBlock.getBlastResistance lines 417-418 →
+  the base block's own; oak stairs over planks' 2.0, stone-stair
+  families over their stone bases). The 0f rows make the engine's
+  stairs ~free to blast through. Feeds F-EX3's census.
+
+## The queue after this pass
+
+F-EX6 (the bed's wrong-world blast arm — the bed family's own row,
+the fire substrate now landed), F-EX3 (the BlastResistanceTable
+coverage census — now carrying the stairs-resistance data point),
+F-EX7/F-EX8 (the two thin destructive-flag rows), F-EX5 (the punch
+deflection's skull exclusion), F-EX9 (the ghast fireball's gravity),
+and the standing architecture tail F-FL4 (the nether/End fluid
+simulation — the §22 queue head).

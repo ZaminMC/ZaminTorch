@@ -19053,3 +19053,71 @@ Stage Summary:
   block-update family's per-dimension story, the TNT family's dimension
   row, and the container families' per-dimension stores (FL4-F5's named
   remainder).
+
+## The twenty-first verifier pass — 2026-10-31 (the explosion
+family's F-EX4 verified whole, the fire arm landed, the PR opened)
+
+- RECOVERED from the reset: the 20th pass's F-EX1 record (PR #85
+  MERGED), F-EX2's (PR #88 MERGED), the review-lane waves (#86/#87
+  merged, #89/#90 closed with riders landed on develop), and the
+  queue: F-EX3/F-EX4/F-EX5 + the standing F-FL4 tail. F-EX4 named the
+  head (a genuine missing vanilla mechanic with gameplay visibility:
+  the blast's fire).
+- THE NINETEENTH PASS'S F-EX4 RECORD COMPLETED: the reference's fire
+  arm (Explosion.damageBlocks lines 191-199) rides the FIELD
+  createFire — the post-clear AIR gate, the below-cell isOpaque floor,
+  and the Explosion's OWN private new Random()'s 1-in-3 roll (never
+  the world stream; the particle PARAMETER alone reads the world
+  random). The call-site census: the wrong-world bed (fire always,
+  power 5) and the ghast fireball (the mobGriefing flag) are the ONLY
+  fire sites — every other blast passes false (the engine's crystal
+  comment "createFire false, destructive true" was already correct).
+  The engine had NO fire arm whole; its stand-in was the fireball hit
+  paths' single ungated unfloored tryPlaceFire — a structural no-op
+  against un-cleared solid ground on the block path, absent on the
+  player path.
+- THE THREE PASSES: source (the chain whole + the census + the
+  param-vs-field split); behavioral (ExplosionFireArmParityTest's four
+  seats — the stash verification failing UNFIXED on EXACTLY the three
+  predicted seats: 3 fires on the plain "the stand-in law caps at
+  three", 1 fire at the struck body "at most one", 1 fire with
+  mobGriefing off — and green whole with the fix); independent (the
+  filter-15/opaqueCube equivalence proof over the COMPLETE setOpacity
+  census with the three exclusion families, the placed flame's own
+  onAdded survival (hasSolidTop implied), the doFireTick non-gate, the
+  compensating-site census clean, the y==0/nested-blast/AIR-candidate
+  edges, and the not-intentional check over the ported-whole
+  FireBlocks family).
+- THE FIX: detonateAtIn's createFire parameter (false everywhere but
+  the ghast fireball's sink — ONE mobGriefing consult answering both
+  flags, FireballEntity.onHit's flag,flag pair), the fire arm after
+  commitDamaged inside the region scope (the post-clear AIR gate,
+  isOpaqueCubeFloor with the stairs/single-slab/farmland exclusions,
+  the per-detonation private Random), and the two LARGE_FIREBALL
+  tryPlaceFire stand-ins RETIRED (the blast's own arm replaces them).
+- THE RE-PIN: ProjectileDimensionReadsTest's fire-sink seat — the
+  stale [-1,-1] pin was the stand-in's own shape; the fire sink now
+  answers the SMALL fireball alone (its own landing arm), the ghast
+  shot's fire riding its blast's arm.
+- THE PROBE'S OWN DISCOVERY (recorded, not a finding): the engine's
+  floating-flame instant removal IS vanilla (FireBlock.onAdded lines
+  322-324 — no solid top and no fuel → removed on the spot); the
+  diagnostic's mid-air control flame vanishing was the reference's own
+  law, which reshaped seat 2's design (the seats count floor-sitting
+  flames by construction).
+- FIVE SIDE-DISCOVERIES LEDGERED as candidates: F-EX6 (the bed's
+  wrong-world arm missing whole — no blast, no removal, the overworld
+  clock consulted from the nether), F-EX7 (the TNT cart's destructive
+  flag: mobGriefing in the engine vs hardcoded true in the reference),
+  F-EX8 (the wither birth's flag: false vs mobGriefing), F-EX9 (the
+  ghast fireball's throwable gravity vs the reference family's
+  gravity-free flight), and F-EX3's stairs-resistance data point (the
+  engine's 0f rows vs the reference's base-block delegation).
+- Evidence: the stash-verified discrimination (3 failing unfixed →
+  4/0 fixed); the regression lanes green whole — the explosion family
+  7/0, the projectile lanes, the fire family 8/0, the vehicle blast
+  lanes 15/0, the TNT/dispenser/creeper/crystal lanes 46/0, IceMelt
+  11/0, Lightning 4/0; DimensionWalk green in isolation (the
+  documented load-flake signature). The full suite rides the CI.
+- The queue after this pass: F-EX6, F-EX3, F-EX7, F-EX8, F-EX5, F-EX9
+  + the standing F-FL4 architecture tail.
