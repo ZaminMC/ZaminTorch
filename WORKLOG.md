@@ -18790,3 +18790,64 @@ architecture pass) + the portal placement's flag1 law (2026-10-30)
 - The CI queue: run 533 (the pre-fix checkout) still in flight; run
   535 (the full current tree) queued behind it — the release
   pipeline's first build since torch-1.8.8-153 (2026-10-27).
+
+## 2026-10-31 — F-TC1's lane lands as PR #87: the signal consult reads the reference's own Block.isSolid() law (the twentieth pass's confirmed find + the same root cause's whole casualty census)
+
+- THE FINDING (three passes recorded by the twentieth verifier pass; the
+  fourth — the correction's own stash-discriminated suite — this session):
+  the engine had ONE solidity consult (WorldSolidity.isSolid, the MOVEMENT
+  model) standing in for the reference's Block.isSolid() (Block.java
+  274-276: material.isSolidBlocking() && isCube() && !isSignalSource()) at
+  every signal-routing site — the trapped chest's viewer signal never
+  reached a wire (the chest family re-radiated instead of answering its
+  own emission), and the whole isCube-false / translucent census
+  (glass, leaves, slabs, stairs, fences, chests, hoppers, ice, TNT, ...)
+  conducted strong power where vanilla answers their own zero.
+- THE CASUALTY CENSUS THE FIX PREPARED (each inseparable from the one
+  root cause, each repaired in the PR): F-TC1-a the REDSTONE BLOCK never
+  powered a wire (signal-solid classification → the re-radiation arm
+  answered 0; RedstoneBlock.getSignal 21-23 answers 15 in every
+  direction — the new ownSignal arm); F-TC1-b the trapped chest's
+  STRONG arm missing (ChestBlock.getDirectSignal 397-400 UP-ONLY — the
+  block under the chest receives the viewer count; the new directSignal
+  arm); F-TC1-c the viewer-count WAKES wrong at both ends (onOpen 312-314
+  + onClose 322-324 wake pos AND pos.down(); the engine's open woke pos
+  alone (twice — the use arm's redundant copy removed) and the close woke
+  NOTHING — a wire that had read the count never released it; the pair
+  now rides the open, the client close and the swap-close, AFTER the
+  window state clears, the stale-window gate refusing a broken chest's
+  notification); F-TC1-d the re-radiation set narrowed whole.
+- THE CONSULT (BlockSolidity.isSolid, new): MaterialSolidity's material
+  model + CollisionShapes.isFullCube minus the glass pair / beacon /
+  piston-base isCube-false full-box families + the double slab's isDouble
+  + the redstone-block signal-source exclusion (the true-override census
+  grep whole — every other source dies at isCube or the material
+  conjunct). SIX consult sites swapped: signal(), comparatorInput()'s
+  through-solid arm, the wire's climb/descent bands, the wire's
+  onAdded/onRemoved wakes, wakeComparators.
+- Evidence: TrappedChestViewerSignalParityTest 6/0 NEW — the stash
+  verification failing UNFIXED on EXACTLY the six (the viewer count, the
+  carrier stone, the redstone block, the glass and leaves never-windows,
+  the comparator through-glass, the descent band) and green whole with
+  the fix; the never-window pattern guarding the negative seats; the
+  lever-fed repeater isolating the consult from the redstone block's own
+  deadness unfixed.
+- Regression: redstone 30/0; chest + hopper + piston 51/0; block 309/0;
+  container + interaction 14/0; furnace + brewing + BlockEntityApi 21/0;
+  the protocol module suite green at PR open (QuickCraftDragWireTest's
+  packet-48 timeout the documented pre-existing flake, PR #86's
+  disposition).
+- The suspected finds recorded NOT repaired (their own lanes queued):
+  F-SP1 the SUPPORT consult family (World.isSolidBlockingCube —
+  material.isSolidBlocking() && isCube(), NO signal-source conjunct; the
+  torch/door/rail/lever/button/wire-floor/wall-mount sites all reading
+  the movement consult: a torch hangs on glass where vanilla fells it)
+  and F-DS1 the double slab's HALF-height collision row
+  (endsWith("_slab") catching the double forms; the reference's double
+  slab is a full cube — bodies sink to the mid-line).
+- The findings doc: docs/SIGNAL_CONSULT_PARITY_FINDINGS.md. PR #87 open
+  against develop; the queue after it: F-EX2/F-EX3/F-EX4/F-EX5 (the
+  explosion family's remaining candidates), F-HP3 (the cart position
+  convention, unblocking F-HP2), F-EC1 (the ender chest's solid-above
+  gate — the consult swap rides F-SP1's helper), F-DC1-tail (the single
+  quick-move's silent partial merge).
