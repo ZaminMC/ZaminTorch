@@ -589,8 +589,14 @@ public final class FluidSystem implements WorldChangeListener {
     /**
      * The reference's isLiquidBlocking (lines 185-193): the door family,
      * the standing sign, the ladder, the reeds, the portal material, and
-     * every movement-blocking block (the engine's one solidity rule —
-     * WorldSolidity.isSolid — carries the reference's material consult).
+     * every movement-blocking MATERIAL — {@code material.blocksMovement()},
+     * the material model, NOT the collision model (a body walks through an
+     * open door or a banner; the liquid still flows around it — the sign
+     * family's twelfth-pass consult {@link MaterialSolidity#blocksMovement}
+     * carries the reference's own law, the engine's one true material
+     * read; the pre-fix arm read {@code WorldSolidity.isSolid}, the
+     * entity-collision model, and washed out every open wood door, wall
+     * sign, banner, open gate and pressure plate the reference protects).
      */
     private boolean isLiquidBlocking(BlockPosition position) {
         if (position == null) {
@@ -601,17 +607,20 @@ public final class FluidSystem implements WorldChangeListener {
         return isDoor(id) || isStandingSign(id) || WorldSolidity.isLadder(id)
                 || WorldSolidity.isSugarCane(id)
                 || WorldSolidity.isNetherPortal(id) || WorldSolidity.isEndPortal(id)
-                || WorldSolidity.isSolid(type);
+                || MaterialSolidity.blocksMovement(id);
     }
 
-    /** The door family (the reference's DoorBlock instanceof — both woods and iron). */
+    /**
+     * The door family (the reference's {@code DoorBlock instanceof} — the
+     * state never matters, the BLOCK does): all seven of the engine's
+     * {@link WoodDoorFamily} families (the six woods + the iron pair),
+     * every lower, upper, open and powered state, through the family's
+     * own consult. The stale {@code wooden_door*} names matched no
+     * registered id — only the iron prefix ever covered a real door, and
+     * every OPEN wood state washed away.
+     */
     private static boolean isDoor(Identifier id) {
-        if (!id.namespace().equals("minecraft")) {
-            return false;
-        }
-        String value = id.value();
-        return value.equals("wooden_door") || value.startsWith("wooden_door_")
-                || value.equals("iron_door") || value.startsWith("iron_door_");
+        return WoodDoorFamily.isDoor(id);
     }
 
     /** The standing sign alone (the reference's STANDING_SIGN row — never the wall form). */
