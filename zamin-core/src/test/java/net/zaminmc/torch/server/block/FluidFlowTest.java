@@ -105,6 +105,8 @@ class FluidFlowTest {
     private FluidSystem fluids;
     private final List<String> washes = new ArrayList<>();
     private final List<String> sounds = new ArrayList<>();
+    /** The fizz emissions' own capture: "x,y,z|volume|pitch" per firing. */
+    private final List<String> fizzEmissions = new ArrayList<>();
 
     private void scene() {
         scene(false);
@@ -114,6 +116,7 @@ class FluidFlowTest {
         scene = new SceneWorld(nether);
         washes.clear();
         sounds.clear();
+        fizzEmissions.clear();
         fluids = new FluidSystem(scene, new FluidSystem.Sink() {
             @Override
             public void wash(net.zaminmc.torch.util.Position at, BlockType washed) {
@@ -124,6 +127,10 @@ class FluidFlowTest {
             public void sound(net.zaminmc.torch.util.Position at, String name,
                               float volume, float pitch) {
                 sounds.add(name);
+                if ("random.fizz".equals(name)) {
+                    fizzEmissions.add(at.x() + "," + at.y() + "," + at.z()
+                            + "|" + volume + "|" + pitch);
+                }
             }
         }, new Random(3));
     }
@@ -561,6 +568,36 @@ class FluidFlowTest {
         assertEquals("stone", idAt(0, 6, 0),
                 "the lava pouring down into water made stone");
         assertTrue(sounds.contains("random.fizz"), "the stone arm fizzed");
+    }
+
+    @Test
+    void theFizzCarriesTheCenterTheVolumeAndThePitchBand() {
+        scene();
+        // The reference's own emission (LiquidBlock.fizz lines 296-305):
+        // the sound at the CONVERTED cell's center — pos + 0.5 on every
+        // axis, the house convention every block sound carries — at
+        // volume 0.5 with the pitch roll 2.6 + (rand - rand) * 0.8 (the
+        // 1.8-3.4 band; the pre-fix emission carried the raw corner and
+        // a flat 1.0 pitch).
+        commit(new BlockPosition(0, 6, 0), FluidBlocks.sourceOf(FluidBlocks.Kind.LAVA));
+        commit(new BlockPosition(1, 6, 0), FluidBlocks.sourceOf(FluidBlocks.Kind.WATER));
+        assertEquals("obsidian", idAt(0, 6, 0), "the contact converted");
+        assertEquals(1, fizzEmissions.size(), "exactly one fizz emission");
+        String[] emission = fizzEmissions.get(0).split("\\|");
+        assertEquals("0.5,6.5,0.5", emission[0],
+                "the fizz plays at the converted cell's center");
+        assertEquals("0.5", emission[1], "the reference's own volume");
+        float pitch = Float.parseFloat(emission[2]);
+        assertTrue(pitch > 1.8f && pitch < 3.4f,
+                "the pitch rides the reference's 1.8-3.4 roll band (was " + pitch + ")");
+        assertTrue(pitch != 1.0f, "the flat 1.0 pitch is gone");
+        // The determinism: the same seeded scene re-rolls the same pitch
+        // (the harness's own Random(3) — the roll is the system's own).
+        String first = fizzEmissions.get(0);
+        scene();
+        commit(new BlockPosition(0, 6, 0), FluidBlocks.sourceOf(FluidBlocks.Kind.LAVA));
+        commit(new BlockPosition(1, 6, 0), FluidBlocks.sourceOf(FluidBlocks.Kind.WATER));
+        assertEquals(first, fizzEmissions.get(0), "the seeded roll is deterministic");
     }
 
     // ------------------------------------------------------------------
