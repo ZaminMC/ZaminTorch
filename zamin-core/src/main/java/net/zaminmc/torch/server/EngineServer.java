@@ -11516,9 +11516,10 @@ public final class EngineServer implements Server, EngineBridge {
         if (ChestFacingBlocks.isTrappedFamily(current)
                 || current.identifier().equals(net.zaminmc.torch.server.block.BuiltinBlocks.TRAPPED_CHEST.identifier())) {
             // ChestBlock(1).use lines 326-341: the same container GUI opens
-            // (the viewer-count power rides the redstone system's probe).
+            // (the viewer-count power rides the redstone system's probe;
+            // the neighbor wake lives in the open itself —
+            // ChestBlockEntity.onOpen lines 312-314 — never the use arm).
             openChestOnTick(session, clicked, onTableOpened);
-            redstoneSystem.updateNeighbors(clicked);
             return true;
         }
         if (net.zaminmc.torch.server.chest.EnderChestBlocks.isFamily(current)) {
@@ -17290,6 +17291,19 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /**
+     * The trapped chest's viewer-count change wake (ChestBlockEntity
+     * .onOpen lines 312-314 + onClose lines 322-324): the chest's own cell
+     * AND the cell below it hear the change — the strong arm's consumer
+     * (the block under the chest, ChestBlock.getDirectSignal lines 397-400)
+     * sits one further out than the weak arm's, so its own wire needs the
+     * second wake to observe the count. Tick-thread context.
+     */
+    private void trappedChestViewersChangedOnTick(BlockPosition position) {
+        redstoneSystem.updateNeighbors(position);
+        redstoneSystem.updateNeighbors(position.offset(0, -1, 0));
+    }
+
+    /**
      * Opens the chest container at the clicked block: assigns the wire window
      * id, lazily creates the block-entity state, closes any carried window
      * state first, and reports the id for the adapter's Open Window + slot
@@ -17320,7 +17334,7 @@ public final class EngineServer implements Server, EngineBridge {
         if (world.getBlock(position).identifier()
                 .equals(net.zaminmc.torch.server.block.BuiltinBlocks.TRAPPED_CHEST.identifier())
                 || ChestFacingBlocks.isTrappedFamily(world.getBlock(position))) {
-            redstoneSystem.updateNeighbors(position);
+            trappedChestViewersChangedOnTick(position);
             // Stats.java's own pair: the trapped chest counts its own row
             // (ChestBlock(1).use's incrementStat), never CHESTS_OPENED.
             session.stats().increment(
@@ -17494,7 +17508,33 @@ public final class EngineServer implements Server, EngineBridge {
         } else if (session.openContainerKind() == PlayerSession.ContainerKind.ANVIL) {
             closeAnvilMenuOnTick(session); // the two inputs drop (the reference close)
         } else {
+            // The swap-close is a close too (ChestBlockEntity.onClose
+            // lines 319-326 — the viewer count departs whatever closed
+            // the window); the wake runs AFTER the state clears so the
+            // probe reads the departed count.
+            BlockPosition closingChestAt =
+                    session.openContainerKind() == PlayerSession.ContainerKind.CHEST
+                            ? session.openContainerPosition() : null;
             session.closeContainerWindow();
+            if (closingChestAt != null) {
+                trappedChestCloseWakeOnTick(closingChestAt);
+            }
+        }
+    }
+
+    /**
+     * The close-path trapped wake: the block must still be the trapped
+     * family (the reference's own {@code this.getBlock() instanceof
+     * ChestBlock} gate, ChestBlockEntity.onClose line 320 — a broken
+     * chest's stale window never notifies) before the viewer-count pair.
+     * Tick-thread context.
+     */
+    private void trappedChestCloseWakeOnTick(BlockPosition position) {
+        BlockType block = world.getBlock(position);
+        if (block.identifier().equals(
+                net.zaminmc.torch.server.block.BuiltinBlocks.TRAPPED_CHEST.identifier())
+                || ChestFacingBlocks.isTrappedFamily(block)) {
+            trappedChestViewersChangedOnTick(position);
         }
     }
 
@@ -17517,9 +17557,13 @@ public final class EngineServer implements Server, EngineBridge {
             if (windowId == WIRE_WINDOW_PLAYER) {
                 returnWindowCarriedItems(session, false);
             } else if (windowId == session.openContainerWindowId()) {
-                if (session.openContainerKind() == PlayerSession.ContainerKind.CHEST
-                        && session.openContainerPosition() != null) {
-                    publishChestLid(session.openContainerPosition(), session, false);
+                // The chest close: the lid broadcast and the trapped wake
+                // both read the position BEFORE the window state clears.
+                BlockPosition closingChestAt =
+                        session.openContainerKind() == PlayerSession.ContainerKind.CHEST
+                                ? session.openContainerPosition() : null;
+                if (closingChestAt != null) {
+                    publishChestLid(closingChestAt, session, false);
                 }
                 if (session.openContainerKind() == PlayerSession.ContainerKind.ENDER_CHEST
                         && session.openContainerPosition() != null) {
@@ -17540,6 +17584,14 @@ public final class EngineServer implements Server, EngineBridge {
                 }
                 returnWindowCarriedItems(session, true);
                 session.closeContainerWindow();
+                if (closingChestAt != null) {
+                    // ChestBlockEntity.onClose lines 322-324: the viewer
+                    // count's departure (the window state now cleared, the
+                    // probe reading zero) wakes the chest's own cell and
+                    // the cell below it — the trapped family's wires re-read
+                    // the count, the reference's own notify pair.
+                    trappedChestCloseWakeOnTick(closingChestAt);
+                }
             }
             publishInventoryChanged(session);
         });
