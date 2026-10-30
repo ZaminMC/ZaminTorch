@@ -95,7 +95,7 @@ public final class GravityFalls {
         if (FallingBlockEntity.canFallThrough(
                 FallingBlockEntity.blockOrAir(world, position.offset(0, -1, 0)))) {
             world.setBlock(position, world.airType());
-            fallingEntities.startFall(position, type);
+            fallingEntities.startFall(world, position, type);
         }
     }
 

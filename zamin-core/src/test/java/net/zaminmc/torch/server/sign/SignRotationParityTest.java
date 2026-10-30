@@ -259,7 +259,8 @@ class SignRotationParityTest {
         world.getOrGenerate(new net.zaminmc.torch.block.ChunkPosition(20, 20));
         ItemEntityManager items = new ItemEntityManager((x, y, z) -> false, new Random(11), 3000);
         FallingBlockEntityManager falling = new FallingBlockEntityManager(
-                (x, y, z) -> false, world, (position, stack) -> { }, new Random(12), 3100);
+                (x, y, z) -> false, dimension -> world,
+                (position, stack, dimension) -> { }, new Random(12), 3100);
         BlockUpdateSystem system = new BlockUpdateSystem(world, items, falling);
 
         // Scene A: a sign standing on stone; the stone breaks -> the sign

@@ -47,8 +47,8 @@ class GravityFallsTest {
         world = new EngineWorld("gravity-scene", registry,
                 new FlatWorldGenerator(registry, 4), Thread.currentThread());
         world.getOrGenerate(new ChunkPosition(0, 0));
-        falling = new FallingBlockEntityManager((x, y, z) -> false, world,
-                (position, stack) -> { }, new Random(2), 2000);
+        falling = new FallingBlockEntityManager((x, y, z) -> false, dimension -> world,
+                (position, stack, dimension) -> { }, new Random(2), 2000);
         ItemEntityManager items = new ItemEntityManager((x, y, z) -> false, new Random(1), 1000);
         updates = new BlockUpdateSystem(world, items, falling);
         system = new ScheduledTickSystem(world, new Random(7));

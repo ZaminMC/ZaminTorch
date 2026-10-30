@@ -166,4 +166,59 @@ class NetherBlockUpdateRoutingAcceptanceTest {
         assertTrue(BuiltinBlocks.GLASS.equals(server.world().getBlock(torch)),
                 "the overworld's marker at the same coordinates survives the pop");
     }
+
+    /**
+     * THE FALLING BODY'S LANDING CASE (Wave FL4-F9 — the falling family's
+     * per-dimension row, FL4-F8's named remainder): the converted nether
+     * sand's body falls and LANDS in the nether — the nether's landing
+     * cell takes the sand back while the OVERWORLD's same-coordinate cells
+     * never gain it (the pre-fix overworld-bound landing consult and
+     * commit flew the body through the overworld's cells).
+     */
+    @Test
+    void theNetherFallingBodyLandsInTheNether() throws Exception {
+        EngineWorld nether = server.worldFor(-1);
+        assertEquals(-1, nether.dimension(), "the nether world carries its dimension row");
+
+        int fy = 100;
+        BlockPosition pillar = new BlockPosition(64, fy, 64);
+        BlockPosition sand = new BlockPosition(64, fy + 1, 64);
+        server.ticker().submit(() -> {
+            for (int dx = -2; dx <= 2; dx++) {
+                for (int dz = -2; dz <= 2; dz++) {
+                    nether.setBlock(new BlockPosition(64 + dx, fy - 1, 64 + dz),
+                            BuiltinBlocks.STONE);
+                    for (int y = fy; y <= fy + 3; y++) {
+                        nether.setBlock(new BlockPosition(64 + dx, y, 64 + dz),
+                                nether.airType());
+                    }
+                }
+            }
+            nether.setBlock(pillar, BuiltinBlocks.STONE);
+            nether.setBlock(sand, BuiltinBlocks.SAND);
+            server.world().setBlock(sand, BuiltinBlocks.GLASS);
+        });
+        EngineAwaits.awaitCondition(server.world(),
+                () -> BuiltinBlocks.SAND.equals(nether.getBlock(sand))
+                        && BuiltinBlocks.GLASS.equals(server.world().getBlock(sand)),
+                40, "the nether sand and the overworld marker landed");
+
+        // The support vanishes: the fuse, the conversion, the fall, the
+        // LANDING — one cell down, on the nether's own platform.
+        server.ticker().submit(() -> nether.setBlock(pillar, nether.airType()));
+        EngineAwaits.awaitCondition(server.world(),
+                () -> BuiltinBlocks.SAND.equals(nether.getBlock(pillar)),
+                40, "the falling body landed back in the nether");
+
+        // The overworld's same-coordinate cells never gain the sand: the
+        // landing cell stays air and the marker glass stands (the pre-fix
+        // landing commit would have placed the OVERWORLD's cell).
+        assertTrue(server.world().getBlock(pillar).equals(server.world().airType()),
+                "the overworld's landing cell never took the sand");
+        assertTrue(BuiltinBlocks.GLASS.equals(server.world().getBlock(sand)),
+                "the overworld's marker at the source coordinates survives the fall");
+        assertTrue(server.fallingEntities().all().stream()
+                        .noneMatch(body -> BuiltinBlocks.SAND.equals(body.blockType())),
+                "the body left the flight list on the landing");
+    }
 }

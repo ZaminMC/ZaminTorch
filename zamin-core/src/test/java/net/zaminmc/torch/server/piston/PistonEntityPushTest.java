@@ -354,9 +354,9 @@ class PistonEntityPushTest {
                 server.world().setBlock(new BlockPosition(x, y + 1, z),
                         RedstoneBlocks.leverOf(5, false));
                 falling.set(server.fallingEntities().startFall(
-                        new BlockPosition(x + 2, y, z), BuiltinBlocks.SAND));
+                        server.world(), new BlockPosition(x + 2, y, z), BuiltinBlocks.SAND));
                 far.set(server.fallingEntities().startFall(
-                        new BlockPosition(x + 4, y, z), BuiltinBlocks.SAND));
+                        server.world(), new BlockPosition(x + 4, y, z), BuiltinBlocks.SAND));
             });
             await(() -> falling.get() != null && far.get() != null, "the falls started");
             double before = falling.get().position().x();
@@ -511,7 +511,7 @@ class PistonEntityPushTest {
                 // top and lands through the fall's own first tick — the
                 // flight must still be airborne when the carrier arrives).
                 falling.set(server.fallingEntities().startFall(
-                        new BlockPosition(x, y + 3, z), BuiltinBlocks.SAND));
+                        server.world(), new BlockPosition(x, y + 3, z), BuiltinBlocks.SAND));
             });
             await(() -> falling.get() != null, "the fall started above the slime");
             double before = falling.get().position().y();

@@ -48,8 +48,8 @@ class BlockUpdateSystemTest {
     void sandWithoutSupportConvertsOnTheVanillaTwoTickFuse() {
         world.getOrGenerate(new net.zaminmc.torch.block.ChunkPosition(0, 0));
         ItemEntityManager items = new ItemEntityManager((x, y, z) -> false, new Random(1), 1000);
-        FallingBlockEntityManager falling = new FallingBlockEntityManager((x, y, z) -> false, world,
-                (position, stack) -> { }, new Random(2), 2000);
+        FallingBlockEntityManager falling = new FallingBlockEntityManager((x, y, z) -> false, dimension -> world,
+                (position, stack, dimension) -> { }, new Random(2), 2000);
         BlockUpdateSystem system = new BlockUpdateSystem(world, items, falling);
 
         BlockPosition sandAt = new BlockPosition(1, 8, 1);
@@ -91,7 +91,7 @@ class BlockUpdateSystemTest {
             }
             return !net.zaminmc.torch.server.entity.FallingBlockEntity.canFallThrough(
                     world.getBlock(new BlockPosition((int) Math.floor(x), by, (int) Math.floor(z))));
-        }, world, (position, stack) -> { }, new Random(8), 2300);
+        }, dimension -> world, (position, stack, dimension) -> { }, new Random(8), 2300);
         BlockUpdateSystem system = new BlockUpdateSystem(world, items, falling);
 
         // The flat surface sits at y=4 (grass): a water cell on top, sand
@@ -135,8 +135,8 @@ class BlockUpdateSystemTest {
     void repeatedNeighborRequestsCoalesceIntoOneUpdate() {
         world.getOrGenerate(new net.zaminmc.torch.block.ChunkPosition(5, 5));
         ItemEntityManager items = new ItemEntityManager((x, y, z) -> false, new Random(3), 1100);
-        FallingBlockEntityManager falling = new FallingBlockEntityManager((x, y, z) -> false, world,
-                (position, stack) -> { }, new Random(4), 2100);
+        FallingBlockEntityManager falling = new FallingBlockEntityManager((x, y, z) -> false, dimension -> world,
+                (position, stack, dimension) -> { }, new Random(4), 2100);
         BlockUpdateSystem system = new BlockUpdateSystem(world, items, falling);
 
         BlockPosition sandAt = new BlockPosition(80, 8, 80);
@@ -159,8 +159,8 @@ class BlockUpdateSystemTest {
     void unsupportedTorchPopsAsAnItem() {
         world.getOrGenerate(new net.zaminmc.torch.block.ChunkPosition(9, 9));
         ItemEntityManager items = new ItemEntityManager((x, y, z) -> false, new Random(5), 1200);
-        FallingBlockEntityManager falling = new FallingBlockEntityManager((x, y, z) -> false, world,
-                (position, stack) -> { }, new Random(6), 2200);
+        FallingBlockEntityManager falling = new FallingBlockEntityManager((x, y, z) -> false, dimension -> world,
+                (position, stack, dimension) -> { }, new Random(6), 2200);
         BlockUpdateSystem system = new BlockUpdateSystem(world, items, falling);
 
         BlockPosition torchAt = new BlockPosition(144, 7, 144);
@@ -178,8 +178,8 @@ class BlockUpdateSystemTest {
     void grassUnderAnOpaqueBlockDecaysToDirt() {
         world.getOrGenerate(new net.zaminmc.torch.block.ChunkPosition(12, 12));
         ItemEntityManager items = new ItemEntityManager((x, y, z) -> false, new Random(7), 1300);
-        FallingBlockEntityManager falling = new FallingBlockEntityManager((x, y, z) -> false, world,
-                (position, stack) -> { }, new Random(8), 2300);
+        FallingBlockEntityManager falling = new FallingBlockEntityManager((x, y, z) -> false, dimension -> world,
+                (position, stack, dimension) -> { }, new Random(8), 2300);
         BlockUpdateSystem system = new BlockUpdateSystem(world, items, falling);
 
         BlockPosition grassAt = new BlockPosition(192, 4, 192); // the generator's surface grass
@@ -193,8 +193,8 @@ class BlockUpdateSystemTest {
     void grassUnderGlassOrATorchSurvives() {
         world.getOrGenerate(new net.zaminmc.torch.block.ChunkPosition(13, 13));
         ItemEntityManager items = new ItemEntityManager((x, y, z) -> false, new Random(9), 1400);
-        FallingBlockEntityManager falling = new FallingBlockEntityManager((x, y, z) -> false, world,
-                (position, stack) -> { }, new Random(10), 2400);
+        FallingBlockEntityManager falling = new FallingBlockEntityManager((x, y, z) -> false, dimension -> world,
+                (position, stack, dimension) -> { }, new Random(10), 2400);
         BlockUpdateSystem system = new BlockUpdateSystem(world, items, falling);
 
         BlockPosition grassAt = new BlockPosition(208, 4, 208);

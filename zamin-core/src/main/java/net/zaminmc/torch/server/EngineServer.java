@@ -1074,10 +1074,10 @@ public final class EngineServer implements Server, EngineBridge {
                 // gravity blocks; occupied landings drop as items.
                 FallingBlockEntityManager falling = new FallingBlockEntityManager(
                         shapeGround,
-                        world,
-                        (position, stack) -> itemEntities.spawnDropAtBlock(
+                        this::worldForSafe,
+                        (position, stack, dimension) -> itemEntities.spawnDropAtBlock(
                                 new Position(position.x(), position.y(), position.z()), stack,
-                                ItemEntity.PICKUP_DELAY_DROP_TICKS),
+                                ItemEntity.PICKUP_DELAY_DROP_TICKS, dimension),
                         new java.util.Random(),
                         FALLING_ID_BASE);
                 this.fallingEntities = falling;
@@ -1106,6 +1106,9 @@ public final class EngineServer implements Server, EngineBridge {
                         double minY = landing.y(), maxY = landing.y() + 0.98;
                         double minZ = landing.z() + 0.01, maxZ = landing.z() + 1 - 0.01;
                         for (net.zaminmc.torch.server.entity.MobEntity mob : mobs.all()) {
+                            if (mob.dimension() != entity.dimension()) {
+                                continue; // the body's own world's mobs alone (Wave FL4-F9)
+                            }
                             net.zaminmc.torch.util.Position at = mob.position();
                             if (at.x() >= minX && at.x() <= maxX && at.y() >= minY
                                     && at.y() <= maxY && at.z() >= minZ && at.z() <= maxZ) {
@@ -1116,6 +1119,9 @@ public final class EngineServer implements Server, EngineBridge {
                             if (body.state() != net.zaminmc.torch.entity.PlayerState.PLAYING
                                     || body.gamemode() == GameMode.SPECTATOR) {
                                 continue; // canAvoidTraps
+                            }
+                            if (body.dimension() != entity.dimension()) {
+                                continue; // the body's own world's players alone (Wave FL4-F9)
                             }
                             net.zaminmc.torch.util.Position at = body.position();
                             if (at.x() >= minX && at.x() <= maxX && at.y() >= minY
