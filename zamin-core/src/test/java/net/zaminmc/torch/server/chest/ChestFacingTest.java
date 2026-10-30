@@ -138,10 +138,21 @@ class ChestFacingTest {
         // The perpendicular arm: the look west (the facing runs east-west)
         // with a same-kind neighbour to the SOUTH of the target — the pair
         // aligns on the new state (the neighbour re-faces east, the new
-        // chest faces east).
+        // chest faces east). The neighbour must be a LONE chest: the
+        // reference's canBePlaced (ChestBlock lines 244-284, consulted
+        // through BlockItem.useOn line 43's World.canPlace) refuses any
+        // placement beside an ALREADY-DOUBLED chest — the pre-fix seat
+        // placed the third chest beside the pair itself, a placement
+        // vanilla never allows; the re-pinned neighbour is a fresh lone
+        // chest two cells clear of the pair.
         builder.applyMovement(builder.position(),
                 new net.zaminmc.torch.util.Rotation(90.0f, 0.0f), true); // the west look
-        BlockPosition floorFurtherNorth = floor.offset(0, 0, -2);
+        BlockPosition loneFloor = floor.offset(0, 0, -4);
+        BlockPosition loneAtop = loneFloor.offset(0, 1, 0);
+        server.ticker().submit(() -> world.setBlock(loneAtop, BuiltinBlocks.CHEST));
+        await(() -> world.getBlock(loneAtop).equals(BuiltinBlocks.CHEST),
+                "the lone perpendicular neighbour seeded");
+        BlockPosition floorFurtherNorth = floor.offset(0, 0, -5);
         BlockPosition atopFurtherNorth = floorFurtherNorth.offset(0, 1, 0);
         server.ticker().submit(() -> world.setBlock(floorFurtherNorth, BuiltinBlocks.STONE));
         await(() -> world.getBlock(floorFurtherNorth).equals(BuiltinBlocks.STONE),
@@ -149,7 +160,7 @@ class ChestFacingTest {
         useOn(builder, floorFurtherNorth, 1);
         assertEquals("minecraft:chest_east", world.getBlock(atopFurtherNorth).identifier().toString(),
                 "the west look's opposite writes the east front");
-        assertEquals("minecraft:chest_east", world.getBlock(atopNorth).identifier().toString(),
+        assertEquals("minecraft:chest_east", world.getBlock(loneAtop).identifier().toString(),
                 "the perpendicular neighbour re-faces to the new state");
         server.shutdown(null);
     }

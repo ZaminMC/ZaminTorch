@@ -185,6 +185,8 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     // transfer, the world side's own writes — one open window at a time,
     // same shape as the furnace's).
     private int chestSlotsSynced = -1;
+    /** The merged double window's SECOND half serial (the pair view fan). */
+    private int chestPairSlotsSynced = -1;
     private int hopperSlotsSynced = -1;
     private int dispenserSlotsSynced = -1;
 
@@ -1706,24 +1708,51 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         if (channel == null || !channel.isActive() || state != WireState.PLAY) {
             return;
         }
+        // The merged pair's pin (the reference's DoubleInventory,
+        // constructed once at the open): a pinned pair widens the window
+        // to the 6x9 double layout with the merged title law
+        // (DoubleInventory.getName lines 47-53: the FIRST half's custom
+        // name, then the second's, then "container.chestDouble").
+        var pairFirst = player.openContainerPairFirst();
+        var pairSecond = player.openContainerPairSecond();
+        boolean merged = pairFirst != null && pairSecond != null;
+        var firstChest = merged ? engine.chests().peek(pairFirst) : null;
+        var secondChest = merged ? engine.chests().peek(pairSecond) : null;
+        merged = merged && firstChest != null && secondChest != null;
         ByteBuf out = Unpooled.buffer(48);
         ByteBufOps.writeVarInt(out, Protocol18.S2C_OPEN_WINDOW);
         out.writeByte(windowId);
         ByteBufOps.writeString(out, Protocol18.CHEST_WINDOW_TYPE);
-        var openPos = player.openContainerPosition();
-        var namedChest = openPos == null ? null : engine.chests().peek(openPos);
-        ByteBufOps.writeString(out, windowTitle(
-                namedChest == null ? null : namedChest.customName(),
-                Protocol18.CHEST_WINDOW_TITLE));
-        out.writeByte(27); // the GUI's own slots: 3 rows of 9
+        String customName = null;
+        String familyTitle = Protocol18.CHEST_WINDOW_TITLE;
+        if (merged) {
+            customName = firstChest.customName();
+            if (customName == null) {
+                customName = secondChest.customName();
+            }
+            familyTitle = Protocol18.DOUBLE_CHEST_WINDOW_TITLE;
+        } else {
+            var openPos = player.openContainerPosition();
+            var namedChest = openPos == null ? null : engine.chests().peek(openPos);
+            customName = namedChest == null ? null : namedChest.customName();
+        }
+        ByteBufOps.writeString(out, windowTitle(customName, familyTitle));
+        out.writeByte(merged ? 54 : 27); // the GUI's own slots: 6x9 or 3x9
         enqueueOut(out);
-        sendContainerWindowItems(channel, windowId, player);
-        // The §27 window family: capture the serial the open just synced —
-        // the per-tick view fan then re-syncs only on a later change.
-        var openAt = player.openContainerPosition();
-        var openedChest = openAt == null ? null : engine.chests().peek(openAt);
-        if (openedChest != null) {
-            chestSlotsSynced = openedChest.slotsSerial();
+        if (merged) {
+            sendDoubleChestWindowItems(channel, windowId, firstChest, secondChest, player);
+            chestSlotsSynced = firstChest.slotsSerial();
+            chestPairSlotsSynced = secondChest.slotsSerial();
+        } else {
+            sendContainerWindowItems(channel, windowId, player);
+            // The §27 window family: capture the serial the open just
+            // synced — the per-tick view fan then re-syncs only on a later
+            // change.
+            var openAt = player.openContainerPosition();
+            var openedChest = openAt == null ? null : engine.chests().peek(openAt);
+            if (openedChest != null) {
+                chestSlotsSynced = openedChest.slotsSerial();
+            }
         }
     }
 
@@ -2235,8 +2264,20 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
      * thread by the adapter's fan-out.
      */
     void sendChestViewTick(Channel channel, int windowId,
-                           net.zaminmc.torch.server.chest.ChestBlockEntity chest) {
+                           net.zaminmc.torch.server.chest.ChestBlockEntity chest,
+                           net.zaminmc.torch.server.chest.ChestBlockEntity secondHalf) {
         if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        if (secondHalf != null) {
+            // The merged window re-syncs when EITHER half moved (the
+            // reference's DoubleInventory serving one menu over both).
+            if (chest.slotsSerial() != chestSlotsSynced
+                    || secondHalf.slotsSerial() != chestPairSlotsSynced) {
+                chestSlotsSynced = chest.slotsSerial();
+                chestPairSlotsSynced = secondHalf.slotsSerial();
+                sendDoubleChestWindowItems(channel, windowId, chest, secondHalf, session);
+            }
             return;
         }
         if (chest.slotsSerial() != chestSlotsSynced) {
@@ -4236,6 +4277,44 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                     net.zaminmc.torch.server.item.BuiltinItems.IRON_HORSE_ARMOR, 1);
             default -> net.zaminmc.torch.item.ItemStack.EMPTY;
         };
+    }
+
+    /**
+     * Full authoritative sync of the MERGED double-chest window (the
+     * reference's DoubleInventory over ChestMenu): 90 slots — 0-53 the
+     * pair in join order (the first half's 27 then the second's), 54-80
+     * main inventory (engine 9-35), 81-89 hotbar (engine 0-8). Any thread.
+     */
+    private void sendDoubleChestWindowItems(Channel channel, int windowId,
+                                             net.zaminmc.torch.server.chest.ChestBlockEntity first,
+                                             net.zaminmc.torch.server.chest.ChestBlockEntity second,
+                                             PlayerSession player) {
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(128);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_WINDOW_ITEMS);
+        out.writeByte(windowId);
+        out.writeShort(Protocol18.DOUBLE_CHEST_WINDOW_SLOTS);
+        var firstSlots = first.snapshotSlots();
+        var secondSlots = second.snapshotSlots();
+        java.util.List<net.zaminmc.torch.item.ItemStack> inventory =
+                player == null ? java.util.List.of() : player.inventory().snapshot();
+        for (int wireSlot = 0; wireSlot < Protocol18.DOUBLE_CHEST_WINDOW_SLOTS; wireSlot++) {
+            net.zaminmc.torch.item.ItemStack stack;
+            if (wireSlot <= Protocol18.CHEST_WIRE_SLOT_LAST) {
+                stack = firstSlots[wireSlot];
+            } else if (wireSlot <= Protocol18.DOUBLE_CHEST_WIRE_SLOT_LAST) {
+                // 27-53: the second half's own 0-26.
+                stack = secondSlots[wireSlot - Protocol18.CHEST_WIRE_SLOT_MAIN_FIRST];
+            } else if (wireSlot <= Protocol18.DOUBLE_CHEST_WIRE_SLOT_MAIN_LAST) {
+                stack = inventory.get(wireSlot - Protocol18.DOUBLE_CHEST_WIRE_SLOT_MAIN_FIRST + 9);
+            } else {
+                stack = inventory.get(wireSlot - Protocol18.DOUBLE_CHEST_WIRE_SLOT_HOTBAR_FIRST);
+            }
+            writeSlot(out, stack);
+        }
+        enqueueOut(out);
     }
 
     /**

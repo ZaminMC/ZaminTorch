@@ -158,6 +158,12 @@ public final class EngineServer implements Server, EngineBridge {
     private static final int CHEST_WIRE_SLOT_MAIN_LAST = 53;
     private static final int CHEST_WIRE_SLOT_HOTBAR_FIRST = 54;
     private static final int CHEST_WIRE_SLOT_HOTBAR_LAST = 62;
+    /** Double-chest window wire slots (the reference's DoubleInventory over ChestMenu: 6x9 = 54 container slots, then main 27, hotbar 9). */
+    private static final int DOUBLE_CHEST_WIRE_SLOT_LAST = 53;
+    private static final int DOUBLE_CHEST_WIRE_SLOT_MAIN_FIRST = 54;
+    private static final int DOUBLE_CHEST_WIRE_SLOT_MAIN_LAST = 80;
+    private static final int DOUBLE_CHEST_WIRE_SLOT_HOTBAR_FIRST = 81;
+    private static final int DOUBLE_CHEST_WIRE_SLOT_HOTBAR_LAST = 89;
 
     /** The hopper window's wire layout (the reference's HopperMenu): 5
      *  container slots, then the main inventory 5-31, then the hotbar 32-40. */
@@ -1665,7 +1671,10 @@ public final class EngineServer implements Server, EngineBridge {
                 });
                 // The trapped chest's viewer count (Slice 49b —
                 // ChestBlock.getSignal lines 379-392: the sessions holding
-                // this chest's window open, clamped 0-15 on the wire).
+                // this chest's window open, clamped 0-15 on the wire). A
+                // MERGED pair window counts for BOTH halves (the reference's
+                // DoubleInventory.onOpen/onClose lines 110-119 walk both —
+                // the menu's pinned halves, never a fresh world consult).
                 redstoneSystem.setTrappedChestViewers(position -> {
                     int viewers = 0;
                     for (PlayerSession body : players.all()) {
@@ -1674,11 +1683,16 @@ public final class EngineServer implements Server, EngineBridge {
                                 || body.openContainerPosition() == null) {
                             continue;
                         }
-                        if (body.openContainerPosition().equals(position)
-                                && world.getBlock(position).identifier()
-                                        .equals(net.zaminmc.torch.server.block.BuiltinBlocks
-                                                .TRAPPED_CHEST.identifier())) {
-                            viewers++;
+                        if (position.equals(body.openContainerPosition())
+                                || position.equals(body.openContainerPairFirst())
+                                || position.equals(body.openContainerPairSecond())) {
+                            if (world.getBlock(position).identifier()
+                                    .equals(net.zaminmc.torch.server.block.BuiltinBlocks
+                                            .TRAPPED_CHEST.identifier())
+                                    || ChestFacingBlocks.isTrappedFamily(
+                                            world.getBlock(position))) {
+                                viewers++;
+                            }
                         }
                     }
                     return viewers;
@@ -1712,10 +1726,17 @@ public final class EngineServer implements Server, EngineBridge {
                             || ChestFacingBlocks.isPlainFamily(block)
                             || block.identifier().equals(BuiltinBlocks.TRAPPED_CHEST.identifier())
                             || ChestFacingBlocks.isTrappedFamily(block)) {
-                        net.zaminmc.torch.server.chest.ChestBlockEntity chest = chestManager.peek(position);
-                        return chest == null ? 0
+                        // ChestBlock.getAnalogSignal line 430: the MERGED
+                        // pair's fullness (InventoryMenu.getAnalogSignal over
+                        // the DoubleInventory — 54 slots when the twin
+                        // exists); a LOCKED view answers 0 (getInventory's
+                        // null, lines 346/354).
+                        net.zaminmc.torch.server.chest.ChestPairs.View view =
+                                net.zaminmc.torch.server.chest.ChestPairs.resolve(
+                                        world, chestManager, mobManager, position);
+                        return view == null ? 0
                                 : net.zaminmc.torch.server.redstone.RedstoneSystem.containerFullness(
-                                        chest.snapshotSlots(), 64);
+                                        view.snapshotAll(), 64);
                     }
                     if (net.zaminmc.torch.server.hopper.HopperBlocks.isHopper(block)) {
                         net.zaminmc.torch.server.hopper.HopperBlockEntity hopper =
@@ -2395,6 +2416,10 @@ public final class EngineServer implements Server, EngineBridge {
                         config.worldDataDir().resolve("beacons.bin"));
                 beaconSystem.restoreAll(beaconStore.load());
                 hopperSystem.setBrewingLookup(brewingStands::getOrCreate);
+                // The chest lock's ocelot consult (ChestBlock.isLockedByOcelot
+                // through getInventoryAt's getInventory): the mob manager's
+                // sitting ocelots above a chest refuse the transfer view.
+                hopperSystem.setMobLookup(mobManager);
                 // The rolling containers' scan (Slice 25e — getInventoryAt's
                 // entity fallback): the chest minecarts inside the cell's
                 // 1x1x1 box, the hopper's cart arm.
@@ -5245,7 +5270,8 @@ public final class EngineServer implements Server, EngineBridge {
      */
     public interface ChestViewListener {
         void onChestViewTick(PlayerSession viewer,
-                              net.zaminmc.torch.server.chest.ChestBlockEntity chest);
+                              net.zaminmc.torch.server.chest.ChestBlockEntity chest,
+                              net.zaminmc.torch.server.chest.ChestBlockEntity secondHalf);
     }
 
     private final java.util.List<ChestViewListener> chestViewListeners =
@@ -5261,7 +5287,9 @@ public final class EngineServer implements Server, EngineBridge {
      * ender chest reads the session's own grid (the block at the window's
      * position is the door, not the storage); the chest minecart resolves
      * by the mount id (the cart's chest is standalone — its writes ride
-     * the same serial). Tick-thread context.
+     * the same serial). A MERGED double window passes BOTH pinned halves
+     * (either half's change re-syncs the 54-slot view — the reference's
+     * DoubleInventory serving one menu). Tick-thread context.
      */
     private void tickChestViewers() {
         if (chestViewListeners.isEmpty()) {
@@ -5269,10 +5297,18 @@ public final class EngineServer implements Server, EngineBridge {
         }
         for (PlayerSession session : players.all()) {
             net.zaminmc.torch.server.chest.ChestBlockEntity chest = null;
+            net.zaminmc.torch.server.chest.ChestBlockEntity second = null;
             switch (session.openContainerKind()) {
                 case CHEST -> {
-                    var position = session.openContainerPosition();
-                    chest = position == null ? null : chestManager.peek(position);
+                    var pairFirst = session.openContainerPairFirst();
+                    var pairSecond = session.openContainerPairSecond();
+                    if (pairFirst != null && pairSecond != null) {
+                        chest = chestManager.peek(pairFirst);
+                        second = chestManager.peek(pairSecond);
+                    } else {
+                        var position = session.openContainerPosition();
+                        chest = position == null ? null : chestManager.peek(position);
+                    }
                 }
                 case ENDER_CHEST -> chest = session.enderChest();
                 case CHEST_MINECART -> {
@@ -5285,11 +5321,12 @@ public final class EngineServer implements Server, EngineBridge {
                     continue;
                 }
             }
-            if (chest == null) {
-                continue;
+            if (chest == null || (second == null
+                    && session.openContainerPairSecond() != null)) {
+                continue; // a merged half died: the stale window syncs nothing
             }
             for (ChestViewListener listener : chestViewListeners) {
-                listener.onChestViewTick(session, chest);
+                listener.onChestViewTick(session, chest, second);
             }
         }
     }
@@ -9145,6 +9182,22 @@ public final class EngineServer implements Server, EngineBridge {
         switch (session.openContainerKind()) {
             case CHEST -> {
                 var position = session.openContainerPosition();
+                var pairFirst = session.openContainerPairFirst();
+                var pairSecond = session.openContainerPairSecond();
+                boolean merged = pairFirst != null && pairSecond != null;
+                if (merged) {
+                    if (chestManager.peek(pairFirst) == null
+                            || chestManager.peek(pairSecond) == null) {
+                        return "stale-chest";
+                    }
+                    if (wireSlot >= 0 && wireSlot <= DOUBLE_CHEST_WIRE_SLOT_LAST) {
+                        return "chest-slot-mode-gate";
+                    }
+                    if (doubleChestEngineSlotOf(wireSlot) < 0) {
+                        return "slot-out-of-range";
+                    }
+                    return "chest-click-refused";
+                }
                 if (position == null || chestManager.peek(position) == null) {
                     return "stale-chest";
                 }
@@ -9434,17 +9487,46 @@ public final class EngineServer implements Server, EngineBridge {
                 return playerTailSlot(inventory, tableEngineSlotOf(wireSlot));
             }
             case CHEST, ENDER_CHEST -> {
-                net.zaminmc.torch.server.chest.ChestBlockEntity chest =
-                        session.openContainerKind() == PlayerSession.ContainerKind.CHEST
-                                ? chestManager.peek(session.openContainerPosition())
-                                : session.enderChest();
-                if (chest == null) {
+                if (session.openContainerKind() == PlayerSession.ContainerKind.CHEST) {
+                    // The merged pair's pin widens the paintable band to
+                    // 54 (0-26 the first half, 27-53 the second) with the
+                    // player tail behind it (54-80 main, 81-89 hotbar).
+                    var pairFirst = session.openContainerPairFirst();
+                    var pairSecond = session.openContainerPairSecond();
+                    if (pairFirst != null && pairSecond != null) {
+                        var first = chestManager.peek(pairFirst);
+                        var second = chestManager.peek(pairSecond);
+                        if (first == null || second == null) {
+                            return null; // a half died: the stale window paints nothing
+                        }
+                        if (wireSlot >= 0 && wireSlot <= DOUBLE_CHEST_WIRE_SLOT_LAST) {
+                            var half = mergedHalfOf(first, second, wireSlot);
+                            int local = mergedLocalOf(wireSlot);
+                            return containerSlot(
+                                    () -> half.getItem(local),
+                                    stack -> half.setSlot(local, stack), 64);
+                        }
+                        return playerTailSlot(inventory, doubleChestEngineSlotOf(wireSlot));
+                    }
+                    var chest = chestManager.peek(session.openContainerPosition());
+                    if (chest == null) {
+                        return null;
+                    }
+                    if (wireSlot >= 0 && wireSlot <= CHEST_WIRE_SLOT_LAST) {
+                        return containerSlot(
+                                () -> chest.getItem(wireSlot),
+                                stack -> chest.setSlot(wireSlot, stack), 64);
+                    }
+                    return playerTailSlot(inventory, chestEngineSlotOf(wireSlot));
+                }
+                var ender = session.enderChest();
+                if (ender == null) {
                     return null;
                 }
                 if (wireSlot >= 0 && wireSlot <= CHEST_WIRE_SLOT_LAST) {
                     return containerSlot(
-                            () -> chest.getItem(wireSlot),
-                            stack -> chest.setSlot(wireSlot, stack), 64);
+                            () -> ender.getItem(wireSlot),
+                            stack -> ender.setSlot(wireSlot, stack), 64);
                 }
                 return playerTailSlot(inventory, chestEngineSlotOf(wireSlot));
             }
@@ -10428,24 +10510,47 @@ public final class EngineServer implements Server, EngineBridge {
 
     /**
      * Click routing for the open chest container window (protocol 47
-     * community-verified GUI: 0-26 chest, 27-53 main inventory, 54-62 hotbar).
+     * community-verified GUI: 0-26 chest, 27-53 main inventory, 54-62 hotbar;
+     * the MERGED double window: 0-53 the pair in join order, 54-80 main,
+     * 81-89 hotbar — the reference's DoubleInventory over ChestMenu).
      * Tick-thread context.
      */
     private boolean clickChestWindowOnTick(PlayerSession session, int wireSlot, int button,
                                            int mode) {
         var inventory = session.inventory();
         var position = session.openContainerPosition();
-        var chest = position == null ? null : chestManager.peek(position);
-        if (chest == null) {
-            return false; // stale window (state discarded): rejected, resync restores
+        // The merged pair's pin (the reference's DoubleInventory, constructed
+        // once at the open): when present the window is 54 slots wide over
+        // the pinned halves — a half whose state died (broken while open)
+        // rejects the whole window like the single stale shape.
+        var pairFirst = session.openContainerPairFirst();
+        var pairSecond = session.openContainerPairSecond();
+        net.zaminmc.torch.server.chest.ChestBlockEntity first = null;
+        net.zaminmc.torch.server.chest.ChestBlockEntity second = null;
+        boolean merged = pairFirst != null && pairSecond != null;
+        if (merged) {
+            first = chestManager.peek(pairFirst);
+            second = chestManager.peek(pairSecond);
+            if (first == null || second == null) {
+                return false; // a half's state died: stale window, resync restores
+            }
+        } else {
+            var chest = position == null ? null : chestManager.peek(position);
+            if (chest == null) {
+                return false; // stale window (state discarded): rejected, resync restores
+            }
+            first = chest;
         }
+        int containerLast = merged ? DOUBLE_CHEST_WIRE_SLOT_LAST : CHEST_WIRE_SLOT_LAST;
         switch (mode) {
             case 0 -> {
-                if (wireSlot >= 0 && wireSlot <= CHEST_WIRE_SLOT_LAST) {
-                    chest.clickSlot(wireSlot, button, inventory);
+                if (wireSlot >= 0 && wireSlot <= containerLast) {
+                    mergedHalfOf(first, second, wireSlot).clickSlot(
+                            mergedLocalOf(wireSlot), button, inventory);
                     return true;
                 }
-                int engineSlot = chestEngineSlotOf(wireSlot);
+                int engineSlot = merged ? doubleChestEngineSlotOf(wireSlot)
+                        : chestEngineSlotOf(wireSlot);
                 if (engineSlot >= 0) {
                     inventory.clickSlot(engineSlot, button);
                     return true;
@@ -10453,11 +10558,13 @@ public final class EngineServer implements Server, EngineBridge {
                 return false;
             }
             case 1 -> {
-                if (wireSlot >= 0 && wireSlot <= CHEST_WIRE_SLOT_LAST) {
-                    chest.quickMoveToInventory(wireSlot, inventory);
+                if (wireSlot >= 0 && wireSlot <= containerLast) {
+                    mergedHalfOf(first, second, wireSlot).quickMoveToInventory(
+                            mergedLocalOf(wireSlot), inventory);
                     return true;
                 }
-                int engineSlot = chestEngineSlotOf(wireSlot);
+                int engineSlot = merged ? doubleChestEngineSlotOf(wireSlot)
+                        : chestEngineSlotOf(wireSlot);
                 if (engineSlot >= 0) {
                     // Any stack moves in: a chest has no slot filters (the
                     // historical TileEntityChest). Remainder returns to the slot.
@@ -10472,7 +10579,9 @@ public final class EngineServer implements Server, EngineBridge {
                         return true;
                     }
                     net.zaminmc.torch.item.ItemStack moving = inventory.dropFromSlot(engineSlot, true);
-                    net.zaminmc.torch.item.ItemStack remainder = chest.quickMoveIn(moving);
+                    net.zaminmc.torch.item.ItemStack remainder = merged
+                            ? first.quickMoveInPair(second, moving)
+                            : first.quickMoveIn(moving);
                     if (!remainder.isEmpty()) {
                         inventory.pickUp(remainder); // chest full: put the rest back
                     }
@@ -10483,7 +10592,8 @@ public final class EngineServer implements Server, EngineBridge {
             case 2 -> {
                 // Number keys exchange main inventory and hotbar only; chest
                 // slots are rejected per packet (the resync restores truth).
-                int engineSlot = chestEngineSlotOf(wireSlot);
+                int engineSlot = merged ? doubleChestEngineSlotOf(wireSlot)
+                        : chestEngineSlotOf(wireSlot);
                 if (engineSlot >= net.zaminmc.torch.server.player.PlayerInventory.HOTBAR_SLOTS
                         && button >= 0 && button < 9) {
                     inventory.swapWithHotbar(engineSlot, button);
@@ -10495,14 +10605,16 @@ public final class EngineServer implements Server, EngineBridge {
                 return false; // middle-click clone: rejected in survival
             }
             case 4 -> {
-                if (wireSlot >= 0 && wireSlot <= CHEST_WIRE_SLOT_LAST) {
-                    net.zaminmc.torch.item.ItemStack dropped = chest.dropFromSlot(wireSlot, button != 0);
+                if (wireSlot >= 0 && wireSlot <= containerLast) {
+                    net.zaminmc.torch.item.ItemStack dropped = mergedHalfOf(first, second, wireSlot)
+                            .dropFromSlot(mergedLocalOf(wireSlot), button != 0);
                     if (!dropped.isEmpty()) {
                         throwFromPlayer(session, dropped);
                     }
                     return true;
                 }
-                int engineSlot = chestEngineSlotOf(wireSlot);
+                int engineSlot = merged ? doubleChestEngineSlotOf(wireSlot)
+                        : chestEngineSlotOf(wireSlot);
                 if (engineSlot >= 0) {
                     net.zaminmc.torch.item.ItemStack dropped =
                             inventory.dropFromSlot(engineSlot, button != 0);
@@ -10517,6 +10629,37 @@ public final class EngineServer implements Server, EngineBridge {
                 return false; // drag painting (5) / unknown mode: rejected
             }
         }
+    }
+
+    /** The half owning a merged wire slot (0-26 the first, 27-53 the second). */
+    private static net.zaminmc.torch.server.chest.ChestBlockEntity mergedHalfOf(
+            net.zaminmc.torch.server.chest.ChestBlockEntity first,
+            net.zaminmc.torch.server.chest.ChestBlockEntity second, int wireSlot) {
+        return second != null && wireSlot > CHEST_WIRE_SLOT_LAST ? second : first;
+    }
+
+    /** The merged wire slot's own index inside its half. */
+    private static int mergedLocalOf(int wireSlot) {
+        return wireSlot > CHEST_WIRE_SLOT_LAST
+                ? wireSlot - (CHEST_WIRE_SLOT_LAST + 1) : wireSlot;
+    }
+
+    /**
+     * Wire slot -&gt; engine slot inside a MERGED double-chest window (54-80
+     * maps to main inventory engine slots 9-35; 81-89 to hotbar 0-8); -1
+     * for the pair's own 54 slots.
+     */
+    private static int doubleChestEngineSlotOf(int wireSlot) {
+        if (wireSlot >= DOUBLE_CHEST_WIRE_SLOT_MAIN_FIRST
+                && wireSlot <= DOUBLE_CHEST_WIRE_SLOT_MAIN_LAST) {
+            return wireSlot - DOUBLE_CHEST_WIRE_SLOT_MAIN_FIRST
+                    + net.zaminmc.torch.server.player.PlayerInventory.HOTBAR_SLOTS;
+        }
+        if (wireSlot >= DOUBLE_CHEST_WIRE_SLOT_HOTBAR_FIRST
+                && wireSlot <= DOUBLE_CHEST_WIRE_SLOT_HOTBAR_LAST) {
+            return wireSlot - DOUBLE_CHEST_WIRE_SLOT_HOTBAR_FIRST; // hotbar (engine 0-8)
+        }
+        return -1;
     }
 
     /**
@@ -12801,6 +12944,13 @@ public final class EngineServer implements Server, EngineBridge {
                 || !canOccupyForPlacement(target)) {
             return;
         }
+        // ChestBlock.canBePlaced lines 244-284 (through World.canPlace lines
+        // 2274-2282): a chest never places beside TWO same-type chests, nor
+        // beside a chest that is itself already doubled — no triples, no
+        // quads, the merged pair's own formation rule.
+        if (!net.zaminmc.torch.server.chest.ChestPairs.canPlaceChestAt(world, target, trappedKind)) {
+            return;
+        }
         if (intersectsPlayerBox(session.position(), target)) {
             return; // the vanilla body rule (the reference's own entity collision check)
         }
@@ -12857,11 +13007,22 @@ public final class EngineServer implements Server, EngineBridge {
         consumePlaced(session, creativeHeld);
     }
 
-    /** Whether the cell holds the same kind of chest (the plain or the trapped family alone). */
+    /**
+     * Whether the cell holds the same kind of chest (the plain or the
+     * trapped family alone). The reference's consult is {@code block ==
+     * this} — the BLOCK identity, every state form alike: the base form
+     * (an anvil import, an authoritative setBlock) is the SAME chest as
+     * any facing state, so the walk's family test covers both (the
+     * no-triple gate's own consult — {@code ChestPairs.canPlaceChestAt} —
+     * already reads the whole family; the walk and the gate agree).
+     */
     private boolean sameChestKindAt(BlockPosition position, boolean trapped) {
         BlockType block = world.getBlock(position);
-        return trapped ? net.zaminmc.torch.server.chest.ChestFacingBlocks.isTrappedFamily(block)
-                : net.zaminmc.torch.server.chest.ChestFacingBlocks.isPlainFamily(block);
+        return trapped
+                ? net.zaminmc.torch.server.chest.ChestFacingBlocks.isTrappedFamily(block)
+                        || block.identifier().equals(BuiltinBlocks.TRAPPED_CHEST.identifier())
+                : net.zaminmc.torch.server.chest.ChestFacingBlocks.isPlainFamily(block)
+                        || block.identifier().equals(BuiltinBlocks.CHEST.identifier());
     }
 
     /**
@@ -17302,25 +17463,71 @@ public final class EngineServer implements Server, EngineBridge {
         closeOpenContainerOnTick(session);
         dropGridToWorld(session, session.crafting()); // the vanilla close: the 2x2 grid drops
 
-        var chest = chestManager.getOrCreate(position);
-        if (containerLockedAgainst(session, chest.lockKey(), chest.customName(), "Chest")) {
+        // ChestBlock.use lines 321-337 -> getInventory lines 339-370: the
+        // merged view resolves BEFORE anything opens — null (a solid block
+        // or a sitting ocelot above EITHER half) answers the reference's
+        // own no-window return, no stat, no lid.
+        net.zaminmc.torch.server.chest.ChestPairs.View view =
+                net.zaminmc.torch.server.chest.ChestPairs.resolve(
+                        world, chestManager, mobManager, position);
+        if (view == null) {
+            return; // the locked view: the use consumed, nothing opens
+        }
+        var chest = view.first();
+        var second = view.second();
+        // The lock-KEY gate (openChestMenu's own walk): the pair consults
+        // BOTH halves (DoubleInventory.isLocked reads either half, line
+        // 142) with the FIRST half's key (getLock, line 153).
+        String lockKey = chest.lockKey();
+        if (lockKey == null || lockKey.isEmpty()) {
+            lockKey = second == null ? null : second.lockKey();
+        }
+        String customName = chest.customName();
+        if (customName == null && second != null) {
+            customName = second.customName();
+        }
+        if (containerLockedAgainst(session, lockKey, customName, "Chest")) {
             return; // the reference's lock-out: no window
         }
         int windowId = nextContainerWindowId;
         nextContainerWindowId = nextContainerWindowId >= LAST_CONTAINER_WINDOW_ID
                 ? FIRST_CONTAINER_WINDOW_ID : nextContainerWindowId + 1;
         session.openContainerWindow(windowId, PlayerSession.ContainerKind.CHEST, position);
+        if (second != null) {
+            // The merged window pins its halves once (the reference
+            // constructs the DoubleInventory at the open, lines 361-363):
+            // the click routing, the view fan and the close walk read the
+            // pin, never a fresh world consult. The FIRST half is the
+            // clicked chest unless the twin sits WEST/NORTH.
+            session.pinChestPair(view.firstPos(), view.secondPos());
+        }
         onTableOpened.accept(windowId);
         // The lid swings for every other observer (the historical Block
-        // Action 1; the opener's client animates its own view).
+        // Action 1; the opener's client animates its own view) — the merged
+        // pair's DoubleInventory.onOpen calls BOTH halves (lines 110-113),
+        // so both lids swing (the pair's OWN firstPos/secondPos — the
+        // clicked chest is one of the two, whichever side its twin sits).
         publishChestLid(position, session, true);
+        if (second != null) {
+            BlockPosition twin = position.equals(view.firstPos())
+                    ? view.secondPos() : view.firstPos();
+            publishChestLid(twin, session, true);
+        }
         // Slice 49b: the trapped chest's viewer count changed — the
         // neighbors re-evaluate (ChestBlockEntity's own onOpen notify).
-        // Slice L2: the four facing states join the family consult.
-        if (world.getBlock(position).identifier()
+        // Slice L2: the four facing states join the family consult. The
+        // merged pair's onOpen notifies BOTH halves (the trapped pair is
+        // same-kind: both halves are trapped).
+        boolean trapped = world.getBlock(position).identifier()
                 .equals(net.zaminmc.torch.server.block.BuiltinBlocks.TRAPPED_CHEST.identifier())
-                || ChestFacingBlocks.isTrappedFamily(world.getBlock(position))) {
+                || ChestFacingBlocks.isTrappedFamily(world.getBlock(position));
+        if (trapped) {
             redstoneSystem.updateNeighbors(position);
+            if (second != null) {
+                BlockPosition twin = position.equals(view.firstPos())
+                        ? view.secondPos() : view.firstPos();
+                redstoneSystem.updateNeighbors(twin);
+            }
             // Stats.java's own pair: the trapped chest counts its own row
             // (ChestBlock(1).use's incrementStat), never CHESTS_OPENED.
             session.stats().increment(
@@ -17520,6 +17727,19 @@ public final class EngineServer implements Server, EngineBridge {
                 if (session.openContainerKind() == PlayerSession.ContainerKind.CHEST
                         && session.openContainerPosition() != null) {
                     publishChestLid(session.openContainerPosition(), session, false);
+                    // The merged pair's close walks BOTH halves (the
+                    // reference's DoubleInventory.onClose, lines 116-119):
+                    // the twin's lid closes with the clicked half's.
+                    var closedPairFirst = session.openContainerPairFirst();
+                    var closedPairSecond = session.openContainerPairSecond();
+                    if (closedPairFirst != null && closedPairSecond != null) {
+                        if (!closedPairFirst.equals(session.openContainerPosition())) {
+                            publishChestLid(closedPairFirst, session, false);
+                        }
+                        if (!closedPairSecond.equals(session.openContainerPosition())) {
+                            publishChestLid(closedPairSecond, session, false);
+                        }
+                    }
                 }
                 if (session.openContainerKind() == PlayerSession.ContainerKind.ENDER_CHEST
                         && session.openContainerPosition() != null) {
@@ -23066,7 +23286,17 @@ public final class EngineServer implements Server, EngineBridge {
                 }
                 if (player.openContainerKind() == PlayerSession.ContainerKind.CHEST) {
                     var open = player.openContainerPosition();
-                    if (open != null && open.x() == x && open.y() == y && open.z() == z) {
+                    // The merged pair's window counts on EITHER half (the
+                    // reference's DoubleInventory.onOpen increments both
+                    // viewerCounts — the ocelot's own perch gate reads the
+                    // field, line 64).
+                    var pairFirst = player.openContainerPairFirst();
+                    var pairSecond = player.openContainerPairSecond();
+                    if ((open != null && open.x() == x && open.y() == y && open.z() == z)
+                            || (pairFirst != null && pairFirst.x() == x
+                                    && pairFirst.y() == y && pairFirst.z() == z)
+                            || (pairSecond != null && pairSecond.x() == x
+                                    && pairSecond.y() == y && pairSecond.z() == z)) {
                         viewers++;
                     }
                 }
