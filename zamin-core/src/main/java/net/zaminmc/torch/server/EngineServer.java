@@ -3520,7 +3520,7 @@ public final class EngineServer implements Server, EngineBridge {
                     // The dragon egg's startMining teleport (Slice 55 —
                     // DragonEggBlock.startMining lines 81-83: the punch
                     // teleports the egg away before any dig accumulates).
-                    teleportDragonEgg(at);
+                    teleportDragonEgg(session, at);
                     // The play stat (NoteBlock.startMining lines 58-67: the
                     // survival attack's play carries its own incrementStat —
                     // the position listener above already played the note).
@@ -13917,20 +13917,26 @@ public final class EngineServer implements Server, EngineBridge {
             return false;
         }
         return net.zaminmc.torch.server.block.DragonEggBlocks.tryTeleport(
-                dragonEggWorld(), gameplayRandom, clicked);
+                dragonEggWorld(world), gameplayRandom, clicked);
     }
 
-    /** The dragon egg's punch arm (the startMining teleport). */
-    private void teleportDragonEgg(BlockPosition at) {
+    /** The dragon egg's punch arm (the startMining teleport) — PR #90's
+     * rider: the walk routes the PUNCHER's own world (the pre-fix arm
+     * closed over the overworld field at both the gate and the adapter,
+     * so a nether egg's punch consulted and teleported the OVERWORLD's
+     * cells at the foreign coordinates). */
+    private void teleportDragonEgg(PlayerSession session, BlockPosition at) {
+        EngineWorld world = worldFor(session.dimension());
         if (net.zaminmc.torch.server.block.DragonEggBlocks.isDragonEgg(
                 world.getBlock(at).identifier())) {
             net.zaminmc.torch.server.block.DragonEggBlocks.tryTeleport(
-                    dragonEggWorld(), gameplayRandom, at);
+                    dragonEggWorld(world), gameplayRandom, at);
         }
     }
 
-    /** The egg walk's world adapter. */
-    private net.zaminmc.torch.server.block.DragonEggBlocks.EggWorld dragonEggWorld() {
+    /** The egg walk's world adapter (the walk's OWN world — PR #90's
+     * parameterization of the overworld-closing field form). */
+    private net.zaminmc.torch.server.block.DragonEggBlocks.EggWorld dragonEggWorld(EngineWorld world) {
         return new net.zaminmc.torch.server.block.DragonEggBlocks.EggWorld() {
             @Override
             public net.zaminmc.torch.block.BlockType getBlock(BlockPosition at) {
