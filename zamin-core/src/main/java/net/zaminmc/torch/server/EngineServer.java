@@ -690,6 +690,19 @@ public final class EngineServer implements Server, EngineBridge {
                 // before any store is touched.
                 worldSessionLock = net.zaminmc.torch.server.world.WorldSessionLock
                         .acquire(config.worldDir());
+                // The world seed (T-SEED — the terrain family audit's first
+                // fix): the reference's own law, resolved BEFORE the storage
+                // manifest's first-boot write (a fresh world must not see its
+                // own boot marker) and persisted per world (world/data/
+                // seed.json — the delta-overlay model's cross-reboot
+                // stability). The stored record wins; a pre-fix world with
+                // saved state adopts its historical name seed (the delta
+                // alignment); a genuinely fresh world takes the reference's
+                // derivation (level-seed numeric/string, else the random
+                // roll — DedicatedServer lines 170-183, 1:1).
+                long resolvedWorldSeed = net.zaminmc.torch.server.world.WorldSeedStore
+                        .resolve(config.worldDataDir(), config.worldName(),
+                                config.levelSeed());
                 // The storage identity manifest (§31.4): the Torch-owned
                 // marker recording the format family and layout generation,
                 // independent of the gameplay/protocol version. First boot
@@ -704,9 +717,12 @@ public final class EngineServer implements Server, EngineBridge {
                 // normal runs the full world (seas, caves, ores, forests).
                 WorldGenerator generator = config.levelType().equals("flat")
                         ? new FlatWorldGenerator(blockRegistry, 4)
-                        : new NormalWorldGenerator(blockRegistry, config.worldName());
+                        : new NormalWorldGenerator(blockRegistry, resolvedWorldSeed);
                 world = new EngineWorld(config.worldName(), blockRegistry, generator, owner);
-                worldSeed = generator.seed();
+                // The seed is the STORE's answer for every level type (a
+                // flat world in the reference carries the seed too — the
+                // slime chunks and the /seed report read it).
+                worldSeed = resolvedWorldSeed;
                 // The spatial ownership partition (the Phase 4 spatial
                 // activation — ADR-6's conservative knob): region-size chunks
                 // per axis. The default is the whole world one region, so the
