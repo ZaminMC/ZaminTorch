@@ -19053,3 +19053,70 @@ Stage Summary:
   block-update family's per-dimension story, the TNT family's dimension
   row, and the container families' per-dimension stores (FL4-F5's named
   remainder).
+
+---
+Task ID: session-2026-10-30-fl4f7-f8 (the TNT + block-update dimension rows)
+Agent: main (ZaminTorch session)
+
+Work Log:
+- Session startup: develop pulled to 3a6127a0 (the second review lane's
+  worklog record — the CI publication diagnosis + the four PR reviews,
+  all riders already landed). The CI Phase 2 proposal from the audit
+  session STANDS DELIVERED (docx + pdf in download/) awaiting the
+  owner's approval — no CI/build/workflow files were touched this
+  session per the gate.
+- CI WATCH: run 548 (the 120-minute-timeout release run) completed its
+  build+test step and was superseded mid-flight by the newer pushes; 551
+  in progress on the older tree, 553 pending on this session's head.
+  No release past torch-1.8.8-153 yet — the green run must carry
+  through the tag + publish steps.
+- WAVE FL4-F7 LANDED (b1d997a5 — the TNT family's dimension row, the
+  third FL4-F3 tail): PrimedTnt carries its OWN dimension stamp; every
+  ignition arm takes the acting world (the flint use's routed local,
+  the fire burn's widened TntPrimeArm seam, the arrow sink, the blast
+  chain's blastWorld — the pre-fix dimension==0 honest gates retired);
+  the SolidityProbe/DetonationSink seams widened so the physics grounds
+  and the 4.0F detonation tears the body's OWN world; the NETHER'S OWN
+  EXPLOSION SERVICE joins the End's (the pre-fix overworld-bound
+  service collected nothing for a nether blast — wounded but never
+  tore); the wire fan filters by the body's stamp; the blast's
+  primed-body wound gather filters by the body's stamp. THE RIDER: the
+  reference's own INDEXED tick walk + deferred removal (World
+  .tickEntities lines 1211-1246) replaces the survivors rebuild — the
+  chain reaction's primeFromBlast lands INSIDE a detonation inside the
+  walk and the old iterator threw ConcurrentModificationException
+  (a latent EVERY-dimension bug the new seat exposed; the spent body's
+  aborted removal then re-detonated every later tick). EVIDENCE:
+  NetherTntRoutingAcceptanceTest 1/0 over the REAL use wire, stash-
+  verified failing unfixed at the prime seat; the regression lanes
+  green whole.
+- WAVE FL4-F8 LANDED (0392d917 — the block-update family's per-dimension
+  story, the second FL4-F3 tail): the nether's and the End's OWN
+  BlockUpdateSystem instances on their own worlds, each wired to its
+  own world's scheduled-tick surface and its own 27.3 view, the gravity
+  tickers on EVERY dimension's queue, the tick fan carrying all three,
+  and the system's nineteen block-drop arms stamped with the system's
+  OWN world's dimension (the TF-9 four-arg form). EVIDENCE:
+  NetherBlockUpdateRoutingAcceptanceTest 2/0 over the REAL commit wire
+  (the nether sand's fuse + conversion; the nether torch's stamped
+  pop), stash-verified failing unfixed at BOTH seats (the pre-fix
+  nether commit woke no machinery: the sand floated, the torch stood).
+  The named remainder: the FALLING FAMILY's own per-dimension row (the
+  FallingBlockEntityManager's overworld-bound physics ground + landing
+  commit) — distinct from the block-update tail.
+
+Stage Summary:
+- develop at 0392d917, zero uncommitted, pushed as Abasing. Two FL4-F3
+  tails retired this session (TNT + block-update); the ice family, the
+  dig/place surface, the TNT row and the neighbor machinery are all
+  whole end to end.
+- The remaining FL4-F3 tails: the redstone system's world binding (the
+  comparator/lever/button use consults — the biggest: per-world
+  RedstoneSystem instances cascade into the piston/noteblock/hopper/
+  dispenser/beacon/tripwire bindings), the container families'
+  per-dimension stores (FL4-F5's named remainder), and the falling
+  family's own per-dimension row (FL4-F8's named remainder).
+
+Next: the redstone binding wave (or the owner's direction); watch run
+553 go green and confirm build 154 publishes; the CI Phase A proposal
+still awaits the owner's approval decision.
