@@ -509,13 +509,27 @@ public final class HopperSystem implements WorldChangeListener {
             return false;
         }
         // No container above: the item-entity suck (HopperBlockEntity
-        // lines 323-327 — the box centered on the block above, one half
-        // block out).
+        // lines 323-327: getItem(world, hopper.getX(), hopper.getY() + 1.0,
+        // hopper.getZ()) over the mouth accessors getX/getY/getZ =
+        // pos + 0.5 — the Box ±0.5 around the passed point spans the
+        // FULL CELL ABOVE: [bx, bx+1] x [by+1, by+2] x [bz, bz+1]).
+        // The gather is a box INTERSECTION (World.getEntitiesOfType tests
+        // the entity's own box against the query box, strict bounds):
+        // the item's 0.25 box — the engine's center ± HALF_WIDTH/
+        // HALF_HEIGHT — intersects the cell above iff
+        // center ∈ (bx-0.125, bx+1.125) x (by+0.875, by+2.125)
+        // x (bz-0.125, bz+1.125).
         for (ItemEntity item : itemEntities.all()) {
             Position at = item.position();
-            if (Math.abs(at.x() - (pos.x() + 0.5)) <= 0.5
-                    && Math.abs(at.z() - (pos.z() + 0.5)) <= 0.5
-                    && Math.abs(at.y() - (pos.y() + 1.0)) <= 0.5) {
+            double minX = at.x() - ItemEntity.HALF_WIDTH;
+            double maxX = at.x() + ItemEntity.HALF_WIDTH;
+            double minY = at.y() - ItemEntity.HALF_HEIGHT;
+            double maxY = at.y() + ItemEntity.HALF_HEIGHT;
+            double minZ = at.z() - ItemEntity.HALF_WIDTH;
+            double maxZ = at.z() + ItemEntity.HALF_WIDTH;
+            if (minX < pos.x() + 1 && maxX > pos.x()
+                    && minY < pos.y() + 2 && maxY > pos.y() + 1
+                    && minZ < pos.z() + 1 && maxZ > pos.z()) {
                 ItemStack stack = item.stack();
                 if (stack.isEmpty()) {
                     continue;

@@ -18506,3 +18506,158 @@ verifier pass — the liquid-blocking consult's material law)
 - The findings doc: docs/FLUID_FAMILY_AUDIT_FINDINGS.md (the
   discovery, the verified-1:1 list, the divergence battery, the
   three-pass verification record, the standing tails).
+---
+
+## Wave HP1 — 2026-10-30 (the hopper block's item-suck band, the
+eighteenth verifier pass's first finding)
+
+- THE PASS ENTRY: the eighteenth verifier pass opened the hopper
+  family — the container transfer mechanics' own gather law, untouched
+  by any prior wave (the seventeenth pass's fluids named other
+  candidates; the hopper's own row in the compatibility matrix carried
+  no band note, and the suck site is the family's only item-entity
+  gather in the block world).
+- THE REFERENCE LAW: with no container above the hopper,
+  `HopperBlockEntity.pullItem` (lines 295-331) gathers through
+  `getItem(world, hopper.getX(), hopper.getY() + 1.0, hopper.getZ())`
+  over the MOUTH ACCESSORS (lines 484-495: `getX/getY/getZ = pos +
+  0.5`); `getItem` (lines 445-446) builds the Box ±0.5 around the
+  passed point — the FULL CELL ABOVE `[bx, bx+1] x [by+1, by+2] x
+  [bz, bz+1]`; the gather is `WorldChunk.getEntitiesOfType` lines
+  768-781's `t.getShape().intersects(bounds)` — each item's OWN 0.25
+  box (`ItemEntity.setSize(0.25F, 0.25F)`, `EntityFilter.ALIVE` =
+  `!removed`) against the query box, and `Box.intersects` (lines
+  164-171) is STRICT both sides (touching is not intersecting): the
+  item-center band `(bx-0.125, bx+1.125) x (by+0.875, by+2.125) x
+  (bz-0.125, bz+1.125)`.
+- THE PRE-FIX ENGINE: a CENTER-in-band test `|cx - (bx+0.5)| <= 0.5,
+  |cy - (by+1.0)| <= 0.5, |cz - (bz+0.5)| <= 0.5` — the y band
+  `[by+0.5, by+1.5]`, the hopper's own TOP FACE, half into the funnel
+  mouth and only half into the cell above. TWO observable divergences:
+  an item resting HIGH in the cell above (a bottom slab's top, center
+  by+1.625 — inside the reference box whole) sat on the slab FOREVER;
+  and an item SETTLED in the funnel mouth (center by+0.75, the
+  collision-slab rest — below the reference box's strict bottom
+  by+0.875) was EATEN on the very next transfer where vanilla leaves
+  it for the descent/bounce window alone.
+- THE FIX: the box-intersection translation over the engine's own
+  center convention (the item's box = center ±
+  `ItemEntity.HALF_WIDTH/HALF_HEIGHT`, both 0.125) with the
+  reference's exact strict inequalities; the per-item pickup arm
+  untouched (`pickUpItem` lines 349-365's shape: empty-stack skip,
+  whole-stack push, partial-keep, full-remove).
+- Evidence: `HopperSuckBandParityTest` 5/0 NEW — the two
+  DISCRIMINATING seats (the high-band positive by+1.625; the
+  settled-mouth negative by+0.75 over a 3s never-window with the item
+  staying whole in the world) + the three guards (the mid-descent
+  catch, the shipped cell-above center spawn by+1.5, the strict-top
+  touching refusal at by+2.125); the stash verification failing
+  UNFIXED on EXACTLY the two discriminating seats (the high item never
+  taken within 30s; the mouth item eaten within 3s) and the guards
+  green both ways. The regression: the hopper package whole 13/0; the
+  block package 304/0; the entity package 574 tests / 2 load-flakes
+  (the witch's 1e-9 z-drift seat and the wolf's dye-count race — both
+  classes green in isolation on BOTH the pre- and post-fix trees, both
+  seats carrying ZERO hopper references so the changed arm is
+  unreachable, the ledger's own ML-001/ML-002 suite-load-flakiness
+  record the disposition).
+- The three-pass record: source (the reference chain whole — pullItem,
+  the mouth accessors, getItem, the World/WorldChunk gather, the
+  strict Box law, the item's own box), behavioral (the stash probe
+  above), the independent re-verification (the 8-tick cadence vs the
+  30s/3s probe windows; the compensating-site search clean; the
+  in-band boundary seats identical under both laws for 0.25-wide
+  items; the minecart twin's own band recorded as the pass's NEXT
+  row).
+- PR #82 opened targeting develop (never merged — the house rule);
+  the ledgers: the compatibility matrix's hopper row re-pinned with
+  the repair note.
+- The pass's next row: F-HP2 — `HopperSystem.hopperCartTransfer`'s two
+  arms: the no-container gather (a center band at the cart's own x/z
+  mouth where the reference reads the box law — an UNSHIFTED band, the
+  ±0.125 rim and the strict bounds alone, no settled-item eating) and
+  the own-shape fallback (`grown(0.25, 0, 0.25)`, the y band and the
+  feet-vs-center frame both to verify against the reference before any
+  fix).
+
+---
+
+## F-HP2 pass 1 (source) — 2026-10-30 (the hopper cart's twin gather
+arms: under verification, the seat banked, the fix routed behind the
+cart's own position convention)
+
+- THE REFERENCE LAW (HopperMinecartEntity lines 84-130 over
+  HopperBlockEntity's statics): the cart's mouth accessors are its
+  OWN x/z and its box bottom + 0.5 (getX = this.x, getY = this.y +
+  0.5, getZ = this.z — NOT a cell center: the rolling mouth rides the
+  cart, not the grid); the no-container gather = the Box ±0.5 around
+  (x, y + 1.5, z) = [x ±0.5] x [y + 1.0, y + 2.0] x [z ±0.5], gathered
+  by each item's OWN box strictly intersecting (the same
+  WorldChunk/Box law F-HP1 pinned); the FALLBACK arm = the cart's own
+  shape [x ±0.49] x [y, y + 0.7] x [z ±0.49] `grown(0.25, 0.0, 0.25)`
+  = [x ±0.74] x [y, y + 0.7] x [z ±0.74], the FIRST intersecting item
+  (list.get(0)) pushed whole, the arm never arming the cooldown. The
+  pickup semantics themselves are 1:1 in the engine (pickUpInto's
+  full-consume/partial-keep/next-item loop over pullItem's
+  pickUpItem; the fallback's discarded return + return false) — the
+  divergence is the GATHER BANDS alone.
+- THE CONVENTION ACCIDENT (the pass's own find): the engine's cart
+  position.y is the box BOTTOM on-rail (the walk's own cell-snapped
+  commit at MinecartEntity line 208: cellY + RIDE_Y_OFFSET = cellY +
+  0.06, the rail top — the frame the 1.8.8 client's render reads
+  correctly through the wire) but the box CENTER off-rail (the
+  settle at line 231: floor(y - HALF_HEIGHT - ε) + 1.0 + HALF_HEIGHT
+  — the probe at y - 0.35 only makes sense for the center frame).
+  ON-RAIL the transfer host's `mouthY = position.y() + 0.5` lands
+  EXACTLY on the reference's getY() = this.y + 0.5 — by the accident
+  of the mixed frames, Arm A's band is correctly CENTERED on-rail.
+- ARM A ON-RAIL (the divergence): the engine's center band
+  [cellY + 1.06, cellY + 2.06] INCLUSIVE vs the reference's
+  (cellY + 0.935, cellY + 2.185) — the box-vs-center test's 0.125
+  rims + the strict bounds, no shift, no eat-side (everything the
+  engine takes the reference takes too — a pure under-reach).
+- THE BANKED DISCRIMINATING SEAT (at-rest, deterministic,
+  constructible NOW): a top slab in the cell above the cart's rail
+  cell at the same x/z; an item restored at rest on the slab's top:
+  center = cellY + 2.125. The reference's mouth box top = this.y +
+  2.0 = cellY + 2.0625 — the item's box [cellY + 2.0, cellY + 2.25]
+  OVERLAPS the last 0.0625 (the rail's lift buys the overlap) →
+  vanilla TAKES the rest; the engine's band caps at cellY + 2.06 →
+  NEVER takes it. The F-HP1 strict-top seat's mirror image: there the
+  BLOCK hopper's cell-aligned box top = by + 2.0 exactly — touching,
+  refused; here the cart's rail-lifted box makes the same rest an
+  intersection. Seat wire: VehicleManager.spawnHopperMinecart on the
+  rail cell + BuiltinBlocks.STONE_SLAB_TOP above + spawnRestored on
+  the slab top + the cart hopper's snapshotSlots.
+- ARM B ON-RAIL (the rims): the engine's y band [cellY - 0.19,
+  cellY + 0.76] (at.y() + 0.25 >= centerY && at.y() <= centerY + 0.7
+  over the bottom-like centerY) vs the reference's center band
+  (cellY - 0.065, cellY + 0.885): a 0.125 low-rim EAT + a 0.125
+  high-rim MISS + inclusive bounds; the horizontal ±(0.74 + 0.125)
+  inclusive vs ±0.865 strict. The rims are NOT seat-constructible
+  with at-rest items (no natural support height lands in
+  (cellY + 0.76, cellY + 0.885] or [cellY - 0.19, cellY - 0.065]:
+  the natural tops 0 / 0.0625 / 0.125 / 0.5 / 1.0 put item centers at
+  0.125 / 0.1875 / 0.25 / 0.625 / 1.125 — all inside or outside BOTH
+  laws alike); the descent windows differ by a single tick, under
+  the 50ms poll granularity. Documented, not seated.
+- THE OFF-RAIL ENTANGLEMENT (why the fix waits): off-rail the engine's
+  position.y is the CENTER, so Arm A's mouthY = position.y + 0.5 is
+  0.35 HIGH against the reference's bottom + 0.5 — and a naive
+  box-law translation written for the on-rail (bottom) convention
+  would shift the off-rail band 0.35 FURTHER UP, WORSE than the
+  current band (which at least overlaps the reference's). The two
+  arms cannot be translated 1:1 against a mixed position convention:
+  the fix routes behind the convention's unification — F-HP3, the
+  vehicle-family pass (the convention split's own observable
+  candidate: the derail transition's wire y — on-rail the bottom
+  frame cellY + 0.06, off-rail the center frame cellTop + 0.35 — a
+  hypothesis for that pass to verify against the client render, not
+  claimed here).
+- DISPOSITION: F-HP2 UNDER VERIFICATION — pass 1 (source) complete;
+  the behavioral pass BLOCKED by the off-rail entanglement (no honest
+  fix exists until F-HP3 resolves the frame); the one constructible
+  discriminating seat BANKED above for the fix's arrival. No PR this
+  session: the threshold is not met, and the house rule stands — a
+  real mismatch with an unsafe complete fix is documented and routed,
+  not forced.
