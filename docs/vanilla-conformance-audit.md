@@ -416,12 +416,28 @@ commit region — a small textual overlap only; the changes compose (the
 ice law's `world.dimension()` consults become dimension-correct once the
 routing lands, exactly as #89's own comment anticipates).
 
-## VT-004 — the portal stand clock re-fires while the body stays pinned in the arrival frame (CONFIRMED)
+## VT-004 — the portal stand clock re-fires while the body stays pinned in the arrival frame (PR #91 OPEN)
 
 **Subsystem:** portal mechanics (the stand clock / the crossing's re-fire
-law). **Status:** CONFIRMED — three passes complete (the source, the
-behavioral, and the independent re-verification; the record below). The
-correction is eligible; the fix branch is the queue head.
+law). **Status:** PR OPENED — the correction rides
+`fix/portal-stand-clock-parity-audit` as **PR #91** (targeting
+`develop`): `advancePortalClock` restructured to the reference's per-tick
+order (the decrement, the every-touching-tick re-arm consult, the
+armed-stand-alone consumption), the dead `portalOccupiedLastTick` field
+removed, `DimensionWalkTest`'s round trip re-pinned (the walk out → the
+cooldown expiry → the re-entry's fresh 80), `PortalFrameBuilderTest`'s
+cooldown law re-pinned (the method renamed — the old seat asserted the
+re-fire itself), and the discovery seat riding green. The test record:
+the seat 1/0, DimensionWalk 1/0, PortalFrameBuilder 12/0, PortalForcer
+5/0, EnderExit 2/0, NetherDimension 5/0, NetherDigRouting 1/0,
+SpawnProtection 3/0, the world package + both portal tests 248/0, the
+block lane 309/0. One honest note: EnderExit's health-carry assertion
+flaked twice under fresh-compile load early in the run and did not
+reproduce in six subsequent runs (three with the change, three on
+pristine develop); the changed code is unreachable for that test's body
+(the End arm returns before `advancePortalClock`) and the instrumented
+damage path logged nothing — the signature matches the CI log's
+documented load-flakes.
 
 **The reference's law** (reference/1.8.8 `entity/Entity.java`):
 `onPortalCollision` (lines 1426-1454) consults the cooldown FIRST — `if
@@ -635,7 +651,7 @@ evidence); the fix branch is this run's next act.**
 | Ice family — break-to-water, melt | PR #89 open (VT-003's correction) |
 | Snow layer — placement support/melt/drops | drops landed (the mining-speed audit); melt + the 7-layer state surface recorded as VT-003's tail |
 | Packed ice — melt/break laws | inspected: the reference's PackedIceBlock carries no melt arm (the `setTicksRandomly` false, the silk-drop row landed); nothing owed |
-| Portal mechanics (flag1, forcer) | landed by FL4-F1; not re-audited — the stand clock's re-fire law is VT-004 (CONFIRMED, three passes; the seat PortalRefireDiscoveryTest is the record; the fix branch is the queue head) |
+| Portal mechanics (flag1, forcer) | landed by FL4-F1; not re-audited — the stand clock's re-fire law is VT-004 (CONFIRMED, three passes; the correction is **PR #91 OPEN**; the seat PortalRefireDiscoveryTest rides green on the fix branch) |
 | Portal mechanics — the riding gate (vehicle == null && rider == null) | VT-005 SUSPECTED (one source pass; the behavioral + independent passes owed) |
 | Drops — the TF-9 dimension stamp | LANDED by PR #90 (the dig/place walks stamp `world.dimension()`; the tile-family spill sites remain the per-dimension tile tail) |
 | Tile families — per-dimension stores | NOT INSPECTED as its own pass (the PR #90 ledger: the furnace/chest/skull/banner spill + cleanup ride the single-instance managers — the FL4 fluids/fire precedent applies; the nether tile placement/cleanup is its own architectural pass) |
@@ -659,9 +675,10 @@ evidence); the fix branch is this run's next act.**
    compensating-behavior hunt found nothing — the dispatch cadence is a
    per-tick bounding-box scan, the reference's placement lands INSIDE the
    cells, `DimensionWalkTest`'s round trip is the misread's symptom;
-   VT-004 CONFIRMED). **The VT-004 fix branch is the queue head** (the
+   VT-004 CONFIRMED). ~~The VT-004 fix branch~~ — **PR #91 OPEN** (the
    reference's gate shape in `advancePortalClock`; the DimensionWalk
-   round-trip re-pin; the discovery seat rides green).
+   round-trip re-pin; the discovery seat rides green; the world package
+   248/0 + the block lane 309/0).
 5. VT-005's behavioral pass (the riding gate — a seat standing a riding
    body in a portal cell past the 80-tick threshold), then its independent
    pass.
