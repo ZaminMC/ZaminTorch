@@ -334,6 +334,14 @@ public final class EngineServer implements Server, EngineBridge {
     /** The command dispatcher (tab completion reads it from the wire layer). */
     private volatile CommandService commands;
     private BlockUpdateSystem blockUpdateSystem;
+    /**
+     * The nether's own neighbor-update machinery (Wave FL4-F8 — the
+     * reference's per-WorldServer updateBlocks surface): each dimension's
+     * queue, addressee pins and fall fuses range ITS OWN world's cells.
+     */
+    private BlockUpdateSystem netherBlockUpdates;
+    /** The End's own neighbor-update machinery (Wave FL4-F8 — the same per-dimension story). */
+    private BlockUpdateSystem endBlockUpdates;
     /** The reference's scheduled block-tick queue (the TileTicks surface; the anvil import lands here). */
     private net.zaminmc.torch.server.block.ScheduledTickSystem scheduledTickSystem;
     /** The surface's own persistence (the ZST store — the pending rows survive a restart). */
@@ -1147,6 +1155,14 @@ public final class EngineServer implements Server, EngineBridge {
                 // gravity/torch/grass/fire rules. Registered as a world listener before
                 // the adapter, so engine-side rules observe every commit first.
                 blockUpdateSystem = new BlockUpdateSystem(world, itemEntities, falling);
+                // The nether's and the End's own neighbor-update systems (Wave
+                // FL4-F8 — the reference's EVERY-ServerWorld shape: each
+                // WorldServer carries its own scheduled-update queue, so sand
+                // falls, torches pop and grass dies in EVERY dimension; the
+                // pre-fix engine registered the overworld's alone, so a
+                // nether/End neighbor change ran no rules at all).
+                netherBlockUpdates = new BlockUpdateSystem(netherWorld, itemEntities, falling);
+                endBlockUpdates = new BlockUpdateSystem(endWorld, itemEntities, falling);
                 // The reference's scheduled block-tick queue (the TileTicks
                 // surface): the anvil import lands here, and the families'
                 // delayed arms migrate onto it family by family.
@@ -1214,12 +1230,23 @@ public final class EngineServer implements Server, EngineBridge {
                 // the dragon egg) dispatches on the reference's own
                 // scheduleTick surface.
                 blockUpdateSystem.setScheduledTicks(scheduledTickSystem);
+                netherBlockUpdates.setScheduledTicks(netherScheduledTicks);
+                endBlockUpdates.setScheduledTicks(endScheduledTicks);
                 // The banner support-drop arms read the tile for the tagged
                 // item (the seam keeps the block package off the manager's
                 // boot order).
                 blockUpdateSystem.setBanners(bannerManager);
+                netherBlockUpdates.setBanners(bannerManager);
+                endBlockUpdates.setBanners(bannerManager);
                 net.zaminmc.torch.server.block.GravityFalls.registerTicker(
                         scheduledTickSystem, world, falling);
+                // The gravity family's tickers on EVERY dimension's own queue
+                // (Wave FL4-F8 — the reference's every-world scheduleTick
+                // dispatch; the fire family's own FL4-F2 form).
+                net.zaminmc.torch.server.block.GravityFalls.registerTicker(
+                        netherScheduledTicks, netherWorld, falling);
+                net.zaminmc.torch.server.block.GravityFalls.registerTicker(
+                        endScheduledTicks, endWorld, falling);
                 // The surface's own persistence (the in-memory envelope
                 // retired): the pending rows from the last shutdown ride
                 // back in through the same load arm the anvil import uses
@@ -1596,6 +1623,13 @@ public final class EngineServer implements Server, EngineBridge {
                 // The world itself dispatches every committed change (§208): the
                 // neighbor-update system observes player- AND engine-driven changes.
                 world.addChangeListener(blockUpdateSystem);
+                // The nether's and the End's own registrations (Wave FL4-F8 —
+                // the same §208 dispatch: every committed change in EVERY
+                // dimension wakes that dimension's own neighbor rules; the
+                // pre-fix nether/End commits reached no neighbor machinery
+                // at all).
+                netherWorld.addChangeListener(netherBlockUpdates);
+                endWorld.addChangeListener(endBlockUpdates);
                 // Redstone (Slice 9a — the reference's signal model): the wire
                 // cascade and the family dispatch ride the commit synchronously
                 // (vanilla's flag-1 walk inside setBlockState), so the propagation
@@ -3111,6 +3145,15 @@ public final class EngineServer implements Server, EngineBridge {
                 world.attachScheduledUpdateView(
                         new net.zaminmc.torch.server.block.ScheduledUpdateViews(
                                 blockUpdateSystem, world));
+                // The nether's and the End's own §27.3 views (Wave FL4-F8 —
+                // each dimension's queue behind its own World handle; the
+                // mutation arms assert the owning world's context).
+                netherWorld.attachScheduledUpdateView(
+                        new net.zaminmc.torch.server.block.ScheduledUpdateViews(
+                                netherBlockUpdates, netherWorld));
+                endWorld.attachScheduledUpdateView(
+                        new net.zaminmc.torch.server.block.ScheduledUpdateViews(
+                                endBlockUpdates, endWorld));
                 // The public §27.3 scheduled block-tick views: the reference's
                 // TileTicks queue — the queries copy, the mutation arms assert
                 // the world's own context.
@@ -3164,6 +3207,8 @@ public final class EngineServer implements Server, EngineBridge {
                     // is the engine's systems fan, ledgered).
                     tickProfilerLevels();
                     profiled("blockUpdates", blockUpdateSystem::tick); // §466: scheduled updates (falls start here)
+                    profiled("blockUpdates", netherBlockUpdates::tick); // the nether's own queue (Wave FL4-F8)
+                    profiled("blockUpdates", endBlockUpdates::tick); // the End's own queue (Wave FL4-F8)
                     profiled("redstone", redstoneSystem::tick); // the torch/repeater scheduled reactions
                     profiled("pistons", pistonSystem::tick); // the piston block events + the moving carriers
                     profiled("hoppers", hopperSystem::tick); // the hoppers' 8-tick transfer cadence

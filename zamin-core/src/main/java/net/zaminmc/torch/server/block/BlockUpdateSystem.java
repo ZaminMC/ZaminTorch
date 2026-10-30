@@ -450,7 +450,7 @@ public final class BlockUpdateSystem implements WorldChangeListener {
             itemEntities.spawnDropAtBlock(
                     new Position(position.x(), position.y(), position.z()),
                     ItemStack.of(net.zaminmc.torch.server.item.BuiltinItems.TORCH, 1),
-                    ItemEntity.PICKUP_DELAY_DROP_TICKS);
+                    ItemEntity.PICKUP_DELAY_DROP_TICKS, world.dimension());
             return;
         }
         // The standing sign's support rule (the twelfth verifier pass —
@@ -469,7 +469,7 @@ public final class BlockUpdateSystem implements WorldChangeListener {
             itemEntities.spawnDropAtBlock(
                     new Position(position.x(), position.y(), position.z()),
                     ItemStack.of(net.zaminmc.torch.server.item.BuiltinItems.SIGN, 1),
-                    ItemEntity.PICKUP_DELAY_DROP_TICKS);
+                    ItemEntity.PICKUP_DELAY_DROP_TICKS, world.dimension());
             return;
         }
         // The wall sign's support rule (WallSignBlock.neighborChanged lines
@@ -490,7 +490,7 @@ public final class BlockUpdateSystem implements WorldChangeListener {
             itemEntities.spawnDropAtBlock(
                     new Position(position.x(), position.y(), position.z()),
                     ItemStack.of(net.zaminmc.torch.server.item.BuiltinItems.SIGN, 1),
-                    ItemEntity.PICKUP_DELAY_DROP_TICKS);
+                    ItemEntity.PICKUP_DELAY_DROP_TICKS, world.dimension());
             return;
         }
         // The rail families' support rule (the thirteenth verifier pass —
@@ -513,7 +513,7 @@ public final class BlockUpdateSystem implements WorldChangeListener {
                     new Position(position.x(), position.y(), position.z()),
                     ItemStack.of(net.zaminmc.torch.server.item.BuiltinItems.lookup(
                             RailBlocks.familyItemOf(type)).orElseThrow(), 1),
-                    ItemEntity.PICKUP_DELAY_DROP_TICKS);
+                    ItemEntity.PICKUP_DELAY_DROP_TICKS, world.dimension());
             return;
         }
 
@@ -573,7 +573,7 @@ public final class BlockUpdateSystem implements WorldChangeListener {
             world.setBlock(position, world.airType());
             itemEntities.spawnDropAtBlock(
                     new Position(position.x(), position.y(), position.z()),
-                    drop, ItemEntity.PICKUP_DELAY_DROP_TICKS);
+                    drop, ItemEntity.PICKUP_DELAY_DROP_TICKS, world.dimension());
             return;
         }
         // The carpet family's support rule (Slice 31 — CarpetBlock's
@@ -591,7 +591,7 @@ public final class BlockUpdateSystem implements WorldChangeListener {
             world.setBlock(position, world.airType());
             itemEntities.spawnDropAtBlock(
                     new Position(position.x(), position.y(), position.z()),
-                    drop, ItemEntity.PICKUP_DELAY_DROP_TICKS);
+                    drop, ItemEntity.PICKUP_DELAY_DROP_TICKS, world.dimension());
             return;
         }
         // The cocoa's support rule (Slice 43 — CocoaBlock.neighborChanged
@@ -612,7 +612,7 @@ public final class BlockUpdateSystem implements WorldChangeListener {
                         new Position(position.x(), position.y(), position.z()),
                         new ItemStack(net.zaminmc.torch.server.item.BuiltinItems.INK_SAC, 1,
                                 CocoaBlocks.BROWN_DYE_DAMAGE),
-                        ItemEntity.PICKUP_DELAY_DROP_TICKS);
+                        ItemEntity.PICKUP_DELAY_DROP_TICKS, world.dimension());
             }
             return;
         }
@@ -631,7 +631,7 @@ public final class BlockUpdateSystem implements WorldChangeListener {
             itemEntities.spawnDropAtBlock(
                     new Position(position.x(), position.y(), position.z()),
                     ItemStack.of(net.zaminmc.torch.server.item.BuiltinItems.WATERLILY, 1),
-                    ItemEntity.PICKUP_DELAY_DROP_TICKS);
+                    ItemEntity.PICKUP_DELAY_DROP_TICKS, world.dimension());
             return;
         }
         // The flora support rules (Slice 44 — PlantBlock.canSurviveOrBreak
@@ -688,7 +688,7 @@ public final class BlockUpdateSystem implements WorldChangeListener {
             if (drop != null) {
                 itemEntities.spawnDropAtBlock(
                         new Position(position.x(), position.y(), position.z()),
-                        drop, ItemEntity.PICKUP_DELAY_DROP_TICKS);
+                        drop, ItemEntity.PICKUP_DELAY_DROP_TICKS, world.dimension());
             }
             return;
         }
@@ -711,7 +711,7 @@ public final class BlockUpdateSystem implements WorldChangeListener {
                     1);
             itemEntities.spawnDropAtBlock(
                     new Position(position.x(), position.y(), position.z()),
-                    plantDrop, ItemEntity.PICKUP_DELAY_DROP_TICKS);
+                    plantDrop, ItemEntity.PICKUP_DELAY_DROP_TICKS, world.dimension());
             return;
         }
         // The nether wart's support rule (the planting-arms pass —
@@ -732,7 +732,7 @@ public final class BlockUpdateSystem implements WorldChangeListener {
                     new Position(position.x(), position.y(), position.z()),
                     ItemStack.of(net.zaminmc.torch.server.item.BuiltinItems.NETHER_WART,
                             age >= 3 ? 2 + random.nextInt(3) : 1),
-                    ItemEntity.PICKUP_DELAY_DROP_TICKS);
+                    ItemEntity.PICKUP_DELAY_DROP_TICKS, world.dimension());
             return;
         }
         // The double-plant family's support rules (Slice 45 —
@@ -770,7 +770,7 @@ public final class BlockUpdateSystem implements WorldChangeListener {
             if (drop != null) {
                 itemEntities.spawnDropAtBlock(
                         new Position(position.x(), position.y(), position.z()),
-                        drop, ItemEntity.PICKUP_DELAY_DROP_TICKS);
+                        drop, ItemEntity.PICKUP_DELAY_DROP_TICKS, world.dimension());
             }
             return;
         }
@@ -787,7 +787,7 @@ public final class BlockUpdateSystem implements WorldChangeListener {
             itemEntities.spawnDropAtBlock(
                     new Position(position.x(), position.y(), position.z()),
                     ItemStack.of(net.zaminmc.torch.server.item.BuiltinItems.FLOWER_POT, 1),
-                    ItemEntity.PICKUP_DELAY_DROP_TICKS);
+                    ItemEntity.PICKUP_DELAY_DROP_TICKS, world.dimension());
             net.zaminmc.torch.util.Identifier plant = FlowerPotBlocks.plantItemOf(content);
             if (plant != null) {
                 net.zaminmc.torch.item.ItemStack plantDrop = new net.zaminmc.torch.item.ItemStack(
@@ -795,7 +795,7 @@ public final class BlockUpdateSystem implements WorldChangeListener {
                         1, FlowerPotBlocks.plantDamageOf(content));
                 itemEntities.spawnDropAtBlock(
                         new Position(position.x(), position.y(), position.z()),
-                        plantDrop, ItemEntity.PICKUP_DELAY_DROP_TICKS);
+                        plantDrop, ItemEntity.PICKUP_DELAY_DROP_TICKS, world.dimension());
             }
             return;
         }
@@ -894,7 +894,7 @@ public final class BlockUpdateSystem implements WorldChangeListener {
             itemEntities.spawnDropAtBlock(
                     new Position(position.x(), position.y(), position.z()),
                     ItemStack.of(base, 1),
-                    ItemEntity.PICKUP_DELAY_DROP_TICKS);
+                    ItemEntity.PICKUP_DELAY_DROP_TICKS, world.dimension());
             // The extra rolls: the crops at age 7 alone (three rolls of
             // nextInt(15) <= 7), the stems at every age (<= stage).
             int rollBound = stem ? stage : (ripe ? 7 : -1);
@@ -903,7 +903,7 @@ public final class BlockUpdateSystem implements WorldChangeListener {
                     itemEntities.spawnDropAtBlock(
                             new Position(position.x(), position.y(), position.z()),
                             ItemStack.of(seed, 1),
-                            ItemEntity.PICKUP_DELAY_DROP_TICKS);
+                            ItemEntity.PICKUP_DELAY_DROP_TICKS, world.dimension());
                 }
             }
             // The potato's poison twin (PotatoesBlock lines 28-34): the
@@ -913,7 +913,7 @@ public final class BlockUpdateSystem implements WorldChangeListener {
                         new Position(position.x(), position.y(), position.z()),
                         ItemStack.of(
                                 net.zaminmc.torch.server.item.BuiltinItems.POISONOUS_POTATO, 1),
-                        ItemEntity.PICKUP_DELAY_DROP_TICKS);
+                        ItemEntity.PICKUP_DELAY_DROP_TICKS, world.dimension());
             }
             return;
         }
@@ -960,7 +960,7 @@ public final class BlockUpdateSystem implements WorldChangeListener {
         itemEntities.spawnDropAtBlock(
                 new Position(at.x(), at.y(), at.z()),
                 ItemStack.of(net.zaminmc.torch.server.item.BuiltinItems.SUGAR_CANE, 1),
-                ItemEntity.PICKUP_DELAY_DROP_TICKS);
+                ItemEntity.PICKUP_DELAY_DROP_TICKS, world.dimension());
     }
 
     /**
@@ -987,7 +987,7 @@ public final class BlockUpdateSystem implements WorldChangeListener {
         itemEntities.spawnDropAtBlock(
                 new Position(at.x(), at.y(), at.z()),
                 ItemStack.of(net.zaminmc.torch.server.item.BuiltinItems.CACTUS, 1),
-                ItemEntity.PICKUP_DELAY_DROP_TICKS);
+                ItemEntity.PICKUP_DELAY_DROP_TICKS, world.dimension());
     }
 
     /** The historical opaque set this slice models (glass and torch are not). */
