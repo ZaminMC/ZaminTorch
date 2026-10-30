@@ -690,6 +690,19 @@ public final class EngineServer implements Server, EngineBridge {
                 // before any store is touched.
                 worldSessionLock = net.zaminmc.torch.server.world.WorldSessionLock
                         .acquire(config.worldDir());
+                // The world seed (T-SEED — the terrain family audit's first
+                // fix): the reference's own law, resolved BEFORE the storage
+                // manifest's first-boot write (a fresh world must not see its
+                // own boot marker) and persisted per world (world/data/
+                // seed.json — the delta-overlay model's cross-reboot
+                // stability). The stored record wins; a pre-fix world with
+                // saved state adopts its historical name seed (the delta
+                // alignment); a genuinely fresh world takes the reference's
+                // derivation (level-seed numeric/string, else the random
+                // roll — DedicatedServer lines 170-183, 1:1).
+                long resolvedWorldSeed = net.zaminmc.torch.server.world.WorldSeedStore
+                        .resolve(config.worldDataDir(), config.worldName(),
+                                config.levelSeed());
                 // The storage identity manifest (§31.4): the Torch-owned
                 // marker recording the format family and layout generation,
                 // independent of the gameplay/protocol version. First boot
@@ -704,9 +717,12 @@ public final class EngineServer implements Server, EngineBridge {
                 // normal runs the full world (seas, caves, ores, forests).
                 WorldGenerator generator = config.levelType().equals("flat")
                         ? new FlatWorldGenerator(blockRegistry, 4)
-                        : new NormalWorldGenerator(blockRegistry, config.worldName());
+                        : new NormalWorldGenerator(blockRegistry, resolvedWorldSeed);
                 world = new EngineWorld(config.worldName(), blockRegistry, generator, owner);
-                worldSeed = generator.seed();
+                // The seed is the STORE's answer for every level type (a
+                // flat world in the reference carries the seed too — the
+                // slime chunks and the /seed report read it).
+                worldSeed = resolvedWorldSeed;
                 // The spatial ownership partition (the Phase 4 spatial
                 // activation — ADR-6's conservative knob): region-size chunks
                 // per axis. The default is the whole world one region, so the
@@ -718,7 +734,11 @@ public final class EngineServer implements Server, EngineBridge {
                 world.attachRegionPartition(worldRegionPartition);
                 // The persisted spawn anchor (/setspawn): world/data/spawn.json
                 // rides above the generator's deterministic spawn when present.
-                loadSpawnAnchor().ifPresent(world::setSpawnPosition);
+                // T-SPAWN: the anchor's presence gates the boot-time
+                // resolution below (an operator-pinned spawn keeps its law).
+                java.util.Optional<Position> spawnAnchor = loadSpawnAnchor();
+                final boolean spawnAnchored = spawnAnchor.isPresent();
+                spawnAnchor.ifPresent(world::setSpawnPosition);
                 // Persistence: load saved deltas before any chunk generates so the
                 // spawn area is already the survived world (§407 restart proof).
                 worldStorage = new DeltaWorldStorage(
@@ -810,6 +830,18 @@ public final class EngineServer implements Server, EngineBridge {
                 // jukebox, the skull — keep their own model, ledgered).
                 world.addChangeListener(new TilePlacementListener());
                 pregenerateSpawnArea(world);
+                // The world spawn resolved against the GENERATED terrain
+                // (T-SPAWN — the terrain family audit's second fix): the
+                // reference's own laws, over the live spawn area — the
+                // grass-column walk (never a tree, never open water), the
+                // leaves-skipping surface consult, and the unstuck walk (a
+                // decoration at the column can never bury a fresh body).
+                // The operator's /setspawn anchor keeps its precedence.
+                if (!spawnAnchored) {
+                    world.setSpawnPosition(
+                            net.zaminmc.torch.server.world.WorldSpawnResolver.resolve(
+                                    spawnGround(), worldSeed, world.spawnPosition()));
+                }
                 ticker.attachWorld(world);
                 // The public §27.6 owner path: plugins execute on the
                 // authoritative lane through World.execute (the ticker's
@@ -24035,6 +24067,68 @@ public final class EngineServer implements Server, EngineBridge {
             }
         }
         return -1;
+    }
+
+    /**
+     * One generated-chunk block read for the spawn-resolution walks
+     * (T-SPAWN): the surfaceY discipline — the column's chunk through the
+     * peek/generate pair, the cell read out of it. Boot-thread context
+     * (the resolution runs before the first join, on the world's owner
+     * thread).
+     */
+    private net.zaminmc.torch.block.BlockType spawnBlockAt(int x, int y, int z) {
+        if (y < 0 || y > 255) {
+            return world.airType();
+        }
+        EngineChunk chunk = world.peek(new net.zaminmc.torch.block.ChunkPosition(x >> 4, z >> 4));
+        if (chunk == null) {
+            chunk = world.getOrGenerate(new net.zaminmc.torch.block.ChunkPosition(x >> 4, z >> 4));
+        }
+        return chunk.getBlock(x & 15, y, z & 15);
+    }
+
+    /**
+     * The spawn resolution's world surface (T-SPAWN): the three reference
+     * consults over the generated spawn area — getSurfaceBlock's climb,
+     * getSurfaceHeight's leaves-skipping scan, and the solidity consult of
+     * the unstuck walk.
+     */
+    private net.zaminmc.torch.server.world.WorldSpawnResolver.Ground spawnGround() {
+        return new net.zaminmc.torch.server.world.WorldSpawnResolver.Ground() {
+            @Override
+            public Object surfaceBlock(int x, int z) {
+                // World.getSurfaceBlock lines 158-168: climb from the sea
+                // level (the reference's 63 — the water top 62 plus one)
+                // while the cell above is not air, answer the block there.
+                int y = net.zaminmc.torch.server.world.NormalWorldGenerator.SEA_LEVEL + 1;
+                while (y < 255
+                        && !spawnBlockAt(x, y + 1, z).equals(world.airType())) {
+                    y++;
+                }
+                return spawnBlockAt(x, y, z);
+            }
+
+            @Override
+            public int surfaceHeight(int x, int z) {
+                // World.getSurfaceHeight lines 1132-1148: scan down from the
+                // section top; the leaf family skipped; stop at the first
+                // blocksMovement block; answer the cell above it.
+                for (int y = EngineChunk.SECTION_COUNT * 16 - 1; y > 0; y--) {
+                    net.zaminmc.torch.block.BlockType at = spawnBlockAt(x, y, z);
+                    if (WorldSolidity.isSolid(at)
+                            && !net.zaminmc.torch.server.block.LeafDecayBlocks
+                                    .isLeafState(at.identifier())) {
+                        return y + 1;
+                    }
+                }
+                return 1;
+            }
+
+            @Override
+            public boolean isSolid(int x, int y, int z) {
+                return WorldSolidity.isSolid(spawnBlockAt(x, y, z));
+            }
+        };
     }
 
     /** Registers an internal chat delivery observer (e.g. the protocol adapter). */

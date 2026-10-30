@@ -148,7 +148,16 @@ public record EngineConfig(
         String resourcePackHash,
         long maxTickTimeMillis,
         boolean onlineMode,
-        int networkCompressionThreshold
+        int networkCompressionThreshold,
+        /**
+         * The {@code level-seed} property (DedicatedServer line 170:
+         * {@code getString("level-seed", "")}) — empty is the reference's
+         * own default: a fresh world rolls {@code new Random().nextLong()}
+         * (the WorldSeedStore derives and persists the chosen seed; the
+         * empty string never reaches the generator). The compatibility
+         * constructor below carries "" for the pre-row call sites.
+         */
+        String levelSeed
 ) {
 
     /**
@@ -297,10 +306,35 @@ public record EngineConfig(
                 gamemode, pvp, levelType, whiteList, regionSizeChunks, enableCommandBlocks,
                 spawnProtectionRadius, enableRcon, rconPassword, rconPort, enableQuery,
                 queryPort, resourcePackUrl, resourcePackHash, maxTickTimeMillis,
-                false, COMPRESSION_DISABLED);
+                false, COMPRESSION_DISABLED, "");
+    }
+
+    /**
+     * The pre-level-seed compatibility constructor: the 25-argument form
+     * (the record's shape before the level-seed row joined — the shape
+     * the properties loader, the fixtures, and the tooling were written
+     * against). The empty level-seed is the reference's own property
+     * default, so every legacy caller keeps the reference's fresh-world
+     * random derivation.
+     */
+    public EngineConfig(String host, int port, String worldName, String motd,
+                        int maxPlayers, int viewDistance, int tickRateHz, String dataDir,
+                        GameMode gamemode, boolean pvp, String levelType, boolean whiteList,
+                        int regionSizeChunks, boolean enableCommandBlocks,
+                        int spawnProtectionRadius, boolean enableRcon, String rconPassword,
+                        int rconPort, boolean enableQuery, int queryPort,
+                        String resourcePackUrl, String resourcePackHash,
+                        long maxTickTimeMillis, boolean onlineMode,
+                        int networkCompressionThreshold) {
+        this(host, port, worldName, motd, maxPlayers, viewDistance, tickRateHz, dataDir,
+                gamemode, pvp, levelType, whiteList, regionSizeChunks, enableCommandBlocks,
+                spawnProtectionRadius, enableRcon, rconPassword, rconPort, enableQuery,
+                queryPort, resourcePackUrl, resourcePackHash, maxTickTimeMillis,
+                onlineMode, networkCompressionThreshold, "");
     }
 
     public EngineConfig {
+        Objects.requireNonNull(levelSeed, "levelSeed");
         Objects.requireNonNull(host, "host");
         Objects.requireNonNull(worldName, "worldName");
         Objects.requireNonNull(gamemode, "gamemode");
@@ -358,7 +392,7 @@ public record EngineConfig(
                 "normal", false, WHOLE_WORLD_REGION_SIZE, false,
                 DEFAULT_SPAWN_PROTECTION, false, "", UNSET_REMOTE_PORT, false,
                 UNSET_REMOTE_PORT, "", "", DEFAULT_MAX_TICK_TIME_MILLIS,
-                true, DEFAULT_COMPRESSION_THRESHOLD);
+                true, DEFAULT_COMPRESSION_THRESHOLD, "");
     }
 
     /**
@@ -383,7 +417,7 @@ public record EngineConfig(
                 tickRateHz, dataDir, gamemode, pvp, levelType, whiteList, regionSizeChunks,
                 enableCommandBlocks, spawnProtectionRadius, enableRcon, rconPassword,
                 rconPort, enableQuery, queryPort, resourcePackUrl, resourcePackHash,
-                maxTickTimeMillis, onlineMode, networkCompressionThreshold);
+                maxTickTimeMillis, onlineMode, networkCompressionThreshold, levelSeed);
     }
 
     /** The world folder (the historical {@code world/} of the Paper layout). */

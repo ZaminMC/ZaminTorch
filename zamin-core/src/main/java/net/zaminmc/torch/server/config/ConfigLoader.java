@@ -61,7 +61,11 @@ public final class ConfigLoader {
                 longOf(properties, "max-tick-time", EngineConfig.DEFAULT_MAX_TICK_TIME_MILLIS),
                 boolOf(properties, "online-mode", true),
                 intOf(properties, "network-compression-threshold",
-                        EngineConfig.DEFAULT_COMPRESSION_THRESHOLD));
+                        EngineConfig.DEFAULT_COMPRESSION_THRESHOLD),
+                // DedicatedServer line 170: getString("level-seed", "") — the
+                // empty default is the reference's own (a fresh world rolls
+                // the random seed; the WorldSeedStore persists the choice).
+                string(properties, "level-seed", ""));
     }
 
     /**
