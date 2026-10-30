@@ -18960,3 +18960,96 @@ green; the release pipeline's last build remains torch-1.8.8-153).
   convention, unblocking F-HP2), F-EC1 (the ender chest's solid-above
   gate — the consult swap rides F-SP1's helper), F-DC1-tail (the single
   quick-move's silent partial merge).
+
+---
+Task ID: pr-wave-review-2 (the parallel review session: PRs #87/#88/#89/#90 + the CI publication diagnosis)
+Agent: main (ZaminTorch session, second lane)
+
+Work Log:
+- THE CI PUBLICATION DIAGNOSIS (the user's named ask — "the builds
+  aren't being published since a long time"): the last published build
+  is torch-1.8.8-153 (2026-10-27 21:35). The failure history pulled
+  from the actions API tells TWO stories: (1) from 2026-10-28 00:10
+  every run failed 2-3 RANDOM tests per attempt across BOTH modules
+  (the protocol run's Horse/Mob/TorchEncryption trio, the core runs'
+  StatsCompleteness/BiomeWorld/MobEventBridge/ThornsMobVictim/Thorns
+  arrow pair/MissingCommands/HopperSystem — a different set every run,
+  the retry failing on DIFFERENT tests than the first attempt), the
+  systemic load-flake signature, not one deterministic bug; (2) the
+  runs grew past the job's timeout-minutes: 60 — the cancelled pile
+  (60 runs) are timeout kills mid-suite, a green tree dying before the
+  tag step. The deterministic window (Oct 30 13:42-15:33, DimensionWalk
+  Test failing both attempts) was PR #83's random seed exposing the
+  latent portal flag1 mirror error — fixed by Wave FL4-F1 at 15:33
+  (verified in the 13:56 run's own logs: portalCrossingWalksToTheNether
+  AndBackHome the only repeat failure). The timeout correction (60 to
+  120 minutes) landed as 99b7652c; the load-flake remainder stays
+  honestly open (the suite's wall-clock awaits under a 4-vCPU runner —
+  the ML-002 EngineAwaits census's unfinished tail).
+- THE LOCAL REPRODUCTION on 684ee7ff (the 2-core sandbox): three
+  failures under heavy starvation (RangedCombat's arrow seat,
+  ThornsMobVictim's arrow seat, DenseOwnerProfiling's bucketed-merge
+  measurement) — ALL load-correlated (the tick-starvation warnings in
+  the worker output; the same tree's CI failure set differs), none
+  deterministic.
+- PR #87 (F-TC1, the signal consult) reviewed line by line against the
+  reference: Block.isSolid 274-276 (the three conjuncts), World.getSignal
+  2358-2362 (the routing ternary), ChestBlock 377-400 (the trapped
+  family's weak viewer-count arm + the UP-ONLY strong arm),
+  ChestBlockEntity.onOpen/onClose 312-324 (the pos + pos.down() wake
+  pair), RedstoneBlock 16-23 (the own-15 arm), the five isCube-false
+  full-box families (Glass/StainedGlass/Beacon/PistonBase/Chest), the
+  Material.isSolidBlocking law, ComparatorBlock.getInputSignal 114, the
+  wire's doUpdatePower bands — ALL verified 1:1. The DoubleChestParity
+  Test re-pin justified (the reference's isCube-false chest never
+  carries the comparator through-walk). The lane's content landed via
+  the direct branch merge 8e974fe5; the PR closed.
+- PR #88 (F-EX2, the sleeping eye) verified: PlayerEntity.getEyeHeight
+  1648-1659 (1.62 / 0.2 lying / -0.08 sneak composed) + Explosion line
+  123 (the knockback vector's eye consult) — the one-site fix exact.
+  Landed via c1f5e55a; closed.
+- PR #89 (VT-003, the ice family) reviewed against IceBlock/SnowLayer
+  Block whole — THE GATE DEFECT FOUND IN THE LANDED FL4-F4: develop's
+  melt arm read > 11 on the claim "the ice's own opacity 0, no
+  setOpacity call anywhere in the reference family"; the reference's
+  OWN registration (Block.java line 1179) carries setOpacity(3), the
+  engine's BlockLightTable row 459 (the vanilla 1:1 audit's product)
+  encodes the same filter 3, so the ice cell's light from an adjacent
+  torch is 14-3=11 and the reference's gate 11-3=8 melts it — the
+  FL4-F4 gate refused exactly the adjacent-torch melt vanilla performs.
+  The independent integration (branch pr89-integration-v2, pushed to
+  the PR branch as f017078a) verified the corrected gate + the snow
+  layer melt arm over the merged tree: IceFamilyParityTest 11/0 (the
+  torch-attenuation seat pinning 11 at the cell, the snow melt + sky
+  guard, the break seats over the live dig wire), IceMeltParity
+  AcceptanceTest 8/0 (FL4-F4/F6's own seats GREEN under the corrected
+  gate), RandomTickSystemTest 3/0, SurvivalMining + NetherDigRouting +
+  AdventureGates + BlockUpdateSystem + FluidBlocks green — the same
+  corrections the parallel lane landed as d6614da3 (the opacity band
+  + the snow family, there generalized through BlockLightTable.filter
+  — the cleaner form). The PR closed with the riders carried.
+- PR #90 (VT-002's dig/place slice) analyzed against the landed
+  FL4-F5: the core law (the per-packet world resolution) raced FL4-F5
+  by 8 minutes (branch base 684ee7ff, commit 18:56 vs FL4-F5 19:04)
+  and is fully covered; the UNIQUE delta was the listener threading
+  (BlockBrokenListener/MiningStartReport/PlacementSupportGate/
+  MiningStartListener carrying the acting world) — landed as the
+  e088de73 review rider (the dragon egg teleport). Closed.
+- THE ICE BREAK equivalence verified between PR #89's form (the
+  hoisted consult above the single commit write) and FL4-F6's landed
+  form (the arm after the drop walk riding the flag1 && flag gate):
+  the same IceBlock.afterMinedByPlayer 39-51 law, the same observable
+  FLOWING_WATER level 0 over the holding floor — no double-apply kept.
+
+Stage Summary:
+- develop at 0717e85b (the parallel lane's ledgers); all four open PRs
+  processed and closed with their content or review riders on develop;
+  the CI timeout fix landed; the release run on the current tree
+  (41114434175 in flight, 41116049921 queued) carries the 120-minute
+  room — the next green run publishes torch-1.8.8-154.
+- The honest open tails: the suite's load-flake surface (the wall-clock
+  awaits the ML-002 census never converted — DimensionWalkTest's own
+  helper among them), the redstone system's world binding, the
+  block-update family's per-dimension story, the TNT family's dimension
+  row, and the container families' per-dimension stores (FL4-F5's named
+  remainder).
