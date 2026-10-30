@@ -416,11 +416,12 @@ commit region — a small textual overlap only; the changes compose (the
 ice law's `world.dimension()` consults become dimension-correct once the
 routing lands, exactly as #89's own comment anticipates).
 
-## VT-004 — the portal stand clock re-fires while the body stays pinned in the arrival frame (UNDER VERIFICATION)
+## VT-004 — the portal stand clock re-fires while the body stays pinned in the arrival frame (CONFIRMED)
 
 **Subsystem:** portal mechanics (the stand clock / the crossing's re-fire
-law). **Status:** under verification — two passes recorded (the source
-and the behavioral, both this run); the independent re-verification owed.
+law). **Status:** CONFIRMED — three passes complete (the source, the
+behavioral, and the independent re-verification; the record below). The
+correction is eligible; the fix branch is the queue head.
 
 **The reference's law** (reference/1.8.8 `entity/Entity.java`):
 `onPortalCollision` (lines 1426-1454) consults the cooldown FIRST — `if
@@ -496,26 +497,132 @@ ping-pongs between the dimensions each tick after an in-cells arrival
 in its arrival frame). The reference's answer for the same setup: the
 dimension holds -1 for the entire window (the seat's asserted law).
 
-**Pass 3 (independent re-verification) owed:** the
-compensating-behavior hunt — whether any other gate holds the re-fire
-(grace ticks, the wire's respawn sequence, the forcer's cache), whether
-`DimensionWalkTest`'s round-trip expectations pin the divergence as
-intentional, and the edge cases (the creative 0-tick stand; the
-vehicle-riding gate; the End pair's instant arm, which is a different
-law).
+**Pass 3 (independent re-verification, the twenty-third pass):** the
+compensating-behavior hunt found NOTHING that holds the re-fire, and both
+of the engine javadoc's supporting claims are false against the reference's
+own text:
 
-**Proposed minimal correction (once verified):** the reference's own gate
-shape — the standing clock consults the cooldown (`inPortal` armed only
-when the cooldown is expired; the cooldown re-arms on every collision
-while cooling) — plus the stand clock's decay across the crossing. The
-`DimensionWalkTest` round-trip seat would need re-pinning to the
-reference's law (the body must walk out and back in for the return).
+1. *The dispatch cadence.* The javadoc claims `onPortalCollision` is
+   "movement-driven, and a STANDING body sends no movement packets, so a
+   body standing inside a portal never refreshes the cooldown". The
+   reference's dispatch is `Entity.checkBlockCollisions()` (lines 667-689),
+   a bounding-box scan over every intersected block, invoked from
+   `moveEntity` (line 627) — which runs every tick for living bodies
+   (gravity and momentum drive it; no client packet is involved). A body
+   standing inside portal cells therefore fires `onPortalCollision(pos)`
+   EVERY tick: the cooldown branch (lines 1429-1430) re-arms it to the
+   player's 10 each tick, and `inPortal` (line 1453) — the only arm that
+   arms the crossing — rides the ELSE, the expired-cooldown arm, alone.
+   The standing body can never re-cross; the clock decays on the
+   not-inPortal arm (-4/tick, lines 301-308).
+2. *The arrival placement.* The javadoc claims the reference's
+   `changeDimension` "moves the body out of the portal on the same tick".
+   The reference's placement math (`PortalForcer.findNetherPortal` lines
+   106-129) lands the body INSIDE the destination frame's interior — the
+   width-span position `d2 + (1 - offset.x) * width * dir` and the
+   height-span `topLeft.y + 1 - offset.y * height` — the same in-cells
+   landing the engine's own forcer produces (FL4-F1 verified the placement
+   1:1). What holds the body in the destination dimension is the cooldown
+   consult, not the placement.
+3. *No compensating gate in the engine.* `tickPortalStand`
+   (EngineServer 6618-6666) routes the crossing straight to
+   `changeDimensionOnTick` with nothing between; `setGraceTicks(100)`
+   opens a movement-validation window (teleports/knockback anti-cheat,
+   PlayerSession 1758-1773) that the portal clock never consults;
+   `applyDimensionArrival` (PlayerSession 883-898) clears the portal
+   memory but leaves `portalTime`/`portalCooldown` untouched — the stand
+   clock carries its max across the crossing.
+4. *`DimensionWalkTest`'s round trip is a symptom, not a design choice.*
+   The test's own comment ("the 10-tick cooldown runs out, the stand clock
+   crosses again") documents the same misreading — in the reference the
+   cooldown NEVER runs out while the body stands in the cells; it is
+   re-armed every collision tick. A deliberate design decision would carry
+   a correct rationale; this one asserts "the reference's own shape"
+   against a reference whose text says otherwise.
+5. *The edges.* Creative: the reference's `getMaxNetherPortalTime()` =
+   `abilities.invulnerable ? 0 : 80` (PlayerEntity 300-302) — the
+   corrected shape still crosses on the first touching tick (cooldown 0 →
+   inPortal → `0 >= 0`) and the cooldown holds the re-fire after the
+   arrival, matching vanilla's instant creative crossing. The End pair's
+   instant arm is a different law (EndPortalBlock's own collision) and is
+   untouched. The vehicle/riding gate is genuinely ABSENT from the
+   engine's nether arm — a separate divergence, ledgered as VT-005 below,
+   not bundled into this correction.
 
-**Confidence:** medium-high on the source reading (the reference's gate is
-unambiguous); the engine's intent claim ("the reference's own shape")
-makes the independent pass especially important before any correction.
+**Proposed minimal correction (confirmed, fix-ready):** restructure
+`advancePortalClock` to the reference's own gate shape, in the reference's
+per-tick order — the cooldown decrement, then the collision consult (the
+re-arm on EVERY touching tick while cooling; `inPortal` armed only when
+expired), then the consumption (the crossing only on the inPortal arm; the
+decay otherwise). The `portalOccupiedLastTick` field (the entry-edge
+approximation of the misread theory) becomes dead and is removed. The
+`DimensionWalkTest` round-trip seat re-pins to the reference's law: the
+body must LEAVE the arrival cells, let the cooldown expire outside (10
+non-touching ticks), and re-enter to stand the fresh 80 — the walk out and
+back in is the vanilla round trip. The discovery seat
+`PortalRefireDiscoveryTest` rides the fix branch and turns green (its
+asserted law is the corrected shape).
 
-## Coverage ledger (updated by the twenty-second pass)
+**Confidence:** high — the source reading is unambiguous (the reference's
+gate is a cooldown-first consult with the crossing on the expired arm
+alone), the behavioral seat is deterministic across boots, and the
+independent pass closed every compensating hypothesis with the reference's
+own dispatch and placement text.
+
+## VT-005 — the nether portal stand clock ignores the reference's riding gate (SUSPECTED)
+
+**Subsystem:** portal mechanics (the riding/vehicle gate on the collision
+and the crossing). **Status:** suspected — one source pass recorded (the
+twenty-third pass, discovered during VT-004's edge-case sweep); the
+behavioral and independent passes owed.
+
+**The reference's law** (reference/1.8.8): the gate rides BOTH arms.
+`PortalBlock.onEntityCollision` (lines 158-162) calls `onPortalCollision`
+only `if (entity.vehicle == null && entity.rider == null)` — a riding (or
+ridden) body never even arms the collision. `Entity.baseTick`'s crossing
+arm (line 286) gates again: `this.vehicle == null && this.portalTime++ >=
+i`. A body sitting in a boat/minecart inside a portal therefore stands
+there indefinitely in vanilla — no stand clock, no crossing.
+
+**The engine's shape:** `EngineServer.tickPortalStand` (lines 6644-6665)
+computes `inPortal` from the feet cell alone — no riding consult on the
+nether arm. (The END arm directly above it DOES consult
+`session.ridingVehicleId() < 0 && session.ridingMobId() < 0`, so the
+engine has the state and the idiom.) A riding body whose feet cell is a
+portal cell accumulates the stand clock and crosses.
+
+**Verification history:** pass 1 (source, this pass): both reference gates
+read (PortalBlock 158-162, Entity 286) against the engine's nether arm
+(no gate; the End arm's contrast confirms the omission is not a systemic
+constraint). The behavioral pass owed: a seat standing a riding body in a
+portal cell for a window past the 80-tick threshold. The independent pass
+owed afterwards, per the discipline.
+
+**Confidence:** medium (the reference is unambiguous; the engine's riding
+state surface needs the behavioral confirmation that a riding body can
+actually hold a portal-feet position in the engine's simulation).
+
+## The twenty-third pass — VT-004's independent pass landed (CONFIRMED) + VT-005 discovered
+
+Baseline: `origin/develop` at `3a6127a0` (PR #89's ice family and PR #90's
+review rider landed since the twenty-second pass; no portal-path files
+moved — the diff stat verified before the pass began). This pass took the
+queue head, VT-004's pass 3, from three angles — the compensating-behavior
+hunt (nothing holds the re-fire: no gate in `tickPortalStand`, `graceTicks`
+is the movement-validation window the clock never consults,
+`applyDimensionArrival` leaves the stand clock carrying), the challenge of
+the engine javadoc's two supporting claims (both false: the reference's
+collision dispatch is `checkBlockCollisions` — a per-tick bounding-box scan
+off `moveEntity`, not client-packet-driven; and `findNetherPortal`'s
+placement math lands INSIDE the destination cells), and the edge sweep
+(creative ✓ per PlayerEntity 300-302; the End pair's instant arm is a
+different law ✓; the riding gate is genuinely absent — recorded as VT-005,
+suspected, one source pass). `DimensionWalkTest`'s round-trip comment
+carries the same misreading as the javadoc — the seat pins the symptom, not
+a design choice. **VT-004 is CONFIRMED (three passes, each with distinct
+evidence); the fix branch is this run's next act.**
+
+## Coverage ledger (updated by the twenty-third pass)
 
 | Area | Status |
 |---|---|
@@ -528,7 +635,8 @@ makes the independent pass especially important before any correction.
 | Ice family — break-to-water, melt | PR #89 open (VT-003's correction) |
 | Snow layer — placement support/melt/drops | drops landed (the mining-speed audit); melt + the 7-layer state surface recorded as VT-003's tail |
 | Packed ice — melt/break laws | inspected: the reference's PackedIceBlock carries no melt arm (the `setTicksRandomly` false, the silk-drop row landed); nothing owed |
-| Portal mechanics (flag1, forcer) | landed by FL4-F1; not re-audited — the stand clock's re-fire law is VT-004 (UNDER VERIFICATION, two passes; the seat PortalRefireDiscoveryTest is the record) |
+| Portal mechanics (flag1, forcer) | landed by FL4-F1; not re-audited — the stand clock's re-fire law is VT-004 (CONFIRMED, three passes; the seat PortalRefireDiscoveryTest is the record; the fix branch is the queue head) |
+| Portal mechanics — the riding gate (vehicle == null && rider == null) | VT-005 SUSPECTED (one source pass; the behavioral + independent passes owed) |
 | Drops — the TF-9 dimension stamp | LANDED by PR #90 (the dig/place walks stamp `world.dimension()`; the tile-family spill sites remain the per-dimension tile tail) |
 | Tile families — per-dimension stores | NOT INSPECTED as its own pass (the PR #90 ledger: the furnace/chest/skull/banner spill + cleanup ride the single-instance managers — the FL4 fluids/fire precedent applies; the nether tile placement/cleanup is its own architectural pass) |
 | Mob spawns — the dimension stamp | NOT INSPECTED (the PR #90 ledger names `MobManager.spawnAt`; the infested burst is the surfaced site) |
@@ -547,19 +655,22 @@ makes the independent pass especially important before any correction.
 3. ~~The VT-002 bounded first slice~~ — LANDED (Wave FL4-F3 took the
    family arms; PR #90 took the remaining dig/place GENERIC surface,
    `DigPathDimensionParityTest` 4/0).
-4. **VT-004's verification pass 3** (the portal stand clock's re-fire —
-   passes 1 and 2 landed this run: the source reading and the
-   deterministic behavioral seat
-   `PortalRefireDiscoveryTest`, RED on develop by contract): the
-   independent re-verification (the compensating-behavior hunt; the
-   `DimensionWalkTest` round-trip seat's own expectations; the creative
-   / vehicle / End-pair edges).
-5. The explosion-path dimension audit (the ledger row above — now
+4. ~~VT-004's verification pass 3~~ — DONE (the twenty-third pass: the
+   compensating-behavior hunt found nothing — the dispatch cadence is a
+   per-tick bounding-box scan, the reference's placement lands INSIDE the
+   cells, `DimensionWalkTest`'s round trip is the misread's symptom;
+   VT-004 CONFIRMED). **The VT-004 fix branch is the queue head** (the
+   reference's gate shape in `advancePortalClock`; the DimensionWalk
+   round-trip re-pin; the discovery seat rides green).
+5. VT-005's behavioral pass (the riding gate — a seat standing a riding
+   body in a portal cell past the 80-tick threshold), then its independent
+   pass.
+6. The explosion-path dimension audit (the ledger row above — now
    unblocked: nether placement exists post-PR #90).
-6. The standing lanes from the earlier passes, untouched by this one:
+7. The standing lanes from the earlier passes, untouched by this one:
    F-TC1 (the trapped chest's viewer signal — PR #87 open) and F-EC1
    (the ender chest's solid-above gate, suspected).
-7. The newly-ledgered dimension tails (each its own discovery pass, the
+8. The newly-ledgered dimension tails (each its own discovery pass, the
    PR #90 ledger): the per-dimension tile families, the mob spawn's
    dimension stamp, the FX dimension awareness, the per-dimension world
    border, the zombie arm's world binding.
