@@ -433,7 +433,7 @@ verification item, not this fix's scope).
 
 **Status: resolved** (the three passes complete — V1 by the nineteenth
 pass, V2 + V3 this session; the fix on
-`audit/verifier-pass-21-explosion-fire`).
+`audit/verifier-pass-21-explosion-fire`, **PR #92**).
 
 ### The three-pass record
 
