@@ -183,7 +183,8 @@ then the remainder in value order.
 ## F-EX1 — VERIFIED and FIXED (the twentieth pass, 2026-10-30)
 
 **Status: resolved** (the three passes complete, the fix landed on
-`audit/verifier-pass-20-explosion`, the PR opened against `develop`).
+`fix/explosion-entity-gather-parity-audit` / `audit/verifier-pass-20-explosion`,
+**PR #85** opened against `develop`).
 
 ### The twentieth pass's correction to the nineteenth's record
 
