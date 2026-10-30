@@ -31,6 +31,16 @@ import java.util.Random;
  * placement against the live world) stays the engine's ledgered
  * adaptation: the single world-spawn law resolves ONCE at boot, every
  * fresh body landing at the one cell.</p>
+ *
+ * <p><b>THE FLAT FAMILY'S EXEMPTION</b> (the review correction the
+ * SpawnProtectionAcceptanceTest seat forced): the boot gates this
+ * resolution on the NORMAL level type alone. A flat world's column can
+ * never answer GRASS through the reference's sea-level climb
+ * ({@code getSurfaceBlock} starts at 63; the flat surface is 3), so the
+ * reference's own flat-world walk is a pure 1000-step noise drift — the
+ * engine's flat family keeps its deterministic ORIGIN spawn (the
+ * reference's flat Y law minSpawnY=4 agreeing with the fixture's
+ * (0,4,0)).</p>
  */
 public final class WorldSpawnResolver {
 

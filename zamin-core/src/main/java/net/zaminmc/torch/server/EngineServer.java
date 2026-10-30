@@ -837,7 +837,21 @@ public final class EngineServer implements Server, EngineBridge {
                 // leaves-skipping surface consult, and the unstuck walk (a
                 // decoration at the column can never bury a fresh body).
                 // The operator's /setspawn anchor keeps its precedence.
-                if (!spawnAnchored) {
+                // THE FLAT FAMILY'S OWN LAW (the review correction the
+                // SpawnProtectionAcceptanceTest seat forced): the reference's
+                // initSpawnPoint grass walk runs for the overworld whatever
+                // the generator type, but a FLAT world's column can never
+                // answer GRASS through the reference's sea-level climb
+                // (getSurfaceBlock starts at 63; the flat surface is 3) —
+                // vanilla's flat walk is a pure 1000-step noise drift whose
+                // answer carries no terrain meaning, and the engine's flat
+                // family keeps its deterministic ORIGIN spawn instead (the
+                // reference's own flat Y law minSpawnY=4 agreeing with the
+                // fixture's (0,4,0)): every flat acceptance seat pins
+                // spawn-relative positions. The resolution belongs to the
+                // NORMAL family alone — the defect it repairs (a tree at
+                // the spawn column, an ocean fallback) is terrain-family.
+                if (!spawnAnchored && !"flat".equals(config.levelType())) {
                     world.setSpawnPosition(
                             net.zaminmc.torch.server.world.WorldSpawnResolver.resolve(
                                     spawnGround(), worldSeed, world.spawnPosition()));
