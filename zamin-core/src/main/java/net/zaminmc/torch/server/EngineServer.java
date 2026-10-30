@@ -4877,6 +4877,23 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /**
+     * The per-dimension random-tick system (Wave FL4 — the reference's
+     * tickChunks runs in EVERY world): the nether's and the End's own walks
+     * over their own worlds, exposed for the deterministic probes the same
+     * way the overworld's is (the sampler's 3-of-4096 odds make seeded
+     * end-to-end assertions flaky).
+     */
+    public RandomTickSystem randomTicksFor(int dimension) {
+        if (dimension == -1) {
+            return java.util.Objects.requireNonNull(netherRandomTicks, "nether random ticks");
+        }
+        if (dimension == 1) {
+            return java.util.Objects.requireNonNull(endRandomTicks, "end random ticks");
+        }
+        return randomTicks;
+    }
+
+    /**
      * The operator store (ops.json) — the /op //deop commands' own
      * persistence, exposed for the spawn-protection consult's tests and
      * the plugin surface.
