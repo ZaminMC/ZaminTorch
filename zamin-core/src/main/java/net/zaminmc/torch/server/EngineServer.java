@@ -3401,7 +3401,7 @@ public final class EngineServer implements Server, EngineBridge {
                                 signManager, spawners, commandBlocks, noteBlocks,
                                 skulls, jukeboxes, bannerManager));
                 blockInteraction = new BlockInteractionService(world, ticker,
-                        change -> world.republish(change.position()), // the resync path (§441)
+                        (resyncWorld, pos) -> resyncWorld.republish(pos), // the resync path (§441) — Wave FL4-F5: the acting world's own republish
                         session -> session.gamemode(), new DropService(new java.util.Random()), itemEntities,
                         // The damage-aware block-item resolution (Slice 31 —
                         // ItemBlock.onItemUse's getStateFromMeta): the wood
@@ -3688,6 +3688,14 @@ public final class EngineServer implements Server, EngineBridge {
                 blockInteraction.setDigStartGate((session, pos) ->
                         !isSpawnProtected(session, pos)
                                 && worldBorder.contains(pos.x(), pos.z()));
+                // The per-dimension world router (Wave FL4-F5 — the dig/place
+                // generic surface): the service's every dig, place, extinguish,
+                // resync and drop consults and writes the ACTING player's own
+                // world (the reference's player.world law — the pre-fix service
+                // read the overworld field for every player, so a nether dig
+                // broke the overworld's cell at those coordinates and a nether
+                // placement wrote the overworld instead).
+                blockInteraction.setWorldRouter(dimension -> worldForSafe(dimension));
                 // The fire-extinguish FX (Slice N6 — World.extinguishFire
                 // line 1642's {@code doEvent(player, 1004, pos, 0)}: the
                 // reference broadcasts the WorldEvent packet and the CLIENT
