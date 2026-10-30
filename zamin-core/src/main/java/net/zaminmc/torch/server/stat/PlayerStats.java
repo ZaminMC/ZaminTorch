@@ -1,24 +1,34 @@
 package net.zaminmc.torch.server.stat;
 
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * One player's statistics (the stats slice — PlayerStats 1:1): the counter
  * map keyed by the {@link EngineStats} vocabulary, the dirty set the wire
  * answer consumes, and the snapshot the persistence walk carries.
  *
- * <p>Tick-lane owned: the increments ride the owning owner's lane (the
- * same context every gameplay mutation carries), and the packet/save
- * snapshots are taken through the same lane — the map itself never
- * crosses owners (§6.4, the one authoritative writer rule).</p>
+ * <p><b>The maps are concurrent structures — the reference's own law</b>
+ * (PlayerStats.java line 9: {@code Maps.newConcurrentMap()}): the counters
+ * genuinely cross lanes. The increments ride the tick lane (the per-tick
+ * play clock and since-death clock, the gameplay events), but the login
+ * walk's {@link #markAllDirty} + {@link #takeAchievements} pair runs on
+ * the channel lane the moment {@code markPlaying} admits the session
+ * (V18Connection's join burst), and the statistics wire answer's
+ * {@link #takeDirty} lands there too — a plain map iterated by one lane
+ * while the other writes throws ConcurrentModificationException (the CI
+ * window: the login sync's {@code putAll} racing the first per-tick
+ * increment). The concurrent shape makes every crossing weakly
+ * consistent, exactly like the reference's; iteration order was never
+ * contractual (the reference's own dirty set is a HashSet, the wire's
+ * stat pairs keyed by name).</p>
  */
 public final class PlayerStats {
 
-    private final Map<String, Integer> counters = new HashMap<>();
-    private final Map<String, Integer> dirty = new LinkedHashMap<>();
-    private final Map<String, java.util.Set<String>> progress = new HashMap<>();
+    private final Map<String, Integer> counters = new ConcurrentHashMap<>();
+    private final Map<String, Integer> dirty = new ConcurrentHashMap<>();
+    private final Map<String, java.util.Set<String>> progress = new ConcurrentHashMap<>();
     private int ticksSinceDeath;
     private Listener listener;
 
