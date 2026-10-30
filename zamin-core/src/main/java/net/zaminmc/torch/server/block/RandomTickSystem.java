@@ -349,6 +349,29 @@ public final class RandomTickSystem {
             world.setBlock(position, BuiltinBlocks.REDSTONE_ORE);
             return;
         }
+        // The ice's melt (Wave FL4-F4 — IceBlock.tick lines 60-69 over the
+        // reference's randomTick → tick delegation, Block lines 434-436):
+        // the BLOCK light channel ALONE (LightType.BLOCK — the sky never
+        // melts ice in 1.8.8; a frozen lake under open daylight stands
+        // whole, only a torch/glowstone/lava at 12+ dissolves it), the
+        // threshold {@code > 11 - getOpacity()} with the ice's own
+        // opacity 0 (TransparentBlock.isSolidRender false — Block line
+        // 216's constructor assignment). The nether's yeetsWater consult
+        // removes the cell whole (no water ever forms there); every other
+        // dimension melts to the STILL SOURCE form (Blocks.WATER — never
+        // the flowing form the dig arm places; the melt pool stands until
+        // a neighbour update wakes it). dropItems never runs with a count
+        // (getBaseDropCount 0 — the melt yields nothing).
+        if (type.identifier().equals(BuiltinBlocks.ICE.identifier())) {
+            if (world.blockLightAt(position) > 11) {
+                world.setBlock(position, world.dimension() == -1
+                        ? world.airType()
+                        : net.zaminmc.torch.server.block.FluidBlocks.typeOf(
+                                net.zaminmc.torch.server.block.FluidBlocks.Kind.WATER,
+                                net.zaminmc.torch.server.block.FluidBlocks.Form.SOURCE, 0));
+            }
+            return;
+        }
         if (WorldSolidity.isCropStage(type.identifier())) {
             tickCropGrowth(position, type);
             return;

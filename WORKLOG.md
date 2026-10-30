@@ -18844,6 +18844,62 @@ F-EX1 verified whole, the gather restored, the PR opened)
 - The queue after this pass: F-EX2/F-EX3/F-EX4/F-EX5 + the standing
   F-FL4 architecture tail (the §22 queue head).
 
+---
+Task ID: wave-fl4f2-f3 (the per-dimension fire scheduling + the use-path world routing)
+Agent: main (ZaminTorch session)
+
+Work Log:
+- THE PR WAVE FIRST: #86 (the double chest F-DC1) reviewed by subagent —
+  all four surfaces verified consuming the one ChestPairs.resolve consult,
+  48/48 targeted green — merged at 8cf91242 (73/73 chest/hopper lanes
+  re-verified on the merge tree). #85 (the blast's entity gather F-EX1)
+  reviewed by subagent — every reference claim verified line by line,
+  125 targeted + 574 entity-lane green, but TWO defects reproduced by the
+  review's scratch tests: the crystal arm carried NO dimension gate (an
+  overworld blast at coinciding coordinates popped the End crystal and
+  detonated a 6.0F blast in the END) and the armor-stand break had no
+  double-break guard (the stale snapshot's re-break dropped the equipment
+  TWICE). Merged at 66266982 with BOTH riders carried in the follow-up
+  09e5f259 (the dimension==1 gate + the reference's own onBroken null-out
+  shape + the registry containment); both new seats stash-verified failing
+  unfixed (ExplosionEntityGatherParityTest 8/0, ArmorStandSystemTest 13/0).
+  The merge conflicts (the two doc files) unioned: HEAD's newer next-work
+  statement kept, the PR's worklog entry appended.
+- LANDED Wave FL4-F2 (the fire family's per-dimension scheduling, d34abe97):
+  the static seam retired for EngineWorld.scheduledTicks() (the world's own
+  queue attached at boot); the tickers on all three dimensions; the End's
+  eternal-bedrock row via dimension()==1; and the reference's OWN portal
+  gate restored (getId() > 0 — the OVERWORLD AND THE NETHER both attempt
+  the frame build, the nether-side ignite a real vanilla law the engine
+  never had). THE SEATS' OWN FIND: the first stash run exposed a VACUOUS
+  PASS (awaitCondition evaluates immediately — before the async setBlock
+  submit lands, the still-air cell satisfies the death await) — the seats
+  now carry the two-phase anti-race shape (the placement-landed phase
+  before the outcome phase).
+- LANDED Wave FL4-F3 (the placement families' use-path world routing,
+  a8ddd991): 58 session-path arms now open with the player's-own-world
+  local (worldFor(session.dimension()) shadowing the field), 3
+  position-only arms take the threaded world, and the shared gates
+  (canOccupyForPlacement + isNeighboringCactus) route with their callers
+  (31 gate calls). NetherPlacementRoutingAcceptanceTest 1/0 NEW over the
+  real use wire (a nether player's sign landing IN the nether, the
+  overworld's same-coordinates cell untouched) — stash-verified failing
+  unfixed; the regression lanes green (385/0 + 559/0).
+
+Stage Summary:
+- develop at a8ddd991, zero uncommitted, pushed as Abasing.
+- SESSION TOTAL: PR #86 + PR #85 merged (with both review riders) + Waves
+  FL4-F2 + FL4-F3 landed whole.
+
+Next: the ice family's melt arms (the FL4 row's last named tail — the
+engine's ice carries no melt arm at all; the yeetsWater consult at the
+ice sites, the melt-to-water law); the newly-ledgered FL4-F3 tails (the
+dig/place generic surface — BlockInteractionService's overworld
+constructor binding; the redstone binding; the block-update family's
+per-dimension story; the TNT dimension row); watch the CI queue (537 was
+in flight at session end — the latest tree's run publishes build 154 if
+green; the release pipeline's last build remains torch-1.8.8-153).
+
 ## 2026-10-31 — F-TC1's lane lands as PR #87: the signal consult reads the reference's own Block.isSolid() law (the twentieth pass's confirmed find + the same root cause's whole casualty census)
 
 - THE FINDING (three passes recorded by the twentieth verifier pass; the
