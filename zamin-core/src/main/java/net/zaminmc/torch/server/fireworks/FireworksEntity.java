@@ -159,4 +159,16 @@ public final class FireworksEntity {
         position = new Position(position.x() + vx, position.y() + vy, position.z() + vz);
         age++;
     }
+
+    /**
+     * The blast's scatter add (the reference's Explosion.damageEntities
+     * lines 135-137 — {@code velocityX/Y/Z += dir * d11}, the add riding
+     * outside the takeDamage verdict). Package-private: the system's
+     * addVelocity verb is the only caller.
+     */
+    void addVelocity(double dx, double dy, double dz) {
+        this.vx += dx;
+        this.vy += dy;
+        this.vz += dz;
+    }
 }

@@ -218,32 +218,62 @@ class VehicleWorldDamageTest {
 
             // The death law over the fire source: the furnace cart's break
             // sweep DROPS the furnace block (only the explosive death skips
-            // it) and the TNT cart's fire death DETONATES (the chain stone
-            // beside the pool takes the blast).
-            await(() -> {
-                for (var item : server.itemEntities().all()) {
-                    if (item.stack().type().identifier().toString()
-                            .equals("minecraft:furnace")) {
-                        return true;
-                    }
-                }
-                return false;
-            }, "the fire-death furnace cart dropped its furnace block");
+            // it — the drop gate's positive side is pinned by the melee
+            // death seat, where no blast follows the drop) and the TNT
+            // cart's fire death DETONATES (the chain stone beside the pool
+            // takes the blast).
             await(() -> server.world().getBlock(chainStone)
                             .equals(server.world().airType()),
                     "the fire-death TNT cart detonated (the chain stone took the blast)");
-            // The reference's own shape: a FIRE death DROPS the TNT block
-            // (dropItems line 102's gate is !isExplosive() alone — the fire
-            // arm detonates, it never withholds the drop) — the blast then
-            // consumes the neighborhood (the chain stone took it above).
-            boolean tntDropped = false;
-            for (var item : server.itemEntities().all()) {
-                if (item.stack().type().identifier().toString().equals("minecraft:tnt")) {
-                    tntDropped = true;
+            // THE DROP-THEN-DETONATE LAW (TntMinecartEntity.dropItems lines
+            // 73-81, the blast-gather parity re-pin): a FIRE death DROPS
+            // the TNT block (line 102's gate is !isExplosive() alone — the
+            // fire arm detonates, it never withholds the drop), and THEN
+            // the death blast (line 92's explode, INSIDE dropItems) gathers
+            // the JUST-DROPPED items through its FRESH damageEntities walk
+            // and wounds them to death (ItemEntity.takeDamage lines 202-218:
+            // health 5 against the nested blast's 50+ damage at this
+            // half-block range) — the census after the pair's deaths counts
+            // NOTHING: no TNT block, no furnace block, no cart items. The
+            // census runs ON THE TICK THREAD (the manager's list mutates
+            // there; the direct cross-thread read races and may serve a
+            // stale view that resurrects the eaten drops).
+            java.util.concurrent.atomic.AtomicReference<int[]> census =
+                    new java.util.concurrent.atomic.AtomicReference<>();
+            server.ticker().submit(() -> {
+                int tnt = 0;
+                int furnace = 0;
+                int minecarts = 0;
+                for (var item : server.itemEntities().all()) {
+                    String id = item.stack().type().identifier().toString();
+                    if (id.equals("minecraft:tnt")) {
+                        tnt++;
+                    } else if (id.equals("minecraft:furnace")) {
+                        furnace++;
+                    } else if (id.equals("minecraft:minecart")) {
+                        minecarts++;
+                    }
                 }
-            }
-            assertTrue(tntDropped,
-                    "the fire-death TNT cart still dropped its TNT block (the reference's own gate)");
+                census.set(new int[]{tnt, furnace, minecarts});
+            });
+            await(() -> census.get() != null, "the drop census ran");
+            assertEquals(0, census.get()[0],
+                    "the death blast ate the just-dropped TNT block (the drop"
+                            + " happens, the fresh gather wounds it to death)");
+            assertEquals(0, census.get()[1],
+                    "the death blast ate the furnace cart's drops too (the"
+                            + " half-block range)");
+            // The lone survivor: the DRY CONTROL's own minecart item. The
+            // death blast (power 4, f3 8) reached it at 3.85 blocks —
+            // d12 0.48, the wound's damage 26 over the cart's own break
+            // threshold — so the "control" died to the detonation TOO
+            // (the pre-gather engine's identical vehicle arm; vanilla's
+            // own outcome), and its sweep dropped the plain minecart item
+            // AFTER the blast: nothing follows to eat it.
+            assertEquals(1, census.get()[2],
+                    "the death blast killed the dry control too — its own"
+                            + " minecart item is the lone survivor (the drop"
+                            + " follows the blast, nothing eats it)");
         } finally {
             server.shutdown(() -> { });
         }

@@ -731,6 +731,35 @@ public final class ItemEntityManager {
         }
     }
 
+    /**
+     * The blast's item wound (the reference's ItemEntity.takeDamage lines
+     * 202-218 over the explosion's own source): the NETHER STAR refuses the
+     * explosive wound whole (lines 207-209 — {@code source.isExplosive()};
+     * the star still takes the caller's scatter, the add riding outside the
+     * takeDamage verdict); every other body's health takes the int-truncated
+     * quadratic damage and the body DIES at zero — removed whole, no drop,
+     * the reference's own {@code health <= 0 → remove()} shape.
+     *
+     * @return whether the body died (the caller's own ledger — the scatter
+     *         lands regardless, exactly the reference's order).
+     */
+    public boolean hurtFromExplosion(ItemEntity entity, float damage) {
+        Objects.requireNonNull(entity, "entity");
+        if (entities.contains(entity)
+                && entity.stack() != null
+                && !entity.stack().isEmpty()
+                && entity.stack().type()
+                        == net.zaminmc.torch.server.item.BuiltinItems.NETHER_STAR) {
+            return false; // the star's own explosive refusal
+        }
+        entity.takeExplosionDamage(damage);
+        if (entity.health() <= 0) {
+            remove(entity, "explosion");
+            return true;
+        }
+        return false;
+    }
+
     // ------------------------------------------------------------------
     // The persistence surface (Slice 93/E1 — the reference's own
     // writeCustomNbt/readCustomNbt rows over the engine's Z-family store:

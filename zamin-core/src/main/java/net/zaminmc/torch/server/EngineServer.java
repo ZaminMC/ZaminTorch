@@ -24036,10 +24036,42 @@ public final class EngineServer implements Server, EngineBridge {
             // (damageEntities lines 106-137). The scan box (lines 106-112):
             // floor(c - f3 - 1) .. floor(c + f3 + 1) — the engine's family
             // walks carry the same span through their own distance gates.
+            // THE GATHER (line 115): the reference collects the entity list
+            // ONCE, before any wound lands — a body that appears DURING the
+            // walk (the decorations' null-attacker drops, the chain's fresh
+            // bodies) is NOT in the snapshot and never takes the SAME
+            // blast's wound; the NEXT blast's own gather is what reaches it.
+            // The seven family snapshots below carry that law; a nested
+            // detonation (the crystal chain, the TNT cart) runs its own
+            // detonateAtIn and gathers its own FRESH lists, exactly the
+            // reference's nested explode inside the entity loop.
+            final java.util.List<net.zaminmc.torch.server.entity.ItemEntity> itemBodies =
+                    itemEntities == null ? java.util.List.of() : itemEntities.all();
+            final java.util.List<net.zaminmc.torch.server.experience.ExperienceOrbEntity> orbBodies =
+                    experienceOrbs == null ? java.util.List.of() : experienceOrbs.all();
+            final java.util.List<net.zaminmc.torch.server.entity.projectile.ProjectileEntity> projectileBodies =
+                    projectileManager == null ? java.util.List.of() : projectileManager.all();
+            final java.util.List<net.zaminmc.torch.server.tnt.TntSystem.PrimedTnt> tntBodies =
+                    tntSystem == null || dimension != 0
+                            ? java.util.List.of() : tntSystem.allPrimed();
+            final java.util.List<net.zaminmc.torch.server.endcrystal.EnderCrystal> crystalBodies =
+                    enderCrystals == null ? java.util.List.of() : enderCrystals.all();
+            final java.util.List<net.zaminmc.torch.server.armorstand.ArmorStand> standBodies =
+                    armorStands == null ? java.util.List.of() : armorStands.allStands();
+            final java.util.List<net.zaminmc.torch.server.fireworks.FireworksEntity> fireworkBodies =
+                    fireworks == null ? java.util.List.of() : fireworks.all();
             woundPlayersFromBlast(blastWorld, dimension, cx, cy, cz, f3, motion);
             woundMobsFromBlast(blastWorld, dimension, cx, cy, cz, f3, blastSourceMob);
             woundVehiclesFromBlast(dimension, cx, cy, cz, f3);
             woundDecorationsFromBlast(dimension, cx, cy, cz, f3);
+            woundItemsFromBlast(blastWorld, dimension, cx, cy, cz, f3, itemBodies);
+            woundOrbsFromBlast(blastWorld, dimension, cx, cy, cz, f3, orbBodies);
+            woundProjectilesFromBlast(blastWorld, dimension, cx, cy, cz, f3, blastSourceMob,
+                    projectileBodies);
+            woundPrimedTntFromBlast(blastWorld, dimension, cx, cy, cz, f3, tntBodies);
+            woundCrystalsFromBlast(cx, cy, cz, f3, crystalBodies);
+            woundArmorStandsFromBlast(dimension, cx, cy, cz, f3, standBodies);
+            woundFireworksFromBlast(blastWorld, dimension, cx, cy, cz, f3, fireworkBodies);
 
             // --- phase two: the sound, then the destruction ---------------
             // (damageBlocks lines 152-155): the explode pair plays BEFORE
@@ -24378,6 +24410,321 @@ public final class EngineServer implements Server, EngineBridge {
                 continue;
             }
             decorations.attackPainting(painting, false);
+        }
+    }
+
+    /**
+     * THE ITEM WOUNDS (the reference's damageEntities walk over the item
+     * family — ItemEntity.takeDamage lines 202-218): the feet-distance
+     * ratio gate over the engine's center-stored body (the reference's
+     * Entity.y IS the box bottom — {@code position.y - HALF_HEIGHT}), the
+     * eye-height direction (Entity.getEyeHeight's {@code height * 0.85}
+     * over the 0.25 box = 0.2125 above the feet), the box-density
+     * attenuation over the item's own box, the int-truncated quadratic
+     * wound through the manager's own verb (the nether star's explosive
+     * refusal + the health-5 decrement + the death-at-zero removal), and
+     * the unconditional scatter {@code += dir * d10} — the reference's
+     * velocity add rides OUTSIDE the takeDamage verdict (a dying body's
+     * add is moot, a surviving one's is the loud half: vanilla scatters
+     * every stack in the band).
+     */
+    private void woundItemsFromBlast(EngineWorld blastWorld, int dimension,
+                                     double cx, double cy, double cz, float f3,
+                                     java.util.List<net.zaminmc.torch.server.entity.ItemEntity> bodies) {
+        for (net.zaminmc.torch.server.entity.ItemEntity item : bodies) {
+            if (item.dimension() != dimension) {
+                continue;
+            }
+            Position p = item.position();
+            double half = net.zaminmc.torch.server.entity.ItemEntity.HALF_HEIGHT;
+            double feetY = p.y() - half;
+            double feetDx = p.x() - cx;
+            double feetDy = feetY - cy;
+            double feetDz = p.z() - cz;
+            double d12 = Math.sqrt(feetDx * feetDx + feetDy * feetDy
+                    + feetDz * feetDz) / f3;
+            if (d12 > 1.0) {
+                continue;
+            }
+            double d5 = p.x() - cx;
+            double d7 = (feetY + half * 2.0 * 0.85) - cy;
+            double d9 = p.z() - cz;
+            double d13 = Math.sqrt(d5 * d5 + d7 * d7 + d9 * d9);
+            if (d13 == 0.0) {
+                continue; // line 126: the reference's own degenerate guard
+            }
+            d5 /= d13;
+            d7 /= d13;
+            d9 /= d13;
+            double d14 = blockDensity(blastWorld, cx, cy, cz,
+                    p.x() - net.zaminmc.torch.server.entity.ItemEntity.HALF_WIDTH, feetY,
+                    p.z() - net.zaminmc.torch.server.entity.ItemEntity.HALF_WIDTH,
+                    p.x() + net.zaminmc.torch.server.entity.ItemEntity.HALF_WIDTH,
+                    feetY + half * 2.0,
+                    p.z() + net.zaminmc.torch.server.entity.ItemEntity.HALF_WIDTH);
+            double d10 = (1.0 - d12) * d14;
+            float damage = (int) ((d10 * d10 + d10) / 2.0 * 8.0 * f3 + 1.0);
+            itemEntities.hurtFromExplosion(item, damage);
+            // The scatter (lines 135-137): the add rides outside the verdict.
+            item.setVelocity(item.velocityX() + d5 * d10,
+                    item.velocityY() + d7 * d10,
+                    item.velocityZ() + d9 * d10);
+        }
+    }
+
+    /**
+     * THE ORB WOUNDS (the reference's damageEntities walk over the
+     * experience family — ExperienceOrbEntity.takeDamage lines 141-151):
+     * the same shape over the engine's own 0.25 orb body (the family's
+     * established convention; vanilla's spawned orb carries a 0.5 box) —
+     * the health-5 wound through the manager's verb, the death-at-zero
+     * removal with no payout, and the unconditional scatter.
+     */
+    private void woundOrbsFromBlast(EngineWorld blastWorld, int dimension,
+                                    double cx, double cy, double cz, float f3,
+                                    java.util.List<net.zaminmc.torch.server.experience.ExperienceOrbEntity> bodies) {
+        for (net.zaminmc.torch.server.experience.ExperienceOrbEntity orb : bodies) {
+            if (orb.dimension() != dimension) {
+                continue;
+            }
+            Position p = orb.position();
+            double half = net.zaminmc.torch.server.experience.ExperienceOrbEntity.HALF_HEIGHT;
+            double feetY = p.y() - half;
+            double feetDx = p.x() - cx;
+            double feetDy = feetY - cy;
+            double feetDz = p.z() - cz;
+            double d12 = Math.sqrt(feetDx * feetDx + feetDy * feetDy
+                    + feetDz * feetDz) / f3;
+            if (d12 > 1.0) {
+                continue;
+            }
+            double d5 = p.x() - cx;
+            double d7 = (feetY + half * 2.0 * 0.85) - cy;
+            double d9 = p.z() - cz;
+            double d13 = Math.sqrt(d5 * d5 + d7 * d7 + d9 * d9);
+            if (d13 == 0.0) {
+                continue;
+            }
+            d5 /= d13;
+            d7 /= d13;
+            d9 /= d13;
+            double d14 = blockDensity(blastWorld, cx, cy, cz,
+                    p.x() - net.zaminmc.torch.server.experience.ExperienceOrbEntity.HALF_WIDTH,
+                    feetY,
+                    p.z() - net.zaminmc.torch.server.experience.ExperienceOrbEntity.HALF_WIDTH,
+                    p.x() + net.zaminmc.torch.server.experience.ExperienceOrbEntity.HALF_WIDTH,
+                    feetY + half * 2.0,
+                    p.z() + net.zaminmc.torch.server.experience.ExperienceOrbEntity.HALF_WIDTH);
+            double d10 = (1.0 - d12) * d14;
+            float damage = (int) ((d10 * d10 + d10) / 2.0 * 8.0 * f3 + 1.0);
+            experienceOrbs.hurtFromExplosion(orb, damage);
+            orb.setVelocity(orb.velocityX() + d5 * d10,
+                    orb.velocityY() + d7 * d10,
+                    orb.velocityZ() + d9 * d10);
+        }
+    }
+
+    /**
+     * THE PROJECTILE WOUNDS (the reference's damageEntities walk over the
+     * projectile family): the Entity-default takeDamage no-ops for every
+     * ballistic kind — the wound that matters is the LIVING-attacker
+     * re-aim the ProjectileEntity family carries (takeDamage lines
+     * 248-273: the velocity BECOMES the attacker's look vector, the
+     * acceleration look * 0.1, the attacker the new shooter — a
+     * creeper's blast re-aims the fireballs in its band), and every
+     * gathered body takes the unconditional scatter whatever its wound
+     * did. The per-kind box rides the family's own half (the push
+     * consult's table), the eye height the Entity default
+     * {@code height * 0.85}.
+     */
+    private void woundProjectilesFromBlast(EngineWorld blastWorld, int dimension,
+                                           double cx, double cy, double cz, float f3,
+                                           MobEntity blastSourceMob,
+                                           java.util.List<net.zaminmc.torch.server.entity.projectile.ProjectileEntity> bodies) {
+        for (net.zaminmc.torch.server.entity.projectile.ProjectileEntity projectile
+                : bodies) {
+            if (projectile.dimension() != dimension) {
+                continue;
+            }
+            Position p = projectile.position();
+            double half = net.zaminmc.torch.server.entity.projectile.ProjectileManager
+                    .pushHalfSize(projectile.kind());
+            double feetY = p.y() - half;
+            double feetDx = p.x() - cx;
+            double feetDy = feetY - cy;
+            double feetDz = p.z() - cz;
+            double d12 = Math.sqrt(feetDx * feetDx + feetDy * feetDy
+                    + feetDz * feetDz) / f3;
+            if (d12 > 1.0) {
+                continue;
+            }
+            double d5 = p.x() - cx;
+            double d7 = (feetY + half * 2.0 * 0.85) - cy;
+            double d9 = p.z() - cz;
+            double d13 = Math.sqrt(d5 * d5 + d7 * d7 + d9 * d9);
+            if (d13 == 0.0) {
+                continue;
+            }
+            d5 /= d13;
+            d7 /= d13;
+            d9 /= d13;
+            double d14 = blockDensity(blastWorld, cx, cy, cz,
+                    p.x() - half, feetY, p.z() - half,
+                    p.x() + half, feetY + half * 2.0, p.z() + half);
+            double d10 = (1.0 - d12) * d14;
+            // The wound: the mob-sourced blast's re-aim over the
+            // ProjectileEntity family (the attacker-less sources — the
+            // TNT, the fireballs, the crystals, the skulls — take the
+            // Entity default alone: nothing).
+            if (blastSourceMob != null) {
+                double yawRadians = Math.toRadians(blastSourceMob.headYaw());
+                projectileManager.woundFromExplosion(projectile, blastSourceMob.entityId(),
+                        -Math.sin(yawRadians), 0.0, Math.cos(yawRadians));
+            }
+            // The scatter (lines 135-137): the add rides outside the verdict.
+            projectileManager.addVelocity(projectile, d5 * d10, d7 * d10, d9 * d10);
+        }
+    }
+
+    /**
+     * THE PRIMED-TNT WOUNDS (the reference's damageEntities walk over the
+     * fuse family — PrimedTntEntity carries NO immunity override and NO
+     * takeDamage override in 1.8.8): the wound no-ops and the impulse
+     * alone lands — the TNT cannon's own law. The engine's primed body
+     * keeps the reference's frame (y IS the box bottom), the eye height
+     * the family's own 0.0 override (PrimedTntEntity line 93), the box
+     * the 0.98 hull.
+     */
+    private void woundPrimedTntFromBlast(EngineWorld blastWorld, int dimension,
+                                         double cx, double cy, double cz, float f3,
+                                         java.util.List<net.zaminmc.torch.server.tnt.TntSystem.PrimedTnt> bodies) {
+        for (net.zaminmc.torch.server.tnt.TntSystem.PrimedTnt tnt : bodies) {
+            double feetDx = tnt.x() - cx;
+            double feetDy = tnt.y() - cy;
+            double feetDz = tnt.z() - cz;
+            double d12 = Math.sqrt(feetDx * feetDx + feetDy * feetDy
+                    + feetDz * feetDz) / f3;
+            if (d12 > 1.0) {
+                continue;
+            }
+            // The eye-height direction: PrimedTntEntity.getEyeHeight's own
+            // 0.0 override (line 93) — the impulse runs flat through the
+            // body's own center band.
+            double d5 = tnt.x() - cx;
+            double d7 = tnt.y() - cy;
+            double d9 = tnt.z() - cz;
+            double d13 = Math.sqrt(d5 * d5 + d7 * d7 + d9 * d9);
+            if (d13 == 0.0) {
+                continue;
+            }
+            d5 /= d13;
+            d7 /= d13;
+            d9 /= d13;
+            double d14 = blockDensity(blastWorld, cx, cy, cz,
+                    tnt.x() - 0.49, tnt.y(), tnt.z() - 0.49,
+                    tnt.x() + 0.49, tnt.y() + 0.98, tnt.z() + 0.49);
+            double d10 = (1.0 - d12) * d14;
+            tntSystem.addVelocity(tnt, d5 * d10, d7 * d10, d9 * d10);
+        }
+    }
+
+    /**
+     * THE END-CRYSTAL WOUNDS (the reference's damageEntities walk over the
+     * crystal family — EnderCrystalEntity.takeDamage lines 67-84): ANY
+     * wound kills — the damage number itself is discarded by the
+     * crystal's own law — so the gate alone (the feet-distance ratio over
+     * the engine's own bottom-frame body) routes the body into the
+     * system's death walk: the removal plus the 6.0F blast, THE END
+     * CHAIN (a blast near a pillar pair pops both, each crystal's own
+     * detonation walking the same gather recursively — exactly the
+     * reference's nested explode inside damageEntities, the outer blast's
+     * cells still uncommitted when the nested one reads the world).
+     */
+    private void woundCrystalsFromBlast(double cx, double cy, double cz, float f3,
+                                         java.util.List<net.zaminmc.torch.server.endcrystal.EnderCrystal> bodies) {
+        for (net.zaminmc.torch.server.endcrystal.EnderCrystal crystal
+                : bodies) {
+            double feetDx = crystal.x() - cx;
+            double feetDy = crystal.y() - cy;
+            double feetDz = crystal.z() - cz;
+            double d12 = Math.sqrt(feetDx * feetDx + feetDy * feetDy
+                    + feetDz * feetDz) / f3;
+            if (d12 > 1.0) {
+                continue;
+            }
+            enderCrystals.damage(crystal);
+        }
+    }
+
+    /**
+     * THE ARMOR-STAND WOUNDS (the reference's damageEntities walk over the
+     * stand family): the immunity consult answers isInvisible() alone
+     * (ArmorStandEntity line 593) and the engine's stands carry no
+     * invisible flag — every stand maps to the reference's VISIBLE body,
+     * and a visible stand in the band takes takeDamage's explosive arm
+     * (lines 382-386): onBroken drops the EQUIPMENT, the stand item does
+     * NOT (onBroken lines 480-490 — the explosion's own quirk vs
+     * onBrokenByPlayer's stand-item drop), then the remove. The scatter
+     * is moot (the body is gone before the add).
+     */
+    private void woundArmorStandsFromBlast(int dimension,
+                                           double cx, double cy, double cz, float f3,
+                                           java.util.List<net.zaminmc.torch.server.armorstand.ArmorStand> bodies) {
+        for (net.zaminmc.torch.server.armorstand.ArmorStand stand
+                : bodies) {
+            if (stand.dimension() != dimension) {
+                continue;
+            }
+            double feetDx = stand.x() - cx;
+            double feetDy = stand.y() - cy;
+            double feetDz = stand.z() - cz;
+            double d12 = Math.sqrt(feetDx * feetDx + feetDy * feetDy
+                    + feetDz * feetDz) / f3;
+            if (d12 > 1.0) {
+                continue;
+            }
+            armorStands.breakByExplosion(stand);
+        }
+    }
+
+    /**
+     * THE FIREWORK WOUNDS (the reference's damageEntities walk over the
+     * rocket family): the Entity-default wound no-ops — the impulse
+     * alone lands, over the family's own 0.25 box and point-stored body.
+     */
+    private void woundFireworksFromBlast(EngineWorld blastWorld, int dimension,
+                                         double cx, double cy, double cz, float f3,
+                                         java.util.List<net.zaminmc.torch.server.fireworks.FireworksEntity> bodies) {
+        for (net.zaminmc.torch.server.fireworks.FireworksEntity rocket : bodies) {
+            if (rocket.dimension() != dimension) {
+                continue;
+            }
+            Position p = rocket.position();
+            double half = 0.125;
+            double feetY = p.y() - half;
+            double feetDx = p.x() - cx;
+            double feetDy = feetY - cy;
+            double feetDz = p.z() - cz;
+            double d12 = Math.sqrt(feetDx * feetDx + feetDy * feetDy
+                    + feetDz * feetDz) / f3;
+            if (d12 > 1.0) {
+                continue;
+            }
+            double d5 = p.x() - cx;
+            double d7 = (feetY + half * 2.0 * 0.85) - cy;
+            double d9 = p.z() - cz;
+            double d13 = Math.sqrt(d5 * d5 + d7 * d7 + d9 * d9);
+            if (d13 == 0.0) {
+                continue;
+            }
+            d5 /= d13;
+            d7 /= d13;
+            d9 /= d13;
+            double d14 = blockDensity(blastWorld, cx, cy, cz,
+                    p.x() - half, feetY, p.z() - half,
+                    p.x() + half, feetY + half * 2.0, p.z() + half);
+            double d10 = (1.0 - d12) * d14;
+            fireworks.addVelocity(rocket, d5 * d10, d7 * d10, d9 * d10);
         }
     }
 
