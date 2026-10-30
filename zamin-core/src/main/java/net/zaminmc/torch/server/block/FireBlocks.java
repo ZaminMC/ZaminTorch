@@ -455,30 +455,26 @@ public final class FireBlocks {
 
     private static volatile TntPrimeArm tntPrime = pos -> { };
 
-    /** The overworld (onAdded's portal-create gate — dimension id 0). */
-    private static volatile EngineWorld overworld;
-
-    /** The End (the eternal-bedrock check's dimension). */
-    private static volatile EngineWorld endWorld;
-
-    /** The scheduled-tick surface (the re-arm at the reference's line 165). */
-    private static volatile ScheduledTickSystem scheduledTicks;
-
     /** The onAdded rolls (the reference's world.random). */
     private static volatile Random onAddedRolls = new Random();
 
-    /** Wires the seams once at boot. */
+    /**
+     * Wires the seams once at boot (Wave FL4-F2: the per-dimension
+     * scheduled queues dropped — every schedule consult now rides the
+     * CALLING world's own {@link EngineWorld#scheduledTicks()}, the
+     * reference's {@code world.scheduleTick} law; the portal arm reads
+     * the changed world's own {@link EngineWorld#dimension()} row — the
+     * reference's {@code getId() > 0} gate, the overworld AND the nether
+     * both attempting the frame build — and the End's eternal-bedrock
+     * check the same way).
+     */
     public static void wire(BooleanSupplier raining, BooleanSupplier fireTickRule,
                             IntSupplier difficultyId, TntPrimeArm tntPrime,
-                            EngineWorld overworld, EngineWorld endWorld,
-                            ScheduledTickSystem scheduledTicks, Random onAddedRolls) {
+                            Random onAddedRolls) {
         FireBlocks.raining = java.util.Objects.requireNonNull(raining, "raining");
         FireBlocks.fireTickRule = java.util.Objects.requireNonNull(fireTickRule, "fireTickRule");
         FireBlocks.difficultyId = java.util.Objects.requireNonNull(difficultyId, "difficultyId");
         FireBlocks.tntPrime = java.util.Objects.requireNonNull(tntPrime, "tntPrime");
-        FireBlocks.overworld = overworld;
-        FireBlocks.endWorld = endWorld;
-        FireBlocks.scheduledTicks = java.util.Objects.requireNonNull(scheduledTicks, "scheduledTicks");
         FireBlocks.onAddedRolls = java.util.Objects.requireNonNull(onAddedRolls, "onAddedRolls");
     }
 
@@ -518,11 +514,12 @@ public final class FireBlocks {
             world.setBlock(pos, world.airType());
         }
         // Lines 150-154: the eternal flames — netherrack below, and the
-        // End's bedrock.
+        // End's bedrock (the dimension row — the reference's
+        // {@code world.dimension instanceof TheEndDimension} gate).
         BlockType below = world.getBlock(pos.offset(0, -1, 0));
         Identifier belowId = below.identifier();
         boolean eternal = belowId.equals(NETHERRACK)
-                || (endWorld != null && world == endWorld && belowId.equals(BEDROCK));
+                || (world.dimension() == 1 && belowId.equals(BEDROCK));
         // Lines 156-157: rain douses the exposed flame.
         if (!eternal && isRaining() && shouldExtinguish(world, pos)) {
             world.setBlock(pos, world.airType());
@@ -539,8 +536,11 @@ public final class FireBlocks {
         }
         // Line 165: the re-arm — 30 + rand(10) (getTickRate 30). The
         // family id is the CURRENT state's identifier (the flattened
-        // band's member — the age bump above already re-named it).
-        ScheduledTickSystem ticks = scheduledTicks;
+        // band's member — the age bump above already re-named it). The
+        // queue is the CALLING world's own (Wave FL4-F2 — the reference's
+        // world.scheduleTick law; the pre-fix static seam armed every
+        // dimension's flame into the overworld's queue).
+        ScheduledTickSystem ticks = world.scheduledTicks();
         if (ticks != null) {
             ticks.scheduleTick(pos, world.getBlock(pos).identifier(), 30 + random.nextInt(10));
         }
@@ -670,11 +670,12 @@ public final class FireBlocks {
             if (isFire(oldType.identifier())) {
                 return; // an age bump or same-family swap — no onAdded
             }
-            // Lines 318-319: the overworld's portal attempt (a valid frame
-            // replaces the fire cell with the portal interior; the failed
-            // scan leaves the ordinary fire).
-            EngineWorld over = overworld;
-            if (over != null && changedWorld == over
+            // Lines 318-319: the portal attempt — the reference's own gate
+            // is {@code world.dimension.getId() > 0} (the OVERWORLD AND
+            // THE NETHER both attempt the frame build; the End alone
+            // skips). The pre-fix engine gated on the overworld alone — a
+            // nether-side frame's ignite never built its portal.
+            if (changedWorld.dimension() <= 0
                     && PortalFrameBuilder.createAt(changedWorld, position)) {
                 return;
             }
@@ -684,7 +685,13 @@ public final class FireBlocks {
                 changedWorld.setBlock(position, changedWorld.airType());
                 return;
             }
-            ScheduledTickSystem ticks = scheduledTicks;
+            // The schedule rides the CHANGED WORLD'S OWN queue (Wave
+            // FL4-F2): the reference's {@code world.scheduleTick(pos,
+            // this, ...)} — the pre-fix static seam armed a nether/End
+            // flame into the OVERWORLD's queue, where it either froze
+            // inert (the foreign world's cells) or wrote the wrong
+            // dimension's terrain.
+            ScheduledTickSystem ticks = changedWorld.scheduledTicks();
             if (ticks != null) {
                 ticks.scheduleTick(position, newId, 30 + onAddedRolls.nextInt(10));
             }

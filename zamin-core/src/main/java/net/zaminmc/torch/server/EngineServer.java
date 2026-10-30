@@ -806,6 +806,7 @@ public final class EngineServer implements Server, EngineBridge {
                 // + the fluid system wire later, beside the overworld's.
                 netherScheduledTicks = new net.zaminmc.torch.server.block.ScheduledTickSystem(
                         netherWorld, new java.util.Random(worldSeed ^ 0x541DCA12L));
+                netherWorld.attachScheduledTicks(netherScheduledTicks);
                 netherScheduledTickStore = new net.zaminmc.torch.server.block.ScheduledTickDataStore(
                         config.worldDataDir().resolve("DIM-1/scheduledticks.bin"));
                 for (net.zaminmc.torch.server.block.ScheduledTickDataStore.TickRow row
@@ -858,6 +859,7 @@ public final class EngineServer implements Server, EngineBridge {
                 // block above.
                 endScheduledTicks = new net.zaminmc.torch.server.block.ScheduledTickSystem(
                         endWorld, new java.util.Random(worldSeed ^ 0x541DCA13L));
+                endWorld.attachScheduledTicks(endScheduledTicks);
                 endScheduledTickStore = new net.zaminmc.torch.server.block.ScheduledTickDataStore(
                         config.worldDataDir().resolve("DIM1/scheduledticks.bin"));
                 for (net.zaminmc.torch.server.block.ScheduledTickDataStore.TickRow row
@@ -1144,6 +1146,10 @@ public final class EngineServer implements Server, EngineBridge {
                 // delayed arms migrate onto it family by family.
                 scheduledTickSystem = new net.zaminmc.torch.server.block.ScheduledTickSystem(
                         world, new java.util.Random(worldSeed ^ 0x541DCA11L));
+                // The world's own queue (Wave FL4-F2 — the fire family's
+                // per-dimension scheduling): the families' schedule
+                // consults ride the calling world's own surface.
+                world.attachScheduledTicks(scheduledTickSystem);
                 // The fire family's migration (FireBlock 1:1 onto the
                 // TileTicks surface — the first family off the block-update
                 // system's own adapted arm): the seams (the doFireTick rule,
@@ -1162,9 +1168,20 @@ public final class EngineServer implements Server, EngineBridge {
                                 tnt.spawnPrimedAt(pos.x() + 0.5, pos.y(), pos.z() + 0.5);
                             }
                         },
-                        world, endWorld, scheduledTickSystem, gameplayRandom);
+                        gameplayRandom);
+                // The sixteen AGE states' ticker registrations on EVERY
+                // dimension's own queue (Wave FL4-F2 — the reference's
+                // every-ServerWorld dispatch; the pre-fix engine
+                // registered the overworld's alone, so a nether/End flame
+                // sat in its own queue with no dispatcher).
                 for (int age = 0; age <= net.zaminmc.torch.server.block.FireBlocks.MAX_AGE; age++) {
                     scheduledTickSystem.registerTicker(
+                            net.zaminmc.torch.server.block.FireBlocks.stateId(age),
+                            net.zaminmc.torch.server.block.FireBlocks::tick);
+                    netherScheduledTicks.registerTicker(
+                            net.zaminmc.torch.server.block.FireBlocks.stateId(age),
+                            net.zaminmc.torch.server.block.FireBlocks::tick);
+                    endScheduledTicks.registerTicker(
                             net.zaminmc.torch.server.block.FireBlocks.stateId(age),
                             net.zaminmc.torch.server.block.FireBlocks::tick);
                 }
