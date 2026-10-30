@@ -232,3 +232,57 @@ F-HP3/F-HP4 suspected).
 3. **F-FL4** (the nether/End fluid simulation) — the architecture tail.
 4. **F-HP3** (the cart position convention) — unblocks F-HP2.
 5. **F-EC1 / F-DC1-tail** (the suspected minors).
+
+---
+
+## The twenty-first verifier pass's session record (2026-10-31)
+
+**F-TC1 RESOLVED via PR #87** (`fix/trapped-chest-viewer-signal-parity-audit`):
+the consult swap whole — the new shared `BlockSolidity.isSolid`
+(material.isSolidBlocking && isCube && !isSignalSource over the engine's
+own tables) at all six signal-routing sites (signal, the comparator's
+through-solid arm, the wire's climb/descent bands, the wire's
+onAdded/onRemoved wakes, wakeComparators) + the same root cause's four
+further casualties: F-TC1-a the redstone block's own 15 (the new
+ownSignal arm — the block was signal-solid and answered the
+re-radiation arm's 0), F-TC1-b the trapped chest's UP-only strong arm
+(the new directSignal arm), F-TC1-c the viewer-count wakes at both ends
+(the onOpen/onClose pos + pos.down() pair — the engine's close woke
+NOTHING: a wire that had read the count never released it), F-TC1-d the
+re-radiation set narrowed whole (glass/leaves/slabs/stairs/chests/...
+never conduct). TrappedChestViewerSignalParityTest 6/0 — the stash
+verification 6/6 red unfixed. The findings doc:
+`docs/SIGNAL_CONSULT_PARITY_FINDINGS.md` (rides the PR).
+
+**F-EX2 RESOLVED via PR #88** (`fix/explosion-sleeping-eye-frame-parity-audit`):
+the sleeping player's blast knockback aims at the LYING eye
+(PlayerEntity.getEyeHeight's 0.2 frame; the sneak's -0.08 composed).
+The three passes complete; ExplosionSleepingEyeFrameParityTest 2/0 —
+the stash verification failing unfixed on exactly the sleeping seat,
+the standing control green both ways. The record rides the PR's
+EXPLOSION_FAMILY_AUDIT_FINDINGS.md section.
+
+**The new suspected finds (V1 source-only, their own lanes queued):**
+- **F-SP1 — the SUPPORT consult family**: `World.isSolidBlockingCube` /
+  `hasSolidTop` = `material.isSolidBlocking() && isCube()` (NO
+  signal-source conjunct) — the torch/door/rail/lever/button/wire-floor/
+  wall-mount sites all read the movement consult (a torch hangs on glass
+  in the engine where vanilla fells it; a wire sits on glass). The
+  correction is mechanical through BlockSolidity's isCube + the material
+  consult once verified.
+- **F-DS1 — the double slab's HALF-height collision row**:
+  `CollisionShapes.boxesOf`'s `endsWith("_slab")` catches the double
+  forms — bodies sink to the mid-line; the reference's double slab is a
+  full cube.
+- **The eye-height consult census**: the engine's other hardcoded 1.62
+  sites (the eat-sound origin, the random-tick cell walk, the ray
+  consults) each need their own reference comparison.
+
+**The queue after this pass:** F-EX3 (the BlastResistanceTable census)
+and F-EX4 (the createFire arm — the wrong-world bed + the ghast
+fireball) from the nineteenth pass's explosion family; F-EX5 (the punch
+deflection's skull exclusion, the twentieth explosion pass's find);
+F-HP3 (the cart position convention, unblocking F-HP2); F-SP1/F-DS1
+(the new suspects); F-EC1 (the ender chest's solid-above gate — rides
+F-SP1's helper); F-DC1-tail (the single quick-move's silent partial
+merge). PRs #85/#86/#87/#88 all open against develop awaiting review.
