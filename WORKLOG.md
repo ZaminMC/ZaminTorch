@@ -18432,3 +18432,77 @@ F-VINE pass's second and final slice)
   worldgen consumer lanes 80/0.
 - The F-VINE family is retired END TO END; the sixteenth-pass
   F-candidate list is fully adjudicated. The queue: EMPTY.
+
+---
+
+## Wave HP1 — 2026-10-30 (the hopper block's item-suck band, the
+eighteenth verifier pass's first finding)
+
+- THE PASS ENTRY: the eighteenth verifier pass opened the hopper
+  family — the container transfer mechanics' own gather law, untouched
+  by any prior wave (the seventeenth pass's fluids named other
+  candidates; the hopper's own row in the compatibility matrix carried
+  no band note, and the suck site is the family's only item-entity
+  gather in the block world).
+- THE REFERENCE LAW: with no container above the hopper,
+  `HopperBlockEntity.pullItem` (lines 295-331) gathers through
+  `getItem(world, hopper.getX(), hopper.getY() + 1.0, hopper.getZ())`
+  over the MOUTH ACCESSORS (lines 484-495: `getX/getY/getZ = pos +
+  0.5`); `getItem` (lines 445-446) builds the Box ±0.5 around the
+  passed point — the FULL CELL ABOVE `[bx, bx+1] x [by+1, by+2] x
+  [bz, bz+1]`; the gather is `WorldChunk.getEntitiesOfType` lines
+  768-781's `t.getShape().intersects(bounds)` — each item's OWN 0.25
+  box (`ItemEntity.setSize(0.25F, 0.25F)`, `EntityFilter.ALIVE` =
+  `!removed`) against the query box, and `Box.intersects` (lines
+  164-171) is STRICT both sides (touching is not intersecting): the
+  item-center band `(bx-0.125, bx+1.125) x (by+0.875, by+2.125) x
+  (bz-0.125, bz+1.125)`.
+- THE PRE-FIX ENGINE: a CENTER-in-band test `|cx - (bx+0.5)| <= 0.5,
+  |cy - (by+1.0)| <= 0.5, |cz - (bz+0.5)| <= 0.5` — the y band
+  `[by+0.5, by+1.5]`, the hopper's own TOP FACE, half into the funnel
+  mouth and only half into the cell above. TWO observable divergences:
+  an item resting HIGH in the cell above (a bottom slab's top, center
+  by+1.625 — inside the reference box whole) sat on the slab FOREVER;
+  and an item SETTLED in the funnel mouth (center by+0.75, the
+  collision-slab rest — below the reference box's strict bottom
+  by+0.875) was EATEN on the very next transfer where vanilla leaves
+  it for the descent/bounce window alone.
+- THE FIX: the box-intersection translation over the engine's own
+  center convention (the item's box = center ±
+  `ItemEntity.HALF_WIDTH/HALF_HEIGHT`, both 0.125) with the
+  reference's exact strict inequalities; the per-item pickup arm
+  untouched (`pickUpItem` lines 349-365's shape: empty-stack skip,
+  whole-stack push, partial-keep, full-remove).
+- Evidence: `HopperSuckBandParityTest` 5/0 NEW — the two
+  DISCRIMINATING seats (the high-band positive by+1.625; the
+  settled-mouth negative by+0.75 over a 3s never-window with the item
+  staying whole in the world) + the three guards (the mid-descent
+  catch, the shipped cell-above center spawn by+1.5, the strict-top
+  touching refusal at by+2.125); the stash verification failing
+  UNFIXED on EXACTLY the two discriminating seats (the high item never
+  taken within 30s; the mouth item eaten within 3s) and the guards
+  green both ways. The regression: the hopper package whole 13/0; the
+  block package 304/0; the entity package 574 tests / 2 load-flakes
+  (the witch's 1e-9 z-drift seat and the wolf's dye-count race — both
+  classes green in isolation on BOTH the pre- and post-fix trees, both
+  seats carrying ZERO hopper references so the changed arm is
+  unreachable, the ledger's own ML-001/ML-002 suite-load-flakiness
+  record the disposition).
+- The three-pass record: source (the reference chain whole — pullItem,
+  the mouth accessors, getItem, the World/WorldChunk gather, the
+  strict Box law, the item's own box), behavioral (the stash probe
+  above), the independent re-verification (the 8-tick cadence vs the
+  30s/3s probe windows; the compensating-site search clean; the
+  in-band boundary seats identical under both laws for 0.25-wide
+  items; the minecart twin's own band recorded as the pass's NEXT
+  row).
+- PR #82 opened targeting develop (never merged — the house rule);
+  the ledgers: the compatibility matrix's hopper row re-pinned with
+  the repair note.
+- The pass's next row: F-HP2 — `HopperSystem.hopperCartTransfer`'s two
+  arms: the no-container gather (a center band at the cart's own x/z
+  mouth where the reference reads the box law — an UNSHIFTED band, the
+  ±0.125 rim and the strict bounds alone, no settled-item eating) and
+  the own-shape fallback (`grown(0.25, 0, 0.25)`, the y band and the
+  feet-vs-center frame both to verify against the reference before any
+  fix).
