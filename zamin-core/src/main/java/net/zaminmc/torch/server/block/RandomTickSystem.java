@@ -393,7 +393,8 @@ public final class RandomTickSystem {
                             net.zaminmc.torch.item.ItemStack.of(
                                     net.zaminmc.torch.server.item.BuiltinItems.NETHER_WART,
                                     age >= 3 ? 2 + random.nextInt(3) : 1),
-                            net.zaminmc.torch.server.entity.ItemEntity.PICKUP_DELAY_DROP_TICKS);
+                            net.zaminmc.torch.server.entity.ItemEntity.PICKUP_DELAY_DROP_TICKS,
+                            world.dimension()); // Wave FL4: the pop drops in the wart's own dimension
                 }
             }
             return;
@@ -750,7 +751,8 @@ public final class RandomTickSystem {
                     new net.zaminmc.torch.util.Position(position.x(), position.y(), position.z()),
                     net.zaminmc.torch.item.ItemStack.of(
                             net.zaminmc.torch.server.item.BuiltinItems.SUGAR_CANE, 1),
-                    net.zaminmc.torch.server.entity.ItemEntity.PICKUP_DELAY_DROP_TICKS);
+                    net.zaminmc.torch.server.entity.ItemEntity.PICKUP_DELAY_DROP_TICKS,
+                    world.dimension()); // Wave FL4: the pop drops in the system's own dimension
         }
         return false;
     }
@@ -836,7 +838,8 @@ public final class RandomTickSystem {
                     new net.zaminmc.torch.util.Position(position.x(), position.y(), position.z()),
                     net.zaminmc.torch.item.ItemStack.of(
                             net.zaminmc.torch.server.item.BuiltinItems.CACTUS, 1),
-                    net.zaminmc.torch.server.entity.ItemEntity.PICKUP_DELAY_DROP_TICKS);
+                    net.zaminmc.torch.server.entity.ItemEntity.PICKUP_DELAY_DROP_TICKS,
+                    world.dimension()); // Wave FL4: the pop drops in the system's own dimension
         }
     }
 

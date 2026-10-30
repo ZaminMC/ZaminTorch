@@ -266,7 +266,8 @@ public final class LeafDecayBlocks {
             itemEntities.spawnDropAtBlock(
                     new net.zaminmc.torch.util.Position(
                             pos.x(), pos.y(), pos.z()),
-                    stack, ItemEntity.PICKUP_DELAY_DROP_TICKS);
+                    stack, ItemEntity.PICKUP_DELAY_DROP_TICKS,
+                    world.dimension()); // Wave FL4: the decay drops in the tree's own dimension
         }
         world.setBlock(pos, world.airType());
     }

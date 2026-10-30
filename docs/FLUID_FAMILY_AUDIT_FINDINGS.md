@@ -225,9 +225,18 @@ One root cause — the liquid-blocking gate's material law — fixed whole:
 
 ## Standing tails
 
-- F-FL3 (the fizz emission) — its own PR this pass.
-- F-FL4 (the nether/End fluid simulation) — the architecture pass
-  (per-dimension scheduled/random-tick infrastructure first).
+- F-FL3 (the fizz emission) — RESOLVED 2026-10-30 (PR #81, merged at
+  12c47524: the cell center +0.5, volume 0.5, the 2.6+(rand-rand)*0.8
+  pitch band).
+- F-FL4 (the nether/End fluid simulation) — RESOLVED 2026-10-30
+  (§29's Wave FL4: the per-dimension scheduled-tick surfaces with their
+  own persistence, the per-dimension random-tick walks, the nether/End
+  FluidSystem pair with the dimension profiles, the End's tick clock,
+  the bucket path's dimension routing, the dimension-stamped pops +
+  leaf-decay drops — PerDimensionFluidAcceptanceTest 6/0 over the real
+  boot). The wave's own ledgered discoveries (each its own future
+  pass): the fire family's per-dimension scheduling, the placement
+  families' use-path world routing, the ice family's melt arms.
 - The `getFlow` current consult for entity drag — the travel audits'
   territory (the compatibility matrix's swimming rows), not re-audited
   here.

@@ -61,6 +61,15 @@ public final class EngineTicker {
      * keeps the single-dimension behavior (the historical contract).
      */
     private volatile EngineWorld netherWorld;
+    /**
+     * The third dimension (Wave FL4): the End world walks the same tick —
+     * its clock advances after the nether's (the reference's every-world
+     * tickTime; the End's own sky reports a fixed day, the CLOCK still
+     * walks). The End's scheduled-tick due math reads it — the pre-FL4
+     * engine never advanced it, so every End scheduled row sat undated
+     * forever (the End carried no scheduled families, so nothing noticed).
+     */
+    private volatile EngineWorld endWorld;
     private volatile Runnable tickHandler;
     /**
      * The {@code doDaylightCycle} read (Slice 24a — the shared game-rule
@@ -148,6 +157,22 @@ public final class EngineTicker {
     /** @return the attached nether dimension, or null when single-dimension. */
     public EngineWorld netherWorld() {
         return netherWorld;
+    }
+
+    /**
+     * Attaches the End dimension (Wave FL4) — the same binding window as
+     * the nether's: once, on the tick thread, before the loop starts.
+     */
+    public void attachEndWorld(EngineWorld end) {
+        if (this.endWorld != null) {
+            throw new IllegalStateException("End world already attached");
+        }
+        this.endWorld = java.util.Objects.requireNonNull(end, "end");
+    }
+
+    /** @return the attached End dimension, or null when two-dimension. */
+    public EngineWorld endWorld() {
+        return endWorld;
     }
 
     /**
@@ -467,6 +492,10 @@ public final class EngineTicker {
             EngineWorld nether = netherWorld;
             if (nether != null) {
                 nether.tickTime(advanceDaylight);
+            }
+            EngineWorld end = endWorld;
+            if (end != null) {
+                end.tickTime(advanceDaylight);
             }
             Runnable handler = tickHandler;
             if (handler != null) {

@@ -332,6 +332,18 @@ public final class EngineServer implements Server, EngineBridge {
     private net.zaminmc.torch.server.block.ScheduledTickSystem scheduledTickSystem;
     /** The surface's own persistence (the ZST store — the pending rows survive a restart). */
     private net.zaminmc.torch.server.block.ScheduledTickDataStore scheduledTickStore;
+    /**
+     * The per-dimension scheduled-tick queues (Wave FL4 — the reference's
+     * every-world-its-own-TileTicks law): the nether's and the End's own
+     * surfaces, drained and persisted beside the overworld's. Their fluid
+     * family tickers ride them; the fire/gravity families' per-dimension
+     * rides stay the ledgered single-mechanics tails.
+     */
+    private net.zaminmc.torch.server.block.ScheduledTickSystem netherScheduledTicks;
+    private net.zaminmc.torch.server.block.ScheduledTickSystem endScheduledTicks;
+    /** The pair's own persistence (the per-dimension ZST stores). */
+    private net.zaminmc.torch.server.block.ScheduledTickDataStore netherScheduledTickStore;
+    private net.zaminmc.torch.server.block.ScheduledTickDataStore endScheduledTickStore;
     /** The village surface (VIII10 — SavedVillageData over the engine's per-system shape). */
     private net.zaminmc.torch.server.village.VillageSystem villageSystem;
 
@@ -411,8 +423,20 @@ public final class EngineServer implements Server, EngineBridge {
     private final java.util.List<net.zaminmc.torch.server.tnt.TntSystem.Listener> tntListeners =
             new java.util.ArrayList<>();
     private FluidSystem fluidSystem;
+    /**
+     * The per-dimension fluid systems (Wave FL4 — the F-FL4 architecture
+     * pass): the nether's own (the reference's yeetsWater/noSky profile)
+     * and the End's own (noSky alone), each with its dimension-stamped
+     * sink — the nether's lava flows at cadence 10 with the full reach,
+     * the End's water and lava both flow.
+     */
+    private FluidSystem netherFluidSystem;
+    private FluidSystem endFluidSystem;
     private ExplosionService explosionService;
     private RandomTickSystem randomTicks;
+    /** The per-dimension random-tick walks (Wave FL4): the nether's and the End's own. */
+    private RandomTickSystem netherRandomTicks;
+    private RandomTickSystem endRandomTicks;
     private ExperienceOrbManager experienceOrbs;
     private net.zaminmc.torch.server.world.light.LightEngine lightEngine;
     private MobDataStore mobStore;
@@ -757,7 +781,7 @@ public final class EngineServer implements Server, EngineBridge {
                 NetherWorldGenerator netherGenerator =
                         new NetherWorldGenerator(blockRegistry, worldSeed);
                 netherWorld = new EngineWorld(config.worldName() + "_nether",
-                        blockRegistry, netherGenerator, owner);
+                        blockRegistry, netherGenerator, owner, -1);
                 // The nether's own spatial partition (the same granularity —
                 // each dimension partitions its own chunk space).
                 netherRegionPartition = new net.zaminmc.torch.server.concurrent.RegionPartition(
@@ -767,6 +791,29 @@ public final class EngineServer implements Server, EngineBridge {
                         config.worldDataDir().resolve("DIM-1/zamin-delta.bin"),
                         identifier -> blockRegistry.require(identifier));
                 netherStorage.load().ifPresent(netherWorld::applyDeltas);
+                // The nether's scheduled-tick surface + its persistence (Wave
+                // FL4): constructed and loaded BEFORE the domain attaches —
+                // the overworld's own boot shape (its domain binds late, so
+                // the boot thread's legacy ownership carries the loads; the
+                // nether's domain attaches immediately below, which is why
+                // this block must sit above it). The fluid family's tickers
+                // + the fluid system wire later, beside the overworld's.
+                netherScheduledTicks = new net.zaminmc.torch.server.block.ScheduledTickSystem(
+                        netherWorld, new java.util.Random(worldSeed ^ 0x541DCA12L));
+                netherScheduledTickStore = new net.zaminmc.torch.server.block.ScheduledTickDataStore(
+                        config.worldDataDir().resolve("DIM-1/scheduledticks.bin"));
+                for (net.zaminmc.torch.server.block.ScheduledTickDataStore.TickRow row
+                        : netherScheduledTickStore.load()) {
+                    var resolved = blockRegistry.byKey(row.blockId()).orElse(null);
+                    if (resolved == null) {
+                        LOGGER.warning("Saved nether scheduled tick's family no longer "
+                                + "registered, dropped: " + row.blockId());
+                        continue;
+                    }
+                    netherScheduledTicks.loadScheduledTick(
+                            new BlockPosition(row.x(), row.y(), row.z()),
+                            resolved.identifier(), row.dueRelative(), row.priority());
+                }
                 netherDomain = net.zaminmc.torch.server.concurrent.OwnershipDomain
                         .create("simulation:nether");
                 netherWorld.attachDomain(netherDomain);
@@ -791,7 +838,7 @@ public final class EngineServer implements Server, EngineBridge {
                 TheEndWorldGenerator endGenerator =
                         new TheEndWorldGenerator(blockRegistry, worldSeed);
                 endWorld = new EngineWorld(config.worldName() + "_end",
-                        blockRegistry, endGenerator, owner);
+                        blockRegistry, endGenerator, owner, 1);
                 net.zaminmc.torch.server.concurrent.RegionPartition endRegionPartition =
                         new net.zaminmc.torch.server.concurrent.RegionPartition(
                                 config.worldName() + "_end", config.regionSizeChunks());
@@ -800,6 +847,25 @@ public final class EngineServer implements Server, EngineBridge {
                         config.worldDataDir().resolve("DIM1/zamin-delta.bin"),
                         identifier -> blockRegistry.require(identifier));
                 endStorage.load().ifPresent(endWorld::applyDeltas);
+                // The End's scheduled-tick surface + its persistence (Wave
+                // FL4): the same before-the-domain shape as the nether's
+                // block above.
+                endScheduledTicks = new net.zaminmc.torch.server.block.ScheduledTickSystem(
+                        endWorld, new java.util.Random(worldSeed ^ 0x541DCA13L));
+                endScheduledTickStore = new net.zaminmc.torch.server.block.ScheduledTickDataStore(
+                        config.worldDataDir().resolve("DIM1/scheduledticks.bin"));
+                for (net.zaminmc.torch.server.block.ScheduledTickDataStore.TickRow row
+                        : endScheduledTickStore.load()) {
+                    var resolved = blockRegistry.byKey(row.blockId()).orElse(null);
+                    if (resolved == null) {
+                        LOGGER.warning("Saved End scheduled tick's family no longer "
+                                + "registered, dropped: " + row.blockId());
+                        continue;
+                    }
+                    endScheduledTicks.loadScheduledTick(
+                            new BlockPosition(row.x(), row.y(), row.z()),
+                            resolved.identifier(), row.dueRelative(), row.priority());
+                }
                 endDomain = net.zaminmc.torch.server.concurrent.OwnershipDomain
                         .create("simulation:end");
                 endWorld.attachDomain(endDomain);
@@ -2052,13 +2118,45 @@ public final class EngineServer implements Server, EngineBridge {
                 // scheduleTick surface (the persistence's ZST rows and the
                 // anvil TileTicks import land on the same queue, a
                 // restart resumes the stream mid-flow).
-                fluidSystem = new FluidSystem(new FluidWorld(), new FluidSink(itemEntities));
+                fluidSystem = new FluidSystem(
+                        new FluidWorld(world, false, false), new FluidSink(itemEntities, 0));
                 fluidSystem.setEventBus(eventBus); // §27.7: the public fluid-flow gate
                 fluidSystem.setScheduledTicks(scheduledTickSystem); // the seam (the boot always wires it)
                 for (Identifier fluidFamily : FluidBlocks.familyIds()) {
                     scheduledTickSystem.registerTicker(fluidFamily, fluidSystem::dispatchTick);
                 }
                 world.addChangeListener(fluidSystem);
+                // THE PER-DIMENSION FLUID SIMULATION (Wave FL4 — the F-FL4
+                // architecture pass, the fluid family audit's standing tail):
+                // the reference gives EVERY ServerWorld its own scheduled-tick
+                // queue, its own random-tick walk, and its own liquid family —
+                // the engine's single-mechanics-world shape left the nether's
+                // lava inert beside a broken block forever and an End bucket
+                // pour sitting still. The nether/End fluid systems, each over
+                // its own world (the scheduled-tick surfaces themselves
+                // constructed at the worlds' own boot blocks above) with the
+                // reference's dimension profile: the nether (NetherDimension
+                // lines 13-15 — yeetsWater true, noSky true: lava at the
+                // 10-tick cadence with the FULL seven-block reach, a water
+                // pour vaporizing) and the End (TheEndDimension line 16 —
+                // noSky alone: water at 5, lava at 10 with the water-keeping
+                // j=2 decay).
+                netherFluidSystem = new FluidSystem(
+                        new FluidWorld(netherWorld, true, true),
+                        new FluidSink(itemEntities, -1));
+                endFluidSystem = new FluidSystem(
+                        new FluidWorld(endWorld, false, true),
+                        new FluidSink(itemEntities, 1));
+                netherFluidSystem.setEventBus(eventBus); // §27.7: the gate covers every dimension
+                endFluidSystem.setEventBus(eventBus);
+                netherFluidSystem.setScheduledTicks(netherScheduledTicks);
+                endFluidSystem.setScheduledTicks(endScheduledTicks);
+                for (Identifier fluidFamily : FluidBlocks.familyIds()) {
+                    netherScheduledTicks.registerTicker(fluidFamily, netherFluidSystem::dispatchTick);
+                    endScheduledTicks.registerTicker(fluidFamily, endFluidSystem::dispatchTick);
+                }
+                netherWorld.addChangeListener(netherFluidSystem);
+                endWorld.addChangeListener(endFluidSystem);
                 // Explosions: the ray-fan destructor (the creeper's demolition).
                 explosionService = new ExplosionService(new BlastWorld(world), new java.util.Random());
                 // Experience orbs (the historical EntityXPOrb band): the small
@@ -2072,6 +2170,25 @@ public final class EngineServer implements Server, EngineBridge {
                 experienceOrbs.addListener(new OrbEventDispatch());
                 // Random ticks (§471 pattern): grass growth and decay.
                 randomTicks = new RandomTickSystem(world, new java.util.Random());
+                // The per-dimension random-tick walks (Wave FL4 — the
+                // reference's tickChunks runs in EVERY world): the nether's
+                // and the End's own systems over their own worlds. The
+                // nether's carries NO pigman sink (PortalBlock.tick line 35's
+                // own gate — world.dimension.isNatural() is the overworld
+                // alone; a nether-side portal never spawns pigmen, exactly
+                // the reference) and the End's none either (no portals there).
+                // The liquid arms ride the per-dimension fluid systems; the
+                // pops and the leaf-decay drops stamp world.dimension().
+                netherRandomTicks = new RandomTickSystem(netherWorld, new java.util.Random());
+                endRandomTicks = new RandomTickSystem(endWorld, new java.util.Random());
+                netherRandomTicks.setRandomTickSpeedRead(() -> gameRules.getInt("randomTickSpeed"));
+                endRandomTicks.setRandomTickSpeedRead(() -> gameRules.getInt("randomTickSpeed"));
+                netherRandomTicks.setPlantPopItems(itemEntities);
+                endRandomTicks.setPlantPopItems(itemEntities);
+                netherRandomTicks.setLeafDecayDrops(itemEntities,
+                        new DropService(new java.util.Random(worldSeed ^ 0x1EAFDECAL)));
+                endRandomTicks.setLeafDecayDrops(itemEntities,
+                        new DropService(new java.util.Random(worldSeed ^ 0x1EAFDECAL)));
                 // The game-rule read (Slice 24a): randomTickSpeed answers
                 // the per-section pick band (ServerWorld.tickChunks 343).
                 randomTicks.setRandomTickSpeedRead(() -> gameRules.getInt("randomTickSpeed"));
@@ -2123,6 +2240,14 @@ public final class EngineServer implements Server, EngineBridge {
                 // the lava source's fire-start rides the same dispatch.
                 randomTicks.setLiquidTicker((pos, state) ->
                         fluidSystem.dispatchTick(null, pos, state, gameplayRandom));
+                // The per-dimension liquid arms (Wave FL4): the nether's
+                // lava sources fire-start and the End's fluids random-tick
+                // through their OWN systems — the reference's per-world
+                // randomTick → tick delegation.
+                netherRandomTicks.setLiquidTicker((pos, state) ->
+                        netherFluidSystem.dispatchTick(null, pos, state, gameplayRandom));
+                endRandomTicks.setLiquidTicker((pos, state) ->
+                        endFluidSystem.dispatchTick(null, pos, state, gameplayRandom));
                 // The leaf-decay drop seams (the VIII3 slice): the decayed
                 // cells' sapling/apple rolls land through the engine's own
                 // drop walk and item bodies — the same one a hand break
@@ -3099,11 +3224,25 @@ public final class EngineServer implements Server, EngineBridge {
                     profiled("leashes", this::tickLeashes); // the leash physics + the knots (Slice 11c)
                     profiled("decorations", this::tickDecorations); // the frames' + paintings' survival poll (Slice 28a/28b)
                     profiled("randomTicks", () -> randomTicks.tick(players.all())); // §471: grass growth/decay
+                    // The per-dimension random-tick walks (Wave FL4 — the
+                    // reference's tickChunks in every world): each walk sees
+                    // only ITS OWN dimension's players (a nether player's
+                    // coordinates never range the End's chunks — the
+                    // reference's per-world player set).
+                    profiled("netherRandomTicks", () -> netherRandomTicks
+                            .tick(playersInDimension(-1)));
+                    profiled("endRandomTicks", () -> endRandomTicks
+                            .tick(playersInDimension(1)));
                     // The reference's tickPending pass (ServerWorld.tick line
                     // 196: doScheduledTicks runs BEFORE tickBlocks — the fan
                     // places it ahead of the random ticks, the engine's own
                     // tickBlocks stand-in). The TileTicks surface's own walk.
                     profiled("scheduledBlockTicks", scheduledTickSystem::tick);
+                    // The per-dimension scheduled-tick drains (Wave FL4 — the
+                    // reference's tickWorlds iterates every world's own
+                    // tickUpdates).
+                    profiled("netherScheduledBlockTicks", netherScheduledTicks::tick);
+                    profiled("endScheduledBlockTicks", endScheduledTicks::tick);
                     profiled("brewingStands", () -> brewingStands.tick(world));
                     profiled("beacons", () -> beaconSystem.tick(world.totalTicks())); // the brew cycles (Slice 11e)
                     profiled("furnaceViewers", this::tickFurnaceViewers);
@@ -3537,6 +3676,7 @@ public final class EngineServer implements Server, EngineBridge {
                         .create("simulation:" + config.worldName());
                 world.attachDomain(simulationDomain);
                 ticker.attachNetherWorld(netherWorld);
+                ticker.attachEndWorld(endWorld);
                 // The nether's public §27.6 owner path (same authoritative
                 // lane) + its §27.5 entity view (empty until its own
                 // population lands — the engine's mobs live in the overworld).
@@ -13947,6 +14087,16 @@ public final class EngineServer implements Server, EngineBridge {
      * aimed cell; a filled bucket pours its source against the clicked face.
      * Both swap the held stack the historical way (one bucket out, one in).
      * Returns whether the use was consumed. Tick-thread context.
+     *
+     * <p><b>THE DIMENSION ROUTING (Wave FL4 — the F-FL4 use-site row):</b>
+     * every read and write rides the SESSION'S OWN WORLD
+     * (worldFor(session.dimension()) — the reference's {@code world}
+     * parameter is the world the use happens in). The pre-fix path read
+     * and wrote the overworld field whatever the player's dimension: a
+     * nether lava scoop would have removed a block from the OVERWORLD at
+     * the nether's coordinates, an End pour placed its fluid there too.
+     * The sounds and the smoke carry the session's dimension (the TF-12
+     * wire gates).</p>
      */
     private boolean useBucketOnTick(PlayerSession session, BlockPosition clicked, int face) {
         net.zaminmc.torch.item.ItemStack heldStack = session.inventory().held();
@@ -13955,6 +14105,8 @@ public final class EngineServer implements Server, EngineBridge {
         }
         net.zaminmc.torch.item.ItemType heldType = heldStack.type();
         String held = heldType.identifier().toString();
+        EngineWorld useWorld = worldFor(session.dimension());
+        int useDimension = session.dimension();
 
         if (held.equals("minecraft:bucket")) {
             // Scoop: the aimed cell must be a LEVEL-0 fluid of either form
@@ -13962,7 +14114,7 @@ public final class EngineServer implements Server, EngineBridge {
             // == 0 pair, never the block form; the transient flowing-0
             // pour scoopable in its one-tick window exactly like the
             // reference's).
-            BlockType at = world.getBlock(clicked);
+            BlockType at = useWorld.getBlock(clicked);
             FluidBlocks.Kind kind = FluidBlocks.kindOf(at.identifier());
             if (kind == null || FluidBlocks.levelOf(at.identifier()) != 0) {
                 return false; // not a source-level fluid: the historical no-op
@@ -13973,9 +14125,9 @@ public final class EngineServer implements Server, EngineBridge {
             session.inventory().consumeHeld(1);
             throwOverflow(session, java.util.List.of(
                     session.inventory().pickUp(ItemStack.of(full, 1))));
-            world.setBlock(clicked, world.airType()); // the commit wakes the fluid neighbors
+            useWorld.setBlock(clicked, useWorld.airType()); // the commit wakes the fluid neighbors
             fxManager.sound(new Position(clicked.x() + 0.5, clicked.y() + 0.5, clicked.z() + 0.5),
-                    "random.splash", 0.4f, 1.0f);
+                    "random.splash", 0.4f, 1.0f, useDimension);
             return true;
         }
 
@@ -13988,34 +14140,36 @@ public final class EngineServer implements Server, EngineBridge {
             // pour fizzles away — the sound + the smoke burst, nothing
             // placed, the bucket still empties.
             BlockPosition target = offsetByFace(clicked, face);
-            if (target == null || !canOccupyForPlacement(target)) {
+            if (target == null || !canOccupyForPlacementIn(useWorld, target)) {
                 return false; // no open cell: the pour stays in the bucket
             }
             FluidBlocks.Kind kind = held.endsWith("water_bucket")
                     ? FluidBlocks.Kind.WATER : FluidBlocks.Kind.LAVA;
-            if (kind == FluidBlocks.Kind.WATER && session.dimension() == -1) {
+            if (kind == FluidBlocks.Kind.WATER && useDimension == -1) {
                 // The nether's vaporizing arm (lines 111-122): the fizz +
                 // the eight smoke puffs, no block.
                 Position at = new Position(target.x() + 0.5, target.y() + 0.5, target.z() + 0.5);
                 fxManager.sound(at, "random.fizz", 0.5f,
-                        2.6f + (gameplayRandom.nextFloat() - gameplayRandom.nextFloat()) * 0.8f);
+                        2.6f + (gameplayRandom.nextFloat() - gameplayRandom.nextFloat()) * 0.8f,
+                        useDimension);
                 for (int puff = 0; puff < 8; puff++) {
                     fxManager.smoke(new Position(
                             target.x() + Math.random(),
                             target.y() + Math.random(),
-                            target.z() + Math.random()));
+                            target.z() + Math.random()), useDimension);
                 }
                 session.inventory().consumeHeld(1);
                 throwOverflow(session, java.util.List.of(session.inventory().pickUp(
                         ItemStack.of(net.zaminmc.torch.server.item.BuiltinItems.BUCKET, 1))));
                 return true;
             }
-            world.setBlock(target, FluidBlocks.typeOf(kind, FluidBlocks.Form.FLOWING, 0));
+            useWorld.setBlock(target, FluidBlocks.typeOf(kind, FluidBlocks.Form.FLOWING, 0));
             session.inventory().consumeHeld(1);
             throwOverflow(session, java.util.List.of(session.inventory().pickUp(
                     ItemStack.of(net.zaminmc.torch.server.item.BuiltinItems.BUCKET, 1))));
             fxManager.sound(new Position(target.x() + 0.5, target.y() + 0.5, target.z() + 0.5),
-                    "random.splash", 0.4f, kind == FluidBlocks.Kind.WATER ? 1.0f : 0.6f);
+                    "random.splash", 0.4f, kind == FluidBlocks.Kind.WATER ? 1.0f : 0.6f,
+                    useDimension);
             return true;
         }
         return false;
@@ -15496,6 +15650,17 @@ public final class EngineServer implements Server, EngineBridge {
     private boolean canOccupyForPlacement(BlockPosition target) {
         BlockType existing = world.getBlock(target);
         return existing.equals(world.airType())
+                || WorldSolidity.isReplaceable(existing.identifier());
+    }
+
+    /**
+     * The placement-occupancy consult over ONE NAMED WORLD (Wave FL4 — the
+     * bucket path's dimension routing): the same air-or-replaceable pair the
+     * overworld consult answers, read against the use's own world.
+     */
+    private boolean canOccupyForPlacementIn(EngineWorld useWorld, BlockPosition target) {
+        BlockType existing = useWorld.getBlock(target);
+        return existing.equals(useWorld.airType())
                 || WorldSolidity.isReplaceable(existing.identifier());
     }
 
@@ -23355,43 +23520,81 @@ public final class EngineServer implements Server, EngineBridge {
         }
     }
 
-    /** The world adapter the fluid system reads and commits through. */
+    /**
+     * The world adapter the fluid system reads and commits through —
+     * PARAMETERIZED BY TARGET (Wave FL4, the BlastWorld pattern): the
+     * overworld binding keeps its historical profile (yeetsWater false,
+     * noSky false); the nether's answers the reference NetherDimension's
+     * own pair (yeetsWater true — the water bucket's vaporize + the
+     * lava's full-reach j=1 decay band; noSky true — the lava's 10-tick
+     * cadence); the End's carries noSky alone (TheEndDimension line 16
+     * — the End's lava at cadence 10 with the water-keeping j=2 decay).
+     */
     private final class FluidWorld implements FluidSystem.World {
+        private final EngineWorld target;
+        private final boolean yeetsWater;
+        private final boolean hasNoSky;
+
+        FluidWorld(EngineWorld target, boolean yeetsWater, boolean hasNoSky) {
+            this.target = java.util.Objects.requireNonNull(target, "target");
+            this.yeetsWater = yeetsWater;
+            this.hasNoSky = hasNoSky;
+        }
+
         @Override
         public BlockType getBlock(BlockPosition position) {
-            return world.getBlock(position);
+            return target.getBlock(position);
         }
 
         @Override
         public void setBlock(BlockPosition position, BlockType type) {
-            world.setBlock(position, type);
+            target.setBlock(position, type);
         }
 
         @Override
         public BlockType airType() {
-            return world.airType();
+            return target.airType();
         }
 
         @Override
         public long totalTicks() {
-            return world.totalTicks();
+            return target.totalTicks();
         }
 
         @Override
         public String name() {
-            return world.name();
+            return target.name();
+        }
+
+        @Override
+        public boolean yeetsWater() {
+            return yeetsWater;
+        }
+
+        @Override
+        public boolean hasNoSky() {
+            return hasNoSky;
         }
     }
 
-    /** The fluid feedback: the wash-out drops and the fizz sound. */
+    /**
+     * The fluid feedback: the wash-out drops and the fizz sound —
+     * DIMENSION-STAMPED (Wave FL4): the drops land through the TF-9
+     * four-arg spawn (a nether wash-out is a nether item), the sounds
+     * through the TF-12 five-arg broadcast (a nether fizz is a nether
+     * sound — the wire's own observer gate). The overworld binding
+     * keeps the historical 0.
+     */
     private final class FluidSink implements FluidSystem.Sink {
         private final ItemEntityManager items;
+        private final int dimension;
 
         /** The wash-out rolls (spreadTo's dropItems arm — fortune 0, no tool gate). */
         private final DropService drops = new DropService(new java.util.Random());
 
-        FluidSink(ItemEntityManager items) {
+        FluidSink(ItemEntityManager items, int dimension) {
             this.items = items;
+            this.dimension = dimension;
         }
 
         @Override
@@ -23400,13 +23603,14 @@ public final class EngineServer implements Server, EngineBridge {
             // lines 119-125): the stream pops the torch, the flower, the
             // rail — the block's behavior rows through the wash walk.
             for (ItemStack stack : drops.washedDrops(washed)) {
-                items.spawnDropAtBlock(at, stack, ItemEntity.PICKUP_DELAY_DROP_TICKS);
+                items.spawnDropAtBlock(at, stack,
+                        ItemEntity.PICKUP_DELAY_DROP_TICKS, dimension);
             }
         }
 
         @Override
         public void sound(Position at, String name, float volume, float pitch) {
-            fxManager.sound(at, name, volume, pitch);
+            fxManager.sound(at, name, volume, pitch, dimension);
         }
     }
 
@@ -24601,6 +24805,23 @@ public final class EngineServer implements Server, EngineBridge {
             return java.util.Objects.requireNonNull(endWorld, "end world");
         }
         return world;
+    }
+
+    /**
+     * The players currently in one dimension (Wave FL4 — the reference's
+     * per-world player set): each dimension's random-tick walk ranges its
+     * chunks against ITS OWN players alone (a nether player's coordinates
+     * never range the End's chunks). Snapshot form, tick-lane context.
+     */
+    private java.util.List<net.zaminmc.torch.server.player.PlayerSession> playersInDimension(
+            int dimension) {
+        java.util.List<net.zaminmc.torch.server.player.PlayerSession> in = new java.util.ArrayList<>();
+        for (net.zaminmc.torch.server.player.PlayerSession player : players.all()) {
+            if (player.dimension() == dimension) {
+                in.add(player);
+            }
+        }
+        return in;
     }
 
     /**
@@ -28773,6 +28994,28 @@ public final class EngineServer implements Server, EngineBridge {
                                 scheduledTickStore::writeSerialized));
                     } else {
                         scheduledTickStore.save(scheduledTickSystem.snapshotRows());
+                    }
+                }
+                // The per-dimension scheduled ticks (Wave FL4): the nether's
+                // and the End's own ZST rows over their own stores.
+                if (netherScheduledTickStore != null && netherScheduledTicks != null) {
+                    if (pipeline != null) {
+                        publications.add(pipeline.submitSave("nether-scheduledticks",
+                                netherScheduledTicks.snapshotRows(),
+                                netherScheduledTickStore::serialize,
+                                netherScheduledTickStore::writeSerialized));
+                    } else {
+                        netherScheduledTickStore.save(netherScheduledTicks.snapshotRows());
+                    }
+                }
+                if (endScheduledTickStore != null && endScheduledTicks != null) {
+                    if (pipeline != null) {
+                        publications.add(pipeline.submitSave("end-scheduledticks",
+                                endScheduledTicks.snapshotRows(),
+                                endScheduledTickStore::serialize,
+                                endScheduledTickStore::writeSerialized));
+                    } else {
+                        endScheduledTickStore.save(endScheduledTicks.snapshotRows());
                     }
                 }
                 // The village census (VIII10 — SavedVillageData's own

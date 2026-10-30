@@ -157,13 +157,35 @@ public final class EngineWorld implements World,
      */
     private volatile java.util.function.Consumer<Runnable> ownerExecutor;
 
+    /**
+     * The world's own dimension id (Wave FL4): 0 the overworld, -1 the
+     * nether, 1 the End — the reference's Dimension.id. The world-side
+     * systems that must stamp bodies or drops with their dimension (the
+     * random-tick pops, the leaf-decay drops) read it here instead of
+     * carrying parallel rows; the default-0 constructor keeps every
+     * existing fixture (and the overworld boot) on the historical 0.
+     */
+    private final int dimension;
+
     public EngineWorld(String name, BlockRegistry registry, WorldGenerator generator, Thread owner) {
+        this(name, registry, generator, owner, 0);
+    }
+
+    /** The dimension-explicit constructor (the boot's three worlds). */
+    public EngineWorld(String name, BlockRegistry registry, WorldGenerator generator, Thread owner,
+                       int dimension) {
         this.name = Objects.requireNonNull(name, "name");
         this.registry = Objects.requireNonNull(registry, "registry");
         this.generator = Objects.requireNonNull(generator, "generator");
         this.owner = Objects.requireNonNull(owner, "owner");
         this.air = registry.require(Identifier.parse("minecraft:air"));
         this.spawnPosition = generator.spawnPosition();
+        this.dimension = dimension;
+    }
+
+    /** The world's dimension id (0 overworld, -1 nether, 1 End). */
+    public int dimension() {
+        return dimension;
     }
 
     @Override
