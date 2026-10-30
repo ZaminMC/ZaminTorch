@@ -1516,4 +1516,46 @@ public final class ProjectileManager {
             listener.onProjectileRemoved(projectile, reason);
         }
     }
+
+    /**
+     * The blast's projectile wound over the ProjectileEntity family (the
+     * reference's ProjectileEntity.takeDamage lines 248-273 with a LIVING
+     * attacker — {@code DamageSource.explosion} reads the explosion's own
+     * getSource()): the velocity BECOMES the attacker's normalized look
+     * vector, the acceleration becomes look * 0.1, and the attacker becomes
+     * the new shooter — the blast's own re-aim, the punch deflection's
+     * blast-sourced twin. Only the vanilla ProjectileEntity subclasses
+     * carry the arm (the fireball pair + the wither skull — the arrow and
+     * the thrown family extend Entity/ThrownEntity and take the Entity
+     * default alone: the wound no-ops, the caller's scatter still lands).
+     *
+     * @param attackerId the blast's living source (a mob-sourced blast
+     *                   alone reaches this arm — the TNT, the fireballs,
+     *                   the crystals and the skulls carry no source)
+     */
+    public void woundFromExplosion(ProjectileEntity projectile, int attackerId,
+                                   double lookX, double lookY, double lookZ) {
+        Objects.requireNonNull(projectile, "projectile");
+        if (projectile.kind() != ProjectileEntity.Kind.LARGE_FIREBALL
+                && projectile.kind() != ProjectileEntity.Kind.SMALL_FIREBALL
+                && projectile.kind() != ProjectileEntity.Kind.WITHER_SKULL) {
+            return; // the Entity-default wound: nothing (the scatter alone)
+        }
+        projectile.deflectBy(attackerId, lookX, lookY, lookZ);
+        for (Listener listener : listeners) {
+            listener.onProjectileDeflected(projectile);
+        }
+    }
+
+    /**
+     * The blast's scatter impulse (the reference's damageEntities lines
+     * 135-137 — {@code velocityX/Y/Z += dir * d11}, the add riding OUTSIDE
+     * the takeDamage verdict): every gathered body takes it, wounded,
+     * immune or already dead. A grounded arrow carries the add as dead
+     * state exactly like the reference's own stick shape.
+     */
+    public void addVelocity(ProjectileEntity projectile, double dx, double dy, double dz) {
+        Objects.requireNonNull(projectile, "projectile");
+        projectile.addVelocity(dx, dy, dz);
+    }
 }

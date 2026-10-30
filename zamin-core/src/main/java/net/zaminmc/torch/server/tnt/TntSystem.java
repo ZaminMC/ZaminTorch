@@ -255,6 +255,20 @@ public final class TntSystem implements WorldChangeListener {
         tnt.velocityZ = axisZ != 0.0 ? axisZ : tnt.velocityZ;
     }
 
+    /**
+     * The blast's scatter add over one primed body (the reference's
+     * Explosion.damageEntities lines 135-137 — {@code velocityX/Y/Z +=
+     * dir * d11}, the add riding outside the takeDamage verdict; the
+     * PrimedTnt carries NO immunity and NO takeDamage override in 1.8.8,
+     * so the wound no-ops and the impulse alone lands — the TNT cannon's
+     * own law). The body's own tick carries the impulse out.
+     */
+    public void addVelocity(PrimedTnt tnt, double dx, double dy, double dz) {
+        tnt.velocityX += dx;
+        tnt.velocityY += dy;
+        tnt.velocityZ += dz;
+    }
+
     // ------------------------------------------------------------------
     // The change listener: the redstone ignition
     // ------------------------------------------------------------------
