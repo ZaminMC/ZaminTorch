@@ -807,8 +807,21 @@ public final class FluidSystem implements WorldChangeListener {
         return !event.cancelled();
     }
 
+    /**
+     * The reference's fizz (LiquidBlock.fizz lines 296-305): the sound at
+     * the cell's CENTER — {@code pos + 0.5} on every axis, the house
+     * convention every block sound carries — at volume 0.5 with the
+     * reference's own pitch band {@code 2.6F + (rand - rand) * 0.8F} over
+     * the world's rolls (the 1.8-3.4 band; the pre-fix emission carried
+     * the raw corner and a flat 1.0 pitch). The eight SMOKE_LARGE
+     * particles are a NON-ROW per the F-DUST adjudication — the dedicated
+     * server's addParticle is the empty stub, the client predicts its
+     * own burst.
+     */
     private void fizz(BlockPosition at) {
-        sink.sound(new Position(at.x(), at.y(), at.z()), "random.fizz", 0.5f, 1.0f);
+        float pitch = 2.6f + (random.nextFloat() - random.nextFloat()) * 0.8f;
+        sink.sound(new Position(at.x() + 0.5, at.y() + 0.5, at.z() + 0.5),
+                "random.fizz", 0.5f, pitch);
     }
 
     /** @return the block at the offset (the y-band guard inside). */

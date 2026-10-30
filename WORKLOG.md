@@ -18432,3 +18432,77 @@ F-VINE pass's second and final slice)
   worldgen consumer lanes 80/0.
 - The F-VINE family is retired END TO END; the sixteenth-pass
   F-candidate list is fully adjudicated. The queue: EMPTY.
+
+## Wave FL-M — 2026-10-30 (the fluid family audit, the seventeenth
+verifier pass — the liquid-blocking consult's material law)
+
+- DISCOVERY: the compatibility matrix's own standing note ("spread
+  order audited loosely") closed — the reference's liquid family whole
+  (LiquidBlock 341 + FlowingLiquidBlock 223 + LiquidSourceBlock 77 +
+  the Material hierarchy + the per-block constructor registrations)
+  against the engine's FluidSystem/FluidBlocks/WorldSolidity/
+  MaterialSolidity. The Wave VI core verified 1:1 (the cadences, the
+  decay band, the recomputation walk with the falling inheritance and
+  the infinite-water birth, the lava slow-creep roll, the i1==i
+  equilibrium, the down-spread + the STONE arm, the gap-seeking walk,
+  the wash-out drops, the contact bands, the wake path's flag
+  semantics, the convertToFlowing, the liquid random-tick wiring over
+  Block.randomTick -> tick lines 434-436).
+- THE ROOT CAUSE (F-FL1): the liquid-blocking gate's final arm read
+  WorldSolidity.isSolid — the ENTITY-COLLISION model — where the
+  reference reads material.blocksMovement() (FlowingLiquidBlock lines
+  185-193); the engine's own correct consult (MaterialSolidity
+  .blocksMovement, the twelfth pass's class) sat unused, the javadoc's
+  claim that the solidity rule "carries the reference's material
+  consult" false. THE DOOR DEFECT: isDoor's stale wooden_door* names
+  matched NO registered id — only the iron family covered; every OPEN
+  wood state washed away. THE BATTERY: open wood doors (six families),
+  wall signs, both banner forms, open fence gates, stone/wooden
+  pressure plates WASHED (the reference blocks every one — the Door
+  instanceof, SignBlock/BannerBlock/FenceGateBlock's WOOD, the plates'
+  STONE/WOOD ctor parameters); flower pots and skulls NEVER ENTERED
+  (FlowerPotBlock/SkullBlock's DECORATION — the inverted side); moving
+  piston carriers entered (PISTON). THE SECOND FACE (F-FL2):
+  MaterialSolidity's DECORATION set missed the skull + the pot rows —
+  the swap alone would have left the pair blocking.
+- THE SEAT'S BLIND SPOT caught: the shipped open-door seat pinned a
+  SYNTHETIC unregistered wooden_door_open type (a dead
+  Identifier.parse-null guard) that satisfied the stale prefix while
+  every real door family washed away — re-pinned to the real ids.
+- THE FIX (PR #80): the consult swap (MaterialSolidity.blocksMovement
+  as the final arm, the ladder/cane keeping their explicit rows exactly
+  like the reference), isDoor -> WoodDoorFamily.isDoor (all seven
+  families, every state), the MaterialSolidity DECORATION extension
+  (the skull + the pot — every consumer shifting TOWARD the reference:
+  the sign/banner support pops on the pair, the farmland under them no
+  longer reverts, the placement gates refuse the non-material-solid
+  clicked cell). Evidence: FluidFlowTest 19/0 — six new seats over the
+  REAL registry ids; the stash verification failing unfixed on EXACTLY
+  the five material seats; the regression lanes 539/0 (the block
+  package 308, the family lanes 99, the consumer lanes 28, the
+  anvil/tree/worldgen lanes 85).
+- THE EMISSION (F-FL3, PR #81, stacked): the fizz carried the raw block
+  corner and a flat 1.0 pitch where the reference plays the cell's
+  center (pos + 0.5, the house convention) at volume 0.5 with the pitch
+  roll 2.6 + (rand - rand) * 0.8 (the 1.8-3.4 band); the eight smoke
+  particles a non-row per the F-DUST adjudication. Evidence: the fizz
+  seat (the center, the volume, the band, the seeded determinism), the
+  stash failing on EXACTLY the fizz seat; the block package 309/0; the
+  ItemOrbLavaEnvelope lane 8/0 (the OTHER random.fizz site — the
+  item's own, untouched).
+- THE ARCHITECTURE TAIL (F-FL4, documented): the nether and the End
+  carry no fluid simulation at all — ONE FluidSystem wired to the
+  overworld (the listener, the seam registration, the random-tick
+  liquid arm all overworld-bound; netherWorld/endWorld carry only the
+  public bridge + the tile listener; FluidWorld's yeetsWater/hasNoSky
+  default false). Vanilla's nether lava flows at cadence 10 with full
+  seven-block reach (NetherDimension's yeetsWater+noSky — j=1); the
+  End's water at cadence 5, its lava at 10 (TheEndDimension's noSky
+  alone). The gap class has house precedent (Slice 62's tnt-in-End
+  ledger row) but was never ledgered for fluids; the bounded
+  correction needs the per-dimension scheduled/random-tick
+  infrastructure first — docs/FLUID_FAMILY_AUDIT_FINDINGS.md carries
+  the full record.
+- The findings doc: docs/FLUID_FAMILY_AUDIT_FINDINGS.md (the
+  discovery, the verified-1:1 list, the divergence battery, the
+  three-pass verification record, the standing tails).

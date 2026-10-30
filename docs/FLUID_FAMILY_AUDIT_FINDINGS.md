@@ -188,20 +188,40 @@ One root cause — the liquid-blocking gate's material law — fixed whole:
   Every divergence cell double-checked against the reference's material
   row and the engine's consult set. The verified-1:1 list above
   re-confirmed.
-- **Pass 2 (behavioral, 2026-10-30)**: the parity seats over the
-  direct-driven window (FluidFlowTest's harness) — the real-id door
-  pair, the wall sign, the banners, the open gate, the plates, the pot,
-  the skull; the stash verification (the seats fail on the pre-fix
-  tree).
+- **Pass 2 (behavioral, 2026-10-30)**: FluidFlowTest over the
+  direct-driven window — six new seats on the REAL registry ids (the
+  open wood doors of all six families + the open upper, the wall sign +
+  both banner forms, the open fence gate + the stone/wooden plates, the
+  flower pot + skull wash-out, the moving piston carrier) and the fizz
+  seat (the center + the volume + the 1.8-3.4 pitch band + the seeded
+  determinism). THE STASH VERIFICATION: the material fix stashed —
+  EXACTLY the five material seats fail (the water taking the open
+  gate/door/wall-sign/banner/carrier cells, refusing the pot/skull
+  cells); the fizz fix stashed — EXACTLY the fizz seat fails (the
+  raw-corner position). Green whole with each fix (19/0, then 20/0).
 - **Pass 3 (independent re-verification, 2026-10-30)**: the execution
   path re-walked from the wash arm (the `DropService.washedDrops`
   consult through the `FluidSink`), the compensating-behavior hunt (the
   §27.7 flow gate admits everything by default; no other consult
-  protects the open doors/banners/pots), and the
-  intentional-vs-defect question (the engine's own comment claims the
+  protects the open doors/banners/pots), the
+  intentional-vs-defect question (the engine's own comment claimed the
   solidity rule "carries the reference's material consult" — a false
   claim, no documented intentional divergence; the §27.7 gate is the
-  engine's own documented addition and stays untouched).
+  engine's own documented addition and stays untouched), and the
+  consumer-impact audit of the MaterialSolidity extension (the sign +
+  banner support arms, the farmland solid-above arm, the sign/banner
+  placement gates — every consumer shifts TOWARD the reference; the
+  regression lanes confirm nothing pinned the old wrong answers).
+  Regressions: the block package whole 308/0 (309/0 with the fizz
+  seat); the family lanes 99/0 (banner, decoration, piston, sign,
+  skull, redstone, FarmlandTrample, VinePlacementDispatch,
+  Decorations, PistonPush); the consumer lanes 28/0 (BuildingBlocks,
+  BlockInteraction, Bonemeal, CaneAndCactus, PistonFluid,
+  AnvilImportApi); the anvil/tree/worldgen lanes 85/0; the
+  ItemOrbLavaEnvelope lane 8/0 (the OTHER random.fizz site — the item's
+  own, untouched). The full-suite single window exceeds the 10-minute
+  tool limit (the house's own precedent); the targeted batches are the
+  recorded evidence.
 
 ## Standing tails
 
