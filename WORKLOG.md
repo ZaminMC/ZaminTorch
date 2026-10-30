@@ -18708,3 +18708,30 @@ release pipeline resumed, PRs #80/#81/#82 merged)
 - THE LEDGERS: §29's Wave BU-1 row + the §22 statement (F-FL4 — the
   nether/End fluid simulation — named the next queue head over the
   standing demand-named tails).
+
+## Wave BU-2 — 2026-10-30 (run 523's two single-seat failures — the
+stats table's concurrent law + the relief pin's noise guard)
+
+- THE CME DIAGNOSED (run 523's single failure, the retry of the BU-1
+  fix): SlimePadOreGlowParityTest's line-500 frame is joinCompleted —
+  the channel lane's login sync (markAllDirty's putAll iterating the
+  counters HashMap) racing the tick lane's first per-tick increments
+  (the ungated play clock, the since-death clock) on the fresh
+  session. The production path carries the SAME window (V18Connection
+  calls joinCompleted on the channel thread).
+- THE REFERENCE'S OWN ANSWER: the base PlayerStats.java line 9 — the
+  counters ARE Maps.newConcurrentMap() in vanilla. The engine's plain
+  HashMap was a mistranslation of the one cross-lane structure the
+  reference itself made concurrent.
+- LANDED (e3c6f0c5): counters + dirty + the progress outer map all
+  ConcurrentHashMap; the class javadoc's false "never crosses owners"
+  claim corrected; DenseOwnerProfilingTest's growth pin gains the
+  one-re-measure noise guard (a transient spike does not reproduce,
+  the superlinear signature does).
+- Evidence: PlayerStatsConcurrencyTest 1/0 NEW (the stash verification
+  failing pre-fix on EXACTLY the login lane's
+  ConcurrentModificationException); stat 33/0; stats consumers 41/0;
+  entity 574/0; profiler 12/0 (local growth 1.04x); protocol + bukkit
+  + launcher green.
+- The queue: run 527 (pre-fix tree) in flight, run 528 (the fix)
+  pending behind it.
