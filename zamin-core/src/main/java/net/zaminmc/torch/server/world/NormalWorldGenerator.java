@@ -13,10 +13,14 @@ import java.util.Objects;
  * value-noise heightmap with seas, beaches, dirt skins, stone cores, noise
  * caves, the depth-banded ore ladder, and oak trees on the grass.
  *
- * <p>Determinism contract (the same one FlatWorldGenerator keeps): the seed
- * is fixed per world name, so every boot rebuilds identical terrain without
- * storing generated chunks. Adopted in shape from the community independent
- * 1.8 server implementations (BlueDragonMC/Server, credited in
+ * <p>Determinism contract (the delta-overlay model's own law): the seed
+ * arrives from the caller — the engine's boot resolves it through
+ * {@link WorldSeedStore} (the reference's level-seed/random derivation,
+ * persisted per world so every boot of the same world rebuilds the same
+ * terrain without storing generated chunks). The name constructor below
+ * keeps the HISTORICAL name-derived law for the deterministic test
+ * fixtures. Adopted in shape from the community independent 1.8 server
+ * implementations (BlueDragonMC/Server, credited in
  * COMMUNITY_REFERENCES.md); the noise core is our own.</p>
  */
 public final class NormalWorldGenerator implements WorldGenerator {
@@ -108,9 +112,19 @@ public final class NormalWorldGenerator implements WorldGenerator {
                 }
             };
 
+    /**
+     * The HISTORICAL name law (the pre-T-SEED engine's only derivation):
+     * kept as the deterministic fixture's constructor — the engine's boot
+     * feeds the persisted seed through the long constructor (the
+     * {@link WorldSeedStore} resolution), never this one.
+     */
     public NormalWorldGenerator(BlockRegistry registry, String worldName) {
+        this(registry, WorldSeedStore.historicalNameSeed(worldName));
+    }
+
+    public NormalWorldGenerator(BlockRegistry registry, long seed) {
         this.registry = Objects.requireNonNull(registry, "registry");
-        this.seed = 0x5A4D494E5C00L ^ worldName.hashCode() * 0x9E3779B97F4L;
+        this.seed = seed;
         // The biome layout (VIII14's second slice — Layer.init 1:1, the
         // DEFAULT type's chain): grid[0] answers the 1:4 biome grid the
         // terrain's height bands consult, voronoi[1] answers the
