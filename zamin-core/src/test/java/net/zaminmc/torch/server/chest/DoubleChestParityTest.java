@@ -150,6 +150,19 @@ class DoubleChestParityTest {
      * {@code floor(13/54 * 14) + 1 = 4} — the reference's
      * {@code InventoryMenu.getAnalogSignal} over the DoubleInventory's 54
      * slots. The pre-fix engine read the one half it faced: 0.
+     *
+     * <p>RE-PINNED by F-TC1's consult law (PR #87's merge): the bare
+     * west-half write once woke the comparator THROUGH the east half —
+     * the movement consult's re-radiation set carried the chest family,
+     * but the reference's own {@code Block.isSolid()} law (isCube false,
+     * ChestBlock lines 46-48) refuses the through-walk
+     * (World.updateNeighborComparators line 2708): a bare single-half
+     * write never arms a comparator two cells out in vanilla either. The
+     * seat now fills FIRST and places the comparator AFTER — the
+     * comparator's own placement read (its onAdded arm) observes the
+     * merged fullness exactly like vanilla's freshly-placed comparator;
+     * the WRITE-path wake (both halves marked through the
+     * DoubleInventory) rides seat 4's own shift-click law.</p>
      */
     @Test
     void theComparatorReadsTheMergedPairFullness() throws Exception {
@@ -163,16 +176,20 @@ class DoubleChestParityTest {
                     server.world().setBlock(new BlockPosition(x + dx, y - 1, z),
                             BuiltinBlocks.STONE);
                 }
+                // The fill FIRST: the comparator's placement read observes
+                // the merged fullness (the bare west write alone never
+                // arms a comparator two cells out — the reference's own
+                // isSolid law refuses the through-chest walk).
+                var west = server.chestManager().getOrCreate(new BlockPosition(x - 1, y, z));
+                for (int slot = 0; slot < 13; slot++) {
+                    west.setSlot(slot, ItemStack.of(BuiltinItems.STONE, 64));
+                }
                 server.world().setBlock(new BlockPosition(x + 1, y, z),
                         RedstoneBlocks.comparatorOf(RedstoneBlocks.FACING_WEST, false, false));
                 server.world().setBlock(new BlockPosition(x + 2, y, z),
                         RedstoneBlocks.wireOfPower(0));
                 server.world().setBlock(new BlockPosition(x + 3, y, z),
                         RedstoneBlocks.wireOfPower(0));
-                var west = server.chestManager().getOrCreate(new BlockPosition(x - 1, y, z));
-                for (int slot = 0; slot < 13; slot++) {
-                    west.setSlot(slot, ItemStack.of(BuiltinItems.STONE, 64));
-                }
             });
             await(() -> RedstoneBlocks.isComparator(typeAt(server, x + 1, y, z)),
                     "the comparator placed");

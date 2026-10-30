@@ -2,6 +2,7 @@ package net.zaminmc.torch.server.redstone;
 
 import net.zaminmc.torch.block.BlockPosition;
 import net.zaminmc.torch.block.BlockType;
+import net.zaminmc.torch.server.block.BlockSolidity;
 import net.zaminmc.torch.server.block.BuiltinBlocks;
 import net.zaminmc.torch.server.block.WorldSolidity;
 import net.zaminmc.torch.server.item.BuiltinItems;
@@ -363,7 +364,11 @@ public final class RedstoneSystem implements WorldChangeListener {
             for (int facing : HORIZONTALS) {
                 int[] step = horizontalStep(facing);
                 BlockPosition neighbor = position.offset(step[0], 0, step[1]);
-                if (WorldSolidity.isSolid(world.getBlock(neighbor))) {
+                if (BlockSolidity.isSolid(world.getBlock(neighbor))) {
+                    // onAdded lines 191-194 + onRemoved lines 216-219: the
+                    // wake walk reads the reference's own Block.isSolid() —
+                    // the wire above a solid cube, the wire below everything
+                    // else (the glass and the chests carry the DOWN wake).
                     updateNeighborsOfWire(neighbor.offset(0, 1, 0));
                 } else {
                     updateNeighborsOfWire(neighbor.offset(0, -1, 0));
@@ -502,11 +507,15 @@ public final class RedstoneSystem implements WorldChangeListener {
      * The weak signal the block at {@code pos} emits toward the consumer
      * sitting in direction {@code dir} (dir points from the consumer to the
      * source). A solid block re-radiates the strong power entering it; a
-     * non-solid block answers its own emission.
+     * non-solid block answers its own emission (World.getSignal lines
+     * 2358-2362 — the reference's own {@code Block.isSolid()} ternary
+     * ({@link BlockSolidity}), never the movement consult: the chests, the
+     * glass, the slabs and the rest of the isCube-false census answer their
+     * own emission, and the redstone block's 15 reaches a wire).
      */
     public int signal(BlockPosition pos, int dir) {
         BlockType type = world.getBlock(pos);
-        if (isSignalSolid(type)) {
+        if (BlockSolidity.isSolid(type)) {
             return directNeighborSignal(pos);
         }
         return ownSignal(pos, type, dir);
@@ -570,6 +579,14 @@ public final class RedstoneSystem implements WorldChangeListener {
             return TripwireBlocks.hookPowered(type)
                     && TripwireBlocks.hookFacing(type) == dir ? 15 : 0;
         }
+        if (type.identifier().value().equals("trapped_chest")
+                || type.identifier().value().startsWith("trapped_chest_")) {
+            // ChestBlock.getDirectSignal lines 397-400: the trapped chest's
+            // strong arm is UP-ONLY — the block UNDER the chest (the
+            // consumer below asks with dir=UP) receives the viewer count;
+            // every other consumer reads the weak arm alone.
+            return dir == UP ? ownSignal(pos, type, dir) : 0;
+        }
         return 0;
     }
 
@@ -617,26 +634,6 @@ public final class RedstoneSystem implements WorldChangeListener {
             }
         }
         return max;
-    }
-
-    /**
-     * A block re-radiates strong power as weak only when the reference's
-     * {@code Block.isSolid()} holds: a solid cube that is not itself a
-     * signal source (reference Block.java lines 274-276 — the wire, the
-     * torch and the repeater are signal sources and never re-radiate; the
-     * engine's shape model plus the family test encodes the same set).
-     */
-    private boolean isSignalSolid(BlockType type) {
-        return WorldSolidity.isSolid(type)
-                && !RedstoneBlocks.isWire(type)
-                && !RedstoneBlocks.isTorch(type)
-                && !RedstoneBlocks.isRepeater(type)
-                && !RedstoneBlocks.isComparator(type)
-                && !net.zaminmc.torch.server.piston.PistonBlocks.isPistonFamily(type)
-                && !net.zaminmc.torch.server.daylight.DaylightDetectorBlocks.isFamily(type)
-                && (net.zaminmc.torch.server.block.RailBlocks.familyOf(type) == null
-                || !net.zaminmc.torch.server.block.RailBlocks.familyOf(type)
-                        .equals("detector_rail"));
     }
 
     /**
@@ -706,6 +703,13 @@ public final class RedstoneSystem implements WorldChangeListener {
             // TripwireHookBlock lines 262-264: weak 15 in every direction
             // when powered (getSignal).
             return TripwireBlocks.hookPowered(type) ? 15 : 0;
+        }
+        if (type.identifier().equals(BuiltinBlocks.REDSTONE_BLOCK.identifier())) {
+            // RedstoneBlock.getSignal lines 21-23: 15 weakly in EVERY
+            // direction — the block is its own source (isSignalSource
+            // lines 16-18 keep it out of the re-radiation set, so this
+            // arm is the only wire-side emission it ever answers).
+            return 15;
         }
         if (type.identifier().value().equals("trapped_chest")
                 || type.identifier().value().startsWith("trapped_chest_")) {
@@ -785,8 +789,14 @@ public final class RedstoneSystem implements WorldChangeListener {
             int[] step = horizontalStep(facing);
             BlockPosition block = pos.offset(step[0], 0, step[1]);
             l = Math.max(l, wirePowerAt(block));
-            boolean neighborSolid = WorldSolidity.isSolid(world.getBlock(block));
-            boolean aboveOpen = !WorldSolidity.isSolid(world.getBlock(pos.offset(0, 1, 0)));
+            // The climb and descent bands (doUpdatePower lines 129 + 133):
+            // both consults read the reference's own {@code Block.isSolid()}
+            // ({@link BlockSolidity}) — the glass, the chests, the slabs and
+            // the translucent families are TRANSPARENT to the wire's climb
+            // (the dust reads the wire DOWN through them, never UP over
+            // them), and the redstone block never carries a climbing wire.
+            boolean neighborSolid = BlockSolidity.isSolid(world.getBlock(block));
+            boolean aboveOpen = !BlockSolidity.isSolid(world.getBlock(pos.offset(0, 1, 0)));
             if (neighborSolid && aboveOpen) {
                 l = Math.max(l, wirePowerAt(block.offset(0, 1, 0)));
             } else if (!neighborSolid) {
@@ -1402,7 +1412,11 @@ public final class RedstoneSystem implements WorldChangeListener {
             for (int facing : HORIZONTALS) {
                 int[] step = horizontalStep(facing);
                 BlockPosition neighbor = pos.offset(step[0], 0, step[1]);
-                if (WorldSolidity.isSolid(world.getBlock(neighbor))) {
+                if (BlockSolidity.isSolid(world.getBlock(neighbor))) {
+                    // onAdded lines 191-194 + onRemoved lines 216-219: the
+                    // wake walk reads the reference's own Block.isSolid() —
+                    // the wire above a solid cube, the wire below everything
+                    // else (the glass and the chests carry the DOWN wake).
                     updateNeighborsOfWire(neighbor.offset(0, 1, 0));
                 } else {
                     updateNeighborsOfWire(neighbor.offset(0, -1, 0));
@@ -1846,7 +1860,10 @@ public final class RedstoneSystem implements WorldChangeListener {
             // overrides the diode read unconditionally.
             return analog;
         }
-        if (i < 15 && isSignalSolid(inputType)) {
+        if (i < 15 && BlockSolidity.isSolid(inputType)) {
+            // ComparatorBlock.getInputSignal line 114: the through-solid
+            // arm reads the reference's own Block.isSolid() — a comparator
+            // never reads a container THROUGH the glass, a chest or a slab.
             BlockPosition twoBehind = inputPos.offset(step[0], 0, step[1]);
             int deep = analogRead(twoBehind);
             if (deep >= 0) {
@@ -2031,7 +2048,11 @@ public final class RedstoneSystem implements WorldChangeListener {
             BlockType neighborType = world.getBlock(neighbor);
             if (RedstoneBlocks.isComparator(neighborType)) {
                 neighborChanged(neighbor);
-            } else if (WorldSolidity.isSolid(neighborType)) {
+            } else if (BlockSolidity.isSolid(neighborType)) {
+                // World.updateNeighborComparators line 2708: the wake's
+                // through-solid walk reads the reference's own
+                // Block.isSolid() — a comparator behind glass never hears
+                // the container two cells away.
                 BlockPosition twoOut = neighbor.offset(step[0], 0, step[1]);
                 if (RedstoneBlocks.isComparator(world.getBlock(twoOut))) {
                     neighborChanged(twoOut);

@@ -806,6 +806,7 @@ public final class EngineServer implements Server, EngineBridge {
                 // + the fluid system wire later, beside the overworld's.
                 netherScheduledTicks = new net.zaminmc.torch.server.block.ScheduledTickSystem(
                         netherWorld, new java.util.Random(worldSeed ^ 0x541DCA12L));
+                netherWorld.attachScheduledTicks(netherScheduledTicks);
                 netherScheduledTickStore = new net.zaminmc.torch.server.block.ScheduledTickDataStore(
                         config.worldDataDir().resolve("DIM-1/scheduledticks.bin"));
                 for (net.zaminmc.torch.server.block.ScheduledTickDataStore.TickRow row
@@ -858,6 +859,7 @@ public final class EngineServer implements Server, EngineBridge {
                 // block above.
                 endScheduledTicks = new net.zaminmc.torch.server.block.ScheduledTickSystem(
                         endWorld, new java.util.Random(worldSeed ^ 0x541DCA13L));
+                endWorld.attachScheduledTicks(endScheduledTicks);
                 endScheduledTickStore = new net.zaminmc.torch.server.block.ScheduledTickDataStore(
                         config.worldDataDir().resolve("DIM1/scheduledticks.bin"));
                 for (net.zaminmc.torch.server.block.ScheduledTickDataStore.TickRow row
@@ -1144,6 +1146,10 @@ public final class EngineServer implements Server, EngineBridge {
                 // delayed arms migrate onto it family by family.
                 scheduledTickSystem = new net.zaminmc.torch.server.block.ScheduledTickSystem(
                         world, new java.util.Random(worldSeed ^ 0x541DCA11L));
+                // The world's own queue (Wave FL4-F2 — the fire family's
+                // per-dimension scheduling): the families' schedule
+                // consults ride the calling world's own surface.
+                world.attachScheduledTicks(scheduledTickSystem);
                 // The fire family's migration (FireBlock 1:1 onto the
                 // TileTicks surface — the first family off the block-update
                 // system's own adapted arm): the seams (the doFireTick rule,
@@ -1162,9 +1168,20 @@ public final class EngineServer implements Server, EngineBridge {
                                 tnt.spawnPrimedAt(pos.x() + 0.5, pos.y(), pos.z() + 0.5);
                             }
                         },
-                        world, endWorld, scheduledTickSystem, gameplayRandom);
+                        gameplayRandom);
+                // The sixteen AGE states' ticker registrations on EVERY
+                // dimension's own queue (Wave FL4-F2 — the reference's
+                // every-ServerWorld dispatch; the pre-fix engine
+                // registered the overworld's alone, so a nether/End flame
+                // sat in its own queue with no dispatcher).
                 for (int age = 0; age <= net.zaminmc.torch.server.block.FireBlocks.MAX_AGE; age++) {
                     scheduledTickSystem.registerTicker(
+                            net.zaminmc.torch.server.block.FireBlocks.stateId(age),
+                            net.zaminmc.torch.server.block.FireBlocks::tick);
+                    netherScheduledTicks.registerTicker(
+                            net.zaminmc.torch.server.block.FireBlocks.stateId(age),
+                            net.zaminmc.torch.server.block.FireBlocks::tick);
+                    endScheduledTicks.registerTicker(
                             net.zaminmc.torch.server.block.FireBlocks.stateId(age),
                             net.zaminmc.torch.server.block.FireBlocks::tick);
                 }
@@ -3384,7 +3401,7 @@ public final class EngineServer implements Server, EngineBridge {
                                 signManager, spawners, commandBlocks, noteBlocks,
                                 skulls, jukeboxes, bannerManager));
                 blockInteraction = new BlockInteractionService(world, ticker,
-                        change -> world.republish(change.position()), // the resync path (§441)
+                        (resyncWorld, pos) -> resyncWorld.republish(pos), // the resync path (§441) — Wave FL4-F5: the acting world's own republish
                         session -> session.gamemode(), new DropService(new java.util.Random()), itemEntities,
                         // The damage-aware block-item resolution (Slice 31 —
                         // ItemBlock.onItemUse's getStateFromMeta): the wood
@@ -3671,6 +3688,14 @@ public final class EngineServer implements Server, EngineBridge {
                 blockInteraction.setDigStartGate((session, pos) ->
                         !isSpawnProtected(session, pos)
                                 && worldBorder.contains(pos.x(), pos.z()));
+                // The per-dimension world router (Wave FL4-F5 — the dig/place
+                // generic surface): the service's every dig, place, extinguish,
+                // resync and drop consults and writes the ACTING player's own
+                // world (the reference's player.world law — the pre-fix service
+                // read the overworld field for every player, so a nether dig
+                // broke the overworld's cell at those coordinates and a nether
+                // placement wrote the overworld instead).
+                blockInteraction.setWorldRouter(dimension -> worldForSafe(dimension));
                 // The fire-extinguish FX (Slice N6 — World.extinguishFire
                 // line 1642's {@code doEvent(player, 1004, pos, 0)}: the
                 // reference broadcasts the WorldEvent packet and the CLIENT
@@ -4419,6 +4444,9 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     private void editSignOnTick(PlayerSession player, BlockPosition position, String[] lines) {
+        // The player's own world (Wave FL4-F3 — the reference's
+        // player.world: every use/place arm runs where the player is).
+        EngineWorld world = worldFor(player.dimension());
         if (player.state() != PlayerState.PLAYING || player.dead()) {
             return;
         }
@@ -4474,6 +4502,9 @@ public final class EngineServer implements Server, EngineBridge {
      */
     private void placeSignOnTick(PlayerSession session, BlockPosition clicked, int face,
                                  java.util.Optional<BlockType> creativeHeld) {
+        // The player's own world (Wave FL4-F3 — the reference's
+        // player.world: every use/place arm runs where the player is).
+        EngineWorld world = worldFor(session.dimension());
         if (face == 0) {
             return; // the reference's own first gate (lines 21-23): a bottom click places nothing
         }
@@ -4485,10 +4516,10 @@ public final class EngineServer implements Server, EngineBridge {
                 world.getBlock(clicked).identifier())) {
             return; // the clicked-material gate (lines 25-27): the clicked cell must be material-solid
         }
-        if (!canOccupyForPlacement(target)) {
+        if (!canOccupyForPlacement(world, target)) {
             return; // canBePlaced's replaceable half (Block lines 664-666)
         }
-        if (isNeighboringCactus(target)) {
+        if (isNeighboringCactus(world, target)) {
             return; // SignBlock.canBePlaced's cactus arm (lines 82-84): no sign beside a cactus
         }
         if (creativeHeld.isEmpty()
@@ -4553,7 +4584,7 @@ public final class EngineServer implements Server, EngineBridge {
      * SignBlock.canBePlaced's own arm, the placement beside a cactus
      * refused (the cactus's own law would break at the neighbour update).
      */
-    private boolean isNeighboringCactus(BlockPosition pos) {
+    private boolean isNeighboringCactus(EngineWorld world, BlockPosition pos) {
         return world.getBlock(pos.offset(0, 0, -1)).identifier()
                        .equals(BuiltinBlocks.CACTUS.identifier())
                || world.getBlock(pos.offset(0, 0, 1)).identifier()
@@ -4589,6 +4620,9 @@ public final class EngineServer implements Server, EngineBridge {
      */
     private void placeBannerOnTick(PlayerSession session, BlockPosition clicked, int face,
                                    java.util.Optional<BlockType> creativeHeld) {
+        // The player's own world (Wave FL4-F3 — the reference's
+        // player.world: every use/place arm runs where the player is).
+        EngineWorld world = worldFor(session.dimension());
         if (face == 0) {
             return; // lines 29-31: the DOWN face never plants a banner
         }
@@ -4600,10 +4634,10 @@ public final class EngineServer implements Server, EngineBridge {
                 world.getBlock(clicked).identifier())) {
             return; // the clicked-material gate (lines 33-35): the clicked cell must be material-solid
         }
-        if (!canOccupyForPlacement(target)) {
+        if (!canOccupyForPlacement(world, target)) {
             return; // canBePlaced's replaceable half (Block lines 664-666)
         }
-        if (isNeighboringCactus(target)) {
+        if (isNeighboringCactus(world, target)) {
             return; // BannerBlock.canBePlaced's cactus arm: no banner beside a cactus
         }
         net.zaminmc.torch.item.ItemStack held = session.inventory().held();
@@ -4672,13 +4706,16 @@ public final class EngineServer implements Server, EngineBridge {
      */
     private void placeSkullOnTick(PlayerSession session, BlockPosition clicked, int face,
                                   java.util.Optional<BlockType> creativeHeld) {
+        // The player's own world (Wave FL4-F3 — the reference's
+        // player.world: every use/place arm runs where the player is).
+        EngineWorld world = worldFor(session.dimension());
         net.zaminmc.torch.server.skull.SkullManager skullStore = skulls;
         if (skullStore == null) {
             return; // the store is not wired (the test rig)
         }
         BlockPosition target = offsetByFace(clicked, face);
         if (target == null || world.getBlock(clicked).equals(world.airType())
-                || !canOccupyForPlacement(target)) {
+                || !canOccupyForPlacement(world, target)) {
             return; // the generic placement gates (bad face / clicked air / occupied)
         }
         if (intersectsPlayerBox(session.position(), target)) {
@@ -4844,6 +4881,23 @@ public final class EngineServer implements Server, EngineBridge {
 
     /** The random-tick system (exposed for deterministic growth probes). */
     public RandomTickSystem randomTicks() {
+        return randomTicks;
+    }
+
+    /**
+     * The per-dimension random-tick system (Wave FL4 — the reference's
+     * tickChunks runs in EVERY world): the nether's and the End's own walks
+     * over their own worlds, exposed for the deterministic probes the same
+     * way the overworld's is (the sampler's 3-of-4096 odds make seeded
+     * end-to-end assertions flaky).
+     */
+    public RandomTickSystem randomTicksFor(int dimension) {
+        if (dimension == -1) {
+            return java.util.Objects.requireNonNull(netherRandomTicks, "nether random ticks");
+        }
+        if (dimension == 1) {
+            return java.util.Objects.requireNonNull(endRandomTicks, "end random ticks");
+        }
         return randomTicks;
     }
 
@@ -6212,6 +6266,9 @@ public final class EngineServer implements Server, EngineBridge {
      * Tick-thread context.
      */
     private void tickFireBody(PlayerSession session) {
+        // The player's own world (Wave FL4-F3 — the reference's
+        // player.world: every use/place arm runs where the player is).
+        EngineWorld world = worldFor(session.dimension());
         if (session.gamemode() == GameMode.CREATIVE
                 || session.gamemode() == GameMode.SPECTATOR) {
             return;
@@ -6344,6 +6401,9 @@ public final class EngineServer implements Server, EngineBridge {
      * Tick-thread context.
      */
     private void tickCactusContact(PlayerSession session) {
+        // The player's own world (Wave FL4-F3 — the reference's
+        // player.world: every use/place arm runs where the player is).
+        EngineWorld world = worldFor(session.dimension());
         if (session.gamemode() == GameMode.CREATIVE
                 || session.gamemode() == GameMode.SPECTATOR) {
             return;
@@ -6448,6 +6508,9 @@ public final class EngineServer implements Server, EngineBridge {
 
     /** Landing damage: falls beyond three blocks hurt ceil(distance - 3). */
     private void tickLanding(PlayerSession session) {
+        // The player's own world (Wave FL4-F3 — the reference's
+        // player.world: every use/place arm runs where the player is).
+        EngineWorld world = worldFor(session.dimension());
         if (session.ridingAny()) {
             // THE SEATED RIDER'S OWN LANDING NEVER RUNS (F-RIDER-SPARE —
             // the reference's updateRiderPosition: the seat moves the
@@ -6708,6 +6771,9 @@ public final class EngineServer implements Server, EngineBridge {
      * Creative and spectator bodies hold no breath.
      */
     private void tickBreath(PlayerSession session) {
+        // The player's own world (Wave FL4-F3 — the reference's
+        // player.world: every use/place arm runs where the player is).
+        EngineWorld world = worldFor(session.dimension());
         if (session.gamemode() == GameMode.CREATIVE
                 || session.gamemode() == GameMode.SPECTATOR) {
             return;
@@ -7867,6 +7933,9 @@ public final class EngineServer implements Server, EngineBridge {
      * false (the reference's isAlive gate around the whole arm).
      */
     private boolean playerIsInWall(PlayerSession session) {
+        // The player's own world (Wave FL4-F3 — the reference's
+        // player.world: every use/place arm runs where the player is).
+        EngineWorld world = worldFor(session.dimension());
         if (session.dead()) {
             return false;
         }
@@ -10674,6 +10743,9 @@ public final class EngineServer implements Server, EngineBridge {
      */
     private boolean clickEnderChestWindowOnTick(PlayerSession session, int wireSlot, int button,
                                                 int mode) {
+        // The player's own world (Wave FL4-F3 — the reference's
+        // player.world: every use/place arm runs where the player is).
+        EngineWorld world = worldFor(session.dimension());
         var inventory = session.inventory();
         var position = session.openContainerPosition();
         if (position == null
@@ -10773,6 +10845,9 @@ public final class EngineServer implements Server, EngineBridge {
      */
     private boolean clickBeaconWindowOnTick(PlayerSession session, int wireSlot, int button,
                                             int mode) {
+        // The player's own world (Wave FL4-F3 — the reference's
+        // player.world: every use/place arm runs where the player is).
+        EngineWorld world = worldFor(session.dimension());
         var inventory = session.inventory();
         var position = session.openContainerPosition();
         var beacon = position == null ? null : beaconSystem.peek(position);
@@ -11582,6 +11657,9 @@ public final class EngineServer implements Server, EngineBridge {
      * packet. Tick-thread context.
      */
     private void resyncUsePair(PlayerSession session, BlockPosition clicked, int face) {
+        // The player's own world (Wave FL4-F3 — the reference's
+        // player.world: every use/place arm runs where the player is).
+        EngineWorld world = worldFor(session.dimension());
         session.link().blockResync(clicked, world.getBlock(clicked));
         int dx = face == 4 ? -1 : face == 5 ? 1 : 0;
         int dy = face == 0 ? -1 : face == 1 ? 1 : 0;
@@ -11637,6 +11715,9 @@ public final class EngineServer implements Server, EngineBridge {
      */
     private boolean useBlockArmOnTick(PlayerSession session, net.zaminmc.torch.block.BlockPosition clicked,
                                       int face, java.util.function.IntConsumer onTableOpened) {
+        // The player's own world (Wave FL4-F3 — the reference's
+        // player.world: every use/place arm runs where the player is).
+        EngineWorld world = worldFor(session.dimension());
         net.zaminmc.torch.block.BlockType current = world.getBlock(clicked);
         if (current.identifier().equals(
                 net.zaminmc.torch.server.block.BuiltinBlocks.REDSTONE_ORE.identifier())) {
@@ -11659,9 +11740,10 @@ public final class EngineServer implements Server, EngineBridge {
         if (ChestFacingBlocks.isTrappedFamily(current)
                 || current.identifier().equals(net.zaminmc.torch.server.block.BuiltinBlocks.TRAPPED_CHEST.identifier())) {
             // ChestBlock(1).use lines 326-341: the same container GUI opens
-            // (the viewer-count power rides the redstone system's probe).
+            // (the viewer-count power rides the redstone system's probe;
+            // the neighbor wake lives in the open itself —
+            // ChestBlockEntity.onOpen lines 312-314 — never the use arm).
             openChestOnTick(session, clicked, onTableOpened);
-            redstoneSystem.updateNeighbors(clicked);
             return true;
         }
         if (net.zaminmc.torch.server.chest.EnderChestBlocks.isFamily(current)) {
@@ -11745,7 +11827,7 @@ public final class EngineServer implements Server, EngineBridge {
             openAnvilOnTick(session, clicked, onTableOpened);
             return true;
         }
-        if (cycleRepeaterDelayOnTick(clicked)) {
+        if (cycleRepeaterDelayOnTick(clicked, world)) {
             return true; // the repeater's use consumed the right-click (the delay cycle)
         }
         if (redstoneSystem.useComparator(clicked)) {
@@ -11775,7 +11857,7 @@ public final class EngineServer implements Server, EngineBridge {
         // The dragon egg's use (Slice 55 — DragonEggBlock.use lines 75-79:
         // the right click teleports the egg away; the portal particles are
         // the client's own rendering over the block change).
-        if (useDragonEggOnTick(clicked)) {
+        if (useDragonEggOnTick(clicked, world)) {
             return true; // the egg's teleport consumed the right-click
         }
         if (useFlowerPotOnTick(session, clicked)) {
@@ -11793,7 +11875,7 @@ public final class EngineServer implements Server, EngineBridge {
             BlockPosition lower = WoodDoorFamily.isUpper(current)
                     ? clicked.offset(0, -1, 0) : clicked;
             if (WoodDoorFamily.isDoor(world.getBlock(lower))) {
-                toggleDoorOnTick(lower);
+                toggleDoorOnTick(lower, world);
             }
             return true; // the swing consumes the right-click (the historical door
                          // use: a door swings regardless of what the hand holds)
@@ -11838,6 +11920,9 @@ public final class EngineServer implements Server, EngineBridge {
     private void useItemArmOnTick(PlayerSession session, net.zaminmc.torch.block.BlockPosition clicked,
                                    int face, java.util.Optional<net.zaminmc.torch.block.BlockType> creativeHeld,
                                    float cursorX, float cursorY, float cursorZ) {
+        // The player's own world (Wave FL4-F3 — the reference's
+        // player.world: every use/place arm runs where the player is).
+        EngineWorld world = worldFor(session.dimension());
         if (useBucketOnTick(session, clicked, face)) {
             return; // the bucket did its work; no placement proposal follows
         }
@@ -12434,8 +12519,11 @@ public final class EngineServer implements Server, EngineBridge {
      */
     private void placePumpkinOnTick(PlayerSession session, BlockPosition clicked, int face,
                                     java.util.Optional<BlockType> creativeHeld, boolean lit) {
+        // The player's own world (Wave FL4-F3 — the reference's
+        // player.world: every use/place arm runs where the player is).
+        EngineWorld world = worldFor(session.dimension());
         BlockPosition target = offsetByFace(clicked, face);
-        if (target == null || !canOccupyForPlacement(target)) {
+        if (target == null || !canOccupyForPlacement(world, target)) {
             return;
         }
         if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE
@@ -12472,9 +12560,12 @@ public final class EngineServer implements Server, EngineBridge {
      */
     private void placeRedstoneDustOnTick(PlayerSession session, BlockPosition clicked, int face,
                                           java.util.Optional<BlockType> creativeHeld) {
+        // The player's own world (Wave FL4-F3 — the reference's
+        // player.world: every use/place arm runs where the player is).
+        EngineWorld world = worldFor(session.dimension());
         BlockPosition target = offsetByFace(clicked, face);
         if (target == null || world.getBlock(clicked).equals(world.airType())
-                || !canOccupyForPlacement(target)) {
+                || !canOccupyForPlacement(world, target)) {
             return;
         }
         if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE
@@ -12494,7 +12585,7 @@ public final class EngineServer implements Server, EngineBridge {
      * preserves the facing and the powered pair. Returns whether the use
      * was consumed. Tick-thread context.
      */
-    private boolean cycleRepeaterDelayOnTick(BlockPosition clicked) {
+    private boolean cycleRepeaterDelayOnTick(BlockPosition clicked, EngineWorld world) {
         BlockType current = world.getBlock(clicked);
         if (!net.zaminmc.torch.server.redstone.RedstoneBlocks.isRepeater(current)) {
             return false;
@@ -12517,9 +12608,12 @@ public final class EngineServer implements Server, EngineBridge {
      */
     private void placeRedstoneTorchOnTick(PlayerSession session, BlockPosition clicked, int face,
                                           java.util.Optional<BlockType> creativeHeld) {
+        // The player's own world (Wave FL4-F3 — the reference's
+        // player.world: every use/place arm runs where the player is).
+        EngineWorld world = worldFor(session.dimension());
         BlockPosition target = offsetByFace(clicked, face);
         if (target == null || world.getBlock(clicked).equals(world.airType())
-                || !canOccupyForPlacement(target)) {
+                || !canOccupyForPlacement(world, target)) {
             return;
         }
         if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE
@@ -12568,9 +12662,12 @@ public final class EngineServer implements Server, EngineBridge {
      */
     private void placeLeverOnTick(PlayerSession session, BlockPosition clicked, int face,
                                   java.util.Optional<BlockType> creativeHeld) {
+        // The player's own world (Wave FL4-F3 — the reference's
+        // player.world: every use/place arm runs where the player is).
+        EngineWorld world = worldFor(session.dimension());
         BlockPosition target = offsetByFace(clicked, face);
         if (target == null || world.getBlock(clicked).equals(world.airType())
-                || !canOccupyForPlacement(target)) {
+                || !canOccupyForPlacement(world, target)) {
             return;
         }
         if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE
@@ -12645,9 +12742,12 @@ public final class EngineServer implements Server, EngineBridge {
      */
     private void placeButtonOnTick(PlayerSession session, BlockPosition clicked, int face,
                                    java.util.Optional<BlockType> creativeHeld, boolean wooden) {
+        // The player's own world (Wave FL4-F3 — the reference's
+        // player.world: every use/place arm runs where the player is).
+        EngineWorld world = worldFor(session.dimension());
         BlockPosition target = offsetByFace(clicked, face);
         if (target == null || world.getBlock(clicked).equals(world.airType())
-                || !canOccupyForPlacement(target)) {
+                || !canOccupyForPlacement(world, target)) {
             return;
         }
         if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE
@@ -12664,9 +12764,12 @@ public final class EngineServer implements Server, EngineBridge {
      */
     private void placePlateOnTick(PlayerSession session, BlockPosition clicked, int face,
                                   java.util.Optional<BlockType> creativeHeld, boolean wooden) {
+        // The player's own world (Wave FL4-F3 — the reference's
+        // player.world: every use/place arm runs where the player is).
+        EngineWorld world = worldFor(session.dimension());
         BlockPosition target = offsetByFace(clicked, face);
         if (target == null || world.getBlock(clicked).equals(world.airType())
-                || !canOccupyForPlacement(target)) {
+                || !canOccupyForPlacement(world, target)) {
             return;
         }
         if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE
@@ -12691,9 +12794,12 @@ public final class EngineServer implements Server, EngineBridge {
      */
     private void placeCarpetOnTick(PlayerSession session, BlockPosition clicked, int face,
                                    java.util.Optional<BlockType> creativeHeld) {
+        // The player's own world (Wave FL4-F3 — the reference's
+        // player.world: every use/place arm runs where the player is).
+        EngineWorld world = worldFor(session.dimension());
         BlockPosition target = offsetByFace(clicked, face);
         if (target == null || world.getBlock(clicked).equals(world.airType())
-                || !canOccupyForPlacement(target)) {
+                || !canOccupyForPlacement(world, target)) {
             return;
         }
         // The color member: creative claims its block variant directly,
@@ -12737,9 +12843,12 @@ public final class EngineServer implements Server, EngineBridge {
      */
     private void placeRepeaterOnTick(PlayerSession session, BlockPosition clicked, int face,
                                      java.util.Optional<BlockType> creativeHeld) {
+        // The player's own world (Wave FL4-F3 — the reference's
+        // player.world: every use/place arm runs where the player is).
+        EngineWorld world = worldFor(session.dimension());
         BlockPosition target = offsetByFace(clicked, face);
         if (target == null || world.getBlock(clicked).equals(world.airType())
-                || !canOccupyForPlacement(target)) {
+                || !canOccupyForPlacement(world, target)) {
             return;
         }
         if (intersectsPlayerBox(session.position(), target)) {
@@ -12767,9 +12876,12 @@ public final class EngineServer implements Server, EngineBridge {
      */
     private void placeComparatorOnTick(PlayerSession session, BlockPosition clicked, int face,
                                        java.util.Optional<BlockType> creativeHeld) {
+        // The player's own world (Wave FL4-F3 — the reference's
+        // player.world: every use/place arm runs where the player is).
+        EngineWorld world = worldFor(session.dimension());
         BlockPosition target = offsetByFace(clicked, face);
         if (target == null || world.getBlock(clicked).equals(world.airType())
-                || !canOccupyForPlacement(target)) {
+                || !canOccupyForPlacement(world, target)) {
             return;
         }
         if (intersectsPlayerBox(session.position(), target)) {
@@ -12800,9 +12912,12 @@ public final class EngineServer implements Server, EngineBridge {
      */
     private void placePistonOnTick(PlayerSession session, BlockPosition clicked, int face,
                                    java.util.Optional<BlockType> creativeHeld, boolean sticky) {
+        // The player's own world (Wave FL4-F3 — the reference's
+        // player.world: every use/place arm runs where the player is).
+        EngineWorld world = worldFor(session.dimension());
         BlockPosition target = offsetByFace(clicked, face);
         if (target == null || world.getBlock(clicked).equals(world.airType())
-                || !canOccupyForPlacement(target)) {
+                || !canOccupyForPlacement(world, target)) {
             return;
         }
         if (intersectsPlayerBox(session.position(), target)) {
@@ -12840,8 +12955,11 @@ public final class EngineServer implements Server, EngineBridge {
      */
     private void placeTripwireOnTick(PlayerSession session, BlockPosition clicked, int face,
                                       java.util.Optional<BlockType> creativeHeld) {
+        // The player's own world (Wave FL4-F3 — the reference's
+        // player.world: every use/place arm runs where the player is).
+        EngineWorld world = worldFor(session.dimension());
         BlockPosition target = offsetByFace(clicked, face);
-        if (target == null || !canOccupyForPlacement(target)) {
+        if (target == null || !canOccupyForPlacement(world, target)) {
             return;
         }
         if (intersectsPlayerBox(session.position(), target)) {
@@ -12864,8 +12982,11 @@ public final class EngineServer implements Server, EngineBridge {
      */
     private void placeTripwireHookOnTick(PlayerSession session, BlockPosition clicked, int face,
                                          java.util.Optional<BlockType> creativeHeld) {
+        // The player's own world (Wave FL4-F3 — the reference's
+        // player.world: every use/place arm runs where the player is).
+        EngineWorld world = worldFor(session.dimension());
         BlockPosition target = offsetByFace(clicked, face);
-        if (target == null || !canOccupyForPlacement(target)) {
+        if (target == null || !canOccupyForPlacement(world, target)) {
             return;
         }
         if (!net.zaminmc.torch.server.redstone.TripwireSystem.hookPlacementSupported(
@@ -12892,9 +13013,12 @@ public final class EngineServer implements Server, EngineBridge {
      */
     private void placeFurnaceFacingOnTick(PlayerSession session, BlockPosition clicked, int face,
                                           java.util.Optional<BlockType> creativeHeld) {
+        // The player's own world (Wave FL4-F3 — the reference's
+        // player.world: every use/place arm runs where the player is).
+        EngineWorld world = worldFor(session.dimension());
         BlockPosition target = offsetByFace(clicked, face);
         if (target == null || world.getBlock(clicked).equals(world.airType())
-                || !canOccupyForPlacement(target)) {
+                || !canOccupyForPlacement(world, target)) {
             return;
         }
         if (intersectsPlayerBox(session.position(), target)) {
@@ -12937,11 +13061,14 @@ public final class EngineServer implements Server, EngineBridge {
      */
     private void placeChestFacingOnTick(PlayerSession session, BlockPosition clicked, int face,
                                         java.util.Optional<BlockType> creativeHeld, boolean trapped) {
+        // The player's own world (Wave FL4-F3 — the reference's
+        // player.world: every use/place arm runs where the player is).
+        EngineWorld world = worldFor(session.dimension());
         String held = heldIdentifierOf(session, creativeHeld);
         boolean trappedKind = trapped || (held != null && held.equals("minecraft:trapped_chest"));
         BlockPosition target = offsetByFace(clicked, face);
         if (target == null || world.getBlock(clicked).equals(world.airType())
-                || !canOccupyForPlacement(target)) {
+                || !canOccupyForPlacement(world, target)) {
             return;
         }
         // ChestBlock.canBePlaced lines 244-284 (through World.canPlace lines
@@ -13033,9 +13160,12 @@ public final class EngineServer implements Server, EngineBridge {
      */
     private void placeEnderChestOnTick(PlayerSession session, BlockPosition clicked, int face,
                                        java.util.Optional<BlockType> creativeHeld) {
+        // The player's own world (Wave FL4-F3 — the reference's
+        // player.world: every use/place arm runs where the player is).
+        EngineWorld world = worldFor(session.dimension());
         BlockPosition target = offsetByFace(clicked, face);
         if (target == null || world.getBlock(clicked).equals(world.airType())
-                || !canOccupyForPlacement(target)) {
+                || !canOccupyForPlacement(world, target)) {
             return;
         }
         if (intersectsPlayerBox(session.position(), target)) {
@@ -13069,9 +13199,12 @@ public final class EngineServer implements Server, EngineBridge {
      */
     private void placeHopperOnTick(PlayerSession session, BlockPosition clicked, int face,
                                     java.util.Optional<BlockType> creativeHeld) {
+        // The player's own world (Wave FL4-F3 — the reference's
+        // player.world: every use/place arm runs where the player is).
+        EngineWorld world = worldFor(session.dimension());
         BlockPosition target = offsetByFace(clicked, face);
         if (target == null || world.getBlock(clicked).equals(world.airType())
-                || !canOccupyForPlacement(target)) {
+                || !canOccupyForPlacement(world, target)) {
             return;
         }
         if (intersectsPlayerBox(session.position(), target)) {
@@ -13094,9 +13227,12 @@ public final class EngineServer implements Server, EngineBridge {
     private void placeDaylightDetectorOnTick(PlayerSession session, BlockPosition clicked,
                                               int face,
                                               java.util.Optional<BlockType> creativeHeld) {
+        // The player's own world (Wave FL4-F3 — the reference's
+        // player.world: every use/place arm runs where the player is).
+        EngineWorld world = worldFor(session.dimension());
         BlockPosition target = offsetByFace(clicked, face);
         if (target == null || world.getBlock(clicked).equals(world.airType())
-                || !canOccupyForPlacement(target)) {
+                || !canOccupyForPlacement(world, target)) {
             return;
         }
         if (intersectsPlayerBox(session.position(), target)) {
@@ -13121,9 +13257,12 @@ public final class EngineServer implements Server, EngineBridge {
      */
     private void placeDispenserOnTick(PlayerSession session, BlockPosition clicked, int face,
                                       java.util.Optional<BlockType> creativeHeld, boolean dropper) {
+        // The player's own world (Wave FL4-F3 — the reference's
+        // player.world: every use/place arm runs where the player is).
+        EngineWorld world = worldFor(session.dimension());
         BlockPosition target = offsetByFace(clicked, face);
         if (target == null || world.getBlock(clicked).equals(world.airType())
-                || !canOccupyForPlacement(target)) {
+                || !canOccupyForPlacement(world, target)) {
             return;
         }
         if (intersectsPlayerBox(session.position(), target)) {
@@ -13191,6 +13330,9 @@ public final class EngineServer implements Server, EngineBridge {
      */
     private boolean useReedOnTick(PlayerSession session, BlockPosition clicked, int face,
                                   java.util.Optional<BlockType> creativeHeld) {
+        // The player's own world (Wave FL4-F3 — the reference's
+        // player.world: every use/place arm runs where the player is).
+        EngineWorld world = worldFor(session.dimension());
         net.zaminmc.torch.item.ItemStack heldStack = session.inventory().held();
         String held = heldStack.isEmpty() ? ""
                 : heldStack.type().identifier().toString();
@@ -13202,7 +13344,7 @@ public final class EngineServer implements Server, EngineBridge {
             return false;
         }
         BlockPosition target = offsetByFace(clicked, face);
-        if (target == null || !canOccupyForPlacement(target)) {
+        if (target == null || !canOccupyForPlacement(world, target)) {
             return false; // no open cell: the generic path's no-op
         }
         BlockType soil = world.getBlock(target.offset(0, -1, 0));
@@ -13428,6 +13570,9 @@ public final class EngineServer implements Server, EngineBridge {
      * consumed. Tick-thread context.
      */
     private boolean useFlintOnTick(PlayerSession session, BlockPosition clicked, int face) {
+        // The player's own world (Wave FL4-F3 — the reference's
+        // player.world: every use/place arm runs where the player is).
+        EngineWorld world = worldFor(session.dimension());
         net.zaminmc.torch.item.ItemStack heldStack = session.inventory().held();
         if (heldStack.isEmpty()
                 || !heldStack.type().identifier().toString()
@@ -13744,6 +13889,9 @@ public final class EngineServer implements Server, EngineBridge {
      * context.
      */
     private boolean useCakeOnTick(PlayerSession session, BlockPosition clicked) {
+        // The player's own world (Wave FL4-F3 — the reference's
+        // player.world: every use/place arm runs where the player is).
+        EngineWorld world = worldFor(session.dimension());
         if (!net.zaminmc.torch.server.block.CakeBlocks.isCake(
                 world.getBlock(clicked).identifier())) {
             return false; // not a cake cell: the generic path's own
@@ -13763,7 +13911,7 @@ public final class EngineServer implements Server, EngineBridge {
      * The dragon egg's use arm (Slice 55 — DragonEggBlock.use): the
      * right-click teleport. Tick-thread context.
      */
-    private boolean useDragonEggOnTick(BlockPosition clicked) {
+    private boolean useDragonEggOnTick(BlockPosition clicked, EngineWorld world) {
         if (!net.zaminmc.torch.server.block.DragonEggBlocks.isDragonEgg(
                 world.getBlock(clicked).identifier())) {
             return false;
@@ -13802,6 +13950,9 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     private void eatCakeSlice(PlayerSession session, BlockPosition at) {
+        // The player's own world (Wave FL4-F3 — the reference's
+        // player.world: every use/place arm runs where the player is).
+        EngineWorld world = worldFor(session.dimension());
         BlockType cake = world.getBlock(at);
         if (!net.zaminmc.torch.server.block.CakeBlocks.isCake(cake.identifier())) {
             return; // not a cake cell (a stale start report)
@@ -13837,6 +13988,9 @@ public final class EngineServer implements Server, EngineBridge {
      * Tick-thread context.
      */
     private boolean useFlowerPotOnTick(PlayerSession session, BlockPosition clicked) {
+        // The player's own world (Wave FL4-F3 — the reference's
+        // player.world: every use/place arm runs where the player is).
+        EngineWorld world = worldFor(session.dimension());
         BlockType pot = world.getBlock(clicked);
         if (!net.zaminmc.torch.server.block.FlowerPotBlocks.isPot(pot.identifier())
                 || !net.zaminmc.torch.server.block.FlowerPotBlocks.isEmptyPot(pot.identifier())) {
@@ -13876,6 +14030,9 @@ public final class EngineServer implements Server, EngineBridge {
      * context; returns whether the use was consumed.
      */
     private boolean useDoublePlantOnTick(PlayerSession session, BlockPosition clicked, int face) {
+        // The player's own world (Wave FL4-F3 — the reference's
+        // player.world: every use/place arm runs where the player is).
+        EngineWorld world = worldFor(session.dimension());
         net.zaminmc.torch.item.ItemStack heldStack = session.inventory().held();
         if (heldStack.isEmpty() || !heldStack.type().identifier()
                 .equals(net.zaminmc.torch.server.item.BuiltinItems.DOUBLE_PLANT.identifier())) {
@@ -13885,7 +14042,7 @@ public final class EngineServer implements Server, EngineBridge {
         // sunflower on out-of-band damage).
         int variant = heldStack.damage() < 0 || heldStack.damage() > 5 ? 0 : heldStack.damage();
         BlockPosition target = offsetByFace(clicked, face);
-        if (target == null || !canOccupyForPlacement(target)) {
+        if (target == null || !canOccupyForPlacement(world, target)) {
             return false; // no open cell: the generic path's no-op
         }
         // The two-cell gate: the soil carries AND the headroom is open.
@@ -13919,6 +14076,9 @@ public final class EngineServer implements Server, EngineBridge {
      */
     private void doublePlantBreakReport(PlayerSession session, BlockPosition at,
             BlockType previous, boolean creative) {
+        // The player's own world (Wave FL4-F3 — the reference's
+        // player.world: every use/place arm runs where the player is).
+        EngineWorld world = worldFor(session.dimension());
         if (!net.zaminmc.torch.server.block.DoublePlantBlocks.isDoublePlant(previous)
                 || !net.zaminmc.torch.server.block.DoublePlantBlocks.isUpper(previous.identifier())) {
             return; // not an upper cell: the neighbor bus owns the rest
@@ -13989,6 +14149,9 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     private boolean useFarmingOnTick(PlayerSession session, BlockPosition clicked, int face) {
+        // The player's own world (Wave FL4-F3 — the reference's
+        // player.world: every use/place arm runs where the player is).
+        EngineWorld world = worldFor(session.dimension());
         net.zaminmc.torch.item.ItemStack heldStack = session.inventory().held();
         if (heldStack.isEmpty()) {
             return false; // a bare hand never tills, plants or dusts
@@ -14412,7 +14575,7 @@ public final class EngineServer implements Server, EngineBridge {
      * open/close sound plays at the hinge. The iron door never reaches
      * here (the use gate's material refusal). Tick-thread context.
      */
-    private void toggleDoorOnTick(BlockPosition lower) {
+    private void toggleDoorOnTick(BlockPosition lower, EngineWorld world) {
         BlockType type = world.getBlock(lower);
         String family = WoodDoorFamily.familyOf(type);
         if (family == null || WoodDoorFamily.isIron(family)) {
@@ -14450,6 +14613,9 @@ public final class EngineServer implements Server, EngineBridge {
      */
     private void toggleFenceGateOnTick(PlayerSession session, BlockPosition pos,
                                        BlockType gate) {
+        // The player's own world (Wave FL4-F3 — the reference's
+        // player.world: every use/place arm runs where the player is).
+        EngineWorld world = worldFor(session.dimension());
         int facing = net.zaminmc.torch.server.block.FenceGateBlocks.facingOf(gate);
         boolean open = net.zaminmc.torch.server.block.FenceGateBlocks.isOpen(gate);
         int lookBand;
@@ -14487,6 +14653,9 @@ public final class EngineServer implements Server, EngineBridge {
      */
     private void placeTrapdoorOnTick(PlayerSession session, BlockPosition clicked, int face,
                                       java.util.Optional<BlockType> creativeHeld, float cursorY) {
+        // The player's own world (Wave FL4-F3 — the reference's
+        // player.world: every use/place arm runs where the player is).
+        EngineWorld world = worldFor(session.dimension());
         if (face < 2 || face > 5) {
             return; // only a horizontal face mounts (the verticals refuse)
         }
@@ -14507,7 +14676,7 @@ public final class EngineServer implements Server, EngineBridge {
         };
         BlockPosition target = offsetByFace(clicked, face);
         if (target == null || world.getBlock(clicked).equals(world.airType())
-                || !canOccupyForPlacement(target)) {
+                || !canOccupyForPlacement(world, target)) {
             return;
         }
         if (intersectsPlayerBox(session.position(), target)) {
@@ -14565,13 +14734,16 @@ public final class EngineServer implements Server, EngineBridge {
      */
     private void placeAnvilOnTick(PlayerSession session, BlockPosition clicked, int face,
                                   java.util.Optional<BlockType> creativeHeld) {
+        // The player's own world (Wave FL4-F3 — the reference's
+        // player.world: every use/place arm runs where the player is).
+        EngineWorld world = worldFor(session.dimension());
         String held = heldIdentifierOf(session, creativeHeld);
         if (held == null || !held.equals("minecraft:anvil")) {
             return;
         }
         BlockPosition target = offsetByFace(clicked, face);
         if (target == null || world.getBlock(clicked).equals(world.airType())
-                || !canOccupyForPlacement(target)) {
+                || !canOccupyForPlacement(world, target)) {
             return;
         }
         if (intersectsPlayerBox(session.position(), target)) {
@@ -14600,6 +14772,9 @@ public final class EngineServer implements Server, EngineBridge {
 
     private void placeFenceGateOnTick(PlayerSession session, BlockPosition clicked, int face,
                                       java.util.Optional<BlockType> creativeHeld) {
+        // The player's own world (Wave FL4-F3 — the reference's
+        // player.world: every use/place arm runs where the player is).
+        EngineWorld world = worldFor(session.dimension());
         String held = heldIdentifierOf(session, creativeHeld);
         String family = held == null ? null
                 : (held.contains(":")
@@ -14610,7 +14785,7 @@ public final class EngineServer implements Server, EngineBridge {
         String wood = family.substring(0, family.length() - "_fence_gate".length());
         BlockPosition target = offsetByFace(clicked, face);
         if (target == null || world.getBlock(clicked).equals(world.airType())
-                || !canOccupyForPlacement(target)) {
+                || !canOccupyForPlacement(world, target)) {
             return;
         }
         if (intersectsPlayerBox(session.position(), target)) {
@@ -14639,9 +14814,12 @@ public final class EngineServer implements Server, EngineBridge {
      */
     private void placeLadderOnTick(PlayerSession session, BlockPosition clicked, int face,
                                    java.util.Optional<BlockType> creativeHeld) {
+        // The player's own world (Wave FL4-F3 — the reference's
+        // player.world: every use/place arm runs where the player is).
+        EngineWorld world = worldFor(session.dimension());
         BlockPosition target = offsetByFace(clicked, face);
         if (target == null || world.getBlock(clicked).equals(world.airType())
-                || !canOccupyForPlacement(target)) {
+                || !canOccupyForPlacement(world, target)) {
             return;
         }
         if (intersectsPlayerBox(session.position(), target)) {
@@ -14689,6 +14867,9 @@ public final class EngineServer implements Server, EngineBridge {
      */
     private void placeVineOnTick(PlayerSession session, BlockPosition clicked, int face,
                                  java.util.Optional<BlockType> creativeHeld) {
+        // The player's own world (Wave FL4-F3 — the reference's
+        // player.world: every use/place arm runs where the player is).
+        EngineWorld world = worldFor(session.dimension());
         // The replaceable clicked arm (useOn lines 24-28): the vine family
         // itself (and every other replaceable flora) takes the placement at
         // the CLICKED cell — the offset walk never runs. The WorldSolidity
@@ -14702,7 +14883,7 @@ public final class EngineServer implements Server, EngineBridge {
         if (target == null) {
             return; // the generic face gate (a bad face value)
         }
-        if (!canOccupyForPlacement(target)) {
+        if (!canOccupyForPlacement(world, target)) {
             return; // World.canPlace's occupied half: air or replaceable alone
         }
         if (!net.zaminmc.torch.server.block.VineBlocks.canPlaceAt(world, target, face)) {
@@ -14738,9 +14919,12 @@ public final class EngineServer implements Server, EngineBridge {
      */
     private void placeBedOnTick(PlayerSession session, BlockPosition clicked, int face,
                                 java.util.Optional<BlockType> creativeHeld) {
+        // The player's own world (Wave FL4-F3 — the reference's
+        // player.world: every use/place arm runs where the player is).
+        EngineWorld world = worldFor(session.dimension());
         BlockPosition target = offsetByFace(clicked, face);
         if (target == null || world.getBlock(clicked).equals(world.airType())
-                || !canOccupyForPlacement(target)) {
+                || !canOccupyForPlacement(world, target)) {
             return;
         }
         if (intersectsPlayerBox(session.position(), target)) {
@@ -14959,6 +15143,9 @@ public final class EngineServer implements Server, EngineBridge {
      */
     private void placeDoorOnTick(PlayerSession session, BlockPosition clicked, int face,
                                  java.util.Optional<BlockType> creativeHeld) {
+        // The player's own world (Wave FL4-F3 — the reference's
+        // player.world: every use/place arm runs where the player is).
+        EngineWorld world = worldFor(session.dimension());
         if (face != 1) {
             return; // DoorItem.useOn: only the UP face places
         }
@@ -15226,6 +15413,9 @@ public final class EngineServer implements Server, EngineBridge {
      */
     private void placeSlabOnTick(PlayerSession session, BlockPosition clicked, int face,
                                  java.util.Optional<BlockType> creativeHeld, float cursorY) {
+        // The player's own world (Wave FL4-F3 — the reference's
+        // player.world: every use/place arm runs where the player is).
+        EngineWorld world = worldFor(session.dimension());
         String held = heldIdentifierOf(session, creativeHeld);
         net.zaminmc.torch.block.BlockType[] family = held == null ? null : slabFamilyOf(held);
         if (family == null) {
@@ -15275,6 +15465,9 @@ public final class EngineServer implements Server, EngineBridge {
      */
     private void placeStairsOnTick(PlayerSession session, BlockPosition clicked, int face,
                                    java.util.Optional<BlockType> creativeHeld, float cursorY) {
+        // The player's own world (Wave FL4-F3 — the reference's
+        // player.world: every use/place arm runs where the player is).
+        EngineWorld world = worldFor(session.dimension());
         String held = heldIdentifierOf(session, creativeHeld);
         net.zaminmc.torch.block.BlockType[] family = held == null ? null : stairsFamilyOf(held);
         if (family == null) {
@@ -15282,7 +15475,7 @@ public final class EngineServer implements Server, EngineBridge {
         }
         BlockPosition target = offsetByFace(clicked, face);
         if (target == null || world.getBlock(clicked).equals(world.airType())
-                || !canOccupyForPlacement(target)) {
+                || !canOccupyForPlacement(world, target)) {
             return;
         }
         if (intersectsPlayerBox(session.position(), target)) {
@@ -15316,9 +15509,12 @@ public final class EngineServer implements Server, EngineBridge {
      */
     private void placeRailOnTick(PlayerSession session, BlockPosition clicked, int face,
                                  java.util.Optional<BlockType> creativeHeld) {
+        // The player's own world (Wave FL4-F3 — the reference's
+        // player.world: every use/place arm runs where the player is).
+        EngineWorld world = worldFor(session.dimension());
         BlockPosition target = offsetByFace(clicked, face);
         if (target == null || world.getBlock(clicked).equals(world.airType())
-                || !canOccupyForPlacement(target)) {
+                || !canOccupyForPlacement(world, target)) {
             return;
         }
         // No body-collision gate: the reference's item walk consults the
@@ -15392,6 +15588,9 @@ public final class EngineServer implements Server, EngineBridge {
                                        java.util.Optional<BlockType> creativeHeld, boolean boat,
                                        boolean chestCart, boolean furnaceCart, boolean tntCart,
                                        boolean hopperCart) {
+        // The player's own world (Wave FL4-F3 — the reference's
+        // player.world: every use/place arm runs where the player is).
+        EngineWorld world = worldFor(session.dimension());
         BlockPosition target = offsetByFace(clicked, face);
         if (target == null) {
             return;
@@ -15596,6 +15795,9 @@ public final class EngineServer implements Server, EngineBridge {
     private void spawnCommandBlockCartOnTick(PlayerSession session, BlockPosition clicked,
                                              int face,
                                              java.util.Optional<BlockType> creativeHeld) {
+        // The player's own world (Wave FL4-F3 — the reference's
+        // player.world: every use/place arm runs where the player is).
+        EngineWorld world = worldFor(session.dimension());
         BlockPosition target = offsetByFace(clicked, face);
         if (target == null) {
             return;
@@ -15669,6 +15871,9 @@ public final class EngineServer implements Server, EngineBridge {
      */
     public void updateCommandBlock(PlayerSession player, BlockPosition position,
                                    String command, boolean trackOutput) {
+        // The player's own world (Wave FL4-F3 — the reference's
+        // player.world: every use/place arm runs where the player is).
+        EngineWorld world = worldFor(player.dimension());
         Objects.requireNonNull(player, "player");
         Objects.requireNonNull(position, "position");
         ticker.submit(() -> {
@@ -15808,7 +16013,7 @@ public final class EngineServer implements Server, EngineBridge {
      * The replaced flora drops nothing and a replaced lower's upper pops
      * through the update system's own support arm.
      */
-    private boolean canOccupyForPlacement(BlockPosition target) {
+    private boolean canOccupyForPlacement(EngineWorld world, BlockPosition target) {
         BlockType existing = world.getBlock(target);
         return existing.equals(world.airType())
                 || WorldSolidity.isReplaceable(existing.identifier());
@@ -17451,6 +17656,19 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /**
+     * The trapped chest's viewer-count change wake (ChestBlockEntity
+     * .onOpen lines 312-314 + onClose lines 322-324): the chest's own cell
+     * AND the cell below it hear the change — the strong arm's consumer
+     * (the block under the chest, ChestBlock.getDirectSignal lines 397-400)
+     * sits one further out than the weak arm's, so its own wire needs the
+     * second wake to observe the count. Tick-thread context.
+     */
+    private void trappedChestViewersChangedOnTick(BlockPosition position) {
+        redstoneSystem.updateNeighbors(position);
+        redstoneSystem.updateNeighbors(position.offset(0, -1, 0));
+    }
+
+    /**
      * Opens the chest container at the clicked block: assigns the wire window
      * id, lazily creates the block-entity state, closes any carried window
      * state first, and reports the id for the adapter's Open Window + slot
@@ -17460,6 +17678,9 @@ public final class EngineServer implements Server, EngineBridge {
      */
     private void openChestOnTick(PlayerSession session, net.zaminmc.torch.block.BlockPosition position,
                                  java.util.function.IntConsumer onTableOpened) {
+        // The player's own world (Wave FL4-F3 — the reference's
+        // player.world: every use/place arm runs where the player is).
+        EngineWorld world = worldFor(session.dimension());
         closeOpenContainerOnTick(session);
         dropGridToWorld(session, session.crafting()); // the vanilla close: the 2x2 grid drops
 
@@ -17522,11 +17743,17 @@ public final class EngineServer implements Server, EngineBridge {
                 .equals(net.zaminmc.torch.server.block.BuiltinBlocks.TRAPPED_CHEST.identifier())
                 || ChestFacingBlocks.isTrappedFamily(world.getBlock(position));
         if (trapped) {
-            redstoneSystem.updateNeighbors(position);
+            // The merged pair's onOpen notifies BOTH halves (the
+            // reference's DoubleInventory.onOpen lines 110-113 — each
+            // entity's own onOpen), and EACH notify is the reference's
+            // own pair (ChestBlockEntity.onOpen lines 312-314: the
+            // chest's cell AND the cell below it — the strong arm's
+            // consumer sits one further out).
+            trappedChestViewersChangedOnTick(position);
             if (second != null) {
                 BlockPosition twin = position.equals(view.firstPos())
                         ? view.secondPos() : view.firstPos();
-                redstoneSystem.updateNeighbors(twin);
+                trappedChestViewersChangedOnTick(twin);
             }
             // Stats.java's own pair: the trapped chest counts its own row
             // (ChestBlock(1).use's incrementStat), never CHESTS_OPENED.
@@ -17553,6 +17780,9 @@ public final class EngineServer implements Server, EngineBridge {
     private void openEnderChestOnTick(PlayerSession session,
                                       net.zaminmc.torch.block.BlockPosition position,
                                       java.util.function.IntConsumer onTableOpened) {
+        // The player's own world (Wave FL4-F3 — the reference's
+        // player.world: every use/place arm runs where the player is).
+        EngineWorld world = worldFor(session.dimension());
         // Line 80: the open gate — a solid block above refuses.
         if (WorldSolidity.isSolid(world.getBlock(position.offset(0, 1, 0)))) {
             return; // the use consumed, nothing opens
@@ -17635,6 +17865,9 @@ public final class EngineServer implements Server, EngineBridge {
      */
     private void openDispenserOnTick(PlayerSession session, net.zaminmc.torch.block.BlockPosition position,
                                      java.util.function.IntConsumer onTableOpened) {
+        // The player's own world (Wave FL4-F3 — the reference's
+        // player.world: every use/place arm runs where the player is).
+        EngineWorld world = worldFor(session.dimension());
         closeOpenContainerOnTick(session);
         dropGridToWorld(session, session.crafting()); // the vanilla close: the 2x2 grid drops
         // The container's own interaction stat (the reference's use rows).
@@ -17701,7 +17934,46 @@ public final class EngineServer implements Server, EngineBridge {
         } else if (session.openContainerKind() == PlayerSession.ContainerKind.ANVIL) {
             closeAnvilMenuOnTick(session); // the two inputs drop (the reference close)
         } else {
+            // The swap-close is a close too (ChestBlockEntity.onClose
+            // lines 319-326 — the viewer count departs whatever closed
+            // the window, the DoubleInventory walk covering both halves);
+            // the wake runs AFTER the state clears so the probe reads the
+            // departed count.
+            BlockPosition closingChestAt =
+                    session.openContainerKind() == PlayerSession.ContainerKind.CHEST
+                            ? session.openContainerPosition() : null;
+            var closedPairFirst = closingChestAt != null
+                    ? session.openContainerPairFirst() : null;
+            var closedPairSecond = closingChestAt != null
+                    ? session.openContainerPairSecond() : null;
             session.closeContainerWindow();
+            if (closingChestAt != null) {
+                trappedChestCloseWakeOnTick(closingChestAt);
+                if (closedPairFirst != null && closedPairSecond != null) {
+                    if (!closedPairFirst.equals(closingChestAt)) {
+                        trappedChestCloseWakeOnTick(closedPairFirst);
+                    }
+                    if (!closedPairSecond.equals(closingChestAt)) {
+                        trappedChestCloseWakeOnTick(closedPairSecond);
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * The close-path trapped wake: the block must still be the trapped
+     * family (the reference's own {@code this.getBlock() instanceof
+     * ChestBlock} gate, ChestBlockEntity.onClose line 320 — a broken
+     * chest's stale window never notifies) before the viewer-count pair.
+     * Tick-thread context.
+     */
+    private void trappedChestCloseWakeOnTick(BlockPosition position) {
+        BlockType block = world.getBlock(position);
+        if (block.identifier().equals(
+                net.zaminmc.torch.server.block.BuiltinBlocks.TRAPPED_CHEST.identifier())
+                || ChestFacingBlocks.isTrappedFamily(block)) {
+            trappedChestViewersChangedOnTick(position);
         }
     }
 
@@ -17724,19 +17996,25 @@ public final class EngineServer implements Server, EngineBridge {
             if (windowId == WIRE_WINDOW_PLAYER) {
                 returnWindowCarriedItems(session, false);
             } else if (windowId == session.openContainerWindowId()) {
-                if (session.openContainerKind() == PlayerSession.ContainerKind.CHEST
-                        && session.openContainerPosition() != null) {
-                    publishChestLid(session.openContainerPosition(), session, false);
+                // The chest close: the lid broadcast and the trapped wake
+                // both read the positions BEFORE the window state clears.
+                BlockPosition closingChestAt =
+                        session.openContainerKind() == PlayerSession.ContainerKind.CHEST
+                                ? session.openContainerPosition() : null;
+                var closedPairFirst = closingChestAt != null
+                        ? session.openContainerPairFirst() : null;
+                var closedPairSecond = closingChestAt != null
+                        ? session.openContainerPairSecond() : null;
+                if (closingChestAt != null) {
+                    publishChestLid(closingChestAt, session, false);
                     // The merged pair's close walks BOTH halves (the
                     // reference's DoubleInventory.onClose, lines 116-119):
                     // the twin's lid closes with the clicked half's.
-                    var closedPairFirst = session.openContainerPairFirst();
-                    var closedPairSecond = session.openContainerPairSecond();
                     if (closedPairFirst != null && closedPairSecond != null) {
-                        if (!closedPairFirst.equals(session.openContainerPosition())) {
+                        if (!closedPairFirst.equals(closingChestAt)) {
                             publishChestLid(closedPairFirst, session, false);
                         }
-                        if (!closedPairSecond.equals(session.openContainerPosition())) {
+                        if (!closedPairSecond.equals(closingChestAt)) {
                             publishChestLid(closedPairSecond, session, false);
                         }
                     }
@@ -17760,6 +18038,23 @@ public final class EngineServer implements Server, EngineBridge {
                 }
                 returnWindowCarriedItems(session, true);
                 session.closeContainerWindow();
+                if (closingChestAt != null) {
+                    // ChestBlockEntity.onClose lines 322-324 (each half's
+                    // own onClose over the DoubleInventory walk, lines
+                    // 116-119): the viewer count's departure (the window
+                    // state now cleared, the probe reading zero) wakes each
+                    // half's own cell AND the cell below it — the strong
+                    // arm's consumer sits one further out.
+                    trappedChestCloseWakeOnTick(closingChestAt);
+                    if (closedPairFirst != null && closedPairSecond != null) {
+                        if (!closedPairFirst.equals(closingChestAt)) {
+                            trappedChestCloseWakeOnTick(closedPairFirst);
+                        }
+                        if (!closedPairSecond.equals(closingChestAt)) {
+                            trappedChestCloseWakeOnTick(closedPairSecond);
+                        }
+                    }
+                }
             }
             publishInventoryChanged(session);
         });
@@ -29144,6 +29439,9 @@ public final class EngineServer implements Server, EngineBridge {
      * feedback strings. Runs on the tick thread through chat dispatch.
      */
     private String summonCommand(PlayerSession sender, String[] args) {
+        // The player's own world (Wave FL4-F3 — the reference's
+        // player.world: every use/place arm runs where the player is).
+        EngineWorld world = worldFor(sender.dimension());
         if (args.length < 1) {
             return "Usage: /summon <entity> [x y z]";
         }
