@@ -850,11 +850,14 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
         lastPortalPosition = portalCell;
         boolean axisX = match.forwardAxis() == net.zaminmc.torch.server.world.PortalFrameBuilder.Axis.X;
         // d0: the topLeft's coordinate on the width axis; d1: the body's
-        // coordinate on the same axis, shifted one on the negative-facing
-        // forward (the reference's clockwiseY NEGATIVE arm).
+        // coordinate on the same axis, shifted one on the reference's flag1
+        // (forward.clockwiseY() NEGATIVE — ONLY SOUTH, the Z-axis positive
+        // forward; the pre-fix engine read !forwardPositive, the mirror
+        // error the random-seed forcer frames exposed).
         double origin = axisX ? match.topLeftFront().z() : match.topLeftFront().x();
         double bodyCoord = axisX ? z : x;
-        if (!match.forwardPositive()) {
+        if (match.forwardAxis() == net.zaminmc.torch.server.world.PortalFrameBuilder.Axis.Z
+                && match.forwardPositive()) {
             bodyCoord -= 1.0;
         }
         // The reference's inverseLerp: (a - b) / (c - b), raw — no clamp.

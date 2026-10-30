@@ -176,7 +176,17 @@ public final class PortalForcer {
                     ? match.topLeftFront().z()
                     : match.topLeftFront().x();
             destY = match.topLeftFront().y() + 1 - memory.offsetUp * match.height();
-            if (!match.forwardPositive()) {
+            // The reference's flag1 (line 105): {@code forward.clockwiseY()
+            // .getAxisDirection() == NEGATIVE} — clockwiseY is N->E->S->W,
+            // so ONLY SOUTH (the Z-axis POSITIVE forward) maps to a
+            // negative (WEST) and increments the width origin. The pre-fix
+            // engine read {@code !forwardPositive} — the mirror error that
+            // shifted WEST and NORTH frames (and left SOUTH unshifted);
+            // the deterministic name-seed's forcer frames never exposed
+            // it, the random seed's did (the arrival landing on the frame
+            // COLUMN instead of the interior — the round trip never armed).
+            if (match.forwardAxis() == PortalFrameBuilder.Axis.Z
+                    && match.forwardPositive()) {
                 widthOrigin++;
             }
             // The width shift: the body's share of the frame's width, riding

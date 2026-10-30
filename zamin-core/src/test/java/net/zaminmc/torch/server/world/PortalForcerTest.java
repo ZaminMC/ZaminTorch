@@ -104,11 +104,14 @@ class PortalForcerTest {
                     12.5, 30.5, 12.5, 0.0f, 0.0, 0.0, memory);
             assertTrue(arrival.isPresent(), "the search finds the frame");
             // The placement math: destY = top + 1 - offsetUp * height
-            // (32 + 1 - 1.5 = 31.5), destX = topLeft.x + (1 - offset) * width
-            // * clockwiseYSign (12 + 0.5*2*(-1) = 11.0), destZ centers on the
-            // plane (10.5); the yaw trades the entered facing for the found
-            // forward (SOUTH -> SOUTH: unchanged).
-            assertEquals(11.0, arrival.get().x(), 1.0e-9);
+            // (32 + 1 - 1.5 = 31.5), destX = topLeft.x + 1 (the reference's
+            // flag1 — forward SOUTH's clockwiseY is WEST, NEGATIVE, so the
+            // width origin increments) + (1 - offset) * width *
+            // clockwiseYSign (12 + 1 + 0.5*2*(-1) = 12.0 — the interior's
+            // east cell center), destZ centers on the plane (10.5); the yaw
+            // trades the entered facing for the found forward (SOUTH ->
+            // SOUTH: unchanged).
+            assertEquals(12.0, arrival.get().x(), 1.0e-9);
             assertEquals(31.5, arrival.get().y(), 1.0e-9);
             assertEquals(10.5, arrival.get().z(), 1.0e-9);
             assertEquals(0.0f, arrival.get().yaw(), 1.0e-6);
