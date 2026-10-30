@@ -23556,17 +23556,42 @@ public final class EngineServer implements Server, EngineBridge {
             // (damageEntities lines 106-137). The scan box (lines 106-112):
             // floor(c - f3 - 1) .. floor(c + f3 + 1) — the engine's family
             // walks carry the same span through their own distance gates.
+            // THE GATHER (line 115): the reference collects the entity list
+            // ONCE, before any wound lands — a body that appears DURING the
+            // walk (the decorations' null-attacker drops, the chain's fresh
+            // bodies) is NOT in the snapshot and never takes the SAME
+            // blast's wound; the NEXT blast's own gather is what reaches it.
+            // The seven family snapshots below carry that law; a nested
+            // detonation (the crystal chain, the TNT cart) runs its own
+            // detonateAtIn and gathers its own FRESH lists, exactly the
+            // reference's nested explode inside the entity loop.
+            final java.util.List<net.zaminmc.torch.server.entity.ItemEntity> itemBodies =
+                    itemEntities == null ? java.util.List.of() : itemEntities.all();
+            final java.util.List<net.zaminmc.torch.server.experience.ExperienceOrbEntity> orbBodies =
+                    experienceOrbs == null ? java.util.List.of() : experienceOrbs.all();
+            final java.util.List<net.zaminmc.torch.server.entity.projectile.ProjectileEntity> projectileBodies =
+                    projectileManager == null ? java.util.List.of() : projectileManager.all();
+            final java.util.List<net.zaminmc.torch.server.tnt.TntSystem.PrimedTnt> tntBodies =
+                    tntSystem == null || dimension != 0
+                            ? java.util.List.of() : tntSystem.allPrimed();
+            final java.util.List<net.zaminmc.torch.server.endcrystal.EnderCrystal> crystalBodies =
+                    enderCrystals == null ? java.util.List.of() : enderCrystals.all();
+            final java.util.List<net.zaminmc.torch.server.armorstand.ArmorStand> standBodies =
+                    armorStands == null ? java.util.List.of() : armorStands.allStands();
+            final java.util.List<net.zaminmc.torch.server.fireworks.FireworksEntity> fireworkBodies =
+                    fireworks == null ? java.util.List.of() : fireworks.all();
             woundPlayersFromBlast(blastWorld, dimension, cx, cy, cz, f3, motion);
             woundMobsFromBlast(blastWorld, dimension, cx, cy, cz, f3, blastSourceMob);
             woundVehiclesFromBlast(dimension, cx, cy, cz, f3);
             woundDecorationsFromBlast(dimension, cx, cy, cz, f3);
-            woundItemsFromBlast(blastWorld, dimension, cx, cy, cz, f3);
-            woundOrbsFromBlast(blastWorld, dimension, cx, cy, cz, f3);
-            woundProjectilesFromBlast(blastWorld, dimension, cx, cy, cz, f3, blastSourceMob);
-            woundPrimedTntFromBlast(blastWorld, dimension, cx, cy, cz, f3);
-            woundCrystalsFromBlast(cx, cy, cz, f3);
-            woundArmorStandsFromBlast(dimension, cx, cy, cz, f3);
-            woundFireworksFromBlast(blastWorld, dimension, cx, cy, cz, f3);
+            woundItemsFromBlast(blastWorld, dimension, cx, cy, cz, f3, itemBodies);
+            woundOrbsFromBlast(blastWorld, dimension, cx, cy, cz, f3, orbBodies);
+            woundProjectilesFromBlast(blastWorld, dimension, cx, cy, cz, f3, blastSourceMob,
+                    projectileBodies);
+            woundPrimedTntFromBlast(blastWorld, dimension, cx, cy, cz, f3, tntBodies);
+            woundCrystalsFromBlast(cx, cy, cz, f3, crystalBodies);
+            woundArmorStandsFromBlast(dimension, cx, cy, cz, f3, standBodies);
+            woundFireworksFromBlast(blastWorld, dimension, cx, cy, cz, f3, fireworkBodies);
 
             // --- phase two: the sound, then the destruction ---------------
             // (damageBlocks lines 152-155): the explode pair plays BEFORE
@@ -23924,11 +23949,9 @@ public final class EngineServer implements Server, EngineBridge {
      * every stack in the band).
      */
     private void woundItemsFromBlast(EngineWorld blastWorld, int dimension,
-                                     double cx, double cy, double cz, float f3) {
-        if (itemEntities == null) {
-            return;
-        }
-        for (net.zaminmc.torch.server.entity.ItemEntity item : itemEntities.all()) {
+                                     double cx, double cy, double cz, float f3,
+                                     java.util.List<net.zaminmc.torch.server.entity.ItemEntity> bodies) {
+        for (net.zaminmc.torch.server.entity.ItemEntity item : bodies) {
             if (item.dimension() != dimension) {
                 continue;
             }
@@ -23978,11 +24001,9 @@ public final class EngineServer implements Server, EngineBridge {
      * removal with no payout, and the unconditional scatter.
      */
     private void woundOrbsFromBlast(EngineWorld blastWorld, int dimension,
-                                    double cx, double cy, double cz, float f3) {
-        if (experienceOrbs == null) {
-            return;
-        }
-        for (net.zaminmc.torch.server.experience.ExperienceOrbEntity orb : experienceOrbs.all()) {
+                                    double cx, double cy, double cz, float f3,
+                                    java.util.List<net.zaminmc.torch.server.experience.ExperienceOrbEntity> bodies) {
+        for (net.zaminmc.torch.server.experience.ExperienceOrbEntity orb : bodies) {
             if (orb.dimension() != dimension) {
                 continue;
             }
@@ -24038,12 +24059,10 @@ public final class EngineServer implements Server, EngineBridge {
      */
     private void woundProjectilesFromBlast(EngineWorld blastWorld, int dimension,
                                            double cx, double cy, double cz, float f3,
-                                           MobEntity blastSourceMob) {
-        if (projectileManager == null) {
-            return;
-        }
+                                           MobEntity blastSourceMob,
+                                           java.util.List<net.zaminmc.torch.server.entity.projectile.ProjectileEntity> bodies) {
         for (net.zaminmc.torch.server.entity.projectile.ProjectileEntity projectile
-                : projectileManager.all()) {
+                : bodies) {
             if (projectile.dimension() != dimension) {
                 continue;
             }
@@ -24097,11 +24116,9 @@ public final class EngineServer implements Server, EngineBridge {
      * the 0.98 hull.
      */
     private void woundPrimedTntFromBlast(EngineWorld blastWorld, int dimension,
-                                         double cx, double cy, double cz, float f3) {
-        if (dimension != 0 || tntSystem == null) {
-            return; // the overworld's own TNT family (the tnt-in-End gap ledgered)
-        }
-        for (net.zaminmc.torch.server.tnt.TntSystem.PrimedTnt tnt : tntSystem.allPrimed()) {
+                                         double cx, double cy, double cz, float f3,
+                                         java.util.List<net.zaminmc.torch.server.tnt.TntSystem.PrimedTnt> bodies) {
+        for (net.zaminmc.torch.server.tnt.TntSystem.PrimedTnt tnt : bodies) {
             double feetDx = tnt.x() - cx;
             double feetDy = tnt.y() - cy;
             double feetDz = tnt.z() - cz;
@@ -24143,12 +24160,10 @@ public final class EngineServer implements Server, EngineBridge {
      * reference's nested explode inside damageEntities, the outer blast's
      * cells still uncommitted when the nested one reads the world).
      */
-    private void woundCrystalsFromBlast(double cx, double cy, double cz, float f3) {
-        if (enderCrystals == null) {
-            return;
-        }
+    private void woundCrystalsFromBlast(double cx, double cy, double cz, float f3,
+                                         java.util.List<net.zaminmc.torch.server.endcrystal.EnderCrystal> bodies) {
         for (net.zaminmc.torch.server.endcrystal.EnderCrystal crystal
-                : enderCrystals.all()) {
+                : bodies) {
             double feetDx = crystal.x() - cx;
             double feetDy = crystal.y() - cy;
             double feetDz = crystal.z() - cz;
@@ -24173,12 +24188,10 @@ public final class EngineServer implements Server, EngineBridge {
      * is moot (the body is gone before the add).
      */
     private void woundArmorStandsFromBlast(int dimension,
-                                           double cx, double cy, double cz, float f3) {
-        if (armorStands == null) {
-            return;
-        }
+                                           double cx, double cy, double cz, float f3,
+                                           java.util.List<net.zaminmc.torch.server.armorstand.ArmorStand> bodies) {
         for (net.zaminmc.torch.server.armorstand.ArmorStand stand
-                : armorStands.allStands()) {
+                : bodies) {
             if (stand.dimension() != dimension) {
                 continue;
             }
@@ -24200,11 +24213,9 @@ public final class EngineServer implements Server, EngineBridge {
      * alone lands, over the family's own 0.25 box and point-stored body.
      */
     private void woundFireworksFromBlast(EngineWorld blastWorld, int dimension,
-                                         double cx, double cy, double cz, float f3) {
-        if (fireworks == null) {
-            return;
-        }
-        for (net.zaminmc.torch.server.fireworks.FireworksEntity rocket : fireworks.all()) {
+                                         double cx, double cy, double cz, float f3,
+                                         java.util.List<net.zaminmc.torch.server.fireworks.FireworksEntity> bodies) {
+        for (net.zaminmc.torch.server.fireworks.FireworksEntity rocket : bodies) {
             if (rocket.dimension() != dimension) {
                 continue;
             }

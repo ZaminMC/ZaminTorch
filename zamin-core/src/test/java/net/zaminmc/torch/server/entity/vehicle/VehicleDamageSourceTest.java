@@ -187,24 +187,46 @@ class VehicleDamageSourceTest {
                     tntCart.get().lastDamageSource(),
                     "the TNT cart died of the blast");
             // The drops: no furnace block, no TNT block — the blast ate
-            // both (the reference's own gates). The cart items dropped.
-            boolean furnaceItem = false;
-            boolean tntItem = false;
-            int minecartItems = 0;
-            for (var item : server.itemEntities().all()) {
-                String id = item.stack().type().identifier().toString();
-                if (id.equals("minecraft:furnace")) {
-                    furnaceItem = true;
-                } else if (id.equals("minecraft:tnt")) {
-                    tntItem = true;
-                } else if (id.equals("minecraft:minecart")) {
-                    minecartItems++;
+            // both (the reference's own gates). The cart items dropped —
+            // and the TNT cart's own death detonation ate THEM: the
+            // reference's dropItems order (TntMinecartEntity lines 73-81)
+            // drops the plain minecart item FIRST, then the fire/explosive
+            // death's explode() (line 92) detonates INSIDE dropItems, and
+            // the nested blast's damageEntities gathers the JUST-DROPPED
+            // items through a FRESH getEntities walk — the outer blast's
+            // snapshot never protected them — and wounds them to death
+            // (ItemEntity.takeDamage lines 202-218, health 5 against the
+            // nested blast's 40+ damage). The census runs ON THE TICK
+            // THREAD (the manager's list mutates there; the direct
+            // cross-thread read races and may serve a stale view).
+            java.util.concurrent.atomic.AtomicReference<int[]> census =
+                    new java.util.concurrent.atomic.AtomicReference<>();
+            server.ticker().submit(() -> {
+                int minecarts = 0;
+                int furnaceBlocks = 0;
+                int tntBlocks = 0;
+                for (var item : server.itemEntities().all()) {
+                    String id = item.stack().type().identifier().toString();
+                    if (id.equals("minecraft:minecart")) {
+                        minecarts++;
+                    } else if (id.equals("minecraft:furnace")) {
+                        furnaceBlocks++;
+                    } else if (id.equals("minecraft:tnt")) {
+                        tntBlocks++;
+                    }
                 }
-            }
-            assertFalse(furnaceItem, "the exploded furnace cart dropped NO furnace block");
-            assertFalse(tntItem, "the exploded TNT cart dropped NO tnt block");
-            assertTrue(minecartItems >= 2,
-                    "both broken carts dropped their plain cart items");
+                census.set(new int[]{minecarts, furnaceBlocks, tntBlocks});
+            });
+            await(() -> census.get() != null, "the drop census ran");
+            int minecartItems = census.get()[0];
+            assertEquals(0, census.get()[1],
+                    "the exploded furnace cart dropped NO furnace block (the gate)");
+            assertEquals(0, census.get()[2],
+                    "the exploded TNT cart dropped NO tnt block (the gate)");
+            assertEquals(0, minecartItems,
+                    "the death blast ate both fresh cart items (dropItems' own"
+                            + " drop-then-detonate order — the nested gather's"
+                            + " fresh walk wounds them to death)");
             // The chain: the TNT cart's death detonation (the explosive
             // arm) destroyed the stone beside it.
             await(() -> server.world().getBlock(chainStone)
