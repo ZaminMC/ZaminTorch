@@ -416,11 +416,11 @@ commit region — a small textual overlap only; the changes compose (the
 ice law's `world.dimension()` consults become dimension-correct once the
 routing lands, exactly as #89's own comment anticipates).
 
-## VT-004 — the portal stand clock re-fires while the body stays pinned in the arrival frame (SUSPECTED)
+## VT-004 — the portal stand clock re-fires while the body stays pinned in the arrival frame (UNDER VERIFICATION)
 
 **Subsystem:** portal mechanics (the stand clock / the crossing's re-fire
-law). **Status:** suspected — one source pass recorded (the
-twenty-second); the behavioral and independent passes owed.
+law). **Status:** under verification — two passes recorded (the source
+and the behavioral, both this run); the independent re-verification owed.
 
 **The reference's law** (reference/1.8.8 `entity/Entity.java`):
 `onPortalCollision` (lines 1426-1454) consults the cooldown FIRST — `if
@@ -474,13 +474,35 @@ read whole (`onPortalCollision` lines 1426-1454 + `baseTick` lines 284-313
 + the player cooldown override line 315) against the engine's
 `advancePortalClock` (the un-gated crossing + the entry-edge-only re-arm +
 the missing stand-clock reset in `applyDimensionArrival`); the empirical
-bounce observed once in four boots of the crossing harness. **Passes 2
-and 3 owed:** a focused behavioral seat (a body standing inside the
-arrival frame's cells must hold its dimension past any cooldown window)
-and an independent re-verification (the compensating-behavior hunt —
-whether any other gate holds the re-fire, and whether the
-`DimensionWalkTest` round trip's own expectations pin the divergence as
-intentional).
+bounce observed once in four boots of the crossing harness.
+
+**Pass 2 (behavioral, the same run):** the discovery seat
+`PortalRefireDiscoveryTest.theBodyStandingInTheNetherArrivalCellsNeverReCrosses`
+— the nether frame PRE-BUILT at the crossing's scaled destination (5, 20,
+5) so the forcer's arrival lands deterministically inside its cells; the
+body crosses, never moves again, and the dimension is sampled at 2-tick
+granularity over a 120-tick window. RED on develop, deterministically
+across two fresh boots, with the discriminating timeline:
+`t2:dim=-1,clock=80,cool=10; t4…t20:dim=-1,clock=80,cool=10;
+t22:dim=0,clock=80,cool=10` — **the cooldown HELD at 10 for the whole
+window (the reference's own re-arm law: the collision re-arms it every
+tick, it never expires while the body stands in the cells) and the
+crossing fired anyway**. The clock stays pinned at its max (80) across
+the whole window — the stand-clock carry. The 2-tick sampling's phase
+shift at t22 (dim leaving -1 only mid-window, not at t2) indicates the
+re-fire is an EVERY-TICK oscillation the sampling aliases: the body
+ping-pongs between the dimensions each tick after an in-cells arrival
+(the wire consequence: a respawn-packet storm for a real client standing
+in its arrival frame). The reference's answer for the same setup: the
+dimension holds -1 for the entire window (the seat's asserted law).
+
+**Pass 3 (independent re-verification) owed:** the
+compensating-behavior hunt — whether any other gate holds the re-fire
+(grace ticks, the wire's respawn sequence, the forcer's cache), whether
+`DimensionWalkTest`'s round-trip expectations pin the divergence as
+intentional, and the edge cases (the creative 0-tick stand; the
+vehicle-riding gate; the End pair's instant arm, which is a different
+law).
 
 **Proposed minimal correction (once verified):** the reference's own gate
 shape — the standing clock consults the cooldown (`inPortal` armed only
@@ -506,7 +528,7 @@ makes the independent pass especially important before any correction.
 | Ice family — break-to-water, melt | PR #89 open (VT-003's correction) |
 | Snow layer — placement support/melt/drops | drops landed (the mining-speed audit); melt + the 7-layer state surface recorded as VT-003's tail |
 | Packed ice — melt/break laws | inspected: the reference's PackedIceBlock carries no melt arm (the `setTicksRandomly` false, the silk-drop row landed); nothing owed |
-| Portal mechanics (flag1, forcer) | landed by FL4-F1; not re-audited — the stand clock's re-fire law is VT-004 (SUSPECTED, the twenty-second pass) |
+| Portal mechanics (flag1, forcer) | landed by FL4-F1; not re-audited — the stand clock's re-fire law is VT-004 (UNDER VERIFICATION, two passes; the seat PortalRefireDiscoveryTest is the record) |
 | Drops — the TF-9 dimension stamp | LANDED by PR #90 (the dig/place walks stamp `world.dimension()`; the tile-family spill sites remain the per-dimension tile tail) |
 | Tile families — per-dimension stores | NOT INSPECTED as its own pass (the PR #90 ledger: the furnace/chest/skull/banner spill + cleanup ride the single-instance managers — the FL4 fluids/fire precedent applies; the nether tile placement/cleanup is its own architectural pass) |
 | Mob spawns — the dimension stamp | NOT INSPECTED (the PR #90 ledger names `MobManager.spawnAt`; the infested burst is the surfaced site) |
@@ -525,12 +547,13 @@ makes the independent pass especially important before any correction.
 3. ~~The VT-002 bounded first slice~~ — LANDED (Wave FL4-F3 took the
    family arms; PR #90 took the remaining dig/place GENERIC surface,
    `DigPathDimensionParityTest` 4/0).
-4. **VT-004's verification passes 2 and 3** (the portal stand clock's
-   re-fire): the behavioral seat (a body standing inside the arrival
-   frame's cells must hold its dimension past any cooldown window — the
-   reference's `onPortalCollision` cooldown consult) and the independent
-   re-verification (the compensating-behavior hunt; the
-   `DimensionWalkTest` round-trip seat's own expectations).
+4. **VT-004's verification pass 3** (the portal stand clock's re-fire —
+   passes 1 and 2 landed this run: the source reading and the
+   deterministic behavioral seat
+   `PortalRefireDiscoveryTest`, RED on develop by contract): the
+   independent re-verification (the compensating-behavior hunt; the
+   `DimensionWalkTest` round-trip seat's own expectations; the creative
+   / vehicle / End-pair edges).
 5. The explosion-path dimension audit (the ledger row above — now
    unblocked: nether placement exists post-PR #90).
 6. The standing lanes from the earlier passes, untouched by this one:
