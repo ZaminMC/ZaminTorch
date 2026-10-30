@@ -684,6 +684,18 @@ final class Protocol18 {
     static final int CHEST_WIRE_SLOT_HOTBAR_FIRST = 54;
     static final int CHEST_WIRE_SLOT_HOTBAR_LAST = 62;
     static final int CHEST_WIRE_SLOT_HOTBAR_BASE = 54;
+    // The merged double-chest window (the reference's DoubleInventory over
+    // ChestMenu: 6x9 = 54 container slots — the first half's 27 then the
+    // second's, the WEST/NORTH-first join order — then main 54-80, hotbar
+    // 81-89; 90 slots total. The title is DoubleInventory's own
+    // "container.chestDouble").
+    static final String DOUBLE_CHEST_WINDOW_TITLE = "{\"text\":\"Large Chest\"}";
+    static final int DOUBLE_CHEST_WINDOW_SLOTS = 90;
+    static final int DOUBLE_CHEST_WIRE_SLOT_LAST = 53;
+    static final int DOUBLE_CHEST_WIRE_SLOT_MAIN_FIRST = 54;
+    static final int DOUBLE_CHEST_WIRE_SLOT_MAIN_LAST = 80;
+    static final int DOUBLE_CHEST_WIRE_SLOT_HOTBAR_FIRST = 81;
+    static final int DOUBLE_CHEST_WIRE_SLOT_HOTBAR_LAST = 89;
     // The dispenser/dropper window (Slice 11a — DispenserMenu lines 15-34:
     // the same 3x9 layout the chest uses, nine container slots instead of
     // twenty-seven).

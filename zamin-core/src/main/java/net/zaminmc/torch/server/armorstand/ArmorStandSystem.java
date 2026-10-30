@@ -525,20 +525,36 @@ public final class ArmorStandSystem {
     }
 
     /** The equipment drop (onBroken lines 480-490): every piece at the head cell,
-     *  in the STAND'S OWN WORLD (the reference's Block.dropItem(this.world, ...)). */
+     *  in the STAND'S OWN WORLD (the reference's Block.dropItem(this.world, ...)),
+     *  and EVERY SLOT NULLED after its drop — the reference's own double-break
+     *  guard: {@code this.equipment[i] = null} rides inside the same loop, so a
+     *  second onBroken (the blast snapshot's stale view after a nested
+     *  detonation already broke the stand) finds every slot empty and drops
+     *  nothing, exactly the reference's chain-overlap shape. */
     private void dropEquipment(ArmorStand stand) {
         Position at = new Position(stand.x(), stand.y() + 1.0, stand.z());
-        for (ItemStack piece : stand.equipment()) {
+        for (int slot = 0; slot < 5; slot++) {
+            ItemStack piece = stand.equipment(slot);
             if (!piece.isEmpty()) {
                 surface.dropItem(at, stand.dimension(), piece);
+                stand.setEquipment(slot, ItemStack.EMPTY);
             }
         }
     }
 
-    /** The explosion arm (takeDamage lines 382-386): the equipment drops, the stand item does NOT. */
+    /** The explosion arm (takeDamage lines 382-386): the equipment drops, the stand item does NOT.
+     *  The containment guard (the review rider): the blast's SNAPSHOT family list
+     *  can still hold a stand a NESTED detonation already broke — the registry's
+     *  own containment answers (the reference's fresh world.getEntities never
+     *  sees a removed body), so the stale view's re-break is the full no-op: no
+     *  second equipment drop (dropEquipment's null-out already guarantees that),
+     *  no second wire destroy. */
     public synchronized void breakByExplosion(ArmorStand stand) {
         if (stand.marker()) {
             return; // the same hitbox-less gate — a marker never breaks
+        }
+        if (!stands.containsKey(stand.entityId())) {
+            return; // already broken by a nested detonation — the snapshot is stale
         }
         remove(stand);
         dropEquipment(stand);

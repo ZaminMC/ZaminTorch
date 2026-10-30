@@ -7799,3 +7799,92 @@ The governing rule is:
 **Optimize how Torch moves protocol data without changing what the client believes that protocol data means.**
 
 1.8.8 is the first protocol implementation, not the permanent networking architecture. Later versions must reuse the transport principles without inheriting incorrect 1.8.8 wire assumptions.
+
+## Wave EX-1 — 2026-10-30 (the twentieth verifier pass: the explosion
+family's entity-gather whole, the F-EX1 retirement)
+
+- [x] THE GATHER'S COVERAGE LAW (Explosion.damageEntities lines
+      115-144): the reference gathers EVERY entity class in the
+      `[floor(c-f3-1), floor(c+f3+1)]` box through
+      `world.getEntities(source, box)` — filtered ONLY by
+      `!isImmuneToExplosions()` (the census: ONE override, the armor
+      stand's conditional) — and every gathered body inside the
+      `d12 <= 1` band takes its own takeDamage wound PLUS the
+      unconditional scatter `velocityX/Y/Z += dir * d11` (lines
+      133-137, the add riding OUTSIDE the takeDamage verdict). The
+      engine carried FOUR arms alone (players, mobs, vehicles,
+      decorations): the items, the orbs, the projectiles, the primed
+      TNT, the end crystals, the armor stands and the fireworks never
+      heard a blast. Seven new arms landed (the family census:
+      ItemEntity.takeDamage 202-218 — the health-5 model with the
+      nether star's explosive refusal; ExperienceOrbEntity 141-151;
+      the ProjectileEntity fireball/skull re-aim 248-273 for
+      mob-sourced blasts; PrimedTntEntity's 0.0 eye-height override
+      line 93; EnderCrystalEntity 67-84 — ANY wound routes into the
+      removal + the 6.0F blast, THE END CHAIN, recursively; the armor
+      stand's explosive arm 382-386 — onBroken drops the EQUIPMENT,
+      the stand item does NOT, lines 480-490; the fireworks'
+      Entity-default impulse).
+- [x] THE GATHER'S SNAPSHOT LAW (the regression the first cut
+      exposed): the reference collects its entity list ONCE (line
+      115, BEFORE any wound lands) — a body that appears DURING the
+      walk (the decorations' null-attacker drops, the vehicle death
+      sweeps' drops) never takes the SAME blast's wound; the NEXT
+      blast's own gather is what reaches it. The seven family lists
+      are gathered at the wound phase's HEAD and passed into the arms;
+      a nested detonation (the crystal chain, the TNT cart's death)
+      runs its own detonateAtIn and gathers its own FRESH lists,
+      exactly the reference's nested explode inside the entity loop.
+      The DecorationBlastTest seat caught the live-list iteration
+      destroying the frame drops — the law that repaired it.
+- [x] THE NINETEENTH PASS'S ARMOR-STAND ADJUDICATION CORRECTED: the
+      record claimed the reference EXCLUDES armor stands (immune);
+      isImmuneToExplosions answers isInvisible() alone (line 593) — a
+      VISIBLE stand takes the blast, and takeDamage's explosive arm
+      breaks it through onBroken (the equipment-only drops). The
+      engine's stands carry no invisible flag: every stand maps to
+      the visible body and the blast breaks it.
+- [x] THE VEHICLE SEATS' VANILLA RE-PINS (each with its own evidence):
+      TntMinecartEntity.dropItems lines 73-81 drops the plain minecart
+      item FIRST, then the fire/explosive death's explode() (line 92)
+      detonates INSIDE dropItems — the nested blast's damageEntities
+      gathers the JUST-DROPPED items through its FRESH walk and wounds
+      them to death (ItemEntity.takeDamage 202-218, health 5 against
+      the nested blast's 40-60 damage): vanilla's census after a
+      blast-killed TNT cart pair counts ZERO cart items. The two
+      censuses re-read ON THE TICK THREAD (the direct cross-thread
+      reads race and serve stale views that resurrect the eaten drops
+      — the probe pair all=0 on the tick thread vs 2 on the census
+      thread); the lava seat's lone survivor re-pinned with the dry
+      control's own death (the death blast reaches it at 3.85 blocks,
+      d12 0.48, damage 26 over the cart's break threshold — the
+      control's AFTER-the-blast drop is the lone minecart item).
+- [x] THE TAILS LEDGERED (not owed in this PR): the falling-block
+      family's horizontal-velocity model (the family's own pass); the
+      item/orb Health persistence rows (the stores' own excepted
+      notes — vanilla round-trips the Health tag, ItemEntity line 222
+      + ExperienceOrbEntity line 157); the grounded-arrow scatter's
+      immediate wire publish (vanilla's velocityChanged packet — the
+      flight's own publish covers the observable).
+- [x] F-EX5 DISCOVERED (the punch deflection's skull exclusion): the
+      engine's deflect surface applies the re-aim to the fireball pair
+      alone while WitherSkullEntity extends ProjectileEntity (line 16)
+      — the skull CARRIES the arm. Suspected, awaiting its own three
+      passes.
+- [x] Evidence: ExplosionEntityGatherParityTest 7/0 NEW — the stash
+      verification failing UNFIXED on EXACTLY all seven seats (the
+      near stack surviving its wound, the twins' vx identical at 0.0,
+      the chain timing out at one blast, the stand sweep timing out,
+      the primed hop's 1.8E-4 residue, the rocket 0.0/0.0) and green
+      whole with the fix; the family lanes (tnt + experience +
+      endcrystal + fireworks + decoration) 56/0; the vehicle lane whole
+      67/0 after the re-pins; the entity package 595/0 beside the
+      re-pinned pair (the 597-run's only failures). The full suite
+      rides the CI run itself.
+
+The queue after Wave EX-1: F-EX2 (the sleeping eye-height frame in the
+blast's knockback vector), F-EX3 (the BlastResistanceTable coverage
+census vs the fallback), F-EX4 (the createFire arm — the wrong-world
+bed + the mobGriefing ghast fireball), F-EX5 (the punch deflection's
+skull exclusion), and the standing F-FL4 architecture tail (the
+nether/End fluid simulation) over the demand-named transport tails.

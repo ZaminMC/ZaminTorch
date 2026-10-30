@@ -399,6 +399,20 @@ public final class ProjectileEntity implements net.zaminmc.torch.entity.Projecti
     }
 
     /**
+     * The blast's scatter add (the reference's Explosion.damageEntities
+     * lines 135-137 — {@code velocityX/Y/Z += dir * d11}, the add riding
+     * outside the takeDamage verdict). Package-private: the manager's
+     * addVelocity verb is the only caller. A grounded arrow keeps the add
+     * as dead state exactly like the reference's own stick shape (the
+     * stick branch returns before any velocity use).
+     */
+    void addVelocity(double dx, double dy, double dz) {
+        this.vx += dx;
+        this.vy += dy;
+        this.vz += dz;
+    }
+
+    /**
      * One physics step. Returns the position integrated through (for block
      * collision sampling the manager segments the path between).
      */

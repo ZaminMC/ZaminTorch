@@ -422,4 +422,24 @@ public final class ExperienceOrbManager implements ExperienceOrbEntity.Players {
             publishRemoved(orb, reason);
         }
     }
+
+    /**
+     * The blast's orb wound (the reference's ExperienceOrbEntity.takeDamage
+     * lines 141-151 over the explosion's own source): the health takes the
+     * int-truncated quadratic damage and the body DIES at zero — removed
+     * whole, no payout, the reference's own {@code health <= 0 → remove()}
+     * shape.
+     *
+     * @return whether the body died (the caller's own ledger — the scatter
+     *         lands regardless, exactly the reference's order).
+     */
+    public boolean hurtFromExplosion(ExperienceOrbEntity orb, float damage) {
+        Objects.requireNonNull(orb, "orb");
+        orb.takeExplosionDamage(damage);
+        if (orb.health() <= 0) {
+            remove(orb, "explosion");
+            return true;
+        }
+        return false;
+    }
 }

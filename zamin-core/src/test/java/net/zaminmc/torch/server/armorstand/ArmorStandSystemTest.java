@@ -424,6 +424,66 @@ class ArmorStandSystemTest {
     }
 
     // ------------------------------------------------------------------
+    // The explosion arm's double-break guard (the review rider over the
+    // PR #85 merge — the reference's own chain-overlap shape)
+    // ------------------------------------------------------------------
+
+    /**
+     * The stale-snapshot re-break: the blast's SNAPSHOT family list can
+     * still hold a stand a NESTED detonation already broke (the End chain
+     * overlapping a stand). The reference's own guards both land here:
+     * onBroken NULLS every slot after its drop (ArmorStandEntity lines
+     * 480-490 — {@code this.equipment[i] = null} rides inside the loop),
+     * so a second break drops NOTHING, and the engine's registry
+     * containment turns the stale re-break into the full no-op — no
+     * second equipment drop, no second wire destroy.
+     */
+    @Test
+    void theExplosionBreakDropsTheEquipmentExactlyOnceUnderTheStaleSnapshot() throws Exception {
+        EngineServer server = boot();
+        try {
+            place(server, 10, 39, 10, BuiltinBlocks.STONE);
+            await(server, () -> server.world().getBlock(new BlockPosition(10, 39, 10))
+                    .identifier().value().equals("stone"), "the floor placed");
+            server.ticker().submit(() -> server.armorStands().place(
+                    new BlockPosition(10, 39, 10), 0, 1, 0.0f, new java.util.Random(1)));
+            await(server, () -> standAt(server, 10, 40, 10) != null, "the stand landed");
+            ArmorStand stand = standAt(server, 10, 40, 10);
+            // Wear a helmet so the break's equipment drop is observable.
+            List<ItemStack> hand = new ArrayList<>();
+            hand.add(ItemStack.of(BuiltinItems.DIAMOND_HELMET, 1));
+            server.ticker().submit(() -> server.armorStands().interactAt(
+                    stand, hand.get(0), 1.0, false, stack -> hand.set(0, stack)));
+            await(server, () -> !stand.equipment(4).isEmpty(), "the helmet wore");
+            int before = countItems(server);
+
+            // The break, then the STALE SNAPSHOT's re-break in the same
+            // wound phase (the outer blast's family list still holding
+            // the body the nested detonation already broke).
+            server.ticker().submit(() -> {
+                server.armorStands().breakByExplosion(stand);
+                server.armorStands().breakByExplosion(stand);
+            });
+            await(server, () -> server.armorStands().byId(stand.entityId()) == null,
+                    "the stand broke in the blast");
+
+            // Exactly ONE helmet dropped: onBroken's own null-out means
+            // the stale re-break finds every slot empty.
+            final int base = before;
+            await(server, () -> server.itemEntities().all().size() == base + 1,
+                    "exactly the one equipment drop");
+            assertEquals(before + 1, countItems(server),
+                    "the stale snapshot's re-break dropped nothing further");
+            for (int slot = 0; slot < 5; slot++) {
+                assertTrue(stand.equipment(slot).isEmpty(),
+                        "slot " + slot + " nulled by onBroken (the reference's own guard)");
+            }
+        } finally {
+            server.shutdown(() -> { });
+        }
+    }
+
+    // ------------------------------------------------------------------
     // Helpers (the decoration test's own shape)
     // ------------------------------------------------------------------
 

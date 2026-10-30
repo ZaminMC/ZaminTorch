@@ -180,6 +180,176 @@ the crystal chain); F-EX3 is the census chore; F-EX2/F-EX4 are
 thin. The next session: the F-EX1 three-pass verification first,
 then the remainder in value order.
 
+## F-EX1 — VERIFIED and FIXED (the twentieth pass, 2026-10-30)
+
+**Status: resolved** (the three passes complete, the fix landed on
+`audit/verifier-pass-20-explosion`, the PR opened against `develop`).
+
+### The twentieth pass's correction to the nineteenth's record
+
+The nineteenth pass adjudicated the armor stand "NOT a finding" on the
+claim that "the reference EXCLUDES them (immune)". The immunity consult
+re-read: `ArmorStandEntity.isImmuneToExplosions` (line 593) answers
+**`isInvisible()`** — only an INVISIBLE stand is immune; a VISIBLE stand
+takes the loop, and `takeDamage`'s explosive arm (lines 382-386) breaks
+it: `onBroken()` drops the EQUIPMENT alone (lines 480-490) — the stand
+item does NOT drop (`onBrokenByPlayer` lines 475-478 is the arm that
+drops it) — then `remove()`. The engine's stands carry no invisible flag,
+so every engine stand maps to the reference's visible body: the blast
+must break it. The armor-stand family IS part of F-EX1.
+
+### The three verification passes
+
+1. **Source (2026-10-30, run 1).** The reference chain re-walked per
+   family: the gather (`Explosion.damageEntities` lines 115-144 —
+   `world.getEntities(source, box)`, the `EntityFilter.NOT_SPECTATOR`
+   walk, every class in the `[floor(c-f3-1), floor(c+f3+1)]` box); the
+   census re-run (`grep isImmuneToExplosions` over the reference's entity
+   tree: exactly ONE override — the armor stand's conditional; PrimedTnt
+   carries none); the per-family wound laws (ItemEntity.takeDamage lines
+   202-218 — health 5, the nether star's `source.isExplosive()` refusal
+   at 207-209, the death-at-zero remove; ExperienceOrbEntity lines
+   141-151 — the same health shape; EnderCrystalEntity lines 67-84 — any
+   damage removes + detonates 6.0F; ProjectileEntity.takeDamage lines
+   248-273 — the LIVING-attacker re-aim over the FireballEntity/
+   SmallFireballEntity/WitherSkullEntity family, the arrows and thrown
+   kinds extending Entity/ThrownEntity carrying the default no-op; the
+   PrimedTnt and Fireworks the same default); the scatter (lines 133-137
+   — `velocityX/Y/Z += dir * d11` riding OUTSIDE the takeDamage verdict,
+   `d11 = d10` for every non-living body — `Entity.getEquipment()`'s null
+   default zeroes the Blast Protection consult). The engine side: exactly
+   four wound arms (the detonateAtIn walk, players/mobs/vehicles/
+   decorations), no compensating consult in any family manager
+   (`breakByExplosion` and the crystal `damage()` exist but nothing calls
+   them from the walk — the armor-stand arm tested only in its own unit
+   seat, the crystal death wired only for the arrow's pop).
+2. **Behavioral (2026-10-30, run 1).** `ExplosionEntityGatherParityTest`
+   — seven seats (the item destruction/scatter/star-refusal pair, the
+   orb pair, the twin-arrow divergence, the primed-TNT impulse, the
+   crystal chain, the armor-stand break with the no-stand-item quirk,
+   the firework impulse). The stash verification: failing UNFIXED on
+   EXACTLY all seven (the near stack surviving its wound, the twins' vx
+   identical at 0.0, the chain timing out at one blast, the stand sweep
+   timing out, the primed hop's 1.8E-4 residue, the rocket 0.0/0.0) and
+   green whole with the fix (7/0).
+3. **Independent (2026-10-30, run 1).** The gather box vs the per-arm
+   distance gates (the box `[floor(c-f3-1), floor(c+f3+1)]` ⊇ every
+   body with `d12 <= 1`); the reentrancy of the chain (the crystal's
+   nested `detonateAtIn` re-enters the same region domains —
+   `OwnershipDomain.enter` counts nested enters); the concurrent-remove
+   safety (`all()` returns copies in every family); the §27.7 gate
+   event's fire position (the blast's HEAD — the seats therefore await
+   observable outcomes through tick-thread polls, never same-tick
+   snapshots); the intentional-design check (no ledger or compat note
+   documents the exclusion — unlike the tnt-in-End gap which IS
+   ledgered; the engine's own `woundDecorationsFromBlast` javadoc states
+   the reference's every-entity law).
+
+### The fix (the walk's seven new arms + the family verbs)
+
+- **The gather's SNAPSHOT law**: the seven family lists gathered at the
+  wound phase's HEAD (before any arm runs) and passed into the arms — a
+  body spawned during the walk (the decorations' drops) never takes the
+  SAME blast's wound; a nested detonation (the crystal chain, the TNT
+  cart's death) gathers its own FRESH lists, exactly the reference's
+  nested explode inside the entity loop. The first cut iterated live
+  lists and destroyed DecorationBlastTest's frame drops — the regression
+  the seat caught, the law that repaired it.
+- **The item arm**: the feet frame (the engine's center-stored body,
+  `position.y - HALF_HEIGHT`), the eye height (Entity.getEyeHeight's
+  `height * 0.85` = 0.2125), the 0.25-box density, the wound through the
+  manager's new `hurtFromExplosion` (the nether star refusal + the new
+  health field, default 5, the death-at-zero removal), the unconditional
+  scatter.
+- **The orb arm**: the same shape over the engine's own 0.25 orb body.
+- **The projectile arm**: the per-kind half (the push table), the
+  mob-sourced re-aim through the manager's `woundFromExplosion` (the
+  `deflectBy` twin over the fireball pair + the wither skull — the
+  reference's ProjectileEntity family; the engine's `deflect` punch
+  surface itself still excludes the skull, a separate landed-scope
+  note), the scatter through `addVelocity`.
+- **The primed-TNT arm**: the reference's own bottom frame, the family's
+  0.0 eye-height override (PrimedTntEntity line 93), the 0.98-hull
+  density, the impulse through the system's `addVelocity` — the
+  TNT-cannon's own law.
+- **The crystal arm**: the d12 gate alone routes into `damage()` (the
+  removal + the 6.0F blast) — THE END CHAIN, recursively.
+- **The armor-stand arm**: `breakByExplosion` (the equipment drops, the
+  stand item does not — the reference's own quirk).
+- **The firework arm**: the impulse through the system's `addVelocity`.
+
+### The re-pins the corrected fix forced (each with its own evidence)
+
+`VehicleDamageSourceTest` and `VehicleWorldDamageTest` carried stale
+pins from the pre-gather engine: the TNT cart's death detonation eats
+its own just-dropped items (TntMinecartEntity.dropItems lines 73-81:
+the drop FIRST, then `explode()` line 92 INSIDE dropItems — the nested
+blast's FRESH gather wounds the fresh items to death, ItemEntity.takeDamage
+lines 202-218). Vanilla's census after a blast-killed TNT cart pair
+counts ZERO cart items; the lava seat's lone survivor is the dry
+control's own AFTER-the-blast drop (the death blast reaches it at 3.85
+blocks, d12 0.48, damage 26 over the cart's break threshold). Both
+censuses re-read on the TICK THREAD (the direct cross-thread reads race
+and serve stale views that resurrect the eaten drops — the probe pair
+`all=0` on the tick thread vs `2` on the census thread). The
+furnace-block drop gate's positive side stays covered by
+`theMeleeDeathDropsTheFurnaceBlock` (a melee death — no blast follows
+the drop).
+
+### The tails this fix ledgers (not owed in this PR)
+
+- **The falling-block family**: the engine's body carries vertical
+  velocity alone — the blast's horizontal impulse needs the family's own
+  model pass (a horizontal-velocity model change, out of a focused PR's
+  bounds).
+- **The item/orb Health persistence**: vanilla round-trips the `Health`
+  tag (ItemEntity line 222, ExperienceOrbEntity line 157); the engine's
+  stores keep their own documented excepted rows — restored bodies
+  restart at 5.
+- **The grounded-arrow scatter's wire publish**: vanilla's
+  velocityChanged flag sends an immediate Entity Velocity packet for a
+  blasted stuck arrow; the engine's flight publication covers the
+  observable motion, the stored velocity rides the family's own wire
+  surface.
+- **The `deflect` punch surface's skull exclusion**: the engine's
+  player-punch deflection refuses WITHER_SKULL where the reference's
+  ProjectileEntity.takeDamage includes it — a separate landed-scope
+  candidate (F-EX5), NOT this fix's arm.
+
+### The evidence record
+
+The stash verification (7/7 failing unfixed, 7/0 with the fix); the
+family lanes (tnt + experience + endcrystal + fireworks + decoration +
+the gather seats) 56/0; the vehicle lane whole 67/0 after the re-pins;
+the entity-package lane 595/0 beside the two re-pinned vehicle seats
+(the 597-run's only failures); the blast-adjacent acceptance lanes
+green. The full suite rides the CI.
+
+## F-EX5 — the punch deflection's skull exclusion (NEW candidate, the twentieth pass's discovery)
+
+The engine's player-punch deflection (`ProjectileManager.deflect`)
+applies the reference's `ProjectileEntity.takeDamage` re-aim to the
+LARGE_FIREBALL and SMALL_FIREBALL kinds alone; the javadoc claims "the
+ballistic kinds answer false exactly the reference's takeDamage". The
+reference's hierarchy: **WitherSkullEntity extends ProjectileEntity**
+(reference/1.8.8 entity/projectile/WitherSkullEntity.java line 16) — the
+skull CARRIES the re-aim arm (a player's punch on a wither skull
+redirects it along the puncher's look, the puncher becoming the new
+shooter). The blast arm this pass landed includes the skull (the
+reference's family whole); the PUNCH surface alone excludes it. Status:
+suspected — awaiting its own three passes (a thin seat: a punch on a
+wither skull mid-flight).
+
+## The queue after this pass
+
+F-EX2 (the sleeping eye-height frame — 0.2 vs 1.62 in the knockback
+vector), F-EX3 (the BlastResistanceTable coverage census), F-EX4 (the
+createFire arm — the wrong-world bed + the mobGriefing ghast fireball),
+F-EX5 (the punch deflection's skull exclusion), and the standing
+architecture tail F-FL4 (the nether/End fluid simulation — the §22
+queue head, the per-dimension scheduled/random-tick infrastructure it
+needs first). The F-EX1 family is retired end to end.
+
 ---
 
 ## F-EX2 — VERIFIED and FIXED (the 2026-10-31 session, PR pending this branch)
