@@ -166,7 +166,7 @@ class VehicleDamageSourceTest {
                     "the carts spawned");
 
             // The detonation (the engine's own TNT ignition walk).
-            server.ticker().submit(() -> server.tnt().ignite(tntAt, 5));
+            server.ticker().submit(() -> server.tnt().ignite(server.world(), tntAt, 5));
 
             // The blast kills both near carts with the EXPLOSIVE source;
             // the break sweep drops ONLY the cart items (the furnace

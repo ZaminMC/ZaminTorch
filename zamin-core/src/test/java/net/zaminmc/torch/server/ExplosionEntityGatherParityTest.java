@@ -186,7 +186,7 @@ class ExplosionEntityGatherParityTest {
             await(server, () -> server.world().getBlock(new BlockPosition(15, 5, 10))
                     .identifier().value().equals("tnt"), "the TNT placed");
             server.ticker().submit(() ->
-                    server.tnt().useIgnite(new BlockPosition(15, 5, 10)));
+                    server.tnt().useIgnite(server.world(), new BlockPosition(15, 5, 10)));
             await(server, () -> server.world().getBlock(new BlockPosition(15, 5, 10))
                     .identifier().value().equals("air"), "the TNT primed");
             // Let the priming hop settle (the 0.2 rise decays to rest).

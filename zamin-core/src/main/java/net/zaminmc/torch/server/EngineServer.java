@@ -402,6 +402,12 @@ public final class EngineServer implements Server, EngineBridge {
     private volatile boolean dragonDefeated;
     /** The End world's own blast walk (the crystal's 6.0F death — dimension 1). */
     private ExplosionService endExplosionService;
+    /**
+     * The nether world's own blast walk (Wave FL4-F7 — the dimension-routed
+     * TNT detonation): the ray fan reads and commits the NETHER's own
+     * cells, exactly the End service's own form.
+     */
+    private ExplosionService netherExplosionService;
     /** The note tiles' ZND persistence. */
     private net.zaminmc.torch.server.noteblock.NoteDataStore noteStore;
     /** The spawners' ZSD persistence (the typed rows' restart survival). */
@@ -1162,10 +1168,11 @@ public final class EngineServer implements Server, EngineBridge {
                         this::raining,
                         () -> gameRules.getBoolean("doFireTick"),
                         () -> difficulty,
-                        pos -> {
+                        (actingWorld, pos) -> {
                             net.zaminmc.torch.server.tnt.TntSystem tnt = tntSystem;
                             if (tnt != null) {
-                                tnt.spawnPrimedAt(pos.x() + 0.5, pos.y(), pos.z() + 0.5);
+                                tnt.spawnPrimedAt(actingWorld,
+                                        pos.x() + 0.5, pos.y(), pos.z() + 0.5);
                             }
                         },
                         gameplayRandom);
@@ -1985,8 +1992,13 @@ public final class EngineServer implements Server, EngineBridge {
                 // detonation walk.
                 tntSystem = new net.zaminmc.torch.server.tnt.TntSystem(
                         world, redstoneSystem,
-                        position -> solidAt(position.x(), position.y() - 0.1, position.z()),
-                        (center, power) -> detonateAt(center.x(), center.y(), center.z(), power, true),
+                        (dimension, x, y, z) -> solidInDimension(dimension, x, y, z),
+                        (dimension, x, y, z, power) -> detonateAtIn(
+                                worldForSafe(dimension), explosionServiceFor(dimension),
+                                dimension,
+                                x, y, z, power, true,
+                                net.zaminmc.torch.server.block.ExplosionService.BlastSource.PLAIN,
+                                null),
                         fxManager, gameplayRandom, TNT_ID_BASE);
                 world.addChangeListener(tntSystem);
                 tntSystem.addListener(new TntEventDispatch());
@@ -2080,6 +2092,13 @@ public final class EngineServer implements Server, EngineBridge {
                 // explosion service bound to the End world — the same ray
                 // fan, committing through the End's own listener path.
                 endExplosionService = new ExplosionService(new BlastWorld(endWorld),
+                        gameplayRandom);
+                // The nether's own blast walk (Wave FL4-F7 — the TNT body's
+                // dimension-routed detonation): the same per-dimension form
+                // as the End's — the ray fan over the NETHER's own cells
+                // (the pre-fix overworld-bound service flew a nether blast's
+                // rays through the overworld's cells and collected nothing).
+                netherExplosionService = new ExplosionService(new BlastWorld(netherWorld),
                         gameplayRandom);
                 // The cross-system neighbor bus (Slice 9f): the pistons and
                 // the TNT ride the redstone family's neighbor dispatch —
@@ -2337,8 +2356,8 @@ public final class EngineServer implements Server, EngineBridge {
 
                             @Override public void ignite(net.zaminmc.torch.block.BlockPosition pos,
                                     int dimension) {
-                                if (tntSystem != null && dimension == 0) {
-                                    tntSystem.useIgnite(pos);
+                                if (tntSystem != null) {
+                                    tntSystem.useIgnite(worldForSafe(dimension), pos);
                                 }
                             }
                         });
@@ -2500,8 +2519,7 @@ public final class EngineServer implements Server, EngineBridge {
                 // lines 96-113): a burning arrow entering the TNT cell
                 // primes it — the block leaves, the arrow keeps its flight.
                 projectiles.setTntIgniteSink((cell, dimension) -> tntSystem != null
-                        && dimension == 0
-                        && tntSystem.igniteByArrow(cell));
+                        && tntSystem.igniteByArrow(worldForSafe(dimension), cell));
                 // The ender pearl's teleport arm (Slice 17c —
                 // EnderPearlEntity.onCollision lines 45-71): the 5%
                 // player-spawned endermite at the thrower's pre-teleport
@@ -13582,7 +13600,7 @@ public final class EngineServer implements Server, EngineBridge {
         // The TNT ignite arm (TntBlock.use lines 96-113): the steel clicked
         // on the TNT block itself primes it — the block leaves, the fuse
         // starts, the flint wears one use.
-        if (tntSystem.useIgnite(clicked)) {
+        if (tntSystem.useIgnite(world, clicked)) {
             if (session.gamemode() == GameMode.SURVIVAL
                     || session.gamemode() == GameMode.ADVENTURE) {
                 session.inventory().damageHeld(1, gameplayRandom, session.stats());
@@ -24226,6 +24244,24 @@ public final class EngineServer implements Server, EngineBridge {
         detonateAtIn(world, explosionService, 0, cx, cy, cz, power, destructive, source, null);
     }
 
+    /**
+     * The per-dimension blast-walk resolver (Wave FL4-F7 — the primed
+     * TNT body's dimension-routed detonation): each dimension's ray fan
+     * reads and commits its OWN world's cells — the End's own service was
+     * the crystal slice's form, the nether's joins it, the overworld's
+     * stays the boot default (an unbooted dimension falls back to it,
+     * the worldForSafe law).
+     */
+    private ExplosionService explosionServiceFor(int dimension) {
+        if (dimension == -1 && netherExplosionService != null) {
+            return netherExplosionService;
+        }
+        if (dimension == 1 && endExplosionService != null) {
+            return endExplosionService;
+        }
+        return explosionService;
+    }
+
     private void detonateAt(double cx, double cy, double cz, float power, boolean destructive) {
         detonateAtIn(world, explosionService, 0, cx, cy, cz, power, destructive,
                 net.zaminmc.torch.server.block.ExplosionService.BlastSource.PLAIN, null);
@@ -24353,8 +24389,10 @@ public final class EngineServer implements Server, EngineBridge {
             final java.util.List<net.zaminmc.torch.server.entity.projectile.ProjectileEntity> projectileBodies =
                     projectileManager == null ? java.util.List.of() : projectileManager.all();
             final java.util.List<net.zaminmc.torch.server.tnt.TntSystem.PrimedTnt> tntBodies =
-                    tntSystem == null || dimension != 0
-                            ? java.util.List.of() : tntSystem.allPrimed();
+                    tntSystem == null ? java.util.List.of()
+                            : tntSystem.allPrimed().stream()
+                                    .filter(body -> body.dimension() == dimension)
+                                    .toList();
             final java.util.List<net.zaminmc.torch.server.endcrystal.EnderCrystal> crystalBodies =
                     enderCrystals == null ? java.util.List.of() : enderCrystals.all();
             final java.util.List<net.zaminmc.torch.server.armorstand.ArmorStand> standBodies =
@@ -24409,12 +24447,12 @@ public final class EngineServer implements Server, EngineBridge {
             }
             if (removed.type().identifier().value().equals("tnt")) {
                 // The chain reaction (TntBlock.onExploded lines 58-65): a
-                // consumed TNT primes a short-fuse body instead of dropping.
-                // (Slice 62 note: the overworld's own TNT system — the End
-                // carries no ignition listener yet, the tnt-in-End gap
-                // ledgered with the slice.)
-                if (tntSystem != null && dimension == 0) {
-                    tntSystem.primeFromBlast(b);
+                // consumed TNT primes a short-fuse body instead of dropping
+                // — the body carrying the BLAST world's own dimension (Wave
+                // FL4-F7: the reference's {@code onExploded(World world,
+                // ...)}; the pre-fix overworld-only gate retired).
+                if (tntSystem != null) {
+                    tntSystem.primeFromBlast(blastWorld, b);
                 }
                 continue;
             }
@@ -31333,6 +31371,21 @@ public final class EngineServer implements Server, EngineBridge {
             return false;
         }
         return WorldSolidity.isSolid(world.getBlock(blockAt(x, y, z)));
+    }
+
+    /**
+     * The per-dimension bounds-safe solidity (Wave FL4-F7 — the primed
+     * TNT body's own-world ground consult): the same 1.8 void/sky rule as
+     * the overworld form, the cell read routed by the body's dimension
+     * stamp — a nether body never grounds on the overworld's
+     * same-coordinate cell.
+     */
+    private boolean solidInDimension(int dimension, double x, double y, double z) {
+        if (y < net.zaminmc.torch.block.BlockPosition.MIN_Y
+                || y > net.zaminmc.torch.block.BlockPosition.MAX_Y) {
+            return false;
+        }
+        return WorldSolidity.isSolid(worldForSafe(dimension).getBlock(blockAt(x, y, z)));
     }
 
     /**
