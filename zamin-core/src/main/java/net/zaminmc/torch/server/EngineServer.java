@@ -23918,8 +23918,14 @@ public final class EngineServer implements Server, EngineBridge {
             if (d12 > 1.0) {
                 continue;
             }
-            // The knockback direction (line 123): the eye-height vector.
-            double eye = player.sneaking() ? 1.54 : 1.62;
+            // The knockback direction (line 123): the eye-height vector —
+            // PlayerEntity.getEyeHeight lines 1648-1659: 1.62 standing,
+            // 0.2 LYING (the sleeping frame), the sneak's -0.08 composed
+            // on either (a sneaking sleeper reads 0.12).
+            double eye = player.sleeping() ? 0.2 : 1.62;
+            if (player.sneaking()) {
+                eye -= 0.08;
+            }
             double d5 = p.x() - cx;
             double d7 = (p.y() + eye) - cy;
             double d9 = p.z() - cz;

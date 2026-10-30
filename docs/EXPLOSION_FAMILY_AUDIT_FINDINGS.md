@@ -179,3 +179,80 @@ run rule. F-EX1 is the highest-value candidate (the item scatter +
 the crystal chain); F-EX3 is the census chore; F-EX2/F-EX4 are
 thin. The next session: the F-EX1 three-pass verification first,
 then the remainder in value order.
+
+---
+
+## F-EX2 — VERIFIED and FIXED (the 2026-10-31 session, PR pending this branch)
+
+**Status: resolved** (the three passes complete — V1 by the nineteenth
+pass, V2 + V3 this session; the fix on
+`fix/explosion-sleeping-eye-frame-parity-audit`).
+
+### The three-pass record
+
+- **V1 (source, the nineteenth pass):** `woundPlayersFromBlast` reads
+  `eye = sneaking ? 1.54 : 1.62` where the reference's
+  `PlayerEntity.getEyeHeight` (lines 1648-1659) carries THREE states —
+  1.62 standing, **0.2 lying** (the sleeping frame), the sneak's -0.08
+  composed on either (a sneaking sleeper reads 0.12). The blast's
+  knockback vector (Explosion line 123: `entity.y +
+  entity.getEyeHeight() - this.y`) aims at the wrong height for a
+  sleeping victim.
+- **V2 (behavioral, 2026-10-31):** the discriminating probe — a sleeper
+  in a bed (the Waker keeping the sleep pending), a TNT charge whose
+  center lands BETWEEN the two eye heights above the sleeper's feet.
+  The captured wire motion (`ExplosionEvent.playerMotion()`): **motion
+  y = +0.0249** (aimed at the 1.62 standing eye) where the vanilla
+  frame computes dy = **-1.2125** (the lying 0.2 eye) — the vertical
+  SIGN flips: vanilla knocks the lying body DOWN toward the bed, the
+  engine aimed it UP. The seat asserts the geometry discriminates
+  (center y=6.4125, feet y=5.0 — inside the 0.2..1.62 band) before the
+  frame assertion.
+- **V3 (independent, 2026-10-31):** (a) the reference's line 123
+  confirmed to read `getEyeHeight()` — the shared three-state law, not
+  a blast-local constant; (b) the compensating-path search: the motion
+  map is computed ONCE in `woundPlayersFromBlast` (the only
+  `motion.put`) and rides the Explosion packet unchanged — no other
+  site corrects it; (c) the intentionality check: the engine's
+  `sleeping()` state exists (the Use Bed pose renders lying), and the
+  site ALREADY carries the sneak refinement (1.54) — the standing-eye
+  consult was a partial port of the same law, the lying frame an
+  omission, not a design choice; (d) the blast path reaches sleeping
+  players (the d12 gate reads `players.all()` with no sleep filter —
+  the probe's non-null motion proves it); (e) the edge: the fix must
+  implement the COMPOSED law (sleeping 0.2, then -0.08 on sneak), not a
+  ternary.
+
+### The fix
+
+`woundPlayersFromBlast`'s eye consult (one site):
+
+```java
+double eye = player.sleeping() ? 0.2 : 1.62;
+if (player.sneaking()) {
+    eye -= 0.08;
+}
+```
+
+### Evidence
+
+`ExplosionSleepingEyeFrameParityTest` 2/0 NEW — the stash verification
+failing UNFIXED on EXACTLY the sleeping seat (the motion aimed at the
+standing eye, dy sign flipped) and the STANDING control green on BOTH
+trees (the same geometry, the awake player, the 1.62 frame — the
+guard).
+
+### Regression record
+
+The explosion + sleep + body-survival lanes 23/0 (ExplosionTntRedstone
+Api 2, the new parity 2, MultiplayerSleep 3, Sleep 1, CreeperRows 3,
+BodySurvival 10).
+
+### The tail this pass recorded (NOT repaired)
+
+The engine carries other hardcoded 1.62 consults (the eat-sound /
+throw-gesture origin at line ~6167, the random-tick cell walk at line
+~7842, the ray consults at lines ~12678/~12982) — each needs its own
+reference comparison (the reference itself hardcodes 1.62 at SOME of
+these sites and reads getEyeHeight at others; the census is its own
+verification item, not this fix's scope).
