@@ -3400,8 +3400,8 @@ public final class EngineServer implements Server, EngineBridge {
                                 dispenserSystem, brewingStands, beaconSystem,
                                 signManager, spawners, commandBlocks, noteBlocks,
                                 skulls, jukeboxes, bannerManager));
-                blockInteraction = new BlockInteractionService(world, ticker,
-                        change -> world.republish(change.position()), // the resync path (§441)
+                blockInteraction = new BlockInteractionService(world, this::worldFor, ticker,
+                        (resyncWorld, change) -> resyncWorld.republish(change.position()), // the resync path (§441) — the walk's own world (Wave VT-002)
                         session -> session.gamemode(), new DropService(new java.util.Random()), itemEntities,
                         // The damage-aware block-item resolution (Slice 31 —
                         // ItemBlock.onItemUse's getStateFromMeta): the wood
@@ -3458,7 +3458,7 @@ public final class EngineServer implements Server, EngineBridge {
                 // the tall grass on the grass/dirt/farmland band, the dead
                 // bush on the sand/hardened-clay/dirt band. Every other kind
                 // passes (the historical behavior).
-                blockInteraction.setPlacementSupportGate((target, held) -> {
+                blockInteraction.setPlacementSupportGate((world, target, held) -> {
                     if (held == null) {
                         return true;
                     }
@@ -3514,13 +3514,13 @@ public final class EngineServer implements Server, EngineBridge {
                 // The cake's startMining eat (Slice 46 —
                 // CakeBlock.startMining lines 62-66: the left click eats a
                 // slice too, the same canEat(false) gate as the use arm).
-                blockInteraction.setMiningStartReport((session, at) -> {
+                blockInteraction.setMiningStartReport((world, session, at) -> {
                     // The cake's startMining eat (Slice 46).
                     eatCakeSlice(session, at);
                     // The dragon egg's startMining teleport (Slice 55 —
                     // DragonEggBlock.startMining lines 81-83: the punch
                     // teleports the egg away before any dig accumulates).
-                    teleportDragonEgg(at);
+                    teleportDragonEgg(world, at);
                     // The play stat (NoteBlock.startMining lines 58-67: the
                     // survival attack's play carries its own incrementStat —
                     // the position listener above already played the note).
@@ -3533,7 +3533,7 @@ public final class EngineServer implements Server, EngineBridge {
                 // The dig-start hook (Slice 27a — the reference's
                 // block.startMining arm, ServerPlayerInteractionManager
                 // line 133): the note block plays on the survival start.
-                blockInteraction.setMiningStartListener(position -> {
+                blockInteraction.setMiningStartListener((world, position) -> {
                     if (noteBlocks != null) {
                         noteBlocks.attackFromTick(position);
                     }
@@ -3549,7 +3549,7 @@ public final class EngineServer implements Server, EngineBridge {
                 // A survival-broken furnace spills its slots, and a survival-
                 // broken chest spills its 27, into the world first. The same
                 // hook emits the break/place feedback through the FX bus.
-                blockInteraction.setBlockBrokenListener((position, brokenType) -> {
+                blockInteraction.setBlockBrokenListener((world, position, brokenType) -> {
                     // The skull's typed drop (Slice 60 — SkullBlock
                     // .onRemoved lines 132-152): the tile's TYPE rides the
                     // dropped stack's damage (the block itself carries no
@@ -3590,9 +3590,9 @@ public final class EngineServer implements Server, EngineBridge {
                     noteBlocks.onBlockBroken(position);
                     jukeboxes.onBlockBroken(position);
                     daylightDetectors.onBlockBroken(position);
-                    doorSiblingCleanup(position);
-                    bedSiblingCleanup(position, brokenType);
-                    bedSpawnCleanup(position);
+                    doorSiblingCleanup(world, position);
+                    bedSiblingCleanup(world, position, brokenType);
+                    bedSpawnCleanup(world, position);
                 });
                 // The mining award (the historical dropXp rolls): a survival
                 // break of an XP ore releases the roll as orbs at the block.
@@ -3628,11 +3628,14 @@ public final class EngineServer implements Server, EngineBridge {
                                             .dropStack(bannerTile)
                                     : net.zaminmc.torch.server.banner.BannerManager
                                             .dropStackWithoutTile();
+                    // Wave VT-002/TF-9: the banner drop stamps the break's
+                    // own dimension (the miner's world).
                     itemEntities.spawnDropAtBlock(new Position(
                             at.x() + 0.5, at.y() + 0.5, at.z() + 0.5),
                             bannerDrop,
                             net.zaminmc.torch.server.entity.ItemEntity
-                                    .PICKUP_DELAY_DROP_TICKS);
+                                    .PICKUP_DELAY_DROP_TICKS,
+                            player.dimension());
                 });
                 // The infested egg's burst (Slice 18c —
                 // InfestedBlock.dropItems lines 79-88): the survival break
@@ -13891,20 +13894,20 @@ public final class EngineServer implements Server, EngineBridge {
             return false;
         }
         return net.zaminmc.torch.server.block.DragonEggBlocks.tryTeleport(
-                dragonEggWorld(), gameplayRandom, clicked);
+                dragonEggWorld(world), gameplayRandom, clicked);
     }
 
     /** The dragon egg's punch arm (the startMining teleport). */
-    private void teleportDragonEgg(BlockPosition at) {
+    private void teleportDragonEgg(EngineWorld world, BlockPosition at) {
         if (net.zaminmc.torch.server.block.DragonEggBlocks.isDragonEgg(
                 world.getBlock(at).identifier())) {
             net.zaminmc.torch.server.block.DragonEggBlocks.tryTeleport(
-                    dragonEggWorld(), gameplayRandom, at);
+                    dragonEggWorld(world), gameplayRandom, at);
         }
     }
 
-    /** The egg walk's world adapter. */
-    private net.zaminmc.torch.server.block.DragonEggBlocks.EggWorld dragonEggWorld() {
+    /** The egg walk's world adapter (the walk's own world — Wave VT-002). */
+    private net.zaminmc.torch.server.block.DragonEggBlocks.EggWorld dragonEggWorld(EngineWorld world) {
         return new net.zaminmc.torch.server.block.DragonEggBlocks.EggWorld() {
             @Override
             public net.zaminmc.torch.block.BlockType getBlock(BlockPosition at) {
@@ -14482,6 +14485,17 @@ public final class EngineServer implements Server, EngineBridge {
      * != this test). Tick-thread context.
      */
     private void doorSiblingCleanup(BlockPosition broken) {
+        // The mob-path form (the zombie's door break — the overworld-bound
+        // walk's own dimension tail, Wave VT-002's ledger): delegates to
+        // the field until the mob arms route per dimension themselves.
+        doorSiblingCleanup(world, broken);
+    }
+
+    /**
+     * The door pair cleanup in the walk's own world (Wave VT-002 — the
+     * reference's onRemoved consults the broken block's world).
+     */
+    private void doorSiblingCleanup(EngineWorld world, BlockPosition broken) {
         BlockType below = world.getBlock(broken.offset(0, -1, 0));
         BlockType above = world.getBlock(broken.offset(0, 1, 0));
         boolean belowDoor = isDoorHalf(below);
@@ -14501,7 +14515,7 @@ public final class EngineServer implements Server, EngineBridge {
      * cell no longer holds a bed half loses the spawn — the anchor half broke,
      * or the sibling cleanup removed the pair. Tick-thread context.
      */
-    private void bedSpawnCleanup(BlockPosition broken) {
+    private void bedSpawnCleanup(EngineWorld world, BlockPosition broken) {
         for (PlayerSession player : players.all()) {
             Position anchor = player.bedSpawn();
             if (anchor == null) {
@@ -14522,7 +14536,7 @@ public final class EngineServer implements Server, EngineBridge {
      * is the horizontal neighbor of the opposite half class (two adjacent
      * beds never share a class across the pair line). Tick-thread context.
      */
-    private void bedSiblingCleanup(BlockPosition broken, BlockType brokenType) {
+    private void bedSiblingCleanup(EngineWorld world, BlockPosition broken, BlockType brokenType) {
         if (!isBedHalf(brokenType)) {
             return;
         }
