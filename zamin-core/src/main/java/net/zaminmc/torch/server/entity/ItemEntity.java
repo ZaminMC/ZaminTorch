@@ -157,6 +157,17 @@ public final class ItemEntity implements net.zaminmc.torch.entity.DroppedItem {
     private int age;
     private int pickupDelay;
     private boolean onGround;
+    /**
+     * The body's own health (the reference's ItemEntity line 23:
+     * {@code private int health = 5}). The BLAST wound decrements it
+     * (takeDamage lines 202-218 over the explosion's own source) and the
+     * body dies at zero — removed whole, no drop. The nether star refuses
+     * the explosive wound at the manager's own row (lines 207-209 — the
+     * source's isExplosive() gate). Not yet persisted (the reference's
+     * {@code Health} tag rides the item store's own excepted row — the
+     * ItemDataStore's documented tail).
+     */
+    private int health = 5;
     /** The never-despawn flag (Slice 59 — ItemEntity.setNeverDespawn: the wither's nether star stays until collected). */
     private boolean neverDespawn;
     /**
@@ -225,6 +236,23 @@ public final class ItemEntity implements net.zaminmc.torch.entity.DroppedItem {
 
     public int entityId() {
         return entityId;
+    }
+
+    /**
+     * The body's current health (the blast wound's own ledger — the
+     * reference's {@code getHealth}-shaped read over the private field).
+     */
+    public int health() {
+        return health;
+    }
+
+    /**
+     * The blast wound's decrement (the manager's explosion arm is the only
+     * caller — the fire-damage family owes its own row). Package-private
+     * over the manager's verb, the manager's own shape.
+     */
+    void takeExplosionDamage(float amount) {
+        this.health = (int) (this.health - amount);
     }
 
     public Position position() {

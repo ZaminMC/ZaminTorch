@@ -73,6 +73,16 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
     private volatile ContainerKind containerKind = ContainerKind.NONE;
     /** The block the open container belongs to (furnace state lookup); null otherwise. */
     private volatile net.zaminmc.torch.block.BlockPosition containerPosition;
+    /**
+     * The merged double-chest window's pinned halves (the F-DC1 pair):
+     * the FIRST and SECOND half in the reference's join order (a WEST/
+     * NORTH twin first, ChestBlock lines 360-364) — the pair is resolved
+     * ONCE at the open, exactly like the reference's DoubleInventory
+     * construction, so later world changes never re-route the open
+     * window's clicks. Null when the window is single (or no chest).
+     */
+    private volatile net.zaminmc.torch.block.BlockPosition containerPairFirst;
+    private volatile net.zaminmc.torch.block.BlockPosition containerPairSecond;
     /** The mount whose inventory is open (the HORSE container's engine id); -1 otherwise. */
     private volatile int containerMountId = -1;
     /** The selected trade row of the open villager window (the MC|TrSel index); -1 none. */
@@ -985,6 +995,8 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
         this.containerWindowId = windowId;
         this.containerKind = kind;
         this.containerPosition = position;
+        this.containerPairFirst = null; // a fresh window is single until pinChestPair
+        this.containerPairSecond = null;
         this.containerMountId = -1;
         this.selectedTrade = -1;
         dropClickDragging(); // the reference opens a fresh Menu; no drag survives the switch
@@ -992,6 +1004,30 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
             containerOpenListener.accept(new ContainerOpenDescriptor(
                     windowId, kind, position, -1));
         }
+    }
+
+    /**
+     * Pins the merged double-chest pair behind the just-opened CHEST
+     * window (the reference constructs its {@code DoubleInventory} once
+     * at the open — the click routing, the view fan and the close walk
+     * read the pinned halves, never a fresh world consult). Call inside
+     * the open's tick, right after {@link #openContainerWindow}. Null
+     * clears an earlier pin (the single window's shape).
+     */
+    public void pinChestPair(net.zaminmc.torch.block.BlockPosition first,
+                             net.zaminmc.torch.block.BlockPosition second) {
+        this.containerPairFirst = first;
+        this.containerPairSecond = second;
+    }
+
+    /** @return the pinned merged pair's FIRST half position, or null when the window is single. */
+    public net.zaminmc.torch.block.BlockPosition openContainerPairFirst() {
+        return containerPairFirst;
+    }
+
+    /** @return the pinned merged pair's SECOND half position, or null when the window is single. */
+    public net.zaminmc.torch.block.BlockPosition openContainerPairSecond() {
+        return containerPairSecond;
     }
 
     /**
@@ -1083,6 +1119,8 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
         this.containerWindowId = -1;
         this.containerKind = ContainerKind.NONE;
         this.containerPosition = null;
+        this.containerPairFirst = null;
+        this.containerPairSecond = null;
         this.containerMountId = -1;
         this.selectedTrade = -1;
         dropClickDragging(); // the reference menu dies with its window; its drag state with it
