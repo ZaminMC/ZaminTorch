@@ -18661,3 +18661,50 @@ cart's own position convention)
   session: the threshold is not met, and the house rule stands — a
   real mismatch with an unsafe complete fix is documented and routed,
   not forced.
+
+## Wave BU-1 + the PR wave — 2026-10-30 (the CI regression fix, the
+release pipeline resumed, PRs #80/#81/#82 merged)
+
+- THE CI FREEZE DIAGNOSED (the owner's report: "the builds aren't
+  being published since a long time"): the last published build
+  torch-1.8.8-153 on 2026-10-27; every run since failed the test step
+  — run 520 (post VN-A) five failures, run 522 (post VN-B) seven:
+  BlockDataApi (the break-timing walk — the vine family's fifteen
+  face states carried NO BlockBehavior rows, UNBREAKABLE),
+  BlockEntityApi + InteractionEvent + TileNbt (the sign trio — the
+  pre-fix engine woke the changed cell on its own commit, popping
+  every midair sign where vanilla floats it), DeathXpLadder +
+  RangedCombat (the same wave's tails), DispenserWorldEvent (the
+  bone-meal seat — the stale-wake: a crop planted in the same tick as
+  the dispenser's flip took a notification addressed to the air that
+  was there before).
+- WAVE BU-1 LANDED (65528073): the own-commit dispatch law (the
+  changed cell runs its onAdded arm alone — the gravity family and
+  the torch the only overriders; every other family's own commit
+  never wakes itself), the addressee pin (every scheduled
+  notification records its addressee; the drain skips the stale
+  entry), the flag-4 silent dispenser flip (setBlockStateSilently —
+  the chunk write + delta alone), the vine family's behavior + light
+  rows, the TileNbt sign seat re-pinned onto a seeded stone floor.
+  Evidence: all seven CI seats green locally; the block package
+  304/0; dispenser+nbt+sign+banner+skull 169/0; the consumer lanes
+  118/0; the entity sweep 619/0; the table walks 22/0; the full
+  suite rides the CI run itself.
+- PR #80 MERGED (0c229f9b, the house pattern — the trial merge
+  verified green on the fluid + skull + banner + sign + farmland +
+  vine + consumer lanes before the API merge): the liquid-blocking
+  consult's material law — MaterialSolidity.blocksMovement over the
+  collision model, WoodDoorFamily.isDoor over the stale
+  wooden_door* names, the skull + flower pot DECORATION holes.
+- PR #81 MERGED (12c47524): the fizz emission's center and pitch
+  band — the cell center +0.5, volume 0.5, the 2.6+(rand-rand)*0.8
+  roll; the ItemOrbLavaEnvelope lane (the OTHER fizz site) verified
+  untouched.
+- PR #82 MERGED (9e0cd421, the WORKLOG conflict resolved keeping
+  both session records): the hopper's item-suck band — the strict
+  box intersection over the full cell above (the mouth accessors'
+  +0.5, the Box ±0.5, the item's own 0.25 box), never the center
+  band on the top face.
+- THE LEDGERS: §29's Wave BU-1 row + the §22 statement (F-FL4 — the
+  nether/End fluid simulation — named the next queue head over the
+  standing demand-named tails).
