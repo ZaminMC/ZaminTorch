@@ -1725,6 +1725,25 @@ interaction + world packages 250/0. The one batch-level
 NetherBlastRouting failure reproduced GREEN in isolation on BOTH trees
 (the known load-flake class — passing alone, no bed path touched).
 
+THE REBASE INTERACTION (develop moved mid-run — the #101/#102/#104
+wave + FL4-F10 landed; the branch rebased onto a23011fa cleanly and
+re-verified): #102's ORPHAN-FOOT GUARD seat staged its orphan through
+an update-bearing `setBlock` — under the restored law the orphan foot
+pops the same tick (exactly vanilla — the flags-3 removal fires the
+neighbor updates synchronously in the reference too). The seat's LAW
+(the orphan use is consumed with neither arm, BedBlock.use lines
+40-43) is unchanged and vanilla-reachable; its staging now rides the
+FLAG-4 SILENT write (`setBlockStateSilently` — the reference's
+update-free `setBlockState(pos, state, 4)` family, the one path that
+leaves an orphan standing to be clicked). Their trio 3/0, the
+discovery seats 4/0, the persistence class 5/0, the update/sleep
+lanes, and the block + interaction packages 313/0 on the rebased tree.
+The facing-exact resolution PR (#111, another stream's lane over the
+same pair walks) is COMPLEMENTARY: it makes the walks facing-exact;
+this arm's sibling scan rides the engine's current class-adjacency
+convention and would follow #111's law in a small follow-up (the
+reference's neighborChanged reads the facing-named cell).
+
 ## VT-011 — the grass-decay shade consult is the 3-block allowlist, not the reference's opacity law: grass dies under beds, flowers, slabs and every non-solid-render block where vanilla keeps it (SUSPECTED — one source pass + observed evidence)
 
 **Subsystem:** block updates / the grass family / the shade consult
