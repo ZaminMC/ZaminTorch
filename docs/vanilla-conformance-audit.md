@@ -585,12 +585,18 @@ alone), the behavioral seat is deterministic across boots, and the
 independent pass closed every compensating hypothesis with the reference's
 own dispatch and placement text.
 
-## VT-005 — the nether portal stand clock ignores the reference's riding gate (CONFIRMED — three passes; the correction is the fix branch `fix/portal-riding-gate-parity-audit`)
+## VT-005 — the nether portal stand clock ignores the reference's riding gate (RESOLVED-BY-PR — **PR #94 OPEN**)
 
 **Subsystem:** portal mechanics (the riding/vehicle gate on the collision
 and the crossing). **Status:** confirmed — three verification passes
 complete (source, behavioral, independent — the twenty-third and
-twenty-fourth passes); the correction branch is the queue head.
+twenty-fourth passes); the correction landed on
+`fix/portal-riding-gate-parity-audit` as **PR #94** (one condition, the
+End arm's own idiom; both discovery seats ride green on the fix branch;
+the regression lanes whole: DimensionWalk 1/0, PortalFrameBuilder 12/0,
+PortalForcer 5/0, NetherDimension 5/0, RiderSpareFall 3/0,
+VehicleSpawn 2/0, DimensionTimeSync 3/0, the world package + EnderExit
++ SpawnProtection + NetherDigRouting 252/0, the block lane 309/0).
 
 **The reference's law** (reference/1.8.8): the gate rides BOTH arms.
 `PortalBlock.onEntityCollision` (lines 158-162) calls `onPortalCollision`
@@ -724,6 +730,19 @@ only variable; the design-choice challenge — no pins anywhere, and the
 reference's own EndPortalBlock carries the identical gate the engine's
 End arm already implements). **VT-005 is CONFIRMED (three passes, each
 with distinct evidence); the fix branch is this run's next act.**
+
+**The correction (this run's second act):** the fix branch
+`fix/portal-riding-gate-parity-audit` (based on `origin/develop`
+`817dbe74`) — the riding consult on the nether arm's `inPortal`
+computation (one condition: `session.ridingVehicleId() < 0 &&
+session.ridingMobId() < 0`, the End arm's own idiom, with the
+javadoc carrying both reference gates). Both discovery seats ride
+GREEN on the fix branch (2/0: the mounted hold — the dimension pins 0
+for the whole window with the clock pinned at 0; the dismount control
+— no crossing before the fresh 80 past the dismount, the crossing
+arriving on the fresh clock). The seats were authored RED on develop
+first and lifted green by the fix alone. The regression lanes green
+whole (the record above). **PR #94 OPEN** targeting `develop`.
 
 ## Coverage ledger (updated by the twenty-fourth pass)
 
