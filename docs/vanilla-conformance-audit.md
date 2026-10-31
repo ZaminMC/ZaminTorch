@@ -1644,3 +1644,77 @@ untouched).
 **VT-006's remaining scope after PR #109**: the arrows alone (the
 family census's fifth member). The finding's record otherwise closes
 with #109's merge.
+
+## The twenty-seventh pass — the closing arc: the arrow family's arm + seat (PR #113 OPEN, stacked on #109)
+
+**The branch:** `fix/portal-arrow-crossing-parity-audit`, STACKED on
+`fix/portal-resting-family-crossing-parity-audit` (PR #109's branch).
+**PR #113 OPEN** (targets `develop`; the dependency documented — see
+below).
+
+**The correction** — the family census's fifth and last member:
+`ProjectileEntity`'s portal rows + methods
+(`advanceEntityPortalClock`, `notePortalEntry`, `portalMemory`,
+`applyDimensionArrival`), `ProjectileManager.SolidQuery`'s
+`portalFrameAt` consult (default null), the portal arm at the head of
+the per-body walk (before the stick clock and the flight — baseTick's
+own order, `ArrowEntity.tick` line 150's super chain), the crossing
+walk with the destroy-then-spawn fan, and the engine's
+`setDimensionCrossing` wiring.
+
+**THE DEPENDENCY DISCOVERED (the run's own finding about the fix)**:
+the projectile consult rides the SHARED `ShapeGround` — the
+`portalFrameAt` override lands in PR #109 (the item/orb families'
+addition; `ShapeGround` implements `ProjectileManager.SolidQuery`
+too). The first arrow attempt, branched off plain develop, consulted
+the interface's null default at the portal cell (the diagnostic
+trace's record: `cell=41,21,40 match=false` — the position cell right,
+the consult absent). The branch re-based onto #109's branch; the
+arrow files themselves do not overlap #109's diff. **PR #113's merge
+order: #109 first.**
+
+**The seat** (the twenty-fifth pass's deferred flight-path seat,
+authored alongside the arm per the queue's plan):
+`PortalArrowCrossingDiscoveryTest` — the construction's own laws:
+- The launch sits 0.4 blocks OUTSIDE the frame's face, aimed straight
+  in (yaw 180, speed 1.0): the per-tick step lands the position cell
+  INSIDE the portal column at the first flight tick. A 3-block bow
+  shot would SKIP the 1-block column entirely between tick boundaries
+  (the position-cell consult reads tick-boundary cells alone — the
+  box-straddle tail's own note).
+- The catcher walls (the seat's construction, not the engine): plain
+  stone columns 2 blocks past either face of the pre-built nether
+  frame, inside the cleared band — the crossed arrow's rotated flight
+  rides the frame's open axis and sticks within the frame's
+  neighborhood whichever way the quarter-turn points.
+- RED on develop demonstrated at the arrow work's start (the audit
+  lane's engine is develop's); GREEN on the stacked branch, and the
+  projectile package + the mob seats + the DimensionalTails lane
+  green whole.
+
+**VT-006's record with this pass**: the family census closes whole —
+the mobs (PR #98, MERGED), the items, the orbs, and the vehicles
+(PR #109 OPEN), the arrows (PR #113 OPEN, stacked on #109). The
+finding's named tails stand as recorded: the End-origin arm (the
+engine's missing forced-spawn consult — all five families share the
+hold), the box-straddle consult nuance (the position-cell convention
+vs the reference's box sweep — the landed mobs' convention), and the
+item merge pre-pass's cadence.
+
+## The queue for the next pass (the twenty-seventh's close)
+
+1. ~~The remaining crossing families~~ — LANDED this pass: PR #109
+   (the items, the orbs, the vehicles) + PR #113 (the arrows, stacked
+   on #109 — merge #109 first). VT-006's family census closes with
+   their merges.
+2. The watch items: the open PRs #105 (the TNT cart blast slice) and
+   #109/#113 (this pass's crossings) awaiting the maintainer's review.
+3. The newly-ledgered dimension tails (each its own discovery pass,
+   the PR #90 ledger): the per-dimension tile families, the mob
+   spawn's dimension stamp, the FX dimension awareness, the
+   per-dimension world border, the zombie arm's world binding.
+4. The F-SP1 support-consult family and F-DS1 (the double slab's
+   collision row) — suspected from the twentieth pass's record; their
+   passes owed.
+5. The house stream's claimed FL4-F10 redstone world binding — NOT to
+   be duplicated by this stream.
