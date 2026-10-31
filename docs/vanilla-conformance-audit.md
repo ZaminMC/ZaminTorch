@@ -1508,6 +1508,27 @@ queue's head — the twenty-seventh's handoff plan — through to the fix.
   DimensionWalk round trip), the item/orb/tails lanes 51/0, the anvil
   import 6/0, the world package 246/0, the entity + block packages
   887/0.
+- **THE HONEST CONVERGENCE (the closing act)** — a parallel stream
+  took the same handoff independently and landed the SAME law within
+  minutes: their **PR #109** (opened 12:39, eleven minutes before this
+  stream's **PR #112** at 12:50) carries the identical architecture —
+  the per-family primitives, the same consult plumbing, the same
+  manager tick arms, the same riding gate, the same two band re-pins,
+  the SAME independently-reached flake root-cause — plus a cleaner
+  vehicles' removal fan (the new `onVehicleRemoved(vehicle, reason)`
+  listener versus this stream's reuse of `onVehicleBroken`). Their
+  stream iterated further: **#108** (12:27, superseded by their own
+  #109), **#110** (12:44, the shared-`EntityPortalClock` variant
+  covering the arrows too), **#113** (12:49, the arrows stacked on
+  #109), beside **#107** (the mob cooldown's own decay lane). This
+  stream closed **#112 as superseded by #109** (the VT-007/#100-vs-
+  #103 protocol), the closing note offering the three unique
+  contributions: the strictly-deterministic `spawnThrown` seat
+  construction (zero velocity, no drift envelope — a one-line
+  hardening #109 can adopt; #109's block-corner form rides the
+  ~0.02-block boundary margin), the 3-consecutive-run stability
+  record, and the arrows' source assessment below (whose
+  `ShapeGround.portalFrameAt` production wiring #109 also carries).
 
 **The remaining VT-006 family: the arrows** — the separate
 projectile-system shape (the census's evidence: ArrowEntity.tick line
@@ -1989,7 +2010,7 @@ scan and facing agree) must stay green; the orphan-foot early return
 | Snow layer — placement support/melt/drops | drops landed (the mining-speed audit); melt + the 7-layer state surface recorded as VT-003's tail |
 | Packed ice — melt/break laws | inspected: the reference's PackedIceBlock carries no melt arm (the `setTicksRandomly` false, the silk-drop row landed); nothing owed |
 | Portal mechanics (flag1, forcer) | landed by FL4-F1; not re-audited — the stand clock's re-fire law is VT-004 (CONFIRMED, three passes; the correction **MERGED — PR #91**; the seat PortalRefireDiscoveryTest rides green on develop) |
-| Portal mechanics — the non-player crossing (the entity-level arm) | the MOBS family LANDED by **PR #98** (VT-006's correction: the entity-level crossing service + the mobs family — the gated collision, the threshold-0 clock, the 300 cooldown with the re-arm pin, the 8:1 walk, the forcer's placement, the stamp swap, the per-dimension wire; `PortalMobCrossingDiscoveryTest` 3/0 with the cooldown and riding-gate pins). The ITEMS, ORBS, and VEHICLES (boats + minecarts) LANDED by **PR #112 OPEN** (this stream's twenty-eighth pass: the same arm shape behind the seam, the manager tick arms, the item seat's flake root-caused — `spawnDropAtBlock`'s block-cell convention vs the one-block-thick plane — and re-pinned deterministic, the vehicles' riding gate, the live cooldown row's two band re-pins; the seats 3 consecutive green runs, the regression lanes whole). The ARROWS remain (the projectile-system shape, the owed seat — the next family); the TNT and falling families excluded by the census; the End-origin arm is the named tail |
+| Portal mechanics — the non-player crossing (the entity-level arm) | the MOBS family LANDED by **PR #98** (VT-006's correction: the entity-level crossing service + the mobs family — the gated collision, the threshold-0 clock, the 300 cooldown with the re-arm pin, the 8:1 walk, the forcer's placement, the stamp swap, the per-dimension wire; `PortalMobCrossingDiscoveryTest` 3/0 with the cooldown and riding-gate pins). The ITEMS, ORBS, and VEHICLES (boats + minecarts) carried by the HONEST CONVERGENCE: the parallel stream's **PR #109 OPEN** (the identical law + the cleaner removal fan) beside this stream's PR #112 CLOSED as superseded (the flake root-caused by both streams; this stream's strictly-deterministic `spawnThrown` seat construction + the 3-run stability record offered to #109's review). The ARROWS carried by **PR #113 OPEN** (stacked on #109; this stream's source assessment below the handoff) with **#110** the same stream's shared-holder variant. The End-origin arm is the named tail; the TNT and falling families excluded by the census |
 | Bed use — the out-of-dimension blast arm | CONFIRMED over three passes (the twenty-sixth's census + source; the twenty-seventh's behavioral + independent); the correction **MERGED — PR #102 onto develop**, verified by BOTH streams independently: the twenty-seventh's `BedOutOfDimensionBlastDiscoveryTest` (the portal-walk anchoring, the clock pin, the End seat, the seated HELL-biome conjunct — RED pre-fix, GREEN on the fix) and the twenty-eighth's `BedWrongWorldBlastVerificationTest` on the MERGED tree (the End seat + the HEAD-half identity click, both GREEN — the second-construction confirmation) |
 | Portal mechanics — the riding gate (vehicle == null && rider == null) | VT-005 CONFIRMED (three passes — source, the pig-in-portal behavioral seat, the dismount-control independent pass; the correction **MERGED — PR #94**) |
 | Drops — the TF-9 dimension stamp | LANDED by PR #90 (the dig/place walks stamp `world.dimension()`; the tile-family spill sites remain the per-dimension tile tail) |
@@ -2017,22 +2038,24 @@ scan and facing agree) must stay green; the orphan-foot early return
    discriminators).
 3. **The crossing families' arms** (the twenty-seventh pass's named
    head): the ITEMS, the ORBS, and the VEHICLES (boats + minecarts)
-   LANDED by this stream's twenty-eighth pass as **PR #112 OPEN**
-   (based on `a23011fa`, commit `05248879`: the item seat's flake
-   root-caused and re-pinned deterministic, the seats restructured to
-   the one-shot precondition, the manager tick arms + the riding gate,
-   the seats green 3 consecutive runs, the regression lanes whole — see
-   this pass's section). **THE ARROWS remain the family's head** — the
-   separate projectile-system shape, its SOURCE ASSESSMENT RECORDED by
-   this pass's closing act (the section above: the census is WIDER than
+   carried by the HONEST CONVERGENCE — the parallel stream's **PR #109
+   OPEN** the surviving carrier (this stream's PR #112 CLOSED as
+   superseded; the `spawnThrown` seat hardening + the 3-run record
+   offered on its review). **THE ARROWS ride PR #113 OPEN** (the
+   parallel stream's, stacked on #109) with this stream's SOURCE
+   ASSESSMENT RECORDED (the section above: the census is WIDER than
    the pass-24 name — every projectile family's tick chain carries the
    arm, the fireballs' inherited conditional included; the integration
-   points map 1:1 onto the manager-loop shape, and PR #112's ShapeGround
-   override already carries the production wiring): the owed
-   flight-path seat is the next run's first act, then the fix behind
-   the same seam. The End-origin arm stays the named tail; the TNT and
-   falling families stay EXCLUDED (the census's accidental matches);
-   the fishing bobber's own arm is the named tail beside them.
+   points map 1:1 onto the manager-loop shape, and the ShapeGround
+   override already carries the production wiring). THE NEXT RUN'S
+   verification work: #109's and #113's coverage through this stream's
+   independent seat constructions (the honest-convergence protocol
+   VT-008 exercised for #102 — the independent verification, not the
+   re-fix), plus the stuck-arrow edge (the inGround branch's
+   placement) as the discriminator. The End-origin arm stays the named
+   tail; the TNT and falling families stay EXCLUDED (the census's
+   accidental matches); the fishing bobber's own arm is the named tail
+   beside them.
 4. ~~The standing lanes~~ — F-EC1 RESOLVED-BY-PR (the twenty-fourth
    pass: confirmed over three passes and corrected — **PR #95 MERGED**, the one-consult
    swap to `BlockSolidity.isSolid`; F-TC1 was already resolved by PR
@@ -2046,12 +2069,15 @@ scan and facing agree) must stay green; the orphan-foot early return
 6. The watch items: **#91/#94/#95/#98/#101/#102/#104 ALL MERGED**
    (the crossing seam, the riding gate, the stand clock, the ender
    chest consult, the dig re-verification, the bed's blast arm, the
-   blast wound lane — develop `a23011fa`); the OPEN set is **#105**
-   (the TNT cart blast slice), **#106** (VT-009's pair-break
-   correction, the parallel stream's), and **#112** (the crossing
-   families' manager-loop arms, this stream's) awaiting the
-   maintainer's review (PR #103 closed as superseded by #100 and PR
-   #89 closed unmerged beside the FL4-F4 wave — the honest
-   convergences recorded); the FL4-F10 redstone world binding LANDED
-   on develop (`0328e92f`, the house stream's own act — NOT
-   duplicated by either stream).
+   blast wound lane — develop `a23011fa`); the OPEN set after the
+   parallel runs' wave: **#105** (the TNT cart blast slice), **#106**
+   (VT-009's pair-break correction), **#107** (the mob cooldown's
+   decay lane), **#108** (the crossing families' superseded first
+   iteration), **#109** (the crossing families' carrier), **#110**
+   (the shared-holder + arrows variant), **#111** (VT-010's
+   facing-exact resolution), **#113** (the arrows stacked on #109),
+   and **#114** (VT-009's bed neighbor-changed arm) — with this
+   stream's **#112 CLOSED as superseded by #109** (the convergence
+   recorded). The maintainer owns the pick among the convergent
+   carriers; the next runs verify rather than re-fix (the VT-008
+   protocol).
