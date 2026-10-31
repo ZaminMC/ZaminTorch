@@ -89,6 +89,7 @@ import net.zaminmc.torch.server.world.FlatWorldGenerator;
 import net.zaminmc.torch.server.world.WorldStorage;
 import net.zaminmc.torch.server.world.WorldDeltaSnapshot;
 import net.zaminmc.torch.server.block.BlockRegistryBuilder;
+import net.zaminmc.torch.server.block.BlockLightTable;
 import net.zaminmc.torch.server.block.CollisionShapes;
 import net.zaminmc.torch.server.block.BuiltinBlocks;
 import net.zaminmc.torch.server.block.ExplosionService;
@@ -97,6 +98,7 @@ import net.zaminmc.torch.server.block.FluidSystem;
 import net.zaminmc.torch.server.block.WoodDoorFamily;
 import net.zaminmc.torch.server.block.WoodShapeBlocks;
 import net.zaminmc.torch.server.block.WoodVariantBlocks;
+import net.zaminmc.torch.server.block.BlockSolidity;
 import net.zaminmc.torch.server.block.WorldSolidity;
 import net.zaminmc.torch.server.chat.ChatListener;
 import net.zaminmc.torch.server.chat.ChatService;
@@ -1030,6 +1032,9 @@ public final class EngineServer implements Server, EngineBridge {
                 // The crafting consult the sheep's offspring color rides
                 // (Slice 30b — getColorForOffspring's CraftingManager walk).
                 mobs.setCraftingConsult(crafting);
+                // VT-006 — the entity-level crossing service (the reference's
+                // Entity.changeDimension walk the mobs' portal arm rides).
+                mobs.setDimensionCrossing(this::crossEntityDimension);
                 // Mob persistence (ZMD v1): the population survives restarts;
                 // a fresh world's animals arrive through the vanilla worldgen
                 // seeding (NaturalSpawner.populateChunk — the seedAnimals pass
@@ -2036,7 +2041,10 @@ public final class EngineServer implements Server, EngineBridge {
                         (dimension, x, y, z, power) -> detonateAtIn(
                                 worldForSafe(dimension), explosionServiceFor(dimension),
                                 dimension,
-                                x, y, z, power, true,
+                                // PrimedTnt never fires: World.explode's
+                                // six-arg form passes false at the block's
+                                // fuse detonation (the F-EX4 call census).
+                                x, y, z, power, true, false,
                                 net.zaminmc.torch.server.block.ExplosionService.BlastSource.PLAIN,
                                 null),
                         fxManager, gameplayRandom, TNT_ID_BASE);
@@ -2540,20 +2548,29 @@ public final class EngineServer implements Server, EngineBridge {
                 // answers the destructive flag (Slice 24a — FireballEntity
                 // line 33's own consult): a no-grief world wounds and
                 // knocks but never breaks blocks.
-                projectiles.setExplosionSink((at, power, dimension) -> detonateAtIn(
-                        worldForSafe(dimension), explosionService, dimension,
-                        at.x(), at.y(), at.z(), power,
-                        gameRules.getBoolean("mobGriefing"),
-                        net.zaminmc.torch.server.block.ExplosionService.BlastSource.PLAIN, null));
+                projectiles.setExplosionSink((at, power, dimension) -> {
+                    // FireballEntity.onHit line 33: ONE flag consult answers
+                    // BOTH arms — {@code explode(null, x, y, z, power, flag,
+                    // flag)}: the fire and the destruction ride mobGriefing
+                    // together (a no-grief world wounds and knocks but never
+                    // breaks a block and never leaves a scorch). The service
+                    // ranges the blast's own dimension (F-EX12).
+                    boolean griefing = gameRules.getBoolean("mobGriefing");
+                    detonateAtIn(
+                            worldForSafe(dimension), explosionServiceFor(dimension), dimension,
+                            at.x(), at.y(), at.z(), power,
+                            griefing, griefing,
+                            net.zaminmc.torch.server.block.ExplosionService.BlastSource.PLAIN, null);
+                });
                 // The wither skull's own arm (the charged flag rides the
                 // blast's source model — WitherSkullEntity lines 43-51's
                 // 0.8 cap over canDestroy): the blue skull breaks through
                 // everything but the unbreakable band; the plain skull
                 // reads the table like every other source.
                 projectiles.setSkullExplosionSink((at, power, charged, dimension) -> detonateAtIn(
-                        worldForSafe(dimension), explosionService, dimension,
+                        worldForSafe(dimension), explosionServiceFor(dimension), dimension,
                         at.x(), at.y(), at.z(), power,
-                        gameRules.getBoolean("mobGriefing"),
+                        gameRules.getBoolean("mobGriefing"), false,
                         charged ? net.zaminmc.torch.server.block.BlastSources.CHARGED_SKULL : net.zaminmc.torch.server.block.ExplosionService.BlastSource.PLAIN, null));
                 // The burning arrow's TNT arm (TntBlock.onEntityCollision
                 // lines 96-113): a burning arrow entering the TNT cell
@@ -2903,7 +2920,13 @@ public final class EngineServer implements Server, EngineBridge {
                         (net.zaminmc.torch.server.entity.vehicle.TntMinecartEntity.BlastSink)
                                 (x, y, z, power, primed) -> detonateAtWithSource(
                                         x, y, z, power,
-                                        gameRules.getBoolean("mobGriefing"),
+                                        // TntMinecartEntity.explode line 92: the six-arg
+                                        // explode(..., TRUE) — the cart's blast HARDCODES
+                                        // the destructive flag (the famous exception:
+                                        // a TNT cart craters even in a no-grief world;
+                                        // mobGriefing never gates it — only the fireball
+                                        // and the creeper family ride the rule).
+                                        true,
                                         primed ? net.zaminmc.torch.server.block.BlastSources.PRIMED_CART : net.zaminmc.torch.server.block.ExplosionService.BlastSource.PLAIN));
                 vehicles.addListener(new VehicleEventDispatch());
                 // Vehicle persistence (Slice 25g — the ZVD store): the
@@ -6810,8 +6833,19 @@ public final class EngineServer implements Server, EngineBridge {
             enterEndOnTick(session);
             return;
         }
-        boolean inPortal = at.identifier().equals(BuiltinBlocks.NETHER_PORTAL.identifier())
-                || at.identifier().equals(BuiltinBlocks.NETHER_PORTAL_Z.identifier());
+        // The riding gate (the reference's collision gate — PortalBlock
+        // .onEntityCollision lines 158-162: the collision arms only
+        // `entity.vehicle == null && entity.rider == null`; Entity.baseTick
+        // line 286 re-gates the crossing on `this.vehicle == null`). A
+        // riding (or ridden) body in portal cells therefore neither notes
+        // the portal entry nor accumulates the stand clock — the
+        // not-inPortal arm's 4-per-tick decay holds the clock at 0 until
+        // the dismount, and the crossing cannot fire while mounted. The
+        // End arm above carries the reference's identical gate; the
+        // nether arm's omission was the VT-005 divergence.
+        boolean inPortal = (at.identifier().equals(BuiltinBlocks.NETHER_PORTAL.identifier())
+                || at.identifier().equals(BuiltinBlocks.NETHER_PORTAL_Z.identifier()))
+                && session.ridingVehicleId() < 0 && session.ridingMobId() < 0;
         boolean creative = session.gamemode() == GameMode.CREATIVE;
         if (inPortal) {
             // The entry memory (the reference's onPortalCollision derive —
@@ -6954,11 +6988,16 @@ public final class EngineServer implements Server, EngineBridge {
                 return;
             }
             // The fireball deflection (Slice 25b — ProjectileEntity.takeDamage
-            // lines 248-273): the player's punch on a fireball redirects it —
-            // the velocity becomes the attacker's look vector, the
-            // acceleration look*0.1, and the puncher becomes the new shooter
-            // (the deflected blast credits the player; a fireball past its
-            // 25-tick window can now strike the ghast that loosed it).
+            // lines 248-273): the player's punch on the GHAST's fireball
+            // redirects it — the velocity becomes the attacker's look
+            // vector, the acceleration look*0.1, and the puncher becomes the
+            // new shooter (the deflected blast credits the player; a
+            // fireball past its 25-tick window can now strike the ghast
+            // that loosed it). The deflect verb's own gate answers false
+            // for every other kind (the blaze's charge and the wither's
+            // skull override takeDamage with `return false` — F-EX5's
+            // census): the refusal charges no exhaustion, exactly the
+            // reference's flag2=false walk.
             if (projectileManager != null) {
                 net.zaminmc.torch.server.entity.projectile.ProjectileEntity fireball =
                         projectileManager.byId(targetEntityId);
@@ -17858,8 +17897,17 @@ public final class EngineServer implements Server, EngineBridge {
         // The player's own world (Wave FL4-F3 — the reference's
         // player.world: every use/place arm runs where the player is).
         EngineWorld world = worldFor(session.dimension());
-        // Line 80: the open gate — a solid block above refuses.
-        if (WorldSolidity.isSolid(world.getBlock(position.offset(0, 1, 0)))) {
+        // Line 80: the open gate — a solid block above refuses. THE CONSULT
+        // is the reference's own Block.isSolid() (Block.java lines 274-276:
+        // material.isSolidBlocking() && isCube() && !isSignalSource() —
+        // the SIGNAL consult, the same law F-TC1's BlockSolidity.isSolid
+        // pins): the isCube-false families (the glass pair, the slabs, the
+        // stairs, the chests, the leaves...) and the signal sources (the
+        // redstone block — the census's lone survivor) are NOT solid for
+        // this gate, so the chest OPENS under them; the movement consult
+        // the site carried (WorldSolidity — the pre-F-TC1 stand-in)
+        // refused the open under glass where vanilla opens (F-EC1).
+        if (BlockSolidity.isSolid(world.getBlock(position.offset(0, 1, 0)))) {
             return; // the use consumed, nothing opens
         }
         closeOpenContainerOnTick(session);
@@ -20373,7 +20421,7 @@ public final class EngineServer implements Server, EngineBridge {
             detonateAtIn(endWorld, endExplosionService, 1,
                     x, y, z,
                     net.zaminmc.torch.server.endcrystal.EnderCrystalSystem.BLAST_POWER,
-                    true,
+                    true, false,
                     net.zaminmc.torch.server.block.ExplosionService.BlastSource.PLAIN, null);
         }
 
@@ -21952,7 +22000,11 @@ public final class EngineServer implements Server, EngineBridge {
             // LivingEntity arm), so the victims' shave, revenge, and
             // death-hook walks read the wither as the author.
             detonateAtFromMob(mob, mob.position().x(), mob.position().y() + eye,
-                    mob.position().z(), WITHER_BIRTH_POWER, false);
+                    mob.position().z(), WITHER_BIRTH_POWER,
+                    // WitherEntity line 217's seventh argument: the birth
+                    // blast's block-breaking flag reads mobGriefing (the
+                    // creeper's own form, CreeperEntity.explode line 210).
+                    gameRules.getBoolean("mobGriefing"));
         }
 
         /**
@@ -23051,6 +23103,28 @@ public final class EngineServer implements Server, EngineBridge {
         @Override
         public void setActiveDimension(int dimension) {
             this.activeDimension = dimension;
+        }
+
+        /**
+         * VT-006 — the portal collision consult: the frame match at the
+         * feet cell in the ACTIVE dimension (the reference's gated
+         * PortalBlock.onEntityCollision over the per-tick box scan), null
+         * when the cell is not a portal cell.
+         */
+        @Override
+        public net.zaminmc.torch.server.world.PortalFrameBuilder.PortalShapeMatch portalFrameAt(
+                int x, int y, int z) {
+            if (y < net.zaminmc.torch.block.BlockPosition.MIN_Y
+                    || y > net.zaminmc.torch.block.BlockPosition.MAX_Y) {
+                return null;
+            }
+            net.zaminmc.torch.block.BlockPosition at =
+                    new net.zaminmc.torch.block.BlockPosition(x, y, z);
+            if (!net.zaminmc.torch.server.block.WorldSolidity.isNetherPortal(
+                    activeWorld().getBlock(at).identifier())) {
+                return null; // not a portal cell — the collision answers nothing
+            }
+            return net.zaminmc.torch.server.world.PortalFrameBuilder.matchAt(activeWorld(), at);
         }
 
         /** The world the active dimension lives in (the nether's stand-in: the overworld when unbooted). */
@@ -24292,7 +24366,7 @@ public final class EngineServer implements Server, EngineBridge {
     private void detonateAtWithSource(double cx, double cy, double cz, float power,
                                       boolean destructive,
                                       net.zaminmc.torch.server.block.ExplosionService.BlastSource source) {
-        detonateAtIn(world, explosionService, 0, cx, cy, cz, power, destructive, source, null);
+        detonateAtIn(world, explosionService, 0, cx, cy, cz, power, destructive, false, source, null);
     }
 
     /**
@@ -24314,7 +24388,7 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     private void detonateAt(double cx, double cy, double cz, float power, boolean destructive) {
-        detonateAtIn(world, explosionService, 0, cx, cy, cz, power, destructive,
+        detonateAtIn(world, explosionService, 0, cx, cy, cz, power, destructive, false,
                 net.zaminmc.torch.server.block.ExplosionService.BlastSource.PLAIN, null);
     }
 
@@ -24323,12 +24397,47 @@ public final class EngineServer implements Server, EngineBridge {
      * {@code world.explode(this, ...)}, the wither birth's the same): the
      * source rides the wound walk so the victims' shave, revenge, and
      * death-hook walks read the blast's author (the charged-creeper
-     * head-drop family's own gate).
+     * head-drop family's own gate). The blast ranges the SOURCE BODY'S
+     * OWN dimension ({@code this.world} — a nether creeper's rays read
+     * and tear the nether's cells, never the overworld's
+     * same-coordinate ones; Wave FL4-F7's own form).
      */
     private void detonateAtFromMob(MobEntity source, double cx, double cy, double cz,
                                    float power, boolean destructive) {
-        detonateAtIn(world, explosionService, 0, cx, cy, cz, power, destructive,
+        int dimension = source.dimension();
+        detonateAtIn(worldForSafe(dimension), explosionServiceFor(dimension), dimension,
+                cx, cy, cz, power, destructive, false,
                 net.zaminmc.torch.server.block.ExplosionService.BlastSource.PLAIN, source);
+    }
+
+    /**
+     * The fire arm's floor gate (the reference's {@code Block.isOpaque} —
+     * line 167's opaqueCube, assigned at construction {@code
+     * this.opaqueCube = this.isSolidRender()}, Block.java line 215): the
+     * engine's light table answers the SAME field's default ({@code
+     * isSolidRender() ? 255 : 0}, line 216, folded to 15) for every block
+     * WITHOUT a setOpacity override, so filter 15 IS the opaque-cube answer
+     * — except the THREE setOpacity(255) families whose own isSolidRender
+     * overrides answer FALSE (the complete setOpacity census, the only
+     * non-zero overrides in the register block): the stairs (StairsBlock
+     * line 65's false), the farmland (FarmlandBlock line 35's false), and
+     * the SINGLE slabs (SlabBlock line 70 answers {@code isDouble()} — the
+     * constructor's own line 25 sets the double variants true explicitly,
+     * and the {@code double_*} names carry them). Fire never lands on
+     * those; the double slabs keep it.
+     */
+    private static boolean isOpaqueCubeFloor(net.zaminmc.torch.block.BlockType type) {
+        String value = type.identifier().value();
+        if (value.contains("_stairs_")) {
+            return false; // StairsBlock.isSolidRender -> false
+        }
+        if (value.equals("farmland") || value.equals("farmland_wet")) {
+            return false; // FarmlandBlock.isSolidRender -> false
+        }
+        if (value.contains("_slab") && !value.startsWith("double_")) {
+            return false; // the single slab's isSolidRender -> isDouble() = false
+        }
+        return BlockLightTable.filter(type) == 15;
     }
 
     /**
@@ -24356,11 +24465,14 @@ public final class EngineServer implements Server, EngineBridge {
      * or a wither's own body — so the victims' shave, revenge, and
      * death-hook walks read the blast's author; the player-lit TNT, the
      * fireballs, the skulls, and the crystals carry none (the engine's
-     * TntSystem holds no igniter seat — ledgered). Tick-thread context.
+     * TntSystem holds no igniter seat — ledgered). The fire arm (the
+     * createFire flag): the fireball's mobGriefing consult and the
+     * wrong-world bed's always-true are the only fire sites in the
+     * reference — every other caller passes false. Tick-thread context.
      */
     private void detonateAtIn(EngineWorld blastWorld, ExplosionService service,
                               int dimension, double cx, double cy, double cz,
-                              float power, boolean destructive,
+                              float power, boolean destructive, boolean createFire,
                               net.zaminmc.torch.server.block.ExplosionService.BlastSource source,
                               MobEntity blastSourceMob) {
         BlockPosition blockCenter = new BlockPosition(
@@ -24412,6 +24524,11 @@ public final class EngineServer implements Server, EngineBridge {
         final java.util.List<ExplosionService.Destroyed> damagedCells =
                 new java.util.ArrayList<>();
         java.util.Map<UUID, double[]> motion = new java.util.HashMap<>();
+        // The explosion's OWN private stream (Explosion.java line 30 — a
+        // fresh unseeded Random per detonation): the fire arm's 1-in-3 roll
+        // consumes THIS alone, never the world's stream — a nested
+        // detonation (the crystal chain, the TNT cart's death) rolls its own.
+        java.util.Random fireRoll = new java.util.Random();
         blastWorld.executeInRegions(scopeMin, scopeMax, () -> {
             // --- phase one: the ray fan, COLLECT-only ---------------------
             // (damageEntities lines 60-105): nothing is written — the
@@ -24477,6 +24594,31 @@ public final class EngineServer implements Server, EngineBridge {
             if (destructive) {
                 service.commitDamaged(damagedCells);
             }
+
+            // --- phase two (continued): the fire arm ------------------------
+            // (damageBlocks lines 191-199): the FIELD's own walk AFTER the
+            // clear — every collected cell that holds AIR NOW (the crater's
+            // own cleared floor cells and the surface ring the rays crossed
+            // alike), sits on an OPAQUE cube, and wins the explosion's
+            // PRIVATE stream's 1-in-3 roll becomes FIRE. The arm rides the
+            // createFire flag ALONE (never damageBlocks' particle parameter
+            // — World.explode's six-arg form delegates false and calls
+            // damageBlocks(true)); the roll consumes this detonation's own
+            // Random, never the world's stream. The only callers that pass
+            // it true: the ghast fireball (the mobGriefing flag) and the
+            // wrong-world bed (always — its own blast arm is F-EX6's row).
+            if (createFire) {
+                BlockType armAir = blastWorld.airType();
+                for (ExplosionService.Destroyed cell : damagedCells) {
+                    BlockPosition at = cell.position();
+                    if (at.y() > BlockPosition.MIN_Y
+                            && blastWorld.getBlock(at).equals(armAir)
+                            && isOpaqueCubeFloor(blastWorld.getBlock(at.offset(0, -1, 0)))
+                            && fireRoll.nextInt(3) == 0) {
+                        blastWorld.setBlock(at, BuiltinBlocks.FIRE);
+                    }
+                }
+            }
         });
 
         // The drop rolls + the chain reaction (damageBlocks lines 158-176):
@@ -24511,8 +24653,11 @@ public final class EngineServer implements Server, EngineBridge {
                 net.zaminmc.torch.item.ItemType item = net.zaminmc.torch.server.item.BuiltinItems.lookup(
                         removed.type().identifier()).orElse(null);
                 if (item != null) {
+                    // The drop lands in the BLAST's own dimension (the
+                    // TF-9 four-arg form — a nether blast's drops never
+                    // strand in the overworld at the same coordinates).
                     itemEntities.spawnDropAtBlock(new Position(b.x() + 0.5, b.y() + 0.5, b.z() + 0.5),
-                            ItemStack.of(item, 1), ItemEntity.PICKUP_DELAY_DROP_TICKS);
+                            ItemStack.of(item, 1), ItemEntity.PICKUP_DELAY_DROP_TICKS, dimension);
                 }
             }
         }
@@ -24979,7 +25124,10 @@ public final class EngineServer implements Server, EngineBridge {
             // The wound: the mob-sourced blast's re-aim over the
             // ProjectileEntity family (the attacker-less sources — the
             // TNT, the fireballs, the crystals, the skulls — take the
-            // Entity default alone: nothing).
+            // Entity default alone: nothing; and the small fireball and
+            // the skull refuse the wound whole — their own takeDamage
+            // overrides answer false, F-EX5's census — only the ghast's
+            // large fireball inherits the re-aim).
             if (blastSourceMob != null) {
                 double yawRadians = Math.toRadians(blastSourceMob.headYaw());
                 projectileManager.woundFromExplosion(projectile, blastSourceMob.entityId(),
@@ -26029,6 +26177,48 @@ public final class EngineServer implements Server, EngineBridge {
     /** The reference's placing-phase border clamp (the ±29999872 band). */
     private static int clampCoordinate(int value) {
         return Math.max(-29_999_872, Math.min(29_999_872, value));
+    }
+
+    /**
+     * VT-006 — the entity-level crossing service (the reference's
+     * Entity.changeDimension walk over PlayerManager.changeDimension's
+     * reposition, the same walk the player's own crossing rides): the
+     * direction law (Entity.baseTick lines 290-294 — the nether pair),
+     * the 8:1 scale (PlayerManager lines 455-468), the placing phase's
+     * border clamp (lines 489-490), the destination neighborhood load,
+     * and the PortalForcer's find-or-build placement (lines 487-496).
+     * The manager's crossing families (the mobs first) ride the seam.
+     */
+    private MobManager.DimensionCrossing.Crossing crossEntityDimension(
+            int fromDimension, double x, double y, double z, float yaw,
+            double velocityX, double velocityZ, PortalForcer.Memory memory) {
+        // The direction (Entity.baseTick lines 290-294): from the nether
+        // home, everything else away. (The End-origin arm holds at the
+        // manager's gate — the engine carries no forced-spawn consult
+        // for the reference's else branch yet.)
+        int to = fromDimension == -1 ? 0 : -1;
+        EngineWorld toWorld = worldFor(to);
+        // The 8:1 walk (PlayerManager lines 455-468: ÷8 into the nether,
+        // ×8 back) with the border band clamp (lines 489-490).
+        double scale = fromDimension == 0 ? 1.0 / 8.0 : 8.0;
+        int destX = clampCoordinate((int) Math.floor(x * scale));
+        int destZ = clampCoordinate((int) Math.floor(z * scale));
+        // The destination neighborhood loads BEFORE the search reads it
+        // (the same bounded 17x17 chunk ring the player's walk loads).
+        int centerChunkX = destX >> 4;
+        int centerChunkZ = destZ >> 4;
+        for (int dx = -8; dx <= 8; dx++) {
+            for (int dz = -8; dz <= 8; dz++) {
+                toWorld.getOrGenerate(new net.zaminmc.torch.block.ChunkPosition(
+                        centerChunkX + dx, centerChunkZ + dz));
+            }
+        }
+        // The destination-side portal walk (PlayerManager lines 491-496):
+        // the forcer's find-or-build placement inside the frame.
+        PortalForcer forcer = to == -1 ? netherPortalForcer : worldPortalForcer;
+        PortalForcer.Arrival arrival = forcer.onDimensionChanged(
+                destX + 0.5, y, destZ + 0.5, yaw, velocityX, velocityZ, memory);
+        return new MobManager.DimensionCrossing.Crossing(to, arrival);
     }
 
     private void publishDimensionChanged(PlayerSession player, Position destination, int dimension) {
