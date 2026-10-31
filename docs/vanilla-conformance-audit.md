@@ -1070,13 +1070,18 @@ COMPLETE from this stream; #102's coverage CONFIRMED.**
 
 The pass's independent angle (the reference's synchronous
 neighbor-update path — World.removeBlock's flags-3 walk) surfaced the
-adjacent discovery **VT-009**: vanilla's BedBlock/DoorBlock
-neighborChanged carry the multi-part pair-integrity arms (an orphaned
-half self-removes; the foot's departure DROPS the bed item) that run
-from ANY sibling removal path — the engine's update queue carries NO
-bed arm and NO door arm, so a blast clipping exactly one half leaves
-the survivor FLOATING where vanilla clears it. Source pass complete;
-the behavioral seat owed.
+adjacent discovery **VT-009**: vanilla's BedBlock.neighborChanged
+carries the pair-integrity arm (an orphaned half self-removes; the
+foot's departure DROPS the bed item) that runs from ANY sibling
+removal path — the engine carries NO bed arm anywhere, so a clipped
+half leaves the survivor FLOATING where vanilla clears it. The
+behavioral seats ran the same run: the two BED seats RED on the
+unguarded tree BY CONTRACT (`MultiPartPairIntegrityDiscoveryTest`),
+the DOOR seat GREEN — refuting the door half of the first hypothesis
+(the compensating path: `RedstoneSystem.doorNeighborChanged`,
+DoorBlock lines 157-198, 1:1) and riding on as the regression guard.
+VT-009 stands UNDER VERIFICATION: the bed half's source + behavioral
+passes done, the independent pass owed.
 
 ## The twenty-sixth pass — the explosion-path dimension audit (the queue's named head): VT-007 discovered, the bed's blast arm discovered (VT-008)
 
@@ -1522,13 +1527,23 @@ effective law for the vanilla dimensions).
   surfaced the adjacent VT-009 (the multi-part families'
   neighbor-changed pair-integrity arms absent — see below).
 
-## VT-009 — the multi-part blocks' neighbor-changed pair-integrity arm is absent: a clipped bed half or door half FLOATS where vanilla removes it (SUSPECTED — one source pass)
+## VT-009 — the BED family's neighbor-changed pair-integrity arm is absent: a clipped bed half FLOATS where vanilla removes it (UNDER VERIFICATION — the source pass + the behavioral seats done; the DOOR half of the original hypothesis REJECTED)
 
-**Subsystem:** block updates / the multi-part families (bed, door)
+**Subsystem:** block updates / the bed family
 **Affected version:** the current develop baseline (a95e7ca6) and #102's
 head (3e41cf7b) alike
-**Status:** SUSPECTED — the source pass complete; the behavioral seat
-owed (an explosion clipping exactly one half); the independent pass owed.
+**Status:** UNDER VERIFICATION — the bed half's source pass and
+behavioral seats complete (the seats RED on the unguarded tree BY
+CONTRACT, `MultiPartPairIntegrityDiscoveryTest`); the independent pass
+owed. THE DOOR HALF IS REJECTED: the pass's first door seat PASSED on
+the unguarded tree and the source hunt found the compensating path —
+`RedstoneSystem.doorNeighborChanged` (DoorBlock.neighborChanged lines
+157-198, 1:1: the orphaned upper removes itself silently, the lower's
+floor-support failure pops the pair with the item, the signal edge
+flips POWERED/OPEN). The original hypothesis's "no door arm" was an
+artifact of censusing only `BlockUpdateSystem.runUpdate` — the
+neighborChanged surface is SPLIT across the update queue AND the
+redstone system's own dispatch; the census method is the lesson.
 
 ### The reference's law (BedBlock.neighborChanged lines 109-121 + DoorBlock.neighborChanged lines 45-80)
 
@@ -1547,18 +1562,19 @@ onBlockChanged → updateNeighbors → the six neighbors' neighborChanged).
 `BlockUpdateSystem.runUpdate` — the scheduled neighbor-update drain —
 carries the arms for the torch, the standing/wall signs, the rail
 families, the vine, the banners, the carpets, the cocoa, the lily (and
-the gravity families through the fall seam) — but NO bed arm and NO
-door arm. The bed pair's integrity rides the BREAK walk alone
-(`bedSiblingCleanup` — one half MINED takes the sibling with no drop)
-and the wrong-world blast arm (#102's `detonateBedOnTick` removes both
-halves directly); the door pair rides `doorSiblingCleanup` (the break
-walk) with the redstone arm through the redstone system. A NON-BREAK
-removal of one half (an explosion whose ray fan happens to take exactly
-one cell of the pair, a fluid wash, a piston) leaves the surviving half
-STANDING in the engine — vanilla clears it (and the foot's departure
-drops a bed item). The blast's cell commits DO wake the six neighbors
-(the update queue's listener fires on every setBlock) — the wake lands
-but no arm runs for the bed/door families.
+the gravity families through the fall seam) — but NO bed arm; the
+redstone system's own neighbor-changed dispatch carries the door, the
+plates, the gates, the trapdoors, the rails' signal arm — but NO bed
+arm either (the bed is no redstone component). The bed pair's integrity
+rides the BREAK walk alone (`bedSiblingCleanup` — one half MINED takes
+the sibling with no drop) and the wrong-world blast arm (#102's
+`detonateBedOnTick` removes both halves directly). A NON-BREAK removal
+of one half (an explosion whose ray fan happens to take exactly one
+cell of the pair, a fluid wash, a piston, a plugin write) leaves the
+surviving half STANDING in the engine — vanilla clears it (and the
+foot's departure drops a bed item). The removal's commit DOES wake the
+six neighbors (the update queue's listener fires on every setBlock) —
+the wake lands but no arm runs for the bed family.
 
 ### The drop-law note (the mining path — NOT a defect)
 
@@ -1573,29 +1589,56 @@ engine 1 bed), but the orphan head itself is this finding's subject.
 
 ### The proposed minimal correction
 
-Two family arms in `BlockUpdateSystem.runUpdate`: the bed arm (a half
+One family arm in `BlockUpdateSystem.runUpdate`: the bed arm (a half
 whose adjacent opposite-class sibling is gone removes itself, the FOOT
-arm dropping the bed item per the reference's line 118) and the door
-arm (the pair-integrity + the floor-support laws of DoorBlock
-lines 45-80). Both need the pair-resolution conventions the engine
-already carries (`bedHeadCell`/`bedSiblingCleanup`'s class-adjacency,
-`WoodDoorFamily`'s upper/lower split).
+arm dropping the bed item per the reference's line 118), using the
+pair-resolution convention the engine already carries
+(`bedHeadCell`/`bedSiblingCleanup`'s class-adjacency). The door family
+needs nothing — its arm lives in the redstone system.
 
 ### Verification pass history
 
 - **Pass 1 (source, the twenty-seventh pass, 2026-10-31):** the
   reference's BedBlock.neighborChanged (lines 109-121) and
-  DoorBlock.neighborChanged (lines 45-80) read in full; the engine's
+  DoorBlock.neighborChanged (lines 157-198) read in full; the engine's
   update queue censused (runUpdate's family arms enumerated — no bed,
-  no door); the break-walk pair cleanups and #102's blast arm read
-  (the only bed pair-integrity sites); the 47-block neighborChanged
-  override census bounded (the engine's covered subset vs the
-  bed/door gaps). CONCLUSION: the arms are absent at the source
-  level; the wake fires (the queue's listener) but no arm runs.
-- Pass 2 (behavioral): owed — the seat: a bed pair (and a door pair)
-  where a blast's ray fan takes exactly one half, asserting the
-  survivor self-removes (and the foot's bed-item drop lands).
-- Pass 3 (independent): owed.
+  no door THERE); the break-walk pair cleanups and #102's blast arm
+  read (the only bed pair-integrity sites); the 47-block
+  neighborChanged override census bounded. CONCLUSION (as first
+  stated): both arms absent — INCORRECT for the door half, see pass 2.
+- **Pass 2 (behavioral, the twenty-seventh pass, 2026-10-31):**
+  `MultiPartPairIntegrityDiscoveryTest` — the seats drive the trigger
+  through the engine's own commit wire (`world.setBlock` on the tick
+  thread; the §466 listener wakes the six neighbors exactly as any
+  removal path does):
+  - THE BED SELF-REMOVAL SEAT: the head removed; the foot must leave —
+    RED on the unguarded tree at exactly the predicted await (the foot
+    FLOATS). The gap confirmed behaviorally.
+  - THE BED ITEM DROP SEAT: the foot's departure must drop the bed
+    item (line 118) — RED on the unguarded tree (nothing drops; the
+    survivor is mined later for its behavior-row drop instead).
+  - THE DOOR SEAT (originally the third discovery seat): the orphaned
+    door upper self-removes — PASSED on the unguarded tree, which
+    REFUTED the door half of the hypothesis. The follow-up scratch
+    probe (never committed) pinned the timeline (the upper gone within
+    5 ticks of the lower's removal) and the source hunt found the
+    compensating path: `RedstoneSystem.doorNeighborChanged`
+    (DoorBlock lines 157-198, 1:1). THE DOOR HALF REJECTED — and the
+    seat rides on as the regression guard (the bed correction must not
+    touch the door's law).
+  CONCLUSION: the BED family's arm is absent (two RED seats, the
+  source census, the compensating hunt's negative result); the DOOR
+  family's arm exists (one green seat + the named compensating path).
+- Pass 3 (independent): owed — the edges to challenge: the OTHER
+  non-break removal paths (a blast's probabilistic ray fan clipping
+  exactly one half — the seat uses the deterministic plugin-write
+  trigger; a fluid wash; a piston), the orphan-direction pair (the
+  FOOT removed → the HEAD must self-remove with NO drop — vanilla's
+  HEAD arm drops nothing, the FOOT arm alone drops), the
+  placement-surface impossibility of orphans (self-inflicted orphans
+  need a non-break path by construction), and the regression risk of
+  the arm's placement in the update queue (the wake coalescing's
+  addressee pin).
 
 ## Coverage ledger (updated by the twenty-seventh pass)
 
@@ -1613,7 +1656,7 @@ already carries (`bedHeadCell`/`bedSiblingCleanup`'s class-adjacency,
 | Portal mechanics (flag1, forcer) | landed by FL4-F1; not re-audited — the stand clock's re-fire law is VT-004 (CONFIRMED, three passes; the correction is **PR #91 OPEN**; the seat PortalRefireDiscoveryTest rides green on the fix branch) |
 | Portal mechanics — the non-player crossing (the entity-level arm) | the MOBS family LANDED by **PR #98** (VT-006's correction: the entity-level crossing service + the mobs family — the gated collision, the threshold-0 clock, the 300 cooldown with the re-arm pin, the 8:1 walk, the forcer's placement, the stamp swap, the per-dimension wire; `PortalMobCrossingDiscoveryTest` 3/0 with the cooldown and riding-gate pins). The REMAINING families (items, orbs, boats, carts, arrows) ride the `DimensionCrossing` seam in their own passes — the behavioral seats authored (RED on develop BY CONTRACT, the twenty-fifth pass); the TNT and falling families excluded by the census; the End-origin arm is the named tail |
 | Bed use — the out-of-dimension blast arm | RESOLVED-BY-COVERAGE-CONFIRMATION (the twenty-seventh pass): VT-008's three passes complete from this stream — the behavioral seats GREEN on **PR #102's tree** (power 5 / dimension -1 and 1 / the epicenter pins / FIRE / no sleep / no spawn / the overworld control) and RED on develop at the predicted awaits; the independent pass re-ran the neighboring lanes and challenged the adaptation notes (the 4-neighbor pair removal vs the reference's FACING-opposite — the engine's own break-walk convention, observably equivalent; the foot's bed-item drop dying in the same-tick blast). **PR #102's coverage CONFIRMED** — awaiting the maintainer's merge |
-| Block updates — the multi-part families' pair-integrity arms (bed, door) | AUDITED this pass (the twenty-seventh): vanilla's BedBlock/DoorBlock neighborChanged self-removal arms absent from the engine's update queue — a clipped half FLOATS where vanilla clears it (**VT-009 SUSPECTED** — one source pass; the behavioral seat owed) |
+| Block updates — the multi-part families' pair-integrity arms | the BED family's neighborChanged self-removal arm absent anywhere in the engine — a clipped half FLOATS where vanilla clears it (**VT-009 UNDER VERIFICATION**: the source pass + the two RED behavioral seats done; the independent pass owed). The DOOR family's arm EXISTS (`RedstoneSystem.doorNeighborChanged`, DoorBlock lines 157-198 — the door half of the first hypothesis REJECTED by its own green seat, now the regression guard) |
 | Portal mechanics — the riding gate (vehicle == null && rider == null) | VT-005 CONFIRMED (three passes — source, the pig-in-portal behavioral seat, the dismount-control independent pass; the correction rides `fix/portal-riding-gate-parity-audit`, PR #94) |
 | Drops — the TF-9 dimension stamp | LANDED by PR #90 (the dig/place walks stamp `world.dimension()`; the tile-family spill sites remain the per-dimension tile tail) |
 | Tile families — per-dimension stores | NOT INSPECTED as its own pass (the PR #90 ledger: the furnace/chest/skull/banner spill + cleanup ride the single-instance managers — the FL4 fluids/fire precedent applies; the nether tile placement/cleanup is its own architectural pass) |
@@ -1631,12 +1674,14 @@ already carries (`bedHeadCell`/`bedSiblingCleanup`'s class-adjacency,
    coverage CONFIRMED — the seats `BedWrongWorldNightWalkVerificationTest`
    3/0 GREEN on #102's tree riding `audit/verifier-pass-27-bed-coverage`,
    RED on develop at the predicted awaits; the neighboring bed/sleep
-   lanes independently re-run green). **VT-009's passes are the next
-   run's head**: the behavioral seat (a blast clipping exactly one bed
-   half — the survivor must self-remove; the foot's bed-item drop) and
-   the independent pass (the door family's floor-support arm, the
-   piston/wash removal paths, the compensating census — does any other
-   engine path clean the orphan halves?).
+   lanes independently re-run green). **VT-009's independent pass is
+   the next run's head** (the behavioral seats are done: the two BED
+   seats RED on the unguarded tree, the DOOR seat green — its half
+   REJECTED with the compensating path named): the edges to challenge —
+   the other non-break removal paths (the blast's ray fan, the fluid
+   wash, the piston), the orphan-direction pair (the FOOT removed →
+   the HEAD self-removes with NO drop), and the update queue's addressee
+   pin. A confirmed bed arm then takes its own fix branch.
 1. ~~The VT-003 fix branch~~ — LANDED (PR #89, `IceFamilyParityTest` 11/0,
    the stash verification).
 2. ~~The VT-001 fix branch~~ — LANDED (Wave FL4-F2 on develop, the fire
