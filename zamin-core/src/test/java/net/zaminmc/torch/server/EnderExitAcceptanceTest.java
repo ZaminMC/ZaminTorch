@@ -79,14 +79,23 @@ class EnderExitAcceptanceTest {
 
             // The exit fountain's cell in the End: the body stands on the
             // end_portal block the dragon's death walk wrote (the feet
-            // cell IS the portal cell — the collision read).
+            // cell IS the portal cell — the collision read). The cell
+            // carries the fountain's own SUPPORT below it (the reference's
+            // bedrock structure): a bare portal cell leaves the body
+            // falling through the whole credits window, and the island
+            // landing's fall debt eats a health point under a loaded
+            // runner (run 562's 13.0 -> 12.0) — the carried-body pin
+            // reads the exit's own law, not the fall's.
             vanquisher.applyDimensionArrival(1, new Position(0.5, 64.0, 0.5), 90.0f, 0.0f);
             EngineWorld endWorld = server.worldFor(1);
             server.ticker().submit(() -> {
                 var endPortal = server.blockRegistry().require(
                         net.zaminmc.torch.util.Identifier.parse("minecraft:end_portal"));
+                var bedrock = server.blockRegistry().require(
+                        net.zaminmc.torch.util.Identifier.parse("minecraft:bedrock"));
                 endWorld.getOrGenerate(new net.zaminmc.torch.block.ChunkPosition(0, 0));
                 endWorld.setBlock(new net.zaminmc.torch.block.BlockPosition(0, 64, 0), endPortal);
+                endWorld.setBlock(new net.zaminmc.torch.block.BlockPosition(0, 63, 0), bedrock);
             });
 
             // The walk: standing on the exit cell arms the credits state and

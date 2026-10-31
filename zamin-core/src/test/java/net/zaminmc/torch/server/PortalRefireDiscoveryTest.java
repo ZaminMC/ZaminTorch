@@ -29,7 +29,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * the twenty-second pass): the portal stand clock's re-fire law.
  *
  * <p>THE REFERENCE LAW (reference/1.8.8 entity/Entity.java): {@code
- * onPortalCollision} (lines 1426-1454) consults the cooldown FIRST — the
+ * onPortalCollision} (lines 1426-1455) consults the cooldown FIRST — the
  * cooldown RE-ARMS on every collision tick while cooling, and {@code
  * inPortal} is armed ONLY when the cooldown is expired; the stand walk
  * ({@code baseTick} lines 284-313) accumulates {@code portalTime++} only
@@ -38,21 +38,24 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * player's 10, PlayerEntity line 315) and the clock decays. The return
  * requires leaving the cells and re-entering after the cooldown expires.</p>
  *
- * <p>THE ENGINE'S SHAPE (PlayerSession.advancePortalClock lines 782-805):
- * the crossing gate is {@code old = portalTime++; if (old >= max)} with NO
- * cooldown consult, and the stand clock is never reset across the dimension
- * change — it stays clamped at 80 after a crossing. A body whose arrival
- * lands inside the destination frame's portal cells re-fires the crossing
- * on the very next touching tick.</p>
+ * <p>THE ENGINE'S CORRECTED SHAPE (PlayerSession.advancePortalClock, the
+ * VT-004 correction): the per-tick order is the reference's own — the
+ * cooldown decrement, then the collision consult (the re-arm on EVERY
+ * touching tick while cooling; the stand armed only when expired), then
+ * the consumption (the crossing on the armed stand alone; the decay
+ * otherwise). The pre-fix engine gated the crossing on {@code portalTime}
+ * alone with an entry-edge-only re-arm, so an in-cells arrival re-fired
+ * the crossing every tick — the every-tick dimension ping-pong the
+ * twenty-second pass recorded.</p>
  *
  * <p>THE SEAT: the nether frame at the crossing's scaled destination is
  * PRE-BUILT so the forcer's arrival lands deterministically inside its
  * cells; the body crosses, NEVER moves again, and the dimension is sampled
  * every 2 ticks for a 120-tick window (past every cooldown window). The
  * reference law: the dimension NEVER leaves -1 while the body stands in
- * the cells. This seat is EXPECTED RED on develop until VT-004's
- * correction lands. Do not re-pin it to the engine's current answer; the
- * finding record owns the mismatch.</p>
+ * the cells. This seat was RED on develop until VT-004's correction
+ * landed; it is the regression guard for the re-fire law now. Do not
+ * re-pin it away from the reference's law.</p>
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class PortalRefireDiscoveryTest {
@@ -183,10 +186,8 @@ class PortalRefireDiscoveryTest {
         // player override 10, and margin). THE REFERENCE LAW: the
         // collision re-arms the cooldown every tick while the body stands
         // in the cells, so the crossing NEVER re-fires — the dimension
-        // holds -1 for the whole window. THE ENGINE'S SHAPE: the stand
-        // clock carried its max across the crossing and the crossing gate
-        // consults no cooldown, so the dimension flips to 0 within ticks
-        // of the arrival.
+        // holds -1 for the whole window (the corrected engine answers the
+        // same law: the cooldown pins at 10 and the clock decays to 0).
         StringBuilder timeline = new StringBuilder();
         for (int sample = 0; sample < 60; sample++) {
             EngineAwaits.awaitTicks(server.world(), 2, "the stand window advances");
