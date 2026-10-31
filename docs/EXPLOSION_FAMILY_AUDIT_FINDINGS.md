@@ -1014,3 +1014,203 @@ while tracing F-EX8's call site; three-pass verified whole.
   dimension field) and the skull family's summon path (the overworld
   `SkullManager.Host` consults — a wither BUILT in the nether needs the
   family's own routing pass first).
+
+## F-EX6 — VERIFIED and FIXED (the 2026-10-31 session, this branch): the wrong-world bed's blast arm
+
+**Status: fix-ready → PR opened (this branch, stacked on the F-EX4 fire
+arm's PR #92 — merge #92 first).** The twenty-first pass's candidate,
+three-pass verified this session.
+
+- **Subsystem:** the bed's use dispatch (the sleep gate's else arm).
+- **Affected engine files:** `EngineServer.useBlockArmOnTick` (the bed
+  arm's gate + the head normalization), the NEW `detonateBedOnTick` +
+  `bedHeadCellIn` (the pair walk and the blast), `BED_BLAST_POWER`.
+- **Reference:** `BedBlock.use` lines 38-79 WHOLE — the head
+  normalization (lines 38-43, the foot redirect with the orphan-foot
+  early return), the gate (line 48: `world.dimension.hasSpawnPoint() &&
+  world.getBiome(pos) != Biome.HELL`), and the else arm (lines 68-79:
+  the head's `removeBlock`, the sibling foot's `removeBlock` when it
+  stands, and `world.explode(null, pos.getX() + 0.5, ..., 5.0F, true,
+  true)`).
+- **Expected behavior:** a bed clicked in the NETHER or the END (both
+  answer `hasSpawnPoint()` false — NetherDimension line 55,
+  TheEndDimension line 54; the overworld's base Dimension line 130
+  answers true) EXPLODES: the pair leaves whole and the power-5
+  always-fire blast tears the ACTING world at the head's center.
+  createFire is ALWAYS true (the only unconditional fire site in the
+  reference's call census — PR #92's own comment names the bed as its
+  prepared row), destructive is ALWAYS true (never the mobGriefing
+  consult), the source is null.
+- **Observed behavior (pre-fix):** the engine routed every bed use
+  straight to `sleepOnTick` — NO dimension gate, NO pair removal, NO
+  blast: a nether bed click read the OVERWORLD's clock and tried the
+  ordinary sleep walk (and could SET A BED SPAWN there).
+- **The exact divergence:** the whole else arm was missing.
+- **Reproduction:** `BedWrongWorldBlastAcceptanceTest` (NEW, 3 seats)
+  over the REAL use wire (`useItemOnBlock` → the bed dispatch arm).
+- **The three-pass record:**
+  1. **Source:** the reference's use chain read whole with the three
+     dimension classes' `hasSpawnPoint` rows verified directly; the
+     parameter mapping against `World.explode`'s overloads (the 6th
+     createFire, the 7th destructive); the engine's `sleepOnTick`
+     re-read (no gate anywhere).
+  2. **Behavioral:** the stash discrimination — the core seat FAILED
+     UNFIXED at exactly the predicted await ("the wrong-world bed's
+     pair left whole" — the sleep walk ran instead); the overworld
+     guard and the orphan-foot guard passed BOTH trees; FIXED 3/3
+     green with the power pin (5.0F), the dimension pin (-1), the
+     overworld-marker survival, the no-sleep pin, and the FIRE-in-the-
+     crater pin (the always-true createFire row over the F-EX4 arm).
+  3. **Independent:** the gate's exact form (the BIOME arm added —
+     `biomeAt` answers "hell" for the HELL row, the anvil import's
+     custom-map edge; the engine's own generators never place hell
+     columns in the overworld, so the arm's seat would need a custom
+     import fixture — recorded as the verification limitation, the arm
+     itself source-verified); the removal ORDER (the head, the
+     sibling, THEN the blast — the reference's own sequence); the
+     orphan-foot early return (use lines 40-43 — the null-head path,
+     its own guard seat); the End's coverage (dimension 1 answers
+     false — the gate's form covers it); the compensating census (no
+     other nether-bed handling exists); the regression lanes below.
+- **The fix:** the bed dispatch normalizes the head over the ACTING
+  world (the new `bedHeadCellIn`), gates on `session.dimension() == 0 &&
+  !"hell".equals(world.biomeAt(bedHead))`, and routes the else arm to
+  `detonateBedOnTick` (the pair walk + the power-5 fire blast through
+  the engine's own `detonateAtIn`, the F-EX11 routing form — the blast
+  ranges the player's own dimension).
+- **Regression risk:** low — the overworld sleep arm is untouched (the
+  guard seat + the sleep lanes); the lanes verified green:
+  MultiplayerSleep 3/0, Sleep 1/0, ExplosionFireArm 4/0 (F-EX4's own
+  seats — the fire arm this blast uses), ExplosionEntityGather 8/0,
+  CreeperRows 3/0, WitherBoss 8/0, NetherDimension 5/0,
+  NetherTntRouting 1/0, FireBlocks 14/0, ExplosionSleepingEyeFrame
+  2/0, the new trio 3/0.
+- **Dependency:** STACKED ON PR #92 (the F-EX4 fire arm — the
+  `createFire` parameter this blast passes true). Merge #92 first;
+  this PR's own delta is the bed arm alone.
+
+## F-EX9 — VERIFIED and FIXED (the 2026-10-31 session, this branch): the ghast fireball's flight constants
+
+**Status: fix-ready → PR opened (this branch).** The twenty-first pass's
+candidate, refined and three-pass verified this session: BOTH constants
+were wrong, not just the gravity the candidate named.
+
+- **Subsystem:** the projectile family's flight constants (the ghast
+  fireball's drag and gravity rows).
+- **Affected engine files:** `ProjectileManager.gravityOf` /
+  `ProjectileManager.dragOf` (the LARGE_FIREBALL rows).
+- **Reference:** `FireballEntity` line 9 — `extends ProjectileEntity`
+  DIRECTLY (not `ThrownEntity`); `ProjectileEntity.tick` lines 186-191 —
+  `velocity += acceleration; velocity *= getDrag()` with NO gravity term
+  (the class has no gravity anywhere); `getDrag` line 203 — `0.95F`; the
+  gravity walk lives in `ThrownEntity.tick` line 240 (`velocityY -=
+  getGravity()`) behind the throwable family's five subclasses (Snowball,
+  Potion, EnderPearl, Egg, ExperienceBottle) alone.
+- **Expected behavior:** the ghast fireball converges on the base walk's
+  terminal speed `a*drag/(1-drag) = 0.1*0.95/0.05 = 1.9` blocks a tick
+  and NEVER falls under gravity — launched or restored.
+- **Observed behavior (pre-fix):** `gravityOf(LARGE_FIREBALL)` answered
+  `THROWABLE_GRAVITY` (0.03) and `dragOf(LARGE_FIREBALL)` answered `DRAG`
+  (0.99) — the exclusion lists covered SMALL_FIREBALL and WITHER_SKULL
+  alone. TWO live divergences: (1) the DRAG row on EVERY launch — the
+  terminal walk ran to `0.1*0.99/0.01 = 9.9` blocks a tick, a FIVE-TIMES
+  overshoot (the measured pre-fix speed at tick 60: 4.483); (2) the
+  GRAVITY row on the RESTORED path — the anvil import's zero-acceleration
+  load shape (the reference's writeNbt never saves the acceleration
+  fields) fell under the arm the launch path's acceleration masks, a
+  restored straight shot drooping to y=78.3 from y=100 over 40 ticks.
+- **The exact divergence:** two kind-exclusion lists that enumerate the
+  fireball family incompletely — the enumeration-omission class again
+  (the engine's own tick-walk comment says "The fireball family rides its
+  own constants: drag 0.95, no gravity": the INTENT covered the family,
+  the lists covered two of its three members).
+- **Reproduction:** `GhastFireballFlightParityTest` (NEW, 2 seats) — the
+  drag seat (the launched fireball's terminal walk, 60 ticks, the speed
+  bound) and the gravity seat (the restored straight shot's level
+  flight).
+- **The three-pass record:**
+  1. **Source:** the reference's inheritance chain read directly
+     (FireballEntity → ProjectileEntity, the constructor's
+     acceleration-at-rest shape, getDrag 0.95, the ThrownEntity-only
+     gravity); the engine's two exclusion lists and the integrate walk's
+     zero-acceleration gravity gate traced.
+  2. **Behavioral:** the stash discrimination — BOTH seats FAILED
+     UNFIXED at EXACTLY the predicted values (the speed 4.483 — the
+     0.99-drag walk's tick-60 point; the restored y=78.3 — the 0.03
+     gravity's 40-tick droop) and run 2/0 green FIXED.
+  3. **Independent:** the intentionality challenge (the engine's own
+     comments state the family-wide intent the lists missed); the
+     masking analysis (the launch path's acceleration hides the gravity
+     row — the restore path is its only live site); the terminal
+     derivation (1.9 = the reference's own arithmetic); the
+     compensating-behavior census (no velocity cap exists); the
+     regression lanes below.
+- **The fix:** LARGE_FIREBALL joins the zero-gravity set and the
+  FIREBALL_DRAG set — two exclusion-list entries, nothing else.
+- **Regression risk:** low — the arrow/potion/bottle/snowball rows are
+  untouched, the skull family untouched; the lanes verified green: the
+  projectile package whole (ArrowPickup 8, BowFamily 6,
+  FireballDeflection 5, FireworksAndBottle 6, ProjectileDimensionReads
+  5, ProjectileManager 11, WitherSkull 4, the new pair 2),
+  NetherMonster 4/0 (the ghast's own family), the spawnRestored users
+  (PistonEntityPush 11, HopperSuckBand 5, ExplosionEntityGather 8,
+  ItemDimensionReads 6).
+- **Interaction noted:** PR #100's nether fireball seat launches ghast
+  fireballs — the corrected drag slows their arrival (the terminal 1.9
+  vs the pre-fix 9.9) well inside the seat's 120-tick budget; the seat
+  stays green on the union tree.
+
+## F-EX13 — VERIFIED and FIXED (the 2026-10-31 session, this branch): the blast's player wound walk reads the per-world entity list
+
+**Status: fix-ready → PR opened (this branch).** Discovered this session
+while auditing F-EX6's blast path; three-pass verified.
+
+- **Subsystem:** the generalized detonation walk's PLAYER wound arm.
+- **Affected engine files:** `EngineServer.woundPlayersFromBlast` (the
+  missing dimension gate at the loop top).
+- **Reference:** `Explosion.damageEntities` line 115 —
+  `List<Entity> list = this.world.getEntities(this.source, box)` — the
+  blast's OWN world's chunk-walk gather (World.getEntities lines
+  2153-2164 walk `this` world's chunks alone); a body in another
+  dimension is STRUCTURALLY ABSENT from the list. Every wounded body —
+  players and mobs alike — comes from the blast's own world.
+- **Expected behavior:** a blast wounds only the players standing in ITS
+  OWN dimension.
+- **Observed behavior (pre-fix):** the engine's player walk iterated the
+  GLOBAL session list with NO dimension gate — a blast at one
+  dimension's coordinates wounded a player standing at the SAME
+  coordinates in ANOTHER dimension: the wound, the knockback, and the
+  packet's motion row all crossed the world boundary.
+- **The exact divergence:** one missing gate — the same one every other
+  cross-dimension wound walk already carries (the mobs'
+  `mob.dimension() != dimension`, the items', the orbs', the
+  projectiles', the armor stands', the fireworks'; the
+  single-dimension families gate on their own dimension — the vehicles
+  and decorations overworld-only, the crystals End-only; the primed TNT
+  pre-filters at the gather). The PLAYERS' walk alone iterated a
+  cross-dimension-populated store ungated.
+- **Reproduction:** `BlastPlayerWoundDimensionGateTest` (NEW, 1 seat)
+  over the REAL creeper detonation wire — two players at the SAME cell,
+  one overworld, one NETHER; the overworld creeper's blast wounds the
+  overworld body alone.
+- **The three-pass record:**
+  1. **Source:** the reference's gather chain read (damageEntities →
+     world.getEntities → the per-world chunk walk); the engine's
+     asymmetry traced (the mob walk's filter beside the player walk's
+     absence).
+  2. **Behavioral:** the stash discrimination — the seat FAILED UNFIXED
+     with the nether body at **0.5 health** (the point-blank overworld
+     blast's near-lethal cross-dimension wound) and runs 1/0 green
+     FIXED (the overworld body wounded, the nether body untouched at
+     20.0).
+  3. **Independent:** the complete wound-walk census (all ELEVEN walks
+     surveyed — every other walk already carries its gate); the
+     overworld-path identity (dimension-0 players in dimension-0 blasts
+     — unchanged, the lanes confirm); the sleeping eye-frame motion
+     pins unaffected; the regression lanes below.
+- **The fix:** the one-line gate — `player.dimension() != dimension →
+  continue` — with the reference's own citation.
+- **Regression risk:** minimal — a single consult gate; the lanes
+  verified green: ExplosionSleepingEyeFrame 2/0 (the player motion
+  pins), ExplosionEntityGather 8/0, CreeperRows 3/0, MultiplayerSleep
+  3/0, NetherTntRouting 1/0, WitherBoss 8/0, the new seat 1/0.

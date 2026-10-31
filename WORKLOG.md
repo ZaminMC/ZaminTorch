@@ -19445,3 +19445,86 @@ Agent: main (ZaminTorch session)
 
 Next: Wave FL4-F10's implementation exactly per the ledger row; watch
 runs 563+ (the merge pushes); the watch list's three members.
+
+
+## 2026-10-31 — the blast family's five-PR session (F-EX8, F-EX11+F-EX12, F-EX9, F-EX6, F-EX13)
+
+Task ID: session-2026-10-31-blast-family (the explosion queue's live heads
+retired whole)
+Agent: main (ZaminTorch session)
+
+Work Log:
+- F-EX8 RESOLVED (PR #99): the wither birth blast's destructive flag —
+  the engine hardcoded false whole where the reference's line 217 reads
+  mobGriefing (the seventh argument; the five-arg overload the creeper
+  rides confirms the flag position). The stash discrimination over the
+  REAL summon wire (a wither spawned onto a stone platform, the 220-tick
+  blue window on the engine's clock): the core seat FAILED UNFIXED at
+  exactly the predicted await (the platform never tore under the default
+  rules) while the guard seat (the rule off) passed on BOTH trees
+  proving the event wire fires identically; FIXED 2/0. WitherBirth
+  GriefingParityAcceptanceTest NEW.
+- F-EX11 + F-EX12 RESOLVED (PR #100): the blast walk's remaining
+  dimension routing — FL4-F7's form completed over the call sites it
+  never reached. detonateAtFromMob (the creeper's AND the wither birth's
+  shared helper) hardcoded the overworld triple: a NETHER creeper's
+  blast flew its rays through the OVERWORLD's same-coordinate cells; the
+  projectile explosion sinks routed the blast WORLD per dimension but
+  passed the OVERWORLD's explosionService (the service whose ray fan
+  reads and commits its OWN bound world) — a nether ghast fireball's
+  blast wounded nether bodies yet never tore the nether, exactly FL4-F7's
+  pre-fix TNT signature; the walk's drop roll compounded it (the
+  three-arg spawn stamping the drops into the overworld). The root:
+  explosionServiceFor(dimension) was consulted at ONE site engine-wide
+  — the enumeration-omission class. NetherBlastRoutingAcceptanceTest NEW
+  (2 seats, both failing unfixed at exactly the predicted awaits, the
+  event-dimension pins and the marker-survival guards green fixed).
+- F-EX9 RESOLVED (PR #101): the ghast fireball's flight constants — BOTH
+  rows wrong, not just the gravity the candidate named. FireballEntity
+  extends ProjectileEntity DIRECTLY (not ThrownEntity): the base walk
+  carries NO gravity and getDrag 0.95. The engine answered
+  THROWABLE_GRAVITY 0.03 and DRAG 0.99 — the exclusion lists covered
+  SMALL_FIREBALL and WITHER_SKULL alone. TWO live divergences: the drag
+  on EVERY launch (the terminal walk ran to 9.9 blocks a tick, a
+  FIVE-TIMES overshoot of vanilla's 1.9 — the measured pre-fix speed at
+  tick 60: 4.483) and the gravity on the RESTORED path (the anvil
+  import's zero-acceleration load shape — a restored straight shot
+  drooped to y=78.3 from 100 over 40 ticks).
+  GhastFireballFlightParityTest NEW (both seats failing unfixed at
+  exactly the predicted values).
+- F-EX6 RESOLVED (PR #102, STACKED ON #92): the wrong-world bed's blast
+  arm — the engine routed every bed use straight to sleepOnTick (a nether
+  bed click read the OVERWORLD's clock and tried to sleep). The
+  reference's whole use chain landed: the head normalization (the new
+  bedHeadCellIn, the orphan-foot early return), the gate (dimension
+  hasSpawnPoint false in the nether/End + the Hell-biome arm — biomeAt
+  answers "hell"), and the else arm (the pair walk + the power-5
+  always-fire blast through detonateAtIn, the F-EX11 routing form).
+  BedWrongWorldBlastAcceptanceTest NEW (3 seats: the core failing
+  unfixed at exactly the predicted await, the overworld guard, the
+  orphan-foot guard).
+- F-EX13 RESOLVED (PR #104): the blast's player wound walk — the ONE
+  wound walk missing its dimension gate (the reference's damageEntities
+  gathers from this.world.getEntities, the blast's OWN world's chunks
+  alone; the engine iterated the global session list — a blast at one
+  dimension's coordinates wounded a player at the SAME coordinates in
+  ANOTHER dimension). The seat failed unfixed with the nether body at
+  0.5 HEALTH (the point-blank overworld blast's near-lethal
+  cross-dimension wound); fixed, the overworld body alone takes it.
+  BlastPlayerWoundDimensionGateTest NEW.
+
+Stage Summary:
+- Five PRs opened this session (#99, #100, #101, #102 stacked on #92,
+  #104), every finding three-pass verified with the stash discrimination
+  (failing unfixed on exactly the predicted points) before its fix.
+- The regression lanes verified green whole per PR (the wither family,
+  the creeper rows, the explosion family, the projectile package, the
+  vehicle family, the sleep family, the fire family, the nether quartet).
+- The environment's Maven Central rate-limit was routed around with a
+  session-local Gradle init script (Aliyun mirror, OUTSIDE the repo).
+- The queue's live heads after this session: FL4-F10 (the redstone
+  system's world binding — the six-point plan already recorded in
+  Torch-Arcetecture.txt at the Wave FL4-F10 row), the standing
+  architecture tails (the container families' per-dimension stores, the
+  per-dimension fluid sim), and the skull family's summon-path routing
+  (the nether-built wither's prerequisite, named in F-EX6's record).

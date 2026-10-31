@@ -1041,7 +1041,12 @@ public final class ProjectileManager {
         if (projectile.kind() == ProjectileEntity.Kind.WITHER_SKULL) {
             return projectile.charged() ? CHARGED_SKULL_DRAG : FIREBALL_DRAG;
         }
+        // The fireball family rides the BASE walk's own drag (getDrag line
+        // 203: 0.95 — the ghast shot with the small one; the pre-fix row
+        // answered the throwable family's 0.99, a five-times terminal
+        // overshoot).
         return projectile.kind() == ProjectileEntity.Kind.SMALL_FIREBALL
+                || projectile.kind() == ProjectileEntity.Kind.LARGE_FIREBALL
                 ? FIREBALL_DRAG : DRAG;
     }
 
@@ -1056,8 +1061,15 @@ public final class ProjectileManager {
             // line 24: 0.07F).
             return XP_BOTTLE_GRAVITY;
         }
+        // F-EX9: the ghast shot joins the zero-gravity set — FireballEntity
+        // extends ProjectileEntity DIRECTLY (not ThrownEntity), and the base
+        // walk has no gravity term (the throwable family's five subclasses
+        // alone inherit it). The launch path's acceleration masks the row;
+        // the RESTORED fireball (the anvil import's zero-acceleration load
+        // shape) fell under it.
         return kind == ProjectileEntity.Kind.SMALL_FIREBALL
                 || kind == ProjectileEntity.Kind.WITHER_SKULL
+                || kind == ProjectileEntity.Kind.LARGE_FIREBALL
                 ? 0.0 : THROWABLE_GRAVITY;
     }
 
