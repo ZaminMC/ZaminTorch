@@ -118,6 +118,21 @@ public final class ItemEntityManager {
     private net.zaminmc.torch.server.event.EngineEventBus eventBus;
 
     /**
+     * VT-006 — the entity-level crossing service (the reference's
+     * Entity.changeDimension walk, the same seam the mobs' portal arm
+     * rides — declared on the mob manager, the first crossing family);
+     * null until the engine wires it (the unwired boots keep the
+     * no-crossing shape — the seam's own hold).
+     */
+    private volatile MobManager.DimensionCrossing dimensionCrossing;
+
+    /** Wires the crossing service (the engine's own boot). */
+    public void setDimensionCrossing(MobManager.DimensionCrossing dimensionCrossing) {
+        this.dimensionCrossing = java.util.Objects.requireNonNull(
+                dimensionCrossing, "dimensionCrossing");
+    }
+
+    /**
      * Wires the public item-spawn gate: every drop (the block-break
      * loot, the mob deaths, the player throws, the container spills,
      * the dispenser's plain egress) fires the cancellable pre-commit
@@ -266,6 +281,80 @@ public final class ItemEntityManager {
         return entities.size();
     }
 
+    /**
+     * VT-006 — the item family's portal arm (the reference's
+     * Entity.baseTick portal arm, lines 282-313, fed by
+     * PortalBlock.onEntityCollision's gated collision): the collision
+     * consult at the body's bottom cell (an item never rides and never
+     * carries a rider — the gate passes), the entry memory's derive (a
+     * NEW cell re-derives the frame offsets), and the base-entity clock
+     * (the threshold 0, the 300 cooldown). Runs on the flipped shared
+     * ground — the body's own world.
+     *
+     * @return true when the crossing fired (the caller skips the body's
+     *         own walk — the reference's recreated body never runs the
+     *         source tick's remainder)
+     */
+    private boolean tickPortalArm(ItemEntity entity) {
+        Position at = entity.position();
+        int cellX = (int) Math.floor(at.x());
+        // The item's bottom row (the reference's Entity.y is the feet; the
+        // engine's bottom = position.y - HALF_HEIGHT).
+        int cellY = (int) Math.floor(at.y() - ItemEntity.HALF_HEIGHT);
+        int cellZ = (int) Math.floor(at.z());
+        var match = ground.portalFrameAt(cellX, cellY, cellZ);
+        if (match != null) {
+            entity.portalClock().noteEntry(
+                    new net.zaminmc.torch.block.BlockPosition(cellX, cellY, cellZ),
+                    match, at.x(), at.y() - ItemEntity.HALF_HEIGHT, at.z());
+        }
+        if (entity.portalClock().advance(match != null)) {
+            crossItemDimension(entity);
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * VT-006 — the crossing walk (Entity.changeDimension lines
+     * 1695-1730): the old world's destroy fan FIRST (the body still
+     * carries the source dimension — the wire's per-dimension gate sends
+     * the Destroy to the source world's observers alone), then the
+     * service's reposition + the forcer's placement, then the stamp swap
+     * and the new world's spawn fan. The body keeps its engine id and its
+     * whole stack (the reference's copyNbtFrom); the persistence rides
+     * the dimension stamp (the store's own row).
+     */
+    private void crossItemDimension(ItemEntity entity) {
+        MobManager.DimensionCrossing crossing = dimensionCrossing;
+        int from = entity.dimension();
+        if (crossing == null || from == 1) {
+            // The unwired boot (the bare test harnesses) and the
+            // End-origin arm (the reference's else branch reads the
+            // destination's forced-spawn consult, which the engine does
+            // not carry yet — the audit's named tail): the crossing
+            // holds, the cooldown keeps the body from re-firing.
+            return;
+        }
+        Position at = entity.position();
+        for (Listener listener : listeners) {
+            listener.onItemRemoved(entity, "portal");
+        }
+        MobManager.DimensionCrossing.Crossing result = crossing.cross(from,
+                at.x(), at.y(), at.z(), 0.0f,
+                entity.velocityX(), entity.velocityZ(),
+                entity.portalClock().memory());
+        entity.applyDimensionArrival(result.toDimension(),
+                new Position(result.arrival().x(), result.arrival().y(),
+                        result.arrival().z()),
+                result.arrival().velocityX(), result.arrival().velocityZ());
+        for (Listener listener : listeners) {
+            listener.onItemSpawned(entity);
+        }
+        LOGGER.fine(() -> "Item " + entity.entityId() + " crossed to dimension "
+                + result.toDimension());
+    }
+
     /** Advances all item entities one tick: merging, physics, pickup checks, despawn. */
     public void tick(Iterable<PlayerSession> players) {
         mergeNearbyItems();
@@ -298,6 +387,17 @@ public final class ItemEntityManager {
             // nether item lands on the nether's blocks, never on the
             // overworld's same-coordinate terrain.
             ground.setActiveDimension(entity.dimension());
+            // VT-006 — the item family's portal arm (Entity.baseTick
+            // lines 282-313 over ItemEntity.tick line 61's super.tick()
+            // chain, fed by the gated PortalBlock.onEntityCollision): the
+            // collision consult, the entry memory, and the base clock
+            // (the threshold 0, the cooldown 300). A body standing in
+            // portal cells crosses on the FIRST armed tick — before the
+            // physics walk (baseTick precedes it, the crossing consumes
+            // the body's remaining tick).
+            if (tickPortalArm(entity)) {
+                continue;
+            }
             if (entity.tick(ground, random, sounds)) {
                 for (Listener listener : listeners) {
                     listener.onItemMoved(entity);

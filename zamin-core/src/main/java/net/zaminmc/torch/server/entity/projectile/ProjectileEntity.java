@@ -143,6 +143,38 @@ public final class ProjectileEntity implements net.zaminmc.torch.entity.Projecti
         this.dimension = dimension;
     }
 
+    /**
+     * VT-006 — the body's portal clock + entry memory (the reference's
+     * Entity portal fields, lines 128/282-313/1428-1454: the base
+     * threshold 0, the cooldown 300, the frame-offset memory — the arrow
+     * family's own super chain, ArrowEntity.tick line 150). The
+     * manager's portal arm owns it on the tick lane.
+     */
+    private final net.zaminmc.torch.server.world.EntityPortalClock portalClock =
+            new net.zaminmc.torch.server.world.EntityPortalClock();
+
+    /** @return the body's portal clock (the manager's crossing arm). */
+    public net.zaminmc.torch.server.world.EntityPortalClock portalClock() {
+        return portalClock;
+    }
+
+    /**
+     * VT-006 — the crossing's arrival (the reference's
+     * setPositionAndAngles + the world swap over the recreated body's
+     * copyNbtFrom, Entity.changeDimension lines 1708-1722: the kind, the
+     * shooter, the stuck state all carry whole): the dimension stamp, the
+     * forcer's landing, and the quarter-turned motion — the vertical
+     * motion keeps its own row (the reference's rotation matrix touches
+     * the horizontal pair alone).
+     */
+    public void applyDimensionArrival(int dimension, Position arrival,
+                                      double velocityX, double velocityZ) {
+        this.dimension = dimension;
+        teleport(arrival);
+        this.vx = velocityX;
+        this.vz = velocityZ;
+    }
+
     public ProjectileEntity(int entityId, Kind kind, int throwerId,
                             Position position, double vx, double vy, double vz) {
         this.entityId = entityId;
