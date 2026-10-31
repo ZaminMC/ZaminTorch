@@ -125,22 +125,39 @@ class ThornsMobVictimAcceptanceTest {
         // per landed arrow; a killing shot still retaliates through the
         // captured row (the row-8 law), and four attempts push the no-bite
         // odds under one percent.
-        Position anchor = zombie.position();
-        server.teleportPlayer(archer,
-                new Position(anchor.x(), anchor.y() + 2.9, anchor.z()));
-        await(() -> archer.position().y() == anchor.y() + 2.9, "the lift landed");
-        archer.applyMovement(archer.position(),
-                new net.zaminmc.torch.util.Rotation(archer.rotation().yaw(), 90.0f),
-                archer.onGround());
         float archerStart = archer.health();
         boolean proc = false;
         for (int i = 0; i < 4 && !proc && !zombie.dead(); i++) {
+            // The zombie aggros the archer after the first hit (the
+            // revenge goal — the body walks and jumps at the shooter it
+            // cannot reach), so the captured anchor is attempt 0's alone:
+            // every attempt re-anchors the column over the body's LIVE
+            // position (run 561's attempt 1 shot the empty first column
+            // for twenty straight seconds).
+            Position at = zombie.position();
+            server.teleportPlayer(archer,
+                    new Position(at.x(), at.y() + 2.9, at.z()));
+            await(() -> archer.position().y() == at.y() + 2.9,
+                    "the lift " + i + " landed");
+            archer.applyMovement(archer.position(),
+                    new net.zaminmc.torch.util.Rotation(archer.rotation().yaw(), 90.0f),
+                    archer.onGround());
             float mobStart = zombie.health();
+            // The MID draw, pinned at exactly 19 by the freeze (the
+            // RangedCombat seats' own law): a full draw's crit rolls 6..10
+            // damage, and four of those kill the 20-hp zombie by the third
+            // arrow — silently cutting the proc rolls to three (~2.8%
+            // structural failure against the seat's own under-one-percent
+            // four-roll design). The pinned 19 lands a deterministic 6:
+            // three arrows leave the body at 2, all four rolls live.
+            archer.freezeBowChargeForTest();
             archer.beginBowCharge();
-            for (int t = 0; t < 20; t++) {
+            for (int t = 0; t < 19; t++) {
                 archer.advanceBowCharge();
             }
             server.releaseUsingItem(archer);
+            await(() -> !archer.bowCharging(), "the release " + i + " fired");
+            archer.unfreezeBowChargeForTest();
             await(() -> zombie.health() < mobStart || zombie.dead(),
                     "the arrow " + i + " landed on the wearer");
             // The bite poll — the EXPECTED-MISS form (the run #375/#376

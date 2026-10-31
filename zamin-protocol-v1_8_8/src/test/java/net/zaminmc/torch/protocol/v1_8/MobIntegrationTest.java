@@ -2,6 +2,7 @@ package net.zaminmc.torch.protocol.v1_8;
 
 import net.zaminmc.torch.server.entity.MobManager;
 import net.zaminmc.torch.server.player.PlayerSession;
+import net.zaminmc.torch.util.Position;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 
@@ -94,7 +95,15 @@ class MobIntegrationTest extends ProtocolTestBase {
             // first (and again after the pop) — reach is server-validated.
             client.sendChat("/give MobHunter diamond_sword 1");
             client.drainGiveGhostWake(150);
-            client.walkTo(pig[2] / 32.0, pig[3] / 32.0, pig[4] / 32.0, true);
+            // The pig has been wandering since the spawn read (the seat's
+            // own move-wait above proves it moves, and the first hit's
+            // panic sends it fleeing at ~7 blocks a second): each swing
+            // walks to the body's LIVE position — the spawn packet's cell
+            // is stale by then, and the server's reach gate correctly
+            // rejects the swing from afar (run 561's status read timed
+            // out exactly there).
+            Position live = server.mobs().byId(pigId).position();
+            client.walkTo(live.x(), live.y(), live.z(), true);
             client.sendUseEntity(pigId, Protocol18.USE_ENTITY_ATTACK);
             int[] hurt = client.readEntityStatus(15_000);
             assertEquals(pigId, hurt[0]);
@@ -102,7 +111,8 @@ class MobIntegrationTest extends ProtocolTestBase {
             String[] sound = client.readNamedSound(15_000);
             assertEquals("mob.pig.say", sound[0], "the pig's historical hurt sound");
 
-            client.walkTo(pig[2] / 32.0, pig[3] / 32.0, pig[4] / 32.0, true);
+            live = server.mobs().byId(pigId).position();
+            client.walkTo(live.x(), live.y(), live.z(), true);
             client.sendUseEntity(pigId, Protocol18.USE_ENTITY_ATTACK);
             int[] secondHit = client.readEntityStatus(15_000);
             assertEquals(Protocol18.ENTITY_STATUS_HURT, secondHit[1]);
