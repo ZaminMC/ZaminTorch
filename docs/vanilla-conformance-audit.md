@@ -1753,7 +1753,21 @@ deltas the implementation discovered):
 **The correction's PR**: **#110 OPEN**
 (`fix/portal-remaining-families-parity-audit`, based on the current
 develop 7910a110; the item + orb seats' determinism row rides the
-branch — the flake root-caused below). **The branch's final lanes**
+branch — the flake root-caused below). **THE CONCURRENT-STREAM
+CONVERGENCE, fourth-fold**: three other lanes opened the manager-loop
+families in the same window — **#108** (12:27, the first), **#109**
+(12:39), **#112** (12:47) — the items/orbs/vehicles from the same
+pass-27 fix plan, the law identical. **#110 alone carries the ARROWS**
+(the projectile family's separate shape, the plan's item 6 — the owed
+seat, the stuck-arrow consult, the `SolidQuery` plumbing), the
+determinism root-cause row, and the vehicles' dedicated crossed-dimension
+event (the plan's `removeVehicle("portal")` form would have
+cursor-removed the body — a crossing must keep it). The overlap note
+posted on #110 names the resolution paths (this PR whole, or an earlier
+manager-loop PR + this branch's arrow slice rebased); the maintainer's
+call. The audit lanes' numbering converged the same way: this lane
+pushed as the thirtieth pass (the twenty-seventh/twenty-eighth/
+twenty-ninth names taken mid-flight by the parallel lanes). **The branch's final lanes**
 (after the determinism row): the crossing + family lanes whole — the
 five family seats, the `Portal*` family, the `Dimension*` family, the
 sleep family, the creeper rows, the item/orb physics, the vehicles,
