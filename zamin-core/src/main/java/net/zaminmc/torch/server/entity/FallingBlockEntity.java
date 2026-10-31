@@ -41,6 +41,15 @@ public final class FallingBlockEntity implements net.zaminmc.torch.entity.Fallin
         boolean isSolid(double x, double y, double z);
 
         /**
+         * The dimension context switch (Wave FL4-F9 — the manager's
+         * per-body flip before every tick walk, ItemEntity.Ground's own
+         * shape): the engine's one shape ground re-points at the body's
+         * own world; the stub grounds ignore it.
+         */
+        default void setActiveDimension(int dimension) {
+        }
+
+        /**
          * The shape-aware point test (the collision-shape slice); the
          * default folds to the boolean world for stub grounds.
          */
@@ -76,6 +85,12 @@ public final class FallingBlockEntity implements net.zaminmc.torch.entity.Fallin
     private static final double GROUND_EPSILON = 1.0E-7;
 
     private final int entityId;
+    /**
+     * The body's OWN dimension (Wave FL4-F9 — the reference's {@code new
+     * FallingSandBlock(world, ...)}): the physics ground flip, the landing
+     * commit and the drop all range the body's OWN world's cells.
+     */
+    private final int dimension;
     private final net.zaminmc.torch.block.BlockType blockType;
     private Position position;
     private double velocityY;
@@ -85,7 +100,19 @@ public final class FallingBlockEntity implements net.zaminmc.torch.entity.Fallin
     private final double startY;
 
     public FallingBlockEntity(int entityId, net.zaminmc.torch.block.BlockType blockType, Position center) {
+        this(entityId, 0, blockType, center);
+    }
+
+    /**
+     * The dimension-stamped spawn (Wave FL4-F9 — the reference's {@code
+     * new FallingSandBlock(world, ...)} riding the world it was spawned
+     * in): the body's physics ground, landing commit and drop all range
+     * ITS OWN world's cells.
+     */
+    FallingBlockEntity(int entityId, int dimension,
+                       net.zaminmc.torch.block.BlockType blockType, Position center) {
         this.entityId = entityId;
+        this.dimension = dimension;
         this.blockType = Objects.requireNonNull(blockType, "blockType");
         this.position = Objects.requireNonNull(center, "center");
         this.startY = center.y();
@@ -94,11 +121,13 @@ public final class FallingBlockEntity implements net.zaminmc.torch.entity.Fallin
     /** The test seam: a fall already {@code initialFallingTicks} deep. */
     FallingBlockEntity(int entityId, net.zaminmc.torch.block.BlockType blockType, Position center,
                        int initialFallingTicks) {
-        this.entityId = entityId;
-        this.blockType = Objects.requireNonNull(blockType, "blockType");
-        this.position = Objects.requireNonNull(center, "center");
+        this(entityId, 0, blockType, center);
         this.fallingTicks = initialFallingTicks;
-        this.startY = center.y();
+    }
+
+    /** The body's own dimension (the world the fall started in). */
+    public int dimension() {
+        return dimension;
     }
 
     public int entityId() {

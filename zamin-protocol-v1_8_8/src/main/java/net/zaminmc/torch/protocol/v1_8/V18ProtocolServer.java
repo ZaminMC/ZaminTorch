@@ -340,11 +340,17 @@ public final class V18ProtocolServer implements ProtocolAdapter {
         });
         // Falling blocks: engine decides the §470 transition, adapter renders
         // Spawn Entity object 70, Entity Teleport and Destroy. The landing's
-        // block change itself rides the world listener.
+        // block change itself rides the world listener. The dimension filter
+        // is the reference's per-world EntityTracker (Wave FL4-F9 — the
+        // body carries its own world's stamp): only the players standing
+        // in the body's dimension see it.
         server.addFallingListener(new net.zaminmc.torch.server.entity.FallingBlockEntityManager.Listener() {
             @Override
             public void onFallingSpawned(net.zaminmc.torch.server.entity.FallingBlockEntity entity) {
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    if (connection.dimensionOfSession() != entity.dimension()) {
+                        continue;
+                    }
                     connection.sendFallingSpawn(entity);
                 }
             }
@@ -352,6 +358,9 @@ public final class V18ProtocolServer implements ProtocolAdapter {
             @Override
             public void onFallingMoved(net.zaminmc.torch.server.entity.FallingBlockEntity entity) {
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    if (connection.dimensionOfSession() != entity.dimension()) {
+                        continue;
+                    }
                     connection.sendFallingTeleport(entity);
                 }
             }
@@ -360,17 +369,27 @@ public final class V18ProtocolServer implements ProtocolAdapter {
             public void onFallingEnded(net.zaminmc.torch.server.entity.FallingBlockEntity entity,
                                        boolean becameBlock) {
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    if (connection.dimensionOfSession() != entity.dimension()) {
+                        continue;
+                    }
                     connection.sendFallingRemoved(entity.entityId());
                 }
             }
         });
         // The primed TNT (Slice 9f): Spawn Entity object 50, the Entity
         // Teleport ride, Destroy at the fuse end — the explosion packet
-        // itself rides the shared explosion listener.
+        // itself rides the shared explosion listener. The dimension filter
+        // is the reference's per-world EntityTracker (Wave FL4-F7 — the
+        // body carries its own world's stamp; the Time listener's own
+        // sendPacket(packet, dimension) walk): only the players standing
+        // in the body's dimension see it.
         server.addTntListener(new net.zaminmc.torch.server.tnt.TntSystem.Listener() {
             @Override
             public void onTntPrimed(net.zaminmc.torch.server.tnt.TntSystem.PrimedTnt tnt) {
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    if (connection.dimensionOfSession() != tnt.dimension()) {
+                        continue;
+                    }
                     connection.sendTntSpawn(tnt);
                 }
             }
@@ -378,6 +397,9 @@ public final class V18ProtocolServer implements ProtocolAdapter {
             @Override
             public void onTntMoved(net.zaminmc.torch.server.tnt.TntSystem.PrimedTnt tnt) {
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    if (connection.dimensionOfSession() != tnt.dimension()) {
+                        continue;
+                    }
                     connection.sendTntMoved(tnt);
                 }
             }
@@ -385,6 +407,9 @@ public final class V18ProtocolServer implements ProtocolAdapter {
             @Override
             public void onTntRemoved(net.zaminmc.torch.server.tnt.TntSystem.PrimedTnt tnt) {
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    if (connection.dimensionOfSession() != tnt.dimension()) {
+                        continue;
+                    }
                     connection.sendTntRemoved(tnt.entityId());
                 }
             }

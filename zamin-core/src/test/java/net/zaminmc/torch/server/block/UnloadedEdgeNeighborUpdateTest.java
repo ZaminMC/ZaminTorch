@@ -80,7 +80,7 @@ class UnloadedEdgeNeighborUpdateTest {
         items = new ItemEntityManager((x, y, z) -> false, new Random(11), 1200);
         blockUpdates = new BlockUpdateSystem(world, items,
                 new net.zaminmc.torch.server.entity.FallingBlockEntityManager(
-                        (x, y, z) -> false, world, (position, stack) -> { }, new Random(12), 2100));
+                        (x, y, z) -> false, dimension -> world, (position, stack, dimension) -> { }, new Random(12), 2100));
         redstone = new RedstoneSystem(world, items);
         // The engine's own wiring (EngineServer.java lines 1390/1398): both
         // systems observe every committed change through the world listener

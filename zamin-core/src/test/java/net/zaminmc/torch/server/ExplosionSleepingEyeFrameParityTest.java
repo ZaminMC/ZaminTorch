@@ -94,7 +94,7 @@ class ExplosionSleepingEyeFrameParityTest {
             AtomicReference<EngineServer.ExplosionEvent> captured = new AtomicReference<>();
             server.addExplosionListener(captured::set);
 
-            server.ticker().submit(() -> server.tnt().ignite(tnt, 2));
+            server.ticker().submit(() -> server.tnt().ignite(server.world(), tnt, 2));
             await(() -> captured.get() != null, "the blast fired");
 
             EngineServer.ExplosionEvent event = captured.get();
@@ -149,7 +149,7 @@ class ExplosionSleepingEyeFrameParityTest {
             AtomicReference<EngineServer.ExplosionEvent> captured = new AtomicReference<>();
             server.addExplosionListener(captured::set);
 
-            server.ticker().submit(() -> server.tnt().ignite(tnt, 2));
+            server.ticker().submit(() -> server.tnt().ignite(server.world(), tnt, 2));
             await(() -> captured.get() != null, "the blast fired");
 
             EngineServer.ExplosionEvent event = captured.get();

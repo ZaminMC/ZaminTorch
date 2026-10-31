@@ -550,7 +550,7 @@ public final class DispenserSystem implements WorldChangeListener {
     private ItemStack tntPrime(BlockPosition pos, int facing, ItemStack stack) {
         BlockPosition target = pos.offset(OFFSETS[facing][0], OFFSETS[facing][1],
                 OFFSETS[facing][2]);
-        tnt.spawnPrimedAt(target.x() + 0.5, target.y(), target.z() + 0.5);
+        tnt.spawnPrimedAt(world, target.x() + 0.5, target.y(), target.z() + 0.5);
         fx.sound(centerOf(pos), "random.click", 1.0f, 1.0f);
         return consumeOne(stack);
     }
@@ -630,7 +630,7 @@ public final class DispenserSystem implements WorldChangeListener {
             return wearOne(stack);
         }
         if (tnt.isTntBlock(at)) {
-            tnt.ignite(target, 80);
+            tnt.ignite(world, target, 80);
             fx.sound(centerOf(pos), "random.click", 1.0f, 1.0f);
             return wearOne(stack);
         }

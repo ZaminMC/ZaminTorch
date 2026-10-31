@@ -448,12 +448,17 @@ public final class FireBlocks {
     /** The runtime difficulty id (0 peaceful .. 3 hard — the spread term). */
     private static volatile IntSupplier difficultyId = () -> 1;
 
-    /** The TNT prime arm (burnNeighbor's onBroken row — the primed body). */
+    /**
+     * The TNT prime arm (burnNeighbor's onBroken row — the primed body):
+     * the acting world rides the prime (Wave FL4-F7 — the reference's
+     * {@code ignite(World world, ...)}), so a burned nether TNT primes a
+     * body carrying the NETHER's dimension, never the overworld's.
+     */
     public interface TntPrimeArm {
-        void prime(BlockPosition pos);
+        void prime(EngineWorld actingWorld, BlockPosition pos);
     }
 
-    private static volatile TntPrimeArm tntPrime = pos -> { };
+    private static volatile TntPrimeArm tntPrime = (actingWorld, pos) -> { };
 
     /** The onAdded rolls (the reference's world.random). */
     private static volatile Random onAddedRolls = new Random();
@@ -634,7 +639,7 @@ public final class FireBlocks {
             // write above already replaced the cell, the reference's own
             // ignite never removes).
             if (wasTnt) {
-                tntPrime.prime(pos);
+                tntPrime.prime(world, pos);
             }
         }
     }

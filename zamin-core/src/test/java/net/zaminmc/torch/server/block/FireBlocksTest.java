@@ -73,7 +73,7 @@ class FireBlocksTest {
         raining = false;
         fireTickRule = true;
         FireBlocks.wire(() -> raining, () -> fireTickRule, () -> 1,
-                pos -> primes.add(pos), new Random());
+                (actingWorld, pos) -> primes.add(pos), new Random());
         world.attachScheduledTicks(system);
         for (int age = 0; age <= FireBlocks.MAX_AGE; age++) {
             system.registerTicker(FireBlocks.stateId(age), FireBlocks::tick);

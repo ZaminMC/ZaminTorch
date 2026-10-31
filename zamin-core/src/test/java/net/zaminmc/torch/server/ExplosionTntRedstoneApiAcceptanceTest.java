@@ -95,7 +95,7 @@ class ExplosionTntRedstoneApiAcceptanceTest {
 
             // A short-fuse prime at the center: the detonation ~2 ticks out.
             server.ticker().submit(() ->
-                    server.tnt().ignite(center, 2));
+                    server.tnt().ignite(server.world(), center, 2));
             awaitSettled(server);
 
             assertEquals(1, fired.get(), "the gate fired exactly once");
@@ -112,7 +112,7 @@ class ExplosionTntRedstoneApiAcceptanceTest {
             placeCluster(server, center);
             awaitSettled(server);
             server.ticker().submit(() ->
-                    server.tnt().ignite(center, 2));
+                    server.tnt().ignite(server.world(), center, 2));
             awaitSettled(server);
             assertFalse(clusterIntact(world, center),
                     "the uncancelled blast destroyed the cluster");
@@ -132,7 +132,7 @@ class ExplosionTntRedstoneApiAcceptanceTest {
             // snapshot (§27.5 — the engine object IS the handle).
             BlockPosition at = new BlockPosition(70, 60, 70);
             server.ticker().submit(() ->
-                    server.tnt().ignite(at, 80));
+                    server.tnt().ignite(server.world(), at, 80));
             awaitSettled(server);
             var bodies = world.primedTnt();
             assertEquals(1, bodies.size(), "the primed body answers the family view");

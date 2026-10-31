@@ -350,7 +350,7 @@ class HungerExhaustionParityTest {
             // A primed TNT two cells off: the easy-scaled blast wounds but
             // never kills (damage/2 + 1 at full hearts). The ignite rides
             // the tick thread (the region's ownership domain).
-            server.ticker().submit(() -> server.tnt().ignite(new BlockPosition(
+            server.ticker().submit(() -> server.tnt().ignite(server.world(), new BlockPosition(
                     (int) Math.floor(x) + 2, (int) y, (int) Math.floor(z)), 2));
             await(() -> body.health() < 20.0f, "the blast wound landed");
             assertEquals(0.3f, body.exhaustion(), 1.0E-4f,

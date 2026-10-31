@@ -335,6 +335,14 @@ public final class EngineServer implements Server, EngineBridge {
     /** The command dispatcher (tab completion reads it from the wire layer). */
     private volatile CommandService commands;
     private BlockUpdateSystem blockUpdateSystem;
+    /**
+     * The nether's own neighbor-update machinery (Wave FL4-F8 — the
+     * reference's per-WorldServer updateBlocks surface): each dimension's
+     * queue, addressee pins and fall fuses range ITS OWN world's cells.
+     */
+    private BlockUpdateSystem netherBlockUpdates;
+    /** The End's own neighbor-update machinery (Wave FL4-F8 — the same per-dimension story). */
+    private BlockUpdateSystem endBlockUpdates;
     /** The reference's scheduled block-tick queue (the TileTicks surface; the anvil import lands here). */
     private net.zaminmc.torch.server.block.ScheduledTickSystem scheduledTickSystem;
     /** The surface's own persistence (the ZST store — the pending rows survive a restart). */
@@ -403,6 +411,12 @@ public final class EngineServer implements Server, EngineBridge {
     private volatile boolean dragonDefeated;
     /** The End world's own blast walk (the crystal's 6.0F death — dimension 1). */
     private ExplosionService endExplosionService;
+    /**
+     * The nether world's own blast walk (Wave FL4-F7 — the dimension-routed
+     * TNT detonation): the ray fan reads and commits the NETHER's own
+     * cells, exactly the End service's own form.
+     */
+    private ExplosionService netherExplosionService;
     /** The note tiles' ZND persistence. */
     private net.zaminmc.torch.server.noteblock.NoteDataStore noteStore;
     /** The spawners' ZSD persistence (the typed rows' restart survival). */
@@ -1061,10 +1075,10 @@ public final class EngineServer implements Server, EngineBridge {
                 // gravity blocks; occupied landings drop as items.
                 FallingBlockEntityManager falling = new FallingBlockEntityManager(
                         shapeGround,
-                        world,
-                        (position, stack) -> itemEntities.spawnDropAtBlock(
+                        this::worldForSafe,
+                        (position, stack, dimension) -> itemEntities.spawnDropAtBlock(
                                 new Position(position.x(), position.y(), position.z()), stack,
-                                ItemEntity.PICKUP_DELAY_DROP_TICKS),
+                                ItemEntity.PICKUP_DELAY_DROP_TICKS, dimension),
                         new java.util.Random(),
                         FALLING_ID_BASE);
                 this.fallingEntities = falling;
@@ -1093,6 +1107,9 @@ public final class EngineServer implements Server, EngineBridge {
                         double minY = landing.y(), maxY = landing.y() + 0.98;
                         double minZ = landing.z() + 0.01, maxZ = landing.z() + 1 - 0.01;
                         for (net.zaminmc.torch.server.entity.MobEntity mob : mobs.all()) {
+                            if (mob.dimension() != entity.dimension()) {
+                                continue; // the body's own world's mobs alone (Wave FL4-F9)
+                            }
                             net.zaminmc.torch.util.Position at = mob.position();
                             if (at.x() >= minX && at.x() <= maxX && at.y() >= minY
                                     && at.y() <= maxY && at.z() >= minZ && at.z() <= maxZ) {
@@ -1103,6 +1120,9 @@ public final class EngineServer implements Server, EngineBridge {
                             if (body.state() != net.zaminmc.torch.entity.PlayerState.PLAYING
                                     || body.gamemode() == GameMode.SPECTATOR) {
                                 continue; // canAvoidTraps
+                            }
+                            if (body.dimension() != entity.dimension()) {
+                                continue; // the body's own world's players alone (Wave FL4-F9)
                             }
                             net.zaminmc.torch.util.Position at = body.position();
                             if (at.x() >= minX && at.x() <= maxX && at.y() >= minY
@@ -1142,6 +1162,14 @@ public final class EngineServer implements Server, EngineBridge {
                 // gravity/torch/grass/fire rules. Registered as a world listener before
                 // the adapter, so engine-side rules observe every commit first.
                 blockUpdateSystem = new BlockUpdateSystem(world, itemEntities, falling);
+                // The nether's and the End's own neighbor-update systems (Wave
+                // FL4-F8 — the reference's EVERY-ServerWorld shape: each
+                // WorldServer carries its own scheduled-update queue, so sand
+                // falls, torches pop and grass dies in EVERY dimension; the
+                // pre-fix engine registered the overworld's alone, so a
+                // nether/End neighbor change ran no rules at all).
+                netherBlockUpdates = new BlockUpdateSystem(netherWorld, itemEntities, falling);
+                endBlockUpdates = new BlockUpdateSystem(endWorld, itemEntities, falling);
                 // The reference's scheduled block-tick queue (the TileTicks
                 // surface): the anvil import lands here, and the families'
                 // delayed arms migrate onto it family by family.
@@ -1163,10 +1191,11 @@ public final class EngineServer implements Server, EngineBridge {
                         this::raining,
                         () -> gameRules.getBoolean("doFireTick"),
                         () -> difficulty,
-                        pos -> {
+                        (actingWorld, pos) -> {
                             net.zaminmc.torch.server.tnt.TntSystem tnt = tntSystem;
                             if (tnt != null) {
-                                tnt.spawnPrimedAt(pos.x() + 0.5, pos.y(), pos.z() + 0.5);
+                                tnt.spawnPrimedAt(actingWorld,
+                                        pos.x() + 0.5, pos.y(), pos.z() + 0.5);
                             }
                         },
                         gameplayRandom);
@@ -1208,12 +1237,23 @@ public final class EngineServer implements Server, EngineBridge {
                 // the dragon egg) dispatches on the reference's own
                 // scheduleTick surface.
                 blockUpdateSystem.setScheduledTicks(scheduledTickSystem);
+                netherBlockUpdates.setScheduledTicks(netherScheduledTicks);
+                endBlockUpdates.setScheduledTicks(endScheduledTicks);
                 // The banner support-drop arms read the tile for the tagged
                 // item (the seam keeps the block package off the manager's
                 // boot order).
                 blockUpdateSystem.setBanners(bannerManager);
+                netherBlockUpdates.setBanners(bannerManager);
+                endBlockUpdates.setBanners(bannerManager);
                 net.zaminmc.torch.server.block.GravityFalls.registerTicker(
                         scheduledTickSystem, world, falling);
+                // The gravity family's tickers on EVERY dimension's own queue
+                // (Wave FL4-F8 — the reference's every-world scheduleTick
+                // dispatch; the fire family's own FL4-F2 form).
+                net.zaminmc.torch.server.block.GravityFalls.registerTicker(
+                        netherScheduledTicks, netherWorld, falling);
+                net.zaminmc.torch.server.block.GravityFalls.registerTicker(
+                        endScheduledTicks, endWorld, falling);
                 // The surface's own persistence (the in-memory envelope
                 // retired): the pending rows from the last shutdown ride
                 // back in through the same load arm the anvil import uses
@@ -1590,6 +1630,13 @@ public final class EngineServer implements Server, EngineBridge {
                 // The world itself dispatches every committed change (§208): the
                 // neighbor-update system observes player- AND engine-driven changes.
                 world.addChangeListener(blockUpdateSystem);
+                // The nether's and the End's own registrations (Wave FL4-F8 —
+                // the same §208 dispatch: every committed change in EVERY
+                // dimension wakes that dimension's own neighbor rules; the
+                // pre-fix nether/End commits reached no neighbor machinery
+                // at all).
+                netherWorld.addChangeListener(netherBlockUpdates);
+                endWorld.addChangeListener(endBlockUpdates);
                 // Redstone (Slice 9a — the reference's signal model): the wire
                 // cascade and the family dispatch ride the commit synchronously
                 // (vanilla's flag-1 walk inside setBlockState), so the propagation
@@ -1986,8 +2033,16 @@ public final class EngineServer implements Server, EngineBridge {
                 // detonation walk.
                 tntSystem = new net.zaminmc.torch.server.tnt.TntSystem(
                         world, redstoneSystem,
-                        position -> solidAt(position.x(), position.y() - 0.1, position.z()),
-                        (center, power) -> detonateAt(center.x(), center.y(), center.z(), power, true),
+                        (dimension, x, y, z) -> solidInDimension(dimension, x, y, z),
+                        (dimension, x, y, z, power) -> detonateAtIn(
+                                worldForSafe(dimension), explosionServiceFor(dimension),
+                                dimension,
+                                // PrimedTnt never fires: World.explode's
+                                // six-arg form passes false at the block's
+                                // fuse detonation (the F-EX4 call census).
+                                x, y, z, power, true, false,
+                                net.zaminmc.torch.server.block.ExplosionService.BlastSource.PLAIN,
+                                null),
                         fxManager, gameplayRandom, TNT_ID_BASE);
                 world.addChangeListener(tntSystem);
                 tntSystem.addListener(new TntEventDispatch());
@@ -2081,6 +2136,13 @@ public final class EngineServer implements Server, EngineBridge {
                 // explosion service bound to the End world — the same ray
                 // fan, committing through the End's own listener path.
                 endExplosionService = new ExplosionService(new BlastWorld(endWorld),
+                        gameplayRandom);
+                // The nether's own blast walk (Wave FL4-F7 — the TNT body's
+                // dimension-routed detonation): the same per-dimension form
+                // as the End's — the ray fan over the NETHER's own cells
+                // (the pre-fix overworld-bound service flew a nether blast's
+                // rays through the overworld's cells and collected nothing).
+                netherExplosionService = new ExplosionService(new BlastWorld(netherWorld),
                         gameplayRandom);
                 // The cross-system neighbor bus (Slice 9f): the pistons and
                 // the TNT ride the redstone family's neighbor dispatch —
@@ -2338,8 +2400,8 @@ public final class EngineServer implements Server, EngineBridge {
 
                             @Override public void ignite(net.zaminmc.torch.block.BlockPosition pos,
                                     int dimension) {
-                                if (tntSystem != null && dimension == 0) {
-                                    tntSystem.useIgnite(pos);
+                                if (tntSystem != null) {
+                                    tntSystem.useIgnite(worldForSafe(dimension), pos);
                                 }
                             }
                         });
@@ -2509,8 +2571,7 @@ public final class EngineServer implements Server, EngineBridge {
                 // lines 96-113): a burning arrow entering the TNT cell
                 // primes it — the block leaves, the arrow keeps its flight.
                 projectiles.setTntIgniteSink((cell, dimension) -> tntSystem != null
-                        && dimension == 0
-                        && tntSystem.igniteByArrow(cell));
+                        && tntSystem.igniteByArrow(worldForSafe(dimension), cell));
                 // The ender pearl's teleport arm (Slice 17c —
                 // EnderPearlEntity.onCollision lines 45-71): the 5%
                 // player-spawned endermite at the thrower's pre-teleport
@@ -3102,6 +3163,15 @@ public final class EngineServer implements Server, EngineBridge {
                 world.attachScheduledUpdateView(
                         new net.zaminmc.torch.server.block.ScheduledUpdateViews(
                                 blockUpdateSystem, world));
+                // The nether's and the End's own §27.3 views (Wave FL4-F8 —
+                // each dimension's queue behind its own World handle; the
+                // mutation arms assert the owning world's context).
+                netherWorld.attachScheduledUpdateView(
+                        new net.zaminmc.torch.server.block.ScheduledUpdateViews(
+                                netherBlockUpdates, netherWorld));
+                endWorld.attachScheduledUpdateView(
+                        new net.zaminmc.torch.server.block.ScheduledUpdateViews(
+                                endBlockUpdates, endWorld));
                 // The public §27.3 scheduled block-tick views: the reference's
                 // TileTicks queue — the queries copy, the mutation arms assert
                 // the world's own context.
@@ -3155,6 +3225,8 @@ public final class EngineServer implements Server, EngineBridge {
                     // is the engine's systems fan, ledgered).
                     tickProfilerLevels();
                     profiled("blockUpdates", blockUpdateSystem::tick); // §466: scheduled updates (falls start here)
+                    profiled("blockUpdates", netherBlockUpdates::tick); // the nether's own queue (Wave FL4-F8)
+                    profiled("blockUpdates", endBlockUpdates::tick); // the End's own queue (Wave FL4-F8)
                     profiled("redstone", redstoneSystem::tick); // the torch/repeater scheduled reactions
                     profiled("pistons", pistonSystem::tick); // the piston block events + the moving carriers
                     profiled("hoppers", hopperSystem::tick); // the hoppers' 8-tick transfer cadence
@@ -13591,7 +13663,7 @@ public final class EngineServer implements Server, EngineBridge {
         // The TNT ignite arm (TntBlock.use lines 96-113): the steel clicked
         // on the TNT block itself primes it — the block leaves, the fuse
         // starts, the flint wears one use.
-        if (tntSystem.useIgnite(clicked)) {
+        if (tntSystem.useIgnite(world, clicked)) {
             if (session.gamemode() == GameMode.SURVIVAL
                     || session.gamemode() == GameMode.ADVENTURE) {
                 session.inventory().damageHeld(1, gameplayRandom, session.stats());
@@ -24235,6 +24307,24 @@ public final class EngineServer implements Server, EngineBridge {
         detonateAtIn(world, explosionService, 0, cx, cy, cz, power, destructive, false, source, null);
     }
 
+    /**
+     * The per-dimension blast-walk resolver (Wave FL4-F7 — the primed
+     * TNT body's dimension-routed detonation): each dimension's ray fan
+     * reads and commits its OWN world's cells — the End's own service was
+     * the crystal slice's form, the nether's joins it, the overworld's
+     * stays the boot default (an unbooted dimension falls back to it,
+     * the worldForSafe law).
+     */
+    private ExplosionService explosionServiceFor(int dimension) {
+        if (dimension == -1 && netherExplosionService != null) {
+            return netherExplosionService;
+        }
+        if (dimension == 1 && endExplosionService != null) {
+            return endExplosionService;
+        }
+        return explosionService;
+    }
+
     private void detonateAt(double cx, double cy, double cz, float power, boolean destructive) {
         detonateAtIn(world, explosionService, 0, cx, cy, cz, power, destructive, false,
                 net.zaminmc.torch.server.block.ExplosionService.BlastSource.PLAIN, null);
@@ -24400,8 +24490,10 @@ public final class EngineServer implements Server, EngineBridge {
             final java.util.List<net.zaminmc.torch.server.entity.projectile.ProjectileEntity> projectileBodies =
                     projectileManager == null ? java.util.List.of() : projectileManager.all();
             final java.util.List<net.zaminmc.torch.server.tnt.TntSystem.PrimedTnt> tntBodies =
-                    tntSystem == null || dimension != 0
-                            ? java.util.List.of() : tntSystem.allPrimed();
+                    tntSystem == null ? java.util.List.of()
+                            : tntSystem.allPrimed().stream()
+                                    .filter(body -> body.dimension() == dimension)
+                                    .toList();
             final java.util.List<net.zaminmc.torch.server.endcrystal.EnderCrystal> crystalBodies =
                     enderCrystals == null ? java.util.List.of() : enderCrystals.all();
             final java.util.List<net.zaminmc.torch.server.armorstand.ArmorStand> standBodies =
@@ -24481,12 +24573,12 @@ public final class EngineServer implements Server, EngineBridge {
             }
             if (removed.type().identifier().value().equals("tnt")) {
                 // The chain reaction (TntBlock.onExploded lines 58-65): a
-                // consumed TNT primes a short-fuse body instead of dropping.
-                // (Slice 62 note: the overworld's own TNT system — the End
-                // carries no ignition listener yet, the tnt-in-End gap
-                // ledgered with the slice.)
-                if (tntSystem != null && dimension == 0) {
-                    tntSystem.primeFromBlast(b);
+                // consumed TNT primes a short-fuse body instead of dropping
+                // — the body carrying the BLAST world's own dimension (Wave
+                // FL4-F7: the reference's {@code onExploded(World world,
+                // ...)}; the pre-fix overworld-only gate retired).
+                if (tntSystem != null) {
+                    tntSystem.primeFromBlast(blastWorld, b);
                 }
                 continue;
             }
@@ -31405,6 +31497,21 @@ public final class EngineServer implements Server, EngineBridge {
             return false;
         }
         return WorldSolidity.isSolid(world.getBlock(blockAt(x, y, z)));
+    }
+
+    /**
+     * The per-dimension bounds-safe solidity (Wave FL4-F7 — the primed
+     * TNT body's own-world ground consult): the same 1.8 void/sky rule as
+     * the overworld form, the cell read routed by the body's dimension
+     * stamp — a nether body never grounds on the overworld's
+     * same-coordinate cell.
+     */
+    private boolean solidInDimension(int dimension, double x, double y, double z) {
+        if (y < net.zaminmc.torch.block.BlockPosition.MIN_Y
+                || y > net.zaminmc.torch.block.BlockPosition.MAX_Y) {
+            return false;
+        }
+        return WorldSolidity.isSolid(worldForSafe(dimension).getBlock(blockAt(x, y, z)));
     }
 
     /**

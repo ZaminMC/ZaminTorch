@@ -39,7 +39,12 @@ public final class FallingBlockEntityManager {
 
     /** Where an occupied landing drops its stack (the engine's item system). */
     public interface DropSink {
-        void spawnDropAtBlock(BlockPosition position, ItemStack stack);
+        /**
+         * The dimension-stamped drop (Wave FL4-F9): the sink stamps the
+         * body's OWN dimension onto the item (the TF-9 four-arg form) — a
+         * nether fall's occupied-landing item lands in the nether.
+         */
+        void spawnDropAtBlock(BlockPosition position, ItemStack stack, int dimension);
     }
 
     /**
@@ -70,7 +75,7 @@ public final class FallingBlockEntityManager {
     }
 
     private final FallingBlockEntity.Ground ground;
-    private final net.zaminmc.torch.server.world.EngineWorld world;
+    private final java.util.function.IntFunction<net.zaminmc.torch.server.world.EngineWorld> worldRouter;
     private final DropSink dropSink;
     private final Random random;
     private final List<FallingBlockEntity> entities = new ArrayList<>();
@@ -78,11 +83,18 @@ public final class FallingBlockEntityManager {
     private AnvilLanding anvilLanding;
     private int nextEntityId;
 
+    /**
+     * @param worldRouter the per-dimension world resolver (Wave FL4-F9 —
+     *                   the FL4-F5 seam form): every landing consult and
+     *                   commit routes the body's OWN world by its stamp;
+     *                   the pre-fix single overworld field flew a nether
+     *                   fall's landing through the overworld's cells.
+     */
     public FallingBlockEntityManager(FallingBlockEntity.Ground ground,
-                                     net.zaminmc.torch.server.world.EngineWorld world,
+                                     java.util.function.IntFunction<net.zaminmc.torch.server.world.EngineWorld> worldRouter,
                                      DropSink dropSink, Random random, int firstEntityId) {
         this.ground = Objects.requireNonNull(ground, "ground");
-        this.world = Objects.requireNonNull(world, "world");
+        this.worldRouter = Objects.requireNonNull(worldRouter, "worldRouter");
         this.dropSink = Objects.requireNonNull(dropSink, "dropSink");
         this.random = Objects.requireNonNull(random, "random");
         this.nextEntityId = firstEntityId;
@@ -127,12 +139,16 @@ public final class FallingBlockEntityManager {
      * Starts the §470 transition: the block at {@code source} (already air in
      * the world) continues as a falling entity positioned exactly as vanilla
      * spawns it ({@code x + 0.5, y, z + 0.5} — X/Z centered, Y at the cell
-     * bottom, the box-bottom convention). Tick-thread context.
+     * bottom, the box-bottom convention). The body carries the acting
+     * world's OWN dimension stamp (Wave FL4-F9 — the reference's {@code
+     * new FallingSandBlock(world, ...)}). Tick-thread context.
      */
-    public FallingBlockEntity startFall(BlockPosition source, BlockType blockType) {
+    public FallingBlockEntity startFall(net.zaminmc.torch.server.world.EngineWorld actingWorld,
+                                        BlockPosition source, BlockType blockType) {
         Objects.requireNonNull(source, "source");
         Objects.requireNonNull(blockType, "blockType");
-        FallingBlockEntity entity = new FallingBlockEntity(nextEntityId++, blockType,
+        FallingBlockEntity entity = new FallingBlockEntity(nextEntityId++,
+                actingWorld.dimension(), blockType,
                 new Position(source.x() + 0.5, source.y(), source.z() + 0.5));
         entities.add(entity);
         for (Listener listener : listeners) {
@@ -159,6 +175,10 @@ public final class FallingBlockEntityManager {
         Iterator<FallingBlockEntity> iterator = entities.iterator();
         while (iterator.hasNext()) {
             FallingBlockEntity entity = iterator.next();
+            // The per-body ground flip (Wave FL4-F9 — ItemEntityManager's
+            // own shape): the physics consults the body's OWN world's
+            // cells, never the overworld's same-coordinate cells.
+            ground.setActiveDimension(entity.dimension());
             FallingBlockEntity.Step step = forceLand ? FallingBlockEntity.Step.LANDED : entity.tick(ground);
             switch (step) {
                 case MOVED -> {
@@ -211,7 +231,9 @@ public final class FallingBlockEntityManager {
         }
         // The 1.8 world band is y 0..255 (16 chunk sections); below-world
         // landings drop instead of indexing a nonexistent section (vanilla's
-        // setBlockState fails there too).
+        // setBlockState fails there too). The consult and the commit route
+        // the body's OWN world (Wave FL4-F9 — the stamp selects it).
+        net.zaminmc.torch.server.world.EngineWorld world = worldRouter.apply(entity.dimension());
         if (landing.y() >= 0 && landing.y() < net.zaminmc.torch.server.world.EngineChunk.SECTION_COUNT * 16
                 && FallingBlockEntity.canBeReplacedOnLanding(world.getBlock(landing))
                 && !FallingBlockEntity.canFallThrough(FallingBlockEntity.blockOrAir(
@@ -236,14 +258,15 @@ public final class FallingBlockEntityManager {
             if (anvilItem != null) {
                 BlockPosition at = dropAt(entity);
                 dropSink.spawnDropAtBlock(at, new ItemStack(anvilItem, 1,
-                        net.zaminmc.torch.server.block.AnvilBlocks.dropDamageOf(asState.identifier())));
+                        net.zaminmc.torch.server.block.AnvilBlocks.dropDamageOf(asState.identifier())),
+                        entity.dimension());
             }
             return;
         }
         net.zaminmc.torch.item.ItemType itemType =
                 net.zaminmc.torch.server.item.BuiltinItems.lookup(asState.identifier()).orElse(null);
         if (itemType != null) {
-            dropSink.spawnDropAtBlock(dropAt(entity), ItemStack.of(itemType, 1));
+            dropSink.spawnDropAtBlock(dropAt(entity), ItemStack.of(itemType, 1), entity.dimension());
         }
     }
 
