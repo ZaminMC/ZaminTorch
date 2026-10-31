@@ -124,7 +124,7 @@ public final class VehicleManager {
      * the real walk.
      */
     private java.util.function.Supplier<TntMinecartEntity.BlastSink> blastSinkFactory =
-            () -> (x, y, z, power, primed) -> { };
+            () -> (x, y, z, power, primed, dimension) -> { };
 
     /** Wires the blast sink factory (the engine's detonation walk). */
     public void setBlastSinkFactory(

@@ -2745,16 +2745,23 @@ public final class EngineServer implements Server, EngineBridge {
                 // item-use spawn, so a restored cart burst nothing.
                 vehicles.setBlastSinkFactory(() ->
                         (net.zaminmc.torch.server.entity.vehicle.TntMinecartEntity.BlastSink)
-                                (x, y, z, power, primed) -> detonateAtWithSource(
+                                (x, y, z, power, primed, dimension) -> detonateAtIn(
+                                        worldForSafe(dimension),
+                                        explosionServiceFor(dimension), dimension,
                                         x, y, z, power,
                                         // TntMinecartEntity.explode line 92: the six-arg
                                         // explode(..., TRUE) — the cart's blast HARDCODES
                                         // the destructive flag (the famous exception:
                                         // a TNT cart craters even in a no-grief world;
                                         // mobGriefing never gates it — only the fireball
-                                        // and the creeper family ride the rule).
-                                        true,
-                                        primed ? net.zaminmc.torch.server.block.BlastSources.PRIMED_CART : net.zaminmc.torch.server.block.ExplosionService.BlastSource.PLAIN));
+                                        // and the creeper family ride the rule). The
+                                        // createFire arm stays false (the five-arg
+                                        // explode's own default) and the detonation
+                                        // tears the cart's OWN world (F-EX11's last
+                                        // call site — the FL4-F7 form).
+                                        true, false,
+                                        primed ? net.zaminmc.torch.server.block.BlastSources.PRIMED_CART : net.zaminmc.torch.server.block.ExplosionService.BlastSource.PLAIN,
+                                        null));
                 vehicles.addListener(new VehicleEventDispatch());
                 // Vehicle persistence (Slice 25g — the ZVD store): the
                 // whole family's pre-25g gap closes — the carts (and the
@@ -24282,16 +24289,6 @@ public final class EngineServer implements Server, EngineBridge {
                 * (creeper.creeperCharged() ? 2.0f : 1.0f);
         detonateAtFromMob(creeper, center.x(), center.y(), center.z(), power,
                 gameRules.getBoolean("mobGriefing"));
-    }
-
-    /**
-     * One detonation in the OVERWORLD (the generalized walk's own dimension-0
-     * binding — the creeper, the TNT, the fireballs, the wither).
-     */
-    private void detonateAtWithSource(double cx, double cy, double cz, float power,
-                                      boolean destructive,
-                                      net.zaminmc.torch.server.block.ExplosionService.BlastSource source) {
-        detonateAtIn(world, explosionService, 0, cx, cy, cz, power, destructive, false, source, null);
     }
 
     /**
