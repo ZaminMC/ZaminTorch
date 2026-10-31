@@ -955,7 +955,80 @@ arriving on the fresh clock). The seats were authored RED on develop
 first and lifted green by the fix alone. The regression lanes green
 whole (the record above). **PR #94 OPEN** targeting `develop`.
 
-## Coverage ledger (updated by the twenty-fourth pass)
+## The twenty-fifth pass — VT-006's correction landed (the mobs family first)
+
+Baseline: `origin/develop` at `deef2a17` (the FL4-F10 redstone
+world-binding investigation recorded on develop by the house stream
+with its six-point implementation plan — that stream's own next act,
+not duplicated here; the CI/test-stability commits; the
+release-notes body cap; torch-1.8.8-155). PRs #91 (VT-004), #94
+(VT-005), #95 (F-EC1) remain open, unreviewed, mergeable; PR #54
+re-inspected as the quality baseline (merged). This pass took the
+queue head — **VT-006's fix, the entity-level crossing service with
+the mobs family first** — and landed it as **PR #98** on
+`fix/portal-entity-crossing-parity-audit` (based on `deef2a17`).
+
+**The fix's shape (the census-informed scope):** `MobManager`'s
+per-body portal arm in the tick walk — before the despawn window and
+the mind, the reference's baseTick-first order — carrying the gated
+collision consult (VT-005's riding gate), the entry memory's derive
+(the same `notePortalEntry` math the player session carries), and the
+base-entity clock (the threshold 0, the 300 cooldown, the re-arm pin,
+the 4-per-tick decay); the crossing consumed the body's own walk (the
+reference's removed-body shape). The **`DimensionCrossing` seam**
+carries the walk itself so the remaining families (the items, the
+orbs, the boats, the carts, the arrows) ride it one by one in their
+own passes — the TNT and falling families EXCLUDED by the census (no
+portal arm in the reference itself). `EngineServer`'s
+`crossEntityDimension` is the same walk the player's own crossing
+rides (the direction law, the 8:1 scale, the ±29999872 clamp, the
+17×17 destination loads, the forcer selection); `MobEntity` gains the
+portal clock, the entry memory, and the arrival application (the
+stamp swap, the forcer's landing, the rotated yaw and motion, the
+fall debt cleared); the `WorldQuery`'s `portalFrameAt` consult is the
+stub-friendly seam. The wire: the old world's destroy fan first (the
+TF-12 stamp read at send time), then the stamp swap, then the
+destination's spawn fan; the persistence rides the stamp (the
+snapshot's own dimension row).
+
+**The seats:** `PortalMobCrossingDiscoveryTest` 3/0 GREEN (RED on
+develop by contract at the crossing await) — the crossing seat (the
+NoAI cow crosses on the first armed tick, lands inside the pre-built
+destination frame's band, carries the nether's stamp in the live
+list); the cooldown pin (the arrival standing INSIDE the destination
+frame's cells never re-fires over the 350-tick window — a broken
+re-arm would bounce the body back at ~300); the riding-gate pin (a
+real rider's mount never crosses over the 60-tick window, the seat
+intact — VT-005's law at the entity level; the window sits below the
+survival rider's own 80-tick stand so the seat pins the mount's arm
+alone). The regression lanes green whole: the portal+mob+world lanes
+**271/0** (DimensionWalk, EnderExit, NetherDigRouting,
+SpawnProtection, MobEventBridge, MobCombat, MountSeatsApi,
+RiderSpareFall, PortalForcer, PortalFrameBuilder, the whole
+`server.world` package); the block + interaction lanes **313/0**.
+
+**The flake investigated and recorded (not this change's):** one
+batch run's DimensionWalk failure — the homecoming landing at
+(68.5, 5.1, 173.5) — root-caused to the SEED-DEPENDENT forcer
+placement: the nether generate's hunt landing near its 16-block ring
+edge (z=21) scales the ×8 return outside the ±128 overworld search
+window. The same-seed control (the seed record pre-written at
+`<dataDir>/dimwalk/data/seed.json`) proves the placement IDENTICAL on
+both trees (8.5, 32.1, -5.5) — the arrival differences observed
+across runs were the seed alone (the sandbox's `new Random()` rolls a
+seed that is stable per code state but drifts across code states).
+DimensionWalk green 5/5 solo + the full batch re-run. The test's own
+lane (a pinned level-seed would retire the window) is the house's
+call, not this PR's.
+
+**VT-006's named tails:** the End-origin arm (the reference's else
+branch reads the destination's forced-spawn consult, which the engine
+does not carry — the crossing holds for dimension-1 bodies; the End
+exit for mobs is `leaveEndOnTick`'s own ledgered lane) and the
+remaining crossing families (the items, the orbs, the boats, the
+carts, the arrows — each its own pass behind the seam).
+
+## Coverage ledger (updated by the twenty-fifth pass)
 
 | Area | Status |
 |---|---|
@@ -969,7 +1042,7 @@ whole (the record above). **PR #94 OPEN** targeting `develop`.
 | Snow layer — placement support/melt/drops | drops landed (the mining-speed audit); melt + the 7-layer state surface recorded as VT-003's tail |
 | Packed ice — melt/break laws | inspected: the reference's PackedIceBlock carries no melt arm (the `setTicksRandomly` false, the silk-drop row landed); nothing owed |
 | Portal mechanics (flag1, forcer) | landed by FL4-F1; not re-audited — the stand clock's re-fire law is VT-004 (CONFIRMED, three passes; the correction is **PR #91 OPEN**; the seat PortalRefireDiscoveryTest rides green on the fix branch) |
-| Portal mechanics — the non-player crossing (the entity-level arm) | VT-006 CONFIRMED (three passes: the source chain, the NoAI-cow behavioral seat, and the independent census — the scope: mobs, items, orbs, boats, carts, arrows; TNT and falling blocks carry no arm in the reference, the accidental matches; the fix is the entity-level crossing service, the families landed one by one — the next run's head) |
+| Portal mechanics — the non-player crossing (the entity-level arm) | the MOBS family LANDED by **PR #98** (VT-006's correction: the entity-level crossing service + the mobs family — the gated collision, the threshold-0 clock, the 300 cooldown with the re-arm pin, the 8:1 walk, the forcer's placement, the stamp swap, the per-dimension wire; `PortalMobCrossingDiscoveryTest` 3/0 with the cooldown and riding-gate pins). The REMAINING families (items, orbs, boats, carts, arrows) ride the `DimensionCrossing` seam in their own passes; the TNT and falling families excluded by the census; the End-origin arm is the named tail |
 | Portal mechanics — the riding gate (vehicle == null && rider == null) | VT-005 CONFIRMED (three passes — source, the pig-in-portal behavioral seat, the dismount-control independent pass; the correction rides `fix/portal-riding-gate-parity-audit`, PR #94) |
 | Drops — the TF-9 dimension stamp | LANDED by PR #90 (the dig/place walks stamp `world.dimension()`; the tile-family spill sites remain the per-dimension tile tail) |
 | Tile families — per-dimension stores | NOT INSPECTED as its own pass (the PR #90 ledger: the furnace/chest/skull/banner spill + cleanup ride the single-instance managers — the FL4 fluids/fire precedent applies; the nether tile placement/cleanup is its own architectural pass) |
@@ -1011,9 +1084,17 @@ whole (the record above). **PR #94 OPEN** targeting `develop`.
    falling families carry NO portal arm in the reference, their omission
    an accidental match the fix must not over-correct; the nether-origin
    trace — no setDimension site ever moves a live body; the engine's own
-   javadoc ledgers the gap). VT-006 CONFIRMED. **The fix — the
-   entity-level crossing service, the families landed one by one (the
-   mobs first, the demonstrated seat) — is the next run's head.**
+   javadoc ledgers the gap). VT-006 CONFIRMED. ~~The fix — the mobs
+   family first~~ — **PR #98 OPEN** (the twenty-fifth pass: the
+   entity-level crossing service + the mobs family on
+   `fix/portal-entity-crossing-parity-audit` based on `deef2a17`; the
+   seats 3/0 with the cooldown and riding-gate pins; the portal+mob+world
+   lanes 271/0 + the block+interaction lanes 313/0; the DimensionWalk
+   seed-flake root-caused and recorded — same-seed control proves the
+   placement identical). **The next run's head: the remaining crossing
+   families behind the seam — the items, the orbs, the boats, the carts,
+   the arrows (each confirmed by the census; the discovery seats ride the
+   same construction), the TNT and falling families EXCLUDED.**
 7. The explosion-path dimension audit (the ledger row above — now
    unblocked: nether placement exists post-PR #90; the crystal arm's
    dimension gate landed with PR #85's rider; the blast family's own
@@ -1028,3 +1109,7 @@ whole (the record above). **PR #94 OPEN** targeting `develop`.
    PR #90 ledger): the per-dimension tile families, the mob spawn's
    dimension stamp, the FX dimension awareness, the per-dimension world
    border, the zombie arm's world binding.
+10. The watch items: the open PRs #91/#94/#95/#98 awaiting the
+   maintainer's review; the FL4-F10 redstone world binding — the house
+   stream's own claimed next act (its trace and six-point plan recorded
+   at `99f1718b` on develop) — NOT to be duplicated by this stream.
