@@ -84,6 +84,18 @@ public final class ProjectileManager {
         default boolean solidAt(double x, double y, double z) {
             return solid(x, y, z);
         }
+
+        /**
+         * VT-006 — the portal collision consult (the reference's
+         * PortalBlock.onEntityCollision lines 158-162 over the per-tick
+         * box scan): the frame match at the body's feet cell in the
+         * ACTIVE dimension, or null when the cell is not a portal cell.
+         * The stub queries answer null (no portals).
+         */
+        default net.zaminmc.torch.server.world.PortalFrameBuilder.PortalShapeMatch portalFrameAt(
+                int x, int y, int z) {
+            return null;
+        }
     }
 
     /** Resolves the entity a projectile is inside of, if any (tick thread). */
@@ -844,12 +856,110 @@ public final class ProjectileManager {
         return projectile;
     }
 
+    /**
+     * VT-006 — the projectile family's crossing service seam (the same
+     * `DimensionCrossing` the mobs, the items, the orbs, and the vehicles
+     * ride — Entity.changeDimension's walk the projectile family's portal
+     * arm consumes); null until the engine wires it.
+     */
+    private volatile net.zaminmc.torch.server.entity.DimensionCrossing dimensionCrossing;
+
+    /** Wires the crossing service (the engine's own boot). */
+    public void setDimensionCrossing(net.zaminmc.torch.server.entity.DimensionCrossing dimensionCrossing) {
+        this.dimensionCrossing = java.util.Objects.requireNonNull(
+                dimensionCrossing, "dimensionCrossing");
+    }
+
+    /**
+     * VT-006 — the projectile family's portal arm (every kind's tick
+     * chain carries the reference's walk — ArrowEntity.tick line 150,
+     * ProjectileEntity.tick line 82, ThrownEntity.tick line 123,
+     * EnderPearlEntity.tick line 82, all into Entity.baseTick lines
+     * 282-313): the collision consult at the body's feet cell over the
+     * flipped shared query, the entry memory's derive, and the
+     * base-entity clock (the threshold 0, the 300 cooldown with the
+     * re-arm pin, the 4-per-tick decay). No riding gate — a projectile
+     * neither rides nor is ridden (the reference's
+     * PortalBlock.onEntityCollision lines 158-162 gate passes trivially
+     * for the family, the item/orb precedent).
+     *
+     * @return true when the crossing fired (the caller skips the body's
+     *         own walk)
+     */
+    private boolean tickPortalArm(ProjectileEntity projectile) {
+        Position at = projectile.position();
+        int feetX = (int) Math.floor(at.x());
+        int feetY = (int) Math.floor(at.y());
+        int feetZ = (int) Math.floor(at.z());
+        var match = solid.portalFrameAt(feetX, feetY, feetZ);
+        if (match != null) {
+            projectile.notePortalEntry(new net.zaminmc.torch.block.BlockPosition(
+                    feetX, feetY, feetZ), match, at.x(), at.y(), at.z());
+        }
+        if (projectile.advanceEntityPortalClock(match != null)) {
+            crossProjectileDimension(projectile);
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * VT-006 — the projectile family's crossing walk (Entity.changeDimension
+     * lines 1695-1730): the old world's destroy fan FIRST (the wire reads
+     * the stamp at send time — the reference's old-world tracker's
+     * EntityDestroy), then the service's reposition + the forcer's
+     * placement, then the stamp swap and the new world's spawn fan. The
+     * body keeps its engine id and its whole state (the reference's
+     * copyNbtFrom).
+     */
+    private void crossProjectileDimension(ProjectileEntity projectile) {
+        net.zaminmc.torch.server.entity.DimensionCrossing crossing = dimensionCrossing;
+        int from = projectile.dimension();
+        if (crossing == null || from == 1) {
+            // The unwired boot and the End-origin arm (the audit's named
+            // tail): the crossing holds, the cooldown keeps the body from
+            // re-firing.
+            return;
+        }
+        Position at = projectile.position();
+        for (Listener listener : listeners) {
+            listener.onProjectileRemoved(projectile, "portal");
+        }
+        net.zaminmc.torch.server.entity.DimensionCrossing.Crossing result = crossing.cross(
+                from, at.x(), at.y(), at.z(), 0.0f,
+                projectile.velocityX(), projectile.velocityZ(), projectile.portalMemory());
+        projectile.applyDimensionArrival(result.toDimension(),
+                new Position(result.arrival().x(), result.arrival().y(), result.arrival().z()),
+                result.arrival().velocityX(), result.arrival().velocityZ());
+        for (Listener listener : listeners) {
+            listener.onProjectileSpawned(projectile);
+        }
+    }
+
     /** One physics pass over every projectile. Tick-thread context. */
     public void tick(Iterable<net.zaminmc.torch.server.player.PlayerSession> players) {
         // Backward index walk: removals mid-tick (shatter, hit, expiry) shift
         // nothing the loop still needs, and a listener re-entry cannot CME.
         for (int i = projectiles.size() - 1; i >= 0; i--) {
             ProjectileEntity projectile = projectiles.get(i);
+            // Wave TF-9 — the reference's Entity.world: the shared solid
+            // query flips to the body's own dimension before every
+            // collision walk (the mob query's own per-body flip,
+            // generalized). A nether arrow sticks in the nether's blocks,
+            // never in the overworld's same-coordinate terrain. The flip
+            // sits at the walk's HEAD (VT-006 moved it there from the
+            // in-flight branch) so the portal arm below covers the
+            // GROUNDED bodies too — the reference's super.tick() precedes
+            // every kind's own inGround branch.
+            solid.setActiveDimension(projectile.dimension());
+            // VT-006 — the entity-level portal arm runs at the START of
+            // the body's tick (the reference's baseTick-first order —
+            // ArrowEntity.tick line 150's super chain): a projectile at
+            // rest or stuck inside portal cells crosses on the first
+            // armed tick rather than resting there.
+            if (tickPortalArm(projectile)) {
+                continue; // the crossing consumed this body's walk
+            }
             if (projectile.inGround()) {
                 projectile.integrate(DRAG, ARROW_GRAVITY); // only the stick clock runs
                 if (projectile.ticksInGround() >= ARROW_GROUND_TICKS) {
@@ -857,12 +967,6 @@ public final class ProjectileManager {
                 }
                 continue;
             }
-            // Wave TF-9 — the reference's Entity.world: the shared solid
-            // query flips to the body's own dimension before every
-            // collision walk (the mob query's own per-body flip,
-            // generalized). A nether arrow sticks in the nether's blocks,
-            // never in the overworld's same-coordinate terrain.
-            solid.setActiveDimension(projectile.dimension());
             // One historical step per tick (drag 0.99, gravity 0.05/0.03),
             // then collisions sampled at the midpoint AND the endpoint — in
             // flight order (midpoint first): a full-draw arrow crosses ~3

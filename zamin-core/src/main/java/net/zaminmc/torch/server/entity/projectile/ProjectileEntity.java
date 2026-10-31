@@ -143,6 +143,119 @@ public final class ProjectileEntity implements net.zaminmc.torch.entity.Projecti
         this.dimension = dimension;
     }
 
+    // ------------------------------------------------------------------
+    // VT-006 — the projectile family's portal arm (the reference's
+    // entity-level law: every projectile kind's tick chain carries the
+    // walk — ArrowEntity.tick line 150, ProjectileEntity.tick line 82,
+    // ThrownEntity.tick line 123, and EnderPearlEntity.tick line 82 all
+    // call super.tick() into Entity.baseTick lines 282-313 — the BASE
+    // threshold 0 (lines 354-355; no projectile kind overrides
+    // getMaxNetherPortalTime) crosses a colliding projectile on the FIRST
+    // armed tick, the cooldown arms at the base 300 (lines 1457-1459),
+    // and Entity.changeDimension (1695-1730) walks the body across.
+    // ------------------------------------------------------------------
+
+    /** The portal re-entry cooldown (Entity.getPortalCooldown's base 300). */
+    private int portalCooldown;
+    /** The stand clock (Entity.portalTime — the base threshold 0). */
+    private int portalTime;
+    /** The last portal cell (onPortalCollision's !pos.equals guard). */
+    private net.zaminmc.torch.block.BlockPosition lastPortalPosition;
+    private double portalOffsetAlongWidth;
+    private double portalOffsetUp;
+    private int portalFacingHorizontalId;
+
+    /** @return the portal cooldown row (the base entity's 300 store). */
+    public int portalCooldown() {
+        return portalCooldown;
+    }
+
+    /**
+     * The entity-level portal clock (the base entity's law, the same walk
+     * the mobs, the items, the orbs, and the vehicles ride): a touching
+     * body with an expired cooldown crosses on the FIRST armed tick (the
+     * threshold 0); the cooldown re-arms at the full store on every
+     * touching tick it stays live (the arrival standing in the destination
+     * frame never re-fires); a body out of the cells decays its stand
+     * clock by 4 per tick, floored at zero.
+     *
+     * @return true on the crossing tick (the manager's walk consumes the
+     *         body's remaining tick)
+     */
+    public boolean advanceEntityPortalClock(boolean touching) {
+        if (portalCooldown > 0) {
+            portalCooldown--;
+        }
+        if (touching) {
+            if (portalCooldown > 0) {
+                portalCooldown = 300;
+                return false;
+            }
+            portalTime = 0;
+            portalCooldown = 300;
+            return true;
+        }
+        if (portalTime > 0) {
+            portalTime = Math.max(0, portalTime - 4);
+        }
+        return false;
+    }
+
+    /**
+     * The reference's {@code onPortalCollision} memory arm (lines
+     * 1428-1451): a NEW portal cell derives the body's offset inside its
+     * frame (the raw inverse-lerp ratios, unclamped) and the entered
+     * facing; the SAME cell re-collides without re-deriving.
+     */
+    public void notePortalEntry(net.zaminmc.torch.block.BlockPosition portalCell,
+                                net.zaminmc.torch.server.world.PortalFrameBuilder.PortalShapeMatch match,
+                                double x, double y, double z) {
+        if (portalCell.equals(lastPortalPosition)) {
+            return;
+        }
+        lastPortalPosition = portalCell;
+        boolean axisX = match.forwardAxis()
+                == net.zaminmc.torch.server.world.PortalFrameBuilder.Axis.X;
+        double origin = axisX ? match.topLeftFront().z() : match.topLeftFront().x();
+        double bodyCoord = axisX ? z : x;
+        if (match.forwardAxis() == net.zaminmc.torch.server.world.PortalFrameBuilder.Axis.Z
+                && match.forwardPositive()) {
+            bodyCoord -= 1.0;
+        }
+        portalOffsetAlongWidth = Math.abs(
+                (bodyCoord - origin) / ((origin - match.width()) - origin));
+        portalOffsetUp = ((y - 1.0) - match.topLeftFront().y())
+                / ((match.topLeftFront().y() - match.height()) - match.topLeftFront().y());
+        portalFacingHorizontalId = match.forwardHorizontalId();
+    }
+
+    /** @return the memory snapshot the PortalForcer's placement math consumes. */
+    public net.zaminmc.torch.server.world.PortalForcer.Memory portalMemory() {
+        net.zaminmc.torch.server.world.PortalForcer.Memory memory =
+                new net.zaminmc.torch.server.world.PortalForcer.Memory();
+        memory.offsetAlongWidth = portalOffsetAlongWidth;
+        memory.offsetUp = portalOffsetUp;
+        memory.lastFacingHorizontalId = portalFacingHorizontalId;
+        memory.known = lastPortalPosition != null;
+        return memory;
+    }
+
+    /**
+     * The crossing's arrival (the reference's setPositionAndAngles over
+     * the recreated body's copyNbtFrom — the body carries whole): the
+     * dimension stamp, the forcer's landing, and the rotated motion. The
+     * grounded rows carry untouched (the reference's copyNbtFrom); a
+     * stuck arrow's first arrival tick re-derives its ground against the
+     * destination cell exactly as the reference's inGround branch does.
+     */
+    public void applyDimensionArrival(int dimension, Position arrival,
+                                       double velocityX, double velocityZ) {
+        this.dimension = dimension;
+        teleport(arrival);
+        this.vx = velocityX;
+        this.vz = velocityZ;
+    }
+
     public ProjectileEntity(int entityId, Kind kind, int throwerId,
                             Position position, double vx, double vy, double vz) {
         this.entityId = entityId;
