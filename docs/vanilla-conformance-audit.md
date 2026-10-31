@@ -1753,7 +1753,13 @@ deltas the implementation discovered):
 **The correction's PR**: **#110 OPEN**
 (`fix/portal-remaining-families-parity-audit`, based on the current
 develop 7910a110; the item + orb seats' determinism row rides the
-branch — the flake root-caused below).
+branch — the flake root-caused below). **The branch's final lanes**
+(after the determinism row): the crossing + family lanes whole — the
+five family seats, the `Portal*` family, the `Dimension*` family, the
+sleep family, the creeper rows, the item/orb physics, the vehicles,
+the entity APIs, the projectile users — **80/0 GREEN** (including
+`NetherBlastRoutingAcceptanceTest` — the VT-012 flake did not fire);
+the block package on the branch directly **309/0**.
 
 **VT-012 DISCOVERED (this pass, the lanes' run — renumbered from the
 VT-011 this lane first used: the pushed pass-29 lane claimed VT-011
