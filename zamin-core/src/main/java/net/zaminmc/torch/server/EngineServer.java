@@ -6828,8 +6828,19 @@ public final class EngineServer implements Server, EngineBridge {
             enterEndOnTick(session);
             return;
         }
-        boolean inPortal = at.identifier().equals(BuiltinBlocks.NETHER_PORTAL.identifier())
-                || at.identifier().equals(BuiltinBlocks.NETHER_PORTAL_Z.identifier());
+        // The riding gate (the reference's collision gate — PortalBlock
+        // .onEntityCollision lines 158-162: the collision arms only
+        // `entity.vehicle == null && entity.rider == null`; Entity.baseTick
+        // line 286 re-gates the crossing on `this.vehicle == null`). A
+        // riding (or ridden) body in portal cells therefore neither notes
+        // the portal entry nor accumulates the stand clock — the
+        // not-inPortal arm's 4-per-tick decay holds the clock at 0 until
+        // the dismount, and the crossing cannot fire while mounted. The
+        // End arm above carries the reference's identical gate; the
+        // nether arm's omission was the VT-005 divergence.
+        boolean inPortal = (at.identifier().equals(BuiltinBlocks.NETHER_PORTAL.identifier())
+                || at.identifier().equals(BuiltinBlocks.NETHER_PORTAL_Z.identifier()))
+                && session.ridingVehicleId() < 0 && session.ridingMobId() < 0;
         boolean creative = session.gamemode() == GameMode.CREATIVE;
         if (inPortal) {
             // The entry memory (the reference's onPortalCollision derive —
