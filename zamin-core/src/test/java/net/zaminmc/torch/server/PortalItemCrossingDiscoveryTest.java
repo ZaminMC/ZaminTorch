@@ -153,8 +153,17 @@ class PortalItemCrossingDiscoveryTest {
         // crossing, not the drop scatter.
         var spawned = new java.util.concurrent.atomic.AtomicReference<ItemEntity>();
         server.ticker().submit(() -> {
+            // THE CORNER FORM (the root-cause completion): spawnDropAtBlock
+            // treats its input as the block CORNER - it centers (+0.5) and
+            // then applies the vanilla position scatter (+-0.1). The center
+            // form (overX + 1.5, overY, overZ + 0.5) landed at z = 41.0 +- 0.1
+            // - OUTSIDE the frame's one-cell strip half the runs (the 50%
+            // precondition flake the velocity zeroing alone cannot retire;
+            // the position scatter is the second half of the root cause).
+            // The corner form lands at z = 40.5 +- 0.1 - ALWAYS inside the
+            // strip: the scatter stays within the cell.
             ItemEntity item = server.itemEntities().spawnDropAtBlock(
-                    new Position(overX + 1.5, overY, overZ + 0.5),
+                    new Position(overX + 1, overY, overZ),
                     ItemStack.of(BuiltinItems.STONE, 1),
                     ItemEntity.PICKUP_DELAY_DROP_TICKS, 0);
             if (item != null) {
