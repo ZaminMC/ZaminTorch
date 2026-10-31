@@ -1334,19 +1334,34 @@ natural terrain; one pre-existing lava load flake retired from
 consideration — passing alone on both trees, no fire path
 touched).
 
-## VT-008 — the bed's out-of-dimension blast arm is missing: the sleep walk carries no dimension gate (CONVERGED with F-EX6 — **PR #102 OPEN**; this record the independent census)
+## The twenty-seventh pass — VT-008's verification completed (the #102 coverage verified through the independent seats) + the crossing families unblocked
+
+The baseline advanced to `a95e7ca6` (PRs #96/#97/#98/#99/#100 merged
+since the twenty-sixth pass's record — **PR #98's merge unblocks the
+remaining crossing families**, the queue's item 6 remainder). This pass
+took the queue's head — VT-008's verification — through passes 2 and 3,
+using the honest-convergence protocol: no re-fix, the independent
+construction instead.
+
+- **VT-008** — the bed's out-of-dimension blast arm: three passes
+  complete; the correction is **PR #102's** (OPEN), this stream's
+  independent seats verifying its coverage GREEN across every
+  discriminator mounted (see the VT-008 record below for the four
+  angles beyond the carrier's own seats — the portal-walk anchoring,
+  the clock pin, the End seat, and the seated biome conjunct).
+
+## VT-008 — the bed's out-of-dimension blast arm is missing: the sleep walk carries no dimension gate (RESOLVED-BY-PR — **PR #102 OPEN, coverage VERIFIED** by this stream's independent seats; three passes complete)
 
 **Subsystem:** block use / the bed family / dimension gating
-**Affected version:** the current develop baseline (deef2a17)
-**Status:** CONVERGED — another stream's F-EX6 (**PR #102 OPEN**, stacked
-on #92) carries the same law (their record: "NO dimension gate, NO
-removal of the halves, NO power-5 createFire-true blast — BedBlock.use
-lines 68-79's `!dimension.hasSpawnPoint() || biome == HELL` arm" —
-byte-identical to this census, the HELL conjunct included). This
-stream's VT-008 record stands as the independent census + source pass;
-the next run VERIFIES #102's coverage (the seat construction below is
-the ready discriminator) rather than re-fixing — the honest-convergence
-protocol this pass exercised for VT-007's core.
+**Affected version:** the develop baselines deef2a17 → a95e7ca6 (the arm absent on both)
+**Status:** RESOLVED-BY-PR — another stream's F-EX6 (**PR #102 OPEN**, head
+`3e41cf7b`, based on the current develop) carries the law. This stream's
+record: the independent census + source pass (the twenty-sixth), and the
+independent behavioral verification of #102's coverage (the twenty-seventh)
+— the seat set `BedOutOfDimensionBlastDiscoveryTest` (5 seats) is RED on
+develop BY CONTRACT and GREEN 5/5 on #102's branch, two real executions
+each. The honest-convergence protocol VT-007's core exercised, completed
+for the bed.
 
 ### The reference's law (BedBlock.use, lines 45-84)
 
@@ -1395,16 +1410,89 @@ effective law for the vanilla dimensions).
 
 ### Verification pass history
 
-- **Pass 1 (source, this run, 2026-10-31):** BedBlock.use lines 45-84
-  read in full — the gate's conjuncts, the else arm's
+- **Pass 1 (source, the twenty-sixth pass, 2026-10-31):** BedBlock.use
+  lines 45-84 read in full — the gate's conjuncts, the else arm's
   remove-both-halves order, the explode call's power/fire/smoke
   flags; the engine's `sleepOnTick` + the use dispatch read — no
   dimension consult anywhere on the path. CONCLUSION: the arm is
   absent at the source level.
-- Pass 2 (behavioral): owed — the seat needs a nether-anchored
-  session (the portal walk construction); deferred to the next run
-  exactly as VT-006's arrow seat was (the source evidence stands).
-- Pass 3 (independent): owed.
+- **Pass 2 (behavioral, the twenty-seventh pass, 2026-10-31):** the
+  independent seat set `BedOutOfDimensionBlastDiscoveryTest`, 5 seats,
+  executed on BOTH trees. RED on develop (a95e7ca6) BY CONTRACT, two
+  consecutive stable runs: the four wrong-world seats fail at exactly
+  the vanilla-answer awaits ("the pair left whole") with every
+  construction precondition passing — the portal crossing crossed, the
+  carved scenes landed, the dimension stamps held; the overworld guard
+  GREEN. GREEN on PR #102's branch (`3e41cf7b`) 5/5, two real
+  executions (the second cleanTest-forced). The four discriminators
+  beyond the carrier's own seats: (a) the CORE seat portal-walk
+  anchored (DimensionWalk's own construction — a body that REACHED the
+  nether through the real crossing, not a stamped session) pins the
+  pair's removal, power 5.0F, the blast's dimension -1, fire in the
+  NETHER crater, NO sleep, and NO SPAWN SET — the pre-fix tree set the
+  spawn and slept against the overworld's clock at a phantom overworld
+  bed (the head normalization read the overworld field); (b) the CLOCK
+  PIN — the else arm never consults the time: the nether bed explodes
+  at DAY too (the pre-fix tree refused through the overworld night
+  gate here, nothing happened at all); (c) the END — dimension 1
+  answers hasSpawnPoint false the same way: the End bed blasts the End
+  world (the carrier's source-only coverage, now seated); (d) the
+  BIOME CONJUNCT — an overworld bed in a HELL-biome column (the
+  anvil-import custom-map edge the carrier's pass-3 record called
+  unseatable) explodes IN THE OVERWORLD: the seat writes the chunk's
+  own biome rows directly (`EngineChunk.setBiome`, Biome.HELL's 1.8
+  wire id 8), the conjunct its own gate independent of the dimension.
+- **Pass 3 (independent, the twenty-seventh pass, 2026-10-31):** the
+  execution-path and edge-case walk over #102's actual diff: (a) the
+  gate translation — `session.dimension() == 0 &&
+  !"hell".equals(world.biomeAt(bedHead))` against the reference's
+  `world.dimension.hasSpawnPoint() && world.getBiome(pos) !=
+  Biome.HELL`: the three Dimension classes' rows verified (base true,
+  Nether/TheEnd false — the engine's 0/-1/1 model makes `== 0`
+  equivalent), and the biome consult rides the NORMALIZED head (the
+  reference's own `pos` after the foot redirect); (b) the removal
+  order — head, sibling foot, THEN the blast; the four-neighbor foot
+  walk (fixed order, first bed-foot) vs the reference's
+  FACING-opposite walk: the engine's own bed model carries no FACING
+  state (`bedHeadCell` and the break walk use the same four-neighbor
+  convention), so the difference surfaces only in the multi-bed
+  adversarial adjacency — an engine-model tail shared by the existing
+  laws, not a #102-specific defect; the reference's
+  `getBlockState(...).getBlock() == this` matches either half while
+  #102 requires a foot — equivalent for legal placement states (a
+  head's facing-opposite can only hold a foot or a non-bed); (c) the
+  blast — `detonateAtIn(world, explosionServiceFor(dimension),
+  dimension, head+0.5, 5.0F, destructive=true, createFire=true,
+  PLAIN, null)`: the engine's parameter order puts destructive before
+  createFire (both true here — symmetric), the source mob null matches
+  the reference's null exploder, the center the head's +0.5, the
+  routing the FL4-F7/VT-007 idiom (the acting world's own service);
+  (d) `World.explode` lines 1601-1607 read — `new Explosion(this,
+  source, ...)` over the bed's OWN world, `damageEntities()` then
+  `damageBlocks(true)`; `World.removeBlock` line 281 read —
+  `setBlockState(pos, AIR, 3)`: drop-less, neighbor-updating — the
+  engine's `setBlock(head, airType())` equivalent; (e) the no-spawn
+  law, the clock independence, the orphan-foot early return (the
+  carrier's own guard seat), and the sleep walk's unchanged overworld
+  arm (the old `bedHeadCell`'s overworld consult correct there — the
+  gate has already established dimension 0) — all seated or
+  source-verified; (f) the design-choice challenge — no ledgered debt
+  anywhere in the sleep walk's records; the shape is the FL4-F3 wave's
+  un-migrated remainder (the use path was routed per-dimension but the
+  bed dispatch's gate was left to the sleep walk), the same family
+  VT-007's sites formed; (g) the compensating hunt — the seats prove
+  the develop arm runs the sleep walk (the spawn set, the body
+  sleeping) and no other bed-blast site exists.
+
+**CONCLUSION:** VT-008 CONFIRMED over three passes, distinct evidence
+each. The correction is PR #102's (another stream — the honest
+convergence): this stream's verification finds #102's coverage complete
+across every discriminator this construction could mount, including the
+four angles the carrier's own seats do not carry. The seat set rides
+this audit branch as the verification record; offered to #102 as
+additional coverage (the comment). Once #102 merges, the seats become
+regression pins on develop (GREEN on the merged tree — the same shape
+VT-007's seats took as #105's pins).
 
 ## Coverage ledger (updated by the twenty-sixth pass)
 
@@ -1421,7 +1509,7 @@ effective law for the vanilla dimensions).
 | Packed ice — melt/break laws | inspected: the reference's PackedIceBlock carries no melt arm (the `setTicksRandomly` false, the silk-drop row landed); nothing owed |
 | Portal mechanics (flag1, forcer) | landed by FL4-F1; not re-audited — the stand clock's re-fire law is VT-004 (CONFIRMED, three passes; the correction is **PR #91 OPEN**; the seat PortalRefireDiscoveryTest rides green on the fix branch) |
 | Portal mechanics — the non-player crossing (the entity-level arm) | the MOBS family LANDED by **PR #98** (VT-006's correction: the entity-level crossing service + the mobs family — the gated collision, the threshold-0 clock, the 300 cooldown with the re-arm pin, the 8:1 walk, the forcer's placement, the stamp swap, the per-dimension wire; `PortalMobCrossingDiscoveryTest` 3/0 with the cooldown and riding-gate pins). The REMAINING families (items, orbs, boats, carts, arrows) ride the `DimensionCrossing` seam in their own passes — the behavioral seats authored (RED on develop BY CONTRACT, the twenty-fifth pass); the TNT and falling families excluded by the census; the End-origin arm is the named tail |
-| Bed use — the out-of-dimension blast arm | AUDITED this pass (the twenty-sixth): the sleep walk carries no dimension gate — a nether/End bed sleeps where vanilla blasts (**VT-008 CONVERGED with F-EX6 — PR #102 OPEN**; this stream's census + source pass recorded, the seat construction deferred to the #102 verification) |
+| Bed use — the out-of-dimension blast arm | CONFIRMED over three passes (the twenty-sixth's census + source; the twenty-seventh's behavioral + independent); the correction is **PR #102 OPEN** with this stream's coverage verification recorded (`BedOutOfDimensionBlastDiscoveryTest` 5 seats: RED on develop ×2, GREEN on #102 ×2 — the four discriminators beyond the carrier's own: the portal-walk anchoring, the clock pin, the End seat, the seated HELL-biome conjunct) |
 | Portal mechanics — the riding gate (vehicle == null && rider == null) | VT-005 CONFIRMED (three passes — source, the pig-in-portal behavioral seat, the dismount-control independent pass; the correction rides `fix/portal-riding-gate-parity-audit`, PR #94) |
 | Drops — the TF-9 dimension stamp | LANDED by PR #90 (the dig/place walks stamp `world.dimension()`; the tile-family spill sites remain the per-dimension tile tail) |
 | Tile families — per-dimension stores | NOT INSPECTED as its own pass (the PR #90 ledger: the furnace/chest/skull/banner spill + cleanup ride the single-instance managers — the FL4 fluids/fire precedent applies; the nether tile placement/cleanup is its own architectural pass) |
@@ -1464,7 +1552,7 @@ effective law for the vanilla dimensions).
    an accidental match the fix must not over-correct; the nether-origin
    trace — no setDimension site ever moves a live body; the engine's own
    javadoc ledgers the gap). VT-006 CONFIRMED. ~~The fix — the mobs
-   family first~~ — **PR #98 OPEN** (the twenty-fifth pass: the
+   family first~~ — **PR #98 MERGED** (the twenty-fifth pass: the
    entity-level crossing service + the mobs family on
    `fix/portal-entity-crossing-parity-audit` based on `deef2a17`; the
    seats 3/0 with the cooldown and riding-gate pins; the portal+mob+world
@@ -1473,8 +1561,9 @@ effective law for the vanilla dimensions).
    placement identical). **The remaining crossing families behind the
    seam — the items, the orbs, the boats, the carts, the arrows (each
    confirmed by the census; the behavioral seats authored, the
-   twenty-fifth pass) — remain BLOCKED on PR #98's merge (the
-   `DimensionCrossing` seam's dependency).**
+   twenty-fifth pass) — are UNBLOCKED by PR #98's MERGE (the
+   `DimensionCrossing` seam rides develop a95e7ca6): the arms are the
+   next run's head.**
 7. ~~The explosion-path dimension audit~~ — DONE (the twenty-sixth pass:
    **VT-007 CONFIRMED** over three passes — the census (five divergent
    sites + the drop stamp), the executed behavioral seats (RED on
@@ -1489,10 +1578,13 @@ effective law for the vanilla dimensions).
    factory's routed walk, the stash discrimination's record:
    nether=0 overworld=18 unfixed, green fixed). VT-008 (the bed's
    blast arm) is ALSO CONVERGED — another stream's F-EX6, **PR #102
-   OPEN**: the next run verifies #102's coverage with this stream's
-   seat construction (the nether-anchored session — the record's
-   pass-2 notes) instead of re-fixing, then continues the queue
-   below.)
+   OPEN** — and the twenty-seventh pass VERIFIED #102's coverage with
+   this stream's independent seats (5/5 GREEN on `3e41cf7b`, RED on
+   develop ×2; the four discriminators beyond the carrier's own:
+   the portal-walk anchoring, the clock pin, the End seat, the seated
+   HELL-biome conjunct). VT-008 closed as RESOLVED-BY-PR; the seats
+   ride the audit branch and were offered to #102 as additional
+   coverage.)
 8. ~~The standing lanes~~ — F-EC1 RESOLVED-BY-PR (the twenty-fourth
    pass: confirmed over three passes and corrected — **PR #95 OPEN**, the one-consult
    swap to `BlockSolidity.isSolid`; F-TC1 was already resolved by PR
@@ -1503,10 +1595,14 @@ effective law for the vanilla dimensions).
    PR #90 ledger): the per-dimension tile families, the mob spawn's
    dimension stamp, the FX dimension awareness, the per-dimension world
    border, the zombie arm's world binding.
-10. The watch items: the open PRs #91/#94/#95/#98/#101/#102/#104/#105
-   awaiting the maintainer's review (PR #103 closed as superseded by
-   #100 — the honest convergence recorded; #102 is VT-008's carrier,
-   #104 F-EX13 a blast-wound lane adjacent to this pass's census);
+10. The watch items: **#91/#94/#95/#98 MERGED since the twenty-sixth
+   pass's record** (the crossing seam, the riding gate, the stand
+   clock, the ender chest consult all on develop); the OPEN set is
+   #101/#102/#104/#105 awaiting the maintainer's review (PR #103
+   closed as superseded by #100 — the honest convergence recorded;
+   #102 is VT-008's carrier, its coverage verification posted as the
+   review comment; #104 F-EX13 a blast-wound lane adjacent to the
+   twenty-sixth pass's census);
    the FL4-F10 redstone world binding — the house stream's own
    claimed next act (its trace and six-point plan recorded at
    `99f1718b` on develop) — NOT to be duplicated by this stream.
