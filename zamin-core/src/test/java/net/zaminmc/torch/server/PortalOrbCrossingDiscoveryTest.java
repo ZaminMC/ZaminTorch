@@ -131,11 +131,20 @@ class PortalOrbCrossingDiscoveryTest {
         // The body: a single orb burst inside the frame's interior (the
         // burst's spread pins to one body — maxOrbs 1; no players online
         // — nothing collects it; the orb's own gravity grounds it).
+        //
+        // THE SEAT'S DETERMINISM (the item seat's flake, root-caused there:
+        // spawnBurst carries the same vanilla scatter — a random
+        // horizontal velocity up to ±0.1/tick — and the frame's floor
+        // strip is ONE cell thick in z, so a strong z-drift carries the
+        // box past the strip and the orb falls to the world surface). The
+        // scatter is correct vanilla behavior; the SEAT neutralizes it —
+        // the law under test is the crossing.
         var spawned = new java.util.concurrent.atomic.AtomicReference<ExperienceOrbEntity>();
         server.ticker().submit(() -> {
             var burst = server.experienceOrbs().spawnBurst(
                     new Position(overX + 1.5, overY, overZ + 0.5), 3, 1, 0);
             if (!burst.isEmpty()) {
+                burst.get(0).setVelocity(0.0, 0.0, 0.0); // the seat's determinism row
                 spawned.set(burst.get(0));
             }
         });

@@ -139,12 +139,27 @@ class PortalItemCrossingDiscoveryTest {
         // on the bottom obsidian row (the item's own gravity grounds it;
         // no players online — nothing collects it; the 6000-tick despawn
         // window outlives the seat).
+        //
+        // THE SEAT'S DETERMINISM (the flake root-caused): spawnDropAtBlock
+        // stamps the vanilla drop scatter — a random horizontal velocity
+        // up to ±0.1/tick — and the frame's floor strip is ONE cell thick
+        // in z (the bottom row spans the frame's plane alone), so a strong
+        // z-drift carries the 0.25-box past the strip and the item falls
+        // to the world surface, never resting in a portal cell (the
+        // precondition poll then times out — the pass-27 lane's observed
+        // "once in two runs" flake, exactly this race). The scatter is
+        // CORRECT vanilla behavior (the reference's drop pop); the SEAT
+        // neutralizes it for determinism — the law under test is the
+        // crossing, not the drop scatter.
         var spawned = new java.util.concurrent.atomic.AtomicReference<ItemEntity>();
         server.ticker().submit(() -> {
             ItemEntity item = server.itemEntities().spawnDropAtBlock(
                     new Position(overX + 1.5, overY, overZ + 0.5),
                     ItemStack.of(BuiltinItems.STONE, 1),
                     ItemEntity.PICKUP_DELAY_DROP_TICKS, 0);
+            if (item != null) {
+                item.setVelocity(0.0, 0.0, 0.0); // the seat's determinism row
+            }
             spawned.set(item);
         });
         await(() -> spawned.get() != null, "the item dropped in the portal interior");
