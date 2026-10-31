@@ -749,6 +749,14 @@ corrected override census; the wrongly-pinned seat re-pinned; the two
 caller comments refined. The scatter (the caller's addVelocity arm) is
 untouched — every gathered body still takes it.
 
+### Evidence
+
+The stash-verified discrimination (3 failing unfixed on exactly the
+predicted assertions, the LARGE controls green on BOTH trees); the
+whole projectile package + the explosion family + the vehicle blast
+lanes + the TNT/dispenser/creeper/crystal/fire lanes green post-fix
+(187/0 over 33 classes).
+
 ## F-EX3 — VERIFIED and FIXED (the 2026-10-31 session, the boot-registry census)
 
 **Status: resolved** (the three passes complete in one session; the fix on
@@ -843,14 +851,7 @@ the wire seat NEW.
 ### Evidence
 
 The stash-verified discrimination (3 failing unfixed on exactly the
-<<<<<<< HEAD
-predicted assertions, the LARGE controls green on BOTH trees); the
-whole projectile package + the explosion family + the vehicle blast
-lanes + the TNT/dispenser/creeper/crystal/fire lanes green post-fix
-(187/0 over 33 classes).
-=======
 predicted points, 3/3 green fixed); the regression lanes green whole
 (523/0 over 94 classes: the explosion family, TNT, vehicles, redstone,
 the block package, hoppers, pistons, daylight, crystals, creepers,
 projectiles).
->>>>>>> origin/fix/blast-resistance-boot-census
