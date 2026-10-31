@@ -1997,6 +1997,13 @@ work, in the queue's order:
    in this environment — SIGKILL 137 at the memory ceiling, verified
    identical on the clean develop tree — the affected surfaces
    covered lane-by-lane instead).
+3. **The items family's pass 3** (the crossing arms' head): the
+   independent walk over the current tree + the fresh reference read
+   + the negative compensation and design-choice challenges —
+   CONFIRMED; the fix (the item arm through the `DimensionCrossing`
+   seam, a real architectural slice) is deliberately deferred to the
+   next run rather than risked half-done at the environment's edge.
+   The orbs/boats/carts/arrows walks follow it.
 
 
 ## Coverage ledger (updated by the twenty-ninth pass)
@@ -2013,7 +2020,7 @@ work, in the queue's order:
 | Snow layer — placement support/melt/drops | drops landed (the mining-speed audit); melt + the 7-layer state surface recorded as VT-003's tail |
 | Packed ice — melt/break laws | inspected: the reference's PackedIceBlock carries no melt arm (the `setTicksRandomly` false, the silk-drop row landed); nothing owed |
 | Portal mechanics (flag1, forcer) | landed by FL4-F1; not re-audited — the stand clock's re-fire law is VT-004 (CONFIRMED, three passes; the correction is **PR #91 OPEN**; the seat PortalRefireDiscoveryTest rides green on the fix branch) |
-| Portal mechanics — the non-player crossing (the entity-level arm) | the MOBS family LANDED by **PR #98** (VT-006's correction: the entity-level crossing service + the mobs family — the gated collision, the threshold-0 clock, the 300 cooldown with the re-arm pin, the 8:1 walk, the forcer's placement, the stamp swap, the per-dimension wire; `PortalMobCrossingDiscoveryTest` 3/0 with the cooldown and riding-gate pins). The REMAINING families (items, orbs, boats, carts, arrows) ride the `DimensionCrossing` seam in their own passes — the behavioral seats authored (RED on develop BY CONTRACT, the twenty-fifth pass); the TNT and falling families excluded by the census; the End-origin arm is the named tail |
+| Portal mechanics — the non-player crossing (the entity-level arm) | the MOBS family LANDED by **PR #98** (VT-006's correction: the entity-level crossing service + the mobs family — the gated collision, the threshold-0 clock, the 300 cooldown with the re-arm pin, the 8:1 walk, the forcer's placement, the stamp swap, the per-dimension wire; `PortalMobCrossingDiscoveryTest` 3/0 with the cooldown and riding-gate pins). The ITEMS family's pass 3 (the independent walk, the twenty-ninth pass): CONFIRMED — `ItemEntityManager.tick`'s walk re-walked on the current `a23011fa` tree (expired → inVoid → the TF-9 dimension flip → the physics → the same-world pickup — zero portal consults, `portalFrameAt` called nowhere in the manager); the reference re-read fresh (`ItemEntity.tick` line 64's `super.tick()` → the Entity portal arm lines 282-313: `vehicle == null && portalTime++ >= getMaxNetherPortalTime()` — the base 0 — then `changeDimension`, the cooldown `getPortalCooldown()`); the compensation hunt NEGATIVE (the pickup's own same-world gate means a nether player can never collect the overworld portal cell's stack — no other mover exists; the player's inventory crosses with the player, not the ground body); the design-choice challenge NEGATIVE (the engine's own `leaveEndOnTick` javadoc LEDGERS the gap and names the crossing simulation as the missing prerequisite — a planned gap, PR #98's own follow-up plan, never an intentional divergence; the seat's doc pins "do not re-pin it to the engine's current answer"). THE FIX IS THE NEXT RUN'S HEAD — a real architectural slice (the item's portal clock + the entry memory + the destroy/spawn fans + the engine's seam wire), not a quick hookup. The ORBS, BOATS, CARTS, ARROWS pass-3 walks then their fixes follow; the behavioral seats authored (RED on develop BY CONTRACT, the twenty-fifth pass); the TNT and falling families excluded by the census; the End-origin arm is the named tail |
 | Bed use — the out-of-dimension blast arm | CONFIRMED over three passes (the twenty-sixth's census + source; the twenty-seventh's behavioral + independent); the correction is **PR #102 (now MERGED onto develop)**, verified by BOTH streams independently: the twenty-seventh's `BedOutOfDimensionBlastDiscoveryTest` (the portal-walk anchoring, the clock pin, the End seat, the seated HELL-biome conjunct — RED pre-fix, GREEN on the fix) and the twenty-eighth's `BedWrongWorldBlastVerificationTest` on the MERGED tree (the End seat + the HEAD-half identity click, both GREEN — the second-construction confirmation) |
 | Portal mechanics — the riding gate (vehicle == null && rider == null) | VT-005 CONFIRMED (three passes — source, the pig-in-portal behavioral seat, the dismount-control independent pass; the correction rides `fix/portal-riding-gate-parity-audit`, PR #94) |
 | Drops — the TF-9 dimension stamp | LANDED by PR #90 (the dig/place walks stamp `world.dimension()`; the tile-family spill sites remain the per-dimension tile tail) |
@@ -2053,10 +2060,15 @@ work, in the queue's order:
    cannot run in this environment, SIGKILL 137 at the memory ceiling,
    verified identical on the clean develop tree).
 3. **The crossing families' arms** (the twenty-seventh pass's named
-   head — this stream's lane): the items, the orbs, the boats, the
-   carts, the arrows through the `DimensionCrossing` seam (the census
-   + the RED seats stand as passes 1-2; each family's independent
-   pass 3 then its fix branch).
+   head — this stream's lane): **the ITEMS family's pass 3 is DONE
+   (the twenty-ninth pass — CONFIRMED, the ledger row above); its FIX
+   is the next run's HEAD** (the item arm through the
+   `DimensionCrossing` seam: the portal clock + the entry memory on
+   `ItemEntity`, the destroy/spawn fans, the engine's seam wire — the
+   mobs' landed `tickPortalArm`/`crossMobDimension` shape as the map,
+   `PortalItemCrossingDiscoveryTest` as the ready discriminator).
+   The orbs, boats, carts, arrows pass-3 walks then their fixes
+   follow (the census + the RED seats stand as their passes 1-2).
 4. ~~The standing lanes~~ — F-EC1 RESOLVED-BY-PR (the twenty-fourth
    pass: confirmed over three passes and corrected — **PR #95 MERGED**, the one-consult
    swap to `BlockSolidity.isSolid`; F-TC1 was already resolved by PR
@@ -2069,9 +2081,10 @@ work, in the queue's order:
    border, the zombie arm's world binding.
 6. The watch items: **#101/#102/#104 MERGED since the twenty-seventh
    pass's record**; the OPEN set is **#105 (this stream's TNT-cart
-   slice)**, **#106 (this stream's pair-break fix)**, and **#111 (this
-   stream's VT-010 correction — this pass)** awaiting the maintainer's
-   review; the FL4-F10 redstone world binding **LANDED on develop**
+   slice)**, **#106 (this stream's pair-break fix)**, **#111 (this
+   stream's VT-010 correction)**, and **#115 (this stream's VT-011
+   correction — both this pass)** awaiting the maintainer's review;
+   the FL4-F10 redstone world binding **LANDED on develop**
    (`a23011fa` — the house stream's act, verified by this pass's
    baseline advance: the twenty-ninth pass lane merges it whole, no
    overlap with this stream's bed lanes).
