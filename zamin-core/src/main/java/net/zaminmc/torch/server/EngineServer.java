@@ -1044,6 +1044,9 @@ public final class EngineServer implements Server, EngineBridge {
                 // VT-006 — the entity-level crossing service (the reference's
                 // Entity.changeDimension walk the mobs' portal arm rides).
                 mobs.setDimensionCrossing(this::crossEntityDimension);
+                // VT-006 — the item family's own arm rides the same seam
+                // (ItemEntity.tick's super chain carries the portal walk).
+                itemEntities.setDimensionCrossing(this::crossEntityDimension);
                 // Mob persistence (ZMD v1): the population survives restarts;
                 // a fresh world's animals arrive through the vanilla worldgen
                 // seeding (NaturalSpawner.populateChunk — the seedAnimals pass
@@ -2099,6 +2102,9 @@ public final class EngineServer implements Server, EngineBridge {
                 experienceOrbs = new ExperienceOrbManager(shapeGround,
                         new java.util.Random(), ORB_ID_BASE,
                         orbLavaEnvelopeSounds());
+                // VT-006 — the orb family's own arm (ExperienceOrbEntity.tick's
+                // super chain carries the portal walk).
+                experienceOrbs.setDimensionCrossing(this::crossEntityDimension);
                 experienceOrbs.addListener(new OrbEventDispatch());
                 // Random ticks (§471 pattern): grass growth and decay.
                 randomTicks = new RandomTickSystem(world, new java.util.Random());
@@ -2729,6 +2735,10 @@ public final class EngineServer implements Server, EngineBridge {
                         },
                         new java.util.Random(),
                         VEHICLE_ID_BASE);
+                // VT-006 — the vehicle family's own arm (BoatEntity.tick's
+                // super chain and MinecartEntity.tick's own copy carry the
+                // portal walk).
+                vehicles.setDimensionCrossing(this::crossEntityDimension);
                 this.vehicleManager = vehicles;
                 vehicles.setEventBus(eventBus); // §27.7: the public vehicle spawn gate
                 // THE VEHICLES' RIDER-FALL DELEGATE (F-RIDER-SPARE — the
@@ -19242,6 +19252,29 @@ public final class EngineServer implements Server, EngineBridge {
         }
 
         /**
+         * VT-006 — the portal collision consult for the vehicle family:
+         * the frame match at the feet cell in the ACTIVE dimension (the
+         * same consult the mob query and the shape ground carry), null
+         * when the cell is not a portal cell.
+         */
+        @Override
+        public net.zaminmc.torch.server.world.PortalFrameBuilder.PortalShapeMatch portalFrameAt(
+                int x, int y, int z) {
+            if (y < net.zaminmc.torch.block.BlockPosition.MIN_Y
+                    || y > net.zaminmc.torch.block.BlockPosition.MAX_Y) {
+                return null;
+            }
+            net.zaminmc.torch.block.BlockPosition at =
+                    new net.zaminmc.torch.block.BlockPosition(x, y, z);
+            if (!net.zaminmc.torch.server.block.WorldSolidity.isNetherPortal(
+                    activeVehicleWorld().getBlock(at).identifier())) {
+                return null;
+            }
+            return net.zaminmc.torch.server.world.PortalFrameBuilder.matchAt(
+                    activeVehicleWorld(), at);
+        }
+
+        /**
          * The block identity at a cell (the beforeCollision consult — the
          * slime pad's bounce reads the ACTIVE dimension's own blocks, the
          * TF-11 convention).
@@ -26399,7 +26432,7 @@ public final class EngineServer implements Server, EngineBridge {
      * and the PortalForcer's find-or-build placement (lines 487-496).
      * The manager's crossing families (the mobs first) ride the seam.
      */
-    private MobManager.DimensionCrossing.Crossing crossEntityDimension(
+    private net.zaminmc.torch.server.entity.DimensionCrossing.Crossing crossEntityDimension(
             int fromDimension, double x, double y, double z, float yaw,
             double velocityX, double velocityZ, PortalForcer.Memory memory) {
         // The direction (Entity.baseTick lines 290-294): from the nether
@@ -26428,7 +26461,7 @@ public final class EngineServer implements Server, EngineBridge {
         PortalForcer forcer = to == -1 ? netherPortalForcer : worldPortalForcer;
         PortalForcer.Arrival arrival = forcer.onDimensionChanged(
                 destX + 0.5, y, destZ + 0.5, yaw, velocityX, velocityZ, memory);
-        return new MobManager.DimensionCrossing.Crossing(to, arrival);
+        return new net.zaminmc.torch.server.entity.DimensionCrossing.Crossing(to, arrival);
     }
 
     private void publishDimensionChanged(PlayerSession player, Position destination, int dimension) {
@@ -32129,6 +32162,29 @@ public final class EngineServer implements Server, EngineBridge {
         @Override
         public void setActiveDimension(int dimension) {
             this.activeDimension = dimension;
+        }
+
+        /**
+         * VT-006 — the portal collision consult for the ground-riding
+         * families (the items, the falling blocks, the orbs, the
+         * projectiles): the frame match at the feet cell in the ACTIVE
+         * dimension (the same consult the mob query carries), null when
+         * the cell is not a portal cell.
+         */
+        @Override
+        public net.zaminmc.torch.server.world.PortalFrameBuilder.PortalShapeMatch portalFrameAt(
+                int x, int y, int z) {
+            if (y < net.zaminmc.torch.block.BlockPosition.MIN_Y
+                    || y > net.zaminmc.torch.block.BlockPosition.MAX_Y) {
+                return null;
+            }
+            net.zaminmc.torch.block.BlockPosition at =
+                    new net.zaminmc.torch.block.BlockPosition(x, y, z);
+            if (!net.zaminmc.torch.server.block.WorldSolidity.isNetherPortal(
+                    activeGroundWorld().getBlock(at).identifier())) {
+                return null; // not a portal cell — the collision answers nothing
+            }
+            return net.zaminmc.torch.server.world.PortalFrameBuilder.matchAt(activeGroundWorld(), at);
         }
 
         /** The world the active dimension lives in (the unbooted stand-in: the overworld). */

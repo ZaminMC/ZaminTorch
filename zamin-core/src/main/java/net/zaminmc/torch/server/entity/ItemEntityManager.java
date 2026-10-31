@@ -118,6 +118,20 @@ public final class ItemEntityManager {
     private net.zaminmc.torch.server.event.EngineEventBus eventBus;
 
     /**
+     * VT-006 — the entity-level crossing service (the reference's
+     * Entity.changeDimension walk the item family's portal arm rides);
+     * null until the engine wires it (the unwired boots keep the
+     * no-crossing shape — the seam's own hold).
+     */
+    private volatile DimensionCrossing dimensionCrossing;
+
+    /** Wires the crossing service (the engine's own boot). */
+    public void setDimensionCrossing(DimensionCrossing dimensionCrossing) {
+        this.dimensionCrossing = java.util.Objects.requireNonNull(
+                dimensionCrossing, "dimensionCrossing");
+    }
+
+    /**
      * Wires the public item-spawn gate: every drop (the block-break
      * loot, the mob deaths, the player throws, the container spills,
      * the dispenser's plain egress) fires the cancellable pre-commit
@@ -266,6 +280,69 @@ public final class ItemEntityManager {
         return entities.size();
     }
 
+    /**
+     * VT-006 — the item family's portal arm (the reference's entity-level
+     * law: ItemEntity.tick line 61 calls super.tick() → Entity.baseTick
+     * lines 282-313, fed by PortalBlock.onEntityCollision lines 158-162's
+     * gated collision — an item never rides, so the gate passes): the
+     * collision consult at the body's feet cell, the entry memory's
+     * derive, and the base-entity clock (the threshold 0, the 300
+     * cooldown). Runs on the flipped shared ground — the body's own
+     * world.
+     *
+     * @return true when the crossing fired (the caller skips the body's
+     *         own walk — the reference's removed-body shape)
+     */
+    private boolean tickPortalArm(ItemEntity entity) {
+        Position at = entity.position();
+        int feetX = (int) Math.floor(at.x());
+        int feetY = (int) Math.floor(at.y());
+        int feetZ = (int) Math.floor(at.z());
+        var match = ground.portalFrameAt(feetX, feetY, feetZ);
+        if (match != null) {
+            entity.notePortalEntry(new net.zaminmc.torch.block.BlockPosition(
+                    feetX, feetY, feetZ), match, at.x(), at.y(), at.z());
+        }
+        if (entity.advanceEntityPortalClock(match != null)) {
+            crossItemDimension(entity);
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * VT-006 — the item family's crossing walk (Entity.changeDimension
+     * lines 1695-1730): the old world's destroy fan FIRST (the wire reads
+     * the stamp at send time — the reference's old-world tracker's
+     * EntityDestroy), then the service's reposition + the forcer's
+     * placement, then the stamp swap and the new world's spawn fan. The
+     * body keeps its engine id and its whole stack (the reference's
+     * copyNbtFrom).
+     */
+    private void crossItemDimension(ItemEntity entity) {
+        DimensionCrossing crossing = dimensionCrossing;
+        int from = entity.dimension();
+        if (crossing == null || from == 1) {
+            // The unwired boot and the End-origin arm (the audit's named
+            // tail): the crossing holds, the cooldown keeps the body from
+            // re-firing.
+            return;
+        }
+        Position at = entity.position();
+        for (Listener listener : listeners) {
+            listener.onItemRemoved(entity, "portal");
+        }
+        DimensionCrossing.Crossing result = crossing.cross(from,
+                at.x(), at.y(), at.z(), 0.0f,
+                entity.velocityX(), entity.velocityZ(), entity.portalMemory());
+        entity.applyDimensionArrival(result.toDimension(),
+                new Position(result.arrival().x(), result.arrival().y(), result.arrival().z()),
+                result.arrival().velocityX(), result.arrival().velocityZ());
+        for (Listener listener : listeners) {
+            listener.onItemSpawned(entity);
+        }
+    }
+
     /** Advances all item entities one tick: merging, physics, pickup checks, despawn. */
     public void tick(Iterable<PlayerSession> players) {
         mergeNearbyItems();
@@ -298,6 +375,13 @@ public final class ItemEntityManager {
             // nether item lands on the nether's blocks, never on the
             // overworld's same-coordinate terrain.
             ground.setActiveDimension(entity.dimension());
+            // VT-006 — the entity-level portal arm runs at the START of
+            // the body's tick (the reference's baseTick precedes the
+            // item's own walk): a stack standing in portal cells crosses
+            // rather than resting there.
+            if (tickPortalArm(entity)) {
+                continue; // the crossing consumed this body's walk
+            }
             if (entity.tick(ground, random, sounds)) {
                 for (Listener listener : listeners) {
                     listener.onItemMoved(entity);

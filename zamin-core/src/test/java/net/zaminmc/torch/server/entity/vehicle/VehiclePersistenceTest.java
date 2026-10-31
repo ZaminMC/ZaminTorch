@@ -132,7 +132,17 @@ class VehiclePersistenceTest {
             assertEquals(0, cart.dimension(),
                     "the overworld row survived (the TF-11 re-pin — the -1 round"
                             + " trip lives in VehicleDimensionReadsTest)");
-            assertEquals(45, cart.portalCooldown());
+            // The PortalCooldown row re-pinned (VT-006's vehicle arm — the
+            // fall-store precedent, the Fire row's own band idiom): the
+            // restored row decays one per tick from the moment it lands
+            // (the reference's baseTick lines 311-313 — every ticked body
+            // pays the tail decrement). The pre-arm engine never touched
+            // the row, so this seat pinned the dead static value; the band
+            // proves the row landed (a missed restore leaves the fresh
+            // body's 0) and is decaying under the live law.
+            assertTrue(cart.portalCooldown() >= 1 && cart.portalCooldown() <= 45,
+                    "the restored cooldown row landed and is decaying: "
+                            + cart.portalCooldown());
             assertEquals(8.5, cart.position().x(), 1e-9, "the cart's x survived");
             // The restored body sits at the saved y or just below it (the
             // restored body continues its own physics from the load — a

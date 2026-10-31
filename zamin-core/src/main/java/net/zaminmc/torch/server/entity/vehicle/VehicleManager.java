@@ -672,6 +672,82 @@ public final class VehicleManager {
      * kind's rules, the mounted rider's state rides along (the engine owns
      * the player position while the seat is taken), and the void consumes.
      */
+    /**
+     * VT-006 — the entity-level crossing service (the reference's
+     * Entity.changeDimension walk the vehicle family's portal arm rides);
+     * null until the engine wires it.
+     */
+    private volatile net.zaminmc.torch.server.entity.DimensionCrossing dimensionCrossing;
+
+    /** Wires the crossing service (the engine's own boot). */
+    public void setDimensionCrossing(net.zaminmc.torch.server.entity.DimensionCrossing dimensionCrossing) {
+        this.dimensionCrossing = java.util.Objects.requireNonNull(
+                dimensionCrossing, "dimensionCrossing");
+    }
+
+    /**
+     * VT-006 — the vehicle family's portal arm (BoatEntity.tick line
+     * 177's super chain → Entity.baseTick lines 282-313, and
+     * MinecartEntity.tick's OWN copy lines 203-227 — the same law): the
+     * collision consult at the body's feet cell carrying the reference's
+     * RIDING GATE (PortalBlock.onEntityCollision lines 158-162 — a body
+     * with a rider never arms; the crossing arm's own line 286
+     * {@code this.vehicle == null} holds for a vehicle's own body), the
+     * entry memory's derive, and the base-entity clock.
+     *
+     * @return true when the crossing fired (the caller skips the body's
+     *         own walk)
+     */
+    private boolean tickPortalArm(VehicleEntity vehicle) {
+        Position at = vehicle.position();
+        int feetX = (int) Math.floor(at.x());
+        int feetY = (int) Math.floor(at.y());
+        int feetZ = (int) Math.floor(at.z());
+        // The gated collision consult (lines 158-162: vehicle == null &&
+        // rider == null — a ridden boat or cart never arms).
+        var match = vehicle.passengerId() >= 0 ? null
+                : world.portalFrameAt(feetX, feetY, feetZ);
+        if (match != null) {
+            vehicle.notePortalEntry(new net.zaminmc.torch.block.BlockPosition(
+                    feetX, feetY, feetZ), match, at.x(), at.y(), at.z());
+        }
+        if (vehicle.advanceEntityPortalClock(match != null)) {
+            crossVehicleDimension(vehicle);
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * VT-006 — the vehicle family's crossing walk (Entity.changeDimension
+     * lines 1695-1730): the old world's destroy fan, the seam's
+     * reposition + the forcer's placement, the stamp swap, the new
+     * world's spawn fan — the body carries whole.
+     */
+    private void crossVehicleDimension(VehicleEntity vehicle) {
+        net.zaminmc.torch.server.entity.DimensionCrossing crossing = dimensionCrossing;
+        int from = vehicle.dimension();
+        if (crossing == null || from == 1) {
+            return; // the unwired boot and the End-origin arm (the named tail)
+        }
+        Position at = vehicle.position();
+        // The removal fan rides the broken listener (the wire's Destroy
+        // alone — no drops, no sound; the vehicle Listener carries no
+        // reason-carrying removal, and the packet cannot tell them apart).
+        for (Listener listener : listeners) {
+            listener.onVehicleBroken(vehicle);
+        }
+        net.zaminmc.torch.server.entity.DimensionCrossing.Crossing result = crossing.cross(
+                from, at.x(), at.y(), at.z(), 0.0f,
+                vehicle.velocityX(), vehicle.velocityZ(), vehicle.portalMemory());
+        vehicle.applyDimensionArrival(result.toDimension(),
+                new Position(result.arrival().x(), result.arrival().y(), result.arrival().z()),
+                result.arrival().velocityX(), result.arrival().velocityZ());
+        for (Listener listener : listeners) {
+            listener.onVehicleSpawned(vehicle);
+        }
+    }
+
     public void tick() {
         Iterator<VehicleEntity> cursor = vehicles.iterator();
         while (cursor.hasNext()) {
@@ -694,6 +770,13 @@ public final class VehicleManager {
             // cart rides the nether's rails, never the overworld's
             // same-coordinate track.
             world.setActiveDimension(vehicle.dimension());
+            // VT-006 — the entity-level portal arm runs at the START of
+            // the body's tick (the reference's baseTick precedes the
+            // vehicle's own walk): an empty boat or cart standing in
+            // portal cells crosses rather than resting there.
+            if (tickPortalArm(vehicle)) {
+                continue; // the crossing consumed this body's walk
+            }
             long before = fixedPoint(vehicle.position());
             // The burn clock's own arm (Slice 78 — Entity.java lines
             // 320-335, the onUpdate fire arm): the 1.0 ON_FIRE wound every
