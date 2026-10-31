@@ -1046,7 +1046,263 @@ determinism care; the census's source evidence — ArrowEntity.tick
 line 150 — stands). The families' fixes ride the
 `DimensionCrossing` seam once PR #98 merges.
 
-## Coverage ledger (updated by the twenty-fifth pass)
+## The twenty-sixth pass — the explosion-path dimension audit (the queue's named head): VT-007 discovered, the bed's blast arm discovered (VT-008)
+
+The crossing families' fixes remain blocked behind PR #98 (the
+`DimensionCrossing` seam's dependency — the PR is open and clean, not
+merged; the families' seats ride on this branch chain). The pass took
+the queue's next unblocked head: **the explosion-path dimension audit**
+(the ledger row "Explosions — dimension routing", unblocked since
+nether placement landed with PR #90).
+
+The audit censused EVERY detonation call site in `zamin-core/src/main`
+against the reference's own world-binding law, and found the routing
+PARTIAL — the FL4-F7 wave (the primed TNT) and Slice 62 (the End
+crystal) landed their sites, but five detonation sites plus one
+shared-walk casualty still bind the overworld:
+
+1. **VT-007** — the ghast fireball and wither skull sinks pass the
+   ROUTED world but the OVERWORLD service; the creeper, the wither
+   birth, and the TNT cart pass the overworld binding outright; and
+   the blast drop roll inside the shared `detonateAtIn` walk stamps
+   dimension 0 even for the correctly-routed blasts. A nether ghast's
+   routine fireball never holes the nether and instead tears the
+   OVERWORLD at the same coordinates — cross-dimension world
+   corruption from the nether's signature mob. UNDER VERIFICATION
+   (passes 1-2 recorded: the source census, and the behavioral seats
+   EXECUTED — `ExplosionDimensionRoutingDiscoveryTest` RED on develop
+   stable across three runs, both families demonstrating the nether 0
+   holes / the overworld 4-24; the independent pass owed).
+2. **VT-008** — the bed's out-of-dimension blast arm is absent: the
+   sleep walk carries no dimension gate, so a nether or End bed sets
+   the spawn and sleeps where vanilla removes both halves and blasts
+   a power-5 fire-carving hole. UNDER VERIFICATION (pass 1, the
+   source pass, recorded; the behavioral seat deferred to the next
+   run — the nether-anchored session construction, exactly the arrow
+   family's seat precedent).
+
+## VT-007 — the blast family's dimension routing is partial: the fireball, skull, creeper, wither-birth, and TNT-cart detonations still bind the overworld, and the blast drop stamp carries dimension 0 (UNDER VERIFICATION — pass 1 recorded)
+
+**Subsystem:** explosions / dimension routing (the queue's named audit)
+**Affected version:** the current develop baseline (deef2a17)
+**Status:** under verification (passes 1-2 recorded — the source census
+and the behavioral seats; the independent pass owed)
+
+### The reference's law
+
+Every vanilla detonation site calls `this.world.explode(...)` — the
+explosion is created in the ENTITY'S OWN world instance, whatever
+dimension it lives in:
+
+- `FireballEntity.onHit` line 33: `this.world.explode(null, this.x,
+  this.y, this.z, this.explosionPower, flag, flag)`
+- `WitherSkullEntity.onHit` line 83: `this.world.explode(this, ...)`
+- `CreeperEntity.explode` line 210: `this.world.explode(this, ...)`
+- `WitherEntity.mobAiTick` line 217: `this.world.explode(this, this.x,
+  this.y + this.getEyeHeight(), this.z, 7.0F, false, mobGriefing)`
+- `TntMinecartEntity.explode` line 92: `this.world.explode(this, ...)`
+
+`World.explode` (lines 1601-1607) constructs `new Explosion(this,
+source, x, y, z, power, createFire, destructive)` over the SAME world
+object — every read (`getBlockState` line 85, `getEntities` line 115,
+`getBlockDensity` line 131, `playSound` line 148) and every write (the
+`setBlockState` commits, the drop spawns) runs through that one world.
+A ghast fireball detonating in the nether destroys NETHER blocks,
+wounds NETHER bodies, and drops NETHER items; the overworld at the
+same coordinates is untouched.
+
+### The engine's shape (the census — every detonation call site)
+
+The engine already carries the per-dimension services
+(`explosionService` over the overworld, `netherExplosionService` over
+the nether, `endExplosionService` over the End — EngineServer
+2134/2141/2258) and the router `explosionServiceFor(int)`
+(24306-24314). `ExplosionService`'s own `World` adapter (`BlastWorld`,
+24222-24238) is a thin read/write pass-through over its construction
+target — the service reads and commits EXACTLY the world it was built
+over, no internal routing. The call-site census:
+
+| Site | World passed | Service passed | Verdict |
+|---|---|---|---|
+| TntSystem's detonation callback (2036-2041) | `worldForSafe(dimension)` | `explosionServiceFor(dimension)` | correct (FL4-F7) |
+| End crystal (20373) | `endWorld` | `endExplosionService` | correct |
+| **ghast fireball sink (2543-2547)** | `worldForSafe(dimension)` | **`explosionService`** | **divergent** |
+| **wither skull sink (2553-2557)** | `worldForSafe(dimension)` | **`explosionService`** | **divergent** |
+| **creeper `explodeOnTick` (24274-24285 → `detonateAtFromMob` 24328-24332)** | `world` (the overworld field) | **`explosionService`** | **divergent** |
+| **wither birth `onWitherBirth` (21954 → `detonateAtFromMob`)** | `world` | **`explosionService`** | **divergent** |
+| **TNT cart blast sink (2904-2910 → `detonateAtWithSource`)** | `world` | **`explosionService`** | **divergent** |
+
+Plus one casualty inside the shared walk itself:
+
+- **the blast drop roll** (`detonateAtIn`, 24510-24516): the three-arg
+  `itemEntities.spawnDropAtBlock(...)` — dimension 0 hardcoded
+  (ItemEntityManager 186-189's three-arg form). Even the
+  CORRECTLY-ROUTED blasts (the primed TNT in the nether, the End
+  crystal) roll their drops into the OVERWORLD at the blast's
+  coordinates.
+
+### The observable divergence (the ghast fireball — the natural anchor)
+
+The reachability chain is fully natural: the engine's nether spawn
+table carries the ghast (EngineServer 2745-2750, Slice 16d); the
+ghast's AI shoots through `projectileManager.launchGhastFireball(...,
+mob.dimension())` (21866-21868); the fireball's collision fires
+`explosionSink.explode(point, 1.0f, projectile.dimension())`
+(ProjectileManager 1227, 1326, 1341, 1379, 1384); the sink (2543)
+passes the nether world but the OVERWORLD service. The consequence,
+deterministically:
+
+1. **the nether never takes the blast hole** — the ray fan reads the
+   overworld's cells (through `explosionService`'s `BlastWorld`), so
+   netherrack pays nothing and is never collected; the wound walk's
+   block-density read DOES read the nether
+   (`woundPlayersFromBlast(blastWorld, ...)` — the routed world), so
+   nether bodies are wounded by a blast that never broke a nether
+   block;
+2. **the OVERWORLD takes the hole at the same coordinates** —
+   `commitDamaged` writes through the overworld service: a nether
+   mob's routine attack destroys another dimension's terrain
+   (cross-dimension world corruption, priority 1);
+3. the drops from the destroyed overworld cells spawn stamped
+   dimension 0 (the shared casualty above), so the overworld also
+   grows the blast's item litter;
+4. the fire placement itself IS dimension-routed
+   (`fireSink.tryPlaceFire(..., projectile.dimension())` — the F-EX4
+   arm), so the engine places fire in the nether over an intact
+   nether floor while the overworld's hole grows: the two arms of one
+   vanilla detonation land in DIFFERENT dimensions.
+
+The creeper/wither-birth/TNT-cart wrappers are the stronger form of
+the same defect: the whole blast (fan, wounds, drops, packet) lands
+in the overworld at the body's coordinates regardless of where the
+body stands — a creeper blasted in the nether wounds OVERWORLD bodies
+standing at the same x/y/z.
+
+### The design-choice challenge (preliminary — the independent pass owes its own)
+
+The `detonateAtIn` javadoc (24334-24337) still reads "the creeper and
+the primed TNT ride the overworld binding" — a STALE record: the
+primed TNT was routed by Wave FL4-F7 (the callback at 2036 consults
+`explosionServiceFor`), and that wave's own precedent (each
+dimension's ray fan reads and commits its own world) is the engine's
+own statement of the correct shape. The remaining overworld bindings
+are the un-migrated remainder, not a divergence choice. (The
+independent pass must re-challenge this.)
+
+### The proposed minimal correction
+
+One consult swap per site, the FL4-F7 idiom: the fireball and skull
+sinks pass `explosionServiceFor(dimension)`; the creeper and
+wither-birth wrappers thread the mob's own `dimension()` through
+`detonateAtFromMob`; the TNT cart's `BlastSink` interface gains the
+dimension carry and the sink consults the router; the drop roll in
+`detonateAtIn` stamps the blast's own `dimension` (the four-arg
+`spawnDropAtBlock`). The `worldAir()` read inside `ExplosionService`
+rides the service's own world, so the routed service keeps the air
+type consistent. The dead `detonateAt` (24316, no callers) may retire
+in the same sweep or stand.
+
+### Verification pass history
+
+- **Pass 1 (source census, this run, 2026-10-31):** the five reference
+  sites and `World.explode`'s construction law read; the engine's
+  seven call sites censused with the verdict table above;
+  `BlastWorld`'s pass-through nature verified (24222-24238); the
+  drop-stamp casualty found inside the shared walk; the ghast
+  reachability chain traced spawn-to-sink. CONCLUSION: the divergence
+  is real at the source level for five sites plus the drop stamp.
+- **Pass 2 (behavioral, this run, 2026-10-31):** the discovery seats
+  AUTHORED and EXECUTED — `ExplosionDimensionRoutingDiscoveryTest`,
+  RED on develop BY CONTRACT, stable across three consecutive runs.
+  THE FIREBALL SEAT: a dirt wall standing at the same coordinates in
+  BOTH dimensions, a carved nether flight corridor, and a ghast
+  fireball launched dead-on at the nether wall with dimension -1
+  (the launch seam the ghast AI itself rides; the aim baseline 10
+  damping the launch's gaussian spread to a ~2-degree tilt — the
+  strike deterministic). The engine's answer, three runs: **the
+  nether wall 0 holed cells, the OVERWORLD wall 4-6 holed cells** —
+  the fireball struck the nether wall (the collision consults the
+  projectile's own dimension), and the blast carved the OVERWORLD at
+  the same coordinates while the nether stood whole. THE CREEPER
+  SEAT: the same two-sided construction, a creeper spawned at the
+  probe with dimension -1 stamped and the 5-tick fuse forced (the
+  gather test's own construction). The engine's answer, three runs:
+  **the nether 0 holed cells, the OVERWORLD 21-24 holed cells** —
+  the whole blast (fan, commits) landed in the overworld. The
+  preconditions demonstrably pass on develop (the strike/detonation
+  happen — the hole appears in exactly one dimension); the RED is
+  the vanilla-answer assertion alone, the clean divergence
+  demonstration. The construction notes preserved in the seat: the
+  explode arm's removal sets no dead flag (the WORLD is the probe,
+  not `dead()`), and an isEmpty await alone races the launch (the
+  positive launch-presence await comes first).
+- Pass 3 (independent): owed.
+
+## VT-008 — the bed's out-of-dimension blast arm is missing: the sleep walk carries no dimension gate (UNDER VERIFICATION — pass 1 recorded)
+
+**Subsystem:** block use / the bed family / dimension gating
+**Affected version:** the current develop baseline (deef2a17)
+**Status:** under verification (pass 1, the source pass, recorded below)
+
+### The reference's law (BedBlock.use, lines 45-84)
+
+The sleep walk is gated: `world.dimension.hasSpawnPoint() &&
+world.getBiome(pos) != Biome.HELL` (line 45) — only the overworld
+dimension (the one with a spawn point) and a non-HELL biome reach the
+sleep walk. The ELSE arm (lines 76-82): BOTH bed halves are removed
+(`world.removeBlock(pos)` + the opposite half at the facing's
+opposite) and the bed EXPLODES in its own world — `world.explode(
+null, pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, 5.0F,
+true, true)` — power 5, fire, smoke. The famous "don't sleep in the
+nether" law.
+
+### The engine's shape
+
+`sleepOnTick` (EngineServer 15048+) carries NO dimension consult: the
+already-sleeping refusal, the night-window gate (`world.timeOfDay()`
+— the OVERWORLD's clock even for a nether body), the
+monster-proximity refusal, and then the spawn-set + `enterBed`. The
+use dispatch (`isBedHalf(current)` → `sleepOnTick`, 11936-11938) has
+no gate upstream either. A bed placed in the nether or the End: sets
+the spawn point, enters the bed, and the multiplayer morning walk
+(`tickSleep`) can fire — vanilla instead removes the bed and blasts a
+power-5 fire-carving hole in the dimension's own world.
+
+### The reachability
+
+Beds are placeable in the nether post-PR #90 (the generic placement
+surface is dimension-routed); the use path consults the session's own
+dimension for the block read (`worldFor(session.dimension())` — the
+FL4-F3 family arm). The blast itself would ride `detonateAtIn` —
+which carries the routing machinery VT-007 censused (the correction
+must consult the routed service, not the overworld-bound wrappers —
+the two findings' fixes compose).
+
+### The proposed minimal correction
+
+The dimension gate at `sleepOnTick`'s head (the session's dimension
+!= 0 → the else arm): remove both halves (the `bedHeadCell`/facing
+walk the engine already carries), then the power-5 fire blast through
+the dimension-routed service. The HELL-biome conjunct needs the
+engine's biome model consulted — the flat/nether generators' biome
+answer; if the engine's nether answers HELL through its own table the
+conjunct collapses to the dimension gate alone (the reference's own
+effective law for the vanilla dimensions).
+
+### Verification pass history
+
+- **Pass 1 (source, this run, 2026-10-31):** BedBlock.use lines 45-84
+  read in full — the gate's conjuncts, the else arm's
+  remove-both-halves order, the explode call's power/fire/smoke
+  flags; the engine's `sleepOnTick` + the use dispatch read — no
+  dimension consult anywhere on the path. CONCLUSION: the arm is
+  absent at the source level.
+- Pass 2 (behavioral): owed — the seat needs a nether-anchored
+  session (the portal walk construction); deferred to the next run
+  exactly as VT-006's arrow seat was (the source evidence stands).
+- Pass 3 (independent): owed.
+
+## Coverage ledger (updated by the twenty-sixth pass)
 
 | Area | Status |
 |---|---|
@@ -1060,7 +1316,8 @@ line 150 — stands). The families' fixes ride the
 | Snow layer — placement support/melt/drops | drops landed (the mining-speed audit); melt + the 7-layer state surface recorded as VT-003's tail |
 | Packed ice — melt/break laws | inspected: the reference's PackedIceBlock carries no melt arm (the `setTicksRandomly` false, the silk-drop row landed); nothing owed |
 | Portal mechanics (flag1, forcer) | landed by FL4-F1; not re-audited — the stand clock's re-fire law is VT-004 (CONFIRMED, three passes; the correction is **PR #91 OPEN**; the seat PortalRefireDiscoveryTest rides green on the fix branch) |
-| Portal mechanics — the non-player crossing (the entity-level arm) | the MOBS family LANDED by **PR #98** (VT-006's correction: the entity-level crossing service + the mobs family — the gated collision, the threshold-0 clock, the 300 cooldown with the re-arm pin, the 8:1 walk, the forcer's placement, the stamp swap, the per-dimension wire; `PortalMobCrossingDiscoveryTest` 3/0 with the cooldown and riding-gate pins). The REMAINING families (items, orbs, boats, carts, arrows) ride the `DimensionCrossing` seam in their own passes; the TNT and falling families excluded by the census; the End-origin arm is the named tail |
+| Portal mechanics — the non-player crossing (the entity-level arm) | the MOBS family LANDED by **PR #98** (VT-006's correction: the entity-level crossing service + the mobs family — the gated collision, the threshold-0 clock, the 300 cooldown with the re-arm pin, the 8:1 walk, the forcer's placement, the stamp swap, the per-dimension wire; `PortalMobCrossingDiscoveryTest` 3/0 with the cooldown and riding-gate pins). The REMAINING families (items, orbs, boats, carts, arrows) ride the `DimensionCrossing` seam in their own passes — the behavioral seats authored (RED on develop BY CONTRACT, the twenty-fifth pass); the TNT and falling families excluded by the census; the End-origin arm is the named tail |
+| Bed use — the out-of-dimension blast arm | AUDITED this pass (the twenty-sixth): the sleep walk carries no dimension gate — a nether/End bed sleeps where vanilla blasts (**VT-008, UNDER VERIFICATION** — pass 1 recorded; the seat deferred) |
 | Portal mechanics — the riding gate (vehicle == null && rider == null) | VT-005 CONFIRMED (three passes — source, the pig-in-portal behavioral seat, the dismount-control independent pass; the correction rides `fix/portal-riding-gate-parity-audit`, PR #94) |
 | Drops — the TF-9 dimension stamp | LANDED by PR #90 (the dig/place walks stamp `world.dimension()`; the tile-family spill sites remain the per-dimension tile tail) |
 | Tile families — per-dimension stores | NOT INSPECTED as its own pass (the PR #90 ledger: the furnace/chest/skull/banner spill + cleanup ride the single-instance managers — the FL4 fluids/fire precedent applies; the nether tile placement/cleanup is its own architectural pass) |
@@ -1068,7 +1325,7 @@ line 150 — stands). The families' fixes ride the
 | FX broadcasts — the dimension awareness | NOT INSPECTED (the FxManager position-only API; the PR #90 ledger) |
 | World border — per-dimension | NOT INSPECTED (the reference's per-World border vs the engine's shared one; surfaced by the dig-start gate review) |
 | Zombie/mob arms — world binding | NOT INSPECTED (the zombie door-break consults the overworld field; surfaced by PR #90's cleanup threading) |
-| Explosions — dimension routing | not inspected (secondary until the dimension surface lands; the crystal arm's dimension gate landed with PR #85's rider) |
+| Explosions — dimension routing | AUDITED this pass (the twenty-sixth): the call-site census whole — the primed TNT (FL4-F7) and the End crystal (Slice 62) correct; the ghast fireball and wither skull sinks pass the routed world with the OVERWORLD service, the creeper/wither-birth/TNT-cart wrappers bind the overworld outright, and the shared drop roll stamps dimension 0 (**VT-007, UNDER VERIFICATION** — passes 1-2 recorded: the census + the executed behavioral seats, RED stable across three runs). The blast WOUND walks are routed (the dimension gate + the blastWorld consult); the fire placement is routed (F-EX4/PR #92) |
 | Item entities / pickup — dimension | the TF-9 stamped sites are the record; the pickup consult un-audited
 
 ## The queue for the next pass
@@ -1109,16 +1366,25 @@ line 150 — stands). The families' fixes ride the
    seats 3/0 with the cooldown and riding-gate pins; the portal+mob+world
    lanes 271/0 + the block+interaction lanes 313/0; the DimensionWalk
    seed-flake root-caused and recorded — same-seed control proves the
-   placement identical). **The next run's head: the remaining crossing
-   families behind the seam — the items, the orbs, the boats, the carts,
-   the arrows (each confirmed by the census; the discovery seats ride the
-   same construction), the TNT and falling families EXCLUDED.**
-7. The explosion-path dimension audit (the ledger row above — now
-   unblocked: nether placement exists post-PR #90; the crystal arm's
-   dimension gate landed with PR #85's rider; the blast family's own
-   dimension row is the remainder).
-8. ~~The standing lanes~~ — F-EC1 RESOLVED-BY-PR (this run: confirmed
-   over three passes and corrected — **PR #95 OPEN**, the one-consult
+   placement identical). **The remaining crossing families behind the
+   seam — the items, the orbs, the boats, the carts, the arrows (each
+   confirmed by the census; the behavioral seats authored, the
+   twenty-fifth pass) — remain BLOCKED on PR #98's merge (the
+   `DimensionCrossing` seam's dependency).**
+7. ~~The explosion-path dimension audit~~ — DONE (the twenty-sixth pass:
+   **VT-007 discovered** — the ghast fireball and wither skull sinks
+   pass the routed world with the overworld service, the
+   creeper/wither-birth/TNT-cart wrappers bind the overworld outright,
+   and the shared drop roll stamps dimension 0; passes 1-2 recorded —
+   the source census and the behavioral seats
+   (`ExplosionDimensionRoutingDiscoveryTest` RED on develop, stable:
+   the nether 0 holes / the overworld 4-24 across three runs, both
+   families). **The next run's head: VT-007's independent pass, then
+   the fix** — and VT-008 (the bed's blast arm) rides the same audit's
+   wake: its pass 2 seat (the nether-anchored session) and pass 3
+   owed.)
+8. ~~The standing lanes~~ — F-EC1 RESOLVED-BY-PR (the twenty-fourth
+   pass: confirmed over three passes and corrected — **PR #95 OPEN**, the one-consult
    swap to `BlockSolidity.isSolid`; F-TC1 was already resolved by PR
    #87's merge). The F-SP1 support-consult family and F-DS1 (the double
    slab's collision row) remain suspected from the twentieth pass's
