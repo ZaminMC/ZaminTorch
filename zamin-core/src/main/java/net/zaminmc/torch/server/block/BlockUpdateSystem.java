@@ -774,6 +774,49 @@ public final class BlockUpdateSystem implements WorldChangeListener {
             }
             return;
         }
+        // The bed family's pair integrity (VT-009 — BedBlock
+        // .neighborChanged lines 109-121): a half whose adjacent
+        // opposite-class sibling is gone removes ITSELF — the FOOT arm
+        // DROPS the bed item (line 118's {@code dropItems(world, pos,
+        // state, 0)} — the foot half's own drop law, exactly one bed per
+        // pair), the HEAD arm silent (the head never drops; the reference
+        // drops only where PART == FOOT). The reference's arm runs from
+        // ANY sibling removal path — a mined neighbor, a blast clipping
+        // one half, a fluid wash, a plugin write — because the removal's
+        // neighbor updates fire on the six neighbors; this drain is that
+        // wake's destination. The pair resolution is the engine's own
+        // class law ({@code bedSiblingCleanup}'s — the HEAD ids carry the
+        // {@code bed_head} prefix, the FOOT ids are {@code bed} and the
+        // direction-suffixed forms; the engine's bed model carries no
+        // FACING-linked resolution).
+        if (identifier.namespace().equals("minecraft")
+                && (identifier.value().equals("bed") || identifier.value().startsWith("bed_"))) {
+            boolean bedHead = identifier.value().startsWith("bed_head");
+            for (int[] direction : new int[][]{{1, 0, 0}, {-1, 0, 0}, {0, 0, 1}, {0, 0, -1}}) {
+                Identifier neighborId = world.getBlock(
+                        position.offset(direction[0], direction[1], direction[2])).identifier();
+                if (!neighborId.namespace().equals("minecraft")) {
+                    continue;
+                }
+                boolean neighborIsBedHalf = neighborId.value().equals("bed")
+                        || neighborId.value().startsWith("bed_");
+                if (neighborIsBedHalf && neighborId.value().startsWith("bed_head") != bedHead) {
+                    return; // the opposite-class sibling stands: the pair is whole
+                }
+            }
+            // The orphaned half removes itself; only the FOOT drops
+            // (BedBlock.neighborChanged line 118 — the HEAD arm's
+            // removeBlock is silent, lines 111-114).
+            world.setBlock(position, world.airType());
+            if (!bedHead) {
+                itemEntities.spawnDropAtBlock(
+                        new Position(position.x(), position.y(), position.z()),
+                        net.zaminmc.torch.item.ItemStack.of(
+                                net.zaminmc.torch.server.item.BuiltinItems.BED, 1),
+                        ItemEntity.PICKUP_DELAY_DROP_TICKS, world.dimension());
+            }
+            return;
+        }
         // The flower-pot's support rule (Slice 48 —
         // FlowerPotBlock.neighborChanged lines 122-128: the block below
         // must have a SOLID TOP; a departing support pops the pot WITH its
