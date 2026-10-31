@@ -24,7 +24,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * axis order (X then Z), the no-re-ignite arm, the neighbor-break
  * re-validation, the walk-through cells, and the player's stand clock
  * (80 survival ticks, instant creative crossing, the 10-tick cooldown
- * with the re-arm, the 4-per-tick decay).
+ * re-armed on EVERY touching tick while cooling — the reference's
+ * onPortalCollision consult — with the 4-per-tick decay on every
+ * not-armed tick, standing-in-cells-while-cooling included).
  */
 class PortalFrameBuilderTest {
 
@@ -224,35 +226,45 @@ class PortalFrameBuilderTest {
     }
 
     @Test
-    void theCooldownReArmsOnTheEntryEdgeOnly() {
+    void theCooldownReArmsOnEveryTouchingTickAndHoldsTheStandingBody() {
         PlayerSession session = session();
         for (int i = 0; i < 80; i++) {
             session.advancePortalClock(true, false);
         }
         assertTrue(session.advancePortalClock(true, false));
         assertEquals(10, session.portalCooldown());
-        // Standing inside the portal: the pinned stand time re-crosses (the
-        // reference's own re-fire — the 8b teleport moves the body out) and
-        // the crossing's threshold arm re-sets the cooldown to 10; the
-        // standing itself never refreshes it (the collision arm is
-        // movement-driven — the walker section below pins the difference).
-        assertTrue(session.advancePortalClock(true, false),
-                "the pinned body re-crosses (the reference's own re-fire)");
-        assertEquals(10, session.portalCooldown(),
-                "the re-cross's threshold arm re-set the cooldown");
-        // Walking out and back in during an active cooldown: the entry edge
-        // re-arms (the collision arm's early return).
-        PlayerSession walker = session();
-        for (int i = 0; i < 80; i++) {
-            walker.advancePortalClock(true, false);
+        // Standing inside the portal: the cooldown re-arms on EVERY touching
+        // tick (the reference's onPortalCollision cooldown consult — the
+        // collision dispatch is a per-tick bounding-box scan, so a standing
+        // body collides every tick), the crossing NEVER re-fires while the
+        // body stands in the cells, and the clock decays on the not-armed
+        // arm (the VT-004 correction: the pre-fix engine re-fired every
+        // touching tick off the carried max).
+        for (int i = 0; i < 10; i++) {
+            assertFalse(session.advancePortalClock(true, false),
+                    "the pinned body never re-crosses (the cooldown consult)");
+            assertEquals(10, session.portalCooldown(),
+                    "the standing re-arm pins the cooldown at the player's 10");
         }
-        assertTrue(walker.advancePortalClock(true, false)); // the crossing arms 10
-        walker.advancePortalClock(false, false); // the walk-out: the cooldown to 9
-        walker.advancePortalClock(true, false);  // the entry edge re-arms
-        assertEquals(10, walker.portalCooldown(),
-                "the entry edge during an active cooldown re-arms");
-        assertFalse(walker.advancePortalClock(false, false),
-                "the walk-out decays");
-        assertEquals(9, walker.portalCooldown());
+        assertEquals(40, session.portalTime(),
+                "the stand decays by 4 per standing tick (the not-armed arm)");
+        // Walking out: the cooldown counts down one tick at a time (the
+        // reference's baseTick decrement, no consult while not touching)
+        // and expires after ten.
+        for (int i = 0; i < 9; i++) {
+            session.advancePortalClock(false, false);
+        }
+        assertEquals(1, session.portalCooldown());
+        assertFalse(session.advancePortalClock(false, false),
+                "the walk-out never crosses");
+        assertEquals(0, session.portalCooldown(), "the cooldown expired outside");
+        // Re-entering with the cooldown expired: the stand arms again and
+        // accumulates from the decayed clock — the fresh full stand (the
+        // vanilla round trip's own shape).
+        assertFalse(session.advancePortalClock(true, false),
+                "the fresh entry accumulates, not crosses");
+        assertEquals(1, session.portalTime());
+        assertEquals(0, session.portalCooldown(),
+                "the fresh entry with the cooldown expired arms the stand (no re-arm)");
     }
 }

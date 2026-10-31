@@ -7666,7 +7666,13 @@ migration point).
 
 ## Wave FL4-F10 — the redstone system's world binding (INVESTIGATED,
 the trace and the plan recorded; the implementation is the next
-session's first act)
+session's first act. SESSION 2026-10-31 NOTE: the wave itself was NOT
+started — the session went to the CI publishing unblock (run 561/562's
+flake members retired at the source, six seats) and the parity PR wave
+#91-#100 (all merged, verified against the reference; #100's F-EX11/12
+completed the BLAST family's dimension routing — the same FL4-F7 form,
+a neighbouring lane, not this wave's signal machinery). The trace and
+the six-point plan below stand unchanged and ready.)
 
 THE TRACE (the full ownership and call graph, read before any code
 change): RedstoneSystem holds ONE overworld field (82 world consults
