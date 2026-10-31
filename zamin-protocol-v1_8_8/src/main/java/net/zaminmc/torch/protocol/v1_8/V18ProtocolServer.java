@@ -2016,6 +2016,20 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                 }
             }
 
+            /**
+             * VT-006 — the crossing's own removal (the reference's
+             * changeDimension → world.removeEntity, the old-world
+             * tracker's EntityDestroy): the Destroy fan, dimension-gated
+             * at the body's stamp inside the send (the TF-11 convention).
+             */
+            @Override
+            public void onVehicleRemoved(
+                    net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle, String reason) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendVehicleRemoved(vehicle);
+                }
+            }
+
             /** The TNT cart's fuse armed (Slice 66 — the Entity Status 10). */
             @Override
             public void onVehiclePrimed(

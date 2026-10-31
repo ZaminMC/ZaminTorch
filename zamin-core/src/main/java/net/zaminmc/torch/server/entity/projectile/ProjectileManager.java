@@ -84,6 +84,20 @@ public final class ProjectileManager {
         default boolean solidAt(double x, double y, double z) {
             return solid(x, y, z);
         }
+
+        /**
+         * VT-006 — the portal collision consult (the reference's
+         * PortalBlock.onEntityCollision lines 158-162 over the per-tick
+         * box scan — the mob query's own consult, the same law): the
+         * frame match at the body's position cell in the ACTIVE
+         * dimension, or null when the cell is not a portal cell (the
+         * gated collision answers nothing). The default answers null so
+         * stub queries keep their portal-free semantics.
+         */
+        default net.zaminmc.torch.server.world.PortalFrameBuilder.PortalShapeMatch portalFrameAt(
+                int x, int y, int z) {
+            return null;
+        }
     }
 
     /** Resolves the entity a projectile is inside of, if any (tick thread). */
@@ -850,6 +864,19 @@ public final class ProjectileManager {
         // nothing the loop still needs, and a listener re-entry cannot CME.
         for (int i = projectiles.size() - 1; i >= 0; i--) {
             ProjectileEntity projectile = projectiles.get(i);
+            // VT-006 — the entity-level portal arm (the reference's
+            // Entity.baseTick portal arm, lines 282-313, riding
+            // ArrowEntity.tick line 150's super chain — the same walk the
+            // item family carries): baseTick PRECEDES the projectile's
+            // own walk, so the crossing consult runs before the stick
+            // clock and the flight (an arrow whose position cell is a
+            // portal cell crosses rather than sticking or expiring on
+            // the same tick). The shared solid query reads the body's
+            // own world (the TF-9 flip).
+            solid.setActiveDimension(projectile.dimension());
+            if (tickPortalArm(projectile)) {
+                continue; // the crossing consumed this body's walk
+            }
             if (projectile.inGround()) {
                 projectile.integrate(DRAG, ARROW_GRAVITY); // only the stick clock runs
                 if (projectile.ticksInGround() >= ARROW_GROUND_TICKS) {
@@ -1534,6 +1561,91 @@ public final class ProjectileManager {
         projectiles.remove(projectile);
         for (Listener listener : listeners) {
             listener.onProjectileRemoved(projectile, reason);
+        }
+    }
+
+    /**
+     * VT-006 — the entity-level crossing service (the reference's
+     * Entity.changeDimension walk, the same seam the mob, item, orb, and
+     * vehicle families ride); null until the engine wires it (the
+     * unwired boots keep the no-crossing shape — the seam's own hold).
+     */
+    private volatile net.zaminmc.torch.server.entity.MobManager.DimensionCrossing dimensionCrossing;
+
+    /**
+     * Wires the crossing service (the engine's own boot — the same walk
+     * the other four families' arms ride).
+     */
+    public void setDimensionCrossing(
+            net.zaminmc.torch.server.entity.MobManager.DimensionCrossing dimensionCrossing) {
+        this.dimensionCrossing = java.util.Objects.requireNonNull(
+                dimensionCrossing, "dimensionCrossing");
+    }
+
+    /**
+     * VT-006 — the entity-level portal arm over the projectile family
+     * (the reference's Entity.baseTick portal arm, lines 282-313, fed by
+     * PortalBlock.onEntityCollision's gated collision — the item
+     * family's own walk, the same law): the collision consult at the
+     * body's position cell (a projectile never rides — the vehicle/rider
+     * pair is structural), the entry memory's derive (a NEW cell
+     * re-derives the frame offsets), and the base-entity clock (the
+     * threshold 0, the 300 cooldown). Runs on the flipped shared query
+     * — the body's own world.
+     *
+     * @return true when the crossing fired (the caller skips the body's
+     *         own walk — the reference's removed-body shape)
+     */
+    private boolean tickPortalArm(ProjectileEntity projectile) {
+        Position at = projectile.position();
+        int cellX = (int) Math.floor(at.x());
+        int cellY = (int) Math.floor(at.y());
+        int cellZ = (int) Math.floor(at.z());
+        var match = solid.portalFrameAt(cellX, cellY, cellZ);
+        if (match != null) {
+            // The entry memory's derive (onPortalCollision lines 1432-1451:
+            // the same-cell re-collision re-derives nothing).
+            projectile.notePortalEntry(new net.zaminmc.torch.block.BlockPosition(
+                    cellX, cellY, cellZ), match, at.x(), at.y(), at.z());
+        }
+        if (projectile.advanceEntityPortalClock(match != null)) {
+            crossProjectileDimension(projectile);
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * VT-006 — the crossing walk over the projectile family (Entity
+     * .changeDimension lines 1695-1730, the item family's own shape):
+     * the old world's destroy fan FIRST, then the service's reposition
+     * + the forcer's placement, then the stamp swap and the new world's
+     * spawn fan. The body keeps its engine id and its whole state (the
+     * reference's copyNbtFrom — the kind, the thrower, the stick clock
+     * carry whole).
+     */
+    private void crossProjectileDimension(ProjectileEntity projectile) {
+        net.zaminmc.torch.server.entity.MobManager.DimensionCrossing crossing =
+                dimensionCrossing;
+        int from = projectile.dimension();
+        if (crossing == null || from == 1) {
+            // The unwired boot and the End-origin arm (the audit's named
+            // tail): the crossing holds, the cooldown keeps the body from
+            // re-firing.
+            return;
+        }
+        Position at = projectile.position();
+        for (Listener listener : listeners) {
+            listener.onProjectileRemoved(projectile, "portal");
+        }
+        net.zaminmc.torch.server.entity.MobManager.DimensionCrossing.Crossing result =
+                crossing.cross(from, at.x(), at.y(), at.z(), 0.0f,
+                        projectile.velocityX(), projectile.velocityZ(), projectile.portalMemory());
+        projectile.applyDimensionArrival(result.toDimension(),
+                new Position(result.arrival().x(), result.arrival().y(), result.arrival().z()),
+                result.arrival().velocityX(), result.arrival().velocityZ());
+        for (Listener listener : listeners) {
+            listener.onProjectileSpawned(projectile);
         }
     }
 

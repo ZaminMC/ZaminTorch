@@ -35,6 +35,18 @@ public final class VehicleManager {
         /** A vehicle spawned: Spawn Object to every observer. */
         void onVehicleSpawned(VehicleEntity vehicle);
 
+        /**
+         * VT-006 — a vehicle left the world WITHOUT breaking (the
+         * crossing's own destroy fan — the reference's
+         * changeDimension → world.removeEntity, the old-world tracker's
+         * EntityDestroy): the wire's own Destroy, dimension-gated at
+         * the body's stamp. Default no-op so older listeners stay
+         * source-compatible (the broke event keeps its own drops-free
+         * semantics).
+         */
+        default void onVehicleRemoved(VehicleEntity vehicle, String reason) {
+        }
+
         /** A vehicle moved this tick: Entity Teleport (the fast-path sync). */
         void onVehicleMoved(VehicleEntity vehicle);
 
@@ -130,6 +142,24 @@ public final class VehicleManager {
     public void setBlastSinkFactory(
             java.util.function.Supplier<TntMinecartEntity.BlastSink> factory) {
         this.blastSinkFactory = java.util.Objects.requireNonNull(factory, "factory");
+    }
+
+    /**
+     * VT-006 — the entity-level crossing service (the reference's
+     * Entity.changeDimension walk, the same seam the mob, item, and orb
+     * families ride); null until the engine wires it (the unwired boots
+     * keep the no-crossing shape — the seam's own hold).
+     */
+    private volatile net.zaminmc.torch.server.entity.MobManager.DimensionCrossing dimensionCrossing;
+
+    /**
+     * Wires the crossing service (the engine's own boot — the same walk
+     * the mobs', the items', and the orbs' arms ride).
+     */
+    public void setDimensionCrossing(
+            net.zaminmc.torch.server.entity.MobManager.DimensionCrossing dimensionCrossing) {
+        this.dimensionCrossing = java.util.Objects.requireNonNull(
+                dimensionCrossing, "dimensionCrossing");
     }
 
     public VehicleManager(VehicleEntity.WorldQuery world, DropSink drops,
@@ -694,6 +724,18 @@ public final class VehicleManager {
             // cart rides the nether's rails, never the overworld's
             // same-coordinate track.
             world.setActiveDimension(vehicle.dimension());
+            // VT-006 — the entity-level portal arm (the reference's
+            // Entity.baseTick portal arm, lines 282-313 — the boat's
+            // super chain, the minecart's own copy, the same law): the
+            // consult runs after the void/dead retirements (the
+            // minecart's own order — its copy places the arm after the
+            // voidTick; the boat's base order inverts the pair, but a
+            // portal frame below the kill plane is structurally
+            // unreachable — the audit's named nuance) and before the
+            // fire/lava walks (baseTick's own order).
+            if (tickPortalArm(vehicle)) {
+                continue; // the crossing consumed this body's walk
+            }
             long before = fixedPoint(vehicle.position());
             // The burn clock's own arm (Slice 78 — Entity.java lines
             // 320-335, the onUpdate fire arm): the 1.0 ON_FIRE wound every
@@ -929,6 +971,81 @@ public final class VehicleManager {
         }
         for (Listener listener : listeners) {
             listener.onVehicleBroken(vehicle);
+        }
+    }
+
+    /**
+     * VT-006 — the entity-level portal arm over the vehicle family (the
+     * reference's Entity.baseTick portal arm, lines 282-313 — the boat
+     * rides the base walk through BoatEntity.tick line 177's super
+     * chain, the minecart its OWN COPY, MinecartEntity lines 199-232,
+     * the same law the mob family carries): the RIDING-GATED collision
+     * consult at the body's position cell (PortalBlock
+     * .onEntityCollision lines 158-162 — a carrying body never arms),
+     * the entry memory's derive (a NEW cell re-derives the frame
+     * offsets), and the base-entity clock (the threshold 0, the 300
+     * cooldown). Runs on the flipped shared query — the body's own
+     * world.
+     *
+     * @return true when the crossing fired (the caller skips the body's
+     *         own walk — the reference's removed-body shape)
+     */
+    private boolean tickPortalArm(VehicleEntity vehicle) {
+        Position at = vehicle.position();
+        int cellX = (int) Math.floor(at.x());
+        int cellY = (int) Math.floor(at.y());
+        int cellZ = (int) Math.floor(at.z());
+        // The gated collision consult (PortalBlock.onEntityCollision
+        // lines 158-162: the carrying body never arms — the engine's
+        // one-seat model rides the passenger consult alone).
+        var match = vehicle.hasPassenger() ? null : world.portalFrameAt(cellX, cellY, cellZ);
+        if (match != null) {
+            // The entry memory's derive (onPortalCollision lines 1432-1451:
+            // the same-cell re-collision re-derives nothing).
+            vehicle.notePortalEntry(new net.zaminmc.torch.block.BlockPosition(
+                    cellX, cellY, cellZ), match, at.x(), at.y(), at.z());
+        }
+        if (vehicle.advanceEntityPortalClock(match != null)) {
+            crossVehicleDimension(vehicle);
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * VT-006 — the crossing walk over the vehicle family (Entity
+     * .changeDimension lines 1695-1730, the mob family's own shape):
+     * the old world's destroy fan FIRST (the crossing's own removal
+     * event — never the broke event, no drops), then the service's
+     * reposition + the forcer's placement, then the stamp swap and the
+     * new world's spawn fan. The body keeps its engine id and its whole
+     * state (the reference's copyNbtFrom — the kind, the cargo, the
+     * health carry whole); the persistence rides the stamp (the store's
+     * own dimension row).
+     */
+    private void crossVehicleDimension(VehicleEntity vehicle) {
+        net.zaminmc.torch.server.entity.MobManager.DimensionCrossing crossing =
+                dimensionCrossing;
+        int from = vehicle.dimension();
+        if (crossing == null || from == 1) {
+            // The unwired boot and the End-origin arm (the audit's named
+            // tail): the crossing holds, the cooldown keeps the body from
+            // re-firing.
+            return;
+        }
+        Position at = vehicle.position();
+        for (Listener listener : listeners) {
+            listener.onVehicleRemoved(vehicle, "portal");
+        }
+        net.zaminmc.torch.server.entity.MobManager.DimensionCrossing.Crossing result =
+                crossing.cross(from, at.x(), at.y(), at.z(), vehicle.rotation().yaw(),
+                        vehicle.velocityX(), vehicle.velocityZ(), vehicle.portalMemory());
+        vehicle.applyDimensionArrival(result.toDimension(),
+                new Position(result.arrival().x(), result.arrival().y(), result.arrival().z()),
+                result.arrival().yaw(),
+                result.arrival().velocityX(), result.arrival().velocityZ());
+        for (Listener listener : listeners) {
+            listener.onVehicleSpawned(vehicle);
         }
     }
 

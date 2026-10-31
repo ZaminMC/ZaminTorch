@@ -1203,7 +1203,15 @@ class AnvilImportAcceptanceTest {
             assertTrue(chest.invulnerable());
             assertFalse(chest.silent());
             assertEquals(0, chest.dimension());
-            assertEquals(12, chest.portalCooldown());
+            // The PortalCooldown row landed at 12 and decays one per tick
+            // while the body lives (VT-006 — the crossing clock's tail
+            // decrement, the reference's Entity.baseTick lines 311-312;
+            // the same landing-band pin the Fire row above carries). The
+            // pre-crossing engine never touched the row in the tick —
+            // the frozen 12 was the engine's own artifact.
+            assertTrue(chest.portalCooldown() >= 0 && chest.portalCooldown() <= 12,
+                    "the PortalCooldown row landed and is counting down: "
+                            + chest.portalCooldown());
 
             // The spawner cart: the type + delay rows, the rotation pair.
             var spawner = (net.zaminmc.torch.server.entity.vehicle.SpawnerMinecartEntity)
