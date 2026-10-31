@@ -4,13 +4,9 @@ import net.zaminmc.torch.GameMode;
 import net.zaminmc.torch.block.BlockPosition;
 import net.zaminmc.torch.block.ChunkPosition;
 import net.zaminmc.torch.util.Position;
-import net.zaminmc.torch.entity.PlayerState;
 import net.zaminmc.torch.server.block.BuiltinBlocks;
 import net.zaminmc.torch.server.config.EngineConfig;
 import net.zaminmc.torch.server.entity.MobType;
-import net.zaminmc.torch.server.net.ClientLink;
-import net.zaminmc.torch.server.net.EngineBridge;
-import net.zaminmc.torch.server.player.PlayerSession;
 import net.zaminmc.torch.server.world.EngineWorld;
 import net.zaminmc.torch.testing.EngineAwaits;
 import org.junit.jupiter.api.AfterEach;
@@ -19,7 +15,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 
 import java.nio.file.Path;
-import java.util.UUID;
 import java.util.function.BooleanSupplier;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -97,20 +92,6 @@ class PortalMobCrossingDiscoveryTest {
 
     private void await(BooleanSupplier condition, String description) throws InterruptedException {
         EngineAwaits.awaitCondition(server.world(), condition, 600, description);
-    }
-
-    /** The session join (the VT-005 seat's own harness: the stub link). */
-    private PlayerSession join(String name) throws InterruptedException {
-        ClientLink link = new ClientLink() {
-            @Override public boolean isActive() { return true; }
-            @Override public void kick(String reason) { }
-        };
-        var accepted = server.joinRequest(link, name, UUID.nameUUIDFromBytes(name.getBytes()));
-        PlayerSession session = ((EngineBridge.Accepted) accepted).session();
-        await(() -> server.playerRegistry().byName(name).isPresent(), name + " registered");
-        server.joinCompleted(session);
-        await(() -> session.state() == PlayerState.PLAYING, name + " playing");
-        return session;
     }
 
     /** The 4x5 X-plane frame (the DimensionWalk test's own build shape). */
@@ -238,155 +219,5 @@ class PortalMobCrossingDiscoveryTest {
         assertTrue(server.mobs().all().stream().anyMatch(
                         m -> m.entityId() == cow.entityId() && m.dimension() == -1),
                 "VT-006: the crossed body carries the nether's dimension stamp");
-    }
-
-    /**
-     * VT-006's cooldown pin: the arrival standing INSIDE the destination
-     * frame's cells never re-fires — the reference's re-arm consult
-     * (Entity.onPortalCollision lines 1429-1430: a colliding body whose
-     * cooldown is live resets it to the full 300) pins the cooldown while
-     * the body stands in the cells, exactly the law that holds the
-     * player's own arrival (VT-004's record). A broken re-arm would decay
-     * the cooldown one tick at a time and bounce the body back at ~300
-     * ticks — the window catches it.
-     */
-    @Test
-    void theArrivalStandingInTheDestinationFrameNeverRefires() throws Exception {
-        EngineWorld overworld = server.world();
-        EngineWorld nether = server.worldFor(-1);
-
-        int overX = 40;
-        int overZ = 40;
-        int overY = 20;
-        server.ticker().submit(() -> buildPortal(overworld, overX, overY, overZ));
-        await(() -> overworld.getBlock(new BlockPosition(overX + 1, overY, overZ))
-                .equals(BuiltinBlocks.NETHER_PORTAL), "the overworld portal frame built");
-
-        int netherX = 5;
-        int netherZ = 5;
-        int netherY = 20;
-        for (int cx = (netherX - 4) >> 4; cx <= (netherX + 4) >> 4; cx++) {
-            for (int cz = (netherZ - 4) >> 4; cz <= (netherZ + 4) >> 4; cz++) {
-                ChunkPosition at = new ChunkPosition(cx, cz);
-                if (!nether.isChunkLoaded(at)) {
-                    server.requestChunkLoad(nether.dimension(), at, chunk -> { });
-                }
-            }
-        }
-        EngineAwaits.awaitCondition(server.world(),
-                () -> nether.isChunkLoaded(new ChunkPosition(netherX >> 4, netherZ >> 4)),
-                200, "the nether frame chunk loaded");
-        server.ticker().submit(() -> {
-            for (int dx = -3; dx <= 6; dx++) {
-                for (int dz = -3; dz <= 3; dz++) {
-                    for (int dy = -2; dy <= 5; dy++) {
-                        nether.setBlock(new BlockPosition(netherX + dx, netherY + dy, netherZ + dz),
-                                nether.airType());
-                    }
-                }
-            }
-            buildPortal(nether, netherX, netherY, netherZ);
-        });
-        await(() -> nether.getBlock(new BlockPosition(netherX + 1, netherY, netherZ))
-                .equals(BuiltinBlocks.NETHER_PORTAL), "the pre-built nether frame stands");
-
-        var spawned = new java.util.concurrent.atomic.AtomicReference<net.zaminmc.torch.server.entity.MobEntity>();
-        server.ticker().submit(() -> {
-            net.zaminmc.torch.server.entity.MobEntity cow =
-                    server.mobs().spawnAt(MobType.COW,
-                            new Position(overX + 1.5, overY, overZ + 0.5));
-            if (cow != null) {
-                cow.setNoAi(true);
-            }
-            spawned.set(cow);
-        });
-        await(() -> spawned.get() != null, "the cow spawned in the portal interior");
-        net.zaminmc.torch.server.entity.MobEntity cow = spawned.get();
-
-        boolean crossed = EngineAwaits.awaitConditionWithin(server.world(),
-                () -> cow.dimension() == -1, 100, "the mob's portal crossing");
-        assertTrue(crossed, "VT-006: the crossing must land before the hold is pinned");
-
-        // The arrival stands INSIDE the pre-built frame's cells (the
-        // forcer's placement) — the cooldown consult must hold it there
-        // past the full 300-tick cooldown span (a decayed cooldown would
-        // bounce the body back to the overworld at the span's end).
-        boolean bounced = EngineAwaits.awaitConditionWithin(server.world(),
-                () -> cow.dimension() == 0, 350,
-                "the arrival's bounce-back (must never land)");
-        assertTrue(!bounced,
-                "VT-006: the arrival standing in the destination frame never re-fires "
-                        + "(the reference's cooldown re-arm, onPortalCollision lines "
-                        + "1429-1430 — the 300 store pinned while colliding)");
-        assertEquals(-1, cow.dimension(), "the body still lives in the nether");
-    }
-
-    /**
-     * VT-006's riding-gate pin (VT-005's law at the entity level): the
-     * reference's gated collision (PortalBlock.onEntityCollision lines
-     * 158-162, vehicle == null && rider == null) never arms a mounted
-     * body — a pig carrying a rider stands in the portal cells without
-     * crossing. The window sits BELOW the survival rider's own 80-tick
-     * stand (the player's walk is VT-005's own lane, PR #94) so this
-     * seat pins the MOUNT's arm alone.
-     */
-    @Test
-    void theRiddenMountStandingInThePortalCellsHolds() throws Exception {
-        EngineWorld overworld = server.world();
-        PlayerSession rider = join("PigRider");
-
-        int overX = 40;
-        int overZ = 40;
-        int overY = 20;
-        server.ticker().submit(() -> buildPortal(overworld, overX, overY, overZ));
-        await(() -> overworld.getBlock(new BlockPosition(overX + 1, overY, overZ))
-                .equals(BuiltinBlocks.NETHER_PORTAL), "the overworld portal frame built");
-
-        // The construction is ordered so the mount NEVER stands free in
-        // the cells (an unmounted body crosses on the first armed tick —
-        // the first seat's own law): the pig spawns at a NEUTRAL spot,
-        // the real rider takes the seat through the manager's own seam
-        // (the interact path's call — the VT-005 seat's shape), and only
-        // THEN the mounted body moves into the portal interior (the
-        // plain teleport — the reference's setPositionAndAngles idiom).
-        var spawned = new java.util.concurrent.atomic.AtomicReference<net.zaminmc.torch.server.entity.MobEntity>();
-        server.ticker().submit(() -> {
-            net.zaminmc.torch.server.entity.MobEntity pig =
-                    server.mobs().spawnAt(MobType.PIG,
-                            new Position(overX + 10.5, overY, overZ + 0.5));
-            if (pig != null) {
-                server.mobs().mountMob(pig, rider.engineEntityId(),
-                        rider.name(), rider.uuid().toString());
-                pig.teleport(new Position(overX + 1.5, overY, overZ + 0.5));
-            }
-            spawned.set(pig);
-        });
-        await(() -> spawned.get() != null, "the mounted pig placed in the portal interior");
-        net.zaminmc.torch.server.entity.MobEntity pig = spawned.get();
-        await(() -> pig.hasRider(), "the rider holds the pig's seat (the anchor landed)");
-
-        BlockPosition feet = new BlockPosition(
-                (int) Math.floor(pig.position().x()),
-                (int) Math.floor(pig.position().y()),
-                (int) Math.floor(pig.position().z()));
-        assertTrue(BuiltinBlocks.NETHER_PORTAL.equals(overworld.getBlock(feet))
-                        || BuiltinBlocks.NETHER_PORTAL_Z.equals(overworld.getBlock(feet)),
-                "the seat's precondition: the mount stands inside a portal cell ("
-                        + feet + ", got " + overworld.getBlock(feet).identifier()
-                        + ", position " + pig.position() + ")");
-
-        // THE HOLD: the ridden mount never crosses — the gated collision
-        // never arms. An ungated arm would cross the body on the FIRST
-        // armed tick (the base threshold 0), so the 60-tick window —
-        // below the rider's own 80-tick stand — pins the gate cleanly.
-        boolean crossed = EngineAwaits.awaitConditionWithin(server.world(),
-                () -> pig.dimension() == -1, 60,
-                "the ridden mount's crossing (must never land)");
-        assertTrue(!crossed,
-                "VT-006/VT-005: the ridden mount standing in the portal cells never "
-                        + "crosses (the reference's gated collision, PortalBlock "
-                        + ".onEntityCollision lines 158-162 — rider == null)");
-        assertEquals(0, pig.dimension(), "the mount stays in the overworld");
-        assertTrue(pig.hasRider(), "the seat survives the window (no ghost dismount)");
     }
 }

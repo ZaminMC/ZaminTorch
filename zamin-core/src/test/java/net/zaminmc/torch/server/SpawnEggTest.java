@@ -3,21 +3,15 @@ package net.zaminmc.torch.server;
 import net.zaminmc.torch.block.BlockPosition;
 import net.zaminmc.torch.server.block.BuiltinBlocks;
 import net.zaminmc.torch.server.config.EngineConfig;
-import net.zaminmc.torch.server.entity.MobEntity;
-import net.zaminmc.torch.server.entity.MobManager;
 import net.zaminmc.torch.server.entity.MobType;
 import net.zaminmc.torch.server.item.SpawnEggs;
 import net.zaminmc.torch.server.net.ClientLink;
 import net.zaminmc.torch.server.net.EngineBridge;
 import net.zaminmc.torch.server.player.PlayerSession;
-import net.zaminmc.torch.util.Position;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
 import java.util.UUID;
 import java.util.function.BooleanSupplier;
 
@@ -143,42 +137,17 @@ class SpawnEggTest {
             server.chatService().submitChat(player, "/give " + player.name() + " spawn_egg 1 90"); // the pig egg
             await(() -> !player.inventory().held().isEmpty(), "the egg granted");
 
-            // The spawn cell is a one-tick fact: the body's AI wanders it
-            // away within ticks of the spawn, and a later poll of a moving
-            // body can never see the cell again (run 561's miss — the
-            // await's first sample arrived after the pig's first walk).
-            // The listener captures the position AT the spawn event, the
-            // same one-tick read the wire form's Spawn Mob packet carries.
-            List<Position> pigSpawnedAt = Collections.synchronizedList(new ArrayList<>());
-            server.addMobListener(new MobManager.Listener() {
-                @Override public void onMobSpawned(MobEntity mob) {
-                    if (mob.type() == MobType.PIG) {
-                        pigSpawnedAt.add(mob.position());
-                    }
-                }
-                @Override public void onMobMoved(MobEntity mob, PlayerSession rider) { }
-                @Override public void onMobHurt(MobEntity mob) { }
-                @Override public void onMobDied(MobEntity mob) { }
-                @Override public void onMobRemoved(MobEntity mob, String reason) { }
-                @Override public void onMobAttackedPlayer(MobEntity mob, PlayerSession target, float damage) { }
-                @Override public void onMobSound(MobEntity mob, String soundName) { }
-                @Override public void onMobRangedAttack(MobEntity mob, Position aimPoint) { }
-                @Override public void onMobFuseChanged(MobEntity mob, boolean priming) { }
-                @Override public void onMobSheared(MobEntity mob, int woolCount) { }
-                @Override public void onMobCoatRegrown(MobEntity mob) { }
-                @Override public void onMobExploded(MobEntity mob) { }
-            });
-
-            server.useItemOnBlock(player, stone, 1, java.util.Optional.empty(), ignored -> { });
-            await(() -> !pigSpawnedAt.isEmpty(), "the pig spawned");
-            Position at = pigSpawnedAt.get(0);
             // SpawnEggItem.useOn line 82: the UP face's offset cell center —
-            // (2.5, 5.0, 2.5), the plain 0.0 lift (not the fence's 0.5);
+            // (2.5, 5.0, 2.5), the plain 0.0 lift (not the fence's 0.5).
+            server.useItemOnBlock(player, stone, 1, java.util.Optional.empty(), ignored -> { });
             // useOn line 82's cell — the body settles onto the stone's
-            // support plane (the engine's snap) at the spawn itself.
-            assertEquals(2.5, at.x(), 0.01, "the offset cell's center x");
-            assertEquals(5.0, at.y(), 0.01, "the support plane y");
-            assertEquals(2.5, at.z(), 0.01, "the offset cell's center z");
+            // support plane (the engine's snap) before the sample.
+            await(() -> server.mobs().all().stream()
+                            .anyMatch(m -> m.type() == MobType.PIG
+                                    && Math.abs(m.position().y() - 5.0) < 0.01
+                                    && Math.abs(m.position().x() - 2.5) < 0.01
+                                    && Math.abs(m.position().z() - 2.5) < 0.01),
+                    "the pig spawned at the offset cell's center");
             // useOn lines 85-88: the survival hand pays one unit.
             assertTrue(player.inventory().held().isEmpty(), "the egg was consumed");
         } finally {

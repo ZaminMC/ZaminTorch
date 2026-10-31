@@ -103,29 +103,13 @@ class PortalRidingGateDiscoveryTest {
         EngineAwaits.awaitCondition(server.world(), condition, 600, description);
     }
 
-    /** The frame alone (the interior unlit): VT-006's entity-level crossing
-     * arms an UNMOUNTED mob standing in portal cells on the FIRST armed tick
-     * (the base entity's threshold 0), so a pig spawned inside a lit frame is
-     * in the nether before any rider could mount — the seats predate the
-     * crossing. The frame mounts the pair in the SAME tick (no wander window),
-     * and the interior lights only after: both bodies are then riding-gated
-     * and the crossing stays held — the seats' own law. */
-    private static void buildFrameOnly(EngineWorld world, int x, int y, int z) {
+    /** The 4x5 X-plane frame (the DimensionWalk test's own build shape). */
+    private static void buildPortal(EngineWorld world, int x, int y, int z) {
         for (int w = 0; w < 4; w++) {
             for (int h = -1; h < 4; h++) {
                 boolean frameCell = w == 0 || w == 3 || h == -1 || h == 3;
-                if (frameCell) {
-                    world.setBlock(new BlockPosition(x + w, y + h, z), BuiltinBlocks.OBSIDIAN);
-                }
-            }
-        }
-    }
-
-    /** Lights the 2x3 interior column (the frame's own cells stay). */
-    private static void lightInterior(EngineWorld world, int x, int y, int z) {
-        for (int w = 1; w <= 2; w++) {
-            for (int h = 0; h < 3; h++) {
-                world.setBlock(new BlockPosition(x + w, y + h, z), BuiltinBlocks.NETHER_PORTAL);
+                world.setBlock(new BlockPosition(x + w, y + h, z),
+                        frameCell ? BuiltinBlocks.OBSIDIAN : BuiltinBlocks.NETHER_PORTAL);
             }
         }
     }
@@ -142,35 +126,30 @@ class PortalRidingGateDiscoveryTest {
         PlayerSession rider = join("PigRider");
 
         // The overworld portal (the crossing's source): a 4x5 X-plane
-        // frame at (40, 20, 40) — the DimensionWalk shape, the interior
-        // UNLIT until the mount holds (the VT-006 note on buildFrameOnly).
+        // frame at (40, 20, 40) — the DimensionWalk shape.
         int overX = 40;
         int overZ = 40;
         int overY = 20;
-        server.ticker().submit(() -> buildFrameOnly(overworld, overX, overY, overZ));
-        await(() -> overworld.getBlock(new BlockPosition(overX, overY - 1, overZ))
-                .equals(BuiltinBlocks.OBSIDIAN), "the overworld frame built");
+        server.ticker().submit(() -> buildPortal(overworld, overX, overY, overZ));
+        await(() -> overworld.getBlock(new BlockPosition(overX + 1, overY, overZ))
+                .equals(BuiltinBlocks.NETHER_PORTAL), "the overworld portal frame built");
 
         // The pig stands INSIDE the frame's interior: its feet on the
         // bottom obsidian row (cell overY-1's top surface), the body
         // occupying the interior column above. The rider's seat anchor
         // lands at pig.y + 0.55 - 0.35 = pig.y + 0.2 — the rider's feet
-        // cell IS the interior bottom row, a portal cell. The spawn and
-        // the mount land in the SAME tick (no wander window before the
-        // riding gate holds).
+        // cell IS the interior bottom row, a portal cell.
         Position pigAt = new Position(overX + 1.5, overY, overZ + 0.5);
-        server.ticker().submit(() -> {
-            net.zaminmc.torch.server.entity.MobEntity pig = server.mobs().spawnAt(MobType.PIG, pigAt);
-            server.mobs().mountMob(pig, rider.engineEntityId(),
-                    rider.name(), rider.uuid().toString());
-        });
-        await(() -> rider.ridingMobId() >= 0, "the rider took the pig's seat");
+        server.ticker().submit(() -> server.mobs().spawnAt(MobType.PIG, pigAt));
+        await(() -> !server.mobs().all().isEmpty(), "the pig spawned in the portal interior");
 
-        // The interior lights with the mount held: both bodies are
-        // riding-gated now, so the crossing stays held for the window.
-        server.ticker().submit(() -> lightInterior(overworld, overX, overY, overZ));
-        await(() -> overworld.getBlock(new BlockPosition(overX + 1, overY, overZ))
-                .equals(BuiltinBlocks.NETHER_PORTAL), "the interior lit");
+        // The mount (the engine's own seam — the interact path's own
+        // call, MobManager.mountMob: the listener wires the session's
+        // ridingMobId exactly like the live use-interaction).
+        server.ticker().submit(() -> server.mobs().mountMob(
+                server.mobs().all().get(0), rider.engineEntityId(),
+                rider.name(), rider.uuid().toString()));
+        await(() -> rider.ridingMobId() >= 0, "the rider took the pig's seat");
 
         // The seat's precondition: the rider's feet cell is a portal cell
         // (tickMobRiders landed the seat anchor inside the interior) —
@@ -246,23 +225,18 @@ class PortalRidingGateDiscoveryTest {
         int overX = 40;
         int overZ = 40;
         int overY = 20;
-        server.ticker().submit(() -> buildFrameOnly(overworld, overX, overY, overZ));
-        await(() -> overworld.getBlock(new BlockPosition(overX, overY - 1, overZ))
-                .equals(BuiltinBlocks.OBSIDIAN), "the overworld frame built");
+        server.ticker().submit(() -> buildPortal(overworld, overX, overY, overZ));
+        await(() -> overworld.getBlock(new BlockPosition(overX + 1, overY, overZ))
+                .equals(BuiltinBlocks.NETHER_PORTAL), "the overworld portal frame built");
 
         Position pigAt = new Position(overX + 1.5, overY, overZ + 0.5);
-        server.ticker().submit(() -> {
-            net.zaminmc.torch.server.entity.MobEntity pig = server.mobs().spawnAt(MobType.PIG, pigAt);
-            server.mobs().mountMob(pig, rider.engineEntityId(),
-                    rider.name(), rider.uuid().toString());
-        });
-        await(() -> rider.ridingMobId() >= 0, "the rider took the pig's seat");
+        server.ticker().submit(() -> server.mobs().spawnAt(MobType.PIG, pigAt));
+        await(() -> !server.mobs().all().isEmpty(), "the pig spawned in the portal interior");
 
-        // The interior lights with the mount held (the VT-006 note on
-        // buildFrameOnly: the crossing stays gated while mounted).
-        server.ticker().submit(() -> lightInterior(overworld, overX, overY, overZ));
-        await(() -> overworld.getBlock(new BlockPosition(overX + 1, overY, overZ))
-                .equals(BuiltinBlocks.NETHER_PORTAL), "the interior lit");
+        server.ticker().submit(() -> server.mobs().mountMob(
+                server.mobs().all().get(0), rider.engineEntityId(),
+                rider.name(), rider.uuid().toString()));
+        await(() -> rider.ridingMobId() >= 0, "the rider took the pig's seat");
 
         // The mounted half-window: 40 ticks (half the threshold — enough
         // for the engine's ungated clock to carry 40, nowhere near enough
@@ -273,11 +247,8 @@ class PortalRidingGateDiscoveryTest {
 
         // The dismount: the exit lands at mount.x + 1.1 — the frame's
         // other interior column (cell overX + 2), still a portal cell.
-        // The ridden body itself is addressed by the session's own id
-        // (the population's list order is not the seat's to lean on).
-        net.zaminmc.torch.server.entity.MobEntity mount =
-                server.mobs().byId(rider.ridingMobId());
-        server.ticker().submit(() -> server.mobs().dismountMob(mount, false));
+        server.ticker().submit(() ->
+                server.mobs().dismountMob(server.mobs().all().get(0), false));
         await(() -> rider.ridingMobId() < 0, "the rider stepped off the pig");
         BlockPosition exitFeet = new BlockPosition(
                 (int) Math.floor(rider.position().x()),

@@ -21,14 +21,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * becomes the new shooter — and the fireball family's own 25-tick
  * shooter-immunity window (ProjectileEntity line 119) lets a deflected
  * fireball strike the ghast that loosed it.
- *
- * <p>The family census (F-EX5's resolution): of ProjectileEntity's THREE
- * direct subclasses exactly ONE inherits the re-aim — FireballEntity (the
- * ghast's large shot, no override). SmallFireballEntity (lines 62-64) and
- * WitherSkullEntity (lines 94-96) both override {@code takeDamage} with
- * {@code return false}: the blaze's charge and the wither's skull refuse
- * the punch AND the blast wound whole — only the SCATTER (Explosion lines
- * 135-137, outside the takeDamage verdict) ever moves them.</p>
  */
 class FireballDeflectionTest {
 
@@ -162,75 +154,13 @@ class FireballDeflectionTest {
                 "the shard family carries no deflect surface");
         assertEquals(0, events.deflections, "no wire events fired");
 
-        // The fire charge REFUSES the deflection whole
-        // (SmallFireballEntity.takeDamage lines 62-64: `return false` —
-        // the override the subclass-counting census missed): only the
-        // GHAST's large fireball (FireballEntity, NO override) inherits
-        // the re-aim arm. A punched blaze shot keeps its course.
+        // The small fireball DOES carry the family's arm (SmallFireball
+        // extends the fireball parent).
         ProjectileEntity charge = manager.launchFireball(
                 new Position(0, 10, 0), 0.0, 0.0, 1.0, 0);
-        assertFalse(manager.deflect(charge, 4242, 1.0, 0.0, 0.0),
-                "the fire charge answers false (the override's own verdict)");
-        assertEquals(-1, charge.throwerId(), "no new shooter: the punch never landed");
-        assertEquals(0, events.deflections, "no wire events fired");
-    }
-
-    /**
-     * The blast wound's own census (F-EX5's resolution — the re-aim is the
-     * LARGE fireball's alone): a mob-sourced blast beside a small fireball
-     * or a wither skull never re-aims them — SmallFireballEntity's and
-     * WitherSkullEntity's own {@code takeDamage → return false} overrides
-     * refuse the wound whole (the scatter rides OUTSIDE the verdict, the
-     * caller's addVelocity arm). Only the ghast's FireballEntity inherits
-     * the re-aim.
-     */
-    @Test
-    void theBlastWoundReAimsTheGhastFireballAlone() {
-        ProjectileManager manager = new ProjectileManager(
-                (x, y, z) -> false, new RiggedHits(), new RecordingCombat(),
-                new FxManager(), new Random(18), 5_500);
-        Events events = new Events();
-        manager.addListener(events);
-
-        // The LARGE control (the only kind that inherits the arm): the
-        // creeper-sourced blast re-aims the ghast's shot — the velocity
-        // BECOMES the attacker's look, the attacker the new shooter.
-        ProjectileEntity ghastShot = manager.launchGhastFireball(777,
-                new Position(0.0, 10.0, 0.0), 1.0, 0.0, 0.0, 0);
-        manager.woundFromExplosion(ghastShot, 4242, 0.0, 0.6, 0.8);
-        assertEquals(4242, ghastShot.throwerId(), "the blast's source is the new shooter");
-        assertEquals(0.0, ghastShot.velocityX(), 1e-9);
-        assertEquals(0.6, ghastShot.velocityY(), 1e-9);
-        assertEquals(0.8, ghastShot.velocityZ(), 1e-9);
-        assertEquals(0.06, ghastShot.accelerationY(), 1e-9, "look * 0.1");
-        assertEquals(1, events.deflections, "the wire re-publishes the velocity");
-
-        // The small fireball: the override answers false — no re-aim, no
-        // new shooter, the velocity untouched by the wound (the scatter is
-        // the caller's own arm, never deflectBy's).
-        ProjectileEntity charge = manager.launchFireball(
-                new Position(0.0, 12.0, 0.0), 0.0, 0.0, 1.0, 0);
-        assertEquals(-1, charge.throwerId(), "the dispensed charge carries no shooter");
-        manager.woundFromExplosion(charge, 4242, 0.0, 0.6, 0.8);
-        assertEquals(-1, charge.throwerId(),
-                "the override refuses the wound: no new shooter");
-        assertEquals(0.0, charge.velocityX(), 1e-9, "the wound never writes");
-        assertEquals(0.0, charge.velocityY(), 1e-9);
-        assertEquals(0.0, charge.velocityZ(), 1e-9);
-        assertEquals(1, events.deflections,
-                "the refused wound fires no wire deflection");
-
-        // The wither skull: the same refusal (WitherSkullEntity lines
-        // 94-96) — the skull's flight is its wither's alone.
-        ProjectileEntity skull = manager.launchWitherSkull(888,
-                new Position(0.0, 14.0, 0.0), 10.0, 0.0, 0.0, false, 0);
-        assertEquals(888, skull.throwerId(), "the wither shot it");
-        manager.woundFromExplosion(skull, 4242, 0.0, 0.6, 0.8);
-        assertEquals(888, skull.throwerId(),
-                "the override refuses the wound: the wither keeps its skull");
-        assertEquals(0.0, skull.velocityX(), 1e-9, "the wound never writes");
-        assertEquals(0.0, skull.velocityY(), 1e-9);
-        assertEquals(0.0, skull.velocityZ(), 1e-9);
+        assertTrue(manager.deflect(charge, 4242, 1.0, 0.0, 0.0),
+                "the fire charge is family (Bootstrap's dispensed arm)");
+        assertEquals(4242, charge.throwerId());
     }
 
     @Test

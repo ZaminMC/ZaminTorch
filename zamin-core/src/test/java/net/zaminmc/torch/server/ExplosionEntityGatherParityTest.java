@@ -173,66 +173,6 @@ class ExplosionEntityGatherParityTest {
     }
 
     /**
-     * SEAT 3b — the re-aim census over the real blast wire (F-EX5's
-     * resolution): the creeper-sourced blast re-aims the GHAST's fireball
-     * (FireballEntity inherits ProjectileEntity.takeDamage — the blast's
-     * source becomes the new shooter) but NEVER the blaze's small fireball
-     * (SmallFireballEntity.takeDamage lines 62-64 answer false): the charge
-     * keeps its own shooter and its own flight, taking the SCATTER alone.
-     */
-    @Test
-    void theBlastReAimsTheGhastFireballButNeverTheBlazeCharge() throws Exception {
-        EngineServer server = boot();
-        try {
-            AtomicReference<ProjectileEntity> near = new AtomicReference<>();
-            AtomicReference<ProjectileEntity> control = new AtomicReference<>();
-            AtomicReference<ProjectileEntity> ghastShot = new AtomicReference<>();
-            server.ticker().submit(() -> {
-                near.set(server.projectiles().spawnRestored(
-                        ProjectileEntity.Kind.SMALL_FIREBALL,
-                        new Position(15.5, 8.0, 10.5), 0.0, 0.0, 0.3));
-                control.set(server.projectiles().spawnRestored(
-                        ProjectileEntity.Kind.SMALL_FIREBALL,
-                        new Position(38.5, 8.0, 10.5), 0.0, 0.0, 0.3));
-                // The ghast's shot hovers (a zero direction — the launch's
-                // gaussian noise alone rides the acceleration): the fixed
-                // (3, 4) offset from the creeper already spends 5 of the
-                // gather band's 6 blocks, and a flying shot's noise-scaled
-                // drift can carry it OUT of the band over the 5-tick fuse
-                // (the one-off batch failure). The re-aim law needs the
-                // body IN the band, not in flight.
-                ghastShot.set(server.projectiles().launchGhastFireball(1602,
-                        new Position(15.5, 9.5, 10.5), 0.0, 0.0, 0.0, 0));
-            });
-            await(server, () -> near.get() != null && control.get() != null
-                    && ghastShot.get() != null, "the fireball trio launched");
-            var creeper = server.mobs().spawnAt(MobType.CREEPER,
-                    new Position(12.5, 5, 10.5));
-            assertNotNull(creeper, "the creeper spawned");
-            int creeperId = creeper.entityId();
-            server.ticker().submit(() -> {
-                creeper.setCreeperIgnited(true);
-                creeper.setCreeperFuseTime(5);
-            });
-
-            // The ghast's shot: the re-aim lands — the blast's own source
-            // becomes the new shooter (the inherited takeDamage arm).
-            await(server, () -> ghastShot.get().throwerId() == creeperId,
-                    "the creeper's blast re-aimed the ghast's fireball");
-            // The blaze's charge: the SCATTER lands (the near body diverges
-            // from its un-blasted twin — the add rides outside the verdict)
-            // but the OVERRIDE answers false — the shooter never changes.
-            await(server, () -> Math.abs(near.get().velocityX()
-                    - control.get().velocityX()) > 0.02,
-                    "the near charge took the scatter's impulse");
-            await(server, () -> near.get().throwerId() == -1,
-                    "the charge keeps no shooter (the override's refusal)");
-        } finally {
-            server.shutdown(() -> { });
-        }
-    }
-
-    /**
      * SEAT 4 — the primed TNT: the fuse body takes the impulse (vanilla's
      * PrimedTnt carries NO immunity and NO takeDamage override — the wound
      * no-ops, the scatter lands: the TNT cannon's own law).

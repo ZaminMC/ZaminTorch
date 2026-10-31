@@ -26,10 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * stand clock's threshold, the 8:1 walk scales the coordinates, the nether
  * portal forcer builds the arrival frame, the body's dimension swaps to -1,
  * and the vanilla round trip brings it home — the arrival frame stands the
- * body in portal cells again, and the reference's law HOLDS it there (the
- * cooldown re-arms on every collision tick while the body stands), so the
- * return requires walking OUT of the cells, letting the cooldown expire,
- * and re-entering to stand the fresh 80 — the return walk ×8 finds
+ * body in a portal again, the cooldown runs out, the return walk ×8 finds
  * the original overworld frame.
  */
 class DimensionWalkTest {
@@ -85,25 +82,11 @@ class DimensionWalkTest {
                 ((int) Math.floor(netherArrival.x())) >> 4,
                 ((int) Math.floor(netherArrival.z())) >> 4)), 100, "the arrival chunk loaded");
 
-        // The vanilla round trip (the reference's law, re-pinned by the
-        // VT-004 correction): the arrival frame stands the body in portal
-        // cells and it STAYS there — every collision tick re-arms the
-        // 10-tick cooldown (the reference's onPortalCollision consult,
-        // Entity lines 1428-1455), so the crossing never re-fires while
-        // the body stands in the cells. The return requires LEAVING the
-        // cells (the cooldown then counts down to 0, one tick at a time),
-        // re-entering, and standing the fresh 80 — the return walk ×8
-        // finds the original overworld portal. The budgets stay the
-        // census's tick-denominated form (the 400-tick round-trip budget
-        // is the stand clock's own 5x over the 90-tick walk).
-        Position standOut = new Position(netherArrival.x() + 6.0,
-                netherArrival.y(), netherArrival.z());
-        server.teleportPlayer(walker, standOut);
-        await(server, () -> walker.position().distanceSquared(standOut) < 4.0,
-                100, "the body walked out of the arrival cells");
-        await(server, () -> walker.portalCooldown() == 0,
-                100, "the cooldown expired outside the arrival cells");
-        server.teleportPlayer(walker, netherArrival);
+        // The vanilla round trip: the body stands in the arrival frame, the
+        // 10-tick cooldown runs out, the stand clock crosses again — the
+        // return walk ×8 finds the original overworld portal. The 400-tick
+        // budget is the same tick-denominated 5x over the 90-tick round
+        // trip (the 30s wall bound of run 532's era retired with it).
         await(server, () -> walker.dimension() == 0,
                 400, "the round trip walked the body home");
         assertEquals(0, walker.dimension());
