@@ -2541,7 +2541,7 @@ public final class EngineServer implements Server, EngineBridge {
                 // line 33's own consult): a no-grief world wounds and
                 // knocks but never breaks blocks.
                 projectiles.setExplosionSink((at, power, dimension) -> detonateAtIn(
-                        worldForSafe(dimension), explosionService, dimension,
+                        worldForSafe(dimension), explosionServiceFor(dimension), dimension,
                         at.x(), at.y(), at.z(), power,
                         gameRules.getBoolean("mobGriefing"),
                         net.zaminmc.torch.server.block.ExplosionService.BlastSource.PLAIN, null));
@@ -2551,7 +2551,7 @@ public final class EngineServer implements Server, EngineBridge {
                 // everything but the unbreakable band; the plain skull
                 // reads the table like every other source.
                 projectiles.setSkullExplosionSink((at, power, charged, dimension) -> detonateAtIn(
-                        worldForSafe(dimension), explosionService, dimension,
+                        worldForSafe(dimension), explosionServiceFor(dimension), dimension,
                         at.x(), at.y(), at.z(), power,
                         gameRules.getBoolean("mobGriefing"),
                         charged ? net.zaminmc.torch.server.block.BlastSources.CHARGED_SKULL : net.zaminmc.torch.server.block.ExplosionService.BlastSource.PLAIN, null));
@@ -2901,10 +2901,13 @@ public final class EngineServer implements Server, EngineBridge {
                 // item-use spawn, so a restored cart burst nothing.
                 vehicles.setBlastSinkFactory(() ->
                         (net.zaminmc.torch.server.entity.vehicle.TntMinecartEntity.BlastSink)
-                                (x, y, z, power, primed) -> detonateAtWithSource(
+                                (x, y, z, power, primed, dimension) -> detonateAtIn(
+                                        worldForSafe(dimension),
+                                        explosionServiceFor(dimension), dimension,
                                         x, y, z, power,
                                         gameRules.getBoolean("mobGriefing"),
-                                        primed ? net.zaminmc.torch.server.block.BlastSources.PRIMED_CART : net.zaminmc.torch.server.block.ExplosionService.BlastSource.PLAIN));
+                                        primed ? net.zaminmc.torch.server.block.BlastSources.PRIMED_CART : net.zaminmc.torch.server.block.ExplosionService.BlastSource.PLAIN,
+                                        null));
                 vehicles.addListener(new VehicleEventDispatch());
                 // Vehicle persistence (Slice 25g — the ZVD store): the
                 // whole family's pre-25g gap closes — the carts (and the
@@ -24286,16 +24289,6 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /**
-     * One detonation in the OVERWORLD (the generalized walk's own dimension-0
-     * binding — the creeper, the TNT, the fireballs, the wither).
-     */
-    private void detonateAtWithSource(double cx, double cy, double cz, float power,
-                                      boolean destructive,
-                                      net.zaminmc.torch.server.block.ExplosionService.BlastSource source) {
-        detonateAtIn(world, explosionService, 0, cx, cy, cz, power, destructive, source, null);
-    }
-
-    /**
      * The per-dimension blast-walk resolver (Wave FL4-F7 — the primed
      * TNT body's dimension-routed detonation): each dimension's ray fan
      * reads and commits its OWN world's cells — the End's own service was
@@ -24313,11 +24306,6 @@ public final class EngineServer implements Server, EngineBridge {
         return explosionService;
     }
 
-    private void detonateAt(double cx, double cy, double cz, float power, boolean destructive) {
-        detonateAtIn(world, explosionService, 0, cx, cy, cz, power, destructive,
-                net.zaminmc.torch.server.block.ExplosionService.BlastSource.PLAIN, null);
-    }
-
     /**
      * The mob-sourced blast (the creeper's own — CreeperEntity.explode's
      * {@code world.explode(this, ...)}, the wither birth's the same): the
@@ -24327,14 +24315,18 @@ public final class EngineServer implements Server, EngineBridge {
      */
     private void detonateAtFromMob(MobEntity source, double cx, double cy, double cz,
                                    float power, boolean destructive) {
-        detonateAtIn(world, explosionService, 0, cx, cy, cz, power, destructive,
+        detonateAtIn(worldForSafe(source.dimension()),
+                explosionServiceFor(source.dimension()), source.dimension(),
+                cx, cy, cz, power, destructive,
                 net.zaminmc.torch.server.block.ExplosionService.BlastSource.PLAIN, source);
     }
 
     /**
      * One detonation in the named world (the generalized explosion walk —
-     * the creeper and the primed TNT ride the overworld binding, Slice
-     * 62's ender crystal rides the End one): the reference's own
+     * every family's arm routes its OWN world through the per-dimension
+     * service (Wave FL4-F7's law: the primed TNT, the fireballs, the
+     * skulls, the creeper, the wither birth, the TNT carts); Slice 62's
+     * ender crystal rides the End one): the reference's own
      * two-phase order (world/explosion/Explosion.java — damageEntities
      * then damageBlocks), 1:1. Phase one collects the ray fan's damaged
      * cells and wounds every body in the box over the world as it STOOD
@@ -24512,7 +24504,7 @@ public final class EngineServer implements Server, EngineBridge {
                         removed.type().identifier()).orElse(null);
                 if (item != null) {
                     itemEntities.spawnDropAtBlock(new Position(b.x() + 0.5, b.y() + 0.5, b.z() + 0.5),
-                            ItemStack.of(item, 1), ItemEntity.PICKUP_DELAY_DROP_TICKS);
+                            ItemStack.of(item, 1), ItemEntity.PICKUP_DELAY_DROP_TICKS, dimension);
                 }
             }
         }
