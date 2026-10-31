@@ -70,16 +70,25 @@ class MobEventBridgeAcceptanceTest {
 
     @Test
     void theAmbientSoundCrossesTheRealBootBridge() throws Exception {
-        AtomicReference<String> heard = new AtomicReference<>();
-        AtomicReference<Float> volume = new AtomicReference<>(0f);
+        // The voice itself is the polled condition, not "any sound": the
+        // mob's footsteps (step.grass) ride the SAME bridge event, and a
+        // wander step can beat or overwrite the first ambient voice — the
+        // run 532/557 hosted-runner race (the last-write-wins slot turned
+        // the any-sound await into a coin flip). Capturing the VOICE event
+        // at landing keeps both asserts exact and the await honest (the
+        // ambient cadence's tick-1001 hard bound still governs).
+        AtomicReference<String> voice = new AtomicReference<>();
+        AtomicReference<Float> voiceVolume = new AtomicReference<>();
         // The protocol adapter's own registration path: the listener the
         // dispatch must reach (the seventeen missing re-fans carry it).
         server.addMobListener(new MobManager.Listener() {
             @Override
             public void onMobSoundAt(net.zaminmc.torch.server.entity.MobEntity mob,
                                      String soundName, float vol, float pitch) {
-                heard.set(soundName);
-                volume.set(vol);
+                if ("mob.cow.say".equals(soundName)) {
+                    voice.compareAndSet(null, soundName);
+                    voiceVolume.compareAndSet(null, vol);
+                }
             }
 
 
@@ -139,22 +148,26 @@ class MobEventBridgeAcceptanceTest {
                     server.mobs().spawnAt(MobType.COW, new Position(0.5, 5, 0.5));
             assertNotNull(cow, "the cow spawned");
         });
-        await(() -> heard.get() != null, "the cow's ambient voice crossed the bridge");
-        assertEquals("mob.cow.say", heard.get(), "the repaired idle name");
-        assertEquals(0.4f, volume.get(), 1e-6f, "the cow's play volume (CowEntity line 65)");
+        await(() -> voice.get() != null, "the cow's ambient voice crossed the bridge");
+        assertEquals("mob.cow.say", voice.get(), "the repaired idle name");
+        assertEquals(0.4f, voiceVolume.get(), 1e-6f, "the cow's play volume (CowEntity line 65)");
     }
 
     @Test
     void thePigVoiceCarriesTheSameBridge() throws Exception {
         // A second lane on the same repaired re-fan: the pig's 1.0-volume
         // voice through the identical boot path (a different idle family,
-        // the same dispatch arm).
-        AtomicReference<String> heard = new AtomicReference<>();
+        // the same dispatch arm). The voice-named capture, not an any-sound
+        // slot — the pig's own step.grass rides the same event (see the
+        // cow seat's note).
+        AtomicReference<String> pigVoice = new AtomicReference<>();
         server.addMobListener(new MobManager.Listener() {
             @Override
             public void onMobSoundAt(net.zaminmc.torch.server.entity.MobEntity mob,
                                      String soundName, float vol, float pitch) {
-                heard.set(soundName);
+                if ("mob.pig.say".equals(soundName)) {
+                    pigVoice.compareAndSet(null, soundName);
+                }
             }
 
 
@@ -211,7 +224,7 @@ class MobEventBridgeAcceptanceTest {
         });
         server.ticker().submit(() ->
                 server.mobs().spawnAt(MobType.PIG, new Position(2.5, 5, 0.5)));
-        await(() -> heard.get() != null, "the pig's voice crossed the bridge");
-        assertEquals("mob.pig.say", heard.get());
+        await(() -> pigVoice.get() != null, "the pig's voice crossed the bridge");
+        assertEquals("mob.pig.say", pigVoice.get());
     }
 }

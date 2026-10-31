@@ -74,14 +74,21 @@ class ComputeSubsystemTest {
                     (result, generation) -> applied.set(true),
                     recomputes::incrementAndGet);
 
+            // The world moves under the computation (the ownership
+            // transfer). The handle's generation is captured at SUBMIT
+            // time, so the outcome is stale whenever it lands — and the
+            // drain is the owner's idempotent boundary call, so LOOP it
+            // until the outcome is processed rather than assuming the
+            // worker's deposit beat the first drain (the run 558
+            // forked-timing race: the worker was starved past the drain,
+            // the queuedDepth==0 poll only proves the job was DEQUEUED).
+            domain.transferOwnership();
             long deadline = System.currentTimeMillis() + 5_000;
-            while (compute.queuedDepth() > 0
+            while (compute.staleCount(domain) + compute.appliedCount(domain) == 0
                     && System.currentTimeMillis() < deadline) {
+                compute.drainResults(domain);
                 Thread.sleep(20);
             }
-            // The world moves under the computation (the ownership transfer).
-            domain.transferOwnership();
-            compute.drainResults(domain);
             assertFalse(applied.get(),
                     "the stale result is never blindly applied (the design §6-A rule)");
             assertEquals(1, recomputes.get(), "the fallback arm ran — the caller recomputes");

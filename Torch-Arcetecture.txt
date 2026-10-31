@@ -7638,6 +7638,110 @@ SignRotationParityTest, ItemSolverPhysicsTest,
 EntityFamilyApiAcceptanceTest, the pistons, the anvil pair, and the
 nether TNT + block-update acceptance.
 
+## Wave X-AUDIT — the 2026-10-31 Section X architecture gap assessment
+(the owner's forward-compatibility gate, audited before further
+expansion — findings only, no code changed)
+
+THE ASSESSMENT lives whole in
+docs/SECTION_X_GAP_ASSESSMENT.md (every area §X names, classified
+under the X.13 gate A-E). THE HEADLINES: the representation layer is
+ALREADY the forward-compatible shape §X mandates — the canonical
+Identifier (its javadoc carries §X's own law), the flattened-family
+EngineBlockType (legacy metadata documented as boundary translation
+data), the frozen-extensible registries, the clean dependency
+direction (zamin-core imports nothing from the protocol module; the
+entire legacy id table lives at the protocol boundary; the anvil
+import's table reverse-derived and integrity-pinned), and the
+ownership/scheduler/concurrency infrastructure (X.13 class A whole).
+THE TWO GENUINE FOUNDATIONAL DEFECTS are the ledger's own two named
+remaining tails — the overworld-bound RedstoneSystem (Gap 1) and the
+position-keyed container/block-entity stores (Gap 2, a cross-dimension
+collision TODAY). THE TWO NAMED B-GAPS carry their triggers and are
+NOT to be built before those fire: the ItemStack record's fixed NBT
+fields (the component-map seam arrives with the first later-version
+item property that is not a 1.8.8 NBT slice) and the fixed
+three-dimension model (the dimension registry arrives with the first
+non-vanilla-dimension requirement; the FL4 worldFor router is the
+migration point).
+
+## Wave FL4-F10 — the redstone system's world binding (INVESTIGATED,
+the trace and the plan recorded; the implementation is the next
+session's first act)
+
+THE TRACE (the full ownership and call graph, read before any code
+change): RedstoneSystem holds ONE overworld field (82 world consults
+inside it) and is registered as the OVERWORLD's change listener alone —
+the nether and the End, which since FL4-F8 carry their own
+BlockUpdateSystem instances, carry NO signal machinery at all (a
+nether lever's flip, a nether comparator's read, a nether repeater's
+delay have no system behind them). The 32 EngineServer consult sites
+split four ways: (1) the USE consults — useComparator/useLever/
+useButton at the item-use dispatch — are POSITION-ONLY (no world
+argument; the overworld closure, exactly the FL4-F3 ledger's named
+tail); (2) the wake/update family — wakeComparators at six sites (the
+chest and furnace contents-changed arms, the use dispatch, the
+placement pair) and updateNeighbors at two — all position-only; (3)
+the PROBES — the plate occupancy probe and the plate count probe
+closing over the GLOBAL entity walks (mobs.all()/players.all()/
+itemEntities.all() with NO dimension filter — a nether pressure plate
+consults overworld bodies, the pre-FL4 defect class), the trapped-
+chest viewers, the cart probe, the analog reader, the frame reader;
+(4) the FAN — the neighbor-listener distribution (noteBlocks, the
+pistons, the TNT, the hoppers, the tripwire, the dispensers, the
+beacons) and the three ticker seams (tripwire, dispenser, command
+block). The comparator persistence (ComparatorDataStore) is a single
+position-keyed file (no dimension in the row). The FL4-F7 TNT wave
+already routed its WRITE arms per dimension while leaving "the SIGNAL
+consult gated to the system's own redstone binding until that family's
+per-dimension pass" — this wave.
+
+THE REFERENCE'S LAW (verified in reference/1.8.8): every WorldServer
+carries its own machinery — the signal walk rides the per-world tick
+loop, the repeater/torch delays ride the per-world scheduled-tick
+sets, and the neighbor notifications range the ACTING world. The
+per-world shape is FL4-F8's own precedent.
+
+THE PLAN (the smallest coherent boundary, following the established
+FL4 forms — adjust only where the trace demands):
+1. Per-dimension instances OR a routed consult, decided at
+   implementation: FL4-F8's per-instance form (each dimension's own
+   system, its own change-listener registration) is the default
+   precedent; the ~15 boot-wired callback seams (probes, tickers,
+   listener fan) each take the acting world/dimension through the
+   FL4-F5 seam form where their bodies are position-keyed.
+2. The USE consults take the session's world (the FL4-F5
+   worldOf(player) form — useComparator/useLever/useButton and the
+   placement-pair wake).
+3. The plate probes' entity walks filter by the dimension (the
+   per-world entity-list law — FL4-F9's anvil-crush form).
+4. The comparator store's row gains the dimension stamp (the TF-9
+   ItemDataStore v8 form — the store version bumps, the restore
+   routes by world).
+5. The scheduled-tick seams (the torch's 2-tick, the repeater's
+   delay) range each dimension's own ScheduledTickSystem (the FL4-F8
+   wiring form).
+6. The wire's block-update fan for redstone-driven changes already
+   carries per-world trackers (the FL4-F7/F9 stamps) — verify, do not
+   rewire.
+THE ENTANGLEMENT NAMED (the reason the ledger ordered this wave
+before the container wave but scoped it): the redstone neighbor fan
+reaches the piston/hopper/dispenser/noteblock/beacon systems, whose
+OWN state is position-keyed overworld-bound (Gap 2's population) —
+those systems' per-dimension rows are their own families' passes; this
+wave routes the SIGNAL machinery and the consults, and their listeners
+keep receiving the events their own state can still only answer in
+the overworld (the honest-tail form the FL4-F7 TNT wave used for this
+exact dependency).
+ACCEPTANCE (the seats to write): a nether lever's flip opens a nether
+door (the use consult + the door callback routed); a nether
+comparator reads a nether chest's fullness and its stored output
+survives the restart (the store stamp); a nether pressure plate under
+a nether mob's feet triggers and an overworld body never triggers it
+(the probe filter); a nether repeater carries its delay (the
+scheduled-tick seam); the overworld seats all stay green (the
+regression lanes: the redstone family whole, the pistons, the
+dispensers, the hoppers, the TNT, the nether quartet).
+
 ---
 
 # 34. ENGINEERING AUTHENTICITY AND AI-GENERATED CODE QUALITY

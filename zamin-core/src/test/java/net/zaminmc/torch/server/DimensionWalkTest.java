@@ -8,6 +8,7 @@ import net.zaminmc.torch.server.net.ClientLink;
 import net.zaminmc.torch.server.net.EngineBridge;
 import net.zaminmc.torch.server.player.PlayerSession;
 import net.zaminmc.torch.server.config.EngineConfig;
+import net.zaminmc.torch.testing.EngineAwaits;
 import net.zaminmc.torch.util.Position;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -45,21 +46,27 @@ class DimensionWalkTest {
         int frameZ = 40;
         int frameY = 20; // high above the fixture's terrain: no interference
         server.ticker().submit(() -> buildOverworldPortal(server, frameX, frameY, frameZ));
-        await(() -> server.world().isChunkLoaded(new ChunkPosition(2, 2))
+        await(server, () -> server.world().isChunkLoaded(new ChunkPosition(2, 2))
                         && server.world().getBlock(new BlockPosition(frameX + 1, frameY, frameZ))
                         .equals(BuiltinBlocks.NETHER_PORTAL),
-                "the overworld portal frame built");
+                100, "the overworld portal frame built");
 
         // Stand the body inside the frame's interior and let the stand
         // clock run (80 survival ticks; the tick walk drives everything).
         Position portalStand = new Position(frameX + 1.5, frameY + 0.1, frameZ + 0.5);
         server.teleportPlayer(walker, portalStand);
-        await(() -> walker.position().distanceSquared(portalStand) < 4.0,
-                "the body stands in the portal");
+        await(server, () -> walker.position().distanceSquared(portalStand) < 4.0,
+                100, "the body stands in the portal");
 
         // The crossing: the threshold at the 80th stand tick arms the walk —
-        // the body arrives in the nether (dimension -1).
-        await(() -> walker.dimension() == -1, "the body crossed to the nether");
+        // the body arrives in the nether (dimension -1). The budget is
+        // TICK-denominated (run 532's lesson: a 20s wall bound over the
+        // 80-tick stand clock is a 5x margin a loaded runner's tick
+        // stretch burns through; the census's EngineAwaits form waits for
+        // COMPLETED TICKS, so a slow runner stretches the wait, never
+        // breaks it — the 400-tick budget is the stand clock's own 5x).
+        await(server, () -> walker.dimension() == -1,
+                400, "the body crossed to the nether");
         assertEquals(-1, walker.dimension());
 
         // The arrival frame: the forcer built a portal in the nether near
@@ -71,15 +78,17 @@ class DimensionWalkTest {
                 "the arrival rides the 8:1 scale (got " + netherArrival + ")");
         server.ticker().submit(() -> { }); // sync point
         // The nether world holds the arrival chunk.
-        await(() -> server.netherWorld().isChunkLoaded(new ChunkPosition(
+        await(server, () -> server.netherWorld().isChunkLoaded(new ChunkPosition(
                 ((int) Math.floor(netherArrival.x())) >> 4,
-                ((int) Math.floor(netherArrival.z())) >> 4)), "the arrival chunk loaded");
+                ((int) Math.floor(netherArrival.z())) >> 4)), 100, "the arrival chunk loaded");
 
         // The vanilla round trip: the body stands in the arrival frame, the
         // 10-tick cooldown runs out, the stand clock crosses again — the
-        // return walk ×8 finds the original overworld portal.
-        await(() -> walker.dimension() == 0, 30_000,
-                "the round trip walked the body home");
+        // return walk ×8 finds the original overworld portal. The 400-tick
+        // budget is the same tick-denominated 5x over the 90-tick round
+        // trip (the 30s wall bound of run 532's era retired with it).
+        await(server, () -> walker.dimension() == 0,
+                400, "the round trip walked the body home");
         assertEquals(0, walker.dimension());
         // The homecoming lands inside the original frame (the return search
         // finds the overworld portal it left from).
@@ -112,9 +121,11 @@ class DimensionWalkTest {
     private PlayerSession join(EngineServer server, String name) throws InterruptedException {
         var accepted = server.joinRequest(link(), name, UUID.randomUUID());
         PlayerSession session = ((EngineBridge.Accepted) accepted).session();
-        await(() -> server.playerRegistry().byName(name).isPresent(), name + " registered");
+        await(server, () -> server.playerRegistry().byName(name).isPresent(),
+                100, name + " registered");
         server.joinCompleted(session);
-        await(() -> session.state() == PlayerState.PLAYING, name + " playing");
+        await(server, () -> session.state() == PlayerState.PLAYING,
+                100, name + " playing");
         return session;
     }
 
@@ -131,19 +142,14 @@ class DimensionWalkTest {
         };
     }
 
-    private void await(BooleanSupplier condition, String description) throws InterruptedException {
-        await(condition, 20_000, description);
-    }
-
-    private void await(BooleanSupplier condition, long timeoutMillis, String description)
-            throws InterruptedException {
-        long deadline = System.currentTimeMillis() + timeoutMillis;
-        while (System.currentTimeMillis() < deadline) {
-            if (condition.getAsBoolean()) {
-                return;
-            }
-            Thread.sleep(50);
-        }
-        throw new AssertionError("Condition not met in time: " + description);
+    /**
+     * The census's EngineAwaits form (ML-002): the budget is COMPLETED
+     * ENGINE TICKS, not wall time — the crossing conditions are the stand
+     * clock's own tick counts, so a loaded runner stretches the wait and
+     * never breaks it (the liveness guard still catches a stalled engine).
+     */
+    private void await(EngineServer server, BooleanSupplier condition, long tickBudget,
+            String description) throws InterruptedException {
+        EngineAwaits.awaitCondition(server.world(), condition, tickBudget, description);
     }
 }

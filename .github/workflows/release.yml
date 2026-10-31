@@ -11,8 +11,12 @@ name: release
 #      commit (the loop-breaker: the pipeline's own push must not retrigger)
 #      — BEFORE building, so the jar is always built from the exact tree
 #      that gets tagged, even if a rebase pulls in newer commits mid-run;
-#   4. run the full test suite (one retry for the three documented load
-#      flakes: LifecycleEvent / HopperSystem / HopperWindow);
+#   4. run the full test suite (parallelised: 3 test forks on the two
+#      large modules, cross-module --parallel; a selective ONE-SHOT
+#      in-task retry covers only the census's documented load flakes —
+#      LifecycleEvent / HopperSystem / HopperWindow — a repeated failure
+#      still fails the run, and the retry allowlist lives in the root
+#      build.gradle.kts governed by docs/TEST_DEADLINE_CENSUS.md);
 #   5. tag torch-1.8.8-N (lightweight, matching the v0.2.0-dev.* family);
 #   6. publish the fat jar (torch-1.8.8-N.jar) + the server zip as a
 #      PRERELEASE through gh, with auto-generated notes (commits since the
@@ -179,17 +183,28 @@ jobs:
           echo "::error::could not sync the bump (develop moved underneath twice) — re-run the workflow"
           exit 1
 
-      - name: Build + full test suite (one retry for the documented load flakes)
+      - name: Build + full test suite (selective retry inside Gradle)
         if: steps.version.outputs.skip != 'true'
         run: |
           set -euo pipefail
-          if ! ./gradlew --no-daemon build :zamin-launcher:serverDist; then
-            echo "::warning::first build failed — retrying once (documented load flakes: LifecycleEvent/HopperSystem/HopperWindow each pass in isolation)"
-            ./gradlew --no-daemon build :zamin-launcher:serverDist
-          fi
+          ./gradlew --no-daemon build :zamin-launcher:serverDist
           V="${{ steps.version.outputs.version }}"
           ls -la "zamin-launcher/build/libs/torch-$V.jar" \
                  "zamin-launcher/build/dist/ZaminTorch-server-$V.zip"
+
+      - name: Upload test reports (failure forensics)
+        # Runs whenever the build step fails: the JUnit XML + HTML reports
+        # make every failure a download instead of a re-run (the retry
+        # markers of the selective retry ride the same reports).
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: |
+            **/build/reports/tests/**
+            **/build/test-results/**
+          retention-days: 14
+          if-no-files-found: ignore
 
       - name: Tag the release (lightweight, like the v0.2.0-dev.* family)
         if: steps.version.outputs.skip != 'true'
@@ -247,6 +262,9 @@ jobs:
           echo "TITLE=$TITLE" >> "$GITHUB_ENV"
           echo "title: $TITLE"
 
+          # The notes' fixed parts: the header + the per-subject Changes
+          # list (each subject already capped at 200 chars), and the
+          # artifacts tail.
           {
             echo "Dev build \`$TAG\` — auto-cut from \`develop\` @ \`$SHORT_SHA\` ($COUNT commit(s) since \`${PREV:-the beginning}\`$([ -n "$SHORTSTAT" ] && echo ", $SHORTSTAT" || echo))."
             echo
@@ -260,20 +278,48 @@ jobs:
               | grep -v '^- release: torch-' \
               | awk '{ if (length($0) > 200) print substr($0, 1, 200) "…"; else print }' || true; }
             echo
-            echo "<details><summary>Full commit messages</summary>"
-            echo
-            { git log --reverse --format='%h %s%n%n%b%n---' "$RANGE" \
-              | grep -v '^[0-9a-f]\{7\} release: torch-' || true; }
-            echo
-            echo "</details>"
-            echo
+          } > notes-head.md
+          {
             echo "### Artifacts"
             echo
             echo "- \`torch-$V.jar\` — the fat server jar (every module + netty), Java 21+."
             echo "- \`ZaminTorch-server-$V.zip\` — the jar plus \`start.sh\` / \`start.bat\` / \`start.ps1\`, QUICKSTART and the default \`zamin.properties\`."
             echo
             echo "Boot: unzip, \`./start.sh\`, connect a vanilla 1.8.8 client to port 25565. The launcher prints an update prompt when a newer build is published."
+          } > notes-tail.md
+
+          # The full-messages block, bounded to GitHub's release-body cap
+          # (125,000 characters — the 154 gap's four days of worklog-style
+          # commits overflowed it and the publish died with HTTP 422, the
+          # tag already pushed and the release never cut): each commit's
+          # body is capped first, and if the assembled notes still cannot
+          # fit under the cap, the block is dropped in favour of the
+          # per-subject Changes list (the compare link carries the whole
+          # history).
+          NOTES_CAP=120000
+          { git log --reverse --format='%h %s%n%n%b%n---' "$RANGE" \
+            | grep -v '^[0-9a-f]\{7\} release: torch-' \
+            | awk -v cap=1500 '{ if (length($0) > cap)
+                  print substr($0, 1, cap) "…"; else print }' || true
+          } > details.txt
+          BUDGET=$(( NOTES_CAP - $(wc -c < notes-head.md) - $(wc -c < notes-tail.md) ))
+          {
+            cat notes-head.md
+            if [ "$(wc -c < details.txt)" -le "$BUDGET" ]; then
+              echo "<details><summary>Full commit messages</summary>"
+              echo
+              cat details.txt
+              echo
+              echo "</details>"
+              echo
+            else
+              echo "Full commit messages omitted: the ${COUNT}-commit range exceeds the release-body size cap (the Changes list above carries every commit; the compare link the full history)."
+              echo
+            fi
+            cat notes-tail.md
           } > notes.md
+          rm -f notes-head.md notes-tail.md details.txt
+          echo "--- notes.md size: $(wc -c < notes.md) bytes (cap $NOTES_CAP)"
           echo "--- notes.md (first 40 lines):"
           head -40 notes.md
 

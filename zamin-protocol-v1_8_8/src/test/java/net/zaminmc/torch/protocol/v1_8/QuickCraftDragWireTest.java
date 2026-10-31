@@ -440,11 +440,15 @@ class QuickCraftDragWireTest extends ProtocolTestBase {
             client.readWindowSlotTable(10_000);
 
             // place the furnace at the flat world's ground and open it (the
-            // FurnaceIntegrationTest's proven flow)
-            client.sendBlockPlacement(2, 4, 2, 1, FURNACE);
+            // FurnaceIntegrationTest's proven flow). The furnace gets its
+            // OWN cell — (3,5,2), one east of the chest seat's (2,5,2):
+            // the class shares one world, and the two seats must stay
+            // order-independent (whichever runs first would otherwise
+            // occupy the other's placement cell and refuse its placement).
+            client.sendBlockPlacement(3, 4, 2, 1, FURNACE);
             client.readWindowSlotTable(10_000);
-            client.readBlockChangeAt(2, 5, 2, FURNACE, 10_000);
-            client.sendBlockPlacement(2, 5, 2, 1, -1);
+            client.readBlockChangeAt(3, 5, 2, FURNACE, 10_000);
+            client.sendBlockPlacement(3, 5, 2, 1, -1);
             Object[] open = client.readOpenWindow(10_000);
             int windowId = (Integer) open[0];
             client.readWindowSlotTable(10_000, windowId);
