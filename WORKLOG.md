@@ -19606,7 +19606,7 @@ Stage Summary:
 - The correction's PR: #110 OPEN (fix/portal-remaining-families-parity-audit
   over develop 7910a110 — three commits: the implementation + the three
   authored seats + the item/orb determinism row).
-- VT-011 DISCOVERED (the lanes' run): the pre-existing
+- VT-012 DISCOVERED (the lanes' run — renumbered, the pass-29 lane claimed VT-011 first): the pre-existing
   NetherBlastRoutingAcceptanceTest flake — the blast-event read race
   (the seat's await can pass inside detonateAtIn's tear-to-fan window;
   the NPE at the reference read). BOTH seats carry it; the clean-develop

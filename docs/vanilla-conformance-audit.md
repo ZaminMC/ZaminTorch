@@ -1755,9 +1755,11 @@ deltas the implementation discovered):
 develop 7910a110; the item + orb seats' determinism row rides the
 branch — the flake root-caused below).
 
-**VT-011 DISCOVERED (this pass, the lanes' run): a pre-existing flaky
-test on develop — `NetherBlastRoutingAcceptanceTest`'s blast-event
-read race.** The signature: the NPE
+**VT-012 DISCOVERED (this pass, the lanes' run — renumbered from the
+VT-011 this lane first used: the pushed pass-29 lane claimed VT-011
+for the anvil import's occupied-nibble drop first): a pre-existing
+flaky test on develop — `NetherBlastRoutingAcceptanceTest`'s
+blast-event read race.** The signature: the NPE
 `blast.get().dimension()` — the seat's await passes (the discriminator
 cell reads air) but the explosion listener's reference is still null.
 THE MECHANISM (the detonation walk's own order): the cells tear EARLY
@@ -1857,7 +1859,9 @@ Named tails recorded (each its own pass, not owed by this correction):
    engine's shared one), the zombie arm's world binding.
 6. The blast RNG tail (VT-007's named tail): the End/nether services'
    shared `gameplayRandom` vs the reference's per-world `world.random`.
-7. **VT-011's own pass** (this pass's discovery): the
+7. **VT-012's own pass** (this pass's discovery — renumbered, see
+   the record: the pushed pass-29 lane's VT-011 is the anvil import's
+   occupied-nibble finding): the
    `NetherBlastRoutingAcceptanceTest` flake's bounded fix — the seat's
    read order (await the event reference, not the cell alone); a
    test-infrastructure correction, both seats, root-caused and
