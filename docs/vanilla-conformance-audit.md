@@ -1454,7 +1454,7 @@ effective law for the vanilla dimensions).
 | Snow layer — placement support/melt/drops | drops landed (the mining-speed audit); melt + the 7-layer state surface recorded as VT-003's tail |
 | Packed ice — melt/break laws | inspected: the reference's PackedIceBlock carries no melt arm (the `setTicksRandomly` false, the silk-drop row landed); nothing owed |
 | Portal mechanics (flag1, forcer) | landed by FL4-F1; not re-audited — the stand clock's re-fire law is VT-004 (CONFIRMED, three passes; the correction **LANDED by PR #91** — merged in the develop wave; the seat PortalRefireDiscoveryTest rides green) |
-| Portal mechanics — the non-player crossing (the entity-level arm) | the MOBS family LANDED by **PR #98 (MERGED)**; the ITEMS, ORBS, and VEHICLES families ride **PR #108 OPEN** (the seam promoted top-level, the three family arms, the three seats green; the twenty-eighth pass's repair restored the carry-forward clobber and re-pinned the two stale cooldown seats — the diff minimal); the ARROWS/projectiles the remaining slice (the queue's head); the TNT and falling families excluded by the census; the End-origin arm is the named tail; the watch: the shared clock idiom's decrement-order vs the reference's crossing-then-decrement order (the one-tick post-crossing cooldown difference) — its own narrow verification pass |
+| Portal mechanics — the non-player crossing (the entity-level arm) | the MOBS family LANDED by **PR #98 (MERGED)**; the ITEMS, ORBS, VEHICLES, and PROJECTILES families ride **PR #108 OPEN** (the seam promoted top-level, the five family arms, the five seats green — the projectile slice the twenty-eighth pass's own act, the stash-discrimination RED/GREEN pair; the same pass's repair restored the carry-forward clobber and re-pinned the two stale cooldown seats); **VT-006's family census FULLY LANDED on the branch** — the TNT and falling families excluded by the census; the End-origin arm is the named tail; the watch: the shared clock idiom's decrement-order vs the reference's crossing-then-decrement order (the one-tick post-crossing cooldown difference) — its own narrow verification pass |
 | Bed use — the out-of-dimension blast arm | **VT-008 CLOSED — RESOLVED by PR #102 (MERGED)**: this stream's census + source pass (the twenty-sixth) converged with the house's F-EX6, and the twenty-seventh pass's behavioral seat verified #102's coverage on the post-merge develop (the twin-platform routing pin, the no-spawn signature — `NetherBedBlastAcceptanceTest` green) |
 | Portal mechanics — the riding gate (vehicle == null && rider == null) | VT-005 CONFIRMED (three passes — source, the pig-in-portal behavioral seat, the dismount-control independent pass) and **RESOLVED by PR #94 (MERGED)**; the seat's own hardening (the unlit-frame/same-submit-mount protocol, the PR-wave merge repair `3ca299e2`) survived the pass-27 carry-forward clobber only through the twenty-eighth pass's restoration — the seat 2/0 green on the #108 branch |
 | Drops — the TF-9 dimension stamp | LANDED by PR #90 (the dig/place walks stamp `world.dimension()`; the tile-family spill sites remain the per-dimension tile tail) |
@@ -1628,6 +1628,41 @@ re-pins). PR #108's diff is now the intended minimal shape: the seam
 promotion, the three family arms, the three family seats, the audit
 doc — and nothing else.
 
+**The queue's head taken the same run — the PROJECTILE family, the
+crossing families' last slice, LANDED:** the reference census verified
+fresh (every kind's tick chain carries the arm — `ArrowEntity.tick`
+line 150, `ProjectileEntity.tick` line 82, `ThrownEntity.tick` line
+123, `EnderPearlEntity.tick` line 82, all into `Entity.baseTick` lines
+282-313, and the arm runs BEFORE each kind's own `inGround` branch);
+the arm wired as the seam's fifth rider — `ProjectileEntity`'s portal
+clock + entry memory + arrival application (the byte-identical family
+law), `ProjectileManager`'s `SolidQuery.portalFrameAt` consult + the
+`DimensionCrossing` seam + the arm at the HEAD of the per-body tick
+walk (the dimension flip moved ahead of the grounded branch so the arm
+covers GROUNDED bodies too — the reference's `super.tick()` precedes
+the inGround branch), the crossing walk (destroy fan → seam → stamp
+swap → spawn fan), and the boot wiring. THE SEAT
+(`PortalProjectileCrossingDiscoveryTest`): the at-rest arrow over
+`spawnRestored`'s saved-row shape (no gaussian tilt, no launch force —
+the flight-path determinism answer the twenty-fifth pass's deferral
+named), the spawn-time feet cell captured ON THE TICK LANE inside the
+same submit (the synchronous precondition — a polling precondition
+would race the first-armed-tick law it pins), the crossing, the
+arrival inside the pre-built nether frame's band, the nether stamp,
+the 40-tick no-bounce window. Evidence: GREEN fixed 1/0; **RED on the
+pre-fix tree AT THE CROSSING PIN** (the stash discrimination — the
+precondition passing, the crossing await timing out on the engine's
+fall-through-and-stick answer); the projectile package whole green;
+the combined portal+entity batch **589/0** (one
+`VehicleWorldDamageTest` dry-control await failed under the first
+batch's load and passed in the identical re-run + solo — the ML-002
+wall-clock-await debt class, the test's own 20s
+`System.currentTimeMillis` deadline, not this change's lane;
+recorded). **VT-006's family census is now fully landed: the mobs
+(#98), the items, the orbs, the vehicles, and the projectiles — the
+TNT and falling families excluded by the census (no portal arm in the
+reference itself), the End-origin arm the named tail.**
+
 ## The queue for the next pass
 
 1. ~~The VT-003 fix branch~~ — LANDED (PR #89, `IceFamilyParityTest` 11/0,
@@ -1710,19 +1745,17 @@ doc — and nothing else.
    question RESOLVED, no seed control owed); the FL4-F10 redstone
    world binding — LANDED on develop (`0328e92f`) — not this stream's
    lane.
-11. **The next pass's head: the projectile family** (VT-006's remaining
-   slice — the arrows, the throwables, the fireballs): the
-   `ProjectileManager` arm riding the `DimensionCrossing` seam (the
-   SolidQuery consult + the clock + the crossing walk) and the
-   flight-path seat (the determinism care the twenty-fifth pass
-   deferred). The queue after it: the F-SP1/F-DS1 passes owed, the
-   dimension tails of item 9, and the newly-ledgered watch for a
-   possible narrow finding — the four families' shared
-   `advanceEntityPortalClock` idiom pays the tail decrement BEFORE the
-   touching consult, where the reference's baseTick order is the
-   crossing arm FIRST (the cooldown set at the full store on the
-   crossing tick) THEN the decrement (lines 286-313) — a one-tick
+11. ~~**The next pass's head: the projectile family**~~ — LANDED (the
+   twenty-eighth pass, the same run: the arm + the seam + the seat, the
+   stash-discrimination RED/GREEN pair; VT-006's family census now fully
+   landed — mobs/items/orbs/vehicles/projectiles). The queue now: the
+   F-SP1/F-DS1 passes owed, the dimension tails of item 9, and the
+   newly-ledgered watch for a possible narrow finding — the five
+   families' shared `advanceEntityPortalClock` idiom pays the tail
+   decrement BEFORE the touching consult, where the reference's baseTick
+   order is the crossing arm FIRST (the cooldown set at the full store
+   on the crossing tick) THEN the decrement (lines 286-313) — a one-tick
    difference in the post-crossing cooldown (300 here, 299 in the
-   reference) common to all four families; the #98-reviewed shape, a
-   candidate for its own narrow verification pass, not to be folded
-   into #108.
+   reference) common to all five families; the #98-reviewed shape, a
+   candidate for its own narrow verification pass, never folded into
+   #108.
