@@ -41,7 +41,7 @@ class VehicleDamageSourceTest {
         final List<float[]> detonations = new ArrayList<>();
 
         @Override
-        public void detonate(double x, double y, double z, float power, boolean primed) {
+        public void detonate(double x, double y, double z, float power, boolean primed, int dimension) {
             detonations.add(new float[]{(float) x, (float) y, (float) z, power, primed ? 1f : 0f});
         }
     }
