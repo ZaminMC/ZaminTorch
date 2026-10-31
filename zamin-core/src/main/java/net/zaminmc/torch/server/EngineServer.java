@@ -972,6 +972,9 @@ public final class EngineServer implements Server, EngineBridge {
                 this.itemEntities = itemEntities;
                 itemEntities.setEventBus(eventBus); // §27.7: the public item-spawn gate
                 itemEntities.addListener(new ItemEventDispatch());
+                // VT-006 — the entity-level crossing service (the item
+                // family's portal arm rides the same walk the mobs' does).
+                itemEntities.setDimensionCrossing(this::crossEntityDimension);
                 // Furnace block entities: world-state simulation, ZFD persistence.
                 furnaceManager = new FurnaceManager();
                 furnaceManager.setEventBus(eventBus); // §27.7: the burn + smelt gates
@@ -2100,6 +2103,9 @@ public final class EngineServer implements Server, EngineBridge {
                         new java.util.Random(), ORB_ID_BASE,
                         orbLavaEnvelopeSounds());
                 experienceOrbs.addListener(new OrbEventDispatch());
+                // VT-006 — the entity-level crossing service (the orb
+                // family's portal arm rides the same walk the mobs' does).
+                experienceOrbs.setDimensionCrossing(this::crossEntityDimension);
                 // Random ticks (§471 pattern): grass growth and decay.
                 randomTicks = new RandomTickSystem(world, new java.util.Random());
                 // The per-dimension random-tick walks (Wave FL4 — the
@@ -2756,6 +2762,9 @@ public final class EngineServer implements Server, EngineBridge {
                                         true,
                                         primed ? net.zaminmc.torch.server.block.BlastSources.PRIMED_CART : net.zaminmc.torch.server.block.ExplosionService.BlastSource.PLAIN));
                 vehicles.addListener(new VehicleEventDispatch());
+                // VT-006 — the entity-level crossing service (the vehicle
+                // family's portal arm rides the same walk the mobs' does).
+                vehicles.setDimensionCrossing(this::crossEntityDimension);
                 // Vehicle persistence (Slice 25g — the ZVD store): the
                 // whole family's pre-25g gap closes — the carts (and the
                 // chest minecart's cargo) survive restarts like the mobs,
@@ -18450,6 +18459,18 @@ public final class EngineServer implements Server, EngineBridge {
         void onVehicleBroken(net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle);
 
         /**
+         * VT-006 — a vehicle left the world WITHOUT breaking (the
+         * crossing's own destroy fan — the reference's
+         * changeDimension → world.removeEntity, the old-world tracker's
+         * EntityDestroy): the adapter's own Destroy, dimension-gated at
+         * the body's stamp. Default no-op so older listeners stay
+         * source-compatible.
+         */
+        default void onVehicleRemoved(
+                net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle, String reason) {
+        }
+
+        /**
          * The chest minecart's chest menu opened (Slice 21a): the adapter
          * unicasts Open Window + the window items to the opener.
          */
@@ -18626,6 +18647,19 @@ public final class EngineServer implements Server, EngineBridge {
         public void onVehicleBroken(net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle) {
             for (VehicleListener listener : vehicleListeners) {
                 listener.onVehicleBroken(vehicle);
+            }
+        }
+
+        /**
+         * VT-006 — the crossing's own removal (never the broke event:
+         * no drops, the destroy fan alone — the reference's
+         * changeDimension → world.removeEntity).
+         */
+        @Override
+        public void onVehicleRemoved(
+                net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle, String reason) {
+            for (VehicleListener listener : vehicleListeners) {
+                listener.onVehicleRemoved(vehicle, reason);
             }
         }
 
@@ -19250,6 +19284,29 @@ public final class EngineServer implements Server, EngineBridge {
         public net.zaminmc.torch.util.Identifier blockIdAt(int x, int y, int z) {
             return activeVehicleWorld().getBlock(
                     new net.zaminmc.torch.block.BlockPosition(x, y, z)).identifier();
+        }
+
+        /**
+         * VT-006 — the portal collision consult (the vehicle family's
+         * own consult, the mob query's own law): the frame match at the
+         * body's position cell in the ACTIVE dimension, null when the
+         * cell is not a portal cell.
+         */
+        @Override
+        public net.zaminmc.torch.server.world.PortalFrameBuilder.PortalShapeMatch portalFrameAt(
+                int x, int y, int z) {
+            if (y < net.zaminmc.torch.block.BlockPosition.MIN_Y
+                    || y > net.zaminmc.torch.block.BlockPosition.MAX_Y) {
+                return null;
+            }
+            net.zaminmc.torch.block.BlockPosition at =
+                    new net.zaminmc.torch.block.BlockPosition(x, y, z);
+            if (!net.zaminmc.torch.server.block.WorldSolidity.isNetherPortal(
+                    activeVehicleWorld().getBlock(at).identifier())) {
+                return null; // not a portal cell — the collision answers nothing
+            }
+            return net.zaminmc.torch.server.world.PortalFrameBuilder.matchAt(
+                    activeVehicleWorld(), at);
         }
 
         /** The world the active dimension lives in (the unbooted stand-in: the overworld). */
@@ -32249,6 +32306,28 @@ public final class EngineServer implements Server, EngineBridge {
             return activeGroundWorld().getBlock(new net.zaminmc.torch.block.BlockPosition(
                     (int) Math.floor(centerX), (int) Math.floor(consultY),
                     (int) Math.floor(centerZ))).identifier();
+        }
+
+        /**
+         * VT-006 — the portal collision consult over the shared ground
+         * (the item and orb families' own consult, the mob query's own
+         * law): the frame match at the body's position cell in the
+         * ACTIVE dimension, null when the cell is not a portal cell.
+         */
+        @Override
+        public net.zaminmc.torch.server.world.PortalFrameBuilder.PortalShapeMatch portalFrameAt(
+                int x, int y, int z) {
+            if (y < net.zaminmc.torch.block.BlockPosition.MIN_Y
+                    || y > net.zaminmc.torch.block.BlockPosition.MAX_Y) {
+                return null;
+            }
+            net.zaminmc.torch.block.BlockPosition at =
+                    new net.zaminmc.torch.block.BlockPosition(x, y, z);
+            if (!net.zaminmc.torch.server.block.WorldSolidity.isNetherPortal(
+                    activeGroundWorld().getBlock(at).identifier())) {
+                return null; // not a portal cell — the collision answers nothing
+            }
+            return net.zaminmc.torch.server.world.PortalFrameBuilder.matchAt(activeGroundWorld(), at);
         }
 
         /**

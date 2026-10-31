@@ -21,6 +21,12 @@ public abstract class VehicleEntity implements net.zaminmc.torch.entity.Vehicle 
     public static final double GRAVITY_PER_TICK = 0.04;
     /** The vanilla kill plane: a vehicle below it is gone without a drop. */
     public static final double VOID_KILL_Y = -64.0;
+    /**
+     * VT-006 — the base family's portal re-entry cooldown (the
+     * reference's {@code getPortalCooldown()} = 300, Entity.java lines
+     * 1457-1459).
+     */
+    private static final int VEHICLE_PORTAL_COOLDOWN_TICKS = 300;
     public static final float MAX_HEALTH = 4.0f;
 
     /**
@@ -141,6 +147,20 @@ public abstract class VehicleEntity implements net.zaminmc.torch.entity.Vehicle 
         default int railPowerAt(double x, double y, double z) {
             return 0;
         }
+
+        /**
+         * VT-006 — the portal collision consult (the reference's
+         * PortalBlock.onEntityCollision lines 158-162 over the per-tick
+         * box scan — the mob query's own consult, the same law): the
+         * frame match at the body's position cell in the ACTIVE
+         * dimension, or null when the cell is not a portal cell (the
+         * gated collision answers nothing). The default answers null so
+         * stub queries keep their portal-free semantics.
+         */
+        default net.zaminmc.torch.server.world.PortalFrameBuilder.PortalShapeMatch portalFrameAt(
+                int x, int y, int z) {
+            return null;
+        }
     }
 
     /** The steering input the mounted passenger reports (Steer Vehicle 0x0C). */
@@ -240,6 +260,17 @@ public abstract class VehicleEntity implements net.zaminmc.torch.entity.Vehicle 
     }
 
     /**
+     * VT-006 — the crossing's own fall clear (the reference's
+     * setPosition-class write inside changeDimension's reposition walk:
+     * a portal walk is not a fall — the arrival's landing never pays the
+     * flight before it). The spend arm's own name, the arrival's own
+     * caller.
+     */
+    public void clearFallForArrival() {
+        fallDistance = 0.0f;
+    }
+
+    /**
      * The landing's payment (the base Entity.takeFallDamage alone — the
      * vehicle's own fall is the RIDER DELEGATE, nothing else).
      */
@@ -254,8 +285,32 @@ public abstract class VehicleEntity implements net.zaminmc.torch.entity.Vehicle 
     private boolean invulnerable;
     /** The dimension id row (the entity's home dimension). */
     private int dimension;
-    /** The portal cooldown row. */
+    /**
+     * The portal cooldown row — VT-006's crossing clock's own store (the
+     * reference's {@code Entity.portalCooldown}, Entity.java line 128:
+     * the base family's re-arm is the full 300, {@code getPortalCooldown()}
+     * lines 1457-1459, armed at the crossing and re-armed by the
+     * collision consult while it lives — onPortalCollision lines
+     * 1429-1430). The pre-existing row (the persistence's own carry)
+     * becomes the crossing's store.
+     */
     private int portalCooldown;
+    /**
+     * VT-006 — the portal stand clock (the reference's
+     * {@code Entity.portalTime}, Entity.java line 127): the base family's
+     * threshold is {@code getMaxNetherPortalTime() = 0} (lines 354-355),
+     * so the clock never accumulates — the row rides the body for the
+     * decay arm's own law (lines 302-308).
+     */
+    private int portalTime;
+    /** VT-006 — the last portal cell the collision derived ({@code lastPortalPos}). */
+    private net.zaminmc.torch.block.BlockPosition lastPortalPosition;
+    /** VT-006 — the entry's offset along the frame's width ({@code lastPortalOffset.x}). */
+    private double portalOffsetAlongWidth;
+    /** VT-006 — the entry's offset up the frame's height ({@code lastPortalOffset.y}). */
+    private double portalOffsetUp;
+    /** VT-006 — the entry's facing ({@code lastPortalFacing}'s horizontal id). */
+    private int portalFacingHorizontalId;
 
     protected VehicleEntity(int entityId, Kind kind, Position position, Random random) {
         this.entityId = entityId;
@@ -426,6 +481,111 @@ public abstract class VehicleEntity implements net.zaminmc.torch.entity.Vehicle 
         this.velocityX = vx;
         this.velocityY = vy;
         this.velocityZ = vz;
+    }
+
+    /**
+     * VT-006 — the entity-level portal clock's advance (the reference's
+     * Entity.baseTick portal arm, lines 282-313 — the boat rides the
+     * base walk through BoatEntity.tick line 177's super chain, the
+     * minecart its OWN COPY of the whole arm, MinecartEntity lines
+     * 199-232, the same law): the cooldown tail every ticked body pays
+     * (lines 311-312), the collision consult's re-arm (onPortalCollision
+     * lines 1429-1430), the crossing arm's base threshold 0 (lines
+     * 286-297 — armed on the very first touching tick, the cooldown
+     * armed for the arrival), and the decay arm (lines 302-308). The
+     * riding gate (the collision's line 158-162 vehicle/rider pair and
+     * the arm's own line 286 {@code this.vehicle == null}) consults the
+     * passenger seat — a seated body never arms, a carrying body never
+     * crosses (VT-005's law, the same shape the mobs carry).
+     *
+     * @return true on the crossing tick (the manager's walk consumes the
+     *         body's remaining walk)
+     */
+    public boolean advanceEntityPortalClock(boolean touching) {
+        // The tail decrement (lines 311-312): every ticked body pays it.
+        if (portalCooldown > 0) {
+            portalCooldown--;
+        }
+        if (touching) {
+            if (portalCooldown > 0) {
+                // The collision consult's re-arm (onPortalCollision lines
+                // 1429-1430): a colliding body whose cooldown is live
+                // resets it to the full store.
+                portalCooldown = VEHICLE_PORTAL_COOLDOWN_TICKS;
+                return false;
+            }
+            // The crossing arm (lines 286-297): the base threshold 0 —
+            // the post-increment consult is armed on the very first
+            // touching tick, and the cooldown arms for the arrival.
+            portalTime = 0;
+            portalCooldown = VEHICLE_PORTAL_COOLDOWN_TICKS;
+            return true;
+        }
+        // The decay arm (lines 302-308).
+        if (portalTime > 0) {
+            portalTime = Math.max(0, portalTime - 4);
+        }
+        return false;
+    }
+
+    /**
+     * VT-006 — the reference's {@code onPortalCollision} memory arm
+     * (lines 1428-1451), the same walk the mob, item, and orb families
+     * carry: a NEW portal cell derives the body's offset inside its
+     * frame (the inverse-lerp of the body's position across the frame's
+     * width and height — the raw reference ratios, unclamped) and the
+     * entered facing; the SAME cell re-collides without re-deriving.
+     */
+    public void notePortalEntry(net.zaminmc.torch.block.BlockPosition portalCell,
+                                net.zaminmc.torch.server.world.PortalFrameBuilder.PortalShapeMatch match,
+                                double x, double y, double z) {
+        if (portalCell.equals(lastPortalPosition)) {
+            return; // the reference's !pos.equals(lastPortalPos) guard
+        }
+        lastPortalPosition = portalCell;
+        boolean axisX = match.forwardAxis()
+                == net.zaminmc.torch.server.world.PortalFrameBuilder.Axis.X;
+        double origin = axisX ? match.topLeftFront().z() : match.topLeftFront().x();
+        double bodyCoord = axisX ? z : x;
+        if (match.forwardAxis() == net.zaminmc.torch.server.world.PortalFrameBuilder.Axis.Z
+                && match.forwardPositive()) {
+            bodyCoord -= 1.0;
+        }
+        // The reference's inverseLerp: (a - b) / (c - b), raw — no clamp.
+        portalOffsetAlongWidth = Math.abs(
+                (bodyCoord - origin) / ((origin - match.width()) - origin));
+        portalOffsetUp = ((y - 1.0) - match.topLeftFront().y())
+                / ((match.topLeftFront().y() - match.height()) - match.topLeftFront().y());
+        portalFacingHorizontalId = match.forwardHorizontalId();
+    }
+
+    /** @return the memory snapshot the PortalForcer's placement math consumes. */
+    public net.zaminmc.torch.server.world.PortalForcer.Memory portalMemory() {
+        net.zaminmc.torch.server.world.PortalForcer.Memory memory =
+                new net.zaminmc.torch.server.world.PortalForcer.Memory();
+        memory.offsetAlongWidth = portalOffsetAlongWidth;
+        memory.offsetUp = portalOffsetUp;
+        memory.lastFacingHorizontalId = portalFacingHorizontalId;
+        memory.known = lastPortalPosition != null;
+        return memory;
+    }
+
+    /**
+     * VT-006 — the crossing's arrival (the reference's
+     * setPositionAndAngles + the world swap over the recreated body's
+     * copyNbtFrom, Entity.changeDimension lines 1708-1722: the kind, the
+     * cargo, the health — everything the NBT holds carries whole; the
+     * engine keeps the body itself): the dimension stamp, the forcer's
+     * landing, the rotated yaw, and the rotated motion. The fall debt
+     * clears — a portal walk is not a fall.
+     */
+    public void applyDimensionArrival(int dimension, Position arrival, float yaw,
+                                       double velocityX, double velocityZ) {
+        this.dimension = dimension;
+        setPosition(arrival);
+        setRotation(new Rotation(yaw, rotation().pitch()));
+        setVelocity(velocityX, velocityY(), velocityZ);
+        clearFallForArrival();
     }
 
     public boolean inVoid() {

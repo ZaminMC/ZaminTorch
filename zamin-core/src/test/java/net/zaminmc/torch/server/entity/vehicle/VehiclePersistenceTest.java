@@ -132,7 +132,27 @@ class VehiclePersistenceTest {
             assertEquals(0, cart.dimension(),
                     "the overworld row survived (the TF-11 re-pin — the -1 round"
                             + " trip lives in VehicleDimensionReadsTest)");
-            assertEquals(45, cart.portalCooldown());
+            // The portal cooldown row: the ZVD v4's own carry, now LIVE
+            // (VT-006 — the crossing clock's tail decrement, the
+            // reference's Entity.baseTick lines 311-312: every ticked
+            // body pays one tick of cooldown, so the restored row keeps
+            // counting down exactly like the reference's own load). The
+            // pre-crossing engine never touched the row in the tick —
+            // the frozen 45 was the engine's own artifact; the band pin
+            // (≤ the saved 45, still counting) + the strict decrease over
+            // completed ticks pins BOTH laws: the row survived the
+            // restart AND the row is the reference's own live clock.
+            int cooldownAtRestore = cart.portalCooldown();
+            assertTrue(cooldownAtRestore > 0 && cooldownAtRestore <= 45,
+                    "the restored cooldown row lives inside the saved band: "
+                            + cooldownAtRestore);
+            EngineAwaits.awaitTicks(two.world(), 3,
+                    "the restored cooldown keeps counting (the live tail)");
+            int cooldownAfterTicks = cart.portalCooldown();
+            assertTrue(cooldownAfterTicks < cooldownAtRestore && cooldownAfterTicks >= 0,
+                    "the restored cooldown decrements with the ticks (the reference's"
+                            + " baseTick tail): " + cooldownAtRestore + " -> "
+                            + cooldownAfterTicks);
             assertEquals(8.5, cart.position().x(), 1e-9, "the cart's x survived");
             // The restored body sits at the saved y or just below it (the
             // restored body continues its own physics from the load — a
