@@ -1663,6 +1663,80 @@ additional coverage (the comment). Once #102 merges, the seats become
 regression pins on develop (GREEN on the merged tree — the same shape
 VT-007's seats took as #105's pins).
 
+## The arrows' source assessment (the twenty-eighth pass's closing act — the next run's fix head, the handoff)
+
+The manager-loop families landed (PR #112); this closing act took the
+remaining family — the arrows/projectiles — through the SOURCE PASS and
+the integration assessment. The record for the next run:
+
+**THE REFERENCE'S CENSUS (wider than the pass-24 name):** the portal
+arm rides EVERY projectile family's tick chain, not the arrows alone —
+`ArrowEntity.tick` line 150 (`super.tick()`), `ThrownEntity.tick` line
+123 (the snowball/egg/potion/exp-bottle base), `EnderPearlEntity.tick`
+line 82 (the pearl's own override), and `ProjectileEntity.tick` line 82
+(the FIREBALLS' inherited arm — `FireballEntity`/`SmallFireballEntity`/
+`WitherSkullEntity` carry NO tick override of their own, so the
+conditional `super.tick()` at ProjectileEntity line 81 —
+`isClient || (shooter == null || !shooter.removed) && isChunkLoaded`
+— gates the arm for the fireball family; a fireball whose chunk is
+unloaded never ticks at all, the edge to preserve). The
+`FishingBobberEntity.tick` line 173 ALSO calls `super.tick()` — the
+bobber carries the arm in the reference too, but the engine's fishing
+system is its own package (not the ProjectileManager); the bobber's
+arm is a NAMED TAIL, not part of the projectile family's fix (the
+rod-link semantics across a crossing need their own pass). The riding
+gate passes vacuously for every projectile family (nothing rides, and
+projectiles carry no riders).
+
+**THE ENGINE'S SHAPE:** `ProjectileManager.tick`'s per-body loop (the
+backward index walk) carries the TF-9 flip
+(`solid.setActiveDimension(projectile.dimension())`) but ZERO portal
+consults — the census's standing record. `ProjectileEntity` carries
+`dimension()`/`setDimension` (the TF-9 stamp) and the Kind enum spans
+ARROW, SNOWBALL, EGG, SMALL_FIREBALL, LARGE_FIREBALL, WITHER_SKULL,
+POTION, ENDER_PEARL (+ the experience bottle) — the family the fix
+must cover whole (the reference's own scope), not the arrows alone.
+
+**THE INTEGRATION POINTS (the same shape the manager-loop families
+took):**
+1. `ProjectileEntity` gains the portal primitives (the per-family
+   duplication: `advanceEntityPortalClock`, `notePortalEntry`,
+   `portalMemory`, `applyDimensionArrival` — the position convention
+   is the CENTER like the items/orbs; no yaw/pitch state to rotate,
+   the wire derives them from the velocity).
+2. `ProjectileManager.SolidQuery` gains the `portalFrameAt` null
+   default — **the production wiring is ALREADY DONE by PR #112**:
+   `ShapeGround` (the SolidQuery's production implementation) carries
+   the override, so the interface's declaration is the only plumbing
+   left.
+3. The tick arm rides at the loop's HEAD — BEFORE the `inGround()`
+   branch: the reference runs baseTick for STUCK arrows too (the arm
+   fires for an arrow standing in portal cells, in ground or not —
+   the edge the manager-loop placement must preserve; the arrival
+   keeps the in-ground state through the reference's copyNbtFrom).
+4. The crossing walk: `remove(projectile, "portal")` (the manager's
+   own walk — the listener fan) → the seam cross (the same
+   `crossEntityDimension`) → the arrival apply → `onProjectileSpawned`
+   (the spawn fan). The fireball families' conditional (the
+   chunk-loaded gate) does not bind the ARM itself in the engine's
+   loop shape — the engine's loop is unconditional; the loaded-cell
+   edge rides the consult's own cell read (an unloaded chunk answers
+   no portal match, the same form the other families ride).
+5. The seam wiring: `setDimensionCrossing(this::crossEntityDimension)`
+   at the ProjectileManager's boot site.
+
+**THE OWED SEAT (the flight-path construction — the next run's first
+act):** an arrow SHOT through the portal plane — in flight, crossing
+the cells mid-flight: the bow's launch toward the frame's interior,
+the flight crossing the plane, the crossing firing on the first armed
+tick (the threshold 0), the arrival continuing the flight in the
+nether. The stuck-arrow seat beside it (an in-ground arrow in portal
+cells crosses too — the inGround branch's placement the discriminator).
+The RED-by-contract record on develop first (the discovery seat), the
+fix branch behind the seam second, the regression lanes (the projectile
+package whole + the portal family + the fishing lanes' non-interaction)
+third.
+
 ## The twenty-eighth pass — VT-008 re-verified GREEN on the MERGED law (the second stream's confirmation), VT-009 discovered and confirmed whole (the break-path pair walks' world binding), VT-010 discovered (the bed pair's sibling resolution)
 
 The baseline advanced to `7910a110` (PRs #101/#102/#104 MERGED —
@@ -1949,12 +2023,16 @@ scan and facing agree) must stay green; the orphan-foot early return
    the one-shot precondition, the manager tick arms + the riding gate,
    the seats green 3 consecutive runs, the regression lanes whole — see
    this pass's section). **THE ARROWS remain the family's head** — the
-   separate projectile-system shape (ArrowEntity.tick line 150's super
-   chain, the census's evidence): the owed flight-path seat first, then
-   the assessment of where the arm rides (the projectile system's tick
-   walk vs the arrow's own consult), then the fix behind the same seam.
-   The End-origin arm stays the named tail; the TNT and falling
-   families stay EXCLUDED (the census's accidental matches).
+   separate projectile-system shape, its SOURCE ASSESSMENT RECORDED by
+   this pass's closing act (the section above: the census is WIDER than
+   the pass-24 name — every projectile family's tick chain carries the
+   arm, the fireballs' inherited conditional included; the integration
+   points map 1:1 onto the manager-loop shape, and PR #112's ShapeGround
+   override already carries the production wiring): the owed
+   flight-path seat is the next run's first act, then the fix behind
+   the same seam. The End-origin arm stays the named tail; the TNT and
+   falling families stay EXCLUDED (the census's accidental matches);
+   the fishing bobber's own arm is the named tail beside them.
 4. ~~The standing lanes~~ — F-EC1 RESOLVED-BY-PR (the twenty-fourth
    pass: confirmed over three passes and corrected — **PR #95 MERGED**, the one-consult
    swap to `BlockSolidity.isSolid`; F-TC1 was already resolved by PR
