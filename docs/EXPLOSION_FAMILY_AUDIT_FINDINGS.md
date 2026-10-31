@@ -426,3 +426,104 @@ throw-gesture origin at line ~6167, the random-tick cell walk at line
 reference comparison (the reference itself hardcodes 1.62 at SOME of
 these sites and reads getEyeHeight at others; the census is its own
 verification item, not this fix's scope).
+
+---
+
+## F-EX3 — VERIFIED and FIXED (the 2026-10-31 session, the boot-registry census)
+
+**Status: resolved** (the three passes complete in one session; the fix on
+`fix/blast-resistance-boot-census`).
+
+The nineteenth pass's suspicion was RIGHT but measured the wrong registry:
+the standing census (`BlastResistanceTableTest`) enumerated **BuiltinBlocks
+alone (957 rows)** — the engine's BOOT registry wraps ELEVEN registerAll
+families on top (cauldron, ender chest, beacon, brewing, dispenser,
+hopper, piston, tripwire, redstone, daylight detector, fluids — **1302
+identifiers whole**), and **107 of the families' flattened STATE ids fell
+through `BlastResistanceTable.read` to `blastResistance`'s fallback**.
+
+### The divergence table (the probe's computed answers vs the reference)
+
+| Family (count) | Engine fallback | Vanilla READ | The reference's own row |
+|---|---|---|---|
+| repeater_east_2 … (16) | **MAX_VALUE** | 0 | setStrength(0.0F) — Block.java 1195-1196 |
+| comparator_*_compare/subtract (8) | **MAX_VALUE** | 0 | setStrength(0.0F) — 1319-1321 |
+| lever_down/up_x(_powered) (4) | **MAX_VALUE** | 0.5 | setStrength(0.5F) — 1135 |
+| tripwire_*suspended* (8) | **MAX_VALUE** | 0 | no setStrength — 1285 |
+| moving_piston_*(_sticky) (12) | **MAX_VALUE** | **0** | MovingBlock setStrength(-1.0F) → the field FLOORS at 0 — NOT blast-immune |
+| daylight_detector(_inverted)_p0..15 (32) | 1.0 | 0.2 | DaylightDetectorBlock ctor setStrength(0.2F) |
+| hopper_*_disabled (5) | 15.0 | 4.8 | setStrength(3.0F).setBlastResistance(8.0F) — 1335 |
+| piston_head_*_sticky (6) | 2.5 | 0.5 | PistonHeadBlock ctor setStrength(0.5F) |
+| falling_water/lava(_1..7) (16) | MAX_VALUE | 100 | the fluid family's setStrength(100.0F) — 1017-1020 |
+
+The loudest rows: **a redstone clock SURVIVED a point-blank creeper** in
+the engine (the repeater, the comparator and the lever answered
+MAX_VALUE — the rays died at the first cell) where vanilla shreds them
+(READ 0/0.5 pays ~0.09-0.24 per crossing). The moving piston's row is
+the model's own lesson: `setStrength(-1.0F)` (the unbreakable helper)
+FLOORS the resistance field at `max(0, -5) = 0` — the moving carrier is
+unbreakable BY MINING yet pays **READ 0** to a blast (the reference's
+field/READ model: setBlastResistance ×3, setStrength floors at s×5, the
+read ÷5 — Block.java lines 266, 312-315, 542-543).
+
+### The three-pass record
+
+- **V1 (source)**: every family's registration read directly (the
+  Block.java lines above + the ctors + MovingBlock); the field/READ model
+  verified at the setter bodies; the fallback's own divergence analysis
+  (its `hardness * 5.0` answers the FIELD form — vanilla's read for a
+  setStrength-only block is `hardness` itself; its `!diggable → MAX` has
+  no vanilla basis — the lever/comparator/repeater/tripwire rows are
+  `diggable=false` in the behavior table yet pay their declared READs).
+- **V2 (behavioral — the stash discrimination)**: the probe census
+  (full=1302, tableMissing=107, familyAdded=345, the fallback answers
+  computed per identifier); the re-pinned census test + the value pins +
+  the NEW wire seat failing UNFIXED on exactly the predicted points —
+  the census's missing-set assertion, the value pins' null reads, and
+  `BlastResistanceFallbackParityTest.theBlastShredsTheRedstoneClock`'s
+  "Timed out waiting for the repeater shredded" (the MAX_VALUE fallback
+  left the clock standing on its shelf) — and green FIXED (3/3). The
+  wire seat's own engineering lessons: the parts sit on an OBSIDIAN
+  shelf (READ 1200 — the crater cannot pop them by support loss, the
+  only road by which the bare plain false-passes), and NO stone control
+  between the blast and the comparator (a READ-6 stone SHIELDS the
+  comparator behind it — vanilla's own shielding law, respected in the
+  seat's geometry). The blast-fired proof: the creeper's registry
+  removal (the blast replaces the body — no death flag).
+- **V3 (independent)**: (a) the setter bodies re-read (the FLOOR
+  semantics at lines 312-315 — the moving piston's READ 0 proven from
+  the model, not inferred); (b) the fold-collision analysis — the new
+  suffixes (`p<num>`, `inverted`, `disabled`, `suspended`, `sticky`,
+  `x`) only ADD fold paths AFTER the direct/renames/identity lookups
+  miss, so no previously-resolving identifier can change its answer
+  (confirmed by the 523/0 regression); (c) the intentionality check —
+  the census's own pin (957, "the registry's own row pin") believed
+  itself complete: an enumeration omission, not a per-block decision;
+  (d) the edges — the suspended tripwire CANNOT stand in a seat (the
+  update system normalizes an unhooked suspended wire to its resting
+  form — its fold is pinned by the census and the value seats instead);
+  the moving piston's `diggable=false` behavior row STAYS (the dig
+  family's correct unbreakable-by-mining law — the blast consult now
+  answers 0 beside it); the fallback convention itself is now
+  UNREACHABLE for registered blocks (the census asserts zero-missing)
+  — its standing wrongness (the FIELD-vs-READ form and the
+  diggable-gate) is this ledger's caveat, not a live defect.
+
+### The fix
+
+Seven renames (comparator/powered_comparator/repeater/powered_repeater →
+the reference's unpowered/powered forms; moving_piston → piston_extension;
+falling_water/falling_lava → water/lava) + six fold-suffix additions
+(`p<num>` in the numbered pattern; `inverted`, `disabled`, `suspended`,
+`sticky`, `x` in the word pattern). The census re-pinned to the FULL BOOT
+REGISTRY (1302) with the registry() helper enumerating the engine's own
+eleven-family boot chain; the value pins extended to all nine families;
+the wire seat NEW.
+
+### Evidence
+
+The stash-verified discrimination (3 failing unfixed on exactly the
+predicted points, 3/3 green fixed); the regression lanes green whole
+(523/0 over 94 classes: the explosion family, TNT, vehicles, redstone,
+the block package, hoppers, pistons, daylight, crystals, creepers,
+projectiles).

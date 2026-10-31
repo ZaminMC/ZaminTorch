@@ -19149,3 +19149,65 @@ tripwire bindings and the comparator ZCD store's per-dimension files)
 and the block-broken listener's container cleanups over the
 per-dimension tile stores (FL4-F5's named remainder). The CI Phase A
 proposal still awaits the owner's approval decision.
+
+---
+Task ID: session-2026-10-31-fex3-boot-census (F-EX3 resolved — the blast-resistance boot-registry census)
+Agent: main (ZaminTorch session)
+
+Work Log:
+- F-EX3 RESOLVED (the nineteenth pass's suspicion, the right question asked
+  against the wrong registry): the standing census enumerated BuiltinBlocks
+  ALONE (957 rows) — the engine's BOOT registry wraps ELEVEN registerAll
+  families on top (cauldron, ender chest, beacon, brewing, dispenser,
+  hopper, piston, tripwire, redstone, daylight detector, fluids — 1302
+  identifiers whole), and 107 of the families' flattened STATE ids fell
+  through BlastResistanceTable.read to blastResistance's fallback. THE
+  DIVERGENCE TABLE (the probe's computed answers vs the reference's own
+  registrations): the repeater (16), the comparator (8), the lever (4),
+  the suspended tripwire (8) and the MOVING PISTON (12) all answered
+  MAX_VALUE — blast-proof — where vanilla pays READ 0/0.5 (a redstone
+  clock SURVIVED a point-blank creeper; MovingBlock's setStrength(-1.0F)
+  FLOORS the field at 0 — unbreakable by mining yet READ 0 to a blast);
+  the daylight bands (32) paid 1.0 vs 0.2; the locked hopper (5) paid 15
+  vs 4.8; the sticky piston heads (6) paid 2.5 vs 0.5; the falling fluid
+  states (16) paid MAX vs 100. THE THREE PASSES: (1) source — every
+  family's registration read directly (Block.java lines 993-1377 + the
+  ctors + MovingBlock) and the field/READ model verified at the setter
+  bodies (setBlastResistance x3, setStrength's FLOOR at s*5, the read
+  /5); (2) behavioral — the probe census (1302/107/345 with the fallback
+  answers computed per identifier), the stash discrimination (the census,
+  the value pins and the NEW wire seat failing UNFIXED on exactly the
+  predicted points — the wire seat's "Timed out waiting for the repeater
+  shredded" over the real creeper detonation — and 3/3 green FIXED); (3)
+  independent — the setter bodies re-read, the fold-collision analysis
+  (the new suffixes only ADD fold paths after the direct lookups miss —
+  no previously-resolving identifier can change, confirmed by the 523/0
+  regression over 94 classes), the intentionality check (the census's
+  own pin believed itself complete — an enumeration omission), and the
+  edges (the suspended tripwire cannot stand in a seat — the update
+  system normalizes an unhooked suspended wire; the moving piston's
+  diggable=false behavior row STAYS — the dig family's own law; the
+  fallback convention now UNREACHABLE for registered blocks, its
+  FIELD-vs-READ wrongness the ledger's caveat). THE FIX: seven renames
+  (comparator/powered_comparator/repeater/powered_repeater onto the
+  reference's unpowered/powered forms; moving_piston onto
+  piston_extension; falling_water/falling_lava onto water/lava) + six
+  fold-suffix additions (p<num>; inverted, disabled, suspended, sticky,
+  x) + the census re-pinned to the FULL BOOT REGISTRY (1302, the
+  registry() helper enumerating the engine's own eleven-family boot
+  chain) + the nine-family value pins + the wire seat NEW (the parts on
+  an OBSIDIAN shelf — READ 1200 closes the support-pop false-pass road —
+  with NO stone control between the blast and the comparator: a READ-6
+  stone SHIELDS the clock behind it, vanilla's own law respected in the
+  seat's geometry).
+
+Stage Summary:
+- F-EX3 retired through its own PR (this branch). The session's ledger:
+  PRs #92 + #93 updated to the FL4-F7/F8/F9 develop (one merge repair),
+  F-EX5 rejected + F-EX10 retired (PR #96), F-EX3 retired (this branch),
+  the CI trio rooted as the ML-002 wall-clock-await debt under tick
+  starvation (no conformance bug behind it). The queue's live heads:
+  F-EX6 (the bed's wrong-world arm), F-EX8 (the wither birth's flag),
+  F-EX9 (the ghast fireball's throwable gravity), and the standing
+  architecture tails (F-FL4's per-dimension fluid sim, the container
+  families' per-dimension stores, the redstone system's world binding).
