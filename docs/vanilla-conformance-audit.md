@@ -1535,7 +1535,8 @@ head (3e41cf7b) alike
 **Status:** CONFIRMED over three passes (the source census, the
 behavioral seat matrix RED on the unguarded tree, the independent
 challenge below); the correction LANDED on
-`fix/bed-pair-integrity-parity-audit` (based on develop a95e7ca6): one
+`fix/bed-pair-integrity-parity-audit` (**PR #114 OPEN**, based on
+develop a95e7ca6): one
 family arm in `BlockUpdateSystem.runUpdate` — the class law from
 `bedSiblingCleanup` (the HEAD ids carry the `bed_head` prefix, the FOOT
 ids are `bed` + the direction forms), the orphan removes itself, the
@@ -1974,7 +1975,9 @@ in the fix pass).
    #93, #94, #95, #96, #97, #98, #99, #100 have all MERGED): the open
    PRs #101 (the ghast fireball flight constants, F-EX9), **#102 (the
    wrong-world bed's blast arm — VT-008's carrier, this pass's coverage
-   confirmation riding `audit/verifier-pass-27-bed-coverage`)**, #104
+   confirmation riding `audit/verifier-pass-27-bed-coverage`)**,
+   **#114 (the bed family's pair-integrity arm — VT-009's correction,
+   this run's own fix)**, #104
    (the blast's player wound walk per-world entity list, F-EX13 — a lane
    adjacent to the bed blast: the clicking player's own wound), #105
    (the TNT cart's blast dimension, VT-007's remaining slice) awaiting
