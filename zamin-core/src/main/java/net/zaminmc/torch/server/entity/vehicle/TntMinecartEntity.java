@@ -46,14 +46,18 @@ public class TntMinecartEntity extends MinecartEntity
     /** The explosion sink (the engine's blast walk with fire). The primed
      * flag rides the blast's SOURCE model (TntMinecartEntity lines 142-152:
      * a primed cart's blast reads rail cells as free but never destroys
-     * them — the rail-sparing rule's own consult). */
+     * them — the rail-sparing rule's own consult). The dimension carry is
+     * the reference's own law (TntMinecartEntity.explode line 92's
+     * {@code this.world.explode}): the detonation tears the cart's OWN
+     * world — the FL4-F7/F-EX11 form completed over the last call site. */
     public interface BlastSink {
-        /** The detonation at the point with the rolled power. */
-        void detonate(double x, double y, double z, float power, boolean primed);
+        /** The detonation at the point with the rolled power, in the
+         * cart's own dimension. */
+        void detonate(double x, double y, double z, float power, boolean primed, int dimension);
     }
 
     private int fuseTicks = -1;
-    private BlastSink blastSink = (x, y, z, power, primed) -> { };
+    private BlastSink blastSink = (x, y, z, power, primed, dimension) -> { };
     /**
      * The detonation's own death mark (explode line 129's {@code remove()}):
      * the annihilated body never drops — the reference's remove path runs
@@ -118,7 +122,8 @@ public class TntMinecartEntity extends MinecartEntity
             d0 = BLAST_SPEED_CLAMP;
         }
         float power = (float) (BLAST_BASE + random().nextDouble() * BLAST_SPEED_SCALE * d0);
-        blastSink.detonate(position().x(), position().y(), position().z(), power, primed());
+        blastSink.detonate(position().x(), position().y(), position().z(), power, primed(),
+                dimension());
     }
 
     /** The detonation + the death (the explode's own remove — no drops). */
@@ -164,7 +169,8 @@ public class TntMinecartEntity extends MinecartEntity
             d0 = BLAST_SPEED_CLAMP;
         }
         float power = (float) (BLAST_BASE + random().nextDouble() * BLAST_SPEED_SCALE * d0);
-        blastSink.detonate(position().x(), position().y(), position().z(), power, primed());
+        blastSink.detonate(position().x(), position().y(), position().z(), power, primed(),
+                dimension());
     }
 
     /** @return whether the detonation killed this body (the drop skip). */
