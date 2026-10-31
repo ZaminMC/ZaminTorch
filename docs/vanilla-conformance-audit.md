@@ -1028,6 +1028,24 @@ exit for mobs is `leaveEndOnTick`'s own ledgered lane) and the
 remaining crossing families (the items, the orbs, the boats, the
 carts, the arrows — each its own pass behind the seam).
 
+**The run's closing arc — the remaining families' behavioral
+evidence:** the census's source scope now demonstrated per family
+with RED-on-develop seats (every seat's precondition PASSES — the
+body rests inside a portal cell at dimension 0 — the RED is the
+crossing await alone): `PortalItemCrossingDiscoveryTest` (the item
+family — a dropped stone crosses on the first armed tick over
+ItemEntity.tick line 61's super chain, the stack whole at the
+arrival), `PortalOrbCrossingDiscoveryTest` (the orb family —
+ExperienceOrbEntity.tick lines 61-62's super chain), and
+`PortalVehicleCrossingDiscoveryTest` (2 seats — the empty boat over
+BoatEntity.tick line 177's super chain, and the empty minecart over
+MinecartEntity's OWN COPY of the whole arm, lines 199-232,
+byte-identical law). The arrow family's seat is deferred to the fix
+run (the flight-path construction needs the crossing tick's
+determinism care; the census's source evidence — ArrowEntity.tick
+line 150 — stands). The families' fixes ride the
+`DimensionCrossing` seam once PR #98 merges.
+
 ## Coverage ledger (updated by the twenty-fifth pass)
 
 | Area | Status |
