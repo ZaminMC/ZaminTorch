@@ -1815,7 +1815,7 @@ scan and facing agree) must stay green; the orphan-foot early return
 
 ---
 
-## VT-011 — the anvil import drops the reference's OCCUPIED bed states: metas 12-15 (an occupied head, persisted by the reference whenever a world saves mid-sleep) and 4-7 (bit-2-corrupted feet) import AS AIR, corrupting the pair (SUSPECTED — pass 1 source evidence complete; the behavioral + independent passes owed)
+## VT-011 — the anvil import drops the reference's OCCUPIED bed states: metas 12-15 (an occupied head, persisted by the reference whenever a world saves mid-sleep) and 4-7 (bit-2-corrupted feet) import AS AIR, corrupting the pair (CONFIRMED — three passes complete; the correction rides `fix/bed-occupied-anvil-import-parity-audit`)
 
 **Subsystem:** world import / the anvil canvas / the 1.8.8 numeric
 state table.
@@ -1865,23 +1865,71 @@ isolation is counted, not surfaced to the player).
   reference's own save path (the foot never writes bit 2) — only
   external editors produce them, and the reference loads them as
   feet regardless.
-- **Passes 2-3: OWED** — the behavioral pass (an anvil region built
-  with an occupied head row imports and the pair's halves asserted
-  against the vanilla answer) and the independent pass (the
-  table's generation law — the javadoc's derivation from
-  `LegacyBlockIds` and `EngineBlockType.legacyMetadata` — read to
-  confirm no other nibble of the sixteen carries the same gap; the
-  isolation counter's own surface checked for the counted
-  evidence).
+- **Pass 2 (behavioral, this run, 2026-10-31, the twenty-ninth
+  pass):** `BedOccupiedImportDiscoveryTest` (this audit branch), two
+  seats through the REAL import wire (the fixture's own
+  reference-ported region writer, the `anvilimport` command, the
+  awaited finish report), **RED on develop BY CONTRACT** —
+  2/2 failures with exactly the traced cells and the import's OWN
+  ledger counting them:
+  1. THE MID-SLEEP PAIR: the foot at (129,1,129) meta 0 imports (the
+     control, GREEN both trees); the occupied head at (129,1,130)
+     meta 12 — the vanilla mid-sleep save shape
+     (`0 | 8 | 4`) — imports as AIR: the report's own row
+     `unknown block states (imported as air): id 26 meta 12 x1`
+     (the failure message carries the whole report); the seat
+     asserts the reference's answer (a bed head, the pair whole).
+  2. THE EDITOR-CORRUPTED FOOT: the head at (132,1,133) meta 9
+     imports (the control); the corrupted foot at (133,1,133)
+     meta 5 (west | the stray bit 2 — the reference's foot arm
+     ignores bit 2, bits 0-1 alone the answer) imports as AIR:
+     `id 26 meta 5 x1` counted; the seat asserts the reference's
+     answer (a west-facing foot).
+- **Pass 3 (independent, this run, 2026-10-31, the twenty-ninth
+  pass):** three angles, all new evidence:
+  1. **THE LIFECYCLE WALK:** the reference's wake path clears the
+     flag (`PlayerEntity.wakeUp` line 1174:
+     `world.setBlockState(sleepingPos, state.set(BedBlock.OCCUPIED,
+     false), 4)`) — so the mid-sleep window (the sleep-entry stamp
+     `use` lines 59-60 → the wake clear) is exactly the window whose
+     save persists 12-15 (the auto-save's 6000-tick schedule and
+     the stop/crash paths both fall inside it); a crashed server
+     never runs the clear at all.
+  2. **THE SIXTEEN-NIBBLE CENSUS:** the reference's read law
+     covers every nibble (0-3 feet; 4-7 feet with bit 2 ignored —
+     the foot arm of `getStateFromMetadata` never consults it;
+     8-11 heads; 12-15 occupied heads, the head arm's
+     `(metadata & 4) > 0`); the engine table's residual set is
+     EXACTLY {4-7, 12-15} — both bands demonstrated RED by the
+     seats, with the controls (0 and 9) GREEN in the same scenes.
+     `resolveVirtualProperties` lines 208-217 (the foot's OCCUPIED
+     re-read from the head cell at runtime) pins the HEAD's nibble
+     as the load-bearing persistence — exactly the cell the engine
+     drops to air.
+  3. **THE COMPENSATION HUNT:** the nibble passes RAW to the table
+     (`AnvilChunkReader` line 316 — no masking, no remap); the table
+     is the single resolution point; the engine's OWN save/sync side
+     never writes 12-15 (the engine's sleep model carries no
+     occupied block state — the wire-out bed rows are 0-11 alone),
+     so the divergence is IMPORT-ONLY: a vanilla world → the
+     engine. No compensating layer exists.
 
-**Proposed minimal correction (pending passes 2-3):** the four
-missing rows — `(26, 12..15) → bed_head/bed_head_west/bed_head_north/bed_head_east`
+  **CONCLUSION: pass 3 CONFIRMS — three passes complete. The
+  correction is eligible: the eight missing rows (12-15 → the head
+  ids by facing bits; 4-7 → the foot ids by facing bits, bit 2
+  masked — the reference's own read law), the table's javadoc
+  gap-fills list, the integrity test's expected bands + the count
+  re-pin, the two seats as the parity pin.**
+
+**Correction (eligible — three passes complete):** the eight missing
+rows — `(26, 12..15) → bed_head/bed_head_west/bed_head_north/bed_head_east`
 (the occupied bit is above the engine's sleep model: the engine
 tracks occupancy by the sleeping session, not the block state — the
-id is the correct import answer) and `(26, 4..7) → bed/bed_west/bed_north/bed_east`
-(bit 2 ignored, the reference's own foot-arm read). The
-`AnvilBlockIdsIntegrityTest` cross-check may need the rows in its
-ledger.
+plain head ids are the correct import answers) and `(26, 4..7) →
+bed/bed_west/bed_north/bed_east` (bit 2 masked, the reference's own
+foot-arm read — bits 0-1 alone). The table's javadoc gap-fills list
+gains the bed band; `AnvilBlockIdsIntegrityTest`'s expected map gains
+both bands with the count re-pinned (1321 → 1329).
 
 **Confidence and uncertainties:** the metadata law is pinned from
 the reference's own read/write pair; the remaining uncertainty is
@@ -1893,7 +1941,7 @@ cross-check; the rows ADD coverage (air only narrows it).
 
 ---
 
-## The twenty-ninth pass — VT-010's third pass landed (CONFIRMED, the correction opened), VT-011 discovered (the anvil import's occupied-bed nibbles)
+## The twenty-ninth pass — VT-010's third pass landed (CONFIRMED, the correction opened as PR #111), VT-011 discovered AND confirmed whole (the anvil import's occupied-bed nibbles) — two corrections in one pass
 
 The baseline advance: `origin/develop` `a23011fa` (the FL4-F10
 redstone world-binding wave — the house stream's act; this pass lane
@@ -1933,11 +1981,15 @@ work, in the queue's order:
    + the door family 48/0, the listener lanes — FurnaceHopperEvent,
    NetherBlockUpdate, the chest family, the hopper family,
    EnderChest, NetherRedstoneRouting — 52/0).
-2. **VT-011 discovered** (pass 1 source evidence): the anvil import
+2. **VT-011 confirmed whole in the same run** (the three passes
+   completed back-to-back — the source law, the behavioral seats
+   through the real import wire, the lifecycle walk + the
+   sixteen-nibble census + the compensation hunt): the anvil import
    drops the reference's OCCUPIED bed states — metas 12-15 import
-   as AIR, corrupting a pair the reference loads whole (the new
-   finding's section above). Its passes 2-3 are the next pass's
-   second queue item.
+   as AIR (a dangling foot where the reference loads the pair whole;
+   the import's own ledger counts `id 26 meta 12 x1`), the
+   editor-corrupted feet (4-7) the same. The Phase E correction
+   follows (the eight rows, the fix branch, the PR).
 
 
 ## Coverage ledger (updated by the twenty-ninth pass)
@@ -1961,7 +2013,7 @@ work, in the queue's order:
 | Tile families — per-dimension stores | NOT INSPECTED as its own pass (the PR #90 ledger: the furnace/chest/skull/banner spill + cleanup ride the single-instance managers — the FL4 fluids/fire precedent applies; the nether tile placement/cleanup is its own architectural pass) |
 | Break-path pair walks (door/bed sibling cleanups) — dimension routing | RESOLVED (the twenty-eighth pass): **VT-009** CONFIRMED three passes and corrected as **PR #106 OPEN** (`fix/pair-break-dimension-parity-audit`: the `BlockBrokenHook` three-arg listener, the parameterized walks; the parity pin 3/0 + the regression lanes 75/0; the discovery seats' RED record rides this audit branch) |
 | Bed pair — the sibling resolution model | CONFIRMED over three passes (the twenty-eighth's census + the three RED seats; the twenty-ninth's wire/legacy suffix-consistency walk — the id family IS the reference's metadata space, total across `BuiltinBlocks`/`AnvilBlockIds`/`LegacyBlockIds`/`/setblock`, no writer can stamp a geometry-inconsistent suffix; the class-membership sub-divergence pinned: the reference's redirect accepts ANY half at the facing cell, `!= this`); RESOLVED by **PR #111 OPEN** (`fix/bed-pair-facing-resolution-parity-audit`, commit 8b1eefb0 over develop `a23011fa`: the facing-exact helper shared by the four walks, the block-class membership, the anchor-state detonate removal; the parity pin `BedPairFacingResolutionParityTest` 4/0 GREEN on the fix, 4/4 RED on the pre-fix tree by the stash discrimination — the three discovery values + the corner's silent no-blast; the regression lanes 104/0) |
-| Anvil import — the bed's OCCUPIED nibbles (26: metas 12-15 the reference persists for occupied heads, 4-7 the editor-corrupted feet) | SUSPECTED (the twenty-ninth pass, **VT-011**): the table maps only 0-3/8-11 — an occupied head imports AS AIR (a dangling foot where the reference loads the pair whole); pass 1 source evidence complete, the behavioral + independent passes owed |
+| Anvil import — the bed's OCCUPIED nibbles (26: metas 12-15 the reference persists for occupied heads, 4-7 the editor-corrupted feet) | CONFIRMED over three passes (the twenty-ninth pass, **VT-011**): pass 1 the source law (the reference's write/read pair + the sleep-entry stamp), pass 2 the behavioral seats (`BedOccupiedImportDiscoveryTest` 2/2 RED on develop with the import's own ledger counting `id 26 meta 12 x1` and `id 26 meta 5 x1`, the controls green in the same scenes), pass 3 the lifecycle walk (the wake clear at `PlayerEntity` 1174 — the mid-sleep save window exists) + the sixteen-nibble census (the residual exactly {4-7, 12-15}) + the compensation hunt (the raw nibble, the single resolution point, the import-only scope); the correction rides `fix/bed-occupied-anvil-import-parity-audit` (the eight rows, the javadoc band, the integrity test's expected bands + the count re-pin) |
 | Block-update wake (BlockUpdateSystem.runUpdate, RedstoneSystem.neighborChanged) — world binding | SURFACED as VT-009's pass-3 non-compensation evidence: BOTH reads consult the overworld field (the changed-world parameter ignored in the six-neighbor dispatch) — the house stream's FL4-F10 lane, NOT duplicated here; this stream's door/bed seats are the evidence cross-reference |
 | Mob spawns — the dimension stamp | NOT INSPECTED (the PR #90 ledger names `MobManager.spawnAt`; the infested burst is the surfaced site) |
 | FX broadcasts — the dimension awareness | NOT INSPECTED (the FxManager position-only API; the PR #90 ledger) |
@@ -1981,14 +2033,14 @@ work, in the queue's order:
    discrimination, the regression lanes 104/0; the #106 interaction
    documented in the PR body — one shared method, the selection law
    ports to the three-arg form unchanged).
-2. **VT-011's passes 2-3** (the new finding of the twenty-ninth pass):
-   the behavioral pass — an anvil region built with an occupied-head
-   row (meta 12-15) imported and the pair asserted against the
-   reference's answer; the independent pass — the table's generation
-   law (`LegacyBlockIds` + `EngineBlockType.legacyMetadata`, the
-   javadoc's own derivation) read to confirm no other nibble carries
-   the gap, and the isolation counter's surface checked for the
-   counted evidence.
+2. ~~VT-011's passes 2-3~~ — **DONE (the twenty-ninth pass, the same
+   run)**: the behavioral seats RED on develop with the ledger's own
+   counted rows (`id 26 meta 12 x1`, `id 26 meta 5 x1`) and the
+   controls green; the independent pass's lifecycle walk + census +
+   compensation hunt. **VT-011 CONFIRMED — three passes complete**;
+   its correction is this run's second Phase E act (the fix branch
+   `fix/bed-occupied-anvil-import-parity-audit`, its PR recorded once
+   opened).
 3. **The crossing families' arms** (the twenty-seventh pass's named
    head — this stream's lane): the items, the orbs, the boats, the
    carts, the arrows through the `DimensionCrossing` seam (the census
