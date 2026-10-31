@@ -7664,15 +7664,17 @@ three-dimension model (the dimension registry arrives with the first
 non-vanilla-dimension requirement; the FL4 worldFor router is the
 migration point).
 
-## Wave FL4-F10 — the redstone system's world binding (INVESTIGATED,
-the trace and the plan recorded; the implementation is the next
-session's first act. SESSION 2026-10-31 NOTE: the wave itself was NOT
-started — the session went to the CI publishing unblock (run 561/562's
-flake members retired at the source, six seats) and the parity PR wave
-#91-#100 (all merged, verified against the reference; #100's F-EX11/12
-completed the BLAST family's dimension routing — the same FL4-F7 form,
-a neighbouring lane, not this wave's signal machinery). The trace and
-the six-point plan below stand unchanged and ready.)
+## Wave FL4-F10 — the redstone system's world binding (LANDED
+2026-10-31, commit 0328e92f; the acceptance seats and the stash
+discrimination green the same session — see the row's tail. The
+session's first act per the prior note: the trace and the six-point
+plan below were implemented EXACTLY as recorded, plus the parity PR
+wave #101/#102/#104 merged first (each three-pass verified live: the
+ghast fireball's base-walk constants, the wrong-world bed's blast arm,
+the blast's player wound gate) and the census's worst flake recidivist
+retired at the source — MobIntegration's pig seat, five runs, the
+close-and-swing loop polling the body's own simulation state for the
+landing tell, every swing still server-validated.)
 
 THE TRACE (the full ownership and call graph, read before any code
 change): RedstoneSystem holds ONE overworld field (82 world consults
@@ -7747,6 +7749,46 @@ a nether mob's feet triggers and an overworld body never triggers it
 scheduled-tick seam); the overworld seats all stay green (the
 regression lanes: the redstone family whole, the pistons, the
 dispensers, the hoppers, the TNT, the nether quartet).
+
+THE LANDED RECORD (2026-10-31, commit 0328e92f): all four acceptance
+seats written and green through the real wires
+(NetherRedstoneRoutingAcceptanceTest — the lever's flip through the
+item-use dispatch with a NETHER session opening the nether door; the
+plate powering for the nether mob's stamped feet alone while an
+overworld body at the SAME coordinates never triggers it; the
+repeater carrying its 2-tick delay on its own drained queue; the
+comparator's stored output surviving the restart stamped -1 with the
+overworld's system never gaining the row — the fullness-read arm of
+the second seat rides the analog reader's ACTING-world block read,
+the container managers' shared stores stay Gap 2's honest tail). THE
+STASH DISCRIMINATION live: seats 1-3 on the UNFIXED tree all FAIL at
+exactly the predicted awaits (the lever never toggled — the consult
+armed the overworld's system; the plate never powered — no system
+owned it; the torch-fed dust never read 15 — the cascade never ran);
+seat 4's discrimination is structural (the v1 API cannot hold a
+nether row). The form landed: per-dimension instances booted at the
+FL4-F8 shape (netherRedstone + endRedstone, each its own world's
+change listener, each drained on its own profiled tick lane); the USE
+consults and the door-pair suppression flag route by
+session.dimension() through redstoneFor (the worldFor form); the
+plate/weighted-plate/trapped-chest/cart probes walk their OWN
+dimension's bodies and the analog reader ranges the ACTING world's
+cells; the ZCD store's v2 row carries the dimension stamp (the TF-9
+signed-byte law, the v1 migration law, the boot's byDimension
+restore, the save's stamped union); the downstream families (the
+pistons, the hoppers, the dispensers, the tripwire, the command
+blocks, the beacons, the TNT) stay on the overworld's bus — Gap 2's
+named population, their own families' passes. Regression: 142/0 over
+the redstone family whole, the pistons, the hoppers, the dispensers,
+the store split (the v2 round trip byte-identical), the sleep pair,
+the nether quartet, the blast/bed wound gates, the doors, the
+interaction lanes, and the wider use-dispatch lanes.
+
+NEXT IN THE FL4 QUEUE: the container/storage dimension ownership wave
+(Gap 2 — the position-keyed container/block-entity stores gaining
+their dimension rows; the cross-dimension collision the Section X
+audit names as a TODAY defect) — the entanglement this wave's
+honest-tail form deliberately left for it.
 
 ---
 

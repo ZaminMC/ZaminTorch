@@ -377,6 +377,15 @@ public final class EngineServer implements Server, EngineBridge {
     private net.zaminmc.torch.server.village.VillageDataStore villageStore;
     /** The redstone signal engine (Slice 9a): the wire cascade + the family dispatch + the delayed reactions. */
     private net.zaminmc.torch.server.redstone.RedstoneSystem redstoneSystem;
+    /** The nether's own signal machinery (Wave FL4-F10 — the reference's
+     *  every-ServerWorld shape: each world's wire cascade, torch burnout,
+     *  repeater delay and comparator run against ITS OWN cells; the
+     *  pre-fix engine registered the overworld's alone, so a nether lever's
+     *  flip, a nether comparator's read and a nether repeater's delay had
+     *  no system behind them at all). */
+    private net.zaminmc.torch.server.redstone.RedstoneSystem netherRedstone;
+    /** The End's own signal machinery (Wave FL4-F10 — the same form). */
+    private net.zaminmc.torch.server.redstone.RedstoneSystem endRedstone;
 
     /** The piston subsystem (Slice 9e): the block events + the moving carriers. */
     private net.zaminmc.torch.server.piston.PistonSystem pistonSystem;
@@ -1649,236 +1658,50 @@ public final class EngineServer implements Server, EngineBridge {
                 redstoneSystem = new net.zaminmc.torch.server.redstone.RedstoneSystem(
                         world, itemEntities);
                 world.addChangeListener(redstoneSystem);
+                // The nether's and the End's own signal machinery (Wave
+                // FL4-F10 — the FL4-F8 form): each world's wire cascade,
+                // torch burnout, repeater delay and comparator family run
+                // against THEIR OWN cells. The downstream families (the
+                // pistons, the hoppers, the dispensers, the tripwire, the
+                // command blocks, the beacons, the TNT) stay on the
+                // overworld's bus for now — their own state is
+                // position-keyed overworld-bound (Gap 2's population), and
+                // this wave routes the signal machinery alone (the
+                // honest-tail form the FL4-F7 TNT wave used for this
+                // exact dependency).
+                netherRedstone = new net.zaminmc.torch.server.redstone.RedstoneSystem(
+                        netherWorld, itemEntities);
+                netherWorld.addChangeListener(netherRedstone);
+                endRedstone = new net.zaminmc.torch.server.redstone.RedstoneSystem(
+                        endWorld, itemEntities);
+                endWorld.addChangeListener(endRedstone);
                 // The comparator's stored outputs' ZCD persistence (Wave
-                // H1 — the ComparatorBlockEntity's OutputSignal row): the
-                // restore lands BEFORE any update so a loaded comparator
-                // answers its stored strength straight away (the
-                // reference's loaded BE carries the value into
-                // getWeakPower; the first update re-arms it).
+                // H1 — the ComparatorBlockEntity's OutputSignal row; Wave
+                // FL4-F10 — the dimension stamp): the restore lands BEFORE
+                // any update so a loaded comparator answers its stored
+                // strength straight away (the reference's loaded BE carries
+                // the value into getWeakPower; the first update re-arms it),
+                // each dimension's rows landing on its OWN system (a v1
+                // file's rows are overworld rows — the migration law).
                 comparatorStore = new net.zaminmc.torch.server.redstone.ComparatorDataStore(
                         config.worldDataDir().resolve("comparators.bin"));
-                redstoneSystem.restoreComparatorOutputs(comparatorStore.load());
-                // The door family's signal arm plays the same open/close
-                // pair the use arm does (DoorBlock.doEvent 1003/1006 — the
-                // reference's own tones at the swinging lower half).
-                redstoneSystem.setDoorSoundCallback((at, opening) -> fxManager.sound(
-                        new Position(at.x() + 0.5, at.y() + 0.5, at.z() + 0.5),
-                        opening ? "random.door_open" : "random.door_close", 0.8f, 1.0f));
-                // The plate's occupancy probe (the engine's bodies): any mob
-                // or playing body inside the 0.125-inset, 0.25-tall box, the
-                // wooden plates adding the item entities (the reference's
-                // MOBS vs EVERYTHING activation rules).
-                redstoneSystem.setPlateProbe((plate, includeItems) -> {
-                    double minX = plate.x() + 0.125, maxX = plate.x() + 1 - 0.125;
-                    double minY = plate.y(), maxY = plate.y() + 0.25;
-                    double minZ = plate.z() + 0.125, maxZ = plate.z() + 1 - 0.125;
-                    for (net.zaminmc.torch.server.entity.MobEntity mob : mobs.all()) {
-                        net.zaminmc.torch.util.Position at = mob.position();
-                        if (at.x() >= minX && at.x() <= maxX && at.y() >= minY && at.y() <= maxY
-                                && at.z() >= minZ && at.z() <= maxZ) {
-                            return true;
-                        }
-                    }
-                    for (PlayerSession body : players.all()) {
-                        if (body.state() != net.zaminmc.torch.entity.PlayerState.PLAYING
-                                || body.gamemode() == GameMode.SPECTATOR) {
-                            continue; // canAvoidTraps
-                        }
-                        net.zaminmc.torch.util.Position at = body.position();
-                        if (at.x() >= minX && at.x() <= maxX && at.y() >= minY && at.y() <= maxY
-                                && at.z() >= minZ && at.z() <= maxZ) {
-                            return true;
-                        }
-                    }
-                    if (includeItems) {
-                        for (ItemEntity item : itemEntities.all()) {
-                            net.zaminmc.torch.util.Position at = item.position();
-                            if (at.x() >= minX && at.x() <= maxX && at.y() >= minY
-                                    && at.y() <= maxY && at.z() >= minZ && at.z() <= maxZ) {
-                                return true;
-                            }
-                        }
-                    }
-                    return false;
-                });
-                // The weighted plates' counting probe (Slice 49a —
-                // WeightedPressurePlateBlock.calculateOutputSignal's
-                // getEntitiesOfType(Entity.class): EVERY entity in the
-                // 0.125-inset box counts — mobs, players and dropped items
-                // alike).
-                redstoneSystem.setPlateCountProbe(plate -> {
-                    double minX = plate.x() + 0.125, maxX = plate.x() + 1 - 0.125;
-                    double minY = plate.y(), maxY = plate.y() + 0.25;
-                    double minZ = plate.z() + 0.125, maxZ = plate.z() + 1 - 0.125;
-                    int count = 0;
-                    for (net.zaminmc.torch.server.entity.MobEntity mob : mobs.all()) {
-                        net.zaminmc.torch.util.Position at = mob.position();
-                        if (at.x() >= minX && at.x() <= maxX && at.y() >= minY && at.y() <= maxY
-                                && at.z() >= minZ && at.z() <= maxZ) {
-                            count++;
-                        }
-                    }
-                    for (PlayerSession body : players.all()) {
-                        if (body.state() != net.zaminmc.torch.entity.PlayerState.PLAYING
-                                || body.gamemode() == GameMode.SPECTATOR) {
-                            continue; // canAvoidTraps
-                        }
-                        net.zaminmc.torch.util.Position at = body.position();
-                        if (at.x() >= minX && at.x() <= maxX && at.y() >= minY && at.y() <= maxY
-                                && at.z() >= minZ && at.z() <= maxZ) {
-                            count++;
-                        }
-                    }
-                    for (ItemEntity item : itemEntities.all()) {
-                        net.zaminmc.torch.util.Position at = item.position();
-                        if (at.x() >= minX && at.x() <= maxX && at.y() >= minY
-                                && at.y() <= maxY && at.z() >= minZ && at.z() <= maxZ) {
-                            count++;
-                        }
-                    }
-                    return count;
-                });
-                // The trapped chest's viewer count (Slice 49b —
-                // ChestBlock.getSignal lines 379-392: the sessions holding
-                // this chest's window open, clamped 0-15 on the wire). A
-                // MERGED pair window counts for BOTH halves (the reference's
-                // DoubleInventory.onOpen/onClose lines 110-119 walk both —
-                // the menu's pinned halves, never a fresh world consult).
-                redstoneSystem.setTrappedChestViewers(position -> {
-                    int viewers = 0;
-                    for (PlayerSession body : players.all()) {
-                        if (body.state() != net.zaminmc.torch.entity.PlayerState.PLAYING
-                                || body.openContainerKind() != PlayerSession.ContainerKind.CHEST
-                                || body.openContainerPosition() == null) {
-                            continue;
-                        }
-                        if (position.equals(body.openContainerPosition())
-                                || position.equals(body.openContainerPairFirst())
-                                || position.equals(body.openContainerPairSecond())) {
-                            if (world.getBlock(position).identifier()
-                                    .equals(net.zaminmc.torch.server.block.BuiltinBlocks
-                                            .TRAPPED_CHEST.identifier())
-                                    || ChestFacingBlocks.isTrappedFamily(
-                                            world.getBlock(position))) {
-                                viewers++;
-                            }
-                        }
-                    }
-                    return viewers;
-                });
-                // The detector rail's cart probe (Slice 38 —
-                // DetectorRailBlock.updateOutputState's getMinecarts over
-                // the rail's own cell: any minecart body inside the box).
-                redstoneSystem.setCartProbe(rail -> {
-                    for (var vehicle : vehicleManager.all()) {
-                        if (vehicle.kind() != net.zaminmc.torch.server.entity.vehicle.VehicleEntity.Kind.MINECART
-                                && vehicle.kind() != net.zaminmc.torch.server.entity.vehicle.VehicleEntity.Kind.CHEST_MINECART) {
-                            continue;
-                        }
-                        net.zaminmc.torch.util.Position at = vehicle.position();
-                        if (at.x() >= rail.x() && at.x() <= rail.x() + 1
-                                && at.y() >= rail.y() && at.y() <= rail.y() + 1
-                                && at.z() >= rail.z() && at.z() <= rail.z() + 1) {
-                            return true;
-                        }
-                    }
-                    return false;
-                });
-                // The comparator's analog source table (Slice 9d — the
-                // reference's isAnalogSignalSource family over the engine's
-                // containers): the chest and furnace fullness through their
-                // managers, -1 for every non-source block (the reader's
-                // not-a-source answer).
-                redstoneSystem.setAnalogReader(position -> {
-                    BlockType block = world.getBlock(position);
-                    if (block.identifier().equals(BuiltinBlocks.CHEST.identifier())
-                            || ChestFacingBlocks.isPlainFamily(block)
-                            || block.identifier().equals(BuiltinBlocks.TRAPPED_CHEST.identifier())
-                            || ChestFacingBlocks.isTrappedFamily(block)) {
-                        // ChestBlock.getAnalogSignal line 430: the MERGED
-                        // pair's fullness (InventoryMenu.getAnalogSignal over
-                        // the DoubleInventory — 54 slots when the twin
-                        // exists); a LOCKED view answers 0 (getInventory's
-                        // null, lines 346/354).
-                        net.zaminmc.torch.server.chest.ChestPairs.View view =
-                                net.zaminmc.torch.server.chest.ChestPairs.resolve(
-                                        world, chestManager, mobManager, position);
-                        return view == null ? 0
-                                : net.zaminmc.torch.server.redstone.RedstoneSystem.containerFullness(
-                                        view.snapshotAll(), 64);
-                    }
-                    if (net.zaminmc.torch.server.hopper.HopperBlocks.isHopper(block)) {
-                        net.zaminmc.torch.server.hopper.HopperBlockEntity hopper =
-                                hopperSystem.peek(position);
-                        return hopper == null ? 0
-                                : net.zaminmc.torch.server.redstone.RedstoneSystem.containerFullness(
-                                        hopper.snapshotSlots(), 64);
-                    }
-                    if (net.zaminmc.torch.server.dispenser.DispenserBlocks.isFamily(block)) {
-                        // The dispenser family's nine slots (the same fullness
-                        // walk the reference runs on every Inventory —
-                        // DispenserBlock.getAnalogSignal lines 186-189).
-                        net.zaminmc.torch.server.dispenser.DispenserBlockEntity container =
-                                dispenserSystem == null ? null : dispenserSystem.peek(position);
-                        return container == null ? 0
-                                : net.zaminmc.torch.server.redstone.RedstoneSystem.containerFullness(
-                                        container.snapshotSlots(), 64);
-                    }
-                    if (net.zaminmc.torch.server.brewing.BrewingStandBlocks.isBrewingStand(block)) {
-                        // The brewing stand's four slots (BrewingStandBlock
-                        // lines 130-137: isAnalogSignalSource over
-                        // InventoryMenu.getAnalogSignal — the same fullness
-                        // walk every container runs).
-                        net.zaminmc.torch.server.brewing.BrewingStandBlockEntity stand =
-                                brewingStands == null ? null : brewingStands.peek(position);
-                        return stand == null ? 0
-                                : net.zaminmc.torch.server.redstone.RedstoneSystem.containerFullness(
-                                        stand.snapshotSlots(), 64);
-                    }
-                    if (block.identifier().equals(BuiltinBlocks.FURNACE.identifier())
-                            || block.identifier().equals(BuiltinBlocks.FURNACE_LIT.identifier())
-                            || net.zaminmc.torch.server.furnace.FurnaceFacingBlocks.isAnyFacing(block)) {
-                        net.zaminmc.torch.server.furnace.FurnaceBlockEntity furnace =
-                                furnaceManager.peek(position);
-                        return furnace == null ? 0
-                                : net.zaminmc.torch.server.redstone.RedstoneSystem.containerFullness(
-                                        new net.zaminmc.torch.item.ItemStack[]{
-                                                furnace.input(), furnace.fuel(), furnace.output()}, 64);
-                    }
-                    if (net.zaminmc.torch.server.cauldron.CauldronBlocks.isCauldron(block)) {
-                        // The cauldron's level IS the signal (CauldronBlock
-                        // lines 188-195: getAnalogSignal = LEVEL).
-                        return net.zaminmc.torch.server.cauldron.CauldronBlocks.levelOf(block);
-                    }
-                    if (net.zaminmc.torch.server.jukebox.JukeboxBlocks.isFamily(block)) {
-                        // The jukebox's disc read (JukeboxBlock lines 97-108:
-                        // Item.getId(record) + 1 - Item.getId(RECORD_13) —
-                        // the disc's table index + 1, 0 with no record).
-                        return jukeboxes.analogSignal(position);
-                    }
-                    if (net.zaminmc.torch.server.block.CakeBlocks.isCake(block.identifier())) {
-                        // The cake's bite read (CakeBlock.getAnalogSignal
-                        // lines 133-135): (7 - bites) * 2 — the whole cake's
-                        // 14 down to the last crumb's 2.
-                        return net.zaminmc.torch.server.block.CakeBlocks
-                                .analogSignal(block.identifier());
-                    }
-                    if (net.zaminmc.torch.server.block.EndPortalBlocks
-                            .isFrame(block.identifier())) {
-                        // The end portal frame's own analog band
-                        // (EndPortalFrameBlock lines 61-68:
-                        // isAnalogSignalSource true for EVERY frame
-                        // state, getAnalogSignal = eye ? 15 : 0 — the
-                        // eye's insertion flips the signal; an EMPTY
-                        // frame still answers 0, never -1: the reference's
-                        // getInputSignal consult overrides the diode read
-                        // for any analog source at the input cell, and the
-                        // read-through cell consults the same family).
-                        return net.zaminmc.torch.server.block.EndPortalBlocks
-                                .isEyedFrame(block.identifier()) ? 15 : 0;
-                    }
-                    return -1;
-                });
+                java.util.Map<Integer, java.util.Map<BlockPosition, Integer>> byDimension =
+                        new java.util.HashMap<>();
+                for (net.zaminmc.torch.server.redstone.ComparatorDataStore.StoredOutput row
+                        : comparatorStore.load()) {
+                    byDimension.computeIfAbsent(row.dimension(), k -> new java.util.HashMap<>())
+                            .put(row.position(), row.output());
+                }
+                byDimension.forEach((dimension, rows) ->
+                        redstoneFor(dimension).restoreComparatorOutputs(rows));
+                // The probes, wired per dimension (Wave FL4-F10 — the
+                // FL4-F5 seam form): every entity walk filters by the
+                // system's own dimension (the per-world entity-list law —
+                // a nether plate consults the NETHER's bodies alone), and
+                // every block read ranges the ACTING world's cells.
+                wireRedstoneProbes(redstoneSystem, world, 0);
+                wireRedstoneProbes(netherRedstone, netherWorld, -1);
+                wireRedstoneProbes(endRedstone, endWorld, 1);
                 // The container-content wake (the reference's
                 // TileEntity.markDirty -> updateNeighborComparators): every
                 // chest/furnace slot mutation re-arms the comparators reading
@@ -2096,8 +1919,12 @@ public final class EngineServer implements Server, EngineBridge {
                 // The comparator's through-the-wall frame read (Slice 28a
                 // — ComparatorBlock.getInputSignal lines 118-126): the
                 // reader consults the frame registry at the air cell one
-                // beyond the input block.
+                // beyond the input block — wired on EVERY dimension's
+                // system (Wave FL4-F10; the registry itself is the shared
+                // position-keyed store, Gap 2's honest tail).
                 redstoneSystem.setFrameReader(decorations::frameComparatorRead);
+                netherRedstone.setFrameReader(decorations::frameComparatorRead);
+                endRedstone.setFrameReader(decorations::frameComparatorRead);
                 // The armor stands (Slice 28c): the placement/swap/break
                 // ladders + the ZAD persistence.
                 armorStands = new net.zaminmc.torch.server.armorstand.ArmorStandSystem(
@@ -3239,6 +3066,8 @@ public final class EngineServer implements Server, EngineBridge {
                     profiled("blockUpdates", netherBlockUpdates::tick); // the nether's own queue (Wave FL4-F8)
                     profiled("blockUpdates", endBlockUpdates::tick); // the End's own queue (Wave FL4-F8)
                     profiled("redstone", redstoneSystem::tick); // the torch/repeater scheduled reactions
+                    profiled("redstone", netherRedstone::tick); // the nether's own queue (Wave FL4-F10)
+                    profiled("redstone", endRedstone::tick); // the End's own queue (Wave FL4-F10)
                     profiled("pistons", pistonSystem::tick); // the piston block events + the moving carriers
                     profiled("hoppers", hopperSystem::tick); // the hoppers' 8-tick transfer cadence
                     profiled("daylightDetectors", daylightDetectors::tick); // the 20-tick sky-light power band (Slice 27c)
@@ -4958,6 +4787,21 @@ public final class EngineServer implements Server, EngineBridge {
 
     /** The redstone signal engine (exposed for behavioral tests). */
     public net.zaminmc.torch.server.redstone.RedstoneSystem redstone() {
+        return redstoneSystem;
+    }
+
+    /**
+     * The dimension's own signal machinery (Wave FL4-F10 — the worldFor
+     * form, exposed for the behavioral seats): the nether's and the End's
+     * cascades answer at their own systems.
+     */
+    public net.zaminmc.torch.server.redstone.RedstoneSystem redstoneFor(int dimension) {
+        if (dimension == -1) {
+            return java.util.Objects.requireNonNull(netherRedstone, "nether redstone");
+        }
+        if (dimension == 1) {
+            return java.util.Objects.requireNonNull(endRedstone, "end redstone");
+        }
         return redstoneSystem;
     }
 
@@ -11938,25 +11782,30 @@ public final class EngineServer implements Server, EngineBridge {
         if (cycleRepeaterDelayOnTick(clicked, world)) {
             return true; // the repeater's use consumed the right-click (the delay cycle)
         }
-        if (redstoneSystem.useComparator(clicked)) {
+        // Wave FL4-F10: the use consults ride the ACTING dimension's own
+        // signal machinery (the FL4-F5 worldOf(player) form — a nether
+        // lever's flip arms the NETHER's cascade, not the overworld's).
+        net.zaminmc.torch.server.redstone.RedstoneSystem actingRedstone =
+                redstoneFor(session.dimension());
+        if (actingRedstone.useComparator(clicked)) {
             // The mode cycle's click (ComparatorBlock.use lines 148-151): the
             // pitch answers the NEW mode — 0.55 subtract / 0.50 compare.
             fxManager.sound(new Position(clicked.x() + 0.5, clicked.y() + 0.5, clicked.z() + 0.5),
                     "random.click", 0.3f,
                     net.zaminmc.torch.server.redstone.RedstoneBlocks.comparatorSubtract(
-                            world.getBlock(clicked)) ? 0.55f : 0.5f);
+                            world.getBlock(clicked)) ? 0.55f : 0.5f, session.dimension());
             return true; // the comparator's mode cycle consumed the right-click
         }
-        if (redstoneSystem.useLever(clicked)) {
+        if (actingRedstone.useLever(clicked)) {
             fxManager.sound(new Position(clicked.x() + 0.5, clicked.y() + 0.5, clicked.z() + 0.5),
                     "random.click", 0.3f,
                     net.zaminmc.torch.server.redstone.RedstoneBlocks.leverPowered(
-                            world.getBlock(clicked)) ? 0.6f : 0.5f);
+                            world.getBlock(clicked)) ? 0.6f : 0.5f, session.dimension());
             return true; // the lever's toggle consumed the right-click
         }
-        if (redstoneSystem.useButton(clicked)) {
+        if (actingRedstone.useButton(clicked)) {
             fxManager.sound(new Position(clicked.x() + 0.5, clicked.y() + 0.5, clicked.z() + 0.5),
-                    "random.click", 0.3f, 0.6f);
+                    "random.click", 0.3f, 0.6f, session.dimension());
             return true; // the button's press consumed the right-click
         }
         if (useCakeOnTick(session, clicked)) {
@@ -12255,8 +12104,9 @@ public final class EngineServer implements Server, EngineBridge {
                     // The comparator wake (useOn line 33 — the reference's
                     // own row after the flip: updateNeighborComparators(
                     // pos, END_PORTAL_FRAME)): every comparator reading
-                    // the frame re-runs its neighborChanged.
-                    redstoneSystem.wakeComparators(clicked);
+                    // the frame re-runs its neighborChanged — on the ACTING
+                    // dimension's system (Wave FL4-F10).
+                    redstoneFor(session.dimension()).wakeComparators(clicked);
                     // The reference's own sixteen-particle band: the
                     // 5/16..11/16 offsets at the frame's 0.8125 height.
                     for (int i = 0; i < 16; i++) {
@@ -15385,7 +15235,10 @@ public final class EngineServer implements Server, EngineBridge {
         // DoorItem.place's flag-2 pair commit: both halves stand before any
         // neighbor hears anything (the reference notifies the neighbors
         // explicitly afterwards — a half-alone commit is never observable).
-        redstoneSystem.runDoorPairPlacement(() -> {
+        // Wave FL4-F10: the suppression flag rides the ACTING dimension's
+        // own system (the flag is per-instance — a nether door's pair
+        // commit must suppress the NETHER's walk, not the overworld's).
+        redstoneFor(session.dimension()).runDoorPairPlacement(() -> {
             world.setBlock(target,
                     WoodDoorFamily.lower(family, lowerMetaBand(lookBand), false));
             world.setBlock(target.offset(0, 1, 0),
@@ -26006,6 +25859,291 @@ public final class EngineServer implements Server, EngineBridge {
 
     /** @return the world a session's dimension walks (0 the overworld, -1 the
      * nether, 1 the End — Slice 61). */
+    /**
+     * Wires one dimension's redstone system's consult seams (Wave FL4-F10 —
+     * the FL4-F5 seam form over the boot's own callback population): the
+     * door sound rides the dimension's fx band, the plate/trapped-chest/cart
+     * probes walk the per-world entity lists (the reference's
+     * {@code world.getEntities} ranges the ACTING world's chunks alone — a
+     * body in another dimension is structurally absent), and the comparator's
+     * analog reader ranges the ACTING world's cells (the container managers
+     * stay the shared position-keyed stores — Gap 2's own population, their
+     * per-dimension rows are the container wave's).
+     */
+    private void wireRedstoneProbes(net.zaminmc.torch.server.redstone.RedstoneSystem system,
+                                    EngineWorld probeWorld, int dimension) {
+        // The door family's signal arm plays the same open/close
+        // pair the use arm does (DoorBlock.doEvent 1003/1006 — the
+        // reference's own tones at the swinging lower half), in the
+        // system's own dimension's fx band (the TF-12 law: every sound
+        // event carries its world).
+        system.setDoorSoundCallback((at, opening) -> fxManager.sound(
+                new Position(at.x() + 0.5, at.y() + 0.5, at.z() + 0.5),
+                opening ? "random.door_open" : "random.door_close", 0.8f, 1.0f, dimension));
+        // The plate's occupancy probe (the engine's bodies): any mob
+        // or playing body inside the 0.125-inset, 0.25-tall box, the
+        // wooden plates adding the item entities (the reference's
+        // MOBS vs EVERYTHING activation rules) — the walks carry the
+        // dimension gate (the per-world entity-list law).
+        system.setPlateProbe((plate, includeItems) -> {
+            double minX = plate.x() + 0.125, maxX = plate.x() + 1 - 0.125;
+            double minY = plate.y(), maxY = plate.y() + 0.25;
+            double minZ = plate.z() + 0.125, maxZ = plate.z() + 1 - 0.125;
+            for (net.zaminmc.torch.server.entity.MobEntity mob : mobManager.all()) {
+                if (mob.dimension() != dimension) {
+                    continue; // another world's body is absent from this walk
+                }
+                net.zaminmc.torch.util.Position at = mob.position();
+                if (at.x() >= minX && at.x() <= maxX && at.y() >= minY && at.y() <= maxY
+                        && at.z() >= minZ && at.z() <= maxZ) {
+                    return true;
+                }
+            }
+            for (PlayerSession body : players.all()) {
+                if (body.dimension() != dimension
+                        || body.state() != net.zaminmc.torch.entity.PlayerState.PLAYING
+                        || body.gamemode() == GameMode.SPECTATOR) {
+                    continue; // canAvoidTraps
+                }
+                net.zaminmc.torch.util.Position at = body.position();
+                if (at.x() >= minX && at.x() <= maxX && at.y() >= minY && at.y() <= maxY
+                        && at.z() >= minZ && at.z() <= maxZ) {
+                    return true;
+                }
+            }
+            if (includeItems) {
+                for (ItemEntity item : itemEntities.all()) {
+                    if (item.dimension() != dimension) {
+                        continue; // another world's body is absent from this walk
+                    }
+                    net.zaminmc.torch.util.Position at = item.position();
+                    if (at.x() >= minX && at.x() <= maxX && at.y() >= minY
+                            && at.y() <= maxY && at.z() >= minZ && at.z() <= maxZ) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        });
+        // The weighted plates' counting probe (Slice 49a —
+        // WeightedPressurePlateBlock.calculateOutputSignal's
+        // getEntitiesOfType(Entity.class): EVERY entity in the
+        // 0.125-inset box counts — mobs, players and dropped items
+        // alike), the walks carrying the same dimension gate.
+        system.setPlateCountProbe(plate -> {
+            double minX = plate.x() + 0.125, maxX = plate.x() + 1 - 0.125;
+            double minY = plate.y(), maxY = plate.y() + 0.25;
+            double minZ = plate.z() + 0.125, maxZ = plate.z() + 1 - 0.125;
+            int count = 0;
+            for (net.zaminmc.torch.server.entity.MobEntity mob : mobManager.all()) {
+                if (mob.dimension() != dimension) {
+                    continue;
+                }
+                net.zaminmc.torch.util.Position at = mob.position();
+                if (at.x() >= minX && at.x() <= maxX && at.y() >= minY && at.y() <= maxY
+                        && at.z() >= minZ && at.z() <= maxZ) {
+                    count++;
+                }
+            }
+            for (PlayerSession body : players.all()) {
+                if (body.dimension() != dimension
+                        || body.state() != net.zaminmc.torch.entity.PlayerState.PLAYING
+                        || body.gamemode() == GameMode.SPECTATOR) {
+                    continue; // canAvoidTraps
+                }
+                net.zaminmc.torch.util.Position at = body.position();
+                if (at.x() >= minX && at.x() <= maxX && at.y() >= minY && at.y() <= maxY
+                        && at.z() >= minZ && at.z() <= maxZ) {
+                    count++;
+                }
+            }
+            for (ItemEntity item : itemEntities.all()) {
+                if (item.dimension() != dimension) {
+                    continue;
+                }
+                net.zaminmc.torch.util.Position at = item.position();
+                if (at.x() >= minX && at.x() <= maxX && at.y() >= minY
+                        && at.y() <= maxY && at.z() >= minZ && at.z() <= maxZ) {
+                    count++;
+                }
+            }
+            return count;
+        });
+        // The trapped chest's viewer count (Slice 49b —
+        // ChestBlock.getSignal lines 379-392: the sessions holding
+        // this chest's window open, clamped 0-15 on the wire). A
+        // MERGED pair window counts for BOTH halves (the reference's
+        // DoubleInventory.onOpen/onClose lines 110-119 walk both —
+        // the menu's pinned halves, never a fresh world consult),
+        // and the viewers walk ranges the dimension's own bodies
+        // with the chest read on the ACTING world's cells.
+        system.setTrappedChestViewers(position -> {
+            int viewers = 0;
+            for (PlayerSession body : players.all()) {
+                if (body.dimension() != dimension
+                        || body.state() != net.zaminmc.torch.entity.PlayerState.PLAYING
+                        || body.openContainerKind() != PlayerSession.ContainerKind.CHEST
+                        || body.openContainerPosition() == null) {
+                    continue;
+                }
+                if (position.equals(body.openContainerPosition())
+                        || position.equals(body.openContainerPairFirst())
+                        || position.equals(body.openContainerPairSecond())) {
+                    if (probeWorld.getBlock(position).identifier()
+                            .equals(net.zaminmc.torch.server.block.BuiltinBlocks
+                                    .TRAPPED_CHEST.identifier())
+                            || ChestFacingBlocks.isTrappedFamily(
+                                    probeWorld.getBlock(position))) {
+                        viewers++;
+                    }
+                }
+            }
+            return viewers;
+        });
+        // The detector rail's cart probe (Slice 38 —
+        // DetectorRailBlock.updateOutputState's getMinecarts over
+        // the rail's own cell: any minecart body inside the box, the
+        // vehicle walk carrying the dimension gate).
+        system.setCartProbe(rail -> {
+            for (var vehicle : vehicleManager.all()) {
+                if (vehicle.kind() != net.zaminmc.torch.server.entity.vehicle.VehicleEntity.Kind.MINECART
+                        && vehicle.kind() != net.zaminmc.torch.server.entity.vehicle.VehicleEntity.Kind.CHEST_MINECART) {
+                    continue;
+                }
+                if (vehicle.dimension() != dimension) {
+                    continue; // another world's cart is absent from this walk
+                }
+                net.zaminmc.torch.util.Position at = vehicle.position();
+                if (at.x() >= rail.x() && at.x() <= rail.x() + 1
+                        && at.y() >= rail.y() && at.y() <= rail.y() + 1
+                        && at.z() >= rail.z() && at.z() <= rail.z() + 1) {
+                    return true;
+                }
+            }
+            return false;
+        });
+        // The comparator's analog source table (Slice 9d — the
+        // reference's isAnalogSignalSource family over the engine's
+        // containers): the chest and furnace fullness through their
+        // managers, -1 for every non-source block (the reader's
+        // not-a-source answer). The block read ranges the ACTING
+        // world's cells (Wave FL4-F10); the container managers are
+        // the shared position-keyed stores (Gap 2's honest tail).
+        system.setAnalogReader(position -> {
+            BlockType block = probeWorld.getBlock(position);
+            if (block.identifier().equals(BuiltinBlocks.CHEST.identifier())
+                    || ChestFacingBlocks.isPlainFamily(block)
+                    || block.identifier().equals(BuiltinBlocks.TRAPPED_CHEST.identifier())
+                    || ChestFacingBlocks.isTrappedFamily(block)) {
+                // ChestBlock.getAnalogSignal line 430: the MERGED
+                // pair's fullness (InventoryMenu.getAnalogSignal over
+                // the DoubleInventory — 54 slots when the twin
+                // exists); a LOCKED view answers 0 (getInventory's
+                // null, lines 346/354).
+                net.zaminmc.torch.server.chest.ChestPairs.View view =
+                        net.zaminmc.torch.server.chest.ChestPairs.resolve(
+                                probeWorld, chestManager, mobManager, position);
+                return view == null ? 0
+                        : net.zaminmc.torch.server.redstone.RedstoneSystem.containerFullness(
+                                view.snapshotAll(), 64);
+            }
+            if (net.zaminmc.torch.server.hopper.HopperBlocks.isHopper(block)) {
+                net.zaminmc.torch.server.hopper.HopperBlockEntity hopper =
+                        hopperSystem.peek(position);
+                return hopper == null ? 0
+                        : net.zaminmc.torch.server.redstone.RedstoneSystem.containerFullness(
+                                hopper.snapshotSlots(), 64);
+            }
+            if (net.zaminmc.torch.server.dispenser.DispenserBlocks.isFamily(block)) {
+                // The dispenser family's nine slots (the same fullness
+                // walk the reference runs on every Inventory —
+                // DispenserBlock.getAnalogSignal lines 186-189).
+                net.zaminmc.torch.server.dispenser.DispenserBlockEntity container =
+                        dispenserSystem == null ? null : dispenserSystem.peek(position);
+                return container == null ? 0
+                        : net.zaminmc.torch.server.redstone.RedstoneSystem.containerFullness(
+                                container.snapshotSlots(), 64);
+            }
+            if (net.zaminmc.torch.server.brewing.BrewingStandBlocks.isBrewingStand(block)) {
+                // The brewing stand's four slots (BrewingStandBlock
+                // lines 130-137: isAnalogSignalSource over
+                // InventoryMenu.getAnalogSignal — the same fullness
+                // walk every container runs).
+                net.zaminmc.torch.server.brewing.BrewingStandBlockEntity stand =
+                        brewingStands == null ? null : brewingStands.peek(position);
+                return stand == null ? 0
+                        : net.zaminmc.torch.server.redstone.RedstoneSystem.containerFullness(
+                                stand.snapshotSlots(), 64);
+            }
+            if (block.identifier().equals(BuiltinBlocks.FURNACE.identifier())
+                    || block.identifier().equals(BuiltinBlocks.FURNACE_LIT.identifier())
+                    || net.zaminmc.torch.server.furnace.FurnaceFacingBlocks.isAnyFacing(block)) {
+                net.zaminmc.torch.server.furnace.FurnaceBlockEntity furnace =
+                        furnaceManager.peek(position);
+                return furnace == null ? 0
+                        : net.zaminmc.torch.server.redstone.RedstoneSystem.containerFullness(
+                                new net.zaminmc.torch.item.ItemStack[]{
+                                        furnace.input(), furnace.fuel(), furnace.output()}, 64);
+            }
+            if (net.zaminmc.torch.server.cauldron.CauldronBlocks.isCauldron(block)) {
+                // The cauldron's level IS the signal (CauldronBlock
+                // lines 188-195: getAnalogSignal = LEVEL).
+                return net.zaminmc.torch.server.cauldron.CauldronBlocks.levelOf(block);
+            }
+            if (net.zaminmc.torch.server.jukebox.JukeboxBlocks.isFamily(block)) {
+                // The jukebox's disc read (JukeboxBlock lines 97-108:
+                // Item.getId(record) + 1 - Item.getId(RECORD_13) —
+                // the disc's table index + 1, 0 with no record).
+                return jukeboxes.analogSignal(position);
+            }
+            if (net.zaminmc.torch.server.block.CakeBlocks.isCake(block.identifier())) {
+                // The cake's bite read (CakeBlock.getAnalogSignal
+                // lines 133-135): (7 - bites) * 2 — the whole cake's
+                // 14 down to the last crumb's 2.
+                return net.zaminmc.torch.server.block.CakeBlocks
+                        .analogSignal(block.identifier());
+            }
+            if (net.zaminmc.torch.server.block.EndPortalBlocks
+                    .isFrame(block.identifier())) {
+                // The end portal frame's own analog band
+                // (EndPortalFrameBlock lines 61-68:
+                // isAnalogSignalSource true for EVERY frame
+                // state, getAnalogSignal = eye ? 15 : 0 — the
+                // eye's insertion flips the signal; an EMPTY
+                // frame still answers 0, never -1: the reference's
+                // getInputSignal consult overrides the diode read
+                // for any analog source at the input cell, and the
+                // read-through cell consults the same family).
+                return net.zaminmc.torch.server.block.EndPortalBlocks
+                        .isEyedFrame(block.identifier()) ? 15 : 0;
+            }
+            return -1;
+        });
+    }
+
+    /**
+     * The comparator persistence's stamped union (Wave FL4-F10): every
+     * dimension's stored outputs in one row list, each row carrying its
+     * world — the ZCD v2 file's own shape. The restore routes the rows
+     * back by the same stamp (the boot's byDimension walk). Tick-lane
+     * context (the save point's own thread contract).
+     */
+    private java.util.List<net.zaminmc.torch.server.redstone.ComparatorDataStore.StoredOutput>
+            comparatorOutputRows() {
+        java.util.List<net.zaminmc.torch.server.redstone.ComparatorDataStore.StoredOutput> rows =
+                new java.util.ArrayList<>();
+        redstoneSystem.comparatorSnapshot().forEach((position, output) ->
+                rows.add(new net.zaminmc.torch.server.redstone.ComparatorDataStore.StoredOutput(
+                        position, 0, output)));
+        netherRedstone.comparatorSnapshot().forEach((position, output) ->
+                rows.add(new net.zaminmc.torch.server.redstone.ComparatorDataStore.StoredOutput(
+                        position, -1, output)));
+        endRedstone.comparatorSnapshot().forEach((position, output) ->
+                rows.add(new net.zaminmc.torch.server.redstone.ComparatorDataStore.StoredOutput(
+                        position, 1, output)));
+        return rows;
+    }
+
     public EngineWorld worldFor(int dimension) {
         if (dimension == -1) {
             return java.util.Objects.requireNonNull(netherWorld, "nether world");
@@ -30224,17 +30362,20 @@ public final class EngineServer implements Server, EngineBridge {
                     }
                 }
                 // The comparator's stored outputs (Wave H1 — the
-                // ComparatorBlockEntity's OutputSignal rows). S4: the ride
-                // through the pipeline's named path (the map copy is the
-                // immutable input contract already).
+                // ComparatorBlockEntity's OutputSignal rows; Wave FL4-F10 —
+                // every dimension's rows, each stamped with its world).
+                // S4: the ride through the pipeline's named path (the
+                // stamped list is the immutable input contract already).
                 if (comparatorStore != null && redstoneSystem != null) {
+                    java.util.List<net.zaminmc.torch.server.redstone.ComparatorDataStore.StoredOutput>
+                            comparatorRows = comparatorOutputRows();
                     if (pipeline != null) {
                         publications.add(pipeline.submitSave("comparator",
-                                redstoneSystem.comparatorSnapshot(),
+                                comparatorRows,
                                 comparatorStore::serialize,
                                 comparatorStore::writeSerialized));
                     } else {
-                        comparatorStore.save(redstoneSystem.comparatorSnapshot());
+                        comparatorStore.save(comparatorRows);
                     }
                 }
                 // The scheduled block ticks (the surface's own persistence):
