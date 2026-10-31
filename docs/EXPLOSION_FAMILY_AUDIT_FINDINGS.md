@@ -426,3 +426,58 @@ throw-gesture origin at line ~6167, the random-tick cell walk at line
 reference comparison (the reference itself hardcodes 1.62 at SOME of
 these sites and reads getEyeHeight at others; the census is its own
 verification item, not this fix's scope).
+
+## F-EX13 — VERIFIED and FIXED (the 2026-10-31 session, this branch): the blast's player wound walk reads the per-world entity list
+
+**Status: fix-ready → PR opened (this branch).** Discovered this session
+while auditing F-EX6's blast path; three-pass verified.
+
+- **Subsystem:** the generalized detonation walk's PLAYER wound arm.
+- **Affected engine files:** `EngineServer.woundPlayersFromBlast` (the
+  missing dimension gate at the loop top).
+- **Reference:** `Explosion.damageEntities` line 115 —
+  `List<Entity> list = this.world.getEntities(this.source, box)` — the
+  blast's OWN world's chunk-walk gather (World.getEntities lines
+  2153-2164 walk `this` world's chunks alone); a body in another
+  dimension is STRUCTURALLY ABSENT from the list. Every wounded body —
+  players and mobs alike — comes from the blast's own world.
+- **Expected behavior:** a blast wounds only the players standing in ITS
+  OWN dimension.
+- **Observed behavior (pre-fix):** the engine's player walk iterated the
+  GLOBAL session list with NO dimension gate — a blast at one
+  dimension's coordinates wounded a player standing at the SAME
+  coordinates in ANOTHER dimension: the wound, the knockback, and the
+  packet's motion row all crossed the world boundary.
+- **The exact divergence:** one missing gate — the same one every other
+  cross-dimension wound walk already carries (the mobs'
+  `mob.dimension() != dimension`, the items', the orbs', the
+  projectiles', the armor stands', the fireworks'; the
+  single-dimension families gate on their own dimension — the vehicles
+  and decorations overworld-only, the crystals End-only; the primed TNT
+  pre-filters at the gather). The PLAYERS' walk alone iterated a
+  cross-dimension-populated store ungated.
+- **Reproduction:** `BlastPlayerWoundDimensionGateTest` (NEW, 1 seat)
+  over the REAL creeper detonation wire — two players at the SAME cell,
+  one overworld, one NETHER; the overworld creeper's blast wounds the
+  overworld body alone.
+- **The three-pass record:**
+  1. **Source:** the reference's gather chain read (damageEntities →
+     world.getEntities → the per-world chunk walk); the engine's
+     asymmetry traced (the mob walk's filter beside the player walk's
+     absence).
+  2. **Behavioral:** the stash discrimination — the seat FAILED UNFIXED
+     with the nether body at **0.5 health** (the point-blank overworld
+     blast's near-lethal cross-dimension wound) and runs 1/0 green
+     FIXED (the overworld body wounded, the nether body untouched at
+     20.0).
+  3. **Independent:** the complete wound-walk census (all ELEVEN walks
+     surveyed — every other walk already carries its gate); the
+     overworld-path identity (dimension-0 players in dimension-0 blasts
+     — unchanged, the lanes confirm); the sleeping eye-frame motion
+     pins unaffected; the regression lanes below.
+- **The fix:** the one-line gate — `player.dimension() != dimension →
+  continue` — with the reference's own citation.
+- **Regression risk:** minimal — a single consult gate; the lanes
+  verified green: ExplosionSleepingEyeFrame 2/0 (the player motion
+  pins), ExplosionEntityGather 8/0, CreeperRows 3/0, MultiplayerSleep
+  3/0, NetherTntRouting 1/0, WitherBoss 8/0, the new seat 1/0.
