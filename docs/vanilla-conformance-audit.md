@@ -835,6 +835,67 @@ despawn window, the targeting, the natural spawn) must see the crossed
 body in ITS dimension; the persistence round trip must keep the body in
 the nether's store; the riding lanes must never cross (VT-005's gate).
 
+## F-EC1 — the ender chest's solid-above gate reads the movement consult, not the reference's Block.isSolid() (RESOLVED-BY-PR — **PR #95 OPEN**)
+
+**Subsystem:** the ender chest's use gate (the solidity consult family —
+F-TC1's class). **Status:** confirmed over three verification passes
+(the twenty-fourth pass) and corrected the same run — the one-consult
+swap landed on `fix/ender-chest-solid-above-parity-audit` as **PR #95**.
+
+**The reference's law** (reference/1.8.8): `EnderChestBlock.use` lines
+71-90 — the open's refusal gate is line 80,
+`world.getBlockState(pos.up()).getBlock().isSolid()`, and
+`Block.isSolid()` (Block.java lines 274-276) is the THREE-CONJUNCT
+SIGNAL consult: `material.isSolidBlocking() && isCube() &&
+!isSignalSource()`. The isCube-false families (the glass pair —
+GlassBlock lines 25-27; the slabs, the stairs, the chests, the leaves,
+the beacon, the piston bases) and the signal sources (the redstone
+block — F-TC1's census lone survivor) are NOT solid for this gate: the
+ender chest OPENS under glass and under a redstone block; the stone lid
+alone refuses.
+
+**The engine's shape:** `openEnderChestOnTick` read
+`WorldSolidity.isSolid` — the MOVEMENT consult (what blocks a body):
+glass and the redstone block are movement-solid, so the engine REFUSED
+the open under both. The site's javadoc already cited the reference
+line (Slice 29a's stand-in consult predates F-TC1); F-TC1 (PR #87,
+merged) introduced `BlockSolidity.isSolid` — the exact law line 80
+reads — and swapped the six signal-ROUTING sites, but this USE gate sat
+outside that census's scope (it is not signal routing). The swap is the
+same class of repair F-TC1 already made, the site left behind.
+
+**Verification history:**
+
+- **Pass 1 (source, the twenty-fourth pass):** the reference's line-80
+  consult identified as `Block.isSolid()` (the three-conjunct signal
+  law) against the engine's `WorldSolidity.isSolid` (the movement
+  consult) at the gate.
+- **Pass 2 (behavioral, the twenty-fourth pass):** the discovery seat
+  `EnderChestSolidAboveGateDiscoveryTest` (RED on develop BY CONTRACT)
+  — the glass-lidded ender chest NEVER opened in the engine (the await
+  timed out, no window id ever assigned) where the reference opens it.
+  The seat's three cases: the glass lid (the isCube-false family), the
+  redstone block lid (the signal-source conjunct), the stone control
+  (both laws refuse — the existing acceptance test's own seat kept so
+  the discovery seat cannot pass by refusing everything).
+- **Pass 3 (independent, the twenty-fourth pass):** (a) the
+  compensating-behavior hunt — the gate is the first statement of the
+  open walk; nothing else consults the above-cell, and the refusal
+  consumes the use; (b) the design-choice challenge — the site's
+  javadoc cites the reference line; the consult was the pre-F-TC1
+  stand-in, and F-TC1's merged helper IS the law line 80 reads; (c) the
+  discriminants already test-pinned on develop by F-TC1's own seat (the
+  glass never re-radiates; the redstone block's own-signal arm).
+
+**The correction (this run's third act):** the one-consult swap at the
+gate — `WorldSolidity.isSolid` → `BlockSolidity.isSolid` (with the
+javadoc carrying the reference's three conjuncts). Both the glass and
+redstone discovery cases ride GREEN on the fix branch; the stone
+control still refuses. Evidence: the seat 1/0 GREEN with the fix;
+`EnderChestAcceptanceTest` 3/0 (the stone-lid seat intact); the chest
+package whole 24/0; the block + interaction lanes 313/0. **PR #95
+OPEN** targeting `develop`.
+
 ## The twenty-fourth pass — VT-005's behavioral + independent passes landed (CONFIRMED)
 
 Baseline: `origin/develop` at `817dbe74` (the FL4-F7/F8/F9 waves — the
@@ -871,6 +932,15 @@ the items, the orbs, the boats, the carts, the arrows; the TNT and
 falling families carry no portal arm in the reference itself, their
 omission an accidental match). The fix is a substantial architectural
 walk — the next run's head.
+
+**The run's third arc (F-EC1, confirmed and corrected the same run):**
+the queue's standing lane taken up — the ender chest's solid-above
+gate read the movement consult where the reference reads
+`Block.isSolid()` (the signal consult); the glass-lidded seat RED on
+develop; the one-consult swap (`BlockSolidity.isSolid`, F-TC1's merged
+helper — the exact law line 80 reads) landed as **PR #95** with the
+seat green, the stone control intact, and the chest + block +
+interaction lanes whole.
 
 **The correction (this run's second act):** the fix branch
 `fix/portal-riding-gate-parity-audit` (based on `origin/develop`
@@ -948,9 +1018,12 @@ whole (the record above). **PR #94 OPEN** targeting `develop`.
    unblocked: nether placement exists post-PR #90; the crystal arm's
    dimension gate landed with PR #85's rider; the blast family's own
    dimension row is the remainder).
-8. The standing lanes from the earlier passes, untouched by this one:
-   F-EC1 (the ender chest's solid-above gate, suspected — its source and
-   behavioral passes owed; F-TC1 RESOLVED by PR #87's merge).
+8. ~~The standing lanes~~ — F-EC1 RESOLVED-BY-PR (this run: confirmed
+   over three passes and corrected — **PR #95 OPEN**, the one-consult
+   swap to `BlockSolidity.isSolid`; F-TC1 was already resolved by PR
+   #87's merge). The F-SP1 support-consult family and F-DS1 (the double
+   slab's collision row) remain suspected from the twentieth pass's
+   record — their passes owed.
 9. The newly-ledgered dimension tails (each its own discovery pass, the
    PR #90 ledger): the per-dimension tile families, the mob spawn's
    dimension stamp, the FX dimension awareness, the per-dimension world
