@@ -572,38 +572,6 @@ public final class MobManager {
         }
     }
 
-    /**
-     * VT-006 — the entity-level crossing service (the reference's
-     * Entity.changeDimension walk, lines 1695-1730, over PlayerManager
-     * .changeDimension's reposition, lines 449-502): the direction law
-     * (the nether pair -1 <-> 0), the 8:1 scale, the border band clamp,
-     * the destination neighborhood load, and the PortalForcer's
-     * find-or-build placement. The engine's server owns the worlds and
-     * the forcers; the crossing families (the mobs first) ride the seam
-     * one by one.
-     */
-    public interface DimensionCrossing {
-
-        /** The crossing's outcome: the destination dimension + the forcer's arrival. */
-        record Crossing(int toDimension,
-                        net.zaminmc.torch.server.world.PortalForcer.Arrival arrival) {
-        }
-
-        /**
-         * Walks the body's crossing coordinates to the destination: the
-         * direction, the scale, the loads, and the forcer's placement.
-         *
-         * @param fromDimension the body's current dimension
-         * @param velocityX     the body's horizontal motion (the forcer's
-         *                      quarter-turn rotation consumes it)
-         * @param velocityZ     the body's horizontal motion
-         * @param memory        the body's portal entry memory (the frame
-         *                      offsets the placement math consumes)
-         */
-        Crossing cross(int fromDimension, double x, double y, double z, float yaw,
-                       double velocityX, double velocityZ,
-                       net.zaminmc.torch.server.world.PortalForcer.Memory memory);
-    }
 
     private final MobEntity.WorldQuery world;
     private final Random random;
@@ -654,10 +622,10 @@ public final class MobManager {
      * wires it (the unwired boots keep the no-crossing shape — the
      * seam's own hold).
      */
-    private volatile DimensionCrossing dimensionCrossing;
+    private volatile net.zaminmc.torch.server.entity.DimensionCrossing dimensionCrossing;
 
     /** Wires the crossing service (the engine's own boot). */
-    public void setDimensionCrossing(DimensionCrossing dimensionCrossing) {
+    public void setDimensionCrossing(net.zaminmc.torch.server.entity.DimensionCrossing dimensionCrossing) {
         this.dimensionCrossing = java.util.Objects.requireNonNull(
                 dimensionCrossing, "dimensionCrossing");
     }
@@ -1527,7 +1495,7 @@ public final class MobManager {
      * dimension row).
      */
     private void crossMobDimension(MobEntity mob) {
-        DimensionCrossing crossing = dimensionCrossing;
+        net.zaminmc.torch.server.entity.DimensionCrossing crossing = dimensionCrossing;
         int from = mob.dimension();
         if (crossing == null || from == 1) {
             // The unwired boot (the bare test harnesses) and the
@@ -1541,7 +1509,7 @@ public final class MobManager {
         for (Listener listener : listeners) {
             listener.onMobRemoved(mob, "portal");
         }
-        DimensionCrossing.Crossing result = crossing.cross(from,
+        net.zaminmc.torch.server.entity.DimensionCrossing.Crossing result = crossing.cross(from,
                 at.x(), at.y(), at.z(), mob.yaw(), mob.velocityX(), mob.velocityZ(),
                 mob.portalMemory());
         mob.applyDimensionArrival(result.toDimension(),

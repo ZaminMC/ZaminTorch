@@ -152,8 +152,15 @@ class PortalItemCrossingDiscoveryTest {
 
         // The seat's precondition: the body's cell is a portal cell (the
         // item's position IS its center; the resting box's center cell
-        // sits inside the interior).
+        // sits inside the interior) — OR the crossing already fired: the
+        // reference's threshold 0 crosses the stack on the FIRST armed
+        // tick, so a polling precondition races the very law it pins (the
+        // seat was authored against the pre-fix engine, where the stack
+        // never left the cells).
         await(() -> {
+            if (item.dimension() == -1) {
+                return true; // the crossing won the race — the law itself
+            }
             BlockPosition cell = new BlockPosition(
                     (int) Math.floor(item.position().x()),
                     (int) Math.floor(item.position().y()),
@@ -161,16 +168,18 @@ class PortalItemCrossingDiscoveryTest {
             return BuiltinBlocks.NETHER_PORTAL.equals(overworld.getBlock(cell))
                     || BuiltinBlocks.NETHER_PORTAL_Z.equals(overworld.getBlock(cell));
         }, "the item rests inside a portal cell");
-        BlockPosition cell = new BlockPosition(
-                (int) Math.floor(item.position().x()),
-                (int) Math.floor(item.position().y()),
-                (int) Math.floor(item.position().z()));
-        assertTrue(BuiltinBlocks.NETHER_PORTAL.equals(overworld.getBlock(cell))
-                        || BuiltinBlocks.NETHER_PORTAL_Z.equals(overworld.getBlock(cell)),
-                "the seat's precondition: the item rests inside a portal cell ("
-                        + cell + ", got " + overworld.getBlock(cell).identifier()
-                        + ", position " + item.position() + ")");
-        assertEquals(0, item.dimension(), "the body is in the overworld at the drop");
+        if (item.dimension() == 0) {
+            BlockPosition cell = new BlockPosition(
+                    (int) Math.floor(item.position().x()),
+                    (int) Math.floor(item.position().y()),
+                    (int) Math.floor(item.position().z()));
+            assertTrue(BuiltinBlocks.NETHER_PORTAL.equals(overworld.getBlock(cell))
+                            || BuiltinBlocks.NETHER_PORTAL_Z.equals(overworld.getBlock(cell)),
+                    "the seat's precondition: the item rests inside a portal cell ("
+                            + cell + ", got " + overworld.getBlock(cell).identifier()
+                            + ", position " + item.position() + ")");
+            assertEquals(0, item.dimension(), "the body is in the overworld at the drop");
+        }
 
         // THE CROSSING: the reference's law — the item crosses on the
         // FIRST armed tick (the base threshold 0). THE ENGINE'S SHAPE:

@@ -98,6 +98,17 @@ class CollisionShapeTest {
             return 0.6;
         }
 
+        /**
+         * VT-006 — the two Ground families now both declare the portal
+         * consult default; the stub resolves the diamond keeping the
+         * no-portals answer (the plain overworld stub world).
+         */
+        @Override
+        public net.zaminmc.torch.server.world.PortalFrameBuilder.PortalShapeMatch portalFrameAt(
+                int x, int y, int z) {
+            return null;
+        }
+
         /** The open-plains shape: no corridor walls (the historical stub). */
         ShapeWorld(int slabX, int slabZ, WorldSolidityProbe probe, Position player) {
             this(slabX, slabZ, probe, player, false);
