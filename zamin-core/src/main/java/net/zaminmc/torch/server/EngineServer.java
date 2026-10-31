@@ -24776,6 +24776,14 @@ public final class EngineServer implements Server, EngineBridge {
                                        double cx, double cy, double cz, float f3,
                                        java.util.Map<UUID, double[]> motion) {
         for (PlayerSession player : players.all()) {
+            // The reference's per-world entity list (damageEntities line
+            // 115: this.world.getEntities — the blast's OWN world's chunks
+            // alone): a body in ANOTHER dimension is structurally absent
+            // from the gather. The same gate every other cross-dimension
+            // wound walk already carries (the mobs', the items', the orbs').
+            if (player.dimension() != dimension) {
+                continue;
+            }
             Position p = player.position();
             // d12 (line 118): the FEET-distance ratio — Entity.distanceTo
             // reads the body's own position, no eye offset.
