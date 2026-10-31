@@ -262,6 +262,9 @@ jobs:
           echo "TITLE=$TITLE" >> "$GITHUB_ENV"
           echo "title: $TITLE"
 
+          # The notes' fixed parts: the header + the per-subject Changes
+          # list (each subject already capped at 200 chars), and the
+          # artifacts tail.
           {
             echo "Dev build \`$TAG\` — auto-cut from \`develop\` @ \`$SHORT_SHA\` ($COUNT commit(s) since \`${PREV:-the beginning}\`$([ -n "$SHORTSTAT" ] && echo ", $SHORTSTAT" || echo))."
             echo
@@ -275,20 +278,48 @@ jobs:
               | grep -v '^- release: torch-' \
               | awk '{ if (length($0) > 200) print substr($0, 1, 200) "…"; else print }' || true; }
             echo
-            echo "<details><summary>Full commit messages</summary>"
-            echo
-            { git log --reverse --format='%h %s%n%n%b%n---' "$RANGE" \
-              | grep -v '^[0-9a-f]\{7\} release: torch-' || true; }
-            echo
-            echo "</details>"
-            echo
+          } > notes-head.md
+          {
             echo "### Artifacts"
             echo
             echo "- \`torch-$V.jar\` — the fat server jar (every module + netty), Java 21+."
             echo "- \`ZaminTorch-server-$V.zip\` — the jar plus \`start.sh\` / \`start.bat\` / \`start.ps1\`, QUICKSTART and the default \`zamin.properties\`."
             echo
             echo "Boot: unzip, \`./start.sh\`, connect a vanilla 1.8.8 client to port 25565. The launcher prints an update prompt when a newer build is published."
+          } > notes-tail.md
+
+          # The full-messages block, bounded to GitHub's release-body cap
+          # (125,000 characters — the 154 gap's four days of worklog-style
+          # commits overflowed it and the publish died with HTTP 422, the
+          # tag already pushed and the release never cut): each commit's
+          # body is capped first, and if the assembled notes still cannot
+          # fit under the cap, the block is dropped in favour of the
+          # per-subject Changes list (the compare link carries the whole
+          # history).
+          NOTES_CAP=120000
+          { git log --reverse --format='%h %s%n%n%b%n---' "$RANGE" \
+            | grep -v '^[0-9a-f]\{7\} release: torch-' \
+            | awk -v cap=1500 '{ if (length($0) > cap)
+                  print substr($0, 1, cap) "…"; else print }' || true
+          } > details.txt
+          BUDGET=$(( NOTES_CAP - $(wc -c < notes-head.md) - $(wc -c < notes-tail.md) ))
+          {
+            cat notes-head.md
+            if [ "$(wc -c < details.txt)" -le "$BUDGET" ]; then
+              echo "<details><summary>Full commit messages</summary>"
+              echo
+              cat details.txt
+              echo
+              echo "</details>"
+              echo
+            else
+              echo "Full commit messages omitted: the ${COUNT}-commit range exceeds the release-body size cap (the Changes list above carries every commit; the compare link the full history)."
+              echo
+            fi
+            cat notes-tail.md
           } > notes.md
+          rm -f notes-head.md notes-tail.md details.txt
+          echo "--- notes.md size: $(wc -c < notes.md) bytes (cap $NOTES_CAP)"
           echo "--- notes.md (first 40 lines):"
           head -40 notes.md
 
