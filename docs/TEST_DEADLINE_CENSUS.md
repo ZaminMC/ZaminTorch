@@ -682,6 +682,12 @@ count wins over the division.
 | 691 | fixed sleep | 400ms (~8t) | C-B missing engine-visible condition — unannotated settle | convert → `awaitTicks(8)` |
 | 698 | fixed sleep | 400ms (~8t) | C-B missing engine-visible condition — unannotated settle | convert → `awaitTicks(8)` |
 
+### `MobEventBridgeAcceptanceTest.java`
+
+| line | form | value | classification | action |
+| --- | --- | --- | --- | --- |
+| 61 (both seats) | poll loop deadline | 90s | C-C liveness bound, but the POLLED CONDITION was wrong (any sound, not the voice) — the pig/cow footsteps (step.grass) ride the same bridge event and a wander step beat or overwrote the first ambient voice on the hosted runner (run 532 att1, run 557) | fixed at the source: the seats capture the VOICE event by name (compareAndSet) and poll THAT; the asserts unchanged |
+
 ### `MobCombatAcceptanceTest.java`
 
 | line | form | value | classification | action |
