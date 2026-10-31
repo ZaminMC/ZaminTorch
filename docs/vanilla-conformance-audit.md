@@ -1089,14 +1089,14 @@ seats, the independent angles):
    run — the nether-anchored session construction, exactly the arrow
    family's seat precedent).
 
-## VT-007 — the blast family's dimension routing is partial: the fireball, skull, creeper, wither-birth, and TNT-cart detonations still bind the overworld, and the blast drop stamp carries dimension 0 (CONFIRMED — three passes; the fix branch the next run's head)
+## VT-007 — the blast family's dimension routing is partial: the fireball, skull, creeper, wither-birth, and TNT-cart detonations still bind the overworld, and the blast drop stamp carries dimension 0 (RESOLVED-BY-PR — **PR #103 OPEN**)
 
 **Subsystem:** explosions / dimension routing (the queue's named audit)
 **Affected version:** the current develop baseline (deef2a17)
-**Status:** CONFIRMED (three passes — the source census, the executed
-behavioral seats, the independent pass with the FL4-F7 precedent, the
-compensating hunt, and the wire-level consequence; the correction is
-eligible, the fix branch the next run's head)
+**Status:** RESOLVED-BY-PR (three passes — the source census, the
+executed behavioral seats, the independent pass with the FL4-F7
+precedent, the compensating hunt, and the wire-level consequence; the
+correction landed the same run as **PR #103**)
 
 ### The reference's law
 
@@ -1297,9 +1297,28 @@ in the same sweep or stand.
   stream (an RNG-parity nuance for its own pass).
 
 **VT-007 raised to CONFIRMED (three passes, distinct evidence each).
-The correction is eligible — the fix branch is the next run's head**
-(the consult swaps per site + the BlastSink dimension carry + the
-drop stamp; the seats already authored ride green on the fix branch).
+The correction LANDED the same run — RESOLVED-BY-PR — PR #103 OPEN**
+(`fix/explosion-dimension-routing-parity-audit` based on `deef2a17`:
+the FL4-F7 idiom at each site — the two projectile sinks consult
+`explosionServiceFor(dimension)`, `detonateAtFromMob` threads the
+source mob's own dimension, the TNT cart's `BlastSink` carries the
+dimension with the factory routing through the resolver, the drop
+roll stamps the blast's dimension through the TF-9 four-arg form;
+the two dead overworld-hardcoded wrappers retire in the same sweep;
+the stale javadoc corrected. The seats 2/0 GREEN on the fix branch —
+seven consecutive runs — with the construction hardened on the fix
+branch: the nether HEADROOM carve keeps the creeper's spawn band
+clear of the nether's seed-drifting natural terrain, one observed
+precondition flake root-caused to that terrain roll. The regression
+lanes: the explosion family, CreeperRows, NetherTntRouting,
+BlastResistanceTable, the vehicle family whole (the signature's
+three test implementations updated), the tnt + endcrystal packages,
+the nether trio + DimensionWalk + DimensionTimeSync +
+PerDimensionFire + PerDimensionFluid 24/0, the block + world
+packages 555/0. One pre-existing load flake retired from
+consideration: VehicleWorldDamageTest's lava seat, once under the
+parallel lane load, passing alone on BOTH trees, the diff touching
+no fire path.)
 
 ## VT-008 — the bed's out-of-dimension blast arm is missing: the sleep walk carries no dimension gate (UNDER VERIFICATION — pass 1 recorded)
 
@@ -1388,7 +1407,7 @@ effective law for the vanilla dimensions).
 | FX broadcasts — the dimension awareness | NOT INSPECTED (the FxManager position-only API; the PR #90 ledger) |
 | World border — per-dimension | NOT INSPECTED (the reference's per-World border vs the engine's shared one; surfaced by the dig-start gate review) |
 | Zombie/mob arms — world binding | NOT INSPECTED (the zombie door-break consults the overworld field; surfaced by PR #90's cleanup threading) |
-| Explosions — dimension routing | AUDITED this pass (the twenty-sixth): the call-site census whole — the primed TNT (FL4-F7) and the End crystal (Slice 62) correct; the ghast fireball and wither skull sinks pass the routed world with the OVERWORLD service, the creeper/wither-birth/TNT-cart wrappers bind the overworld outright, and the shared drop roll stamps dimension 0 (**VT-007 CONFIRMED** — three passes: the census, the executed behavioral seats RED stable across three runs, the independent pass with the FL4-F7 precedent + the wire-level desync; the fix branch the next run's head). The blast WOUND walks are routed (the dimension gate + the blastWorld consult); the fire placement is routed (F-EX4/PR #92); the named tail: the End/nether services' shared `gameplayRandom` vs the reference's per-world `world.random` |
+| Explosions — dimension routing | AUDITED this pass (the twenty-sixth): the call-site census whole — the primed TNT (FL4-F7) and the End crystal (Slice 62) correct; the ghast fireball and wither skull sinks pass the routed world with the OVERWORLD service, the creeper/wither-birth/TNT-cart wrappers bind the overworld outright, and the shared drop roll stamps dimension 0 (**VT-007 RESOLVED-BY-PR #103** — three passes: the census, the executed behavioral seats RED stable across three runs, the independent pass with the FL4-F7 precedent + the wire-level desync; the correction landed the same run: the five sites routed + the drop stamp + the dead wrappers retired, the seats 2/0 green seven consecutive runs, the regression lanes green whole). The blast WOUND walks are routed (the dimension gate + the blastWorld consult); the fire placement is routed (F-EX4/PR #92); the named tail: the End/nether services' shared `gameplayRandom` vs the reference's per-world `world.random` |
 | Item entities / pickup — dimension | the TF-9 stamped sites are the record; the pickup consult un-audited
 
 ## The queue for the next pass
@@ -1441,11 +1460,13 @@ effective law for the vanilla dimensions).
    families), and the independent pass (the FL4-F7 precedent naming
    the shape as the engine's own recognized defect, the empty
    compensating hunt, the wire-level desync of BOTH dimension views).
-   **The next run's head: VT-007's fix branch** (the consult swaps per
-   site, the BlastSink dimension carry, the drop stamp; the seats ride
-   green on the fix branch) — and VT-008 (the bed's blast arm) rides
-   the same audit's wake: its pass 2 seat (the nether-anchored
-   session) and pass 3 owed.)
+   ~~The fix branch~~ — **PR #103 OPEN** (the same run: the FL4-F7
+   idiom at each site, the BlastSink dimension carry, the drop stamp,
+   the dead wrappers retired; the seats 2/0 green seven consecutive
+   runs; the regression lanes green whole). **The next run's head:
+   VT-008's passes** (the bed's blast arm — its pass 2 seat with the
+   nether-anchored session, its pass 3; the fix composes with PR
+   #103's routed service), then the queue below.)
 8. ~~The standing lanes~~ — F-EC1 RESOLVED-BY-PR (the twenty-fourth
    pass: confirmed over three passes and corrected — **PR #95 OPEN**, the one-consult
    swap to `BlockSolidity.isSolid`; F-TC1 was already resolved by PR
@@ -1456,7 +1477,7 @@ effective law for the vanilla dimensions).
    PR #90 ledger): the per-dimension tile families, the mob spawn's
    dimension stamp, the FX dimension awareness, the per-dimension world
    border, the zombie arm's world binding.
-10. The watch items: the open PRs #91/#94/#95/#98 awaiting the
+10. The watch items: the open PRs #91/#94/#95/#98/#103 awaiting the
    maintainer's review; the FL4-F10 redstone world binding — the house
    stream's own claimed next act (its trace and six-point plan recorded
    at `99f1718b` on develop) — NOT to be duplicated by this stream.
