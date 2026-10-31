@@ -388,6 +388,19 @@ public final class MobEntity implements LivingEntity {
         }
 
         /**
+         * VT-006 — the portal collision consult (the reference's
+         * PortalBlock.onEntityCollision lines 158-162 over the per-tick
+         * box scan, VT-004's record): the frame match at the body's feet
+         * cell in the ACTIVE dimension, or null when the cell is not a
+         * portal cell (the gated collision answers nothing). The stub
+         * worlds answer null (no portals).
+         */
+        default net.zaminmc.torch.server.world.PortalFrameBuilder.PortalShapeMatch portalFrameAt(
+                int x, int y, int z) {
+            return null;
+        }
+
+        /**
          * Whether the cell is iron bars or a bed (Slice 25a — the zombie
          * villager's cure accelerator, ZombieEntity
          * .getTicksUntilConversionDecrement lines 549-559: the 1%-roll scan
@@ -697,6 +710,15 @@ public final class MobEntity implements LivingEntity {
     private int blocksWalkedOn = 1;
     /** The portal re-entry cooldown (Entity.portalCooldown, line 128). */
     private int portalCooldown;
+    /** The portal stand clock (Entity.portalTime, line 130 — the base entities cross at 0). */
+    private int portalTime;
+    // VT-006 — the portal entry memory (the reference's Entity
+    // .onPortalCollision lines 1428-1451: lastPortalPos + the shape-derived
+    // lastPortalOffset / lastPortalFacing the forcer's placement consumes).
+    private net.zaminmc.torch.block.BlockPosition lastPortalPosition;
+    private double portalOffsetAlongWidth;
+    private double portalOffsetUp;
+    private int portalFacingHorizontalId;
     /** The last wound's age stamp (LivingEntity.lastAttackedTime, line 118). */
     private int hurtByTimestamp;
     /** The body's own age in ticks (Entity.ticks — the stamp's clock). */
@@ -1527,6 +1549,126 @@ public final class MobEntity implements LivingEntity {
 
     public void setPortalCooldown(int portalCooldown) {
         this.portalCooldown = portalCooldown;
+    }
+
+    /** The base entity's portal cooldown (Entity.getPortalCooldown lines 1457-1459). */
+    private static final int ENTITY_PORTAL_COOLDOWN_TICKS = 300;
+
+    /**
+     * VT-006 — the entity-level portal clock (the reference's
+     * Entity.baseTick portal arm, lines 282-313, the BASE entity's law):
+     * the stand threshold is {@code getMaxNetherPortalTime() = 0} (lines
+     * 354-355), so a colliding body with an expired cooldown crosses on
+     * the FIRST armed tick (contrast the player's 80); the cooldown arms
+     * at the base 300 (the player's own override is 10); a body out of
+     * the cells decays its stand clock by 4 per tick, floored at zero.
+     *
+     * <p>The touching read is the manager's per-tick collision consult
+     * (the reference's dispatch is the per-tick box scan — VT-004's
+     * record); the read's own riding gate carries both reference gates
+     * (the collision's line 158-162 vehicle/rider pair and the crossing
+     * arm's own line 286 {@code this.vehicle == null} — VT-005's law: a
+     * seated body never arms, a riding body never crosses).</p>
+     *
+     * @return true on the crossing tick (the dimension walk consumes the
+     *         body's remaining walk)
+     */
+    public boolean advanceEntityPortalClock(boolean touching) {
+        // The tail decrement (lines 311-313): every ticked body pays it.
+        if (portalCooldown > 0) {
+            portalCooldown--;
+        }
+        if (touching) {
+            if (portalCooldown > 0) {
+                // The collision consult's re-arm (onPortalCollision lines
+                // 1429-1430): a colliding body whose cooldown is live
+                // resets it to the full store — the arrival standing in
+                // the destination frame never re-fires (VT-004's law).
+                portalCooldown = ENTITY_PORTAL_COOLDOWN_TICKS;
+                return false;
+            }
+            // The crossing arm (lines 286-297): the base threshold 0 —
+            // the post-increment consult is armed on the very first
+            // touching tick, and the cooldown arms for the arrival.
+            portalTime = 0;
+            portalCooldown = ENTITY_PORTAL_COOLDOWN_TICKS;
+            return true;
+        }
+        // The decay arm (lines 302-308).
+        if (portalTime > 0) {
+            portalTime = Math.max(0, portalTime - 4);
+        }
+        return false;
+    }
+
+    /**
+     * VT-006 — the reference's {@code onPortalCollision} memory arm
+     * (lines 1428-1451): a NEW portal cell derives the body's offset
+     * inside its frame (the inverse-lerp of the body's position across
+     * the frame's width and height — the raw reference ratios,
+     * unclamped) and the entered facing; the SAME cell re-collides
+     * without re-deriving. The same math the player session's own
+     * {@code notePortalEntry} carries.
+     *
+     * @param portalCell the body's feet portal cell
+     * @param match      the frame's shape match at that cell
+     * @param x          the body's x
+     * @param y          the body's y
+     * @param z          the body's z
+     */
+    public void notePortalEntry(net.zaminmc.torch.block.BlockPosition portalCell,
+                                net.zaminmc.torch.server.world.PortalFrameBuilder.PortalShapeMatch match,
+                                double x, double y, double z) {
+        if (portalCell.equals(lastPortalPosition)) {
+            return; // the reference's !pos.equals(lastPortalPos) guard
+        }
+        lastPortalPosition = portalCell;
+        boolean axisX = match.forwardAxis()
+                == net.zaminmc.torch.server.world.PortalFrameBuilder.Axis.X;
+        // d0: the topLeft's coordinate on the width axis; d1: the body's
+        // coordinate on the same axis, shifted one on the reference's
+        // flag1 (forward.clockwiseY() NEGATIVE — ONLY SOUTH, the Z-axis
+        // positive forward).
+        double origin = axisX ? match.topLeftFront().z() : match.topLeftFront().x();
+        double bodyCoord = axisX ? z : x;
+        if (match.forwardAxis() == net.zaminmc.torch.server.world.PortalFrameBuilder.Axis.Z
+                && match.forwardPositive()) {
+            bodyCoord -= 1.0;
+        }
+        // The reference's inverseLerp: (a - b) / (c - b), raw — no clamp.
+        portalOffsetAlongWidth = Math.abs(
+                (bodyCoord - origin) / ((origin - match.width()) - origin));
+        portalOffsetUp = ((y - 1.0) - match.topLeftFront().y())
+                / ((match.topLeftFront().y() - match.height()) - match.topLeftFront().y());
+        portalFacingHorizontalId = match.forwardHorizontalId();
+    }
+
+    /** @return the memory snapshot the PortalForcer's placement math consumes. */
+    public net.zaminmc.torch.server.world.PortalForcer.Memory portalMemory() {
+        net.zaminmc.torch.server.world.PortalForcer.Memory memory =
+                new net.zaminmc.torch.server.world.PortalForcer.Memory();
+        memory.offsetAlongWidth = portalOffsetAlongWidth;
+        memory.offsetUp = portalOffsetUp;
+        memory.lastFacingHorizontalId = portalFacingHorizontalId;
+        memory.known = lastPortalPosition != null;
+        return memory;
+    }
+
+    /**
+     * VT-006 — the crossing's arrival (the reference's
+     * setPositionAndAngles + the world swap over the recreated body's
+     * copyNbtFrom, Entity.changeDimension lines 1708-1722: the state
+     * carries whole): the dimension stamp, the forcer's landing, the
+     * rotated yaw and motion, and the fall debt cleared — a portal walk
+     * is not a fall.
+     */
+    public void applyDimensionArrival(int dimension, Position arrival, float yaw,
+                                       double velocityX, double velocityZ) {
+        this.dimension = dimension;
+        teleport(arrival);
+        setBodyYaw(yaw);
+        setVelocity(velocityX, velocityY, velocityZ);
+        setFallDistance(0.0f);
     }
 
     /** The last wound's age stamp (HurtByTimestamp's model — setAttacker's own clock write). */

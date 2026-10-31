@@ -150,8 +150,15 @@ class ProjectileDimensionReadsTest {
         for (int i = 0; i < 30; i++) {
             manager.tick(List.of());
         }
-        assertEquals(List.of(-1, -1), fireDimensions,
-                "both nether fireballs' fire lands through the dimension-carrying sink");
+        // The fire arm's re-pin (F-EX4): the ghast fireball places NO
+        // single-site fire any more — its fire rides the EXPLOSION's own
+        // createFire arm over the damaged cells (FireballEntity.onHit line
+        // 33's flag,flag pair), so the fire sink answers the SMALL fireball
+        // alone (SmallFireballEntity.onHit's own landing arm) while the
+        // detonation sink carries the ghast shot's own dimension.
+        assertEquals(List.of(-1), fireDimensions,
+                "the small fireball's fire lands through the dimension-carrying sink "
+                        + "(the ghast fireball's fire rides its blast's own arm now)");
         assertEquals(List.of(-1), boomDimensions,
                 "the nether fireball's detonation carries its own dimension");
     }

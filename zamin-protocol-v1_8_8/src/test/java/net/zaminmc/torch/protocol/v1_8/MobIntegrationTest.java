@@ -1,7 +1,9 @@
 package net.zaminmc.torch.protocol.v1_8;
 
+import net.zaminmc.torch.server.entity.MobEntity;
 import net.zaminmc.torch.server.entity.MobManager;
 import net.zaminmc.torch.server.player.PlayerSession;
+import net.zaminmc.torch.util.Position;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 
@@ -33,6 +35,42 @@ class MobIntegrationTest extends ProtocolTestBase {
     private PlayerSession awaitPlayer(String name) throws InterruptedException {
         awaitCondition(() -> server.playerRegistry().byName(name).isPresent(), "player joined");
         return server.playerRegistry().byName(name).orElseThrow();
+    }
+
+    /**
+     * Walks to the body's live cell and swings until the body's own state
+     * answers: {@code killed} polls the death flag (the second sword hit),
+     * else the health drop. A swing the reach gate refuses leaves the state
+     * untouched, so the loop re-reads the cell and closes the new distance —
+     * the landing tell is the server's simulation state, never wire timing
+     * (the status and sound packets ride the same tick as the wound and are
+     * already queued when this returns).
+     */
+    private void swingUntilTheBodyAnswers(TestClient18 client, int pigId,
+            boolean killed) throws Exception {
+        long deadline = System.currentTimeMillis() + 60_000;
+        while (System.currentTimeMillis() < deadline) {
+            MobManager mobs = server.mobs();
+            if (mobs.byId(pigId) == null) {
+                return; // already removed: nothing left to swing at
+            }
+            Position live = mobs.byId(pigId).position();
+            client.walkTo(live.x(), live.y(), live.z(), true);
+            client.sendUseEntity(pigId, Protocol18.USE_ENTITY_ATTACK);
+            long landed = System.currentTimeMillis() + 5_000;
+            while (System.currentTimeMillis() < landed) {
+                MobEntity body = server.mobs().byId(pigId);
+                if (body == null || (killed ? body.dead()
+                        : body.health() < body.maxHealth())) {
+                    return;
+                }
+                Thread.sleep(50);
+            }
+            // Refused — the wander window closed: walk the new cell again.
+        }
+        throw new AssertionError(
+                (killed ? "the killing swing" : "the first swing")
+                        + " never landed within 60s");
     }
 
 
@@ -94,16 +132,23 @@ class MobIntegrationTest extends ProtocolTestBase {
             // first (and again after the pop) — reach is server-validated.
             client.sendChat("/give MobHunter diamond_sword 1");
             client.drainGiveGhostWake(150);
-            client.walkTo(pig[2] / 32.0, pig[3] / 32.0, pig[4] / 32.0, true);
-            client.sendUseEntity(pigId, Protocol18.USE_ENTITY_ATTACK);
+            // The pig wanders between any position read and the swing's
+            // processing (the tick lane's catch-up ages the AI while the
+            // packets sit queued, and the first hit's panic flees at ~7
+            // blocks a second): each swing closes the distance to the
+            // body's LIVE cell and polls the body's OWN health for the
+            // landing — a refused swing leaves the state untouched and
+            // the next walk closes the new distance. Runs 561 and 563
+            // both timed out on the status reads exactly there; the loop
+            // never weakens the reach gate, it depends on it.
+            swingUntilTheBodyAnswers(client, pigId, false);
             int[] hurt = client.readEntityStatus(15_000);
             assertEquals(pigId, hurt[0]);
             assertEquals(Protocol18.ENTITY_STATUS_HURT, hurt[1]);
             String[] sound = client.readNamedSound(15_000);
             assertEquals("mob.pig.say", sound[0], "the pig's historical hurt sound");
 
-            client.walkTo(pig[2] / 32.0, pig[3] / 32.0, pig[4] / 32.0, true);
-            client.sendUseEntity(pigId, Protocol18.USE_ENTITY_ATTACK);
+            swingUntilTheBodyAnswers(client, pigId, true);
             int[] secondHit = client.readEntityStatus(15_000);
             assertEquals(Protocol18.ENTITY_STATUS_HURT, secondHit[1]);
             int[] death = client.readEntityStatus(15_000);
