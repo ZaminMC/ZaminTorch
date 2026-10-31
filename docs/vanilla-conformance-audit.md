@@ -1445,12 +1445,29 @@ effective law for the vanilla dimensions).
   adjacent to one head is corrupt-state territory). CONCLUSION: **the
   coverage is complete; no divergence found; no fix owed.**
 
-## The twenty-seventh pass — VT-008's coverage verified (PR #102 MERGED) + VT-006's remaining crossing families LANDED
+## The twenty-seventh pass — VT-008's coverage verified (PR #102 MERGED) + VT-006's remaining families converged (PR #110 the carrier; this stream's implementation and seat-determinism closure the independent contributions)
 
 Baseline: `origin/develop` at `7910a110` (the PR wave #101/#102/#104
 merged; PR #98 — the `DimensionCrossing` seam — landed at 495952f7).
 
-Two acts this pass:
+THE CONVERGENCE NOTE (the honest record): the remaining-families fix
+was implemented by this stream AND by at least one concurrent stream
+in the same window — this stream's local implementation (the shared
+`EntityPortalClock` + the shared `EntityDimensionCrossing` seam, the
+five seats, the regression lanes — see the correction record below,
+preserved as the independent implementation pass) was NOT pushed as a
+competing PR: **PR #110** (`fix/portal-remaining-families-parity-audit`)
+carries the same law and the same architecture (their clock in the
+world package, the same manager arms, the same seat names, the same
+exclusions — the convergence is angle-for-angle). The duplicate-set
+context: PRs #108/#109 (other concurrent streams, the same scope) and
+#113 (the arrow family alone) also stand open — the maintainer's call.
+This stream's post-convergence acts: the independent verification of
+PR #110's coverage (below) and the item-seat determinism closure
+(the review comment on #110, the branch
+`verify/pr110-item-seat-determinism`).
+
+Three acts this pass:
 
 1. **VT-008 closed** — the queue's named head: the verification of PR
    #102's coverage (F-EX6, the bed's blast arm) with this stream's own
@@ -1561,6 +1578,44 @@ NetherTntRouting 1/0, MobEventBridge 2/0; the protocol module's test
 suite green whole (the `onVehicleRemoved` wire arm — the plain
 Destroy, the send's own dimension gate reading the pre-swap stamp).
 
+### The PR #110 verification pass (the post-convergence act, 2026-10-31)
+
+**The carrier's implementation verified sound** — the branch checked
+out and executed: the orb seat 1/0, the vehicle pair 2/0, the arrow
+seat 1/0, and the landed mobs' own 3/0 all GREEN; the implementation
+read against this stream's census angle-for-angle: the riding gate
+(`hasPassenger()` — a carried boat/cart never arms), the destroy fan
+BEFORE the stamp swap (the wire's per-dimension gate reads the
+pre-swap stamp at send time), the dedicated no-drop removal arm
+distinct from `onVehicleBroken`'s drop contract, the stuck-arrow
+consult ahead of the `inGround` branch (baseTick runs for the grounded
+arrow — ProjectileEntity.tick line 82's own order), the End-origin
+hold at `from == 1`, and the TNT/falling exclusions preserved. No
+divergence found in the law.
+
+**The item seat's determinism completed** (this stream's contribution,
+the review comment on PR #110 — the commit
+`verify/pr110-item-seat-determinism`): the carrier's own flake record
+(`a24561df`) root-caused only HALF the scatter — the velocity. The
+position half: `spawnDropAtBlock` treats its argument as the block
+CORNER (it centers `+0.5` on x/z, then applies the vanilla drop
+scatter `±0.1`), but the seat passed the CENTER form
+(`overX + 1.5, overY, overZ + 0.5`) — the actual drop lands at
+`z = 41.0 ± 0.1`, OUTSIDE the frame's one-cell-thick strip (the
+frame's plane is `z = 40` alone) whenever the z-noise `≥ 0` — a ~50%
+coin per seed. The velocity zeroing cannot retire it. **The fix: the
+corner form** (`overX + 1, overY, overZ`) — the centered+scattered
+drop lands at `x = 41.5 ± 0.1`, `z = 40.5 ± 0.1`, ALWAYS inside the
+interior cell (the scatter absorbed within the cell's span). EVIDENCE:
+the corner form 3/3 GREEN (forced reruns); the center form 3/3 RED at
+exactly the precondition await on the carrier's branch as-is. The orb
+seat is NOT affected (`spawnBurst` spawns at the exact position —
+only the velocity scatters — the carrier's zeroing fully fixed that
+one); the vehicle and arrow seats were already deterministic. THE
+VERDICT: the crossing law and four of the five seats verified sound by
+independent execution; the item seat needs the corner form before
+merge (the review comment carries the one-line patch).
+
 ## Coverage ledger (updated by the twenty-seventh pass)
 
 | Area | Status |
@@ -1604,17 +1659,20 @@ Destroy, the send's own dimension gate reading the pre-swap stamp).
    next run).
 6. ~~VT-006's correction~~ — the WHOLE family LANDED: the mobs by
    **PR #98 (MERGED)** and the remaining families (the items, the
-   orbs, the boats, the carts, the arrows) by the twenty-seventh
-   pass's correction — the shared `EntityPortalClock` + the shared
-   `EntityDimensionCrossing` seam, the five seats 6/0 GREEN, the
-   regression lanes whole (the correction's PR rides
-   `fix/portal-remaining-families-parity-audit`; the merge state to
-   be confirmed by the next run). The named tails that remain: the
-   End-origin arm (the forced-spawn consult the engine does not
-   carry) and the cooldown-persistence row for the non-vehicle family
-   stores (the reference persists PortalCooldown for every entity;
-   the ZID/ZPD stores carry no row — a one-row-per-store addition,
-   its own future pass).
+   orbs, the boats, the carts, the arrows) converged — **PR #110 OPEN**
+   is the carrier (another concurrent stream's same-law implementation;
+   this stream's independent implementation recorded below, NOT pushed
+   as a competing PR — the duplicate set #108/#109/#113 the
+   maintainer's call). This stream's verification of #110: the law and
+   four of the five seats sound; THE ITEM SEAT NEEDS THE CORNER FORM
+   before merge (the ~50% position-scatter coin — the review comment on
+   #110 carries the one-line patch; `verify/pr110-item-seat-determinism`
+   the branch). The named tails that remain: the End-origin arm (the
+   forced-spawn consult the engine does not carry) and the
+   cooldown-persistence row for the non-vehicle family stores (the
+   reference persists PortalCooldown for every entity; the ZID/ZPD
+   stores carry no row — a one-row-per-store addition, its own future
+   pass).
 7. ~~VT-008's coverage verification~~ — DONE (the twenty-seventh pass:
    the behavioral pass over the landed `BedWrongWorldBlastAcceptanceTest`
    3/0 GREEN on the post-merge develop + the independent pass's five
@@ -1629,10 +1687,19 @@ Destroy, the send's own dimension gate reading the pre-swap stamp).
    PR #90 ledger): the per-dimension tile families, the mob spawn's
    dimension stamp, the FX dimension awareness, the per-dimension world
    border, the zombie arm's world binding.
-10. The watch items: the open PRs #91/#105 (VT-004's stand-clock
-   correction and VT-007's TNT-cart slice — the merge states to be
-   confirmed by the next run; #94/#95/#98/#101/#102/#104 all appear in
-   develop's merge history now); the FL4-F10 redstone world binding —
-   the house stream's own claimed next act (its trace and six-point
-   plan recorded at `99f1718b` on develop) — NOT to be duplicated by
-   this stream.
+10. The watch items: the open PRs #91 (VT-004's stand-clock
+   correction, the merge state to be confirmed) and #105 (VT-007's
+   TNT-cart slice); the concurrent streams' NEW open findings — #106
+   (VT-009 the break-path pair walks' own world), #107 (VT-009 the mob
+   portal cooldown's one-per-tick decay — the PR #98 leftover row,
+   ADJACENT to this stream's own boundary observation), #111 (VT-010
+   the bed pair's facing-exact sibling resolution — the same nuance
+   this stream's VT-008 pass 3 recorded as equivalent-for-well-formed
+   pairs, another stream's deeper cut), #114 (VT-009 the bed
+   neighbor-changed pair-integrity arm), #115 (VT-011 the anvil
+   import's OCCUPIED bed states); the crossing-families duplicate set
+   #108/#109/#110/#113 (the maintainer's consolidation — this stream's
+   verification of #110 recorded above); the FL4-F10 redstone world
+   binding — the house stream's own claimed next act (its trace and
+   six-point plan recorded at `99f1718b` on develop) — NOT to be
+   duplicated by this stream.
