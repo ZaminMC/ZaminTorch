@@ -19149,7 +19149,6 @@ tripwire bindings and the comparator ZCD store's per-dimension files)
 and the block-broken listener's container cleanups over the
 per-dimension tile stores (FL4-F5's named remainder). The CI Phase A
 proposal still awaits the owner's approval decision.
-<<<<<<< HEAD
 ## The twenty-first verifier pass — 2026-10-31 (the explosion
 family's F-EX4 verified whole, the fire arm landed, the PR opened)
 
@@ -19217,7 +19216,6 @@ family's F-EX4 verified whole, the fire arm landed, the PR opened)
   documented load-flake signature). The full suite rides the CI.
 - The queue after this pass: F-EX6, F-EX3, F-EX7, F-EX8, F-EX5, F-EX9
   + the standing F-FL4 architecture tail.
-=======
 ## The twenty-first pass's second correction — 2026-10-31 (F-EX7, the
 TNT cart's destructive flag, verified and fixed on its own branch)
 
@@ -19240,4 +19238,90 @@ TNT cart's destructive flag, verified and fixed on its own branch)
 - THE FIX: the factory's flag → `true` with the reference cite.
 - Evidence: the vehicle package 82/0 + the explosion family lanes +
   the TNT lanes green whole.
->>>>>>> origin/fix/tnt-cart-destructive-flag-parity-audit
+
+---
+Task ID: session-2026-10-31-fex5-ci-trio (the F-EX5 resolution + the PR-wave merges + the CI-trio local reproduction)
+Agent: main (ZaminTorch session)
+
+Work Log:
+- SESSION STARTUP: the recovery fetch found develop advanced to 817dbe74
+  (the FL4-F7/F8/F9 waves landed mid-flight) and PRs #92 (F-EX4) + #93
+  (F-EX7) DIRTY against it. Both lanes merged with develop: the F-EX7
+  lane clean (the WORKLOG union alone), the F-EX4 lane ONE MERGE REPAIR
+  (the TntSystem detonation sink's lambda took develop's FL4-F7
+  per-dimension rewrite against the pre-F-EX4 ten-arg signature — the
+  createFire=false parameter restored between destructive and source,
+  PrimedTnt never fires per the F-EX4 call census). Evidence: the
+  vehicle + explosion family lanes 89/0 (the F-EX7 tree) and 193/0 (the
+  F-EX4 tree: the fire arm's own lanes + the explosion family + the
+  vehicle blast lanes + the TNT/dispenser/creeper/crystal/projectile
+  lanes + IceMelt + Lightning). Both branches pushed; the PRs clean.
+- THE CI TRIO LOCALLY REPRODUCED AND ROOTED (the release runs' three
+  repeat failures — QuickCraftDragWireTest:381, MobIntegrationTest:99/85,
+  VehicleIntegrationTest:183): the same three CLASS-level failures
+  reproduce in this sandbox when the three wire classes run together
+  (and MobIntegrationTest alone flakes ~1-in-3), each failing on
+  DIFFERENT methods across runs — the IOException packet-await timeouts
+  and one entity-id assertion read. The root: ENGINE TICK STARVATION
+  under concurrent load — the pig's 60-second wall-clock move await at
+  a 1-in-120-per-tick stroll roll (WanderAroundGoal.interval 120,
+  verified 1:1 against the reference's own goal: the despawn-timer gate
+  and the ten-candidate TargetFinder pick all match) expires when the
+  engine's tick throughput drops far below 20 TPS — the ML-002
+  wall-clock-awaits debt's own surface, NOT a conformance divergence
+  (the wander cadence, the breath clock, the fall-damage gate, and the
+  use-entity id resolution all verified correct against the reference
+  while chasing it). The prior review lane's load-flake diagnosis
+  stands, with the added nuance: the flake clusters at CLASS level (the
+  three heaviest wire classes), not at test level.
+- F-EX5 RESOLVED AS REJECTED (the twentieth pass's candidate died on
+  the skull's OWN override): WitherSkullEntity.takeDamage lines 94-96
+  answer `return false` — the hierarchy read stopped at `extends
+  ProjectileEntity` and never opened the subclass's own body. The
+  engine's exclusion was already correct (WitherSkullTest line 171 pins
+  it with the right cite).
+- F-EX10 CONFIRMED + FIXED (the real divergence F-EX5's chase exposed —
+  the subclass-counting census misled two arms in the OPPOSITE
+  direction): of ProjectileEntity's THREE direct subclasses exactly ONE
+  inherits the takeDamage re-aim — FireballEntity (the ghast's large
+  shot, NO override). SmallFireballEntity (lines 62-64) and
+  WitherSkullEntity (lines 94-96) both override it with `return false`.
+  The engine's PUNCH deflect covered LARGE + SMALL (a punched blaze
+  charge / dispensed fire charge redirected — vanilla's punch never
+  lands) and the BLAST WOUND covered LARGE + SMALL + SKULL (a creeper
+  blast beside a charge or a skull re-aimed it — vanilla's overrides
+  refuse the wound whole; only the SCATTER, outside the takeDamage
+  verdict, ever moves them). THE THREE PASSES: (1) source — the
+  complete override table, the Explosion gather's
+  unconditional-call + scatter-outside shape, PlayerEntity.attack's
+  flag2-gated push/damping/exhaustion; (2) behavioral — the stash
+  discrimination, THREE seats failing UNFIXED on exactly the predicted
+  assertions (the re-pinned fire-charge verdict assertFalse, the new
+  unit wound census seat's thrower-unchanged assertions, the new
+  wire seat's thrower-stays--1 await) and green FIXED, the LARGE
+  controls green on BOTH trees; (3) independent — the
+  compensating-site census (exactly two deflectBy writers, both now
+  gated; the third onProjectileDeflected mention is the listener
+  bridge), the flag2-gated arms verified, the intentionality check
+  (the javadocs' own prose records the census error — an honest
+  omission, no deviation decision), the dispensed-charge edge (the
+  re-pinned seat's launcher IS the dispenser's own), and the
+  shooter-immunity-window composition (the strike-its-own-shooter seat
+  stays green). THE FIX: both gates read LARGE_FIREBALL alone, both
+  javadocs carry the corrected census, the wrongly-pinned seat
+  re-pinned. Evidence: 187/0 over the projectile + explosion +
+  vehicle-blast + TNT/dispenser/creeper/crystal/fire lanes (33
+  classes).
+
+Stage Summary:
+- PRs #92 + #93 updated to the FL4-F7/F8/F9 develop (one merge repair);
+  both clean and green locally. F-EX5 rejected, F-EX10 retired through
+  its own PR (this branch). The CI trio rooted as the ML-002
+  wall-clock-await debt under tick starvation — no conformance bug
+  found behind it (four subsystem laws verified 1:1 while chasing it).
+- The queue's live heads: F-EX3 (the BlastResistanceTable coverage
+  census), F-EX6 (the bed's wrong-world arm), F-EX8 (the wither
+  birth's flag), F-EX9 (the ghast fireball's throwable gravity), and
+  the standing architecture tails (F-FL4's per-dimension fluid sim,
+  the container families' per-dimension stores, the redstone system's
+  world binding).

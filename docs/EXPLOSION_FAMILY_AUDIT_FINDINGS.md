@@ -327,18 +327,15 @@ green. The full suite rides the CI.
 
 ## F-EX5 — the punch deflection's skull exclusion (NEW candidate, the twentieth pass's discovery)
 
-The engine's player-punch deflection (`ProjectileManager.deflect`)
-applies the reference's `ProjectileEntity.takeDamage` re-aim to the
-LARGE_FIREBALL and SMALL_FIREBALL kinds alone; the javadoc claims "the
-ballistic kinds answer false exactly the reference's takeDamage". The
-reference's hierarchy: **WitherSkullEntity extends ProjectileEntity**
-(reference/1.8.8 entity/projectile/WitherSkullEntity.java line 16) — the
-skull CARRIES the re-aim arm (a player's punch on a wither skull
-redirects it along the puncher's look, the puncher becoming the new
-shooter). The blast arm this pass landed includes the skull (the
-reference's family whole); the PUNCH surface alone excludes it. Status:
-suspected — awaiting its own three passes (a thin seat: a punch on a
-wither skull mid-flight).
+**Status: REJECTED** (the 2026-10-31 session's three passes — the
+resolution section at the bottom of this doc). The twentieth pass's
+hierarchy read stopped at `extends ProjectileEntity` (line 16) and
+never opened the skull's OWN override: `WitherSkullEntity.takeDamage`
+lines 94-96 answer **`return false`** — the skull refuses the punch
+whole, exactly as the engine already behaves. The candidate was
+wrong, and chasing it exposed the REAL divergence beside it (F-EX10,
+the same session): the SMALL fireball's identical refusal, which the
+engine violates on BOTH the punch and the blast-wound surfaces.
 
 ## The queue after this pass
 
@@ -349,6 +346,13 @@ F-EX5 (the punch deflection's skull exclusion), and the standing
 architecture tail F-FL4 (the nether/End fluid simulation — the §22
 queue head, the per-dimension scheduled/random-tick infrastructure it
 needs first). The F-EX1 family is retired end to end.
+
+[The 2026-10-31 session's resolutions: F-EX2 retired (below), F-EX4
+retired (PR #92), F-EX5 REJECTED with F-EX10 confirmed beside it
+(below), F-EX7 retired (PR #93). The queue's live heads: F-EX3 (the
+BlastResistanceTable coverage census), F-EX6 (the bed's wrong-world
+arm), F-EX8 (the wither birth's flag), F-EX9 (the ghast fireball's
+throwable gravity), and F-FL4.]
 
 ---
 
@@ -642,3 +646,113 @@ fixed); the whole vehicle package 82/0 (every cart family:
 chest/hopper/spawner/command-block minecarts, the fire lanes, the
 persistence, the riding lanes) + the explosion family lanes (the
 gather 8, the fire arm 4) + the TNT lanes green.
+
+## F-EX5 REJECTED + F-EX10 — the re-aim census: the large fireball ALONE (the 2026-10-31 session, F-EX5's resolution)
+
+**F-EX5: rejected.** The twentieth pass's candidate claimed the skull
+CARRIES the re-aim arm because `WitherSkullEntity extends
+ProjectileEntity` (line 16) — a hierarchy read that stopped one level
+short. The skull's OWN `takeDamage` (lines 94-96) answers
+**`return false`**: the punch never lands, no redirect, no new
+shooter. The engine's exclusion was already correct
+(`WitherSkullTest` line 171's seat pins it with the right cite).
+
+**F-EX10: confirmed and fixed (the same investigation's three
+passes).** The subclass-counting census that misled F-EX5 misled TWO
+engine arms in the OPPOSITE direction — the SMALL fireball's identical
+refusal was violated on both surfaces:
+
+- `ProjectileManager.deflect` (the punch) covered
+  `LARGE_FIREBALL + SMALL_FIREBALL`: a player's punch on a blaze's
+  charge (or a dispensed fire charge) redirected it — vanilla's
+  `SmallFireballEntity.takeDamage` (lines 62-64) answers `false`, the
+  punch never lands, the charge keeps its course and its shooter.
+- `ProjectileManager.woundFromExplosion` (the mob-sourced blast's
+  wound) covered `LARGE + SMALL + WITHER_SKULL`: a creeper blast
+  beside a charge or a skull re-aimed it (the blast's source becoming
+  the new shooter) — vanilla's overrides refuse the wound whole; only
+  the SCATTER (Explosion lines 135-137, outside the takeDamage
+  verdict) ever moves them.
+
+### The reference census (the complete table)
+
+Of `ProjectileEntity`'s THREE direct subclasses exactly ONE inherits
+the re-aim (ProjectileEntity.takeDamage lines 248-273: the velocity
+BECOMES the attacker's look, the acceleration look*0.1, the attacker
+the new shooter):
+
+| Kind | Reference class | takeDamage | Punch deflect | Blast wound re-aim |
+|---|---|---|---|---|
+| LARGE_FIREBALL | FireballEntity | inherited re-aim | YES | YES |
+| SMALL_FIREBALL | SmallFireballEntity | `return false` (62-64) | NO | NO |
+| WITHER_SKULL | WitherSkullEntity | `return false` (94-96) | NO | NO |
+| arrows / thrown | Entity / ThrownEntity | default false | NO | NO |
+
+The wound's caller shape (Explosion.java lines 115-144): the gather
+calls `entity.takeDamage(DamageSource.explosion(this), ...)` — the
+small fireball and the skull answer false, no re-aim — then the
+unconditional scatter `velocityX/Y/Z += dir * d11` lands for every
+gathered body whatever the verdict. The punch's caller
+(PlayerEntity.attack line 981): `flag2 = target.takeDamage(...)` gates
+the knockback push AND the sprint damping (lines 983-991) AND the 0.3
+exhaustion (line 1043) — a refused punch charges nothing.
+
+### The three-pass record
+
+- **V1 (source)**: the hierarchy grep (THREE direct subclasses), the
+  override bodies read in full (SmallFireball 62-64, WitherSkull
+  94-96, FireballEntity's single takeDamage mention is a CALL at line
+  28 — no override), the blast loop's unconditional-call +
+  scatter-outside shape, the flag2-gated punch arms, and
+  DamageSource.explosion's getSource() attacker gate (the engine's
+  mob-sourced-alone gate already matches).
+- **V2 (behavioral — the stash discrimination)**: THREE seats failing
+  UNFIXED on exactly the predicted assertions and green FIXED —
+  (1) `FireballDeflectionTest.theThrownFamilyAndArrowsTakeNoDeflection`
+  re-pinned (the fire charge's `assertTrue` → `assertFalse`: "the fire
+  charge answers false (the override's own verdict)" — the wrongly
+  pinned seat's own comment was the census error's record: "the fire
+  charge is family (Bootstrap's dispensed arm)");
+  (2) `FireballDeflectionTest.theBlastWoundReAimsTheGhastFireballAlone`
+  NEW (the unit census: the LARGE re-aimed with the exact look vector
+  and the new shooter; the SMALL's thrower and velocity untouched; the
+  SKULL's thrower and velocity untouched);
+  (3) `ExplosionEntityGatherParityTest.theBlastReAimsTheGhastFireball
+  ButNeverTheBlazeCharge` NEW over the REAL blast wire (the creeper's
+  own detonation: the ghast shot's thrower BECOMES the creeper's id —
+  the re-aim lands; the near charge diverges from its un-blasted twin
+  — the scatter lands — while its thrower stays -1; the unfixed tree
+  timed out on exactly that last await).
+- **V3 (independent)**: (a) the compensating-site census — exactly TWO
+  `deflectBy` writers exist (deflect + woundFromExplosion), both now
+  gated; the third `onProjectileDeflected` mention is the engine's
+  listener BRIDGE, not a writer; (b) the flag2-gated arms verified
+  (push, damping, exhaustion all inside the verdict — the refused
+  punch charges nothing, matching the engine's deflect-verdict shape);
+  (c) the intentionality check — the two javadocs' own prose records
+  the census error ("the ballistic kinds answer false exactly the
+  reference's takeDamage (arrows and shards...)" — the law applied to
+  two kinds and skipped the other two; "the fireball pair + the wither
+  skull" — subclass-counting, never override-checking): an honest
+  omission, no deviation decision anywhere; (d) the edges — the
+  dispensed charge rides the same SMALL kind (the re-pinned seat's
+  launcher IS the dispenser's), the LARGE's shooter-immunity window
+  composes (the re-aim flips the shooter — the existing
+  strike-its-own-shooter seat stays green), and the refused wound
+  fires no wire deflection (no velocity re-publish, matching the
+  reference's velocityChanged never set).
+
+### The fix
+
+Both gates read `LARGE_FIREBALL` alone; both javadocs carry the
+corrected override census; the wrongly-pinned seat re-pinned; the two
+caller comments refined. The scatter (the caller's addVelocity arm) is
+untouched — every gathered body still takes it.
+
+### Evidence
+
+The stash-verified discrimination (3 failing unfixed on exactly the
+predicted assertions, the LARGE controls green on BOTH trees); the
+whole projectile package + the explosion family + the vehicle blast
+lanes + the TNT/dispenser/creeper/crystal/fire lanes green post-fix
+(187/0 over 33 classes).

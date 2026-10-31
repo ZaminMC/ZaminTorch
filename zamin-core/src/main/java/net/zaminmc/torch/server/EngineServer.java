@@ -6984,11 +6984,16 @@ public final class EngineServer implements Server, EngineBridge {
                 return;
             }
             // The fireball deflection (Slice 25b — ProjectileEntity.takeDamage
-            // lines 248-273): the player's punch on a fireball redirects it —
-            // the velocity becomes the attacker's look vector, the
-            // acceleration look*0.1, and the puncher becomes the new shooter
-            // (the deflected blast credits the player; a fireball past its
-            // 25-tick window can now strike the ghast that loosed it).
+            // lines 248-273): the player's punch on the GHAST's fireball
+            // redirects it — the velocity becomes the attacker's look
+            // vector, the acceleration look*0.1, and the puncher becomes the
+            // new shooter (the deflected blast credits the player; a
+            // fireball past its 25-tick window can now strike the ghast
+            // that loosed it). The deflect verb's own gate answers false
+            // for every other kind (the blaze's charge and the wither's
+            // skull override takeDamage with `return false` — F-EX5's
+            // census): the refusal charges no exhaustion, exactly the
+            // reference's flag2=false walk.
             if (projectileManager != null) {
                 net.zaminmc.torch.server.entity.projectile.ProjectileEntity fireball =
                         projectileManager.byId(targetEntityId);
@@ -25073,7 +25078,10 @@ public final class EngineServer implements Server, EngineBridge {
             // The wound: the mob-sourced blast's re-aim over the
             // ProjectileEntity family (the attacker-less sources — the
             // TNT, the fireballs, the crystals, the skulls — take the
-            // Entity default alone: nothing).
+            // Entity default alone: nothing; and the small fireball and
+            // the skull refuse the wound whole — their own takeDamage
+            // overrides answer false, F-EX5's census — only the ghast's
+            // large fireball inherits the re-aim).
             if (blastSourceMob != null) {
                 double yawRadians = Math.toRadians(blastSourceMob.headYaw());
                 projectileManager.woundFromExplosion(projectile, blastSourceMob.entityId(),
