@@ -11972,8 +11972,23 @@ public final class EngineServer implements Server, EngineBridge {
             return true; // the pot's plant was potted
         }
         if (isBedHalf(current)) {
-            sleepOnTick(session, clicked);
-            return true; // the bed consumes the right-click (the historical sleep use)
+            // BedBlock.use lines 38-79: the head normalization FIRST (the
+            // foot redirect — an orphan foot's use is consumed with no arm,
+            // lines 40-43), then the sleep gate: the nether and the End
+            // answer hasSpawnPoint() false (NetherDimension/TheEndDimension
+            // lines 55/54) and a Hell-biome column refuses the same way, so
+            // the else arm explodes the pair in the player's own world.
+            BlockPosition bedHead = bedHeadCellIn(world, clicked);
+            if (bedHead == null) {
+                return true; // the orphan foot: consumed, neither arm
+            }
+            if (session.dimension() == 0
+                    && !"hell".equals(world.biomeAt(bedHead))) {
+                sleepOnTick(session, clicked);
+            } else {
+                detonateBedOnTick(world, bedHead);
+            }
+            return true; // the bed consumes the right-click either way
         }
         if (isDoorHalf(current)) {
             // The reference's use() (DoorBlock lines 124-141): clicking
@@ -15068,6 +15083,61 @@ public final class EngineServer implements Server, EngineBridge {
             session.inventory().consumeHeld(1);
             publishInventoryChanged(session);
         }
+    }
+
+    /**
+     * The wrong-world bed's blast (BedBlock.use lines 70-78, the else arm's
+     * destruction): the pair dies as a unit — the head first, then the
+     * sibling foot when it stands — and the power-5 blast tears the ACTING
+     * world at the head's center: {@code explode(null, ..., 5.0F, true,
+     * true)} — createFire ALWAYS true (the only unconditional fire site in
+     * the reference's census), destructive true (never the mobGriefing
+     * consult), source null. The {@code head} arrives normalized (the
+     * dispatch's foot redirect, use lines 38-43). Tick-thread context.
+     */
+    private void detonateBedOnTick(EngineWorld world, BlockPosition head) {
+        // use lines 70-75: the pair dies as a unit — the head first, then
+        // the sibling foot the head faces (the engine's bed model carries
+        // the pair in the head/foot ids, the sibling the adjacent opposite
+        // class — the break walk's own convention).
+        world.setBlock(head, world.airType());
+        for (int[] direction : new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
+            BlockPosition neighbor = head.offset(direction[0], 0, direction[1]);
+            BlockType at = world.getBlock(neighbor);
+            if (isBedHalf(at) && !at.identifier().value().startsWith("bed_head")) {
+                world.setBlock(neighbor, world.airType());
+                break;
+            }
+        }
+        // use line 78: the blast at the head's center — power 5, fire
+        // always, destructive always, no source body.
+        int dimension = world.dimension();
+        detonateAtIn(world, explosionServiceFor(dimension), dimension,
+                head.x() + 0.5, head.y() + 0.5, head.z() + 0.5,
+                BED_BLAST_POWER, true, true,
+                net.zaminmc.torch.server.block.ExplosionService.BlastSource.PLAIN, null);
+    }
+
+    /**
+     * The bed pair's head cell in the given world (BedBlock.use lines
+     * 38-43's foot redirect over the ACTING world): the clicked head stays;
+     * a foot click resolves to its adjacent head; an orphan foot with no
+     * head answers NULL (the reference's early return — the use is
+     * consumed with neither arm). Tick-thread context.
+     */
+    private BlockPosition bedHeadCellIn(EngineWorld world, BlockPosition clicked) {
+        BlockType type = world.getBlock(clicked);
+        if (type.identifier().value().startsWith("bed_head")) {
+            return clicked;
+        }
+        for (int[] direction : new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
+            BlockPosition neighbor = clicked.offset(direction[0], 0, direction[1]);
+            BlockType at = world.getBlock(neighbor);
+            if (isBedHalf(at) && at.identifier().value().startsWith("bed_head")) {
+                return neighbor;
+            }
+        }
+        return null;
     }
 
     /**
@@ -24337,6 +24407,8 @@ public final class EngineServer implements Server, EngineBridge {
     static final float CREEPER_POWER = 3.0f;
     /** The wither's birth explosion (WitherEntity.mobAiTick line 217: 7.0F). */
     static final float WITHER_BIRTH_POWER = 7.0f;
+    /** The wrong-world bed's explosion (BedBlock.use line 78: 5.0F). */
+    static final float BED_BLAST_POWER = 5.0f;
 
     /**
      * A primed creeper went off: destroy the blast sphere, roll the block
