@@ -57,21 +57,25 @@ class TileStateSaveSplitTest {
 
     // ---- the historical walks (the pre-S4 save bodies, verbatim) ----
 
-    private static byte[] legacyComparatorBytes(Map<BlockPosition, Integer> outputs)
+    private static byte[] legacyComparatorBytes(
+            java.util.List<ComparatorDataStore.StoredOutput> outputs)
             throws Exception {
         ByteArrayOutputStream sink = new ByteArrayOutputStream();
         DataOutputStream out = new DataOutputStream(sink);
         out.writeByte('Z');
         out.writeByte('C');
         out.writeByte('D');
-        out.writeByte(1);
+        // Wave FL4-F10: the ZCD v2 row — the dimension stamp rides the
+        // output's tail (the TF-9 law).
+        out.writeByte(2);
         writeVarInt(out, outputs.size());
-        for (Map.Entry<BlockPosition, Integer> entry : outputs.entrySet()) {
-            BlockPosition position = entry.getKey();
+        for (ComparatorDataStore.StoredOutput row : outputs) {
+            BlockPosition position = row.position();
             out.writeInt(position.x());
             out.writeInt(position.y());
             out.writeInt(position.z());
-            out.writeInt(entry.getValue());
+            out.writeInt(row.output());
+            out.writeByte(row.dimension());
         }
         out.flush();
         return sink.toByteArray();
@@ -126,10 +130,13 @@ class TileStateSaveSplitTest {
 
     @Test
     void comparatorSplitIsByteIdenticalAndRoundTrips() throws Exception {
-        Map<BlockPosition, Integer> live = new LinkedHashMap<>();
-        live.put(new BlockPosition(1, 2, 3), 15);
-        live.put(new BlockPosition(-4, 5, 6), 0);
-        live.put(new BlockPosition(7, 8, 9), 3);
+        // Wave FL4-F10: the rows carry their dimension stamps — the
+        // overworld, the nether and the End in one file (the -1 stamp
+        // lands as u8 255 on the wire).
+        java.util.List<ComparatorDataStore.StoredOutput> live = java.util.List.of(
+                new ComparatorDataStore.StoredOutput(new BlockPosition(1, 2, 3), 0, 15),
+                new ComparatorDataStore.StoredOutput(new BlockPosition(-4, 5, 6), -1, 0),
+                new ComparatorDataStore.StoredOutput(new BlockPosition(7, 8, 9), 1, 3));
 
         ComparatorDataStore store = new ComparatorDataStore(dir.resolve("comparators.bin"));
         byte[] split = store.serialize(live);
@@ -139,10 +146,20 @@ class TileStateSaveSplitTest {
         store.save(live);
         assertArrayEquals(split, Files.readAllBytes(dir.resolve("comparators.bin")),
                 "the sync save's file carries the split path's bytes");
-        Map<BlockPosition, Integer> restored = store.load();
-        assertEquals(15, restored.get(new BlockPosition(1, 2, 3)));
-        assertEquals(0, restored.get(new BlockPosition(-4, 5, 6)));
-        assertEquals(3, restored.get(new BlockPosition(7, 8, 9)));
+        java.util.List<ComparatorDataStore.StoredOutput> restored = store.load();
+        assertEquals(3, restored.size());
+        for (ComparatorDataStore.StoredOutput row : restored) {
+            if (row.position().equals(new BlockPosition(1, 2, 3))) {
+                assertEquals(0, row.dimension());
+                assertEquals(15, row.output());
+            } else if (row.position().equals(new BlockPosition(-4, 5, 6))) {
+                assertEquals(-1, row.dimension());
+                assertEquals(0, row.output());
+            } else if (row.position().equals(new BlockPosition(7, 8, 9))) {
+                assertEquals(1, row.dimension());
+                assertEquals(3, row.output());
+            }
+        }
     }
 
     @Test
@@ -181,7 +198,9 @@ class TileStateSaveSplitTest {
             JukeboxDataStore jukeboxStore =
                     new JukeboxDataStore(dir.resolve("live-jukeboxes.bin"));
 
-            Map<BlockPosition, Integer> outputs = Map.of(new BlockPosition(1, 1, 1), 9);
+            java.util.List<ComparatorDataStore.StoredOutput> outputs = java.util.List.of(
+                    new ComparatorDataStore.StoredOutput(new BlockPosition(1, 1, 1), 0, 9),
+                    new ComparatorDataStore.StoredOutput(new BlockPosition(2, 2, 2), -1, 4));
             Map<BlockPosition, ItemStack> records =
                     Map.of(new BlockPosition(2, 2, 2), ItemStack.of(BuiltinItems.COAL, 1));
             byte[] comparatorBytes = comparatorStore.serialize(outputs);
@@ -200,7 +219,8 @@ class TileStateSaveSplitTest {
                     "the landed comparator file carries the serializer's bytes");
             assertArrayEquals(jukeboxBytes, Files.readAllBytes(dir.resolve("live-jukeboxes.bin")),
                     "the landed jukebox file carries the serializer's bytes");
-            assertEquals(9, comparatorStore.load().get(new BlockPosition(1, 1, 1)));
+            assertEquals(9, comparatorStore.load().get(0).output());
+            assertEquals(0, comparatorStore.load().get(0).dimension());
             assertEquals(1, jukeboxStore.load().get(new BlockPosition(2, 2, 2)).count());
         } finally {
             compute.shutdown();

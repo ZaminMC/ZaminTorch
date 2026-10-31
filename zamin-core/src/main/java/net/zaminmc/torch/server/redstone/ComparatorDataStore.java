@@ -9,21 +9,23 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.LinkedHashMap;
-import java.util.Map;
 import java.util.logging.Logger;
 
 /**
- * The comparator's stored analog outputs ("ZCD" format, version 1 —
- * Wave H1), one file per world: the reference's
+ * The comparator's stored analog outputs ("ZCD" format, version 2 —
+ * Waves H1 + FL4-F10), one file per world: the reference's
  * {@code ComparatorBlockEntity.writeNbt/readNbt} row (the whole file is
  * that one {@code OutputSignal} int per position) over the engine's
- * {@code RedstoneSystem.comparatorOutputs} map — the note store's own
+ * {@code RedstoneSystem.comparatorOutputs} maps — the note store's own
  * durability rules.
  *
- * <p>Layout: magic 'Z','C','D',1 — outputs(varint count; each: x(i32)
+ * <p>Layout: magic 'Z','C','D',2 — outputs(varint count; each: x(i32)
  * y(i32) z(i32) output(i32, the reference's own int row — no clamp on
- * the read, the walk's own writers keep it 0..15)).</p>
+ * the read, the walk's own writers keep it 0..15) dimension(i8 — Wave
+ * FL4-F10's stamp, the TF-9 ItemDataStore v8 row's own law: the signed
+ * byte carries -1 as u8 255; a v1 file's rows are overworld rows, the
+ * migration law — every historical comparator lived in the only system
+ * that existed)).</p>
  *
  * <p>Writes are atomic (temp file then atomic move), corrupt files load
  * as absent and are preserved beside the storage path instead of being
@@ -34,11 +36,16 @@ import java.util.logging.Logger;
  */
 public final class ComparatorDataStore {
 
+    /** One stored output row: the position, its world, and the strength. */
+    public record StoredOutput(BlockPosition position, int dimension, int output) {
+    }
+
     private static final Logger LOGGER = Logger.getLogger(ComparatorDataStore.class.getName());
     private static final int MAGIC_0 = 'Z';
     private static final int MAGIC_1 = 'C';
     private static final int MAGIC_2 = 'D';
-    private static final int FORMAT_VERSION = 1;
+    private static final int FORMAT_VERSION = 2;
+    private static final int FORMAT_VERSION_1 = 1;
 
     private final Path file;
 
@@ -47,25 +54,25 @@ public final class ComparatorDataStore {
     }
 
     /**
-     * Saves the full stored-output map. Callers snapshot state on the tick
-     * thread before calling (the engine routes this through the ticker).
-     * The synchronous form composes the S4 pipeline's own two halves — the
-     * pure serialization over the already-immutable map, the file
+     * Saves the full stored-output rows (every dimension's, stamped —
+     * Wave FL4-F10). Callers snapshot state on the tick thread before
+     * calling (the engine routes this through the ticker). The
+     * synchronous form composes the S4 pipeline's own two halves — the
+     * pure serialization over the already-immutable list, the file
      * publication — so the sync save's bytes and the pipeline's bytes are
      * identical by construction (one serializer, one file half).
      */
-    public void save(Map<BlockPosition, Integer> outputs) {
+    public void save(java.util.List<StoredOutput> outputs) {
         writeSerialized(serialize(outputs));
     }
 
     /**
      * The pure serialization (Slice S4 — the compute pool's own half): the
-     * immutable map IN (the system's own comparatorSnapshot() copy — the
-     * values are boxed ints, the capture contract already satisfied), the
-     * ZCD bytes OUT — no world read, no I/O. The byte walk is the
-     * historical save walk's own (version 1, byte-identical).
+     * immutable list IN (the engine's stamped union over every dimension's
+     * {@code comparatorSnapshot()} copy), the ZCD bytes OUT — no world
+     * read, no I/O.
      */
-    public byte[] serialize(Map<BlockPosition, Integer> outputs) {
+    public byte[] serialize(java.util.List<StoredOutput> outputs) {
         java.io.ByteArrayOutputStream sink = new java.io.ByteArrayOutputStream();
         try (DataOutputStream out = new DataOutputStream(
                 new java.io.BufferedOutputStream(sink))) {
@@ -74,12 +81,15 @@ public final class ComparatorDataStore {
             out.writeByte(MAGIC_2);
             out.writeByte(FORMAT_VERSION);
             writeVarInt(out, outputs.size());
-            for (Map.Entry<BlockPosition, Integer> entry : outputs.entrySet()) {
-                BlockPosition position = entry.getKey();
+            for (StoredOutput row : outputs) {
+                BlockPosition position = row.position();
                 out.writeInt(position.x());
                 out.writeInt(position.y());
                 out.writeInt(position.z());
-                out.writeInt(entry.getValue());
+                out.writeInt(row.output());
+                // The TF-9 law: the signed byte carries the dimension
+                // (-1 lands as u8 255).
+                out.writeByte(row.dimension());
             }
         } catch (IOException e) {
             // The sink is an in-memory buffer; an IOException here is a
@@ -117,37 +127,42 @@ public final class ComparatorDataStore {
     }
 
     /**
-     * Loads the stored-output map; an absent or corrupt file loads empty
-     * (corrupt files are preserved, not destroyed).
+     * Loads the stored-output rows, each stamped with its dimension; an
+     * absent or corrupt file loads empty (corrupt files are preserved,
+     * not destroyed). A v1 file's rows load as overworld rows (the
+     * migration law — the only system that existed was the overworld's).
      */
-    public Map<BlockPosition, Integer> load() {
+    public java.util.List<StoredOutput> load() {
         if (!Files.exists(file)) {
-            return new LinkedHashMap<>();
+            return new java.util.ArrayList<>();
         }
-        Map<BlockPosition, Integer> loaded = new LinkedHashMap<>();
+        java.util.List<StoredOutput> loaded = new java.util.ArrayList<>();
         try (DataInputStream in = new DataInputStream(new BufferedInputStream(
                 Files.newInputStream(file)))) {
             if (in.readByte() != MAGIC_0 || in.readByte() != MAGIC_1
                     || in.readByte() != MAGIC_2) {
                 LOGGER.warning("Comparator output state " + file + " is not ZCD; loading empty");
-                return new LinkedHashMap<>();
+                return new java.util.ArrayList<>();
             }
             int version = in.readByte() & 0xFF;
-            if (version != FORMAT_VERSION) {
+            if (version != FORMAT_VERSION && version != FORMAT_VERSION_1) {
                 LOGGER.warning("Comparator output state " + file + " version " + version
                         + " unsupported; loading empty");
-                return new LinkedHashMap<>();
+                return new java.util.ArrayList<>();
             }
             int count = readVarInt(in);
             for (int i = 0; i < count; i++) {
                 BlockPosition position = new BlockPosition(in.readInt(), in.readInt(), in.readInt());
-                loaded.put(position, in.readInt());
+                int output = in.readInt();
+                // The FL4-F10 stamp: a v1 row is an overworld row.
+                int dimension = version >= FORMAT_VERSION ? in.readByte() : 0;
+                loaded.add(new StoredOutput(position, dimension, output));
             }
             return loaded;
         } catch (IOException e) {
             LOGGER.warning("Comparator output state " + file + " corrupt; loading empty ("
                     + e + ")");
-            return new LinkedHashMap<>();
+            return new java.util.ArrayList<>();
         }
     }
 
