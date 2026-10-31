@@ -861,6 +861,21 @@ public final class BlastResistanceTable {
         Map.entry("stained_glass_yellow", "stained_glass"),
         Map.entry("still_lava", "lava"),
         Map.entry("still_water", "water"),
+        // F-EX3's missing folds (the boot registry's extra families):
+        // the flattened state families whose bases never reached the fold
+        // — the redstone clock's parts (the reference's registration names
+        // are the unpowered_* forms, both carrying setStrength(0.0F) → READ
+        // 0), the moving piston's carrier (the reference's piston_extension,
+        // MovingBlock's setStrength(-1.0F) floors the field at 0 → READ 0 —
+        // NOT blast-immune), and the fluid family's falling-flag states
+        // (the same water/lava READ 100 as their still/flowing forms).
+        Map.entry("comparator", "unpowered_comparator"),
+        Map.entry("powered_comparator", "powered_comparator"),
+        Map.entry("repeater", "unpowered_repeater"),
+        Map.entry("powered_repeater", "powered_repeater"),
+        Map.entry("moving_piston", "piston_extension"),
+        Map.entry("falling_water", "water"),
+        Map.entry("falling_lava", "lava"),
         Map.entry("sunflower", "double_plant"),
         Map.entry("white_tulip", "red_flower"),
         Map.entry("white_wool", "wool"),
@@ -874,8 +889,8 @@ public final class BlastResistanceTable {
      * {@code brewing_stand_bottle0_bottle1_bottle2} folds in three passes.
      */
     private static final List<Pattern> STATE_SUFFIXES = List.of(
-            Pattern.compile("_(age|stage|bite|bites|bottle|level|power)[0-9]+$"),
-            Pattern.compile("_(east|north|south|west|top|upper|lower|open|lit|wet|eye|down|up|triggered|record|powered|seamless|compare|subtract|z|base|extended|head|normal|inactive|active|armed|attached|disarmed|placed|prepared|chipped|damaged|persistent|check|ready|right|left|ascending|all_inside|all_stem|center|stem|inside|empty|full)$"),
+            Pattern.compile("_(age|stage|bite|bites|bottle|level|power|p)[0-9]+$"),
+            Pattern.compile("_(east|north|south|west|top|upper|lower|open|lit|wet|eye|down|up|triggered|record|powered|seamless|compare|subtract|z|x|base|extended|head|normal|inactive|active|armed|attached|disarmed|placed|prepared|chipped|damaged|persistent|check|ready|right|left|ascending|all_inside|all_stem|center|stem|inside|empty|full|inverted|disabled|suspended|sticky)$"),
             Pattern.compile("_[0-9]+$"));
 
     /**

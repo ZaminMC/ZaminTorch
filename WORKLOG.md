@@ -19149,3 +19149,299 @@ tripwire bindings and the comparator ZCD store's per-dimension files)
 and the block-broken listener's container cleanups over the
 per-dimension tile stores (FL4-F5's named remainder). The CI Phase A
 proposal still awaits the owner's approval decision.
+## The twenty-first verifier pass — 2026-10-31 (the explosion
+family's F-EX4 verified whole, the fire arm landed, the PR opened)
+
+- RECOVERED from the reset: the 20th pass's F-EX1 record (PR #85
+  MERGED), F-EX2's (PR #88 MERGED), the review-lane waves (#86/#87
+  merged, #89/#90 closed with riders landed on develop), and the
+  queue: F-EX3/F-EX4/F-EX5 + the standing F-FL4 tail. F-EX4 named the
+  head (a genuine missing vanilla mechanic with gameplay visibility:
+  the blast's fire).
+- THE NINETEENTH PASS'S F-EX4 RECORD COMPLETED: the reference's fire
+  arm (Explosion.damageBlocks lines 191-199) rides the FIELD
+  createFire — the post-clear AIR gate, the below-cell isOpaque floor,
+  and the Explosion's OWN private new Random()'s 1-in-3 roll (never
+  the world stream; the particle PARAMETER alone reads the world
+  random). The call-site census: the wrong-world bed (fire always,
+  power 5) and the ghast fireball (the mobGriefing flag) are the ONLY
+  fire sites — every other blast passes false (the engine's crystal
+  comment "createFire false, destructive true" was already correct).
+  The engine had NO fire arm whole; its stand-in was the fireball hit
+  paths' single ungated unfloored tryPlaceFire — a structural no-op
+  against un-cleared solid ground on the block path, absent on the
+  player path.
+- THE THREE PASSES: source (the chain whole + the census + the
+  param-vs-field split); behavioral (ExplosionFireArmParityTest's four
+  seats — the stash verification failing UNFIXED on EXACTLY the three
+  predicted seats: 3 fires on the plain "the stand-in law caps at
+  three", 1 fire at the struck body "at most one", 1 fire with
+  mobGriefing off — and green whole with the fix); independent (the
+  filter-15/opaqueCube equivalence proof over the COMPLETE setOpacity
+  census with the three exclusion families, the placed flame's own
+  onAdded survival (hasSolidTop implied), the doFireTick non-gate, the
+  compensating-site census clean, the y==0/nested-blast/AIR-candidate
+  edges, and the not-intentional check over the ported-whole
+  FireBlocks family).
+- THE FIX: detonateAtIn's createFire parameter (false everywhere but
+  the ghast fireball's sink — ONE mobGriefing consult answering both
+  flags, FireballEntity.onHit's flag,flag pair), the fire arm after
+  commitDamaged inside the region scope (the post-clear AIR gate,
+  isOpaqueCubeFloor with the stairs/single-slab/farmland exclusions,
+  the per-detonation private Random), and the two LARGE_FIREBALL
+  tryPlaceFire stand-ins RETIRED (the blast's own arm replaces them).
+- THE RE-PIN: ProjectileDimensionReadsTest's fire-sink seat — the
+  stale [-1,-1] pin was the stand-in's own shape; the fire sink now
+  answers the SMALL fireball alone (its own landing arm), the ghast
+  shot's fire riding its blast's arm.
+- THE PROBE'S OWN DISCOVERY (recorded, not a finding): the engine's
+  floating-flame instant removal IS vanilla (FireBlock.onAdded lines
+  322-324 — no solid top and no fuel → removed on the spot); the
+  diagnostic's mid-air control flame vanishing was the reference's own
+  law, which reshaped seat 2's design (the seats count floor-sitting
+  flames by construction).
+- FIVE SIDE-DISCOVERIES LEDGERED as candidates: F-EX6 (the bed's
+  wrong-world arm missing whole — no blast, no removal, the overworld
+  clock consulted from the nether), F-EX7 (the TNT cart's destructive
+  flag: mobGriefing in the engine vs hardcoded true in the reference),
+  F-EX8 (the wither birth's flag: false vs mobGriefing), F-EX9 (the
+  ghast fireball's throwable gravity vs the reference family's
+  gravity-free flight), and F-EX3's stairs-resistance data point (the
+  engine's 0f rows vs the reference's base-block delegation).
+- Evidence: the stash-verified discrimination (3 failing unfixed →
+  4/0 fixed); the regression lanes green whole — the explosion family
+  7/0, the projectile lanes, the fire family 8/0, the vehicle blast
+  lanes 15/0, the TNT/dispenser/creeper/crystal lanes 46/0, IceMelt
+  11/0, Lightning 4/0; DimensionWalk green in isolation (the
+  documented load-flake signature). The full suite rides the CI.
+- The queue after this pass: F-EX6, F-EX3, F-EX7, F-EX8, F-EX5, F-EX9
+  + the standing F-FL4 architecture tail.
+## The twenty-first pass's second correction — 2026-10-31 (F-EX7, the
+TNT cart's destructive flag, verified and fixed on its own branch)
+
+- F-EX7 RETIRED (the fire-arm census's side-find, split onto its own
+  branch per the one-PR-per-issue law): the reference's
+  TntMinecartEntity.explode (lines 85-92) — the SINGLE six-arg `true`
+  call serving every cart detonation. The engine's blast sink factory
+  passed mobGriefing — a no-grief world's cart blast never broke a
+  block.
+- THE THREE PASSES: source (the single-method census over the
+  reference's cart family); behavioral (TntCartDestructiveFlagParityTest
+  NEW — mobGriefing off + a burning arrow into a plain-side cart: the
+  stash verification failing UNFIXED on exactly the crater await, the
+  probe reading `flag=false crater=` EMPTY, green with the fix);
+  independent (the flag's sole consult was the factory; the wound arms
+  unconditional on both sides; the factory prose was the general walk's
+  description, not a cart choice; the first cut's crater read the
+  UNGENERATED void outside the 25 spawn chunks — the probe caught it
+  and the seat moved inside the pregenerated band).
+- THE FIX: the factory's flag → `true` with the reference cite.
+- Evidence: the vehicle package 82/0 + the explosion family lanes +
+  the TNT lanes green whole.
+
+---
+Task ID: session-2026-10-31-fex5-ci-trio (the F-EX5 resolution + the PR-wave merges + the CI-trio local reproduction)
+Agent: main (ZaminTorch session)
+
+Work Log:
+- SESSION STARTUP: the recovery fetch found develop advanced to 817dbe74
+  (the FL4-F7/F8/F9 waves landed mid-flight) and PRs #92 (F-EX4) + #93
+  (F-EX7) DIRTY against it. Both lanes merged with develop: the F-EX7
+  lane clean (the WORKLOG union alone), the F-EX4 lane ONE MERGE REPAIR
+  (the TntSystem detonation sink's lambda took develop's FL4-F7
+  per-dimension rewrite against the pre-F-EX4 ten-arg signature — the
+  createFire=false parameter restored between destructive and source,
+  PrimedTnt never fires per the F-EX4 call census). Evidence: the
+  vehicle + explosion family lanes 89/0 (the F-EX7 tree) and 193/0 (the
+  F-EX4 tree: the fire arm's own lanes + the explosion family + the
+  vehicle blast lanes + the TNT/dispenser/creeper/crystal/projectile
+  lanes + IceMelt + Lightning). Both branches pushed; the PRs clean.
+- THE CI TRIO LOCALLY REPRODUCED AND ROOTED (the release runs' three
+  repeat failures — QuickCraftDragWireTest:381, MobIntegrationTest:99/85,
+  VehicleIntegrationTest:183): the same three CLASS-level failures
+  reproduce in this sandbox when the three wire classes run together
+  (and MobIntegrationTest alone flakes ~1-in-3), each failing on
+  DIFFERENT methods across runs — the IOException packet-await timeouts
+  and one entity-id assertion read. The root: ENGINE TICK STARVATION
+  under concurrent load — the pig's 60-second wall-clock move await at
+  a 1-in-120-per-tick stroll roll (WanderAroundGoal.interval 120,
+  verified 1:1 against the reference's own goal: the despawn-timer gate
+  and the ten-candidate TargetFinder pick all match) expires when the
+  engine's tick throughput drops far below 20 TPS — the ML-002
+  wall-clock-awaits debt's own surface, NOT a conformance divergence
+  (the wander cadence, the breath clock, the fall-damage gate, and the
+  use-entity id resolution all verified correct against the reference
+  while chasing it). The prior review lane's load-flake diagnosis
+  stands, with the added nuance: the flake clusters at CLASS level (the
+  three heaviest wire classes), not at test level.
+- F-EX5 RESOLVED AS REJECTED (the twentieth pass's candidate died on
+  the skull's OWN override): WitherSkullEntity.takeDamage lines 94-96
+  answer `return false` — the hierarchy read stopped at `extends
+  ProjectileEntity` and never opened the subclass's own body. The
+  engine's exclusion was already correct (WitherSkullTest line 171 pins
+  it with the right cite).
+- F-EX10 CONFIRMED + FIXED (the real divergence F-EX5's chase exposed —
+  the subclass-counting census misled two arms in the OPPOSITE
+  direction): of ProjectileEntity's THREE direct subclasses exactly ONE
+  inherits the takeDamage re-aim — FireballEntity (the ghast's large
+  shot, NO override). SmallFireballEntity (lines 62-64) and
+  WitherSkullEntity (lines 94-96) both override it with `return false`.
+  The engine's PUNCH deflect covered LARGE + SMALL (a punched blaze
+  charge / dispensed fire charge redirected — vanilla's punch never
+  lands) and the BLAST WOUND covered LARGE + SMALL + SKULL (a creeper
+  blast beside a charge or a skull re-aimed it — vanilla's overrides
+  refuse the wound whole; only the SCATTER, outside the takeDamage
+  verdict, ever moves them). THE THREE PASSES: (1) source — the
+  complete override table, the Explosion gather's
+  unconditional-call + scatter-outside shape, PlayerEntity.attack's
+  flag2-gated push/damping/exhaustion; (2) behavioral — the stash
+  discrimination, THREE seats failing UNFIXED on exactly the predicted
+  assertions (the re-pinned fire-charge verdict assertFalse, the new
+  unit wound census seat's thrower-unchanged assertions, the new
+  wire seat's thrower-stays--1 await) and green FIXED, the LARGE
+  controls green on BOTH trees; (3) independent — the
+  compensating-site census (exactly two deflectBy writers, both now
+  gated; the third onProjectileDeflected mention is the listener
+  bridge), the flag2-gated arms verified, the intentionality check
+  (the javadocs' own prose records the census error — an honest
+  omission, no deviation decision), the dispensed-charge edge (the
+  re-pinned seat's launcher IS the dispenser's own), and the
+  shooter-immunity-window composition (the strike-its-own-shooter seat
+  stays green). THE FIX: both gates read LARGE_FIREBALL alone, both
+  javadocs carry the corrected census, the wrongly-pinned seat
+  re-pinned. Evidence: 187/0 over the projectile + explosion +
+  vehicle-blast + TNT/dispenser/creeper/crystal/fire lanes (33
+  classes).
+
+Stage Summary:
+- PRs #92 + #93 updated to the FL4-F7/F8/F9 develop (one merge repair);
+  both clean and green locally. F-EX5 rejected, F-EX10 retired through
+  its own PR (this branch). The CI trio rooted as the ML-002
+  wall-clock-await debt under tick starvation — no conformance bug
+  found behind it (four subsystem laws verified 1:1 while chasing it).
+- The queue's live heads: F-EX3 (the BlastResistanceTable coverage
+  census), F-EX6 (the bed's wrong-world arm), F-EX8 (the wither
+  birth's flag), F-EX9 (the ghast fireball's throwable gravity), and
+  the standing architecture tails (F-FL4's per-dimension fluid sim,
+  the container families' per-dimension stores, the redstone system's
+  world binding).
+
+---
+Task ID: session-2026-10-31-fex3-boot-census (F-EX3 resolved — the blast-resistance boot-registry census)
+Agent: main (ZaminTorch session)
+
+Work Log:
+- F-EX3 RESOLVED (the nineteenth pass's suspicion, the right question asked
+  against the wrong registry): the standing census enumerated BuiltinBlocks
+  ALONE (957 rows) — the engine's BOOT registry wraps ELEVEN registerAll
+  families on top (cauldron, ender chest, beacon, brewing, dispenser,
+  hopper, piston, tripwire, redstone, daylight detector, fluids — 1302
+  identifiers whole), and 107 of the families' flattened STATE ids fell
+  through BlastResistanceTable.read to blastResistance's fallback. THE
+  DIVERGENCE TABLE (the probe's computed answers vs the reference's own
+  registrations): the repeater (16), the comparator (8), the lever (4),
+  the suspended tripwire (8) and the MOVING PISTON (12) all answered
+  MAX_VALUE — blast-proof — where vanilla pays READ 0/0.5 (a redstone
+  clock SURVIVED a point-blank creeper; MovingBlock's setStrength(-1.0F)
+  FLOORS the field at 0 — unbreakable by mining yet READ 0 to a blast);
+  the daylight bands (32) paid 1.0 vs 0.2; the locked hopper (5) paid 15
+  vs 4.8; the sticky piston heads (6) paid 2.5 vs 0.5; the falling fluid
+  states (16) paid MAX vs 100. THE THREE PASSES: (1) source — every
+  family's registration read directly (Block.java lines 993-1377 + the
+  ctors + MovingBlock) and the field/READ model verified at the setter
+  bodies (setBlastResistance x3, setStrength's FLOOR at s*5, the read
+  /5); (2) behavioral — the probe census (1302/107/345 with the fallback
+  answers computed per identifier), the stash discrimination (the census,
+  the value pins and the NEW wire seat failing UNFIXED on exactly the
+  predicted points — the wire seat's "Timed out waiting for the repeater
+  shredded" over the real creeper detonation — and 3/3 green FIXED); (3)
+  independent — the setter bodies re-read, the fold-collision analysis
+  (the new suffixes only ADD fold paths after the direct lookups miss —
+  no previously-resolving identifier can change, confirmed by the 523/0
+  regression over 94 classes), the intentionality check (the census's
+  own pin believed itself complete — an enumeration omission), and the
+  edges (the suspended tripwire cannot stand in a seat — the update
+  system normalizes an unhooked suspended wire; the moving piston's
+  diggable=false behavior row STAYS — the dig family's own law; the
+  fallback convention now UNREACHABLE for registered blocks, its
+  FIELD-vs-READ wrongness the ledger's caveat). THE FIX: seven renames
+  (comparator/powered_comparator/repeater/powered_repeater onto the
+  reference's unpowered/powered forms; moving_piston onto
+  piston_extension; falling_water/falling_lava onto water/lava) + six
+  fold-suffix additions (p<num>; inverted, disabled, suspended, sticky,
+  x) + the census re-pinned to the FULL BOOT REGISTRY (1302, the
+  registry() helper enumerating the engine's own eleven-family boot
+  chain) + the nine-family value pins + the wire seat NEW (the parts on
+  an OBSIDIAN shelf — READ 1200 closes the support-pop false-pass road —
+  with NO stone control between the blast and the comparator: a READ-6
+  stone SHIELDS the clock behind it, vanilla's own law respected in the
+  seat's geometry).
+
+Stage Summary:
+- F-EX3 retired through its own PR (this branch). The session's ledger:
+  PRs #92 + #93 updated to the FL4-F7/F8/F9 develop (one merge repair),
+  F-EX5 rejected + F-EX10 retired (PR #96), F-EX3 retired (this branch),
+  the CI trio rooted as the ML-002 wall-clock-await debt under tick
+  starvation (no conformance bug behind it). The queue's live heads:
+  F-EX6 (the bed's wrong-world arm), F-EX8 (the wither birth's flag),
+  F-EX9 (the ghast fireball's throwable gravity), and the standing
+  architecture tails (F-FL4's per-dimension fluid sim, the container
+  families' per-dimension stores, the redstone system's world binding).
+
+---
+Task ID: session-2026-10-31-ci-unblock-pr-wave (the CI publishing unblock + the parity PR wave #91-#100 + the README live table)
+Agent: main (ZaminTorch session)
+
+- THE CI PUBLISHING UNBLOCK (the user's named concern): run 561's FIVE
+  failed seats downloaded as forensics and every one root-caused at the
+  source (the census law — no allowlist growth): (1) MobIntegration's
+  pig seat walked to the spawn packet's STALE cell — each swing now
+  walks the body's LIVE position; (2) the bow seat's no-ammunition arm
+  was a phantom (the arrows were given BEFORE the first use — the
+  assert passed only by winning the submit-vs-read race) — the honest
+  scene: the bow alone, two tick boundaries proving the drain, then
+  the refusal assert; (3) the mid-draw crit: the unfreeze ran
+  microseconds after the release submit, letting the tick walk advance
+  the pinned 19 to a full draw before the release drained (the crit
+  roll landed 8, health 2.0) — the unfreeze now waits for the release's
+  own drain receipt (both freeze arms); (4) the thorns seat's two
+  stacked races: the once-captured anchor column (the zombie aggroes
+  the archer after the first hit) — per-attempt re-anchoring — and the
+  full-draw crit's 6..10 damage killing the 20-hp zombie by the third
+  arrow (cutting the four proc rolls to three, ~2.8% structural
+  failure) — the pinned mid draw's deterministic 6; (5) the spawn
+  egg's wandering sample — a MobManager listener captures the position
+  AT the spawn event. Run 562 then failed on ONE NEW member
+  (EnderExit's 13.0 -> 12.0: the bare portal cell's fall debt — the
+  bedrock support restored, the fountain's own shape; residual batch
+  margin recorded). THE STATE: the pipeline is mechanically sound, the
+  deterministic blockers all retired, the first green run rides the
+  residual flake lottery (each member root-causable; the watch list:
+  anArrowHurts, the fire-arm crater-count pin, EnderExit's residual).
+- THE PARITY PR WAVE #91-#100: ALL TEN MERGED (the verifier agent's
+  lanes, each engine change verified against the reference before
+  merging): VT-004 (the portal stand clock's cooldown consult),
+  F-EX4 (the blast fire arm), F-EX7 (the TNT cart's hardcoded
+  destructive flag), VT-005 (the portal riding gate), F-EC1 (the
+  ender chest's Block.isSolid consult), F-EX5-rejected + F-EX10 (the
+  re-aim census — the large fireball ALONE), F-EX3 (the blast
+  resistance boot census — 107 flattened state ids), VT-006 (the
+  entity-level portal crossing, the mobs family first), F-EX8 (the
+  wither birth's griefing flag), F-EX11/12 (the blast family's
+  dimension routing). THREE MERGE INTERACTIONS FOUND AND REPAIRED:
+  the riding-gate seat x VT-006 (the pig crossed on the first armed
+  tick before the rider could mount — the frame mounts first, the
+  interior lights after), the gather seat's flying shot (the
+  gaussian-drift geometry), and the blast-routing x fire-arm
+  signature union.
+- THE README LIVE TABLE: the Status table now carries true completion
+  percentages per workstream with the evidence behind each number
+  (parity ~92%, dimension ownership ~75%, CI ~85%, infrastructure
+  ~90%, the concurrency phases and the adapter) — the user's standing
+  instruction: keep it current, no more "pending"/"landed but".
+- FL4-F10 (the redstone world binding) NOT STARTED this session — the
+  trace and the six-point plan stand in §29's ledger, unchanged and
+  ready; the session note is recorded in the file.
+
+Next: Wave FL4-F10's implementation exactly per the ledger row; watch
+runs 563+ (the merge pushes); the watch list's three members.

@@ -18,81 +18,34 @@ stable Zamin API  ← plugins / future compatibility layers
 ## Status
 
 Early development. See [docs/ENGINEERING_PLAN.md](docs/ENGINEERING_PLAN.md) for the
-current architecture, decisions and milestones, and `Torch-Arcetecture.txt` §29 +
+current architecture, decisions and milestones, and `Torch-Arcetecture.txt` §22/§29 +
 `VANILLA_1_8_8_COMPATIBILITY.md` for the per-mechanic records. The engine's
 mechanics ledger runs deep (survival loop, mobs/AI, combat, physics, fluids,
 villages, biomes, maps, remote admin — the landed record lives in
 `Torch-Arcetecture.txt` §22/§29, `VANILLA_1_8_8_COMPATIBILITY.md`,
-`NATIVE_API_CAPABILITIES.md` and `WORKLOG.md`). The table below is the live
-TODO list: only what is NOT done yet — implemented work is never listed
-here; a row leaves the table the moment its work lands.
+`NATIVE_API_CAPABILITIES.md` and `WORKLOG.md`).
 
-| Feature | Status |
-|---------|--------|
-| Concurrency Phase 5 — the lighting batch's parallel wiring | landed but gated OFF by default (`torch.parallel-pregen-light`) — the measured win stands (1.4-1.6x at the boot shape after the storm fix); the gate retires on the lane's own evidence (§22) |
-| Concurrency Phase 6 — further parallel per-region gameplay lanes beyond the random-tick lane | pending — each lane gated on its own evidence (§22) |
-| Concurrency Phase 7 — the heavy-owner optimization lanes | pending — the profiling opener landed; each optimization stays gated on the §22 evidence bar |
-| Concurrency Phase 8 — adaptive balancing (dynamic split/merge, load-driven migration with in-flight tasks, telemetry, anti-oscillation rules) | not started |
-| Phase 0 standing practice — the per-path mutable-access audit | continuous — runs alongside every mechanics slice |
-| §28.7 Bukkit/Spigot/Paper compatibility adapter | deferred by §27.1's order — after 1.8.8 is polished into a playable, maintainable server |
+**The live progress table** — every row carries its true completion estimate,
+measured against its own ledger (the wave/section cited in the row), not a
+feeling. Percentages move as work lands; a row leaves the table at 100%.
 
-This table is the complete pending list — kept current as work lands, and
-nothing leaves it without an automated test proving the landing. Verified
-against the code on 2026-10-28 (the wither's conditional exemption arms —
-the last pending parity row — landed with the exemption-arms slice: the
-armor hull and the never-despawn law fixed, the fall/summon arms already
-landed, the light-level/cobweb/no-riding arms retired with evidence; the
-transport waves T-1..T-4, the five parity-audit PRs #54-#59, the
-mining-speed parity audit PR #60, the eye/firework/armor-stand
-dimension carries — Waves EYFW + AS, the LAST overworld-0 family closed,
-plus the EYFW join-view repairs the AS scoping surfaced — the
-§35.12 codec measurements (Wave T-5, the compression/encryption rows),
-the serialized-column memoization (Wave SC — the perf family's head;
-the warm 81-column re-stream cycle drops from the measured ~32 ms to
-0.765 ms), and the flight families' contact arms (Wave FC — the
-ML-100 tail: bats, squids and guardians now wound and burn in lava
-like every body in the reference, the squid/guardian swim gates split
-to water alone, the ghast's fluid drag bands), the slime pad trio +
-the redstone ore's step glow + the farmland trample (Waves TR + SG),
-and the item/orb landing physics + the friction family whole (Wave
-IO-F 2026-10-29: the item's pre-move gravity, the vertical-clip
-beforeCollision consult — the slime flip, the post-move drag reading
-the support cell's slipperiness, the grounded -0.5/-0.9 flips; the
-mob's damping at all three sites reading the block's own slipperiness
-* 0.91 with the reference's 0.91 air base — the ice slide), and the
-rider-spare fall (Wave RS 2026-10-29: F-RIDER-SPARE closed — the
-mount's landing forwards the same (distance, multiplier) pair UP to
-the seated player through the delegate at takeFallDamage's head; the
-ridden body's own fall walk the pre-fix engine swallowed whole; the
-vehicles' whole fall walk with the base-alone payment — a vehicle
-pays nothing itself, the seated player pays) also landed since the
-prior verification. The item/orb lava envelope + the orb's igniter
-attraction (Wave LF 2026-10-29: the item's fizz — the
-boundary-cross/25-tick gate with the reference's (int)-cast quirk,
-the pop between the move and the drag; the orb's UNCONDITIONAL fizz;
-the 8-block attraction with the staggered retarget, the sticky live
-hold, the spectator release, the eye-aimed pull) landed with the
-same session's verification, and F-DUST closed as a non-row (the
-server's addParticle is the empty stub — the landing dust is the
-client's own prediction). The vine family's first slice (Wave VN-A
-2026-10-29: the sixteen-state metadata vocabulary, the climbable pair
-split from the ladder-only consult, and the collision miss repaired —
-every vine had carried the full-cube collision) also landed since,
-and the Wave LF review (Wave CF 2026-10-29: the parallel-lane
-collision's adjudication — PR #77 closed as superseded — with the
-three translation defects the review surfaced in the landed wave
-repaired: the item's fizz poll clock returned to the reference's
-independent lifetime counter, the crossing flag's Y axis returned to
-the feet frame, the orb's retarget window returned to the reference's
-own renderTicks counter; both fizz sounds' y returned to the box
-bottom). The vine family's mechanics whole followed (Wave VN-B
-2026-10-29: the placement pair — the face gate, the opposite-face
-state, the replaceable clicked/target arms, the glass exclusion over
-the render-cube consult — the neighborChanged decay with the hanging
-chain, the breakability rows for the fifteen face states, and the
-random-tick growth whole — the 1-in-4 roll, the 9x9x3 density census,
-the three spread arms; PR #78 merged the same session with all three
-repairs verified, PR #79 closed as superseded by the wave's superset).
+| Workstream | Done | The honest state behind the number |
+|------------|------|-------------------------------------|
+| 1.8.8 vanilla parity (the mechanics ledger) | ~92% | ~2,950 automated seats green; the standing parity audit's queue is down to single-digit named rows (the F-EX/VT series — each fixed within a pass or two of its discovery); the residual is the long tail of the audit, not any known major system |
+| Dimension ownership (the FL4 waves — every system ranging its own world) | ~75% | FL4-F2..F9 landed (fire, TNT, block updates, falling bodies, item/orb physics, entity crossings); FL4-F10 (redstone world binding) is traced and planned in §29's ledger; the container/storage family follows it |
+| CI pipeline (Phase A + publishing) | ~85% | parallelisation + selective retry + failure forensics landed; the publish path's two blockers (the test freeze, the notes 422) fixed; what remains is the residual load-flake lottery — ~1-4 members per hosted run, each root-causable at the source (six retired this session) |
+| Engine infrastructure (§22/§35: ownership, scheduling, transport) | ~90% | the region model, the cross-owner protocol, the encode-once transport landed and pinned; the B-gaps (item components, dimension registry) deliberately wait for their triggers per §X.8 |
+| Concurrency Phase 5 — parallel pre-gen lighting | 90% (gated) | landed, measured 1.4-1.6x, OFF by default (`torch.parallel-pregen-light`); the gate retires on the lane's own evidence |
+| Concurrency Phase 6 — further parallel gameplay lanes | ~20% | the random-tick lane landed; each further lane gated on its own evidence |
+| Concurrency Phase 7 — heavy-owner optimization lanes | ~10% | the profiling opener landed; the optimization lanes wait on its evidence |
+| Concurrency Phase 8 — adaptive region balancing | 0% | not started (deliberately last) |
+| Bukkit/Spigot/Paper adapter (§28.7) | ~10% | first slice (plugin lifecycle + event + scheduler bridges) exists as `zamin-bukkit`, unwired; deferred by §27.1's order until 1.8.8 is polished |
+| Phase 0 standing practice — per-path mutable-access audit | continuous | runs alongside every mechanics slice |
+
+The landed record behind these numbers lives in the ledgers named above and in
+`WORKLOG.md`; the last full re-verification of the table was 2026-10-31 (the
+FL4-F9 falling-family wave, the CI Phase A landing, the parity PR waves
+#91-#100, and the blast dimension-routing completion).
 
 ## Downloading a dev build (no build tools needed)
 

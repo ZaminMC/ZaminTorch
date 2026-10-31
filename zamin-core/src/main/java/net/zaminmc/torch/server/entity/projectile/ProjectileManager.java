@@ -1234,12 +1234,11 @@ public final class ProjectileManager {
             }
             if (projectile.kind() == ProjectileEntity.Kind.LARGE_FIREBALL) {
                 // FireballEntity.onHit: the explosion where the fireball
-                // lands (the fire flag's mobGriefing default — the fire
-                // placement stands in for the blast's own).
+                // lands — the fire rides the blast's own createFire arm
+                // (the mobGriefing flag, the sink's own consult; the old
+                // single-site fire stand-in here was the pre-fire-arm
+                // engine's substitute, retired by the arm's landing).
                 explosionSink.explode(point, 1.0f, projectile.dimension());
-                fireSink.tryPlaceFire((int) Math.floor(point.x()),
-                        (int) Math.floor(point.y()),
-                        (int) Math.floor(point.z()), projectile.dimension());
                 remove(projectile, "hit");
                 return true;
             }
@@ -1334,11 +1333,10 @@ public final class ProjectileManager {
             }
         }
         if (projectile.kind() == ProjectileEntity.Kind.LARGE_FIREBALL) {
-            // FireballEntity.onHit: the detonation at the struck body.
+            // FireballEntity.onHit: the detonation at the struck body — the
+            // fire rides the blast's own createFire arm over its damaged
+            // cells (the mobGriefing flag), never a single-site stand-in.
             explosionSink.explode(mob.position(), 1.0f, projectile.dimension());
-            fireSink.tryPlaceFire((int) Math.floor(projectile.position().x()),
-                    (int) Math.floor(projectile.position().y()),
-                    (int) Math.floor(projectile.position().z()), projectile.dimension());
         }
         if (projectile.kind() == ProjectileEntity.Kind.WITHER_SKULL) {
             // WitherSkullEntity.onHit lines 58-84: a kill heals the
@@ -1473,9 +1471,12 @@ public final class ProjectileManager {
      * so a fireball past its 25 air ticks now ignores the PLAYER and can
      * strike the ghast that loosed it). The wire re-publishes the
      * velocity (the reference's velocityChanged flag → the tracker's
-     * Entity Velocity packet). Only the fireball family carries the arm;
-     * the ballistic kinds answer false exactly the reference's takeDamage
-     * (arrows and shards have no deflect surface).
+     * Entity Velocity packet). Only the GHAST's large fireball carries
+     * the arm (FireballEntity inherits ProjectileEntity.takeDamage;
+     * SmallFireballEntity lines 62-64 and WitherSkullEntity lines 94-96
+     * both override it with `return false` — the blaze's charge and the
+     * wither's skull refuse the punch, and the ballistic kinds never had
+     * a deflect surface at all).
      *
      * @return whether the punch landed (the attack's own verdict — the
      *         caller charges the melee exhaustion on it)
@@ -1505,9 +1506,16 @@ public final class ProjectileManager {
                            double lookX, double lookY, double lookZ,
                            int knockbackLevel, double yawRadians) {
         Objects.requireNonNull(projectile, "projectile");
-        if (projectile.kind() != ProjectileEntity.Kind.LARGE_FIREBALL
-                && projectile.kind() != ProjectileEntity.Kind.SMALL_FIREBALL) {
-            return false; // the thrown family and arrows take no deflection
+        // The family census (F-EX5's resolution): of ProjectileEntity's
+        // THREE direct subclasses exactly ONE inherits the re-aim arm —
+        // FireballEntity (the ghast's large shot, NO override).
+        // SmallFireballEntity (takeDamage lines 62-64) and
+        // WitherSkullEntity (lines 94-96) both override it with
+        // `return false`: the blaze's charge and the wither's skull
+        // refuse the punch whole (and the thrown family and the arrows
+        // take the Entity default alone — no deflect surface at all).
+        if (projectile.kind() != ProjectileEntity.Kind.LARGE_FIREBALL) {
+            return false; // every other kind answers false to takeDamage
         }
         projectile.deflectBy(attackerId, lookX, lookY, lookZ);
         if (knockbackLevel > 0) {
@@ -1536,10 +1544,14 @@ public final class ProjectileManager {
      * getSource()): the velocity BECOMES the attacker's normalized look
      * vector, the acceleration becomes look * 0.1, and the attacker becomes
      * the new shooter — the blast's own re-aim, the punch deflection's
-     * blast-sourced twin. Only the vanilla ProjectileEntity subclasses
-     * carry the arm (the fireball pair + the wither skull — the arrow and
-     * the thrown family extend Entity/ThrownEntity and take the Entity
-     * default alone: the wound no-ops, the caller's scatter still lands).
+     * blast-sourced twin. Of the ProjectileEntity subclasses only
+     * FireballEntity (the ghast's large shot) inherits the arm —
+     * SmallFireballEntity (lines 62-64) and WitherSkullEntity (lines
+     * 94-96) both override {@code takeDamage} with {@code return false}:
+     * a mob-sourced blast beside a blaze charge or a wither skull never
+     * re-aims them (the scatter — the caller's addVelocity arm — still
+     * lands for every gathered body); the arrow and the thrown family
+     * extend Entity/ThrownEntity and take the Entity default alone.
      *
      * @param attackerId the blast's living source (a mob-sourced blast
      *                   alone reaches this arm — the TNT, the fireballs,
@@ -1548,10 +1560,12 @@ public final class ProjectileManager {
     public void woundFromExplosion(ProjectileEntity projectile, int attackerId,
                                    double lookX, double lookY, double lookZ) {
         Objects.requireNonNull(projectile, "projectile");
-        if (projectile.kind() != ProjectileEntity.Kind.LARGE_FIREBALL
-                && projectile.kind() != ProjectileEntity.Kind.SMALL_FIREBALL
-                && projectile.kind() != ProjectileEntity.Kind.WITHER_SKULL) {
-            return; // the Entity-default wound: nothing (the scatter alone)
+        // The same census the punch consults (F-EX5's resolution): the
+        // re-aim is the LARGE fireball's alone — the small fireball's and
+        // the skull's own overrides answer false to every takeDamage,
+        // the mob-sourced blast's wound included.
+        if (projectile.kind() != ProjectileEntity.Kind.LARGE_FIREBALL) {
+            return; // the override's own verdict: no wound, no re-aim
         }
         projectile.deflectBy(attackerId, lookX, lookY, lookZ);
         for (Listener listener : listeners) {
