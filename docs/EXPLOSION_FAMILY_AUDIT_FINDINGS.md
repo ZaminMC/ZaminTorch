@@ -426,3 +426,95 @@ throw-gesture origin at line ~6167, the random-tick cell walk at line
 reference comparison (the reference itself hardcodes 1.62 at SOME of
 these sites and reads getEyeHeight at others; the census is its own
 verification item, not this fix's scope).
+
+## F-EX11 + F-EX12 — VERIFIED and FIXED (the 2026-10-31 session, this branch): the blast walk's remaining dimension routing
+
+**Status: fix-ready → PR opened (this branch).** Discovered this session
+while tracing F-EX8's call site; three-pass verified whole.
+
+- **Subsystem:** the generalized detonation walk's dimension binding over
+  the mob-sourced and projectile-sourced call sites (Wave FL4-F7's form
+  completed).
+- **Affected engine files:** `EngineServer.detonateAtFromMob` (the
+  creeper's and the wither birth's shared helper — the hardcoded
+  `(world, explosionService, 0)` triple), the `setExplosionSink` /
+  `setSkullExplosionSink` wiring (the overworld `explosionService`
+  passed beside the correctly-routed `worldForSafe(dimension)`), and the
+  walk's own drop roll (the three-arg `spawnDropAtBlock` defaulting the
+  dimension to 0).
+- **Reference:** every blast call site receives the ACTING world —
+  `CreeperEntity.explode` line 210, `WitherEntity.mobAiTick` line 217,
+  `FireballEntity.onHit` line 33, `WitherSkullEntity` line 83, all
+  `this.world.explode(...)`; the body is constructed IN its world, so
+  the rays, the destruction commit, the wounds, the drops and the packet
+  range the dimension the source lives in.
+- **Expected behavior:** a nether creeper's blast, a nether ghast
+  fireball's blast and a nether wither skull's blast tear the NETHER's
+  cells and drop their items there; the overworld's same-coordinate
+  cells are never consulted.
+- **Observed behavior (pre-fix):** BOTH seams flew the ray fan through
+  the OVERWORLD's same-coordinate cells — the creeper's and the wither
+  birth's helper hardcoding the overworld triple whole, and the
+  projectile sinks routing the blast WORLD per dimension while passing
+  the OVERWORLD's `ExplosionService` (the service whose ray fan reads
+  and commits its OWN bound world — `BlastWorld(world)` wraps a fixed
+  target). A nether ghast fireball wounded nether bodies yet never tore
+  the nether — exactly FL4-F7's pre-fix TNT signature ("the blast
+  wounded but never tore") — while a coincident overworld block (a
+  glass marker) TORE instead. The walk's drop roll compounded it: the
+  three-arg spawn stamped the drops into the overworld.
+- **The exact divergence:** `explosionServiceFor(dimension)` — the
+  helper FL4-F7 built for exactly this routing — was consulted at ONE
+  site engine-wide (the TNT seam). The remaining call sites kept the
+  overworld binding: an enumeration omission, the F-EX3 census's own
+  defect class. TF-9's own commit message claimed "the fireball's fire
+  and detonation land in their own world through worldForSafe +
+  detonateAtIn" — the claim was PARTIAL: the blastWorld yes, the service
+  no.
+- **Reproduction:** `NetherBlastRoutingAcceptanceTest` (NEW, 2 seats)
+  with the FL4-F7 discriminator — a nether dirt platform, an OVERWORLD
+  glass marker at the SAME coordinates, and the blast: the platform
+  tears, the marker survives.
+- **The three-pass record:**
+  1. **Source:** all four reference call sites read directly (the
+     `this.world` receiver at every blast); the engine's seams traced —
+     `detonateAtFromMob`'s hardcoded triple, the two sinks' mismatched
+     pairing, `BlastWorld`'s fixed-target binding inside
+     `ExplosionService`, and the drop roll's three-arg default.
+  2. **Behavioral:** the stash discrimination — BOTH seats FAILED
+     UNFIXED at exactly the predicted awaits (the nether platform never
+     tore: the overworld service's world never writes a nether cell),
+     and both run 2/0 green FIXED with the event-dimension pins (the
+     wire event's own row -1, the pre-fix 0) and the marker-survival
+     guards.
+  3. **Independent:** the intentionality challenge (the engine's own
+     mobs and projectiles carry dimension stamps — Slice 25d / TF-9 —
+     the data was present, the consult wasn't; FL4-F7's own record
+     names this binding a defect for the TNT; TF-9's partial claim
+     re-read); the compensating-behavior census (no second blast path
+     exists; the routing helper was built and consulted once); the
+     overworld byte-identity (`worldForSafe(0) == world` and
+     `explosionServiceFor(0) == explosionService`, verified at both
+     bodies — every existing overworld blast keeps the identical path);
+     the unbooted-dimension fallback (the worldForSafe law); and the
+     family's own completion (the walk's drop roll stamped with the
+     walk's dimension, the TF-9 four-arg form).
+- **The fix:** `detonateAtFromMob` routes by `source.dimension()` (the
+  FL4-F7 form); the two projectile sinks consult
+  `explosionServiceFor(dimension)`; the drop roll passes the walk's
+  `dimension`. Nothing else changes — the flags, the powers, the wound
+  walks, the packet shape are untouched.
+- **Regression risk:** low — the overworld paths are byte-identical by
+  construction; the lanes verified green this session: the new pair 2/0,
+  CreeperRows 3/0, NetherTntRouting 1/0, ExplosionEntityGather 8/0,
+  ProjectileDimensionReads 5/0, WitherBoss 8/0, ArmorStand 13/0,
+  NetherDimension 5/0, the vehicle family whole (RidingFollow 6,
+  SpawnerMinecart 8, Persistence 2, Fire 8, HopperMinecart 7,
+  DimensionReads 3, WorldDamage 3), EnderCrystal 10/0, WitherSkull 4/0,
+  FireballDeflection 5/0.
+- **The tails this fix does NOT touch (recorded, their own lanes):** the
+  TNT cart's blast sink (the vehicle family's dimension-blind
+  `BlastSink` interface — the ledged tail until the family carries a
+  dimension field) and the skull family's summon path (the overworld
+  `SkullManager.Host` consults — a wither BUILT in the nether needs the
+  family's own routing pass first).

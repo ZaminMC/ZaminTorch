@@ -2541,7 +2541,7 @@ public final class EngineServer implements Server, EngineBridge {
                 // line 33's own consult): a no-grief world wounds and
                 // knocks but never breaks blocks.
                 projectiles.setExplosionSink((at, power, dimension) -> detonateAtIn(
-                        worldForSafe(dimension), explosionService, dimension,
+                        worldForSafe(dimension), explosionServiceFor(dimension), dimension,
                         at.x(), at.y(), at.z(), power,
                         gameRules.getBoolean("mobGriefing"),
                         net.zaminmc.torch.server.block.ExplosionService.BlastSource.PLAIN, null));
@@ -2551,7 +2551,7 @@ public final class EngineServer implements Server, EngineBridge {
                 // everything but the unbreakable band; the plain skull
                 // reads the table like every other source.
                 projectiles.setSkullExplosionSink((at, power, charged, dimension) -> detonateAtIn(
-                        worldForSafe(dimension), explosionService, dimension,
+                        worldForSafe(dimension), explosionServiceFor(dimension), dimension,
                         at.x(), at.y(), at.z(), power,
                         gameRules.getBoolean("mobGriefing"),
                         charged ? net.zaminmc.torch.server.block.BlastSources.CHARGED_SKULL : net.zaminmc.torch.server.block.ExplosionService.BlastSource.PLAIN, null));
@@ -24323,11 +24323,16 @@ public final class EngineServer implements Server, EngineBridge {
      * {@code world.explode(this, ...)}, the wither birth's the same): the
      * source rides the wound walk so the victims' shave, revenge, and
      * death-hook walks read the blast's author (the charged-creeper
-     * head-drop family's own gate).
+     * head-drop family's own gate). The blast ranges the SOURCE BODY'S
+     * OWN dimension ({@code this.world} — a nether creeper's rays read
+     * and tear the nether's cells, never the overworld's
+     * same-coordinate ones; Wave FL4-F7's own form).
      */
     private void detonateAtFromMob(MobEntity source, double cx, double cy, double cz,
                                    float power, boolean destructive) {
-        detonateAtIn(world, explosionService, 0, cx, cy, cz, power, destructive,
+        int dimension = source.dimension();
+        detonateAtIn(worldForSafe(dimension), explosionServiceFor(dimension), dimension,
+                cx, cy, cz, power, destructive,
                 net.zaminmc.torch.server.block.ExplosionService.BlastSource.PLAIN, source);
     }
 
@@ -24511,8 +24516,11 @@ public final class EngineServer implements Server, EngineBridge {
                 net.zaminmc.torch.item.ItemType item = net.zaminmc.torch.server.item.BuiltinItems.lookup(
                         removed.type().identifier()).orElse(null);
                 if (item != null) {
+                    // The drop lands in the BLAST's own dimension (the
+                    // TF-9 four-arg form — a nether blast's drops never
+                    // strand in the overworld at the same coordinates).
                     itemEntities.spawnDropAtBlock(new Position(b.x() + 0.5, b.y() + 0.5, b.z() + 0.5),
-                            ItemStack.of(item, 1), ItemEntity.PICKUP_DELAY_DROP_TICKS);
+                            ItemStack.of(item, 1), ItemEntity.PICKUP_DELAY_DROP_TICKS, dimension);
                 }
             }
         }
