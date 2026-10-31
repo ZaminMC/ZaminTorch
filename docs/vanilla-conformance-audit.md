@@ -1527,17 +1527,27 @@ effective law for the vanilla dimensions).
   surfaced the adjacent VT-009 (the multi-part families'
   neighbor-changed pair-integrity arms absent — see below).
 
-## VT-009 — the BED family's neighbor-changed pair-integrity arm is absent: a clipped bed half FLOATS where vanilla removes it (CONFIRMED — three passes; the DOOR half of the original hypothesis REJECTED; the correction eligible for its own fix branch)
+## VT-009 — the BED family's neighbor-changed pair-integrity arm is absent: a clipped bed half FLOATS where vanilla removes it (CONFIRMED — three passes; the correction LANDED on `fix/bed-pair-integrity-parity-audit`)
 
 **Subsystem:** block updates / the bed family
 **Affected version:** the current develop baseline (a95e7ca6) and #102's
 head (3e41cf7b) alike
 **Status:** CONFIRMED over three passes (the source census, the
 behavioral seat matrix RED on the unguarded tree, the independent
-challenge below); the correction is eligible for its own fix branch
-(one family arm in `BlockUpdateSystem.runUpdate` — the proposed shape
-below). THE DOOR HALF IS REJECTED: the pass's first door seat PASSED on
-the unguarded tree and the source hunt found the compensating path —
+challenge below); the correction LANDED on
+`fix/bed-pair-integrity-parity-audit` (**PR #114 OPEN**, based on
+develop a95e7ca6): one
+family arm in `BlockUpdateSystem.runUpdate` — the class law from
+`bedSiblingCleanup` (the HEAD ids carry the `bed_head` prefix, the FOOT
+ids are `bed` + the direction forms), the orphan removes itself, the
+FOOT arm alone dropping the bed item. The four discovery seats GREEN
+(both orphan directions + the drop law + the door regression guard);
+the regression lanes green (the block package 309/0, the interaction +
+world packages 250/0, the update/sleep family 24/0 combined); one
+pre-existing test's CONSTRUCTION repaired in the open (see the fix
+record below — its orphan-foot cell was never a vanilla-stable bed).
+THE DOOR HALF IS REJECTED: the pass's first door seat PASSED on the
+unguarded tree and the source hunt found the compensating path —
 `RedstoneSystem.doorNeighborChanged` (DoorBlock.neighborChanged lines
 157-198, 1:1: the orphaned upper removes itself silently, the lower's
 floor-support failure pops the pair with the item, the signal edge
@@ -1675,6 +1685,99 @@ needs nothing — its arm lives in the redstone system.
   UNCOMPENSATED engine-wide; the finding is CONFIRMED. The pass also
   surfaced **VT-010** (the piston push table's membership — see below).
 
+### The correction (landed the same run — `fix/bed-pair-integrity-parity-audit`)
+
+THE ARM: one family arm in `BlockUpdateSystem.runUpdate`, placed after
+the double-plant family (the pair-integrity locality): a minecraft bed
+half (the identifier `bed` or `bed_*`) whose four horizontal neighbors
+hold NO opposite-class bed half removes itself — the FOOT arm dropping
+the bed item (line 118), the HEAD arm silent (lines 111-114). The class
+law is the engine's own (`bedSiblingCleanup`'s — the HEAD ids carry the
+`bed_head` prefix; the FOOT ids are `bed`, `bed_west`, `bed_north`,
+`bed_east`).
+
+THE FIRST DRAFT'S DEFECT (caught by the seats before any commit): the
+draft matched the foot class by `bed_foot*` — the engine's FOOT ids are
+`bed` and the direction forms, so the foot-direction seats stayed RED
+until the class law was corrected. The four-seat matrix caught it in
+one run.
+
+THE CONSTRUCTION REPAIR (in the open — the one pre-existing test the
+arm exposed): `PlayerDataPersistenceTest
+.bedSpawnSurvivesARestartAndABrokenBedResetsIt` laid a single orphan
+FOOT cell as "the bed" and expected it to persist across a restart.
+Under the restored law an orphan half pops on the first neighbor
+change — exactly vanilla — and the scene's own engine-side trigger
+arrived within ticks (the grass under the bed dying to dirt, its commit
+waking the foot: the traced evidence
+`[2,4,2=dirt]`). The test's INTENT (the anchor survives a restart; a
+broken bed resets it) is unchanged and its assertions untouched; the
+scene now lays the WHOLE PAIR (the MultiplayerSleepAcceptanceTest
+convention) — a vanilla-stable bed. The grass-die trigger itself is
+NOT vanilla (see VT-011 below) but the arm's law stands independent of
+it: ANY neighbor change pops an orphan half in vanilla.
+
+THE REGRESSION LANES: the four discovery seats 4/0; the persistence
+class 5/0 (the repaired construction); Sleep 1/0 + MultiplayerSleep
+3/0 + BlockUpdateSystem 6/0 + NetherBlockUpdateRouting 3/0 +
+ScheduledUpdatesApi 2/0; the block package whole 309/0; the
+interaction + world packages 250/0. The one batch-level
+NetherBlastRouting failure reproduced GREEN in isolation on BOTH trees
+(the known load-flake class — passing alone, no bed path touched).
+
+## VT-011 — the grass-decay shade consult is the 3-block allowlist, not the reference's opacity law: grass dies under beds, flowers, slabs and every non-solid-render block where vanilla keeps it (SUSPECTED — one source pass + observed evidence)
+
+**Subsystem:** block updates / the grass family / the shade consult
+**Affected version:** the current develop baseline (a95e7ca6)
+**Status:** SUSPECTED — the source pass complete (the reference's
+opacity law + the engine's allowlist read) with OBSERVED behavioral
+evidence (the dirt-under-bed commit caught by the VT-009 fix run's
+trace); the behavioral seats owed; the independent pass owed.
+
+### The reference's law (GrassBlock.tick lines 49-52)
+
+The grass dies to dirt only when
+`world.getRawBrightness(pos.up()) < 4 && world.getBlockState(pos.up())
+.getBlock().getOpacity() > 2` — the OPACITY consult: every
+non-solid-render block answers opacity 0 (Block's constructor line 216:
+`this.opacity = this.isSolidRender() ? 255 : 0` — the bed's
+`isSolidRender()` is FALSE, BedBlock lines 99-102; flowers, slabs,
+stairs, fences, torches, glass likewise) — the grass SURVIVES under
+them all. Only true solid-render blocks (opacity 255) shade the grass
+to death (plus the brightness arm).
+
+### The engine's shape
+
+`BlockUpdateSystem.isOpaque` (line 1053): opaque unless the id is air,
+torch or glass — a 3-block allowlist standing in for the opacity law.
+The grass-decay arm (line 996-999) consults it: the grass under a BED,
+a FLOWER, a SAPLING, a CROP, a SLAB, STAIRS, a FENCE... dies to dirt
+where vanilla keeps it green. The observed evidence: the VT-009 fix
+run's trace caught the grass at (2,4,2) dying to DIRT under the bed
+foot within ~4 ticks of the placement (the commit that woke the orphan
+half). The scope is every non-solid-render block the allowlist misses.
+
+### The proposed minimal correction
+
+The consult swaps to the engine's own light-opacity table
+(`BlockLightTable.filter(type) > 2` — the same table the light engine
+already rides, the vanilla `getOpacity` port) with the brightness arm
+consulted beside it; the allowlist retires.
+
+### Verification pass history
+
+- **Pass 1 (source, the twenty-seventh pass, 2026-10-31):** the
+  reference's GrassBlock.tick read (the two-conjunct death gate); the
+  opacity derivation traced (Block's constructor: isSolidRender ? 255 :
+  0; BedBlock's isSolidRender false); the engine's isOpaque allowlist
+  read; the observed dirt-under-bed caught by the VT-009 trace.
+  CONCLUSION: the consult diverges at the source level with observed
+  behavior.
+- Pass 2 (behavioral): owed — the seats: grass under a bed/flower/slab
+  survives (vanilla) vs dies (engine today); the positive control (the
+  grass under a stone block still dies).
+- Pass 3 (independent): owed.
+
 ## VT-010 — the piston push table's DESTROY/BLOCK membership diverges from the reference's material census: beds, doors, weighted plates, and cocoa are PUSHED where vanilla destroys them; anvils are PUSHED where vanilla refuses (SUSPECTED — one source pass)
 
 **Subsystem:** redstone / the piston families / the pushability table
@@ -1766,7 +1869,8 @@ in the fix pass).
 | Portal mechanics (flag1, forcer) | landed by FL4-F1; not re-audited — the stand clock's re-fire law is VT-004 (CONFIRMED, three passes; the correction is **PR #91 OPEN**; the seat PortalRefireDiscoveryTest rides green on the fix branch) |
 | Portal mechanics — the non-player crossing (the entity-level arm) | the MOBS family LANDED by **PR #98** (VT-006's correction: the entity-level crossing service + the mobs family — the gated collision, the threshold-0 clock, the 300 cooldown with the re-arm pin, the 8:1 walk, the forcer's placement, the stamp swap, the per-dimension wire; `PortalMobCrossingDiscoveryTest` 3/0 with the cooldown and riding-gate pins). The REMAINING families (items, orbs, boats, carts, arrows) ride the `DimensionCrossing` seam in their own passes — the behavioral seats authored (RED on develop BY CONTRACT, the twenty-fifth pass); the TNT and falling families excluded by the census; the End-origin arm is the named tail |
 | Bed use — the out-of-dimension blast arm | RESOLVED-BY-COVERAGE-CONFIRMATION (the twenty-seventh pass): VT-008's three passes complete from this stream — the behavioral seats GREEN on **PR #102's tree** (power 5 / dimension -1 and 1 / the epicenter pins / FIRE / no sleep / no spawn / the overworld control) and RED on develop at the predicted awaits; the independent pass re-ran the neighboring lanes and challenged the adaptation notes (the 4-neighbor pair removal vs the reference's FACING-opposite — the engine's own break-walk convention, observably equivalent; the foot's bed-item drop dying in the same-tick blast). **PR #102's coverage CONFIRMED** — awaiting the maintainer's merge |
-| Block updates — the multi-part families' pair-integrity arms | the BED family's neighborChanged self-removal arm absent anywhere in the engine — a clipped half FLOATS where vanilla clears it (**VT-009 CONFIRMED** over three passes: the source census, the four-seat behavioral matrix RED on the unguarded tree — both orphan directions + the drop law + the door regression guard, `MultiPartPairIntegrityDiscoveryTest`; the independent challenge — the blast/wash/piston removal paths, the completed compensating census, the intentionality challenge). The DOOR family's arm EXISTS (`RedstoneSystem.doorNeighborChanged`, DoorBlock lines 157-198 — the door half of the first hypothesis REJECTED by its own green seat, now the regression guard) |
+| Block updates — the multi-part families' pair-integrity arms | the BED family's neighborChanged self-removal arm absent anywhere in the engine — a clipped half FLOATS where vanilla clears it (**VT-009 CONFIRMED and CORRECTED**: the arm landed on `fix/bed-pair-integrity-parity-audit` — the four seats 4/0, the block package 309/0, the interaction + world packages 250/0, the persistence construction repaired in the open). The DOOR family's arm EXISTS (`RedstoneSystem.doorNeighborChanged`, DoorBlock lines 157-198 — the door half of the first hypothesis REJECTED by its own green seat, now the regression guard) |
+| Grass decay — the shade consult | **VT-011 SUSPECTED** (the twenty-seventh pass): the engine's `isOpaque` 3-block allowlist (air/torch/glass) stands in for the reference's opacity law (`getOpacity() > 2` — every non-solid-render block answers 0) — the grass dies under beds, flowers, slabs, stairs where vanilla keeps it; one source pass + the OBSERVED dirt-under-bed evidence from the VT-009 trace; the seats owed |
 | Piston pushability — the behavior table's membership | **VT-010 SUSPECTED** (the twenty-seventh pass): the engine's `pistonMoveBehavior` DESTROY/BLOCK lists omit the bed family, the door family, the weighted plates, the cocoa (vanilla DESTROY) and the anvil (vanilla BLOCK) — a pushed bed MOVES where vanilla breaks it with its drop (compounding VT-009's floating survivor); one source pass done, the piston-push seat owed |
 | Portal mechanics — the riding gate (vehicle == null && rider == null) | VT-005 CONFIRMED (three passes — source, the pig-in-portal behavioral seat, the dismount-control independent pass; the correction rides `fix/portal-riding-gate-parity-audit`, PR #94) |
 | Drops — the TF-9 dimension stamp | LANDED by PR #90 (the dig/place walks stamp `world.dimension()`; the tile-family spill sites remain the per-dimension tile tail) |
@@ -1785,18 +1889,19 @@ in the fix pass).
    coverage CONFIRMED — the seats `BedWrongWorldNightWalkVerificationTest`
    3/0 GREEN on #102's tree riding `audit/verifier-pass-27-bed-coverage`,
    RED on develop at the predicted awaits; the neighboring bed/sleep
-   lanes independently re-run green). **VT-009 is CONFIRMED** (the
-   three passes complete this run: the source census, the four-seat
-   behavioral matrix — both orphan directions + the drop law + the door
-   regression guard — and the independent challenge with the completed
-   compensating census). **The next run's head: the VT-009 fix branch**
-   (one family arm in `BlockUpdateSystem.runUpdate` — the bed half
-   whose sibling is gone removes itself, the FOOT arm dropping the bed
-   item; the `bedSpawnCleanup` interaction decided; the four discovery
-   seats go green) **and VT-010's passes** (the piston-push behavioral
-   seat — a piston extending into a bed pair: the pair gone + one bed
-   item in vanilla, the displaced half + the floating survivor today;
-   then the independent pass over the remaining membership rows).
+   lanes independently re-run green). **VT-009 is CONFIRMED AND
+   CORRECTED** (the same run: the arm landed on
+   `fix/bed-pair-integrity-parity-audit` — the four seats green, the
+   regression lanes whole, the persistence test's construction repaired
+   in the open, VT-011 discovered in the process). **The next run's
+   heads: VT-010's passes** (the piston-push behavioral seat — a piston
+   extending into a bed pair: the pair gone + one bed item in vanilla,
+   the displaced half + the floating survivor today; then the
+   independent pass over the remaining membership rows) **and VT-011's
+   passes** (the grass-decay seats: grass under a bed/flower/slab
+   survives vs dies; the positive control under stone; then the
+   independent pass — the `BlockLightTable.filter` consult's
+   equivalence to `getOpacity` verified).
 1. ~~The VT-003 fix branch~~ — LANDED (PR #89, `IceFamilyParityTest` 11/0,
    the stash verification).
 2. ~~The VT-001 fix branch~~ — LANDED (Wave FL4-F2 on develop, the fire
@@ -1870,7 +1975,9 @@ in the fix pass).
    #93, #94, #95, #96, #97, #98, #99, #100 have all MERGED): the open
    PRs #101 (the ghast fireball flight constants, F-EX9), **#102 (the
    wrong-world bed's blast arm — VT-008's carrier, this pass's coverage
-   confirmation riding `audit/verifier-pass-27-bed-coverage`)**, #104
+   confirmation riding `audit/verifier-pass-27-bed-coverage`)**,
+   **#114 (the bed family's pair-integrity arm — VT-009's correction,
+   this run's own fix)**, #104
    (the blast's player wound walk per-world entity list, F-EX13 — a lane
    adjacent to the bed blast: the clicking player's own wound), #105
    (the TNT cart's blast dimension, VT-007's remaining slice) awaiting
