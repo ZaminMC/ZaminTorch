@@ -589,3 +589,77 @@ F-EX7/F-EX8 (the two thin destructive-flag rows), F-EX5 (the punch
 deflection's skull exclusion), F-EX9 (the ghast fireball's gravity),
 and the standing architecture tail F-FL4 (the nether/End fluid
 simulation — the §22 queue head).
+
+## F-EX6 — VERIFIED and FIXED (the 2026-10-31 session, this branch): the wrong-world bed's blast arm
+
+**Status: fix-ready → PR opened (this branch, stacked on the F-EX4 fire
+arm's PR #92 — merge #92 first).** The twenty-first pass's candidate,
+three-pass verified this session.
+
+- **Subsystem:** the bed's use dispatch (the sleep gate's else arm).
+- **Affected engine files:** `EngineServer.useBlockArmOnTick` (the bed
+  arm's gate + the head normalization), the NEW `detonateBedOnTick` +
+  `bedHeadCellIn` (the pair walk and the blast), `BED_BLAST_POWER`.
+- **Reference:** `BedBlock.use` lines 38-79 WHOLE — the head
+  normalization (lines 38-43, the foot redirect with the orphan-foot
+  early return), the gate (line 48: `world.dimension.hasSpawnPoint() &&
+  world.getBiome(pos) != Biome.HELL`), and the else arm (lines 68-79:
+  the head's `removeBlock`, the sibling foot's `removeBlock` when it
+  stands, and `world.explode(null, pos.getX() + 0.5, ..., 5.0F, true,
+  true)`).
+- **Expected behavior:** a bed clicked in the NETHER or the END (both
+  answer `hasSpawnPoint()` false — NetherDimension line 55,
+  TheEndDimension line 54; the overworld's base Dimension line 130
+  answers true) EXPLODES: the pair leaves whole and the power-5
+  always-fire blast tears the ACTING world at the head's center.
+  createFire is ALWAYS true (the only unconditional fire site in the
+  reference's call census — PR #92's own comment names the bed as its
+  prepared row), destructive is ALWAYS true (never the mobGriefing
+  consult), the source is null.
+- **Observed behavior (pre-fix):** the engine routed every bed use
+  straight to `sleepOnTick` — NO dimension gate, NO pair removal, NO
+  blast: a nether bed click read the OVERWORLD's clock and tried the
+  ordinary sleep walk (and could SET A BED SPAWN there).
+- **The exact divergence:** the whole else arm was missing.
+- **Reproduction:** `BedWrongWorldBlastAcceptanceTest` (NEW, 3 seats)
+  over the REAL use wire (`useItemOnBlock` → the bed dispatch arm).
+- **The three-pass record:**
+  1. **Source:** the reference's use chain read whole with the three
+     dimension classes' `hasSpawnPoint` rows verified directly; the
+     parameter mapping against `World.explode`'s overloads (the 6th
+     createFire, the 7th destructive); the engine's `sleepOnTick`
+     re-read (no gate anywhere).
+  2. **Behavioral:** the stash discrimination — the core seat FAILED
+     UNFIXED at exactly the predicted await ("the wrong-world bed's
+     pair left whole" — the sleep walk ran instead); the overworld
+     guard and the orphan-foot guard passed BOTH trees; FIXED 3/3
+     green with the power pin (5.0F), the dimension pin (-1), the
+     overworld-marker survival, the no-sleep pin, and the FIRE-in-the-
+     crater pin (the always-true createFire row over the F-EX4 arm).
+  3. **Independent:** the gate's exact form (the BIOME arm added —
+     `biomeAt` answers "hell" for the HELL row, the anvil import's
+     custom-map edge; the engine's own generators never place hell
+     columns in the overworld, so the arm's seat would need a custom
+     import fixture — recorded as the verification limitation, the arm
+     itself source-verified); the removal ORDER (the head, the
+     sibling, THEN the blast — the reference's own sequence); the
+     orphan-foot early return (use lines 40-43 — the null-head path,
+     its own guard seat); the End's coverage (dimension 1 answers
+     false — the gate's form covers it); the compensating census (no
+     other nether-bed handling exists); the regression lanes below.
+- **The fix:** the bed dispatch normalizes the head over the ACTING
+  world (the new `bedHeadCellIn`), gates on `session.dimension() == 0 &&
+  !"hell".equals(world.biomeAt(bedHead))`, and routes the else arm to
+  `detonateBedOnTick` (the pair walk + the power-5 fire blast through
+  the engine's own `detonateAtIn`, the F-EX11 routing form — the blast
+  ranges the player's own dimension).
+- **Regression risk:** low — the overworld sleep arm is untouched (the
+  guard seat + the sleep lanes); the lanes verified green:
+  MultiplayerSleep 3/0, Sleep 1/0, ExplosionFireArm 4/0 (F-EX4's own
+  seats — the fire arm this blast uses), ExplosionEntityGather 8/0,
+  CreeperRows 3/0, WitherBoss 8/0, NetherDimension 5/0,
+  NetherTntRouting 1/0, FireBlocks 14/0, ExplosionSleepingEyeFrame
+  2/0, the new trio 3/0.
+- **Dependency:** STACKED ON PR #92 (the F-EX4 fire arm — the
+  `createFire` parameter this blast passes true). Merge #92 first;
+  this PR's own delta is the bed arm alone.
