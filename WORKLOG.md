@@ -19387,3 +19387,61 @@ Stage Summary:
   F-EX9 (the ghast fireball's throwable gravity), and the standing
   architecture tails (F-FL4's per-dimension fluid sim, the container
   families' per-dimension stores, the redstone system's world binding).
+
+---
+Task ID: session-2026-10-31-ci-unblock-pr-wave (the CI publishing unblock + the parity PR wave #91-#100 + the README live table)
+Agent: main (ZaminTorch session)
+
+- THE CI PUBLISHING UNBLOCK (the user's named concern): run 561's FIVE
+  failed seats downloaded as forensics and every one root-caused at the
+  source (the census law — no allowlist growth): (1) MobIntegration's
+  pig seat walked to the spawn packet's STALE cell — each swing now
+  walks the body's LIVE position; (2) the bow seat's no-ammunition arm
+  was a phantom (the arrows were given BEFORE the first use — the
+  assert passed only by winning the submit-vs-read race) — the honest
+  scene: the bow alone, two tick boundaries proving the drain, then
+  the refusal assert; (3) the mid-draw crit: the unfreeze ran
+  microseconds after the release submit, letting the tick walk advance
+  the pinned 19 to a full draw before the release drained (the crit
+  roll landed 8, health 2.0) — the unfreeze now waits for the release's
+  own drain receipt (both freeze arms); (4) the thorns seat's two
+  stacked races: the once-captured anchor column (the zombie aggroes
+  the archer after the first hit) — per-attempt re-anchoring — and the
+  full-draw crit's 6..10 damage killing the 20-hp zombie by the third
+  arrow (cutting the four proc rolls to three, ~2.8% structural
+  failure) — the pinned mid draw's deterministic 6; (5) the spawn
+  egg's wandering sample — a MobManager listener captures the position
+  AT the spawn event. Run 562 then failed on ONE NEW member
+  (EnderExit's 13.0 -> 12.0: the bare portal cell's fall debt — the
+  bedrock support restored, the fountain's own shape; residual batch
+  margin recorded). THE STATE: the pipeline is mechanically sound, the
+  deterministic blockers all retired, the first green run rides the
+  residual flake lottery (each member root-causable; the watch list:
+  anArrowHurts, the fire-arm crater-count pin, EnderExit's residual).
+- THE PARITY PR WAVE #91-#100: ALL TEN MERGED (the verifier agent's
+  lanes, each engine change verified against the reference before
+  merging): VT-004 (the portal stand clock's cooldown consult),
+  F-EX4 (the blast fire arm), F-EX7 (the TNT cart's hardcoded
+  destructive flag), VT-005 (the portal riding gate), F-EC1 (the
+  ender chest's Block.isSolid consult), F-EX5-rejected + F-EX10 (the
+  re-aim census — the large fireball ALONE), F-EX3 (the blast
+  resistance boot census — 107 flattened state ids), VT-006 (the
+  entity-level portal crossing, the mobs family first), F-EX8 (the
+  wither birth's griefing flag), F-EX11/12 (the blast family's
+  dimension routing). THREE MERGE INTERACTIONS FOUND AND REPAIRED:
+  the riding-gate seat x VT-006 (the pig crossed on the first armed
+  tick before the rider could mount — the frame mounts first, the
+  interior lights after), the gather seat's flying shot (the
+  gaussian-drift geometry), and the blast-routing x fire-arm
+  signature union.
+- THE README LIVE TABLE: the Status table now carries true completion
+  percentages per workstream with the evidence behind each number
+  (parity ~92%, dimension ownership ~75%, CI ~85%, infrastructure
+  ~90%, the concurrency phases and the adapter) — the user's standing
+  instruction: keep it current, no more "pending"/"landed but".
+- FL4-F10 (the redstone world binding) NOT STARTED this session — the
+  trace and the six-point plan stand in §29's ledger, unchanged and
+  ready; the session note is recorded in the file.
+
+Next: Wave FL4-F10's implementation exactly per the ledger row; watch
+runs 563+ (the merge pushes); the watch list's three members.
