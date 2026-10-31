@@ -1527,15 +1527,16 @@ effective law for the vanilla dimensions).
   surfaced the adjacent VT-009 (the multi-part families'
   neighbor-changed pair-integrity arms absent — see below).
 
-## VT-009 — the BED family's neighbor-changed pair-integrity arm is absent: a clipped bed half FLOATS where vanilla removes it (UNDER VERIFICATION — the source pass + the behavioral seats done; the DOOR half of the original hypothesis REJECTED)
+## VT-009 — the BED family's neighbor-changed pair-integrity arm is absent: a clipped bed half FLOATS where vanilla removes it (CONFIRMED — three passes; the DOOR half of the original hypothesis REJECTED; the correction eligible for its own fix branch)
 
 **Subsystem:** block updates / the bed family
 **Affected version:** the current develop baseline (a95e7ca6) and #102's
 head (3e41cf7b) alike
-**Status:** UNDER VERIFICATION — the bed half's source pass and
-behavioral seats complete (the seats RED on the unguarded tree BY
-CONTRACT, `MultiPartPairIntegrityDiscoveryTest`); the independent pass
-owed. THE DOOR HALF IS REJECTED: the pass's first door seat PASSED on
+**Status:** CONFIRMED over three passes (the source census, the
+behavioral seat matrix RED on the unguarded tree, the independent
+challenge below); the correction is eligible for its own fix branch
+(one family arm in `BlockUpdateSystem.runUpdate` — the proposed shape
+below). THE DOOR HALF IS REJECTED: the pass's first door seat PASSED on
 the unguarded tree and the source hunt found the compensating path —
 `RedstoneSystem.doorNeighborChanged` (DoorBlock.neighborChanged lines
 157-198, 1:1: the orphaned upper removes itself silently, the lower's
@@ -1629,16 +1630,125 @@ needs nothing — its arm lives in the redstone system.
   CONCLUSION: the BED family's arm is absent (two RED seats, the
   source census, the compensating hunt's negative result); the DOOR
   family's arm exists (one green seat + the named compensating path).
-- Pass 3 (independent): owed — the edges to challenge: the OTHER
-  non-break removal paths (a blast's probabilistic ray fan clipping
-  exactly one half — the seat uses the deterministic plugin-write
-  trigger; a fluid wash; a piston), the orphan-direction pair (the
-  FOOT removed → the HEAD must self-remove with NO drop — vanilla's
-  HEAD arm drops nothing, the FOOT arm alone drops), the
-  placement-surface impossibility of orphans (self-inflicted orphans
-  need a non-break path by construction), and the regression risk of
-  the arm's placement in the update queue (the wake coalescing's
-  addressee pin).
+- **Pass 3 (independent, the twenty-seventh pass, 2026-10-31):** the
+  hypothesis challenged from every remaining angle:
+  (1) THE ORPHAN-DIRECTION SEAT — the reference's HEAD arm (lines
+  110-114: the foot departs → the HEAD self-removes with NO drop; the
+  FOOT arm alone drops, line 118) got its own seat
+  (`theOrphanedBedHeadSelfRemovesWithNoDrop`): RED on the unguarded
+  tree at exactly the predicted await (the head FLOATS) — the
+  behavioral matrix now covers BOTH directions plus the drop law:
+  head-gone → foot leaves + bed item; foot-gone → head leaves, no
+  item.
+  (2) THE OTHER REMOVAL PATHS (source) — the blast's
+  `ExplosionService.commitDamaged` commits every destroyed cell through
+  `world.setBlock` (the §466 listener wakes the six neighbors — the
+  wake lands, no arm runs for the bed); the fluid wash's cell
+  replacement rides the same commit wire; the PISTON path turned out
+  to be its own finding (VT-010 below — vanilla breaks pushed beds
+  outright, the engine MOVES them, compounding this gap).
+  (3) THE COMPENSATING CENSUS completed — the engine's neighborChanged
+  surface is SPLIT: `BlockUpdateSystem.runUpdate` (the full arm list
+  enumerated — torch, signs, rails, vine, banners, carpets, cocoa,
+  lily, flowers, mushrooms, nether wart, double plants, pots, cake,
+  fire, portal, cane, cactus, farmland crops, farmland, grass — NO
+  bed) and `RedstoneSystem`'s own dispatch (plates, gates, doors,
+  trapdoors, the rails' signal arm — NO bed); the TilePlacement/
+  PublicBlockChange bridges carry no bed arm; the four seats' negative
+  results close the loop. No path cleans the orphan bed half.
+  (4) THE INTENTIONALITY CHALLENGE — the engine's own precedent ports
+  these arms (the door's 1:1 port in the redstone system; the update
+  queue's arm-per-family shape; `bedSiblingCleanup`'s javadoc itself
+  citing "the vanilla unit rule" — the author knew the rule and
+  implemented the break-path half alone); nothing marks the non-break
+  arm's absence intentional.
+  (5) THE FIX'S REGRESSION SURFACE bounded — the arm's natural home is
+  `runUpdate` beside the other families (the class-adjacency convention
+  `bedSiblingCleanup` already carries); the wake coalescing's addressee
+  pin preserves the foot's own type for its wake (the LATEST addressee
+  wins); the arm must NOT drop for the HEAD direction (the seat's
+  no-drop pin); and the `bedSpawnCleanup` interaction is the fix's one
+  design note (the anchor invalidation rides the break walk today —
+  vanilla validates lazily at respawn; the fix branch should decide
+  whether the arm calls it too).
+  CONCLUSION: the bed family's pair-integrity arm is absent and
+  UNCOMPENSATED engine-wide; the finding is CONFIRMED. The pass also
+  surfaced **VT-010** (the piston push table's membership — see below).
+
+## VT-010 — the piston push table's DESTROY/BLOCK membership diverges from the reference's material census: beds, doors, weighted plates, and cocoa are PUSHED where vanilla destroys them; anvils are PUSHED where vanilla refuses (SUSPECTED — one source pass)
+
+**Subsystem:** redstone / the piston families / the pushability table
+**Affected version:** the current develop baseline (a95e7ca6)
+**Status:** SUSPECTED — the source pass complete (the reference's
+material/override census + `canMoveBlock` + the toBreak drop law; the
+engine's table + gate read); the behavioral seat owed (the
+piston-push construction); the independent pass owed.
+
+### The reference's law
+
+`PistonBaseBlock.canMoveBlock` (lines 247-271): obsidian hardcoded
+immovable; the world border; `getMiningTime == -1` (the unbreakables);
+`getPistonMoveBehavior() == 2` (BLOCK — the ANVIL, PORTAL, PISTON,
+BARRIER materials) → immovable; `== 1` (DESTROY) → breakable under
+`allowBreaking`. The behavior value comes from the MATERIAL
+(`Material.setDestroyOnPistonMove` → 1: WATER, LAVA, LEAVES, PLANT,
+REPLACEABLE_PLANT, FIRE, DECORATION, CORAL, SNOW_LAYER, CACTUS,
+PUMPKIN, EGG, CAKE) or the BLOCK OVERRIDE (**BedBlock line 175: 1**;
+**DoorBlock: 1**; **AbstractPressurePlateBlock: 1** — all plates;
+AbstractRailBlock: 0 pushable; IceBlock: 0). The toBreak consumption
+(`move`, lines 303-309): **`block.dropItems(world, pos, state, 0)` +
+`world.removeBlock`** — the destroyed blocks DROP their items (a pushed
+bed: the pushed half's dropItems — the FOOT's bed item alone — then
+the survivor's neighborChanged self-removal with ITS drop: exactly ONE
+bed item, both halves gone, the piston extends).
+
+### The engine's shape
+
+`PistonSystem.pistonMoveBehavior` — the BLOCK family lists the portal,
+the piston head, the moving block (the barrier via the hardness -1
+gate); the DESTROY family lists the torch, the redstone components,
+the saplings, the grasses, the flowers, the wheat, the cane, the
+cactus, the pumpkin, the snow layer, the fire, the liquids, the
+leaves, the cake, the egg — **NO bed, NO door family, NO weighted
+pressure plates, NO cocoa, NO anvil**: all five answer BEHAVIOR_PUSH.
+`canMoveBlock`'s gate is otherwise a faithful port (obsidian, the
+bounds, the -1 hardness, the block-entity-backed containers). The
+observable for a pushed bed: the half MOVES to the next cell (the pair
+splits, the survivor FLOATS — VT-009's own gap compounding), NO drop,
+a displaced bed half at the landing cell. Vanilla: the pair gone,
+exactly one bed item, the piston extends. The door family's push
+observably self-compensates through the redstone pair arm (the moved
+lower pops with the door item, the orphaned upper goes silently —
+roughly vanilla's destroy-on-push outcome); the bed has no such arm.
+
+### The proposed minimal correction
+
+The table's membership rows: the bed family → DESTROY (the four
+`bed_head_*`/`bed_foot_*` ids... the engine's bed ids are
+direction-suffixed — `value.startsWith("bed_")`), the door family →
+DESTROY (`WoodDoorFamily.isDoor`), the weighted plates → DESTROY, the
+cocoa → DESTROY, the anvil → BLOCK. The DESTROY arm already carries
+the reference's drop law (the engine's toBreak consumption — to verify
+in the fix pass).
+
+### Verification pass history
+
+- **Pass 1 (source, the twenty-seventh pass, 2026-10-31):** the
+  reference's Material piston setters read (setDestroyOnPistonMove →
+  1, setBlocksPistonMove → 2, the doc's value semantics); the block
+  overrides censused (BedBlock 1, DoorBlock 1, all pressure plates 1,
+  rails 0, ice 0); `canMoveBlock`'s gate chain read; the toBreak
+  consumption read (dropItems + removeBlock — the drops DO land); the
+  engine's `pistonMoveBehavior`/`canMoveBlock` read with the
+  membership diff enumerated. CONCLUSION: five membership divergences
+  at the source level (bed, door, weighted plates, cocoa, anvil), the
+  bed's the most observable (it compounds VT-009).
+- Pass 2 (behavioral): owed — the piston-push seat (a piston extending
+  into a bed pair: vanilla's observable is the pair gone + one bed
+  item; the engine's today is the displaced half + the floating
+  survivor). The construction needs the piston extension path (the
+  redstone wire or the direct system API).
+- Pass 3 (independent): owed.
 
 ## Coverage ledger (updated by the twenty-seventh pass)
 
@@ -1656,7 +1766,8 @@ needs nothing — its arm lives in the redstone system.
 | Portal mechanics (flag1, forcer) | landed by FL4-F1; not re-audited — the stand clock's re-fire law is VT-004 (CONFIRMED, three passes; the correction is **PR #91 OPEN**; the seat PortalRefireDiscoveryTest rides green on the fix branch) |
 | Portal mechanics — the non-player crossing (the entity-level arm) | the MOBS family LANDED by **PR #98** (VT-006's correction: the entity-level crossing service + the mobs family — the gated collision, the threshold-0 clock, the 300 cooldown with the re-arm pin, the 8:1 walk, the forcer's placement, the stamp swap, the per-dimension wire; `PortalMobCrossingDiscoveryTest` 3/0 with the cooldown and riding-gate pins). The REMAINING families (items, orbs, boats, carts, arrows) ride the `DimensionCrossing` seam in their own passes — the behavioral seats authored (RED on develop BY CONTRACT, the twenty-fifth pass); the TNT and falling families excluded by the census; the End-origin arm is the named tail |
 | Bed use — the out-of-dimension blast arm | RESOLVED-BY-COVERAGE-CONFIRMATION (the twenty-seventh pass): VT-008's three passes complete from this stream — the behavioral seats GREEN on **PR #102's tree** (power 5 / dimension -1 and 1 / the epicenter pins / FIRE / no sleep / no spawn / the overworld control) and RED on develop at the predicted awaits; the independent pass re-ran the neighboring lanes and challenged the adaptation notes (the 4-neighbor pair removal vs the reference's FACING-opposite — the engine's own break-walk convention, observably equivalent; the foot's bed-item drop dying in the same-tick blast). **PR #102's coverage CONFIRMED** — awaiting the maintainer's merge |
-| Block updates — the multi-part families' pair-integrity arms | the BED family's neighborChanged self-removal arm absent anywhere in the engine — a clipped half FLOATS where vanilla clears it (**VT-009 UNDER VERIFICATION**: the source pass + the two RED behavioral seats done; the independent pass owed). The DOOR family's arm EXISTS (`RedstoneSystem.doorNeighborChanged`, DoorBlock lines 157-198 — the door half of the first hypothesis REJECTED by its own green seat, now the regression guard) |
+| Block updates — the multi-part families' pair-integrity arms | the BED family's neighborChanged self-removal arm absent anywhere in the engine — a clipped half FLOATS where vanilla clears it (**VT-009 CONFIRMED** over three passes: the source census, the four-seat behavioral matrix RED on the unguarded tree — both orphan directions + the drop law + the door regression guard, `MultiPartPairIntegrityDiscoveryTest`; the independent challenge — the blast/wash/piston removal paths, the completed compensating census, the intentionality challenge). The DOOR family's arm EXISTS (`RedstoneSystem.doorNeighborChanged`, DoorBlock lines 157-198 — the door half of the first hypothesis REJECTED by its own green seat, now the regression guard) |
+| Piston pushability — the behavior table's membership | **VT-010 SUSPECTED** (the twenty-seventh pass): the engine's `pistonMoveBehavior` DESTROY/BLOCK lists omit the bed family, the door family, the weighted plates, the cocoa (vanilla DESTROY) and the anvil (vanilla BLOCK) — a pushed bed MOVES where vanilla breaks it with its drop (compounding VT-009's floating survivor); one source pass done, the piston-push seat owed |
 | Portal mechanics — the riding gate (vehicle == null && rider == null) | VT-005 CONFIRMED (three passes — source, the pig-in-portal behavioral seat, the dismount-control independent pass; the correction rides `fix/portal-riding-gate-parity-audit`, PR #94) |
 | Drops — the TF-9 dimension stamp | LANDED by PR #90 (the dig/place walks stamp `world.dimension()`; the tile-family spill sites remain the per-dimension tile tail) |
 | Tile families — per-dimension stores | NOT INSPECTED as its own pass (the PR #90 ledger: the furnace/chest/skull/banner spill + cleanup ride the single-instance managers — the FL4 fluids/fire precedent applies; the nether tile placement/cleanup is its own architectural pass) |
@@ -1674,14 +1785,18 @@ needs nothing — its arm lives in the redstone system.
    coverage CONFIRMED — the seats `BedWrongWorldNightWalkVerificationTest`
    3/0 GREEN on #102's tree riding `audit/verifier-pass-27-bed-coverage`,
    RED on develop at the predicted awaits; the neighboring bed/sleep
-   lanes independently re-run green). **VT-009's independent pass is
-   the next run's head** (the behavioral seats are done: the two BED
-   seats RED on the unguarded tree, the DOOR seat green — its half
-   REJECTED with the compensating path named): the edges to challenge —
-   the other non-break removal paths (the blast's ray fan, the fluid
-   wash, the piston), the orphan-direction pair (the FOOT removed →
-   the HEAD self-removes with NO drop), and the update queue's addressee
-   pin. A confirmed bed arm then takes its own fix branch.
+   lanes independently re-run green). **VT-009 is CONFIRMED** (the
+   three passes complete this run: the source census, the four-seat
+   behavioral matrix — both orphan directions + the drop law + the door
+   regression guard — and the independent challenge with the completed
+   compensating census). **The next run's head: the VT-009 fix branch**
+   (one family arm in `BlockUpdateSystem.runUpdate` — the bed half
+   whose sibling is gone removes itself, the FOOT arm dropping the bed
+   item; the `bedSpawnCleanup` interaction decided; the four discovery
+   seats go green) **and VT-010's passes** (the piston-push behavioral
+   seat — a piston extending into a bed pair: the pair gone + one bed
+   item in vanilla, the displaced half + the floating survivor today;
+   then the independent pass over the remaining membership rows).
 1. ~~The VT-003 fix branch~~ — LANDED (PR #89, `IceFamilyParityTest` 11/0,
    the stash verification).
 2. ~~The VT-001 fix branch~~ — LANDED (Wave FL4-F2 on develop, the fire

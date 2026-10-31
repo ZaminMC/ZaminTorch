@@ -191,4 +191,44 @@ class MultiPartPairIntegrityDiscoveryTest {
                 40, "the orphaned door upper self-removed (DoorBlock.neighborChanged"
                         + " lines 157-198 — RedstoneSystem.doorNeighborChanged's own arm)");
     }
+
+    /**
+     * SEAT FOUR — the orphan-direction pair (BedBlock.neighborChanged
+     * lines 110-114, the HEAD arm): the FOOT leaves through the commit
+     * wire, and the HEAD — whose sibling is gone — must remove ITSELF
+     * with NO drop (the reference's drop law: the FOOT arm alone drops,
+     * line 118; the HEAD arm is a silent removeBlock). On the unguarded
+     * tree the head FLOATS (the cell-clearing await is the RED
+     * discriminator; the no-drop pin guards the fix's own law).
+     */
+    @Test
+    void theOrphanedBedHeadSelfRemovesWithNoDrop() throws Exception {
+        layPlatformAndPairs();
+        ConcurrentLinkedQueue<ItemEntity> spawned = new ConcurrentLinkedQueue<>();
+        server.addItemListener(new net.zaminmc.torch.server.entity.ItemEntityManager.Listener() {
+            @Override public void onItemSpawned(ItemEntity entity) {
+                spawned.add(entity);
+            }
+            @Override public void onItemMoved(ItemEntity entity) { }
+            @Override public void onItemCollected(ItemEntity entity,
+                    net.zaminmc.torch.server.player.PlayerSession collector,
+                    int collectedCount) { }
+            @Override public void onItemStackChanged(ItemEntity entity) { }
+            @Override public void onItemRemoved(ItemEntity entity, String reason) { }
+        });
+        server.ticker().submit(() -> world.setBlock(BED_FOOT, world.airType()));
+        EngineAwaits.awaitCondition(world,
+                () -> world.getBlock(BED_FOOT).equals(world.airType()),
+                40, "the bed foot left");
+        EngineAwaits.awaitCondition(world,
+                () -> world.getBlock(BED_HEAD).equals(world.airType()),
+                40, "the orphaned bed head self-removed (BedBlock.neighborChanged"
+                        + " lines 110-114 — the HEAD arm's silent removeBlock)");
+        EngineAwaits.awaitTicks(world, 10, "the departure settled");
+        assertTrue(spawned.stream().noneMatch(entity ->
+                        entity.stack().type().identifier().equals(
+                                net.zaminmc.torch.server.item.BuiltinItems.BED.identifier())),
+                "the HEAD arm's self-removal drops NOTHING (the FOOT arm alone"
+                        + " drops — BedBlock.neighborChanged line 118)");
+    }
 }
