@@ -1222,12 +1222,11 @@ public final class ProjectileManager {
             }
             if (projectile.kind() == ProjectileEntity.Kind.LARGE_FIREBALL) {
                 // FireballEntity.onHit: the explosion where the fireball
-                // lands (the fire flag's mobGriefing default — the fire
-                // placement stands in for the blast's own).
+                // lands — the fire rides the blast's own createFire arm
+                // (the mobGriefing flag, the sink's own consult; the old
+                // single-site fire stand-in here was the pre-fire-arm
+                // engine's substitute, retired by the arm's landing).
                 explosionSink.explode(point, 1.0f, projectile.dimension());
-                fireSink.tryPlaceFire((int) Math.floor(point.x()),
-                        (int) Math.floor(point.y()),
-                        (int) Math.floor(point.z()), projectile.dimension());
                 remove(projectile, "hit");
                 return true;
             }
@@ -1322,11 +1321,10 @@ public final class ProjectileManager {
             }
         }
         if (projectile.kind() == ProjectileEntity.Kind.LARGE_FIREBALL) {
-            // FireballEntity.onHit: the detonation at the struck body.
+            // FireballEntity.onHit: the detonation at the struck body — the
+            // fire rides the blast's own createFire arm over its damaged
+            // cells (the mobGriefing flag), never a single-site stand-in.
             explosionSink.explode(mob.position(), 1.0f, projectile.dimension());
-            fireSink.tryPlaceFire((int) Math.floor(projectile.position().x()),
-                    (int) Math.floor(projectile.position().y()),
-                    (int) Math.floor(projectile.position().z()), projectile.dimension());
         }
         if (projectile.kind() == ProjectileEntity.Kind.WITHER_SKULL) {
             // WitherSkullEntity.onHit lines 58-84: a kill heals the

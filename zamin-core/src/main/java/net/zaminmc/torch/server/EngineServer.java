@@ -89,6 +89,7 @@ import net.zaminmc.torch.server.world.FlatWorldGenerator;
 import net.zaminmc.torch.server.world.WorldStorage;
 import net.zaminmc.torch.server.world.WorldDeltaSnapshot;
 import net.zaminmc.torch.server.block.BlockRegistryBuilder;
+import net.zaminmc.torch.server.block.BlockLightTable;
 import net.zaminmc.torch.server.block.CollisionShapes;
 import net.zaminmc.torch.server.block.BuiltinBlocks;
 import net.zaminmc.torch.server.block.ExplosionService;
@@ -2036,7 +2037,10 @@ public final class EngineServer implements Server, EngineBridge {
                         (dimension, x, y, z, power) -> detonateAtIn(
                                 worldForSafe(dimension), explosionServiceFor(dimension),
                                 dimension,
-                                x, y, z, power, true,
+                                // PrimedTnt never fires: World.explode's
+                                // six-arg form passes false at the block's
+                                // fuse detonation (the F-EX4 call census).
+                                x, y, z, power, true, false,
                                 net.zaminmc.torch.server.block.ExplosionService.BlastSource.PLAIN,
                                 null),
                         fxManager, gameplayRandom, TNT_ID_BASE);
@@ -2540,11 +2544,19 @@ public final class EngineServer implements Server, EngineBridge {
                 // answers the destructive flag (Slice 24a — FireballEntity
                 // line 33's own consult): a no-grief world wounds and
                 // knocks but never breaks blocks.
-                projectiles.setExplosionSink((at, power, dimension) -> detonateAtIn(
-                        worldForSafe(dimension), explosionService, dimension,
-                        at.x(), at.y(), at.z(), power,
-                        gameRules.getBoolean("mobGriefing"),
-                        net.zaminmc.torch.server.block.ExplosionService.BlastSource.PLAIN, null));
+                projectiles.setExplosionSink((at, power, dimension) -> {
+                    // FireballEntity.onHit line 33: ONE flag consult answers
+                    // BOTH arms — {@code explode(null, x, y, z, power, flag,
+                    // flag)}: the fire and the destruction ride mobGriefing
+                    // together (a no-grief world wounds and knocks but never
+                    // breaks a block and never leaves a scorch).
+                    boolean griefing = gameRules.getBoolean("mobGriefing");
+                    detonateAtIn(
+                            worldForSafe(dimension), explosionService, dimension,
+                            at.x(), at.y(), at.z(), power,
+                            griefing, griefing,
+                            net.zaminmc.torch.server.block.ExplosionService.BlastSource.PLAIN, null);
+                });
                 // The wither skull's own arm (the charged flag rides the
                 // blast's source model — WitherSkullEntity lines 43-51's
                 // 0.8 cap over canDestroy): the blue skull breaks through
@@ -2553,7 +2565,7 @@ public final class EngineServer implements Server, EngineBridge {
                 projectiles.setSkullExplosionSink((at, power, charged, dimension) -> detonateAtIn(
                         worldForSafe(dimension), explosionService, dimension,
                         at.x(), at.y(), at.z(), power,
-                        gameRules.getBoolean("mobGriefing"),
+                        gameRules.getBoolean("mobGriefing"), false,
                         charged ? net.zaminmc.torch.server.block.BlastSources.CHARGED_SKULL : net.zaminmc.torch.server.block.ExplosionService.BlastSource.PLAIN, null));
                 // The burning arrow's TNT arm (TntBlock.onEntityCollision
                 // lines 96-113): a burning arrow entering the TNT cell
@@ -20373,7 +20385,7 @@ public final class EngineServer implements Server, EngineBridge {
             detonateAtIn(endWorld, endExplosionService, 1,
                     x, y, z,
                     net.zaminmc.torch.server.endcrystal.EnderCrystalSystem.BLAST_POWER,
-                    true,
+                    true, false,
                     net.zaminmc.torch.server.block.ExplosionService.BlastSource.PLAIN, null);
         }
 
@@ -24292,7 +24304,7 @@ public final class EngineServer implements Server, EngineBridge {
     private void detonateAtWithSource(double cx, double cy, double cz, float power,
                                       boolean destructive,
                                       net.zaminmc.torch.server.block.ExplosionService.BlastSource source) {
-        detonateAtIn(world, explosionService, 0, cx, cy, cz, power, destructive, source, null);
+        detonateAtIn(world, explosionService, 0, cx, cy, cz, power, destructive, false, source, null);
     }
 
     /**
@@ -24314,7 +24326,7 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     private void detonateAt(double cx, double cy, double cz, float power, boolean destructive) {
-        detonateAtIn(world, explosionService, 0, cx, cy, cz, power, destructive,
+        detonateAtIn(world, explosionService, 0, cx, cy, cz, power, destructive, false,
                 net.zaminmc.torch.server.block.ExplosionService.BlastSource.PLAIN, null);
     }
 
@@ -24327,8 +24339,38 @@ public final class EngineServer implements Server, EngineBridge {
      */
     private void detonateAtFromMob(MobEntity source, double cx, double cy, double cz,
                                    float power, boolean destructive) {
-        detonateAtIn(world, explosionService, 0, cx, cy, cz, power, destructive,
+        detonateAtIn(world, explosionService, 0, cx, cy, cz, power, destructive, false,
                 net.zaminmc.torch.server.block.ExplosionService.BlastSource.PLAIN, source);
+    }
+
+    /**
+     * The fire arm's floor gate (the reference's {@code Block.isOpaque} —
+     * line 167's opaqueCube, assigned at construction {@code
+     * this.opaqueCube = this.isSolidRender()}, Block.java line 215): the
+     * engine's light table answers the SAME field's default ({@code
+     * isSolidRender() ? 255 : 0}, line 216, folded to 15) for every block
+     * WITHOUT a setOpacity override, so filter 15 IS the opaque-cube answer
+     * — except the THREE setOpacity(255) families whose own isSolidRender
+     * overrides answer FALSE (the complete setOpacity census, the only
+     * non-zero overrides in the register block): the stairs (StairsBlock
+     * line 65's false), the farmland (FarmlandBlock line 35's false), and
+     * the SINGLE slabs (SlabBlock line 70 answers {@code isDouble()} — the
+     * constructor's own line 25 sets the double variants true explicitly,
+     * and the {@code double_*} names carry them). Fire never lands on
+     * those; the double slabs keep it.
+     */
+    private static boolean isOpaqueCubeFloor(net.zaminmc.torch.block.BlockType type) {
+        String value = type.identifier().value();
+        if (value.contains("_stairs_")) {
+            return false; // StairsBlock.isSolidRender -> false
+        }
+        if (value.equals("farmland") || value.equals("farmland_wet")) {
+            return false; // FarmlandBlock.isSolidRender -> false
+        }
+        if (value.contains("_slab") && !value.startsWith("double_")) {
+            return false; // the single slab's isSolidRender -> isDouble() = false
+        }
+        return BlockLightTable.filter(type) == 15;
     }
 
     /**
@@ -24356,11 +24398,14 @@ public final class EngineServer implements Server, EngineBridge {
      * or a wither's own body — so the victims' shave, revenge, and
      * death-hook walks read the blast's author; the player-lit TNT, the
      * fireballs, the skulls, and the crystals carry none (the engine's
-     * TntSystem holds no igniter seat — ledgered). Tick-thread context.
+     * TntSystem holds no igniter seat — ledgered). The fire arm (the
+     * createFire flag): the fireball's mobGriefing consult and the
+     * wrong-world bed's always-true are the only fire sites in the
+     * reference — every other caller passes false. Tick-thread context.
      */
     private void detonateAtIn(EngineWorld blastWorld, ExplosionService service,
                               int dimension, double cx, double cy, double cz,
-                              float power, boolean destructive,
+                              float power, boolean destructive, boolean createFire,
                               net.zaminmc.torch.server.block.ExplosionService.BlastSource source,
                               MobEntity blastSourceMob) {
         BlockPosition blockCenter = new BlockPosition(
@@ -24412,6 +24457,11 @@ public final class EngineServer implements Server, EngineBridge {
         final java.util.List<ExplosionService.Destroyed> damagedCells =
                 new java.util.ArrayList<>();
         java.util.Map<UUID, double[]> motion = new java.util.HashMap<>();
+        // The explosion's OWN private stream (Explosion.java line 30 — a
+        // fresh unseeded Random per detonation): the fire arm's 1-in-3 roll
+        // consumes THIS alone, never the world's stream — a nested
+        // detonation (the crystal chain, the TNT cart's death) rolls its own.
+        java.util.Random fireRoll = new java.util.Random();
         blastWorld.executeInRegions(scopeMin, scopeMax, () -> {
             // --- phase one: the ray fan, COLLECT-only ---------------------
             // (damageEntities lines 60-105): nothing is written — the
@@ -24476,6 +24526,31 @@ public final class EngineServer implements Server, EngineBridge {
             // ServerWorldEventListener.addParticle lines 23-29. No packet.)
             if (destructive) {
                 service.commitDamaged(damagedCells);
+            }
+
+            // --- phase two (continued): the fire arm ------------------------
+            // (damageBlocks lines 191-199): the FIELD's own walk AFTER the
+            // clear — every collected cell that holds AIR NOW (the crater's
+            // own cleared floor cells and the surface ring the rays crossed
+            // alike), sits on an OPAQUE cube, and wins the explosion's
+            // PRIVATE stream's 1-in-3 roll becomes FIRE. The arm rides the
+            // createFire flag ALONE (never damageBlocks' particle parameter
+            // — World.explode's six-arg form delegates false and calls
+            // damageBlocks(true)); the roll consumes this detonation's own
+            // Random, never the world's stream. The only callers that pass
+            // it true: the ghast fireball (the mobGriefing flag) and the
+            // wrong-world bed (always — its own blast arm is F-EX6's row).
+            if (createFire) {
+                BlockType armAir = blastWorld.airType();
+                for (ExplosionService.Destroyed cell : damagedCells) {
+                    BlockPosition at = cell.position();
+                    if (at.y() > BlockPosition.MIN_Y
+                            && blastWorld.getBlock(at).equals(armAir)
+                            && isOpaqueCubeFloor(blastWorld.getBlock(at.offset(0, -1, 0)))
+                            && fireRoll.nextInt(3) == 0) {
+                        blastWorld.setBlock(at, BuiltinBlocks.FIRE);
+                    }
+                }
             }
         });
 
