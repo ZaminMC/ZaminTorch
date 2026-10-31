@@ -426,3 +426,70 @@ throw-gesture origin at line ~6167, the random-tick cell walk at line
 reference comparison (the reference itself hardcodes 1.62 at SOME of
 these sites and reads getEyeHeight at others; the census is its own
 verification item, not this fix's scope).
+
+## F-EX8 — VERIFIED and FIXED (the 2026-10-31 session, this branch): the wither birth blast's destructive flag
+
+**Status: fix-ready → PR opened (this branch).** The twenty-first pass's
+candidate, three-pass verified this session.
+
+- **Subsystem:** the wither's birth explosion (Slice 59's event family)
+  over the gamerule family's destructive gate (Slice 24a).
+- **Affected engine files:** `EngineServer.onWitherBirth` (the listener
+  dispatch's `detonateAtFromMob` call — the hardcoded `false`).
+- **Reference:** `WitherEntity.mobAiTick` line 217 —
+  `this.world.explode(this, this.x, this.y + this.getEyeHeight(),
+  this.z, 7.0F, false, this.world.getGameRules().getBoolean("mobGriefing"))`.
+- **Expected behavior:** the birth blast's SEVENTH argument (the
+  block-breaking flag) reads the mobGriefing game rule. The 6th
+  (createFire) stays `false`. The five-arg overload the creeper rides
+  (`World.explode` lines 1597-1598) confirms the semantics: it delegates
+  to `(source, x, y, z, power, false, destructive)` — the LAST argument
+  is the destructive flag, and `CreeperEntity.explode` line 210 passes
+  mobGriefing there.
+- **Observed behavior (pre-fix):** the engine hardcoded `false` whole —
+  a griefing world's wither birth wounded and knocked but never tore a
+  single block, whatever the rule said.
+- **The exact divergence:** one boolean at one call site — the rule
+  consult never reached the blast walk.
+- **Reproduction:** `WitherBirthGriefingParityAcceptanceTest` (NEW, 2
+  seats) drives the REAL summon wire — a wither spawned onto a stone
+  platform, `witherSummoned()`'s 220-tick blue window on the engine's own
+  clock, the birth consumed by the manager's tick and dispatched through
+  `onWitherBirth` into the detonation walk.
+- **The three-pass record:**
+  1. **Source:** the reference's line 217 read directly; the
+     `World.explode` overloads' parameter semantics verified (the 6th
+     createFire, the 7th destructive; the five-arg form's flag is
+     destructive); the engine's `detonateAtFromMob(..., float power,
+     boolean destructive)` forwards the flag into `detonateAtIn`'s
+     `destructive` row — the fix's parameter target verified.
+  2. **Behavioral:** the stash discrimination — the core seat (default
+     rules, mobGriefing true) FAILED UNFIXED at exactly the predicted
+     await ("the birth blast tore the platform under the wither" — the
+     hardcoded false left the platform standing) while the GUARD seat
+     (mobGriefing=false) passed on BOTH trees, proving the birth-event
+     wire itself fires identically; FIXED the pair runs 2/0 green with
+     the power pin (7.0F).
+  3. **Independent:** the parameter-order challenge (the engine's flag
+     rides the same position the reference's does — verified at the
+     forwarding site); the compensating-behavior census (ONE
+     `onWitherBirth` implementation engine-wide, no other gate between
+     the event and the walk); the creeper's parallel form (the
+     established `gameRules.getBoolean("mobGriefing")` consult my fix
+     mirrors); the default rule value ("true", GameRules line 87 — the
+     fixed engine now tears on default servers exactly like vanilla).
+- **The fix:** `false` → `gameRules.getBoolean("mobGriefing")` at the
+  `onWitherBirth` detonation call, with the reference's line citation in
+  the comment. Nothing else changes: the wound walks, the packet, the
+  power, the source-mob carry are untouched; the block-tearing arm and
+  its drop rolls/TNT chain reaction run under the same walk the
+  creeper's blast has always used.
+- **Regression risk:** low — one boolean at one call site; the
+  neighboring lanes verified green whole this session: WitherBossTest
+  8/0, WitherExemptionArmsAcceptanceTest 5/0, CreeperRowsAcceptanceTest
+  3/0, GameRuleAcceptanceTest 11/0, ExplosionEntityGatherParityTest 8/0,
+  the new pair 2/0.
+- **The tails this fix does NOT touch (recorded, their own lanes):** the
+  birth blast's WORLD binding (the mob-sourced detonation family's
+  overworld-bound route — F-EX11 below) and the createFire arm (F-EX4,
+  PR #92).
