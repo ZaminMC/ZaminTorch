@@ -2390,6 +2390,10 @@ public final class EngineServer implements Server, EngineBridge {
                         PROJECTILE_ID_BASE);
                 this.projectileManager = projectiles;
                 projectiles.setEventBus(eventBus); // §27.7: the public projectile-spawn gate
+                // VT-006 — the entity-level crossing service (the
+                // projectile family's portal arm rides the same walk the
+                // mobs' does — ArrowEntity.tick's super chain).
+                projectiles.setDimensionCrossing(this::crossEntityDimension);
                 // The burning arrow's TNT arm (the per-block entity
                 // collision): the arm reads the fields lazily — the TNT
                 // system is constructed later in the boot, and the pass

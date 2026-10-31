@@ -15,6 +15,13 @@ import java.util.Objects;
  */
 public final class ProjectileEntity implements net.zaminmc.torch.entity.Projectile {
 
+    /**
+     * VT-006 — the base family's portal re-entry cooldown (the
+     * reference's {@code getPortalCooldown()} = 300, Entity.java lines
+     * 1457-1459).
+     */
+    private static final int PROJECTILE_PORTAL_COOLDOWN_TICKS = 300;
+
     /** The projectiles the engine launches. */
     public enum Kind {
         /** The bow's arrow: sticks where it lands, hurts what it hits. */
@@ -141,6 +148,135 @@ public final class ProjectileEntity implements net.zaminmc.torch.entity.Projecti
     /** Sets the body's dimension (the launch walks stamp it). */
     public void setDimension(int dimension) {
         this.dimension = dimension;
+    }
+
+    /**
+     * VT-006 — the portal stand clock (the reference's
+     * {@code Entity.portalTime}, Entity.java line 127): the base family's
+     * threshold is {@code getMaxNetherPortalTime() = 0} (lines 354-355),
+     * so the clock never accumulates — the row rides the body for the
+     * decay arm's own law (lines 302-308) exactly like the item, orb,
+     * and mob families' own rows.
+     */
+    private int portalTime;
+    /**
+     * VT-006 — the portal re-entry cooldown (the reference's
+     * {@code Entity.portalCooldown}, Entity.java line 128): armed at the
+     * crossing, re-armed by the collision consult while it lives
+     * (onPortalCollision lines 1429-1430) — the arrival standing in the
+     * destination frame never re-fires.
+     */
+    private int portalCooldown;
+    /** VT-006 — the last portal cell the collision derived ({@code lastPortalPos}). */
+    private net.zaminmc.torch.block.BlockPosition lastPortalPosition;
+    /** VT-006 — the entry's offset along the frame's width ({@code lastPortalOffset.x}). */
+    private double portalOffsetAlongWidth;
+    /** VT-006 — the entry's offset up the frame's height ({@code lastPortalOffset.y}). */
+    private double portalOffsetUp;
+    /** VT-006 — the entry's facing ({@code lastPortalFacing}'s horizontal id). */
+    private int portalFacingHorizontalId;
+
+    /**
+     * VT-006 — the entity-level portal clock's advance (the reference's
+     * Entity.baseTick portal arm, lines 282-313, riding ArrowEntity.tick
+     * line 150's super chain — the same walk the item, orb, and mob
+     * families carry): the cooldown tail every ticked body pays (lines
+     * 311-312), the collision consult's re-arm (onPortalCollision lines
+     * 1429-1430), the crossing arm's base threshold 0 (lines 286-297 —
+     * armed on the very first touching tick, the cooldown armed for the
+     * arrival), and the decay arm (lines 302-308). A projectile never
+     * rides (no vehicle, no rider rows), so the arm's own
+     * {@code this.vehicle == null} gate (line 286) is structural.
+     *
+     * @return true on the crossing tick (the manager's walk consumes the
+     *         body's remaining walk)
+     */
+    public boolean advanceEntityPortalClock(boolean touching) {
+        // The tail decrement (lines 311-312): every ticked body pays it.
+        if (portalCooldown > 0) {
+            portalCooldown--;
+        }
+        if (touching) {
+            if (portalCooldown > 0) {
+                // The collision consult's re-arm (onPortalCollision lines
+                // 1429-1430): a colliding body whose cooldown is live
+                // resets it to the full store.
+                portalCooldown = PROJECTILE_PORTAL_COOLDOWN_TICKS;
+                return false;
+            }
+            // The crossing arm (lines 286-297): the base threshold 0 —
+            // the post-increment consult is armed on the very first
+            // touching tick, and the cooldown arms for the arrival.
+            portalTime = 0;
+            portalCooldown = PROJECTILE_PORTAL_COOLDOWN_TICKS;
+            return true;
+        }
+        // The decay arm (lines 302-308).
+        if (portalTime > 0) {
+            portalTime = Math.max(0, portalTime - 4);
+        }
+        return false;
+    }
+
+    /**
+     * VT-006 — the reference's {@code onPortalCollision} memory arm
+     * (lines 1428-1451), the same walk the item, orb, and mob families
+     * carry: a NEW portal cell derives the body's offset inside its
+     * frame (the inverse-lerp of the body's position across the frame's
+     * width and height — the raw reference ratios, unclamped) and the
+     * entered facing; the SAME cell re-collides without re-deriving.
+     */
+    public void notePortalEntry(net.zaminmc.torch.block.BlockPosition portalCell,
+                                net.zaminmc.torch.server.world.PortalFrameBuilder.PortalShapeMatch match,
+                                double x, double y, double z) {
+        if (portalCell.equals(lastPortalPosition)) {
+            return; // the reference's !pos.equals(lastPortalPos) guard
+        }
+        lastPortalPosition = portalCell;
+        boolean axisX = match.forwardAxis()
+                == net.zaminmc.torch.server.world.PortalFrameBuilder.Axis.X;
+        double origin = axisX ? match.topLeftFront().z() : match.topLeftFront().x();
+        double bodyCoord = axisX ? z : x;
+        if (match.forwardAxis() == net.zaminmc.torch.server.world.PortalFrameBuilder.Axis.Z
+                && match.forwardPositive()) {
+            bodyCoord -= 1.0;
+        }
+        // The reference's inverseLerp: (a - b) / (c - b), raw — no clamp.
+        portalOffsetAlongWidth = Math.abs(
+                (bodyCoord - origin) / ((origin - match.width()) - origin));
+        portalOffsetUp = ((y - 1.0) - match.topLeftFront().y())
+                / ((match.topLeftFront().y() - match.height()) - match.topLeftFront().y());
+        portalFacingHorizontalId = match.forwardHorizontalId();
+    }
+
+    /** @return the memory snapshot the PortalForcer's placement math consumes. */
+    public net.zaminmc.torch.server.world.PortalForcer.Memory portalMemory() {
+        net.zaminmc.torch.server.world.PortalForcer.Memory memory =
+                new net.zaminmc.torch.server.world.PortalForcer.Memory();
+        memory.offsetAlongWidth = portalOffsetAlongWidth;
+        memory.offsetUp = portalOffsetUp;
+        memory.lastFacingHorizontalId = portalFacingHorizontalId;
+        memory.known = lastPortalPosition != null;
+        return memory;
+    }
+
+    /**
+     * VT-006 — the crossing's arrival (the reference's
+     * setPositionAndAngles + the world swap over the recreated body's
+     * copyNbtFrom, Entity.changeDimension lines 1708-1722: the kind, the
+     * thrower, the stick clock — everything the NBT holds carries whole;
+     * the engine keeps the body itself): the dimension stamp, the
+     * forcer's landing, and the rotated motion. The projectile family
+     * carries no yaw row (the engine's own model — the flight derives
+     * its own pitch/yaw), so the arrival's rotated yaw is consumed by
+     * the forcer's placement math, never stamped.
+     */
+    public void applyDimensionArrival(int dimension, Position arrival,
+                                       double velocityX, double velocityZ) {
+        this.dimension = dimension;
+        this.position = Objects.requireNonNull(arrival, "arrival");
+        this.vx = velocityX;
+        this.vz = velocityZ;
     }
 
     public ProjectileEntity(int entityId, Kind kind, int throwerId,
