@@ -2111,13 +2111,14 @@ public final class MobEntity implements LivingEntity {
             } else {
                 air = 300;
             }
-            // The portal re-entry cooldown (Entity.baseTick lines 311-313):
-            // a positive store ticks down; the engine's mobs carry no
-            // portal walk of their own (the world's portal envelope), the
-            // row round-trips for the NBT surface.
-            if (portalCooldown > 0) {
-                portalCooldown--;
-            }
+            // VT-009 — the portal re-entry cooldown's tail decrement
+            // (Entity.baseTick lines 311-313) RETIRED from this walk: the
+            // entity-level portal arm (MobManager.tickPortalArm ->
+            // advanceEntityPortalClock, PR #98) owns the clock whole, and
+            // the row's survival beside it decremented the store TWICE per
+            // tick — the 300-tick re-entry immunity halved to ~150. The
+            // reference has exactly ONE decrement call site (baseTick's
+            // own tail, once per ticked body).
         }
         if (sheared && regrowTimer > 0) {
             regrowTimer--;
