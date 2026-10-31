@@ -43,6 +43,22 @@ public final class ExperienceOrbManager implements ExperienceOrbEntity.Players {
     private Iterable<PlayerSession> currentPlayers;
     private int nextEntityId;
 
+    /**
+     * VT-006 — the entity-level crossing service (the same seam the
+     * mobs' arm rides, PR #98's
+     * {@link net.zaminmc.torch.server.entity.MobManager.DimensionCrossing});
+     * null until the engine wires it (the unwired boots keep the
+     * no-crossing shape — the seam's own hold).
+     */
+    private volatile net.zaminmc.torch.server.entity.MobManager.DimensionCrossing dimensionCrossing;
+
+    /** Wires the crossing service (the engine's own boot). */
+    public void setDimensionCrossing(
+            net.zaminmc.torch.server.entity.MobManager.DimensionCrossing dimensionCrossing) {
+        this.dimensionCrossing = java.util.Objects.requireNonNull(
+                dimensionCrossing, "dimensionCrossing");
+    }
+
     /** Events the protocol adapter translates into wire updates. */
     public interface Listener {
         void onOrbSpawned(ExperienceOrbEntity orb);
@@ -362,6 +378,16 @@ public final class ExperienceOrbManager implements ExperienceOrbEntity.Players {
             // flips to the body's own dimension before its physics walk (the
             // TF-9 item family's own per-body flip, generalized).
             ground.setActiveDimension(orb.dimension());
+            // VT-006 — the entity-level portal arm (Entity.baseTick
+            // lines 282-313, reached through ExperienceOrbEntity.tick
+            // line 61's super.tick() chain): the reference runs the portal
+            // walk at the START of the ticked body's tick, BEFORE the
+            // physics — an orb standing in the cells crosses on the first
+            // armed tick (the base threshold 0, an orb never rides so the
+            // collision's gate passes vacuously).
+            if (tickPortalArm(orb)) {
+                continue; // the crossing consumed this body's walk
+            }
             if (orb.tick(ground, random, sounds, this)) {
                 for (Listener listener : listeners) {
                     listener.onOrbMoved(orb);
@@ -413,6 +439,77 @@ public final class ExperienceOrbManager implements ExperienceOrbEntity.Players {
     private void publishRemoved(ExperienceOrbEntity orb, String reason) {
         for (Listener listener : listeners) {
             listener.onOrbRemoved(orb, reason);
+        }
+    }
+
+    /**
+     * VT-006 — the orb family's portal arm (the mobs' own
+     * {@code tickPortalArm} shape, PR #98, over the reference's
+     * entity-level law): the gated collision consult (an orb never rides
+     * and never carries a rider, so the reference's vehicle/rider pair
+     * passes vacuously), the entry memory derive, then the base clock
+     * (the threshold 0, the 300 cooldown, the re-arm, the -4 decay).
+     *
+     * <p>THE CONSULT CELL: the cell containing the body's position — the
+     * engine's centre convention for the orb box (the reference's box
+     * scan arms on ANY portal cell the box touches; the single-cell form
+     * the mobs' arm established). Caller context: the shared ground is
+     * ALREADY flipped to the body's own dimension.</p>
+     *
+     * @return true when the crossing fired (the caller skips the body's
+     *         own walk — the reference's removed-body shape)
+     */
+    private boolean tickPortalArm(ExperienceOrbEntity orb) {
+        Position at = orb.position();
+        int cellX = (int) Math.floor(at.x());
+        int cellY = (int) Math.floor(at.y());
+        int cellZ = (int) Math.floor(at.z());
+        var match = ground.portalFrameAt(cellX, cellY, cellZ);
+        if (match != null) {
+            // The entry memory's derive (onPortalCollision lines 1432-1451:
+            // the same-cell re-collision re-derives nothing).
+            orb.notePortalEntry(new net.zaminmc.torch.block.BlockPosition(
+                    cellX, cellY, cellZ), match, at.x(), at.y(), at.z());
+        }
+        if (orb.advanceEntityPortalClock(match != null)) {
+            crossOrbDimension(orb);
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * VT-006 — the orb family's crossing walk (Entity.changeDimension
+     * lines 1695-1730): the old world's destroy fan FIRST (the TF-10
+     * wire gates the Destroy on the body's own dimension — the stamp
+     * still the old world's at the fan), then the service's reposition +
+     * the forcer's placement, then the stamp swap and the new world's
+     * spawn fan (the Spawn Entity object 2 the destination's observers
+     * receive). The body keeps its engine id and its whole amount (the
+     * reference's copyNbtFrom); the orbs carry no persistence store (the
+     * reference's own transient family).
+     */
+    private void crossOrbDimension(ExperienceOrbEntity orb) {
+        net.zaminmc.torch.server.entity.MobManager.DimensionCrossing crossing = dimensionCrossing;
+        int from = orb.dimension();
+        if (crossing == null || from == 1) {
+            // The unwired boot (the bare test harnesses) and the
+            // End-origin arm (the engine carries no forced-spawn consult
+            // yet — the audit's named tail): the crossing holds, the
+            // cooldown keeps the body from re-firing.
+            return;
+        }
+        Position at = orb.position();
+        publishRemoved(orb, "portal");
+        net.zaminmc.torch.server.entity.MobManager.DimensionCrossing.Crossing result =
+                crossing.cross(from,
+                at.x(), at.y(), at.z(), 0.0f, orb.velocityX(), orb.velocityZ(),
+                orb.portalMemory());
+        orb.applyDimensionArrival(result.toDimension(),
+                new Position(result.arrival().x(), result.arrival().y(), result.arrival().z()),
+                result.arrival().velocityX(), result.arrival().velocityZ());
+        for (Listener listener : listeners) {
+            listener.onOrbSpawned(orb);
         }
     }
 

@@ -132,7 +132,18 @@ class VehiclePersistenceTest {
             assertEquals(0, cart.dimension(),
                     "the overworld row survived (the TF-11 re-pin — the -1 round"
                             + " trip lives in VehicleDimensionReadsTest)");
-            assertEquals(45, cart.portalCooldown());
+            // The PortalCooldown row re-pinned (VT-006 — the vehicle
+            // family's portal arm now pays the reference's tail
+            // decrement, Entity.baseTick lines 311-313: the first life's
+            // settle window decays the restored 45 by the elapsed ticks
+            // before the save, and the second life's boot window decays
+            // it further — the round trip itself is pinned by the band;
+            // the exact-count assert belonged to the pre-VT-006 inert
+            // row, the same re-pin the anvil import's Fire row took when
+            // the burn clock went live).
+            assertTrue(cart.portalCooldown() > 0 && cart.portalCooldown() <= 45,
+                    "the PortalCooldown row survived the restart, decayed by the law's"
+                            + " own ticks: " + cart.portalCooldown());
             assertEquals(8.5, cart.position().x(), 1e-9, "the cart's x survived");
             // The restored body sits at the saved y or just below it (the
             // restored body continues its own physics from the load — a

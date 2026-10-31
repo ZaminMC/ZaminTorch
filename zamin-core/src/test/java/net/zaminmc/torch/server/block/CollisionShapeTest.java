@@ -89,6 +89,18 @@ class CollisionShapeTest {
         }
 
         /**
+         * VT-006 — the two Ground families now also both declare the
+         * portal consult default; the explicit null keeps the historical
+         * stub's no-crossing reads (the plain overworld stub world —
+         * MobEntity.WorldQuery's own null default, resolved for the pair).
+         */
+        @Override
+        public net.zaminmc.torch.server.world.PortalFrameBuilder.PortalShapeMatch portalFrameAt(
+                int x, int y, int z) {
+            return null;
+        }
+
+        /**
          * The two families' shared consult (Wave IO-F — the friction
          * row): the stub resolves the diamond the two interfaces'
          * identical 0.6 defaults would otherwise raise, keeping the

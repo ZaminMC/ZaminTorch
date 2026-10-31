@@ -1203,7 +1203,15 @@ class AnvilImportAcceptanceTest {
             assertTrue(chest.invulnerable());
             assertFalse(chest.silent());
             assertEquals(0, chest.dimension());
-            assertEquals(12, chest.portalCooldown());
+            // The PortalCooldown row re-pinned the Fire row's own band
+            // shape (VT-006 — the vehicle family's portal arm now pays
+            // the reference's tail decrement, Entity.baseTick lines
+            // 311-313: every ticked body's cooldown decays by one; the
+            // imported 12 counts down from the landing, the round trip
+            // pinned by the band exactly as the live Fire row above).
+            assertTrue(chest.portalCooldown() >= 1 && chest.portalCooldown() <= 12,
+                    "the raw PortalCooldown row landed and is decaying: "
+                            + chest.portalCooldown());
 
             // The spawner cart: the type + delay rows, the rotation pair.
             var spawner = (net.zaminmc.torch.server.entity.vehicle.SpawnerMinecartEntity)
