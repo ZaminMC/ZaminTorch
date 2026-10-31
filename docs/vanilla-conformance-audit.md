@@ -1349,6 +1349,98 @@ construction instead.
   discriminator mounted (see the VT-008 record below for the four
   angles beyond the carrier's own seats — the portal-walk anchoring,
   the clock pin, the End seat, and the seated biome conjunct).
+- **The crossing families' baseline re-verification** — the authored
+  seats re-run on the CURRENT baseline a95e7ca6 (they were authored
+  against deef2a17; #96-#100 landed between): the orb, boat, and
+  minecart seats RED at exactly the crossing asserts (the clean
+  divergence), the item seat RED at the crossing assert on the solo
+  run — with ONE precondition flake observed in the combined run
+  ("the item rests inside a portal cell" timed out once in two runs;
+  no item-family code changed between the baselines — the resting
+  poll has a probabilistic failure mode the FIX RUN must root-cause
+  before relying on the seat green: the resting-height/horizontal
+  boundary is the suspect, the DimensionWalk same-seed-control
+  protocol the tool). The divergence demonstrations hold; the arms
+  are unblocked.
+
+### The crossing families' fix plan (the next run's head — the handoff)
+
+The seam is on develop (PR #98): the `DimensionCrossing` interface
+(MobManager's inner interface — `cross(fromDimension, x, y, z, yaw,
+velocityX, velocityZ, memory)` → `Crossing(toDimension, arrival)`),
+wired at EngineServer 1037 to `this::crossEntityDimension`
+(EngineServer 26184 — the 8:1 walk, the loads, the forcer's
+placement). The mobs' arm (MobManager `tickPortalArm` ~1497 +
+`crossMobDimension` ~1539) is the reference implementation shape:
+the flipped shared query (`setActiveDimension`), the gated collision
+(`world.portalFrameAt(feetX, feetY, feetZ)` with the riding gate),
+the entry memory derive (`notePortalEntry`), the base clock
+(`advanceEntityPortalClock(match != null)` — threshold 0, the 300
+cooldown, the re-arm, the -4 decay), then the crossing: the destroy
+fan (`onMobRemoved(mob, "portal")`), the service cross, the arrival
+apply (`applyDimensionArrival`), the spawn fan (`onMobSpawned`).
+
+The per-family work (each mirrors the reference's own per-family
+shape — the reference's MinecartEntity carries its OWN copy of the
+arm):
+
+1. **The portal primitives** — `MobEntity`'s are self-contained
+   (~120 lines: `advanceEntityPortalClock`, `notePortalEntry`,
+   `portalMemory`, `applyDimensionArrival` + the six fields). The
+   item, orb, and vehicle families need the same law on
+   `ItemEntity`, `ExperienceOrbEntity`, and `VehicleEntity`. DECISION
+   POINT: duplicate per family (the reference's own shape, ~3 × 120
+   lines) or extract a shared `EntityPortalState` holder (a bounded
+   abstraction — four demonstrated consumers including MobEntity's
+   own delegation if the maintainer prefers; the minimal-PR form is
+   the duplication, the extraction a follow-up). The entities already
+   carry `dimension()`/`setDimension` (TF-9/TF-10); the vehicles even
+   carry a `portalCooldown` field (the NBT persistence row).
+2. **The collision consult's plumbing** — each family's WorldQuery
+   (`ItemEntity.WorldQuery`, `ExperienceOrbEntity.WorldQuery`,
+   `VehicleEntity.WorldQuery`) needs `portalFrameAt(x, y, z)` (the
+   `PortalFrameBuilder.PortalShapeMatch` consult) + the EngineServer
+   adapter wirings (three sites — the mobs' adapter at the
+   `MobEntity.WorldQuery` implementation is the pattern).
+3. **The manager tick arms** — each manager's per-entity loop (the
+   item/orb loops already flip `ground.setActiveDimension`; the
+   vehicle loop at VehicleManager 675) gains the portal arm BEFORE
+   the physics walk (the reference's baseTick order). The riding
+   gate: the vehicles' arm consults `rider == null && vehicle ==
+   null` (the VT-005 pair — the mobs' arm consults `hasRider()` alone
+   because the engine's mobs never ride; the VEHICLES are the
+   vehicle — the gate's other half).
+4. **The wire fans** — the items: `onItemRemoved(entity, "portal")` +
+   `onItemSpawned(entity)`. The orbs: `onOrbRemoved(orb, "portal")` +
+   `onOrbSpawned(orb)`. The vehicles: ALREADY RIGHT — the manager's
+   `removeVehicle(cursor, vehicle, reason)` (VehicleManager 909) fires
+   the drops ONLY for reason "broke" and publishes `onVehicleBroken`
+   (the Destroy fan) for EVERY removal — so the crossing calls
+   `removeVehicle(cursor, vehicle, "portal")` (the dismount inside is
+   a no-op: the riding gate guarantees an empty vehicle at the
+   crossing) + `onVehicleSpawned(vehicle)` for the arrival.
+5. **The persistence** — the crossing must move the body's snapshot
+   between the per-dimension stores (the mobs' arm rides the stamp —
+   `applyDimensionArrival`'s dimension write + the snapshot's own
+   dimension row; the item/orb/vehicle data stores' save paths
+   consult the entity's dimension — verify each store's restore
+   lands the body in the right world).
+6. **The arrows** — a SEPARATE shape (the projectile system, not a
+   manager loop): the census's evidence stands (ArrowEntity.tick
+   line 150's super chain); the seat is owed (the flight-path
+   construction — the twenty-fifth pass's deferral). Assess whether
+   the projectile system's tick owns a per-body walk where the arm
+   can ride, or whether the arrows need their own consult.
+7. **The regression lanes** — the four seats green 3+ consecutive
+   runs (root-cause the item seat's precondition flake FIRST), the
+   portal + mob + world lanes, the item/orb/vehicle packages, and
+   the crossing-adjacent families (DimensionWalk, the cooldown pin).
+
+The End-origin arm stays the named tail (the mobs' `crossMobDimension`
+carries the `from == 1` hold — the engine has no forced-spawn consult
+yet); the TNT and falling families stay EXCLUDED (the census: no
+portal arm in the reference — the accidental matches must not become
+over-crossings).
 
 ## VT-008 — the bed's out-of-dimension blast arm is missing: the sleep walk carries no dimension gate (RESOLVED-BY-PR — **PR #102 OPEN, coverage VERIFIED** by this stream's independent seats; three passes complete)
 
@@ -1563,7 +1655,10 @@ VT-007's seats took as #105's pins).
    confirmed by the census; the behavioral seats authored, the
    twenty-fifth pass) — are UNBLOCKED by PR #98's MERGE (the
    `DimensionCrossing` seam rides develop a95e7ca6): the arms are the
-   next run's head.**
+   next run's head — the detailed handoff plan is the twenty-seventh
+   pass's section above (the seam's shape, the per-family work items,
+   the decision points, the item seat's precondition flake to
+   root-cause first).**
 7. ~~The explosion-path dimension audit~~ — DONE (the twenty-sixth pass:
    **VT-007 CONFIRMED** over three passes — the census (five divergent
    sites + the drop stamp), the executed behavioral seats (RED on
