@@ -1515,7 +1515,10 @@ lanes:
   destroys an overworld cell at the sibling's coordinates. CONFIRMED,
   three passes complete (the census, the RED seats both families, the
   execution-path trace through the change-listener chain). The
-  correction is eligible; the PR rides this pass.
+  correction LANDED this pass as **PR #106 OPEN**
+  (`fix/pair-break-dimension-parity-audit`: the `BlockBrokenHook`
+  three-argument form, the parameterized walks, the parity pin 3/0,
+  the regression lanes 75/0).
 - **VT-010** — the bed pair's sibling resolution is a POSITIONAL SCAN,
   not the reference's FACING-EXACT law: a foreign adjacent bed half
   wins the scan and the sleep redirect, the blast center, and the
@@ -1526,7 +1529,7 @@ lanes:
 
 ---
 
-## VT-009 — the block-broken listener's pair walks are overworld-bound: a nether/End bed or door break orphans the surviving half and destroys an overworld cell at the sibling's coordinates (CONFIRMED — three passes complete, fix-ready)
+## VT-009 — the block-broken listener's pair walks are overworld-bound: a nether/End bed or door break orphans the surviving half and destroys an overworld cell at the sibling's coordinates (RESOLVED — the correction is **PR #106 OPEN**; three passes complete)
 
 **Subsystem:** the break path / the door and bed pair deaths /
 dimension routing.
@@ -1619,15 +1622,28 @@ coordinates is a different world and no walk ever reads or writes it.
   house stream's FL4-F10 lane — cross-referenced there, not duplicated
   by this stream.
 
-**Proposed minimal correction:** thread the ACTING world through the
-break listener: replace the `BiConsumer` with a three-argument
-functional interface `(position, brokenType, world)` (the engine is
-the sole registrant), pass the acting-world local at both invocation
-sites, and make `doorSiblingCleanup`/`bedSiblingCleanup` take and use
-the parameter (the same parameter-ization shape the FL4 waves applied
-to the dig/use arms). `bedSpawnCleanup` stays overworld-anchored
-deliberately: bed spawns are overworld beds by construction (the
-#102 gate), so its overworld read is the semantically correct consult.
+**Correction (LANDED this pass — PR #106 OPEN,
+`fix/pair-break-dimension-parity-audit`, commit `847387b6`):** the
+acting world threaded through the break listener exactly as proposed —
+the `BlockBrokenHook` three-argument form
+`(position, brokenType, actingWorld)` (the engine the sole
+registrant), the `worldOf(player)` local passed at both invocation
+sites (creative + survival), and the parameterized
+`doorSiblingCleanup`/`bedSiblingCleanup`. THE EVIDENCE: the parity pin
+`PairBreakDimensionParityTest` 3/0 on the fix branch (the nether bed
+pair dies whole in the nether with the overworld probe standing, the
+nether door pair the same, the overworld guard unchanged) — the same
+seats that run RED on develop (`PairBreakDimensionDiscoveryTest`, this
+branch, the stash-discriminated record); the regression lanes 75/0
+whole (Sleep, MultiplayerSleep, BedWrongWorldBlast,
+BlockInteraction, DigHandlerGates, NetherDigRouting,
+FurnaceHopperEvent, BlockUpdateSystem, the chest family, the hopper
+family, EnderChest). THE DELIBERATE NON-CHANGES recorded: the zombie
+door-break arm passes the same world its own read/removal already
+consult (that lane's binding is its own ledgered row), and
+`bedSpawnCleanup` stays overworld-anchored (bed spawns are overworld
+beds since the #102 gate — the consult is semantically the overworld
+one).
 
 **Regression risks:** the overworld pair-death seats (the new guard
 seat, the existing door/bed acceptance lanes) must stay green — the
@@ -1735,7 +1751,7 @@ scan and facing agree) must stay green; the orphan-foot early return
 | Portal mechanics — the riding gate (vehicle == null && rider == null) | VT-005 CONFIRMED (three passes — source, the pig-in-portal behavioral seat, the dismount-control independent pass; the correction rides `fix/portal-riding-gate-parity-audit`, PR #94) |
 | Drops — the TF-9 dimension stamp | LANDED by PR #90 (the dig/place walks stamp `world.dimension()`; the tile-family spill sites remain the per-dimension tile tail) |
 | Tile families — per-dimension stores | NOT INSPECTED as its own pass (the PR #90 ledger: the furnace/chest/skull/banner spill + cleanup ride the single-instance managers — the FL4 fluids/fire precedent applies; the nether tile placement/cleanup is its own architectural pass) |
-| Break-path pair walks (door/bed sibling cleanups) — dimension routing | AUDITED (the twenty-eighth pass): **VT-009 CONFIRMED** three passes — the walks read the overworld field (the PR #90 remainder's named slice); a nether break orphans the nether half and destroys an overworld cell at the sibling's coordinates (the seats' evidence, both families); the correction rides `fix/pair-break-dimension-parity-audit` |
+| Break-path pair walks (door/bed sibling cleanups) — dimension routing | RESOLVED (the twenty-eighth pass): **VT-009** CONFIRMED three passes and corrected as **PR #106 OPEN** (`fix/pair-break-dimension-parity-audit`: the `BlockBrokenHook` three-arg listener, the parameterized walks; the parity pin 3/0 + the regression lanes 75/0; the discovery seats' RED record rides this audit branch) |
 | Bed pair — the sibling resolution model | AUDITED (the twenty-eighth pass): **VT-010 under verification** — the resolution is a positional scan, the reference's law is facing-exact (the ids carry the direction); passes 1-2 complete (three RED seats: the break selection, the sleep redirect's spawn, the nether blast's center — all exactly the traced values); the third pass (the wire/legacy suffix consistency) owed before the fix |
 | Block-update wake (BlockUpdateSystem.runUpdate, RedstoneSystem.neighborChanged) — world binding | SURFACED as VT-009's pass-3 non-compensation evidence: BOTH reads consult the overworld field (the changed-world parameter ignored in the six-neighbor dispatch) — the house stream's FL4-F10 lane, NOT duplicated here; this stream's door/bed seats are the evidence cross-reference |
 | Mob spawns — the dimension stamp | NOT INSPECTED (the PR #90 ledger names `MobManager.spawnAt`; the infested burst is the surfaced site) |
@@ -1747,11 +1763,10 @@ scan and facing agree) must stay green; the orphan-foot early return
 
 ## The queue for the next pass
 
-1. **VT-009's fix branch** — the three passes complete; the correction
-   (the acting world through the break listener: the three-arg
-   functional interface, the parameterized
-   `doorSiblingCleanup`/`bedSiblingCleanup`) rides
-   `fix/pair-break-dimension-parity-audit` this pass — **PR #106 OPEN**.
+1. ~~VT-009's fix branch~~ — **PR #106 OPEN** (this pass:
+   `fix/pair-break-dimension-parity-audit` over the current develop
+   `7910a110`: the `BlockBrokenHook` three-arg form, the parameterized
+   walks, the parity pin 3/0, the regression lanes 75/0).
 2. **VT-010's pass 3** (the wire/legacy suffix-consistency walk: the
    anvil import's metadata-to-id mapping for the bed ids, the legacy 26
    rows, the /setblock surface) — then the facing-exact resolution fix
