@@ -100,7 +100,15 @@ class TorchEncryptionTest {
         assertEquals(new BigInteger(TorchEncryption.digest("", pair.getPublic(), secret)).toString(16),
                 hash);
         // A negative-digest case exists in the family: hunt one seed and
-        // pin its leading '-' (the historical shape both wire sides keep).
+        // pin the reference's own spelling law (ServerLoginNetworkHandler
+        // line 155 + ClientLoginNetworkHandler line 47, both the bare
+        // BigInteger.toString(16)): '-' rides the top bit, and the
+        // magnitude is NEVER padded — a digest whose top magnitude bytes
+        // are small legitimately spells shorter than 40 chars (run 571's
+        // 38-char member; both wire sides carry the same variable-length
+        // form, which is why the hasJoined serverId row is unpadded by
+        // design). The false "full 40-char magnitude" claim was the test's
+        // own invention against the reference.
         boolean foundNegative = false;
         for (int seed = 0; seed < 200 && !foundNegative; seed++) {
             final long chosenSeed = seed;
@@ -120,8 +128,11 @@ class TorchEncryptionTest {
             String candidateHash = TorchEncryption.serverIdHash("", pair.getPublic(), candidate);
             if (candidateHash.startsWith("-")) {
                 foundNegative = true;
-                assertEquals(40, candidateHash.length() - 1,
-                        "a negative digest carries its full 40-char magnitude");
+                assertTrue(candidateHash.length() - 1 <= 40,
+                        "a negative digest's magnitude never exceeds SHA-1's 20 bytes: "
+                                + candidateHash);
+                assertFalse(candidateHash.startsWith("-0"),
+                        "the reference never zero-pads the magnitude: " + candidateHash);
             }
         }
         assertTrue(foundNegative, "the hunt found a negative digest within 200 seeds");

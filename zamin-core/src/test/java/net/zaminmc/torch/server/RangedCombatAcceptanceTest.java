@@ -361,15 +361,29 @@ class RangedCombatAcceptanceTest {
         EngineServer server = boot();
         net.zaminmc.torch.server.player.PlayerSession archer = join(server, "Hunter");
         // The victim stands still (no movement packets): a deterministic target.
+        // THE SEAT'S GEOMETRY LAW (run 571's miss, root-caused): the hit walk
+        // samples the arrow's CENTER at the tick's midpoint and endpoint
+        // against the victim's ±0.3 x/z, -0.2..1.8 y band, and the launch
+        // carries the reference's own 0.0075-sigma gaussian spread
+        // (ArrowEntity.dispense — the engine is 1:1). The OLD seat (victim
+        // at +1.5, aim 35° down) rode the band's edges: the midpoint landed
+        // 0.0166 blocks inside the near z edge and the endpoint sat BELOW
+        // the feet band (-0.234 against the -0.2 floor) — a >= 1.5-sigma
+        // spread event tunneled the arrow straight through the box (~7% a
+        // run; the one cold-daemon local failure and run 571's). The flat
+        // geometry lands the FIRST TICK'S ENDPOINT at the band's center —
+        // z margin 0.275/0.325 (> 12 sigma), y at 0.954 of the [-0.2, 1.8]
+        // band, x offset 0.16 of the 0.3 half-width — no gaussian tail
+        // reaches any edge.
         net.zaminmc.torch.server.player.PlayerSession victim = join(server, "Target");
         victim.applyMovement(new Position(
-                archer.position().x(), archer.position().y(), archer.position().z() + 1.5),
+                archer.position().x(), archer.position().y(), archer.position().z() + 2.9),
                 new Rotation(0f, 0f), true);
         server.chatService().submitChat(archer, "/give " + archer.name() + " bow 1");
         server.chatService().submitChat(archer, "/give " + archer.name() + " arrow 1");
         await(() -> archer.inventory().countOf(BuiltinItems.ARROW) == 1, "arrow given");
         float before = victim.health();
-        archer.applyMovement(archer.position(), new Rotation(0f, 35f), true); // aim down 35°
+        archer.applyMovement(archer.position(), new Rotation(0f, 10f), true); // aim down 10°
         server.useItem(archer);
         await(() -> archer.bowCharging(), "the draw started");
         EngineAwaits.awaitTicks(server.world(), 22, "engine progress (a 1_100 wall settle)");

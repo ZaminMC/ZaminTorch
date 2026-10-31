@@ -103,6 +103,16 @@ class BukkitEventBridgeGroupTwoTest {
                 });
         harness.server.damage(keeper, 1000.0f);
         harness.await(() -> keeper.dead(), "the body died");
+        // The dead flag is dieOnTick's FIRST act; the event fires later in
+        // the same walk (after the stats/potion/dismount bookkeeping, before
+        // the scatter — the §27.7 order). A test-thread poll can observe the
+        // flag in that window, so the AWAITED observable is the monitor's
+        // own observation (the effect), never the precondition flag (run
+        // 569's race: dead seen, event not yet fired). Both references: the
+        // callback sets message before cancelled, so the await covers the
+        // pair — the asserts below then check the VALUES, not the timing.
+        harness.await(() -> message.get() != null && cancelled.get() != null,
+                "the native MONITOR observed the death");
         assertNotNull(message.get(), "the native MONITOR observed the death");
         assertTrue(message.get().endsWith(" [bridged]"),
                 "the legacy setDeathMessage mapped back onto the engine's"

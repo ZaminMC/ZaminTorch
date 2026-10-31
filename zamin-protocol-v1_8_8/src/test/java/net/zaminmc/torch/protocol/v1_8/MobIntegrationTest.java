@@ -21,11 +21,17 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class MobIntegrationTest extends ProtocolTestBase {
 
     /**
-     * The keep-alive cadence rides well UNDER the listener's own 30s read-idle
-     * reap (the reference's own proportion: its 15s cadence against the same
-     * 30s bound): the auto-answered exchange keeps the read side alive while
-     * the movement waits idle, and every read below skips the keep-alive
-     * frames by id — the packet-bounded scans never see them.
+     * The keep-alive cadence rides well UNDER the listener's own bounds
+     * (the reference's own proportion: its 15s cadence against the same
+     * 30s wall): the auto-answered exchange keeps the read side alive
+     * while the movement waits idle, and every read below skips the
+     * keep-alive frames by id — the packet-bounded scans never see them.
+     * The KICK arm is the one that bites read-silent phases: a pending
+     * keep-alive unanswered past interval x 3 (15s at this cadence)
+     * closes the channel, so the swing loop below pumps the wire every
+     * poll — a real client answers keep-alives independently of its
+     * movement, and the chase can run a full 60s without one typed read
+     * (run 569's broken pipe, retired at the fixture's own law).
      */
     @Override
     protected long keepAliveIntervalMs() {
@@ -44,7 +50,11 @@ class MobIntegrationTest extends ProtocolTestBase {
      * untouched, so the loop re-reads the cell and closes the new distance —
      * the landing tell is the server's simulation state, never wire timing
      * (the status and sound packets ride the same tick as the wound and are
-     * already queued when this returns).
+     * already queued when this returns). The loop is READ-SILENT by design,
+     * so every poll pumps the wire's keep-alives (the non-discarding drain:
+     * answered inline, everything else re-queued in order) — the chase can
+     * out-live the kick arm's 15s unanswered window, and a real client's
+     * keep-alive answering never waits for its own movement to pause.
      */
     private void swingUntilTheBodyAnswers(TestClient18 client, int pigId,
             boolean killed) throws Exception {
@@ -65,6 +75,7 @@ class MobIntegrationTest extends ProtocolTestBase {
                     return;
                 }
                 Thread.sleep(50);
+                client.pumpKeepAlives();
             }
             // Refused — the wander window closed: walk the new cell again.
         }

@@ -65,6 +65,18 @@ class BedWrongWorldBlastAcceptanceTest {
         server.start();
         nether = server.worldFor(-1);
         assertEquals(-1, nether.dimension(), "the nether world carries its dimension row");
+        // The natural spawn cycle stays OFF (run 571's overworld seat): the
+        // night the seats themselves set is the hostile cycle's own hunting
+        // ground — a zombie landing inside the sleep gate's ±8/±5 refusal
+        // box beside the bed makes the engine's own 1:1 monster-proximity
+        // law refuse the use, and the sleep-walk await starves. Neither seat
+        // needs a natural population (the nether blast is the bed's own, the
+        // overworld control sleeps alone) — the protocol module's sleep rigs
+        // carry the same rule off.
+        server.ticker().submit(() -> server.gameRules().set("doMobSpawning", "false"));
+        EngineAwaits.awaitCondition(server.world(),
+                () -> !server.gameRules().getBoolean("doMobSpawning"),
+                40, "the natural spawn cycle is off");
     }
 
     @AfterEach
