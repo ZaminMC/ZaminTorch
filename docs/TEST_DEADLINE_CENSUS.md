@@ -362,6 +362,7 @@ count wins over the division.
 
 | line | form | value | classification | action |
 | --- | --- | --- | --- | --- |
+| 52, 59, 124, 128, 69, 91 | poll loop deadline | 20s / 30s wall | C-B wall budget over a tick-denominated condition (the 80-tick portal stand clock: a 5x wall margin the hosted runner's tick stretch burned — run 532 failed BOTH attempts on it, passing at nominal speed in isolation) | converted → `EngineAwaits.awaitCondition` with 100/400-tick budgets (the stand clock's own 5x), run 532's double failure root-caused and retired |
 
 ### `DispenseBehaviorApiAcceptanceTest.java`
 

@@ -144,12 +144,27 @@ class VehicleIntegrationTest extends ProtocolTestBase {
             Thread.sleep(200);
 
             // A straight east-west rail line in the feet cells beside spawn.
+            // The class shares one world and the boat seat runs first: its
+            // leftover water pool sits in the ground row DIRECTLY under this
+            // line, and a rail over water is an unsupported seat that the
+            // reference's own law pops on the first neighbour wake
+            // (AbstractRailBlock.neighborChanged — hasSolidTop below, the
+            // drop-and-remove arm). The bed is restored first so the line
+            // survives in any method order: the ground row's cells are
+            // written back to the flat world's own grass before the rails
+            // land (the boat seat re-seeds its pool over whatever it finds,
+            // so this stays order-independent in both directions).
             var anchor = server.playerRegistry().byName("RailRider").orElseThrow().position();
             int bx = (int) Math.floor(anchor.x()) + 2;
             int bz = (int) Math.floor(anchor.z());
             int ry = (int) Math.floor(anchor.y()); // the air cell the feet occupy
             var rail = net.zaminmc.torch.server.block.BuiltinBlocks.RAIL_EW;
             server.ticker().submit(() -> {
+                for (int dx = -2; dx <= 2; dx++) {
+                    server.world().setBlock(
+                            new net.zaminmc.torch.block.BlockPosition(bx + dx, ry - 1, bz),
+                            net.zaminmc.torch.server.block.BuiltinBlocks.GRASS_BLOCK);
+                }
                 for (int dx = -2; dx <= 2; dx++) {
                     server.world().setBlock(
                             new net.zaminmc.torch.block.BlockPosition(bx + dx, ry, bz), rail);
@@ -227,7 +242,16 @@ class VehicleIntegrationTest extends ProtocolTestBase {
             int bz = (int) Math.floor(anchor.z());
             int ry = (int) Math.floor(anchor.y());
             var rail = net.zaminmc.torch.server.block.BuiltinBlocks.RAIL_EW;
+            // The rail bed is restored before the line lands (the boat
+            // seat's leftover pool sits under this row — the reference's
+            // neighbourChanged pops an unsupported rail; see the creative
+            // seat's own note).
             server.ticker().submit(() -> {
+                for (int dx = -2; dx <= 2; dx++) {
+                    server.world().setBlock(
+                            new net.zaminmc.torch.block.BlockPosition(bx + dx, ry - 1, bz),
+                            net.zaminmc.torch.server.block.BuiltinBlocks.GRASS_BLOCK);
+                }
                 for (int dx = -2; dx <= 2; dx++) {
                     server.world().setBlock(
                             new net.zaminmc.torch.block.BlockPosition(bx + dx, ry, bz), rail);
