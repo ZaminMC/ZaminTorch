@@ -19149,6 +19149,7 @@ tripwire bindings and the comparator ZCD store's per-dimension files)
 and the block-broken listener's container cleanups over the
 per-dimension tile stores (FL4-F5's named remainder). The CI Phase A
 proposal still awaits the owner's approval decision.
+<<<<<<< HEAD
 ## The twenty-first verifier pass — 2026-10-31 (the explosion
 family's F-EX4 verified whole, the fire arm landed, the PR opened)
 
@@ -19216,3 +19217,27 @@ family's F-EX4 verified whole, the fire arm landed, the PR opened)
   documented load-flake signature). The full suite rides the CI.
 - The queue after this pass: F-EX6, F-EX3, F-EX7, F-EX8, F-EX5, F-EX9
   + the standing F-FL4 architecture tail.
+=======
+## The twenty-first pass's second correction — 2026-10-31 (F-EX7, the
+TNT cart's destructive flag, verified and fixed on its own branch)
+
+- F-EX7 RETIRED (the fire-arm census's side-find, split onto its own
+  branch per the one-PR-per-issue law): the reference's
+  TntMinecartEntity.explode (lines 85-92) — the SINGLE six-arg `true`
+  call serving every cart detonation. The engine's blast sink factory
+  passed mobGriefing — a no-grief world's cart blast never broke a
+  block.
+- THE THREE PASSES: source (the single-method census over the
+  reference's cart family); behavioral (TntCartDestructiveFlagParityTest
+  NEW — mobGriefing off + a burning arrow into a plain-side cart: the
+  stash verification failing UNFIXED on exactly the crater await, the
+  probe reading `flag=false crater=` EMPTY, green with the fix);
+  independent (the flag's sole consult was the factory; the wound arms
+  unconditional on both sides; the factory prose was the general walk's
+  description, not a cart choice; the first cut's crater read the
+  UNGENERATED void outside the 25 spawn chunks — the probe caught it
+  and the seat moved inside the pregenerated band).
+- THE FIX: the factory's flag → `true` with the reference cite.
+- Evidence: the vehicle package 82/0 + the explosion family lanes +
+  the TNT lanes green whole.
+>>>>>>> origin/fix/tnt-cart-destructive-flag-parity-audit

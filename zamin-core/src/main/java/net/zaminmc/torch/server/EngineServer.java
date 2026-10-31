@@ -2915,7 +2915,13 @@ public final class EngineServer implements Server, EngineBridge {
                         (net.zaminmc.torch.server.entity.vehicle.TntMinecartEntity.BlastSink)
                                 (x, y, z, power, primed) -> detonateAtWithSource(
                                         x, y, z, power,
-                                        gameRules.getBoolean("mobGriefing"),
+                                        // TntMinecartEntity.explode line 92: the six-arg
+                                        // explode(..., TRUE) — the cart's blast HARDCODES
+                                        // the destructive flag (the famous exception:
+                                        // a TNT cart craters even in a no-grief world;
+                                        // mobGriefing never gates it — only the fireball
+                                        // and the creeper family ride the rule).
+                                        true,
                                         primed ? net.zaminmc.torch.server.block.BlastSources.PRIMED_CART : net.zaminmc.torch.server.block.ExplosionService.BlastSource.PLAIN));
                 vehicles.addListener(new VehicleEventDispatch());
                 // Vehicle persistence (Slice 25g — the ZVD store): the

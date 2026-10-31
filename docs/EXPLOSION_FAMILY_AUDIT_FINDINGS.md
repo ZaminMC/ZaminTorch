@@ -589,3 +589,56 @@ F-EX7/F-EX8 (the two thin destructive-flag rows), F-EX5 (the punch
 deflection's skull exclusion), F-EX9 (the ghast fireball's gravity),
 and the standing architecture tail F-FL4 (the nether/End fluid
 simulation — the §22 queue head).
+
+## F-EX7 — VERIFIED and FIXED (the twenty-first verifier pass, 2026-10-31)
+
+**Status: resolved** (the three passes complete in one session; the fix
+on `fix/tnt-cart-destructive-flag-parity-audit`). Discovered by the
+twenty-first pass's explosion call-site census (the fire-arm
+investigation's side-find, PR #92's record).
+
+### The finding
+
+The reference's `TntMinecartEntity.explode` (lines 85-92) calls the
+SIX-ARG `world.explode(this, x, y, z, power, TRUE)` — the cart's blast
+HARDCODES the destructive flag, and mobGriefing never gates it (the
+famous exception: a TNT cart craters even in a no-grief world; only
+the fireball and the creeper family ride the rule). The engine's blast
+sink factory passed `gameRules.getBoolean("mobGriefing")` — a no-grief
+world's cart blast wounded and knocked but never broke a block.
+
+### The three-pass record
+
+- **V1 (source):** the reference's SINGLE `explode(distance)` method
+  serves every cart detonation (the burning arrow's annihilation arm
+  `takeDamage` lines 63-73, the fall-death line 44, the fire/explosive
+  death line 81) — and the six-arg call hardcodes TRUE. The engine's
+  factory sink serves the same three detonations through
+  `explodeWith` — one flag, one divergence.
+- **V2 (behavioral):** `TntCartDestructiveFlagParityTest` (NEW):
+  mobGriefing off, a TNT cart on the plain, a burning arrow into the
+  cart. The stash verification failing UNFIXED on exactly the crater
+  await — the probe reading `flag=false crater=` EMPTY (the engine's
+  flag consult left every grass cell standing) — and green with the
+  fix.
+- **V3 (independent):** the flag's only consult was the factory lambda
+  (no compensating site); the wound arms stay unconditional on both
+  sides (the flag gates the BLOCK walk alone — the seat's cart still
+  died to the wound with the flag off); the factory comment's
+  "mobGriefing's destructive gate" prose described the engine's
+  general detonation walk, not a cart choice (the pattern copy from
+  the fireball sink — an omission); the first cut's empty crater was
+  the UNGENERATED-void read outside the 25 spawn chunks (the probe
+  caught it, the seat moved inside the pregenerated band).
+
+### The fix
+
+The factory's flag → `true` (one line + the reference cite).
+
+### Evidence
+
+The stash-verified discrimination (the empty crater unfixed → green
+fixed); the whole vehicle package 82/0 (every cart family:
+chest/hopper/spawner/command-block minecarts, the fire lanes, the
+persistence, the riding lanes) + the explosion family lanes (the
+gather 8, the fire arm 4) + the TNT lanes green.
