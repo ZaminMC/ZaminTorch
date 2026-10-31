@@ -711,12 +711,15 @@ carries the same misreading as the javadoc — the seat pins the symptom, not
 a design choice. **VT-004 is CONFIRMED (three passes, each with distinct
 evidence); the fix branch is this run's next act.**
 
-## VT-006 — the engine's mobs carry no portal walk: a mob standing in portal cells never crosses (UNDER VERIFICATION — two passes recorded)
+## VT-006 — the engine's non-player entity families carry no portal walk: mobs (and items, orbs, boats, carts, arrows) standing in portal cells never cross (CONFIRMED — three passes; the fix is a substantial architectural walk, the next run's head)
 
-**Subsystem:** portal mechanics (the entity-level crossing arm — the mob
-side). **Status:** under verification — the source and behavioral passes
-recorded (the twenty-fourth pass, discovered during the VT-005 seat
-construction); the independent pass owed.
+**Subsystem:** portal mechanics (the entity-level crossing arm — the
+non-player families). **Status:** confirmed — three verification passes
+complete (the twenty-fourth pass: the source chain, the NoAI-cow
+behavioral seat, and the independent pass's family census + origin
+trace + the engine's own ledgered-gap javadoc). The correction is a
+substantial architectural walk (the entity-level crossing service, the
+families landed one by one) — the next run's fix head.
 
 **The reference's law** (reference/1.8.8): the portal arm is ENTITY-level,
 not player-level — every ticked body runs it.
@@ -781,19 +784,51 @@ debt, not a divergence choice.
   0), landing inside the pre-built frame's interior band through the
   same forcer walk the player rides.
 
-**Confidence:** high on the mismatch itself (the reference is
-unambiguous — the arm is entity-level; the engine's own javadoc admits
-the gap); the fix scope is the open question.
+- **Pass 3 (independent, the twenty-fourth pass):** three fresh angles.
+  (a) **The family census** — the reference's portal arm is truly
+  entity-level, and the census establishes the exact scope: the families
+  that CROSS in vanilla (the `super.tick()` → `baseTick()` chains read
+  directly): the mobs (MobEntity.baseTick 150-151), the dropped items
+  (ItemEntity.tick line 60-64), the experience orbs
+  (ExperienceOrbEntity.tick 61-62), the boats (BoatEntity.tick 177), the
+  minecarts (MinecartEntity's OWN COPY of the whole arm, lines 203-227),
+  and the arrows/projectiles (ArrowEntity.tick 150); and the families
+  that DO NOT cross in vanilla — the primed TNT (PrimedTntEntity.tick
+  overrides with NO super.tick() call — no baseTick, no portal arm) and
+  the falling blocks (FallingBlockEntity.tick, the same shape) — for
+  which the engine's omission is an ACCIDENTAL MATCH (the census
+  protects the future fix from over-crossing them). The engine side:
+  the ItemEntityManager, ProjectileManager, ExperienceOrbManager, and
+  FallingBlockEntityManager carry ZERO portal consults; the
+  VehicleManager's four "portal" mentions are the PortalCooldown NBT
+  persistence alone. (b) **The nether-origin trace** — the mob
+  `setDimension` sites are origin stamps only (the spawner's own
+  dimension, the persistence restore, the zombie reinforcement's caller
+  stamp, the natural spawn): NO site ever moves a live body between
+  dimensions; the engine's nether mobs only ever ORIGINATE in the
+  nether. (c) **The design-choice challenge** — the engine's own
+  `leaveEndOnTick` javadoc LEDGERS the gap ("mobs do not yet collide
+  with portal cells; ledgered"): an acknowledged implementation debt,
+  not a divergence choice; the reference is unambiguous.
 
-**The proposed correction's scope** (a substantial walk, its own run):
-the collision arm in the mob tick (the portal-cell consult carrying
-VT-005's riding gate — a ridden mob never crosses), the threshold-0
-crossing, the 8:1 reposition, the forcer's placement (the nearest-frame
-law the player's walk pins), the dimension stamp swap, the persistence
-move (the nether's store), the wire (the per-dimension despawn/spawn
-packets), and the 300 cooldown. The End pair's mob arm (the old-1+new-1
-redirect to the overworld spawn surface — the engine's own ledgered
-note) rides the same walk.
+**Confidence:** high (the reference is unambiguous — the arm is
+entity-level; the engine's own javadoc admits the gap; the census
+establishes the exact scope including the accidental matches).
+
+**The proposed correction's scope** (a substantial architectural walk,
+its own run): the reference's own shape is an ENTITY-LEVEL service —
+the crossing walk should be built once (the collision consult carrying
+VT-005's riding gate — a ridden body never crosses; the threshold-0
+crossing; the 8:1 reposition; the forcer's placement — the
+nearest-frame law the player's walk pins; the dimension stamp swap; the
+persistence move; the per-dimension wire; the 300 cooldown) and the
+families landed one by one behind it: the MOBS first (the demonstrated
+seat), then the items, the orbs, the boats, the carts (their own
+threshold/cooldown consults), and the arrows — with the TNT and falling
+families EXPLICITLY EXCLUDED (they carry no portal arm in the reference
+— the census's accidental matches must not become over-crossings). The
+End pair's mob arm (the old-1+new-1 redirect to the overworld spawn
+surface — the engine's own ledgered note) rides the same walk.
 
 **Regression risks:** the mob-manager tick's per-dimension walks (the
 despawn window, the targeting, the natural spawn) must see the crossed
@@ -830,8 +865,12 @@ ticked body runs it; the base threshold 0 — a mob crosses on the FIRST
 armed tick; the cooldown 300). The discovery seat
 `PortalMobCrossingDiscoveryTest` demonstrated the divergence (the NoAI
 cow standing in the portal interior never crossed over the 100-tick
-window). VT-006 ledgered UNDER VERIFICATION (two passes recorded; the
-independent pass owed; the fix is a substantial walk — its own run).
+window). VT-006 CONFIRMED over this run's three passes (the source chain, the
+behavioral seat, and the independent census — the true scope: the mobs,
+the items, the orbs, the boats, the carts, the arrows; the TNT and
+falling families carry no portal arm in the reference itself, their
+omission an accidental match). The fix is a substantial architectural
+walk — the next run's head.
 
 **The correction (this run's second act):** the fix branch
 `fix/portal-riding-gate-parity-audit` (based on `origin/develop`
@@ -860,7 +899,7 @@ whole (the record above). **PR #94 OPEN** targeting `develop`.
 | Snow layer — placement support/melt/drops | drops landed (the mining-speed audit); melt + the 7-layer state surface recorded as VT-003's tail |
 | Packed ice — melt/break laws | inspected: the reference's PackedIceBlock carries no melt arm (the `setTicksRandomly` false, the silk-drop row landed); nothing owed |
 | Portal mechanics (flag1, forcer) | landed by FL4-F1; not re-audited — the stand clock's re-fire law is VT-004 (CONFIRMED, three passes; the correction is **PR #91 OPEN**; the seat PortalRefireDiscoveryTest rides green on the fix branch) |
-| Portal mechanics — the mob's crossing (the entity-level arm) | VT-006 UNDER VERIFICATION (two passes: the source chain + the NoAI-cow behavioral seat; the engine's own javadoc ledgers the gap; the fix is a substantial walk — the collision arm, the threshold-0 crossing, the 8:1 reposition, the forcer placement, the stamp swap, the persistence move, the wire, the 300 cooldown) |
+| Portal mechanics — the non-player crossing (the entity-level arm) | VT-006 CONFIRMED (three passes: the source chain, the NoAI-cow behavioral seat, and the independent census — the scope: mobs, items, orbs, boats, carts, arrows; TNT and falling blocks carry no arm in the reference, the accidental matches; the fix is the entity-level crossing service, the families landed one by one — the next run's head) |
 | Portal mechanics — the riding gate (vehicle == null && rider == null) | VT-005 CONFIRMED (three passes — source, the pig-in-portal behavioral seat, the dismount-control independent pass; the correction rides `fix/portal-riding-gate-parity-audit`, PR #94) |
 | Drops — the TF-9 dimension stamp | LANDED by PR #90 (the dig/place walks stamp `world.dimension()`; the tile-family spill sites remain the per-dimension tile tail) |
 | Tile families — per-dimension stores | NOT INSPECTED as its own pass (the PR #90 ledger: the furnace/chest/skull/banner spill + cleanup ride the single-instance managers — the FL4 fluids/fire precedent applies; the nether tile placement/cleanup is its own architectural pass) |
@@ -896,12 +935,15 @@ whole (the record above). **PR #94 OPEN** targeting `develop`.
    VT-005 CONFIRMED). ~~The VT-005 fix branch~~ — **PR #94 OPEN** (the
    riding consult on the nether arm's `inPortal` computation; both
    discovery seats ride green on the fix branch).
-6. VT-006's independent pass (the mob's portal crossing — the fresh
-   angles: the nether-origin confirmation, the persistence/wire story
-   for a crossed body, the riding-gate interplay with VT-005's fix),
-   then the fix (a substantial walk — the collision arm, the threshold-0
-   crossing, the 8:1 reposition, the forcer placement, the stamp swap,
-   the persistence move, the wire, the 300 cooldown).
+6. ~~VT-006's independent pass~~ — DONE (the twenty-fourth pass's
+   second act: the family census — the crossing families are the mobs,
+   the items, the orbs, the boats, the carts, the arrows; the TNT and
+   falling families carry NO portal arm in the reference, their omission
+   an accidental match the fix must not over-correct; the nether-origin
+   trace — no setDimension site ever moves a live body; the engine's own
+   javadoc ledgers the gap). VT-006 CONFIRMED. **The fix — the
+   entity-level crossing service, the families landed one by one (the
+   mobs first, the demonstrated seat) — is the next run's head.**
 7. The explosion-path dimension audit (the ledger row above — now
    unblocked: nether placement exists post-PR #90; the crystal arm's
    dimension gate landed with PR #85's rider; the blast family's own
