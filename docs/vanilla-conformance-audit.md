@@ -1750,6 +1750,34 @@ deltas the implementation discovered):
    evidence. The block package lane 309/0 and the family seats green
    whole; the main server package lane ran on this tree.
 
+**The correction's PR**: **#110 OPEN**
+(`fix/portal-remaining-families-parity-audit`, based on the current
+develop 7910a110; the item + orb seats' determinism row rides the
+branch — the flake root-caused below).
+
+**VT-011 DISCOVERED (this pass, the lanes' run): a pre-existing flaky
+test on develop — `NetherBlastRoutingAcceptanceTest`'s blast-event
+read race.** The signature: the NPE
+`blast.get().dimension()` — the seat's await passes (the discriminator
+cell reads air) but the explosion listener's reference is still null.
+THE MECHANISM (the detonation walk's own order): the cells tear EARLY
+in `detonateAtIn` and the listener fan fires LATE (the damagedCells
+loop + the event bus + the copies between) — the test thread's 25ms
+poll can observe the torn cell inside that window and read the
+reference before the fan lands. BOTH seats carry the race (the creeper
+seat failed once in this lane's combined run; the ghast seat failed
+once on a forced re-run). **THE CLEAN-DEVELOP DISCRIMINATION** (the
+worktree at unmodified 7910a110, `--rerun-tasks` forced): 1 failure in
+3 forced runs — THE FLAKE PREDATES THIS BRANCH; it is not the crossing
+families' regression. The fix is the seat's own read order (await the
+event reference, not the cell alone) — a test-infrastructure pass, not
+a vanilla-conformance row; recorded here because the lanes' evidence
+must name every non-green row. The main server package lane did NOT
+complete this session (the background run died silently under the
+worktree builds' contention — the targeted lanes + the block package
+309/0 are the recorded evidence; the full lane is the next run's
+chore).
+
 Named tails recorded (each its own pass, not owed by this correction):
 
 1. **The End-origin arm** holds at `from == 1` for ALL families exactly
@@ -1809,9 +1837,8 @@ Named tails recorded (each its own pass, not owed by this correction):
    twenty-seventh pass: the landed seat 3/0 green + the End-arm and
    head-click seat 2/0 green; VT-008 RESOLVED).
 2. ~~The remaining crossing families behind the seam~~ — DONE (the
-   twenty-seventh pass: the items, the orbs, the vehicles, the arrows
-   landed on `fix/portal-remaining-families-parity-audit` — the PR's
-   merge is the remaining step; the TNT and falling families stay
+   twenty-eighth pass: the items, the orbs, the vehicles, the arrows
+   landed — **PR #110 OPEN**; the TNT and falling families stay
    excluded by the census).
 3. **The crossing PR's merge watch**: PR #105 (VT-007's TNT-cart slice)
    and this pass's crossing-families PR await the maintainer's review —
@@ -1830,7 +1857,14 @@ Named tails recorded (each its own pass, not owed by this correction):
    engine's shared one), the zombie arm's world binding.
 6. The blast RNG tail (VT-007's named tail): the End/nether services'
    shared `gameplayRandom` vs the reference's per-world `world.random`.
-7. The watch items: PR #105 OPEN (this stream's TNT-cart slice) + the
-   crossing-families PR (this pass); the FL4-F10 redstone world binding
-   — the house stream's own claimed act (its trace at `99f1718b` on
-   develop) — NOT to be duplicated by this stream.
+7. **VT-011's own pass** (this pass's discovery): the
+   `NetherBlastRoutingAcceptanceTest` flake's bounded fix — the seat's
+   read order (await the event reference, not the cell alone); a
+   test-infrastructure correction, both seats, root-caused and
+   clean-develop-discriminated this pass.
+8. The watch items: PR #105 (this stream's TNT-cart slice) + **PR #110
+   (this pass's crossing families)** + PR #106 (the parallel stream's
+   pair-break dimension fix) awaiting the maintainer's review; the
+   FL4-F10 redstone world binding — the house stream's own claimed act
+   (its trace at `99f1718b` on develop) — NOT to be duplicated by this
+   stream.

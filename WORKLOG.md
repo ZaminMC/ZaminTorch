@@ -19602,3 +19602,19 @@ Stage Summary:
   families, the mob spawn stamp, the FX awareness, the world border,
   the zombie arm); the blast RNG tail; FL4-F10 stays the house stream's
   own act.
+
+- The correction's PR: #110 OPEN (fix/portal-remaining-families-parity-audit
+  over develop 7910a110 — three commits: the implementation + the three
+  authored seats + the item/orb determinism row).
+- VT-011 DISCOVERED (the lanes' run): the pre-existing
+  NetherBlastRoutingAcceptanceTest flake — the blast-event read race
+  (the seat's await can pass inside detonateAtIn's tear-to-fan window;
+  the NPE at the reference read). BOTH seats carry it; the clean-develop
+  discrimination (unmodified 7910a110, --rerun-tasks forced) reproduces
+  it — 1 failure in 3 forced runs — NOT the crossing families'
+  regression. The bounded fix (the seat's read order) is its own
+  test-infrastructure pass.
+- The main server package lane did not complete this session (the
+  background run died under the worktree contention); the targeted
+  22-class lane (75 tests, the one pre-existing flake alone) and the
+  block package 309/0 are the recorded evidence.
