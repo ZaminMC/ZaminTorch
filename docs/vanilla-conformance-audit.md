@@ -717,9 +717,19 @@ evidence); the fix branch is this run's next act.**
 non-player families). **Status:** confirmed — three verification passes
 complete (the twenty-fourth pass: the source chain, the NoAI-cow
 behavioral seat, and the independent pass's family census + origin
-trace + the engine's own ledgered-gap javadoc). The correction is a
-substantial architectural walk (the entity-level crossing service, the
-families landed one by one) — the next run's fix head.
+trace + the engine's own ledgered-gap javadoc). The correction LANDED
+family by family: the mobs as **PR #98 (MERGED)**, and — unblocked by
+that merge — the ITEMS, the ORBS, and the VEHICLES (boats + carts) on
+`fix/portal-crossing-families-parity-audit` (the twenty-seventh pass;
+the `DimensionCrossing` seam promoted top-level so every family rides
+the same walk; `PortalItemCrossingDiscoveryTest`,
+`PortalOrbCrossingDiscoveryTest`, and `PortalVehicleCrossingDiscoveryTest`
+all GREEN on the fix branch). The ARROWS/PROJECTILES family remains —
+the next run's head (the census already read the reference law:
+ArrowEntity.tick 150, ProjectileEntity (the fireballs) line 82, and
+ThrownEntity line 123 all call `super.tick()` → baseTick's portal arm —
+EVERY projectile kind crosses, not the arrows alone; the engine's
+ProjectileManager covers them all in one walk).
 
 **The reference's law** (reference/1.8.8): the portal arm is ENTITY-level,
 not player-level — every ticked body runs it.
@@ -1334,7 +1344,7 @@ natural terrain; one pre-existing lava load flake retired from
 consideration — passing alone on both trees, no fire path
 touched).
 
-## VT-008 — the bed's out-of-dimension blast arm is missing: the sleep walk carries no dimension gate (CONVERGED with F-EX6 — **PR #102 OPEN**; this record the independent census)
+## VT-008 — the bed's out-of-dimension blast arm is missing: the sleep walk carries no dimension gate (RESOLVED-BY-PR #102 — MERGED, this stream's behavioral verification complete)
 
 **Subsystem:** block use / the bed family / dimension gating
 **Affected version:** the current develop baseline (deef2a17)
@@ -1401,10 +1411,33 @@ effective law for the vanilla dimensions).
   flags; the engine's `sleepOnTick` + the use dispatch read — no
   dimension consult anywhere on the path. CONCLUSION: the arm is
   absent at the source level.
-- Pass 2 (behavioral): owed — the seat needs a nether-anchored
-  session (the portal walk construction); deferred to the next run
-  exactly as VT-006's arrow seat was (the source evidence stands).
-- Pass 3 (independent): owed.
+- Pass 2 (behavioral, the twenty-seventh pass, 2026-10-31): **the seat
+  ran GREEN on the post-#102 develop** — `NetherBedBlastAcceptanceTest`:
+  the nether-anchored session (the real portal walk, the DimensionWalk
+  construction), the bed pair on a controlled twin platform (the
+  nether's and the overworld's at the same coordinates), the
+  right-click driving the use path. THE MERGED FIX'S ANSWER: the pair
+  dies (both cells air), the power-5 blast tears the NETHER's platform
+  (the holed-cell count), the overworld twin stays whole at 169/169
+  (the routing pin — a mis-routed blast would carve it), and the sleep
+  walk never runs (no spawn set, no sleeping — the pre-fix shape's own
+  signature). The construction lesson: the bed site must sit clear of
+  the arrival frame and the nether's natural terrain (the low-site
+  carve disturbed the frame the body stood in and the stand-clock
+  re-crossing ping-ponged the body — the high-altitude +30-offset site
+  is stable; the seats' own interference, never an engine defect).
+- Pass 3 (independent, the twenty-seventh pass, 2026-10-31): the merged
+  arm read at its final shape — the dispatch's gate
+  (`session.dimension() == 0 && !"hell".equals(world.biomeAt(bedHead))`)
+  carries BOTH reference conjuncts (BedBlock.use lines 45-49), the head
+  normalization precedes the gate (lines 38-43), the else arm removes
+  the head FIRST then the sibling foot (lines 70-75), and the blast
+  consults `explosionServiceFor(dimension)` over the ACTING world with
+  createFire ALWAYS true (line 78 — the census's only unconditional
+  fire site). The neighboring lanes green beside it (SleepAcceptanceTest
+  — the overworld arm intact; BlastPlayerWoundDimensionGateTest).
+  **VT-008 CLOSED — resolved by PR #102**, this stream's three passes
+  recorded (the census, the behavioral seat, the independent read).
 
 ## Coverage ledger (updated by the twenty-sixth pass)
 
@@ -1431,6 +1464,56 @@ effective law for the vanilla dimensions).
 | Zombie/mob arms — world binding | NOT INSPECTED (the zombie door-break consults the overworld field; surfaced by PR #90's cleanup threading) |
 | Explosions — dimension routing | AUDITED this pass (the twenty-sixth): the call-site census whole — the primed TNT (FL4-F7) and the End crystal (Slice 62) correct; the ghast fireball and wither skull sinks pass the routed world with the OVERWORLD service, the creeper/wither-birth/TNT-cart wrappers bind the overworld outright, and the shared drop roll stamps dimension 0 (**VT-007: the CORE resolved by PR #100** — another stream's honest convergence with this census, the overlap recorded, PR #103 closed as superseded; **the CART slice PR #105 OPEN** — the BlastSink dimension carry, the stash-discriminated seat nether=0/overworld=18 unfixed; the fireball + creeper seats 2/0 green on post-#100 develop, the independent confirmation riding in #105). The blast WOUND walks are routed (the dimension gate + the blastWorld consult); the fire placement is routed (F-EX4/PR #92); the named tail: the End/nether services' shared `gameplayRandom` vs the reference's per-world `world.random` |
 | Item entities / pickup — dimension | the TF-9 stamped sites are the record; the pickup consult un-audited
+
+## The twenty-seventh pass — VT-008 verified closed, VT-006's unblocked families landed (items, orbs, vehicles)
+
+Baseline: `origin/develop` at `7910a110` (the maintainer's whole wave
+merged since the twenty-sixth pass: #91 VT-004, #94 VT-005, #95 F-EC1,
+**#98 VT-006's mobs family — unblocking the seam's remaining
+families**, #100 F-EX11/12, #102 F-EX6/VT-008, #104 F-EX13; #89/#90
+closed superseded earlier; **#105 the TNT-cart slice the one open PR**).
+
+**VT-008 CLOSED** — the deferred behavioral seat ran GREEN on the
+post-#102 develop (`NetherBedBlastAcceptanceTest`: the nether-anchored
+session, the twin-platform routing pin, the no-spawn signature; the
+independent read of the merged arm's final shape beside it). PR #102's
+coverage is the reference's law, verified by this stream.
+
+**VT-006's remaining families — the items, the orbs, the vehicles
+landed** on `fix/portal-crossing-families-parity-audit`: the
+`DimensionCrossing` seam promoted top-level (the mobs' nested shape
+moved whole, no law change), `ItemEntityManager`,
+`ExperienceOrbManager`, and `VehicleManager` each carrying the
+entity-level portal arm at the head of their per-body tick walks (the
+gated collision consult over the flipped shared query, the entry
+memory, the base threshold 0, the 300 cooldown with the re-arm pin
+and the 4-per-tick decay), the crossing walks (the old world's destroy
+fan first, the seam's reposition + forcer placement, the stamp swap,
+the new world's spawn fan). The vehicle family carries the reference's
+RIDING GATE (a body with a passenger never arms). The three family
+seats GREEN on the fix branch (`PortalItemCrossingDiscoveryTest`,
+`PortalOrbCrossingDiscoveryTest`, `PortalVehicleCrossingDiscoveryTest`
+— the first-armed-tick crossings, the arrivals inside the pre-built
+frames' bands, the nether stamps); the mob seat still green beside
+them.
+
+**The open question the PR review must settle** — the regression lanes:
+`DimensionWalkTest`'s round trip failed on BOTH trees (the documented
+seed-flake — fails on clean `7910a110` develop too, the nether forcer's
+seed-drifting terrain); but `PortalRidingGateDiscoveryTest` (#94's
+pins) passed once on develop and failed twice on the fix branch (both
+boots, different seeds — the preconditions: the seat never landed the
+mounted pair in the cells / the dismounted control found air where the
+frame stood). NO MECHANISM in the diff touches that construction (the
+mob path is untouched beyond the interface retype; the seat's world
+carries no items, orbs, or vehicles; the mob seat green beside it) —
+but the honest record is the count itself: the next run's FIRST ACT is
+the same-seed control (the pass-25 protocol) before the PR may merge.
+
+**The remaining slice**: the projectile family (the arrows, the
+throwables, the fireballs — the census read the law: every kind's
+`super.tick()` chain carries the arm) rides the seam next: the
+`ProjectileManager.SolidQuery` consult + the arm + the seat.
 
 ## The queue for the next pass
 
