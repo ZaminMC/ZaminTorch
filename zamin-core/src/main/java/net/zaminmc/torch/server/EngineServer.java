@@ -1030,6 +1030,9 @@ public final class EngineServer implements Server, EngineBridge {
                 // The crafting consult the sheep's offspring color rides
                 // (Slice 30b — getColorForOffspring's CraftingManager walk).
                 mobs.setCraftingConsult(crafting);
+                // VT-006 — the entity-level crossing service (the reference's
+                // Entity.changeDimension walk the mobs' portal arm rides).
+                mobs.setDimensionCrossing(this::crossEntityDimension);
                 // Mob persistence (ZMD v1): the population survives restarts;
                 // a fresh world's animals arrive through the vanilla worldgen
                 // seeding (NaturalSpawner.populateChunk — the seedAnimals pass
@@ -23053,6 +23056,28 @@ public final class EngineServer implements Server, EngineBridge {
             this.activeDimension = dimension;
         }
 
+        /**
+         * VT-006 — the portal collision consult: the frame match at the
+         * feet cell in the ACTIVE dimension (the reference's gated
+         * PortalBlock.onEntityCollision over the per-tick box scan), null
+         * when the cell is not a portal cell.
+         */
+        @Override
+        public net.zaminmc.torch.server.world.PortalFrameBuilder.PortalShapeMatch portalFrameAt(
+                int x, int y, int z) {
+            if (y < net.zaminmc.torch.block.BlockPosition.MIN_Y
+                    || y > net.zaminmc.torch.block.BlockPosition.MAX_Y) {
+                return null;
+            }
+            net.zaminmc.torch.block.BlockPosition at =
+                    new net.zaminmc.torch.block.BlockPosition(x, y, z);
+            if (!net.zaminmc.torch.server.block.WorldSolidity.isNetherPortal(
+                    activeWorld().getBlock(at).identifier())) {
+                return null; // not a portal cell — the collision answers nothing
+            }
+            return net.zaminmc.torch.server.world.PortalFrameBuilder.matchAt(activeWorld(), at);
+        }
+
         /** The world the active dimension lives in (the nether's stand-in: the overworld when unbooted). */
         private EngineWorld activeWorld() {
             return activeDimension == -1 && netherWorld != null ? netherWorld
@@ -26021,6 +26046,48 @@ public final class EngineServer implements Server, EngineBridge {
     /** The reference's placing-phase border clamp (the ±29999872 band). */
     private static int clampCoordinate(int value) {
         return Math.max(-29_999_872, Math.min(29_999_872, value));
+    }
+
+    /**
+     * VT-006 — the entity-level crossing service (the reference's
+     * Entity.changeDimension walk over PlayerManager.changeDimension's
+     * reposition, the same walk the player's own crossing rides): the
+     * direction law (Entity.baseTick lines 290-294 — the nether pair),
+     * the 8:1 scale (PlayerManager lines 455-468), the placing phase's
+     * border clamp (lines 489-490), the destination neighborhood load,
+     * and the PortalForcer's find-or-build placement (lines 487-496).
+     * The manager's crossing families (the mobs first) ride the seam.
+     */
+    private MobManager.DimensionCrossing.Crossing crossEntityDimension(
+            int fromDimension, double x, double y, double z, float yaw,
+            double velocityX, double velocityZ, PortalForcer.Memory memory) {
+        // The direction (Entity.baseTick lines 290-294): from the nether
+        // home, everything else away. (The End-origin arm holds at the
+        // manager's gate — the engine carries no forced-spawn consult
+        // for the reference's else branch yet.)
+        int to = fromDimension == -1 ? 0 : -1;
+        EngineWorld toWorld = worldFor(to);
+        // The 8:1 walk (PlayerManager lines 455-468: ÷8 into the nether,
+        // ×8 back) with the border band clamp (lines 489-490).
+        double scale = fromDimension == 0 ? 1.0 / 8.0 : 8.0;
+        int destX = clampCoordinate((int) Math.floor(x * scale));
+        int destZ = clampCoordinate((int) Math.floor(z * scale));
+        // The destination neighborhood loads BEFORE the search reads it
+        // (the same bounded 17x17 chunk ring the player's walk loads).
+        int centerChunkX = destX >> 4;
+        int centerChunkZ = destZ >> 4;
+        for (int dx = -8; dx <= 8; dx++) {
+            for (int dz = -8; dz <= 8; dz++) {
+                toWorld.getOrGenerate(new net.zaminmc.torch.block.ChunkPosition(
+                        centerChunkX + dx, centerChunkZ + dz));
+            }
+        }
+        // The destination-side portal walk (PlayerManager lines 491-496):
+        // the forcer's find-or-build placement inside the frame.
+        PortalForcer forcer = to == -1 ? netherPortalForcer : worldPortalForcer;
+        PortalForcer.Arrival arrival = forcer.onDimensionChanged(
+                destX + 0.5, y, destZ + 0.5, yaw, velocityX, velocityZ, memory);
+        return new MobManager.DimensionCrossing.Crossing(to, arrival);
     }
 
     private void publishDimensionChanged(PlayerSession player, Position destination, int dimension) {
