@@ -416,12 +416,12 @@ commit region — a small textual overlap only; the changes compose (the
 ice law's `world.dimension()` consults become dimension-correct once the
 routing lands, exactly as #89's own comment anticipates).
 
-## VT-004 — the portal stand clock re-fires while the body stays pinned in the arrival frame (PR #91 OPEN)
+## VT-004 — the portal stand clock re-fires while the body stays pinned in the arrival frame (RESOLVED-BY-PR #91 — MERGED)
 
 **Subsystem:** portal mechanics (the stand clock / the crossing's re-fire
-law). **Status:** PR OPENED — the correction rides
-`fix/portal-stand-clock-parity-audit` as **PR #91** (targeting
-`develop`): `advancePortalClock` restructured to the reference's per-tick
+law). **Status:** RESOLVED — the correction landed as **PR #91** (merged
+in the develop wave) on
+`fix/portal-stand-clock-parity-audit`: `advancePortalClock` restructured to the reference's per-tick
 order (the decrement, the every-touching-tick re-arm consult, the
 armed-stand-alone consumption), the dead `portalOccupiedLastTick` field
 removed, `DimensionWalkTest`'s round trip re-pinned (the walk out → the
@@ -1348,7 +1348,8 @@ touched).
 
 **Subsystem:** block use / the bed family / dimension gating
 **Affected version:** the current develop baseline (deef2a17)
-**Status:** CONVERGED — another stream's F-EX6 (**PR #102 OPEN**, stacked
+**Status:** CONVERGED — another stream's F-EX6 (**PR #102, MERGED** in the
+develop wave; stacked
 on #92) carries the same law (their record: "NO dimension gate, NO
 removal of the halves, NO power-5 createFire-true blast — BedBlock.use
 lines 68-79's `!dimension.hasSpawnPoint() || biome == HELL` arm" —
@@ -1452,10 +1453,10 @@ effective law for the vanilla dimensions).
 | Ice family — break-to-water, melt | PR #89 open (VT-003's correction) |
 | Snow layer — placement support/melt/drops | drops landed (the mining-speed audit); melt + the 7-layer state surface recorded as VT-003's tail |
 | Packed ice — melt/break laws | inspected: the reference's PackedIceBlock carries no melt arm (the `setTicksRandomly` false, the silk-drop row landed); nothing owed |
-| Portal mechanics (flag1, forcer) | landed by FL4-F1; not re-audited — the stand clock's re-fire law is VT-004 (CONFIRMED, three passes; the correction is **PR #91 OPEN**; the seat PortalRefireDiscoveryTest rides green on the fix branch) |
-| Portal mechanics — the non-player crossing (the entity-level arm) | the MOBS family LANDED by **PR #98** (VT-006's correction: the entity-level crossing service + the mobs family — the gated collision, the threshold-0 clock, the 300 cooldown with the re-arm pin, the 8:1 walk, the forcer's placement, the stamp swap, the per-dimension wire; `PortalMobCrossingDiscoveryTest` 3/0 with the cooldown and riding-gate pins). The REMAINING families (items, orbs, boats, carts, arrows) ride the `DimensionCrossing` seam in their own passes — the behavioral seats authored (RED on develop BY CONTRACT, the twenty-fifth pass); the TNT and falling families excluded by the census; the End-origin arm is the named tail |
-| Bed use — the out-of-dimension blast arm | AUDITED this pass (the twenty-sixth): the sleep walk carries no dimension gate — a nether/End bed sleeps where vanilla blasts (**VT-008 CONVERGED with F-EX6 — PR #102 OPEN**; this stream's census + source pass recorded, the seat construction deferred to the #102 verification) |
-| Portal mechanics — the riding gate (vehicle == null && rider == null) | VT-005 CONFIRMED (three passes — source, the pig-in-portal behavioral seat, the dismount-control independent pass; the correction rides `fix/portal-riding-gate-parity-audit`, PR #94) |
+| Portal mechanics (flag1, forcer) | landed by FL4-F1; not re-audited — the stand clock's re-fire law is VT-004 (CONFIRMED, three passes; the correction **LANDED by PR #91** — merged in the develop wave; the seat PortalRefireDiscoveryTest rides green) |
+| Portal mechanics — the non-player crossing (the entity-level arm) | the MOBS family LANDED by **PR #98 (MERGED)**; the ITEMS, ORBS, and VEHICLES families ride **PR #108 OPEN** (the seam promoted top-level, the three family arms, the three seats green; the twenty-eighth pass's repair restored the carry-forward clobber and re-pinned the two stale cooldown seats — the diff minimal); the ARROWS/projectiles the remaining slice (the queue's head); the TNT and falling families excluded by the census; the End-origin arm is the named tail; the watch: the shared clock idiom's decrement-order vs the reference's crossing-then-decrement order (the one-tick post-crossing cooldown difference) — its own narrow verification pass |
+| Bed use — the out-of-dimension blast arm | **VT-008 CLOSED — RESOLVED by PR #102 (MERGED)**: this stream's census + source pass (the twenty-sixth) converged with the house's F-EX6, and the twenty-seventh pass's behavioral seat verified #102's coverage on the post-merge develop (the twin-platform routing pin, the no-spawn signature — `NetherBedBlastAcceptanceTest` green) |
+| Portal mechanics — the riding gate (vehicle == null && rider == null) | VT-005 CONFIRMED (three passes — source, the pig-in-portal behavioral seat, the dismount-control independent pass) and **RESOLVED by PR #94 (MERGED)**; the seat's own hardening (the unlit-frame/same-submit-mount protocol, the PR-wave merge repair `3ca299e2`) survived the pass-27 carry-forward clobber only through the twenty-eighth pass's restoration — the seat 2/0 green on the #108 branch |
 | Drops — the TF-9 dimension stamp | LANDED by PR #90 (the dig/place walks stamp `world.dimension()`; the tile-family spill sites remain the per-dimension tile tail) |
 | Tile families — per-dimension stores | NOT INSPECTED as its own pass (the PR #90 ledger: the furnace/chest/skull/banner spill + cleanup ride the single-instance managers — the FL4 fluids/fire precedent applies; the nether tile placement/cleanup is its own architectural pass) |
 | Mob spawns — the dimension stamp | NOT INSPECTED (the PR #90 ledger names `MobManager.spawnAt`; the infested burst is the surfaced site) |
@@ -1510,10 +1511,122 @@ carries no items, orbs, or vehicles; the mob seat green beside it) —
 but the honest record is the count itself: the next run's FIRST ACT is
 the same-seed control (the pass-25 protocol) before the PR may merge.
 
+> **RESOLVED (the twenty-eighth pass — the claim above was wrong, the
+> record kept honest):** a MECHANISM WAS in the diff — the setup
+> commit's carry-forward itself. The pass-27 setup (21d13820) carried
+> the pass-26 tree's file states onto the post-wave base, and thirteen
+> test files the develop wave had since evolved were overwritten with
+> their pre-wave shapes — `PortalRidingGateDiscoveryTest` among them,
+> its landed hardening (the unlit frame, the same-submit mount, the
+> late interior light — develop 3ca299e2's own repair of exactly this
+> race) replaced by the pre-#98 form that spawns the pig inside a LIT
+> frame and mounts in a LATER submit. The pig crosses on the first
+> touching tick (VT-006's threshold 0) before any rider can mount —
+> the two recorded failures, a race reintroduced by the carry, never a
+> seed question. The same-seed control is superseded by the direct
+> file-history evidence; see the twenty-eighth pass's record below.
+
 **The remaining slice**: the projectile family (the arrows, the
 throwables, the fireballs — the census read the law: every kind's
 `super.tick()` chain carries the arm) rides the seam next: the
 `ProjectileManager.SolidQuery` consult + the arm + the seat.
+
+## The twenty-eighth pass — the riding-gate question resolved at the root (the carry-forward clobber repaired), the two stale cooldown pins re-pinned
+
+Baseline: the branch `fix/portal-crossing-families-parity-audit`
+(**PR #108**) at `b40ceaa9`, over `origin/develop` `7910a110` (develop
+itself since moved to `a23011fa` — the FL4-F10 redstone wave, not
+overlapping this branch's files).
+
+**The first act — the riding-gate open question, resolved WITHOUT the
+same-seed control:** the planned seed control was superseded by
+stronger direct evidence found while preparing it. The diff review
+(showing what the branch actually carries against its merge base)
+revealed that `PortalRidingGateDiscoveryTest`'s branch content is the
+PRE-#98 unhardened shape — while develop's landed form (hardened at
+`3ca299e2`, the PR-wave merge repairs) builds the frame UNLIT, mounts
+the pig and rider in the SAME submit, and lights the interior only
+after, precisely because VT-006's threshold-0 crossing arms an
+unmounted mob standing in portal cells on the FIRST touching tick (a
+pig spawned inside a lit frame is in the nether before any rider can
+mount — develop's own commit message words). The branch's carried-back
+form spawns the pig inside a LIT frame and mounts in a LATER submit:
+the crossing wins the race, the mount targets a body already gone, and
+both seats fail at their preconditions — exactly the two recorded
+failures ("the seat never landed the mounted pair in the cells" / "the
+dismounted control found air where the frame stood"). The pass-27
+record's "NO MECHANISM in the diff touches that construction" was
+wrong: the reverted test IS the mechanism. The recorded annotation
+above corrects the claim.
+
+**The clobber census (how far it reached):** the pass-27 setup commit
+`21d13820` carried the pass-26 tree's file states onto the post-wave
+base `7910a110`; the develop wave between the pass-26 base `deef2a17`
+and `7910a110` (#91/#94/#95/#98/#100/#102/#104) had evolved files the
+carry then overwrote. The blob census (HEAD vs base vs pre-wave, over
+the files both trees touched) found THIRTEEN test files reverted:
+`PortalRidingGateDiscoveryTest` (the race above),
+`PortalMobCrossingDiscoveryTest` (lost #98's cooldown pin and
+riding-gate pin — the seat count fell from three to one),
+`PortalRefireDiscoveryTest` + `DimensionWalkTest` +
+`PortalFrameBuilderTest` (VT-004's re-pinned seats),
+`BlastResistanceTableTest` (F-EX3's 1302-row boot-registry census),
+`FireballDeflectionTest` + `ProjectileDimensionReadsTest` (F-EX5's
+re-pins), `RangedCombatAcceptanceTest` + `SpawnEggTest` +
+`ThornsMobVictimAcceptanceTest` (run 561's flake retirements),
+`EnderExitAcceptanceTest` (#99's union), and
+`ExplosionEntityGatherParityTest` (the hover fix + F-EX13's wound
+census). None of the thirteen carried any intentional pass-27 work
+(zero commits after the setup touched them — pure carry damage); the
+engine files were clean (the `EngineServer` diff purely additive, the
+`MobManager` diff the documented interface retype alone).
+
+**The repair:** all thirteen restored to the `7910a110` blobs (the
+branch's merge base — the PR's diff for them is now empty, and
+develop's newer FL4-F10 state merges clean over it). Evidence, all on
+the repaired branch: `PortalRidingGateDiscoveryTest` **2/0 GREEN**
+(the anomaly settled behaviorally — the landed shape passes on this
+branch's engine), `PortalMobCrossingDiscoveryTest` **3/0** (the full
+suite again), the portal family whole green
+(`PortalItemCrossingDiscoveryTest` 1/0,
+`PortalOrbCrossingDiscoveryTest` 1/0,
+`PortalVehicleCrossingDiscoveryTest` 2/0, `PortalRefireDiscoveryTest`
+1/0), the restored lanes green whole (DimensionWalk 1/0 — the seed
+flake did not bite this run, EnderExit 2/0, PortalFrameBuilder 12/0,
+BlastResistanceTable 2/0, ProjectileDimensionReads 5/0, CollisionShape
+19/0, RangedCombat 10/0, SpawnEgg 7/0, Thorns 5/0, FireballDeflection
+6/0, ExplosionEntityGather 9/0), the branch's own seats green
+(DimensionTails 3/0, ExplosionDimensionRouting 2/0, NetherBedBlast
+1/0), and the entity package whole **578/0**.
+
+**The two stale cooldown pins (the repair's own discovery):** the
+sweep that verified the repair found two seats failing on the branch —
+`VehiclePersistenceTest` (expected 45, observed 26) and
+`AnvilImportAcceptanceTest` (expected 12, observed 11). Root cause:
+both pinned the restored/imported `PortalCooldown` row as a STATIC
+value — a pin that only held on the pre-arm engine, where vehicles
+never touched the row in the tick. VT-006's vehicle arm (this branch)
+implements the reference's tail decrement (`Entity.baseTick` lines
+311-313: `portalCooldown--` every ticked body, every tick,
+unconditionally), so the row decays from the moment it lands and the
+restore-to-observation lag (load-dependent — 19 ticks observed in the
+persistence seat's second life, 1 tick in the anvil import) makes any
+static expected value wrong by design. The observed deltas (45-19=26,
+12-1=11) are the decay law's own signature. THE RE-PIN (the file's own
+established idiom — the Fire row's band, the fall-store's Wave VN-A
+precedent): the band proves the row landed (a missed restore leaves
+the fresh body's 0) and is decaying under the live law, the upper
+bound the row's source value. Both seats green after the re-pin
+(VehiclePersistence 2/0, AnvilImport 6/0); the item/orb family lanes
+green beside (ItemEntityManager 11/0, ItemOrbLandingPhysics 9/0,
+ItemSolverPhysics 7/0, ItemThrowerPickup 6/0 — no stale pins there:
+the item/orb stores carry no portal-cooldown pins).
+
+**The commits:** `431315e1` (the thirteen-file restoration, the root
+cause and the full evidence in the message) and `eaa90ecc` (the two
+re-pins). PR #108's diff is now the intended minimal shape: the seam
+promotion, the three family arms, the three family seats, the audit
+doc — and nothing else.
 
 ## The queue for the next pass
 
@@ -1586,10 +1699,30 @@ throwables, the fireballs — the census read the law: every kind's
    PR #90 ledger): the per-dimension tile families, the mob spawn's
    dimension stamp, the FX dimension awareness, the per-dimension world
    border, the zombie arm's world binding.
-10. The watch items: the open PRs #91/#94/#95/#98/#101/#102/#104/#105
-   awaiting the maintainer's review (PR #103 closed as superseded by
-   #100 — the honest convergence recorded; #102 is VT-008's carrier,
-   #104 F-EX13 a blast-wound lane adjacent to this pass's census);
-   the FL4-F10 redstone world binding — the house stream's own
-   claimed next act (its trace and six-point plan recorded at
-   `99f1718b` on develop) — NOT to be duplicated by this stream.
+10. The watch items: ~~the open PRs #91/#94/#95/#98/#101/#102/#104/#105
+   awaiting the maintainer's review~~ (#91/#94/#95/#98/#100/#102/#104
+   MERGED in the develop wave; #101 closed; #103 closed as superseded
+   by #100 — the honest convergence recorded). The OPEN PRs this
+   stream carries: **#105** (VT-007's TNT-cart slice), **#106**
+   (VT-009's break-path door/bed pair), **#107** (VT-009's mob portal
+   cooldown decay), and **#108** (VT-006's items/orbs/vehicles — the
+   twenty-eighth pass's repair made its diff minimal; the riding-gate
+   question RESOLVED, no seed control owed); the FL4-F10 redstone
+   world binding — LANDED on develop (`0328e92f`) — not this stream's
+   lane.
+11. **The next pass's head: the projectile family** (VT-006's remaining
+   slice — the arrows, the throwables, the fireballs): the
+   `ProjectileManager` arm riding the `DimensionCrossing` seam (the
+   SolidQuery consult + the clock + the crossing walk) and the
+   flight-path seat (the determinism care the twenty-fifth pass
+   deferred). The queue after it: the F-SP1/F-DS1 passes owed, the
+   dimension tails of item 9, and the newly-ledgered watch for a
+   possible narrow finding — the four families' shared
+   `advanceEntityPortalClock` idiom pays the tail decrement BEFORE the
+   touching consult, where the reference's baseTick order is the
+   crossing arm FIRST (the cooldown set at the full store on the
+   crossing tick) THEN the decrement (lines 286-313) — a one-tick
+   difference in the post-crossing cooldown (300 here, 299 in the
+   reference) common to all four families; the #98-reviewed shape, a
+   candidate for its own narrow verification pass, not to be folded
+   into #108.
