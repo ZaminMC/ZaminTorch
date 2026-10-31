@@ -585,12 +585,12 @@ alone), the behavioral seat is deterministic across boots, and the
 independent pass closed every compensating hypothesis with the reference's
 own dispatch and placement text.
 
-## VT-005 — the nether portal stand clock ignores the reference's riding gate (SUSPECTED)
+## VT-005 — the nether portal stand clock ignores the reference's riding gate (CONFIRMED — three passes; the correction is the fix branch `fix/portal-riding-gate-parity-audit`)
 
 **Subsystem:** portal mechanics (the riding/vehicle gate on the collision
-and the crossing). **Status:** suspected — one source pass recorded (the
-twenty-third pass, discovered during VT-004's edge-case sweep); the
-behavioral and independent passes owed.
+and the crossing). **Status:** confirmed — three verification passes
+complete (source, behavioral, independent — the twenty-third and
+twenty-fourth passes); the correction branch is the queue head.
 
 **The reference's law** (reference/1.8.8): the gate rides BOTH arms.
 `PortalBlock.onEntityCollision` (lines 158-162) calls `onPortalCollision`
@@ -607,16 +607,83 @@ nether arm. (The END arm directly above it DOES consult
 engine has the state and the idiom.) A riding body whose feet cell is a
 portal cell accumulates the stand clock and crosses.
 
-**Verification history:** pass 1 (source, this pass): both reference gates
-read (PortalBlock 158-162, Entity 286) against the engine's nether arm
-(no gate; the End arm's contrast confirms the omission is not a systemic
-constraint). The behavioral pass owed: a seat standing a riding body in a
-portal cell for a window past the 80-tick threshold. The independent pass
-owed afterwards, per the discipline.
+**Verification history:**
 
-**Confidence:** medium (the reference is unambiguous; the engine's riding
-state surface needs the behavioral confirmation that a riding body can
-actually hold a portal-feet position in the engine's simulation).
+- **Pass 1 (source, the twenty-third pass):** both reference gates read
+  (PortalBlock 158-162, Entity 286) against the engine's nether arm
+  (no gate; the End arm's contrast confirms the omission is not a systemic
+  constraint).
+- **Pass 2 (behavioral, the twenty-fourth pass):** the discovery seat
+  `PortalRidingGateDiscoveryTest` (RED on develop BY CONTRACT). The
+  vanilla-reachable construction: a pig stands INSIDE the portal frame's
+  interior (its feet on the bottom obsidian row), the player mounts it
+  (the manager's own `mountMob` seam — the interact path's call), and the
+  seat anchor (mob seat height 0.55 + the player's -0.35 ride height)
+  lands the rider's feet cell INSIDE the portal cells — so the engine's
+  feet-cell read names a portal cell and the riding gate is the ONLY
+  thing that can hold the crossing. THE ENGINE'S ANSWER (deterministic):
+  the timeline `t2:clock=3 ... t78:clock=80 ... t80:dim=-1,cool=10` with
+  `riding=1100000` (the mob's entity id) THROUGH THE WHOLE WINDOW — the
+  stand clock accumulated straight to the survival threshold 80 while
+  mounted and the crossing fired at exactly t80, the cooldown armed, the
+  rider still on the pig. THE REFERENCE'S LAW: the gated collision never
+  arms `inPortal`, so the clock DECAYS 4-per-tick to 0 while mounted and
+  no crossing can fire — the dimension holds 0 for the whole window.
+- **Pass 3 (independent, the twenty-fourth pass):** three angles, each
+  new evidence. (a) The compensating-behavior hunt: NO riding consult
+  exists anywhere between `tickPortalStand`'s cell read and
+  `changeDimensionOnTick` — the engine's riding consults are the
+  movement-stats gate (PlayerEntity 1305's own `vehicle == null`), the
+  landing reset (F-RIDER-SPARE), the step-on gate, the sprint-crit gates,
+  the END arm's own consult, the death dismount, and the relog
+  remember-ride walk; nothing holds the nether crossing. (b) The dismount
+  control (`theDismountedBodyCrossesOnlyAfterItsFreshStand`, RED on
+  develop BY CONTRACT): the same seat, but the rider steps off at the
+  40-tick mark — the dismount exit lands at `mount.x + 1.1`, the frame's
+  OTHER interior column, still a portal cell. THE ENGINE'S ANSWER: the
+  fresh window opens at `clock=44` (the mounted window's accumulation
+  CARRIED — the reference's decay would hold 0) and the crossing fires
+  at the ~40-tick remainder, not the fresh 80. The control isolates the
+  gate as the only variable: the seat's geometry is crossing-capable
+  either way (the control's body DOES cross), so the mounted seat's
+  held crossing cannot be explained by positioning. (c) The
+  design-choice challenge: no test or javadoc on develop pins a mounted
+  crossing as intended — and the reference's `EndPortalBlock
+  .onEntityCollision` (lines 65-71) carries the IDENTICAL gate
+  (`entity.vehicle == null && entity.rider == null`), which the engine's
+  End arm implements faithfully; the nether arm's omission is an
+  anomaly, not a systemic constraint or a choice.
+
+**The stranded-rider consequence** (recorded from the pass-2 timeline):
+  the engine's mounted crossing leaves the session in dimension -1 while
+  still mounted on an OVERWORLD pig — `changeDimensionOnTick` neither
+  dismounts nor carries the mount, and `tickMobRiders` keeps re-writing
+  the rider's position to the overworld seat anchor every tick while
+  `tickPortalStand` reads the NETHER's cells at those coordinates — a
+  state vanilla cannot reach through the portal pair (the gates prevent
+  the crossing; the reference's `changeDimension` is never
+  portal-reached while mounted).
+
+**Confidence:** high (the reference is unambiguous on both gates; the
+behavioral seat is deterministic — the clock values are monotone and the
+crossing fires exactly at the threshold; the control experiment rules
+out the positioning alternative).
+
+**The proposed minimal correction:** the riding consult on the nether
+arm's `inPortal` computation in `tickPortalStand` (the reference's
+collision gate translated to the engine's single-read idiom — a riding
+body neither notes the portal entry nor accumulates the clock; the
+4-per-tick decay holds the clock at 0 until the dismount, exactly the
+reference's not-inPortal arm). One condition on the existing
+`boolean inPortal = ...` line, the End arm's own idiom
+(`session.ridingVehicleId() < 0 && session.ridingMobId() < 0`).
+
+**Regression risks:** none identified beyond the portal family itself —
+the gate only narrows the nether arm's arming for MOUNTED bodies; the
+unmounted walk (DimensionWalkTest's round trip, the VT-004 seat's
+re-fire law, PortalFrameBuilder's cooldown law) never rides. The
+vehicle/mob riding lanes (RiderSpareFall, the cart-ride stats, the
+relog-remount walk) never stand in portal cells.
 
 ## The twenty-third pass — VT-004's independent pass landed (CONFIRMED) + VT-005 discovered
 
@@ -638,7 +705,27 @@ carries the same misreading as the javadoc — the seat pins the symptom, not
 a design choice. **VT-004 is CONFIRMED (three passes, each with distinct
 evidence); the fix branch is this run's next act.**
 
-## Coverage ledger (updated by the twenty-third pass)
+## The twenty-fourth pass — VT-005's behavioral + independent passes landed (CONFIRMED)
+
+Baseline: `origin/develop` at `817dbe74` (the FL4-F7/F8/F9 waves — the
+TNT family, the block-update family, the falling family's per-dimension
+rows — landed since the twenty-third pass; PR #89 and #90 reviewed
+CORRECT by the maintainer and closed as superseded by the landed waves,
+their unique riders adopted at `d6614da3`/`e088de73`; PR #87 merged —
+F-TC1 resolved; PRs #91 (VT-004), #92 (F-EX4), #93 (F-EX7) open). This
+pass took the queue head, VT-005's two owed passes, and completed the
+finding's full verification: the behavioral seat (the pig-in-portal
+construction — the vanilla-reachable ridden scenario; the rider's feet
+cell lands inside the portal cells through the engine's own seat-anchor
+law) and the independent pass's three angles (the compensating-behavior
+hunt — nothing holds the crossing; the dismount control — the mounted
+accumulation carries into the fresh window, isolating the gate as the
+only variable; the design-choice challenge — no pins anywhere, and the
+reference's own EndPortalBlock carries the identical gate the engine's
+End arm already implements). **VT-005 is CONFIRMED (three passes, each
+with distinct evidence); the fix branch is this run's next act.**
+
+## Coverage ledger (updated by the twenty-fourth pass)
 
 | Area | Status |
 |---|---|
@@ -652,7 +739,7 @@ evidence); the fix branch is this run's next act.**
 | Snow layer — placement support/melt/drops | drops landed (the mining-speed audit); melt + the 7-layer state surface recorded as VT-003's tail |
 | Packed ice — melt/break laws | inspected: the reference's PackedIceBlock carries no melt arm (the `setTicksRandomly` false, the silk-drop row landed); nothing owed |
 | Portal mechanics (flag1, forcer) | landed by FL4-F1; not re-audited — the stand clock's re-fire law is VT-004 (CONFIRMED, three passes; the correction is **PR #91 OPEN**; the seat PortalRefireDiscoveryTest rides green on the fix branch) |
-| Portal mechanics — the riding gate (vehicle == null && rider == null) | VT-005 SUSPECTED (one source pass; the behavioral + independent passes owed) |
+| Portal mechanics — the riding gate (vehicle == null && rider == null) | VT-005 CONFIRMED (three passes — source, the pig-in-portal behavioral seat, the dismount-control independent pass; the correction rides `fix/portal-riding-gate-parity-audit`, PR #94) |
 | Drops — the TF-9 dimension stamp | LANDED by PR #90 (the dig/place walks stamp `world.dimension()`; the tile-family spill sites remain the per-dimension tile tail) |
 | Tile families — per-dimension stores | NOT INSPECTED as its own pass (the PR #90 ledger: the furnace/chest/skull/banner spill + cleanup ride the single-instance managers — the FL4 fluids/fire precedent applies; the nether tile placement/cleanup is its own architectural pass) |
 | Mob spawns — the dimension stamp | NOT INSPECTED (the PR #90 ledger names `MobManager.spawnAt`; the infested burst is the surfaced site) |
@@ -679,14 +766,21 @@ evidence); the fix branch is this run's next act.**
    reference's gate shape in `advancePortalClock`; the DimensionWalk
    round-trip re-pin; the discovery seat rides green; the world package
    248/0 + the block lane 309/0).
-5. VT-005's behavioral pass (the riding gate — a seat standing a riding
-   body in a portal cell past the 80-tick threshold), then its independent
-   pass.
+5. ~~VT-005's behavioral + independent passes~~ — DONE (the
+   twenty-fourth pass: the pig-in-portal seat's timeline — the clock
+   accumulated to 80 while mounted and the crossing fired at t80 with
+   `riding` held through the window; the dismount control — the carried
+   clock 44 into the fresh window; the compensating hunt — nothing;
+   VT-005 CONFIRMED). ~~The VT-005 fix branch~~ — **PR #94 OPEN** (the
+   riding consult on the nether arm's `inPortal` computation; both
+   discovery seats ride green on the fix branch).
 6. The explosion-path dimension audit (the ledger row above — now
-   unblocked: nether placement exists post-PR #90).
+   unblocked: nether placement exists post-PR #90; the crystal arm's
+   dimension gate landed with PR #85's rider; the blast family's own
+   dimension row is the remainder).
 7. The standing lanes from the earlier passes, untouched by this one:
-   F-TC1 (the trapped chest's viewer signal — PR #87 open) and F-EC1
-   (the ender chest's solid-above gate, suspected).
+   F-EC1 (the ender chest's solid-above gate, suspected — its source and
+   behavioral passes owed; F-TC1 RESOLVED by PR #87's merge).
 8. The newly-ledgered dimension tails (each its own discovery pass, the
    PR #90 ledger): the per-dimension tile families, the mob spawn's
    dimension stamp, the FX dimension awareness, the per-dimension world
