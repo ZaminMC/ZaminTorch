@@ -2275,6 +2275,9 @@ public final class EngineServer implements Server, EngineBridge {
                 experienceOrbs = new ExperienceOrbManager(shapeGround,
                         new java.util.Random(), ORB_ID_BASE,
                         orbLavaEnvelopeSounds());
+                // VT-006 — the orb family's own arm (ExperienceOrbEntity.tick's
+                // super chain carries the portal walk).
+                experienceOrbs.setDimensionCrossing(this::crossEntityDimension);
                 experienceOrbs.addListener(new OrbEventDispatch());
                 // Random ticks (§471 pattern): grass growth and decay.
                 randomTicks = new RandomTickSystem(world, new java.util.Random());
@@ -2905,6 +2908,10 @@ public final class EngineServer implements Server, EngineBridge {
                         },
                         new java.util.Random(),
                         VEHICLE_ID_BASE);
+                // VT-006 — the vehicle family's own arm (BoatEntity.tick's
+                // super chain and MinecartEntity.tick's own copy carry the
+                // portal walk).
+                vehicles.setDimensionCrossing(this::crossEntityDimension);
                 this.vehicleManager = vehicles;
                 vehicles.setEventBus(eventBus); // §27.7: the public vehicle spawn gate
                 // THE VEHICLES' RIDER-FALL DELEGATE (F-RIDER-SPARE — the
@@ -19389,6 +19396,29 @@ public final class EngineServer implements Server, EngineBridge {
         @Override
         public void setActiveDimension(int dimension) {
             this.activeDimension = dimension;
+        }
+
+        /**
+         * VT-006 — the portal collision consult for the vehicle family:
+         * the frame match at the feet cell in the ACTIVE dimension (the
+         * same consult the mob query and the shape ground carry), null
+         * when the cell is not a portal cell.
+         */
+        @Override
+        public net.zaminmc.torch.server.world.PortalFrameBuilder.PortalShapeMatch portalFrameAt(
+                int x, int y, int z) {
+            if (y < net.zaminmc.torch.block.BlockPosition.MIN_Y
+                    || y > net.zaminmc.torch.block.BlockPosition.MAX_Y) {
+                return null;
+            }
+            net.zaminmc.torch.block.BlockPosition at =
+                    new net.zaminmc.torch.block.BlockPosition(x, y, z);
+            if (!net.zaminmc.torch.server.block.WorldSolidity.isNetherPortal(
+                    activeVehicleWorld().getBlock(at).identifier())) {
+                return null;
+            }
+            return net.zaminmc.torch.server.world.PortalFrameBuilder.matchAt(
+                    activeVehicleWorld(), at);
         }
 
         /**

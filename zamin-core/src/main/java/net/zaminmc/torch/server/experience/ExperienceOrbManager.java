@@ -333,6 +333,70 @@ public final class ExperienceOrbManager implements ExperienceOrbEntity.Players {
     }
 
     /** Advances all orbs one tick: physics, pickup, despawn, void. */
+    /**
+     * VT-006 — the entity-level crossing service (the reference's
+     * Entity.changeDimension walk the orb family's portal arm rides);
+     * null until the engine wires it.
+     */
+    private volatile net.zaminmc.torch.server.entity.DimensionCrossing dimensionCrossing;
+
+    /** Wires the crossing service (the engine's own boot). */
+    public void setDimensionCrossing(net.zaminmc.torch.server.entity.DimensionCrossing dimensionCrossing) {
+        this.dimensionCrossing = java.util.Objects.requireNonNull(
+                dimensionCrossing, "dimensionCrossing");
+    }
+
+    /**
+     * VT-006 — the orb family's portal arm (ExperienceOrbEntity.tick line
+     * 61's super chain → Entity.baseTick lines 282-313, the gated
+     * collision feeding it — an orb never rides, the gate passes): the
+     * collision consult, the entry memory, the base clock.
+     *
+     * @return true when the crossing fired (the caller skips the body's
+     *         own walk)
+     */
+    private boolean tickPortalArm(ExperienceOrbEntity orb) {
+        Position at = orb.position();
+        int feetX = (int) Math.floor(at.x());
+        int feetY = (int) Math.floor(at.y());
+        int feetZ = (int) Math.floor(at.z());
+        var match = ground.portalFrameAt(feetX, feetY, feetZ);
+        if (match != null) {
+            orb.notePortalEntry(new net.zaminmc.torch.block.BlockPosition(
+                    feetX, feetY, feetZ), match, at.x(), at.y(), at.z());
+        }
+        if (orb.advanceEntityPortalClock(match != null)) {
+            crossOrbDimension(orb);
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * VT-006 — the orb family's crossing walk (Entity.changeDimension
+     * lines 1695-1730): the old world's destroy fan, the seam's
+     * reposition + the forcer's placement, the stamp swap, the new
+     * world's spawn fan — the amount carries whole.
+     */
+    private void crossOrbDimension(ExperienceOrbEntity orb) {
+        net.zaminmc.torch.server.entity.DimensionCrossing crossing = dimensionCrossing;
+        int from = orb.dimension();
+        if (crossing == null || from == 1) {
+            return; // the unwired boot and the End-origin arm (the named tail)
+        }
+        Position at = orb.position();
+        publishRemoved(orb, "portal");
+        net.zaminmc.torch.server.entity.DimensionCrossing.Crossing result = crossing.cross(
+                from, at.x(), at.y(), at.z(), 0.0f,
+                orb.velocityX(), orb.velocityZ(), orb.portalMemory());
+        orb.applyDimensionArrival(result.toDimension(),
+                new Position(result.arrival().x(), result.arrival().y(), result.arrival().z()),
+                result.arrival().velocityX(), result.arrival().velocityZ());
+        for (Listener listener : listeners) {
+            listener.onOrbSpawned(orb);
+        }
+    }
+
     public void tick(Iterable<PlayerSession> players) {
         currentPlayers = players;
         try {
@@ -362,6 +426,12 @@ public final class ExperienceOrbManager implements ExperienceOrbEntity.Players {
             // flips to the body's own dimension before its physics walk (the
             // TF-9 item family's own per-body flip, generalized).
             ground.setActiveDimension(orb.dimension());
+            // VT-006 — the entity-level portal arm runs at the START of
+            // the body's tick (the reference's baseTick precedes the
+            // orb's own walk).
+            if (tickPortalArm(orb)) {
+                continue; // the crossing consumed this body's walk
+            }
             if (orb.tick(ground, random, sounds, this)) {
                 for (Listener listener : listeners) {
                     listener.onOrbMoved(orb);
