@@ -132,6 +132,20 @@ public final class ItemEntity implements net.zaminmc.torch.entity.DroppedItem {
         default boolean lavaAtCell(double centerX, double feetY, double centerZ) {
             return false;
         }
+
+        /**
+         * VT-006 — the portal collision consult (the reference's gated
+         * PortalBlock.onEntityCollision lines 158-162 over the per-tick
+         * box scan — an item never rides and never carries a rider, so
+         * the collision gate passes): the frame match at the body's
+         * bottom cell in the ACTIVE dimension, or null when the cell is
+         * not a portal cell. The default answers null so stub grounds
+         * keep their no-portal semantics.
+         */
+        default net.zaminmc.torch.server.world.PortalFrameBuilder.PortalShapeMatch portalFrameAt(
+                int x, int y, int z) {
+            return null;
+        }
     }
 
     /**
@@ -222,6 +236,20 @@ public final class ItemEntity implements net.zaminmc.torch.entity.DroppedItem {
     /** Sets the body's dimension (the spawn walks and the ZID restore stamp it). */
     public void setDimension(int dimension) {
         this.dimension = dimension;
+    }
+
+    /**
+     * VT-006 — the body's portal clock + entry memory (the reference's
+     * Entity portal fields, lines 128/282-313/1428-1454: the base
+     * threshold 0, the cooldown 300, the frame-offset memory). The
+     * manager's portal arm owns it on the tick lane.
+     */
+    private final net.zaminmc.torch.server.world.EntityPortalClock portalClock =
+            new net.zaminmc.torch.server.world.EntityPortalClock();
+
+    /** @return the body's portal clock (the manager's crossing arm). */
+    public net.zaminmc.torch.server.world.EntityPortalClock portalClock() {
+        return portalClock;
     }
 
     public ItemEntity(int entityId, Position position, ItemStack stack, int pickupDelayTicks) {
@@ -375,6 +403,21 @@ public final class ItemEntity implements net.zaminmc.torch.entity.DroppedItem {
         this.velocityX = vx;
         this.velocityY = vy;
         this.velocityZ = vz;
+    }
+
+    /**
+     * VT-006 — the crossing's arrival (the reference's
+     * setPositionAndAngles + the world swap over the recreated body's
+     * copyNbtFrom, Entity.changeDimension lines 1708-1722: the stack
+     * carries whole): the dimension stamp, the forcer's landing, and the
+     * quarter-turned motion — the vertical motion keeps its own row (the
+     * reference's rotation matrix touches the horizontal pair alone).
+     */
+    public void applyDimensionArrival(int dimension, Position arrival,
+                                      double velocityX, double velocityZ) {
+        this.dimension = dimension;
+        teleport(arrival);
+        setVelocity(velocityX, velocityY, velocityZ);
     }
 
     public boolean onGround() {

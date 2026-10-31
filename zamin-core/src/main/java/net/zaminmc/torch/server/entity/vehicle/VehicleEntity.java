@@ -141,6 +141,21 @@ public abstract class VehicleEntity implements net.zaminmc.torch.entity.Vehicle 
         default int railPowerAt(double x, double y, double z) {
             return 0;
         }
+
+        /**
+         * VT-006 — the portal collision consult (the reference's gated
+         * PortalBlock.onEntityCollision lines 158-162 over the per-tick
+         * box scan): the frame match at the body's base cell in the
+         * ACTIVE dimension, or null when the cell is not a portal cell.
+         * The manager's own riding gate applies BEFORE the consult — a
+         * seated body's collision never arms (the reference's
+         * {@code entity.rider == null} conjunct). The default answers
+         * null so stub queries keep their no-portal semantics.
+         */
+        default net.zaminmc.torch.server.world.PortalFrameBuilder.PortalShapeMatch portalFrameAt(
+                int x, int y, int z) {
+            return null;
+        }
     }
 
     /** The steering input the mounted passenger reports (Steer Vehicle 0x0C). */
@@ -256,6 +271,37 @@ public abstract class VehicleEntity implements net.zaminmc.torch.entity.Vehicle 
     private int dimension;
     /** The portal cooldown row. */
     private int portalCooldown;
+
+    /**
+     * VT-006 — the body's portal clock + entry memory (the reference's
+     * Entity portal fields, lines 128/282-313/1428-1454: the base
+     * threshold 0 — the boat's own super chain and the cart's own copy
+     * of the arm both carry it — the cooldown 300, the frame-offset
+     * memory). The manager's portal arm owns it on the tick lane.
+     */
+    private final net.zaminmc.torch.server.world.EntityPortalClock portalClock =
+            new net.zaminmc.torch.server.world.EntityPortalClock();
+
+    /** @return the body's portal clock (the manager's crossing arm). */
+    public net.zaminmc.torch.server.world.EntityPortalClock portalClock() {
+        return portalClock;
+    }
+
+    /**
+     * VT-006 — the crossing's arrival (the reference's
+     * setPositionAndAngles + the world swap over the recreated body's
+     * copyNbtFrom, Entity.changeDimension lines 1708-1722: the kind, the
+     * health, the contents all carry whole): the dimension stamp, the
+     * forcer's landing, and the quarter-turned motion — the vertical
+     * motion keeps its own row (the reference's rotation matrix touches
+     * the horizontal pair alone).
+     */
+    public void applyDimensionArrival(int dimension, Position arrival,
+                                      double velocityX, double velocityZ) {
+        this.dimension = dimension;
+        setPosition(arrival);
+        setVelocity(velocityX, velocityY, velocityZ);
+    }
 
     protected VehicleEntity(int entityId, Kind kind, Position position, Random random) {
         this.entityId = entityId;
