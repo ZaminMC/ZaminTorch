@@ -32,8 +32,8 @@ feeling. Percentages move as work lands; a row leaves the table at 100%.
 | Workstream | Done | The honest state behind the number |
 |------------|------|-------------------------------------|
 | 1.8.8 vanilla parity (the mechanics ledger) | ~92% | ~2,950 automated seats green; the standing parity audit's queue is down to single-digit named rows (the F-EX/VT series — each fixed within a pass or two of its discovery); the residual is the long tail of the audit, not any known major system |
-| Dimension ownership (the FL4 waves — every system ranging its own world) | ~75% | FL4-F2..F9 landed (fire, TNT, block updates, falling bodies, item/orb physics, entity crossings); FL4-F10 (redstone world binding) is traced and planned in §29's ledger; the container/storage family follows it |
-| CI pipeline (Phase A + publishing) | ~85% | parallelisation + selective retry + failure forensics landed; the publish path's two blockers (the test freeze, the notes 422) fixed; what remains is the residual load-flake lottery — ~1-4 members per hosted run, each root-causable at the source (six retired this session) |
+| Dimension ownership (the FL4 waves — every system ranging its own world) | ~80% | FL4-F2..F10 landed (fire, TNT, block updates, falling bodies, item/orb physics, entity crossings, **the redstone world binding — per-dimension signal systems, routed use consults, dimension-filtered probes, the ZCD v2 store stamp**, 2026-10-31); the container/storage family (Gap 2) is the remaining major wave, then the honest tails each wave ledgered |
+| CI pipeline (Phase A + publishing) | ~88% | parallelisation + selective retry + failure forensics landed; the publish path's two blockers (the test freeze, the notes 422) fixed; the residual load-flake lottery continues to shrink at the source — seven members retired across the last two sessions (the pig walk-and-reach seat, five runs, the latest) and runs 562-565's one-off members are queued root-cause-first |
 | Engine infrastructure (§22/§35: ownership, scheduling, transport) | ~90% | the region model, the cross-owner protocol, the encode-once transport landed and pinned; the B-gaps (item components, dimension registry) deliberately wait for their triggers per §X.8 |
 | Concurrency Phase 5 — parallel pre-gen lighting | 90% (gated) | landed, measured 1.4-1.6x, OFF by default (`torch.parallel-pregen-light`); the gate retires on the lane's own evidence |
 | Concurrency Phase 6 — further parallel gameplay lanes | ~20% | the random-tick lane landed; each further lane gated on its own evidence |
@@ -44,8 +44,9 @@ feeling. Percentages move as work lands; a row leaves the table at 100%.
 
 The landed record behind these numbers lives in the ledgers named above and in
 `WORKLOG.md`; the last full re-verification of the table was 2026-10-31 (the
-FL4-F9 falling-family wave, the CI Phase A landing, the parity PR waves
-#91-#100, and the blast dimension-routing completion).
+FL4-F10 redstone world-binding wave, the parity PR wave #101/#102/#104 — the
+ghast fireball constants, the wrong-world bed blast, the player wound gate —
+and the pig-seat flake retirement).
 
 ## Downloading a dev build (no build tools needed)
 
