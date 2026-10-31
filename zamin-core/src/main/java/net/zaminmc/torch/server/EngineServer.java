@@ -21999,7 +21999,11 @@ public final class EngineServer implements Server, EngineBridge {
             // LivingEntity arm), so the victims' shave, revenge, and
             // death-hook walks read the wither as the author.
             detonateAtFromMob(mob, mob.position().x(), mob.position().y() + eye,
-                    mob.position().z(), WITHER_BIRTH_POWER, false);
+                    mob.position().z(), WITHER_BIRTH_POWER,
+                    // WitherEntity line 217's seventh argument: the birth
+                    // blast's block-breaking flag reads mobGriefing (the
+                    // creeper's own form, CreeperEntity.explode line 210).
+                    gameRules.getBoolean("mobGriefing"));
         }
 
         /**
