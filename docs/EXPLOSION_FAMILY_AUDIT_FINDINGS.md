@@ -1088,3 +1088,74 @@ three-pass verified this session.
 - **Dependency:** STACKED ON PR #92 (the F-EX4 fire arm — the
   `createFire` parameter this blast passes true). Merge #92 first;
   this PR's own delta is the bed arm alone.
+
+## F-EX9 — VERIFIED and FIXED (the 2026-10-31 session, this branch): the ghast fireball's flight constants
+
+**Status: fix-ready → PR opened (this branch).** The twenty-first pass's
+candidate, refined and three-pass verified this session: BOTH constants
+were wrong, not just the gravity the candidate named.
+
+- **Subsystem:** the projectile family's flight constants (the ghast
+  fireball's drag and gravity rows).
+- **Affected engine files:** `ProjectileManager.gravityOf` /
+  `ProjectileManager.dragOf` (the LARGE_FIREBALL rows).
+- **Reference:** `FireballEntity` line 9 — `extends ProjectileEntity`
+  DIRECTLY (not `ThrownEntity`); `ProjectileEntity.tick` lines 186-191 —
+  `velocity += acceleration; velocity *= getDrag()` with NO gravity term
+  (the class has no gravity anywhere); `getDrag` line 203 — `0.95F`; the
+  gravity walk lives in `ThrownEntity.tick` line 240 (`velocityY -=
+  getGravity()`) behind the throwable family's five subclasses (Snowball,
+  Potion, EnderPearl, Egg, ExperienceBottle) alone.
+- **Expected behavior:** the ghast fireball converges on the base walk's
+  terminal speed `a*drag/(1-drag) = 0.1*0.95/0.05 = 1.9` blocks a tick
+  and NEVER falls under gravity — launched or restored.
+- **Observed behavior (pre-fix):** `gravityOf(LARGE_FIREBALL)` answered
+  `THROWABLE_GRAVITY` (0.03) and `dragOf(LARGE_FIREBALL)` answered `DRAG`
+  (0.99) — the exclusion lists covered SMALL_FIREBALL and WITHER_SKULL
+  alone. TWO live divergences: (1) the DRAG row on EVERY launch — the
+  terminal walk ran to `0.1*0.99/0.01 = 9.9` blocks a tick, a FIVE-TIMES
+  overshoot (the measured pre-fix speed at tick 60: 4.483); (2) the
+  GRAVITY row on the RESTORED path — the anvil import's zero-acceleration
+  load shape (the reference's writeNbt never saves the acceleration
+  fields) fell under the arm the launch path's acceleration masks, a
+  restored straight shot drooping to y=78.3 from y=100 over 40 ticks.
+- **The exact divergence:** two kind-exclusion lists that enumerate the
+  fireball family incompletely — the enumeration-omission class again
+  (the engine's own tick-walk comment says "The fireball family rides its
+  own constants: drag 0.95, no gravity": the INTENT covered the family,
+  the lists covered two of its three members).
+- **Reproduction:** `GhastFireballFlightParityTest` (NEW, 2 seats) — the
+  drag seat (the launched fireball's terminal walk, 60 ticks, the speed
+  bound) and the gravity seat (the restored straight shot's level
+  flight).
+- **The three-pass record:**
+  1. **Source:** the reference's inheritance chain read directly
+     (FireballEntity → ProjectileEntity, the constructor's
+     acceleration-at-rest shape, getDrag 0.95, the ThrownEntity-only
+     gravity); the engine's two exclusion lists and the integrate walk's
+     zero-acceleration gravity gate traced.
+  2. **Behavioral:** the stash discrimination — BOTH seats FAILED
+     UNFIXED at EXACTLY the predicted values (the speed 4.483 — the
+     0.99-drag walk's tick-60 point; the restored y=78.3 — the 0.03
+     gravity's 40-tick droop) and run 2/0 green FIXED.
+  3. **Independent:** the intentionality challenge (the engine's own
+     comments state the family-wide intent the lists missed); the
+     masking analysis (the launch path's acceleration hides the gravity
+     row — the restore path is its only live site); the terminal
+     derivation (1.9 = the reference's own arithmetic); the
+     compensating-behavior census (no velocity cap exists); the
+     regression lanes below.
+- **The fix:** LARGE_FIREBALL joins the zero-gravity set and the
+  FIREBALL_DRAG set — two exclusion-list entries, nothing else.
+- **Regression risk:** low — the arrow/potion/bottle/snowball rows are
+  untouched, the skull family untouched; the lanes verified green: the
+  projectile package whole (ArrowPickup 8, BowFamily 6,
+  FireballDeflection 5, FireworksAndBottle 6, ProjectileDimensionReads
+  5, ProjectileManager 11, WitherSkull 4, the new pair 2),
+  NetherMonster 4/0 (the ghast's own family), the spawnRestored users
+  (PistonEntityPush 11, HopperSuckBand 5, ExplosionEntityGather 8,
+  ItemDimensionReads 6).
+- **Interaction noted:** PR #100's nether fireball seat launches ghast
+  fireballs — the corrected drag slows their arrival (the terminal 1.9
+  vs the pre-fix 9.9) well inside the seat's 120-tick budget; the seat
+  stays green on the union tree.
