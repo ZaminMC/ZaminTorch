@@ -91,8 +91,8 @@ public final class BlockInteractionService {
     private final java.util.function.BiFunction<net.zaminmc.torch.item.ItemType, Integer,
             java.util.Optional<BlockType>> blockItemResolver;
     private final java.util.function.Consumer<PlayerSession> inventorySync;
-    /** Post-break hook (furnace spill, future block entities). Tick-thread context. */
-    private volatile java.util.function.BiConsumer<BlockPosition, net.zaminmc.torch.block.BlockType> blockBrokenListener;
+    /** The engine's post-break hook sink (the door/bed pair walks + the container spills). */
+    private volatile BlockBrokenHook blockBrokenListener;
     /** The survival-break XP hook (mining awards; creative breaks never fire it). */
     private volatile SurvivalXpHook survivalXpListener;
     /**
@@ -476,7 +476,7 @@ public final class BlockInteractionService {
         // container contents spill (the historical creative-break behavior).
         var listener = blockBrokenListener;
         if (listener != null) {
-            listener.accept(position, previous);
+            listener.onBlockBroken(position, previous, world);
         }
         BreakReport report = breakReport;
         if (report != null) {
@@ -936,7 +936,7 @@ public final class BlockInteractionService {
             mined.onSurvivalMined(player, current, target);
         }
         if (listener != null) {
-            listener.accept(target, current); // container spill runs after the block is gone
+            listener.onBlockBroken(target, current, world); // container spill runs after the block is gone
         }
         BreakReport report = breakReport;
         if (report != null) {
@@ -1092,13 +1092,26 @@ public final class BlockInteractionService {
     }
 
     /**
-     * Registers a post-break hook invoked on the tick thread after a break
-     * commits (the broken block's position and its pre-break type). Used by
-     * the engine to spill container contents (furnace slots) into the world
-     * and to invalidate bed spawns.
+     * The post-break hook: invoked on the tick thread after a break
+     * commits, with the broken block's position, its pre-break type, and
+     * the ACTING world — the world the break committed in (the reference's
+     * per-world neighborChanged dispatch: the pair-death walks and the
+     * cleanups read the dig's own dimension, never another world's cells
+     * at the same coordinates). Used by the engine to kill door/bed pairs
+     * as a unit, to spill container contents (furnace slots) into the
+     * world, and to invalidate bed spawns.
      */
-    public void setBlockBrokenListener(
-            java.util.function.BiConsumer<BlockPosition, net.zaminmc.torch.block.BlockType> listener) {
+    public interface BlockBrokenHook {
+        void onBlockBroken(BlockPosition position, net.zaminmc.torch.block.BlockType brokenType,
+                           EngineWorld actingWorld);
+    }
+
+    /**
+     * Registers a post-break hook invoked on the tick thread after a break
+     * commits (the broken block's position, its pre-break type, and the
+     * world the break committed in).
+     */
+    public void setBlockBrokenListener(BlockBrokenHook listener) {
         this.blockBrokenListener = listener;
     }
 
