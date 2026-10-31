@@ -1542,3 +1542,105 @@ each family's arm the mobs' own shape (the gated collision consult, the
 entry memory's derive, the base threshold 0, the 300 cooldown, the
 destroy-then-spawn wire fan, the stamp swap). The arrow family's arm +
 seat (deferred by the twenty-fifth pass) follows in its own PR.
+
+## The twenty-seventh pass — the correction record: the items, the orbs, and the vehicles ride the seam (PR #109 OPEN)
+
+**The branch:** `fix/portal-resting-family-crossing-parity-audit`,
+based on `origin/develop` at `7910a110`. **PR #109 OPEN** (targets
+`develop`).
+
+**The correction** — the mobs family's own landed shape (PR #98's),
+per family:
+
+- **ItemEntity** (the portal clock rows, `advanceEntityPortalClock`,
+  `notePortalEntry`, `portalMemory`, `applyDimensionArrival`) +
+  **ItemEntityManager** (the seam, the portal arm at the head of the
+  per-body walk — before the despawn window and the physics, baseTick's
+  own order, the crossing walk with the destroy-then-spawn fan) + the
+  `ItemEntity.Ground.portalFrameAt` consult (default null) +
+  `ShapeGround`'s override (the ACTIVE dimension's frame match) + the
+  engine's `setDimensionCrossing` wiring.
+- **ExperienceOrbEntity / ExperienceOrbManager** — the same shape
+  (the orb's own `Ground` consult, the arm before the expiry/void/
+  physics walks).
+- **VehicleEntity / VehicleManager** — the same shape, with the
+  vehicles' own laws: the RIDING GATE on the consult
+  (`hasPassenger() ? null : consult` — the collision's line 158-162
+  vehicle/rider pair, VT-005's law), the arrival's yaw stamp + the
+  fall clear, the PRE-EXISTING persisted `portalCooldown` row becoming
+  the live store (the ZVD row was inert pre-fix — nothing ever
+  decremented it), and the crossing's own `onVehicleRemoved` listener
+  event (default no-op, never the broke event — no drops) with the
+  wire's Destroy-fan override on the V18ProtocolServer side.
+
+**The seats** (the twenty-fifth pass's authored evidence, re-demonstrated
+RED on the post-#98 baseline at this pass's head, now GREEN on the fix
+branch, stable across consecutive runs):
+`PortalItemCrossingDiscoveryTest` 1/0, `PortalOrbCrossingDiscoveryTest`
+1/0, `PortalVehicleCrossingDiscoveryTest` 2/0 (the empty boat + the
+empty minecart).
+
+**The seat-construction repairs** (the assertions unchanged — the
+constructions' own defects, surfaced by the working crossing):
+
+1. **The item seat's drop position**: the pre-authored form passed the
+   CENTERED position (41.5, 20, 40.5) to `spawnDropAtBlock` — the
+   BLOCK-CORNER form that adds +0.5 itself — landing the body OUTSIDE
+   the frame at (42, 20, 41). The RED-era demonstration (the
+   precondition's green, the crossing's red) rode the pop-drift's luck
+   (the spawn velocity carried the body back under the z=41 boundary
+   after ~3 ticks — the diagnostic trace's own record). The block
+   corner (41, 20, 40) lands the body inside the interior cell
+   deterministically.
+2. **The precondition's sampling**: the polling await is retired for
+   the immediate assert (the mob seat's own landed shape) — the
+   crossing fires on the very tick of the drop (the ticker's submit
+   drain precedes the item walk in the same tick), so the pre-crossing
+   state lives inside that tick alone and a 25ms polling await can
+   miss it. The orb seat's polling await retired the same way.
+
+**The re-pins** (the engine's own artifacts, retired by the live row):
+the vehicles' persisted/imported `portalCooldown` row was INERT
+pre-fix — no walk ever decremented it; the reference's baseTick tail
+(Entity.java lines 311-312) decrements it every tick. PR #109 re-pins:
+- `VehiclePersistenceTest` — the band (0 < row ≤ 45) + the strict
+  decrease over completed ticks (the restored row survives AND is
+  live).
+- `AnvilImportAcceptanceTest` — the landing band (0 ≤ row ≤ 12), the
+  same pin its own Fire row carries.
+- `CollisionShapeTest`'s stub resolves the new interface diamond
+  (null — the same shape its dimension flip already resolves).
+
+**The regression lanes green on the fix branch**: the item+orb+vehicle
+packages 142/0, the entity package, the block+interaction packages,
+the world package (246 tests, the two re-pins above), the
+portal+dimension lanes (the DimensionWalk round trip, the
+PerDimensionFire/Fluid seats, the blast-wound dimension gate), and PR
+#98's own `PortalMobCrossingDiscoveryTest` 3/0 (the mobs' crossing
+untouched).
+
+**The named tails** (recorded, not this PR's scope):
+- **The arrow family** — the fifth crossing family
+  (`ArrowEntity.tick` line 150 → `super.tick()` → the base arm); its
+  arm + its flight-path seat are the NEXT RUN'S HEAD (its own PR).
+- **The End-origin arm** — the engine carries no forced-spawn consult
+  (the reference's else branch); shared with the mobs' landed shape.
+- **The item merge pre-pass's cadence** — the engine merges the whole
+  population in a pre-pass; the reference merges per-body inside the
+  tick (on the cell-change/25-tick cadence). A pre-existing house
+  shape (the merge walk's own optimization record); a crossing body's
+  merge interaction is the nuance (vanilla crosses the older body
+  before either merges; the engine's pre-pass may merge first). Not
+  restructured by PR #109 — the merge pass's own cadence is its own
+  audit's territory.
+- **The box-straddle consult** — the reference's collision consult
+  walks the BOX's cells (checkBlockCollisions, the min-to-max sweep);
+  the engine's per-family consult reads the position cell alone (the
+  landed mobs' shape, PR #98's own convention). A body whose box
+  straddles into a portal cell while its position cell is outside arms
+  one tick later than the reference. The resting seats' case is exact
+  (the resting box's cells all sit inside the frame's column).
+
+**VT-006's remaining scope after PR #109**: the arrows alone (the
+family census's fifth member). The finding's record otherwise closes
+with #109's merge.
