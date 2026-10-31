@@ -1510,3 +1510,35 @@ effective law for the vanilla dimensions).
    the FL4-F10 redstone world binding — the house stream's own
    claimed next act (its trace and six-point plan recorded at
    `99f1718b` on develop) — NOT to be duplicated by this stream.
+
+## The twenty-seventh pass — the crossing families unblocked: PR #98 merged, the seam live on develop, the four seats RED re-demonstrated on the post-#98 baseline
+
+**Baseline:** `origin/develop` at `7910a110` (the PR wave #98/#100-#104
+merged; only #105 remains open). The audit lane
+`audit/verifier-pass-27-crossing` carries develop's merge over the
+twenty-sixth pass's record.
+
+**The unblock:** PR #98's merge lands the `MobManager.DimensionCrossing`
+seam and the mobs family whole. The twenty-fifth pass's BLOCKED queue
+item — the remaining crossing families (the items, the orbs, the boats,
+the carts, the arrows) — is now actionable: each family's behavioral
+seat, authored in the twenty-fifth pass and carried on this lane, is
+re-demonstrated RED on the post-#98 baseline (this pass, executed):
+
+- `PortalItemCrossingDiscoveryTest` — 1 seat, RED at the crossing await
+  (`expected: <true> but was: <false>`), the precondition green (the
+  dropped stone rests inside the portal cell, dimension 0).
+- `PortalOrbCrossingDiscoveryTest` — 1 seat, RED the same shape.
+- `PortalVehicleCrossingDiscoveryTest` — 2 seats (the empty boat, the
+  empty minecart), both RED the same shape.
+
+VT-006's finding record already carries its three verification passes
+(the twenty-fourth pass's census + the family walk, the twenty-fifth
+pass's behavioral seats + the independent family census); this pass's
+re-demonstration on the post-#98 baseline is the correction's baseline
+evidence, not a new verification pass. The correction (Phase E) begins
+this run: the items, the orbs, and the vehicles ride the landed seam,
+each family's arm the mobs' own shape (the gated collision consult, the
+entry memory's derive, the base threshold 0, the 300 cooldown, the
+destroy-then-spawn wire fan, the stamp swap). The arrow family's arm +
+seat (deferred by the twenty-fifth pass) follows in its own PR.
