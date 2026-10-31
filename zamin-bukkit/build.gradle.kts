@@ -58,4 +58,10 @@ dependencies {
 // started events make the order visible in the run log.
 tasks.withType<Test>().configureEach {
     testLogging.events("started", "failed", "skipped")
+    // CI Phase A: this module stays SINGLE-FORK. Its harness deliberately
+    // shares ONE engine across all classes (BukkitTestHarness's singleton
+    // + the BukkitHarnessShutdownListener) — the module scripts are
+    // evaluated after the root's subprojects block, so this value wins
+    // over the root's maxParallelForks = 3.
+    maxParallelForks = 1
 }

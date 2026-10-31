@@ -94,6 +94,48 @@ HopperWindow) is CI-side mitigation, not a census conversion: their asserts
 are engine-condition polls already; the census rows show their bounds and
 they stay as-is.
 
+## The CI Phase A retry allowlist (the governance record)
+
+The blind whole-build retry is retired (run 532: 26m + 27m and still
+failing; runs 529/551/556: the retry re-failed with a different set as
+often as it cleared anything). In its place, the root `build.gradle.kts`
+configures `org.gradle.test-retry` with `maxRetries=1`, `maxFailures=20`
+(20+ failing tests in a round disables retrying entirely), and an
+`includeClasses` allowlist. THE MEMBERSHIP LAW: a class is on the list only
+with a diagnosed, census-recorded load-flake justification; a failure never
+becomes eligible by recurring. The seed membership, with the evidence:
+
+- `LifecycleEventAcceptanceTest` / `HopperSystemTest` /
+  `HopperWindowAcceptanceTest` — the three documented members (the
+  workflow's own historical note; engine-condition polls, green in
+  isolation, load-flaked on the hosted runner across the 100-run audit
+  window).
+
+Root-caused and RETIRED from candidacy (fixed at the source, run 556's
+evidence — these were never added to the list):
+
+- `QuickCraftDragWireTest` (chest seat) + `VehicleIntegrationTest`
+  (minecart seat) — NOT flakes: two genuine scene defects. The furnace
+  drag seat (7f9fb6da) placed its furnace at the SAME cell the chest seat
+  uses (the class shares one world; JVM-dependent method order decided
+  which seat lost its placement), and both cart seats seeded their rail
+  line directly over the boat seat's leftover water pool — the rail
+  parity pass's neighbourChanged law (the reference's own
+  hasSolidTop-below pop) correctly removed the unsupported rails, leaving
+  the cart off-rail. Both bisected to their commits, reproduced locally,
+  fixed as test scenes (distinct cells; a restored rail bed).
+- `DimensionWalkTest.portalCrossingWalksToTheNetherAndBackHome` — NOT a
+  flake: a wall-budget defect (20s/30s polls over the 80-tick portal stand
+  clock — a 5x margin the hosted runner's tick stretch burned in run 532's
+  BOTH attempts, passing at nominal speed in isolation). Converted to the
+  EngineAwaits tick-denominated form; see the class's census row.
+- `MobIntegrationTest` / `SurvivalFlowIntegrationTest` — intermittent on
+  the hosted runner only (walk-and-reach and drop-settle scenes under
+  load; green locally across every verification run). NOT added: no
+  diagnosed mechanism yet, and the membership law requires one. If they
+  recur, the path is root-cause first (the reports upload makes the
+  forensics a download), census row second, allowlist last.
+
 ## The audit list (hand-adjudicated rows)
 
 The 27 sub-3-second poll bounds, the 3 timed assertions, and the @Timeout
@@ -358,10 +400,17 @@ count wins over the division.
 | --- | --- | --- | --- | --- |
 | 153 | poll loop deadline | 20s | C-C liveness bound (engine-visible condition polled) | keep |
 
+### `ComputeSubsystemTest.java`
+
+| line | form | value | classification | action |
+| --- | --- | --- | --- | --- |
+| 86 (staleResult seat) | poll loop + single drain | 5s | C-B the wait condition was wrong: queuedDepth==0 proves the job was DEQUEUED, not that the outcome was DEPOSITED — a starved worker let the single drain run before the deposit (run 558's forked timing, recomputes==0) | fixed at the source: the handle's generation is captured at SUBMIT, so the transfer makes any later deposit stale by construction; the idempotent drain is now LOOPED until the outcome is processed |
+
 ### `DimensionWalkTest.java`
 
 | line | form | value | classification | action |
 | --- | --- | --- | --- | --- |
+| 52, 59, 124, 128, 69, 91 | poll loop deadline | 20s / 30s wall | C-B wall budget over a tick-denominated condition (the 80-tick portal stand clock: a 5x wall margin the hosted runner's tick stretch burned — run 532 failed BOTH attempts on it, passing at nominal speed in isolation) | converted → `EngineAwaits.awaitCondition` with 100/400-tick budgets (the stand clock's own 5x), run 532's double failure root-caused and retired |
 
 ### `DispenseBehaviorApiAcceptanceTest.java`
 
@@ -638,6 +687,18 @@ count wins over the division.
 | 673 | fixed sleep | 300ms (~6t) | C-B missing engine-visible condition — unannotated settle | convert → `awaitTicks(6)` |
 | 691 | fixed sleep | 400ms (~8t) | C-B missing engine-visible condition — unannotated settle | convert → `awaitTicks(8)` |
 | 698 | fixed sleep | 400ms (~8t) | C-B missing engine-visible condition — unannotated settle | convert → `awaitTicks(8)` |
+
+### `LoginFloodBoundaryTest.java`
+
+| line | form | value | classification | action |
+| --- | --- | --- | --- | --- |
+| 324 (twelve-logins seat) | nanoTime growth pin | 40-tick windows | C-C measurement (the census's kept nanoTime class), but the ONE-PLAYER baseline was a single window — a co-scheduled fork's heavy phase inflates any one window (run 558's evidence: 39.3 vs 98.3 us/tick baselines across the class's two seats in one run; the populated window measured 94.5 < the inflated 98.3) | fixed at the source: the baseline is now the per-section MINIMUM of three consecutive windows (the noise floor), the strict growth pins unchanged |
+
+### `MobEventBridgeAcceptanceTest.java`
+
+| line | form | value | classification | action |
+| --- | --- | --- | --- | --- |
+| 61 (both seats) | poll loop deadline | 90s | C-C liveness bound, but the POLLED CONDITION was wrong (any sound, not the voice) — the pig/cow footsteps (step.grass) ride the same bridge event and a wander step beat or overwrote the first ambient voice on the hosted runner (run 532 att1, run 557) | fixed at the source: the seats capture the VOICE event by name (compareAndSet) and poll THAT; the asserts unchanged |
 
 ### `MobCombatAcceptanceTest.java`
 

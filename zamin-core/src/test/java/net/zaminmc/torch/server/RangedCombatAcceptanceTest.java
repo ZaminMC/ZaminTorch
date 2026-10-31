@@ -47,15 +47,21 @@ class RangedCombatAcceptanceTest {
         EngineServer server = boot();
         net.zaminmc.torch.server.player.PlayerSession archer = join(server, "Archer");
         server.chatService().submitChat(archer, "/give " + archer.name() + " bow 1");
-        server.chatService().submitChat(archer, "/give " + archer.name() + " arrow 5");
-        await(() -> archer.inventory().countOf(BuiltinItems.ARROW) == 5, "arrows given");
+        await(() -> !archer.inventory().held().isEmpty()
+                && archer.inventory().held().type() == BuiltinItems.BOW, "bow given");
 
-        // No ammunition refuses the draw (the historical refusal).
+        // No ammunition refuses the draw (the historical refusal). The
+        // use gesture drains on a later tick than the submit, so the
+        // refusal is only observable AFTER the task ran — two tick
+        // boundaries prove the drain (run 561 read the pre-drain state
+        // and lost the race to the ticker under forked load).
         server.useItem(archer);
-        await(() -> true, "settle");
-        assertFalse(archer.bowCharging(), "empty-handed bows never draw");
+        EngineAwaits.awaitTicks(server.world(), 2, "the use gesture processed");
+        assertFalse(archer.bowCharging(), "the empty quiver refuses the draw");
 
         // With ammunition: the draw starts, full charge at 20 ticks, release fires.
+        server.chatService().submitChat(archer, "/give " + archer.name() + " arrow 5");
+        await(() -> archer.inventory().countOf(BuiltinItems.ARROW) == 5, "arrows given");
         server.useItem(archer);
         await(() -> archer.bowCharging(), "the draw started");
         EngineAwaits.awaitTicks(server.world(), 26, "26 ticks at 20 Hz: past the 20-tick full charge");
@@ -107,6 +113,12 @@ class RangedCombatAcceptanceTest {
         archer.freezeBowChargeForTest();
         drawFor(archer, 2);
         server.releaseUsingItem(archer);
+        // The unfreeze waits for the release to drain: the release task
+        // reads the charge when it runs, and an early unfreeze hands the
+        // tick walk a window to advance the draw first (run 561's
+        // mid-draw crit came exactly this way). releaseBow's first act
+        // cancels the charge, so the flip is the drain's own receipt.
+        await(() -> !archer.bowCharging(), "the flick release fired");
         EngineAwaits.awaitTicks(server.world(), 8, "engine progress (a 400 wall settle)");
         assertEquals(0, server.projectiles().all().size(), "the flick fired nothing");
         archer.unfreezeBowChargeForTest();
@@ -124,6 +136,12 @@ class RangedCombatAcceptanceTest {
         archer.freezeBowChargeForTest(); // the draw pins at exactly 19
         drawFor(archer, 19);
         server.releaseUsingItem(archer);
+        // The unfreeze waits for the release's drain (the flick arm's own
+        // law): an early unfreeze lets the tick walk advance the pinned
+        // 19 to a full draw before the release task runs — the arrow goes
+        // critical, the damage rolls 6..10, and the exact-6 pin breaks
+        // (run 561's 2.0 health was the crit roll landing on 8).
+        await(() -> !archer.bowCharging(), "the mid-draw release fired");
         archer.unfreezeBowChargeForTest();
         await(() -> pig.health() < net.zaminmc.torch.server.entity.MobType.PIG.maxHealth,
                 "the mid-draw arrow landed");

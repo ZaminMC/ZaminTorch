@@ -327,18 +327,15 @@ green. The full suite rides the CI.
 
 ## F-EX5 — the punch deflection's skull exclusion (NEW candidate, the twentieth pass's discovery)
 
-The engine's player-punch deflection (`ProjectileManager.deflect`)
-applies the reference's `ProjectileEntity.takeDamage` re-aim to the
-LARGE_FIREBALL and SMALL_FIREBALL kinds alone; the javadoc claims "the
-ballistic kinds answer false exactly the reference's takeDamage". The
-reference's hierarchy: **WitherSkullEntity extends ProjectileEntity**
-(reference/1.8.8 entity/projectile/WitherSkullEntity.java line 16) — the
-skull CARRIES the re-aim arm (a player's punch on a wither skull
-redirects it along the puncher's look, the puncher becoming the new
-shooter). The blast arm this pass landed includes the skull (the
-reference's family whole); the PUNCH surface alone excludes it. Status:
-suspected — awaiting its own three passes (a thin seat: a punch on a
-wither skull mid-flight).
+**Status: REJECTED** (the 2026-10-31 session's three passes — the
+resolution section at the bottom of this doc). The twentieth pass's
+hierarchy read stopped at `extends ProjectileEntity` (line 16) and
+never opened the skull's OWN override: `WitherSkullEntity.takeDamage`
+lines 94-96 answer **`return false`** — the skull refuses the punch
+whole, exactly as the engine already behaves. The candidate was
+wrong, and chasing it exposed the REAL divergence beside it (F-EX10,
+the same session): the SMALL fireball's identical refusal, which the
+engine violates on BOTH the punch and the blast-wound surfaces.
 
 ## The queue after this pass
 
@@ -349,6 +346,13 @@ F-EX5 (the punch deflection's skull exclusion), and the standing
 architecture tail F-FL4 (the nether/End fluid simulation — the §22
 queue head, the per-dimension scheduled/random-tick infrastructure it
 needs first). The F-EX1 family is retired end to end.
+
+[The 2026-10-31 session's resolutions: F-EX2 retired (below), F-EX4
+retired (PR #92), F-EX5 REJECTED with F-EX10 confirmed beside it
+(below), F-EX7 retired (PR #93). The queue's live heads: F-EX3 (the
+BlastResistanceTable coverage census), F-EX6 (the bed's wrong-world
+arm), F-EX8 (the wither birth's flag), F-EX9 (the ghast fireball's
+throwable gravity), and F-FL4.]
 
 ---
 
@@ -589,6 +593,427 @@ F-EX7/F-EX8 (the two thin destructive-flag rows), F-EX5 (the punch
 deflection's skull exclusion), F-EX9 (the ghast fireball's gravity),
 and the standing architecture tail F-FL4 (the nether/End fluid
 simulation — the §22 queue head).
+
+## F-EX7 — VERIFIED and FIXED (the twenty-first verifier pass, 2026-10-31)
+
+**Status: resolved** (the three passes complete in one session; the fix
+on `fix/tnt-cart-destructive-flag-parity-audit`). Discovered by the
+twenty-first pass's explosion call-site census (the fire-arm
+investigation's side-find, PR #92's record).
+
+### The finding
+
+The reference's `TntMinecartEntity.explode` (lines 85-92) calls the
+SIX-ARG `world.explode(this, x, y, z, power, TRUE)` — the cart's blast
+HARDCODES the destructive flag, and mobGriefing never gates it (the
+famous exception: a TNT cart craters even in a no-grief world; only
+the fireball and the creeper family ride the rule). The engine's blast
+sink factory passed `gameRules.getBoolean("mobGriefing")` — a no-grief
+world's cart blast wounded and knocked but never broke a block.
+
+### The three-pass record
+
+- **V1 (source):** the reference's SINGLE `explode(distance)` method
+  serves every cart detonation (the burning arrow's annihilation arm
+  `takeDamage` lines 63-73, the fall-death line 44, the fire/explosive
+  death line 81) — and the six-arg call hardcodes TRUE. The engine's
+  factory sink serves the same three detonations through
+  `explodeWith` — one flag, one divergence.
+- **V2 (behavioral):** `TntCartDestructiveFlagParityTest` (NEW):
+  mobGriefing off, a TNT cart on the plain, a burning arrow into the
+  cart. The stash verification failing UNFIXED on exactly the crater
+  await — the probe reading `flag=false crater=` EMPTY (the engine's
+  flag consult left every grass cell standing) — and green with the
+  fix.
+- **V3 (independent):** the flag's only consult was the factory lambda
+  (no compensating site); the wound arms stay unconditional on both
+  sides (the flag gates the BLOCK walk alone — the seat's cart still
+  died to the wound with the flag off); the factory comment's
+  "mobGriefing's destructive gate" prose described the engine's
+  general detonation walk, not a cart choice (the pattern copy from
+  the fireball sink — an omission); the first cut's empty crater was
+  the UNGENERATED-void read outside the 25 spawn chunks (the probe
+  caught it, the seat moved inside the pregenerated band).
+
+### The fix
+
+The factory's flag → `true` (one line + the reference cite).
+
+### Evidence
+
+The stash-verified discrimination (the empty crater unfixed → green
+fixed); the whole vehicle package 82/0 (every cart family:
+chest/hopper/spawner/command-block minecarts, the fire lanes, the
+persistence, the riding lanes) + the explosion family lanes (the
+gather 8, the fire arm 4) + the TNT lanes green.
+
+## F-EX5 REJECTED + F-EX10 — the re-aim census: the large fireball ALONE (the 2026-10-31 session, F-EX5's resolution)
+
+**F-EX5: rejected.** The twentieth pass's candidate claimed the skull
+CARRIES the re-aim arm because `WitherSkullEntity extends
+ProjectileEntity` (line 16) — a hierarchy read that stopped one level
+short. The skull's OWN `takeDamage` (lines 94-96) answers
+**`return false`**: the punch never lands, no redirect, no new
+shooter. The engine's exclusion was already correct
+(`WitherSkullTest` line 171's seat pins it with the right cite).
+
+**F-EX10: confirmed and fixed (the same investigation's three
+passes).** The subclass-counting census that misled F-EX5 misled TWO
+engine arms in the OPPOSITE direction — the SMALL fireball's identical
+refusal was violated on both surfaces:
+
+- `ProjectileManager.deflect` (the punch) covered
+  `LARGE_FIREBALL + SMALL_FIREBALL`: a player's punch on a blaze's
+  charge (or a dispensed fire charge) redirected it — vanilla's
+  `SmallFireballEntity.takeDamage` (lines 62-64) answers `false`, the
+  punch never lands, the charge keeps its course and its shooter.
+- `ProjectileManager.woundFromExplosion` (the mob-sourced blast's
+  wound) covered `LARGE + SMALL + WITHER_SKULL`: a creeper blast
+  beside a charge or a skull re-aimed it (the blast's source becoming
+  the new shooter) — vanilla's overrides refuse the wound whole; only
+  the SCATTER (Explosion lines 135-137, outside the takeDamage
+  verdict) ever moves them.
+
+### The reference census (the complete table)
+
+Of `ProjectileEntity`'s THREE direct subclasses exactly ONE inherits
+the re-aim (ProjectileEntity.takeDamage lines 248-273: the velocity
+BECOMES the attacker's look, the acceleration look*0.1, the attacker
+the new shooter):
+
+| Kind | Reference class | takeDamage | Punch deflect | Blast wound re-aim |
+|---|---|---|---|---|
+| LARGE_FIREBALL | FireballEntity | inherited re-aim | YES | YES |
+| SMALL_FIREBALL | SmallFireballEntity | `return false` (62-64) | NO | NO |
+| WITHER_SKULL | WitherSkullEntity | `return false` (94-96) | NO | NO |
+| arrows / thrown | Entity / ThrownEntity | default false | NO | NO |
+
+The wound's caller shape (Explosion.java lines 115-144): the gather
+calls `entity.takeDamage(DamageSource.explosion(this), ...)` — the
+small fireball and the skull answer false, no re-aim — then the
+unconditional scatter `velocityX/Y/Z += dir * d11` lands for every
+gathered body whatever the verdict. The punch's caller
+(PlayerEntity.attack line 981): `flag2 = target.takeDamage(...)` gates
+the knockback push AND the sprint damping (lines 983-991) AND the 0.3
+exhaustion (line 1043) — a refused punch charges nothing.
+
+### The three-pass record
+
+- **V1 (source)**: the hierarchy grep (THREE direct subclasses), the
+  override bodies read in full (SmallFireball 62-64, WitherSkull
+  94-96, FireballEntity's single takeDamage mention is a CALL at line
+  28 — no override), the blast loop's unconditional-call +
+  scatter-outside shape, the flag2-gated punch arms, and
+  DamageSource.explosion's getSource() attacker gate (the engine's
+  mob-sourced-alone gate already matches).
+- **V2 (behavioral — the stash discrimination)**: THREE seats failing
+  UNFIXED on exactly the predicted assertions and green FIXED —
+  (1) `FireballDeflectionTest.theThrownFamilyAndArrowsTakeNoDeflection`
+  re-pinned (the fire charge's `assertTrue` → `assertFalse`: "the fire
+  charge answers false (the override's own verdict)" — the wrongly
+  pinned seat's own comment was the census error's record: "the fire
+  charge is family (Bootstrap's dispensed arm)");
+  (2) `FireballDeflectionTest.theBlastWoundReAimsTheGhastFireballAlone`
+  NEW (the unit census: the LARGE re-aimed with the exact look vector
+  and the new shooter; the SMALL's thrower and velocity untouched; the
+  SKULL's thrower and velocity untouched);
+  (3) `ExplosionEntityGatherParityTest.theBlastReAimsTheGhastFireball
+  ButNeverTheBlazeCharge` NEW over the REAL blast wire (the creeper's
+  own detonation: the ghast shot's thrower BECOMES the creeper's id —
+  the re-aim lands; the near charge diverges from its un-blasted twin
+  — the scatter lands — while its thrower stays -1; the unfixed tree
+  timed out on exactly that last await).
+- **V3 (independent)**: (a) the compensating-site census — exactly TWO
+  `deflectBy` writers exist (deflect + woundFromExplosion), both now
+  gated; the third `onProjectileDeflected` mention is the engine's
+  listener BRIDGE, not a writer; (b) the flag2-gated arms verified
+  (push, damping, exhaustion all inside the verdict — the refused
+  punch charges nothing, matching the engine's deflect-verdict shape);
+  (c) the intentionality check — the two javadocs' own prose records
+  the census error ("the ballistic kinds answer false exactly the
+  reference's takeDamage (arrows and shards...)" — the law applied to
+  two kinds and skipped the other two; "the fireball pair + the wither
+  skull" — subclass-counting, never override-checking): an honest
+  omission, no deviation decision anywhere; (d) the edges — the
+  dispensed charge rides the same SMALL kind (the re-pinned seat's
+  launcher IS the dispenser's), the LARGE's shooter-immunity window
+  composes (the re-aim flips the shooter — the existing
+  strike-its-own-shooter seat stays green), and the refused wound
+  fires no wire deflection (no velocity re-publish, matching the
+  reference's velocityChanged never set).
+
+### The fix
+
+Both gates read `LARGE_FIREBALL` alone; both javadocs carry the
+corrected override census; the wrongly-pinned seat re-pinned; the two
+caller comments refined. The scatter (the caller's addVelocity arm) is
+untouched — every gathered body still takes it.
+
+### Evidence
+
+The stash-verified discrimination (3 failing unfixed on exactly the
+predicted assertions, the LARGE controls green on BOTH trees); the
+whole projectile package + the explosion family + the vehicle blast
+lanes + the TNT/dispenser/creeper/crystal/fire lanes green post-fix
+(187/0 over 33 classes).
+
+## F-EX3 — VERIFIED and FIXED (the 2026-10-31 session, the boot-registry census)
+
+**Status: resolved** (the three passes complete in one session; the fix on
+`fix/blast-resistance-boot-census`).
+
+The nineteenth pass's suspicion was RIGHT but measured the wrong registry:
+the standing census (`BlastResistanceTableTest`) enumerated **BuiltinBlocks
+alone (957 rows)** — the engine's BOOT registry wraps ELEVEN registerAll
+families on top (cauldron, ender chest, beacon, brewing, dispenser,
+hopper, piston, tripwire, redstone, daylight detector, fluids — **1302
+identifiers whole**), and **107 of the families' flattened STATE ids fell
+through `BlastResistanceTable.read` to `blastResistance`'s fallback**.
+
+### The divergence table (the probe's computed answers vs the reference)
+
+| Family (count) | Engine fallback | Vanilla READ | The reference's own row |
+|---|---|---|---|
+| repeater_east_2 … (16) | **MAX_VALUE** | 0 | setStrength(0.0F) — Block.java 1195-1196 |
+| comparator_*_compare/subtract (8) | **MAX_VALUE** | 0 | setStrength(0.0F) — 1319-1321 |
+| lever_down/up_x(_powered) (4) | **MAX_VALUE** | 0.5 | setStrength(0.5F) — 1135 |
+| tripwire_*suspended* (8) | **MAX_VALUE** | 0 | no setStrength — 1285 |
+| moving_piston_*(_sticky) (12) | **MAX_VALUE** | **0** | MovingBlock setStrength(-1.0F) → the field FLOORS at 0 — NOT blast-immune |
+| daylight_detector(_inverted)_p0..15 (32) | 1.0 | 0.2 | DaylightDetectorBlock ctor setStrength(0.2F) |
+| hopper_*_disabled (5) | 15.0 | 4.8 | setStrength(3.0F).setBlastResistance(8.0F) — 1335 |
+| piston_head_*_sticky (6) | 2.5 | 0.5 | PistonHeadBlock ctor setStrength(0.5F) |
+| falling_water/lava(_1..7) (16) | MAX_VALUE | 100 | the fluid family's setStrength(100.0F) — 1017-1020 |
+
+The loudest rows: **a redstone clock SURVIVED a point-blank creeper** in
+the engine (the repeater, the comparator and the lever answered
+MAX_VALUE — the rays died at the first cell) where vanilla shreds them
+(READ 0/0.5 pays ~0.09-0.24 per crossing). The moving piston's row is
+the model's own lesson: `setStrength(-1.0F)` (the unbreakable helper)
+FLOORS the resistance field at `max(0, -5) = 0` — the moving carrier is
+unbreakable BY MINING yet pays **READ 0** to a blast (the reference's
+field/READ model: setBlastResistance ×3, setStrength floors at s×5, the
+read ÷5 — Block.java lines 266, 312-315, 542-543).
+
+### The three-pass record
+
+- **V1 (source)**: every family's registration read directly (the
+  Block.java lines above + the ctors + MovingBlock); the field/READ model
+  verified at the setter bodies; the fallback's own divergence analysis
+  (its `hardness * 5.0` answers the FIELD form — vanilla's read for a
+  setStrength-only block is `hardness` itself; its `!diggable → MAX` has
+  no vanilla basis — the lever/comparator/repeater/tripwire rows are
+  `diggable=false` in the behavior table yet pay their declared READs).
+- **V2 (behavioral — the stash discrimination)**: the probe census
+  (full=1302, tableMissing=107, familyAdded=345, the fallback answers
+  computed per identifier); the re-pinned census test + the value pins +
+  the NEW wire seat failing UNFIXED on exactly the predicted points —
+  the census's missing-set assertion, the value pins' null reads, and
+  `BlastResistanceFallbackParityTest.theBlastShredsTheRedstoneClock`'s
+  "Timed out waiting for the repeater shredded" (the MAX_VALUE fallback
+  left the clock standing on its shelf) — and green FIXED (3/3). The
+  wire seat's own engineering lessons: the parts sit on an OBSIDIAN
+  shelf (READ 1200 — the crater cannot pop them by support loss, the
+  only road by which the bare plain false-passes), and NO stone control
+  between the blast and the comparator (a READ-6 stone SHIELDS the
+  comparator behind it — vanilla's own shielding law, respected in the
+  seat's geometry). The blast-fired proof: the creeper's registry
+  removal (the blast replaces the body — no death flag).
+- **V3 (independent)**: (a) the setter bodies re-read (the FLOOR
+  semantics at lines 312-315 — the moving piston's READ 0 proven from
+  the model, not inferred); (b) the fold-collision analysis — the new
+  suffixes (`p<num>`, `inverted`, `disabled`, `suspended`, `sticky`,
+  `x`) only ADD fold paths AFTER the direct/renames/identity lookups
+  miss, so no previously-resolving identifier can change its answer
+  (confirmed by the 523/0 regression); (c) the intentionality check —
+  the census's own pin (957, "the registry's own row pin") believed
+  itself complete: an enumeration omission, not a per-block decision;
+  (d) the edges — the suspended tripwire CANNOT stand in a seat (the
+  update system normalizes an unhooked suspended wire to its resting
+  form — its fold is pinned by the census and the value seats instead);
+  the moving piston's `diggable=false` behavior row STAYS (the dig
+  family's correct unbreakable-by-mining law — the blast consult now
+  answers 0 beside it); the fallback convention itself is now
+  UNREACHABLE for registered blocks (the census asserts zero-missing)
+  — its standing wrongness (the FIELD-vs-READ form and the
+  diggable-gate) is this ledger's caveat, not a live defect.
+
+### The fix
+
+Seven renames (comparator/powered_comparator/repeater/powered_repeater →
+the reference's unpowered/powered forms; moving_piston → piston_extension;
+falling_water/falling_lava → water/lava) + six fold-suffix additions
+(`p<num>` in the numbered pattern; `inverted`, `disabled`, `suspended`,
+`sticky`, `x` in the word pattern). The census re-pinned to the FULL BOOT
+REGISTRY (1302) with the registry() helper enumerating the engine's own
+eleven-family boot chain; the value pins extended to all nine families;
+the wire seat NEW.
+
+### Evidence
+
+The stash-verified discrimination (3 failing unfixed on exactly the
+predicted points, 3/3 green fixed); the regression lanes green whole
+(523/0 over 94 classes: the explosion family, TNT, vehicles, redstone,
+the block package, hoppers, pistons, daylight, crystals, creepers,
+projectiles).
+
+## F-EX8 — VERIFIED and FIXED (the 2026-10-31 session, this branch): the wither birth blast's destructive flag
+
+**Status: fix-ready → PR opened (this branch).** The twenty-first pass's
+candidate, three-pass verified this session.
+
+- **Subsystem:** the wither's birth explosion (Slice 59's event family)
+  over the gamerule family's destructive gate (Slice 24a).
+- **Affected engine files:** `EngineServer.onWitherBirth` (the listener
+  dispatch's `detonateAtFromMob` call — the hardcoded `false`).
+- **Reference:** `WitherEntity.mobAiTick` line 217 —
+  `this.world.explode(this, this.x, this.y + this.getEyeHeight(),
+  this.z, 7.0F, false, this.world.getGameRules().getBoolean("mobGriefing"))`.
+- **Expected behavior:** the birth blast's SEVENTH argument (the
+  block-breaking flag) reads the mobGriefing game rule. The 6th
+  (createFire) stays `false`. The five-arg overload the creeper rides
+  (`World.explode` lines 1597-1598) confirms the semantics: it delegates
+  to `(source, x, y, z, power, false, destructive)` — the LAST argument
+  is the destructive flag, and `CreeperEntity.explode` line 210 passes
+  mobGriefing there.
+- **Observed behavior (pre-fix):** the engine hardcoded `false` whole —
+  a griefing world's wither birth wounded and knocked but never tore a
+  single block, whatever the rule said.
+- **The exact divergence:** one boolean at one call site — the rule
+  consult never reached the blast walk.
+- **Reproduction:** `WitherBirthGriefingParityAcceptanceTest` (NEW, 2
+  seats) drives the REAL summon wire — a wither spawned onto a stone
+  platform, `witherSummoned()`'s 220-tick blue window on the engine's own
+  clock, the birth consumed by the manager's tick and dispatched through
+  `onWitherBirth` into the detonation walk.
+- **The three-pass record:**
+  1. **Source:** the reference's line 217 read directly; the
+     `World.explode` overloads' parameter semantics verified (the 6th
+     createFire, the 7th destructive; the five-arg form's flag is
+     destructive); the engine's `detonateAtFromMob(..., float power,
+     boolean destructive)` forwards the flag into `detonateAtIn`'s
+     `destructive` row — the fix's parameter target verified.
+  2. **Behavioral:** the stash discrimination — the core seat (default
+     rules, mobGriefing true) FAILED UNFIXED at exactly the predicted
+     await ("the birth blast tore the platform under the wither" — the
+     hardcoded false left the platform standing) while the GUARD seat
+     (mobGriefing=false) passed on BOTH trees, proving the birth-event
+     wire itself fires identically; FIXED the pair runs 2/0 green with
+     the power pin (7.0F).
+  3. **Independent:** the parameter-order challenge (the engine's flag
+     rides the same position the reference's does — verified at the
+     forwarding site); the compensating-behavior census (ONE
+     `onWitherBirth` implementation engine-wide, no other gate between
+     the event and the walk); the creeper's parallel form (the
+     established `gameRules.getBoolean("mobGriefing")` consult my fix
+     mirrors); the default rule value ("true", GameRules line 87 — the
+     fixed engine now tears on default servers exactly like vanilla).
+- **The fix:** `false` → `gameRules.getBoolean("mobGriefing")` at the
+  `onWitherBirth` detonation call, with the reference's line citation in
+  the comment. Nothing else changes: the wound walks, the packet, the
+  power, the source-mob carry are untouched; the block-tearing arm and
+  its drop rolls/TNT chain reaction run under the same walk the
+  creeper's blast has always used.
+- **Regression risk:** low — one boolean at one call site; the
+  neighboring lanes verified green whole this session: WitherBossTest
+  8/0, WitherExemptionArmsAcceptanceTest 5/0, CreeperRowsAcceptanceTest
+  3/0, GameRuleAcceptanceTest 11/0, ExplosionEntityGatherParityTest 8/0,
+  the new pair 2/0.
+- **The tails this fix does NOT touch (recorded, their own lanes):** the
+  birth blast's WORLD binding (the mob-sourced detonation family's
+  overworld-bound route — F-EX11 below) and the createFire arm (F-EX4,
+  PR #92).
+
+## F-EX11 + F-EX12 — VERIFIED and FIXED (the 2026-10-31 session, this branch): the blast walk's remaining dimension routing
+
+**Status: fix-ready → PR opened (this branch).** Discovered this session
+while tracing F-EX8's call site; three-pass verified whole.
+
+- **Subsystem:** the generalized detonation walk's dimension binding over
+  the mob-sourced and projectile-sourced call sites (Wave FL4-F7's form
+  completed).
+- **Affected engine files:** `EngineServer.detonateAtFromMob` (the
+  creeper's and the wither birth's shared helper — the hardcoded
+  `(world, explosionService, 0)` triple), the `setExplosionSink` /
+  `setSkullExplosionSink` wiring (the overworld `explosionService`
+  passed beside the correctly-routed `worldForSafe(dimension)`), and the
+  walk's own drop roll (the three-arg `spawnDropAtBlock` defaulting the
+  dimension to 0).
+- **Reference:** every blast call site receives the ACTING world —
+  `CreeperEntity.explode` line 210, `WitherEntity.mobAiTick` line 217,
+  `FireballEntity.onHit` line 33, `WitherSkullEntity` line 83, all
+  `this.world.explode(...)`; the body is constructed IN its world, so
+  the rays, the destruction commit, the wounds, the drops and the packet
+  range the dimension the source lives in.
+- **Expected behavior:** a nether creeper's blast, a nether ghast
+  fireball's blast and a nether wither skull's blast tear the NETHER's
+  cells and drop their items there; the overworld's same-coordinate
+  cells are never consulted.
+- **Observed behavior (pre-fix):** BOTH seams flew the ray fan through
+  the OVERWORLD's same-coordinate cells — the creeper's and the wither
+  birth's helper hardcoding the overworld triple whole, and the
+  projectile sinks routing the blast WORLD per dimension while passing
+  the OVERWORLD's `ExplosionService` (the service whose ray fan reads
+  and commits its OWN bound world — `BlastWorld(world)` wraps a fixed
+  target). A nether ghast fireball wounded nether bodies yet never tore
+  the nether — exactly FL4-F7's pre-fix TNT signature ("the blast
+  wounded but never tore") — while a coincident overworld block (a
+  glass marker) TORE instead. The walk's drop roll compounded it: the
+  three-arg spawn stamped the drops into the overworld.
+- **The exact divergence:** `explosionServiceFor(dimension)` — the
+  helper FL4-F7 built for exactly this routing — was consulted at ONE
+  site engine-wide (the TNT seam). The remaining call sites kept the
+  overworld binding: an enumeration omission, the F-EX3 census's own
+  defect class. TF-9's own commit message claimed "the fireball's fire
+  and detonation land in their own world through worldForSafe +
+  detonateAtIn" — the claim was PARTIAL: the blastWorld yes, the service
+  no.
+- **Reproduction:** `NetherBlastRoutingAcceptanceTest` (NEW, 2 seats)
+  with the FL4-F7 discriminator — a nether dirt platform, an OVERWORLD
+  glass marker at the SAME coordinates, and the blast: the platform
+  tears, the marker survives.
+- **The three-pass record:**
+  1. **Source:** all four reference call sites read directly (the
+     `this.world` receiver at every blast); the engine's seams traced —
+     `detonateAtFromMob`'s hardcoded triple, the two sinks' mismatched
+     pairing, `BlastWorld`'s fixed-target binding inside
+     `ExplosionService`, and the drop roll's three-arg default.
+  2. **Behavioral:** the stash discrimination — BOTH seats FAILED
+     UNFIXED at exactly the predicted awaits (the nether platform never
+     tore: the overworld service's world never writes a nether cell),
+     and both run 2/0 green FIXED with the event-dimension pins (the
+     wire event's own row -1, the pre-fix 0) and the marker-survival
+     guards.
+  3. **Independent:** the intentionality challenge (the engine's own
+     mobs and projectiles carry dimension stamps — Slice 25d / TF-9 —
+     the data was present, the consult wasn't; FL4-F7's own record
+     names this binding a defect for the TNT; TF-9's partial claim
+     re-read); the compensating-behavior census (no second blast path
+     exists; the routing helper was built and consulted once); the
+     overworld byte-identity (`worldForSafe(0) == world` and
+     `explosionServiceFor(0) == explosionService`, verified at both
+     bodies — every existing overworld blast keeps the identical path);
+     the unbooted-dimension fallback (the worldForSafe law); and the
+     family's own completion (the walk's drop roll stamped with the
+     walk's dimension, the TF-9 four-arg form).
+- **The fix:** `detonateAtFromMob` routes by `source.dimension()` (the
+  FL4-F7 form); the two projectile sinks consult
+  `explosionServiceFor(dimension)`; the drop roll passes the walk's
+  `dimension`. Nothing else changes — the flags, the powers, the wound
+  walks, the packet shape are untouched.
+- **Regression risk:** low — the overworld paths are byte-identical by
+  construction; the lanes verified green this session: the new pair 2/0,
+  CreeperRows 3/0, NetherTntRouting 1/0, ExplosionEntityGather 8/0,
+  ProjectileDimensionReads 5/0, WitherBoss 8/0, ArmorStand 13/0,
+  NetherDimension 5/0, the vehicle family whole (RidingFollow 6,
+  SpawnerMinecart 8, Persistence 2, Fire 8, HopperMinecart 7,
+  DimensionReads 3, WorldDamage 3), EnderCrystal 10/0, WitherSkull 4/0,
+  FireballDeflection 5/0.
+- **The tails this fix does NOT touch (recorded, their own lanes):** the
+  TNT cart's blast sink (the vehicle family's dimension-blind
+  `BlastSink` interface — the ledged tail until the family carries a
+  dimension field) and the skull family's summon path (the overworld
+  `SkullManager.Host` consults — a wither BUILT in the nether needs the
+  family's own routing pass first).
 
 ## F-EX6 — VERIFIED and FIXED (the 2026-10-31 session, this branch): the wrong-world bed's blast arm
 

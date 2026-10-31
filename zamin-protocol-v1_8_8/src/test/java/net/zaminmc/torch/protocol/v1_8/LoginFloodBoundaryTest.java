@@ -271,8 +271,32 @@ class LoginFloodBoundaryTest {
                 await(() -> opSession.opLevel() >= 3, "the op opped");
                 server.chatService().submitChat(opSession, "/debug start");
                 Window opened = waitForTicks(server, 2, "the profiler opened");
-                Window baselineEnd = waitForTicks(server, 40, "the baseline window");
-                Map<String, Double> baseline = perTickDeltas(server, opened, baselineEnd);
+                // The one-player baseline is a NOISE FLOOR, not a single
+                // sample: three consecutive windows, the quietest kept per
+                // section. A co-scheduled test fork's heavy phase can
+                // inflate any ONE window (run 558's own evidence: this
+                // class measured 39.3 and 98.3 us/tick one-player
+                // baselines across its two seats in the same run), and
+                // the structural pins below compare the thirteen-player
+                // cost against the one-player HONEST cost.
+                Map<String, Double> baseline = null;
+                Window baselineEnd = opened;
+                for (int i = 0; i < 3; i++) {
+                    Window end = waitForTicks(server, 40,
+                            "the baseline window " + (i + 1) + " of 3");
+                    Map<String, Double> sample = perTickDeltas(server, baselineEnd, end);
+                    if (baseline == null) {
+                        baseline = sample;
+                    } else {
+                        for (Map.Entry<String, Double> row : sample.entrySet()) {
+                            Double held = baseline.get(row.getKey());
+                            if (held == null || row.getValue() < held) {
+                                baseline.put(row.getKey(), row.getValue());
+                            }
+                        }
+                    }
+                    baselineEnd = end;
+                }
 
                 // THE FLOOD: twelve concurrent full logins.
                 final int flood = 12;
