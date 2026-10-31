@@ -349,6 +349,47 @@ public final class RandomTickSystem {
             world.setBlock(position, BuiltinBlocks.REDSTONE_ORE);
             return;
         }
+        // The ice's melt (Wave FL4-F4, the threshold corrected by PR #89's
+        // review — IceBlock.tick lines 60-69 over the reference's
+        // randomTick → tick delegation, Block lines 434-436): the BLOCK
+        // light channel ALONE (LightType.BLOCK — the sky never melts ice
+        // in 1.8.8; a frozen lake under open daylight stands whole), and
+        // the gate reads the family's OWN opacity row — the reference's
+        // {@code 11 - this.getOpacity()} — where the ICE's REGISTRATION
+        // carries {@code setOpacity(3)} (Block.java line 1179, the
+        // engine's own BlockLightTable filter row): the melt band is
+        // block light > 8, not > 11 (the light AT an ice cell is itself
+        // attenuated by the same 3 — an adjacent torch's 14 arrives as
+        // 11 and still melts; a four-cells-out torch's 10 melts too).
+        // The nether's yeetsWater consult removes the cell whole (no
+        // water ever forms there); every other dimension melts to the
+        // STILL SOURCE form (Blocks.WATER — never the flowing form the
+        // dig arm places; the melt pool stands until a neighbour update
+        // wakes it). dropItems never runs with a count
+        // (getBaseDropCount 0 — the melt yields nothing).
+        if (type.identifier().equals(BuiltinBlocks.ICE.identifier())) {
+            if (world.blockLightAt(position) > 11 - BlockLightTable.filter(type)) {
+                world.setBlock(position, world.dimension() == -1
+                        ? world.airType()
+                        : net.zaminmc.torch.server.block.FluidBlocks.typeOf(
+                                net.zaminmc.torch.server.block.FluidBlocks.Kind.WATER,
+                                net.zaminmc.torch.server.block.FluidBlocks.Form.SOURCE, 0));
+            }
+            return;
+        }
+        // The snow layer's melt (SnowLayerBlock.tick lines 115-119, the
+        // same randomTick → tick delegation — PR #89's family row): the
+        // BLOCK-light band alone at the layer's own opacity 0 (the
+        // registration's setOpacity(0), Block.java line 1178 — the gate
+        // stays {@code > 11}), and the removal ALONE — NO water ever, in
+        // ANY dimension (the layer's drops walk is the class's own zero:
+        // getBaseDropCount 0, nothing lands).
+        if (type.identifier().equals(BuiltinBlocks.SNOW_LAYER.identifier())) {
+            if (world.blockLightAt(position) > 11 - BlockLightTable.filter(type)) {
+                world.setBlock(position, world.airType());
+            }
+            return;
+        }
         if (WorldSolidity.isCropStage(type.identifier())) {
             tickCropGrowth(position, type);
             return;

@@ -62,7 +62,14 @@ jobs:
         contains(github.event.head_commit.message, '[skip actions]') ||
         contains(github.event.head_commit.message, '[actions skip]'))
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    # The suite's honest ceiling: the successful release runs have taken
+    # 44-92 minutes on the 2-core shared runners (run 469: 92min, run 472:
+    # 79min, run 473: 52min — measured start-to-finish), and the 60-minute
+    # cap killed three otherwise-live runs (533/536/537 cancelled at the
+    # hour mark mid-suite — the 'builds not publishing' symptom's root
+    # cause alongside the superseded-queue churn). Two hours bounds a slow
+    # runner without killing a healthy one.
+    timeout-minutes: 120
     steps:
       - name: Checkout develop (as Abasing)
         uses: actions/checkout@v4

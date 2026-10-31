@@ -166,8 +166,8 @@ class FarmlandStateParityTest {
                         (x, y, z) -> false, new Random(7), 15000);
         net.zaminmc.torch.server.entity.FallingBlockEntityManager falling =
                 new net.zaminmc.torch.server.entity.FallingBlockEntityManager(
-                        (x, y, z) -> false, world,
-                        (position, stack) -> { }, new Random(8), 16000);
+                        (x, y, z) -> false, dimension -> world,
+                        (position, stack, dimension) -> { }, new Random(8), 16000);
         BlockUpdateSystem bus = new BlockUpdateSystem(world, items, falling);
 
         // The stone on the field: the arm fires through the bus.

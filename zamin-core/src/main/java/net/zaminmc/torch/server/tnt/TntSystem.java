@@ -11,8 +11,6 @@ import net.zaminmc.torch.util.Position;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
-import java.util.function.BiConsumer;
-import java.util.function.Predicate;
 
 /**
  * The TNT subsystem (Slice 9f) — the reference port of the 1.8.8 TNT:
@@ -73,13 +71,23 @@ public final class TntSystem implements WorldChangeListener {
     public static final class PrimedTnt
             implements net.zaminmc.torch.entity.PrimedTnt {
         private final int entityId;
+        /**
+         * The body's OWN dimension (Wave FL4-F7 — the reference's
+         * {@code new PrimedTntEntity(world, ...)} riding the world it was
+         * constructed in): every consult the body drives — the physics'
+         * ground test, the detonation's blast walk, the wire's tracker
+         * fan — ranges ITS OWN world's cells, never another dimension's
+         * same-coordinate cells.
+         */
+        private final int dimension;
         private double x, y, z;
         private double velocityX, velocityY, velocityZ;
         private int fuse;
         private boolean onGround;
 
-        PrimedTnt(int entityId, double x, double y, double z, int fuse) {
+        PrimedTnt(int entityId, int dimension, double x, double y, double z, int fuse) {
             this.entityId = entityId;
+            this.dimension = dimension;
             this.x = x;
             this.y = y;
             this.z = z;
@@ -88,6 +96,11 @@ public final class TntSystem implements WorldChangeListener {
 
         public int entityId() {
             return entityId;
+        }
+
+        /** The body's own dimension (the world it was primed in). */
+        public int dimension() {
+            return dimension;
         }
 
         public double x() {
@@ -165,10 +178,31 @@ public final class TntSystem implements WorldChangeListener {
             {0, -1, 0}, {0, 1, 0}, {0, 0, -1}, {0, 0, 1}, {-1, 0, 0}, {1, 0, 0},
     };
 
+    /**
+     * The per-dimension solidity probe (Wave FL4-F7 — the reference's
+     * {@code this.worldObj} consult widened over the engine's shared body
+     * list): the body's physics ground test ranges the body's OWN world's
+     * cells, the dimension stamp riding the body.
+     */
+    public interface SolidityProbe {
+        boolean solidIn(int dimension, double x, double y, double z);
+    }
+
+    /**
+     * The per-dimension detonation sink (Wave FL4-F7 — the reference's
+     * {@code this.worldObj.explode(...)}): the blast walk tears the body's
+     * OWN world — the wounds and the wire already carry the blast's
+     * dimension (the generalized {@code detonateAtIn}), the stamp riding
+     * the body selects it.
+     */
+    public interface DetonationSink {
+        void detonateIn(int dimension, double x, double y, double z, float power);
+    }
+
     private final EngineWorld world;
     private final RedstoneSystem redstone;
-    private final Predicate<Position> solidAt;
-    private final BiConsumer<Position, Float> explode;
+    private final SolidityProbe solidAt;
+    private final DetonationSink explode;
     private final FxManager fx;
     private final Random random;
     private final List<Listener> listeners = new ArrayList<>();
@@ -176,13 +210,14 @@ public final class TntSystem implements WorldChangeListener {
     private int nextEntityId;
 
     /**
-     * @param explode the detonation sink: (the explosion center, the power)
-     *                — the engine's own explosion walk (blocks, wounds, the
+     * @param explode the detonation sink: (the body's dimension, the
+     *                explosion center, the power) — the engine's own
+     *                dimension-routed explosion walk (blocks, wounds, the
      *                Explosion packet).
      */
     public TntSystem(EngineWorld world, RedstoneSystem redstone,
-                      Predicate<Position> solidAt,
-                      BiConsumer<Position, Float> explode,
+                      SolidityProbe solidAt,
+                      DetonationSink explode,
                       FxManager fx, Random random, int firstEntityId) {
         this.world = world;
         this.redstone = redstone;
@@ -229,8 +264,9 @@ public final class TntSystem implements WorldChangeListener {
         double newY = tnt.y + dy;
         if (dy < 0.0) {
             // The tick's own feet-relative ground clamp: the block just
-            // below the target y holds the body at its top.
-            if (solidAt.test(new Position(newX, newY - 0.1, newZ))) {
+            // below the target y holds the body at its top — the body's
+            // OWN world's cell (the dimension stamp riding the body).
+            if (solidAt.solidIn(tnt.dimension, newX, newY - 0.1, newZ)) {
                 newY = (int) Math.floor(newY - 0.1) + 1;
                 tnt.onGround = true;
             }
@@ -255,6 +291,20 @@ public final class TntSystem implements WorldChangeListener {
         tnt.velocityZ = axisZ != 0.0 ? axisZ : tnt.velocityZ;
     }
 
+    /**
+     * The blast's scatter add over one primed body (the reference's
+     * Explosion.damageEntities lines 135-137 — {@code velocityX/Y/Z +=
+     * dir * d11}, the add riding outside the takeDamage verdict; the
+     * PrimedTnt carries NO immunity and NO takeDamage override in 1.8.8,
+     * so the wound no-ops and the impulse alone lands — the TNT cannon's
+     * own law). The body's own tick carries the impulse out.
+     */
+    public void addVelocity(PrimedTnt tnt, double dx, double dy, double dz) {
+        tnt.velocityX += dx;
+        tnt.velocityY += dy;
+        tnt.velocityZ += dz;
+    }
+
     // ------------------------------------------------------------------
     // The change listener: the redstone ignition
     // ------------------------------------------------------------------
@@ -263,12 +313,15 @@ public final class TntSystem implements WorldChangeListener {
      * The arrival arm (TntBlock.onAdded lines 38-43): a TNT placed into
      * power primes instantly. The neighbor arm rides the redstone system's
      * cross-system bus (every world commit and every source's ring walks
-     * fan through it — the engine's neighborChanged).
+     * fan through it — the engine's neighborChanged). The IGNITION routes
+     * the CHANGED world's own cells (Wave FL4-F7 — the reference's
+     * {@code onAdded(World world, ...)} receives the world the write
+     * landed in).
      */
     @Override
     public void onBlockChanged(EngineWorld changedWorld, BlockPosition position, BlockType newType) {
         if (isTnt(newType)) {
-            checkIgnite(position);
+            checkIgnite(changedWorld, position);
         }
     }
 
@@ -279,14 +332,22 @@ public final class TntSystem implements WorldChangeListener {
      */
     public void neighborHeard(BlockPosition pos) {
         if (isTnt(world.getBlock(pos))) {
-            checkIgnite(pos);
+            checkIgnite(world, pos);
         }
     }
 
-    /** The signal check (TntBlock lines 36-43 + 51-56): power primes the block. */
-    private void checkIgnite(BlockPosition pos) {
-        if (redstone.neighborSignal(pos) > 0) {
-            ignite(pos, FUSE_TICKS);
+    /**
+     * The signal check (TntBlock lines 36-43 + 51-56): power primes the
+     * block. The WRITE routes the acting world's own cells; the SIGNAL
+     * consult rides the redstone system's own binding (the system's
+     * constructor world — the overworld's bus — the redstone family's own
+     * per-dimension pass is the FL4 ledger's named tail), so a foreign
+     * dimension's arrival never consults the overworld's signal at the
+     * foreign coordinates.
+     */
+    private void checkIgnite(EngineWorld actingWorld, BlockPosition pos) {
+        if (actingWorld == world && redstone.neighborSignal(pos) > 0) {
+            ignite(actingWorld, pos, FUSE_TICKS);
         }
     }
 
@@ -305,11 +366,13 @@ public final class TntSystem implements WorldChangeListener {
      * The dispensed TNT (Bootstrap's TNT arm, lines 328-338): a primed body
      * at an arbitrary position — the facing cell's center, the cell's floor —
      * with the full 80-tick fuse and the priming hiss. No block leaves the
-     * world (the TNT never was a block there — it rode the slot). Tick-thread
-     * context.
+     * world (the TNT never was a block there — it rode the slot). The body
+     * carries the dispensing world's own dimension stamp (Wave FL4-F7).
+     * Tick-thread context.
      */
-    public void spawnPrimedAt(double x, double y, double z) {
-        PrimedTnt tnt = new PrimedTnt(nextEntityId++, x, y, z, FUSE_TICKS);
+    public void spawnPrimedAt(EngineWorld actingWorld, double x, double y, double z) {
+        PrimedTnt tnt = new PrimedTnt(nextEntityId++, actingWorld.dimension(),
+                x, y, z, FUSE_TICKS);
         float angle = (float) (random.nextFloat() * Math.PI * 2.0);
         tnt.velocityX = -(float) Math.sin(angle) * 0.02f;
         tnt.velocityY = 0.2f;
@@ -331,11 +394,13 @@ public final class TntSystem implements WorldChangeListener {
     /**
      * The prime (TntBlock.ignite lines 66-74 + the removal): the block
      * leaves the world, the primed body takes its place with the small
-     * random hop, the "game.tnt.primed" sound. Tick-thread context.
+     * random hop, the "game.tnt.primed" sound. The block's departure and
+     * the body's dimension BOTH route the ACTING world (Wave FL4-F7 — the
+     * reference's {@code ignite(World world, ...)}). Tick-thread context.
      */
-    public void ignite(BlockPosition pos, int fuse) {
-        world.setBlock(pos, world.airType());
-        PrimedTnt tnt = new PrimedTnt(nextEntityId++,
+    public void ignite(EngineWorld actingWorld, BlockPosition pos, int fuse) {
+        actingWorld.setBlock(pos, actingWorld.airType());
+        PrimedTnt tnt = new PrimedTnt(nextEntityId++, actingWorld.dimension(),
                 pos.x() + 0.5, pos.y(), pos.z() + 0.5, fuse);
         float angle = (float) (random.nextFloat() * Math.PI * 2.0);
         tnt.velocityX = -(float) Math.sin(angle) * 0.02f;
@@ -354,10 +419,12 @@ public final class TntSystem implements WorldChangeListener {
      * The exploded-by-blast arm (TntBlock.onExploded lines 58-65): the
      * consumed block primes a short-fuse body
      * {@code next(fuse/4) + fuse/8} — the chain-reaction stagger. The
-     * caller (the explosion walk) has already removed the block.
+     * caller (the explosion walk) has already removed the block. The body
+     * carries the BLAST world's own dimension (Wave FL4-F7 — the
+     * reference's {@code onExploded(World world, ...)}).
      */
-    public void primeFromBlast(BlockPosition pos) {
-        PrimedTnt tnt = new PrimedTnt(nextEntityId++,
+    public void primeFromBlast(EngineWorld blastWorld, BlockPosition pos) {
+        PrimedTnt tnt = new PrimedTnt(nextEntityId++, blastWorld.dimension(),
                 pos.x() + 0.5, pos.y(), pos.z() + 0.5, FUSE_TICKS);
         tnt.fuse = random.nextInt(FUSE_TICKS / 4) + FUSE_TICKS / 8;
         float angle = (float) (random.nextFloat() * Math.PI * 2.0);
@@ -376,11 +443,11 @@ public final class TntSystem implements WorldChangeListener {
      * durability/consumption stays with the caller — the engine's use path
      * owns the held-stack wear). Tick-thread context.
      */
-    public boolean useIgnite(BlockPosition pos) {
-        if (!isTnt(world.getBlock(pos))) {
+    public boolean useIgnite(EngineWorld actingWorld, BlockPosition pos) {
+        if (!isTnt(actingWorld.getBlock(pos))) {
             return false;
         }
-        ignite(pos, FUSE_TICKS);
+        ignite(actingWorld, pos, FUSE_TICKS);
         return true;
     }
 
@@ -396,11 +463,11 @@ public final class TntSystem implements WorldChangeListener {
      * @return whether the cell held TNT and the prime happened (the
      *         caller's arrow continues its walk through the opened cell).
      */
-    public boolean igniteByArrow(BlockPosition pos) {
-        if (!isTnt(world.getBlock(pos))) {
+    public boolean igniteByArrow(EngineWorld actingWorld, BlockPosition pos) {
+        if (!isTnt(actingWorld.getBlock(pos))) {
             return false;
         }
-        ignite(pos, FUSE_TICKS);
+        ignite(actingWorld, pos, FUSE_TICKS);
         return true;
     }
 
@@ -413,13 +480,26 @@ public final class TntSystem implements WorldChangeListener {
     // The fuse + the physics (PrimedTntEntity.tick lines 52-73)
     // ------------------------------------------------------------------
 
-    /** The per-tick advance: the physics hop, the fuse, the detonation. */
+    /**
+     * The per-tick advance: the physics hop, the fuse, the detonation. The
+     * walk is the reference's own INDEXED loop (World.tickEntities lines
+     * 1211-1246 — {@code for (int i = 0; i < entities.size(); i++)} over
+     * the LIVE list): a body added DURING the walk — the chain reaction's
+     * {@code primeFromBlast} inside a detonation — extends the list and
+     * rides a later pass of the same walk, exactly vanilla's shape. The
+     * spent bodies leave through a DEFERRED removal (the reference's own
+     * {@code entities.removeAll(entitiesToRemove)} sweep), never a
+     * mid-walk list rebuild (the pre-fix survivors rebuild threw
+     * ConcurrentModificationException the moment a detonation's chain
+     * reaction landed).
+     */
     public void tick() {
         if (primed.isEmpty()) {
             return;
         }
-        List<PrimedTnt> survivors = new ArrayList<>(primed.size());
-        for (PrimedTnt tnt : primed) {
+        List<PrimedTnt> spent = null;
+        for (int i = 0; i < primed.size(); i++) {
+            PrimedTnt tnt = primed.get(i);
             // The physics (lines 54-68): gravity, the move, the drag, the
             // ground friction with the bounce.
             tnt.velocityY -= 0.04;
@@ -430,8 +510,10 @@ public final class TntSystem implements WorldChangeListener {
             tnt.velocityY *= 0.98;
             tnt.velocityZ *= 0.98;
             // The feet-relative ground test: the block just below the
-            // body's own y (the reference's collision-driven onGround).
-            tnt.onGround = solidAt.test(new Position(tnt.x, tnt.y - 0.1, tnt.z));
+            // body's own y (the reference's collision-driven onGround) —
+            // the body's OWN world's cell (the dimension stamp riding
+            // the body, Wave FL4-F7).
+            tnt.onGround = solidAt.solidIn(tnt.dimension, tnt.x, tnt.y - 0.1, tnt.z);
             if (tnt.onGround) {
                 // The collision clamp (the reference's move stops at the
                 // surface — the entity never sinks into the ground): the
@@ -451,13 +533,17 @@ public final class TntSystem implements WorldChangeListener {
                 for (Listener listener : listeners) {
                     listener.onTntRemoved(tnt);
                 }
-                explode.accept(new Position(tnt.x, tnt.y + TNT_HEIGHT / 16.0, tnt.z), POWER);
-                continue;
+                explode.detonateIn(tnt.dimension,
+                        tnt.x, tnt.y + TNT_HEIGHT / 16.0, tnt.z, POWER);
+                if (spent == null) {
+                    spent = new ArrayList<>();
+                }
+                spent.add(tnt);
             }
-            survivors.add(tnt);
         }
-        primed.clear();
-        primed.addAll(survivors);
+        if (spent != null) {
+            primed.removeAll(spent);
+        }
     }
 
     /** The shutdown: every primed body leaves the wire. */

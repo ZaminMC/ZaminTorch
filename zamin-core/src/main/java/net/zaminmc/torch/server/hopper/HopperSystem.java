@@ -113,6 +113,19 @@ public final class HopperSystem implements WorldChangeListener {
     /** The cart arm's own pick (getInventoryAt line 470: a random one from the box). */
     private final Random random = new Random();
 
+    /**
+     * The mob consult for the chest lock's ocelot arm (the reference's
+     * isLockedByOcelot, read through getInventoryAt's getInventory call).
+     * Wired after construction (the mob manager's boot order); null means
+     * no ocelots (a mobless world never locks a chest that way).
+     */
+    private volatile net.zaminmc.torch.server.entity.MobManager mobLookup;
+
+    /** Wires the chest lock's ocelot consult. */
+    public void setMobLookup(net.zaminmc.torch.server.entity.MobManager mobs) {
+        this.mobLookup = mobs;
+    }
+
     /** The public §27.7 transfer gate (the observe/cancel hook; null = unwired). */
     private volatile net.zaminmc.torch.server.event.EngineEventBus eventBus;
 
@@ -662,12 +675,24 @@ public final class HopperSystem implements WorldChangeListener {
                 || net.zaminmc.torch.server.chest.ChestFacingBlocks.isPlainFamily(type)
                 || type.identifier().value().equals("trapped_chest")
                 || net.zaminmc.torch.server.chest.ChestFacingBlocks.isTrappedFamily(type)) {
-            ChestBlockEntity chest = chests.getOrCreate(at);
-            List<ContainerSlot> slots = new ArrayList<>(ChestBlockEntity.SLOT_COUNT);
-            for (int i = 0; i < ChestBlockEntity.SLOT_COUNT; i++) {
-                slots.add(chestSlot(chest, i));
+            // HopperBlockEntity.getInventoryAt lines 460-463: the chest arm
+            // rides ChestBlock.getInventory — the MERGED pair when the twin
+            // exists (the DoubleInventory's 54 slots in the join order), and
+            // the null (a locked view — a solid block or a sitting ocelot
+            // above either half) falls to the ENTITY fallback exactly like
+            // the reference's own null.
+            net.zaminmc.torch.server.chest.ChestPairs.View view =
+                    net.zaminmc.torch.server.chest.ChestPairs.resolve(
+                            world, chests, mobLookup, at);
+            if (view != null) {
+                List<ContainerSlot> slots = new ArrayList<>(view.size());
+                for (int i = 0; i < view.size(); i++) {
+                    slots.add(mergedChestSlot(view, i));
+                }
+                return slots;
             }
-            return slots;
+            // The locked chest is not a transfer surface: fall through to
+            // the entity fallback below.
         }
         if (HopperBlocks.isHopper(type)) {
             HopperBlockEntity hopper = getOrCreate(at);
@@ -756,6 +781,35 @@ public final class HopperSystem implements WorldChangeListener {
             @Override
             public void set(ItemStack stack) {
                 chest.setSlot(slot, stack);
+            }
+
+            @Override
+            public boolean allows(ItemStack moving) {
+                return true; // a chest has no slot filters
+            }
+        };
+    }
+
+    /**
+     * One slot of the MERGED pair view (the DoubleInventory's own slot
+     * addressing, getItem line 67): the write lands in its own half, then
+     * BOTH halves mark dirty (DoubleInventory.markDirty lines 99-102 — a
+     * transfer into either half re-arms the comparators reading both).
+     */
+    private static ContainerSlot mergedChestSlot(
+            net.zaminmc.torch.server.chest.ChestPairs.View view, int mergedSlot) {
+        ChestBlockEntity half = view.halfOf(mergedSlot);
+        int local = view.localOf(mergedSlot);
+        return new ContainerSlot() {
+            @Override
+            public ItemStack get() {
+                return half.snapshotSlots()[local];
+            }
+
+            @Override
+            public void set(ItemStack stack) {
+                half.setSlot(local, stack);
+                view.markDirty(); // both halves' comparator wake
             }
 
             @Override

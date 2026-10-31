@@ -188,6 +188,28 @@ public final class EngineWorld implements World,
         return dimension;
     }
 
+    /**
+     * The world's own scheduled-tick queue (Wave FL4-F2 — the fire
+     * family's per-dimension scheduling): the reference's every
+     * ServerWorld carries its own tickUpdates surface, and the families'
+     * schedule consults ({@code world.scheduleTick(pos, block, delay)})
+     * reach the CALLING world's queue — never a static singleton. The
+     * boot attaches the FL4 per-dimension systems here (the overworld's,
+     * the nether's, the End's), and the block families consult
+     * {@link #scheduledTicks()} through the world they run in.
+     */
+    private net.zaminmc.torch.server.block.ScheduledTickSystem scheduledTicks;
+
+    /** Attaches the world's own scheduled-tick queue (the boot's FL4 pair). */
+    public void attachScheduledTicks(net.zaminmc.torch.server.block.ScheduledTickSystem system) {
+        this.scheduledTicks = system;
+    }
+
+    /** The world's own scheduled-tick queue, or null before the boot attaches it. */
+    public net.zaminmc.torch.server.block.ScheduledTickSystem scheduledTicks() {
+        return scheduledTicks;
+    }
+
     @Override
     public String name() {
         return name;

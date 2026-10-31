@@ -18790,3 +18790,362 @@ architecture pass) + the portal placement's flag1 law (2026-10-30)
 - The CI queue: run 533 (the pre-fix checkout) still in flight; run
   535 (the full current tree) queued behind it — the release
   pipeline's first build since torch-1.8.8-153 (2026-10-27).
+
+## The twentieth verifier pass — 2026-10-30 (the explosion family's
+F-EX1 verified whole, the gather restored, the PR opened)
+
+- RECOVERED from the reset: the 19th pass's discovery record
+  (EXPLOSION_FAMILY_AUDIT_FINDINGS.md on develop), F-HP2's pass-1
+  record, the BU-1 wave's queue statement (F-FL4 the named head).
+  The explosion candidates F-EX1..EX4 awaited their three passes;
+  F-EX1 named the highest value (the item scatter + the crystal
+  chain).
+- THE NINETEENTH PASS'S ARMOR-STAND ADJUDICATION CORRECTED: the
+  record claimed the reference EXCLUDES armor stands (immune). The
+  consult re-read: isImmuneToExplosions answers isInvisible() — a
+  VISIBLE stand takes the blast, and takeDamage's explosive arm
+  (lines 382-386) breaks it through onBroken — the equipment drops,
+  the stand item does NOT (lines 480-490 vs onBrokenByPlayer
+  475-478). The armor-stand family joined F-EX1 (the engine's
+  breakByExplosion verb existed, never called from the walk).
+- THE THREE PASSES (the full record in the findings doc): source
+  (the reference chain whole per family + the census re-run + the
+  compensating-site search clean); behavioral
+  (ExplosionEntityGatherParityTest's seven seats, the stash
+  verification failing UNFIXED on exactly all seven and green
+  whole with the fix); independent (the box-vs-gate equivalence,
+  the chain's region reentrancy, all()'s copy semantics, the
+  gate-event fire position, the no-intentional-exclusion check).
+- THE FIX: the walk's seven new arms (items — the health model with
+  the nether star refusal, orbs, projectiles — the mob-sourced
+  re-aim + the scatter, primed TNT, the END CRYSTAL CHAIN, armor
+  stands — the equipment-only drops, fireworks) over the gather's
+  SNAPSHOT law (the seven family lists gathered before any wound
+  lands — a mid-walk spawn never takes the same blast's wound; a
+  nested detonation gathers fresh, the reference's own nested
+  explode).
+- THE REGRESSION THE FIRST CUT EXPOSED + THE RE-PINS: the live-list
+  iteration destroyed DecorationBlastTest's frame drops (the
+  snapshot law repaired it); the vehicle seats' stale pins
+  re-pinned to the reference's drop-then-detonate law
+  (TntMinecartEntity.dropItems 73-81 — the death blast's fresh
+  gather eats the just-dropped cart items; vanilla's census counts
+  zero), the censuses re-read on the tick thread (the direct
+  cross-thread reads race — the probe pair all=0 vs 2), the lava
+  seat's lone survivor re-pinned with the dry-control's own death
+  (d12 0.48, damage 26 over the break threshold).
+- F-EX5 DISCOVERED: the punch deflection's skull exclusion —
+  WitherSkullEntity extends ProjectileEntity, the re-aim arm the
+  engine's deflect surface refuses. Suspected, awaiting its passes.
+- Evidence: the stash-verified discrimination (7/7 vs 7/0); the
+  family lanes 56/0; the vehicle lane 67/0 post-re-pin; the entity
+  package 595/0 beside the re-pinned pair; the full suite rides
+  the CI.
+- The queue after this pass: F-EX2/F-EX3/F-EX4/F-EX5 + the standing
+  F-FL4 architecture tail (the §22 queue head).
+
+---
+Task ID: wave-fl4f2-f3 (the per-dimension fire scheduling + the use-path world routing)
+Agent: main (ZaminTorch session)
+
+Work Log:
+- THE PR WAVE FIRST: #86 (the double chest F-DC1) reviewed by subagent —
+  all four surfaces verified consuming the one ChestPairs.resolve consult,
+  48/48 targeted green — merged at 8cf91242 (73/73 chest/hopper lanes
+  re-verified on the merge tree). #85 (the blast's entity gather F-EX1)
+  reviewed by subagent — every reference claim verified line by line,
+  125 targeted + 574 entity-lane green, but TWO defects reproduced by the
+  review's scratch tests: the crystal arm carried NO dimension gate (an
+  overworld blast at coinciding coordinates popped the End crystal and
+  detonated a 6.0F blast in the END) and the armor-stand break had no
+  double-break guard (the stale snapshot's re-break dropped the equipment
+  TWICE). Merged at 66266982 with BOTH riders carried in the follow-up
+  09e5f259 (the dimension==1 gate + the reference's own onBroken null-out
+  shape + the registry containment); both new seats stash-verified failing
+  unfixed (ExplosionEntityGatherParityTest 8/0, ArmorStandSystemTest 13/0).
+  The merge conflicts (the two doc files) unioned: HEAD's newer next-work
+  statement kept, the PR's worklog entry appended.
+- LANDED Wave FL4-F2 (the fire family's per-dimension scheduling, d34abe97):
+  the static seam retired for EngineWorld.scheduledTicks() (the world's own
+  queue attached at boot); the tickers on all three dimensions; the End's
+  eternal-bedrock row via dimension()==1; and the reference's OWN portal
+  gate restored (getId() > 0 — the OVERWORLD AND THE NETHER both attempt
+  the frame build, the nether-side ignite a real vanilla law the engine
+  never had). THE SEATS' OWN FIND: the first stash run exposed a VACUOUS
+  PASS (awaitCondition evaluates immediately — before the async setBlock
+  submit lands, the still-air cell satisfies the death await) — the seats
+  now carry the two-phase anti-race shape (the placement-landed phase
+  before the outcome phase).
+- LANDED Wave FL4-F3 (the placement families' use-path world routing,
+  a8ddd991): 58 session-path arms now open with the player's-own-world
+  local (worldFor(session.dimension()) shadowing the field), 3
+  position-only arms take the threaded world, and the shared gates
+  (canOccupyForPlacement + isNeighboringCactus) route with their callers
+  (31 gate calls). NetherPlacementRoutingAcceptanceTest 1/0 NEW over the
+  real use wire (a nether player's sign landing IN the nether, the
+  overworld's same-coordinates cell untouched) — stash-verified failing
+  unfixed; the regression lanes green (385/0 + 559/0).
+
+Stage Summary:
+- develop at a8ddd991, zero uncommitted, pushed as Abasing.
+- SESSION TOTAL: PR #86 + PR #85 merged (with both review riders) + Waves
+  FL4-F2 + FL4-F3 landed whole.
+
+Next: the ice family's melt arms (the FL4 row's last named tail — the
+engine's ice carries no melt arm at all; the yeetsWater consult at the
+ice sites, the melt-to-water law); the newly-ledgered FL4-F3 tails (the
+dig/place generic surface — BlockInteractionService's overworld
+constructor binding; the redstone binding; the block-update family's
+per-dimension story; the TNT dimension row); watch the CI queue (537 was
+in flight at session end — the latest tree's run publishes build 154 if
+green; the release pipeline's last build remains torch-1.8.8-153).
+
+## 2026-10-31 — F-TC1's lane lands as PR #87: the signal consult reads the reference's own Block.isSolid() law (the twentieth pass's confirmed find + the same root cause's whole casualty census)
+
+- THE FINDING (three passes recorded by the twentieth verifier pass; the
+  fourth — the correction's own stash-discriminated suite — this session):
+  the engine had ONE solidity consult (WorldSolidity.isSolid, the MOVEMENT
+  model) standing in for the reference's Block.isSolid() (Block.java
+  274-276: material.isSolidBlocking() && isCube() && !isSignalSource()) at
+  every signal-routing site — the trapped chest's viewer signal never
+  reached a wire (the chest family re-radiated instead of answering its
+  own emission), and the whole isCube-false / translucent census
+  (glass, leaves, slabs, stairs, fences, chests, hoppers, ice, TNT, ...)
+  conducted strong power where vanilla answers their own zero.
+- THE CASUALTY CENSUS THE FIX PREPARED (each inseparable from the one
+  root cause, each repaired in the PR): F-TC1-a the REDSTONE BLOCK never
+  powered a wire (signal-solid classification → the re-radiation arm
+  answered 0; RedstoneBlock.getSignal 21-23 answers 15 in every
+  direction — the new ownSignal arm); F-TC1-b the trapped chest's
+  STRONG arm missing (ChestBlock.getDirectSignal 397-400 UP-ONLY — the
+  block under the chest receives the viewer count; the new directSignal
+  arm); F-TC1-c the viewer-count WAKES wrong at both ends (onOpen 312-314
+  + onClose 322-324 wake pos AND pos.down(); the engine's open woke pos
+  alone (twice — the use arm's redundant copy removed) and the close woke
+  NOTHING — a wire that had read the count never released it; the pair
+  now rides the open, the client close and the swap-close, AFTER the
+  window state clears, the stale-window gate refusing a broken chest's
+  notification); F-TC1-d the re-radiation set narrowed whole.
+- THE CONSULT (BlockSolidity.isSolid, new): MaterialSolidity's material
+  model + CollisionShapes.isFullCube minus the glass pair / beacon /
+  piston-base isCube-false full-box families + the double slab's isDouble
+  + the redstone-block signal-source exclusion (the true-override census
+  grep whole — every other source dies at isCube or the material
+  conjunct). SIX consult sites swapped: signal(), comparatorInput()'s
+  through-solid arm, the wire's climb/descent bands, the wire's
+  onAdded/onRemoved wakes, wakeComparators.
+- Evidence: TrappedChestViewerSignalParityTest 6/0 NEW — the stash
+  verification failing UNFIXED on EXACTLY the six (the viewer count, the
+  carrier stone, the redstone block, the glass and leaves never-windows,
+  the comparator through-glass, the descent band) and green whole with
+  the fix; the never-window pattern guarding the negative seats; the
+  lever-fed repeater isolating the consult from the redstone block's own
+  deadness unfixed.
+- Regression: redstone 30/0; chest + hopper + piston 51/0; block 309/0;
+  container + interaction 14/0; furnace + brewing + BlockEntityApi 21/0;
+  the protocol module suite green at PR open (QuickCraftDragWireTest's
+  packet-48 timeout the documented pre-existing flake, PR #86's
+  disposition).
+- The suspected finds recorded NOT repaired (their own lanes queued):
+  F-SP1 the SUPPORT consult family (World.isSolidBlockingCube —
+  material.isSolidBlocking() && isCube(), NO signal-source conjunct; the
+  torch/door/rail/lever/button/wire-floor/wall-mount sites all reading
+  the movement consult: a torch hangs on glass where vanilla fells it)
+  and F-DS1 the double slab's HALF-height collision row
+  (endsWith("_slab") catching the double forms; the reference's double
+  slab is a full cube — bodies sink to the mid-line).
+- The findings doc: docs/SIGNAL_CONSULT_PARITY_FINDINGS.md. PR #87 open
+  against develop; the queue after it: F-EX2/F-EX3/F-EX4/F-EX5 (the
+  explosion family's remaining candidates), F-HP3 (the cart position
+  convention, unblocking F-HP2), F-EC1 (the ender chest's solid-above
+  gate — the consult swap rides F-SP1's helper), F-DC1-tail (the single
+  quick-move's silent partial merge).
+
+---
+Task ID: pr-wave-review-2 (the parallel review session: PRs #87/#88/#89/#90 + the CI publication diagnosis)
+Agent: main (ZaminTorch session, second lane)
+
+Work Log:
+- THE CI PUBLICATION DIAGNOSIS (the user's named ask — "the builds
+  aren't being published since a long time"): the last published build
+  is torch-1.8.8-153 (2026-10-27 21:35). The failure history pulled
+  from the actions API tells TWO stories: (1) from 2026-10-28 00:10
+  every run failed 2-3 RANDOM tests per attempt across BOTH modules
+  (the protocol run's Horse/Mob/TorchEncryption trio, the core runs'
+  StatsCompleteness/BiomeWorld/MobEventBridge/ThornsMobVictim/Thorns
+  arrow pair/MissingCommands/HopperSystem — a different set every run,
+  the retry failing on DIFFERENT tests than the first attempt), the
+  systemic load-flake signature, not one deterministic bug; (2) the
+  runs grew past the job's timeout-minutes: 60 — the cancelled pile
+  (60 runs) are timeout kills mid-suite, a green tree dying before the
+  tag step. The deterministic window (Oct 30 13:42-15:33, DimensionWalk
+  Test failing both attempts) was PR #83's random seed exposing the
+  latent portal flag1 mirror error — fixed by Wave FL4-F1 at 15:33
+  (verified in the 13:56 run's own logs: portalCrossingWalksToTheNether
+  AndBackHome the only repeat failure). The timeout correction (60 to
+  120 minutes) landed as 99b7652c; the load-flake remainder stays
+  honestly open (the suite's wall-clock awaits under a 4-vCPU runner —
+  the ML-002 EngineAwaits census's unfinished tail).
+- THE LOCAL REPRODUCTION on 684ee7ff (the 2-core sandbox): three
+  failures under heavy starvation (RangedCombat's arrow seat,
+  ThornsMobVictim's arrow seat, DenseOwnerProfiling's bucketed-merge
+  measurement) — ALL load-correlated (the tick-starvation warnings in
+  the worker output; the same tree's CI failure set differs), none
+  deterministic.
+- PR #87 (F-TC1, the signal consult) reviewed line by line against the
+  reference: Block.isSolid 274-276 (the three conjuncts), World.getSignal
+  2358-2362 (the routing ternary), ChestBlock 377-400 (the trapped
+  family's weak viewer-count arm + the UP-ONLY strong arm),
+  ChestBlockEntity.onOpen/onClose 312-324 (the pos + pos.down() wake
+  pair), RedstoneBlock 16-23 (the own-15 arm), the five isCube-false
+  full-box families (Glass/StainedGlass/Beacon/PistonBase/Chest), the
+  Material.isSolidBlocking law, ComparatorBlock.getInputSignal 114, the
+  wire's doUpdatePower bands — ALL verified 1:1. The DoubleChestParity
+  Test re-pin justified (the reference's isCube-false chest never
+  carries the comparator through-walk). The lane's content landed via
+  the direct branch merge 8e974fe5; the PR closed.
+- PR #88 (F-EX2, the sleeping eye) verified: PlayerEntity.getEyeHeight
+  1648-1659 (1.62 / 0.2 lying / -0.08 sneak composed) + Explosion line
+  123 (the knockback vector's eye consult) — the one-site fix exact.
+  Landed via c1f5e55a; closed.
+- PR #89 (VT-003, the ice family) reviewed against IceBlock/SnowLayer
+  Block whole — THE GATE DEFECT FOUND IN THE LANDED FL4-F4: develop's
+  melt arm read > 11 on the claim "the ice's own opacity 0, no
+  setOpacity call anywhere in the reference family"; the reference's
+  OWN registration (Block.java line 1179) carries setOpacity(3), the
+  engine's BlockLightTable row 459 (the vanilla 1:1 audit's product)
+  encodes the same filter 3, so the ice cell's light from an adjacent
+  torch is 14-3=11 and the reference's gate 11-3=8 melts it — the
+  FL4-F4 gate refused exactly the adjacent-torch melt vanilla performs.
+  The independent integration (branch pr89-integration-v2, pushed to
+  the PR branch as f017078a) verified the corrected gate + the snow
+  layer melt arm over the merged tree: IceFamilyParityTest 11/0 (the
+  torch-attenuation seat pinning 11 at the cell, the snow melt + sky
+  guard, the break seats over the live dig wire), IceMeltParity
+  AcceptanceTest 8/0 (FL4-F4/F6's own seats GREEN under the corrected
+  gate), RandomTickSystemTest 3/0, SurvivalMining + NetherDigRouting +
+  AdventureGates + BlockUpdateSystem + FluidBlocks green — the same
+  corrections the parallel lane landed as d6614da3 (the opacity band
+  + the snow family, there generalized through BlockLightTable.filter
+  — the cleaner form). The PR closed with the riders carried.
+- PR #90 (VT-002's dig/place slice) analyzed against the landed
+  FL4-F5: the core law (the per-packet world resolution) raced FL4-F5
+  by 8 minutes (branch base 684ee7ff, commit 18:56 vs FL4-F5 19:04)
+  and is fully covered; the UNIQUE delta was the listener threading
+  (BlockBrokenListener/MiningStartReport/PlacementSupportGate/
+  MiningStartListener carrying the acting world) — landed as the
+  e088de73 review rider (the dragon egg teleport). Closed.
+- THE ICE BREAK equivalence verified between PR #89's form (the
+  hoisted consult above the single commit write) and FL4-F6's landed
+  form (the arm after the drop walk riding the flag1 && flag gate):
+  the same IceBlock.afterMinedByPlayer 39-51 law, the same observable
+  FLOWING_WATER level 0 over the holding floor — no double-apply kept.
+
+Stage Summary:
+- develop at 0717e85b (the parallel lane's ledgers); all four open PRs
+  processed and closed with their content or review riders on develop;
+  the CI timeout fix landed; the release run on the current tree
+  (41114434175 in flight, 41116049921 queued) carries the 120-minute
+  room — the next green run publishes torch-1.8.8-154.
+- The honest open tails: the suite's load-flake surface (the wall-clock
+  awaits the ML-002 census never converted — DimensionWalkTest's own
+  helper among them), the redstone system's world binding, the
+  block-update family's per-dimension story, the TNT family's dimension
+  row, and the container families' per-dimension stores (FL4-F5's named
+  remainder).
+
+---
+Task ID: session-2026-10-30-fl4f7-f8 (the TNT + block-update dimension rows)
+Agent: main (ZaminTorch session)
+
+Work Log:
+- Session startup: develop pulled to 3a6127a0 (the second review lane's
+  worklog record — the CI publication diagnosis + the four PR reviews,
+  all riders already landed). The CI Phase 2 proposal from the audit
+  session STANDS DELIVERED (docx + pdf in download/) awaiting the
+  owner's approval — no CI/build/workflow files were touched this
+  session per the gate.
+- CI WATCH: run 548 (the 120-minute-timeout release run) completed its
+  build+test step and was superseded mid-flight by the newer pushes; 551
+  in progress on the older tree, 553 pending on this session's head.
+  No release past torch-1.8.8-153 yet — the green run must carry
+  through the tag + publish steps.
+- WAVE FL4-F7 LANDED (b1d997a5 — the TNT family's dimension row, the
+  third FL4-F3 tail): PrimedTnt carries its OWN dimension stamp; every
+  ignition arm takes the acting world (the flint use's routed local,
+  the fire burn's widened TntPrimeArm seam, the arrow sink, the blast
+  chain's blastWorld — the pre-fix dimension==0 honest gates retired);
+  the SolidityProbe/DetonationSink seams widened so the physics grounds
+  and the 4.0F detonation tears the body's OWN world; the NETHER'S OWN
+  EXPLOSION SERVICE joins the End's (the pre-fix overworld-bound
+  service collected nothing for a nether blast — wounded but never
+  tore); the wire fan filters by the body's stamp; the blast's
+  primed-body wound gather filters by the body's stamp. THE RIDER: the
+  reference's own INDEXED tick walk + deferred removal (World
+  .tickEntities lines 1211-1246) replaces the survivors rebuild — the
+  chain reaction's primeFromBlast lands INSIDE a detonation inside the
+  walk and the old iterator threw ConcurrentModificationException
+  (a latent EVERY-dimension bug the new seat exposed; the spent body's
+  aborted removal then re-detonated every later tick). EVIDENCE:
+  NetherTntRoutingAcceptanceTest 1/0 over the REAL use wire, stash-
+  verified failing unfixed at the prime seat; the regression lanes
+  green whole.
+- WAVE FL4-F8 LANDED (0392d917 — the block-update family's per-dimension
+  story, the second FL4-F3 tail): the nether's and the End's OWN
+  BlockUpdateSystem instances on their own worlds, each wired to its
+  own world's scheduled-tick surface and its own 27.3 view, the gravity
+  tickers on EVERY dimension's queue, the tick fan carrying all three,
+  and the system's nineteen block-drop arms stamped with the system's
+  OWN world's dimension (the TF-9 four-arg form). EVIDENCE:
+  NetherBlockUpdateRoutingAcceptanceTest 2/0 over the REAL commit wire
+  (the nether sand's fuse + conversion; the nether torch's stamped
+  pop), stash-verified failing unfixed at BOTH seats (the pre-fix
+  nether commit woke no machinery: the sand floated, the torch stood).
+  The named remainder: the FALLING FAMILY's own per-dimension row (the
+  FallingBlockEntityManager's overworld-bound physics ground + landing
+  commit) — distinct from the block-update tail.
+
+Stage Summary:
+- develop at 0392d917, zero uncommitted, pushed as Abasing. Two FL4-F3
+  tails retired this session (TNT + block-update); the ice family, the
+  dig/place surface, the TNT row and the neighbor machinery are all
+  whole end to end.
+- The remaining FL4-F3 tails: the redstone system's world binding (the
+  comparator/lever/button use consults — the biggest: per-world
+  RedstoneSystem instances cascade into the piston/noteblock/hopper/
+  dispenser/beacon/tripwire bindings), the container families'
+  per-dimension stores (FL4-F5's named remainder), and the falling
+  family's own per-dimension row (FL4-F8's named remainder).
+
+Next: the redstone binding wave (or the owner's direction); watch run
+553 go green and confirm build 154 publishes; the CI Phase A proposal
+still awaits the owner's approval decision.
+- WAVE FL4-F9 LANDED (cbbd33c5 — the falling family's per-dimension
+  row, FL4-F8's named remainder retired the same day): the falling body
+  carries its OWN dimension stamp; the manager's per-body ground flip
+  (ItemEntityManager's own shape — the pre-fix falling walk never
+  flipped, so every body consulted the overworld's cells); the landing
+  consult + commit and the occupied-landing drop routing the body's OWN
+  world through the worldRouter seam; the anvil crush's mob/player walks
+  filtered to the body's dimension; the wire fan filtered by the stamp.
+  EVIDENCE: the landing seat in NetherBlockUpdateRoutingAcceptanceTest
+  (the nether sand's body lands back IN THE NETHER, the overworld's
+  same-coordinate cells never gaining it), stash-verified failing
+  unfixed; the falling-family regression lanes green whole.
+
+Stage Summary (final for this session):
+- develop at cbbd33c5, zero uncommitted, pushed as Abasing. THREE FL4
+  tails retired this session (TNT + block-update + falling), each with
+  its acceptance evidence stash-verified failing unfixed.
+- CI: run 551 (the 120-min-timeout release run, 73 minutes into the
+  test step on the 3a6127a0 tree) carries through toward the tag +
+  publish steps; run 555 queued on this session's head. The next green
+  run publishes torch-1.8.8-154.
+
+Next: the redstone system's world binding (the comparator/lever/button
+use consults — the biggest remaining tail: per-world RedstoneSystem
+instances cascade into the piston/noteblock/hopper/dispenser/beacon/
+tripwire bindings and the comparator ZCD store's per-dimension files)
+and the block-broken listener's container cleanups over the
+per-dimension tile stores (FL4-F5's named remainder). The CI Phase A
+proposal still awaits the owner's approval decision.
