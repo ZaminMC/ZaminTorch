@@ -97,6 +97,7 @@ import net.zaminmc.torch.server.block.FluidSystem;
 import net.zaminmc.torch.server.block.WoodDoorFamily;
 import net.zaminmc.torch.server.block.WoodShapeBlocks;
 import net.zaminmc.torch.server.block.WoodVariantBlocks;
+import net.zaminmc.torch.server.block.BlockSolidity;
 import net.zaminmc.torch.server.block.WorldSolidity;
 import net.zaminmc.torch.server.chat.ChatListener;
 import net.zaminmc.torch.server.chat.ChatService;
@@ -17858,8 +17859,17 @@ public final class EngineServer implements Server, EngineBridge {
         // The player's own world (Wave FL4-F3 — the reference's
         // player.world: every use/place arm runs where the player is).
         EngineWorld world = worldFor(session.dimension());
-        // Line 80: the open gate — a solid block above refuses.
-        if (WorldSolidity.isSolid(world.getBlock(position.offset(0, 1, 0)))) {
+        // Line 80: the open gate — a solid block above refuses. THE CONSULT
+        // is the reference's own Block.isSolid() (Block.java lines 274-276:
+        // material.isSolidBlocking() && isCube() && !isSignalSource() —
+        // the SIGNAL consult, the same law F-TC1's BlockSolidity.isSolid
+        // pins): the isCube-false families (the glass pair, the slabs, the
+        // stairs, the chests, the leaves...) and the signal sources (the
+        // redstone block — the census's lone survivor) are NOT solid for
+        // this gate, so the chest OPENS under them; the movement consult
+        // the site carried (WorldSolidity — the pre-F-TC1 stand-in)
+        // refused the open under glass where vanilla opens (F-EC1).
+        if (BlockSolidity.isSolid(world.getBlock(position.offset(0, 1, 0)))) {
             return; // the use consumed, nothing opens
         }
         closeOpenContainerOnTick(session);
