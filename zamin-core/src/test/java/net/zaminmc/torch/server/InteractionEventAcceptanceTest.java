@@ -234,7 +234,7 @@ class InteractionEventAcceptanceTest {
         });
 
         // A short-fuse prime at the center: the detonation ~2 ticks out.
-        server.ticker().submit(() -> server.tnt().ignite(center, 2));
+        server.ticker().submit(() -> server.tnt().ignite(server.world(), center, 2));
         await(() -> fired.get() >= 1, "the destruction observation fired");
 
         ExplosionDestroyEvent event = seen.get();

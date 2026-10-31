@@ -66,11 +66,11 @@ class FallingBlockEntityTest {
         world.setBlock(new net.zaminmc.torch.block.BlockPosition(0, 6, 0), BuiltinBlocks.SAND);
         world.setBlock(new net.zaminmc.torch.block.BlockPosition(0, 5, 0), world.airType());
 
-        FallingBlockEntityManager manager = new FallingBlockEntityManager(ground(), world,
-                (position, stack) -> { throw new AssertionError("no drop on a free landing"); },
+        FallingBlockEntityManager manager = new FallingBlockEntityManager(ground(), dimension -> world,
+                (position, stack, dimension) -> { throw new AssertionError("no drop on a free landing"); },
                 new Random(1), 5000);
         FallingBlockEntity entity = manager.startFall(
-                new net.zaminmc.torch.block.BlockPosition(0, 6, 0), BuiltinBlocks.SAND);
+                world, new net.zaminmc.torch.block.BlockPosition(0, 6, 0), BuiltinBlocks.SAND);
         assertEquals(new Position(0.5, 6.0, 0.5), entity.position(),
                 "the entity spawns at the vanilla box-bottom y (the model renders in its cell)");
 
@@ -104,13 +104,13 @@ class FallingBlockEntityTest {
 
         List<net.zaminmc.torch.item.ItemStack> dropped = new ArrayList<>();
         List<net.zaminmc.torch.block.BlockPosition> dropAt = new ArrayList<>();
-        FallingBlockEntityManager manager = new FallingBlockEntityManager(ground(), world,
-                (position, stack) -> {
+        FallingBlockEntityManager manager = new FallingBlockEntityManager(ground(), dimension -> world,
+                (position, stack, dimension) -> {
                     dropped.add(stack);
                     dropAt.add(position);
                 },
                 new Random(2), 5100);
-        manager.startFall(new net.zaminmc.torch.block.BlockPosition(160, 7, 160), BuiltinBlocks.SAND);
+        manager.startFall(world, new net.zaminmc.torch.block.BlockPosition(160, 7, 160), BuiltinBlocks.SAND);
         for (int tick = 0; tick < 200 && manager.size() > 0; tick++) {
             manager.tick();
         }
@@ -130,10 +130,10 @@ class FallingBlockEntityTest {
         // lifetime rule (100 ticks below y=1) drops it as an item.
         List<net.zaminmc.torch.item.ItemStack> dropped = new ArrayList<>();
         FallingBlockEntityManager manager = new FallingBlockEntityManager(
-                (x, y, z) -> false, world,
-                (position, stack) -> dropped.add(stack),
+                (x, y, z) -> false, dimension -> world,
+                (position, stack, dimension) -> dropped.add(stack),
                 new Random(3), 5200);
-        manager.startFall(new net.zaminmc.torch.block.BlockPosition(320, 250, 320), BuiltinBlocks.GRAVEL);
+        manager.startFall(world, new net.zaminmc.torch.block.BlockPosition(320, 250, 320), BuiltinBlocks.GRAVEL);
         int ticks = 0;
         while (manager.size() > 0 && ticks < 600) {
             manager.tick();
@@ -218,9 +218,9 @@ class FallingBlockEntityTest {
 
         List<net.zaminmc.torch.item.ItemStack> dropped = new ArrayList<>();
         FallingBlockEntityManager manager = new FallingBlockEntityManager(
-                (x, y, z) -> Math.floor(y) == 0, world,
-                (position, stack) -> dropped.add(stack), new Random(5), 5300);
-        manager.startFall(new net.zaminmc.torch.block.BlockPosition(480, 9, 480), BuiltinBlocks.SAND);
+                (x, y, z) -> Math.floor(y) == 0, dimension -> world,
+                (position, stack, dimension) -> dropped.add(stack), new Random(5), 5300);
+        manager.startFall(world, new net.zaminmc.torch.block.BlockPosition(480, 9, 480), BuiltinBlocks.SAND);
         for (int tick = 0; tick < 200 && manager.size() > 0; tick++) {
             manager.tick();
         }
@@ -244,8 +244,8 @@ class FallingBlockEntityTest {
 
         List<ItemStack> dropped = new ArrayList<>();
         FallingBlockEntityManager manager = new FallingBlockEntityManager(
-                ground(), world,
-                (position, stack) -> dropped.add(stack), new Random(5), 5400);
+                ground(), dimension -> world,
+                (position, stack, dimension) -> dropped.add(stack), new Random(5), 5400);
         // The hook: the hurt is skipped here (the test world carries no
         // mobs); the progression walks chipped -> damaged, the same facing.
         manager.setAnvilLanding((entity, landing) -> {
@@ -257,7 +257,7 @@ class FallingBlockEntityTest {
             assertTrue(i > 0, "the three-cell fall accumulates distance");
             return java.util.Optional.of(managerAnvilState(facing, damage + 1));
         });
-        manager.startFall(new BlockPosition(960, 5, 960),
+        manager.startFall(world, new BlockPosition(960, 5, 960),
                 BuiltinBlocks.ANVIL_CHIPPED_EAST);
         for (int tick = 0; tick < 200 && manager.size() > 0; tick++) {
             manager.tick();
@@ -284,10 +284,10 @@ class FallingBlockEntityTest {
 
         List<ItemStack> dropped = new ArrayList<>();
         FallingBlockEntityManager manager = new FallingBlockEntityManager(
-                ground(), world,
-                (position, stack) -> dropped.add(stack), new Random(5), 5500);
+                ground(), dimension -> world,
+                (position, stack, dimension) -> dropped.add(stack), new Random(5), 5500);
         manager.setAnvilLanding((entity, landing) -> java.util.Optional.empty());
-        manager.startFall(new BlockPosition(992, 5, 992), BuiltinBlocks.ANVIL);
+        manager.startFall(world, new BlockPosition(992, 5, 992), BuiltinBlocks.ANVIL);
         for (int tick = 0; tick < 200 && manager.size() > 0; tick++) {
             manager.tick();
         }

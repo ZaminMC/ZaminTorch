@@ -151,7 +151,7 @@ class EntityFamilyApiAcceptanceTest {
                 new net.zaminmc.torch.block.BlockPosition(8, 20, 8),
                 net.zaminmc.torch.server.block.BuiltinBlocks.SAND));
         server.fallingEntities().startFall(
-                new net.zaminmc.torch.block.BlockPosition(8, 20, 8),
+                server.world(), new net.zaminmc.torch.block.BlockPosition(8, 20, 8),
                 net.zaminmc.torch.server.block.BuiltinBlocks.SAND);
 
         AtomicReference<FallingBlock> handle = new AtomicReference<>();

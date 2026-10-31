@@ -76,7 +76,7 @@ class VineGrowthDecayParityTest {
         world.getOrGenerate(new ChunkPosition(0, 0));
         net.zaminmc.torch.server.entity.FallingBlockEntityManager falling =
                 new net.zaminmc.torch.server.entity.FallingBlockEntityManager(
-                        (x, y, z) -> false, world, (position, stack) -> { }, new Random(2), 2000);
+                        (x, y, z) -> false, dimension -> world, (position, stack, dimension) -> { }, new Random(2), 2000);
         items = new net.zaminmc.torch.server.entity.ItemEntityManager(
                 (x, y, z) -> false, new Random(1), 1000);
         updates = new BlockUpdateSystem(world, items, falling);

@@ -71,7 +71,7 @@ class TntSystemTest {
             await(() -> typeAt(server, x, y, z).identifier().value().equals("tnt"),
                     "the TNT placed");
             // The flint on the block: the prime.
-            server.ticker().submit(() -> server.tnt().useIgnite(new BlockPosition(x, y, z)));
+            server.ticker().submit(() -> server.tnt().useIgnite(server.world(), new BlockPosition(x, y, z)));
             await(() -> typeAt(server, x, y, z).identifier().value().equals("air"),
                     "the flint primed the TNT out of its cell");
             // The fuse ends: the blast.

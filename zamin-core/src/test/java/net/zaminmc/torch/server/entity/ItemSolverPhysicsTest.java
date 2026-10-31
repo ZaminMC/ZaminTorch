@@ -30,6 +30,12 @@ class ItemSolverPhysicsTest {
     private static class SolverGround implements ItemEntity.Ground, FallingBlockEntity.Ground {
         final Map<Long, BlockType> cells = new HashMap<>();
 
+        @Override
+        public void setActiveDimension(int dimension) {
+            // The stub ground's own no-op (the two Ground interfaces'
+            // dimension flips meet here — the map is one world's).
+        }
+
         void put(int x, int y, int z, BlockType type) {
             cells.put(((long) x << 44) | ((long) z << 32) | (y & 0xFFFFFFFFL), type);
         }

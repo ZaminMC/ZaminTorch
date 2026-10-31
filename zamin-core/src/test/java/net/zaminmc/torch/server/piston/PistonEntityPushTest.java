@@ -307,8 +307,8 @@ class PistonEntityPushTest {
                 server.world().setBlock(new BlockPosition(x + 1, y, z), BuiltinBlocks.STONE);
                 server.world().setBlock(new BlockPosition(x, y + 1, z),
                         RedstoneBlocks.leverOf(5, false));
-                server.tnt().spawnPrimedAt(x + 2.5, y, z + 0.5);
-                server.tnt().spawnPrimedAt(x + 4.5, y, z + 0.5);
+                server.tnt().spawnPrimedAt(server.world(), x + 2.5, y, z + 0.5);
+                server.tnt().spawnPrimedAt(server.world(), x + 4.5, y, z + 0.5);
                 for (net.zaminmc.torch.server.tnt.TntSystem.PrimedTnt primed
                         : server.tnt().allPrimed()) {
                     if (primed.x() < x + 3.5) {
@@ -354,9 +354,9 @@ class PistonEntityPushTest {
                 server.world().setBlock(new BlockPosition(x, y + 1, z),
                         RedstoneBlocks.leverOf(5, false));
                 falling.set(server.fallingEntities().startFall(
-                        new BlockPosition(x + 2, y, z), BuiltinBlocks.SAND));
+                        server.world(), new BlockPosition(x + 2, y, z), BuiltinBlocks.SAND));
                 far.set(server.fallingEntities().startFall(
-                        new BlockPosition(x + 4, y, z), BuiltinBlocks.SAND));
+                        server.world(), new BlockPosition(x + 4, y, z), BuiltinBlocks.SAND));
             });
             await(() -> falling.get() != null && far.get() != null, "the falls started");
             double before = falling.get().position().x();
@@ -447,7 +447,7 @@ class PistonEntityPushTest {
                         new Position(x + 2.5, y + 0.125, z + 0.4), 5, 0));
                 server.armorStands().place(new BlockPosition(x + 2, y - 1, z), 0, 1, 0.0f,
                         new java.util.Random(1));
-                server.tnt().spawnPrimedAt(x + 2.5, y, z + 0.6);
+                server.tnt().spawnPrimedAt(server.world(), x + 2.5, y, z + 0.6);
                 arrow.set(server.projectiles().launchVector(
                         net.zaminmc.torch.server.entity.projectile.ProjectileEntity.Kind.ARROW,
                         -1, new Position(x + 2.5, y + 0.5, z + 0.2), 1.0, 0.0, 0.0, 0.0, 0.0, 0));
@@ -511,7 +511,7 @@ class PistonEntityPushTest {
                 // top and lands through the fall's own first tick — the
                 // flight must still be airborne when the carrier arrives).
                 falling.set(server.fallingEntities().startFall(
-                        new BlockPosition(x, y + 3, z), BuiltinBlocks.SAND));
+                        server.world(), new BlockPosition(x, y + 3, z), BuiltinBlocks.SAND));
             });
             await(() -> falling.get() != null, "the fall started above the slime");
             double before = falling.get().position().y();
