@@ -400,6 +400,12 @@ count wins over the division.
 | --- | --- | --- | --- | --- |
 | 153 | poll loop deadline | 20s | C-C liveness bound (engine-visible condition polled) | keep |
 
+### `ComputeSubsystemTest.java`
+
+| line | form | value | classification | action |
+| --- | --- | --- | --- | --- |
+| 86 (staleResult seat) | poll loop + single drain | 5s | C-B the wait condition was wrong: queuedDepth==0 proves the job was DEQUEUED, not that the outcome was DEPOSITED — a starved worker let the single drain run before the deposit (run 558's forked timing, recomputes==0) | fixed at the source: the handle's generation is captured at SUBMIT, so the transfer makes any later deposit stale by construction; the idempotent drain is now LOOPED until the outcome is processed |
+
 ### `DimensionWalkTest.java`
 
 | line | form | value | classification | action |
@@ -681,6 +687,12 @@ count wins over the division.
 | 673 | fixed sleep | 300ms (~6t) | C-B missing engine-visible condition — unannotated settle | convert → `awaitTicks(6)` |
 | 691 | fixed sleep | 400ms (~8t) | C-B missing engine-visible condition — unannotated settle | convert → `awaitTicks(8)` |
 | 698 | fixed sleep | 400ms (~8t) | C-B missing engine-visible condition — unannotated settle | convert → `awaitTicks(8)` |
+
+### `LoginFloodBoundaryTest.java`
+
+| line | form | value | classification | action |
+| --- | --- | --- | --- | --- |
+| 324 (twelve-logins seat) | nanoTime growth pin | 40-tick windows | C-C measurement (the census's kept nanoTime class), but the ONE-PLAYER baseline was a single window — a co-scheduled fork's heavy phase inflates any one window (run 558's evidence: 39.3 vs 98.3 us/tick baselines across the class's two seats in one run; the populated window measured 94.5 < the inflated 98.3) | fixed at the source: the baseline is now the per-section MINIMUM of three consecutive windows (the noise floor), the strict growth pins unchanged |
 
 ### `MobEventBridgeAcceptanceTest.java`
 
