@@ -1742,9 +1742,21 @@ reference itself), the End-origin arm the named tail.**
    (VT-009's break-path door/bed pair), **#107** (VT-009's mob portal
    cooldown decay), and **#108** (VT-006's items/orbs/vehicles — the
    twenty-eighth pass's repair made its diff minimal; the riding-gate
-   question RESOLVED, no seed control owed); the FL4-F10 redstone
-   world binding — LANDED on develop (`0328e92f`) — not this stream's
-   lane.
+   question RESOLVED, no seed control owed; the projectile family
+   added the same run); the FL4-F10 redstone world binding — LANDED
+   on develop (`0328e92f`) — not this stream's lane. **THE
+   FOUR-WAY CONVERGENCE RECORDED (the twenty-eighth pass's closing
+   census): three other streams independently opened the same
+   VT-006 remaining-families work during this run — #109 (12:39,
+   items/orbs/vehicles, 14 files), #110 (12:44, all four families
+   behind a shared `EntityPortalClock` class, 16 files), #113 (12:49,
+   the arrows stacked on #109, 17 files) — none carrying the
+   pass-27 carry-forward clobber (clean branch bases). #108 remains
+   the earliest and the only one carrying the repair record, the
+   five-family census with per-family stash discriminations, and the
+   audit trail; the overlap is the maintainer's to resolve (the
+   #100/#103 precedent — supersession recorded, never merged by this
+   stream's own hand).**
 11. ~~**The next pass's head: the projectile family**~~ — LANDED (the
    twenty-eighth pass, the same run: the arm + the seam + the seat, the
    stash-discrimination RED/GREEN pair; VT-006's family census now fully
