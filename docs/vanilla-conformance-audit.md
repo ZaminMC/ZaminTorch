@@ -1654,7 +1654,7 @@ per-dimension stores are the ledgered architectural pass).
 
 ---
 
-## VT-010 — the bed pair's sibling resolution is a positional scan, not the reference's facing-exact law: a foreign adjacent bed half hijacks the sleep redirect, the blast center, and the pair death (CONFIRMED — three passes complete; the correction rides `fix/bed-pair-facing-resolution-parity-audit`)
+## VT-010 — the bed pair's sibling resolution is a positional scan, not the reference's facing-exact law: a foreign adjacent bed half hijacks the sleep redirect, the blast center, and the pair death (RESOLVED — the correction is **PR #111 OPEN**; three passes complete)
 
 **Subsystem:** block use / the bed family / the pair model.
 **Affected version:** the current develop baseline (`7910a110`) — the
@@ -1920,6 +1920,19 @@ work, in the queue's order:
    fourth seat carries it. **VT-010 CONFIRMED — three passes
    complete**; the Phase E correction follows (the facing-exact
    helper for the four walks, the fix branch, the PR).
+   **The correction is now OPEN as PR #111**
+   (`fix/bed-pair-facing-resolution-parity-audit`, commit 8b1eefb0:
+   the shared `bedFacingBand`/`bedFacingPartner`/`bedFacingBackward`
+   helpers over the reference's own laws, the four walks rewritten,
+   `BedPairFacingResolutionParityTest` — 4/0 GREEN on the fix, 4/4
+   RED on the pre-fix tree verified THIS RUN by the stash
+   discrimination: the three discovery seats' exact wrong values plus
+   the corner seat's `Condition not met within 40 engine ticks`
+   — the silent no-blast abort; the regression lanes 104/0 whole:
+   the bed family + the use dispatch + the placement/dig/interaction
+   + the door family 48/0, the listener lanes — FurnaceHopperEvent,
+   NetherBlockUpdate, the chest family, the hopper family,
+   EnderChest, NetherRedstoneRouting — 52/0).
 2. **VT-011 discovered** (pass 1 source evidence): the anvil import
    drops the reference's OCCUPIED bed states — metas 12-15 import
    as AIR, corrupting a pair the reference loads whole (the new
@@ -1947,7 +1960,7 @@ work, in the queue's order:
 | Drops — the TF-9 dimension stamp | LANDED by PR #90 (the dig/place walks stamp `world.dimension()`; the tile-family spill sites remain the per-dimension tile tail) |
 | Tile families — per-dimension stores | NOT INSPECTED as its own pass (the PR #90 ledger: the furnace/chest/skull/banner spill + cleanup ride the single-instance managers — the FL4 fluids/fire precedent applies; the nether tile placement/cleanup is its own architectural pass) |
 | Break-path pair walks (door/bed sibling cleanups) — dimension routing | RESOLVED (the twenty-eighth pass): **VT-009** CONFIRMED three passes and corrected as **PR #106 OPEN** (`fix/pair-break-dimension-parity-audit`: the `BlockBrokenHook` three-arg listener, the parameterized walks; the parity pin 3/0 + the regression lanes 75/0; the discovery seats' RED record rides this audit branch) |
-| Bed pair — the sibling resolution model | CONFIRMED over three passes (the twenty-eighth's census + the three RED seats; the twenty-ninth's wire/legacy suffix-consistency walk — the id family IS the reference's metadata space, total across `BuiltinBlocks`/`AnvilBlockIds`/`LegacyBlockIds`/`/setblock`, no writer can stamp a geometry-inconsistent suffix; the class-membership sub-divergence pinned: the reference's redirect accepts ANY half at the facing cell, `!= this`); the correction rides `fix/bed-pair-facing-resolution-parity-audit` (the facing-exact helper shared by the four walks; the parity pin = the three seats + the foreign-foot corner) |
+| Bed pair — the sibling resolution model | CONFIRMED over three passes (the twenty-eighth's census + the three RED seats; the twenty-ninth's wire/legacy suffix-consistency walk — the id family IS the reference's metadata space, total across `BuiltinBlocks`/`AnvilBlockIds`/`LegacyBlockIds`/`/setblock`, no writer can stamp a geometry-inconsistent suffix; the class-membership sub-divergence pinned: the reference's redirect accepts ANY half at the facing cell, `!= this`); RESOLVED by **PR #111 OPEN** (`fix/bed-pair-facing-resolution-parity-audit`, commit 8b1eefb0 over develop `a23011fa`: the facing-exact helper shared by the four walks, the block-class membership, the anchor-state detonate removal; the parity pin `BedPairFacingResolutionParityTest` 4/0 GREEN on the fix, 4/4 RED on the pre-fix tree by the stash discrimination — the three discovery values + the corner's silent no-blast; the regression lanes 104/0) |
 | Anvil import — the bed's OCCUPIED nibbles (26: metas 12-15 the reference persists for occupied heads, 4-7 the editor-corrupted feet) | SUSPECTED (the twenty-ninth pass, **VT-011**): the table maps only 0-3/8-11 — an occupied head imports AS AIR (a dangling foot where the reference loads the pair whole); pass 1 source evidence complete, the behavioral + independent passes owed |
 | Block-update wake (BlockUpdateSystem.runUpdate, RedstoneSystem.neighborChanged) — world binding | SURFACED as VT-009's pass-3 non-compensation evidence: BOTH reads consult the overworld field (the changed-world parameter ignored in the six-neighbor dispatch) — the house stream's FL4-F10 lane, NOT duplicated here; this stream's door/bed seats are the evidence cross-reference |
 | Mob spawns — the dimension stamp | NOT INSPECTED (the PR #90 ledger names `MobManager.spawnAt`; the infested burst is the surfaced site) |
@@ -1961,11 +1974,13 @@ work, in the queue's order:
 
 1. ~~VT-010's pass 3~~ — **DONE (the twenty-ninth pass: the
    wire/legacy suffix-consistency walk)**, and with it **VT-010 is
-   CONFIRMED — three passes complete**. The correction rides
-   `fix/bed-pair-facing-resolution-parity-audit` (this pass's Phase E
-   act: the facing-exact helper for the four walks, the parity pin
-   with the three seats + the foreign-foot corner, the regression
-   lanes); its PR number is recorded below once opened.
+   CONFIRMED — three passes complete**. The correction is **PR #111
+   OPEN** (this pass's Phase E act: the facing-exact helper for the
+   four walks, the parity pin with the three seats + the foreign-foot
+   corner 4/0 — RED 4/4 on the pre-fix tree by the stash
+   discrimination, the regression lanes 104/0; the #106 interaction
+   documented in the PR body — one shared method, the selection law
+   ports to the three-arg form unchanged).
 2. **VT-011's passes 2-3** (the new finding of the twenty-ninth pass):
    the behavioral pass — an anvil region built with an occupied-head
    row (meta 12-15) imported and the pair asserted against the
@@ -1991,9 +2006,9 @@ work, in the queue's order:
    border, the zombie arm's world binding.
 6. The watch items: **#101/#102/#104 MERGED since the twenty-seventh
    pass's record**; the OPEN set is **#105 (this stream's TNT-cart
-   slice)**, **#106 (this stream's pair-break fix)**, and this pass's
-   VT-010 PR awaiting the maintainer's review; the FL4-F10 redstone
-   world binding **LANDED on develop** (`a23011fa` — the house
-   stream's act, verified by this pass's baseline advance: the
-   twenty-ninth pass lane merges it whole, no overlap with this
-   stream's bed lanes).
+   slice)**, **#106 (this stream's pair-break fix)**, and **#111 (this
+   stream's VT-010 correction — this pass)** awaiting the maintainer's
+   review; the FL4-F10 redstone world binding **LANDED on develop**
+   (`a23011fa` — the house stream's act, verified by this pass's
+   baseline advance: the twenty-ninth pass lane merges it whole, no
+   overlap with this stream's bed lanes).
