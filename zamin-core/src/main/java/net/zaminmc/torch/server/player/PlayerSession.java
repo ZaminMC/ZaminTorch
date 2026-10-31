@@ -752,44 +752,59 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
 
     // The portal stand clock (the reference's Entity portal tick,
     // reference/1.8.8 entity/Entity.java lines 282-313 + the collision arm
-    // onPortalCollision lines 1428-1436 and the player overrides
+    // onPortalCollision lines 1428-1455 and the player overrides
     // PlayerEntity lines 300-317).
     private int portalTime;
     private int portalCooldown;
-    private boolean portalOccupiedLastTick;
 
     /**
-     * Advances the portal clock one tick — the reference walk, literally:
-     * the occupancy accumulates {@code portalTime++} and the POST-increment
-     * check {@code old >= max} crosses at the max (the player override — 0
-     * for the invulnerable creative body, 80 otherwise; the crossing pins
-     * the time, arms the 10-tick player cooldown and reports the teleport
-     * arm); out of a portal the stand time decays by 4 (clamped), and the
-     * cooldown decrements unconditionally. The cooldown's collision arm
-     * re-arms it on the ENTRY EDGE only — the reference's
-     * {@code onPortalCollision} is movement-driven, and a STANDING body
-     * sends no movement packets, so a body standing inside a portal never
-     * refreshes the cooldown there (the vanilla round trip: arrive, cool
-     * down 10 ticks, stand 4 seconds, return).
+     * Advances the portal clock one tick — the reference walk, in the
+     * reference's own per-tick order. The cooldown decrements first
+     * ({@code baseTick} lines 311-313); the collision consult follows
+     * ({@code onPortalCollision} lines 1428-1455): a touching body with
+     * the cooldown live RE-ARMS it to the player's 10 on EVERY touching
+     * tick (the reference's dispatch — {@code checkBlockCollisions},
+     * lines 667-689, a per-tick bounding-box scan off {@code moveEntity}
+     * — collides a standing body every tick), and the stand arms
+     * ({@code inPortal}) ONLY on the expired-cooldown arm. The
+     * consumption rides the armed stand alone ({@code baseTick} lines
+     * 284-309): the armed occupancy accumulates {@code portalTime++} and
+     * the POST-increment check {@code old >= max} crosses at the max (the
+     * player override — 0 for the invulnerable creative body, 80
+     * otherwise; the crossing pins the time and arms the 10-tick player
+     * cooldown); every other tick — standing-in-cells-while-cooling
+     * included — decays by 4 (clamped).
      *
-     * <p>The crossing re-fires while the body stays pinned in the portal —
-     * the reference's own shape, because its {@code changeDimension} moves
-     * the body out of the portal on the same tick; the teleport arm lands
-     * with the dimension slice (8b) and ends the re-fire naturally.</p>
+     * <p>The law this shape restores: a body whose arrival lands inside
+     * the destination frame's portal cells NEVER re-crosses while it
+     * stands there — every touching tick re-arms the cooldown, the stand
+     * never arms, and the clock decays to 0. The vanilla round trip
+     * requires LEAVING the cells (the cooldown then counts down to 0)
+     * and re-entering — the fresh entry accumulates the full stand
+     * again.</p>
      *
      * @return true on a threshold-crossing tick (the teleport arm)
      */
     public boolean advancePortalClock(boolean touchingPortal, boolean creative) {
         boolean crossed = false;
+        // The reference's baseTick cooldown decrement (lines 311-313).
         if (portalCooldown > 0) {
             portalCooldown--;
         }
+        // The reference's onPortalCollision consult (lines 1428-1455):
+        // the re-arm on EVERY touching tick while cooling; the stand arms
+        // only when the cooldown has expired.
+        boolean standArmed = false;
         if (touchingPortal) {
-            if (portalCooldown > 0 && !portalOccupiedLastTick) {
-                // The entry edge re-arms (the reference's onPortalCollision
-                // early return, movement-driven).
+            if (portalCooldown > 0) {
                 portalCooldown = PORTAL_COOLDOWN_TICKS;
+            } else {
+                standArmed = true;
             }
+        }
+        // The reference's baseTick consumption (lines 284-309): the
+        // crossing rides the armed stand alone; every other tick decays.
+        if (standArmed) {
             int max = creative ? 0 : PORTAL_STAND_TICKS;
             int old = portalTime++;
             if (old >= max) {
@@ -800,7 +815,6 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
         } else {
             portalTime = Math.max(0, portalTime - 4);
         }
-        portalOccupiedLastTick = touchingPortal;
         return crossed;
     }
 
