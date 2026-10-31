@@ -19528,3 +19528,77 @@ Stage Summary:
   architecture tails (the container families' per-dimension stores, the
   per-dimension fluid sim), and the skull family's summon-path routing
   (the nether-built wither's prerequisite, named in F-EX6's record).
+
+## 2026-10-31 — The verifier's twenty-seventh pass: VT-008 verified
+resolved; the portal crossing families made whole
+
+The pass-27 audit lane (`audit/verifier-pass-27-discovery`, based on the
+pass-26 lane merged with the #101/#102/#104 develop wave). The PR
+landscape at the pass head: #91/#92/#94/#95/#98/#99/#100/#101/#102/#104
+all MERGED (the crossing seam — PR #98's `DimensionCrossing` — is on
+develop, unblocking the family arms); #89/#90 closed as superseded with
+their riders adopted; #103 closed as superseded by #100; #105 (this
+stream's TNT-cart slice) the one open PR.
+
+- VT-008 RESOLVED (the queue's named head, the honest-convergence
+  verification): PR #102's (F-EX6) coverage verified rather than
+  re-fixed. Pass 2: the landed BedWrongWorldBlastAcceptanceTest 3/0
+  GREEN on the merged develop. Pass 3 (the two rows the landed seat
+  does not cover): BedWrongWorldEndArmVerificationTest NEW (2 seats) —
+  THE END ARM (TheEndDimension.hasSpawnPoint() false like the nether's;
+  the End's biome is the_end NOT hell, so the engine's dimension
+  conjunct alone routes the End bed to the blast — a `!= -1` or
+  biome-only gate form would SLEEP the End bed; the seat pins the exact
+  gate form) and THE HEAD-HALF CLICK (the normalization's other path).
+  Also verified at the source level: sleepOnTick's internal
+  bedHeadCell normalize makes the dispatch's raw-clicked-cell pass
+  correct, and the neighbor-scan pair walk is equivalent to the
+  reference's FACING-pointed sibling for every well-formed pair.
+- VT-006's REMAINING CROSSING FAMILIES LANDED
+  (`fix/portal-remaining-families-parity-audit`, the PR this pass
+  opens): the items, the orbs, the vehicles (boats + carts), and the
+  arrows ride the DimensionCrossing seam. The discrimination
+  re-established on the CURRENT post-#98 develop FIRST (all four
+  authored seats RED 4/4 — the mobs' fix covers none of them), then the
+  arrow seat authored with the determinism care the record named (the
+  launchVector variation-0 exact trajectory, the seventh-tick interior
+  consult), RED unfixed / GREEN fixed via the stash discrimination.
+  The engine shape: the shared EntityPortalClock NEW (the base
+  threshold-0 clock, the 300 cooldown with the live re-arm, the
+  frame-offset entry memory — the same math MobEntity's and
+  PlayerSession's own walks carry, composed into the four bodies);
+  the per-family portal arm at the head of each manager's per-body walk
+  (the gated collision through each family's own query interface's new
+  portalFrameAt default, mapped live by the ShapeGround and the
+  VehicleWorldQuery); the crossing walk per family (the destroy fan
+  BEFORE the stamp swap, the seam consult, applyDimensionArrival, the
+  spawn fan); the vehicles' NEW onVehicleCrossedDimension event
+  (distinct from onVehicleBroken's documented drop contract, plumbed
+  through the dispatch and the protocol layer). The riding gate (a
+  seated vehicle never arms), the stuck arrow's consult (the arm moved
+  before the inGround branch — baseTick runs for the grounded arrow),
+  the End-origin hold at from==1 (the mobs' own shape, the named tail).
+  Seats: the items 1/0, the orbs 1/0, the vehicles 2/0, the arrows
+  1/0, the mobs' own 3/0 re-run — all green.
+- The named tails recorded in the audit report: the End-origin arm (all
+  families, the forced-spawn consult), the box-scan nuance (the
+  reference scans every cell the box touches; the engine consults the
+  bottom cell — the merged mobs' arm's own shape), the four families'
+  PortalCooldown persistence (writeNbt line 1120 saves it for every
+  body), the vehicle yaw modeling gap.
+- The environment's Maven Central rate-limit persisted this session; the
+  same session-local Gradle init script (Aliyun mirror, OUTSIDE the
+  repo) routed around it, and the JDK toolchain was restored at the
+  gradle cache path the tracked tools/jdk21 symlink expects.
+
+Stage Summary:
+- One verification arc closed (VT-008) and one correction arc landed
+  (the crossing families — the PR opened against develop).
+- The regression lanes: the block package 309/0; the main server
+  package lane green (see the audit report's record for the counts).
+- The queue's live heads after this pass: the crossing PR's merge watch
+  (with #105), then the End-origin arm + the PortalCooldown persistence
+  behind it; F-SP1/F-DS1's owed passes; the dimension tails (the tile
+  families, the mob spawn stamp, the FX awareness, the world border,
+  the zombie arm); the blast RNG tail; FL4-F10 stays the house stream's
+  own act.
