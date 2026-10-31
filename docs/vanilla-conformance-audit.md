@@ -1718,3 +1718,24 @@ item merge pre-pass's cadence.
    passes owed.
 5. The house stream's claimed FL4-F10 redstone world binding — NOT to
    be duplicated by this stream.
+
+## The twenty-seventh pass — the convergence note (the parallel streams' overlapping PRs)
+
+At this pass's close, the open-PR set shows OTHER STREAMS reached the
+same crossing-families correction independently: PRs #108, #110, and
+#112 all carry "the items, the orbs, and the vehicles cross" (the same
+three families; #110 also names the arrows). This stream's #109 and
+#113 stand on their own census, seats, and verification history — the
+honest-convergence protocol the VT-007 record established (the
+maintainer resolves the overlap; the records keep their independent
+evidence). The adjacent findings from the other streams — #106/#107
+(VT-009: the mob portal cooldown's one-per-tick decay and the
+break-path pair walks' own-world routing) and #111 (VT-010: the bed
+pair's facing-exact sibling resolution) — are THEIR records to carry;
+this stream's audit did not duplicate them this pass (VT-009's
+cooldown law matches this stream's own crossing-clock tail law, the
+shared `advanceEntityPortalClock` shape — the convergence note alone).
+
+The next run resumes at the queue's head: the watch items (the open
+PRs awaiting review), then the PR #90 ledger's dimension tails (the
+per-dimension tile families first), then F-SP1/F-DS1's owed passes.
