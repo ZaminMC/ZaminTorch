@@ -5500,3 +5500,119 @@ arm); the independent walk: the `isRedstoneComponent` exclusion's
 boundary, the glowstone positive's seat, the pop-vs-placement-refusal
 distinction (vanilla refuses the placement AND pops the orphan — both
 arms must be seated).
+
+**THE CONVERGENCE UPDATE (the fifty-sixth pass's fetch — the lane first numbered the fifty-second at its opening, renumbered at the push windows: the concurrent lanes took the fifty-second AND fifty-third AND fifty-fourth AND fifty-fifth names publicly inside this lane's run window, the established push-order protocol, nothing public renamed): the territory
+is CLAIMED PUBLICLY — this lane's VT-035 is CONVERGENT, no re-fix (the
+VT-008 protocol).** PR #141 (`fix/has-support-below-family-parity-audit`,
+F-SP2: the wire/repeater/comparator/plate/rail consults + the placement
+gates), PR #147 (`fix/floor-consult-parity-audit`, the F-SP2 core
+stacked on #137: the four floor laws + the door + FireBlocks' own
+fallthrough), and PR #149 (`fix/redstone-floor-support-parity-audit`,
+the wire/plate/weighted-plate/repeater/comparator survival walks + the
+#138 hopper-arm repair) all carry the family's correction with their own
+seats and regressions — three convergent carriers over the same root
+cause this lane's pass-1 census walked. The record above stands as the
+independent source census; the correction belongs to the public lanes.
+
+## The fifty-sixth pass (this lane — first numbered the fifty-second, renumbered at the push) — the lane opens on the newest baseline: VT-035's convergence recorded, the anvil window's site binding taken up (RENUMBERED TWICE: the draft VT-033 → VT-040)
+
+**The lane:** `audit/verifier-pass-52-discovery` (the concurrent lanes
+took the fiftieth name — the pass-42 lineage's wither-summon close — and
+the fifty-first — the door-floor-consult lane's close — at the push
+windows; the established protocol, nothing public renamed). **The
+baseline advanced:** develop `1139f2c3` merged in (the #139 F-SP1
+landing — the SupportConsult family the convergent-pair maintainer pick,
+the #118 double-slab merge, Slice D's leash family, the CI seat repairs);
+the audit doc's add/add conflict resolved toward THIS lane's fuller union
+(develop's copy the stale twenty-seventh-pass-era draft — its unique
+headings the old VT-006/VT-009/VT-010/VT-011 drafts this union
+supersedes whole), the SupportConsult seat file resolved toward
+develop's #139 construction.
+
+**The numbering:** the forty-ninth pass's draft VT-033 (the anvil
+window's site binding) RENUMBERS TWICE — first to VT-036 (the wither-
+summon lane's PR #146 owns VT-033 publicly first, their own VT-029
+renumbering, the public-first protocol; the VT-012→VT-013 precedent
+twice over), then to **VT-040** at this lane's push window (the
+concurrent pass-52 lane claimed VT-036 publicly for the lever/button
+item-placement gates, and the pass-53 lane claimed VT-037/VT-038/
+VT-039 for the tripwire family's removal surface — three numbers taken
+inside this lane's run window; this lane's commits never pushed under
+the draft names). The draft VT-034 (the repeater's phantom click)
+stands — PR #144.
+
+**The discovery taken up (this run's head):** VT-040's passes 2 and 3 —
+the anvil window's block side is overworld-bound, a cross-dimension
+corruption class finding (a nether anvil repair writes the OVERWORLD's
+cell at the same coordinates). The pass-1 record stands (the forty-ninth
+pass's source walk, verified unchanged at the site level on `1139f2c3`):
+`anvilSiteAt` (EngineServer 11086-11130) reads the overworld `world`
+field for every consult — `anvilStands`, `damageState`,
+`progressDamage`, `breakAnvil` — and `soundAt` rides the NO-DIMENSION
+`fxManager.sound` overload; `tickAnvilViewers` (5940-5960) passes
+`world::getBlock` into `stillValid`; `openAnvilOnTick` (18409) stamps
+dimension 0 through the 3-arg `openContainerWindow` while the furnace
+open beside it stamps `session.dimension()` (the Slice B precedent,
+18475-18476).
+
+**THE REFERENCE LAW (re-walked whole, this pass):** the menu is
+constructed over the ACTING world and consults it alone —
+`AnvilBlock.use` 53-59 (`new AnvilBlock.MenuProvider(world, pos)`) →
+`createMenu` → `new AnvilMenu(playerInventory, this.world, this.pos,
+player)` (ctor 44-47: `this.world = world`) → the damage roll
+(`onItemRemoved` 81-93: `world.getBlockState(pos)`,
+`world.removeBlock(pos)`/`world.setBlockState(pos, ..., 2)`,
+`world.doEvent(1020/1021, pos, 0)`) and the walk-away gate
+(`isValid` 308-311: `this.world.getBlockState(this.pos)`).
+
+## VT-040 — pass 2 (behavioral): three seats RED on develop at exactly the predicted pins (first numbered VT-033, then VT-036 — renumbered twice, the provenance above)
+
+**The seat:** `AnvilWindowDimensionDiscoveryTest` (this lane, the
+full-boot construction — every anvil placed through the ticker, the
+window opened through the REAL use wire `useItemOnBlock`, every input
+placed and every take driven through the REAL window-click wire
+`windowClick`, the hotbar writes riding the ticker's own queue so the
+pickup always reads the sword). Baseline: develop `1139f2c3`.
+
+1. **THE USABILITY SEAT (the common case) — `theNetherAnvilWindow
+   SurvivesTheViewerTick`:** a nether anvil at P=(64,101,64) on a stone
+   platform, the overworld's same-coordinate cell AIR (the two worlds
+   rarely mirror), the player in the nether beside the anvil, the window
+   opened through the real wire — **RED at the pin:** *"the nether
+   anvil's window must survive the viewer tick (AnvilMenu.isValid
+   308-311 reads the menu's OWN world — the acting world's cell,
+   AnvilBlock.use 53-59's MenuProvider(world, pos)). Observed: the
+   window closed (the overworld's cell answered the gate)"* — the window
+   dies on the first viewer tick; the nether anvil is NON-INTERACTIVE on
+   the unfixed tree.
+
+2. **THE CORRUPTION SEAT — `theNetherRepairDamagesTheNetherAnvilNever
+   TheOverworlds`:** the same construction PLUS the overworld mirror —
+   a stone-supported damage-0 anvil at the SAME coordinates in the
+   overworld (the corruption construction: the mirror keeps the window
+   alive, exactly the coincidence the overworld-bound consults
+   misroute). A full repair per take — a damage-5 iron sword + one iron
+   ingot (the tier table's iron row), the take through the real wire —
+   repeated until SOME anvil's state changed (the 0.12 roll per take,
+   120 takes bounding the miss odds below 1e-7; every take's XP paid
+   through the session's own levels). **RED at the pin:** *"the nether
+   cell=anvil (untouched) while the overworld cell=anvil_chipped — the
+   roll consulted another world's cell"* — **the nether repair's damage
+   roll advanced the OVERWORLD's anvil from `anvil` to `anvil_chipped`**:
+   cross-dimension block damage through the real wire, the
+   corrupted-world class. The loop's own break condition proves the
+   overworld cell changed (the pin's failure message carries both
+   observed cells).
+
+3. **THE AUDIO SEAT — `theNetherTakeSoundsInTheNetherDimension`:** the
+   same construction, ONE take (every take answers exactly one
+   1020/1021 sound — the roll branch or the else arm's useSound), the
+   first take's sound pinned. **RED at the pin:** *"Observed stamp: 0,
+   expected: -1"* — the mis-stamped `random.anvil_use`/`random.anvil_
+   break`, the VT-029 family's own shape (the no-dimension overload).
+
+**The three seats cover all four consult arms of the site** — the
+stands/damage reads (the roll's eligibility), the block writes (the
+corruption), the gate (the usability), and the audio fan (the stamp) —
+each through its own observable. Pass 3 owed: the compensating hunt,
+the intentionality challenge, the consumers walk, the End edge.
