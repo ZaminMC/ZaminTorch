@@ -4376,9 +4376,22 @@ must pin the pops, the pre-fix holds).
 | Natural spawn — the spawn floor's consult | **RESOLVED-BY-PR #121** (VT-020: the suffix approximation missed in BOTH directions — the ten doubles refused where `hasSolidTop`'s first arm hosts them, the bottom stairs and the red sandstone bottom single hosted where the HALF==TOP arms refuse them; the one-consult correction with the `double_` carve + the half laws, three seats) |
 | The support-consult family (torch/lever/button/trapdoor mounts + the plain torch's own walk) | **F-SP1 CONFIRMED — three passes (the 38b source + the 46th's seats and independent walk); the correction the CONVERGENT PAIR PR #137 / PR #138 OPEN** (the maintainer's pick): the four mount consults + the fifth site (the plain torch's below-air walk) + the redstone torch's onAdded consult all reading the reference's own laws through the shared `SupportConsult`; the translucent materials and the non-cube mounts popping exactly as vanilla; the 21 lever-on-piston harnesses re-pinned (the PistonBaseBlock.isCube() false law); #137 uniquely holding the four placement gates; the wire/plate/repeater `hasSupportBelow` family the named tails — each its own discovery pass |
 | The slab-family suffix census | INSPECTED (the whole-repository `endsWith("_slab")` census: `BlockSolidity.isCube` and `FireBlocks` already correct with the `double_` carve — the house convention; `CollisionShapes` corrected by PR #118; `NaturalSpawnSystem` corrected by PR #121 (VT-020 — the spawn consult, the directional stair states and the `_slab2` row joining the census); `RedstoneSystem.trapdoorMountHolds` name-based, the double agreeing, the SINGLES' rows F-SP1's lane; the held-id dispatch and the dormant `woodenSlabFamilyOf` unaffected) |
+| The anvil window's block side (the damage roll, the walk-away gate, the 1020/1021 audio) | **VT-040 CONFIRMED and CORRECTED** (the fifty-sixth pass, this lane): every consult answered the overworld field while the reference menu reads its constructor-carried world (AnvilMenu 44-47/81-93/308-311) — the nether window dying on the first viewer tick, the mirrored-overworld corruption (`anvil`→`anvil_chipped` observed through the real wire), the mis-stamped audio; three passes (the source census + the three seats RED on `1139f2c3` + the independent walk), the correction CARRIED BY **PR #152** (the concurrent lane's superset carrier — the honest convergence, this lane's independent seats 3/0 GREEN on their tree, the verification comment `6561227043` posted, this lane's local construction retired) |
+| The enchanting window's block side (the bookshelf scan, the walk-away gate) | **VT-041 RESOLVED-BY-PR #152** (the fifty-sixth pass's adjacent discovery, pass 1 source complete): `menu.attach(world::getBlock)` binding the overworld field into the bookshelf scan + the 3-arg open stamp + the overworld viewer gate — the reference `EnchantingTableMenu` ctor 40-45/scan 128-150/gate 269 reading the constructor-carried world; the correction rides PR #152's enchanting arm (the carrier's own seat `theNetherEnchantingWindowStaysOpen` GREEN, the source record this lane's pass 3); the XP-ORB/stat surfaces of the table unaudited (a later census) |
 
 ## The queue for the next pass
 
+0f. **THE FIFTY-SIXTH PASS'S OWN CLOSE (this lane's standing items):**
+   the note family's BlockAction relay (VT-029's named follow-up — the
+   protocol module's per-family relay wiring, V18ProtocolServer
+   1637-1645, the listener on the overworld family alone with the
+   hardcoded `!= 0` gate) stays the standing head; the enchanting
+   table's XP-ORB/stat surfaces the named adjacent tail (their own
+   census); the merge watch now thirty-three PRs open (#152 the new —
+   this lane's verification comment posted, the maintainer owns the
+   pick); the flint ignite's pitch band (the adjacent observation:
+   `[0.9, 1.1]` vs the reference `[0.8, 1.2]`, FlintAndSteelItem line
+   25) still unclaimed.
 0a. ~~THE FIVE-LANE UNION~~ — **DONE (this merge, the thirty-seventh pass's
    first act)**: the pass-35 lane's branch (a8c79f5f) unioned into the
    pass-36 lane — their seat set (y=20.919 / z=41.486 / the pedestal
@@ -5616,3 +5629,115 @@ stands/damage reads (the roll's eligibility), the block writes (the
 corruption), the gate (the usability), and the audio fan (the stamp) —
 each through its own observable. Pass 3 owed: the compensating hunt,
 the intentionality challenge, the consumers walk, the End edge.
+
+## VT-040 — pass 3 (independent): the compensating hunt NEGATIVE, the intentionality challenge NEGATIVE, the consumers walk, and the ADJACENT DISCOVERY (the enchanting twin)
+
+**The compensating hunt — NEGATIVE:** every anvil-window consult site
+swept — `anvilSiteAt`'s four arms (the overworld field), the viewer
+gate (`tickAnvilViewers` 5951's `world::getBlock`), the open (the
+3-arg stamp), the sounds (the no-dimension overload). The OTHER
+anvil-window surfaces are dimension-neutral and touch no blocks: the
+rename channel (`anvilItemName` 17710 — the menu's `setItemName`
+alone), the slot maps (`anvilEngineSlotOf`, the view sync at 10408),
+the close walk (`closeAnvilMenuOnTick` — the inputs drop at the
+PLAYER through `throwFromPlayer`, which stamps `session.dimension()`,
+the reference's own `player.dropItem` shape — correct). NOTHING
+compensates the overworld binding.
+
+**The intentionality challenge — NEGATIVE:** the site's own javadoc
+(EngineServer 11079-11085) cites "the reference onItemRemoved's world
+consults" — the citation describes the reference's world-scoped law,
+claims NO overworld intent; the open beside it (`openFurnaceOnTick`
+18475-18476) stamps `session.dimension()` — the Slice B migration's
+own direction, the anvil family simply left behind it. No comment, no
+config flag, no javadoc anywhere scopes the anvil window to the
+overworld.
+
+**The consumers walk:** `openContainerDimension()` is consulted by
+six tile families (the chests/furnaces/hoppers/dispensers/brewing
+stands/beacons — every consult site listed at the census) but NEVER
+for an ANVIL window — the 3-arg open stamps 0 and no site reads the
+stamp; the stamp's own dead default is the fourth evidence arm (the
+engine's own inconsistency, not a design choice).
+
+**The End edge:** the code path is dimension-blind in its overworld
+binding — a dimension-1 anvil window consults the overworld field
+exactly as the nether's does; the same three divergences apply (the
+window dies on the End cell mismatch / the mirror corruption / the
+mis-stamped audio). Source-level: no `worldFor` anywhere in the anvil
+window path on the unfixed tree.
+
+**THE ADJACENT DISCOVERY — the enchanting twin (ledgered VT-041,
+pass 1 source complete):** `openEnchantingTableOnTick` (18373-18381)
+carries the SAME shape: `menu.attach(world::getBlock)` binds the
+OVERWORLD field into the bookshelf scan (a nether enchanting table
+counts the OVERWORLD's shelves at the same coordinates — the wrong
+power ladder), the 3-arg open stamps 0, and `tickEnchantingViewers`
+(5922) passes `world::getBlock` into the gate (a nether table's window
+dies on the first viewer tick). The reference: `EnchantingTableMenu`
+ctor 40-45 (`this.world = world`), the bookshelf scan 128-150 reading
+`this.world`, the gate at 269. **VT-041's correction rides the SAME
+convergence carrier as VT-040's — see the Phase E record below.**
+
+**VT-040 stands CONFIRMED — three passes complete** (the source
+census + the site-level re-verification on `1139f2c3`; the three seats
+RED at the predicted pins; the independent walk with four new evidence
+arms and the adjacent discovery). Phase E owed.
+
+## VT-040's Phase E — the honest convergence: the correction carried by PR #152 (the concurrent lane's superset carrier); this lane's construction retired into the cross-tree verification
+
+**The convergence:** at this lane's push window, the concurrent lane's
+`fix/anvil-window-dimension-parity-audit` branch landed publicly as
+**PR #152** ("VT-035: the anvil window family's dimension ownership —
+the block-consult windows ride the OPENING world", created 16:56:13Z)
+— the same law, the same five anvil sites, the same FL4-GAP2 stamp
+shape, PLUS the enchanting twin (the VT-041 territory: the open stamp,
+the bookshelf attach over the opening world, the enchanting viewer
+gate — five sites more). Two independent three-pass disciplines, two
+independent seat constructions, one law.
+
+**THE NUMBERING NOTE (bookkeeping, not substance):** PR #152's title
+claims VT-035 publicly for this family — this lane's ledger numbers
+the wire/plate/diode support family VT-035 (the pass-49 record, the
+public convergence with #141/#147/#149) and this finding VT-040. The
+numbers collide across lanes; the laws do not. This record keeps
+VT-040 for the anvil window with the provenance marked; the public
+numbering question is the maintainer's bookkeeping at the merge.
+
+**THIS LANE'S LOCAL CONSTRUCTION (retired, not opened):** the
+anvil-subset fix was built independently on the same branch name
+locally (the 4-arg open stamp; `anvilSiteAt(position, dimension)` over
+`worldFor(dimension)` with the dimensioned sound overload; the two
+take callers passing `session.openContainerDimension()`; the viewer
+gate over the stamp) — 3/0 GREEN with this lane's seats, the
+regression lanes green (the enchantment package whole, the anvil
+import suite, the container family, the FX lanes, the interaction
+surface, the block package whole, the stat package whole). The
+carrier's superset covers everything it held; **no duplicate PR
+opened** (the #137/#138 protocol — the maintainer owns the pick; the
+local construction retires into this record).
+
+**THE CROSS-TREE VERIFICATION (the #152 carrier, this lane's
+independent seats):** this lane's seat construction re-run on the
+carrier's tree (`f32ae460`): **3/0 GREEN** — the nether window
+surviving fifteen viewer ticks, the nether anvil taking the roll
+through the take-loop construction with the overworld mirror asserted
+untouched, the take's sound stamped -1. The carrier's own seats
+re-run alongside: **3/0 GREEN** (the seeded-roll construction, the
+mirror-untouched seat, the enchanting twin's survival). The two
+constructions are independent and agree on every observable. The
+regression lanes re-run green on the carrier's tree by this lane (the
+enchantment package, the container family, the FX lanes, the block and
+stat packages).
+
+**THE VERIFICATION COMMENT POSTED:** PR #152
+`#issuecomment-6561227043` — the full record above (the three-pass
+discipline, the independent seats, the cross-tree verification, the
+convergent carrier's retirement).
+
+**THE LEDGER:** VT-040 CONFIRMED → CORRECTED (carried by **PR #152
+OPEN**). VT-041 (the enchanting twin) RESOLVED-BY-PR #152 the same —
+its source record this lane's pass 3, its seat the carrier's own
+enchanting row. The named tails standing: the falling anvil's landing
+row rides PR #136's own lane; the enchanting table's XP-ORB / stat
+surfaces unaudited (their own census, a later pass).
