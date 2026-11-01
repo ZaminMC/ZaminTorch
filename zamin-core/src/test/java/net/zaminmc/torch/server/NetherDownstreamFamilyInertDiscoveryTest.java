@@ -6,6 +6,7 @@ import net.zaminmc.torch.server.block.BuiltinBlocks;
 import net.zaminmc.torch.server.config.EngineConfig;
 import net.zaminmc.torch.server.redstone.RedstoneBlocks;
 import net.zaminmc.torch.server.redstone.TripwireBlocks;
+import net.zaminmc.torch.server.player.PlayerSession;
 import net.zaminmc.torch.server.world.EngineWorld;
 import net.zaminmc.torch.testing.EngineAwaits;
 import org.junit.jupiter.api.AfterEach;
@@ -248,5 +249,94 @@ class NetherDownstreamFamilyInertDiscoveryTest {
         await(() -> server.world().getBlock(tnt).equals(server.world().airType()),
                 "the overworld TNT primes on the powered lever (the control)");
         assertTrue(true, "the control completed");
+    }
+
+    /**
+     * VT-036 member (c) — THE PROBE'S CROSS-DIMENSION PHANTOM: the
+     * occupancy probe (EngineServer's setOccupancyProbe closure) walks
+     * {@code mobs.all()} with NO dimension filter, so a NETHER body at
+     * the same coordinates TRIPS AN OVERWORLD WIRE. The reference's law
+     * (TripwireBlock.updateOutputState lines 163-168):
+     * {@code world.getEntities(null, box)} — the ACTING world's entity
+     * list alone; another dimension's body at the same coordinates is
+     * absent from the walk (the FL4-F10 plate-probe precedent, the
+     * per-world entity-list law). On develop the overworld wire POWERS
+     * on the nether pig's position — the phantom trip.
+     */
+    @Test
+    void theOverworldWireNeverTripsOnANetherBodyAtTheSameCoordinates() throws Exception {
+        EngineWorld nether = server.worldFor(-1);
+        int x = 460, y = 40, z = 460;
+        // The overworld stage carrying the wire.
+        stage(server.world(), x, y, z);
+        BlockPosition wire = new BlockPosition(x, y, z);
+        server.ticker().submit(() ->
+                server.world().setBlock(wire, TripwireBlocks.wireOf(false, false, false, false)));
+        await(() -> TripwireBlocks.isTripwire(server.world().getBlock(wire)),
+                "the overworld wire placed on its floor");
+
+        // The nether stage at the SAME coordinates (so the pig stands
+        // still on solid nether ground inside the wire's cell).
+        stage(nether, x, y, z);
+
+        // The nether pig standing in the wire's cell: the wire MUST
+        // stay cold (another world's body is absent from the reference's
+        // per-world getEntities walk).
+        var mob = new java.util.concurrent.atomic.AtomicReference<
+                net.zaminmc.torch.server.entity.MobEntity>();
+        server.ticker().submit(() -> {
+            mob.set(server.mobs().spawnAt(net.zaminmc.torch.server.entity.MobType.PIG,
+                    new net.zaminmc.torch.util.Position(x + 0.5, y, z + 0.5)));
+            mob.get().setDimension(-1); // the body lives in the nether
+        });
+        await(() -> mob.get() != null, "the nether pig spawned");
+        EngineAwaits.awaitTicks(server.world(), 10, "the tripwire scan's window");
+        assertEquals(true, !TripwireBlocks.wirePowered(server.world().getBlock(wire)),
+                "VT-036(c): the overworld wire never trips on a NETHER body at"
+                        + " the same coordinates (the reference's per-world"
+                        + " getEntities; observed the wire POWERED on the nether"
+                        + " pig — the probe's cross-dimension phantom)");
+    }
+
+    /**
+     * The control for VT-036(c): an OVERWORLD body in the wire's cell
+     * DOES trip the overworld wire — the probe and the scan work; the
+     * dimension filter alone is missing.
+     */
+    @Test
+    void theOverworldWireControlTripsOnAnOverworldBody() throws Exception {
+        int x = 470, y = 40, z = 470;
+        stage(server.world(), x, y, z);
+        BlockPosition wire = new BlockPosition(x, y, z);
+        server.ticker().submit(() ->
+                server.world().setBlock(wire, TripwireBlocks.wireOf(false, false, false, false)));
+        await(() -> TripwireBlocks.isTripwire(server.world().getBlock(wire)),
+                "the overworld wire placed on its floor");
+
+        PlayerSession body = join("WireWalker", 0);
+        body.applyMovement(new net.zaminmc.torch.util.Position(x + 0.5, y, z + 0.5),
+                new net.zaminmc.torch.util.Rotation(0, 0), true);
+        EngineAwaits.awaitTicks(server.world(), 10, "the tripwire scan's window");
+        assertEquals(true, TripwireBlocks.wirePowered(server.world().getBlock(wire)),
+                "the overworld body trips the overworld wire (the control)");
+    }
+
+    /** A session joined at the given dimension (the plate seat's form). */
+    private PlayerSession join(String name, int dimension) {
+        net.zaminmc.torch.server.net.ClientLink link =
+                new net.zaminmc.torch.server.net.ClientLink() {
+                    @Override public boolean isActive() {
+                        return true;
+                    }
+
+                    @Override public void kick(String reason) {
+                    }
+                };
+        var result = server.joinRequest(link, name,
+                java.util.UUID.nameUUIDFromBytes(name.getBytes()));
+        PlayerSession session = ((net.zaminmc.torch.server.net.EngineBridge.Accepted) result).session();
+        server.joinCompleted(session);
+        session.setDimension(dimension);
+        return session;
     }
 }
