@@ -1115,7 +1115,7 @@ public final class V18ProtocolServer implements ProtocolAdapter {
         // The skull tiles (Slice 60 — the same PlayerChunkMap law): every
         // placement re-publishes the 0x35 tile (the TYPE + rotation the
         // client's renderer reads); the removal arm needs no packet (the
-        // block's own update carries the vanish). VT-029 — the per-world
+        // block's own update carries the vanish). VT-033 — the per-world
         // PlayerChunkMap law over the FL4-GAP2 Slice C families: every
         // DIMENSION's store re-publishes through its OWN listener, gated to
         // that dimension's observers (a nether placement's tile never

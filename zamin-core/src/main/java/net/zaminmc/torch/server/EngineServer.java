@@ -3773,7 +3773,7 @@ public final class EngineServer implements Server, EngineBridge {
                                     brokenType.identifier())) {
                         var skullTile = skullsFor(actingWorld.dimension()).remove(position);
                         if (skullTile != null) {
-                            // VT-029 — the typed drop lands in the break's
+                            // VT-033 — the typed drop lands in the break's
                             // OWN world (the reference's dropItem on the
                             // acting world, SkullBlock.onRemoved lines
                             // 132-152): the dimension-stamped form, never
@@ -6029,7 +6029,7 @@ public final class EngineServer implements Server, EngineBridge {
                 // the spawn, the axis yaw, onSummoned's window + third
                 // health, and the snowball burst stand-in at the base (the
                 // reference's own 120-particle column rides the fx bus's
-                // Poof family). VT-029 — every member carries the acting
+                // Poof family). VT-033 — every member carries the acting
                 // world's dimension: the birth rides the dimension-aware
                 // spawnAt (Entity's constructor line 166 stamps at BIRTH —
                 // the stamp lands BEFORE the spawn fan so the wire's
@@ -9452,7 +9452,7 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /**
-     * The dimensioned anchor form (VT-029 — the reference's per-world player
+     * The dimensioned anchor form (VT-033 — the reference's per-world player
      * list: {@code world.getEntitiesOfType(PlayerEntity.class, box)} walks
      * the ACTING world's players alone — the same chunk coordinates exist in
      * every dimension, and a player standing in another world is not in the

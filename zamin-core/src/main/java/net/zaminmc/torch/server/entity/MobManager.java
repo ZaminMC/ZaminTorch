@@ -1064,7 +1064,7 @@ public final class MobManager {
 
     /**
      * Spawns one mob of the kind at the exact position IN THE GIVEN
-     * DIMENSION (VT-029 — the reference's construction law: Entity's
+     * DIMENSION (VT-033 — the reference's construction law: Entity's
      * constructor line 166 stamps {@code this.dimension =
      * world.dimension.getId()} at BIRTH, before any listener can fire;
      * the engine's spawn fan — the wire's own sendMobSpawn gate — reads
@@ -1096,7 +1096,7 @@ public final class MobManager {
             }
         }
         MobEntity mob = new MobEntity(nextEntityId, type, position, random, world);
-        // VT-029 — the birth stamp (Entity's constructor line 166: the
+        // VT-033 — the birth stamp (Entity's constructor line 166: the
         // body is born in its acting world; the stamp lands BEFORE the
         // spawn fan so the wire's dimension gate reads the born dimension
         // at the event, never the Java-default 0).
