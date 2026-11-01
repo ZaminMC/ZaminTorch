@@ -127,7 +127,12 @@ class FireSolidTopParityDiscoveryTest {
     @TempDir
     Path dataDir;
 
-    /** The row cursor: every row takes fresh coordinates inside one server. */
+    /** The row cursor: every row takes fresh coordinates inside one server.
+     * The wrap-safe scheme (the F-SP2 rig's x-cycle holds 25 rows — this
+     * battery's 26 would reuse row 1's cell at cursor 104, the stone
+     * row's still-burning flame then answering the iron_bars row's read
+     * through the age-swap guard): when x cycles, z shifts by 8 — the
+     * first coordinate collision needs 125 rows. */
     private int cursor = 0;
 
     private int nextX() {
@@ -136,7 +141,7 @@ class FireSolidTopParityDiscoveryTest {
     }
 
     private int nextZ() {
-        return 60 + (cursor % 20);
+        return 60 + ((cursor / 100) * 8 + cursor % 20) % 20;
     }
 
     // ------------------------------------------------------------------

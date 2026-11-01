@@ -3043,19 +3043,31 @@ first draft's vanilla table against the reference's flammability map;
 the cactus/trapdoor confounds retired with the source-level probe);
 (4) the independent pass — the compensating hunt negative, the
 intentionality resolved to approximation, the fix shape verified
-against every existing pin. F-SP3 CONFIRMED; its Phase E correction
-is the lane's next act. The watch items unchanged (#141 the F-SP2
-carrier OPEN, #143 the door rider OPEN — the maintainer owns the
-merge order; this lane's correction composes with either tree).
+against every existing pin. F-SP3 CONFIRMED; (5) **the Phase E
+correction delivered the same pass**: the fix branch
+`fix/fire-solid-top-port-parity-audit` over develop `1139f2c3`
+(`bf8b4745`) — the one-line delegation to `SupportConsult
+.hasSolidTop`, the seats 4/4 GREEN as the parity pins, the regression
+lanes 40/0 + 318/0 + 296/0, the rig's wrap-collision flake
+root-caused (the 26-row battery's last row reusing row 1's cell
+through the x-cycle — the age-swap guard letting the stone control's
+stale flame answer the iron_bars read) and retired with the
+wrap-safe z-shift, the F-SP2 rig's one-row-under hazard named for
+its owner lane; **PR #157 OPEN** targeting develop (never merged by
+this lane). The watch items updated (#157 joins the set; #141 the
+F-SP2 carrier and #143 the door rider remain the maintainer's
+merge-order question — the delegation composes with either tree).
 
-## F-SP3 — the hasSolidTop port's own defects: `FireBlocks.hasSolidTop`'s translucent fallthrough, the carve list's misses, and the stone_slab2 bottom row (the fire family's consults and the rail's survival walk + placement gate ride it) (CONFIRMED — three passes complete; fix-ready)
+## F-SP3 — the hasSolidTop port's own defects: `FireBlocks.hasSolidTop`'s translucent fallthrough, the carve list's misses, and the stone_slab2 bottom row (the fire family's consults and the rail's survival walk + placement gate ride it) (CORRECTED — three passes + Phase E complete; **PR #157 OPEN** over develop `1139f2c3`)
 
 **Subsystem:** the fire family's spread/survival consults + the rail
 placement gate (the shared law's consumers). **Affected version:** all.
 
-**Status:** confirmed — three passes complete (the pass-41 source
-census; this pass's behavioral seats and independent re-verification);
-fix-ready (the correction's shape verified against the landed law).
+**Status:** corrected — three passes complete (the pass-41 source
+census; this pass's behavioral seats and independent re-verification) +
+Phase E complete: the fix branch
+`fix/fire-solid-top-port-parity-audit` (`bf8b4745` over develop
+`1139f2c3`), **PR #157 OPEN** targeting `develop`.
 
 **Affected ZaminTorch files and methods:** `FireBlocks.hasSolidTop`
 (lines 325-359) — the engine's only structured `hasSolidTop` port.
@@ -3286,6 +3298,47 @@ netherrack); the rail placement gate refuses those floors (vanilla);
 per-dimension fire lanes (`PerDimensionFireAcceptanceTest`) stand
 flames on stone and bedrock — unregressed by the change.
 
+**The Phase E record (this pass):** the isolated fix branch
+`fix/fire-solid-top-port-parity-audit` over `origin/develop`
+(`1139f2c3`), commit `bf8b4745`:
+
+- **The correction:** the one-line delegation
+  `SupportConsult.hasSolidTop(world.getBlock(pos))` — the port's
+  hand-rolled arm chain (the stairs/slab/hopper arms + the carve list
+  + the defective fallthrough) retired whole; the javadoc updated to
+  cite the landed law's home (the F-SP1 landing, the
+  one-law-one-home convention); the consumers' signatures unchanged.
+- **The seats as the parity pins:** the same
+  `FireSolidTopParityDiscoveryTest` 4/4 GREEN on the fix branch (RED
+  on the baseline — both directions of the evidence recorded).
+- **The seat's own stability find (retired in the same commit):** the
+  row cursor's x-cycle holds 25 rows — the 26-row battery's last row
+  (iron_bars) REUSED row 1's cell, the stone control's still-burning
+  flame answering the read through the age-swap guard (a ~50% flake,
+  the full-package run's catch — root-caused with a battery-replay
+  diagnostic: boots 0-2 held, boot 3 popped, the stone flame's second
+  scheduled tick racing the row's window). The wrap-safe z-shift
+  landed (the first coordinate collision now needs 125 rows). THE
+  NAMED TAIL: the F-SP2 rig (`FloorConsultParityDiscoveryTest`) sits
+  ONE ROW under the same hazard with its 24-row batteries — the
+  one-line z-shift fix named for its owner lane (#141's carrier).
+- **The regression lanes (all on the fix branch):** the fire and rail
+  lanes 40/0 (FireBlocksTest 14, RailBlocksTest 4,
+  RailPlacementParityTest 10, PerDimensionFireAcceptanceTest 3,
+  FireAcceptanceTest 9); the block package whole 318/0; the wider
+  lanes 296/0 (the explosion-fire arm, the vehicle fire, the redstone
+  package whole, the world package whole); the seats 3x --rerun
+  stable. The full-suite run the named tail (the ten-minute budget,
+  the F-SP1 precedent).
+- **The composability:** the delegation answers every consumer
+  whichever tree merges first — on plain develop it corrects the fire
+  family's four consults + `RailConnections.survivesAt` + the rail
+  placement gate; on the #141 tree (the rail survival walk routed
+  through SupportConsult directly) it corrects the fire family's
+  consults + the rail placement gate. No PR-order dependency with
+  #141/#143.
+- **PR #157 OPEN** targeting `develop` (never merged by this lane).
+
 ---
 
 ## Coverage ledger (updated by the fifty-fifth pass)
@@ -3321,20 +3374,18 @@ flames on stone and bedrock — unregressed by the change.
 | Natural spawn — the spawn floor's consult | **RESOLVED-BY-PR #121** (VT-020: the suffix approximation missed in BOTH directions — the ten doubles refused where `hasSolidTop`'s first arm hosts them, the bottom stairs and the red sandstone bottom single hosted where the HALF==TOP arms refuse them; the one-consult correction with the `double_` carve + the half laws, three seats) |
 | The support-consult family (torch/lever/button/trapdoor mounts) | **F-SP1 CORRECTED — PR #139 OPEN** (`fix/support-consult-family-parity-audit`, `ad71bb32` over develop `149eb1f0`): the three passes whole (the pass-38b source census; the pass-39 behavioral seats — 68 divergent rows RED, all "engine holds where vanilla pops", 30+ agreement controls GREEN; the pass-39 independent pass — the placement-gates census, the compensating hunt NEGATIVE, the intentionality challenge resolved to approximation) + Phase E (the `SupportConsult` correction: the four survival consults + the four placement gates swapped to the reference's laws, the dead fence carve retired, the seats 6/6 GREEN as the parity pins, the piston benches repaired to the vanilla-valid power arrangement, the regression lanes 742/0). The adjacent wire/diode/plate/door floor consults are the named next lanes. |
 | The floor-consult family (wire/repeater/comparator/plate/weighted-plate/door survival walks + the five placement gates) | **F-SP2 — THE HONEST CONVERGENCE COMPLETE (the fifty-first lane, renumbered from the fiftieth — itself from the forty-eighth)**: PR #141 the carrier (the pass-47 lane's, stacked on #138 — the wire/diode/plate/rail consults + the placement gates routed through SupportConsult.hasSolidTop, THE HOPPER RIDER ABSORBED at 8d2be866 through this lane's review comment); THIS LANE'S RECORD: the source census (the DOOR member + the rail reclassification + the F-SP3 dependency — the members the other lanes' records lack), the behavioral seats (`FloorConsultParityDiscoveryTest` — 65 divergent row-observations RED on `efcd0c4f`, the 24-row battery), the independent CROSS-TREE verification of #141 (the coverage verified GREEN 23/24 rows per family; TWO GAPS caught — the door rows untouched, the hopper row REGRESSED through #138's dead hopper arm) → **PR #143 OPEN** (the rider over #141's CURRENT head, rebased post-absorption, carrying the door's two sites ALONE; the seats 17/0 combined with the carrier's and the F-SP1's; the regression 58/0 direct + 410/0 wider on the same door diffs; the review comments delivered on #141 `6556829181` and #138 `6556831484`). The maintainer owns the pick. |
-| The hasSolidTop structured port (`FireBlocks.hasSolidTop`) | **F-SP3 CONFIRMED — three passes complete, fix-ready**: the translucent fallthrough + the carve list's misses (glass_pane/iron_bars/the closed trapdoor — the pass-55 seats' own census expansion) + the stone_slab2 bottom row; the consumers: the fire family's four consults + the rail's placement gate AND the rail's survival walk (pre-#141); the behavioral seats `FireSolidTopParityDiscoveryTest` 4 seats RED on `df22c031` (24 divergent row-observations, ~40 agreement controls green, zero reverse rows); the independent pass negative on compensation, the intentionality resolved to approximation (the "no engine form" limitation obsolete — `SupportConsult` LANDED by merged PR #139); the correction = the one-line delegation to the landed law. Phase E the next act. |
+| The hasSolidTop structured port (`FireBlocks.hasSolidTop`) | **F-SP3 CORRECTED — PR #157 OPEN** (`fix/fire-solid-top-port-parity-audit`, `bf8b4745` over develop `1139f2c3`): three passes whole (the pass-41 source census; the pass-55 behavioral seats — `FireSolidTopParityDiscoveryTest` 4 seats, 24 divergent row-observations RED on the baseline, ~40 agreement controls green, zero reverse rows; the pass-55 independent pass — the compensating hunt negative, the intentionality resolved to approximation, the fix shape verified against every pin) + Phase E (the one-line delegation to `SupportConsult.hasSolidTop` — the landed law's home; the seats 4/4 GREEN on the fix branch; the regression lanes 40/0 + 318/0 + 296/0; the rig's wrap-collision flake root-caused and retired, the F-SP2 rig's one-row-under hazard named for its owner lane). The translucents/carve-misses/stone_slab2 rows all retired. |
 | The slab-family suffix census | INSPECTED (the whole-repository `endsWith("_slab")` census: `BlockSolidity.isCube` and `FireBlocks` already correct with the `double_` carve — the house convention; `CollisionShapes` corrected by PR #118; `NaturalSpawnSystem` corrected by PR #121 (VT-020 — the spawn consult, the directional stair states and the `_slab2` row joining the census); `RedstoneSystem.trapdoorMountHolds` name-based, the double agreeing, the SINGLES' rows F-SP1's lane; the held-id dispatch and the dormant `woodenSlabFamilyOf` unaffected) |
 
 ## The queue for the next pass
 
-1. **F-SP3's Phase E correction** (the fifty-fifth pass's head — the
-   finding CONFIRMED over three passes): the isolated fix branch over
-   develop `1139f2c3`, the one-line delegation
-   `FireBlocks.hasSolidTop -> SupportConsult.hasSolidTop(world
-   .getBlock(pos))`, the seats flipped to the parity pins, the
-   regression lanes (FireBlocksTest, the fire family's lanes, the rail
-   family's lanes, the block package), then the focused PR targeting
-   `develop` (composes with the #141 tree and the plain develop — the
-   delegation answers every consumer whichever tree merges first).
+1. **The F-SP2 rig's wrap-collision hazard** (this lane's Phase E find,
+   one line for its owner lane): `FloorConsultParityDiscoveryTest`'s
+   row cursor (`-50 + cursor % 100` / `60 + cursor % 20`) holds 25
+   rows — its 24-row batteries sit ONE ROW under the collision; the
+   wrap-safe z-shift (the FireSolidTopParityDiscoveryTest form) the
+   one-line fix, either folded into #141's carrier or a rider note on
+   its review.
 2. **The tripwire family's consults** (PR #141's own named tail: the
    SUSPENDED flag's floor law riding `WorldSolidity.isSolid` — its own
    three-pass lane).
@@ -3342,7 +3393,10 @@ flames on stone and bedrock — unregressed by the change.
    standing head (c): the reference's horizontal-walk-then-floor order
    vs the engine's floor-only fallback — the F-SP1 record's named
    tail, its own discovery pass).
-4. **The watch items**: the OPEN PR set — **#143** (this lane's door
+4. **The watch items**: the OPEN PR set — **#157** (this lane's F-SP3
+   correction, `bf8b4745` over develop `1139f2c3` — composes with
+   either the plain develop or the #141 tree, no merge-order
+   dependency), **#143** (the pass-51 lane's door
    rider over #141's CURRENT head, rebased post-absorption), #141 (the
    F-SP2 carrier, THE HOPPER RIDER ABSORBED at `8d2be866`), the F-SP1
    convergent set #137/#138/#139, and the standing #105-#140 wave; the
@@ -3367,4 +3421,6 @@ flames on stone and bedrock — unregressed by the change.
 7. ~~F-SP3's own behavioral and independent passes (the standing head
    (b))~~ — **COMPLETE (this lane, the fifty-fifth pass)**: the four
    behavioral seats + the independent re-verification; the finding
-   CONFIRMED, fix-ready — item 1 above carries its Phase E.
+   CONFIRMED, fix-ready — **and the Phase E correction delivered whole
+   the same pass (PR #157 OPEN)**: the delegation, the parity pins,
+   the regression lanes, the composability record.
