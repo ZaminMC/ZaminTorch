@@ -767,22 +767,56 @@ public final class PistonSystem implements WorldChangeListener {
     /**
      * The material's piston behavior over the engine's blocks (the
      * reference's Material.setDestroyOnPistonMove / setBlocksPistonMove
-     * tables): the redstone decoration family and the plants break, the
-     * portal family and the piston head block.
+     * tables — Material.java lines 10-43 — plus the BLOCK-level
+     * getPistonMoveBehavior() overrides — BedBlock line 175, DoorBlock
+     * line 218, AbstractPressurePlateBlock line 180, all returning 1):
+     * the DECORATION wiring family, the plants, the crops, the leaves,
+     * the liquids, the fragile gourds and the multi-part families (the
+     * bed, the doors, the plates) break with their drops; the portal
+     * family, the piston head, the moving carrier and the anvil family
+     * refuse the push; everything else moves — VT-016's correction, the
+     * full material census (the whole-registry pin lives in
+     * PistonPushabilityCensusTest).
      */
     int pistonMoveBehavior(BlockType type) {
         String value = type.identifier().value();
-        // The BLOCK family: the portal, the piston head, the moving block
-        // (the carrier is also hardness -1 in the behavior table — the
-        // reference's own double gate), the barrier.
+        // The BLOCK family (the reference's setBlocksPistonMove census,
+        // Material.java lines 10/34/42): the PORTAL material's pair, the
+        // PISTON material's head and carrier (the bases themselves ride
+        // canMoveBlock's own piston exemption — the reference's explicit
+        // PISTON/STICKY_PISTON arm), and the ANVIL material's twelve
+        // states. The barrier and the end portal ride the -1-hardness
+        // arm in canMoveBlock — the reference's own double gate
+        // (getMiningTime == -1 fires before the material arm, lines
+        // 259-263) — so their PUSH answer here is unobservable.
         if (value.startsWith("nether_portal") || PistonBlocks.isPistonHead(type)
-                || PistonBlocks.isMovingPiston(type)) {
+                || PistonBlocks.isMovingPiston(type)
+                || value.startsWith("anvil")) {
             return BEHAVIOR_BLOCK;
         }
-        // The DESTROY family: Material.DECORATION (every redstone
-        // component incl. the comparator), the plants, the leaves, the
-        // liquids, the fragile gourds.
+        // The DESTROY family — the reference's setDestroyOnPistonMove
+        // census (WATER/LAVA lines 11-12, LEAVES 13, PLANT 14,
+        // REPLACEABLE_PLANT 15, FIRE 18, DECORATION 20, SNOW_LAYER 28,
+        // CACTUS 30, PUMPKIN 32, EGG 33, CAKE 35, COBWEB 38-41) PLUS
+        // the block-level == 1 overrides (the bed line 175, every
+        // DoorBlock line 218 — wood AND iron, every plate line 180 —
+        // stone, wooden and both weighted). The rows ride the engine's
+        // own state vocabularies: the crop stages (wheat/carrots/
+        // potatoes_stageN — the old "wheat" row keyed the ITEM id), the
+        // cocoa ages and facings, the fire age ladder, the cake bites,
+        // the whole fluid state vocabulary (flowing_/falling_/still_),
+        // the six woods' leaves and their check/persistent states, the
+        // saplings (the <wood>_sapling suffix — the old bare-prefix row
+        // never matched them), the vine's sixteen face states, the
+        // double plants, the stems, the potted forms, the tripwire
+        // family, the ladder facings, and the dragon egg (the old
+        // "egg" row keyed the ITEM id — the block is dragon_egg). The
+        // old startsWith("grass") row RETIRES: its only registered
+        // member was grass_block (Material.GRASS is a plain PUSH — the
+        // classic mover the row was destroying).
         if (value.equals("torch")
+                // Material.DECORATION — the wiring family, the ladder,
+                // the tripwire, the pot and its thirteen potted forms
                 || value.startsWith("redstone_wire")
                 || value.startsWith("redstone_torch")
                 || value.startsWith("unlit_redstone_torch")
@@ -793,13 +827,28 @@ public final class PistonSystem implements WorldChangeListener {
                 || value.startsWith("lever_")
                 || value.startsWith("stone_button_")
                 || value.startsWith("wooden_button_")
+                || value.startsWith("ladder")
+                || value.startsWith("tripwire")
+                || value.equals("flower_pot")
+                || value.startsWith("potted_")
+                // the plate family — the == 1 override, all four members
+                // (the weighted pair's power states ride the prefix)
                 || value.startsWith("stone_pressure_plate")
                 || value.startsWith("wooden_pressure_plate")
-                || value.startsWith("sapling")
+                || value.startsWith("light_weighted_pressure_plate")
+                || value.startsWith("heavy_weighted_pressure_plate")
+                // the multi-part family — the == 1 overrides: the bed's
+                // exact shapes excluding bedrock, all seven door woods
+                // and the iron door (the trapdoors stay PUSH — their
+                // Material.WOOD/IRON carries no piston setter)
+                || value.equals("bed")
+                || value.startsWith("bed_")
+                || net.zaminmc.torch.server.block.WoodDoorFamily.isDoor(type)
+                // Material.PLANT — the crops, the plantings, the
+                // mushrooms, the stems, the gourds' facing states
+                || value.contains("_sapling")
                 || value.startsWith("tall_grass")
-                || value.startsWith("grass")   // the grass tuft variants
                 || value.startsWith("fern")
-                || value.startsWith("flower")
                 || value.startsWith("dandelion")
                 || value.startsWith("poppy")
                 || value.startsWith("blue_orchid")
@@ -810,18 +859,47 @@ public final class PistonSystem implements WorldChangeListener {
                 || value.startsWith("white_tulip")
                 || value.startsWith("pink_tulip")
                 || value.startsWith("oxeye")
-                || value.equals("wheat")
+                || value.startsWith("wheat_stage")
+                || value.startsWith("carrots_stage")
+                || value.startsWith("potatoes_stage")
+                || value.startsWith("melon")
+                || value.startsWith("pumpkin")
+                || value.startsWith("lit_pumpkin")
                 || value.equals("sugar_cane")
+                || value.startsWith("cocoa")
+                || value.startsWith("nether_wart")
+                || value.equals("waterlily")
+                || value.equals("brown_mushroom")
+                || value.equals("red_mushroom")
+                // Material.REPLACEABLE_PLANT — the bush, the vine's
+                // sixteen face states, the double plants
+                || value.startsWith("dead_bush")
+                || value.startsWith("vine")
+                || value.startsWith("sunflower")
+                || value.startsWith("lilac")
+                || value.startsWith("double_grass")
+                || value.startsWith("double_fern")
+                || value.startsWith("rose")
+                || value.startsWith("peony")
+                // Material.CACTUS / SNOW_LAYER / EGG / CAKE / COBWEB /
+                // FIRE (the age ladder) / LEAVES (the six woods and
+                // their check/persistent states)
                 || value.equals("cactus")
-                || value.equals("pumpkin")
                 || value.equals("snow_layer")
+                || value.equals("dragon_egg")
+                || value.startsWith("cake")
+                || value.equals("cobweb")
                 || value.equals("fire")
-                || value.startsWith("water")
-                || value.startsWith("lava")
-                || value.startsWith("oak_leaves")
-                || value.startsWith("leaves")
-                || value.equals("cake")
-                || value.equals("egg")) {
+                || value.startsWith("fire_age")
+                || value.contains("_leaves")
+                // the liquids — Material.WATER/LAVA (LiquidMaterial's
+                // own setter): the source cells and the whole
+                // flowing_/falling_/still_ state vocabulary
+                || value.equals("water")
+                || value.equals("lava")
+                || value.startsWith("flowing_")
+                || value.startsWith("falling_")
+                || value.startsWith("still_")) {
             return BEHAVIOR_DESTROY;
         }
         return BEHAVIOR_PUSH;
