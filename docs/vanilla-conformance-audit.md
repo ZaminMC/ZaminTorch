@@ -3848,13 +3848,19 @@ it), the TNT's survival asserted against the engine's detonation.
    branch must re-run the five discovery seats green).
 3. ~~VT-014's and VT-015's seats~~ — **DONE BY FOUR LANES IN THE SAME
    WINDOW** (the quadruple convergence, item 0's PRs the carriers).
-3a. ~~VT-018's passes 2-3~~ — **DONE (the thirty-ninth pass, this
-   lane)**: the FX-assert seat RED in complete silence (the control
-   heard) + the pass-3 walk that found the SECOND SITE (the
-   entity-hit bowhit, line 276 — the engine's hit paths soundless)
-   and the pop contrast — **VT-018 CONFIRMED whole, three passes,
-   Phase E eligible** (the record in the thirty-ninth pass's second
-   act; the fix covers both arms, the arrow kind alone).
+3a. ~~VT-018's passes 2-3~~ — **DONE (the thirty-ninth pass)**: the
+   stick's FX-assert seat RED in complete silence + the pass-3 walk
+   that found the SECOND SITE — and **the entity-hit follow-up DONE
+   WHOLE (the forty-first pass, this lane)**: the seat RED on develop
+   `149eb1f0` (`ArrowEntityHitBowhitSoundDiscoveryTest` — the landed mob
+   hit's captured stream `[]`, the gate guard + the kind guard), the
+   pass-3 walk (the hurt-sound contrast, the position law, the verdict
+   mapping, the enderman nuance), and **PR #124 WIDENED** (`01783eeb`:
+   the entity-hit arm at all five sites, the landed-verdict gate, the
+   `playerHit` default-bridge evolution; the seats 4/0 GREEN on the
+   tree, the regression 96/0). **VT-018 CORRECTED WHOLE** — the two
+   adjacent tails ledgered (the failed-damage bounce, the enderman
+   arrow-survives exception), never the PR's scope.
 4. The merge watch: #106 MERGED (becf84b0), #115 MERGED (e17c538b);
    the OPEN set: #108, #109, #110, #111, #113 (the `!inGround` gate
    note posted), #114, #116 (VT-017), #117 (VT-014), #118 (F-DS1),
@@ -3899,6 +3905,19 @@ it), the TNT's survival asserted against the engine's detonation.
    pick among the convergent carriers. The pass-30 lane's docs union
    is DONE (the pass-35 lane's thirty-fifth pass); their engine files
    stay on the #110 branch.
+
+7b. **THE VT-024 SECOND COLLISION** (the forty-first pass's
+   bookkeeping): the pass-38 lane's close (`1b42d140`) claims VT-024 for
+   the ARROW PICKUP ENVELOPE (the horizontal 1.25 cap vs the reference's
+   grown-box 1.55, the shifted vertical band — three passes complete,
+   Phase E their named next head), but the public-first protocol gives
+   VT-024 to **#131** (the piston toBreak drop consult, PR-opened
+   06:48 before any arrow-pickup PR exists — item 7a's resolution).
+   **The arrow pickup envelope renumbers to VT-025** (the next free
+   number, provenance-marked: the pass-38 lane's record `92fe4440` the
+   evidence base; their Phase E branch will carry the number). No
+   public artifact renamed — their claim lives on their audit branch
+   alone.
 
 
 
@@ -4495,3 +4514,92 @@ review notes posted (#122, #123, #124, #128, and the union-conflict
 correction on #123/#128); seven new seats on this lane's branch (the
 VT-019 pair, the VT-018 full-boot pair — renamed per the
 file-resolution protocol, the VT-023 pair, the stick-tick seat).
+
+## The forty-first pass, first act — VT-018's named follow-up completed whole: the ENTITY-HIT bowhit seated, walked, and PR #124 widened to both impact arms
+
+The pass-37 close named this head; the pass-39 walk discovered the site and
+the review note on #124 carried it. This lane took it up (the concurrent
+lanes' claims checked first: the pass-38 lane holds the arrow-pickup
+envelope's Phase E, the pass-38b lane holds F-SP1's behavioral seats, the
+pass-40 lane holds the piston family — no collision).
+
+**THE LAW (ArrowEntity lines 230-287, re-walked for this act)**: the
+entity-hit arm plays `random.bowhit` at line 276 — INSIDE the
+`takeDamage(...) == true` branch ALONE (a landed hit), BEFORE the
+`remove()`, at the arrow's PRE-INTEGRATION position (the entity-hit arm
+never moves the arrow; the position integration at 328 runs after). The
+FAILED-damage branch (line 280's else) is SILENT — the arrow bounces
+(`velocity *= -0.1`, the yaw flip, `inAirTicks = 0`). The bowhit is the
+ARROW family's alone (SnowballEntity/EggEntity/the fireballs play no such
+name on their hits).
+
+**THE SEAT (pass 2, `ArrowEntityHitBowhitSoundDiscoveryTest`, three
+tests)** — the mob-hit construction (the pass-37 close's named shape):
+an arrow dropped onto a zombie through the rigged box resolver, the
+combat sink's landed verdict the gate:
+- **THE PIN, RED on develop `149eb1f0`** at the traced assert: the
+  captured FX stream at a LANDED mob hit is **`[]`** — the entity hit in
+  COMPLETE SILENCE, the controls green (the strike consulted through the
+  sink, the arrow left the world on the hit);
+- **THE GATE GUARD**: the failed-damage construction (the sink's
+  `landed=false`) pins the reference's silent bounce branch — the fix must
+  gate on the verdict, never play unconditionally;
+- **THE KIND GUARD**: the snowball construction through the same box — the
+  engine's `hitMob` serves EVERY projectile kind; the name is
+  ArrowEntity's alone.
+
+**THE PASS-3 WALK (the independent angles)**:
+- **The consumers' census**: `onProjectileRemoved`'s only implementations
+  are destroy fans (the protocol's + EngineServer's re-fan);
+  `ProjectileManager`'s single `fx.sound` is the shatter family's
+  `random.glass` (1449) — nothing can carry the entity-hit sound.
+- **THE HURT-SOUND CONTRAST** (the entity arm's decisive evidence, the
+  stick arm's pop-contrast twin): the mob's OWN hurt sound IS wired
+  (`onMobHurt` → `sendMobSound(mob.hurtSound(), 1.0, 1.0)`) — the hit's
+  audio pair exists in halves in the engine, the bowhit alone missing.
+  The one-by-one family pattern again.
+- **THE POSITION LAW**: the reference plays at the arrow's pre-move
+  position; the engine's `from` (the per-tick origin `resolveCollisions`
+  receives) is the exact match — `projectile.position()` at the consult
+  is one step past (post-integration, `after`).
+- **THE VERDICT MAPPING** (takeDamage's boolean ↔ the engine): the mob
+  arm's `combat.mobHit` landed; the player arm's evolved `playerHit`
+  (the sink was void — the `CombatSink`'s projectile-carrying default
+  bridge evolved from `void` to `boolean` through the interface's own
+  bridge pattern, the legacy form presumed landed, source-compatible);
+  the vehicle arm's already-`boolean` `vehicleHit` (previously IGNORED by
+  `hitVehicle`); the crystal and dragon arms' `hitCrystal`/`hitDragonPart`
+  booleans.
+- **THE ENDERMAN NUANCE**: the engine's enderman hurt (the 9-in-10
+  teleport BEFORE the hurt, the hurt lands, returns true) keeps
+  `landed=true` — matching vanilla's takeDamage-true: the bowhit plays
+  on enderman hits. The enderman ARROW-SURVIVES exception (line 277 —
+  the reference keeps the arrow alive) is the adjacent tail.
+
+**THE NAMED ADJACENT TAILS** (ledgered, never the PR's scope): the
+failed-damage BOUNCE (the reference bounces the arrow — the engine
+removes it unconditionally on every arm) and the ENDERMAN
+arrow-survives exception.
+
+**THE CORRECTION — PR #124 WIDENED** (`fix/arrow-stick-bowhit-sound-parity-audit`,
+`01783eeb` over the branch's `6a4811b4`): the shared
+`playEntityHitBowhit` (the ARROW kind gate + the `from` position + the
+dimension + the reference's fresh pitch draw over [~1.09, ~1.33]) called
+at ALL FIVE entity sites (mob, player, vehicle, crystal, dragon part),
+each gated on its landed verdict; `hitMob`/`hitPlayer`/`hitVehicle` now
+return the verdict; `EngineServer`'s sink returns
+`projectileHitPlayerOnTick`'s evolved verdict (the failed-damage early
+returns — pvp off, the dead/idle body, the cancelled event, the
+armor-eaten amount, the hurt-window absorption — the reference's
+takeDamage-false rows). **THE SEATS GREEN on the fix tree**: the
+entity-hit seat 3/0 (the pin lifted, the guards holding), the stick seat
+unregressed; **THE REGRESSION 96/0** (the projectile package 52, the
+entity families 27, the vehicle 3, the fx 3, the nbt 11 — every lane
+touching the evolved signatures). The PR body rewritten for the widened
+scope (the verification table now carries both arms' three passes).
+
+**The bookkeeping beside the act**: the VT-024 second collision resolved
+(queue item 7b — the pass-38 lane's arrow pickup envelope renumbers to
+VT-025 per the public-first protocol, #131 owning VT-024; provenance
+marked, nothing public renamed); the lane's base carries develop
+`149eb1f0` merged in (the seats' baseline — FL4-GAP2 Slice B landed).
