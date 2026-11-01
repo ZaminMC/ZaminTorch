@@ -12,8 +12,13 @@ import net.zaminmc.torch.server.player.PlayerRegistry;
  *
  * <p>Tick-lane mutations (the command walk); the lerp reads are wall-clock
  * (the reference's own System.currentTimeMillis walk).</p>
+ *
+ * <p>Extensible for the nether's read-only view ({@link NetherWorldBorderView}
+ * — NetherDimension.createWorldBorder lines 75-86: the same rows with the
+ * center reported at /8); the containment reads consult the overridable
+ * center pair, the reference's own structure.</p>
  */
-public final class EngineWorldBorder {
+public class EngineWorldBorder {
 
     /** The reference's own clamp (29999984). */
     private static final int DEFAULT_MAX_SIZE = 29999984;
