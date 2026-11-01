@@ -289,7 +289,14 @@ class RegionBoundaryTest {
                 server.world().setBlock(new BlockPosition(x, y, z),
                         PistonBlocks.pistonOf(EAST, false, true));
                 server.world().setBlock(new BlockPosition(x + 1, y, z), BuiltinBlocks.STONE);
+                // The lever rides the STONE carrier above the piston —
+                // the reference's mount law (a piston base is no solid
+                // top, PistonBaseBlock.isCube() false): the flip's strong
+                // power enters the stone and re-radiates to the piston
+                // below, the piston still extending at the same toggle.
                 server.world().setBlock(new BlockPosition(x, y + 1, z),
+                        BuiltinBlocks.STONE);
+                server.world().setBlock(new BlockPosition(x, y + 2, z),
                         RedstoneBlocks.leverOf(5, false));
             });
             await(() -> PistonBlocks.isPiston(typeAt(server, x, y, z)),
@@ -298,7 +305,7 @@ class RegionBoundaryTest {
             // regions, the head lands across the seam, the pushed stone one
             // cell further — same-tick and vanilla-exact.
             server.ticker().submit(() -> server.redstone().useLever(
-                    new BlockPosition(x, y + 1, z)));
+                    new BlockPosition(x, y + 2, z)));
             await(() -> PistonBlocks.pistonExtended(typeAt(server, x, y, z)),
                     "the piston extended across the seam");
             await(() -> PistonBlocks.isPistonHead(typeAt(server, x + 1, y, z)),
@@ -309,7 +316,7 @@ class RegionBoundaryTest {
             // Power off: the sticky pull drags the stone back across the
             // seam to the head's cell.
             server.ticker().submit(() -> server.redstone().useLever(
-                    new BlockPosition(x, y + 1, z)));
+                    new BlockPosition(x, y + 2, z)));
             await(() -> !PistonBlocks.pistonExtended(typeAt(server, x, y, z)),
                     "the piston retracted");
             await(() -> typeAt(server, x + 1, y, z).identifier().value().equals("stone"),

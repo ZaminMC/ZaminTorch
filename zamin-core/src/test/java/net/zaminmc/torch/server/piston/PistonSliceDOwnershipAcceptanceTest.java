@@ -87,11 +87,20 @@ class PistonSliceDOwnershipAcceptanceTest {
 
         BlockPosition piston = new BlockPosition(cx, fy + 1, cz);
         BlockPosition pushed = new BlockPosition(cx + 1, fy + 1, cz);
-        BlockPosition lever = new BlockPosition(cx, fy + 2, cz);
+        // The lever rides the STONE carrier one cell above the piston —
+        // the reference's law (LeverBlock.canSurvive over
+        // World.hasSolidTop): the piston base is no solid top
+        // (PistonBaseBlock.isCube() false), so a floor lever placed on
+        // the piston itself pops. The flip's strong power enters the
+        // stone, re-radiating to the piston below (the classic
+        // power-through-block) — the piston still extends at the same
+        // toggle, the seat's observables unchanged.
+        BlockPosition lever = new BlockPosition(cx, fy + 3, cz);
         BlockPosition landing = new BlockPosition(cx + 2, fy + 1, cz);
         server.ticker().submit(() -> {
             nether.setBlock(piston, PistonBlocks.pistonOf(EAST, false, false));
             nether.setBlock(pushed, BuiltinBlocks.STONE);
+            nether.setBlock(new BlockPosition(cx, fy + 2, cz), BuiltinBlocks.STONE);
             nether.setBlock(lever, RedstoneBlocks.leverOf(5, false));
         });
         await(() -> PistonBlocks.isPiston(typeAt(nether, piston)), "the nether piston placed");
@@ -152,11 +161,15 @@ class PistonSliceDOwnershipAcceptanceTest {
 
         BlockPosition piston = new BlockPosition(cx, fy + 1, cz);
         BlockPosition pushed = new BlockPosition(cx + 1, fy + 1, cz);
-        BlockPosition lever = new BlockPosition(cx, fy + 2, cz);
+        // The stone carrier again — the overworld lever rides the stone
+        // above the piston (the reference's mount law), the flip's strong
+        // power reaching the piston through the carrier.
+        BlockPosition lever = new BlockPosition(cx, fy + 3, cz);
         BlockPosition landing = new BlockPosition(cx + 2, fy + 1, cz);
         server.ticker().submit(() -> {
             server.world().setBlock(piston, PistonBlocks.pistonOf(EAST, false, false));
             server.world().setBlock(pushed, BuiltinBlocks.STONE);
+            server.world().setBlock(new BlockPosition(cx, fy + 2, cz), BuiltinBlocks.STONE);
             server.world().setBlock(lever, RedstoneBlocks.leverOf(5, false));
         });
         await(() -> PistonBlocks.isPiston(typeAt(server.world(), piston)),
@@ -208,6 +221,13 @@ class PistonSliceDOwnershipAcceptanceTest {
             nether.setBlock(piston, PistonBlocks.pistonOf(EAST, false, false));
             nether.setBlock(pushed, BuiltinBlocks.STONE);
             server.world().setBlock(pushed, BuiltinBlocks.STONE);
+            // The overworld lever stands on the overworld's own stone —
+            // a REAL flip in the overworld at the same coordinates (the
+            // strongest form of the seat's law: the standing, surviving
+            // lever's dispatch still never crosses worlds), where the
+            // pre-re-pin form stood it on air and the mount law felled
+            // it before the flip.
+            server.world().setBlock(new BlockPosition(cx, fy + 1, cz), BuiltinBlocks.STONE);
             server.world().setBlock(overworldLever, RedstoneBlocks.leverOf(5, false));
         });
         await(() -> PistonBlocks.isPiston(typeAt(nether, piston)),
