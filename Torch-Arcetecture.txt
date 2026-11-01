@@ -8006,6 +8006,64 @@ member the fountain-before-arrival order (run 562's fall-debt class
 through the other window — the dragon's death writes the portal
 BEFORE anyone stands in it, the reference's own order).
 
+SLICE D TRACE (2026-11-01, the same session's close — findings only,
+the implementation is the next session's first act, the CI-unblock
+precedent): the three transient families, every consult site's
+dimension source named.
+
+- THE PISTON FAMILY (13 sites): PistonSystem already holds its OWN
+  world + redstone in the constructor (the per-dimension instances
+  construct naturally, the chestsFor form) — the movingBlocks
+  animation map and the two block-event lists are per-instance state
+  with NO store (the collision window is the animation alone, the row's
+  own note). The wiring sites: the boot construct (EngineServer 1813),
+  the change listener (1955), the neighbor listener (2110), the tick
+  (3351), the public accessor (5204). THE NAMED LEAK: the push surface
+  (1827) scans ALL mobs and items with NO dimension gate — a nether
+  piston extending at coordinates where an overworld mob stands
+  displaces the OVERWORLD body (the cross-world push class); each
+  dimension's instance needs its own surface gating the scan on ITS
+  world's dimension, the item-entities' own dimension stamp and the
+  mobs' own the filter (the hopper's suck-gate precedent).
+- THE DECORATION FAMILY (19 sites): the frames + paintings maps are
+  position-keyed with NO dimension — the ZED store (v1) needs the v2
+  dimension stamp (the union save, the routed restore, v-1 files as
+  overworld rows). The DecorationSurface consults the overworld world
+  and the OVERWORLD redstone (wakeComparators) — each dimension's
+  instance needs its own surface. THE NAMED LEAK: the comparator's
+  through-the-wall frame reader (2052-2054) is wired on EVERY
+  dimension's redstone but reads the ONE shared registry — a nether
+  comparator reads an overworld frame at the same coordinates (the
+  FL4-F10 comment's own "honest tail" named it, Gap 2's row 4 pays
+  it). The consult sites by their traced source: the place paths
+  (12978/13002) by the PLACER's dimension; the attack/interact paths
+  (7431-7453, 16797-16805) by the player's dimension; the tick and the
+  survival poll (20778+) per world; the census view (DecorationViews
+  3196) per world (the overworld-only view today); the frame-marker
+  removal (the maps' own dimension row).
+- THE LEAD FAMILY: the knots map is position-keyed with NO dimension
+  and NO store (the knots ride the mob's leash NBT stash at save — the
+  stash's dimension row needs the same v+1 audit, verify at
+  implementation). THE NAMED LEAKS: the LeadSurface.mobsIn scan (20745)
+  has NO dimension gate — a nether fence ties an OVERWORLD mob at the
+  same coordinates (the cross-world tie class); the knots' survival
+  read (setSurvivalRead, 2815) consults the OVERWORLD world's fence
+  cells — a nether knot dies on the overworld's air; the leash
+  detacher's owner-context assert (2823) pins the overworld's mutation
+  context. The consult sites by their traced source: the fence use
+  (12510) by the PLAYER's dimension; the tick walk and the survival
+  poll per world; the knot stash per row.
+
+THE PLAN (row 4's own shape, the smallest coherent boundary): the
+piston and lead families need NO store pass (transient state, the
+animation/lifetime window alone) — the per-dimension instances, the
+dimension-gated surfaces, and the routed consults are the whole work;
+the decoration family adds the ZED v2 stamp (the six landed stores'
+own law). Seats: a nether piston displacing only the nether's bodies;
+a nether comparator reading only the nether's frames; a nether fence
+tying only the nether's mobs; the decorations' two-tile restart
+through a real reboot.
+
 ---
 
 # 34. ENGINEERING AUTHENTICITY AND AI-GENERATED CODE QUALITY
