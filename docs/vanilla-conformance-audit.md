@@ -3925,7 +3925,7 @@ branch.
 
 - **Status:** CONFIRMED (three passes complete; FIRST NUMBERED VT-022 by
   this lane, then VT-025 by the forty-first reconciliation draft — RENUMBERED
-  VT-028 by the forty-third's final reconciliation: the piston toBreak owns
+  VT-028 by this lane's final reconciliation (the forty-fourth): the piston toBreak owns
   VT-025 publicly (PR #131's title edit 07:29:59) and the nether border VT-026
   / the post-fan stamp VT-027 (the forty-second lane's assignments); Phase E
   eligible WITH THE DEPENDENCY RECORDED — the fix composes with VT-014's face rest
@@ -4763,7 +4763,7 @@ must pin the pops, the pre-fix holds).
 | Projectile family — the stuck arrow's crossing (the portal-lights-later construction) | **VT-013 REJECTED** (the thirty-first pass's pass-3 challenge): the original hypothesis — a portal lighting around an already-stuck arrow crosses it — is disproven by the reference's own tick chain (`ArrowEntity.tick` line 381 calls the box scan from the FLIGHT branch alone; the `inGround` branch at 172-186 runs the stick clock and the tracked-block check only). The corrected seat (`PortalStuckArrowCrossingDiscoveryTest.theStuckArrowStaysWhenThePortalLightsAroundIt`) pins the true law — NO crossing — GREEN on develop AND on the #113 tree. No fix owed. The honest residue re-recorded as VT-014 (the stick placement) and VT-015 (the un-stick law), both below |
 | Projectile family — the stick's bowhit sound | **VT-018 CONFIRMED — three passes complete, Phase E eligible** (the pass-35 lane's source walk + the thirty-ninth's seat and independent challenge): the reference plays `random.bowhit` at BOTH impact arms — the BLOCK stick (ArrowEntity line 303, at the rest position, the pitch `1.2F/(rand·0.2+0.9)` band [1.0909, 1.3333], one draw per stick) and the ENTITY hit (line 276, before the remove); the engine plays NEITHER — the stick arm fires the no-op `onProjectileLanded` fan alone, `hitMob`/`hitPlayer`/`hitVehicle` soundless, `random.bowhit` at the tripwire alone. The seat RED on develop `777b7c86`: the stick in COMPLETE SILENCE (the recorder holding one event — the control pulse), the stuck position matching the known geometry; the POP CONTRAST decisive — the reference's third arrow sound (the pickup pop, line 436) IS wired with the exact pitch formula (the `onProjectileCollected` dispatch), the family's sounds implemented one by one, the bowhit pair alone missing. The fix: both arms play the sound (the arrow kind alone), the manager's `random` the draw source, the seat's pitch-band assert the parity pin |
 
-## The historical queues (the thirty-seventh/thirty-ninth-era records — superseded; the LIVE queue is the forty-third pass's, in its section above)
+## The historical queues (the thirty-seventh/thirty-ninth-era records — superseded; the LIVE queue is the forty-fourth pass's, in its section above)
 
 | Collision shapes — the double slabs' full-cube row | **RESOLVED-BY-PR #118** (F-DS1: the F-DS1 stream's three-pass verification — the ten `_slab`-suffixed doubles carried the HALF box; the rest walks, the side-entry, the isFullCube family all poisoned; the one-arm carve, `DoubleSlabCollisionParityTest` 5/0) |
 | Natural spawn — the spawn floor's consult | **RESOLVED-BY-PR #121** (VT-020: the suffix approximation missed in BOTH directions — the ten doubles refused where `hasSolidTop`'s first arm hosts them, the bottom stairs and the red sandstone bottom single hosted where the HALF==TOP arms refuse them; the one-consult correction with the `double_` carve + the half laws, three seats) |
@@ -6065,7 +6065,7 @@ material table (#126), the entity gate (#129), and the toBreak drop
 consult (#131) all answer the reference's census, each through its
 own three-pass discipline and its own PR.
 
-## The forty-third pass (FIRST DRAFTED the forty-first; RENUMBERED TWICE — the sibling session's forty-first pushed at 07:27:05 and the forty-second at 07:32:36, both minutes ahead of this lane's blocked push — the established protocol) — the four-lane union drafted, the numbering collisions reconciled to the FINAL state, VT-024 corrected (PR #132 + the strict-form rider), VT-028 confirmed whole (this lane's own discovery), and the orb's box model discovered (VT-029)
+## The forty-fourth pass (FIRST DRAFTED the forty-first; RENUMBERED THRICE — the sibling session's forty-first pushed at 07:27:05, the forty-second at 07:32:36, and the forty-third at 07:41:20, each minutes ahead of this lane's blocked push — the established concurrent-stream protocol, every collision recorded) — the four-lane union drafted, the numbering collisions reconciled to the FINAL state, VT-024 corrected (PR #132 + the strict-form rider), VT-028 confirmed whole (this lane's own discovery), and the orb's box model discovered (VT-029)
 
 **The provenance.** This lane is the pass-36 lineage's continuation
 (the five-lane union's own carrier, the #123/#127 reconciliation, the
@@ -6074,8 +6074,8 @@ review record). The environment reset with the lane's head pushed
 (and while this lane's own forty-first draft was being written, TWO
 more sibling lanes pushed their own forty-first (07:27:05, the VT-018
 entity-hit lane) and forty-second (07:32:36, the six-way union lane);
-this lane's section renumbers to the forty-third, its records riding
-the merge of both)
+this lane's section renumbered through the forty-third to the
+forty-fourth, its records riding the merge of all three)
 the thirty-eighth (the recovery reconciliation, VT-021/VT-023/VT-024),
 the thirty-ninth (the cross-tree verifications, the stick-tick
 residue), and the fortieth (the piston family whole: VT-016's census,
@@ -6998,12 +6998,12 @@ hunt, the intentionality challenge). The record rides below.
 
 ---
 
-*(The file's end — the forty-third pass's closing pointer: the LIVE queue
-is the forty-third pass's own, in its section above — the merge watch at
+*(The file's end — the forty-fourth pass's closing pointer: the LIVE queue
+is the forty-fourth pass's own, in its section above — the merge watch at
 develop `149eb1f0`, VT-028's Phase E (the fix stacked on #120), VT-029's
 seats, the stick-tick residue's fix slice, F-SP1's passes, the dimension
 tails, and the cross-lane notes. The sections below this line in the file
 order are the sibling lanes' records carried by the merges — the
 forty-first's entity-hit bowhit act, the postfan lineage's VT-012/VT-026/
 VT-027 records, and the forty-second's six-way union — all standing whole;
-nothing after the forty-third's queue supersedes it.)*
+nothing after the forty-fourth's queue supersedes it.)*
