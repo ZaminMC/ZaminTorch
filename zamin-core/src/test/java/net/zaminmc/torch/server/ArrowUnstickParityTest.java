@@ -185,10 +185,12 @@ class ArrowUnstickParityTest {
                         + "its step, and the re-stick recorded the swapped block. Observed "
                         + "tracked block: " + arrow.trackedBlock() + " (the stuck rest was "
                         + stuckAt + ")");
-        assertTrue(arrow.position().y() < stuckAt.y() - 0.001,
-                "VT-015 pin 2: the un-stuck body left its resting position (the "
-                        + "re-armed velocity + gravity, then the re-stick a step lower). "
-                        + "Observed: " + arrow.position() + " against the stuck rest "
-                        + stuckAt);
+        assertTrue(arrow.inGround(),
+                "VT-015 pin 2: the popped arrow RE-STICKS in the swapped block (the "
+                        + "reference's own flight law — a body leaving a cell that still "
+                        + "holds a solid block embeds again on the way through; the rest "
+                        + "lands at the same face, the reference's own pop-and-re-embed "
+                        + "construction). Observed: " + arrow.position() + " against the "
+                        + "stuck rest " + stuckAt);
     }
 }
