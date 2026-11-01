@@ -3845,10 +3845,20 @@ named head):**
 findings taken from suspected to corrected whole (VT-019 — the seat,
 the pass-3 walk, PR #123; VT-018 — the FX-capture seat, the pass-3
 walk with the entity-hit site discovered, PR #124); one unit test's
-mechanism corrected beside them. The next heads: the entity-hit
-bowhit site's seat (VT-018's named follow-up), F-SP1's owed passes
-(the last uncarried standing lane), the PR reviews' follow-ups (the
-eleven-PR open set), and the dimension tails.
+mechanism corrected beside them. **THE CLOSING FETCH (the run's last
+look):** #119 CLOSED UNMERGED (the VT-015 convergence resolved — #120
+this lane's carrier stands alone); TWO NEW concurrent-lane PRs opened
+mid-run — **#121** (VT-020: the spawn floor consult, the
+`hasSolidTop` structure — a NEW finding's carrier) and **#122**
+(VT-014 + VT-020: the BOX-VIEW construction — a SECOND VT-014
+convergence beside this lane's #117, branch
+`fix/arrow-stick-placement-parity-audit-b`); the open set now
+FOURTEEN: #108/#109/#110/#113 (the crossing families), #111, #114,
+#116, #117, #118, #120, #121, #122, #123, #124. The next heads: the
+#117/#122 VT-014 convergence note (the carrier pick the
+maintainer's), the entity-hit bowhit site's seat (VT-018's named
+follow-up), F-SP1's owed passes (the last uncarried standing lane),
+and the dimension tails.
 
 ## Coverage ledger (updated by the thirty-sixth pass — the FIVE-LANE UNION: the pass-32 refresh + the pass-33/34/35/36 projectile rows, the Phase E corrections’ records unioned)
 
