@@ -6305,3 +6305,58 @@ button placement's refusal-vs-default-state nuance (the reference's
 getPlacementState places the DOWN default then pops it — the engine's
 refusal converges on the observable, the item-consumption row the
 residue).
+
+## The forty-second pass's close — the run's tally (the next run's handoff)
+
+**The run's landings:**
+1. **THE SIX-WAY UNION** — the five concurrent lanes' pushed branches
+   (pass-39 `2cd4669c`, pass-40 `e5a24cb4`, pass-38 `1b42d140`, the
+   postfan `0296d0d0`, the 38b `02ce8574`) + develop `149eb1f0` unioned
+   into this lane (the forty-second — the sibling session's forty-first
+   pushed at 07:27:05 minutes ahead; the established protocol), the
+   conflict resolutions bookkeeping-only.
+2. **THE NUMBERING RECONCILIATION** — three collisions resolved by the
+   public-first protocol: the piston toBreak → **VT-025** (the pickup
+   envelope owns 24 at 06:42:44 — the sibling 41st lane's opposite `7b`
+   resolution corrected with the VT-020 branch-push precedent; the notes
+   posted on PR #131); the nether border containment → **VT-026** (the
+   arrow stick placement owns 14); the post-fan stamp ordering → **VT-027**
+   (the rejected stuck-arrow crossing owns 13; the note posted on PR
+   #130). The numbering map recorded in this pass's first act.
+3. **F-SP1 CONFIRMED and CORRECTED** — the passes 2-3 landed (the eleven
+   seats, the placement-path census, the dead-code discovery) and the
+   correction opened as **PR #137** (the SupportConsult laws at the four
+   survival consults AND the four placement gates; the seats 11/0, the
+   regression lanes 457/0). The family's own lane COMPLETE pending the
+   merge; the twentieth pass's last standing lane closed.
+
+**The next run's queue (the standing items, unioned with the window's):**
+1. **The merge watch** — the OPEN set: #108, #109, #110, #111, #113, #114,
+   #116 (VT-017), #117/#122 (VT-014/VT-021's convergent carriers), #118
+   (F-DS1), #119/#120 (VT-015's convergent carriers), #121 (VT-020), #123
+   (VT-019), #124 (VT-018, widened to both impact arms by the sibling 41st
+   lane), #125 (VT-012) + #130 stacked (VT-027), #126 (VT-016) + #131
+   stacked (VT-025), #128 (VT-023), #129 (VT-022), **#137 (F-SP1, this
+   lane)**. Merged since the last watch: none in this window.
+2. **VT-024's Phase E** — the arrow pickup envelope's correction (the
+   pass-38 lane's three-pass finding, the number now settled: the
+   three-line envelope fix + the item/orb family's same-form walk).
+3. **VT-026's PR** — the nether border containment (the postfan lane's
+   confirmed finding, fix-ready, the PR owed; the postfan lane owns the
+   correction — other lanes verify, never re-fix).
+4. **The support-consult family's named tails** (F-SP1's own record): the
+   wire/plate/repeater floor consults (`hasSupportBelow` still reads
+   WorldSolidity — the wire's law `hasSolidTop || GLOWSTONE`, the plate's
+   `hasSolidTop || FenceBlock`); the button's default-state nuance.
+5. **The dimension tails** (the PR #90 ledger): the FX dimension
+   awareness, the zombie arm's world binding; the blast RNG tail (the
+   End/nether services' shared `gameplayRandom` vs the per-world
+   `world.random`).
+6. **The stick-tick residue's fix lane** (the pass-39 seat
+   `ArrowStickTickTntScanDiscoveryTest` — RED on develop AND the
+   #123+#128 union; the fix shape recorded, the slice's VT number owed at
+   the fix).
+
+**The environment note:** the run crossed the two-hour window during the
+fix's regression lanes — the fix branch, the audit branch, and the PR are
+all pushed; the remaining work is the standing queue above.
