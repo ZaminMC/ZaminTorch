@@ -5504,14 +5504,16 @@ records. The chain this lane documents: #138 (the F-SP1 carrier) ->
 links rebasing the same way whichever carrier the maintainer picks at
 each level.
 
-## The fifty-first pass — F-SP5 discovered (the hook's wall consults, the F-SP class's fifth member): the tripwire hook's mount law reading the collision question where the reference reads Block.isSolid()
+## The fifty-third pass — F-SP5 discovered (the hook's wall consults, the F-SP class's fifth member): the tripwire hook's mount law reading the collision question where the reference reads Block.isSolid()
 
-**THE LANE PROTOCOL:** the push at the run's close found the
-FIFTIETH name taken publicly by the concurrent lane first
+**THE LANE PROTOCOL:** the push at the run's close found the FIFTIETH
+name taken publicly by the concurrent lane first
 (`audit/verifier-pass-50-discovery`, its head `b3dbdfbb` — VT-033's
-correction, PR #146, the public-first renumbering protocol). This lane
-renumbered to the FIFTY-FIRST, the record's own header note carried
-— the pass-47/48 precedent, nothing public renamed.
+correction, PR #146), the FIFTY-FIRST by the #143 author's own
+bookkeeping lane (`48643543`) and the FIFTY-SECOND by the coordinator
+lane's union merge (`5da9ca8f`) — the push-order protocol, the
+pass-47/48 precedent. This lane renumbered to the FIFTY-THIRD, the
+record's own header note carried — nothing public renamed.
 
 **The baseline protocol:** the fetch at the run's open found the
 forty-ninth name taken publicly by the concurrent lane
@@ -5613,7 +5615,7 @@ redstone block: the third conjunct's kill), the placement refusal
 (the hook against glass never landing in vanilla, landing in the
 engine), and the dirt control (the opaque mount holding in both).
 
-## The fifty-first pass's second and third acts — F-SP5 CONFIRMED through the three-pass discipline and CORRECTED (PR #150, stacked on the F-SP4 branch #148 — the chain #138 -> #141 -> #145 -> #148 -> #150)
+## The fifty-third pass's second and third acts — F-SP5 CONFIRMED through the three-pass discipline and CORRECTED (PR #150, stacked on the F-SP4 branch #148 — the chain #138 -> #141 -> #145 -> #148 -> #150)
 
 **Pass 2 (behavioral):** the seats RED on the unfixed baseline (the
 lane's merged tree over develop `1139f2c3`) at exactly the predicted
