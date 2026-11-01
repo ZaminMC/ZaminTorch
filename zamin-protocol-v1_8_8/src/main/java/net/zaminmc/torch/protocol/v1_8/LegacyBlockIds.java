@@ -2,6 +2,7 @@ package net.zaminmc.torch.protocol.v1_8;
 
 import net.zaminmc.torch.util.Identifier;
 import net.zaminmc.torch.server.block.FluidBlocks;
+import net.zaminmc.torch.server.block.VineBlocks;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -19,7 +20,7 @@ final class LegacyBlockIds {
     private LegacyBlockIds() {
     }
 
-    private static final Map<Identifier, Integer> BY_IDENTIFIER = withRedstoneIds(Map.ofEntries(
+    private static final Map<Identifier, Integer> BY_IDENTIFIER = withVineStates(withRedstoneIds(Map.ofEntries(
             // blocks
             Map.entry(Identifier.parse("minecraft:air"), 0),
             Map.entry(Identifier.parse("minecraft:stone"), 1),
@@ -687,7 +688,7 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:lit_pumpkin_west"), 91),
             Map.entry(Identifier.parse("minecraft:lit_pumpkin_north"), 91),
             Map.entry(Identifier.parse("minecraft:lit_pumpkin_east"), 91),
-            Map.entry(Identifier.parse("minecraft:lit_pumpkin"), 91)));
+            Map.entry(Identifier.parse("minecraft:lit_pumpkin"), 91))));
 
     /**
      * The redstone family's base ids (Slice 9a): the wire's sixteen power
@@ -1343,6 +1344,38 @@ final class LegacyBlockIds {
     }
 
     /**
+     * @return whether the id is one of the vine family's fifteen face
+     *         states (never the bare {@code minecraft:vine} — the wire's
+     *         canonical form and the item's own row, which must win the
+     *         no-metadata reverse).
+     */
+    static boolean isVineStateVariant(Identifier id) {
+        return id.namespace().equals("minecraft") && id.value().startsWith("vine_");
+    }
+
+    /**
+     * The vine family's sixteen face states on the chunk wire (the Wave
+     * VN-A gap's repair): legacy 106 carries EVERY state, the four
+     * persisted face bits riding the metadata nibble (VineBlock
+     * .getStateFromMetadata lines 328-331: SOUTH=1, WEST=2, NORTH=4,
+     * EAST=8 — {@link #withVineStateMetadata} below packs the nibble).
+     * The rows generate from {@link VineBlocks} itself — the family's one
+     * state vocabulary — so this table can never drift from the family
+     * again: Wave VN-A registered the engine states (and the anvil import
+     * rows) without the wire rows, and the first jungle world's anvil
+     * import then threw at the login bulk send and every relight resend
+     * ({@code vine_south} 106|1, {@code vine_west_east} 106|10 — the
+     * production crash of Nov 1, ChunkSerializer18.legacyStateId).
+     */
+    private static Map<Identifier, Integer> withVineStates(Map<Identifier, Integer> base) {
+        Map<Identifier, Integer> merged = new HashMap<>(base);
+        for (int bits = 0; bits <= 15; bits++) {
+            merged.put(VineBlocks.stateFor(bits).identifier(), 106);
+        }
+        return Map.copyOf(merged);
+    }
+
+    /**
      * Item-form ids that diverge from the block id sharing the identifier
      * (the sign: block 63 on the chunk wire, item 323 in slots — the
      * historical split). Consulted by the slot/item wire paths only.
@@ -1430,7 +1463,7 @@ final class LegacyBlockIds {
             // no-meta reverse must keep the ITEM canonical (the creative
             // slot's plain-id fallback resolves it; the members are only
             // ever reachable through the damage-aware map below).
-            if (isDyeFamilyVariant(identifier)) {
+            if (isDyeFamilyVariant(identifier) || isVineStateVariant(identifier)) {
                 return;
             }
             reversed.put(legacyId, identifier);
@@ -1470,7 +1503,7 @@ final class LegacyBlockIds {
      * flora: 0 dead shrub, 1 grass, 2 fern — the engine's tall grass is the
      * real "grass" variant on the wire).
      */
-    private static final Map<Identifier, Integer> METADATA = withDyeFamilyMetadata(Map.ofEntries(
+    private static final Map<Identifier, Integer> METADATA = withVineStateMetadata(withDyeFamilyMetadata(Map.ofEntries(
             Map.entry(Identifier.parse("minecraft:tall_grass"), 1),
             // The VIII14 decorators slice: the fern (block 31's variant 2
             // — TallPlantBlock.Type.FERN's own nibble).
@@ -1683,7 +1716,7 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:podzol"), 2),
             Map.entry(Identifier.parse("minecraft:stained_clay_orange"), 1),
             Map.entry(Identifier.parse("minecraft:stained_clay_yellow"), 4),
-            Map.entry(Identifier.parse("minecraft:vine"), 15)));
+            Map.entry(Identifier.parse("minecraft:vine"), 15))));
 
     /**
      * The dye-coloring families' nibble merge (Slice 31): every family
@@ -2033,6 +2066,24 @@ final class LegacyBlockIds {
             if (color != 1 && color != 4) {
                 merged.put(DyeFamilyIds.stainedClayBlock(color), color);
             }
+        }
+        return Map.copyOf(merged);
+    }
+
+    /**
+     * The vine family's face nibbles — the packing half of {@link
+     * #withVineStates} above: each state's OWN bits (SOUTH=1 | WEST=2 |
+     * NORTH=4 | EAST=8, the reference's getMetadataFromState lines
+     * 333-352), generated from {@link VineBlocks}' own vocabulary so the
+     * nibble law and the id law share one source. The bare all-faces form
+     * keeps its historical 15 (the base map's own row, the anvil round
+     * trip's); the fifteen new states each ride their own nibble — the
+     * exact byte a vanilla client decodes for the vine's rendered faces.
+     */
+    private static Map<Identifier, Integer> withVineStateMetadata(Map<Identifier, Integer> base) {
+        Map<Identifier, Integer> merged = new HashMap<>(base);
+        for (int bits = 0; bits <= 15; bits++) {
+            merged.put(VineBlocks.stateFor(bits).identifier(), bits);
         }
         return Map.copyOf(merged);
     }

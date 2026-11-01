@@ -108,6 +108,39 @@ class ChunkSerializer18Test {
     }
 
     @Test
+    void theVineFamilyStatesPackTheirFaceNibblesOnTheWire() {
+        // The Nov 1 production crash's exact path: a jungle world's anvil
+        // import carried vine_south (106|1) at the login bulk send and
+        // vine_west_east (106|10) at every relight resend, and the
+        // serializer's §147 loud fail threw on both (Wave VN-A had
+        // registered the engine states without the wire rows). Every vine
+        // state packs 106 with its OWN face bits on the nibble — the exact
+        // byte a vanilla client decodes for the rendered faces.
+        EngineChunk chunk = flatChunk(0, 0);
+        chunk.setBlock(0, 5, 0, registry.require(
+                Identifier.parse("minecraft:vine_south")));
+        chunk.setBlock(1, 5, 0, registry.require(
+                Identifier.parse("minecraft:vine_west_east")));
+        chunk.setBlock(2, 5, 0, registry.require(
+                Identifier.parse("minecraft:vine_none")));
+        chunk.setBlock(3, 5, 0, registry.require(
+                Identifier.parse("minecraft:vine")));
+        byte[] data = ChunkSerializer18.serialize(chunk, true);
+        int south = readStateId(data, 5 * 256 + 0);
+        assertEquals(106, south >> 4, "the vine's legacy id");
+        assertEquals(1, south & 0xF, "the south face bit (the login-bulk crasher)");
+        int westEast = readStateId(data, 5 * 256 + 1);
+        assertEquals(106, westEast >> 4);
+        assertEquals(10, westEast & 0xF, "west 2 | east 8 (the relight-resend crasher)");
+        int none = readStateId(data, 5 * 256 + 2);
+        assertEquals(106, none >> 4);
+        assertEquals(0, none & 0xF, "the all-clear form's faceless nibble");
+        int bare = readStateId(data, 5 * 256 + 3);
+        assertEquals(106, bare >> 4);
+        assertEquals(15, bare & 0xF, "the bare all-faces form keeps its historical 15");
+    }
+
+    @Test
     void emptyChunkProducesOnlyBiomes() {
         EngineChunk chunk = new EngineChunk(new ChunkPosition(10, 10),
                 registry.require(Identifier.parse("minecraft:air")));
