@@ -52,7 +52,7 @@ class ContainerSaveSplitTest {
         out.writeByte('Z');
         out.writeByte('F');
         out.writeByte('D');
-        out.writeByte(2);
+        out.writeByte(3);
         writeVarInt(out, furnaces.size());
         for (Map.Entry<BlockPosition, FurnaceBlockEntity> entry : furnaces.entrySet()) {
             BlockPosition position = entry.getKey();
@@ -66,6 +66,9 @@ class ContainerSaveSplitTest {
             for (ItemStack stack : furnace.snapshotSlots()) {
                 writeLegacySlot(out, stack);
             }
+            // Wave FL4-GAP2 Slice B: the row's own world (the overworld
+            // stamp — the seat's live map is the overworld family).
+            out.writeByte(0);
         }
         out.flush();
         return sink.toByteArray();
@@ -104,7 +107,7 @@ class ContainerSaveSplitTest {
         out.writeByte('Z');
         out.writeByte('H');
         out.writeByte('D');
-        out.writeByte(1);
+        out.writeByte(2);
         writeVarInt(out, hoppers.size());
         for (Map.Entry<BlockPosition, HopperBlockEntity> entry : hoppers.entrySet()) {
             BlockPosition position = entry.getKey();
@@ -115,6 +118,9 @@ class ContainerSaveSplitTest {
             for (ItemStack stack : hopper.snapshotSlots()) {
                 writeLegacySlot(out, stack);
             }
+            // Wave FL4-GAP2 Slice B: the row's own world (the overworld
+            // stamp — the seat's live map is the overworld family).
+            out.writeByte(0);
         }
         out.flush();
         return sink.toByteArray();
@@ -182,17 +188,22 @@ class ContainerSaveSplitTest {
 
         FurnaceDataStore store = new FurnaceDataStore(dir.resolve("furnaces.bin"));
 
-        // the split path's bytes == the historical walk's bytes
-        byte[] split = store.serialize(store.capture(live));
+        // the split path's bytes == the historical walk's bytes (the
+        // overworld family's map dressed as the single-dimension union)
+        Map<Integer, Map<BlockPosition, FurnaceBlockEntity>> byDimension = Map.of(0, live);
+        byte[] split = store.serialize(store.capture(byDimension));
         assertArrayEquals(legacyFurnaceBytes(live), split,
                 "the off-tick serialization and the historical walk are byte-identical");
 
         // the synchronous save composes the same halves — the file carries
         // the same bytes, and the round-trip restores the same state
-        store.save(live);
+        store.save(byDimension);
         assertArrayEquals(split, Files.readAllBytes(dir.resolve("furnaces.bin")),
                 "the sync save's file carries the split path's bytes");
-        Map<BlockPosition, FurnaceBlockEntity> restored = store.load();
+        Map<BlockPosition, FurnaceBlockEntity> restored = new LinkedHashMap<>();
+        for (FurnaceDataStore.Loaded row : store.load()) {
+            restored.put(row.position(), row.furnace());
+        }
         assertEquals(3, restored.size());
         FurnaceBlockEntity first = restored.get(new BlockPosition(7, 4, -3));
         assertEquals(5, first.input().count());
@@ -249,14 +260,18 @@ class ContainerSaveSplitTest {
 
         HopperDataStore store = new HopperDataStore(dir.resolve("hoppers.bin"));
 
-        byte[] split = store.serialize(store.capture(live));
+        Map<Integer, Map<BlockPosition, HopperBlockEntity>> byDimension = Map.of(0, live);
+        byte[] split = store.serialize(store.capture(byDimension));
         assertArrayEquals(legacyHopperBytes(live), split,
                 "the off-tick serialization and the historical walk are byte-identical");
 
-        store.save(live);
+        store.save(byDimension);
         assertArrayEquals(split, Files.readAllBytes(dir.resolve("hoppers.bin")),
                 "the sync save's file carries the split path's bytes");
-        Map<BlockPosition, HopperBlockEntity> restored = store.load();
+        Map<BlockPosition, HopperBlockEntity> restored = new LinkedHashMap<>();
+        for (HopperDataStore.Loaded row : store.load()) {
+            restored.put(row.position(), row.hopper());
+        }
         assertEquals(2, restored.size());
         HopperBlockEntity first = restored.get(new BlockPosition(3, 3, 3));
         assertEquals(7, first.snapshotSlots()[2].count());
@@ -270,15 +285,16 @@ class ContainerSaveSplitTest {
         HopperDataStore hoppers = new HopperDataStore(dir.resolve("empty-h.bin"));
 
         byte[] furnaceBytes = furnaces.serialize(furnaces.capture(Map.of()));
-        assertArrayEquals(new byte[]{'Z', 'F', 'D', 2, 0}, furnaceBytes,
-                "the empty furnace snapshot is the version-2 header alone");
+        assertArrayEquals(new byte[]{'Z', 'F', 'D', 3, 0}, furnaceBytes,
+                "the empty furnace snapshot is the version-3 header alone"
+                        + " (Slice B's dimension stamp)");
         byte[] chestBytes = chests.serialize(chests.capture(Map.of()));
         assertArrayEquals(new byte[]{'Z', 'C', 'D', 3, 0}, chestBytes,
                 "the empty chest snapshot is the version-3 header alone"
                         + " (Wave FL4-GAP2's dimension stamp)");
         byte[] hopperBytes = hoppers.serialize(hoppers.capture(Map.of()));
-        assertArrayEquals(new byte[]{'Z', 'H', 'D', 1, 0}, hopperBytes,
-                "the empty hopper snapshot is the version-1 header alone");
+        assertArrayEquals(new byte[]{'Z', 'H', 'D', 2, 0}, hopperBytes,
+                "the empty hopper snapshot is the version-2 header alone");
 
         // the empty maps still publish and load as absent-content maps
         furnaces.writeSerialized(furnaceBytes);
@@ -301,7 +317,7 @@ class ContainerSaveSplitTest {
         live.put(new BlockPosition(1, 1, 1), furnace);
         FurnaceDataStore store = new FurnaceDataStore(dir.resolve("alias.bin"));
 
-        FurnaceDataStore.Snapshot captured = store.capture(live);
+        FurnaceDataStore.Snapshot captured = store.capture(Map.of(0, live));
         furnace.setSlot(FurnaceBlockEntity.SLOT_INPUT,
                 ItemStack.of(BuiltinItems.IRON_ORE, 32));
         furnace.restore(10, 20, 30);

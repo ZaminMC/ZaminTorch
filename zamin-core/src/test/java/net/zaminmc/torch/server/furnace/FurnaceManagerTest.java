@@ -14,8 +14,10 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Manager semantics and ZFD v1 persistence: break spills, state restore, and
- * a full save/load round trip preserving slots and burn state.
+ * Manager semantics and ZFD v3 persistence: break spills, state restore, and
+ * a full save/load round trip preserving slots and burn state (Wave
+ * FL4-GAP2 Slice B: the per-dimension union form, every row stamped with
+ * its own world).
  */
 class FurnaceManagerTest {
 
@@ -42,10 +44,10 @@ class FurnaceManagerTest {
                 new ItemStack(BuiltinItems.IRON_INGOT, 3, 0));
         original.restore(1370, 1600, 88);
 
-        store.save(Map.of(POS, original));
-        Map<BlockPosition, FurnaceBlockEntity> loaded = store.load();
+        store.save(Map.of(0, Map.of(POS, original)));
+        var loaded = store.load();
         assertEquals(1, loaded.size());
-        FurnaceBlockEntity restored = loaded.get(POS);
+        FurnaceBlockEntity restored = loaded.get(0).furnace();
         assertEquals(5, restored.input().count());
         assertEquals(2, restored.fuel().count());
         assertEquals(3, restored.output().count());
@@ -70,10 +72,10 @@ class FurnaceManagerTest {
         FurnaceBlockEntity original = new FurnaceBlockEntity();
         original.setSlot(FurnaceBlockEntity.SLOT_INPUT,
                 ItemStack.of(BuiltinItems.IRON_ORE, 1));
-        store.save(Map.of(POS, original));
+        store.save(Map.of(0, Map.of(POS, original)));
         // A registry that forgot iron ore still loads the furnace.
-        Map<BlockPosition, FurnaceBlockEntity> loaded = store.load();
+        var loaded = store.load();
         assertEquals(1, loaded.size());
-        assertEquals(1, loaded.get(POS).input().count());
+        assertEquals(1, loaded.get(0).furnace().input().count());
     }
 }

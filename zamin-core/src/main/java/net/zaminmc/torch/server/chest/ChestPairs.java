@@ -98,7 +98,7 @@ public final class ChestPairs {
      * GUI, no transfer surface, a 0 comparator read).
      */
     public static boolean isLocked(EngineWorld world, MobManager mobs, BlockPosition pos) {
-        return isLockedByBlock(world, pos) || isLockedByOcelot(mobs, pos);
+        return isLockedByBlock(world, pos) || isLockedByOcelot(world, mobs, pos);
     }
 
     /**
@@ -152,15 +152,20 @@ public final class ChestPairs {
     /**
      * The reference's {@code isLockedByOcelot} (lines 410-421): a SITTING
      * ocelot whose box intersects the cell above the chest
-     * ({@code new Box(x, y+1, z, x+1, y+2, z+1)}).
+     * ({@code new Box(x, y+1, z, x+1, y+2, z+1)}) — the per-world entity
+     * list's own gate (Wave FL4-GAP2 Slice B): an ocelot sitting at the
+     * same coordinates in ANOTHER world never locks this chest's view.
      */
-    private static boolean isLockedByOcelot(MobManager mobs, BlockPosition pos) {
+    private static boolean isLockedByOcelot(EngineWorld world, MobManager mobs, BlockPosition pos) {
         if (mobs == null) {
             return false;
         }
         for (MobEntity mob : mobs.all()) {
             if (mob.dead() || mob.type() != MobType.OCELOT || !mob.wolfSitting()) {
                 continue;
+            }
+            if (mob.dimension() != world.dimension()) {
+                continue; // another world's body: the reference's per-world scan
             }
             double halfWidth = mob.type().width / 2.0;
             double atX = mob.position().x();

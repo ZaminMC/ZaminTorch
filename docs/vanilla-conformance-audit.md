@@ -3401,7 +3401,8 @@ successful roll while the dig path's DropService rolls every entry
 (a piston-broken potted plant drops the pot ALONE where vanilla's
 toBreak — dropItems + removeBlock → WorldChunk.setBlockState line
 503 → FlowerPotBlock.onRemoved lines 149-156 — drops the pot AND the
-contained plant) — **VT-023**; and `isBlockEntityBacked`'s membership
+contained plant) — **VT-025** (renumbered from 023 by the
+forty-first pass); and `isBlockEntityBacked`'s membership
 is its own finding — **VT-022**. Both ride their own verification
 lanes; neither touches the membership table PR #126 corrects.
 
@@ -3840,6 +3841,503 @@ it), the TNT's survival asserted against the engine's detonation.
   the import's isolated-row note shrinks when the rows land.
 
 
+## The 38b lane's records (the forty-first pass's union act — the F-DS1/F-SP1 stream's sections carried into this report whole)
+
+The `audit/verifier-pass-38b-discovery` lane's own sections — the
+F-DS1 stream's twenty-eighth pass (the merge-state ledger, the slab
+family's collision row), the thirty-eighth pass (VT-020's three
+passes + PR #121), the full VT-020 and F-DS1 finding records, and
+F-SP1's source-pass census (this run's head — the behavioral seats
+below complete its passes 2 and 3):
+
+Baseline for the twenty-eighth pass: `origin/develop` at `6b29c46f`
+(2026-11-01, the vine wire rows over FL4-GAP2 Slice A — the chest family's
+per-dimension ownership). The same reference.
+
+## The twenty-eighth pass (the F-DS1 stream) — the merge-state ledger, then the slab family's collision row (F-DS1's owed passes)
+
+The pass opened with the queue's watch items: the open PRs' merge states
+read from the GitHub API. **Merged:** #91 (VT-004's stand clock), #94
+(VT-005's riding gate), #95 (F-EC1's ender-chest solid-above), #105
+(VT-007's TNT-cart slice — VT-007 now whole). **Closed superseded, the
+content landed by other routes:** #89 (VT-003's ice family — the
+maintainer's review verdict adopted BOTH corrections as riders at
+`d6614da3`, including the opacity-gate correction the review itself
+contributed: the melt gate reads `> 11 - 3 = 8` over IceBlock's
+`setOpacity(3)` registration row, not `> 11`) and #107 (the mob portal
+cooldown's one-per-tick decay — merged to develop at `98ded357` with its
+own review record). **Still open:** #106/#111/#114/#115 (the concurrent
+streams' VT-009/VT-010/VT-011 rows) and the crossing-families duplicate
+set #108/#109/#110/#113 (the maintainer's consolidation pending; this
+stream's verification of #110 stands — the item seat's corner-form patch
+rides the #110 review comment).
+
+The pass's own work: the twentieth pass's two owed lanes. **F-DS1** (the
+double slab's collision row) taken up first — the narrower, the more
+mechanical, the physics-visible. Its record below, with the source pass
+complete and the behavioral and independent passes following in this
+run. **F-SP1** (the SUPPORT consult family) stays queued behind it (the
+wider family; the consult helper the twentieth pass named makes it
+mechanical once its own seats exist). A second, sibling finding surfaced
+during F-DS1's consumer census — **VT-020** (recorded as the draft
+VT-012; renumbered — see the finding's own header), the natural spawn floor's
+own suffix arm rejecting the double slabs (recorded below as suspected,
+its own passes owed).
+
+---
+
+## The thirty-eighth pass (renamed from the thirty-seventh mid-flight — the five-lane-union lane pushed their pass-37 first; the established protocol) — the baseline advanced, the VT-020 lanes whole (the three passes + the correction + PR #121), the numbering collision resolved
+
+The pass opened with the baseline recovery: the environment reset with
+the behavioral seat's draft uncommitted (preserved at `e95ddec4` on
+the pass-28 branch); `origin/develop` advanced `6b29c46f → 777b7c86`
+(PR #106 VT-009's pair-break walks and PR #115 VT-011's bed-occupied
+import merged — both parallel-stream carriers). The parallel streams'
+fetch revealed the pass-29..36 lanes (five lanes converging on the
+arrow family's VT-014/VT-015 — triple-confirmed with PRs #117/#119/#120
+open; VT-016 the piston push table, VT-017 the grass shade consult,
+VT-018 the bowhit sound, VT-019 the TNT re-prime — their lanes, not
+duplicated here).
+
+**The numbering collision resolved:** this stream's draft VT-012 (the
+spawn floor, claimed 2026-11-01 05:12) renumbers **VT-020** — the
+pass-30 lane's VT-012 (the NetherBlastRouting flake) was claimed
+2026-10-31 12:44, the day before; the renumber note rides the finding's
+own header (the established protocol).
+
+**This pass's work: VT-020 whole.** The behavioral pass's three seats
+RED on the fresh baseline at exactly the predicted values (Row A — the
+double floor `0` where vanilla hosts; Row B — the bottom-stair floor
+`1966` where vanilla refuses; Row C — the `stone_slab2` floor `1966`
+where vanilla refuses); the independent pass's fresh angles (the
+FIVE-arm re-read, the 56-identifier census — the directional stair
+states' escape is the census's own discovery, feeding Row B and Row C;
+the compensating hunt NEGATIVE; the intentionality challenge; the
+blast-radius census). The correction: `fix/spawn-floor-solid-top-parity-audit`
+(`0f4bbfb4`, over develop `777b7c86`) — the one-consult correction in
+the house's `double_`-carve vocabulary; the seats 3/3 GREEN (fresh
+`--rerun-tasks`); the regression lanes green (the spawn suite 16/0,
+the spawn-adjacent 70/0, the block package + profiler 311/0). **PR
+#121 OPEN**, targeting `develop`.
+
+**The pass's discovery debt:** F-SP1 (the support consult family) —
+the twentieth pass's owed lane, now the standing lane; its discovery
+pass rides the next run. The full protocol suite over the F-DS1 branch
+(the pass-28 timeout tail) remains named.
+
+---
+
+## VT-020 — the spawn floor consult is a suffix approximation, not the reference's hasSolidTop law: the doubles refused, the bottom stairs and the red sandstone bottom single hosted (RESOLVED-BY-PR — **PR #121 OPEN**; three passes complete)
+
+**Renumber note:** first recorded as the draft VT-012 on this stream's
+pass-28 (2026-11-01 05:12); renumbered VT-020 — the pass-30 lane's
+VT-012 is the NetherBlastRouting flake, claimed 2026-10-31 12:44
+before this stream's claim. The pass-33..36 lanes' numbering runs to
+VT-019.
+
+**The VT-020 collision (this pass, resolved by the earliest public
+claim):** the five-lane-union lane's pass-38 push (`df338459`,
+2026-11-01 06:05:09) also claims VT-020 for a DIFFERENT finding (the
+partial-shape stick face — an arrow-family extension of their VT-014).
+This stream's claim is anchored EARLIER on the public record: **PR
+#121 created 2026-11-01 06:04:43**, 26 seconds before their push, and
+the finding's PR title/body name VT-020 throughout. Per the protocol,
+THIS finding keeps VT-020; the union lane's partial-shape stick face
+renumbers VT-021 (their lane's own renumber act, the collision note
+owed in their header). The pass-38 NAME also collided: their branch
+pushed first (`13575c2e` 05:59:17) — this lane rides the **38b**
+suffix (the pass-27b precedent), the report union with their five-lane
+record the next run's bookkeeping act.
+
+**Subsystem:** mob spawning / the spawn floor consult. **Status:**
+RESOLVED-BY-PR — **PR #121 OPEN**
+(`fix/spawn-floor-solid-top-parity-audit`, `0f4bbfb4`, based on develop
+`777b7c86`; all three passes complete, the correction record below).
+
+**Affected engine files and methods:**
+- `server/spawn/NaturalSpawnSystem.java` — `isPartialShape` (the old
+  lines 783-785: `name.endsWith("_slab") || name.endsWith("_stairs")`)
+  over `isFullCubeGround` (lines 772-780: `WorldSolidity.isSolid &&
+  !isFence && !isPartialShape`) over `isValidSpawnCell`'s floor gate
+  (line 524).
+
+**Vanilla reference:** `reference/1.8.8/net/minecraft/world/World.java`
+— `hasSolidTop` lines 1740-1752, the FIVE arms: (1)
+`material.isSolidBlocking() && isCube()` — the doubles land here
+(`SlabBlock.isCube()` = `isDouble()`, Block.java line 282 + SlabBlock
+line 90); (2) StairsBlock `HALF == TOP`; (3) SlabBlock `HALF == TOP`;
+(4) HopperBlock true; (5) SnowLayer `LAYERS == 7`; else false.
+`NaturalSpawner.java` lines 159-166: the consult runs at `pos.down()`.
+
+**Expected behavior:** the doubles host the spawn (full cubes); the
+bottom stairs refuse (the StairsBlock arm wants HALF == TOP); the
+bottom singles refuse under BOTH variant families (`_slab` and
+`_slab2`); the top halves host; hoppers host.
+
+**Observed engine behavior (the three RED rows, the 40-seed seats):**
+- **Row A — the doubles refused:** the ten `_slab`-suffixed double
+  names (`double_stone_slab`, `double_sandstone_slab`,
+  `double_cobblestone_slab`, `double_stone_brick_slab`,
+  `double_wooden_slab` + the five woods via
+  `WoodShapeBlocks.doubleSlabState`'s `double_{wood}_slab`) all failed
+  `isFullCubeGround` through the suffix arm — the double floor hosted
+  **0** night spawns where vanilla hosts them; the family's
+  `double_stone_slab2` / `_seamless` / `_slab2_seamless` fall-throughs
+  passed — the same family refusing the spawn under ten names and
+  hosting it under three.
+- **Row B — the bottom stairs hosted:** the stored stair states are
+  the DIRECTIONAL fold (`{material}_stairs_{facing}` bottom /
+  `{material}_stairs_{facing}_top` upside-down — the engine's own
+  metadata `(HALF==TOP?4:0)|(5-FACING)` fold), so
+  `endsWith("_stairs")` NEVER caught a single stored stair state (dead
+  code — only the four bare registration aliases match it) and BOTH
+  halves passed: the bottom-stair floor hosted **1966** night spawns
+  where the `HALF == TOP` arm refuses every one.
+- **Row C — the red sandstone bottom single hosted:** `stone_slab2`
+  (legacy 182's bottom half, the HALF bit 8 family) ends in `2` — the
+  `_slab` arm never caught it: **1966** spawns where the SlabBlock arm
+  refuses the bottom half.
+
+**Verification pass history:**
+1. **Source (the pass-28 run):** the reference law, the engine arm,
+   the consumer census, the reachability census (the placement merge,
+   the anvil import, the worldgen).
+2. **Behavioral (this run, pass 37):** three RED seats at exactly the
+   predicted values on the unfixed baseline (develop `777b7c86`
+   merged), the controls green — the stone floor hosts, the TOP stair
+   hosts (both trees agree), the caught bottom singles refuse (both
+   trees agree), the top slabs pass; **3/3 GREEN** on the fix branch
+   (fresh `--rerun-tasks` execution).
+3. **Independent (this run, pass 37):** the FIVE-arm re-read of
+   `hasSolidTop`; the 56-identifier census classifying every
+   registered stairs/slab name against the suffix arms (24
+   directional stair states escape, 10 doubles caught, `stone_slab2`
+   escapes, the 3 double fall-throughs already correct-by-accident);
+   the wooden doubles' dynamic identifiers verified; the
+   compensating-behavior hunt NEGATIVE (`isValidSpawnCell`'s walk read
+   whole — `isFullCubeGround` is THE floor gate, no other consult
+   rejects the bottom halves); the intentionality challenge (the dead
+   `_stairs` arm for stored states and the intra-family asymmetries
+   demonstrate accident, not design; the old comment "the partial
+   shapes never answer the spawn floor" stated vanilla's bottom-half
+   intent but the implementation missed both directions); the
+   blast-radius census (`isPartialShape`/`isFullCubeGround` private to
+   `NaturalSpawnSystem`, no other engine or test consumer,
+   grep-verified); no existing seat pins the old rows.
+
+**The correction (PR #121):** the one consult corrected in the house's
+own vocabulary — the `double_` prefix carve first (the same carve
+`BlockSolidity.isCube` and `FireBlocks` carry, `SlabBlock.isCube() =
+isDouble()` the citation), the bottom singles' rows (`_slab` and
+`_slab2`; the `_top` forms never match either suffix and pass), the
+stairs' half law over the directional fold (`contains("_stairs") &&
+!endsWith("_top")`: the bottom states and the bare aliases' default
+metadata row refuse, the `_top` forms pass). The rows that already
+agree are untouched: the top halves still host, the caught bottom
+singles still refuse, hoppers still host, the three double
+fall-throughs unchanged.
+
+**The seats:** `NaturalSpawnSystemTest`'s three parity seats — the
+double floor hosts (the stone + single-slab controls framing the
+discrimination), the bottom stair floor refuses (the TOP-stair
+control), the red sandstone bottom slab refuses (the caught-name
+control).
+
+**Regression lanes (the fix branch, all green):** the spawn suite
+whole 16/0; the spawn-adjacent lanes 70/0 (`MobManagerTest`,
+`WitherExemptionArmsAcceptanceTest`, `WeatherSystemTest`,
+`EntitySpawnEventAcceptanceTest`, `SpawnProtectionAcceptanceTest`, the
+spawner family); the block package + profiler 311/0.
+
+**Confidence and remaining uncertainties:** the law is pinned by the
+reference's own structured walk; the named tails — the snow layer's
+`LAYERS == 7` row rides the engine's single-state snow model (the
+already-recorded snow state-surface tail, VT-003's); the hopper row
+already agrees. **PR #118 relationship:** F-DS1 corrects the SAME
+naming-accident class at the physics table (`CollisionShapes.boxesOf`)
+— this PR corrects its sibling site (the spawn floor consult, the site
+F-DS1's own record named as "VT-012's own lane [VT-020 after the renumber], NOT this PR"); the two
+PRs are independent and composable, each a one-arm consult correction
+with its own seats, neither touching the other's file.
+
+---
+
+## F-DS1 — the double slab's collision row (the twentieth pass's suspected finding, this pass's verification)
+
+**Subsystem:** block collision shapes / entity physics (every family).
+**Status:** RESOLVED-BY-PR — **PR #118 OPEN** (`fix/double-slab-collision-parity-audit`,
+`807cb0ec`, all three passes complete this run; the correction record
+below).
+
+**Affected engine files and methods:**
+- `server/block/CollisionShapes.java` — `boxesOf` ~lines 332-340: the
+  single-slab arms `value.endsWith("_slab_top")` → the top-half box and
+  `value.endsWith("_slab") || value.equals("stone_slab2")` → the
+  bottom-half box, catch the DOUBLE forms first.
+- The consumers (the whole physics surface): `CollisionShapes.contains`
+  / `CollisionShapes.top` (lines 103-150) → `WorldSolidity.isSolidAt` /
+  `WorldSolidity.supportY` → `MobEntity`'s ground walks (the rest snap,
+  ~lines 5567/5605/8509/8523/11742/11775), `ItemEntity`'s landing, and
+  `FallingBlockEntity`'s landing (~lines 201/401); plus the
+  `CollisionShapes.isFullCube` family — the player suffocation walk
+  (`EngineServer` ~line 7965, the reference `isInWall`'s own 8-point
+  scan), the mob-side `viewBlockingInDimension` (~line 23143), the
+  chest-open lock (`ChestPairs` ~line 132), the vine grow support
+  (`VineBlocks.isGrowableSupport` ~line 144), and the hopper/chest solid
+  consults through the same table.
+
+**Vanilla reference files and relevant methods:**
+- `reference/1.8.8/net/minecraft/block/SlabBlock.java` — `updateShape`
+  lines 39-52 (`isDouble()` → `setShape(0,0,0,1,1,1)` — the FULL cube;
+  the singles' half rows in the else arms); `addCollisions` lines 64-67
+  (the collision walk rides `updateShape`); `isCube()` lines 90-92 (=
+  `isDouble()`); the constructor lines 22-31 (`opaqueCube = true` when
+  double).
+- `reference/1.8.8/net/minecraft/block/DoubleStoneSlabBlock.java` /
+  `DoubleWoodenSlabBlock.java` / `DoubleRedSandstoneSlabBlock.java` —
+  `isDouble()` → true each.
+- `reference/1.8.8/net/minecraft/block/Block.java` — `isViewBlocking`
+  line 278 (`material.blocksMovement() && isCube()`), `isSolid` line 274
+  (`material.isSolidBlocking() && isCube() && !isSignalSource()`).
+- `reference/1.8.8/net/minecraft/entity/Entity.java` — `isInWall` lines
+  1267-1281 (the suffocation 8-point walk consulting `isViewBlocking`).
+- `reference/1.8.8/net/minecraft/block/ChestBlock.java` —
+  `isLockedByBlock` line 407 (`pos.up().getBlock().isSolid()`).
+
+**Expected behavior:** the double slab is a full cube everywhere the
+shape is consulted — the collision box (0,0,0,1,1,1), the rest surface
+at the cell's ceiling, the side-blocked upper half, `isViewBlocking`
+true (suffocation inside), `isSolid` true (the chest-open lock, the
+spawn floor through `hasSolidTop`'s first arm), the vine grow support
+true.
+
+**Observed engine behavior:** the ten registered double names —
+`double_stone_slab`, `double_sandstone_slab`, `double_cobblestone_slab`,
+`double_stone_brick_slab`, `double_wooden_slab`, `double_spruce_slab`,
+`double_birch_slab`, `double_jungle_slab`, `double_acacia_slab`,
+`double_dark_oak_slab` — ALL end in `_slab`, so the single-slab arm
+answers each the HALF box (0,0,0,1,0.5,1): a body landing on a double
+slab rests at the cell's MID-LINE (supportY = cell+0.5; vanilla
+cell+1.0); the upper half tests `contains` false (bodies enter it from
+the side); `isFullCube` false (no suffocation inside a double slab; a
+chest under a double slab stays open; vines refuse to grow on the
+double's faces). The family's `double_stone_slab2`,
+`double_stone_slab_seamless`, and `double_stone_slab2_seamless` fall
+through the suffix arms to the default full cube — the SAME family
+answers full cube under three names and half under ten, the asymmetry
+itself the signature of an accidental suffix catch rather than a design
+choice.
+
+**Verification pass history:**
+1. **Source verification (this run, pass 1):** the full chain read —
+   the reference's `updateShape`/`addCollisions`/`isCube` law and the
+   three concrete double classes' `isDouble()` rows; the engine's
+   `boxesOf` suffix arms and the ten registered double names enumerated
+   (`BuiltinBlocks` ~lines 555-570 and 132-137,
+   `WoodShapeBlocks.doubleSlabState` line 117-121); the consumer census
+   whole (the rest walks, the point test, the isFullCube family); the
+   reachability census: the placement merge (`EngineServer.
+   placeSlabOnTick` ~lines 15502-15531 — a use against the family's own
+   half calls `world.setBlock(clicked, family[2])`, the DOUBLE state),
+   the anvil import (`AnvilBlockIds` ~line 351: `state(43, 5,
+   "minecraft:double_stone_brick_slab")` and the family's other rows),
+   and the worldgen (`StructurePalette` line 111 — the village
+   blacksmith's `doubleStoneSlab`).
+2. **Behavioral verification (this run, pass 2):** the focused seat
+   `DoubleSlabCollisionParityTest` — the stash discrimination: RED on
+   the baseline at exactly the predicted values (the rest surface
+   **64.5** where vanilla answers **65.0** — both families, the exact
+   mid-line sink; the item's rest **4.625** where vanilla answers
+   **5.125** — the half-block sink through the real landing walk; the
+   vine support **false** where vanilla answers true), GREEN **5/5**
+   with the one-arm correction (the singles' half laws beside them
+   passing on BOTH trees — the in-seat regression guard).
+3. **Independent re-verification (this run, pass 3):** the compensating
+   census — the engine's OWN `BlockSolidity.isCube` (lines 93-97)
+   already carves the double forms into the cube set with the
+   reference's own citation (`SlabBlock.isCube() = isDouble()`), so the
+   placement/support consults answer cube while the physics table
+   answers half — the internal contradiction; **`FireBlocks`'s own
+   comment states "a double slab is a full cube"** with the
+   `!value.startsWith("double_")` carve (the fire family's
+   solid-top consult) — the house's established convention for this
+   exact accident class, the fix's own shape following it; no existing
+   test pins the double's half-height row (`CollisionShapeTest`'s slab
+   seats pin the SINGLES alone; `DoubleWoodenSlabTest` pins the
+   registration band, the drops, the light — never the collision row),
+   so nothing needs weakening; the whole-repository suffix census
+   (`endsWith("_slab")` across main: the ONE sibling site
+   `NaturalSpawnSystem.isPartialShape` — VT-020's own lane [the draft VT-012], NOT this
+   PR; `RedstoneSystem.trapdoorMountHolds` name-based with the
+   double's row already agreeing with vanilla's hasSolidTop=true; the
+   held-id dispatch `EngineServer` ~12210 and the dormant
+   `woodenSlabFamilyOf` unaffected); the regression lanes whole (the
+   record below); and the intentionality challenge — the engine's own
+   isCube carve and the `slab2`/`seamless` fall-through demonstrate the
+   family's INTENT is the full cube, the suffix arms an implementation
+   accident.
+
+**The correction (PR #118, branch `fix/double-slab-collision-parity-audit`,
+commit `807cb0ec`):** one arm in `boxesOf` BEFORE the singles' rows —
+the `double_` prefix over the four family suffix shapes (`_slab`,
+`_slab2`, `_slab_seamless`, `_slab2_seamless`), the same vocabulary the
+`BlockSolidity.isCube` carve carries; the ten half-row names corrected
+and the three already-correct fall-throughs pinned by the same row (the
+family whole under one row). The seat `DoubleSlabCollisionParityTest`
+5/0: the two families' full-cube rows (the ceiling rest surface, the
+solid upper half, `isFullCube`), the singles' half laws beside them
+(the in-seat guard), the item body seat over the real consults (the
+5.125 ceiling rest), the vine grow support.
+
+**The regression lanes (the fix branch, all green):** the block package
+whole (`CollisionShapeTest`, `StairsCollisionGeometryTest`,
+`DoubleWoodenSlabTest`, `WoodShapeBlocksTest`, the families); the chest
++ spawn lanes; the entity package whole (`InWallSuffocationTest`,
+`MobSolverWalkTest`, `ItemSolverPhysicsTest`, `FallingBlockEntityTest`,
+the vehicle/projectile/ai lanes); `ItemOrbLandingPhysicsParityTest`;
+`ItemBoxPhysicsAcceptanceTest`; the physics package; the world +
+interaction lanes; `zamin-bukkit` + `zamin-api` whole; the protocol
+module's wire lanes (`LegacyBlockIdsIntegrity`, `ChunkSerializer18`,
+`AnvilBlockIdsIntegrity`, `ChunkBulkWire`, `MultiBlockChangeWire`) —
+the module has NO cross-module consumer of the changed class
+(grep-verified). **The named tail:** the FULL protocol suite exceeded
+the run's time budget (the 10-minute timeout); the targeted wire lanes
+stand in for it — the next run's watch item.
+
+**Confidence and remaining uncertainties:** the law is pinned by the
+reference's own shape walk; the only named tail is the SURVIVAL
+placement consult `intersectsPlayerBox` — with the fix, a player
+standing on a single slab that merges into a double now stands INSIDE a
+solid (the vanilla shape: suffocation applies / the ground snap lifts
+the body to the ceiling) — the correct vanilla law, recorded here
+because the pre-fix engine silently allowed the stand-at-mid-line.
+
+**Proposed minimal correction:** in `CollisionShapes.boxesOf`, the
+double forms carved to the full cube BEFORE the single-slab arms — the
+same `double_` prefix vocabulary the `BlockSolidity.isCube` carve
+already carries (all four slab-family suffix shapes: `_slab`,
+`_slab2`, `_slab_seamless`, `_slab2_seamless`), the ten half-row names
+corrected and the three already-correct fall-throughs pinned by the
+same arm (the family whole under one row).
+
+**Potential regression risks:** every consumer of the half row for the
+ten names — the regression lanes named in the correction entry; the
+stairs' base-slab boxes are UNTOUCHED (the stair states parse before
+the slab arms); the singles' halves UNTOUCHED (their names never carry
+the `double_` prefix).
+
+---
+
+## F-SP1 — the support-consult family: the engine's mount consults answer one collision-solid question where vanilla answers material-aware, shape-aware, side-aware laws (SUSPECTED — the source pass complete this run; the behavioral + independent passes owed)
+
+**Subsystem:** block attachment / the mount-survival consults (the
+redstone family's torch/lever/button/trapdoor arms). **Status:**
+SUSPECTED — the source pass complete (this run, pass 38b); the
+behavioral seats and the independent pass owed. The twentieth pass's
+original F-SP1 record predates the surviving report copies; this pass's
+census re-establishes the finding from the code, richer than the
+queue's one-line description.
+
+**The family's vanilla law (the three consults, each different):**
+- `World.isSolidBlockingCube(pos, default)` (World.java lines
+  1753-1768) = `material.isSolidBlocking() && isCube()` — the
+  torch's WALL consult (`TorchBlock.canAttach` line 68, the horizontal
+  arm). `Material.isSolidBlocking()` (Material.java line 100) =
+  `!translucent && blocksMovement()`; `blocksMovement()` defaults true
+  (line 68), COBWEB/liquids/air override false. **The translucent
+  materials — LEAVES, GLASS, TNT, ICE, SNOW_LAYER, CACTUS (Material.java
+  lines 13/22/24/26/28/30) — NEVER answer a wall consult**, whatever
+  their shape.
+- `TorchBlock.canSitOnTop` (lines 49-55) — the torch's FLOOR consult:
+  `World.hasSolidTop(world, pos)` (the five-arm law) `|| instanceof
+  FenceBlock || == GLASS || == COBBLESTONE_WALL || == STAINED_GLASS`.
+- `ButtonBlock.canSurvive` (lines 70-73; `LeverBlock.canSurvive` line
+  60 delegates to it) — the lever/button consult:
+  `facing == DOWN ? World.hasSolidTop(blockpos) :
+  block.isSolid()` — the ceiling mount rides hasSolidTop's five arms,
+  every other side rides `Block.isSolid()` (Block.java line 274:
+  `material.isSolidBlocking() && isCube() && !isSignalSource()`).
+- `TrapdoorBlock.canBePlacedOn` (lines 188-190) — the trapdoor's
+  mount: `material.isSolidBlocking() && isCube() || == GLOWSTONE ||
+  instanceof SlabBlock || instanceof StairsBlock`.
+
+**The engine's consults (the one-question approximation):**
+- `RedstoneSystem.torchSupported` (lines 1685-1688):
+  `WorldSolidity.isSolid(attachment)` — for BOTH the wall and the
+  floor mounts.
+- `RedstoneSystem.leverSupported` (lines 2223-2226) and
+  `buttonSupported` (lines 2229-2231): `WorldSolidity.isSolid`
+  for every side.
+- `RedstoneSystem.trapdoorMountHolds` (lines 1349-1375): the suffix
+  arms over the slabs/stairs families, then the final arm
+  `WorldSolidity.isSolid && !fence && !gate && !door && !rail &&
+  !chest`.
+- `WorldSolidity.isSolid` (lines 29-53) is the COLLISION-solid
+  exclusion list (torch/fire/cobweb/portals/sign/banner/ladder/open
+  door/open gate/vine/flora/sapling/carpet/rail/redstone/piston/
+  tripwire/fluid) — it carries NO material awareness (the translucents
+  all pass) and NO cube awareness beyond the exclusion list (panes,
+  iron bars, cobblestone walls, fences all pass; `isFence` is a
+  separate consult the trapdoor arm re-adds but the torch/lever/button
+  arms never read).
+
+**The divergent rows (source-verified; the seats owed):**
+1. **The torch WALL on translucents** — glass, stained glass, ice,
+   TNT, leaves, cactus, snow layer: `isSolidBlockingCube` REJECTS each
+   (translucent material); the engine's `isSolid` ACCEPTS each — the
+   torch hangs where vanilla pops it (`tryBreak` lines 96-118).
+2. **The torch WALL on non-cubes** — fences, single slabs (any half),
+   stairs (any state), glass panes, iron bars: vanilla REJECTS
+   (isCube false; the slab/stairs instance arms belong to the TRAPDOOR
+   law alone); the engine's `isSolid` ACCEPTS each. The DOUBLE slabs
+   agree (isCube true, non-translucent material — vanilla accepts).
+3. **The torch FLOOR** — `canSitOnTop`'s explicit list beyond
+   hasSolidTop is FENCES/GLASS/COBBLESTONE_WALL/STAINED_GLASS alone:
+   glass panes, iron bars, TNT, ice, leaves, cactus REJECTED by
+   vanilla; the engine's `isSolid` ACCEPTS each. (The floor rows that
+   agree: fences, glass, stained glass, cobblestone walls, and the
+   hasSolidTop arms — the doubles, the top halves, hoppers.)
+4. **The lever/button on translucents** — `Block.isSolid()` REJECTS
+   glass/ice/TNT/leaves/cactus (translucent); the engine ACCEPTS.
+5. **The lever/button CEILING mount** — `hasSolidTop` beneath: the
+   bottom halves refuse (a lever under a single bottom slab pops in
+   vanilla); the engine's `isSolid` ACCEPTS the slab — the lever
+   hangs.
+6. **The trapdoor's final arm** — glass, stained glass, ice, TNT,
+   leaves, cactus (translucents), glass panes, iron bars, cobblestone
+   walls (non-cubes): vanilla's first arm REJECTS each; the engine's
+   final arm ACCEPTS each. (The trapdoor's SLAB/STAIRS rows AGREE —
+   the instance arms' engine counterparts answer true for the whole
+   families; the GLOWSTONE row agrees; the fence/gate/door/rail/chest
+   rows agree — the engine's explicit carves.)
+
+**Verification pass history:** pass 1 (source) complete this run —
+the four vanilla laws read at their lines, the engine's four consult
+sites read, `Material`'s translucent set enumerated from the source,
+the divergence rows derived per consult. The behavioral seats (the
+neighborChanged survival walks driven per row — the torch pops, the
+lever drops, the trapdoor pops) and the independent pass (the
+placement-time gates' census — whether the engine gates PLACEMENT or
+only the survival re-check; the compensating-behavior hunt; the
+intentionality challenge over `WorldSolidity.isSolid`'s stated
+contract) are the NEXT RUN'S FIRST ACT.
+
+**Proposed minimal correction (when the passes complete):** a shared
+`SupportConsult` carrying the reference's three laws
+(`isSolidBlockingCube` / `canSitOnTop` / the button-lever split), the
+consult sites swapped to the law their vanilla counterpart reads —
+the same one-consult-per-site shape the F-EC1 and VT-020 corrections
+carried. The trapdoor's suffix arms stay (their rows agree); its final
+arm swaps to `isSolidBlocking && isCube` + the instance rows.
+
+**Potential regression risks:** every consumer of the mount consults
+(the redstone family's neighborChanged walks, the placement paths if
+they consult the same helpers); the translucents' NEW pops (glass
+walls losing torches is the observable vanilla behavior — the seats
+must pin the pops, the pre-fix holds).
+
+---
+
 ## Coverage ledger (updated by the thirty-sixth pass — the FIVE-LANE UNION: the pass-32 refresh + the pass-33/34/35/36 projectile rows, the Phase E corrections’ records unioned)
 
 | Area | Status |
@@ -3863,23 +4361,28 @@ it), the TNT's survival asserted against the engine's detonation.
 | Grass decay — the shade consult | **VT-017 SUSPECTED** (the bed-coverage lane's twenty-seventh pass, renumbered): the engine's `isOpaque` 3-block allowlist (air/torch/glass) stands in for the reference's opacity law (`getOpacity() > 2` — every non-solid-render block answers 0) — the grass dies under beds, flowers, slabs, stairs where vanilla keeps it; one source pass + the OBSERVED dirt-under-bed evidence from the VT-009 trace; this pass takes the seats up |
 | Piston pushability — the behavior table's membership | **VT-016 CONFIRMED and CORRECTED** (the fortieth pass): the whole-registry census — 426 of 1302 ids diverged on unfixed develop (the five pass-1 families were a subset; the crops, the saplings' real ids, the six woods' leaves, the fluid state vocabulary, the vine faces, the double plants, the ladder, the tripwire family, the small mushrooms, the nether wart, the lily, the stems, the melon, the pumpkins' facing states, the cake bites, the potted forms, the fire ages, the dragon egg, and four dead ITEM-keyed/bare-prefix rows) — **PR #126 OPEN**, the seats 3/0 + the census pin 1/0 on the fix (the whole-registry drift guard: the unknown-id guard + the closed 26-id exemption set), the piston package 27/0, the regression lanes 54/0 |
 | Piston pushability — the block-entity gate | **VT-022 CONFIRMED and CORRECTED** (the fortieth pass): `isBlockEntityBacked`'s five-id membership vs the reference's whole `!(block instanceof BlockEntityProvider)` census — the pushed containers lost their contents (the data-loss class); **PR #129 OPEN**, the seats 2/0 on the fix, the piston package 25/0, the container lanes 43/0 |
-| Piston toBreak — the drop consult | **VT-025 CONFIRMED and CORRECTED** (the fortieth pass's third act; RENUMBERED from its lane's VT-023 draft — PR #128 owns VT-023 publicly first (opened 06:37:51), and this lane's arbitration then moved the finding past VT-024 (the arrow pickup envelope, the pass-38 lane's 06:42:44 public claim) — the PR retitled): dropBlock's first-success break (a stale copy of the Drop record's pre-migration javadoc model) vs the DropService's every-entry rolls — routed through the shared no-tool walk; **PR #131 OPEN (stacked on #126)**, the seats 2/0 on the union, the piston package 29/0, the regression lanes 54/0 |
-| Projectile family — the stick placement (the resting position's geometry) | **VT-014 CONFIRMED — FOUR INDEPENDENT CONSTRUCTIONS, FIVE LANES** (three passes each; the quadruple convergence the thirty-fifth/thirty-sixth passes recorded): pass 1 the thirty-first's source walk; pass 2 the seats — the pass-33 lane's launch-based pair (the observed rest y=19.841 INSIDE the hit cell, x=51.480 hanging past the thin wall), the pass-34 lane's spawnRestored-deterministic pair (y=19.4079402396 at velocity exactly -1.0, x=61.97 past the wall in open air — the exact face±0.05 pins at 0.001), the pass-35 lane's pair (y=20.919 below the face at 21.0, z=41.486 one full block past the wall), the pass-36 lane's own pair (y=20.2143 / x=61.77) — all RED on develop `6b29c46f` at exactly the placement asserts; pass 3 the walks (the writer census — `inGround` set true at exactly two sites and cleared NOWHERE; the design-choice challenges negative on both lanes; the consumers walk; the import-coherence edge). **THE CORRECTION OPEN: PR #117** (`fix/arrow-stick-placement-parity-audit` over develop `6b29c46f`: the reference's rayTrace face walk at the engine's cell granularity + the 0.05 backoff + the landed wire publish; both the pass-33 and pass-34 lanes' seats GREEN 4/0 on the fix tree, the projectile package 48/0, the neighbor lanes 34/0; **the #113 interaction reviewed** — the `!inGround` gate note posted, the union's lights-later regression named) — **but the construction leaves the PARTIAL-SHAPE face unfixed: VT-021 CONFIRMED against it — the thirty-eighth pass's record below** (the slab seat RED on the #117 tree, observed rest y=18.8268 THROUGH the slab's surface against the reference's 19.55; the record in the thirty-eighth pass's section below; the b-lane's box-view branch `237611d3` carries all three seats GREEN — the review note on #117 the channel, the construction pick the maintainer's) |
+| Piston toBreak — the drop consult | **VT-025 CONFIRMED and CORRECTED** (the fortieth pass's third act; RENUMBERED from VT-023 by the forty-first pass's public-first resolution — the flight band owns 23 via PR #128 opened 06:37:51 and the arrow pickup envelope owns 24 via the pass-38 lane's push at 06:42:44, both ahead of PR #131's 06:49:10): dropBlock's first-success break (a stale copy of the Drop record's pre-migration javadoc model) vs the DropService's every-entry rolls — routed through the shared no-tool walk; **PR #131 OPEN (stacked on #126)**, the seats 2/0 on the union, the piston package 29/0, the regression lanes 54/0 |
+| Projectile family — the stick placement (the resting position's geometry) | **VT-014 CONFIRMED — FOUR INDEPENDENT CONSTRUCTIONS, FIVE LANES** (three passes each; the quadruple convergence the thirty-fifth/thirty-sixth passes recorded): pass 1 the thirty-first's source walk; pass 2 the seats — the pass-33 lane's launch-based pair (the observed rest y=19.841 INSIDE the hit cell, x=51.480 hanging past the thin wall), the pass-34 lane's spawnRestored-deterministic pair (y=19.4079402396 at velocity exactly -1.0, x=61.97 past the wall in open air — the exact face±0.05 pins at 0.001), the pass-35 lane's pair (y=20.919 below the face at 21.0, z=41.486 one full block past the wall), the pass-36 lane's own pair (y=20.2143 / x=61.77) — all RED on develop `6b29c46f` at exactly the placement asserts; pass 3 the walks (the writer census — `inGround` set true at exactly two sites and cleared NOWHERE; the design-choice challenges negative on both lanes; the consumers walk; the import-coherence edge). **THE CORRECTION OPEN: PR #117** (`fix/arrow-stick-placement-parity-audit` over develop `6b29c46f`: the reference's rayTrace face walk at the engine's cell granularity + the 0.05 backoff + the landed wire publish; both the pass-33 and pass-34 lanes' seats GREEN 4/0 on the fix tree, the projectile package 48/0, the neighbor lanes 34/0; **the #113 interaction reviewed** — the `!inGround` gate note posted, the union's lights-later regression named) — **but the construction leaves the PARTIAL-SHAPE face unfixed: VT-021 CONFIRMED against it — the thirty-eighth pass's record below** (the slab seat RED on the #117 tree, observed rest y=18.8268 THROUGH the slab's surface against the reference's 19.55; the record in the thirty-eighth pass's section below; the b-lane's box-view branch `237611d3` carries all three seats GREEN — the review note on #117 the channel, the construction pick the maintainer's) — **PR #122 OPEN** as the alternative carrier (the review note: https://github.com/ZaminMC/ZaminTorch/pull/117#issuecomment-6554234533) |
 | Projectile family — the tracked-block un-stick law (the arrow; the bobber beside it) | **VT-015 CONFIRMED — FOUR INDEPENDENT CONSTRUCTIONS, FIVE LANES** (three passes each): pass 1 the thirty-first's source walk; pass 2 the seats — the pass-33 lane's (the rest IDENTICAL through the broken cell), the pass-34 lane's (STILL inGround, FROZEN at the endpoint), the pass-35 lane's pedestal break, the pass-36 lane's own construction — all RED on develop; pass 3 the walks (the reference re-read — the per-component fresh `random*0.2` re-arm over the STORED face-relative vector, both clocks reset; the compensation hunts negative; the family walk — the bobber the same law's second member; the import walk — the xTile/inTile/inData rows the engine's own recorded gap; the javadoc citations — `flingVelocity` names the un-stick's 0.2 factor as reference-only). **THE CORRECTIONS OPEN — the convergence:** **PR #120** (`fix/arrow-unstick-parity-audit` over develop `6b29c46f`: the tracked cell + the per-tick identity consult + the exact damped re-arm + the import's xTile/inTile rows landing — the reference's readCustomNbt 402-411 restores them; both lanes' seats GREEN, the anvil family 47/0) and **PR #119** (`fix/arrow-unstick-tracked-block-parity-audit`: the same live law 1:1, the import surface deferred as its named tail — the convergence note posted, the carrier pick the maintainer's, the unique coverage worth absorbing either way); the bobber's parallel arm the named follow-up (the family-member protocol) |
-| Projectile family — the stuck burning arrow's TNT consult | **VT-019 CONFIRMED — three passes, the correction OPEN as PR #123** (the convergence: the sibling lane's identical `!inGround` gate pushed 06:06:46 while this lane's passes 2-3 ran — this lane's identical construction preserved on `fix/stuck-burning-arrow-tnt-parity-audit-b2`, no competing PR; the convergence note posted with the timing probe + the band-limit control; this lane's 3-arm seat GREEN on the #123 tree 3/0). Pass 1 the thirty-sixth pass's source walk (the reference consults `onEntityCollision` from the FLIGHT branch's tail scan + the stick arm's single-hit-block consult alone — ArrowEntity 382, 311-313; `Entity.move()`'s own scan never runs for arrows); pass 2 the thirty-eighth pass's behavioral seat — RED on develop `777b7c86` at exactly the predicted cell `[10, 39, 10]`, both controls green, the placement-independent construction RED on PR #117's tree too (the thirty-ninth lane's independent seat at `Position[60.147, 41.1, 51.5]`); pass 3 the thirty-eighth pass's independent challenge — the timing probe (the prime fires ON THE STICK TICK, never during flight), the live-wiring verification (the real engine already wires the vanilla stick-arm consult `igniteByArrow` — the ungated pass purely additive), the design-intent challenge (the ungated pass is over-broad, not intentional), the compensation hunt (negative); the thirty-ninth lane's own walk adds the FIRE-CLOCK FREEZE (the engine's stuck fire never decays — the reference's baseTick decays it — the detonation window eternal). The named tails: (a) the stick-tick's rest-box scan — SEATED by the thirty-ninth pass's fifth act (`ArrowStickTickTntScanDiscoveryTest`: RED on develop AND on the #123+#128 union — the flight walk's landing arm must consult the band at the rest once, the reference's own structure); (b) the flight band's vertical shift — ELEVATED to VT-023, the correction OPEN as PR #128; (c) the existing seat's stub review correction (the gate fix requires wiring the stub's stick-arm consult and asserting the continuation) |
-| Projectile family — the burning arrow's FLIGHT band shape | **VT-023 CONFIRMED — three passes** (VT-019's named tail (b), elevated to its own finding; the number after the pass-36 lane's VT-022 claim — the stick-vs-prime ordering): the engine's `burningTntPass` flying walk consults the symmetric [y−0.25, y+0.25] band around the position; the reference's flight consult (`checkBlockCollisions` over the arrow's box) walks the feet-law box [y, y+0.5] — `Entity.setPosition` line 240-247: `setShape(new Box(x−w/2, y, z−w/2, x+w/2, y+height, z+w/2))`, the arrow's `setSize(0.5F, 0.5F)`. Two divergences, both seated RED on develop AND on the #123 tree (the VT-019 gate is orthogonal): (A) the extra reach below — a TNT cell under the flight path primes in the engine (the band dips 0.25 below the position), stands in the reference; (B) the missed reach above — the box's top quarter [y+0.25, y+0.5] primes in the reference, the engine's band misses it. Pass 2: the two seats (`BurningArrowFlightBandParityDiscoveryTest`) RED at exactly the predicted shapes — arm A observed primed `[10, 39, 10]` where vanilla stands; arm B observed standing where vanilla primes; the thirty-ninth pass's fourth act cross-verified on PR #128's tree (the two grazing edges GREEN on the fix). Pass 3: the premise walk (setPosition's feet law read directly; the engine's position = the reference's position pinned by VT-014's rest law across four constructions), the compensation hunt (negative — no consult covers the top quarter), the design-intent challenge (the javadoc's own 'box-center envelope' framing is the misreading — the position is the box BOTTOM; the same class as VT-019's 'or stuck in the ground' clause). **THE CORRECTION OPEN: PR #128** (the two-line band correction, the #123-union verified live on both lanes' seats) |
-| Projectile family — the arrow pickup's envelope shape | **VT-024 CONFIRMED — three passes, the correction OPEN as PR #132** (VT-023's named follow-up, the same class): `withinArrowPickupRange`'s horizontal center-distance cap 1.25 (ARROW_HALF_WIDTH + PICKUP_GROWTH_HORIZONTAL) MISSES the player's own half-width 0.3 — the reference's intersection reaches 1.55 (the player's box grown 1.0 horizontal over the arrow's box); the vertical envelope [y−0.25, y+0.25] is the same shifted-down 0.25 as VT-023's flight band (the feet law's box [y, y+0.5]) — missing [py−1.0, py−0.75] below and over-reaching [py+2.3, py+2.55) above. The reference (PlayerEntity 486-505): the player's own box (setSize(0.6F, 1.8F)) GROWN (1.0, 0.5, 1.0) intersected with the arrow's box; `onPlayerCollision` per entity. Pass 2: three seats RED on develop `777b7c86` at exactly the predicted shapes — arm A the horizontal shortfall (the arrow at dx=1.4 left standing, vanilla collects), arm B the vertical miss below (the arrow at py−0.9 left standing, vanilla collects), arm C the vertical over-reach above (the arrow at py+2.4 COLLECTED, vanilla leaves it above the grown ceiling); re-verified RED 3/3 on develop `149eb1f0` at the Phase E cut. Pass 3: the premise carried from VT-023's verified feet law, the horizontal law read directly, the compensation hunt (negative — the engine's pickup pass is the only consult), the design-intent challenge (the javadoc claims 'the player box grown 1.0/0.5 against the arrow's own 0.5 box' — the code drops the player's half-width and shifts the arrow's envelope; the retired box-center framing again). **Phase E landed this pass (the forty-first): PR #132 the carrier (the sibling lane's identical construction, the convergence note posted with the strict-cap review correction); this lane's construction preserved on `fix/arrow-pickup-envelope-parity-audit-b`** — the record in the forty-first pass's section below |
+| Projectile family — the stuck burning arrow's TNT consult | **VT-019 CONFIRMED — three passes complete, Phase E eligible** (the thirty-sixth's source walk + the thirty-ninth's seat and independent challenge): the reference consults `onEntityCollision` from the FLIGHT branch's tail scan + the stick arm's single-hit-block consult alone (ArrowEntity 382, 311-313 — `Entity.move()`'s own scan never runs for arrows, they never call move(); `Entity.tick` is baseTick alone); the engine's `burningTntPass` walks STUCK burning arrows every tick with no `inGround` gate — the seat RED on develop `777b7c86` at the pre-computed geometry (the stuck arrow at `Position[60.147, 41.1, 51.5]`, the adjacent TNT at (60,40,51) primed on the stick tick itself; the control green — the landing-on-TNT ignition live), the placement-independent construction RED on PR #117's tree too; the fire clock FREEZES while stuck in the engine (the reference's baseTick decays it) — the detonation is eternal; the fix shape: the consult moves into the per-projectile flight walk's tail (runs on the stick tick too — the reference's own structure) over the feet-anchored box `[y, y+0.5]` (the symmetric band's grazing edges retired), the unit seat `aBurningArrowPrimesTheTntItOverlaps` re-pinned beside |
+| Projectile family — the burning arrow's FLIGHT band shape | **VT-023 CONFIRMED — three passes** (VT-019's named tail (b), elevated to its own finding; the number after the pass-36 lane's VT-022 claim — the stick-vs-prime ordering): the engine's `burningTntPass` flying walk consults the symmetric [y−0.25, y+0.25] band around the position; the reference's flight consult (`checkBlockCollisions` over the arrow's box) walks the feet-law box [y, y+0.5] — `Entity.setPosition` line 240-247: `setShape(new Box(x−w/2, y, z−w/2, x+w/2, y+height, z+w/2))`, the arrow's `setSize(0.5F, 0.5F)`. Two divergences, both seated RED on develop AND on the #123 tree (the VT-019 gate is orthogonal): (A) the extra reach below — a TNT cell under the flight path primes in the engine (the band dips 0.25 below the position), stands in the reference; (B) the missed reach above — the box's top quarter [y+0.25, y+0.5] primes in the reference, the engine's band misses it. Pass 2: the two seats (`BurningArrowFlightBandParityDiscoveryTest`) RED at exactly the predicted shapes — arm A observed primed `[10, 39, 10]` where vanilla stands; arm B observed standing where vanilla primes. Pass 3: the premise walk (setPosition's feet law read directly; the engine's position = the reference's position pinned by VT-014's rest law across four constructions), the compensation hunt (negative — no consult covers the top quarter), the design-intent challenge (the javadoc's own 'box-center envelope' framing is the misreading — the position is the box BOTTOM; the same class as VT-019's 'or stuck in the ground' clause). **Phase E eligible**: the two-line band correction (`minY = floor(y+0.001)`, `maxY = floor(y+0.5−0.001)`); the pickup band's same-class symmetric envelope the named follow-up |
+| Projectile family — the arrow pickup's envelope shape | **VT-024 CONFIRMED — three passes** (VT-023's named follow-up, the same class): `withinArrowPickupRange`'s horizontal center-distance cap 1.25 (ARROW_HALF_WIDTH + PICKUP_GROWTH_HORIZONTAL) MISSES the player's own half-width 0.3 — the reference's intersection reaches 1.55 (the player's box grown 1.0 horizontal over the arrow's box); the vertical envelope [y−0.25, y+0.25] is the same shifted-down 0.25 as VT-023's flight band (the feet law's box [y, y+0.5]) — missing [py−1.0, py−0.75] below and over-reaching [py+2.3, py+2.55) above. The reference (PlayerEntity 486-505): the player's own box (setSize(0.6F, 1.8F)) GROWN (1.0, 0.5, 1.0) intersected with the arrow's box; `onPlayerCollision` per entity. Pass 2: three seats RED on develop `777b7c86` at exactly the predicted shapes — arm A the horizontal shortfall (the arrow at dx=1.4 left standing, vanilla collects), arm B the vertical miss below (the arrow at py−0.9 left standing, vanilla collects), arm C the vertical over-reach above (the arrow at py+2.4 COLLECTED, vanilla leaves it above the grown ceiling). Pass 3: the premise carried from VT-023's verified feet law, the horizontal law read directly, the compensation hunt (negative — the engine's pickup pass is the only consult), the design-intent challenge (the javadoc claims 'the player box grown 1.0/0.5 against the arrow's own 0.5 box' — the code drops the player's half-width and shifts the arrow's envelope; the retired box-center framing again). **Phase E eligible**: the three-line correction; the item/orb pickup family's same-form walk the named follow-up |
 | Block-update wake (BlockUpdateSystem.runUpdate, RedstoneSystem.neighborChanged) — world binding | SURFED as VT-009's pass-3 non-compensation evidence: BOTH reads consult the overworld field (the changed-world parameter ignored in the six-neighbor dispatch) — the house stream's FL4-F10 lane landed the redstone world binding (`0328e92f`); the block-update arm's coverage rides that wave's seats |
 | Block identity — the legacy wire rows | the vine family's gap LANDED by `6b29c46f` (the house's own production-crash repair; `LegacyBlockIdsIntegrityTest`'s skip set now EMPTY and pinned) |
-| Mob spawns — the dimension stamp | **VT-012 CONFIRMED — three passes complete, fix-ready** (`audit/vt-012-spawn-dimension-stamp`: fourteen unstamped sites censused — the eggs, /summon, the wither, the spawner cart, the mooshroom shear, the infection/cure, the slime split, breeding, the golems, the infested burst; the wrong-stamped nether body invisible to the nether player, its physics reading the overworld's cells, a permanent ghost on the despawn walk) — the fix branch the next run's head |
+| Mob spawns — the dimension stamp | **VT-012 RESOLVED IN FLIGHT — PR #125 OPEN** (`fix/spawn-dimension-stamp-parity-audit` over develop 777b7c86: the dimension-aware spawn core `spawnAt(type, position, dimension)` stamping the body BEFORE the spawn fan, the dimensionless arm inheriting the armed context, all fourteen sites routed; the seats 3/3 green on the fix, RED at exactly the two nether members on unfixed develop, the entity package whole 578/0) — the postfan lane's full record below; **VT-027** (the post-fan stamp ordering, PR #130) stacked on it |
 | Natural spawn — the floor consult (`hasSolidTop`) | **VT-020 CONFIRMED — three passes complete, fix-ready** (the spawn-floor lane's record, provenance `fix/spawn-floor-solid-top-parity-audit` `0f4bbfb4`, pushed 06:04:09 — the lane's report record owed): `NaturalSpawnSystem.isPartialShape`'s two suffix arms (`endsWith(_slab)` / `endsWith(_stairs)`) approximated `World.hasSolidTop`'s structured law (lines 1740-1752) and missed in BOTH directions — the ten double-slab floors REFUSED a spawn vanilla hosts (the first arm's `isCube()` accepts them), the stored bottom-stair and stone_slab2 floors HOSTED 1966 night spawns vanilla refuses (`HALF == TOP` alone passes), the same family refusing the spawn under ten names and hosting it under three; three RED seats at exactly the predicted values, 3/3 GREEN on the fix tree, the five-arm re-read + the 56-identifier census + the compensation hunt (negative) the independent pass; the spawn suite 16/0, the spawn-adjacent lanes 70/0, the block package 311/0 — the PR owed |
 | FX broadcasts — the dimension awareness | NOT INSPECTED (the FxManager position-only API; the PR #90 ledger) |
-| World border — per-dimension | NOT INSPECTED (the reference's per-World border vs the engine's shared one) |
+| World border — per-dimension | **VT-026 CONFIRMED — three passes complete, fix-ready** (the postfan lane's census, renumbered from its VT-014 draft): the command/wire lanes EXONERATED (the reference's own law is `worlds[0]` alone — WorldBorderCommand:171, PlayerManager:678); the NETHER containment lanes diverge — vanilla's nether border is the overworld's synced rows with the CENTER REPORTED AT /8 (ReadOnlyServerWorld's listener copy + NetherDimension.createWorldBorder's anonymous /8 override), and every engine containment site (the dig gate, the use gate, the damage walk, the two collision-wall hooks) reads the shared overworld-geometry border; observable with a configured non-zero center — the PR owed |
 | Zombie/mob arms — world binding | NOT INSPECTED (the zombie door-break consults the overworld field) |
 | Explosions — dimension routing | AUDITED (the twenty-sixth pass): the CORE resolved by PR #100; the CART slice RESOLVED — **PR #105 MERGED** (`278b139e`, the review rider at `32af09f3`). The named tail stands: the End/nether services' shared `gameplayRandom` vs the reference's per-world `world.random` |
 | Item entities / pickup — dimension | the TF-9 stamped sites are the record; the pickup consult un-audited |
 | Projectile family — the stuck arrow's crossing (the portal-lights-later construction) | **VT-013 REJECTED** (the thirty-first pass's pass-3 challenge): the original hypothesis — a portal lighting around an already-stuck arrow crosses it — is disproven by the reference's own tick chain (`ArrowEntity.tick` line 381 calls the box scan from the FLIGHT branch alone; the `inGround` branch at 172-186 runs the stick clock and the tracked-block check only). The corrected seat (`PortalStuckArrowCrossingDiscoveryTest.theStuckArrowStaysWhenThePortalLightsAroundIt`) pins the true law — NO crossing — GREEN on develop AND on the #113 tree. No fix owed. The honest residue re-recorded as VT-014 (the stick placement) and VT-015 (the un-stick law), both below |
 | Projectile family — the stick's bowhit sound | **VT-018 CONFIRMED — three passes complete, Phase E eligible** (the pass-35 lane's source walk + the thirty-ninth's seat and independent challenge): the reference plays `random.bowhit` at BOTH impact arms — the BLOCK stick (ArrowEntity line 303, at the rest position, the pitch `1.2F/(rand·0.2+0.9)` band [1.0909, 1.3333], one draw per stick) and the ENTITY hit (line 276, before the remove); the engine plays NEITHER — the stick arm fires the no-op `onProjectileLanded` fan alone, `hitMob`/`hitPlayer`/`hitVehicle` soundless, `random.bowhit` at the tripwire alone. The seat RED on develop `777b7c86`: the stick in COMPLETE SILENCE (the recorder holding one event — the control pulse), the stuck position matching the known geometry; the POP CONTRAST decisive — the reference's third arrow sound (the pickup pop, line 436) IS wired with the exact pitch formula (the `onProjectileCollected` dispatch), the family's sounds implemented one by one, the bowhit pair alone missing. The fix: both arms play the sound (the arrow kind alone), the manager's `random` the draw source, the seat's pitch-band assert the parity pin |
+
+| Collision shapes — the double slabs' full-cube row | **RESOLVED-BY-PR #118** (F-DS1: the F-DS1 stream's three-pass verification — the ten `_slab`-suffixed doubles carried the HALF box; the rest walks, the side-entry, the isFullCube family all poisoned; the one-arm carve, `DoubleSlabCollisionParityTest` 5/0) |
+| Natural spawn — the spawn floor's consult | **RESOLVED-BY-PR #121** (VT-020: the suffix approximation missed in BOTH directions — the ten doubles refused where `hasSolidTop`'s first arm hosts them, the bottom stairs and the red sandstone bottom single hosted where the HALF==TOP arms refuse them; the one-consult correction with the `double_` carve + the half laws, three seats) |
+| The support-consult family (torch/lever/button/trapdoor mounts) | F-SP1 SUSPECTED (the pass-38b source census: the engine's four mount consults answer one collision-solid question — `WorldSolidity.isSolid` — where vanilla answers three material-aware/shape-aware/side-aware laws; the translucent materials (GLASS/LEAVES/TNT/ICE/SNOW_LAYER/CACTUS) and the non-cube solids (panes/iron bars/walls/fences) all diverge; the behavioral seats the next run's first act) |
+| The slab-family suffix census | INSPECTED (the whole-repository `endsWith("_slab")` census: `BlockSolidity.isCube` and `FireBlocks` already correct with the `double_` carve — the house convention; `CollisionShapes` corrected by PR #118; `NaturalSpawnSystem` corrected by PR #121 (VT-020 — the spawn consult, the directional stair states and the `_slab2` row joining the census); `RedstoneSystem.trapdoorMountHolds` name-based, the double agreeing, the SINGLES' rows F-SP1's lane; the held-id dispatch and the dormant `woodenSlabFamilyOf` unaffected) |
 
 ## The queue for the next pass
 
@@ -3912,9 +4415,10 @@ it), the TNT's survival asserted against the engine's detonation.
    CORRECTED, PR #126 OPEN** — the census widened to 426 ids, the
    three seats + the whole-registry pin, the one-method fix, the
    piston package and the regression lanes green).
-2b. ~~**VT-022's and VT-023's passes**~~ — **BOTH DONE (the fortieth
+2b. ~~**VT-022's and VT-025's passes**~~ — **BOTH DONE (the fortieth
    pass's second and third acts: VT-022 CONFIRMED and CORRECTED, PR
-   #129 OPEN; VT-023 CONFIRMED and CORRECTED, PR #131 OPEN (stacked
+   #129 OPEN; VT-025 (renumbered from the fortieth pass's VT-023 by
+   the forty-first pass) CONFIRMED and CORRECTED, PR #131 OPEN (stacked
    on #126)** — the piston surface's three gates now all answer the
    reference's census: the material table (#126), the entity gate
    (#129), the toBreak drop consult (#131). The piston family's own
@@ -3945,8 +4449,10 @@ it), the TNT's survival asserted against the engine's detonation.
    the OPEN set: #108, #109, #110, #111, #113 (the `!inGround` gate
    note posted), #114, #116 (VT-017), #117 (VT-014), #118 (F-DS1),
    #119/#120 (VT-015's convergent carriers), #126 (VT-016, the fortieth
-   lane), #129 (VT-022, the fortieth lane's second act), #131 (VT-023,
-   the fortieth lane's third act, stacked on #126 — merge #126 first)
+   lane), #129 (VT-022, the fortieth lane's second act), #131 (VT-025,
+   renumbered from the fortieth pass's 023 — the forty-first pass's
+   public-first resolution; the fortieth lane's third act, stacked on
+   #126 — merge #126 first)
    — after the crossing PRs
    merge, the End-origin arm (the forced-spawn consult,
    `PlayerManager.changeDimension` lines 473-484) becomes the portal
@@ -3974,7 +4480,11 @@ it), the TNT's survival asserted against the engine's detonation.
    public-first protocol: #131's finding renumbers to **VT-024**
    (the next free number — VT-020/021/022 taken by the spawn floor,
    the partial-shape face, the piston entity gate); the correction
-   belongs to #131's lane or the next union.
+   belongs to #131's lane or the next union. *(SUPERSEDED by the
+   forty-first pass's reconciliation: the pass-38 lane's arrow pickup
+   envelope claimed VT-024 publicly at 06:42:44, ahead of PR #131's
+   06:49:10 — the pickup envelope owns 24, the piston toBreak takes
+   VT-025.)*
 7. The watch items (the thirty-ninth pass's fetch): **MERGED onto
    develop `777b7c86`**: #106 (`becf84b0`), #115 (`e17c538b`). The
    OPEN set: **#108, #109, #110, #111, #113 (the `!inGround` gate
@@ -4372,121 +4882,6 @@ RangedCombat 10/0, TntSystem 2/0, AnvilImport 6/0, the parity seats
   lane's flight-band seats 2/0, #123's stuck-arrow seats 2/0, the
   corrected ProjectileManagerTest 11/0).
 
-
-## VT-024 — the arrow pickup's envelope: the horizontal cap misses the player's half-width and the vertical envelope is the shifted box (CONFIRMED — three passes; Phase E eligible)
-
-- **Status:** CONFIRMED (three passes complete; the correction owed —
-  the three-line envelope fix).
-- **Subsystem:** projectile pickup — the arrow's collection envelope
-  (`withinArrowPickupRange`).
-- **Affected engine files/methods:**
-  `ProjectileManager.withinArrowPickupRange` (the horizontal
-  center-distance cap `ARROW_HALF_WIDTH + PICKUP_GROWTH_HORIZONTAL`
-  = 1.25; the vertical envelope `[y−ARROW_HALF_HEIGHT,
-  y+ARROW_HALF_HEIGHT]`).
-- **Vanilla reference:** `PlayerEntity.playerTick` lines 486-505 — the
-  player's own box (`setSize(0.6F, 1.8F)` — half-width 0.3, the feet
-  law's [py, py+1.8]) **grown (1.0, 0.5, 1.0)** (the riding form: the
-  union with the vehicle's shape, grown (1.0, 0.0, 1.0)) intersected
-  with the entities' boxes via `world.getEntities`; the arrow's box is
-  the feet law's [ax−0.25, ax+0.25] × [y, y+0.5] × [az−0.25, az+0.25].
-  The intersection: |dx| < 1.55, y+0.5 > py−0.5, y < py+2.3. The
-  pickup arm (ArrowEntity.onPlayerCollision 427-440) rides the walk.
-- **Expected behavior:** an arrow 1.4 blocks beside the walker
-  collects (the grown box's 1.3 reach over the arrow's 0.25); an arrow
-  whose box top clears the grown floor (y+0.5 > py−0.5) collects; an
-  arrow above the grown ceiling (y ≥ py+2.3) never collects.
-- **Observed behavior (the three seats, RED on develop `777b7c86`):**
-  arm A — the arrow at dx=1.4: left standing (the engine's 1.25 cap);
-  arm B — the arrow at py−0.9: left standing (the envelope top
-  y+0.25 misses the grown floor); arm C — the arrow at py+2.4:
-  COLLECTED (the envelope bottom y−0.25 dips under the grown ceiling
-  py+2.3).
-- **Exact technical explanation:** the horizontal form treats the
-  player as a zero-width point (the cap is the arrow's half-width +
-  the growth alone — the player's own 0.3 half-width missing, 0.3
-  short of the reference's 1.55 intersection); the vertical envelope
-  is the arrow's box shifted down 0.25 (the retired box-center
-  framing — VT-023's same class; the position is the box BOTTOM,
-  pinned by VT-014's rest law).
-- **Reproduction:** `ArrowPickupEnvelopeParityDiscoveryTest` (this
-  audit branch): three arms, the ArrowPickupTest harness pattern (a
-  direct manager + a real session over a stub world, hand-stuck
-  arrows).
-- **Verification pass history:** pass 1 (this pass, the thirty-eighth
-  lane's second continuation): the source walk — the grown box read
-  directly (PlayerEntity 486-491), the arrow's box law carried from
-  VT-023's verified walk, the engine's form read directly. Pass 2
-  (this pass): the three seats RED at exactly the predicted shapes.
-  Pass 3 (this pass): the premise carried (the feet law verified in
-  VT-023's pass 3), the compensation hunt (negative — the pickup pass
-  is the only consult), the design-intent challenge (the javadoc's own
-  "the player box grown 1.0/0.5 against the arrow's own 0.5 box"
-  claims the intersection form the code does not implement), the
-  riding-form note (the reference's vehicle-union growth — the
-  engine's form carries no riding branch, a named tail with the
-  vehicle family's own envelope work).
-- **Confidence:** high — deterministic seats, the law read on both
-  sides, the class already verified twice (VT-023).
-- **Proposed minimal correction:** the envelope: `maxHorizontal =
-  0.3 + PICKUP_GROWTH_HORIZONTAL + ARROW_HALF_WIDTH` (the player's
-  half-width carried — a named constant, the reference's 0.6F width);
-  `arrowBottom = y`, `arrowTop = y + 0.5` (the feet law's box).
-- **The named tails:** the item/orb pickup family's same-form walk
-  (`ItemEntity`/`ExperienceOrbEntity` — the engine's own javadoc says
-  the arrow's form is "the orb pickup's exact shape": if the orb/item
-  pass shares the center-distance form, the family shares the
-  shortfall); the riding form (the union with the vehicle's shape,
-  grown (1.0, 0.0, 1.0)).
-- **Associated artifacts:** the seats + this record on
-  `audit/verifier-pass-38-discovery`.
-
-
-## The thirty-eighth pass's close — the lane's run summary (the next run's handoff)
-
-**The run's landings:** VT-021 (the partial-shape stick face)
-confirmed whole against develop AND PR #117's landed construction —
-the review note posted on #117 with the fresh observed rest
-`y=18.8268`, the box-view alternative opened as **PR #122** (the
-maintainer's pick between the constructions); VT-019's passes 2-3
-completed (the behavioral seat RED at `[10, 39, 10]`, the timing
-probe pinning the prime to the stick tick, the live wiring verified)
-— the correction converged with the sibling lane's identical gate,
-**PR #123 the carrier**, the convergence note posted (the timing
-probe + the band-limit control offered, this lane's 3-arm seat green
-on the #123 tree); VT-023 (the flight band's feet law) confirmed
-whole — RED on develop AND on the #123 tree (the gate's
-orthogonality pinned) — **PR #128 OPEN** (the two-line band
-correction, the #123-union verified live on both lanes' seats); VT-024
-(the pickup envelope) confirmed whole — three seats RED on develop at
-exactly the predicted shapes — **Phase E the next run's head** (the
-three-line envelope correction + the item/orb family's same-form
-walk).
-
-**The next run's queue (this lane's view, unioned with the
-standing items):**
-1. **VT-024's Phase E** — the envelope correction (`maxHorizontal`
-   carrying the player's 0.3 half-width; `arrowBottom/Top` = the feet
-   law's [y, y+0.5]) + the item/orb pickup family's same-form walk
-   (the class census — the engine's javadoc claims the arrow's form
-   is "the orb pickup's exact shape").
-2. **The merge watch**: #108/#109/#110/#111/#113/#114/#116/#117/
-   #118/#119/#120/#121/#122/#123/#124/#125/#126/#128 — the open set;
-   after the arrow family's carriers merge, the bobber's parallel
-   un-stick arm (VT-015's named follow-up) and VT-022's passes (the
-   stick-vs-prime ordering, the pass-36 lane's claim) are the
-   projectile family's standing items.
-3. **F-SP1's passes** (the support-consult family — the 38b lane's
-   source pass the record; the behavioral seats owed).
-4. **The dimension tails** (the PR #90 ledger): the FX dimension
-   awareness, the per-dimension world border, the zombie arm's world
-   binding; the furnace/dispenser/brewing families' per-dimension
-   stores (the FL4-GAP2 Slice B tail).
-5. **The blast RNG tail** (VT-007's named tail): the End/nether
-   services' shared `gameplayRandom` vs the reference's per-world
-   `world.random`.
-
-
 **THIS PASS'S HEAD — VT-019's seat** (the queue's item 2a, twice
 named the head and twice deferred): the stuck burning arrow beside
 TNT, the behavioral seat (pass 2) and the independent challenge
@@ -4844,9 +5239,6 @@ correction on #123/#128); seven new seats on this lane's branch (the
 VT-019 pair, the VT-018 full-boot pair — renamed per the
 file-resolution protocol, the VT-023 pair, the stick-tick seat).
 
-
-## The fortieth pass (the piston lane's records, whole) — VT-022 CONFIRMED + PR #129; the toBreak finding (this lane's VT-023 draft, RENUMBERED **VT-025** by the forty-first pass's arbitration — PR #128 owns VT-023 publicly first at 06:37:51, and the pass-38 lane's arrow-pickup claim owns VT-024 at 06:42:44; the PR #131 retitle and note the record) + PR #131; VT-016's records in the section below
-
 ## VT-022 — the piston's block-entity gate is nearly empty: the reference's whole BlockEntityProvider census is PUSHED by the engine, the movable containers losing their contents (CONFIRMED — three passes; the correction is **PR #129 OPEN**; FIRST NUMBERED VT-019 by this lane's initial draft — renumbered by the fortieth pass's own reconciliation, the pass-38 lane's TNT re-prime claim owns 19 publicly)
 
 **Subsystem:** redstone / the piston families / the canMoveBlock gate
@@ -4939,7 +5331,7 @@ the seats 2/0 on the fix; the piston package whole 25/0; the container
 lanes 43/0 (the chest package whole, HopperWindow, FurnaceHopperEvent,
 DispenseBehavior, BrewingStandApi, BeaconSystem).
 
-## VT-025 — the piston toBreak drop consult diverges for multi-entry and family-branch drop rows: a broken potted plant drops only the pot, the broken leaves drop nothing (CONFIRMED — three passes; the correction is **PR #131 OPEN, STACKED ON #126**; FIRST NUMBERED VT-020 by this lane's initial draft — renumbered by the fortieth pass's own reconciliation, the spawn-floor lane's hasSolidTop claim owns 20 publicly — then RENUMBERED from the VT-023 draft to **VT-025** by the forty-first pass's public-first arbitration: PR #128's flight band owns 23 (opened 06:37:51) and the pass-38 lane's arrow pickup envelope owns 24 (pushed 06:42:44, the correction PR #132); the arbitration note posted on PR #131 and the PR retitled)
+## VT-025 — the piston toBreak drop consult diverges for multi-entry and family-branch drop rows: a broken potted plant drops only the pot, the broken leaves drop nothing (CONFIRMED — three passes; the correction is **PR #131 OPEN, STACKED ON #126**; FIRST NUMBERED VT-020 by this lane's initial draft, then VT-023 by the fortieth pass's records — RENUMBERED VT-025 by the forty-first pass's public-first resolution: the flight band owns 23 (PR #128, 06:37:51) and the arrow pickup envelope owns 24 (the pass-38 lane's push, 06:42:44), both claims ahead of PR #131's 06:49:10)
 
 **Subsystem:** redstone / the piston families / the toBreak drop law.
 **Affected version:** develop `777b7c86` (independent of PR #126 —
@@ -5017,7 +5409,12 @@ unregressed); the regression lanes 54/0 (the redstone package whole,
 DropBandParityAcceptance — the dig path's own drop bands — and
 FarmingGrowthCadence).
 
-## The fortieth pass — VT-016's three passes completed and corrected (PR #126): the membership census widened from five families to the whole registry's 426 ids; VT-022 and VT-025 (the toBreak, this lane's VT-023 draft — the forty-first pass's arbitration renumber) discovered inside the same walk
+## The fortieth pass — VT-016's three passes completed and corrected (PR #126): the membership census widened from five families to the whole registry's 426 ids; VT-022 and VT-023 discovered inside the same walk
+
+*(The forty-first pass's renumber note: every VT-023 reference in this
+section — the piston toBreak — now reads VT-025; the flight band owns
+23, the pickup envelope 24. The section's records otherwise stand
+whole.)*
 
 **The baseline:** `origin/develop` at `777b7c86` (2026-11-01) —
 carried by this lane's merge of develop into the thirty-ninth lane's
@@ -5115,8 +5512,625 @@ material table (#126), the entity gate (#129), and the toBreak drop
 consult (#131) all answer the reference's census, each through its
 own three-pass discipline and its own PR.
 
+## VT-024 — the arrow pickup's envelope: the horizontal cap misses the player's half-width and the vertical envelope is the shifted box (CONFIRMED — three passes; Phase E eligible)
 
-## The forty-first pass — the numbering arbitration (VT-024 owned by the arrow pickup envelope; the piston toBreak renumbered VT-025) + VT-024's Phase E LANDED (PR #132 the carrier, the convergence with the strict-cap review correction) + the item/orb pickup family's census
+- **Status:** CONFIRMED (three passes complete; the correction owed —
+  the three-line envelope fix).
+- **Subsystem:** projectile pickup — the arrow's collection envelope
+  (`withinArrowPickupRange`).
+- **Affected engine files/methods:**
+  `ProjectileManager.withinArrowPickupRange` (the horizontal
+  center-distance cap `ARROW_HALF_WIDTH + PICKUP_GROWTH_HORIZONTAL`
+  = 1.25; the vertical envelope `[y−ARROW_HALF_HEIGHT,
+  y+ARROW_HALF_HEIGHT]`).
+- **Vanilla reference:** `PlayerEntity.playerTick` lines 486-505 — the
+  player's own box (`setSize(0.6F, 1.8F)` — half-width 0.3, the feet
+  law's [py, py+1.8]) **grown (1.0, 0.5, 1.0)** (the riding form: the
+  union with the vehicle's shape, grown (1.0, 0.0, 1.0)) intersected
+  with the entities' boxes via `world.getEntities`; the arrow's box is
+  the feet law's [ax−0.25, ax+0.25] × [y, y+0.5] × [az−0.25, az+0.25].
+  The intersection: |dx| < 1.55, y+0.5 > py−0.5, y < py+2.3. The
+  pickup arm (ArrowEntity.onPlayerCollision 427-440) rides the walk.
+- **Expected behavior:** an arrow 1.4 blocks beside the walker
+  collects (the grown box's 1.3 reach over the arrow's 0.25); an arrow
+  whose box top clears the grown floor (y+0.5 > py−0.5) collects; an
+  arrow above the grown ceiling (y ≥ py+2.3) never collects.
+- **Observed behavior (the three seats, RED on develop `777b7c86`):**
+  arm A — the arrow at dx=1.4: left standing (the engine's 1.25 cap);
+  arm B — the arrow at py−0.9: left standing (the envelope top
+  y+0.25 misses the grown floor); arm C — the arrow at py+2.4:
+  COLLECTED (the envelope bottom y−0.25 dips under the grown ceiling
+  py+2.3).
+- **Exact technical explanation:** the horizontal form treats the
+  player as a zero-width point (the cap is the arrow's half-width +
+  the growth alone — the player's own 0.3 half-width missing, 0.3
+  short of the reference's 1.55 intersection); the vertical envelope
+  is the arrow's box shifted down 0.25 (the retired box-center
+  framing — VT-023's same class; the position is the box BOTTOM,
+  pinned by VT-014's rest law).
+- **Reproduction:** `ArrowPickupEnvelopeParityDiscoveryTest` (this
+  audit branch): three arms, the ArrowPickupTest harness pattern (a
+  direct manager + a real session over a stub world, hand-stuck
+  arrows).
+- **Verification pass history:** pass 1 (this pass, the thirty-eighth
+  lane's second continuation): the source walk — the grown box read
+  directly (PlayerEntity 486-491), the arrow's box law carried from
+  VT-023's verified walk, the engine's form read directly. Pass 2
+  (this pass): the three seats RED at exactly the predicted shapes.
+  Pass 3 (this pass): the premise carried (the feet law verified in
+  VT-023's pass 3), the compensation hunt (negative — the pickup pass
+  is the only consult), the design-intent challenge (the javadoc's own
+  "the player box grown 1.0/0.5 against the arrow's own 0.5 box"
+  claims the intersection form the code does not implement), the
+  riding-form note (the reference's vehicle-union growth — the
+  engine's form carries no riding branch, a named tail with the
+  vehicle family's own envelope work).
+- **Confidence:** high — deterministic seats, the law read on both
+  sides, the class already verified twice (VT-023).
+- **Proposed minimal correction:** the envelope: `maxHorizontal =
+  0.3 + PICKUP_GROWTH_HORIZONTAL + ARROW_HALF_WIDTH` (the player's
+  half-width carried — a named constant, the reference's 0.6F width);
+  `arrowBottom = y`, `arrowTop = y + 0.5` (the feet law's box).
+- **The named tails:** the item/orb pickup family's same-form walk
+  (`ItemEntity`/`ExperienceOrbEntity` — the engine's own javadoc says
+  the arrow's form is "the orb pickup's exact shape": if the orb/item
+  pass shares the center-distance form, the family shares the
+  shortfall); the riding form (the union with the vehicle's shape,
+  grown (1.0, 0.0, 1.0)).
+- **Associated artifacts:** the seats + this record on
+  `audit/verifier-pass-38-discovery`.
+
+
+## The thirty-eighth pass's close — the lane's run summary (the next run's handoff)
+
+**The run's landings:** VT-021 (the partial-shape stick face)
+confirmed whole against develop AND PR #117's landed construction —
+the review note posted on #117 with the fresh observed rest
+`y=18.8268`, the box-view alternative opened as **PR #122** (the
+maintainer's pick between the constructions); VT-019's passes 2-3
+completed (the behavioral seat RED at `[10, 39, 10]`, the timing
+probe pinning the prime to the stick tick, the live wiring verified)
+— the correction converged with the sibling lane's identical gate,
+**PR #123 the carrier**, the convergence note posted (the timing
+probe + the band-limit control offered, this lane's 3-arm seat green
+on the #123 tree); VT-023 (the flight band's feet law) confirmed
+whole — RED on develop AND on the #123 tree (the gate's
+orthogonality pinned) — **PR #128 OPEN** (the two-line band
+correction, the #123-union verified live on both lanes' seats); VT-024
+(the pickup envelope) confirmed whole — three seats RED on develop at
+exactly the predicted shapes — **Phase E the next run's head** (the
+three-line envelope correction + the item/orb family's same-form
+walk).
+
+**The next run's queue (this lane's view, unioned with the
+standing items):**
+1. **VT-024's Phase E** — the envelope correction (`maxHorizontal`
+   carrying the player's 0.3 half-width; `arrowBottom/Top` = the feet
+   law's [y, y+0.5]) + the item/orb pickup family's same-form walk
+   (the class census — the engine's javadoc claims the arrow's form
+   is "the orb pickup's exact shape").
+2. **The merge watch**: #108/#109/#110/#111/#113/#114/#116/#117/
+   #118/#119/#120/#121/#122/#123/#124/#125/#126/#128 — the open set;
+   after the arrow family's carriers merge, the bobber's parallel
+   un-stick arm (VT-015's named follow-up) and VT-022's passes (the
+   stick-vs-prime ordering, the pass-36 lane's claim) are the
+   projectile family's standing items.
+3. **F-SP1's passes** (the support-consult family — the 38b lane's
+   source pass the record; the behavioral seats owed).
+4. **The dimension tails** (the PR #90 ledger): the FX dimension
+   awareness, the per-dimension world border, the zombie arm's world
+   binding; the furnace/dispenser/brewing families' per-dimension
+   stores (the FL4-GAP2 Slice B tail).
+5. **The blast RNG tail** (VT-007's named tail): the End/nether
+   services' shared `gameplayRandom` vs the reference's per-world
+   `world.random`.
+
+## The postfan lane's records (the forty-first pass's union act — the spawn-stamp lineage's findings carried into this report whole)
+
+The `audit/vt-013-postfan-stamp` lane's records, unioned in by this
+(the forty-first) lane: the lineage that took VT-012 (the mob-spawn
+dimension stamp) through its fix (PR #125) and discovered the
+post-fan stamp ordering and the nether border containment inside the
+same walk. The two discoveries' numbers reconciled by the public-first
+protocol (the postfan lane's fork predates the pass-31 records, so its
+local VT-013/VT-014 drafts collided with the main lineage's numbers —
+the stuck-arrow-crossing owns 13, the arrow stick placement owns 14;
+the post-fan stamp takes VT-027, the nether border VT-026; nothing
+public renamed, the records below carry the renumber in their own
+headers).
+
+## The twenty-ninth pass — the item-9 dimension tails opened: VT-012 discovered (the spawn dimension stamp family)
+
+The pass-28 queue named three owed lanes: the F-SP1/F-DS1 passes, the
+item-9 dimension tails, and the cooldown-order watch. This pass opened
+the item-9 head — **the mob-spawn dimension stamp** (the PR #90
+ledger's own named tail, `MobManager.spawnAt` the named site) — and
+found the family whole: a large, source-verified, behaviorally
+demonstrated defect family behind the one named site.
+
+The setup: the branch `audit/verifier-pass-29-discovery` off the
+post-wave develop (`6b29c46f` — the vine wire rows, FL4-GAP2 Slice A's
+chest family, PR #105/#107 merged), the audit report carried whole.
+VT-012's discovery, both verification passes, and the record below all
+landed this run.
+
+## VT-012 — the live spawn walks beyond the natural cycle never stamp the body's dimension: every mob born through the non-natural entry points carries the overworld's 0, whatever dimension it is born in
+
+**Status: PR #125 OPEN — the correction landed** (`fix/spawn-dimension-stamp-parity-audit`,
+commit `bd82568d`, off develop `777b7c86`; three verification passes
+complete before the fix, the seats and the discrimination riding the fix
+branch). Priority tier 2
+(major gameplay and simulation mismatch — invisible permanent ghosts,
+phantom spawns, wrong-world physics reads, and a wrong persistence row,
+one root cause, many riders).
+
+**The fix's one law beyond the proposed per-site stamps** (discovered
+when the first per-site shape failed its own seat): the stamp must land
+BEFORE the spawn fan, not after `spawnAt` returns. The reference's
+construction law — **Entity's constructor line 166**
+(`this.dimension = world.dimension.getId()`) — means the dimension
+exists at birth, before any spawn event; the engine's `onMobSpawned`
+fan (the protocol server's `sendMobSpawn` reads the stamp AT the event,
+V18ProtocolServer's listener → the Slice 25d gate) only sees the born
+dimension if the stamp lands inside the spawn. A post-return stamp
+repairs the persistence row and the tick walk but NEVER the live
+publish — the nether player still never sees the body spawn. The fix
+therefore carries the dimension into the spawn itself:
+`spawnAt(type, position, dimension)` arms the VIII14 `spawnDimension`
+field (the zombie door-break/equipment/leader dice consult the ACTING
+dimension's local difficulty — the `spawnNaturalNether` precedent's own
+field law), constructs through `spawnAtCore`, and stamps the body
+before `mobs.add` + the listener fan. The dimensionless 2-arg arm
+INHERITS the armed context (the nether natural cycle and the zombie
+reinforcement arm the field around their calls, and the armed context
+IS their birth dimension — their dice preserved, their bodies now born
+stamped; unarmed callers keep the field's 0, today's behavior exactly).
+All fourteen sites route their acting dimension through the new arms,
+the spawner cart's three `SpawnHost` gates become dimension-filtered
+(reading `worldFor(dimension)` per the reference's `getWorld()`), the
+silverfish wake scan routes through the waking body's own world (the
+TF-9 convention), and the wither's dimension threads through
+`SkullManager.trySummonWither`'s signature. Evidence: the stash
+discrimination (the seat RED at exactly the two nether members on
+unfixed develop, `expected: <-1> but was: <0>`, the overworld control
+green; green 3/3 on the fix — through the real `useItemOnBlock` and
+`submitChat` entry points), the entity package whole 578/0, the family
+lanes + the bukkit module green.
+
+**Affected ZaminTorch files and sites** (the unstamped `spawnAt`
+family — every site confirmed to call `MobManager.spawnAt`/`spawnFromEgg`
+without a following `setDimension`, against vanilla's
+`new XEntity(world)` construction law):
+
+| # | Site | The acting dimension vanilla uses | Engine site |
+|---|---|---|---|
+| 1 | Spawn eggs — the use wire | the use wire's `world` (player's) | `EngineServer` ~13695 + ~13730 (`spawnFromEgg`), `DispenserSystem` ~694 (the dispenser arm) |
+| 2 | Endermite at the pearl teleport | the pearl's `this.world` | `EngineServer` ~2445 (`setPearlSink`) |
+| 3 | `/summon` — the mob route | `source.getCommandSourceWorld()` | `EngineServer` ~30069 |
+| 4 | `/summon` — the armor stand route | same | `EngineServer` ~30059 (**hardcoded `0`**, the comment claims "console" but the sender is the player) |
+| 5 | The group-spawn command | same | `EngineServer` ~30122 (`spawnGroup`) |
+| 6 | The wither summon | the placing world | `EngineServer` ~3321 (`summonWither` — **no dimension in the signature at all**) |
+| 7 | The spawner minecart | the cart's own world | `EngineServer` ~15829-15844 (`spawnerCartHost` — **also binds the OVERWORLD `world` field for its spawn gates**, and its player/cap gates are dimension-blind) |
+| 8 | The sheared mooshroom's cow | the mooshroom's `this.world` | `EngineServer` ~16479 |
+| 9 | The zombie infection | the zombie's `this.world` | `MobManager.infectVillager` ~3071 |
+| 10 | The zombie-villager cure | the zombie's `this.world` | `MobManager.convertZombieToVillager` ~3101 |
+| 11 | The slime split | the parent's `this.world` | `MobManager` ~4141 (the split children) |
+| 12 | Breeding | the parents' `this.world` | `MobManager` ~4552 (the calf) |
+| 13 | The pumpkin golems | the placing world | `GolemSpawns.trySpawnGolem` ~92 + ~120 |
+| 14 | The infested burst's silverfish | the breaking world | `EngineServer.spawnSilverfishAt` ~25479 |
+
+**The sites that already stamp correctly** (the law is known to the
+engine — the gaps are not design): `spawnNaturalNether` (`-1`),
+the End dragon (`1`, EngineServer ~20178), the block spawner
+(`spawner.dimension()`, SpawnerManager ~380), the chicken egg (its
+`dimension` parameter, EngineServer `chickenHatch`), the zombie
+reinforcement (`caller.dimension()`, MobManager ~3528), the persistence
+restore (`restoreStateExtras`'s `setDimension`), and the anvil import
+(`EntityNbt.readNbt`'s `Dimension` row). The pigman portal spawn was
+censused and RETIRED: vanilla's `PortalBlock.tick` line 34 gates on
+`world.dimension.isNatural()` — the base Dimension returns true, the
+Nether and The End override false — so the overworld-lane-only
+registration and the dimension-0 stamp are both correct there.
+
+**Vanilla reference files** (1.8.8): `EnderPearlEntity.onCollision`
+(~line 52: `new EndermiteEntity(this.world)`), `SummonCommand` (line
+54: `source.getCommandSourceWorld()`), `SkullBlock` (line 185: `new
+WitherEntity(world)`), `MooshroomEntity` (line 38: `new
+CowEntity(this.world)`), `ZombieEntity` (line ~360 the infection's
+`new ZombieEntity(this.world)`; line 520 `convertToVillager`'s `new
+VillagerEntity(this.world)`), `SlimeEntity.getInstance` (line 138:
+`new SlimeEntity(this.world)`), `CowEntity.createChild` (line 110: `new
+CowEntity(this.world)`), `PumpkinBlock.trySpawnGolem` (lines 57/86),
+`InfestedBlock.dropItems` (~line 61: `new SilverfishEntity(world)`),
+`SpawnerMinecartEntity` (line 19: `getWorld()` returns the cart's own
+world), `SpawnEggItem.spawnEntity` (the use wire's `world` parameter).
+
+**Expected behavior:** a mob born in the nether lives in the nether —
+its spawn packet publishes to the nether's players, its physics and
+scans read the nether's cells, its targeting finds the nether's
+players, and its persistence row stamps -1.
+
+**Observed behavior** (the behavioral seats, RED on develop at exactly
+the stamp): `SpawnDimensionStampAcceptanceTest` — the nether player's
+pig egg spawns a body carrying `dimension = 0`; the nether player's
+`/summon Zombie` lands a body carrying `dimension = 0`; the overworld
+control members pass (the stamp is 0 where 0 is right).
+
+**The exact technical explanation:** `MobEntity.dimension` is a private
+field defaulting to 0; only `setDimension` writes it (the spawn walks
+and the portal arrival). `spawnAt` never writes it, and the fourteen
+sites above never call `setDimension` after their `spawnAt`/
+`spawnFromEgg`. The observable damage chains through three downstream
+gates: (1) the wire's own spawn filter (`V18Connection.sendMobSpawn`,
+Slice 25d: `dimensionOfSession() != mob.dimension()` → skip) — a
+wrong-stamped nether body never publishes to the nether player standing
+beside it, while an overworld player at the same chunk coordinates
+receives the phantom spawn; (2) the shared world query
+(`world.setActiveDimension(mob.dimension())` in the tick walk,
+MobManager ~1612-1735) — the body's physics, scans, and pathing read
+the OVERWORLD's cells at the nether's coordinates; (3) the persistence
+store (`stateExtrasOf` saves `mob.dimension()`) — the wrong row is
+saved whole and restored identically. The despawn walk's
+`nearestPlayingPlayer` gates on `player.dimension() != mob.dimension()`
+too — a wrong-stamped body finds no players and **never despawns: the
+roll requires a same-dimension player** (`if (despawnNearest != null
+&& shouldDespawn(...))`, MobManager ~1677), and `tickDespawnWindow`'s
+null arm never resets `farFromPlayerTicks` — the wrong-stamped monster
+is a PERMANENT invisible ghost, one per spawn event, accumulating.
+
+**Reproduction evidence:** `SpawnDimensionStampAcceptanceTest`
+(zamin-core, this branch) — two nether members RED on develop
+(`expected: <-1> but was: <0>` at both), the overworld control GREEN
+3/3 when the family is fixed at these two members' sites.
+
+**Verification pass history:**
+- **Pass 1 — source (this run, 2026-11-01):** the vanilla census whole
+  (the table above; every site's `new XEntity(world)` read in the
+  reference tree), the engine census whole (fourteen unstamped sites,
+  seven correctly-stamped sites, one retired), and the three downstream
+  gates traced (sendMobSpawn's filter, the tick walk's
+  setActiveDimension, the persistence save).
+- **Pass 2 — behavioral (this run, 2026-11-01):** the seats RED on
+  develop at exactly the stamp (`expected: <-1> but was: <0>`, both
+  nether members), the overworld control GREEN — the discrepancy
+  demonstrated through the real use wire (`useItemOnBlock`) and the
+  real command route (`submitChat`), not a direct manager call.
+- **Pass 3 — independent re-verification (this run, 2026-11-01):**
+  CONFIRMS the finding, and SHARPENS it. The execution-path challenge
+  (the egg member's full chain): `useSpawnEggOnBlock` derives
+  `useWorld = worldFor(session.dimension())` for every block consult
+  (FL4-F3's routing — the gates are dimension-CORRECT), then hands the
+  spawn to `spawnFromEgg` with a position alone — the gap is precisely
+  bounded to the body's stamp. The compensating hunt deepened: no
+  write anywhere downstream (the tick walk reads, the publish gate
+  reads, the persistence save reads), and the despawn law is WORSE
+  than the original record claimed — the roll requires a
+  same-dimension player, so the wrong-stamped monster never despawns
+  at all (a permanent ghost, not a transient one; the record's wording
+  corrected above). The design-choice challenge: five stamped
+  precedents, the armor-stand system's own dimension-aware placement
+  (`ArmorStandDimensionReadsTest` pins -1/1/0 through `system.place`)
+  versus the `/summon` route's hardcoded 0 with a stale console-era
+  comment, and `MobStateExtras`'s own javadoc ("a nether pigman never
+  wakes in the overworld") — the engine's intent is unambiguous
+  per-body dimensions; the unstamped sites are gaps. No test pins the
+  wrong value (the armor-stand dimension seats drive the system API,
+  not the command route). The End edge case: the whole family shares
+  dimension 1's sites (a player in the End summoning/breeding/egging
+  — the same wrong 0), and the End carries no natural spawn cycle in
+  either the reference or the engine (two `SpawnSurface`s constructed,
+  `SpawnSurface(mobs, false)` and `SpawnSurface(mobs, true)` — no
+  third; nothing extra owed there).
+
+**Confidence and uncertainties:** high on the family root cause and
+both demonstrated members; the other twelve members are
+source-verified but not behaviorally seated (the family shares one
+root cause, so the two seats + the census carry the demonstration;
+individual members' seats can ride the fix branch). Uncertainty: none
+known on the vanilla side; on the engine side the fix shape must
+choose per-site stamping vs a spawnAt-level derivation (the acting
+world is not threaded into spawnAt — the fix design belongs to pass 3
+and the fix branch).
+
+**Proposed minimal correction:** per-site, following the five landed
+stamping precedents — each of the fourteen sites stamps its own acting
+dimension (the egg routes `session.dimension()`, the pearl route
+`thrower.dimension()`, the summon routes `sender.dimension()`, the
+wither route the placement dimension (the signature gains the
+dimension), the spawner cart the cart's dimension (its host's gates
+also gain the routed world), the shear/infection/cure/split/breeding
+routes the source body's dimension, the golem routes the placing
+world's dimension, the silverfish route the break dimension). No
+architectural change: `setDimension` exists and the sites hold their
+dimension sources or can thread them.
+
+**Regression risks:** low — the stamping sites' overworld behavior is
+unchanged (dimension 0 is already the default); the risk concentrates
+in the spawner cart host (its overworld-bound `world` capture also
+feeds `canSpawnAt`/`canSpawnEntity` — routing those reads must not
+change the overworld cart's behavior) and in any test that pinned the
+unstamped value (none known; the overworld control seat pins the
+correct side).
+
+**Branch:** `audit/vt-012-spawn-dimension-stamp` (the discovery record
+and the seats; renamed from the collided `audit/verifier-pass-29-discovery`
+name the parallel stream owns). The fix landed as **PR #125** off the
+latest develop (`777b7c86`): the dimension-aware spawn core, the
+fourteen sites routed, the seats riding the fix branch, the regression
+lanes green (the egg/summon/spawner/cart families, the entity package
+whole).
+
+## VT-026 — the nether's border containment consults use the overworld's raw center: vanilla's nether border is the overworld's rows with the CENTER REPORTED AT /8 (CONFIRMED — three passes complete, fix-ready; FIRST NUMBERED VT-014 by the postfan lane — renumbered by the forty-first pass's reconciliation, the arrow stick placement owns 14 publicly via PR #117 at 05:40:04 vs this claim's 06:46:42)
+
+**Status: CONFIRMED — three passes complete (this run), fix-ready.**
+Priority tier 4 (a physics/containment divergence family — the border
+wall, the border damage, and the dig/use gates all mis-place in the
+nether when the border's center is configured; unobservable at the
+default center (0,0) where the /8 projection is the identity).
+
+**The vanilla law (1.8.8, the census whole):**
+- **Every world owns its border** (World.java:103-112,
+  `dimension.createWorldBorder()`), but the **command and the wire both
+  target `worlds[0]` ALONE**: `WorldBorderCommand.getWorldBorder()`
+  lines 171-172 (`MinecraftServer.getInstance().worlds[0]
+  .getWorldBorder()`), the join send `PlayerManager.sendWorldInfo`
+  lines 678-679 (`worlds[0]`'s border INITIALIZED to every player,
+  whatever their dimension), and the change broadcasts (the
+  `worlds[0]` listener at PlayerManager:189-213 fanning to ALL
+  players). The engine's single shared border MATCHES these lanes
+  exactly — the EngineServer line-280 comment's "the engine's one
+  border, the reference's worlds[0]" claim is the reference's own law
+  for the command/wire surface (the queue's original suspicion of the
+  design itself is RETIRED for those lanes).
+- **The nether's and End's own borders are SYNCED COPIES**:
+  MinecraftServer's init loop (lines 235-250) constructs both as
+  `ReadOnlyServerWorld` delegating to `worlds[0]`, whose constructor
+  (ReadOnlyServerWorld:17-37) wires the overworld's border listener to
+  COPY every change (size, lerp, center, warnings, damage) into its
+  own border. **The NetherDimension's border overrides the center
+  reporting** (NetherDimension.createWorldBorder lines 75-86:
+  `getCenterX()/getCenterZ()` return `super/8.0`); TheEndDimension has
+  no override (the raw copy).
+- **The containment lanes read the ACTING WORLD's border**: the damage
+  walk (LivingEntity.baseTick lines 197-201, `this.world
+  .getWorldBorder()` — the body's own world), the dig gate and the use
+  gate (`serverworld.getWorldBorder().contains(blockpos)`, the dig
+  consult ServerPlayNetworkHandler lines 437-445), the physics wall
+  (the border's collision stand-in outside the border), and the spawn
+  consult (World.java:2482, `this.getWorldBorder()`).
+
+**The engine's shape:** one `EngineWorldBorder` (EngineServer:281);
+the containment sites all read it regardless of the acting dimension —
+the dig-start gate (EngineServer ~3665), the use gate (~11643), the
+player border-damage walk (~5931, `containsBox` over the shared
+geometry), and the two collision-surface `borderContains` hooks
+(~19419 vehicles, ~23138 mobs) feeding `EntityCollisions`' wall (the
+outside-border cells become STONE, EntityCollisions ~98).
+
+**The precise divergence:** with the center configured non-zero
+(`/worldborder center 1600 1600`), vanilla's NETHER containment
+geometry is centered at (200, 200) (the synced rows + the /8 center
+reporting) while the engine's nether consults use (1600, 1600) — a
+nether player at (200, 200) stands at vanilla's nether-border center
+but ~1984 blocks outside the engine's geometry: the engine builds its
+STONE wall there and walks its IN_WALL damage while vanilla does
+nothing; the dig/use gates refuse at the wrong places. The END's
+containment matches (the raw copy — no divergence), and the
+size/damage/warning rows match everywhere (synced raw). The wire and
+the command are correct (both `worlds[0]`).
+
+**Verification pass history:**
+- **Pass 2 — behavioral (this run, 2026-11-01):**
+  `NetherBorderContainmentParityTest` (zamin-core, this branch) — the
+  border configured center (1600, 1600) size 1000 through the REAL
+  command route; the nether member digs DIRT at (200, 100, 200) —
+  vanilla's nether-border exact CENTER (the /8 projection) — through
+  the real `submitMiningStart` route: RED at the refusal (the dig
+  never opens, the cell never leaves DIRT). TWO ATTRIBUTION CONTROLS
+  GREEN: the same nether dig with the border UNCONFIGURED opens (the
+  nether dig route itself works — the refusal is the border gate
+  alone, not the reach band, not the spawn protection, not the
+  dimension routing), and the overworld dig outside the configured
+  border stays refused (the engine's overworld lane correct).
+- **Pass 3 — independent re-verification (this run, 2026-11-01):**
+  CONFIRMS. The compensating hunt NEGATIVE — no per-dimension border
+  projection exists anywhere in the engine (the five containment
+  sites all read the one shared object; `EngineWorldBorder` carries a
+  single geometry), and the no-border control proves the dig route
+  works. The design-choice challenge NEGATIVE — the dig gate's own
+  comment cites the reference's `serverworld.getWorldBorder()`
+  contains consult (the ACTING-world law), and the line-280 comment
+  claims worlds[0] for the COMMAND surface only; the intent is
+  vanilla-correct and the shared object is the gap. The edge cases:
+  the End matches (the raw copy — the shared border is right there),
+  the default center (0,0) makes the /8 projection the identity (no
+  observable divergence until configured), and the wire/command lanes
+  are correct (both worlds[0]).
+
+**Proposed minimal correction (bounded):** the containment consults
+gain the acting dimension (the dig gate and the use gate already hold
+the session; the damage walk and the two collision hooks already hold
+the body), and a nether view (the same synced rows, the center
+reported at /8 — NetherDimension's own anonymous subclass shape)
+answers for dimension -1; the overworld and the End keep the shared
+object; the wire and the command stay on `worlds[0]` (vanilla's own
+law — NOT part of this correction).
+
+**Branch:** `audit/vt-013-postfan-stamp` (the record + the seats; the
+fix branch is the next run's head — the five sites' dimension
+threading + the nether /8 view, bounded as the proposed correction
+above).
+
+## VT-027 — the remaining post-stamp precedents stamp AFTER the spawn fan: the block spawner's, the dragon's, and the chicken egg's live publishes read the un-stamped 0 at the event (RESOLVED IN FLIGHT — **PR #130 OPEN, stacked on #125**; FIRST NUMBERED VT-013 by the postfan lane — renumbered by the forty-first pass's reconciliation, the stuck-arrow-crossing claim owns 13 publicly from the pass-31 records even though REJECTED)
+
+**Status: PR #130 OPEN — the correction landed** (`fix/post-fan-stamp-ordering-parity-audit`,
+commit `6e13ad5a` stacked on PR #125's branch — the dependency
+documented, #130 merges after #125; three verification passes complete
+before the fix). Priority tier 2 (the same damage class as VT-012:
+invisible bodies at their own spawn moment, phantom packets to
+same-chunk-coordinate overworld observers).
+
+**Affected sites** (each verified to post-stamp after `spawnAt`
+returns, against the reference's construction law — Entity's
+constructor line 166 stamps the dimension at birth, before any spawn
+event): the block spawner (`SpawnerManager` ~382's
+`spawned.setDimension(spawner.dimension())` after the 2-arg spawnAt),
+the End dragon (EngineServer ~20182's `dragon.setDimension(1)` after
+the spawn), and the chicken egg's hatch (EngineServer ~21231's
+`chick.setDimension(dimension)` after the spawn). The armor-stand
+system was censused and CLEARED (its `new ArmorStand(nextId,
+dimension, …)` constructor stamps at birth — not a member). The
+natural nether cycle and the zombie reinforcement were the same shape
+but are born stamped through VT-012's inheritance arm.
+
+**The exact mechanism**: MobManager's `onMobSpawned` fan fires INSIDE
+`spawnAt` (`mobs.add(mob)` + the listener fan, before the return), and
+the protocol server's listener calls `connection.sendMobSpawn(mob)`
+whose Slice 25d gate (`dimensionOfSession() != mob.dimension()`)
+evaluates the body's dimension AT THE EVENT — the post-return stamp
+never reaches the live publish.
+
+**Verification pass history:**
+- **Pass 1 — source (this run, 2026-11-01):** the three sites' post-fan
+  stamps read in full; the fan's location inside spawnAt; the
+  `sendMobSpawn` call-site census (exactly two: the live fan at
+  V18ProtocolServer 478 and the rejoin-only `playerEnteredPlay` at
+  2156); the armor stand cleared.
+- **Pass 2 — behavioral (this run, 2026-11-01):** `PostFanStampOrderingTest`
+  (zamin-core, this branch) — the block-spawner member driven twice:
+  the unit harness (the spawner's own walk with a listener on the bare
+  MobManager) and the full engine boot (the real listener fan the
+  protocol server rides). BOTH seats RED on the PR #125 tree at
+  exactly the predicted shape (`expected: <-1> but was: <0>`, both) —
+  a nether spawner's body carries the un-stamped 0 at the event. The
+  dragon and chicken members share the root cause (one line each); the
+  dragon's spawn needs the End chunk-(0,0) drain (heavy for a unit
+  seat) and the chicken egg's hatch is a 1-in-8 roll (a probabilistic
+  seat would flake) — the two spawner seats + the census carry the
+  demonstration, the VT-012 precedent's own standard.
+- **Pass 3 — independent re-verification (this run, 2026-11-01):**
+  CONFIRMS, and CORRECTS the original record. The compensating hunt:
+  NEGATIVE — `sendMobSpawn` has exactly two call sites (the live fan
+  and the rejoin-only `playerEnteredPlay`); there is no chunk-open
+  entity flush and no periodic resync (a client that never received
+  the Spawn Mob packet cannot learn the entity from its later
+  movement/metadata packets — an unknown entityId is dropped). The
+  design-choice challenge: NEGATIVE — the sites' own comments declare
+  the stamp's intent ("the body lives in the spawner's own dimension,
+  Slice 25d"), VT-012's landed dimension-aware arm is the
+  house-accepted migration shape, and no test pins the un-stamped
+  event value (the two seats here are the first to read it). **THE
+  DRAGON EXPOSURE CORRECTED**: the original record claimed the dragon
+  "spawns before any player tracks" — WRONG: only the OVERWORLD
+  pregenerates its spawn area at boot; the End's chunks generate
+  lazily, so the chunk-(0,0) drain (`drainGenerationAttachments`, the
+  populate-time record drain) fires when the approaching player first
+  loads the chunk — WITH THE PLAYER LIVE IN THE END. The mis-routed
+  spawn packet (0 vs the End player's 1) means **the first End
+  visitor who flies toward the dragon never sees it spawn** — no
+  re-publish until a relogin. The chicken member: a nether-thrown
+  egg's hatch (1-in-8) publishes to nobody in the nether and phantoms
+  into the overworld at the same chunk coordinates.
+
+**Confidence:** high on the mechanism and both seated demonstrations;
+the dragon and chicken members are source-verified with the shared
+root cause (the same one-line shape).
+
+**Proposed minimal correction** (stacked on PR #125 — the
+dimension-aware arm does not exist on develop yet): each site migrates
+to the 3-arg `spawnAt`, its post-stamp collapsing into the birth
+stamp: the spawner's `mobs.spawnAt(spawner.type(), new Position(x, y,
+z), spawner.dimension())`; the dragon's `spawnAt(ENDER_DRAGON,
+new Position(0, 128, 0), 1)`; the hatch's `spawnAt(CHICKEN, position,
+dimension)`. No other change — the overworld behavior is identical
+(0 is already the birth default).
+
+**Regression risks:** low — the three sites' overworld behavior is
+byte-identical (dimension 0 is the birth default); the spawner's
+nearby cap and cell gates are untouched; the dragon's reserved-id
+convention rides `spawnAtCore` unchanged.
+
+**Branch:** `audit/vt-013-postfan-stamp` (based on PR #125's fix
+branch — the dependency documented; the seats + this record). The fix
+landed as **PR #130** (stacked on #125): the three sites' migrations
+to the dimension-aware arm, the seats riding (GREEN 2/2 on the fix,
+RED at `expected: <-1> but was: <0>` on the #125 tree), the entity
+package + the VT-012 seats 581/0 on the stacked tree, the spawner
+package / the dragon lane / the projectile egg lanes / the FX
+dimension-reads lane green.
+
+## The forty-second pass (this lane — first numbered the forty-first; RENUMBERED at the push: the sibling session's forty-first lane pushed `bcfa9850` at 07:27:05, minutes ahead of this lane's head 07:30:38 — the established concurrent-stream protocol, nothing public renamed) — the six-way union + the numbering reconciliation (the piston toBreak VT-025, the nether border VT-026, the post-fan stamp VT-027); F-SP1's passes 2-3 this run's head
+
+**The baseline:** `origin/develop` at `149eb1f0` (2026-11-01 07:04:47 —
+Wave FL4-GAP2 Slice B, the container remainder's per-dimension
+ownership) merged into this lane; the audit report unioned from the
+five concurrent lanes' pushed branches: the thirty-ninth
+(`2cd4669c`), the fortieth (`e5a24cb4`), the thirty-eighth
+(`1b42d140`), the postfan (`0296d0d0`), and the 38b (`02ce8574`) —
+the conflict resolutions bookkeeping-only (the records unioned, the
+living sections — the ledger, the queue — refreshed to the newest
+truth).
+
+**THE SIBLING 41ST LANE'S 7b NOTE CORRECTED** (their
+`bcfa9850`): their VT-024 resolution — "the public-first protocol
+gives VT-024 to #131 (PR-opened 06:48 before any arrow-pickup PR
+exists); the arrow pickup envelope renumbers to VT-025" — weighs the
+PR-opening times, but PR #131 was opened claiming VT-023 (the
+number VT-024 first attached to its finding at the pass-39 lane's
+item 7a note, pushed 07:08:45), and the VT-020 precedent settles the
+metric: BRANCH PUSH times decide (the spawn-floor lane's push at
+06:04:09 vs the stick-face record's 06:05:09 — both claims bare
+branch pushes, no PRs). By that law the pass-38 lane's push at
+06:42:44 (commit `92fe4440` at 06:42:23, the VT-024 pickup-envelope
+record) owns VT-024, ahead of the pass-39 note's 07:08:45 — and the
+public artifact agrees: PR #131's title was updated at 07:29:59 to
+"VT-025 (renumbered — the arrow pickup envelope owns VT-024
+publicly, the pass-38 lane 06:42:44)". The piston toBreak is VT-025;
+the pickup envelope VT-024. Their lane's VT-018 work (the entity-hit
+bowhit, PR #124 widened) stands whole and rides this union's queue
+below.
+
+**The numbering reconciliation (the public-first protocol, three
+collisions resolved):**
+
+- **VT-023 → VT-025 (the piston toBreak, PR #131):** the pass-39
+  lane's closing fetch note assigned VT-024 to PR #131's finding —
+  unaware the pass-38 lane had claimed VT-024 for the arrow pickup
+  envelope publicly at 06:42:44 (its push), ahead of PR #131's
+  06:49:10. The public-first resolution: the pickup envelope owns
+  VT-024; the piston toBreak takes VT-025. The renumber carried into
+  the finding's record header, the ledger row, the queue, and the
+  merge watch; the note to post on PR #131.
+- **VT-014 → VT-026 (the nether border containment, the postfan
+  lane's discovery):** the postfan lane's fork predates the pass-31
+  records, so its VT-014 draft collided with the arrow stick
+  placement's public claim (PR #117 opened 05:40:04 vs the postfan
+  claim's 06:46:42). The arrow owns 14; the nether border takes
+  VT-026 — CONFIRMED, three passes, fix-ready, the PR owed.
+- **VT-013 → VT-027 (the post-fan stamp ordering, PR #130):** the
+  postfan lane's VT-013 draft collided with the stuck-arrow-crossing
+  claim (the pass-31 records, public before 05:34 — REJECTED but the
+  number owned; stable ids are never reused). The post-fan stamp
+  takes VT-027 — RESOLVED IN FLIGHT (PR #130, stacked on #125).
+
+**The numbering map after this act** (every live finding): VT-016
+the piston material table (#126), VT-017 the grass shade (#116),
+VT-018 the bowhit sound (#124), VT-019 the stuck burning arrow
+(#123), VT-020 the spawn floor (#121), VT-021 the partial-shape
+face (#122), VT-022 the piston entity gate (#129), VT-023 the
+flight band (#128), VT-024 the pickup envelope (Phase E eligible),
+VT-025 the piston toBreak (#131), VT-026 the nether border (the PR
+owed), VT-027 the post-fan stamp (#130). The rejected VT-013
+(stuck-arrow crossing) keeps its number forever.
+
+**The next act — F-SP1's passes 2-3** (the 38b lane's named head):
+the behavioral seats over the neighborChanged survival walks (each
+divergent row class seated RED on unfixed develop), then the
+independent pass (the placement-time gates' census, the compensating
+hunt, the intentionality challenge). The record rides below.
+
+
+## The forty-third pass (this lane — first drafted as the forty-first; RENUMBERED TWICE at the push: the sibling sessions' forty-first (`bcfa9850`, 07:27:05) and forty-second (`b7005044`) lanes own those names publicly, the established concurrent-stream protocol) — the numbering arbitration (VT-024 owned by the arrow pickup envelope; the piston toBreak renumbered VT-025) + VT-024's Phase E LANDED (PR #132 the carrier, the convergence with the strict-cap review correction) + the item/orb pickup family's census
 
 **THE PASS'S FIRST ACT — the VT-024 numbering collision resolved
 (the public-first protocol, the VT-012→VT-013 and VT-020/VT-021
@@ -5132,6 +6146,20 @@ now PR #132); **the piston toBreak renumbers VT-025** — the
 arbitration note posted on PR #131
 (https://github.com/ZaminMC/ZaminTorch/pull/131#issuecomment-6554981600)
 and the PR retitled to match. **The next free number is VT-026.**
+
+**THE ARBITRATION CORROBORATED AND STANDING:** the
+pass-42 lane's reconciliation (`c4227fe1`/`b7005044`) independently
+reached the same ruling by the VT-020 precedent's branch-push
+metric — "the pickup envelope owns 24 publicly at 06:42:44, ahead
+of PR #131's 06:49:10 — the pass-39 closing note's VT-024
+assignment superseded" — and corrected the sibling pass-41 lane's
+opposite 7b ruling (made at 07:27:05 without PR #132 in view:
+#132 opened 07:23:08 claiming VT-024 for the envelope, and PR
+#131's original title claimed VT-023 at open, not VT-024). The
+pass-42 lane's own renumber set rides its union: the nether border
+containment VT-026, the post-fan stamp VT-027. The numbering is
+settled: **VT-024 the envelope (#132), VT-025 the toBreak (#131),
+VT-026 the nether border, VT-027 the post-fan stamp.**
 
 **A second stale-base collision named for its lane (the world-border
 nether containment):** the spawn-stamp lineage

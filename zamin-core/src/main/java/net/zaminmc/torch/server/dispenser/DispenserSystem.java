@@ -311,7 +311,7 @@ public final class DispenserSystem implements WorldChangeListener {
         int slot = container.pickNonEmptySlot();
         if (slot < 0) {
             // The empty click (world event 1001): random.click at 1.2.
-            fx.sound(centerOf(pos), "random.click", 1.0f, 1.2f);
+            fx.sound(centerOf(pos), "random.click", 1.0f, 1.2f, world.dimension());
             return;
         }
         int facing = DispenserBlocks.facing(type);
@@ -365,7 +365,7 @@ public final class DispenserSystem implements WorldChangeListener {
         // puffs by the facing data (toInt: {@code offsetX + 1 + (offsetZ + 1) * 3},
         // the vertical pair collapsing to 4). The behavior's own success
         // or failure click rides beside it (the playSound overrides).
-        fx.worldEvent(centerOf(pos), WORLD_EVENT_DISPENSE_SMOKE, facingData(facing));
+        fx.worldEvent(centerOf(pos), WORLD_EVENT_DISPENSE_SMOKE, facingData(facing), world.dimension());
         return remainder;
     }
 
@@ -405,7 +405,7 @@ public final class DispenserSystem implements WorldChangeListener {
         // line 58's new DefaultDispenseItemBehavior): the click and the
         // smoke fire exactly like the dispenser's registry default.
         ItemStack remainder = defaultItemDrop(pos, facing, stack);
-        fx.worldEvent(centerOf(pos), WORLD_EVENT_DISPENSE_SMOKE, facingData(facing));
+        fx.worldEvent(centerOf(pos), WORLD_EVENT_DISPENSE_SMOKE, facingData(facing), world.dimension());
         return remainder;
     }
 
@@ -492,11 +492,11 @@ public final class DispenserSystem implements WorldChangeListener {
         Position at = dispensePosition(pos, facing);
         ProjectileEntity potion = projectiles.launchVector(ProjectileEntity.Kind.POTION, -1, at,
                 OFFSETS[facing][0], OFFSETS[facing][1] + 0.1, OFFSETS[facing][2],
-                1.1 * 1.25, 6.0 * 0.5, 0);
+                1.1 * 1.25, 6.0 * 0.5, world.dimension());
         if (potion != null) {
             potion.setPotionDamage(stack.damage());
         }
-        fx.sound(centerOf(pos), "random.bow", 1.0f, 1.2f);
+        fx.sound(centerOf(pos), "random.bow", 1.0f, 1.2f, world.dimension());
         return consumeOne(stack);
     }
 
@@ -511,14 +511,14 @@ public final class DispenserSystem implements WorldChangeListener {
             Position at = dispensePosition(pos, facing);
             ProjectileEntity launched = projectiles.launchVector(kind, -1, at,
                     OFFSETS[facing][0], OFFSETS[facing][1] + 0.1, OFFSETS[facing][2],
-                    1.1, 6.0, 0);
+                    1.1, 6.0, world.dimension());
             if (launched != null && kind == ProjectileEntity.Kind.ARROW) {
                 // Bootstrap line 70: the dispensed arrow is COLLECTABLE
                 // (the bare positional ctor plus the explicit pickup = 1 —
                 // unlike the mob shooters' arrows).
                 launched.setPickupStatus(1);
             }
-            fx.sound(centerOf(pos), "random.bow", 1.0f, 1.2f);
+            fx.sound(centerOf(pos), "random.bow", 1.0f, 1.2f, world.dimension());
             return consumeOne(stack);
         };
     }
@@ -536,9 +536,10 @@ public final class DispenserSystem implements WorldChangeListener {
         double y = at.y() + OFFSETS[facing][1] * 0.3;
         double z = at.z() + OFFSETS[facing][2] * 0.3;
         projectiles.launchFireball(new Position(x, y, z),
-                OFFSETS[facing][0], OFFSETS[facing][1], OFFSETS[facing][2], 0);
+                OFFSETS[facing][0], OFFSETS[facing][1], OFFSETS[facing][2],
+                world.dimension());
         fx.sound(centerOf(pos), "mob.ghast.fireball", 2.0f,
-                (random.nextFloat() - random.nextFloat()) * 0.2f + 1.0f);
+                (random.nextFloat() - random.nextFloat()) * 0.2f + 1.0f, world.dimension());
         return consumeOne(stack);
     }
 
@@ -551,7 +552,7 @@ public final class DispenserSystem implements WorldChangeListener {
         BlockPosition target = pos.offset(OFFSETS[facing][0], OFFSETS[facing][1],
                 OFFSETS[facing][2]);
         tnt.spawnPrimedAt(world, target.x() + 0.5, target.y(), target.z() + 0.5);
-        fx.sound(centerOf(pos), "random.click", 1.0f, 1.0f);
+        fx.sound(centerOf(pos), "random.click", 1.0f, 1.0f, world.dimension());
         return consumeOne(stack);
     }
 
@@ -575,8 +576,9 @@ public final class DispenserSystem implements WorldChangeListener {
         world.setBlock(target,
                 FluidBlocks.typeOf(kind, FluidBlocks.Form.FLOWING, 0));
         fx.sound(new Position(target.x() + 0.5, target.y() + 0.5, target.z() + 0.5),
-                "random.splash", 0.4f, kind == FluidBlocks.Kind.WATER ? 1.0f : 0.6f);
-        fx.sound(centerOf(pos), "random.click", 1.0f, 1.0f);
+                "random.splash", 0.4f, kind == FluidBlocks.Kind.WATER ? 1.0f : 0.6f,
+                world.dimension());
+        fx.sound(centerOf(pos), "random.click", 1.0f, 1.0f, world.dimension());
         return ItemStack.of(net.zaminmc.torch.server.item.BuiltinItems.BUCKET, 1);
     }
 
@@ -601,8 +603,8 @@ public final class DispenserSystem implements WorldChangeListener {
                 ? net.zaminmc.torch.server.item.BuiltinItems.WATER_BUCKET
                 : net.zaminmc.torch.server.item.BuiltinItems.LAVA_BUCKET, 1);
         fx.sound(new Position(target.x() + 0.5, target.y() + 0.5, target.z() + 0.5),
-                "random.splash", 0.4f, 1.0f);
-        fx.sound(centerOf(pos), "random.click", 1.0f, 1.0f);
+                "random.splash", 0.4f, 1.0f, world.dimension());
+        fx.sound(centerOf(pos), "random.click", 1.0f, 1.0f, world.dimension());
         if (stack.count() == 1) {
             // The in-place swap (the reference's item.setItem + size = 1).
             return filled;
@@ -626,15 +628,15 @@ public final class DispenserSystem implements WorldChangeListener {
         BlockType at = world.getBlock(target);
         if (at.equals(world.airType())) {
             world.setBlock(target, BuiltinBlocks.FIRE);
-            fx.sound(centerOf(pos), "random.click", 1.0f, 1.0f);
+            fx.sound(centerOf(pos), "random.click", 1.0f, 1.0f, world.dimension());
             return wearOne(stack);
         }
         if (tnt.isTntBlock(at)) {
             tnt.ignite(world, target, 80);
-            fx.sound(centerOf(pos), "random.click", 1.0f, 1.0f);
+            fx.sound(centerOf(pos), "random.click", 1.0f, 1.0f, world.dimension());
             return wearOne(stack);
         }
-        fx.sound(centerOf(pos), "random.click", 1.0f, 1.2f);
+        fx.sound(centerOf(pos), "random.click", 1.0f, 1.2f, world.dimension());
         return stack;
     }
 
@@ -656,18 +658,18 @@ public final class DispenserSystem implements WorldChangeListener {
                 world.getBlock(target).identifier());
         if (stage < 0 || stage >= 7) {
             // dyed = false: the failure click, the stack stays.
-            fx.sound(centerOf(pos), "random.click", 1.0f, 1.2f);
+            fx.sound(centerOf(pos), "random.click", 1.0f, 1.2f, world.dimension());
             return stack;
         }
         int grown = Math.min(7, stage + 2 + random.nextInt(4));
         world.setBlock(target, RandomTickSystem.cropStage(
                 world.getBlock(target).identifier(), grown));
-        fx.sound(centerOf(pos), "random.click", 1.0f, 1.0f);
+        fx.sound(centerOf(pos), "random.click", 1.0f, 1.0f, world.dimension());
         // DyeItem.useOn's own burst (line 45): the 2005 world event at the
         // fertilized cell — the client renders DyeItem.spawnParticles'
         // fifteen happy-villager sparks over the crop's shape.
         fx.worldEvent(new Position(target.x() + 0.5, target.y() + 0.5, target.z() + 0.5),
-                WORLD_EVENT_BONE_MEAL, 0);
+                WORLD_EVENT_BONE_MEAL, 0, world.dimension());
         return consumeOne(stack);
     }
 
@@ -696,7 +698,7 @@ public final class DispenserSystem implements WorldChangeListener {
                 spawned.setCustomName(stack.displayName()); // lines 134-137
             }
         }
-        fx.sound(centerOf(pos), "random.click", 1.0f, 1.0f);
+        fx.sound(centerOf(pos), "random.click", 1.0f, 1.0f, world.dimension());
         return consumeOne(stack); // line 139: the split runs either way
     }
 
@@ -721,8 +723,8 @@ public final class DispenserSystem implements WorldChangeListener {
         // overworld, so the launched rocket stamps dimension 0 — never a
         // silent wrong stamp when the family grows its own dimensioned
         // dispenser reads.
-        engine.fireworks().launch(new Position(x, y, z), 0, stack);
-        fx.sound(centerOf(pos), "random.bow", 1.0f, 1.2f); // the 1002 override
+        engine.fireworks().launch(new Position(x, y, z), world.dimension(), stack);
+        fx.sound(centerOf(pos), "random.bow", 1.0f, 1.2f, world.dimension()); // the 1002 override
         return consumeOne(stack);
     }
 
@@ -756,10 +758,11 @@ public final class DispenserSystem implements WorldChangeListener {
             }
             lift = 0.0; // line 208: the open air over water
         }
-        if (engine.vehicles().spawnBoat(new Position(x, y + lift, z), 0) == null) {
+        if (engine.vehicles().spawnBoat(new Position(x, y + lift, z),
+                world.dimension()) == null) {
             return stack; // the §27.7 spawn gate withheld the hull — the stack stays
         }
-        fx.sound(centerOf(pos), "random.click", 1.0f, 1.0f);
+        fx.sound(centerOf(pos), "random.click", 1.0f, 1.0f, world.dimension());
         return consumeOne(stack);
     }
 
@@ -805,7 +808,7 @@ public final class DispenserSystem implements WorldChangeListener {
         if (stack.displayName() != null) {
             cart.setCustomName(stack.displayName()); // lines 57-59
         }
-        fx.sound(centerOf(pos), "random.click", 1.0f, 1.0f);
+        fx.sound(centerOf(pos), "random.click", 1.0f, 1.0f, world.dimension());
         return consumeOne(stack);
     }
 
@@ -817,12 +820,13 @@ public final class DispenserSystem implements WorldChangeListener {
     private VehicleEntity spawnCart(EngineSurfaces engine, String item, Position at) {
         VehicleManager vehicles = engine.vehicles();
         return switch (item) {
-            case "minecart" -> vehicles.spawnMinecart(at, 0);
-            case "chest_minecart" -> vehicles.spawnChestMinecart(at, 0);
-            case "furnace_minecart" -> vehicles.spawnFurnaceMinecart(at, 0);
-            case "tnt_minecart" -> vehicles.spawnTntMinecart(at, 0);
+            case "minecart" -> vehicles.spawnMinecart(at, world.dimension());
+            case "chest_minecart" -> vehicles.spawnChestMinecart(at, world.dimension());
+            case "furnace_minecart" -> vehicles.spawnFurnaceMinecart(at, world.dimension());
+            case "tnt_minecart" -> vehicles.spawnTntMinecart(at, world.dimension());
             case "hopper_minecart" -> hoppers != null
-                    ? vehicles.spawnHopperMinecart(at, hoppers::hopperCartTransfer, 0) : null;
+                    ? vehicles.spawnHopperMinecart(at, hoppers::hopperCartTransfer,
+                            world.dimension()) : null;
             default -> null;
         };
     }
@@ -874,7 +878,7 @@ public final class DispenserSystem implements WorldChangeListener {
             mob.setEquipment(i1, one);
             mob.setInventoryDropChance(i1, 2.0F); // line 59: the always-drop marker
             engine.mobs().equipmentChanged(mob); // the Entity Equipment publish
-            fx.sound(centerOf(pos), "random.click", 1.0f, 1.0f);
+            fx.sound(centerOf(pos), "random.click", 1.0f, 1.0f, world.dimension());
             return consumeOne(stack);
         }
         for (PlayerSession player : engine.players().all()) {
@@ -890,7 +894,7 @@ public final class DispenserSystem implements WorldChangeListener {
                 continue; // CanPickUpItemsFilter: the occupied slot refuses
             }
             player.inventory().setArmor(armorSlot, one);
-            fx.sound(centerOf(pos), "random.click", 1.0f, 1.0f);
+            fx.sound(centerOf(pos), "random.click", 1.0f, 1.0f, world.dimension());
             return consumeOne(stack);
         }
         return defaultItemDrop(pos, facing, stack); // line 62: super.dispenseItem
@@ -932,13 +936,13 @@ public final class DispenserSystem implements WorldChangeListener {
         int type = stack.damage() & 0xFF;
         if (!world.getBlock(target).equals(world.airType()) || type != 1
                 || !engine.skulls().canSummonAt(target)) {
-            fx.sound(centerOf(pos), "random.click", 1.0f, 1.2f); // the failure click
+            fx.sound(centerOf(pos), "random.click", 1.0f, 1.2f, world.dimension()); // the failure click
             return stack; // the else arm never spends
         }
         world.setBlock(target, SkullBlocks.forState(1)); // line 352: the floor mount
         engine.skulls().place(target, type, skullRotationOf(facing), null);
         engine.skulls().trySummonWither(target); // line 375: the summon consult
-        fx.sound(centerOf(pos), "random.click", 1.0f, 1.0f); // the success click
+        fx.sound(centerOf(pos), "random.click", 1.0f, 1.0f, world.dimension()); // the success click
         return consumeOne(stack);
     }
 
@@ -983,7 +987,7 @@ public final class DispenserSystem implements WorldChangeListener {
                 OFFSETS[facing][2]);
         if (!world.getBlock(target).equals(world.airType())
                 || !GolemSpawns.canSpawnGolem(world, target)) {
-            fx.sound(centerOf(pos), "random.click", 1.0f, 1.2f); // the failure click
+            fx.sound(centerOf(pos), "random.click", 1.0f, 1.2f, world.dimension()); // the failure click
             return stack;
         }
         // Line 403: pumpkinblock.defaultState() — the ctor's own setDefaultState
@@ -995,7 +999,7 @@ public final class DispenserSystem implements WorldChangeListener {
             // The onAdded walk (PumpkinBlock lines 40-43).
             GolemSpawns.trySpawnGolem(world, engine.mobs(), target);
         }
-        fx.sound(centerOf(pos), "random.click", 1.0f, 1.0f); // the success click
+        fx.sound(centerOf(pos), "random.click", 1.0f, 1.0f, world.dimension()); // the success click
         return consumeOne(stack);
     }
 
@@ -1013,7 +1017,11 @@ public final class DispenserSystem implements WorldChangeListener {
         // the consumed unit builds explicitly and the slot takes the
         // remainder — the reference's in-place split decomposed.
         ItemStack one = stack.split(1);
-        ItemEntity entity = itemEntities.spawnThrown(new Position(at.x(), y, at.z()), one);
+        // The dispensed item lives in THIS system's own world (Slice B's
+        // stamp — the nether dispenser's egress never lands in the
+        // overworld).
+        ItemEntity entity = itemEntities.spawnThrown(
+                new Position(at.x(), y, at.z()), one, world.dimension());
         if (entity != null) { // the §27.7 gate may withhold the egress
             double out = random.nextDouble() * 0.1 + 0.2;
             entity.setVelocity(
@@ -1021,7 +1029,7 @@ public final class DispenserSystem implements WorldChangeListener {
                     0.2 + random.nextGaussian() * ITEM_SPREAD,
                     OFFSETS[facing][2] * out + random.nextGaussian() * ITEM_SPREAD);
         }
-        fx.sound(centerOf(pos), "random.click", 1.0f, 1.0f);
+        fx.sound(centerOf(pos), "random.click", 1.0f, 1.0f, world.dimension());
         return consumeOne(stack);
     }
 
@@ -1128,6 +1136,8 @@ public final class DispenserSystem implements WorldChangeListener {
      * A survival break committed on the family block (DispenserBlock.onRemoved
      * lines 158-167): spill every slot into the world, then wake the
      * comparators. The creative path just discards (the per-tick sweep).
+     * The spill stamps this system's OWN world (Wave FL4-GAP2 Slice B — a
+     * nether dispenser's drops never fall into the overworld).
      */
     public void onBlockBroken(BlockPosition position) {
         DispenserBlockEntity container = containers.remove(position);
@@ -1137,7 +1147,8 @@ public final class DispenserSystem implements WorldChangeListener {
         Position origin = new Position(position.x(), position.y(), position.z());
         for (ItemStack stack : container.snapshotSlots()) {
             if (!stack.isEmpty()) {
-                itemEntities.spawnDropAtBlock(origin, stack, ItemEntity.PICKUP_DELAY_DROP_TICKS);
+                itemEntities.spawnDropAtBlock(origin, stack, ItemEntity.PICKUP_DELAY_DROP_TICKS,
+                        world.dimension());
             }
         }
         redstone.wakeComparators(position);
