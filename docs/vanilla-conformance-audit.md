@@ -7401,11 +7401,50 @@ develop**, each failure carrying the divergence's own numbers:
   worlds, GREEN on develop — the rig's sanity, isolating the size as
   the sole divergence at 1.45.
 
-The construction discipline: the RESTORED form throughout (no scatter
-velocity, no pickup delay — the reference's own load shape), placed
-EXACTLY at the rest height so the orb neither drifts nor falls; the
-attraction never engages (the retarget window opens at tick ~21 for a
-first-entity-id of 1; every seat reads within five ticks).
+The construction discipline (the corrected form — see the correction
+below): the size seats use the SPAWNED form (settled to rest with no
+players in the world, the walker placed relative to the read rest
+position); the anchoring seat uses the RESTORED form (no scatter, no
+delay — both worlds 0.25 there, the anchoring alone separating); the
+reads fall inside the attraction's retarget gap (the pull never
+engages — the envelope alone under test).
+
+**THE PASS-2 CONSTRUCTION CORRECTED (the honest record — two errors
+caught at the Phase E assessment, the seats rebuilt and re-run):**
+
+- **The first error — the wrong path for the size slice.** The first
+  construction used the RESTORED form for the horizontal and vertical
+  seats — but the reference's LOADED orb is 0.25×0.25 (the same size
+  as the engine's model): the loaded orb's reach is 1.425 in vanilla
+  too, and the first seats' claimed vanilla answers ("collects at
+  dx=1.45", "collects from 0.8 above") were FALSE for their own
+  constructions — the reference refuses both (the 0.25 load box's
+  west face at dx−0.125 = 1.325 sits outside the grown edge 1.3; the
+  load box tops at floor+0.25). **The size slice lives at the SPAWN
+  path alone** (the reference's 0.5 xp constructor); the seats were
+  rebuilt on the SPAWNED form (settled to rest, the walker placed
+  relative to the read rest position), where the claimed answers are
+  true. The lesson recorded: the seat's vanilla answer must be
+  derived for the construction's OWN path — the load path's size
+  matches the engine's, the anchoring alone separates there.
+- **The second error — the attraction's interference.** The rebuilt
+  spawned seats GREENED on develop on their first run: the retarget
+  window (the ~20-tick cadence, staggered by entityId%100) opened at
+  the FIRST read tick after a 100-tick settle, and the 8-block pull
+  collected the orb through the envelope (the same pull vanilla
+  carries — at dx=1.45 the acceleration ~0.067/tick closes the
+  0.025-block gap within a tick or two). The reads must fall inside
+  the retarget GAP: **the settle is 75 ticks, the reads 5** (the
+  windows run at ticks 21/41/61/81 for a first-entity-id of 1; the
+  reads at 76-80 fall before tick 81's window) — the pull never
+  engages, and the envelope alone is under test. The cadence
+  arithmetic is deterministic (the fixed first-entity-id) and
+  documented in the seat.
+- **The corrected result**: 3 RED (the spawned horizontal shortfall,
+  the spawned vertical window, the restored anchoring) + the control
+  GREEN (the spawned form at dx=1.3, inside both caps) — every
+  failure the orb-standing assertion with the divergence's own
+  numbers in the message.
 
 **PASS 3 — THE INDEPENDENT WALK** (the execution-path census, the
 compensating-behavior hunt, the design-intent challenge):

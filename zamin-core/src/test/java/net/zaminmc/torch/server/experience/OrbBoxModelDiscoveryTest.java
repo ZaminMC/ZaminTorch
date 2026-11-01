@@ -14,33 +14,40 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * THE VERIFIER'S VT-029 SEATS (pass 2 — the behavioral construction) —
- * the orb's BOX MODEL: the size and the anchoring. Pass 1 (the
- * forty-fourth pass's third act) established by the source walk:
+ * THE VERIFIER'S VT-029 SEATS (pass 2 — the behavioral construction, the
+ * corrected form) — the orb's BOX MODEL: the size and the anchoring.
+ * Pass 1 (the forty-fourth pass's third act) established by the source
+ * walk; this pass's first construction was CORRECTED at the Phase E
+ * assessment (the record's own discipline — the error and its lesson
+ * recorded in the audit report):
  *
  * <ul>
- * <li><b>The SIZE diverges</b> — the engine's orb is a 0.25×0.25 box
- * ({@code HALF_WIDTH/HALF_HEIGHT = 0.125}) where the reference's
- * SPAWNED orb is <b>0.5×0.5</b> ({@code ExperienceOrbEntity}'s xp
- * constructor, line 22 — {@code setSize(0.5F, 0.5F)}; every gameplay
- * spawn site goes through it: the ore/break xp, the mob deaths, the
- * breeding, the trading, the dragon's death rain). The 0.25 default
- * constructor (line 35) is the entity-LOAD path alone, a vanilla
- * quirk. The world-space consequences seated below: the pickup
- * envelope's horizontal reach 1.425 vs the reference's 1.55, and the
- * box's vertical extent 0.25 vs 0.5.</li>
- * <li><b>The ANCHORING diverges</b> — the engine's restored orb
- * centers the box at the saved y (the engine's center convention,
- * box [y−0.125, y+0.125]) where the reference's LOAD path seats the
- * box BOTTOM at the saved y ({@code setPosition}'s feet law over the
- * 0.25 load-path constructor, box [y, y+0.25]).</li>
+ * <li><b>The construction law</b>: the SIZE slice lives at the SPAWN
+ * path ALONE — the reference's spawned orb is <b>0.5×0.5</b>
+ * ({@code ExperienceOrbEntity}'s xp constructor, line 22 — every
+ * gameplay spawn site: the ten direct sites plus
+ * {@code Block.dropExperience} line 530), while the reference's LOADED
+ * orb is 0.25×0.25 (the default constructor, line 35 — the
+ * {@code Entities.register} reflective path, a vanilla quirk). The
+ * engine's single 0.25 model MATCHES the load path's size; the
+ * shortfall shows only for gameplay-spawned orbs. The size seats
+ * therefore use the SPAWNED form (settled to rest before the read);
+ * the anchoring seat uses the RESTORED form (both worlds 0.25 there —
+ * the anchoring alone separates).</li>
+ * <li><b>The SIZE consequence</b>: the pickup envelope's horizontal
+ * reach — the engine's 0.3 + 0.125 + 1.0 = 1.425 against the spawned
+ * reference's 0.3 + 0.25 + 1.0 = 1.55 — and the box's vertical extent
+ * at rest (0.25 tall vs 0.5).</li>
+ * <li><b>The ANCHORING consequence</b>: the engine seats the box
+ * CENTER at the given y (the engine's convention) where the reference
+ * seats the box BOTTOM at the given y ({@code setPosition}'s feet
+ * law) — a 0.125 offset at the load path, and at the spawn path a
+ * DOUBLE lift (the engine's +0.2 center lift on top of the callers'
+ * own +0.5, the pass-3 census).</li>
  * <li><b>The envelope FORM is correct</b> — the player's 0.3
- * half-width IS carried (the 1.425 = 0.3 + 0.125 + 1.0 answers the
- * reference's grown-box intersection {@code |ox−px| < 1.3 + half});
- * the vertical center-convention box is the true form under the
- * engine's convention. The pass-38 record's suspicion ("the family
- * shares the shortfall") was CORRECTED by pass 1: the form is right,
- * the SIZE and the ANCHORING are the divergences.</li>
+ * half-width IS carried; the pass-38 record's suspicion was CORRECTED
+ * by pass 1: the form is right, the SIZE and the ANCHORING are the
+ * divergences.</li>
  * </ul>
  *
  * <p>THE REFERENCE LAW (reference/1.8.8): the pickup rides the
@@ -49,18 +56,17 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * {@code (1.0, 0.5, 1.0)}, {@code world.getEntities} over the STRICT
  * box intersection ({@code Box.intersects} 164-171, all six faces
  * strict), then {@code onPlayerCollision} (line 170: the delay gate,
- * the cooldown, the {@code random.orb} sound, the collect). The
- * spawned orb's box: [x−0.25, x+0.25] × [y, y+0.5] (the constructor's
- * feet-law y).</p>
+ * the cooldown, the {@code random.orb} sound, the collect).</p>
  *
- * <p>THE CONSTRUCTION DISCIPLINE: the seats use the RESTORED form
- * ({@code spawnRestored} — no scatter velocity, no pickup delay, the
- * reference's own load shape) placed EXACTLY at the rest height, so
- * the orb neither drifts nor falls before the read; the attraction
- * never engages (the retarget window opens at tick ~21 for a
- * first-entity-id of 1 — every seat reads within five ticks). The
- * seats are EXPECTED RED on develop until VT-029's correction lands;
- * the finding record owns the mismatch.</p>
+ * <p>THE CONSTRUCTION DISCIPLINE: the spawned seats settle the orb to
+ * rest with NO players in the world (the scatter decays under the
+ * ground friction, the pickup delay expires, the retarget windows
+ * find no one), then read the rest position and place the walker
+ * RELATIVE to it (the construction is seed-stable but never
+ * hand-computed); the attraction never engages inside the read window
+ * (the retarget window re-arms ~20 ticks after the join; every seat
+ * reads within five). The seats are EXPECTED RED on develop until
+ * VT-029's correction lands; the finding record owns the mismatch.</p>
  */
 class OrbBoxModelDiscoveryTest {
 
@@ -111,72 +117,90 @@ class OrbBoxModelDiscoveryTest {
     }
 
     /**
-     * THE HORIZONTAL SHORTFALL — an orb resting 1.45 blocks beside the
-     * walker collects in vanilla and stands in the engine. The
-     * reference's reach: the grown box [px−1.3, px+1.3] intersecting
-     * the orb's [ox−0.25, ox+0.25] — 1.45 &lt; 1.55 strictly, the
-     * orb's west face (1.7) inside the grown east edge (1.8). The
-     * engine's cap: 0.3 + 0.125 + 1.0 = 1.425 — the 0.125 half-size
-     * shortfall leaves the orb standing.
+     * THE HORIZONTAL SHORTFALL (the spawned form) — a gameplay-spawned
+     * orb resting 1.45 blocks beside the walker collects in vanilla and
+     * stands in the engine. The reference's spawned orb box spans
+     * [ox−0.25, ox+0.25]: its west face at dx=1.45 (ox−px−0.25 = 1.2)
+     * sits strictly inside the grown box's east edge (px+1.3). The
+     * engine's 0.25-wide orb caps the reach at 1.425 — the 0.125
+     * half-size shortfall leaves the orb standing.
      */
     @Test
-    void theWalkerCollectsTheOrbOnePointFourFiveBesideThem() {
+    void theWalkerCollectsTheSpawnedOrbOnePointFourFiveBesideThem() {
         ExperienceOrbManager manager = new ExperienceOrbManager(
                 new FlatGround(), new Random(42), 1);
-        ExperienceOrbEntity orb = manager.spawnRestored(
-                new Position(1.95, 64.0 + ExperienceOrbEntity.HALF_HEIGHT, 0.5), 5, 0);
-        assertNotNull(orb, "the orb landed");
+        ExperienceOrbEntity orb = manager.spawnOrb(new Position(2.0, 64.4, 0.5), 5);
+        assertNotNull(orb, "the orb entered the world");
+        // The settle: no players, the scatter decays, the orb rests — 75
+        // ticks leave the read window inside the attraction's retarget
+        // gap (the windows run every ~20 ticks: 21/41/61/81 for a
+        // first-entity-id of 1; the reads at 76-80 fall before tick 81's
+        // window, so the PULL never engages and the envelope alone is
+        // under test — the reference's own retarget cadence, the same
+        // gap).
+        for (int i = 0; i < 75; i++) {
+            manager.tick(List.of());
+        }
+        assertTrue(orb.onGround(), "the construction settles: the spawned orb rests on the floor");
+        double restX = orb.position().x();
+        double restZ = orb.position().z();
         PlayerSession walker = player("Walker");
-        walker.applyMovement(new Position(0.5, 64.0, 0.5),
+        walker.applyMovement(new Position(restX - 1.45, 64.0, restZ),
                 net.zaminmc.torch.util.Rotation.ZERO, true);
         for (int i = 0; i < 5; i++) {
             manager.tick(List.of(walker));
         }
         assertEquals(0, manager.size(),
-                "the reference's orb (0.5 wide, reach 1.55) collects at dx=1.45 — the "
-                        + "orb's west face 1.7 strictly inside the grown box's east edge "
-                        + "1.8; the engine's 0.25-wide orb caps the reach at 1.425 and the "
-                        + "orb stands uncollected");
+                "the reference's SPAWNED orb (0.5 wide, reach 1.55) collects at dx=1.45 — "
+                        + "the orb's west face (dx-0.25 = 1.2) strictly inside the grown box's "
+                        + "east edge (1.3); the engine's 0.25-wide orb caps the reach at 1.425 "
+                        + "and the orb stands uncollected");
         assertEquals(5, walker.totalXp(), "the points rode into the total");
     }
 
     /**
-     * THE VERTICAL WINDOW AT REST — a player whose feet are 0.8 above
-     * the orb's floor collects in vanilla and misses in the engine.
-     * The reference's orb box at rest spans [floor, floor+0.5]: its
-     * top (64.5) clears the grown box's bottom (py−0.5 = 64.3). The
-     * engine's 0.25-tall box tops out at floor+0.25 (64.25) — 0.05
-     * short of the same edge.
+     * THE VERTICAL WINDOW AT REST (the spawned form) — a player whose
+     * feet are 0.8 above the orb's floor collects the spawned orb in
+     * vanilla and misses it in the engine. The reference's spawned box
+     * at rest spans [floor, floor+0.5]: its top (64.5) clears the grown
+     * box's bottom (py−0.5 = 64.3). The engine's 0.25-tall box tops out
+     * at floor+0.25 (64.25) — 0.05 short of the same edge.
      */
     @Test
-    void thePlayerZeroPointEightAboveTheOrbsFloorCollectsIt() {
+    void thePlayerZeroPointEightAboveTheSpawnedOrbsFloorCollectsIt() {
         ExperienceOrbManager manager = new ExperienceOrbManager(
                 new FlatGround(), new Random(42), 1);
-        ExperienceOrbEntity orb = manager.spawnRestored(
-                new Position(0.5, 64.0 + ExperienceOrbEntity.HALF_HEIGHT, 0.5), 5, 0);
-        assertNotNull(orb, "the orb landed");
+        ExperienceOrbEntity orb = manager.spawnOrb(new Position(2.0, 64.4, 0.5), 5);
+        assertNotNull(orb, "the orb entered the world");
+        for (int i = 0; i < 75; i++) { // the pull-free settle (see the first seat's note)
+            manager.tick(List.of());
+        }
+        assertTrue(orb.onGround(), "the construction settles: the spawned orb rests on the floor");
+        double restX = orb.position().x();
+        double restZ = orb.position().z();
         PlayerSession above = player("Above");
-        above.applyMovement(new Position(0.5, 64.8, 0.5),
+        above.applyMovement(new Position(restX, 64.8, restZ),
                 net.zaminmc.torch.util.Rotation.ZERO, true);
         for (int i = 0; i < 5; i++) {
             manager.tick(List.of(above));
         }
         assertEquals(0, manager.size(),
-                "the reference's orb box spans [floor, floor+0.5] — a player 0.8 above "
-                        + "the floor clears the box top by 0.2 (64.5 > 64.3); the engine's "
-                        + "0.25-tall box tops out at floor+0.25 and the same player misses "
-                        + "by 0.05");
+                "the reference's spawned orb box spans [floor, floor+0.5] — a player 0.8 "
+                        + "above the floor clears the box top by 0.2 (64.5 > 64.3); the "
+                        + "engine's 0.25-tall box tops out at floor+0.25 and the same player "
+                        + "misses by 0.05");
         assertEquals(5, above.totalXp(), "the points rode into the total");
     }
 
     /**
-     * THE RESTORED ANCHORING (the load path's box seat) — a restored
-     * orb's first-read box seats its BOTTOM at the saved y in vanilla
-     * (setPosition's feet law over the 0.25 load-path constructor) and
-     * its CENTER at the saved y in the engine. The discriminator: the
-     * player 0.65 above the saved y — the grown box's bottom
-     * (firstRead+0.15) falls inside the reference's box (top
-     * firstRead+0.25) but above the engine's (top firstRead+0.125).
+     * THE RESTORED ANCHORING (the load path's box seat — the restored
+     * form, both worlds 0.25 wide): a restored orb's first-read box
+     * seats its BOTTOM at the saved y in vanilla (setPosition's feet
+     * law over the 0.25 load-path constructor) and its CENTER at the
+     * saved y in the engine. The discriminator: the player 0.65 above
+     * the saved y — the grown box's bottom (firstRead+0.15) falls
+     * inside the reference's box (top firstRead+0.25) but above the
+     * engine's (top firstRead+0.125).
      *
      * <p>The first read is one physics tick after the restore: the
      * fall is identical in both worlds (gravity 0.03 pre-move, no
@@ -206,26 +230,32 @@ class OrbBoxModelDiscoveryTest {
     }
 
     /**
-     * THE CONTROL — an orb resting 1.3 blocks beside the walker
-     * collects in BOTH worlds (inside the engine's 1.425 cap and the
-     * reference's 1.55 reach alike): the rig's sanity, isolating the
-     * size as the sole divergence at 1.45. GREEN on develop.
+     * THE CONTROL (the spawned form) — a gameplay-spawned orb resting
+     * 1.3 blocks beside the walker collects in BOTH worlds (inside the
+     * engine's 1.425 cap and the spawned reference's 1.55 reach alike):
+     * the rig's sanity, isolating the size as the sole divergence at
+     * 1.45. GREEN on develop.
      */
     @Test
-    void theOrbOnePointThreeBesideTheWalkerCollectsInBothWorlds() {
+    void theSpawnedOrbOnePointThreeBesideTheWalkerCollectsInBothWorlds() {
         ExperienceOrbManager manager = new ExperienceOrbManager(
                 new FlatGround(), new Random(42), 1);
-        ExperienceOrbEntity orb = manager.spawnRestored(
-                new Position(1.8, 64.0 + ExperienceOrbEntity.HALF_HEIGHT, 0.5), 5, 0);
-        assertNotNull(orb, "the control orb landed");
+        ExperienceOrbEntity orb = manager.spawnOrb(new Position(2.0, 64.4, 0.5), 5);
+        assertNotNull(orb, "the control orb entered the world");
+        for (int i = 0; i < 75; i++) { // the pull-free settle (see the first seat's note)
+            manager.tick(List.of());
+        }
+        assertTrue(orb.onGround(), "the construction settles: the control orb rests");
+        double restX = orb.position().x();
+        double restZ = orb.position().z();
         PlayerSession walker = player("ControlWalker");
-        walker.applyMovement(new Position(0.5, 64.0, 0.5),
+        walker.applyMovement(new Position(restX - 1.3, 64.0, restZ),
                 net.zaminmc.torch.util.Rotation.ZERO, true);
         for (int i = 0; i < 5; i++) {
             manager.tick(List.of(walker));
         }
         assertEquals(0, manager.size(),
-                "dx=1.3 sits inside both caps (the engine's 1.425, the reference's "
+                "dx=1.3 sits inside both caps (the engine's 1.425, the spawned reference's "
                         + "1.55) — the rig collects when it should");
         assertEquals(5, walker.totalXp(), "the points rode into the total");
     }
