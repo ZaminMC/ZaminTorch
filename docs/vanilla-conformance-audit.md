@@ -4219,11 +4219,15 @@ the `double_` prefix).
 
 ---
 
-## F-SP1 — the support-consult family: the engine's mount consults answer one collision-solid question where vanilla answers material-aware, shape-aware, side-aware laws (SUSPECTED — the source pass complete this run; the behavioral + independent passes owed)
+## F-SP1 — the support-consult family: the engine's mount consults answer one collision-solid question where vanilla answers material-aware, shape-aware, side-aware laws (CONFIRMED — three passes; the correction CARRIED by **PR #138 OPEN**, the b-lane convergent carrier, with **PR #137** the first-opened same-root carrier — the maintainer's pick; the placement gates #137's unique rows, the fifth site #138's)
 
 **Subsystem:** block attachment / the mount-survival consults (the
-redstone family's torch/lever/button/trapdoor arms). **Status:**
-SUSPECTED — the source pass complete (this run, pass 38b); the
+redstone family's torch/lever/button/trapdoor arms + the PLAIN torch's
+own walk — the fifth site, the forty-sixth pass's discovery). **Status:**
+CONFIRMED — the source pass (the pass-38b lane) + the behavioral and
+independent passes (the forty-sixth pass, this lane — the seven seats
+RED on unfixed develop at exactly the predicted rows, then GREEN on the
+fix); the correction OPEN as the convergent pair #137/#138; the
 behavioral seats and the independent pass owed. The twentieth pass's
 original F-SP1 record predates the surviving report copies; this pass's
 census re-establishes the finding from the code, richer than the
@@ -4370,7 +4374,7 @@ must pin the pops, the pre-fix holds).
 
 | Collision shapes — the double slabs' full-cube row | **RESOLVED-BY-PR #118** (F-DS1: the F-DS1 stream's three-pass verification — the ten `_slab`-suffixed doubles carried the HALF box; the rest walks, the side-entry, the isFullCube family all poisoned; the one-arm carve, `DoubleSlabCollisionParityTest` 5/0) |
 | Natural spawn — the spawn floor's consult | **RESOLVED-BY-PR #121** (VT-020: the suffix approximation missed in BOTH directions — the ten doubles refused where `hasSolidTop`'s first arm hosts them, the bottom stairs and the red sandstone bottom single hosted where the HALF==TOP arms refuse them; the one-consult correction with the `double_` carve + the half laws, three seats) |
-| The support-consult family (torch/lever/button/trapdoor mounts) | F-SP1 SUSPECTED (the pass-38b source census: the engine's four mount consults answer one collision-solid question — `WorldSolidity.isSolid` — where vanilla answers three material-aware/shape-aware/side-aware laws; the translucent materials (GLASS/LEAVES/TNT/ICE/SNOW_LAYER/CACTUS) and the non-cube solids (panes/iron bars/walls/fences) all diverge; the behavioral seats the next run's first act) |
+| The support-consult family (torch/lever/button/trapdoor mounts + the plain torch's own walk) | **F-SP1 CONFIRMED — three passes (the 38b source + the 46th's seats and independent walk); the correction the CONVERGENT PAIR PR #137 / PR #138 OPEN** (the maintainer's pick): the four mount consults + the fifth site (the plain torch's below-air walk) + the redstone torch's onAdded consult all reading the reference's own laws through the shared `SupportConsult`; the translucent materials and the non-cube mounts popping exactly as vanilla; the 21 lever-on-piston harnesses re-pinned (the PistonBaseBlock.isCube() false law); #137 uniquely holding the four placement gates; the wire/plate/repeater `hasSupportBelow` family the named tails — each its own discovery pass |
 | The slab-family suffix census | INSPECTED (the whole-repository `endsWith("_slab")` census: `BlockSolidity.isCube` and `FireBlocks` already correct with the `double_` carve — the house convention; `CollisionShapes` corrected by PR #118; `NaturalSpawnSystem` corrected by PR #121 (VT-020 — the spawn consult, the directional stair states and the `_slab2` row joining the census); `RedstoneSystem.trapdoorMountHolds` name-based, the double agreeing, the SINGLES' rows F-SP1's lane; the held-id dispatch and the dormant `woodenSlabFamilyOf` unaffected) |
 
 ## The queue for the next pass
@@ -4426,21 +4430,39 @@ must pin the pops, the pre-fix holds).
 3a. **VT-018's passes 2-3** (the pass-35 lane's discovery — the
    stick's bowhit sound): the FX-assert seat + the independent walk
    (the listener fan's consumers, the pitch row's RNG consumption).
-4. The merge watch: #106 MERGED (becf84b0), #115 MERGED (e17c538b);
-   the OPEN set: #108, #109, #110, #111, #113 (the `!inGround` gate
-   note posted), #114, #116 (VT-017), #117 (VT-014), #118 (F-DS1),
-   #119/#120 (VT-015's convergent carriers), #126 (VT-016, the fortieth
-   lane), #129 (VT-022, the fortieth lane's second act), #131 (VT-023,
-   the fortieth lane's third act, stacked on #126 — merge #126 first)
-   — after the crossing PRs
-   merge, the End-origin arm (the forced-spawn consult,
-   `PlayerManager.changeDimension` lines 473-484) becomes the portal
-   family's one remaining architectural tail, and the four families'
-   `PortalCooldown` persistence pass opens behind it.
-5. **F-SP1's owed passes** (the twentieth pass's residue, the last
-   uncarried standing lane): the support-consult family's passes not
-   begun. **F-DS1 is CARRIED by PR #118 OPEN** (the double slab's
-   collision row — the review verification the remaining act).
+4. The merge watch (the forty-sixth pass's fetch): #106 MERGED
+   (becf84b0), #115 MERGED (e17c538b), #127 CLOSED (the VT-019
+   convergence resolved). The OPEN set: #108, #109, #110, #111, #113
+   (the `!inGround` gate note posted), #114, #116 (VT-017), #117
+   (VT-014), #118 (F-DS1), #119/#120 (VT-015's convergent carriers),
+   #121 (VT-020), #122 (VT-021/#117's convergence), #123 (VT-019),
+   #124 (VT-018), #125 (VT-012), #126 (VT-016), #128 (VT-023), #129
+   (VT-022), #130 (VT-013), #131 (VT-025 renumbered), #132 (VT-024),
+   #133 (VT-025 — THE COLLISION: this lineage's #131 renumbered to 25
+   at the #132 window, #133 claiming 25 at 07:42:28Z; the later public
+   claim renumbers — VT-029 the next free number), #134 (VT-026), #135
+   (VT-027), #136 (VT-028), #137/#138 (F-SP1's convergent pair — the
+   review note posted on #137 with the 7-of-8 piston-seat evidence;
+   merge-order note: whichever merges first, the other's unique rows
+   owed) — after the crossing PRs merge, the End-origin arm (the
+   forced-spawn consult, `PlayerManager.changeDimension` lines
+   473-484) becomes the portal family's one remaining architectural
+   tail, and the four families' `PortalCooldown` persistence pass opens
+   behind it.
+5. ~~**F-SP1's owed passes**~~ — **DONE (the forty-sixth pass: CONFIRMED
+   through the three-pass discipline and CORRECTED — the convergent
+   pair #137/#138 OPEN, the maintainer's pick; #138 this lane's carrier
+   with the fifth site, the onAdded consult, the `_slab2` census and the
+   21 harness re-pins; #137 the placement gates — absorb either way)**.
+   **F-DS1 is CARRIED by PR #118 OPEN** (the double slab's collision
+   row — the review verification the remaining act).
+5b. **F-SP1's named tails — the NEW STANDING HEAD**: the
+   wire/plate/repeater `hasSupportBelow` family (the reference's own
+   floor laws — the wire `hasSolidTop || GLOWSTONE`, the plates
+   `hasSolidTop || FenceBlock`, the repeater's own consult — each its
+   own discovery pass, the same three-pass discipline) + the
+   placement-gate absorption (whichever of #137/#138 merges, the other's
+   unique rows owed into the record).
 5a. **VT-012's own pass** (the pass-30 lane's discovery): the
    `NetherBlastRoutingAcceptanceTest` flake's bounded fix — the
    seat's read order (await the event reference, not the cell
@@ -4977,3 +4999,108 @@ CONTRACT against the #126 tree (`PistonBreakDropParityDiscoveryTest`).
 material table (#126), the entity gate (#129), and the toBreak drop
 consult (#131) all answer the reference's census, each through its
 own three-pass discipline and its own PR.
+
+## The forty-sixth pass (first numbered the forty-first, then the forty-second — BOTH taken publicly at the push windows by the concurrent lanes, the fetch finding the numbers 41 through 45 occupied; the established protocol, the fortieth pass's own precedent — this lane's commits never pushed under any draft name, nothing public renamed) — F-SP1 completed whole through this lane's independent three-pass discipline and corrected (PR #138, the b-lane convergent carrier): the FIFTH SITE discovered (the plain torch's below-air walk), the HARNESS LAW discovered (the lever never rides a piston — PistonBaseBlock.isCube() false), the convergence with #137 recorded
+
+**The baseline:** `origin/develop` at `149eb1f0` (the FL4-GAP2 Slice B
+landing) merged into this lane (the fortieth lane's union carried
+forward, the pass-38b lane's F-SP1 source-pass record unioned in whole
+— the docs-only merge, the queue taking this lane's current shape).
+
+**The lane's act — the queue's standing head taken** (F-SP1's owed
+passes, the last uncarried standing lane from the twentieth pass):
+
+- **Pass 2 (behavioral):** seven seats written and run RED on unfixed
+  develop at EXACTLY the predicted divergence rows — the wall torch
+  popping when its host becomes glass (the dirt-host control staying),
+  the floor torch when its floor becomes ice (the GLASS floor —
+  canSitOnTop's explicit member — staying: the agreement row), the
+  lever when its host becomes glass, the floor lever when its floor
+  becomes a bottom slab (the top-slab control staying), the button on
+  glass, the trapdoor on glass, and the plain torch when its floor
+  becomes ice, cobweb or tall grass (the glass floor staying). Every
+  failure read `expected: <true> but was: <false>` — the engine KEPT
+  each family where vanilla fells it.
+- **Pass 3 (independent):** the reference re-read at every site (the
+  four laws + the placement chain `World.canPlace` 2274-2282 →
+  `canBePlaced` → the same laws — the families ungated at placement in
+  the engine, the divergence unmitigated there too); the host-cell
+  arithmetic verified 1:1 for every family (torchAttachmentStep /
+  attachmentOppositeOffset / OFFSETS / the trapdoor away-switch — each
+  the reference's `pos.offset(FACING.getOpposite())`); the lever/button
+  floor-mount constant re-derived from the Facing enum's own
+  attachmentDir semantics (the FLOOR branch = the pointing direction
+  UP, a wrong first draft caught and fixed before any seat ran); the
+  compensating hunt NEGATIVE (single call sites; the onRemoved arms
+  are departure announcements); the intentionality challenge NEGATIVE
+  (every consult's javadoc cites the reference method with no
+  approximation disclaimer — the F-EC1/F-TC1 honest-omission class);
+  the `_slab2` family's suffix miss caught in the blast-radius walk
+  (the trapdoor arms and hasSolidTop's TOP-half arm widened to carry
+  it).
+
+**THE FIFTH SITE discovered (the pass-38b record's census widened):**
+the PLAIN torch's own support walk — `BlockUpdateSystem.runUpdate`'s
+TORCH arm (lines 445-455) — answers the bare "is the cell below AIR"
+question, cruder than the other four sites' WorldSolidity consult: a
+plain torch standing on ICE, a COBWEB, TALL_GRASS, a RAIL or any other
+non-hosting floor NEVER pops where vanilla pops each at `canSitOnTop`'s
+verdict (the reference's ONE TorchBlock class carries the law for BOTH
+families — the redstone torch extends it). The correction routes this
+arm through the same `SupportConsult.canSitOnTop`, its own seat file
+(`PlainTorchSupportParityDiscoveryTest`) riding the lane and the PR.
+
+**THE HARNESS LAW discovered (the fix's own consequence, 21 seats
+re-pinned):** `PistonBaseBlock.isCube()` returns FALSE in the reference
+(lines 223-225) — `hasSolidTop`'s first arm refuses the piston base, so
+a lever ON a piston pops at the extension's own state change exactly as
+vanilla fells it (redstone components never attach to pistons — the
+known vanilla law the engine's old consult had silently inverted). The
+piston family's test harnesses had encoded the divergence as a
+convenience (the lever written onto the piston to power it): 21
+constructions re-pinned across five files (PistonEntityPushTest 10,
+PistonSystemTest 5, PistonFluidEventAcceptanceTest 5, RegionBoundaryTest
+1, PistonPushApiAcceptanceTest 1) — each gaining the STONE CARRIER one
+cell above the piston (the lever rides the stone, hasSolidTop true; the
+flip's strong power entering the stone re-radiating to the piston below
+— the classic power-through-block, the engine's own F-TC1 signal model;
+the seats' observables unchanged, the full re-pinned surface 409/0 over
+70 classes).
+
+**THE CONVERGENCE (the honest record):** a second lane completed the
+same root correction in the same window — **PR #137 OPEN** (09:13:47Z,
+`fix/support-consult-parity-audit`): the four consults + the FOUR
+PLACEMENT GATES (their unique rows — vanilla refuses an unsupported
+placement outright where this lane's carrier leaves the place-then-pop
+path; ABSORB EITHER WAY). This lane's carrier opened second as **PR
+#138** (`fix/support-consult-family-parity-audit-b` — the first push
+took the plain name, the #122 b-lane precedent, no force-push). The
+review note posted on #137 with the verified evidence: **7 of 8 piston
+seats FAILED on #137's actual tree** (run fresh — the consult swap
+without the harness re-pins; their sibling branch ad71bb32 re-pinned
+the three piston-package files but missed RegionBoundaryTest and
+PistonPushApiAcceptanceTest). #138's unique rows: the fifth site, the
+redstone torch's onAdded consult (TorchBlock.onAdded 91-93 inherited
+whole — the unsupported torch pops at its own commit), the `_slab2`
+census, and all 21 re-pins. #137's unique rows: the placement gates +
+the honest named tails (the wire/plate/repeater `hasSupportBelow`
+family — the F-SP1 class's NEXT discovery lanes, each its own pass).
+The maintainer owns the pick; the convergence note stands on both.
+
+**The VT numbering landscape (this pass's fetch):** VT-023 owned by
+#128 (the burning arrow flight band); VT-024 by #132 (the arrow pickup
+envelope); **VT-025 COLLIDED** — this lineage's piston toBreak finding
+(PR #131, retitled VT-025 when #132 took 24) vs #133's nether border
+containment (07:42:28Z) — the collision recorded for the next
+reconciliation (the later public claim renumbers; VT-029 the next free
+number with #134/#135/#136 holding 26/27/28). Nothing public renamed by
+this lane.
+
+**The queue for the next pass** (rewritten below in place): F-SP1's
+named tails — the wire/plate/repeater `hasSupportBelow` family (the
+reference's own floor laws: the wire `hasSolidTop || GLOWSTONE`, the
+plates `hasSolidTop || FenceBlock` — each its own discovery pass) — the
+new standing head; the placement-gate absorption rides the #137/#138
+pick; the merge watch refreshed to the eighteen-PR open set; the VT-025
+collision note standing.
+
