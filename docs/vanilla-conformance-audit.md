@@ -4228,7 +4228,7 @@ the `double_` prefix).
 
 ---
 
-## F-SP1 — the support-consult family: the engine's mount consults answer one collision-solid question where vanilla answers material-aware, shape-aware, side-aware laws (CONFIRMED — three passes complete, Phase E eligible; the passes 2-3 landed by the forty-second pass)
+## F-SP1 — the support-consult family: the engine's mount consults answer one collision-solid question where vanilla answers material-aware, shape-aware, side-aware laws (CONFIRMED and CORRECTED — three passes; **PR #137 OPEN** over develop 149eb1f0)
 
 **Subsystem:** block attachment / the mount-survival consults (the
 redstone family's torch/lever/button/trapdoor arms). **Status:**
@@ -4381,7 +4381,7 @@ must pin the pops, the pre-fix holds).
 
 | Collision shapes — the double slabs' full-cube row | **RESOLVED-BY-PR #118** (F-DS1: the F-DS1 stream's three-pass verification — the ten `_slab`-suffixed doubles carried the HALF box; the rest walks, the side-entry, the isFullCube family all poisoned; the one-arm carve, `DoubleSlabCollisionParityTest` 5/0) |
 | Natural spawn — the spawn floor's consult | **RESOLVED-BY-PR #121** (VT-020: the suffix approximation missed in BOTH directions — the ten doubles refused where `hasSolidTop`'s first arm hosts them, the bottom stairs and the red sandstone bottom single hosted where the HALF==TOP arms refuse them; the one-consult correction with the `double_` carve + the half laws, three seats) |
-| The support-consult family (torch/lever/button/trapdoor mounts) | F-SP1 SUSPECTED (the pass-38b source census: the engine's four mount consults answer one collision-solid question — `WorldSolidity.isSolid` — where vanilla answers three material-aware/shape-aware/side-aware laws; the translucent materials (GLASS/LEAVES/TNT/ICE/SNOW_LAYER/CACTUS) and the non-cube solids (panes/iron bars/walls/fences) all diverge; the behavioral seats the next run's first act) |
+| The support-consult family (torch/lever/button/trapdoor mounts) | **F-SP1 CONFIRMED and CORRECTED** (the forty-second pass: the passes 2-3 landed — EIGHT seats RED on unfixed develop at exactly the predicted points with THREE controls green, the placement-path census widening the finding to BOTH gates — the button's placement carried no mount gate at all, the trapdoor's fence carve dead code; **PR #137 OPEN**: the `SupportConsult` laws — isSolidBlockingCube, hasSolidTop's five arms, canSitOnTop's explicit list, the lever/button split, the trapdoor's canBePlacedOn — at the four survival consults AND the four placement gates; the seats 11/0 on the fix, the regression lanes 457/0; the named tails: the wire/plate/repeater floor consults — `hasSupportBelow` still reads WorldSolidity, each family's own law a future pass) |
 | The slab-family suffix census | INSPECTED (the whole-repository `endsWith("_slab")` census: `BlockSolidity.isCube` and `FireBlocks` already correct with the `double_` carve — the house convention; `CollisionShapes` corrected by PR #118; `NaturalSpawnSystem` corrected by PR #121 (VT-020 — the spawn consult, the directional stair states and the `_slab2` row joining the census); `RedstoneSystem.trapdoorMountHolds` name-based, the double agreeing, the SINGLES' rows F-SP1's lane; the held-id dispatch and the dormant `woodenSlabFamilyOf` unaffected) |
 
 ## The queue for the next pass
@@ -6254,3 +6254,54 @@ hasSolidTop, else BlockSolidity.isSolid), and the trapdoor's
 families) — the four survival consults and the four placement gates swapped
 to the law their vanilla counterpart reads, the same one-consult-per-site
 shape the F-EC1 and VT-020 corrections carried.
+
+## The forty-second pass's third act — F-SP1 CORRECTED (PR #137): the SupportConsult laws landed, the family's own lane COMPLETE pending the merge
+
+**The correction** (`fix/support-consult-parity-audit` over develop `149eb1f0`,
+**PR #137 OPEN**): one new `SupportConsult` (the four laws over the engine's
+own tables — MaterialSolidity's material census, BlockSolidity's render
+cube, the state vocabulary's half bands, the hopper family check carrying
+the engine's own disabled-state model of the vanilla BE flag),
+`BlockSolidity.isCube` made public (a delegate — the mount laws' shared
+conjunct), and the consult sites swapped: the four survival consults
+(`torchSupported` — the wall arms to `isSolidBlockingCube`, the standing
+form's floor to `torchCanSitOnTop`; `leverSupported`/`buttonSupported` —
+the SupportConsult split, the floor mounts reading `hasSolidTop`, every
+other side the `BlockSolidity.isSolid` port; `trapdoorMountHolds` — the
+`trapdoorCanBePlacedOn` law whole) and the four placement gates
+(`placeRedstoneTorchOnTick` — the face consult and the fallback walk;
+`placeLeverOnTick` — the mount gate and the fallback; `placeButtonOnTick`
+— the mount gate ADDED, the placement carrying none at all before;
+`isTrapdoorMount` — the law whole, the old explicit carves subsumed by
+the cube conjunct, the dead `minecraft:fence` check retired).
+
+**The one construction correction during the run:** hasSolidTop's hopper
+arm first shipped as the bare `value.equals("hopper")` row and the
+hopper-funnel seat (`ItemBoxPhysicsAcceptanceTest.theDroppedItemRestsInTheHoppersFunnel`)
+caught it — the engine models the hopper's DISABLED pair as its own block
+states (`hopper_{facing}_disabled`, the vanilla BE flag's state-pair
+model), and the lever-on-disabled-hopper row fell through the bare-name
+check. The arm now reads the hopper FAMILY (the `HopperBlocks.isHopper`
+check beside the bare name); vanilla's law is the instanceof — the whole
+family answers whatever the enabled flag reads.
+
+**The evidence:** the seats 11/0 on the fix tree (the eight divergent rows
+popping exactly as vanilla — RED BY CONTRACT on unfixed develop — with the
+three controls green, canSitOnTop's explicit glass floor row the regression
+pin); the regression lanes 77 classes / 457 tests green (the redstone
+package whole, the block package, the placement gates, the two-stage use
+law, the item physics including the hopper-funnel row, the nether redstone
+routing, the explosion/TNT redstone API, the noteblock family, the stats,
+the maps, the blast table). NOT RUN: the full protocol-module suite (the
+sandbox's memory ceiling — the pre-existing environment limit, verified
+identical on clean develop by the VT-011 lane).
+
+**The named tails** (each its own discovery pass, the same class): the
+wire/plate/repeater floor consults — `hasSupportBelow` still reads
+`WorldSolidity.isSolid` where the wire's own law is
+`hasSolidTop || GLOWSTONE` (RedstoneWireBlock lines 92-94) and the plate's
+is `hasSolidTop || FenceBlock` (AbstractPressurePlateBlock line 85); the
+button placement's refusal-vs-default-state nuance (the reference's
+getPlacementState places the DOWN default then pops it — the engine's
+refusal converges on the observable, the item-consumption row the
+residue).
