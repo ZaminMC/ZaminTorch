@@ -6920,20 +6920,36 @@ alone); the entity-intersection arm's provenance.
 
 ## VT-035 — the nether bed pair's seeding await starves on develop: a lane defect in the merge window (suspected, the discovery pass owed)
 
-**Status:** SUSPECTED (a develop-side lane regression, discovered this
-pass during F-SP6's regression lanes). **The evidence:**
+**Status:** CONFIRMED — a SEAT DEFECT (the engine verified 1:1 vanilla;
+no engine change), **CORRECTED (PR #155 OPEN)**. Discovered this pass
+during F-SP6's regression lanes. **The evidence:**
 `PairBreakDimensionParityTest.theNetherBedBreakKillsItsOwnPairInTheNether`
 fails on PURE develop `1139f2c3` (the isolation run: 3 tests, 1 failed —
 "the nether pair and the overworld probe landed" starves within 80
 ticks), identically on the F-SP6 fix tree (46/47 with this row the one
 failure). The test seeds the nether bed pair via raw `setBlock` (not
 the item path — F-SP6's gates cannot affect it), last touched by
-VT-009's fix (847387b6, merged as #106, green then). **The suspected
-window:** the recent merges (#111/#114/#115 the bed family's own
-arms, #118 the collision table, #139 the consult home, the FL4-GAP2
-slices) — the bisect owed. **The next pass's discovery lane:** run the
-test across the merge window's commits, isolate the breaking change,
-and ledger the fix or the seat correction with the root cause named.
+VT-009's fix (847387b6, merged as #106, green then). **THE BISECT RUN THIS PASS (the boundary
+proven):** `c2bd0a14` (PR #111's merge — pre-#114) GREEN; `b4ec6738`
+(PR #114's merge) RED; `1139f2c3` RED identically. **THE ROOT CAUSE:**
+PR #114's restored pair-integrity arm (BedBlock lines 109-121 — a half
+whose facing-named partner is not a bed removes ITSELF) pops the seat's
+LONE overworld probe head (BED_HEAD_NORTH at (64,101,65) with the GLASS
+control at its own north cell): the glass's placement fires the
+six-neighbor dispatch, the head's integrity walk consults its
+facing-opposite, finds no bed, removes itself silently — the seeding
+await starves. **THE VERDICT: a SEAT DEFECT, not an engine regression**
+— the engine's restored arm IS the reference's law (a lone bed half was
+never vanilla-stable; #114's own review documented the same adaptation
+for the persistence scene; the DOOR seat in the same file already uses
+the COMPLETE-pair form). **THE CORRECTION (PR #155 OPEN,
+`fix/pair-break-probe-seat-parity-audit`, test-only, the engine verified
+1:1 with NO engine change):** the probe head's facing-opposite cell
+(64,101,66) gains BED_FOOT_NORTH — a whole north pair whose integrity
+walks pass; the GLASS control and the probe head's assertion roles
+unchanged verbatim. **The evidence:** PairBreakDimensionParityTest
+**GREEN 3/0** on the correction tree (RED on unmodified develop — the
+isolation run).
 
 ## The forty-fourth pass's close — the run's tally + the next run's queue
 
@@ -6965,11 +6981,11 @@ picks and the cross-verifications remain the protocol acts; #147 is now
 the rebased core on develop with its evidence complete.
 
 **The next run's queue:**
-1. **VT-035's discovery lane** — the bisect across the merge window
-   (#111/#114/#115/#118/#139 + the FL4-GAP2 slices): isolate the
-   breaking change for the nether bed pair's seeding await, name the
-   root cause, and ledger the correction (a fix branch or a seat
-   correction with the engine verified 1:1).
+1. ~~VT-035's discovery lane~~ **DONE IN THIS PASS** — the bisect's
+   boundary proven (green at c2bd0a14, red at b4ec6738 = PR #114's
+   merge), the root cause named (the lone probe head vs the restored
+   pair-integrity arm), the seat corrected through **PR #155** (test-only,
+   the engine verified 1:1). The queue's remainder renumbered below.
 2. **The convergence protocol acts** — the maintainer's picks among the
    floor-consult family's carriers (#141 vs #147 the core, #143 the
    door, #145 the fire, #148 the tripwire, #149 the redstone floor);
