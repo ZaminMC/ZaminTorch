@@ -8002,9 +8002,15 @@ guard — a restored tile on a not-yet-loaded chunk read as air and was
 discarded at boot (the same guard law now). The same session retired
 run 588's two publish blockers (both on the baseline, not the slice):
 the command-block member the same sweep class, and the ender-exit
-member the fountain-before-arrival order (run 562's fall-debt class
-through the other window — the dragon's death writes the portal
-BEFORE anyone stands in it, the reference's own order).
+member the probe-caught suffocation (a damage-event hook on a
+replicating probe caught it red-handed: amount=1.0 cause=IN_WALL at
+the fountain cell — the seat's hand-written fountain never cleared
+the column above the portal, and the generated island's randomized
+surface blocks the standing body's eye cell (64 + 1.62) ~1 run in 12;
+the engine's own dragon-death fountain clears the whole disc's air
+(dy>0, 32 layers), the reference's createPortal law — the seat now
+clears the column too, with the fountain-before-arrival order kept
+from the first diagnosis).
 
 SLICE D TRACE (2026-11-01, the same session's close — findings only,
 the implementation is the next session's first act, the CI-unblock

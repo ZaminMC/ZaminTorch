@@ -92,7 +92,16 @@ class EnderExitAcceptanceTest {
             // the portal before anyone can stand in it); an arrival on
             // the not-yet-written island cell falls for the whole submit
             // window under a loaded runner, and the bedrock write then
-            // lands the debt as damage.
+            // lands the debt as damage. THE OPEN COLUMN ABOVE (the
+            // probe-caught third window): the reference's fountain stands
+            // OPEN TO THE SKY — the generated island's randomized surface
+            // can block the (0, 65+) column at the standing body's eye
+            // (the eight-point in-wall survey at 64 + 1.62), and the
+            // vanilla suffocation walk then eats exactly one health point
+            // during the credits window (the probe's red-handed log:
+            // amount=1.0 cause=IN_WALL at the fountain cell); the seat
+            // clears the column the dragon's death blast clears in the
+            // reference.
             EngineWorld endWorld = server.worldFor(1);
             server.ticker().submit(() -> {
                 var endPortal = server.blockRegistry().require(
@@ -102,6 +111,10 @@ class EnderExitAcceptanceTest {
                 endWorld.getOrGenerate(new net.zaminmc.torch.block.ChunkPosition(0, 0));
                 endWorld.setBlock(new net.zaminmc.torch.block.BlockPosition(0, 63, 0), bedrock);
                 endWorld.setBlock(new net.zaminmc.torch.block.BlockPosition(0, 64, 0), endPortal);
+                for (int y = 65; y <= 76; y++) {
+                    endWorld.setBlock(new net.zaminmc.torch.block.BlockPosition(0, y, 0),
+                            endWorld.airType());
+                }
             });
             await(() -> {
                 var feet = endWorld.getBlock(
