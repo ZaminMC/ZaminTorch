@@ -3863,7 +3863,7 @@ it), the TNT's survival asserted against the engine's detonation.
 | Grass decay — the shade consult | **VT-017 SUSPECTED** (the bed-coverage lane's twenty-seventh pass, renumbered): the engine's `isOpaque` 3-block allowlist (air/torch/glass) stands in for the reference's opacity law (`getOpacity() > 2` — every non-solid-render block answers 0) — the grass dies under beds, flowers, slabs, stairs where vanilla keeps it; one source pass + the OBSERVED dirt-under-bed evidence from the VT-009 trace; this pass takes the seats up |
 | Piston pushability — the behavior table's membership | **VT-016 CONFIRMED and CORRECTED** (the fortieth pass): the whole-registry census — 426 of 1302 ids diverged on unfixed develop (the five pass-1 families were a subset; the crops, the saplings' real ids, the six woods' leaves, the fluid state vocabulary, the vine faces, the double plants, the ladder, the tripwire family, the small mushrooms, the nether wart, the lily, the stems, the melon, the pumpkins' facing states, the cake bites, the potted forms, the fire ages, the dragon egg, and four dead ITEM-keyed/bare-prefix rows) — **PR #126 OPEN**, the seats 3/0 + the census pin 1/0 on the fix (the whole-registry drift guard: the unknown-id guard + the closed 26-id exemption set), the piston package 27/0, the regression lanes 54/0 |
 | Piston pushability — the block-entity gate | **VT-022 CONFIRMED and CORRECTED** (the fortieth pass): `isBlockEntityBacked`'s five-id membership vs the reference's whole `!(block instanceof BlockEntityProvider)` census — the pushed containers lost their contents (the data-loss class); **PR #129 OPEN**, the seats 2/0 on the fix, the piston package 25/0, the container lanes 43/0 |
-| Piston toBreak — the drop consult | **VT-023 SUSPECTED** (the fortieth pass): dropBlock's first-success break vs the DropService's every-entry rolls — a broken potted plant drops only the pot, the broken leaves drop nothing; pass 1 complete, the seats owed |
+| Piston toBreak — the drop consult | **VT-023 CONFIRMED and CORRECTED** (the fortieth pass's third act): dropBlock's first-success break (a stale copy of the Drop record's pre-migration javadoc model) vs the DropService's every-entry rolls — routed through the shared no-tool walk; **PR #131 OPEN (stacked on #126)**, the seats 2/0 on the union, the piston package 29/0, the regression lanes 54/0 |
 | Projectile family — the stick placement (the resting position's geometry) | **VT-014 CONFIRMED — FOUR INDEPENDENT CONSTRUCTIONS, FIVE LANES** (three passes each; the quadruple convergence the thirty-fifth/thirty-sixth passes recorded): pass 1 the thirty-first's source walk; pass 2 the seats — the pass-33 lane's launch-based pair (the observed rest y=19.841 INSIDE the hit cell, x=51.480 hanging past the thin wall), the pass-34 lane's spawnRestored-deterministic pair (y=19.4079402396 at velocity exactly -1.0, x=61.97 past the wall in open air — the exact face±0.05 pins at 0.001), the pass-35 lane's pair (y=20.919 below the face at 21.0, z=41.486 one full block past the wall), the pass-36 lane's own pair (y=20.2143 / x=61.77) — all RED on develop `6b29c46f` at exactly the placement asserts; pass 3 the walks (the writer census — `inGround` set true at exactly two sites and cleared NOWHERE; the design-choice challenges negative on both lanes; the consumers walk; the import-coherence edge). **THE CORRECTION OPEN: PR #117** (`fix/arrow-stick-placement-parity-audit` over develop `6b29c46f`: the reference's rayTrace face walk at the engine's cell granularity + the 0.05 backoff + the landed wire publish; both the pass-33 and pass-34 lanes' seats GREEN 4/0 on the fix tree, the projectile package 48/0, the neighbor lanes 34/0; **the #113 interaction reviewed** — the `!inGround` gate note posted, the union's lights-later regression named) — **but the construction leaves the PARTIAL-SHAPE face unfixed: VT-021 CONFIRMED against it — the thirty-eighth pass's record below** (the slab seat RED on the #117 tree, observed rest y=18.8268 THROUGH the slab's surface against the reference's 19.55; the record in the thirty-eighth pass's section below; the b-lane's box-view branch `237611d3` carries all three seats GREEN — the review note on #117 the channel, the construction pick the maintainer's) |
 | Projectile family — the tracked-block un-stick law (the arrow; the bobber beside it) | **VT-015 CONFIRMED — FOUR INDEPENDENT CONSTRUCTIONS, FIVE LANES** (three passes each): pass 1 the thirty-first's source walk; pass 2 the seats — the pass-33 lane's (the rest IDENTICAL through the broken cell), the pass-34 lane's (STILL inGround, FROZEN at the endpoint), the pass-35 lane's pedestal break, the pass-36 lane's own construction — all RED on develop; pass 3 the walks (the reference re-read — the per-component fresh `random*0.2` re-arm over the STORED face-relative vector, both clocks reset; the compensation hunts negative; the family walk — the bobber the same law's second member; the import walk — the xTile/inTile/inData rows the engine's own recorded gap; the javadoc citations — `flingVelocity` names the un-stick's 0.2 factor as reference-only). **THE CORRECTIONS OPEN — the convergence:** **PR #120** (`fix/arrow-unstick-parity-audit` over develop `6b29c46f`: the tracked cell + the per-tick identity consult + the exact damped re-arm + the import's xTile/inTile rows landing — the reference's readCustomNbt 402-411 restores them; both lanes' seats GREEN, the anvil family 47/0) and **PR #119** (`fix/arrow-unstick-tracked-block-parity-audit`: the same live law 1:1, the import surface deferred as its named tail — the convergence note posted, the carrier pick the maintainer's, the unique coverage worth absorbing either way); the bobber's parallel arm the named follow-up (the family-member protocol) |
 | Projectile family — the stuck burning arrow's TNT consult | **VT-019 SUSPECTED** (the thirty-sixth pass, pass 1 complete; TWICE renumbered — the VT-016 draft lost 16/17 to the pass-32 lane's piston/grass claims, the VT-018 draft lost 18 to the pass-35 lane's bowhit-sound claim): the reference consults `onEntityCollision` from the FLIGHT branch's tail scan + the stick arm's single-hit-block consult alone (ArrowEntity 382, 311-313); the engine's `burningTntPass` walks STUCK burning arrows every tick — a stuck burning arrow beside TNT detonates it in the engine, primes nothing in the reference. The seat owed (pass 2) — the compact discovery pass this run's head |
@@ -3910,12 +3910,15 @@ it), the TNT's survival asserted against the engine's detonation.
    CORRECTED, PR #126 OPEN** — the census widened to 426 ids, the
    three seats + the whole-registry pin, the one-method fix, the
    piston package and the regression lanes green).
-2b. ~~**VT-022's and VT-023's passes**~~ — **VT-022 DONE (the
-   fortieth pass's second act: CONFIRMED and CORRECTED, PR #129
-   OPEN** — the two seats, the entity census by class, the one-method
-   widening, the piston package and the container lanes green);
-   **VT-023 remains** — the potted-plant drop census (the pot alone
-   vs vanilla's pot + plant); then the independent pass.
+2b. ~~**VT-022's and VT-023's passes**~~ — **BOTH DONE (the fortieth
+   pass's second and third acts: VT-022 CONFIRMED and CORRECTED, PR
+   #129 OPEN; VT-023 CONFIRMED and CORRECTED, PR #131 OPEN (stacked
+   on #126)** — the piston surface's three gates now all answer the
+   reference's census: the material table (#126), the entity gate
+   (#129), the toBreak drop consult (#131). The piston family's own
+   lane is COMPLETE pending the merges; the next lane's head returns
+   to the standing queue (VT-018's spread-gate seats, VT-019's TNT
+   seat, F-SP1's passes, the dimension tails).
 
 2a. **VT-019's seat** (the thirty-sixth pass's discovery, pass 1
    complete): a burning arrow stuck BESIDE (not in) a TNT block
@@ -3933,8 +3936,9 @@ it), the TNT's survival asserted against the engine's detonation.
    the OPEN set: #108, #109, #110, #111, #113 (the `!inGround` gate
    note posted), #114, #116 (VT-017), #117 (VT-014), #118 (F-DS1),
    #119/#120 (VT-015's convergent carriers), #126 (VT-016, the fortieth
-   lane), #129 (VT-022, the fortieth lane's second act) — after the
-   crossing PRs
+   lane), #129 (VT-022, the fortieth lane's second act), #131 (VT-023,
+   the fortieth lane's third act, stacked on #126 — merge #126 first)
+   — after the crossing PRs
    merge, the End-origin arm (the forced-spawn consult,
    `PlayerManager.changeDimension` lines 473-484) becomes the portal
    family's one remaining architectural tail, and the four families'
@@ -4304,7 +4308,7 @@ the seats 2/0 on the fix; the piston package whole 25/0; the container
 lanes 43/0 (the chest package whole, HopperWindow, FurnaceHopperEvent,
 DispenseBehavior, BrewingStandApi, BeaconSystem).
 
-## VT-023 — the piston toBreak drop consult diverges for multi-entry and family-branch drop rows: a broken potted plant drops only the pot, the broken leaves drop nothing (SUSPECTED — pass 1 complete, the seats owed; FIRST NUMBERED VT-020 by this lane's initial draft — renumbered by the fortieth pass's own reconciliation, the spawn-floor lane's hasSolidTop claim owns 20 publicly)
+## VT-023 — the piston toBreak drop consult diverges for multi-entry and family-branch drop rows: a broken potted plant drops only the pot, the broken leaves drop nothing (CONFIRMED — three passes; the correction is **PR #131 OPEN, STACKED ON #126**; FIRST NUMBERED VT-020 by this lane's initial draft — renumbered by the fortieth pass's own reconciliation, the spawn-floor lane's hasSolidTop claim owns 20 publicly)
 
 **Subsystem:** redstone / the piston families / the toBreak drop law.
 **Affected version:** develop `777b7c86` (independent of PR #126 —
@@ -4344,9 +4348,43 @@ shape).
   CONCLUSION: a bounded drop-law divergence inside the DESTROY arm —
   the membership table (PR #126) is correct and flows through
   unchanged.
-- Pass 2 (behavioral): owed — the piston-broken potted plant's drop
-  census (the pot alone vs vanilla's pot + plant).
-- Pass 3 (independent): owed.
+- **Pass 2 (behavioral, the fortieth pass's third act, 2026-11-01,
+  on the #126 tree — the observable requires the pots and crops to
+  be destroy-classified first):** the two discovery seats run RED on
+  the #126 tree WITHOUT the fix at exactly the predicted point — the
+  SECOND drop missing: `thePistonBrokenPottedPlantDropsPotAndPlant`
+  (the flower_pot dropped, the contained dandelion NEVER — the await
+  times out); `thePistonBrokenMatureWheatDropsWheatAndSeeds` (the
+  wheat dropped, the seeds never).
+- **Pass 3 (independent re-verification, the fortieth pass's third
+  act, 2026-11-01):** the reference's own consumption law re-read
+  (PistonBaseBlock.move lines 303-309 — dropItems AND removeBlock,
+  the WorldChunk.setBlockState line 503 onRemoved dispatch); the
+  STALE-MODEL root cause established (the Drop record's javadoc
+  still documents the pre-migration first-hit-wins model while the
+  table's real consumers — the DropService walk — moved the
+  alternatives families to their own family arms and roll every
+  remaining entry independently — the piston's local read copied the
+  stale sentence); the blast radius enumerated (the multi-entry rows
+  among the DESTROY families: the potted pair and the mature-crop
+  bands — the gravel XOR never reaches the piston, gravel being
+  PUSH, and its family arm answers the walk regardless; the fix's
+  invariant: the piston's drops are BY CONSTRUCTION the dig path's
+  no-tool drops, the reference's own dropItems-everywhere law).
+  CONCLUSION: confirmed; the fix routes the toBreak consult through
+  the shared no-tool walk.
+
+### The correction (PR #131, stacked on #126)
+
+`dropBlock` routes through the DropService's no-tool walk
+(`washedDrops` — the same law the fluid spread's displaced block
+carries, FlowingLiquidBlock.spreadTo lines 119-125), constructed with
+the piston's own shared random. Evidence: the seats 2/0 on the union
+(#126 + the fix), RED on the #126 tree alone; the piston package
+whole 29/0 on the union (the VT-016 seats and the census pin
+unregressed); the regression lanes 54/0 (the redstone package whole,
+DropBandParityAcceptance — the dig path's own drop bands — and
+FarmingGrowthCadence).
 
 ## The fortieth pass — VT-016's three passes completed and corrected (PR #126): the membership census widened from five families to the whole registry's 426 ids; VT-022 and VT-023 discovered inside the same walk
 
@@ -4422,3 +4460,26 @@ the hunks not overlapping). The seats ride this lane RED BY CONTRACT
 piston surface's three gates now all answer the reference's census:
 the material table (#126), the entity gate (#129), and the toBreak
 drop consult the remaining VT-023 lane.
+
+**THE THIRD ACT — VT-023 CONFIRMED and CORRECTED (PR #131, stacked
+on #126):** the toBreak drop consult routed through the shared no-tool
+walk. The pass-2 seats ran RED on the #126 tree without the fix at
+exactly the predicted point (the SECOND drop missing: the pot's
+contained dandelion, the mature crop's seeds); the pass-3 walk
+established the STALE-MODEL root cause (the Drop record's javadoc
+still documents the pre-migration first-hit-wins model while the
+DropService's walk — the table's real consumer — rolls every entry
+independently, the alternatives families long moved to their own
+family arms; the piston's local read copied the stale sentence) and
+bounded the blast radius by construction (the piston's drops become
+BY CONSTRUCTION the dig path's no-tool drops — the reference's own
+dropItems-everywhere law; the gravel XOR never reaches the piston,
+gravel being PUSH). The correction landed on
+`fix/piston-break-drops-parity-audit` stacked on the #126 branch;
+**PR #131 OPEN** — the merge order documented (#126 first, or rebase
+after it lands). The seats ride this lane beside the others RED BY
+CONTRACT against the #126 tree (`PistonBreakDropParityDiscoveryTest`).
+**The piston family's own lane is COMPLETE pending the merges:** the
+material table (#126), the entity gate (#129), and the toBreak drop
+consult (#131) all answer the reference's census, each through its
+own three-pass discipline and its own PR.
