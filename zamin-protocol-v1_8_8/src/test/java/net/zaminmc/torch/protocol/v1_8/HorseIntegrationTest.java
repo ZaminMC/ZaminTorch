@@ -1,5 +1,6 @@
 package net.zaminmc.torch.protocol.v1_8;
 
+import net.zaminmc.torch.util.Position;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 
@@ -75,17 +76,32 @@ class HorseIntegrationTest extends ProtocolTestBase {
             awaitCondition(() -> server.world().getBlock(
                     new net.zaminmc.torch.block.BlockPosition(ax + 4, ay, az)).equals(wall),
                     "pen built");
-            client.sendChat("/spawnmob horse 1");
 
-            // Resolve the commanded horse server-side (the natural population
-            // also rolls horses now — the maintainer's band is 8-20 blocks out,
-            // the commanded one lands within 3, so the nearest HORSE wins and
-            // the wire id equals the engine id for mobs).
+            // THE SUMMON (run 580's member — the reach-lottery retirement,
+            // first arm): the wild horse's own vanilla stroll drifts it
+            // around the pen (~1.2 blocks a second, and the drift passes
+            // THROUGH the pen's cobble — the engine's wander arm carries
+            // no block collision, a ledgered envelope), while every
+            // out-of-reach use-entity is SILENTLY refused by the interact
+            // ladder's server gate (3.5 + the 1.4-box's half ≈ 4.2
+            // horizontal). The engine's refusal is the reference's own
+            // law; the SCENE must follow the target. The ~3 summon lands
+            // the horse deterministically three east (the /spawnmob ring
+            // spawn rolls 0-3 in any bearing — the OLD scene's reach
+            // margin was a lottery from the first tick); the follow arms
+            // below close the distance to the body's LIVE cell before
+            // every use (the swing helper's own law).
+            client.sendChat("/summon horse ~3 ~ ~");
+
+            // Resolve the summoned horse server-side (the natural population
+            // also rolls horses now — the maintainer's band is 8-20 blocks
+            // out, the summoned one lands exactly three east, so the near
+            // filter names it and the wire id equals the engine id).
             awaitCondition(() -> server.mobs().all().stream()
                     .anyMatch(m -> m.type() == net.zaminmc.torch.server.entity.MobType.HORSE
                             && m.position().x() * m.position().x()
                             + m.position().z() * m.position().z() < 20.0),
-                    "the commanded horse registered near the anchor");
+                    "the summoned horse registered near the tamer");
             int horseId = server.mobs().all().stream()
                     .filter(m -> m.type() == net.zaminmc.torch.server.entity.MobType.HORSE
                             && m.position().x() * m.position().x()
@@ -117,6 +133,15 @@ class HorseIntegrationTest extends ProtocolTestBase {
                             .countOf(net.zaminmc.torch.server.item.BuiltinItems.WHEAT) > 0,
                     "the /give delivered the wheat to the tamer's hotbar");
             for (int i = 0; i < 100 && server.mobs().byId(horseId).temper() < 100; i++) {
+                // THE FOLLOW (run 580's member — second arm): every second
+                // use closes the distance to the body's LIVE cell (the
+                // drift is ~1.2 blocks a second; the follow re-arms the
+                // reach margin faster than the drift eats it — the swing
+                // helper's own law, the gate itself never weakened).
+                if (i % 2 == 0) {
+                    Position live = server.mobs().byId(horseId).position();
+                    client.walkTo(live.x(), live.y(), live.z(), true);
+                }
                 client.sendUseEntity(horseId, Protocol18.USE_ENTITY_INTERACT);
                 Thread.sleep(60);
             }
@@ -139,6 +164,7 @@ class HorseIntegrationTest extends ProtocolTestBase {
                             .orElseThrow().inventory()
                             .countOf(net.zaminmc.torch.server.item.BuiltinItems.WHEAT) == 0,
                     "the /clear emptied the hand");
+            walkToTheHorse(client, horseId);
             client.sendUseEntity(horseId, Protocol18.USE_ENTITY_INTERACT);
             awaitCondition(() -> server.mobs().byId(horseId).tamed(),
                     "the full-temper attempt tamed the horse");
@@ -183,6 +209,7 @@ class HorseIntegrationTest extends ProtocolTestBase {
             // the hand above, so the window's slot 0 shows the mounted row.
             client.sendEntityAction(0); // start sneaking
             Thread.sleep(150);
+            walkToTheHorse(client, horseId);
             client.sendUseEntity(horseId, Protocol18.USE_ENTITY_INTERACT);
             Object[] window = client.readOpenWindow(20_000);
             int windowId = (Integer) window[0];
@@ -192,5 +219,18 @@ class HorseIntegrationTest extends ProtocolTestBase {
             assertEquals(329, table[0][0], "the saddle sits in slot 0");
             client.sendEntityAction(1); // stop sneaking
         }
+    }
+
+    /**
+     * The follow arm (run 580's retirement): walks the tamer to the
+     * horse's LIVE cell — the drift between any position read and a
+     * use-entity's processing is what the reach gate refuses, and the
+     * follow closes it right before every use (the walk's own last step
+     * lands exactly on the live cell, the same closing law the swing
+     * helper carries).
+     */
+    private void walkToTheHorse(TestClient18 client, int horseId) throws Exception {
+        Position live = server.mobs().byId(horseId).position();
+        client.walkTo(live.x(), live.y(), live.z(), true);
     }
 }
