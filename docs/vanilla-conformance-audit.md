@@ -1466,7 +1466,7 @@ effective law for the vanilla dimensions).
 | Block-update wake (BlockUpdateSystem.runUpdate, RedstoneSystem.neighborChanged) — world binding | SURFACED as VT-009's pass-3 non-compensation evidence (the parallel stream): BOTH reads consult the overworld field (the changed-world parameter ignored in the six-neighbor dispatch) — the house stream's FL4-F10 lane LANDED on develop (`0328e92f`), NOT duplicated; the door/bed seats are the evidence cross-reference |
 | Spawn precedents — the post-fan stamp ordering | **VT-013 RESOLVED IN FLIGHT — PR #130 OPEN (stacked on #125)** — three passes complete: the block spawner, the End dragon, and the chicken egg post-stamp after `spawnAt` returns, so their live `onMobSpawned` publishes (the wire's Slice 25d gate) read the un-stamped 0 at the event — a nether spawner's body invisible at its own spawn moment to the nether player beside it; pass 3 CORRECTED the dragon's exposure (the End generates lazily — the chunk-(0,0) drain fires with the approaching player LIVE, so the first End visitor never sees the dragon spawn); both spawner seats RED on the #125 tree (`PostFanStampOrderingTest`, `expected: <-1> but was: <0>`), the fix is each site's migration to the dimension-aware arm |
 | FX broadcasts — the dimension awareness | NOT INSPECTED (the FxManager position-only API; the PR #90 ledger) |
-| World border — per-dimension | **VT-014 CONFIRMED — three passes complete, fix-ready**: the command/wire lanes EXONERATED (the reference's own law is `worlds[0]` alone — WorldBorderCommand:171, PlayerManager:678 — the engine's single border matches; the line-280 comment's claim is the reference's own law for that surface); the NETHER containment lanes diverge — vanilla's nether border is the overworld's synced rows with the CENTER REPORTED AT /8 (ReadOnlyServerWorld's listener copy + NetherDimension.createWorldBorder's anonymous /8 override), and every engine containment site (the dig gate, the use gate, the damage walk, the two collision-wall hooks) reads the shared overworld-geometry border; observable with a configured non-zero center; passes 2-3 owed |
+| World border — per-dimension | **VT-025 RESOLVED — PR #133 OPEN** (first numbered VT-014 on this lane; renumbered by the public-first protocol — PR #117's arrow-stick placement owns VT-014): the command/wire lanes EXONERATED (the reference's own law is `worlds[0]` alone — WorldBorderCommand:171, PlayerManager:678 — the engine's single border matches; the line-280 comment's claim is the reference's own law for that surface); the NETHER containment lanes were the divergence — vanilla's nether border is the overworld's synced rows with the CENTER REPORTED AT /8 (ReadOnlyServerWorld's listener copy + NetherDimension.createWorldBorder's anonymous /8 override), and the engine's SIX containment sites (the dig gate, the use gate, the damage walk, the vehicle/mob/ground collision hooks) read the shared overworld-geometry border; the fix: `NetherWorldBorderView` (the /8 center, the synced rows live-delegated) + the `borderFor(dimension)` router; the seats 5/0 GREEN on the fix, 2 RED on develop + 3 controls; the named tail: `World.getSpawnPoint`'s border fallback (World.java:2482-2487) — a separate spawn-destination-lane finding |
 | Zombie/mob arms — world binding | NOT INSPECTED (the zombie door-break consults the overworld field; surfaced by PR #90's cleanup threading) |
 | Explosions — dimension routing | AUDITED this pass (the twenty-sixth): the call-site census whole — the primed TNT (FL4-F7) and the End crystal (Slice 62) correct; the ghast fireball and wither skull sinks pass the routed world with the OVERWORLD service, the creeper/wither-birth/TNT-cart wrappers bind the overworld outright, and the shared drop roll stamps dimension 0 (**VT-007: the CORE resolved by PR #100** — another stream's honest convergence with this census, the overlap recorded, PR #103 closed as superseded; **the CART slice PR #105 OPEN** — the BlastSink dimension carry, the stash-discriminated seat nether=0/overworld=18 unfixed; the fireball + creeper seats 2/0 green on post-#100 develop, the independent confirmation riding in #105). The blast WOUND walks are routed (the dimension gate + the blastWorld consult); the fire placement is routed (F-EX4/PR #92); the named tail: the End/nether services' shared `gameplayRandom` vs the reference's per-world `world.random` |
 | Item entities / pickup — dimension | the TF-9 stamped sites are the record; the pickup consult un-audited
@@ -1889,9 +1889,20 @@ fourteen sites routed, the seats riding the fix branch, the regression
 lanes green (the egg/summon/spawner/cart families, the entity package
 whole).
 
-## VT-014 — the nether's border containment consults use the overworld's raw center: vanilla's nether border is the overworld's rows with the CENTER REPORTED AT /8
+## VT-025 (first numbered VT-014 on this lane — RENUMBERED by the public-first protocol) — the nether's border containment consults use the overworld's raw center: vanilla's nether border is the overworld's rows with the CENTER REPORTED AT /8
 
-**Status: CONFIRMED — three passes complete (this run), fix-ready.**
+**Status: RESOLVED — the correction is PR #133 OPEN** (`fix/nether-border-containment-parity-audit` over develop `149eb1f0`; three passes complete — the renumbering note below).
+
+**The renumbering (the numbering collision resolved):** this lane's record
+claimed VT-014 at `c32a75fb` (the world-border census, pass 1), but the
+five-lane union's arrow-stick placement claim had taken VT-014 PUBLICLY
+first (PR #117, opened 05:40:04Z — the pass-31 lane's finding, four
+independent constructions). The public-first protocol (the VT-012→VT-013
+and VT-020→VT-021 precedents) awards the number to the public claim; this
+finding renumbers to VT-025 (VT-018/019/020/021 taken by the bowhit
+sound, the stuck TNT consult, the spawn floor, the partial-shape face;
+VT-022 the piston entity gate; VT-023 the flight band, PR #128 public
+first; VT-024 #131's piston toBreak drop per the pass-39 closing note).
 Priority tier 4 (a physics/containment divergence family — the border
 wall, the border damage, and the dig/use gates all mis-place in the
 nether when the border's center is configured; unobservable at the
@@ -1985,10 +1996,60 @@ answers for dimension -1; the overworld and the End keep the shared
 object; the wire and the command stay on `worlds[0]` (vanilla's own
 law — NOT part of this correction).
 
-**Branch:** `audit/vt-013-postfan-stamp` (the record + the seats; the
-fix branch is the next run's head — the five sites' dimension
-threading + the nether /8 view, bounded as the proposed correction
-above).
+**Branch:** the record + the discovery seats on `audit/vt-013-postfan-stamp`;
+the correction `fix/nether-border-containment-parity-audit` (PR #133) over
+develop `149eb1f0` — the census on the LATEST tree found the third
+collision hook (the ground families' surface at ~32483 beside the vehicle
+~19600 and mob ~23305 hooks; the record's original "two hooks" was the
+older tree's census), so the fix routes SIX sites through the
+`borderFor(dimension)` router.
+
+**The fix's shape (the reference's own anonymous-subclass form):**
+`NetherWorldBorderView extends EngineWorldBorder` (`EngineWorldBorder`
+un-finaled for the one view) — `getCenterX()/getCenterZ()` return
+`shared/8.0` (NetherDimension's override), the synced rows live-delegated
+(the lerp walk, the damage pair, the warning pair, the max clamp — the
+ReadOnlyServerWorld listener copy expressed as the always-in-sync
+delegation), every mutating setter guarded (the command targets worlds[0]
+alone); `borderFor(dimension)`: -1 the view, 0/1 the shared border.
+
+**The seats' final shape (NetherBorderContainmentParityTest 5/0 GREEN on
+the fix, 2 RED on develop + 3 controls green on both trees):** the dig
+member RED on develop (the projected-center dig refused 120 ticks), the
+damage member RED on develop (expected 20.0 but was 0.0 — the instant
+~178/tick chew), the no-border nether dig control, the overworld
+outside-border dig control, the overworld outside-border damage control
+(the walk armed). **The seat-baseline lesson (the probe-verified race,
+the same class the pass-39 lane's VT-012 flake item names):** the damage
+members' health baselines must be read BEFORE the border configures —
+the pre-fix chew is instant, so a post-configuration baseline read
+observes the already-dead 0.0 and a no-damage assert passes SPURIOUSLY
+on the unfixed tree (the discovery seat's original shape carried this
+race; the fix lane's seat moved the baseline reads and re-proved both
+members RED on develop).
+
+**The regression record (the fix tree):** WorldBorderTest 4/0 (the
+command/wire lanes untouched), the dig/interaction lanes
+(BlockInteractionAcceptance, DigHandlerGates, NetherDigRouting,
+SurvivalMining, AdventureGates), the physics/collision lanes
+(EntityMoveSolver, PhysicsSolverGeometry, ItemBoxPhysics,
+ItemOrbLandingPhysics), the portal/vehicle lanes (MobPortalCooldownDecay,
+PortalMobCrossing, VehicleSpawnEvent) — 59/0 green; the bed lane's
+suite-run flake (BedWrongWorldBlastAcceptanceTest's sleep-walk await,
+the house-documented load-starvation class — runs 580-586's root-caused
+family) re-verified 3/0 on fresh isolated runs; the full-module run
+time-boxed at 590s without completing (the honest record — the targeted
+lanes above are the fix's coverage).
+
+**The unseated lane (the honest scope note in the PR):** the three
+collision hooks' phantom-wall observable rides the same one-line router
+change (not separately seated — the dig gate and the damage walk pin the
+law at two independent observables); the reference's
+`World.getSpawnPoint` border fallback (World.java:2482-2487 — a stored
+spawn outside the border moves the spawn to the border's center column)
+is a SEPARATE finding for the spawn-destination lane (an overworld-border
+consult — the shared border is correct there; the fallback itself is the
+missing piece).
 
 ## VT-013 — the remaining post-stamp precedents stamp AFTER the spawn fan: the block spawner's, the dragon's, and the chicken egg's live publishes read the un-stamped 0 at the event
 
@@ -2785,10 +2846,14 @@ work, in the queue's order:
    581/0). **The world-border census ran this run too** — the queue's
    suspicion of the single-border design RETIRED for the command/wire
    surface (the reference itself targets `worlds[0]` there), the
-   nether-containment divergence opened as **VT-014 suspected** (pass
-   1 complete; the record above); the remaining item-9 tails: the FX
-   dimension awareness, the zombie/mob arms' world binding, and the
-   item pickup consult.
+   nether-containment divergence opened as VT-014 suspected (pass 1)
+   and CONFIRMED whole (passes 2-3, the record above). **The next run
+   closed it: RENUMBERED VT-025 (PR #117 owns VT-014 publicly — the
+   public-first protocol) and the correction landed as PR #133** over
+   develop `149eb1f0` (the nether /8 view + the borderFor router, the
+   six containment sites, the seats 5/0 GREEN / 2 RED on develop); the
+   remaining item-9 tails: the FX dimension awareness, the zombie/mob
+   arms' world binding, and the item pickup consult.
 
 13. **The parallel stream's watch items (the union's queue merge):**
     **#106** (VT-009's break-path pair walks), **#111** (VT-010's bed
@@ -2799,3 +2864,75 @@ work, in the queue's order:
     head — superseded by this stream's #108 landing (the union note
     above); the End-origin portal arm and the four open PRs are the
     shared watch.
+
+## The fortieth pass (this lane) — the numbering collision resolved, VT-025's Phase E landed whole (the nether /8 border view), the record brought current with the five-lane union's PR landscape
+
+The run began at the recovery: the latest `origin/develop` fetched
+(`149eb1f0`, the FL4-GAP2 Slice B landing — the container families'
+dimension ownership), the pass-39 union branch's report read whole (the
+five-lane union's state: VT-018/019 confirmed whole, the VT-020/021
+numbering collisions resolved, the stick-tick residue seated RED on
+develop AND the #123+#128 union, seven PRs cross-tree verified), and the
+live PR landscape censused (20 open: #108-#111, #113-#131 plus this
+lane's #125/#130).
+
+**The numbering collision found and resolved (the public-first
+protocol):** this lane's VT-014 (the nether border containment,
+confirmed whole at `0296d0d0` with the seats) collided with the union's
+VT-014 (the arrow stick placement — public through PR #117 since
+05:40:04Z, four independent constructions). The public claim wins; the
+nether border finding renumbers to **VT-025** (the next free number:
+VT-022 the piston entity gate, VT-023 the flight band, VT-024 #131's
+piston toBreak drop per the pass-39 closing note). The record, the
+ledger row, and the queue items all carry the renumbering note.
+
+**VT-025's Phase E (the head work):** the fix branch
+`fix/nether-border-containment-parity-audit` cut over develop
+`149eb1f0`:
+
+- **The census re-run on the LATEST tree** (the record's original census
+  was over the older baseline): the dig gate (~3800), the use gate
+  (~11870), the damage walk (~6155), and THREE collision hooks — the
+  vehicle (~19640), the mob (~23348), and the ground families' surface
+  (~32528) — six sites, all reading the shared border.
+- **The view (the reference's own anonymous-subclass form):**
+  `NetherWorldBorderView extends EngineWorldBorder` (un-finaled for the
+  one view) — the /8 center pair (NetherDimension's override), the
+  synced rows live-delegated (the listener copy as the always-in-sync
+  delegation), the mutators guarded (the command targets worlds[0]
+  alone).
+- **The router:** `borderFor(dimension)` — -1 the view, 0/1 the shared
+  border (the End's raw copy).
+- **The seats hardened before the proofs:** the damage members' health
+  baselines moved BEFORE the border configuration — the probe-verified
+  race (the pre-fix chew is instant at ~178/tick; a post-configuration
+  baseline reads the already-dead 0.0 and a no-damage assert passes
+  SPURIOUSLY on the unfixed tree — the discovery seat's original shape
+  carried exactly this race, and the suite-context failure of the
+  overworld damage control exposed it). The seats' final shape: 5/0
+  GREEN on the fix tree, **2 RED on develop at the predicted asserts**
+  (the projected-center dig refused; the no-damage member expected 20.0
+  but was 0.0), the three attribution controls green on both trees.
+- **The regression:** WorldBorderTest 4/0, the dig/interaction +
+  physics/collision + portal/vehicle lanes 59/0 green; the bed lane's
+  suite-run flake (the house-documented sleep-walk load-starvation
+  class) re-verified 3/0 on fresh isolated runs; the full-module run
+  time-boxed at 590s without completing — recorded honestly.
+- **The PR: #133 OPEN against develop** (the law, the defect, the fix
+  shape, the seat table, the scope notes — the `getSpawnPoint` border
+  fallback named as the separate spawn-destination-lane finding).
+
+**The lane's bookkeeping:** the discovery seat's stale copy removed from
+this branch (the fix lane owns the canonical seat per the
+file-resolution protocol — the fix lane's copy carries the corrected
+baseline shape); the record closed with the fix's landing; the queue
+brought current.
+
+**The next heads (the queue, in order):** the remaining item-9 tails —
+the FX dimension awareness, the zombie/mob arms' world binding, the
+item pickup consult (all NOT INSPECTED); F-SP1's owed passes; the
+review verifications owed on the open carrier PRs (#116, #118, #126,
+#131 per the convergence protocol — verify, never re-fix); the
+spawn-destination lane's `getSpawnPoint` fallback finding (named this
+run); the union's stick-tick residue (RED on develop and the #123+#128
+union — its own VT number owed at its fix).
