@@ -7899,11 +7899,14 @@ both test-seat defects — see the census doc) and the mob-integration
 status read (the body-filtered form): runs 578/579 green, builds
 155/156 published, the four-day stall over.
 
-NEXT WORK (in order): Slice D (the transient families — the piston
-movingBlocks, the decorations, the leads); the PR wave's remainder
-(#111, #113, #114, the VT-006 trio #108-#110, and the newer VT stack
-#116-#131 — #106, #115 already merged) reviews as time permits, the
-three-pass discipline each.
+NEXT WORK (in order): Slice D IS WHOLE (all three transient families
+landed — the piston, the decoration, the lead; row 4's ledgered tail
+above); the PR wave's remainder (the support-consult chain #137-#149,
+and the VT stack #116-#136 — this session merged #109/#111/#113/#114
+and closed #108/#110 with the three-pass discipline) reviews as time
+permits; the dimension-ownership ledger's next rows (the redstone
+world's remaining consults, the container/storage ownership) name
+their own acts.
 
 SLICE B LANDED (2026-11-01, the container-remainder session): the
 four families whole, exactly per row 2 — the furnace/dispenser/brewing/
@@ -8136,16 +8139,51 @@ families, each exactly per the trace above.
   shared-runner escalation — the growth becomes a printed evidence
   line, the re-measure takes the min of its windows; the two floor
   pins and the equivalence seats hold the walk's law).
-- REMAINS of row 4: THE LEAD FAMILY (the knots' mobsIn scan gate, the
-  survival read's overworld pin, the detacher's owner-context assert —
-  no store pass, the per-dimension instances and the routed consults
-  alone). Run 591's OTHER member — SurvivalFlow's drop-settle miss —
-  stays the open census question (the full static analysis eliminated
-  every removal and id-space candidate: the engine ran at NOMINAL
-  20 TPS through the whole 400-tick await on a fresh flat world with
-  no collector in range, no merge partner, and the wire id verified
-  engine-native; the next session's probe is the instrumented
-  sampler).
+- THE LEAD FAMILY LANDED (2026-11-01, commit 5a53d2fd — row 4's third
+  and final family; Slice D WHOLE): the three families at the chestsFor
+  form (leadsFor(dim) beside the legacy accessor, each instance holding
+  its OWN world + the fence identifier in the constructor —
+  setSurvivalRead's single-world pin RETIRED — the three sharing ONE
+  IntSupplier so the Spawn Object 77 ids stay unique across the worlds,
+  the decoration family's own law), the LeashKnot's dimension column
+  (the wire's observer gate), the tick walk gated on the body's own
+  dimension, LeadSurface's mobsIn gated on the body's own dimension
+  (THE NAMED LEAK CLOSED — a nether fence ties only the nether's mobs),
+  dropLead stamped with the leashed body's own dimension, the fence use
+  routed by the PLAYER's dimension (the block consult AND the tie), the
+  knot interact served on the knot's own family through knotById, the
+  detacher's requireMutationContext reading the MOB's own world (the
+  owner-context assert at the right world), the anvil import's knot rows
+  routed by the target world's dimension, and the protocol's knot arms +
+  the join replay observer-gated (the Wave AS shape). THE STASH AUDIT
+  the trace named: NO v+1 pass needed — the knots ride the mob's Leash
+  NBT stash and the mob store already carries the dimension row; the
+  stash resolves against the mob's own dimension's family through the
+  tick's gate (verified, not assumed). Seats 3/0
+  (LeadSliceDOwnershipAcceptanceTest): the named leak's seat (the
+  overworld cow at the SAME coordinates held by the SAME player keeps
+  its player hold, the overworld family never gains a knot), the
+  survival poll's seat (a nether knot surviving a full 100-tick cadence
+  over the overworld's AIR at the same coordinates, then falling when
+  its OWN fence breaks — both directions), and the drop stamp's seat (a
+  nether mob's snapped lead dropping as a NETHER item). Regression:
+  LeadSystemTest 8/0 (the rig rewired), LeashApiAcceptanceTest 3/0,
+  AnvilImportAcceptanceTest 6/0, DimensionWalkTest 1/0, the Slice D
+  siblings unregressed (Decoration 2/0, Piston 3/0, Tile 4/0), the
+  block + entity packages whole 891/0. ROW 4 IS WHOLE: all three
+  transient families (the piston, the decoration, the lead) at the
+  per-dimension form; the dimension-ownership ledger's remaining rows
+  name their own next acts.
+
+- Run 591's OTHER member — SurvivalFlow's drop-settle miss — stays the
+  open census question (the full static analysis eliminated every
+  removal and id-space candidate: the engine ran at NOMINAL 20 TPS
+  through the whole 400-tick await on a fresh flat world with no
+  collector in range, no merge partner, and the wire id verified
+  engine-native; the failure census instrument landed in 57f19ad5 —
+  the next CI occurrence reads the drop's fate straight from the test
+  report: absent-from-list, present-but-airborne, present-but-wrong-id,
+  or grounded-but-late).
 
 ---
 
