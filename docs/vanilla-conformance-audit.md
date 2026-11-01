@@ -3785,15 +3785,16 @@ it), the TNT's survival asserted against the engine's detonation.
 | Portal mechanics — the mob re-entry cooldown decay | RESOLVED — **PR #107 MERGED** (98ded357): the cooldown decays ONE per tick (Entity.baseTick lines 311-313) |
 | Drops — the TF-9 dimension stamp | RESOLVED (PR #90's riders adopted; the tile-family spill sites remain the per-dimension tile tail) |
 | Tile families — per-dimension stores | the CHEST family LANDED by **Wave FL4-GAP2 Slice A** (`2d0f74af`: three ChestManager instances, the ZCD v3 dimension stamp, the consult sites routed — `ChestDimensionOwnershipAcceptanceTest` 4/0 the record); Slice B's honest tail: the hopper system, the ContainerViews, the furnace/dispenser/brewing families stay single-instance |
-| Block updates — the multi-part families' pair-integrity arms | THREE arms in flight: the BED family's neighborChanged self-removal arm (**VT-009 the bed-coverage lineage's claim — CONFIRMED, three passes, PR #114 OPEN**); the break-path pair walks' world binding (**VT-009 the pass-28 lane's claim — CONFIRMED, PR #106 OPEN**); the bed pair's sibling resolution (**VT-010 — CONFIRMED, PR #111 OPEN**). The DOOR family's neighborChanged arm EXISTS (`RedstoneSystem.doorNeighborChanged`, DoorBlock lines 157-198 — the door half REJECTED by its own green seat, now the regression guard) |
+| Block updates — the multi-part families' pair-integrity arms | TWO arms in flight, ONE landed: the BED family's neighborChanged self-removal arm (**VT-009 the bed-coverage lineage's claim — CONFIRMED, three passes, PR #114 OPEN**); the break-path pair walks' world binding (**VT-009 the pass-28 lane's claim — RESOLVED — PR #106 MERGED** `becf84b0`, its review correction carried); the bed pair's sibling resolution (**VT-010 — CONFIRMED, PR #111 OPEN**). The DOOR family's neighborChanged arm EXISTS (`RedstoneSystem.doorNeighborChanged`, DoorBlock lines 157-198 — the door half REJECTED by its own green seat, now the regression guard) |
 | Grass decay — the shade consult | **VT-017 SUSPECTED** (the bed-coverage lane's twenty-seventh pass, renumbered): the engine's `isOpaque` 3-block allowlist (air/torch/glass) stands in for the reference's opacity law (`getOpacity() > 2` — every non-solid-render block answers 0) — the grass dies under beds, flowers, slabs, stairs where vanilla keeps it; one source pass + the OBSERVED dirt-under-bed evidence from the VT-009 trace; this pass takes the seats up |
 | Piston pushability — the behavior table's membership | **VT-016 SUSPECTED** (the bed-coverage lane's twenty-seventh pass, renumbered): the engine's `pistonMoveBehavior` DESTROY/BLOCK lists omit the bed family, the door family, the weighted plates, the cocoa (vanilla DESTROY) and the anvil (vanilla BLOCK) — a pushed bed MOVES where vanilla breaks it with its drop; one source pass done, the piston-push seat this pass's second head |
-| Projectile family — the stick placement (the resting position's geometry) | **VT-014 CONFIRMED — FOUR INDEPENDENT CONSTRUCTIONS, FIVE LANES** (three passes each; the quadruple convergence the thirty-fifth/thirty-sixth passes recorded): pass 1 the thirty-first's source walk; pass 2 the seats — the pass-33 lane's launch-based pair (the observed rest y=19.841 INSIDE the hit cell, x=51.480 hanging past the thin wall), the pass-34 lane's spawnRestored-deterministic pair (y=19.4079402396 at velocity exactly -1.0, x=61.97 past the wall in open air — the exact face\u00b10.05 pins at 0.001), the pass-35 lane's pair (y=20.919 below the face at 21.0, z=41.486 one full block past the wall), the pass-36 lane's own pair (y=20.2143 / x=61.77) — all RED on develop `6b29c46f` at exactly the placement asserts; pass 3 the walks (the writer census — `inGround` set true at exactly two sites and cleared NOWHERE; the design-choice challenges negative on both lanes; the consumers walk; the import-coherence edge). **THE CORRECTION OPEN: PR #117** (`fix/arrow-stick-placement-parity-audit` over develop `6b29c46f`: the reference's rayTrace face walk at the engine's cell granularity + the 0.05 backoff + the landed wire publish; both the pass-33 and pass-34 lanes' seats GREEN 4/0 on the fix tree, the projectile package 48/0, the neighbor lanes 34/0; **the #113 interaction reviewed** — the `!inGround` gate note posted, the union's lights-later regression named) — **but the construction leaves the PARTIAL-SHAPE face unfixed: VT-020 CONFIRMED against it — the thirty-eighth pass's record below** (the slab seat RED on the #117 tree, observed rest y=18.8268 THROUGH the slab's surface against the reference's 19.55; the record in the thirty-eighth pass's section below; the b-lane's box-view branch `237611d3` carries all three seats GREEN — the review note on #117 the channel, the construction pick the maintainer's) |
+| Projectile family — the stick placement (the resting position's geometry) | **VT-014 CONFIRMED — FOUR INDEPENDENT CONSTRUCTIONS, FIVE LANES** (three passes each; the quadruple convergence the thirty-fifth/thirty-sixth passes recorded): pass 1 the thirty-first's source walk; pass 2 the seats — the pass-33 lane's launch-based pair (the observed rest y=19.841 INSIDE the hit cell, x=51.480 hanging past the thin wall), the pass-34 lane's spawnRestored-deterministic pair (y=19.4079402396 at velocity exactly -1.0, x=61.97 past the wall in open air — the exact face±0.05 pins at 0.001), the pass-35 lane's pair (y=20.919 below the face at 21.0, z=41.486 one full block past the wall), the pass-36 lane's own pair (y=20.2143 / x=61.77) — all RED on develop `6b29c46f` at exactly the placement asserts; pass 3 the walks (the writer census — `inGround` set true at exactly two sites and cleared NOWHERE; the design-choice challenges negative on both lanes; the consumers walk; the import-coherence edge). **THE CORRECTION OPEN: PR #117** (`fix/arrow-stick-placement-parity-audit` over develop `6b29c46f`: the reference's rayTrace face walk at the engine's cell granularity + the 0.05 backoff + the landed wire publish; both the pass-33 and pass-34 lanes' seats GREEN 4/0 on the fix tree, the projectile package 48/0, the neighbor lanes 34/0; **the #113 interaction reviewed** — the `!inGround` gate note posted, the union's lights-later regression named) — **but the construction leaves the PARTIAL-SHAPE face unfixed: VT-021 CONFIRMED against it — the thirty-eighth pass's record below** (the slab seat RED on the #117 tree, observed rest y=18.8268 THROUGH the slab's surface against the reference's 19.55; the record in the thirty-eighth pass's section below; the b-lane's box-view branch `237611d3` carries all three seats GREEN — the review note on #117 the channel, the construction pick the maintainer's) |
 | Projectile family — the tracked-block un-stick law (the arrow; the bobber beside it) | **VT-015 CONFIRMED — FOUR INDEPENDENT CONSTRUCTIONS, FIVE LANES** (three passes each): pass 1 the thirty-first's source walk; pass 2 the seats — the pass-33 lane's (the rest IDENTICAL through the broken cell), the pass-34 lane's (STILL inGround, FROZEN at the endpoint), the pass-35 lane's pedestal break, the pass-36 lane's own construction — all RED on develop; pass 3 the walks (the reference re-read — the per-component fresh `random*0.2` re-arm over the STORED face-relative vector, both clocks reset; the compensation hunts negative; the family walk — the bobber the same law's second member; the import walk — the xTile/inTile/inData rows the engine's own recorded gap; the javadoc citations — `flingVelocity` names the un-stick's 0.2 factor as reference-only). **THE CORRECTIONS OPEN — the convergence:** **PR #120** (`fix/arrow-unstick-parity-audit` over develop `6b29c46f`: the tracked cell + the per-tick identity consult + the exact damped re-arm + the import's xTile/inTile rows landing — the reference's readCustomNbt 402-411 restores them; both lanes' seats GREEN, the anvil family 47/0) and **PR #119** (`fix/arrow-unstick-tracked-block-parity-audit`: the same live law 1:1, the import surface deferred as its named tail — the convergence note posted, the carrier pick the maintainer's, the unique coverage worth absorbing either way); the bobber's parallel arm the named follow-up (the family-member protocol) |
 | Projectile family — the stuck burning arrow's TNT consult | **VT-019 SUSPECTED** (the thirty-sixth pass, pass 1 complete; TWICE renumbered — the VT-016 draft lost 16/17 to the pass-32 lane's piston/grass claims, the VT-018 draft lost 18 to the pass-35 lane's bowhit-sound claim): the reference consults `onEntityCollision` from the FLIGHT branch's tail scan + the stick arm's single-hit-block consult alone (ArrowEntity 382, 311-313); the engine's `burningTntPass` walks STUCK burning arrows every tick — a stuck burning arrow beside TNT detonates it in the engine, primes nothing in the reference. The seat owed (pass 2) — the compact discovery pass this run's head |
 | Block-update wake (BlockUpdateSystem.runUpdate, RedstoneSystem.neighborChanged) — world binding | SURFED as VT-009's pass-3 non-compensation evidence: BOTH reads consult the overworld field (the changed-world parameter ignored in the six-neighbor dispatch) — the house stream's FL4-F10 lane landed the redstone world binding (`0328e92f`); the block-update arm's coverage rides that wave's seats |
 | Block identity — the legacy wire rows | the vine family's gap LANDED by `6b29c46f` (the house's own production-crash repair; `LegacyBlockIdsIntegrityTest`'s skip set now EMPTY and pinned) |
-| Mob spawns — the dimension stamp | NOT INSPECTED (the PR #90 ledger names `MobManager.spawnAt`; the infested burst is the surfaced site) |
+| Mob spawns — the dimension stamp | **VT-012 CONFIRMED — three passes complete, fix-ready** (`audit/vt-012-spawn-dimension-stamp`: fourteen unstamped sites censused — the eggs, /summon, the wither, the spawner cart, the mooshroom shear, the infection/cure, the slime split, breeding, the golems, the infested burst; the wrong-stamped nether body invisible to the nether player, its physics reading the overworld's cells, a permanent ghost on the despawn walk) — the fix branch the next run's head |
+| Natural spawn — the floor consult (`hasSolidTop`) | **VT-020 CONFIRMED — three passes complete, fix-ready** (the spawn-floor lane's record, provenance `fix/spawn-floor-solid-top-parity-audit` `0f4bbfb4`, pushed 06:04:09 — the lane's report record owed): `NaturalSpawnSystem.isPartialShape`'s two suffix arms (`endsWith(_slab)` / `endsWith(_stairs)`) approximated `World.hasSolidTop`'s structured law (lines 1740-1752) and missed in BOTH directions — the ten double-slab floors REFUSED a spawn vanilla hosts (the first arm's `isCube()` accepts them), the stored bottom-stair and stone_slab2 floors HOSTED 1966 night spawns vanilla refuses (`HALF == TOP` alone passes), the same family refusing the spawn under ten names and hosting it under three; three RED seats at exactly the predicted values, 3/3 GREEN on the fix tree, the five-arm re-read + the 56-identifier census + the compensation hunt (negative) the independent pass; the spawn suite 16/0, the spawn-adjacent lanes 70/0, the block package 311/0 — the PR owed |
 | FX broadcasts — the dimension awareness | NOT INSPECTED (the FxManager position-only API; the PR #90 ledger) |
 | World border — per-dimension | NOT INSPECTED (the reference's per-World border vs the engine's shared one) |
 | Zombie/mob arms — world binding | NOT INSPECTED (the zombie door-break consults the overworld field) |
@@ -3870,17 +3871,23 @@ it), the TNT's survival asserted against the engine's detonation.
    the FL4-GAP2 Slice B tail. The blast RNG tail (VT-007's named
    tail): the End/nether services' shared `gameplayRandom` vs the
    reference's per-world `world.random`.
-7. The watch items (the thirty-fifth pass's fetch): the OPEN set
-   **#106/#108/#109/#110/#111/#113/#114/#115** — unchanged since the
-   thirty-first pass's fetch (no new merges); #109/#113's coverage
-   VERIFIED (the thirty-first pass's independent seats), the
-   maintainer owns the pick among the convergent carriers. The
-   pass-30 lane's docs union is DONE (this lane's thirty-fifth pass);
-   their engine files stay on the #110 branch.
+7. The watch items (the thirty-ninth pass's fetch): **MERGED onto
+   develop `777b7c86`**: #106 (`becf84b0`), #115 (`e17c538b`). The
+   OPEN set: **#108, #109, #110, #111, #113 (the `!inGround` gate
+   note posted), #114, #116 (VT-017), #117 (VT-014), #118 (F-DS1),
+   #119/#120 (VT-015's convergent carriers)** — #109/#113's coverage
+   VERIFIED (the thirty-first pass's independent seats); VT-021's
+   correction rides the b-branch `237611d3` offered through #117's
+   review; VT-020's (the spawn floor) PR owed on
+   `fix/spawn-floor-solid-top-parity-audit`; VT-012's fix branch owed
+   on `audit/vt-012-spawn-dimension-stamp`. The maintainer owns the
+   pick among the convergent carriers. The pass-30 lane's docs union
+   is DONE (the pass-35 lane's thirty-fifth pass); their engine files
+   stay on the #110 branch.
 
 
 
-## The thirty-eighth pass — the recovery reconciliation + VT-020 discovered and confirmed whole against PR #117's landed construction (the partial-shape stick face)
+## The thirty-eighth pass — the recovery reconciliation + the partial-shape stick face discovered and confirmed whole against PR #117's landed construction (first numbered VT-020; RENUMBERED VT-021 by the thirty-ninth pass — the spawn-floor lane's `hasSolidTop` claim took the number publicly first, `fix/spawn-floor-solid-top-parity-audit` pushed 06:04:09 vs this record's 06:05:09; the VT-012->VT-013 precedent)
 
 **The recovery.** The environment reset with the pass-33 b-lane's VT-014
 fix commit (`237611d3`, the box-view construction) committed but UNPUSHED,
@@ -3893,7 +3900,7 @@ duplicate PR against the same finding without new evidence). This pass's
 first act: **independently verify the landed construction** — the
 verifier's duty to an open PR, not just to develop.
 
-**The discovery (VT-020's pass 1 — the source walk).** PR #117's
+**The discovery (VT-021's pass 1 — the source walk).** PR #117's
 `stickRestPosition` walks CELL-BOUNDARY planes (the integer faces
 `cellY+1.0`/`cellY+0.0`) and consults solidity at each ENTERED cell's
 CENTER point (`solidAt(cellX+0.5, cellY+0.5, cellZ+0.5)`). The reference
@@ -3924,7 +3931,7 @@ answering a face inside the cell. The fence/stairs/anvil/snow-layer
 class extends the gap beyond slabs: every non-full-cube collidable's
 face sits inside its cell.
 
-**VT-020's pass 2 — the behavioral seat, RED on the #117 tree.** The
+**VT-021's pass 2 — the behavioral seat, RED on the #117 tree.** The
 b-lane's slab seat (`ArrowStickPlacementParityTest
 .theStuckArrowRestsAtTheSlabShapeFaceNotTheCellBoundary`: a 5×5 bottom
 slab platform at cell y=19 — shape top 19.5, cell boundary 20 — an
@@ -3942,7 +3949,7 @@ b-lane's box-view construction (`237611d3`): the same seat **GREEN**
 platform and the thin-wall seats ride GREEN on BOTH constructions (the
 law they share), the slab seat discriminates them.
 
-**VT-020's pass 3 — the independent challenge.** (1) The slab hierarchy
+**VT-021's pass 3 — the independent challenge.** (1) The slab hierarchy
 walk: no `rayTrace` override anywhere below `Block` in the slab family —
 the shape-bounds clipping is the slab's own law, not an inherited
 accident. (2) The compensation hunt on the #117 tree: the observed
@@ -3963,7 +3970,7 @@ flew a full cell-plus through open air above the shape; the shape face
 was CROSSED and missed. The gap is a genuine divergence from the
 demonstrated reference law, not a documented trade-off.
 
-**The verdict: VT-020 CONFIRMED — three passes** (source walk,
+**The verdict: VT-021 CONFIRMED — three passes** (source walk,
 behavioral seat on the #117 tree, independent challenge), against
 BOTH develop (the endpoint rest, observed 18.815 in the pass-33
 record) AND PR #117's construction (observed 18.8268 fresh). The
@@ -3983,7 +3990,7 @@ RangedCombat 10/0, TntSystem 2/0, AnvilImport 6/0, the parity seats
 3/0 — 69 tests, no failures).
 
 
-## VT-020 — the stick placement's PARTIAL-SHAPE face: the rest must sit at the collision shape's own face, never the cell boundary or the tunneled endpoint (CONFIRMED — three passes; RED on develop AND on PR #117's construction; the box-view alternative construction the correction)
+## VT-021 — the stick placement's PARTIAL-SHAPE face: the rest must sit at the collision shape's own face, never the cell boundary or the tunneled endpoint (CONFIRMED — three passes; RED on develop AND on PR #117's construction; the box-view alternative construction the correction; first numbered VT-020 — renumbered by the thirty-ninth pass, the spawn-floor lane's `hasSolidTop` claim took 20 publicly first)
 
 - **Status:** CONFIRMED (three passes complete; the correction exists
   as the b-lane branch `fix/arrow-stick-placement-parity-audit-b`
@@ -4071,3 +4078,53 @@ RangedCombat 10/0, TntSystem 2/0, AnvilImport 6/0, the parity seats
   (`237611d3`), pushed this pass; the review note on PR #117 the
   channel; no competing PR opened pending the maintainer's pick
   between the constructions (the note offers the branch).
+
+
+## The thirty-ninth pass — the VT-020 numbering collision resolved (the spawn-floor lane's public claim first), the lineage's stale rows brought current, VT-019's seat the head
+
+**The lane's provenance.** This lane composed the five-lane union
+independently in the same window (the thirty-sixth close-out's named
+first act) but the remote push lost to a sibling session's identical
+union by minutes (`13575c2e` owns the thirty-seventh name; this
+lane's union commit superseded, its corrections carried here whole).
+The lane re-based on the canonical lineage — the thirty-seventh
+union -> the thirty-eighth's recovery reconciliation + the
+partial-shape stick face — as `audit/verifier-pass-39-discovery`.
+
+**THE VT-020 COLLISION, RESOLVED BY THE PUBLIC-FIRST PROTOCOL.** Two
+lanes claimed VT-020 within one minute of each other this window:
+the spawn-floor lane's `hasSolidTop` finding
+(`fix/spawn-floor-solid-top-parity-audit` `0f4bbfb4`, PUSHED
+06:04:09 — the natural spawn floor's structured law: the ten
+double-slab floors refused a spawn vanilla hosts, the stored
+bottom-stair and stone_slab2 floors hosting 1966 night spawns
+vanilla refuses; three passes complete in the lane's record) and the
+thirty-eighth pass's partial-shape stick face (authored 06:03:08,
+PUSHED 06:05:09 — the slab seat RED on PR #117's tree at 18.8268).
+The protocol's operative word is PUSHED (the pass-35 lane's
+"pushed bowhit-sound claim" precedent, the pass-32 lane's
+"piston/grass claims took the ids first"): the spawn-floor lane
+took VT-020 publicly first; the partial-shape stick face RENUMBERS
+to **VT-021** — the renumber applied above in the thirty-eighth
+pass's own records with the timestamps recorded (the honest note:
+the thirty-eighth's record was authored first, pushed second; the
+public-first rule governs, the author-date fact preserved here).
+
+**THE LEDGER brought current** (the corrections this lane's
+superseded union had composed, plus the lineage's own staleness):
+the VT-009 pass-28 row to **PR #106 MERGED** (`becf84b0`); the
+VT-012 row from NOT INSPECTED to **CONFIRMED — three passes
+complete, fix-ready** (the vt-012 lane's own branch record,
+`audit/vt-012-spawn-dimension-stamp` `ca05ad22`: fourteen unstamped
+spawn sites, the invisible nether body, the permanent ghost); the
+spawn-floor lane's VT-020 record added to the ledger
+provenance-marked (its report record owed by its own lane); the
+literal `±` escape artifact fixed in the VT-014 row (the
+thirty-seventh's fix commit missed one instance); the queue's item
+7 refreshed to the fetch's truth (#106/#115 MERGED, the ten-PR open
+set, the three fix-ready branches owed PRs).
+
+**THIS PASS'S HEAD — VT-019's seat** (the queue's item 2a, twice
+named the head and twice deferred): the stuck burning arrow beside
+TNT, the behavioral seat (pass 2) and the independent challenge
+(pass 3) — the record below.
