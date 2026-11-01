@@ -5503,3 +5503,103 @@ records. The chain this lane documents: #138 (the F-SP1 carrier) ->
 #141 (F-SP2 + the rider) -> #145 (F-SP3) -> #148 (F-SP4) — the four
 links rebasing the same way whichever carrier the maintainer picks at
 each level.
+
+## The fiftieth pass — F-SP5 discovered (the hook's wall consults, the F-SP class's fifth member): the tripwire hook's mount law reading the collision question where the reference reads Block.isSolid()
+
+**The lane protocol:** the fetch at the run's open found the forty-ninth
+name taken publicly by the concurrent lane (`audit/verifier-pass-49-discovery`,
+its head `b5303d3b` — VT-035's pass-1 census over the wire/plate/diode
+support family, the F-SP2 convergence territory). This lane took the
+FIFTIETH name and the standing head the forty-eighth pass's queue named:
+the HOOK's wall consults — the lever/button class's law at the tripwire
+family's own two mount sites. The baseline: the latest develop
+`1139f2c3` merged into the lane (the F-SP1 carrier #139 MERGED, the
+`SupportConsult` home + `BlockSolidity` landed on develop; the F-SP2/
+F-SP3/F-SP4 chain #141/#145/#148 still open; the two wall sites
+unfixed on this tree — the merge conflict's audit-doc side kept whole,
+the landed SupportConsult seat file taken from the #139 carrier).
+
+**Pass 1 (source):** the hook's mount law — the reference reads the
+SIGNAL consult `Block.isSolid()` at every wall site, never the collision
+question:
+
+- `TripwireHookBlock.canBePlaced(World, BlockPos, Direction)` lines
+  54-56 (the PLACEMENT gate — the item path
+  `BlockItem.useOn` line 43 → `World.canPlace` line 2274 → the
+  face-specific form): `face.getAxis().isHorizontal() &&
+  world.getBlockState(pos.offset(face.getOpposite())).getBlock().isSolid()`
+  — a horizontal clicked face whose HOST answers the signal consult.
+- `TripwireHookBlock.neighborChanged` lines 85-95 (the SURVIVAL arm):
+  `canSurviveOrBreak` → the four-direction scan `canBePlaced(world,
+  pos)` lines 59-67 (any horizontal neighbor `isSolid()`), then the
+  mount's own check `!world.getBlockState(pos.offset(direction.
+  getOpposite())).getBlock().isSolid()` → `dropItems + removeBlock`.
+  The two checks are observationally ONE law — the mount subsumes the
+  scan (a solid mount passes the scan as one of the four neighbors; a
+  non-solid mount falls to the mount check whatever the scan says):
+  **the hook pops iff its mount is not `Block.isSolid()`**.
+- `Block.isSolid()` (Block.java lines 274-276) — the three-conjunct
+  SIGNAL consult: `material.isSolidBlocking() && isCube() &&
+  !isSignalSource()` — the SAME law the lever/button family reads
+  (`ButtonBlock.canSurvive` lines 70-73's not-DOWN arm, to which
+  `LeverBlock.canSurvive` line 60 delegates — the class F-SP1 named).
+  The engine's landed form: `BlockSolidity.isSolid` (the F-SP1 merge,
+  PR #139).
+
+**The engine (the merged tree, develop `1139f2c3`):** `TripwireSystem`
+reads the COLLISION question `WorldSolidity.isSolid` at the two wall
+sites:
+
+- `checkSupport`'s hook arm (line 350 — the survival walk, wired to the
+  redstone neighbor bus): `!WorldSolidity.isSolid(mount)` → pop. The
+  mount's cell and direction arithmetic are 1:1 (the mount at
+  `pos.offset(-o[0], 0, -o[2])` = the reference's
+  `pos.offset(direction.getOpposite())`); only the LAW read differs.
+- `hookPlacementSupported` (line 373 — the placement gate, the
+  `EngineServer.placeTripwireHookOnTick` caller at line 13247): the
+  horizontal-face gate 1:1 (lines 369-371), the host consult reading
+  `WorldSolidity.isSolid`.
+
+**The divergence rows (the engine HOLDS where vanilla POPS/REFUSES —
+one-directional, the F-SP class's signature shape):**
+
+- The TRANSLUCENTS: glass, stained glass, glowstone, sea lantern, ice,
+  TNT, the leaves, the cactus, the snow layer — each collision-solid
+  (the engine's TRUE) but never `material.isSolidBlocking()` (the
+  reference's FALSE): a hook placed against glass LANDS in the engine
+  where vanilla refuses the placement outright; a hook whose stone
+  mount becomes glass STAYS in the engine where vanilla pops it.
+- The NON-CUBE SOLIDS: the single slabs (both halves), the stairs, the
+  fences (every wood + the nether brick), the cobblestone walls, the
+  glass panes, the iron bars, the chests/trapped chests/ender chests,
+  the hoppers, the closed doors, the closed trapdoors, the closed fence
+  gates, the beds, the anvils, the cauldrons, the brewing stands, the
+  farmland, the piston bases and heads, the end portal frame — each
+  collision-solid, each `isCube()` FALSE at the reference's second
+  conjunct.
+- THE SIGNATURE ROW: the REDSTONE BLOCK — a full cube, an opaque
+  solid-blocking material, collision-solid in every sense, but
+  `isSignalSource()` TRUE (`RedstoneBlock` line 16): the third
+  conjunct kills it. Vanilla REFUSES a tripwire hook against a
+  redstone block and POPS one whose mount becomes one; the engine
+  holds it — the row that proves the consult read is the signal law,
+  not any solidity approximation.
+- The reverse direction (the engine POPS where vanilla HOLDS): hunted
+  NEGATIVE at the source level — every `WorldSolidity.isSolid` FALSE
+  family (the torches, the fire, the fluids, the flora, the rails, the
+  redstone components, the open doors and gates, the carpets, the
+  signs, the banners, the ladders, the vines, the cobweb) reads
+  `Block.isSolid()` FALSE too (the material conjunct or the cube
+  conjunct or the signal-source conjunct); the dirt/stone/planks
+  opaque cubes read TRUE in both (the agreement controls).
+
+**The proposed correction (this run's acts, the same three-pass
+discipline):** the two wall sites routed through the engine's landed
+`Block.isSolid()` — the one-consult-per-site shape, stacked on the
+F-SP4 branch (`fix/tripwire-floor-support-parity-audit`, PR #148 — the
+same file, the chain #138 -> #141 -> #145 -> #148 -> the F-SP5 PR).
+The seats: the mount-swap pop (stone → glass: the hook pops in
+vanilla, stays in the engine), the mount-swap signature row (stone →
+redstone block: the third conjunct's kill), the placement refusal
+(the hook against glass never landing in vanilla, landing in the
+engine), and the dirt control (the opaque mount holding in both).
