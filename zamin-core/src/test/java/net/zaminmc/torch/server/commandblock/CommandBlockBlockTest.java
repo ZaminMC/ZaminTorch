@@ -375,8 +375,14 @@ class CommandBlockBlockTest {
                 CommandBlockManager.restoredState("say one", 7, true, "an output line"));
         rows.put(new BlockPosition(-4, 5, 6),
                 CommandBlockManager.restoredState("say two", 0, false, null));
-        store.save(rows);
-        java.util.Map<BlockPosition, CommandBlockManager.CommandState> loaded = store.load();
+        // Wave FL4-GAP2 Slice C: the union save, each row stamped with its
+        // world (the ZCB v3 law).
+        store.save(java.util.Map.of(0, rows));
+        java.util.Map<BlockPosition, CommandBlockManager.CommandState> loaded =
+                new java.util.LinkedHashMap<>();
+        for (CommandBlockDataStore.Loaded row : store.load()) {
+            loaded.put(row.position(), row.state());
+        }
         assertEquals(2, loaded.size(), "both rows survived the round trip");
         CommandBlockManager.CommandState first = loaded.get(new BlockPosition(1, 2, 3));
         assertEquals("say one", first.command(), "the command row");

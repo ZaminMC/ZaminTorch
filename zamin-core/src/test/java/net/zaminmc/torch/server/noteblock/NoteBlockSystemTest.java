@@ -333,13 +333,17 @@ class NoteBlockSystemTest {
             await(server, () -> server.noteBlocks().tileAt(noteAt).note() == 7,
                     "seven tunes moved the note to 7");
 
-            // The ZND round trip through a real file.
+            // The ZND round trip through a real file (Wave FL4-GAP2 Slice
+            // C: the union save, each row stamped with its world).
             Path znd = dataDir.resolve("noteblocks.bin");
             NoteDataStore store = new NoteDataStore(znd);
-            store.save(server.noteBlocks().snapshotTiles());
+            store.save(java.util.Map.of(0, server.noteBlocks().snapshotTiles()));
             assertTrue(Files.exists(znd), "the store wrote the file");
             NoteDataStore reloaded = new NoteDataStore(znd);
-            assertEquals(Byte.valueOf((byte) 7), reloaded.load().get(noteAt),
+            NoteDataStore.Loaded noteRow = reloaded.load().stream().filter(
+                    row -> row.position().equals(noteAt)).findFirst().orElseThrow();
+            assertEquals(0, noteRow.dimension(), "the row stamps the overworld");
+            assertEquals(Byte.valueOf((byte) 7), noteRow.note(),
                     "the note byte survived the round trip");
 
             // The break (the real flow: the block leaves the world and the

@@ -30,14 +30,18 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * bytes and the historical interleaved walk's bytes (replicated here)
  * are BYTE-IDENTICAL — the four-line rows and the CommandStats tail's
  * flattened pair walk included; the sync file and the pipeline bytes
- * agree; the load round-trip restores the signs and the bindings.
+ * agree; the load round-trip restores the signs and the bindings. Wave
+ * FL4-GAP2 Slice C: the ZSD v3 row carries the dimension stamp (the
+ * chest store's own v+1 law) — the legacy walk below writes the v3
+ * form, each row's own world at its tail.
  */
 class SignDataStoreSplitTest {
 
     @TempDir
     Path dir;
 
-    private static byte[] legacyBytes(Map<BlockPosition, String[]> signs,
+    private static byte[] legacyBytes(int dimension,
+                                      Map<BlockPosition, String[]> signs,
                                       Map<BlockPosition, EngineCommandResults> stats)
             throws Exception {
         ByteArrayOutputStream sink = new ByteArrayOutputStream();
@@ -45,7 +49,7 @@ class SignDataStoreSplitTest {
         out.writeByte('Z');
         out.writeByte('S');
         out.writeByte('D');
-        out.writeByte(2);
+        out.writeByte(3);
         writeVarInt(out, signs.size());
         for (Map.Entry<BlockPosition, String[]> entry : signs.entrySet()) {
             BlockPosition position = entry.getKey();
@@ -77,6 +81,7 @@ class SignDataStoreSplitTest {
                             .getString(tail, pair.getKey()));
                 }
             }
+            out.writeByte(dimension);
         }
         out.flush();
         return sink.toByteArray();
@@ -105,20 +110,22 @@ class SignDataStoreSplitTest {
                 new String[]{"", "Second row", "Line", "Tail"});
 
         SignDataStore store = new SignDataStore(dir.resolve("signs.bin"));
-        byte[] split = store.serialize(signs, null);
-        assertArrayEquals(legacyBytes(signs, null), split,
+        SignDataStore.UnionInput union = new SignDataStore.UnionInput(Map.of(0, signs), Map.of());
+        byte[] split = store.serialize(union);
+        assertArrayEquals(legacyBytes(0, signs, null), split,
                 "the off-tick serialization and the historical walk are byte-identical (the no-stats arm)");
 
-        store.save(signs, null);
+        store.save(union);
         assertArrayEquals(split, Files.readAllBytes(dir.resolve("signs.bin")),
                 "the sync save's file carries the split path's bytes");
 
-        SignDataStore.Loaded loaded = store.load();
-        assertEquals(2, loaded.signs().size());
-        assertArrayEquals(new String[]{"Shop", "Open", "", ""},
-                loaded.signs().get(new BlockPosition(4, 33, -8)));
-        assertArrayEquals(new String[]{"", "Second row", "Line", "Tail"},
-                loaded.signs().get(new BlockPosition(0, 64, 0)));
+        java.util.List<SignDataStore.Loaded> rows = store.load();
+        assertEquals(2, rows.size());
+        for (SignDataStore.Loaded row : rows) {
+            assertEquals(0, row.dimension(), "every row stamps the overworld");
+            assertArrayEquals(signs.get(row.signs().keySet().iterator().next()),
+                    row.signs().values().iterator().next());
+        }
     }
 
     @Test
@@ -132,12 +139,14 @@ class SignDataStoreSplitTest {
         stats.put(new BlockPosition(1, 2, 3), results);
 
         SignDataStore store = new SignDataStore(dir.resolve("stat-signs.bin"));
-        byte[] split = store.serialize(signs, stats);
-        assertArrayEquals(legacyBytes(signs, stats), split,
+        SignDataStore.UnionInput union = new SignDataStore.UnionInput(
+                Map.of(0, signs), Map.of(0, stats));
+        byte[] split = store.serialize(union);
+        assertArrayEquals(legacyBytes(0, signs, stats), split,
                 "the off-tick serialization and the historical walk are byte-identical (the tail arm)");
 
-        store.save(signs, stats);
-        SignDataStore.Loaded loaded = store.load();
+        store.save(union);
+        SignDataStore.Loaded loaded = store.load().get(0);
         EngineCommandResults restored = loaded.stats().get(new BlockPosition(1, 2, 3));
         assertEquals("Alice", restored.sourceOf(EngineCommandResults.Type.SUCCESS_COUNT),
                 "the binding's source restored");
@@ -155,11 +164,12 @@ class SignDataStoreSplitTest {
             Map<BlockPosition, String[]> signs =
                     Map.of(new BlockPosition(9, 9, 9), new String[]{"Pipe", "", "", ""});
             SignDataStore store = new SignDataStore(dir.resolve("live-signs.bin"));
-            SignDataStore.SaveInput input = new SignDataStore.SaveInput(signs, null);
-            byte[] pure = store.serialize(input.signs(), input.stats());
+            SignDataStore.UnionInput input = new SignDataStore.UnionInput(
+                    Map.of(0, signs), Map.of());
+            byte[] pure = store.serialize(input);
 
             CountDownLatch done = pipeline.submitSave("sign", input,
-                    in -> store.serialize(in.signs(), in.stats()),
+                    store::serialize,
                     store::writeSerialized);
             long deadline = System.currentTimeMillis() + 10_000;
             while (!done.await(10, TimeUnit.MILLISECONDS)
@@ -175,7 +185,7 @@ class SignDataStoreSplitTest {
             assertTrue(done.await(0, TimeUnit.MILLISECONDS), "the save landed");
             assertArrayEquals(pure, Files.readAllBytes(dir.resolve("live-signs.bin")),
                     "the landed file carries exactly the pure serializer's bytes");
-            assertEquals("Pipe", store.load().signs()
+            assertEquals("Pipe", store.load().get(0).signs()
                     .get(new BlockPosition(9, 9, 9))[0], "the sign row round-trips");
         } finally {
             compute.shutdown();

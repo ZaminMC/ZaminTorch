@@ -321,10 +321,20 @@ public final class BeaconSystem implements WorldChangeListener {
         }
     }
 
-    /** The box walk (line 67): grown by the range, expanded to full height. */
+    /**
+     * The box walk (line 67): grown by the range, expanded to full height.
+     * Wave FL4-GAP2 Slice C: the walk gates on the beacon's OWN world —
+     * the reference's per-WorldServer player list (a player standing at
+     * the same coordinates in another world never receives this world's
+     * beacon effect).
+     */
     private List<PlayerSession> playersInRange(BlockPosition position, double range) {
         List<PlayerSession> inRange = new ArrayList<>();
+        int dimension = world.dimension();
         for (PlayerSession player : players.get()) {
+            if (player.dimension() != dimension) {
+                continue; // another world's player: invisible to this beacon
+            }
             Position at = player.position();
             if (Math.abs(at.x() - (position.x() + 0.5)) <= range
                     && Math.abs(at.z() - (position.z() + 0.5)) <= range) {
