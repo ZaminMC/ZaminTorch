@@ -5919,7 +5919,13 @@ public final class EngineServer implements Server, EngineBridge {
                 continue;
             }
             var position = session.position();
-            if (!menu.stillValid(world::getBlock, position.x(), position.y(), position.z())) {
+            // VT-035 — the walk-away gate reads the OPENING world's cell (the
+            // reference EnchantingTableMenu line 33: the menu's own world,
+            // constructed over the world the right-click happened in — the
+            // pre-fix consult read the overworld field and a nether table's
+            // window slammed shut on the first viewer tick).
+            EngineWorld actingWorld = worldFor(session.openContainerDimension());
+            if (!menu.stillValid(actingWorld::getBlock, position.x(), position.y(), position.z())) {
                 closeEnchantingMenuOnTick(session);
                 publishInventoryChanged(session);
                 continue;
@@ -5948,7 +5954,13 @@ public final class EngineServer implements Server, EngineBridge {
                 continue;
             }
             var position = session.position();
-            if (!menu.stillValid(world::getBlock, position.x(), position.y(), position.z())) {
+            // VT-035 — the walk-away gate reads the OPENING world's cell (the
+            // reference AnvilMenu.isValid line 309: the menu's own world,
+            // constructed over the world the right-click happened in — the
+            // pre-fix consult read the overworld field and a nether anvil's
+            // window slammed shut on the first viewer tick).
+            EngineWorld actingWorld = worldFor(session.openContainerDimension());
+            if (!menu.stillValid(actingWorld::getBlock, position.x(), position.y(), position.z())) {
                 closeAnvilMenuOnTick(session);
                 publishInventoryChanged(session);
                 continue;
@@ -11081,39 +11093,51 @@ public final class EngineServer implements Server, EngineBridge {
      * the 0.12 roll's anvil read and the DAMAGE-band walk over the world's
      * own twelve-state family, the 1020/1021 world events answered through
      * the FxManager's sound fan (the landing's own 1022 convention).
+     *
+     * <p><b>THE DIMENSION ROUTING (VT-035 — the reference's menu-world law):</b>
+     * every consult reads the OPENING world — the world the anvil GUI was
+     * opened in (the reference AnvilMenu lines 44-46: the constructor's own
+     * {@code world} parameter, every later read riding it — isValid 309, the
+     * damage walk 81-89, the doEvent fan 86/89/92 over that world's listener
+     * list). The pre-fix site read the overworld field whatever the player's
+     * dimension: a nether repair never aged the nether anvil, a mirrored
+     * overworld anvil at the same coordinates took the damage writes, and the
+     * 1020/1021 events stamped the overworld 0.</p>
+     *
      * Tick-thread context.
      */
     private net.zaminmc.torch.server.enchantment.AnvilMenu.AnvilSite anvilSiteAt(
-            net.zaminmc.torch.block.BlockPosition position) {
+            net.zaminmc.torch.block.BlockPosition position, int dimension) {
+        EngineWorld siteWorld = worldFor(dimension);
         return new net.zaminmc.torch.server.enchantment.AnvilMenu.AnvilSite() {
             @Override
             public boolean anvilStands() {
                 return net.zaminmc.torch.server.block.AnvilBlocks
-                        .isAnvil(world.getBlock(position).identifier());
+                        .isAnvil(siteWorld.getBlock(position).identifier());
             }
 
             @Override
             public int damageState() {
                 return net.zaminmc.torch.server.block.AnvilBlocks
-                        .damageOf(world.getBlock(position).identifier());
+                        .damageOf(siteWorld.getBlock(position).identifier());
             }
 
             @Override
             public void progressDamage() {
-                var current = world.getBlock(position);
+                var current = siteWorld.getBlock(position);
                 int facing = net.zaminmc.torch.server.block.AnvilBlocks
                         .facingOf(current.identifier());
                 int next = net.zaminmc.torch.server.block.AnvilBlocks
                         .progressedDamage(net.zaminmc.torch.server.block.AnvilBlocks
                                 .damageOf(current.identifier()));
-                world.setBlock(position, net.zaminmc.torch.server.block.AnvilBlocks
+                siteWorld.setBlock(position, net.zaminmc.torch.server.block.AnvilBlocks
                         .state(facing, next));
                 soundAt(position, "random.anvil_use"); // doEvent 1021
             }
 
             @Override
             public void breakAnvil() {
-                world.setBlock(position, net.zaminmc.torch.server.block.BuiltinBlocks.AIR);
+                siteWorld.setBlock(position, net.zaminmc.torch.server.block.BuiltinBlocks.AIR);
                 soundAt(position, "random.anvil_break"); // doEvent 1020
             }
 
@@ -11123,8 +11147,11 @@ public final class EngineServer implements Server, EngineBridge {
             }
 
             private void soundAt(net.zaminmc.torch.block.BlockPosition at, String name) {
+                // VT-035 — the 1020/1021 events ride the anvil's OWN world
+                // (the reference's world.doEvent over the per-world listener
+                // list — World.doEvent lines 2613-2626).
                 fxManager.sound(new Position(at.x() + 0.5, at.y() + 0.5, at.z() + 0.5),
-                        name, 1.0f, 1.0f);
+                        name, 1.0f, 1.0f, siteWorld.dimension());
             }
         };
     }
@@ -11220,7 +11247,7 @@ public final class EngineServer implements Server, EngineBridge {
             return false; // a mismatched cursor: the take refuses
         }
         menu.takeOutput(repairer, session.playerRandom(),
-                anvilSiteAt(session.openContainerPosition()));
+                anvilSiteAt(session.openContainerPosition(), session.openContainerDimension()));
         publishExperienceChanged(session); // the payment moved the level bar
         return true;
     }
@@ -11245,7 +11272,7 @@ public final class EngineServer implements Server, EngineBridge {
             return false; // nothing moved: the reference's moveItem refusal
         }
         menu.takeOutput(repairer, session.playerRandom(),
-                anvilSiteAt(session.openContainerPosition()));
+                anvilSiteAt(session.openContainerPosition(), session.openContainerDimension()));
         publishExperienceChanged(session);
         return true;
     }
@@ -18372,13 +18399,20 @@ public final class EngineServer implements Server, EngineBridge {
 
         var menu = new net.zaminmc.torch.server.enchantment.EnchantingMenu(
                 session.enchantingSeed(), position);
-        menu.attach(world::getBlock); // the scan reads the real neighborhood from here on
+        // VT-035 — the bookshelf scan reads the OPENING world's cells (the
+        // reference EnchantingTableMenu lines 44-46: the menu's own world,
+        // every shelf consult riding it — the pre-fix attach read the
+        // overworld field, so a nether table's offers counted the overworld's
+        // shelves at the same coordinates).
+        EngineWorld actingWorld = worldFor(session.dimension());
+        menu.attach(actingWorld::getBlock); // the scan reads the real neighborhood from here on
         menu.onContentsChanged(null); // the open-time recompute (the reference markDirty on load)
         session.setEnchantingMenu(menu);
         int windowId = nextContainerWindowId;
         nextContainerWindowId = nextContainerWindowId >= LAST_CONTAINER_WINDOW_ID
                 ? FIRST_CONTAINER_WINDOW_ID : nextContainerWindowId + 1;
-        session.openContainerWindow(windowId, PlayerSession.ContainerKind.ENCHANTING_TABLE, position);
+        session.openContainerWindow(windowId, PlayerSession.ContainerKind.ENCHANTING_TABLE,
+                position, actingWorld.dimension());
         onTableOpened.accept(windowId);
     }
 
@@ -18406,7 +18440,12 @@ public final class EngineServer implements Server, EngineBridge {
         int windowId = nextContainerWindowId;
         nextContainerWindowId = nextContainerWindowId >= LAST_CONTAINER_WINDOW_ID
                 ? FIRST_CONTAINER_WINDOW_ID : nextContainerWindowId + 1;
-        session.openContainerWindow(windowId, PlayerSession.ContainerKind.ANVIL, position);
+        // VT-035 — the open stamps the player's own dimension (Slice B's
+        // 4-arg form): every later window path (the walk-away gate, the
+        // take's site consults) routes through the OPENING world, the
+        // reference's menu-world law (AnvilMenu lines 44-46).
+        session.openContainerWindow(windowId, PlayerSession.ContainerKind.ANVIL,
+                position, session.dimension());
         onTableOpened.accept(windowId);
     }
 
