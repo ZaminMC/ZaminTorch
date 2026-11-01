@@ -2692,7 +2692,313 @@ plus the stone_slab2 bottom row — the same class, its own lane.
 
 ---
 
-## Coverage ledger (updated by the thirty-ninth pass)
+## The fortieth pass — the baseline advanced (efcd0c4f: PR #124 VT-018 + FL4-GAP2 Slice C + the three CI seat fixes), the queue's head (a) taken: the floor-consult family's source pass (F-SP2), the hasSolidTop port's own defects recorded as the law's dependency (F-SP3)
+
+The pass-39 lane closed with PR #139 OPEN (the F-SP1 correction over
+develop `149eb1f0`) and the queue re-pinned to four heads: (a) the
+adjacent wire/diode/plate/door floor consults, (b) the fire port's own
+hasSolidTop defects, (c) the button/lever placement fallback
+structures, (d) the standing watch items. This pass takes head (a) —
+and the census immediately surfaced the lane's true extent: the
+`hasSupportBelow` consult serves SEVEN families, not four, and the
+placement gates ride the same approximation at FIVE sites. The rail's
+SURVIVAL walk joined the census (its placement gate already reads the
+structured law — a thirteenth-pass correction — but its neighbor walk
+still consults the collision question: the family is internally
+inconsistent between its own two arms), and the weighted plates joined
+with the plain plates (two dispatch arms, one law).
+
+The merge-state ledger at this pass's open: develop advanced
+`149eb1f0 → efcd0c4f` (PR #124 VT-018 — the arrow's random.bowhit at
+both impact arms, MERGED; FL4-GAP2 Slice C — the tile families'
+dimension ownership, LANDED; three CI seat fixes — runs 588/589/590's
+transient-observation and index-race classes retired on the baseline).
+The F-SP1 engine consult sites (`RedstoneSystem`'s four mount consults)
+verified UNCHANGED between `149eb1f0` and `efcd0c4f` — the finding and
+PR #139 stand over the fresh baseline. The open PR set at this pass's
+open: 27 PRs (#108–#139, the convergent carriers among them — #137/#138
+the F-SP1 b-lanes beside this stream's #139).
+
+## F-SP2 — the floor-consult family: the wire's, the diodes', the plates', the door's and the rail's survival walks (and the five placement gates) answer the one collision-solid question where vanilla answers the structured hasSolidTop laws (+ the wire's glowstone row, + the plates' fence row) (UNDER VERIFICATION — pass 1, the source census, complete)
+
+**Subsystem:** the redstone family's survival walks + the placement
+gates (the block-update dispatch). **Affected version:** all (the
+consult shape predates the slices).
+
+**Status:** under verification — pass 1 (the source census) complete;
+the behavioral seats and the independent pass owed.
+
+**Affected ZaminTorch files and methods:**
+
+- `RedstoneSystem.neighborChanged` — the wire arm (line 864), the
+  repeater arm (line 888), the comparator arm (line 903), the
+  weighted-plate arm (line 963), the plate arm (line 974): every arm
+  gates on `hasSupportBelow(pos)`.
+- `RedstoneSystem.doorNeighborChanged` (line 1047) — the inline
+  `WorldSolidity.isSolid(world.getBlock(pos.offset(0, -1, 0)))`.
+- `RedstoneSystem.railNeighborChanged` (line 1155) — the floor arm
+  (`hasSupportBelow`) AND the ascending headwall arm (line 1160, the
+  inline `WorldSolidity.isSolid`).
+- `RedstoneSystem.hasSupportBelow` (line 2297) — the shared consult:
+  `WorldSolidity.isSolid(world.getBlock(pos.offset(0, -1, 0)))`.
+- `EngineServer.placeRedstoneDustOnTick` (line 13106),
+  `placePlateOnTick` (line 13308), `placeRepeaterOnTick` (line 13392),
+  `placeComparatorOnTick` (line 13432), `placeDoorOnTick` (line 15770)
+  — the five placement gates, each `WorldSolidity.isSolid` inline.
+  (`placeRailOnTick` line 16130 already reads `FireBlocks.hasSolidTop`
+  — the thirteenth pass's B7 correction; the WALK is the rail's
+  divergence.)
+
+**Vanilla reference files and relevant methods** (reference/1.8.8):
+
+- `RedstoneWireBlock.canBePlaced` lines 92-94 —
+  `World.hasSolidTop(world, pos.down()) ||
+  world.getBlockState(pos.down()).getBlock() == Blocks.GLOWSTONE`;
+  the survival walk `neighborChanged` lines 235-244 re-consults
+  `canBePlaced` whole (holds → `updatePower`; else → drop + remove).
+- `DiodeBlock.canBePlaced` line 30 — `World.hasSolidTop(world,
+  pos.down()) && super.canBePlaced(world, pos)`; `canSurvive` lines
+  33-34 — `World.hasSolidTop(world, pos.down())`; the survival walk
+  `neighborChanged` lines 80-91 (holds → `checkOutputState`; else →
+  drop + remove + the six-neighbor update fan). `RepeaterBlock` and
+  `ComparatorBlock` both extend `DiodeBlock`.
+- `AbstractPressurePlateBlock.canBePlaced` lines 72-74 —
+  `this.canSitOnTop(world, pos.down())`; `canSitOnTop` lines 84-85 —
+  `World.hasSolidTop(world, pos) || world.getBlockState(pos).getBlock()
+  instanceof FenceBlock`; the survival walk `neighborChanged` lines
+  77-82 (`!canSitOnTop` → drop + remove). `PressurePlateBlock` and
+  `WeightedPressurePlateBlock` both extend it.
+- `DoorBlock.canBePlaced` lines 213-214 — `pos.getY() < 255 &&
+  World.hasSolidTop(world, pos.down()) && super.canBePlaced(...) &&
+  super.canBePlaced(world, pos.up())`; the survival walk
+  `neighborChanged` lines 165-190 — the lower half consults
+  `!World.hasSolidTop(world, pos.down())` (line 175) → both halves
+  removed + one drop.
+- `AbstractRailBlock.neighborChanged` lines 86-102 — the floor arm
+  `!World.hasSolidTop(world, pos.down())` (line 90) AND every
+  ascending headwall arm (lines 94-102, `hasSolidTop` at the climb
+  cell).
+- `World.hasSolidTop` lines 1740-1752 — the structured law:
+  `material.isSolidBlocking() && isCube()`; else `StairsBlock →
+  HALF==TOP`; else `SlabBlock → HALF==TOP`; else `HopperBlock ||
+  SnowLayerBlock && LAYERS==7`.
+- `Material.isSolidBlocking` line 100 (`!translucent &&
+  blocksMovement()`) over the translucent registrations — LEAVES
+  (Material.java line 13), GLASS (line 22; glass, stained glass AND
+  GLOWSTONE register with it — Block.java lines 1191/1197 and the
+  glass family), TNT (line 24), ICE (line 26), SNOW_LAYER (line 28),
+  CACTUS (line 30) — never solid-blocking, so never `hasSolidTop`
+  through the first arm.
+- The non-cube refusals: `FenceBlock.isCube()` false (line 119),
+  `WallBlock.isCube()` false (line 52), `PaneBlock.isCube()` false
+  (line 52), `ChestBlock.isCube()` false (line 46),
+  `TrapdoorBlock.isCube()` false (line 42), `FenceGateBlock.isCube()`
+  false (line 79) — solid materials, but `hasSolidTop`'s first arm
+  refuses them all (and none hits the stairs/slab/hopper/snow arms).
+  `FenceGateBlock extends HorizontalFacingBlock` (line 16) — NOT a
+  `FenceBlock`, so the plates' fence row does NOT cover gates;
+  `nether_brick_fence` IS a `FenceBlock` (Block.java line 1235), so
+  the plates' fence row DOES cover both fence kinds.
+
+**Expected behavior** (the reference's law, one row per floor — the
+families differ only in the two explicit rows):
+
+| floor below | hasSolidTop | wire (+glowstone) | repeater/comparator/door/rail | plates (+fence) |
+|---|---|---|---|---|
+| stone / dirt (control) | true | hold | hold | hold |
+| double_stone_slab (control) | true | hold | hold | hold |
+| stone_slab (BOTTOM single) | false | POP | POP | POP |
+| stone_slab_top / stone_slab2_top | true | hold | hold | hold |
+| oak_stairs_east (bottom) | false | POP | POP | POP |
+| oak_stairs_east_top | true | hold | hold | hold |
+| glass / stained_glass | false (translucent) | POP | POP | POP |
+| glowstone | false (Material.GLASS) | HOLD (the explicit row) | POP | POP |
+| oak_leaves | false (translucent) | POP | POP | POP |
+| tnt | false (translucent) | POP | POP | POP |
+| ice | false (translucent) | POP | POP | POP |
+| packed_ice (control) | true (not translucent, cube) | hold | hold | hold |
+| snow_layer (the engine's single 1-layer state) | false | pop | pop | pop |
+| fence / nether_brick_fence | false (non-cube) | POP | POP | hold (the FenceBlock row) |
+| cobblestone_wall | false (non-cube) | POP | POP | POP |
+| glass_pane / iron_bars | false | POP | POP | POP |
+| chest | false (non-cube) | POP | POP | POP |
+| closed trapdoor | false (non-cube) | POP | POP | POP |
+| closed fence_gate | false (non-cube; NOT FenceBlock) | POP | POP | POP |
+| stone_slab2 (red-sandstone BOTTOM single) | false | POP | POP | POP |
+| hopper (control) | true (the explicit arm) | hold | hold | hold |
+
+**Observed behavior** (the source census — the engine's consult at
+every site): `WorldSolidity.isSolid` is the collision question
+(`WorldSolidity.java` lines 46-77: everything solid EXCEPT the
+collision exclusion list — air, torch, fire, cobweb, portals, signs,
+banners, ladder, open door halves, open gates, vine, flora, saplings,
+carpets, rails, redstone components, moving pistons, tripwire,
+fluids). Of the battery above, only `snow_layer` is excluded (the
+flora list carries it — `WorldSolidity.isFlora` line 221); EVERY other
+row answers TRUE — the engine HOLDS the attachment where vanilla POPS
+it. The direction is exactly F-SP1's: the engine is MORE permissive
+than vanilla at every consult.
+
+**The exact technical explanation of the mismatch:** the same
+one-question approximation F-SP1 corrected for the torch/lever/button/
+trapdoor mounts, at the FLOOR consults of seven more families. The
+engine's consult answers "does the block block entity movement" — the
+material-blind, shape-blind collision question; vanilla's floor law
+answers "does the block's MATERIAL block AND is the block a full cube"
+with the four explicit partial-block arms (top halves, hoppers, the
+7-layer snow) and the two family-specific rows (the wire's glowstone,
+the plates' fences). The translucents (glass, glowstone, stained
+glass, leaves, TNT, ice, cactus) and the non-cubes (bottom slabs and
+stairs, fences, walls, panes, bars, chests, trapdoors, gates) all
+diverge in the one direction. Three of the engine's own comments CITE
+the reference law they approximate — `placeRedstoneDustOnTick`'s
+javadoc names "RedstoneWireBlock.canBePlaced lines 92-94 — a solid
+block or glowstone under it" while implementing NEITHER the glowstone
+row NOR hasSolidTop; `placeDoorOnTick`'s inline comment names
+"World.hasSolidTop: no floor, no door" over an `isSolid` call;
+`railNeighborChanged`'s comment names "AbstractRailBlock
+neighborChanged lines 90-102" over the collision consult. The
+comment/code mismatch is the F-SP1 authoring-slip signature.
+
+**The rail's internal inconsistency (the census's own find):** the
+rail's PLACEMENT gate (`placeRailOnTick` line 16130) reads the
+structured `FireBlocks.hasSolidTop` — the thirteenth pass's B7 — while
+its SURVIVAL walk (`railNeighborChanged` line 1155) still reads the
+collision consult. A rail placed on a fence, a wall or a bottom slab
+is REFUSED at placement in the engine but, once standing through any
+other route, SURVIVES the floor's removal in the engine while vanilla
+pops it — and the placement gate's own refusal is vanilla-correct ONLY
+through `FireBlocks.hasSolidTop`'s own defects (F-SP3 below): the
+fire port's translucent fallthrough makes the rail placement gate HOLD
+on glass, leaves, TNT, ice and glowstone where vanilla refuses.
+
+**Reproduction steps or test evidence:** the behavioral seats (the
+next act — the `FloorConsultParityDiscoveryTest` construction over
+the live engine, the F-SP1 seat shape): each family's attachment
+placed on a valid stone floor, the floor REPLACED with each battery
+row through one `world.setBlock` whose change dispatch fires the
+family's survival walk synchronously, the attachment cell read after
+the settle window. The RED rows are the divergent set above (the wire
+16 rows, the diodes/door/rail 17 rows each — glowstone joins, the
+plates 15 rows — the fences agree).
+
+**Verification pass history:** pass 1 (this pass, the source census)
+complete — the seven survival-walk sites and the five placement gates
+located and compared against the reference's laws at the exact lines;
+the divergence direction established (the engine holds where vanilla
+pops); the two explicit-row discriminations identified (the wire's
+glowstone, the plates' fences). The behavioral pass and the
+independent pass owed.
+
+**Confidence and remaining uncertainties:** high on the source walk
+(the consult shape is unambiguous and the comments cite the laws they
+approximate); the behavioral values owed before confirmation. The
+uncertainty is F-SP3's: the fix's delegation target — the only
+existing structured port (`FireBlocks.hasSolidTop`) carries its own
+two defects, recorded as the next finding.
+
+**Proposed minimal correction (fix-ready pending the passes):** the
+families' consults swap to the reference's floor laws — the wire's
+`hasSolidTop(pos.down()) || GLOWSTONE`, the diodes'/door's/rail's
+plain `hasSolidTop(pos.down())`, the plates' `hasSolidTop(pos.down())
+|| FenceBlock` (both fence kinds; the gate excluded) — with the
+structured law delegating to the corrected `hasSolidTop` (F-SP3's
+correction or a shared `SupportConsult`-shaped law beside it, the
+PR #139 extension consult). The seven survival-walk sites and the five
+placement gates swap together (the placement gates ride the same
+approximation and AMPLIFY the divergence at placement time). The
+`hasSupportBelow` consult itself retires or delegates.
+
+**Potential regression risks:** every consumer of `hasSupportBelow`
+(the census found the seven families alone — the compensating hunt's
+independent pass will re-verify); the translucents' NEW pops (a wire
+on glass or leaves popping is the observable vanilla behavior — the
+seats pin the pops); the benches across the redstone lanes that stand
+components on non-vanilla floors (the F-SP1 piston-bench precedent —
+the pre-fix engine accepted arrangements vanilla refuses); the fire
+family's own consults and the rail's placement gate through the shared
+law's correction (F-SP3's own blast radius, its own seats).
+
+## F-SP3 — the hasSolidTop port's own defects: `FireBlocks.hasSolidTop`'s translucent fallthrough + the stone_slab2 bottom row (the fire family's consult and the rail's placement gate ride it) (SUSPECTED — the source census complete, its own passes owed)
+
+**Subsystem:** the fire family's spread/survival consults + the rail
+placement gate (the shared law's consumers). **Affected version:** all.
+
+**Status:** suspected — the source census complete (this pass); the
+behavioral and independent passes owed before any correction.
+
+**Affected ZaminTorch files and methods:** `FireBlocks.hasSolidTop`
+(lines 325-359) — the engine's only structured `hasSolidTop` port.
+Consumers: the fire family's own consults (`FireBlocks`' survival and
+spread arms — vanilla `FireBlock` lines 38, 168, 307, 312, 320, 336
+all read `World.hasSolidTop`) and `EngineServer.placeRailOnTick`
+(line 16130, the thirteenth pass's B7 consumer).
+
+**The two defects (the source census):**
+
+1. **The translucent fallthrough** (line 358): the full-cube common
+   case falls through to `return WorldSolidity.isSolid(type)` — so
+   GLASS, STAINED GLASS, GLOWSTONE, LEAVES, TNT, ICE and CACTUS answer
+   TRUE (they are collision-solid) where vanilla answers FALSE (their
+   materials are translucent — `Material.isSolidBlocking` line 100
+   over Material.java lines 13/22/24/26/30; glowstone and stained
+   glass REGISTER with Material.GLASS — Block.java lines 1191/1197).
+   The observable divergences: fire SURVIVES on glass/leaves/TNT/ice/
+   glowstone in the engine where vanilla extinguishes it (unless a
+   flammable neighbor holds it — FireBlock line 307's disjunct); the
+   rail PLACEMENT gate accepts those floors where vanilla refuses
+   (AbstractRailBlock.canBePlaced reads hasSolidTop through
+   canPlaceBlockOnSide — the same structured law).
+2. **The stone_slab2 bottom row** (lines 338-343): the slab arms
+   consult `value.endsWith("_slab_top")` / `value.endsWith("_slab")`
+   — but the second slab family's states are `stone_slab2` /
+   `stone_slab2_top` (BuiltinBlocks lines 90-92), which match NEITHER
+   suffix ("slab2" ≠ "_slab"). The TOP single falls through to
+   `isSolid` → TRUE (vanilla TRUE — agree by accident); the BOTTOM
+   single falls through → TRUE (vanilla FALSE — the red-sandstone
+   bottom single hosts rails and fire where vanilla refuses them).
+
+**The snow-layer note (the port's own javadoc, lines 320-323):** the
+engine's snow layer is the single 1-layer state, so the reference's
+7-layer arm (`SnowLayerBlock && LAYERS == 7`) can never fire — the
+engine answers FALSE for every snow layer where vanilla answers TRUE
+at 7 layers. A named limitation, not a divergence the engine can
+express until the layer states exist.
+
+**Expected behavior:** the port answers the reference's five arms
+exactly — the material-and-cube conjunct (the translucents never
+answering), the stairs/slab TOP-half arms over BOTH slab families,
+the hopper arm, the 7-layer snow arm (unreachable — the named note).
+
+**Observed behavior (the source census):** the two defects above —
+the fallthrough and the missed suffix.
+
+**The dependency on F-SP2:** F-SP2's consult swap REQUIRES a correct
+structured law to delegate to — against the uncorrected port, the
+glass/leaves/TNT/ice/glowstone/cactus rows would STILL diverge (the
+fallthrough answers TRUE for them all). The two findings' fixes are
+inseparable at the law level: either F-SP2's PR carries the law's
+correction (the fire family's behavior change named as the side
+effect, F-SP3's own seats then verifying the fire family's rows over
+the corrected law), or F-SP3's PR lands first and F-SP2's stacks on
+it. The structure decision rides the passes' completion; the
+maintainer consult (the PR #139 extension question) carries it.
+
+**Verification pass history:** pass 1 (the source census) complete —
+the two defects located against the reference's law; the consumers
+censused (the fire family's consults + the rail placement gate). The
+fire family's behavioral seats (fire on glass/leaves/TNT/ice/
+glowstone surviving where vanilla extinguishes) and the rail
+placement seats owed as the behavioral pass.
+
+**Confidence and remaining uncertainties:** high on the source walk;
+the fire family's observable rows need the behavioral seat before
+confirmation (the fire spread arms' exact consult order — FireBlock
+lines 307-336 — needs the walk re-read at the behavioral pass).
+
+---
+
+## Coverage ledger (updated by the fortieth pass)
 
 | Area | Status |
 |---|---|
@@ -2724,6 +3030,8 @@ plus the stone_slab2 bottom row — the same class, its own lane.
 | Collision shapes — the double slabs' full-cube row | **RESOLVED-BY-PR #118** (F-DS1: the F-DS1 stream's three-pass verification — the ten `_slab`-suffixed doubles carried the HALF box; the rest walks, the side-entry, the isFullCube family all poisoned; the one-arm carve, `DoubleSlabCollisionParityTest` 5/0) |
 | Natural spawn — the spawn floor's consult | **RESOLVED-BY-PR #121** (VT-020: the suffix approximation missed in BOTH directions — the ten doubles refused where `hasSolidTop`'s first arm hosts them, the bottom stairs and the red sandstone bottom single hosted where the HALF==TOP arms refuse them; the one-consult correction with the `double_` carve + the half laws, three seats) |
 | The support-consult family (torch/lever/button/trapdoor mounts) | **F-SP1 CORRECTED — PR #139 OPEN** (`fix/support-consult-family-parity-audit`, `ad71bb32` over develop `149eb1f0`): the three passes whole (the pass-38b source census; the pass-39 behavioral seats — 68 divergent rows RED, all "engine holds where vanilla pops", 30+ agreement controls GREEN; the pass-39 independent pass — the placement-gates census, the compensating hunt NEGATIVE, the intentionality challenge resolved to approximation) + Phase E (the `SupportConsult` correction: the four survival consults + the four placement gates swapped to the reference's laws, the dead fence carve retired, the seats 6/6 GREEN as the parity pins, the piston benches repaired to the vanilla-valid power arrangement, the regression lanes 742/0). The adjacent wire/diode/plate/door floor consults are the named next lanes. |
+| The floor-consult family (wire/repeater/comparator/plate/weighted-plate/door/rail survival walks + the five placement gates) | **F-SP2 UNDER VERIFICATION** (the fortieth pass's source census): the `hasSupportBelow` consult and the five inline placement gates all answer `WorldSolidity.isSolid` where vanilla answers the structured `hasSolidTop` laws (+ the wire's glowstone row, + the plates' fence row — `FenceGateBlock` NOT a `FenceBlock`, `nether_brick_fence` IS one); the census's own find: the RAIL is internally inconsistent (its placement gate reads the structured law, its survival walk the collision consult); the behavioral seats and the independent pass owed. |
+| The hasSolidTop structured port (`FireBlocks.hasSolidTop`) | **F-SP3 SUSPECTED** (the fortieth pass's source census): the translucent fallthrough (glass/stained glass/glowstone/leaves/TNT/ice/cactus answer TRUE where the reference's `material.isSolidBlocking()` refuses) + the stone_slab2 bottom row (the `endsWith("_slab")` arms miss the second slab family's states); the consumers: the fire family's own consults + the rail's placement gate; F-SP2's own delegation dependency; its behavioral and independent passes owed. |
 | The slab-family suffix census | INSPECTED (the whole-repository `endsWith("_slab")` census: `BlockSolidity.isCube` and `FireBlocks` already correct with the `double_` carve — the house convention; `CollisionShapes` corrected by PR #118; `NaturalSpawnSystem` corrected by PR #121 (VT-020 — the spawn consult, the directional stair states and the `_slab2` row joining the census); `RedstoneSystem.trapdoorMountHolds` name-based, the double agreeing, the SINGLES' rows F-SP1's lane; the held-id dispatch and the dormant `woodenSlabFamilyOf` unaffected) |
 
 ## The queue for the next pass
