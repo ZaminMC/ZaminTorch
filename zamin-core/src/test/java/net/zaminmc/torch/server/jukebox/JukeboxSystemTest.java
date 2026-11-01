@@ -288,15 +288,18 @@ class JukeboxSystemTest {
                     ItemStack.of(BuiltinItems.RECORD_FAR, 1)));
             await(server, () -> server.jukeboxes().recordAt(jukeboxAt) != null, "the disc in");
 
-            // The round trip through a real file.
+            // The round trip through a real file (Wave FL4-GAP2 Slice C:
+            // the union save, each row stamped with its world).
             Path zjd = dataDir.resolve("jukeboxes.bin");
             JukeboxDataStore store = new JukeboxDataStore(zjd);
-            store.save(server.jukeboxes().snapshotRecords());
+            store.save(Map.of(0, server.jukeboxes().snapshotRecords()));
             assertTrue(Files.exists(zjd), "the store wrote the file");
             JukeboxDataStore reloaded = new JukeboxDataStore(zjd);
-            Map<BlockPosition, ItemStack> loaded = reloaded.load();
+            java.util.List<JukeboxDataStore.Loaded> loaded = reloaded.load();
             assertEquals(1, loaded.size());
-            ItemStack record = loaded.get(jukeboxAt);
+            JukeboxDataStore.Loaded row = loaded.get(0);
+            assertEquals(0, row.dimension(), "the row stamps the overworld");
+            ItemStack record = row.record();
             assertEquals(BuiltinItems.RECORD_FAR, record.type(), "the disc survived");
             assertEquals(1, record.count());
 
@@ -312,7 +315,13 @@ class JukeboxSystemTest {
                     && server.jukeboxes().recordAt(jukeboxAt) == null, "the plain state");
             AtomicReference<Boolean> flipped = new AtomicReference<>();
             server.ticker().submit(() -> {
-                server.jukeboxes().restoreAll(loaded);
+                // Wave FL4-GAP2 Slice C: the restore takes the position-keyed
+                // map (the row's own family restores it).
+                java.util.Map<BlockPosition, ItemStack> restored = new java.util.LinkedHashMap<>();
+                for (JukeboxDataStore.Loaded recordRow : loaded) {
+                    restored.put(recordRow.position(), recordRow.record());
+                }
+                server.jukeboxes().restoreAll(restored);
                 flipped.set(true);
             });
             await(server, () -> Boolean.TRUE.equals(flipped.get()), "the restore ran");

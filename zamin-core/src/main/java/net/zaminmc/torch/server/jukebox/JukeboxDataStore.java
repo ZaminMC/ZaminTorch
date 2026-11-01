@@ -21,13 +21,15 @@ import java.util.Optional;
 import java.util.logging.Logger;
 
 /**
- * File-backed jukebox state ("ZJD" format, version 1), one file per world —
+ * File-backed jukebox state ("ZJD" format, version 2), one file per world —
  * the note store's own durability rules.
  *
- * <p>Layout: magic 'Z','J','D',1 - records(varint count; each: x(i32) y(i32)
+ * <p>Layout: magic 'Z','J','D',2 - records(varint count; each: x(i32) y(i32)
  * z(i32) then the disc in the ZCD item form (present(u8) then item
  * identifier(string) + count(varint) + damage(varint) + displayName,
- * 0 = none) — the reference's writeNbt "RecordItem" compound).</p>
+ * 0 = none) — the reference's writeNbt "RecordItem" compound) then
+ * dimension(i8, Wave FL4-GAP2 Slice C: the row's own world, the chest
+ * store's own v+1 law; version 1 files load as overworld rows).</p>
  *
  * <p>Writes are atomic (temp file then atomic move), corrupt files load as
  * absent and are preserved beside the storage path instead of being
@@ -40,7 +42,7 @@ public final class JukeboxDataStore {
     private static final int MAGIC_0 = 'Z';
     private static final int MAGIC_1 = 'J';
     private static final int MAGIC_2 = 'D';
-    private static final int FORMAT_VERSION = 1;
+    private static final int FORMAT_VERSION = 2;
 
     private final Path file;
 
@@ -49,27 +51,31 @@ public final class JukeboxDataStore {
     }
 
     /**
-     * Saves the record map. Callers snapshot state on the tick thread before
-     * calling (the engine routes this through the ticker). The synchronous
-     * form composes the S4 pipeline's own two halves — the pure
-     * serialization over the already-immutable map, the file publication —
-     * so the sync save's bytes and the pipeline's bytes are identical by
-     * construction (one serializer, one file half).
+     * Saves every dimension's record map (the FL4-GAP2 Slice C union: one
+     * file, each row stamped with its own world — a nether jukebox and an
+     * overworld jukebox at the same coordinates are TWO tiles). Callers
+     * snapshot state on the tick thread before calling (the engine routes
+     * this through the ticker). The synchronous form composes the S4
+     * pipeline's own two halves — the pure serialization over the
+     * already-immutable map, the file publication — so the sync save's
+     * bytes and the pipeline's bytes are identical by construction (one
+     * serializer, one file half).
+     *
+     * @param records each dimension's live map (dimension id -> the map its
+     *                own JukeboxBlockSystem owns)
      */
-    public void save(Map<BlockPosition, ItemStack> records) {
+    public void save(Map<Integer, Map<BlockPosition, ItemStack>> records) {
         Objects.requireNonNull(records, "records");
         writeSerialized(serialize(records));
     }
 
     /**
      * The pure serialization (Slice S4 — the compute pool's own half): the
-     * immutable map IN (the system's own snapshotRecords() copy — the
+     * immutable union IN (each system's own snapshotRecords() copy — the
      * stacks are the engine's immutable ItemStack, the capture contract
-     * already satisfied), the ZJD bytes OUT — no world read, no I/O. The
-     * byte walk is the historical save walk's own (version 1,
-     * byte-identical).
+     * already satisfied), the ZJD bytes OUT — no world read, no I/O.
      */
-    public byte[] serialize(Map<BlockPosition, ItemStack> records) {
+    public byte[] serialize(Map<Integer, Map<BlockPosition, ItemStack>> records) {
         java.io.ByteArrayOutputStream sink = new java.io.ByteArrayOutputStream();
         try (DataOutputStream out = new DataOutputStream(
                 new java.io.BufferedOutputStream(sink))) {
@@ -77,13 +83,24 @@ public final class JukeboxDataStore {
             out.writeByte(MAGIC_1);
             out.writeByte(MAGIC_2);
             out.writeByte(FORMAT_VERSION);
-            writeVarInt(out, records.size());
-            for (Map.Entry<BlockPosition, ItemStack> entry : records.entrySet()) {
-                BlockPosition position = entry.getKey();
-                out.writeInt(position.x());
-                out.writeInt(position.y());
-                out.writeInt(position.z());
-                writeStack(out, entry.getValue());
+            int total = 0;
+            for (Map<BlockPosition, ItemStack> byDimension : records.values()) {
+                total += byDimension.size();
+            }
+            writeVarInt(out, total);
+            for (Map.Entry<Integer, Map<BlockPosition, ItemStack>> byDimension
+                    : records.entrySet()) {
+                int dimension = byDimension.getKey();
+                for (Map.Entry<BlockPosition, ItemStack> entry
+                        : byDimension.getValue().entrySet()) {
+                    BlockPosition position = entry.getKey();
+                    out.writeInt(position.x());
+                    out.writeInt(position.y());
+                    out.writeInt(position.z());
+                    writeStack(out, entry.getValue());
+                    // The signed byte carries the dimension — -1 lands as u8 255.
+                    out.writeByte(dimension);
+                }
             }
         } catch (IOException e) {
             // The sink is an in-memory buffer; an IOException here is a
@@ -120,43 +137,52 @@ public final class JukeboxDataStore {
         }
     }
 
+    /** One loaded record row, stamped with the world it lives in. */
+    public record Loaded(BlockPosition position, int dimension, ItemStack record) {
+    }
+
     /**
-     * Loads the record map; an absent or corrupt file loads empty (corrupt
-     * files are preserved, not destroyed). A stored disc the registry cannot
-     * resolve drops with a warning — everything else survives.
+     * Loads the record rows, each stamped with its dimension. A version 1
+     * file's rows carry no dimension byte — they load as overworld rows
+     * (the migration law every FL4-GAP2 store carries). An absent or
+     * corrupt file loads empty (corrupt files are preserved, not
+     * destroyed). A stored disc the registry cannot resolve drops with a
+     * warning — everything else survives.
      */
-    public Map<BlockPosition, ItemStack> load() {
+    public java.util.List<Loaded> load() {
         if (!Files.exists(file)) {
-            return new LinkedHashMap<>();
+            return new java.util.ArrayList<>();
         }
-        Map<BlockPosition, ItemStack> loaded = new LinkedHashMap<>();
+        java.util.List<Loaded> loaded = new java.util.ArrayList<>();
         try (DataInputStream in = new DataInputStream(new BufferedInputStream(
                 Files.newInputStream(file)))) {
             if (in.readByte() != MAGIC_0 || in.readByte() != MAGIC_1
                     || in.readByte() != MAGIC_2) {
                 LOGGER.warning("Jukebox state " + file + " is not ZJD; loading empty");
-                return new LinkedHashMap<>();
+                return new java.util.ArrayList<>();
             }
             int version = in.readByte() & 0xFF;
-            if (version != FORMAT_VERSION) {
+            if (version < 1 || version > FORMAT_VERSION) {
                 LOGGER.warning("Jukebox state " + file + " version " + version
                         + " unsupported; loading empty");
-                return new LinkedHashMap<>();
+                return new java.util.ArrayList<>();
             }
             int count = readVarInt(in);
             if (count < 0 || count > 100_000) {
                 LOGGER.warning("Jukebox state " + file + " implausible count; loading empty");
-                return new LinkedHashMap<>();
+                return new java.util.ArrayList<>();
             }
             for (int i = 0; i < count; i++) {
                 BlockPosition position = new BlockPosition(in.readInt(), in.readInt(),
                         in.readInt());
-                loaded.put(position, readStack(in));
+                ItemStack record = readStack(in);
+                int dimension = version >= FORMAT_VERSION ? in.readByte() : 0;
+                loaded.add(new Loaded(position, dimension, record));
             }
             return loaded;
         } catch (IOException | RuntimeException corrupt) {
             LOGGER.warning("Jukebox state " + file + " corrupt; loading empty (" + corrupt + ")");
-            return new LinkedHashMap<>();
+            return new java.util.ArrayList<>();
         }
     }
 

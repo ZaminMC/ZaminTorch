@@ -11,7 +11,6 @@ import net.zaminmc.torch.server.entity.MobType;
 import net.zaminmc.torch.server.furnace.FurnaceManager;
 import net.zaminmc.torch.server.hopper.HopperSystem;
 import net.zaminmc.torch.server.jukebox.JukeboxBlockSystem;
-import net.zaminmc.torch.server.noteblock.NoteBlockSystem;
 import net.zaminmc.torch.server.sign.SignManager;
 import net.zaminmc.torch.server.skull.SkullManager;
 import net.zaminmc.torch.server.spawner.SpawnerManager;
@@ -61,7 +60,10 @@ public final class TileNbt {
 
     /**
      * The seams (the engine's tile managers — one record so the command
-     * layer constructs once).
+     * layer constructs once). Wave FL4-GAP2 Slice C: the tile families
+     * ride the same IntFunction router form the container families took
+     * (the per-world tile law — every consult lands in the world's own
+     * family).
      */
     public record Seams(
             java.util.function.IntFunction<ChestManager> chestsFor,
@@ -69,14 +71,13 @@ public final class TileNbt {
             java.util.function.IntFunction<HopperSystem> hoppersFor,
             java.util.function.IntFunction<DispenserSystem> dispensersFor,
             java.util.function.IntFunction<BrewingStandSystem> brewingStandsFor,
-            BeaconSystem beacons,
-            SignManager signs,
+            java.util.function.IntFunction<BeaconSystem> beaconsFor,
+            java.util.function.IntFunction<SignManager> signsFor,
             SpawnerManager spawners,
-            CommandBlockManager commandBlocks,
-            NoteBlockSystem noteBlocks,
-            SkullManager skulls,
-            JukeboxBlockSystem jukeboxes,
-            net.zaminmc.torch.server.banner.BannerManager banners) {
+            java.util.function.IntFunction<CommandBlockManager> commandBlocksFor,
+            java.util.function.IntFunction<SkullManager> skullsFor,
+            java.util.function.IntFunction<JukeboxBlockSystem> jukeboxesFor,
+            java.util.function.IntFunction<net.zaminmc.torch.server.banner.BannerManager> bannersFor) {
     }
 
     private final Seams seams;
@@ -221,13 +222,13 @@ public final class TileNbt {
                 writeNameLockRows(rows, brewing.customName(), brewing.lockKey());
             }
             case "Beacon" -> {
-                var beacon = seams.beacons().getOrCreate(pos);
+                var beacon = seams.beaconsFor().apply(dimension).getOrCreate(pos);
                 NbtOps.putInt(rows, "Primary", beacon.primary());
                 NbtOps.putInt(rows, "Secondary", beacon.secondary());
                 NbtOps.putInt(rows, "Levels", beacon.levels());
             }
             case "Sign" -> {
-                String[] lines = seams.signs().peek(pos);
+                String[] lines = seams.signsFor().apply(dimension).peek(pos);
                 if (lines != null) {
                     for (int i = 0; i < 4; i++) {
                         NbtOps.putString(rows, "Text" + (i + 1), lines[i] == null ? "" : lines[i]);
@@ -251,7 +252,7 @@ public final class TileNbt {
                 }
             }
             case "Control" -> {
-                var state = seams.commandBlocks().at(pos);
+                var state = seams.commandBlocksFor().apply(dimension).at(pos);
                 if (state != null) {
                     NbtOps.putString(rows, "Command", state.command());
                     NbtOps.putInt(rows, "SuccessCount", state.successCount());
@@ -263,7 +264,7 @@ public final class TileNbt {
                 }
             }
             case "RecordPlayer" -> {
-                ItemStack record = seams.jukeboxes().recordAt(pos);
+                ItemStack record = seams.jukeboxesFor().apply(dimension).recordAt(pos);
                 if (record != null && !record.isEmpty()) {
                     Map<String, Snbt.Tag> recordRows = new java.util.LinkedHashMap<>();
                     ItemNbt.write(record, recordRows);
@@ -271,7 +272,7 @@ public final class TileNbt {
                 }
             }
             case "Skull" -> {
-                var skull = seams.skulls().tileAt(pos);
+                var skull = seams.skullsFor().apply(dimension).tileAt(pos);
                 if (skull != null) {
                     NbtOps.putByte(rows, "SkullType", (byte) skull.type());
                     // The reference's own key is "Rot" (writeNbt line 25 —
@@ -289,7 +290,7 @@ public final class TileNbt {
                 // Patterns when the tile carries rows; readNbt lines 60-68
                 // reads both back (the reference's getList with a missing
                 // row reads empty).
-                var bannerTile = seams.banners().tileAt(pos);
+                var bannerTile = seams.bannersFor().apply(dimension).tileAt(pos);
                 int base = bannerTile != null ? bannerTile.base() : 0;
                 NbtOps.putInt(rows, "Base", base);
                 if (bannerTile != null && !bannerTile.patterns().isEmpty()) {
@@ -364,7 +365,7 @@ public final class TileNbt {
                 readNameLockRows(rows, brewing::setCustomName, brewing::setLockKey);
             }
             case "Beacon" -> {
-                var beacon = seams.beacons().getOrCreate(pos);
+                var beacon = seams.beaconsFor().apply(dimension).getOrCreate(pos);
                 beacon.setPrimary(NbtOps.getInt(rows, "Primary"));
                 beacon.setSecondary(NbtOps.getInt(rows, "Secondary"));
                 beacon.setLevels(NbtOps.getInt(rows, "Levels"));
@@ -374,8 +375,9 @@ public final class TileNbt {
                 for (int i = 0; i < 4; i++) {
                     lines[i] = NbtOps.getString(rows, "Text" + (i + 1));
                 }
-                if (seams.signs().peek(pos) != null) {
-                    seams.signs().set(pos, lines);
+                SignManager signs = seams.signsFor().apply(dimension);
+                if (signs.peek(pos) != null) {
+                    signs.set(pos, lines);
                 }
             }
             case "MobSpawner" -> {
@@ -410,9 +412,10 @@ public final class TileNbt {
                 }
             }
             case "Control" -> {
-                var state = seams.commandBlocks().at(pos);
+                var controlFamily = seams.commandBlocksFor().apply(dimension);
+                var state = controlFamily.at(pos);
                 if (state == null) {
-                    state = seams.commandBlocks().createAt(pos, true);
+                    state = controlFamily.createAt(pos, true);
                 }
                 state.setCommand(NbtOps.getString(rows, "Command"));
                 state.setSuccessCount(NbtOps.getInt(rows, "SuccessCount"));
@@ -425,7 +428,7 @@ public final class TileNbt {
             case "RecordPlayer" -> {
                 ItemStack record = ItemNbt.read(NbtOps.getCompound(rows, "RecordItem"));
                 if (record != null) {
-                    seams.jukeboxes().restoreRecord(pos, record);
+                    seams.jukeboxesFor().apply(dimension).restoreRecord(pos, record);
                 }
             }
             case "Skull" -> {
@@ -448,7 +451,7 @@ public final class TileNbt {
                         }
                     }
                 }
-                seams.skulls().place(pos, skullType, rotation, profile);
+                seams.skullsFor().apply(dimension).place(pos, skullType, rotation, profile);
             }
             case "Banner" -> {
                 // readNbt lines 60-68: the Base row and the Patterns list
@@ -467,7 +470,7 @@ public final class TileNbt {
                     patterns.add(new net.zaminmc.torch.server.banner.BannerManager.Pattern(
                             hash, NbtOps.getInt(compound, "Color") & 0xF));
                 }
-                seams.banners().place(pos,
+                seams.bannersFor().apply(dimension).place(pos,
                         new net.zaminmc.torch.server.banner.BannerManager.BannerTile(
                                 base, patterns));
             }

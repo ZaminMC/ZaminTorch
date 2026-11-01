@@ -213,11 +213,14 @@ class CommandStatsPersistenceTest {
                 out.write(bytes);
             }
         }
-        net.zaminmc.torch.server.sign.SignDataStore.Loaded loaded =
+        java.util.List<net.zaminmc.torch.server.sign.SignDataStore.Loaded> loadedRows =
                 new net.zaminmc.torch.server.sign.SignDataStore(file).load();
+        assertEquals(1, loadedRows.size(), "one v1 row read back");
+        net.zaminmc.torch.server.sign.SignDataStore.Loaded loaded = loadedRows.get(0);
         assertEquals(1, loaded.signs().size(), "the v1 texts read back");
         assertEquals("one", loaded.signs().get(new BlockPosition(1, 2, 3))[0]);
         assertEquals("four", loaded.signs().get(new BlockPosition(1, 2, 3))[3]);
+        assertEquals(0, loaded.dimension(), "a v1 file's row loads as an overworld row");
         assertTrue(loaded.stats().isEmpty(), "a v1 file carries no tails — the bindings load empty");
     }
 }

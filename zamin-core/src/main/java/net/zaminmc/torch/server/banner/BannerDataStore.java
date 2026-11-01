@@ -18,11 +18,13 @@ import java.util.Map;
 import java.util.logging.Logger;
 
 /**
- * File-backed banner tiles ("ZBD" format, version 1), one file per world.
+ * File-backed banner tiles ("ZBD" format, version 2), one file per world.
  *
- * <p>Layout: magic 'Z','B','D',1 - tiles(varint count; each: x(i32) y(i32)
+ * <p>Layout: magic 'Z','B','D',2 - tiles(varint count; each: x(i32) y(i32)
  * z(i32) base(u8) patterns(varint count; each: hash(varint-length UTF-8)
- * color(u8)). The same durability rules as the other stores: writes are
+ * color(u8)) then dimension(i8, Wave FL4-GAP2 Slice C: the row's own
+ * world, the chest store's own v+1 law; version 1 files load as overworld
+ * rows). The same durability rules as the other stores: writes are
  * atomic (temp file then atomic move), corrupt files load as absent and
  * are preserved beside the storage path, save failures are loud. Save
  * points are the engine's {@code saveAllNow}.</p>
@@ -33,7 +35,7 @@ public final class BannerDataStore {
     private static final int MAGIC_0 = 'Z';
     private static final int MAGIC_1 = 'B';
     private static final int MAGIC_2 = 'D';
-    private static final int FORMAT_VERSION = 1;
+    private static final int FORMAT_VERSION = 2;
 
     private final Path file;
 
@@ -41,16 +43,24 @@ public final class BannerDataStore {
         this.file = java.util.Objects.requireNonNull(file, "file");
     }
 
-    /** Saves the tile map (the caller snapshots on the tick thread). */
-    public void save(Map<BlockPosition, BannerManager.BannerTile> tiles) {
+    /**
+     * Saves every dimension's tile map (the FL4-GAP2 Slice C union: one
+     * file, each row stamped with its own world — a nether banner and an
+     * overworld banner at the same coordinates are TWO tiles). The caller
+     * snapshots on the tick thread.
+     *
+     * @param tiles each dimension's live map (dimension id -> the map its
+     *              own BannerManager owns)
+     */
+    public void save(Map<Integer, Map<BlockPosition, BannerManager.BannerTile>> tiles) {
         writeSerialized(serialize(tiles));
     }
 
     /**
      * The pure serialization (the compute pool's own half): the immutable
-     * snapshot IN, the ZBD bytes OUT — no world read, no I/O.
+     * union IN, the ZBD bytes OUT — no world read, no I/O.
      */
-    public byte[] serialize(Map<BlockPosition, BannerManager.BannerTile> tiles) {
+    public byte[] serialize(Map<Integer, Map<BlockPosition, BannerManager.BannerTile>> tiles) {
         java.io.ByteArrayOutputStream sink = new java.io.ByteArrayOutputStream();
         try (DataOutputStream out = new DataOutputStream(
                 new java.io.BufferedOutputStream(sink))) {
@@ -58,18 +68,29 @@ public final class BannerDataStore {
             out.writeByte(MAGIC_1);
             out.writeByte(MAGIC_2);
             out.writeByte(FORMAT_VERSION);
-            writeVarInt(out, tiles.size());
-            for (Map.Entry<BlockPosition, BannerManager.BannerTile> entry : tiles.entrySet()) {
-                BlockPosition position = entry.getKey();
-                out.writeInt(position.x());
-                out.writeInt(position.y());
-                out.writeInt(position.z());
-                out.writeByte(entry.getValue().base() & 0xF);
-                List<BannerManager.Pattern> patterns = entry.getValue().patterns();
-                writeVarInt(out, patterns.size());
-                for (BannerManager.Pattern pattern : patterns) {
-                    writeString(out, pattern.hash());
-                    out.writeByte(pattern.color() & 0xF);
+            int total = 0;
+            for (Map<BlockPosition, BannerManager.BannerTile> byDimension : tiles.values()) {
+                total += byDimension.size();
+            }
+            writeVarInt(out, total);
+            for (Map.Entry<Integer, Map<BlockPosition, BannerManager.BannerTile>> byDimension
+                    : tiles.entrySet()) {
+                int dimension = byDimension.getKey();
+                for (Map.Entry<BlockPosition, BannerManager.BannerTile> entry
+                        : byDimension.getValue().entrySet()) {
+                    BlockPosition position = entry.getKey();
+                    out.writeInt(position.x());
+                    out.writeInt(position.y());
+                    out.writeInt(position.z());
+                    out.writeByte(entry.getValue().base() & 0xF);
+                    List<BannerManager.Pattern> patterns = entry.getValue().patterns();
+                    writeVarInt(out, patterns.size());
+                    for (BannerManager.Pattern pattern : patterns) {
+                        writeString(out, pattern.hash());
+                        out.writeByte(pattern.color() & 0xF);
+                    }
+                    // The signed byte carries the dimension — -1 lands as u8 255.
+                    out.writeByte(dimension);
                 }
             }
         } catch (java.io.IOException e) {
@@ -94,11 +115,20 @@ public final class BannerDataStore {
         }
     }
 
-    /** Loads the tile map; a corrupt or missing file reads as empty. */
-    public Map<BlockPosition, BannerManager.BannerTile> load() {
-        Map<BlockPosition, BannerManager.BannerTile> tiles = new LinkedHashMap<>();
+    /** One loaded banner row, stamped with the world it lives in. */
+    public record Loaded(BlockPosition position, int dimension, BannerManager.BannerTile tile) {
+    }
+
+    /**
+     * Loads the tile rows, each stamped with its dimension. A version 1
+     * file's rows carry no dimension byte — they load as overworld rows
+     * (the migration law every FL4-GAP2 store carries). A corrupt or
+     * missing file reads as empty.
+     */
+    public java.util.List<Loaded> load() {
+        java.util.List<Loaded> rows = new java.util.ArrayList<>();
         if (!Files.exists(file)) {
-            return tiles;
+            return rows;
         }
         try (DataInputStream in = new DataInputStream(new BufferedInputStream(
                 Files.newInputStream(file)))) {
@@ -107,7 +137,7 @@ public final class BannerDataStore {
                 throw new IOException("Not a ZBD file");
             }
             int version = in.readUnsignedByte();
-            if (version != FORMAT_VERSION) {
+            if (version < 1 || version > FORMAT_VERSION) {
                 throw new IOException("Unsupported ZBD version: " + version);
             }
             int count = readVarInt(in);
@@ -115,21 +145,23 @@ public final class BannerDataStore {
                 BlockPosition position = new BlockPosition(
                         in.readInt(), in.readInt(), in.readInt());
                 int base = in.readUnsignedByte() & 0xF;
-                int rows = readVarInt(in);
-                if (rows < 0 || rows > BannerManager.MAX_PATTERNS) {
-                    throw new IOException("pattern count out of range: " + rows);
+                int patternRows = readVarInt(in);
+                if (patternRows < 0 || patternRows > BannerManager.MAX_PATTERNS) {
+                    throw new IOException("pattern count out of range: " + patternRows);
                 }
-                List<BannerManager.Pattern> patterns = new ArrayList<>(rows);
-                for (int row = 0; row < rows; row++) {
+                List<BannerManager.Pattern> patterns = new ArrayList<>(patternRows);
+                for (int row = 0; row < patternRows; row++) {
                     patterns.add(new BannerManager.Pattern(readString(in),
                             in.readUnsignedByte() & 0xF));
                 }
-                tiles.put(position, new BannerManager.BannerTile(base, patterns));
+                int dimension = version >= FORMAT_VERSION ? in.readByte() : 0;
+                rows.add(new Loaded(position, dimension,
+                        new BannerManager.BannerTile(base, patterns)));
             }
-            return tiles;
+            return rows;
         } catch (Exception e) {
             preserveCorrupt(e);
-            return new LinkedHashMap<>();
+            return new java.util.ArrayList<>();
         }
     }
 

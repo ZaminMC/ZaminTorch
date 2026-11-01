@@ -209,12 +209,16 @@ public final class ProjectileManager {
          * The same hit with the projectile carried (the Punch impulse rides
          * the victim's velocity set) and the thrower's engine id resolved
          * (death chat names the shooter, the historical kill credit).
+         * @return the landed verdict (the reference's takeDamage boolean —
+         * VT-018's entity-hit bowhit rides it, ArrowEntity line 276).
          * Default bridges to the legacy shape so existing sinks stay
-         * source-compatible.
+         * source-compatible (the legacy sink carries no verdict — landed
+         * presumed).
          */
-        default void playerHit(ProjectileEntity projectile, PlayerSession player,
-                               float damage, double kbYaw) {
+        default boolean playerHit(ProjectileEntity projectile, PlayerSession player,
+                                  float damage, double kbYaw) {
             playerHit(player, damage, kbYaw);
+            return true;
         }
 
         /**
@@ -1115,7 +1119,14 @@ public final class ProjectileManager {
                         projectile.potionDamage(), mob, projectile.throwerId(),
                         projectile.dimension());
             } else {
-                hitMob(projectile, mob);
+                // VT-018's entity-hit arm (ArrowEntity line 276): the
+                // bowhit at a LANDED hit — the verdict is the reference's
+                // takeDamage boolean, the position the tick's own origin
+                // (the reference plays before the flight integration;
+                // the entity-hit arm never moves the arrow).
+                if (hitMob(projectile, mob)) {
+                    playEntityHitBowhit(projectile, from);
+                }
             }
             remove(projectile, "hit");
             return true;
@@ -1134,7 +1145,12 @@ public final class ProjectileManager {
                         projectile.potionDamage(), player, projectile.throwerId(),
                         projectile.dimension());
             } else {
-                hitPlayer(projectile, player);
+                // VT-018's entity-hit arm — the same law at the player
+                // site (line 276's hitresult.entity covers the players;
+                // the sink's landed verdict the gate).
+                if (hitPlayer(projectile, player)) {
+                    playEntityHitBowhit(projectile, from);
+                }
             }
             if (projectile.kind() != ProjectileEntity.Kind.ENDER_PEARL
                     || player.engineEntityId() != projectile.throwerId()) {
@@ -1150,7 +1166,13 @@ public final class ProjectileManager {
         net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle =
                 hits.vehicleAt(point, projectile.dimension());
         if (vehicle != null && !vehicle.dead()) {
-            hitVehicle(projectile, vehicle);
+            // VT-018's entity-hit arm — the same law at the vehicle site
+            // (the reference's entity scan includes the minecarts; the
+            // sink's landed verdict the gate — the detonated TNT cart
+            // counts as landed, the reference's takeDamage true).
+            if (hitVehicle(projectile, vehicle)) {
+                playEntityHitBowhit(projectile, from);
+            }
             remove(projectile, "hit");
             return true;
         }
@@ -1161,6 +1183,10 @@ public final class ProjectileManager {
         // holds FIRE (non-solid), but the box spans two blocks of height
         // and the block arm must never shadow the body.
         if (crystalSink.hitCrystal(point.x(), point.y(), point.z())) {
+            // VT-018's entity-hit arm — the same law at the crystal site
+            // (the pop IS a landed hit: EnderCrystalEntity.takeDamage
+            // returns true on the detonation).
+            playEntityHitBowhit(projectile, from);
             remove(projectile, "hit");
             return true;
         }
@@ -1174,6 +1200,9 @@ public final class ProjectileManager {
                 projectile.kind() == ProjectileEntity.Kind.LARGE_FIREBALL
                         || projectile.kind() == ProjectileEntity.Kind.WITHER_SKULL,
                 projectile.throwerId())) {
+            // VT-018's entity-hit arm — the same law at the dragon-part
+            // site (the part walk's boolean the takeDamage verdict).
+            playEntityHitBowhit(projectile, from);
             remove(projectile, "hit");
             return true;
         }
@@ -1193,6 +1222,18 @@ public final class ProjectileManager {
                     return false; // the cell opened — the walk continues
                 }
                 projectile.landInGround();
+                // VT-018 — the stick's bowhit (ArrowEntity line 303):
+                // the reference plays random.bowhit at the rest — the
+                // volume 1.0, the pitch the reference's own random draw
+                // (1.2 / (nextFloat()*0.2 + 0.9), the band [~1.09,
+                // ~1.33]) — in the arrow's OWN world (the reference's
+                // playSound on the entity's world). The entity-hit arm
+                // plays the same name at line 276 (the same pitch law,
+                // a fresh draw) — the entity arm rides the landed
+                // verdict through playEntityHitBowhit below.
+                fx.sound(projectile.position(), "random.bowhit", 1.0f,
+                        (float) (1.2 / (random.nextFloat() * 0.2 + 0.9)),
+                        projectile.dimension());
                 for (Listener listener : listeners) {
                     listener.onProjectileLanded(projectile);
                 }
@@ -1265,26 +1306,36 @@ public final class ProjectileManager {
      * damage, the ARROW's own speed squared feeding the power roll), and
      * every other hit lands the projectile's damage with the knockback
      * impulse along the travel.
+     *
+     * @return the landed verdict — VT-018's entity-hit bowhit gate (the
+     * reference's takeDamage boolean; the detonated TNT cart counts as
+     * landed — the cart popped).
      */
-    private void hitVehicle(ProjectileEntity projectile,
+    private boolean hitVehicle(ProjectileEntity projectile,
             net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle) {
         if (projectile.burning() && vehicle
                 instanceof net.zaminmc.torch.server.entity.vehicle.TntMinecartEntity tnt) {
             double arrowSpeedSquared = projectile.velocityX() * projectile.velocityX()
                     + projectile.velocityZ() * projectile.velocityZ();
             tnt.detonateByArrow(arrowSpeedSquared);
-            return; // the cart is annihilated — no damage walk follows
+            return true; // the cart is annihilated — the hit landed, no damage walk follows
         }
         float damage = damageOf(projectile);
         double kbYaw = Math.atan2(-projectile.velocityX(), projectile.velocityZ());
-        combat.vehicleHit(projectile, vehicle, damage, kbYaw);
+        return combat.vehicleHit(projectile, vehicle, damage, kbYaw);
     }
 
-    private void hitMob(ProjectileEntity projectile, MobEntity mob) {
-        // The reference ArrowEntity hit walk (lines 229-279): the burning
-        // arrow sets the target on fire BEFORE the damage (unconditional on
-        // the verdict — the reference's setOnFireFor(5) arm), the damage
-        // takes the crit roll, and the Punch impulse rides the landed verdict.
+    /**
+     * The mob hit — the reference ArrowEntity hit walk (lines 229-279):
+     * the burning arrow sets the target on fire BEFORE the damage
+     * (unconditional on the verdict — the reference's setOnFireFor(5)
+     * arm), the damage takes the crit roll, and the Punch impulse rides
+     * the landed verdict.
+     *
+     * @return the landed verdict — VT-018's entity-hit bowhit gate (the
+     * reference's takeDamage boolean, line 248).
+     */
+    private boolean hitMob(ProjectileEntity projectile, MobEntity mob) {
         if (projectile.burning()) {
             combat.mobIgniteFromProjectile(mob);
         }
@@ -1353,9 +1404,17 @@ public final class ProjectileManager {
         if (projectile.kind() == ProjectileEntity.Kind.EGG && rollEggHatch()) {
             combat.chickenHatch(mob.position(), projectile.dimension());
         }
+        return landed;
     }
 
-    private void hitPlayer(ProjectileEntity projectile, PlayerSession player) {
+    /**
+     * The player hit — the same walk at the player site.
+     *
+     * @return the landed verdict — VT-018's entity-hit bowhit gate (the
+     * sink's evolved playerHit verdict, the reference's takeDamage
+     * boolean).
+     */
+    private boolean hitPlayer(ProjectileEntity projectile, PlayerSession player) {
         if (projectile.burning()) {
             combat.playerIgniteFromProjectile(player);
         }
@@ -1377,7 +1436,7 @@ public final class ProjectileManager {
             damage = projectile.throwerId() > 0 ? 8.0f : 5.0f;
         }
         double kbYaw = Math.atan2(-projectile.velocityX(), projectile.velocityZ());
-        combat.playerHit(projectile, player, damage, kbYaw);
+        boolean landed = combat.playerHit(projectile, player, damage, kbYaw);
         if (projectile.kind() == ProjectileEntity.Kind.SMALL_FIREBALL) {
             // The five-second burn after the hit (the same onHit arm).
             combat.playerIgniteFromProjectile(player);
@@ -1396,6 +1455,27 @@ public final class ProjectileManager {
         if (projectile.kind() == ProjectileEntity.Kind.EGG && rollEggHatch()) {
             combat.chickenHatch(player.position(), projectile.dimension());
         }
+        return landed;
+    }
+
+    /**
+     * VT-018's entity-hit arm (ArrowEntity line 276): the bowhit at a
+     * LANDED entity hit — {@code playSound("random.bowhit", 1.0F,
+     * 1.2F / (nextFloat() * 0.2F + 0.9F))} inside the takeDamage-true
+     * branch, BEFORE the remove. The position is the tick's own origin
+     * (the reference plays at the arrow's position before the flight
+     * integration — the entity-hit arm never moves the arrow); the kind
+     * gate is the ARROW alone (the name is ArrowEntity's own — the shard
+     * families play no such sound, and this walk serves every kind); the
+     * pitch is the reference's fresh draw over [~1.09, ~1.33].
+     */
+    private void playEntityHitBowhit(ProjectileEntity projectile, Position at) {
+        if (projectile.kind() != ProjectileEntity.Kind.ARROW) {
+            return;
+        }
+        fx.sound(at, "random.bowhit", 1.0f,
+                (float) (1.2 / (random.nextFloat() * 0.2 + 0.9)),
+                projectile.dimension());
     }
 
     /**
