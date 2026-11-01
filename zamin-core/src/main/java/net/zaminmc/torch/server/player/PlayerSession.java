@@ -74,6 +74,15 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
     /** The block the open container belongs to (furnace state lookup); null otherwise. */
     private volatile net.zaminmc.torch.block.BlockPosition containerPosition;
     /**
+     * The open container's own world (Wave FL4-GAP2 — the reference's
+     * player.world at the open): the chest family's window paths route
+     * their tile consults through it (a nether player's chest window reads
+     * the NETHER's chest, never the overworld's same-coordinate tile).
+     * Stamped at the open beside the position; 0 until a dimension-carrying
+     * open form lands (the legacy openers' overworld stamp).
+     */
+    private volatile int containerDimension;
+    /**
      * The merged double-chest window's pinned halves (the F-DC1 pair):
      * the FIRST and SECOND half in the reference's join order (a WEST/
      * NORTH twin first, ChestBlock lines 360-364) — the pair is resolved
@@ -999,6 +1008,20 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
      */
     public void openContainerWindow(int windowId, ContainerKind kind,
                                     net.zaminmc.torch.block.BlockPosition position) {
+        openContainerWindow(windowId, kind, position, 0);
+    }
+
+    /**
+     * The dimension-carrying open (Wave FL4-GAP2 — the TF-9 launch shape):
+     * the acting world's id is stamped beside the position so every later
+     * window path (the click, the view fan, the close) routes its tile
+     * consults through the OPENING world, never a fresh player consult.
+     * The block-container openers pass their acting world's dimension; the
+     * entity forms (the mount carts, the villager) carry no block tile and
+     * keep the legacy overload's 0.
+     */
+    public void openContainerWindow(int windowId, ContainerKind kind,
+                                    net.zaminmc.torch.block.BlockPosition position, int dimension) {
         if (windowId <= 0) {
             throw new IllegalArgumentException("Container window ids start at 1: " + windowId);
         }
@@ -1009,6 +1032,7 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
         this.containerWindowId = windowId;
         this.containerKind = kind;
         this.containerPosition = position;
+        this.containerDimension = dimension;
         this.containerPairFirst = null; // a fresh window is single until pinChestPair
         this.containerPairSecond = null;
         this.containerMountId = -1;
@@ -1018,6 +1042,11 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
             containerOpenListener.accept(new ContainerOpenDescriptor(
                     windowId, kind, position, -1));
         }
+    }
+
+    /** @return the open container's own dimension (0 until a stamped open). */
+    public int openContainerDimension() {
+        return containerDimension;
     }
 
     /**

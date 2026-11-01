@@ -1245,6 +1245,31 @@ final class TestClient18 implements AutoCloseable {
         return new int[]{entityId, status};
     }
 
+    /**
+     * Reads the next Entity Status packet OF THE TARGET BODY (the local
+     * reproduction of the MobIntegration seat's hosted-runner flake: the
+     * natural spawn cycle's own hurt packets — a fall wound, an ambient
+     * brawl — interleave the stream, and a body-agnostic read lands
+     * whichever came first; the seat's own body is the one it asked for).
+     */
+    int[] readEntityStatusFor(int entityId, long timeoutMs) throws IOException {
+        long deadline = System.currentTimeMillis() + timeoutMs;
+        while (System.currentTimeMillis() < deadline) {
+            byte[] payload = readPacket();
+            if (readPacketId(payload) == Protocol18.S2C_ENTITY_STATUS) {
+                ByteBuf buffer = Unpooled.wrappedBuffer(payload);
+                ByteBufOps.readVarInt(buffer); // packet id
+                int readId = buffer.readInt();
+                int status = buffer.readByte();
+                if (readId == entityId) {
+                    return new int[]{readId, status};
+                }
+                // another body's status: skipped, the target's own follows
+            }
+        }
+        throw new IOException("Timed out waiting for entity status of " + entityId);
+    }
+
     /** Reads a Rel Move Look packet, returning {entityId, dx, dy, dz, onGround}. */
     int[] readRelMoveLook(long timeoutMs) throws IOException {
         byte[] payload = readPacketOfType(Protocol18.S2C_REL_ENTITY_MOVE_LOOK, timeoutMs);

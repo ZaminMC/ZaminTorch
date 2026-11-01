@@ -153,16 +153,22 @@ class MobIntegrationTest extends ProtocolTestBase {
             // both timed out on the status reads exactly there; the loop
             // never weakens the reach gate, it depends on it.
             swingUntilTheBodyAnswers(client, pigId, false);
-            int[] hurt = client.readEntityStatus(15_000);
+            // (The body-filtered reads — the natural spawn cycle's own hurt
+            // packets interleave the stream on the loaded runner, and the
+            // body-agnostic form landed whichever came first: one local run
+            // read a spawn-cycle body's fall wound for entity 1100018 where
+            // the pig's 1100001 was asked for. The seat's own body is the
+            // one it asked for; the others' statuses are not its concern.)
+            int[] hurt = client.readEntityStatusFor(pigId, 15_000);
             assertEquals(pigId, hurt[0]);
             assertEquals(Protocol18.ENTITY_STATUS_HURT, hurt[1]);
             String[] sound = client.readNamedSound(15_000);
             assertEquals("mob.pig.say", sound[0], "the pig's historical hurt sound");
 
             swingUntilTheBodyAnswers(client, pigId, true);
-            int[] secondHit = client.readEntityStatus(15_000);
+            int[] secondHit = client.readEntityStatusFor(pigId, 15_000);
             assertEquals(Protocol18.ENTITY_STATUS_HURT, secondHit[1]);
-            int[] death = client.readEntityStatus(15_000);
+            int[] death = client.readEntityStatusFor(pigId, 15_000);
             assertEquals(pigId, death[0]);
             assertEquals(Protocol18.ENTITY_STATUS_DEAD, death[1]);
 

@@ -1716,8 +1716,12 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         var pairFirst = player.openContainerPairFirst();
         var pairSecond = player.openContainerPairSecond();
         boolean merged = pairFirst != null && pairSecond != null;
-        var firstChest = merged ? engine.chests().peek(pairFirst) : null;
-        var secondChest = merged ? engine.chests().peek(pairSecond) : null;
+        // Wave FL4-GAP2: the window's tile consults route through the
+        // OPEN's own dimension (the session's stamp).
+        var firstChest = merged
+                ? engine.chestsFor(player.openContainerDimension()).peek(pairFirst) : null;
+        var secondChest = merged
+                ? engine.chestsFor(player.openContainerDimension()).peek(pairSecond) : null;
         merged = merged && firstChest != null && secondChest != null;
         ByteBuf out = Unpooled.buffer(48);
         ByteBufOps.writeVarInt(out, Protocol18.S2C_OPEN_WINDOW);
@@ -1733,7 +1737,8 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             familyTitle = Protocol18.DOUBLE_CHEST_WINDOW_TITLE;
         } else {
             var openPos = player.openContainerPosition();
-            var namedChest = openPos == null ? null : engine.chests().peek(openPos);
+            var namedChest = openPos == null ? null
+                    : engine.chestsFor(player.openContainerDimension()).peek(openPos);
             customName = namedChest == null ? null : namedChest.customName();
         }
         ByteBufOps.writeString(out, windowTitle(customName, familyTitle));
@@ -1749,7 +1754,8 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             // synced — the per-tick view fan then re-syncs only on a later
             // change.
             var openAt = player.openContainerPosition();
-            var openedChest = openAt == null ? null : engine.chests().peek(openAt);
+            var openedChest = openAt == null ? null
+                    : engine.chestsFor(player.openContainerDimension()).peek(openAt);
             if (openedChest != null) {
                 chestSlotsSynced = openedChest.slotsSerial();
             }
@@ -4046,7 +4052,8 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         if (player.openContainerKind()
                 == net.zaminmc.torch.server.player.PlayerSession.ContainerKind.CHEST) {
             var position = player.openContainerPosition();
-            var chest = position == null ? null : engine.chests().peek(position);
+            var chest = position == null ? null
+                    : engine.chestsFor(player.openContainerDimension()).peek(position);
             if (chest != null) {
                 sendChestWindowItems(channel, windowId, chest, player);
             }

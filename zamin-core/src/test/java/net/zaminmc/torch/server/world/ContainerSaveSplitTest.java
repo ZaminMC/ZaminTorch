@@ -78,7 +78,7 @@ class ContainerSaveSplitTest {
         out.writeByte('Z');
         out.writeByte('C');
         out.writeByte('D');
-        out.writeByte(2);
+        out.writeByte(3);
         writeVarInt(out, chests.size());
         for (Map.Entry<BlockPosition, ChestBlockEntity> entry : chests.entrySet()) {
             BlockPosition position = entry.getKey();
@@ -89,6 +89,9 @@ class ContainerSaveSplitTest {
             for (ItemStack stack : chest.snapshotSlots()) {
                 writeLegacySlot(out, stack);
             }
+            // Wave FL4-GAP2: the row's own world (the overworld stamp — the
+            // seat's live map is the overworld family).
+            out.writeByte(0);
         }
         out.flush();
         return sink.toByteArray();
@@ -215,14 +218,18 @@ class ContainerSaveSplitTest {
 
         ChestDataStore store = new ChestDataStore(dir.resolve("chests.bin"));
 
-        byte[] split = store.serialize(store.capture(live));
+        Map<Integer, Map<BlockPosition, ChestBlockEntity>> byDimension = Map.of(0, live);
+        byte[] split = store.serialize(store.capture(byDimension));
         assertArrayEquals(legacyChestBytes(live), split,
                 "the off-tick serialization and the historical walk are byte-identical");
 
-        store.save(live);
+        store.save(byDimension);
         assertArrayEquals(split, Files.readAllBytes(dir.resolve("chests.bin")),
                 "the sync save's file carries the split path's bytes");
-        Map<BlockPosition, ChestBlockEntity> restored = store.load();
+        Map<BlockPosition, ChestBlockEntity> restored = new LinkedHashMap<>();
+        for (net.zaminmc.torch.server.chest.ChestDataStore.Loaded row : store.load()) {
+            restored.put(row.position(), row.chest());
+        }
         assertEquals(2, restored.size());
         ChestBlockEntity first = restored.get(new BlockPosition(10, 5, 10));
         assertEquals(12, first.snapshotSlots()[0].count());
@@ -266,8 +273,9 @@ class ContainerSaveSplitTest {
         assertArrayEquals(new byte[]{'Z', 'F', 'D', 2, 0}, furnaceBytes,
                 "the empty furnace snapshot is the version-2 header alone");
         byte[] chestBytes = chests.serialize(chests.capture(Map.of()));
-        assertArrayEquals(new byte[]{'Z', 'C', 'D', 2, 0}, chestBytes,
-                "the empty chest snapshot is the version-2 header alone");
+        assertArrayEquals(new byte[]{'Z', 'C', 'D', 3, 0}, chestBytes,
+                "the empty chest snapshot is the version-3 header alone"
+                        + " (Wave FL4-GAP2's dimension stamp)");
         byte[] hopperBytes = hoppers.serialize(hoppers.capture(Map.of()));
         assertArrayEquals(new byte[]{'Z', 'H', 'D', 1, 0}, hopperBytes,
                 "the empty hopper snapshot is the version-1 header alone");
