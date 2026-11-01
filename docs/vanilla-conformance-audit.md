@@ -6059,7 +6059,7 @@ package + the VT-012 seats 581/0 on the stacked tree, the spawner
 package / the dragon lane / the projectile egg lanes / the FX
 dimension-reads lane green.
 
-## The forty-first pass — the six-way union + the numbering reconciliation (the piston toBreak VT-025, the nether border VT-026, the post-fan stamp VT-027); F-SP1's passes 2-3 this run's head
+## The forty-second pass (this lane — first numbered the forty-first; RENUMBERED at the push: the sibling session's forty-first lane pushed `bcfa9850` at 07:27:05, minutes ahead of this lane's head 07:30:38 — the established concurrent-stream protocol, nothing public renamed) — the six-way union + the numbering reconciliation (the piston toBreak VT-025, the nether border VT-026, the post-fan stamp VT-027); F-SP1's passes 2-3 this run's head
 
 **The baseline:** `origin/develop` at `149eb1f0` (2026-11-01 07:04:47 —
 Wave FL4-GAP2 Slice B, the container remainder's per-dimension
@@ -6070,6 +6070,25 @@ five concurrent lanes' pushed branches: the thirty-ninth
 the conflict resolutions bookkeeping-only (the records unioned, the
 living sections — the ledger, the queue — refreshed to the newest
 truth).
+
+**THE SIBLING 41ST LANE'S 7b NOTE CORRECTED** (their
+`bcfa9850`): their VT-024 resolution — "the public-first protocol
+gives VT-024 to #131 (PR-opened 06:48 before any arrow-pickup PR
+exists); the arrow pickup envelope renumbers to VT-025" — weighs the
+PR-opening times, but PR #131 was opened claiming VT-023 (the
+number VT-024 first attached to its finding at the pass-39 lane's
+item 7a note, pushed 07:08:45), and the VT-020 precedent settles the
+metric: BRANCH PUSH times decide (the spawn-floor lane's push at
+06:04:09 vs the stick-face record's 06:05:09 — both claims bare
+branch pushes, no PRs). By that law the pass-38 lane's push at
+06:42:44 (commit `92fe4440` at 06:42:23, the VT-024 pickup-envelope
+record) owns VT-024, ahead of the pass-39 note's 07:08:45 — and the
+public artifact agrees: PR #131's title was updated at 07:29:59 to
+"VT-025 (renumbered — the arrow pickup envelope owns VT-024
+publicly, the pass-38 lane 06:42:44)". The piston toBreak is VT-025;
+the pickup envelope VT-024. Their lane's VT-018 work (the entity-hit
+bowhit, PR #124 widened) stands whole and rides this union's queue
+below.
 
 **The numbering reconciliation (the public-first protocol, three
 collisions resolved):**
