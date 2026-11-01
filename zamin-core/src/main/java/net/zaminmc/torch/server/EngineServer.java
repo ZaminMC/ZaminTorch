@@ -502,6 +502,10 @@ public final class EngineServer implements Server, EngineBridge {
     private net.zaminmc.torch.server.brewing.BrewingStandSystem endBrewingStands;
     /** The tripwire subsystem (Slice 10c): the occupancy scan + the hook walk. */
     private net.zaminmc.torch.server.redstone.TripwireSystem tripwireSystem;
+    /** The nether's own tripwire family (VT-036 — the chestsFor form). */
+    private net.zaminmc.torch.server.redstone.TripwireSystem netherTripwire;
+    /** The End's own tripwire family (VT-036 — the chestsFor form). */
+    private net.zaminmc.torch.server.redstone.TripwireSystem endTripwire;
     /** The observers of the TNT system (the protocol adapter's wire sync). */
     private final java.util.List<net.zaminmc.torch.server.tnt.TntSystem.Listener> tntListeners =
             new java.util.ArrayList<>();
@@ -1868,8 +1872,15 @@ public final class EngineServer implements Server, EngineBridge {
                                 x, y, z, power, true, false,
                                 net.zaminmc.torch.server.block.ExplosionService.BlastSource.PLAIN,
                                 null),
+                        this::redstoneFor, // VT-036 — the acting dimension's signal consult
                         fxManager, gameplayRandom, TNT_ID_BASE);
                 world.addChangeListener(tntSystem);
+                // VT-036 — the arrival arm (TntBlock.onAdded lines 38-43:
+                // a placement into power primes instantly) hears EVERY
+                // world's commits, the change-listener form the fire and
+                // leaf families already carry.
+                netherWorld.addChangeListener(tntSystem);
+                endWorld.addChangeListener(tntSystem);
                 tntSystem.addListener(new TntEventDispatch());
                 // The note blocks (Slice 27a): the note tiles + the three play
                 // arms (the use's tune-and-play, the survival attack's play,
@@ -2046,6 +2057,15 @@ public final class EngineServer implements Server, EngineBridge {
                 netherRedstone.addNeighborListener(netherPistons::neighborHeard);
                 endRedstone.addNeighborListener(endPistons::neighborHeard);
                 redstoneSystem.addNeighborListener(tntSystem::neighborHeard);
+                // VT-036 — the neighbor arm (TntBlock.neighborChanged lines
+                // 51-56) on EVERY dimension's bus: each bus closes over its
+                // own world, the signal consult routing through the acting
+                // dimension's redstone (the reference's per-WorldServer
+                // dispatch — a nether lever's flip primes a nether TNT).
+                netherRedstone.addNeighborListener(
+                        pos -> tntSystem.neighborHeard(netherWorld, pos));
+                endRedstone.addNeighborListener(
+                        pos -> tntSystem.neighborHeard(endWorld, pos));
                 // The hoppers (Slice 10b): the transfer system (the 8-tick
                 // cooldown, the push toward the FACING container, the pull
                 // from above + the item-entity suck, the powered disable
@@ -2086,46 +2106,38 @@ public final class EngineServer implements Server, EngineBridge {
                 }
                 // The tripwire (Slice 10c): the occupancy scan + the hook's
                 // chain walk, riding the redstone family's scheduled-tick
-                // queue + the cross-system neighbor bus.
+                // queue + the cross-system neighbor bus. VT-036 — the
+                // per-world law (the reference's per-WorldServer dispatch):
+                // EVERY dimension owns its own family, each instance hearing
+                // its OWN world's commits and its OWN redstone's power edges
+                // (the note family's Slice C form; the pre-fix single
+                // overworld system left a nether hook FLOATING over its
+                // removed wall and a nether wire over its removed floor).
                 tripwireSystem = new net.zaminmc.torch.server.redstone.TripwireSystem(
                         world, redstoneSystem, fxManager);
                 world.addChangeListener(tripwireSystem);
                 redstoneSystem.setTripwireTicker(tripwireSystem::scheduledTripwireTick);
                 redstoneSystem.addNeighborListener(tripwireSystem::neighborHeard);
-                // The occupancy probe (the engine's per-tick box test —
+                netherTripwire = new net.zaminmc.torch.server.redstone.TripwireSystem(
+                        netherWorld, netherRedstone, fxManager);
+                netherWorld.addChangeListener(netherTripwire);
+                netherRedstone.setTripwireTicker(netherTripwire::scheduledTripwireTick);
+                netherRedstone.addNeighborListener(netherTripwire::neighborHeard);
+                endTripwire = new net.zaminmc.torch.server.redstone.TripwireSystem(
+                        endWorld, endRedstone, fxManager);
+                endWorld.addChangeListener(endTripwire);
+                endRedstone.setTripwireTicker(endTripwire::scheduledTripwireTick);
+                endRedstone.addNeighborListener(endTripwire::neighborHeard);
+                // The occupancy probes (the engine's per-tick box test —
                 // the wire's slim shape, any body, items included like the
-                // reference's getEntities walk).
-                tripwireSystem.setOccupancyProbe(wire -> {
-                    double minX = wire.x(), maxX = wire.x() + 1;
-                    double minY = wire.y(), maxY = wire.y() + 0.15625;
-                    double minZ = wire.z(), maxZ = wire.z() + 1;
-                    for (net.zaminmc.torch.server.entity.MobEntity mob : mobs.all()) {
-                        net.zaminmc.torch.util.Position at = mob.position();
-                        if (at.x() >= minX && at.x() <= maxX && at.y() >= minY && at.y() <= maxY
-                                && at.z() >= minZ && at.z() <= maxZ) {
-                            return true;
-                        }
-                    }
-                    for (PlayerSession body : players.all()) {
-                        if (body.state() != net.zaminmc.torch.entity.PlayerState.PLAYING
-                                || body.gamemode() == GameMode.SPECTATOR) {
-                            continue; // canAvoidTraps
-                        }
-                        net.zaminmc.torch.util.Position at = body.position();
-                        if (at.x() >= minX && at.x() <= maxX && at.y() >= minY && at.y() <= maxY
-                                && at.z() >= minZ && at.z() <= maxZ) {
-                            return true;
-                        }
-                    }
-                    for (ItemEntity item : itemEntities.all()) {
-                        net.zaminmc.torch.util.Position at = item.position();
-                        if (at.x() >= minX && at.x() <= maxX && at.y() >= minY && at.y() <= maxY
-                                && at.z() >= minZ && at.z() <= maxZ) {
-                            return true;
-                        }
-                    }
-                    return false;
-                });
+                // reference's getEntities walk). VT-036 — the walks carry
+                // the dimension gate (the plate probe's FL4-F10 form, the
+                // per-world entity-list law: another dimension's body at
+                // the same coordinates is absent from the reference's
+                // getEntities walk, never a phantom trip).
+                wireTripwireProbes(tripwireSystem, 0);
+                wireTripwireProbes(netherTripwire, -1);
+                wireTripwireProbes(endTripwire, 1);
                 // Fluids (the Wave VI migration — the reference's liquid
                 // family 1:1: FlowingLiquidBlock/LiquidSourceBlock/
                 // LiquidBlock whole): the neighbor-bus wake path (onAdded +
@@ -3324,6 +3336,8 @@ public final class EngineServer implements Server, EngineBridge {
                     profiled("dispensers", netherDispensers::tick); // the nether's own family (Slice B)
                     profiled("dispensers", endDispensers::tick); // the End's own family (Slice B)
                     profiled("tripwire", tripwireSystem::tick); // the tripwire occupancy scan
+                    profiled("tripwire", netherTripwire::tick); // the nether's own family (VT-036)
+                    profiled("tripwire", endTripwire::tick); // the End's own family (VT-036)
                     profiled("tnt", tntSystem::tick); // the primed TNT fuses + physics
                     profiled("mining", blockInteraction::tickMining); // the vanilla dig accumulator + 0x28 stages
                     // (The fluids' own section retired with the Wave VI
@@ -6111,6 +6125,70 @@ public final class EngineServer implements Server, EngineBridge {
             return java.util.Objects.requireNonNull(endCommandBlocks, "end command blocks");
         }
         return commandBlocks;
+    }
+
+    /**
+     * The dimension's own tripwire family (VT-036 — the chestsFor form):
+     * each world's hooks and wires answer their OWN family, the reference's
+     * per-WorldServer dispatch.
+     */
+    public net.zaminmc.torch.server.redstone.TripwireSystem tripwireFor(int dimension) {
+        if (dimension == -1) {
+            return java.util.Objects.requireNonNull(netherTripwire, "nether tripwire");
+        }
+        if (dimension == 1) {
+            return java.util.Objects.requireNonNull(endTripwire, "end tripwire");
+        }
+        return tripwireSystem;
+    }
+
+    /**
+     * Wires one dimension's tripwire occupancy probe (VT-036 — the plate
+     * probe's FL4-F10 form): the engine's bodies walked with the dimension
+     * gate — another world's body at the same coordinates is absent from
+     * the reference's per-world getEntities walk (TripwireBlock
+     * lines 163-168), never a phantom trip.
+     */
+    private void wireTripwireProbes(net.zaminmc.torch.server.redstone.TripwireSystem system,
+                                    int dimension) {
+        system.setOccupancyProbe(wire -> {
+            double minX = wire.x(), maxX = wire.x() + 1;
+            double minY = wire.y(), maxY = wire.y() + 0.15625;
+            double minZ = wire.z(), maxZ = wire.z() + 1;
+            for (net.zaminmc.torch.server.entity.MobEntity mob : mobManager.all()) {
+                if (mob.dimension() != dimension) {
+                    continue; // another world's body is absent from this walk
+                }
+                net.zaminmc.torch.util.Position at = mob.position();
+                if (at.x() >= minX && at.x() <= maxX && at.y() >= minY && at.y() <= maxY
+                        && at.z() >= minZ && at.z() <= maxZ) {
+                    return true;
+                }
+            }
+            for (PlayerSession body : players.all()) {
+                if (body.dimension() != dimension
+                        || body.state() != net.zaminmc.torch.entity.PlayerState.PLAYING
+                        || body.gamemode() == GameMode.SPECTATOR) {
+                    continue; // canAvoidTraps
+                }
+                net.zaminmc.torch.util.Position at = body.position();
+                if (at.x() >= minX && at.x() <= maxX && at.y() >= minY && at.y() <= maxY
+                        && at.z() >= minZ && at.z() <= maxZ) {
+                    return true;
+                }
+            }
+            for (ItemEntity item : itemEntities.all()) {
+                if (item.dimension() != dimension) {
+                    continue; // another world's body is absent from this walk
+                }
+                net.zaminmc.torch.util.Position at = item.position();
+                if (at.x() >= minX && at.x() <= maxX && at.y() >= minY && at.y() <= maxY
+                        && at.z() >= minZ && at.z() <= maxZ) {
+                    return true;
+                }
+            }
+            return false;
+        });
     }
 
     /** The dimension's own note family (Wave FL4-GAP2 Slice C — the chestsFor form). */
