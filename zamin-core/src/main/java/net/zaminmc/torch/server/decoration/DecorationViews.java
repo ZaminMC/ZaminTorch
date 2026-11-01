@@ -27,11 +27,20 @@ public final class DecorationViews implements net.zaminmc.torch.decoration.Decor
 
     private final DecorationSystem decorations;
     private final net.zaminmc.torch.server.armorstand.ArmorStandSystem armorStands;
+    /**
+     * The world this view answers for (FL4-GAP2 Slice D — the per-world
+     * census): the frames and the paintings enumerate the dimension's OWN
+     * family, and the stands (one engine-wide system, dimension-stamped
+     * by Wave AS) filter to the same world.
+     */
+    private final int dimension;
 
     public DecorationViews(DecorationSystem decorations,
-                           net.zaminmc.torch.server.armorstand.ArmorStandSystem armorStands) {
+                           net.zaminmc.torch.server.armorstand.ArmorStandSystem armorStands,
+                           int dimension) {
         this.decorations = java.util.Objects.requireNonNull(decorations, "decorations");
         this.armorStands = java.util.Objects.requireNonNull(armorStands, "armorStands");
+        this.dimension = dimension;
     }
 
     @Override
@@ -55,9 +64,12 @@ public final class DecorationViews implements net.zaminmc.torch.decoration.Decor
     @Override
     public List<net.zaminmc.torch.decoration.Decorations.ArmorStand> armorStands() {
         // The stands' own monitor (the ArmorStandSystem's mutation arms
-        // hold it) — the same per-system snapshot law as the frames.
+        // hold it) — the same per-system snapshot law as the frames,
+        // filtered to THIS view's world (Wave AS's dimension stamps).
         synchronized (armorStands) {
-            return armorStands.allStands().stream().map(DecorationViews::stand).toList();
+            return armorStands.allStands().stream()
+                    .filter(stand -> stand.dimension() == dimension)
+                    .map(DecorationViews::stand).toList();
         }
     }
 

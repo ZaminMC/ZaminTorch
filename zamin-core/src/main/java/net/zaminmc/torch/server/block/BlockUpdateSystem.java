@@ -774,6 +774,41 @@ public final class BlockUpdateSystem implements WorldChangeListener {
             }
             return;
         }
+        // The bed family's pair integrity (VT-009 — BedBlock
+        // .neighborChanged lines 109-121): a half whose PAIR SIBLING is
+        // gone removes ITSELF — the FOOT arm DROPS the bed item (line
+        // 118's {@code dropItems(world, pos, state, 0)} — the foot half's
+        // own drop law, exactly one bed per pair), the HEAD arm silent
+        // (the head never drops; the reference drops only where PART ==
+        // FOOT). The reference's arm runs from ANY sibling removal path
+        // — a mined neighbor, a blast clipping one half, a fluid wash, a
+        // plugin write — because the removal's neighbor updates fire on
+        // the six neighbors; this drain is that wake's destination. The
+        // sibling consult reads the half's OWN facing-named cell
+        // (BedBlocks.facingPartner — VT-010's law, the reference's
+        // `state.get(FACING)` read, never a neighbor scan) with the
+        // block-CLASS test at that cell: a foreign bed pair standing
+        // adjacent never keeps a departed sibling's orphan alive, and a
+        // single-placed half floats until a neighbor changes, exactly
+        // vanilla.
+        if (BedBlocks.isHalf(world.getBlock(position))) {
+            BlockType bedType = world.getBlock(position);
+            BlockPosition sibling = BedBlocks.facingPartner(position, bedType);
+            if (sibling == null || !BedBlocks.isHalf(world.getBlock(sibling))) {
+                // The orphaned half removes itself; only the FOOT drops
+                // (line 118 — the HEAD arm's removeBlock is silent,
+                // lines 111-114).
+                world.setBlock(position, world.airType());
+                if (!BedBlocks.isHead(bedType)) {
+                    itemEntities.spawnDropAtBlock(
+                            new Position(position.x(), position.y(), position.z()),
+                            ItemStack.of(
+                                    net.zaminmc.torch.server.item.BuiltinItems.BED, 1),
+                            ItemEntity.PICKUP_DELAY_DROP_TICKS, world.dimension());
+                }
+            }
+            return;
+        }
         // The flower-pot's support rule (Slice 48 —
         // FlowerPotBlock.neighborChanged lines 122-128: the block below
         // must have a SOLID TOP; a departing support pops the pot WITH its

@@ -25,6 +25,15 @@ import java.util.Objects;
  * blocks, the pull at six ({@code v += d * |d| * 0.4} per component),
  * the snap at ten with the lead's drop.
  *
+ * <p>FL4-GAP2 Slice D — the per-world law: each dimension owns its OWN
+ * family (the reference's per-WorldServer leash knots — a knot lives in
+ * the world its fence stands in): the knots are keyed in this family's
+ * own map, the survival poll reads this family's OWN world's cells, the
+ * tie scan gates on the mob's own dimension, and every knot carries the
+ * family's dimension stamp (the wire's observer gate). The three
+ * families share ONE id supplier so the Spawn Object 77 ids stay unique
+ * across the worlds.</p>
+ *
  * <p>The mobs stay the MobManager's; this system owns the knots and the
  * per-tick walk. The wire events (the Spawn Object 77, the Attach Entity
  * pair, the Destroy Entities) fan through the listener.</p>
@@ -59,24 +68,43 @@ public final class LeadSystem {
 
     /** The engine's mob surface (the scan + the drop). */
     public interface Mobs {
-        /** Every live mob in the box (the tie scan). */
+        /**
+         * Every live mob in the box (the tie scan) — the caller's own
+         * dimension's bodies alone (FL4-GAP2 Slice D: the reference's
+         * per-WorldServer entity list; a same-coordinate mob in another
+         * world is no tie candidate).
+         */
         List<MobEntity> mobsIn(double minX, double minY, double minZ,
                                double maxX, double maxY, double maxZ);
 
-        /** The lead's drop at the mob (detachLeash's dropItem). */
-        void dropLead(Position at);
+        /**
+         * The lead's drop at the mob (detachLeash's dropItem) — stamped
+         * with the leashed body's own dimension (a nether mob's snapped
+         * lead drops a NETHER item).
+         */
+        void dropLead(Position at, int dimension);
     }
 
     private final Mobs mobs;
     private final List<Listener> listeners = new ArrayList<>();
     private final Map<BlockPosition, LeashKnot> knots = new LinkedHashMap<>();
-    private final int firstKnotId;
-    private int nextKnotId;
+    /** The knot id supplier — ONE band shared by every dimension's family. */
+    private final java.util.function.IntSupplier knotIds;
+    /** This family's world (the knots' survival poll reads ITS cells). */
+    private final net.zaminmc.torch.World world;
+    /** The fence identifier the survival poll accepts (canSurvive's own). */
+    private final Object fenceIdentifier;
+    /** The owning dimension (every knot this family creates carries it). */
+    private final int dimension;
 
-    public LeadSystem(Mobs mobs, int firstKnotId) {
+    public LeadSystem(Mobs mobs, java.util.function.IntSupplier knotIds,
+                      net.zaminmc.torch.World world, Object fenceIdentifier,
+                      int dimension) {
         this.mobs = Objects.requireNonNull(mobs, "mobs");
-        this.firstKnotId = firstKnotId;
-        this.nextKnotId = firstKnotId;
+        this.knotIds = Objects.requireNonNull(knotIds, "knotIds");
+        this.world = Objects.requireNonNull(world, "world");
+        this.fenceIdentifier = fenceIdentifier;
+        this.dimension = dimension;
     }
 
     public void addListener(Listener listener) {
@@ -196,7 +224,7 @@ public final class LeadSystem {
             listener.onMobDetached(mob);
         }
         if (dropLead) {
-            mobs.dropLead(mob.position());
+            mobs.dropLead(mob.position(), mob.dimension());
         }
     }
 
@@ -206,7 +234,7 @@ public final class LeadSystem {
         if (knot == null) {
             // The first taker creates the knot (LeadKnotEntity.attatch —
             // the Spawn Object 77 announcement rides the creation).
-            knot = new LeashKnot(nextKnotId++, fence);
+            knot = new LeashKnot(knotIds.getAsInt(), fence, dimension);
             knots.put(fence, knot);
             for (Listener listener : listeners) {
                 listener.onKnotSpawned(knot);
@@ -233,7 +261,7 @@ public final class LeadSystem {
         if (existing != null) {
             return existing; // the occupied anchor keeps its landed body
         }
-        LeashKnot knot = new LeashKnot(nextKnotId++, anchor);
+        LeashKnot knot = new LeashKnot(knotIds.getAsInt(), anchor, dimension);
         knots.put(anchor, knot);
         for (Listener listener : listeners) {
             listener.onKnotSpawned(knot);
@@ -291,6 +319,13 @@ public final class LeadSystem {
             if (!mob.isLeashed()) {
                 continue;
             }
+            // FL4-GAP2 Slice D — this family walks ITS OWN world's bodies
+            // alone (the reference's per-WorldServer entity tick): the
+            // leash rows live on the mob, but the knot consult and the
+            // survival poll below read this family's own world.
+            if (mob.dimension() != dimension) {
+                continue;
+            }
             if (mob.dead()) {
                 detachLeash(mob, true);
                 continue;
@@ -320,10 +355,13 @@ public final class LeadSystem {
                 leashPhysics(mob, knot.position());
             }
         }
-        // The knots' survival poll (DecorationEntity.tick's 100-tick walk).
+        // The knots' survival poll (DecorationEntity.tick's 100-tick walk)
+        // — over THIS family's own world (a nether knot survives on the
+        // NETHER's fences, never the overworld's cells at the same
+        // coordinates).
         List<LeashKnot> fallen = null;
         for (LeashKnot knot : knots.values()) {
-            if (!knot.tickSurvival(mobWorld, fenceIdentifier)) {
+            if (!knot.tickSurvival(world, fenceIdentifier)) {
                 if (fallen == null) {
                     fallen = new ArrayList<>();
                 }
@@ -416,21 +454,8 @@ public final class LeadSystem {
                 x + TIE_RANGE, y + TIE_RANGE, z + TIE_RANGE);
     }
 
-    // The knot survival's world read (set once at construction time).
-    private net.zaminmc.torch.World mobWorld;
-    private Object fenceIdentifier;
-
-    /**
-     * The world read the knots' survival poll uses (the engine wires the
-     * world and the fence's identifier at boot; the test seam).
-     */
-    public void setSurvivalRead(net.zaminmc.torch.World world, Object fenceIdentifier) {
-        this.mobWorld = world;
-        this.fenceIdentifier = fenceIdentifier;
-    }
-
-    /** The id band the knots live in (the wire's own space). */
-    public int firstKnotId() {
-        return firstKnotId;
+    /** The owning dimension (the knots' own stamp — the wire's observer gate). */
+    public int dimension() {
+        return dimension;
     }
 }

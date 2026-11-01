@@ -20,13 +20,15 @@ import java.util.Optional;
 import java.util.logging.Logger;
 
 /**
- * File-backed beacon state ("ZBT" format, version 1), one file per world —
+ * File-backed beacon state ("ZBT" format, version 2), one file per world —
  * the chest store's own durability rules.
  *
- * <p>Layout: magic 'Z','B','T',1 - beacons(varint count; each: x(i32) y(i32)
+ * <p>Layout: magic 'Z','B','T',2 - beacons(varint count; each: x(i32) y(i32)
  * z(i32) - levels(varint) - primary(varint) - secondary(varint) - payment
  * (present(u8) then item identifier(string) + count(varint) + damage(varint)
- * + displayName(varint-length UTF-8, 0 = none)).</p>
+ * + displayName(varint-length UTF-8, 0 = none)) then dimension(i8, Wave
+ * FL4-GAP2 Slice C: the row's own world, the chest store's own v+1 law;
+ * version 1 files load as overworld rows).</p>
  *
  * <p>Writes are atomic (temp file then atomic move), corrupt files load as
  * absent and are preserved beside the storage path, and save failures are
@@ -38,7 +40,7 @@ public final class BeaconDataStore {
     private static final int MAGIC_0 = 'Z';
     private static final int MAGIC_1 = 'B';
     private static final int MAGIC_2 = 'T';
-    private static final int FORMAT_VERSION = 1;
+    private static final int FORMAT_VERSION = 2;
 
     private final Path file;
 
@@ -46,8 +48,16 @@ public final class BeaconDataStore {
         this.file = java.util.Objects.requireNonNull(file, "file");
     }
 
-    /** Saves the full beacon map (the engine routes this through the ticker). */
-    public void save(Map<BlockPosition, BeaconBlockEntity> beacons) {
+    /**
+     * Saves every dimension's beacon map (the FL4-GAP2 Slice C union: one
+     * file, each row stamped with its own world — a nether beacon and an
+     * overworld beacon at the same coordinates are TWO tiles). The engine
+     * routes this through the ticker.
+     *
+     * @param beacons each dimension's live map (dimension id -> the map its
+     *                own BeaconSystem owns)
+     */
+    public void save(Map<Integer, Map<BlockPosition, BeaconBlockEntity>> beacons) {
         writeSerialized(serialize(capture(beacons)));
     }
 
@@ -74,25 +84,33 @@ public final class BeaconDataStore {
      */
     public record Snapshot(java.util.List<Row> rows) {
 
-        /** One beacon's persisted rows (the payment slot nullable). */
+        /** One beacon's persisted rows (the payment slot nullable, the
+         *  owning dimension stamped). */
         public record Row(int x, int y, int z, int levels, int primary, int secondary,
-                          Slot payment) {
+                          Slot payment, int dimension) {
         }
     }
 
     /**
-     * The deep capture of the live map — called ON the owning tick lane
-     * (the system's snapshot() is the map copy; this walks it into the
-     * immutable rows). The caller's map is not retained.
+     * The deep capture of every dimension's live maps — called ON the
+     * owning tick lane (each system's snapshot() is the map copy; this
+     * walks it into the immutable rows). The caller's map is not retained.
+     *
+     * @param beacons each dimension's live map (the FL4-GAP2 Slice C union)
      */
-    public Snapshot capture(Map<BlockPosition, BeaconBlockEntity> beacons) {
-        java.util.List<Snapshot.Row> rows = new java.util.ArrayList<>(beacons.size());
-        for (Map.Entry<BlockPosition, BeaconBlockEntity> entry : beacons.entrySet()) {
-            BlockPosition position = entry.getKey();
-            BeaconBlockEntity beacon = entry.getValue();
-            rows.add(new Snapshot.Row(position.x(), position.y(), position.z(),
-                    beacon.levels(), beacon.primary(), beacon.secondary(),
-                    Slot.of(beacon.payment())));
+    public Snapshot capture(Map<Integer, Map<BlockPosition, BeaconBlockEntity>> beacons) {
+        java.util.List<Snapshot.Row> rows = new java.util.ArrayList<>();
+        for (Map.Entry<Integer, Map<BlockPosition, BeaconBlockEntity>> byDimension
+                : beacons.entrySet()) {
+            int dimension = byDimension.getKey();
+            for (Map.Entry<BlockPosition, BeaconBlockEntity> entry
+                    : byDimension.getValue().entrySet()) {
+                BlockPosition position = entry.getKey();
+                BeaconBlockEntity beacon = entry.getValue();
+                rows.add(new Snapshot.Row(position.x(), position.y(), position.z(),
+                        beacon.levels(), beacon.primary(), beacon.secondary(),
+                        Slot.of(beacon.payment()), dimension));
+            }
         }
         return new Snapshot(java.util.List.copyOf(rows));
     }
@@ -128,6 +146,8 @@ public final class BeaconDataStore {
                     writeVarInt(out, payment.damage());
                     writeOptionalString(out, payment.displayName());
                 }
+                // The signed byte carries the dimension — -1 lands as u8 255.
+                out.writeByte(row.dimension());
             }
         } catch (IOException e) {
             // The sink is an in-memory buffer; an IOException here is a
@@ -158,10 +178,19 @@ public final class BeaconDataStore {
         }
     }
 
-    /** Loads the beacon map (unresolvable payment items drop with a warning). */
-    public Map<BlockPosition, BeaconBlockEntity> load() {
+    /** One loaded beacon row, stamped with the world it lives in. */
+    public record Loaded(BlockPosition position, int dimension, BeaconBlockEntity beacon) {
+    }
+
+    /**
+     * Loads the beacon rows, each stamped with its dimension (unresolvable
+     * payment items drop with a warning). A version 1 file's rows carry no
+     * dimension byte — they load as overworld rows (the migration law
+     * every FL4-GAP2 store carries).
+     */
+    public java.util.List<Loaded> load() {
         if (!Files.exists(file)) {
-            return Map.of();
+            return java.util.List.of();
         }
         try (DataInputStream in = new DataInputStream(new BufferedInputStream(
                 Files.newInputStream(file)))) {
@@ -169,11 +198,11 @@ public final class BeaconDataStore {
                 throw new IOException("Not a ZBT file");
             }
             int version = in.readByte();
-            if (version != FORMAT_VERSION) {
+            if (version < 1 || version > FORMAT_VERSION) {
                 throw new IOException("Unsupported ZBT version: " + version);
             }
             int count = readVarInt(in);
-            Map<BlockPosition, BeaconBlockEntity> loaded = new LinkedHashMap<>();
+            java.util.List<Loaded> loaded = new java.util.ArrayList<>(count);
             for (int i = 0; i < count; i++) {
                 int x = in.readInt();
                 int y = in.readInt();
@@ -197,7 +226,8 @@ public final class BeaconDataStore {
                                 + identifier);
                     }
                 }
-                loaded.put(new BlockPosition(x, y, z), beacon);
+                int dimension = version >= FORMAT_VERSION ? in.readByte() : 0;
+                loaded.add(new Loaded(new BlockPosition(x, y, z), dimension, beacon));
             }
             return loaded;
         } catch (IOException | RuntimeException corrupt) {
@@ -210,7 +240,7 @@ public final class BeaconDataStore {
                 LOGGER.warning("Beacon data file was unreadable and could not be preserved: "
                         + moveFailure);
             }
-            return Map.of();
+            return java.util.List.of();
         }
     }
 

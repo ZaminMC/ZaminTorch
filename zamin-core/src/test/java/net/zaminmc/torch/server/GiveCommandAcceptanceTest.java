@@ -194,8 +194,21 @@ class GiveCommandAcceptanceTest {
                 "the inventory is full");
         // Now a grant that cannot fit a single unit: everything drops.
         server.chatService().submitChat(alice, "/give Bob diamond 5");
-        await(() -> !server.itemEntities().all().isEmpty(), "the remainder dropped");
-        ItemEntity dropped = server.itemEntities().all().get(0);
+        // THE DROP IS PICKED BY ITS OWN SHAPE, never by list index (run
+        // 590's member, the SurvivalFlow family's own documented race):
+        // the engine's live list can gain OTHER entities concurrently —
+        // a natural drop or a leaf-decay pop between the await and the
+        // read — and an index-based get(0) then reads the wrong body
+        // (the observed failure: a natural drop's nonzero pickup delay
+        // answering the noPickUpDelay pin).
+        await(() -> server.itemEntities().all().stream().anyMatch(
+                item -> item.stack().type()
+                        .equals(net.zaminmc.torch.server.item.BuiltinItems.DIAMOND)),
+                "the remainder dropped");
+        ItemEntity dropped = server.itemEntities().all().stream().filter(
+                        item -> item.stack().type()
+                                .equals(net.zaminmc.torch.server.item.BuiltinItems.DIAMOND))
+                .findFirst().orElseThrow();
         assertEquals(0, dropped.pickupDelayTicks(), "noPickUpDelay: instantly collectable");
         assertEquals("Bob", dropped.owner(), "the owner window stamps the target");
         assertEquals(5, dropped.stack().count(), "the whole stack dropped");
