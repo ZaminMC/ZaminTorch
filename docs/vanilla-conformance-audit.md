@@ -1459,7 +1459,7 @@ effective law for the vanilla dimensions).
 | Portal mechanics — the riding gate (vehicle == null && rider == null) | VT-005 CONFIRMED (three passes — source, the pig-in-portal behavioral seat, the dismount-control independent pass) and **RESOLVED by PR #94 (MERGED)**; the seat's own hardening (the unlit-frame/same-submit-mount protocol, the PR-wave merge repair `3ca299e2`) survived the pass-27 carry-forward clobber only through the twenty-eighth pass's restoration — the seat 2/0 green on the #108 branch |
 | Drops — the TF-9 dimension stamp | LANDED by PR #90 (the dig/place walks stamp `world.dimension()`; the tile-family spill sites remain the per-dimension tile tail) |
 | Tile families — per-dimension stores | NOT INSPECTED as its own pass (the PR #90 ledger: the furnace/chest/skull/banner spill + cleanup ride the single-instance managers — the FL4 fluids/fire precedent applies; the nether tile placement/cleanup is its own architectural pass) |
-| Mob spawns — the dimension stamp | NOT INSPECTED (the PR #90 ledger names `MobManager.spawnAt`; the infested burst is the surfaced site) |
+| Mob spawns — the dimension stamp | **UNDER INVESTIGATION — VT-012 discovered (the twenty-ninth pass): the live spawn walks beyond the natural cycle never stamp the body's dimension — fourteen unstamped sites censused (eggs use+dispenser, the pearl's endermite, /summon mobs+stands+group, the wither, the spawner cart, the mooshroom shear, the infection, the cure, the slime split, breeding, the golems, the infested burst), seven correctly-stamped precedents beside, the pigman portal RETIRED (the reference's `isNatural()` gate); passes 1+2 landed (source census + seats RED on develop), pass 3 owed** |
 | FX broadcasts — the dimension awareness | NOT INSPECTED (the FxManager position-only API; the PR #90 ledger) |
 | World border — per-dimension | NOT INSPECTED (the reference's per-World border vs the engine's shared one; surfaced by the dig-start gate review) |
 | Zombie/mob arms — world binding | NOT INSPECTED (the zombie door-break consults the overworld field; surfaced by PR #90's cleanup threading) |
@@ -1663,6 +1663,162 @@ recorded). **VT-006's family census is now fully landed: the mobs
 TNT and falling families excluded by the census (no portal arm in the
 reference itself), the End-origin arm the named tail.**
 
+## The twenty-ninth pass — the item-9 dimension tails opened: VT-012 discovered (the spawn dimension stamp family)
+
+The pass-28 queue named three owed lanes: the F-SP1/F-DS1 passes, the
+item-9 dimension tails, and the cooldown-order watch. This pass opened
+the item-9 head — **the mob-spawn dimension stamp** (the PR #90
+ledger's own named tail, `MobManager.spawnAt` the named site) — and
+found the family whole: a large, source-verified, behaviorally
+demonstrated defect family behind the one named site.
+
+The setup: the branch `audit/verifier-pass-29-discovery` off the
+post-wave develop (`6b29c46f` — the vine wire rows, FL4-GAP2 Slice A's
+chest family, PR #105/#107 merged), the audit report carried whole.
+VT-012's discovery, both verification passes, and the record below all
+landed this run.
+
+## VT-012 — the live spawn walks beyond the natural cycle never stamp the body's dimension: every mob born through the non-natural entry points carries the overworld's 0, whatever dimension it is born in
+
+**Status: under verification (passes 1 and 2 landed; the independent
+re-verification pass owed).** Priority tier 2 (major gameplay and
+simulation mismatch — invisible mobs, phantom spawns, wrong-world
+physics reads, and a wrong persistence row, one root cause, many
+riders).
+
+**Affected ZaminTorch files and sites** (the unstamped `spawnAt`
+family — every site confirmed to call `MobManager.spawnAt`/`spawnFromEgg`
+without a following `setDimension`, against vanilla's
+`new XEntity(world)` construction law):
+
+| # | Site | The acting dimension vanilla uses | Engine site |
+|---|---|---|---|
+| 1 | Spawn eggs — the use wire | the use wire's `world` (player's) | `EngineServer` ~13695 + ~13730 (`spawnFromEgg`), `DispenserSystem` ~694 (the dispenser arm) |
+| 2 | Endermite at the pearl teleport | the pearl's `this.world` | `EngineServer` ~2445 (`setPearlSink`) |
+| 3 | `/summon` — the mob route | `source.getCommandSourceWorld()` | `EngineServer` ~30069 |
+| 4 | `/summon` — the armor stand route | same | `EngineServer` ~30059 (**hardcoded `0`**, the comment claims "console" but the sender is the player) |
+| 5 | The group-spawn command | same | `EngineServer` ~30122 (`spawnGroup`) |
+| 6 | The wither summon | the placing world | `EngineServer` ~3321 (`summonWither` — **no dimension in the signature at all**) |
+| 7 | The spawner minecart | the cart's own world | `EngineServer` ~15829-15844 (`spawnerCartHost` — **also binds the OVERWORLD `world` field for its spawn gates**, and its player/cap gates are dimension-blind) |
+| 8 | The sheared mooshroom's cow | the mooshroom's `this.world` | `EngineServer` ~16479 |
+| 9 | The zombie infection | the zombie's `this.world` | `MobManager.infectVillager` ~3071 |
+| 10 | The zombie-villager cure | the zombie's `this.world` | `MobManager.convertZombieToVillager` ~3101 |
+| 11 | The slime split | the parent's `this.world` | `MobManager` ~4141 (the split children) |
+| 12 | Breeding | the parents' `this.world` | `MobManager` ~4552 (the calf) |
+| 13 | The pumpkin golems | the placing world | `GolemSpawns.trySpawnGolem` ~92 + ~120 |
+| 14 | The infested burst's silverfish | the breaking world | `EngineServer.spawnSilverfishAt` ~25479 |
+
+**The sites that already stamp correctly** (the law is known to the
+engine — the gaps are not design): `spawnNaturalNether` (`-1`),
+the End dragon (`1`, EngineServer ~20178), the block spawner
+(`spawner.dimension()`, SpawnerManager ~380), the chicken egg (its
+`dimension` parameter, EngineServer `chickenHatch`), the zombie
+reinforcement (`caller.dimension()`, MobManager ~3528), the persistence
+restore (`restoreStateExtras`'s `setDimension`), and the anvil import
+(`EntityNbt.readNbt`'s `Dimension` row). The pigman portal spawn was
+censused and RETIRED: vanilla's `PortalBlock.tick` line 34 gates on
+`world.dimension.isNatural()` — the base Dimension returns true, the
+Nether and The End override false — so the overworld-lane-only
+registration and the dimension-0 stamp are both correct there.
+
+**Vanilla reference files** (1.8.8): `EnderPearlEntity.onCollision`
+(~line 52: `new EndermiteEntity(this.world)`), `SummonCommand` (line
+54: `source.getCommandSourceWorld()`), `SkullBlock` (line 185: `new
+WitherEntity(world)`), `MooshroomEntity` (line 38: `new
+CowEntity(this.world)`), `ZombieEntity` (line ~360 the infection's
+`new ZombieEntity(this.world)`; line 520 `convertToVillager`'s `new
+VillagerEntity(this.world)`), `SlimeEntity.getInstance` (line 138:
+`new SlimeEntity(this.world)`), `CowEntity.createChild` (line 110: `new
+CowEntity(this.world)`), `PumpkinBlock.trySpawnGolem` (lines 57/86),
+`InfestedBlock.dropItems` (~line 61: `new SilverfishEntity(world)`),
+`SpawnerMinecartEntity` (line 19: `getWorld()` returns the cart's own
+world), `SpawnEggItem.spawnEntity` (the use wire's `world` parameter).
+
+**Expected behavior:** a mob born in the nether lives in the nether —
+its spawn packet publishes to the nether's players, its physics and
+scans read the nether's cells, its targeting finds the nether's
+players, and its persistence row stamps -1.
+
+**Observed behavior** (the behavioral seats, RED on develop at exactly
+the stamp): `SpawnDimensionStampAcceptanceTest` — the nether player's
+pig egg spawns a body carrying `dimension = 0`; the nether player's
+`/summon Zombie` lands a body carrying `dimension = 0`; the overworld
+control members pass (the stamp is 0 where 0 is right).
+
+**The exact technical explanation:** `MobEntity.dimension` is a private
+field defaulting to 0; only `setDimension` writes it (the spawn walks
+and the portal arrival). `spawnAt` never writes it, and the fourteen
+sites above never call `setDimension` after their `spawnAt`/
+`spawnFromEgg`. The observable damage chains through three downstream
+gates: (1) the wire's own spawn filter (`V18Connection.sendMobSpawn`,
+Slice 25d: `dimensionOfSession() != mob.dimension()` → skip) — a
+wrong-stamped nether body never publishes to the nether player standing
+beside it, while an overworld player at the same chunk coordinates
+receives the phantom spawn; (2) the shared world query
+(`world.setActiveDimension(mob.dimension())` in the tick walk,
+MobManager ~1612-1735) — the body's physics, scans, and pathing read
+the OVERWORLD's cells at the nether's coordinates; (3) the persistence
+store (`stateExtrasOf` saves `mob.dimension()`) — the wrong row is
+saved whole and restored identically. The despawn walk's
+`nearestPlayingPlayer` gates on `player.dimension() != mob.dimension()`
+too — a wrong-stamped body finds no players and despawns as a ghost.
+
+**Reproduction evidence:** `SpawnDimensionStampAcceptanceTest`
+(zamin-core, this branch) — two nether members RED on develop
+(`expected: <-1> but was: <0>` at both), the overworld control GREEN
+3/3 when the family is fixed at these two members' sites.
+
+**Verification pass history:**
+- **Pass 1 — source (this run, 2026-11-01):** the vanilla census whole
+  (the table above; every site's `new XEntity(world)` read in the
+  reference tree), the engine census whole (fourteen unstamped sites,
+  seven correctly-stamped sites, one retired), and the three downstream
+  gates traced (sendMobSpawn's filter, the tick walk's
+  setActiveDimension, the persistence save).
+- **Pass 2 — behavioral (this run, 2026-11-01):** the seats RED on
+  develop at exactly the stamp (`expected: <-1> but was: <0>`, both
+  nether members), the overworld control GREEN — the discrepancy
+  demonstrated through the real use wire (`useItemOnBlock`) and the
+  real command route (`submitChat`), not a direct manager call.
+- **Pass 3 — independent re-verification: OWED** (challenge the
+  hypothesis from the execution path; hunt compensating behavior —
+  the `spawnDimension` field was already checked and only feeds the
+  local-difficulty dice, never the body's field; the deeper hunt and
+  the intentional-design ruling remain).
+
+**Confidence and uncertainties:** high on the family root cause and
+both demonstrated members; the other twelve members are
+source-verified but not behaviorally seated (the family shares one
+root cause, so the two seats + the census carry the demonstration;
+individual members' seats can ride the fix branch). Uncertainty: none
+known on the vanilla side; on the engine side the fix shape must
+choose per-site stamping vs a spawnAt-level derivation (the acting
+world is not threaded into spawnAt — the fix design belongs to pass 3
+and the fix branch).
+
+**Proposed minimal correction:** per-site, following the five landed
+stamping precedents — each of the fourteen sites stamps its own acting
+dimension (the egg routes `session.dimension()`, the pearl route
+`thrower.dimension()`, the summon routes `sender.dimension()`, the
+wither route the placement dimension (the signature gains the
+dimension), the spawner cart the cart's dimension (its host's gates
+also gain the routed world), the shear/infection/cure/split/breeding
+routes the source body's dimension, the golem routes the placing
+world's dimension, the silverfish route the break dimension). No
+architectural change: `setDimension` exists and the sites hold their
+dimension sources or can thread them.
+
+**Regression risks:** low — the stamping sites' overworld behavior is
+unchanged (dimension 0 is already the default); the risk concentrates
+in the spawner cart host (its overworld-bound `world` capture also
+feeds `canSpawnAt`/`canSpawnEntity` — routing those reads must not
+change the overworld cart's behavior) and in any test that pinned the
+unstamped value (none known; the overworld control seat pins the
+correct side).
+
+**Branch:** `audit/verifier-pass-29-discovery` (the discovery record
+and the seats); the fix branch owed after pass 3.
+
 ## The queue for the next pass
 
 1. ~~The VT-003 fix branch~~ — LANDED (PR #89, `IceFamilyParityTest` 11/0,
@@ -1771,3 +1927,19 @@ reference itself), the End-origin arm the named tail.**
    reference) common to all five families; the #98-reviewed shape, a
    candidate for its own narrow verification pass, never folded into
    #108.
+12. **The twenty-ninth pass's record: VT-012 discovered** (the
+   mob-spawn dimension stamp family — item 9's head, fourteen unstamped
+   sites, passes 1+2 landed). **The next run's head: VT-012's pass 3**
+   (the independent re-verification — challenge the hypothesis from
+   the execution path, hunt compensating behavior beyond the
+   `spawnDimension` dice check, rule out intentional design), then the
+   fix branch per the per-site stamping shape (the spawner cart host's
+   routed gates the one site needing care). The remaining item-9 tails
+   after the spawn stamp: **the world border per-dimension** (the
+   engine's single shared border, the EngineServer line-280 comment
+   itself naming "the engine's one border, the reference's worlds[0]" —
+   the vanilla law needs its own census: which of the reference's
+   per-world borders the commands and the wire consult), **the FX
+   dimension awareness**, **the zombie/mob arms' world binding**, and
+   **the item pickup consult**. The F-SP1/F-DS1 passes and the
+   cooldown-order watch remain owed.
