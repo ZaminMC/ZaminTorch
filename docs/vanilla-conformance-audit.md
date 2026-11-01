@@ -5504,13 +5504,22 @@ records. The chain this lane documents: #138 (the F-SP1 carrier) ->
 links rebasing the same way whichever carrier the maintainer picks at
 each level.
 
-## The fiftieth pass — F-SP5 discovered (the hook's wall consults, the F-SP class's fifth member): the tripwire hook's mount law reading the collision question where the reference reads Block.isSolid()
+## The fifty-first pass — F-SP5 discovered (the hook's wall consults, the F-SP class's fifth member): the tripwire hook's mount law reading the collision question where the reference reads Block.isSolid()
 
-**The lane protocol:** the fetch at the run's open found the forty-ninth
-name taken publicly by the concurrent lane (`audit/verifier-pass-49-discovery`,
+**THE LANE PROTOCOL:** the push at the run's close found the
+FIFTIETH name taken publicly by the concurrent lane first
+(`audit/verifier-pass-50-discovery`, its head `b3dbdfbb` — VT-033's
+correction, PR #146, the public-first renumbering protocol). This lane
+renumbered to the FIFTY-FIRST, the record's own header note carried
+— the pass-47/48 precedent, nothing public renamed.
+
+**The baseline protocol:** the fetch at the run's open found the
+forty-ninth name taken publicly by the concurrent lane
+(`audit/verifier-pass-49-discovery`,
 its head `b5303d3b` — VT-035's pass-1 census over the wire/plate/diode
-support family, the F-SP2 convergence territory). This lane took the
-FIFTIETH name and the standing head the forty-eighth pass's queue named:
+support family, the F-SP2 convergence territory). This lane opened on
+the name the window left and took the standing head the forty-eighth
+pass's queue named:
 the HOOK's wall consults — the lever/button class's law at the tripwire
 family's own two mount sites. The baseline: the latest develop
 `1139f2c3` merged into the lane (the F-SP1 carrier #139 MERGED, the
@@ -5604,7 +5613,7 @@ redstone block: the third conjunct's kill), the placement refusal
 (the hook against glass never landing in vanilla, landing in the
 engine), and the dirt control (the opaque mount holding in both).
 
-## The fiftieth pass's second and third acts — F-SP5 CONFIRMED through the three-pass discipline and CORRECTED (PR #150, stacked on the F-SP4 branch #148 — the chain #138 -> #141 -> #145 -> #148 -> #150)
+## The fifty-first pass's second and third acts — F-SP5 CONFIRMED through the three-pass discipline and CORRECTED (PR #150, stacked on the F-SP4 branch #148 — the chain #138 -> #141 -> #145 -> #148 -> #150)
 
 **Pass 2 (behavioral):** the seats RED on the unfixed baseline (the
 lane's merged tree over develop `1139f2c3`) at exactly the predicted
