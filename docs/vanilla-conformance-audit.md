@@ -5104,3 +5104,30 @@ new standing head; the placement-gate absorption rides the #137/#138
 pick; the merge watch refreshed to the eighteen-PR open set; the VT-025
 collision note standing.
 
+
+## The forty-seventh pass — the lane opens: the baseline advanced + the vt-013 lane's census unioned (the docs-only act)
+
+**The baseline:** the newest `origin/develop` (`efcd0c4f` — the FL4-GAP2
+Slice C landing, the VT-018 bowhit merges (#124), the three CI seat
+repairs) merged into the pass-46 union's lineage. The VT-029
+investigation reads THIS tree.
+
+**The union:** the vt-013-postfan lane's closing census direction rides
+in (its tip commit f4b55e40, not carried by the pass-46 union): the TF-12
+API is dimension-aware, but a coarse grep of the no-dimension overload
+callers finds **16+ sites in EngineServer alone** whose multi-line
+shapes the grep cannot resolve — several in PLAYER-SESSION contexts
+where the session's dimension is the acting one (the eat/burp/bow/drink
+family at ~6192/~6208/~8559/~8593/~8624, the thorns family at
+~7221/~7734/~7814 — a nether player's eat sound must play in the NETHER
+through the reference's per-world event listener sends, PlayerManager
+lines 630-640). This census feeds pass-45's VT-029 residual census (the
+tripwire shatter at TripwireSystem 343, the dispenser smoke trio at
+368/408/669) — the two censuses are the SAME finding's site lists.
+
+**THIS RUN'S HEAD: VT-029's completion** — the per-site source pass
+(pass 1's completion: every census site traced against the reference's
+per-world law), the behavioral seats (pass 2), the independent walk
+(pass 3), and the Phase E correction if confirmed. The hasSupportBelow
+family (the pass-46 queue's standing head) stands behind it — an
+in-flight finding's completion takes precedence over a fresh discovery.
