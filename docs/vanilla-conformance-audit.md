@@ -3801,7 +3801,7 @@ it), the TNT's survival asserted against the engine's detonation.
 | Explosions — dimension routing | AUDITED (the twenty-sixth pass): the CORE resolved by PR #100; the CART slice RESOLVED — **PR #105 MERGED** (`278b139e`, the review rider at `32af09f3`). The named tail stands: the End/nether services' shared `gameplayRandom` vs the reference's per-world `world.random` |
 | Item entities / pickup — dimension | the TF-9 stamped sites are the record; the pickup consult un-audited |
 | Projectile family — the stuck arrow's crossing (the portal-lights-later construction) | **VT-013 REJECTED** (the thirty-first pass's pass-3 challenge): the original hypothesis — a portal lighting around an already-stuck arrow crosses it — is disproven by the reference's own tick chain (`ArrowEntity.tick` line 381 calls the box scan from the FLIGHT branch alone; the `inGround` branch at 172-186 runs the stick clock and the tracked-block check only). The corrected seat (`PortalStuckArrowCrossingDiscoveryTest.theStuckArrowStaysWhenThePortalLightsAroundIt`) pins the true law — NO crossing — GREEN on develop AND on the #113 tree. No fix owed. The honest residue re-recorded as VT-014 (the stick placement) and VT-015 (the un-stick law), both below |
-| Projectile family — the stick's bowhit sound | **VT-018 SUSPECTED** (the thirty-second pass, pass 1 complete): the reference plays `random.bowhit` at the stick (ArrowEntity line 303); the engine's landed fan plays nothing (the sound exists in the engine at the tripwire alone). The FX-assert seat owed (pass 2) |
+| Projectile family — the stick's bowhit sound | **VT-018 CONFIRMED — three passes complete, Phase E eligible** (the pass-35 lane's source walk + the thirty-ninth's seat and independent challenge): the reference plays `random.bowhit` at BOTH impact arms — the BLOCK stick (ArrowEntity line 303, at the rest position, the pitch `1.2F/(rand·0.2+0.9)` band [1.0909, 1.3333], one draw per stick) and the ENTITY hit (line 276, before the remove); the engine plays NEITHER — the stick arm fires the no-op `onProjectileLanded` fan alone, `hitMob`/`hitPlayer`/`hitVehicle` soundless, `random.bowhit` at the tripwire alone. The seat RED on develop `777b7c86`: the stick in COMPLETE SILENCE (the recorder holding one event — the control pulse), the stuck position matching the known geometry; the POP CONTRAST decisive — the reference's third arrow sound (the pickup pop, line 436) IS wired with the exact pitch formula (the `onProjectileCollected` dispatch), the family's sounds implemented one by one, the bowhit pair alone missing. The fix: both arms play the sound (the arrow kind alone), the manager's `random` the draw source, the seat's pitch-band assert the parity pin |
 
 ## The queue for the next pass
 
@@ -3848,9 +3848,13 @@ it), the TNT's survival asserted against the engine's detonation.
    branch must re-run the five discovery seats green).
 3. ~~VT-014's and VT-015's seats~~ — **DONE BY FOUR LANES IN THE SAME
    WINDOW** (the quadruple convergence, item 0's PRs the carriers).
-3a. **VT-018's passes 2-3** (the pass-35 lane's discovery — the
-   stick's bowhit sound): the FX-assert seat + the independent walk
-   (the listener fan's consumers, the pitch row's RNG consumption).
+3a. ~~VT-018's passes 2-3~~ — **DONE (the thirty-ninth pass, this
+   lane)**: the FX-assert seat RED in complete silence (the control
+   heard) + the pass-3 walk that found the SECOND SITE (the
+   entity-hit bowhit, line 276 — the engine's hit paths soundless)
+   and the pop contrast — **VT-018 CONFIRMED whole, three passes,
+   Phase E eligible** (the record in the thirty-ninth pass's second
+   act; the fix covers both arms, the arrow kind alone).
 4. The merge watch: #106 MERGED (becf84b0), #115 MERGED (e17c538b);
    the OPEN set: #108, #109, #110, #111, #113 (the `!inGround` gate
    note posted), #114, #116 (VT-017), #117 (VT-014), #118 (F-DS1),
@@ -4259,3 +4263,77 @@ unchanged), and delete the post-loop `burningTntPass` (or gate it
 on the flew-this-tick record). The regression set: the projectile
 package whole (48/0 this run), `TntSystemTest` (2/0), the unit
 seat's re-pin beside.
+
+
+## The thirty-ninth pass, second act — VT-018 confirmed whole (the stick's bowhit sound): the seat, and the pass-3 walk's SECOND-SITE discovery
+
+**VT-018's pass 2 — the FX-assert seat, RED on develop `777b7c86`**
+(`ArrowStickBowhitSoundDiscoveryTest`, this lane's construction). A
+recorder on the `FxManager` bus captures every `Sound` event; a
+control pulse (`random.bow` injected at the platform) proves the
+recorder hears the boot; the VT-014 seat's own vertical drop (spawn
+`(50.5, 44.5, 50.5)`, velocity `(0, -0.8, 0)`) sticks the arrow in
+the platform's center block at the known endpoint
+**`Position[x=50.5, y=20.214295347071392, z=50.5]`** — and the
+recorder holds exactly ONE event through the stick (the control
+pulse): **the block stick lands in COMPLETE SILENCE — RED at exactly
+the finding's shape.** The reference plays
+`random.bowhit` at the rest position on that very tick (ArrowEntity
+line 303, `1.0F, 1.2F / (rand·0.2 + 0.9)` — the pitch band
+[1.0909, 1.3333], one fresh draw per stick, BEFORE
+`inGround = true`). The seat's second assert pins the pitch band for
+the fix's parity pin.
+
+**VT-018's pass 3 — the independent challenge, and the SECOND SITE.**
+
+1. **THE SECOND SITE DISCOVERED** (this walk's contribution — the
+   finding's scope widens): the reference plays `bowhit` at TWO
+   sites, not one. Line 303 is the BLOCK stick; **line 276 is the
+   ENTITY hit** — every mob/player the arrow's scan lands on plays
+   the same sound (the same formula, the same draw) BEFORE the
+   `remove()` (the arrow dies on entity hits in 1.8.8, Endermen
+   excepted by the reference's own gate). The engine plays NEITHER:
+   `hitMob`/`hitPlayer`/`hitVehicle` are soundless (the only
+   `fx.sound` in ProjectileManager is the shard break at line 1449,
+   the thrown bottle family's own feedback). The bowhit is the
+   arrow-family's impact signature at BOTH arm types — the fix must
+   cover both sites.
+2. **THE CONSUMERS WALK**: `onProjectileLanded`'s only registered
+   implementation is the protocol adapter's explicit no-op
+   (V18ProtocolServer line 1759, the position-sync comment); the
+   stick arm fires that fan alone (ProjectileManager line ~1197).
+   `random.bowhit` appears in the engine at the tripwire alone
+   (TripwireSystem line 313 — a different mechanic's sound).
+3. **THE POP CONTRAST** (the design-choice challenge, decisive): the
+   reference's THIRD arrow sound — the pickup pop (line 436,
+   `random.pop`, `((rand−rand)·0.7+1.0)·2.0`) — IS wired in the
+   engine, with the reference's exact pitch formula (the
+   `onProjectileCollected` dispatch, EngineServer line ~18487). The
+   arrow family's sound policy is not "silent" — the pop proves the
+   family's sounds were implemented one by one, and the bowhit pair
+   alone is missing. An omission, not a choice (the VT-006
+   precedent shape).
+4. **THE RNG ROW**: each bowhit play consumes ONE `nextFloat` (the
+   pitch draw) — two consumption sites in the reference, zero in the
+   engine. The fix's draws come from the manager's own `random` (the
+   same source the shard break's pitch uses — the closest mapping of
+   the reference's per-entity `this.random`).
+5. **THE EDGE WALK**: the entity-hit sound plays BEFORE the remove
+   (line 276 precedes line 279's `remove()`) — the fix plays it at
+   the hit verdict, never at the removal; the block-stick sound
+   plays at the BACKED-OFF rest position (line 303 follows the 0.05
+   backoff at lines 300-302) — the fix plays it at the rest, which
+   on develop's geometry is the endpoint (the fix composes with
+   VT-014's placement repair: on #117's tree the rest moves to the
+   face, the sound moves with it — the fix's parity pin asserts the
+   position beside the pitch band).
+
+**The verdict: VT-018 CONFIRMED — three passes** (the pass-35 lane's
+source walk; this lane's seat, RED in complete silence with the
+control heard; this lane's independent challenge — the second site,
+the consumers walk, the pop contrast, the RNG row, the edge walk).
+The proposed minimal correction: the stick arm and the three
+entity-hit verdicts each play
+`fx.sound(at, "random.bowhit", 1.0f, 1.2f / (random.nextFloat() * 0.2f + 0.9f), dimension)`
+(the arrow kind alone — the other kinds' impact sounds are their own
+families' laws); the seat's pitch-band assert the parity pin.
