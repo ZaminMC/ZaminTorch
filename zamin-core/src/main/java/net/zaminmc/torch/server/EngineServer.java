@@ -3669,6 +3669,20 @@ public final class EngineServer implements Server, EngineBridge {
                         return net.zaminmc.torch.server.block.MushroomBlocks
                                 .canPlantSurviveAt(world, target);
                     }
+                    if (name.startsWith("light_weighted_pressure_plate")
+                            || name.startsWith("heavy_weighted_pressure_plate")) {
+                        // The weighted pair's floor law (F-SP2 — the
+                        // inherited canSitOnTop, AbstractPressurePlateBlock
+                        // lines 72-74 over 84-86): hasSolidTop OR the
+                        // FenceBlock census — the pair rides the generic
+                        // placement path, the same law the special plate
+                        // site carries.
+                        net.zaminmc.torch.block.BlockType floor =
+                                world.getBlock(target.offset(0, -1, 0));
+                        return net.zaminmc.torch.server.block.SupportConsult.hasSolidTop(floor)
+                                || net.zaminmc.torch.server.block.WorldSolidity.isFence(
+                                        floor.identifier());
+                    }
                     return true;
                 });
                 // The double-plant pair arm (Slice 45 —
@@ -13284,8 +13298,15 @@ public final class EngineServer implements Server, EngineBridge {
                 && session.inventory().held().isEmpty()) {
             return;
         }
-        if (!WorldSolidity.isSolid(world.getBlock(target.offset(0, -1, 0)))) {
-            return; // the wire needs its solid bed (the vanilla gate)
+        if (!net.zaminmc.torch.server.block.SupportConsult.hasSolidTop(
+                world.getBlock(target.offset(0, -1, 0)))
+                && !world.getBlock(target.offset(0, -1, 0)).identifier()
+                        .equals(BuiltinBlocks.GLOWSTONE.identifier())) {
+            return; // the wire's floor law (RedstoneWireBlock.canBePlaced
+                    // lines 91-93, F-SP2): hasSolidTop OR the glowstone
+                    // disjunct — the translucent beds (glass, ice, the
+                    // leaves) and the non-cube beds (the fences, the
+                    // bottom slabs) never host the dust
         }
         world.setBlock(target, net.zaminmc.torch.server.redstone.RedstoneBlocks.wireOfPower(0));
         consumePlaced(session, creativeHeld);
@@ -13530,8 +13551,15 @@ public final class EngineServer implements Server, EngineBridge {
                 && session.inventory().held().isEmpty()) {
             return;
         }
-        if (!WorldSolidity.isSolid(world.getBlock(target.offset(0, -1, 0)))) {
-            return; // the plate needs its solid bed
+        if (!net.zaminmc.torch.server.block.SupportConsult.hasSolidTop(
+                world.getBlock(target.offset(0, -1, 0)))
+                && !WorldSolidity.isFence(
+                        world.getBlock(target.offset(0, -1, 0)).identifier())) {
+            return; // the plate's floor law (AbstractPressurePlateBlock
+                    // .canBePlaced lines 72-74 over canSitOnTop 84-86,
+                    // F-SP2): hasSolidTop OR the FenceBlock census — the
+                    // translucent beds and the non-cube beds outside the
+                    // seven fence families never host a plate
         }
         world.setBlock(target, net.zaminmc.torch.server.redstone.RedstoneBlocks.plateOf(false, wooden));
         consumePlaced(session, creativeHeld);
@@ -13612,8 +13640,11 @@ public final class EngineServer implements Server, EngineBridge {
                 && session.inventory().held().isEmpty()) {
             return;
         }
-        if (!WorldSolidity.isSolid(world.getBlock(target.offset(0, -1, 0)))) {
-            return; // the diode needs its solid bed
+        if (!net.zaminmc.torch.server.block.SupportConsult.hasSolidTop(
+                world.getBlock(target.offset(0, -1, 0)))) {
+            return; // the diode's floor law (DiodeBlock.canBePlaced lines
+                    // 29-31, F-SP2): hasSolidTop ALONE — no glowstone
+                    // disjunct, no fence arm
         }
         double yaw = ((session.rotation().yaw() % 360.0) + 360.0 + 45.0) % 360.0;
         int lookBand = (int) (yaw / 90.0) % 4; // 0=S,1=W,2=N,3=E of the look
@@ -13645,8 +13676,11 @@ public final class EngineServer implements Server, EngineBridge {
                 && session.inventory().held().isEmpty()) {
             return;
         }
-        if (!WorldSolidity.isSolid(world.getBlock(target.offset(0, -1, 0)))) {
-            return; // the diode needs its solid bed
+        if (!net.zaminmc.torch.server.block.SupportConsult.hasSolidTop(
+                world.getBlock(target.offset(0, -1, 0)))) {
+            return; // the diode's floor law (DiodeBlock.canBePlaced lines
+                    // 29-31, F-SP2): hasSolidTop ALONE — no glowstone
+                    // disjunct, no fence arm
         }
         double yaw = ((session.rotation().yaw() % 360.0) + 360.0 + 45.0) % 360.0;
         int lookBand = (int) (yaw / 90.0) % 4; // 0=S,1=W,2=N,3=E of the look
@@ -15967,8 +16001,10 @@ public final class EngineServer implements Server, EngineBridge {
                 && !WorldSolidity.isReplaceable(above.identifier())) {
             return; // the upper half's headroom
         }
-        if (!WorldSolidity.isSolid(world.getBlock(target.offset(0, -1, 0)))) {
-            return; // World.hasSolidTop: no floor, no door
+        if (!net.zaminmc.torch.server.block.SupportConsult.hasSolidTop(
+                world.getBlock(target.offset(0, -1, 0)))) {
+            return; // World.hasSolidTop (DoorBlock.canBePlaced line 214,
+                    // F-SP2's door member): no floor, no door
         }
         if (intersectsPlayerBox(session.position(), target)) {
             return; // the vanilla body rule (the reference's own entity collision check)
@@ -16332,11 +16368,13 @@ public final class EngineServer implements Server, EngineBridge {
                 && session.inventory().held().isEmpty()) {
             return;
         }
-        if (!net.zaminmc.torch.server.block.FireBlocks
-                .hasSolidTop(world, target.offset(0, -1, 0))) {
-            return; // canBePlaced (lines 71-73): the has-solid-top family,
-                    // not the collision model — a bottom slab, a fence, a
-                    // wall or the thin snow is not a rail bed
+        if (!net.zaminmc.torch.server.block.SupportConsult.hasSolidTop(
+                world.getBlock(target.offset(0, -1, 0)))) {
+            return; // canBePlaced (lines 71-73): the has-solid-top law
+                    // (SupportConsult's five arms, F-SP2) — a bottom slab,
+                    // a fence, a wall, the thin snow AND the translucent
+                    // beds (glass, ice, TNT, the leaves, the glowstone)
+                    // are not rail beds
         }
         // The DEFAULT state lands (RailBlock line 15 / PoweredRailBlock
         // line 29: NORTH_SOUTH — the look is never consulted anywhere in

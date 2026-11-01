@@ -309,53 +309,26 @@ public final class FireBlocks {
     // ------------------------------------------------------------------
 
     /**
-     * The reference's World.hasSolidTop (World.java lines 1740-1750, 1:1
-     * over the engine's surfaces): the full-cube common case through
-     * {@link WorldSolidity#isSolid} (the engine's own solid predicate —
-     * the reference's material.isSolidBlocking + isCube pair has no
-     * separate engine form, named), with the partial families carrying
-     * their own arms BEFORE it (the reference's StairsBlock/SlabBlock
-     * else-chain): the stairs TOP half alone (a bottom stair is not),
-     * the single slab's TOP half alone (a double slab IS a full cube —
-     * the fallthrough answers it), the hopper, and the never-solid-tops
-     * the reference's isCube gate refuses (fences, gates, walls, chests,
-     * the 1-layer snow). The 7-layer snow arm never fires: the engine's
-     * snow layer is the single 1-layer state.
+     * The reference's World.hasSolidTop (World.java lines 1740-1752) —
+     * delegated whole to {@link SupportConsult#hasSolidTop}, the shared
+     * consult's five arms 1:1 (the solid-blocking cube over the material
+     * law, the TOP-half stairs, the TOP-half slabs with the {@code
+     * _slab2} family, the hopper band, the seven-layer snow).
+     *
+     * <p>F-SP3: the pre-fix form carried its own arms with a TRANSLUCENT
+     * FALLOUT — the common case fell through to {@link
+     * WorldSolidity#isSolid}, so GLASS, ICE, TNT, every {@code _leaves},
+     * the GLOWSTONE, the SEA_LANTERN and the CACTUS all answered TRUE
+     * where the reference's {@code material.isSolidBlocking() && isCube()}
+     * answers FALSE for each: a fire standing on any of them SURVIVED
+     * where vanilla pops it at the same neighbour update (absent a
+     * flammable neighbour), and the rail consult that once read this
+     * form held its floors the same way. The delegation retires the
+     * duplicated arms with the one precise law — the reference's own
+     * census, the MaterialSolidity translucent set never answering.</p>
      */
     public static boolean hasSolidTop(EngineWorld world, BlockPosition pos) {
-        BlockType type = world.getBlock(pos);
-        Identifier id = type.identifier();
-        if (!id.namespace().equals("minecraft")) {
-            return false;
-        }
-        String value = id.value();
-        // StairsBlock: the TOP half alone.
-        if (value.contains("_stairs_")) {
-            return value.endsWith("_top");
-        }
-        // SlabBlock: the single slab's TOP half alone; a double slab is a
-        // full cube (the fallthrough).
-        if (value.endsWith("_slab_top")) {
-            return true;
-        }
-        if (value.endsWith("_slab") && !value.startsWith("double_")) {
-            return false;
-        }
-        // HopperBlock — every facing/enabled state (the engine's
-        // {@code hopper_*} band).
-        if (value.startsWith("hopper_")) {
-            return true;
-        }
-        // The never-solid-tops (the reference's isCube gate): the fences,
-        // the gates, the walls, the chests, the 1-layer snow.
-        if (value.endsWith("_fence") || value.endsWith("_fence_gate")
-                || value.endsWith("_wall") || value.contains("chest")
-                || value.equals("snow_layer")) {
-            return false;
-        }
-        // The full-cube common case (stone, dirt, grass, planks, logs,
-        // leaves, tnt, netherrack, bedrock — and the doubles above).
-        return WorldSolidity.isSolid(type);
+        return SupportConsult.hasSolidTop(world.getBlock(pos));
     }
 
     /**

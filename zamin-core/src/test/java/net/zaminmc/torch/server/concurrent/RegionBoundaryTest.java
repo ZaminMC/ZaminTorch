@@ -290,6 +290,13 @@ class RegionBoundaryTest {
                         PistonBlocks.pistonOf(EAST, false, true));
                 server.world().setBlock(new BlockPosition(x + 1, y, z), BuiltinBlocks.STONE);
                 server.world().setBlock(new BlockPosition(x, y + 1, z),
+                        BuiltinBlocks.STONE);
+                // F-SP1's harness law: the lever never rides the piston
+                // itself (PistonBaseBlock.isCube() false — hasSolidTop
+                // refuses it, the reference's own consult); the stone
+                // above carries the lever, the flip's strong power
+                // entering the stone re-radiating to the piston below.
+                server.world().setBlock(new BlockPosition(x, y + 2, z),
                         RedstoneBlocks.leverOf(5, false));
             });
             await(() -> PistonBlocks.isPiston(typeAt(server, x, y, z)),
@@ -298,7 +305,7 @@ class RegionBoundaryTest {
             // regions, the head lands across the seam, the pushed stone one
             // cell further — same-tick and vanilla-exact.
             server.ticker().submit(() -> server.redstone().useLever(
-                    new BlockPosition(x, y + 1, z)));
+                    new BlockPosition(x, y + 2, z)));
             await(() -> PistonBlocks.pistonExtended(typeAt(server, x, y, z)),
                     "the piston extended across the seam");
             await(() -> PistonBlocks.isPistonHead(typeAt(server, x + 1, y, z)),
@@ -309,7 +316,7 @@ class RegionBoundaryTest {
             // Power off: the sticky pull drags the stone back across the
             // seam to the head's cell.
             server.ticker().submit(() -> server.redstone().useLever(
-                    new BlockPosition(x, y + 1, z)));
+                    new BlockPosition(x, y + 2, z)));
             await(() -> !PistonBlocks.pistonExtended(typeAt(server, x, y, z)),
                     "the piston retracted");
             await(() -> typeAt(server, x + 1, y, z).identifier().value().equals("stone"),

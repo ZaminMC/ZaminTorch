@@ -173,12 +173,16 @@ class BukkitEventBridgeGroupTwoTest {
         // the observation's cells are done once the extend landed.)
         BlockPosition piston = new BlockPosition(20, 40, 20);
         BlockPosition stone = new BlockPosition(21, 40, 20);
-        BlockPosition lever = new BlockPosition(20, 41, 20);
+        BlockPosition lever = new BlockPosition(20, 42, 20);
         harness.server.ticker().submit(() -> {
             harness.server.world().setBlock(piston, PistonBlocks.pistonOf(5, false, true));
             harness.server.world().setBlock(stone, BuiltinBlocks.STONE);
-            // The core suite's own lever shape (up_z — mounted on the block
-            // below, the piston itself: solid, no pop).
+            // The vanilla-valid mount (PistonBaseBlock.isCube() false — a
+            // lever never rides the piston base): the stone above the
+            // piston carries the lever, the flip's strong power entering
+            // the stone re-radiating to the piston below.
+            harness.server.world().setBlock(new BlockPosition(20, 41, 20),
+                    BuiltinBlocks.STONE);
             harness.server.world().setBlock(lever, RedstoneBlocks.leverOf(5, false));
         });
         harness.await(() -> PistonBlocks.isPiston(blockType(harness, piston)),
@@ -194,10 +198,14 @@ class BukkitEventBridgeGroupTwoTest {
         // pull target placed directly beyond the settled head (no flight
         // storm — the retract arms only at the lever's own OFF).
         BlockPosition piston2 = new BlockPosition(20, 40, 23);
-        BlockPosition lever2 = new BlockPosition(20, 41, 23);
+        BlockPosition lever2 = new BlockPosition(20, 42, 23);
         BlockPosition pullTarget = new BlockPosition(22, 40, 23);
         harness.server.ticker().submit(() -> {
             harness.server.world().setBlock(piston2, PistonBlocks.pistonOf(5, false, true));
+            // The vanilla-valid mount: the stone above the piston carries
+            // the lever (the flip's strong power re-radiating down).
+            harness.server.world().setBlock(new BlockPosition(20, 41, 23),
+                    BuiltinBlocks.STONE);
             harness.server.world().setBlock(lever2, RedstoneBlocks.leverOf(5, false));
         });
         harness.await(() -> PistonBlocks.isPiston(blockType(harness, piston2)),

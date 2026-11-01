@@ -443,7 +443,18 @@ public final class BlockUpdateSystem implements WorldChangeListener {
             return;
         }
         if (identifier.equals(TORCH)) {
-            if (!world.getBlock(position.offset(0, -1, 0)).equals(world.airType())) {
+            // TorchBlock.canSurviveOrBreak over canAttach (lines 91-93 +
+            // 124-135): the FLOOR arm alone — the engine's single standing
+            // state (the wall states ride the redstone family's own
+            // vocabulary). canSitOnTop (TorchBlock lines 49-56): hasSolidTop's
+            // five arms OR the explicit FENCES/GLASS/COBBLESTONE_WALL/
+            // STAINED_GLASS list — the translucent floors, the flora, the
+            // rails and every other non-hosting floor pop the torch, the
+            // stone through hasSolidTop and the glass through the list
+            // hosting it exactly as the reference does (F-SP2's plain-torch
+            // walk, the #137/#138 lanes' named row).
+            if (net.zaminmc.torch.server.block.SupportConsult
+                    .torchCanSitOnTop(world.getBlock(position.offset(0, -1, 0)))) {
                 return; // supported
             }
             world.setBlock(position, world.airType());
