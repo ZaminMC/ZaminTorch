@@ -4385,3 +4385,31 @@ not just to develop"):
   lanes' own discoveries this window (the piston entity gate, the
   flight band) — their records ride their branches; the next union
   folds them in.
+
+
+## The thirty-ninth pass, fourth act — VT-023's cross-tree verification (the flight band's two grazing edges, seated and run on the fix tree)
+
+The flight-band fix (**PR #128**, `fix/burning-arrow-flight-band-parity-audit`
+`60bf1662` — the lane that elevated VT-019's named tail (b) to its
+own finding) was verified through this lane's own quantified
+constructions (`BurningArrowFlightBandDiscoveryTest`, the full-boot
+deterministic one-tick flights isolating the band window alone — the
+arrow clears the TNT's column before gravity can carry it into the
+cell, the sample consult never firing):
+
+- **Seat 1 — the FALSE PRIME** (the flight at post-step `y=41.15`
+  over a TNT at cell 40): **RED on develop** (the TNT GONE — the
+  symmetric band's lower edge 40.901 reaching a half-block below the
+  reference's box bottom), **GREEN on the fix tree** (the feet-law
+  band [41.151, 41.649] covers cell 41 alone — the TNT stands).
+- **Seat 2 — the MISSED PRIME** (the flight at post-step `y=41.55`
+  under a TNT at cell 42): **RED on develop** (the TNT still STANDS —
+  the symmetric band's top 41.799 covering cell 41 alone), **GREEN on
+  the fix tree** (the feet-law band [41.551, 42.049] touches cell 42 —
+  the prime fires, the block leaves).
+
+Two independent constructions, both edges, one law — the review note
+posted on the PR with the construction details. The PR's own record
+(the column-crossing helper, the #123-union verification, the
+regression lanes) agrees with this lane's reading on every point of
+the law.
