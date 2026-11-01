@@ -13315,8 +13315,12 @@ public final class EngineServer implements Server, EngineBridge {
     /**
      * The repeater's use (RepeaterBlock.use lines 38-45): the right-click
      * steps the DELAY property through 1..4 and back to 1 — the state swap
-     * preserves the facing and the powered pair. Returns whether the use
-     * was consumed. Tick-thread context.
+     * preserves the facing and the powered pair. SILENT: no playSound and
+     * no doEvent anywhere in the reference's repeater family (RepeaterBlock
+     * + the DiodeBlock parent, swept whole) — the CLICK belongs to the
+     * comparator alone (ComparatorBlock.use lines 148-152, the pitch
+     * answering the new mode; VT-034 retired the phantom this arm played).
+     * Returns whether the use was consumed. Tick-thread context.
      */
     private boolean cycleRepeaterDelayOnTick(BlockPosition clicked, EngineWorld world) {
         BlockType current = world.getBlock(clicked);
@@ -13326,8 +13330,6 @@ public final class EngineServer implements Server, EngineBridge {
         int delay = net.zaminmc.torch.server.redstone.RedstoneBlocks.repeaterDelay(current);
         int next = delay >= 4 ? 1 : delay + 1;
         world.setBlock(clicked, net.zaminmc.torch.server.redstone.RedstoneBlocks.repeaterWithDelay(current, next));
-        fxManager.sound(new Position(clicked.x() + 0.5, clicked.y() + 0.5, clicked.z() + 0.5),
-                "random.click", 0.3f, 0.6f);
         return true;
     }
 
