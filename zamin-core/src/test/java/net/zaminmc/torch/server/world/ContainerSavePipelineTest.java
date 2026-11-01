@@ -48,7 +48,7 @@ class ContainerSavePipelineTest {
         furnace.setSlot(FurnaceBlockEntity.SLOT_FUEL,
                 ItemStack.of(BuiltinItems.COAL, 2));
         furnace.restore(1370, 1600, 88);
-        return store.capture(Map.of(new BlockPosition(7, 4, -3), furnace));
+        return store.capture(Map.of(0, Map.of(new BlockPosition(7, 4, -3), furnace)));
     }
 
     /** The owner's drain loop (the ticker's own rhythm), bounded. */
@@ -93,8 +93,7 @@ class ContainerSavePipelineTest {
                     "the off-tick serialization measurement recorded");
 
             // the round-trip: the landed file restores the same furnace
-            FurnaceBlockEntity restored = store.load()
-                    .get(new BlockPosition(7, 4, -3));
+            FurnaceBlockEntity restored = store.load().get(0).furnace();
             assertEquals(5, restored.input().count());
             assertEquals(1370, restored.burnTimeRemaining());
         } finally {

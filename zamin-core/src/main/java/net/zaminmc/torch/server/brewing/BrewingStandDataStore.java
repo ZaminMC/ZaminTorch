@@ -16,20 +16,26 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.logging.Logger;
 
 /**
- * File-backed brewing stand state ("ZBD" format, version 1), one file per
+ * File-backed brewing stand state ("ZBD" format, version 2), one file per
  * world (Slice 11f — the ledgered slot + timer persistence of the 11e
  * slice, the reference's own readNbt/writeNbt Items + BrewTime pair).
  *
- * <p>Layout: magic 'Z','B','D',1 - stands(varint count; each: x(i32)
+ * <p>Layout: magic 'Z','B','D',2 - stands(varint count; each: x(i32)
  * y(i32) z(i32) - brewTime(varint) - slots(4 entries; each: present(u8)
  * then item identifier(string) + count(varint) + damage(varint) +
- * displayName(varint-length UTF-8, 0 = none))).</p>
+ * displayName(varint-length UTF-8, 0 = none)) - dimension(i8, Wave
+ * FL4-GAP2 Slice B: the row's own world, the chest store's own stamp law
+ * — -1 lands as u8 255)). Version 1 files load every row as an overworld
+ * row (the migration law — the pre-Slice-B store was the overworld's
+ * single map).</p>
  *
  * <p>The reference does not persist the armed ingredient identity — a
  * restored mid-brew cycle cancels on the first post-load tick (the
@@ -46,7 +52,7 @@ public final class BrewingStandDataStore {
     private static final int MAGIC_0 = 'Z';
     private static final int MAGIC_1 = 'B';
     private static final int MAGIC_2 = 'D';
-    private static final int FORMAT_VERSION = 1;
+    private static final int FORMAT_VERSION = 2;
 
     private final Path file;
 
@@ -55,10 +61,15 @@ public final class BrewingStandDataStore {
     }
 
     /**
-     * Saves the full stand map. Callers snapshot state on the tick thread
-     * before calling (the engine routes this through the ticker).
+     * Saves every dimension's stand map (the FL4-GAP2 Slice B union: one
+     * file, each row stamped with its own world — the chest store's own
+     * law). Callers snapshot state on the tick thread before calling (the
+     * engine routes this through the ticker).
+     *
+     * @param stands each dimension's live map (dimension id -> the map its
+     *               BrewingStandSystem owns)
      */
-    public void save(Map<BlockPosition, BrewingStandBlockEntity> stands) {
+    public void save(Map<Integer, Map<BlockPosition, BrewingStandBlockEntity>> stands) {
         writeSerialized(serialize(capture(stands)));
     }
 
@@ -85,28 +96,40 @@ public final class BrewingStandDataStore {
      */
     public record Snapshot(java.util.List<Row> rows) {
 
-        /** One brewing stand's persisted rows. */
-        public record Row(int x, int y, int z, int timer, java.util.List<Slot> slots) {
+        /** One brewing stand's persisted rows, stamped with its own world. */
+        public record Row(int x, int y, int z, int timer, int dimension,
+                          java.util.List<Slot> slots) {
         }
     }
 
     /**
-     * The deep capture of the live map — called ON the owning tick lane
-     * (the system's snapshot() is the map copy; this walks it into the
-     * immutable rows). The caller's map is not retained.
+     * The deep capture of every dimension's live maps — called ON the
+     * owning tick lane (each system's snapshot() is the map copy; this
+     * walks them into the immutable rows). The caller's maps are not
+     * retained.
      */
-    public Snapshot capture(Map<BlockPosition, BrewingStandBlockEntity> stands) {
-        java.util.List<Snapshot.Row> rows = new java.util.ArrayList<>(stands.size());
-        for (Map.Entry<BlockPosition, BrewingStandBlockEntity> entry : stands.entrySet()) {
-            BlockPosition position = entry.getKey();
-            BrewingStandBlockEntity stand = entry.getValue();
-            net.zaminmc.torch.item.ItemStack[] liveSlots = stand.snapshotSlots();
-            java.util.List<Slot> slots = new java.util.ArrayList<>(liveSlots.length);
-            for (net.zaminmc.torch.item.ItemStack stack : liveSlots) {
-                slots.add(Slot.of(stack));
+    public Snapshot capture(Map<Integer, Map<BlockPosition, BrewingStandBlockEntity>> stands) {
+        int total = 0;
+        for (Map<BlockPosition, BrewingStandBlockEntity> map : stands.values()) {
+            total += map.size();
+        }
+        java.util.List<Snapshot.Row> rows = new java.util.ArrayList<>(total);
+        for (Map.Entry<Integer, Map<BlockPosition, BrewingStandBlockEntity>> byDimension
+                : stands.entrySet()) {
+            int dimension = byDimension.getKey();
+            for (Map.Entry<BlockPosition, BrewingStandBlockEntity> entry
+                    : byDimension.getValue().entrySet()) {
+                BlockPosition position = entry.getKey();
+                BrewingStandBlockEntity stand = entry.getValue();
+                net.zaminmc.torch.item.ItemStack[] liveSlots = stand.snapshotSlots();
+                java.util.List<Slot> slots = new java.util.ArrayList<>(liveSlots.length);
+                for (net.zaminmc.torch.item.ItemStack stack : liveSlots) {
+                    slots.add(Slot.of(stack));
+                }
+                rows.add(new Snapshot.Row(position.x(), position.y(), position.z(),
+                        stand.timer(), dimension,
+                        java.util.Collections.unmodifiableList(slots)));
             }
-            rows.add(new Snapshot.Row(position.x(), position.y(), position.z(),
-                    stand.timer(), java.util.Collections.unmodifiableList(slots)));
         }
         return new Snapshot(java.util.List.copyOf(rows));
     }
@@ -141,6 +164,9 @@ public final class BrewingStandDataStore {
                         writeOptionalString(out, slot.displayName());
                     }
                 }
+                // The FL4-GAP2 Slice B stamp (the chest store's own form):
+                // the signed byte carries the dimension — -1 lands as u8 255.
+                out.writeByte(row.dimension());
             }
         } catch (IOException e) {
             // The sink is an in-memory buffer; an IOException here is a
@@ -171,14 +197,20 @@ public final class BrewingStandDataStore {
         }
     }
 
+    /** One loaded stand's row, stamped with its own world. */
+    public record Loaded(BlockPosition position, int dimension, BrewingStandBlockEntity stand) {
+    }
+
     /**
-     * Loads the stand map. Saved items the current registry cannot resolve
-     * are dropped with a warning — the registry moved on, everything else
-     * survives.
+     * Loads the stand rows, each stamped with its dimension. A v1 file's
+     * rows are overworld rows (the pre-Slice-B store was the overworld's
+     * single map — the migration law). Saved items the current registry
+     * cannot resolve are dropped with a warning — the registry moved on,
+     * everything else survives.
      */
-    public Map<BlockPosition, BrewingStandBlockEntity> load() {
+    public List<Loaded> load() {
         if (!Files.exists(file)) {
-            return Map.of();
+            return List.of();
         }
         try (DataInputStream in = new DataInputStream(new BufferedInputStream(
                 Files.newInputStream(file)))) {
@@ -190,7 +222,7 @@ public final class BrewingStandDataStore {
                 throw new IOException("Unsupported ZBD version: " + version);
             }
             int count = readVarInt(in);
-            Map<BlockPosition, BrewingStandBlockEntity> loaded = new LinkedHashMap<>();
+            List<Loaded> loaded = new ArrayList<>(count);
             for (int i = 0; i < count; i++) {
                 int x = in.readInt();
                 int y = in.readInt();
@@ -216,7 +248,8 @@ public final class BrewingStandDataStore {
                     }
                 }
                 stand.restoreState(slots, timer);
-                loaded.put(new BlockPosition(x, y, z), stand);
+                int dimension = version >= FORMAT_VERSION ? in.readByte() : 0;
+                loaded.add(new Loaded(new BlockPosition(x, y, z), dimension, stand));
             }
             return loaded;
         } catch (IOException | RuntimeException corrupt) {
@@ -231,7 +264,7 @@ public final class BrewingStandDataStore {
                 LOGGER.warning("Brewing stand data file was unreadable and could not be preserved: "
                         + moveFailure);
             }
-            return Map.of();
+            return List.of();
         }
     }
 

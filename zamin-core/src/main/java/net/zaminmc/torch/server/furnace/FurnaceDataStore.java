@@ -25,13 +25,17 @@ import java.util.Optional;
 import java.util.logging.Logger;
 
 /**
- * File-backed furnace state ("ZFD" format, version 2), one file per world.
+ * File-backed furnace state ("ZFD" format, version 3), one file per world.
  *
- * <p>Layout: magic 'Z','F','D',1 - furnaces(varint count; each: x(i32) y(i32)
+ * <p>Layout: magic 'Z','F','D',3 - furnaces(varint count; each: x(i32) y(i32)
  * z(i32) - burnRemaining(varint) burnTotal(varint) cookTime(varint) - slots(3
  * entries; each: present(u8) then item identifier(string) + count(varint) +
- * damage(varint) + displayName(varint-length UTF-8, 0 = none)). Version 1
- * files load unchanged (no custom names).</p>
+ * damage(varint) + displayName(varint-length UTF-8, 0 = none)) -
+ * dimension(i8, Wave FL4-GAP2 Slice B: the row's own world, the chest
+ * store's own stamp law — -1 lands as u8 255)). Version 1 files load
+ * unchanged (no custom names); version 1 and 2 files load every row as an
+ * overworld row (the migration law — the pre-Slice-B store was the
+ * overworld's single map).</p>
  *
  * <p>The same durability rules as the world and player stores: writes are
  * atomic (temp file then atomic move), corrupt files load as absent and are
@@ -46,7 +50,7 @@ public final class FurnaceDataStore {
     private static final int MAGIC_0 = 'Z';
     private static final int MAGIC_1 = 'F';
     private static final int MAGIC_2 = 'D';
-    private static final int FORMAT_VERSION = 2;
+    private static final int FORMAT_VERSION = 3;
 
     private final Path file;
 
@@ -55,14 +59,19 @@ public final class FurnaceDataStore {
     }
 
     /**
-     * Saves the full furnace map. Callers snapshot state on the tick thread
-     * before calling (the engine routes this through the ticker). The
-     * synchronous form composes the S2 pipeline's own three halves — the
-     * deep capture, the pure serialization, the file publication — so the
-     * sync save's bytes and the pipeline's bytes are identical by
-     * construction (one serializer, one file half).
+     * Saves every dimension's furnace map (the FL4-GAP2 Slice B union: one
+     * file, each row stamped with its own world — the chest store's own
+     * law). Callers snapshot state on the tick thread before calling (the
+     * engine routes this through the ticker). The synchronous form composes
+     * the S2 pipeline's own three halves — the deep capture, the pure
+     * serialization, the file publication — so the sync save's bytes and the
+     * pipeline's bytes are identical by construction (one serializer, one
+     * file half).
+     *
+     * @param furnaces each dimension's live map (dimension id -> the map its
+     *                 FurnaceManager owns)
      */
-    public void save(Map<BlockPosition, FurnaceBlockEntity> furnaces) {
+    public void save(Map<Integer, Map<BlockPosition, FurnaceBlockEntity>> furnaces) {
         writeSerialized(serialize(capture(furnaces)));
     }
 
@@ -89,30 +98,41 @@ public final class FurnaceDataStore {
      */
     public record Snapshot(List<Row> rows) {
 
-        /** One furnace's persisted rows. */
+        /** One furnace's persisted rows, stamped with its own world. */
         public record Row(int x, int y, int z, int burnRemaining, int burnTotal,
-                          int cookTime, List<Slot> slots) {
+                          int cookTime, int dimension, List<Slot> slots) {
         }
     }
 
     /**
-     * The deep capture of the live furnace map — called ON the owning tick
-     * lane (the manager's snapshot() is the map copy; this walks it into the
-     * immutable rows). The caller's map is not retained.
+     * The deep capture of every dimension's live furnace maps — called ON
+     * the owning tick lane (each manager's snapshot() is the map copy; this
+     * walks them into the immutable rows). The caller's maps are not
+     * retained.
      */
-    public Snapshot capture(Map<BlockPosition, FurnaceBlockEntity> furnaces) {
-        List<Snapshot.Row> rows = new ArrayList<>(furnaces.size());
-        for (Map.Entry<BlockPosition, FurnaceBlockEntity> entry : furnaces.entrySet()) {
-            BlockPosition position = entry.getKey();
-            FurnaceBlockEntity furnace = entry.getValue();
-            ItemStack[] liveSlots = furnace.snapshotSlots();
-            List<Slot> slots = new ArrayList<>(liveSlots.length);
-            for (ItemStack stack : liveSlots) {
-                slots.add(Slot.of(stack));
+    public Snapshot capture(Map<Integer, Map<BlockPosition, FurnaceBlockEntity>> furnaces) {
+        int total = 0;
+        for (Map<BlockPosition, FurnaceBlockEntity> map : furnaces.values()) {
+            total += map.size();
+        }
+        List<Snapshot.Row> rows = new ArrayList<>(total);
+        for (Map.Entry<Integer, Map<BlockPosition, FurnaceBlockEntity>> byDimension
+                : furnaces.entrySet()) {
+            int dimension = byDimension.getKey();
+            for (Map.Entry<BlockPosition, FurnaceBlockEntity> entry
+                    : byDimension.getValue().entrySet()) {
+                BlockPosition position = entry.getKey();
+                FurnaceBlockEntity furnace = entry.getValue();
+                ItemStack[] liveSlots = furnace.snapshotSlots();
+                List<Slot> slots = new ArrayList<>(liveSlots.length);
+                for (ItemStack stack : liveSlots) {
+                    slots.add(Slot.of(stack));
+                }
+                rows.add(new Snapshot.Row(position.x(), position.y(), position.z(),
+                        furnace.burnTimeRemaining(), furnace.burnTimeTotal(),
+                        furnace.cookTime(), dimension,
+                        java.util.Collections.unmodifiableList(slots)));
             }
-            rows.add(new Snapshot.Row(position.x(), position.y(), position.z(),
-                    furnace.burnTimeRemaining(), furnace.burnTimeTotal(),
-                    furnace.cookTime(), java.util.Collections.unmodifiableList(slots)));
         }
         return new Snapshot(List.copyOf(rows));
     }
@@ -148,6 +168,9 @@ public final class FurnaceDataStore {
                         writeOptionalString(out, slot.displayName());
                     }
                 }
+                // The FL4-GAP2 Slice B stamp (the chest store's own form):
+                // the signed byte carries the dimension — -1 lands as u8 255.
+                out.writeByte(row.dimension());
             }
         } catch (IOException e) {
             // The sink is an in-memory buffer; an IOException here is a
@@ -178,14 +201,20 @@ public final class FurnaceDataStore {
         }
     }
 
+    /** One loaded furnace's row, stamped with its own world. */
+    public record Loaded(BlockPosition position, int dimension, FurnaceBlockEntity furnace) {
+    }
+
     /**
-     * Loads the furnace map. Saved items the current registry cannot resolve
-     * are dropped with a warning — the registry moved on, everything else
-     * survives.
+     * Loads the furnace rows, each stamped with its dimension. A v1/v2
+     * file's rows are overworld rows (the pre-Slice-B store was the
+     * overworld's single map — the migration law). Saved items the current
+     * registry cannot resolve are dropped with a warning — the registry
+     * moved on, everything else survives.
      */
-    public Map<BlockPosition, FurnaceBlockEntity> load() {
+    public List<Loaded> load() {
         if (!Files.exists(file)) {
-            return Map.of();
+            return List.of();
         }
         try (DataInputStream in = new DataInputStream(new BufferedInputStream(
                 Files.newInputStream(file)))) {
@@ -197,7 +226,7 @@ public final class FurnaceDataStore {
                 throw new IOException("Unsupported ZFD version: " + version);
             }
             int count = readVarInt(in);
-            Map<BlockPosition, FurnaceBlockEntity> loaded = new LinkedHashMap<>();
+            List<Loaded> loaded = new ArrayList<>(count);
             for (int i = 0; i < count; i++) {
                 int x = in.readInt();
                 int y = in.readInt();
@@ -224,7 +253,8 @@ public final class FurnaceDataStore {
                     }
                 }
                 furnace.restore(burnRemaining, burnTotal, cook);
-                loaded.put(new BlockPosition(x, y, z), furnace);
+                int dimension = version >= FORMAT_VERSION ? in.readByte() : 0;
+                loaded.add(new Loaded(new BlockPosition(x, y, z), dimension, furnace));
             }
             return loaded;
         } catch (IOException | RuntimeException corrupt) {
@@ -239,7 +269,7 @@ public final class FurnaceDataStore {
                 LOGGER.warning("Furnace data file was unreadable and could not be preserved: "
                         + moveFailure);
             }
-            return Map.of();
+            return List.of();
         }
     }
 

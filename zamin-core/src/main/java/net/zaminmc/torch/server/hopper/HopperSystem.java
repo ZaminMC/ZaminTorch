@@ -163,6 +163,15 @@ public final class HopperSystem implements WorldChangeListener {
         this.furnaces = Objects.requireNonNull(furnaces, "furnaces");
     }
 
+    /**
+     * @return the dimension this system's hoppers live in (Wave FL4-GAP2
+     * Slice B — the per-world family's own stamp; the engine's cart scan
+     * and the tests read it).
+     */
+    public int dimension() {
+        return world.dimension();
+    }
+
     /** @return the block type the family registers at boot. */
     public static net.zaminmc.torch.server.block.BlockRegistryBuilder registerBlocks(
             net.zaminmc.torch.server.block.BlockRegistryBuilder builder) {
@@ -290,8 +299,13 @@ public final class HopperSystem implements WorldChangeListener {
         } else {
             // No container above: the item-entity suck from the box
             // centered on the mouth-plus-one (getItem(world, x, getY +
-            // 1.0, z) — the 1-box, one half block out).
+            // 1.0, z) — the 1-box, one half block out) — the CART's OWN
+            // world's bodies alone (Slice B's dimension gate: the cart is
+            // the actor, its dimension rules the scan).
             for (ItemEntity item : itemEntities.all()) {
+                if (item.dimension() != cart.dimension()) {
+                    continue; // another world's body
+                }
                 Position at = item.position();
                 if (Math.abs(at.x() - cart.position().x()) <= 0.5
                         && Math.abs(at.z() - cart.position().z()) <= 0.5
@@ -310,6 +324,9 @@ public final class HopperSystem implements WorldChangeListener {
         double centerY = cart.position().y();
         double centerZ = cart.position().z();
         for (ItemEntity item : itemEntities.all()) {
+            if (item.dimension() != cart.dimension()) {
+                continue; // another world's body (the cart's own gate)
+            }
             Position at = item.position();
             if (Math.abs(at.x() - centerX) <= 0.74 + 0.125
                     && Math.abs(at.z() - centerZ) <= 0.74 + 0.125
@@ -532,7 +549,13 @@ public final class HopperSystem implements WorldChangeListener {
         // HALF_HEIGHT — intersects the cell above iff
         // center ∈ (bx-0.125, bx+1.125) x (by+0.875, by+2.125)
         // x (bz-0.125, bz+1.125).
+        // Wave FL4-GAP2 Slice B: the reference's getEntities runs on THIS
+        // hopper's own world — the dimension gate comes first, an item at
+        // the same coordinates in another world is invisible.
         for (ItemEntity item : itemEntities.all()) {
+            if (item.dimension() != world.dimension()) {
+                continue; // another world's body: never a suck candidate
+            }
             Position at = item.position();
             double minX = at.x() - ItemEntity.HALF_WIDTH;
             double maxX = at.x() + ItemEntity.HALF_WIDTH;
@@ -986,6 +1009,8 @@ public final class HopperSystem implements WorldChangeListener {
      * A survival break committed on the hopper block (HopperBlock.onRemoved
      * lines 123-131): spill every slot into the world, then wake the
      * comparators. The creative path just discards (the per-tick sweep).
+     * The spill stamps this system's OWN world (Wave FL4-GAP2 Slice B — a
+     * nether hopper's drops never fall into the overworld).
      */
     public void onBlockBroken(BlockPosition position) {
         HopperBlockEntity hopper = hoppers.remove(position);
@@ -995,7 +1020,8 @@ public final class HopperSystem implements WorldChangeListener {
         Position origin = new Position(position.x(), position.y(), position.z());
         for (ItemStack stack : hopper.snapshotSlots()) {
             if (!stack.isEmpty()) {
-                itemEntities.spawnDropAtBlock(origin, stack, ItemEntity.PICKUP_DELAY_DROP_TICKS);
+                itemEntities.spawnDropAtBlock(origin, stack,
+                        ItemEntity.PICKUP_DELAY_DROP_TICKS, world.dimension());
             }
         }
         redstone.wakeComparators(position);
