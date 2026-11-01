@@ -608,7 +608,18 @@ public final class MobManager {
     private final MobEntity.WorldQuery world;
     private final Random random;
     private final LootSink lootSink;
-    private final List<MobEntity> mobs = new ArrayList<>();
+    /**
+     * The live bodies. Copy-on-write because {@link #all()} is the whole
+     * test suite's off-thread polling surface (every await polls it while
+     * this thread spawns, despawns, and clears): {@code List.copyOf} over
+     * a plain ArrayList can read the size and the array on opposite sides
+     * of a concurrent removal and hand {@code List.of} the nulled tail —
+     * the NPE run 591's attribution harness caught (a 100-body clear
+     * racing a 25 ms poll). The copy-on-write array makes every snapshot
+     * ({@code all()}, the iterators, {@code toArray}) a consistent view
+     * by construction, and mutation here stays tick-thread-only.
+     */
+    private final List<MobEntity> mobs = new java.util.concurrent.CopyOnWriteArrayList<>();
     private final List<Listener> listeners = new ArrayList<>();
     private int nextEntityId;
     /** Surface finder for population rolls: topmost solid y at (x, z), or -1. */
@@ -909,7 +920,11 @@ public final class MobManager {
 
     private volatile net.zaminmc.torch.server.event.EngineEventBus eventBus;
 
-    /** @return an unmodifiable view of live mobs (diagnostics/tests). */
+    /**
+     * @return an unmodifiable snapshot of the live mobs — consistent by
+     * construction even while the tick thread mutates (diagnostics/tests
+     * poll this off-thread; the copy-on-write list guarantees the view).
+     */
     public List<MobEntity> all() {
         return List.copyOf(mobs);
     }
@@ -1315,7 +1330,9 @@ public final class MobManager {
      * (the historical /difficulty peaceful sweep). Tick-thread context.
      */
     public void removeHostiles() {
-        for (MobEntity mob : new java.util.ArrayList<>(mobs)) {
+        // The copy-on-write iterator snapshots, so the removals below never
+        // disturb the walk (the defensive ArrayList copy was the old guard).
+        for (MobEntity mob : mobs) {
             if (mob.type().hostile) {
                 remove(mob, "peaceful");
             }
@@ -1574,8 +1591,10 @@ public final class MobManager {
             removeHostiles();
         }
 
-        // The breeds defer to the loop's end: a baby spawned mid-iteration
-        // would add to the iterated list (the ConcurrentModification trap).
+        // The breeds defer to the loop's end (the reference's own order:
+        // children join the world after the walk closes — and the
+        // copy-on-write iterator below would not visit a mid-walk add
+        // anyway, the deferral keeps both laws the same shape).
         List<MobEntity[]> pendingBreeds = new ArrayList<>();
         // The slime splits defer the same way (the children join after the
         // iteration closes — the reference's remove() runs inside its own
@@ -1592,10 +1611,7 @@ public final class MobManager {
             MobEntity mob = iterator.next();
 
             if (mob.deathAnimationFinished()) {
-                iterator.remove();
-                for (Listener listener : listeners) {
-                    listener.onMobRemoved(mob, "died");
-                }
+                remove(mob, "died"); // mid-walk removal is copy-on-write safe
                 dropLoot(mob); // the loot lands after the body leaves the wire
                 dropEquipment(mob); // the equipment walk rides beside the loot
                 if (mob.type() == MobType.SLIME && mob.slimeSize() > 1) {
@@ -1672,10 +1688,7 @@ public final class MobManager {
                 if (mob.hasRider()) {
                     dismountMob(mob, false);
                 }
-                iterator.remove();
-                for (Listener listener : listeners) {
-                    listener.onMobRemoved(mob, "despawned");
-                }
+                remove(mob, "despawned"); // mid-walk removal is copy-on-write safe
                 continue;
             }
 
