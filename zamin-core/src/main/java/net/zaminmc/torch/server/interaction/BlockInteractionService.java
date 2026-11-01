@@ -1488,12 +1488,21 @@ public final class BlockInteractionService {
         world.setBlock(position, type);
         java.util.function.Consumer<Commit> feedback = commitFeedbackListener;
         if (feedback != null && !previous.equals(type)) {
-            feedback.accept(new Commit(position, previous, type));
+            // The acting world's dimension rides the commit (VT-027 — the
+            // reference's break/place feedback plays in the DIG WIRE'S OWN
+            // WORLD: tryMineBlock line 211's this.world.doEvent(2001),
+            // BlockItem.place's world — the per-world listener list alone;
+            // the pre-fix record carried no dimension and the boot's
+            // closure stamped the overworld for every dimension's dig).
+            feedback.accept(new Commit(position, previous, type, world.dimension()));
         }
     }
 
-    /** One world mutation with its before/after block states. */
-    public record Commit(BlockPosition position, BlockType previous, BlockType now) {
+    /** One world mutation with its before/after block states and the
+     *  ACTING world's dimension (VT-027 — the feedback's sounds and
+     *  particles play in that world alone). */
+    public record Commit(BlockPosition position, BlockType previous, BlockType now,
+                         int dimension) {
     }
 
     /**

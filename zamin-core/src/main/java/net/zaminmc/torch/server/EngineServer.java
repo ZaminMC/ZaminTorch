@@ -3763,11 +3763,20 @@ public final class EngineServer implements Server, EngineBridge {
                         // rendering, the volume/pitch its own convention.)
                         Position center = new Position(commit.position().x() + 0.5,
                                 commit.position().y() + 0.5, commit.position().z() + 0.5);
-                        fxManager.blockShatter(center, commit.previous());
+                        // VT-027 — the feedback plays in the ACTING world
+                        // (the reference's break event rides the dig wire's
+                        // own world: tryMineBlock line 211's
+                        // this.world.doEvent(2001), the per-world listener
+                        // list alone). The commit carries the acting
+                        // dimension; the pre-fix no-dimension overloads
+                        // stamped the overworld for every dimension's dig.
+                        fxManager.blockShatter(center, commit.previous(),
+                                commit.dimension());
                         fxManager.sound(center,
                                 BlockSoundMap.digSound(commit.previous().identifier())
                                         .orElse("dig.stone"), 1.0f,
-                                0.75f + fxRandom.nextFloat() * 0.2f);
+                                0.75f + fxRandom.nextFloat() * 0.2f,
+                                commit.dimension());
                     } else if (!commit.previous().equals(commit.now())) {
                         // A place (or replace): the reference's own law
                         // (BlockItem.place lines 53-60) — the family's
@@ -3780,9 +3789,11 @@ public final class EngineServer implements Server, EngineBridge {
                         BlockSoundMap.SoundFamily family = BlockSoundMap
                                 .familyOf(commit.now().identifier())
                                 .orElse(BlockSoundMap.SoundFamily.STONE);
+                        // VT-027 — the place arm the same law (BlockItem.place
+                        // lines 53-60: the placing sound in the ACTING world).
                         fxManager.sound(center, family.placing(),
                                 (family.volume() + 1.0f) / 2.0f,
-                                family.pitch() * 0.8f);
+                                family.pitch() * 0.8f, commit.dimension());
                     }
                 });
                 // The dig-start consult (Slice N6 — handlePlayerDig lines
