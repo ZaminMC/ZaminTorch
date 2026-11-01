@@ -24,13 +24,16 @@ import java.util.Optional;
 import java.util.logging.Logger;
 
 /**
- * File-backed hopper state ("ZHD" format, version 1), one file per world —
+ * File-backed hopper state ("ZHD" format, version 2), one file per world —
  * the chest store's own durability rules.
  *
- * <p>Layout: magic 'Z','H','D',1 - hoppers(varint count; each: x(i32) y(i32)
+ * <p>Layout: magic 'Z','H','D',2 - hoppers(varint count; each: x(i32) y(i32)
  * z(i32) - slots(5 entries; each: present(u8) then item identifier(string) +
  * count(varint) + damage(varint) + displayName(varint-length UTF-8, 0 =
- * none)).</p>
+ * none)) - dimension(i8, Wave FL4-GAP2 Slice B: the row's own world, the
+ * chest store's own stamp law — -1 lands as u8 255)). Version 1 files load
+ * every row as an overworld row (the migration law — the pre-Slice-B store
+ * was the overworld's single map).</p>
  *
  * <p>Writes are atomic (temp file then atomic move), corrupt files load as
  * absent and are preserved beside the storage path instead of being
@@ -43,7 +46,7 @@ public final class HopperDataStore {
     private static final int MAGIC_0 = 'Z';
     private static final int MAGIC_1 = 'H';
     private static final int MAGIC_2 = 'D';
-    private static final int FORMAT_VERSION = 1;
+    private static final int FORMAT_VERSION = 2;
 
     private final Path file;
 
@@ -52,14 +55,19 @@ public final class HopperDataStore {
     }
 
     /**
-     * Saves the full hopper map. Callers snapshot state on the tick thread
-     * before calling (the engine routes this through the ticker). The
-     * synchronous form composes the S2 pipeline's own three halves — the
-     * deep capture, the pure serialization, the file publication — so the
-     * sync save's bytes and the pipeline's bytes are identical by
-     * construction (one serializer, one file half).
+     * Saves every dimension's hopper map (the FL4-GAP2 Slice B union: one
+     * file, each row stamped with its own world — the chest store's own
+     * law). Callers snapshot state on the tick thread before calling (the
+     * engine routes this through the ticker). The synchronous form composes
+     * the S2 pipeline's own three halves — the deep capture, the pure
+     * serialization, the file publication — so the sync save's bytes and the
+     * pipeline's bytes are identical by construction (one serializer, one
+     * file half).
+     *
+     * @param hoppers each dimension's live map (dimension id -> the map its
+     *                HopperSystem owns)
      */
-    public void save(Map<BlockPosition, HopperBlockEntity> hoppers) {
+    public void save(Map<Integer, Map<BlockPosition, HopperBlockEntity>> hoppers) {
         writeSerialized(serialize(capture(hoppers)));
     }
 
@@ -86,28 +94,38 @@ public final class HopperDataStore {
      */
     public record Snapshot(List<Row> rows) {
 
-        /** One hopper's persisted rows. */
-        public record Row(int x, int y, int z, List<Slot> slots) {
+        /** One hopper's persisted rows, stamped with its own world. */
+        public record Row(int x, int y, int z, int dimension, List<Slot> slots) {
         }
     }
 
     /**
-     * The deep capture of the live hopper map — called ON the owning tick
-     * lane (the system's snapshot() is the map copy; this walks it into the
-     * immutable rows). The caller's map is not retained.
+     * The deep capture of every dimension's live hopper maps — called ON
+     * the owning tick lane (each system's snapshot() is the map copy; this
+     * walks them into the immutable rows). The caller's maps are not
+     * retained.
      */
-    public Snapshot capture(Map<BlockPosition, HopperBlockEntity> hoppers) {
-        List<Snapshot.Row> rows = new ArrayList<>(hoppers.size());
-        for (Map.Entry<BlockPosition, HopperBlockEntity> entry : hoppers.entrySet()) {
-            BlockPosition position = entry.getKey();
-            HopperBlockEntity hopper = entry.getValue();
-            ItemStack[] liveSlots = hopper.snapshotSlots();
-            List<Slot> slots = new ArrayList<>(liveSlots.length);
-            for (ItemStack stack : liveSlots) {
-                slots.add(Slot.of(stack));
+    public Snapshot capture(Map<Integer, Map<BlockPosition, HopperBlockEntity>> hoppers) {
+        int total = 0;
+        for (Map<BlockPosition, HopperBlockEntity> map : hoppers.values()) {
+            total += map.size();
+        }
+        List<Snapshot.Row> rows = new ArrayList<>(total);
+        for (Map.Entry<Integer, Map<BlockPosition, HopperBlockEntity>> byDimension
+                : hoppers.entrySet()) {
+            int dimension = byDimension.getKey();
+            for (Map.Entry<BlockPosition, HopperBlockEntity> entry
+                    : byDimension.getValue().entrySet()) {
+                BlockPosition position = entry.getKey();
+                HopperBlockEntity hopper = entry.getValue();
+                ItemStack[] liveSlots = hopper.snapshotSlots();
+                List<Slot> slots = new ArrayList<>(liveSlots.length);
+                for (ItemStack stack : liveSlots) {
+                    slots.add(Slot.of(stack));
+                }
+                rows.add(new Snapshot.Row(position.x(), position.y(), position.z(), dimension,
+                        java.util.Collections.unmodifiableList(slots)));
             }
-            rows.add(new Snapshot.Row(position.x(), position.y(), position.z(),
-                    java.util.Collections.unmodifiableList(slots)));
         }
         return new Snapshot(List.copyOf(rows));
     }
@@ -140,6 +158,9 @@ public final class HopperDataStore {
                         writeOptionalString(out, slot.displayName());
                     }
                 }
+                // The FL4-GAP2 Slice B stamp (the chest store's own form):
+                // the signed byte carries the dimension — -1 lands as u8 255.
+                out.writeByte(row.dimension());
             }
         } catch (IOException e) {
             // The sink is an in-memory buffer; an IOException here is a
@@ -170,14 +191,20 @@ public final class HopperDataStore {
         }
     }
 
+    /** One loaded hopper's row, stamped with its own world. */
+    public record Loaded(BlockPosition position, int dimension, HopperBlockEntity hopper) {
+    }
+
     /**
-     * Loads the hopper map. Saved items the current registry cannot resolve
-     * are dropped with a warning — the registry moved on, everything else
-     * survives.
+     * Loads the hopper rows, each stamped with its dimension. A v1 file's
+     * rows are overworld rows (the pre-Slice-B store was the overworld's
+     * single map — the migration law). Saved items the current registry
+     * cannot resolve are dropped with a warning — the registry moved on,
+     * everything else survives.
      */
-    public Map<BlockPosition, HopperBlockEntity> load() {
+    public List<Loaded> load() {
         if (!Files.exists(file)) {
-            return Map.of();
+            return List.of();
         }
         try (DataInputStream in = new DataInputStream(new BufferedInputStream(
                 Files.newInputStream(file)))) {
@@ -185,11 +212,11 @@ public final class HopperDataStore {
                 throw new IOException("Not a ZHD file");
             }
             int version = in.readByte();
-            if (version != FORMAT_VERSION) {
+            if (version < 1 || version > FORMAT_VERSION) {
                 throw new IOException("Unsupported ZHD version: " + version);
             }
             int count = readVarInt(in);
-            Map<BlockPosition, HopperBlockEntity> loaded = new LinkedHashMap<>();
+            List<Loaded> loaded = new ArrayList<>(count);
             for (int i = 0; i < count; i++) {
                 int x = in.readInt();
                 int y = in.readInt();
@@ -211,7 +238,8 @@ public final class HopperDataStore {
                         }
                     }
                 }
-                loaded.put(new BlockPosition(x, y, z), hopper);
+                loaded.add(new Loaded(new BlockPosition(x, y, z),
+                        version >= FORMAT_VERSION ? in.readByte() : 0, hopper));
             }
             return loaded;
         } catch (IOException | RuntimeException corrupt) {
@@ -226,7 +254,7 @@ public final class HopperDataStore {
                 LOGGER.warning("Hopper data file was unreadable and could not be preserved: "
                         + moveFailure);
             }
-            return Map.of();
+            return List.of();
         }
     }
 

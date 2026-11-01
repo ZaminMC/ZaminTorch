@@ -309,6 +309,10 @@ public final class EngineServer implements Server, EngineBridge {
     private PortalForcer netherPortalForcer;
     private PlayerDataStore playerStore;
     private FurnaceManager furnaceManager;
+    /** The nether's own furnace family (Wave FL4-GAP2 Slice B — the per-world tile law). */
+    private FurnaceManager netherFurnaces;
+    /** The End's own furnace family (Wave FL4-GAP2 Slice B — the per-world tile law). */
+    private FurnaceManager endFurnaces;
     private FurnaceDataStore furnaceStore;
 
     /** The dispenser/dropper state store (ZDD v1, Slice 11f). */
@@ -439,8 +443,16 @@ public final class EngineServer implements Server, EngineBridge {
     private net.zaminmc.torch.server.redstone.ComparatorDataStore comparatorStore;
     /** The hopper subsystem (Slice 10b): the 8-tick transfer cadence. */
     private net.zaminmc.torch.server.hopper.HopperSystem hopperSystem;
+    /** The nether's own hopper family (Wave FL4-GAP2 Slice B — the per-world tile law). */
+    private net.zaminmc.torch.server.hopper.HopperSystem netherHoppers;
+    /** The End's own hopper family (Wave FL4-GAP2 Slice B — the per-world tile law). */
+    private net.zaminmc.torch.server.hopper.HopperSystem endHoppers;
     /** The dispenser subsystem (Slice 11a): the 4-tick reaction + the behaviors. */
     private net.zaminmc.torch.server.dispenser.DispenserSystem dispenserSystem;
+    /** The nether's own dispenser family (Wave FL4-GAP2 Slice B — the per-world tile law). */
+    private net.zaminmc.torch.server.dispenser.DispenserSystem netherDispensers;
+    /** The End's own dispenser family (Wave FL4-GAP2 Slice B — the per-world tile law). */
+    private net.zaminmc.torch.server.dispenser.DispenserSystem endDispensers;
 
     /** The potion subsystem (Slice 11b): the effect stores + the splash. */
     private net.zaminmc.torch.server.potion.PotionSystem potionSystem;
@@ -452,6 +464,10 @@ public final class EngineServer implements Server, EngineBridge {
     private net.zaminmc.torch.server.spawn.NaturalSpawnSystem naturalSpawnsNether;
     /** The brewing stands (Slice 11e): the 1:1 brew-cycle port. */
     private net.zaminmc.torch.server.brewing.BrewingStandSystem brewingStands;
+    /** The nether's own brewing family (Wave FL4-GAP2 Slice B — the per-world tile law). */
+    private net.zaminmc.torch.server.brewing.BrewingStandSystem netherBrewingStands;
+    /** The End's own brewing family (Wave FL4-GAP2 Slice B — the per-world tile law). */
+    private net.zaminmc.torch.server.brewing.BrewingStandSystem endBrewingStands;
     /** The tripwire subsystem (Slice 10c): the occupancy scan + the hook walk. */
     private net.zaminmc.torch.server.redstone.TripwireSystem tripwireSystem;
     /** The observers of the TNT system (the protocol adapter's wire sync). */
@@ -976,11 +992,24 @@ public final class EngineServer implements Server, EngineBridge {
                 this.itemEntities = itemEntities;
                 itemEntities.setEventBus(eventBus); // §27.7: the public item-spawn gate
                 itemEntities.addListener(new ItemEventDispatch());
-                // Furnace block entities: world-state simulation, ZFD persistence.
+                // Furnace block entities: world-state simulation, ZFD
+                // persistence (Wave FL4-GAP2 Slice B — the per-world tile
+                // law: each dimension owns its own family, the v3 row
+                // carries the dimension stamp, v1/v2 files load as
+                // overworld rows).
                 furnaceManager = new FurnaceManager();
-                furnaceManager.setEventBus(eventBus); // §27.7: the burn + smelt gates
+                netherFurnaces = new FurnaceManager();
+                endFurnaces = new FurnaceManager();
                 furnaceStore = new FurnaceDataStore(config.worldDataDir().resolve("furnaces.bin"));
-                furnaceManager.restoreAll(furnaceStore.load());
+                for (net.zaminmc.torch.server.furnace.FurnaceDataStore.Loaded row
+                        : furnaceStore.load()) {
+                    furnacesFor(row.dimension()).restoreAll(
+                            java.util.Map.of(row.position(), row.furnace()));
+                }
+                for (FurnaceManager family : new FurnaceManager[]{
+                        furnaceManager, netherFurnaces, endFurnaces}) {
+                    family.setEventBus(eventBus); // §27.7: the burn + smelt gates
+                }
                 // Chest block entities: world-state containers, ZCD
                 // persistence (Wave FL4-GAP2 — the per-world tile law: each
                 // dimension owns its own family, a same-coordinate pair two
@@ -1727,7 +1756,12 @@ public final class EngineServer implements Server, EngineBridge {
                         position -> netherRedstone.wakeComparators(position));
                 endChests.setContentsChanged(
                         position -> endRedstone.wakeComparators(position));
-                furnaceManager.setContentsChanged(position -> redstoneSystem.wakeComparators(position));
+                furnaceManager.setContentsChanged(
+                        position -> redstoneSystem.wakeComparators(position));
+                netherFurnaces.setContentsChanged(
+                        position -> netherRedstone.wakeComparators(position));
+                endFurnaces.setContentsChanged(
+                        position -> endRedstone.wakeComparators(position));
                 // The pistons (Slice 9e): the block-event state machine + the
                 // two-tick moving carriers, hearing every committed change
                 // like the redstone system does (the reference's flag-1 walk).
@@ -2005,17 +2039,39 @@ public final class EngineServer implements Server, EngineBridge {
                 // from above + the item-entity suck, the powered disable
                 // through the neighbor bus, the break spill) — the §11
                 // boundary hard case, every transfer one same-tick unit
-                // under the boundary scope.
+                // under the boundary scope. Wave FL4-GAP2 Slice B: every
+                // dimension owns its own family (the per-world tile law) —
+                // each system consults its OWN world, its OWN redstone, and
+                // the container families of the SAME dimension (the
+                // cross-family pulls never cross the world boundary); the
+                // ZHD v2 row carries the dimension stamp.
                 hopperSystem = new net.zaminmc.torch.server.hopper.HopperSystem(
                         world, redstoneSystem, itemEntities, chestManager, furnaceManager);
-                hopperSystem.setEventBus(eventBus); // §27.7: the transfer gate
+                netherHoppers = new net.zaminmc.torch.server.hopper.HopperSystem(
+                        netherWorld, netherRedstone, itemEntities, netherChests, netherFurnaces);
+                endHoppers = new net.zaminmc.torch.server.hopper.HopperSystem(
+                        endWorld, endRedstone, itemEntities, endChests, endFurnaces);
+                for (net.zaminmc.torch.server.hopper.HopperSystem family
+                        : new net.zaminmc.torch.server.hopper.HopperSystem[]{
+                                hopperSystem, netherHoppers, endHoppers}) {
+                    family.setEventBus(eventBus); // §27.7: the transfer gate
+                }
                 world.addChangeListener(hopperSystem); // the placement creates the BE state
+                netherWorld.addChangeListener(netherHoppers);
+                endWorld.addChangeListener(endHoppers);
                 redstoneSystem.addNeighborListener(hopperSystem::neighborHeard);
+                netherRedstone.addNeighborListener(netherHoppers::neighborHeard);
+                endRedstone.addNeighborListener(endHoppers::neighborHeard);
                 // The hopper contents' own ZHD persistence (the chest store's
-                // own durability rules).
+                // own durability rules) — every dimension's family in one
+                // file, each row stamped with its own world.
                 hopperStore = new net.zaminmc.torch.server.hopper.HopperDataStore(
                         config.worldDataDir().resolve("hoppers.bin"));
-                hopperSystem.restoreAll(hopperStore.load());
+                for (net.zaminmc.torch.server.hopper.HopperDataStore.Loaded row
+                        : hopperStore.load()) {
+                    hoppersFor(row.dimension()).restoreAll(
+                            java.util.Map.of(row.position(), row.hopper()));
+                }
                 // The tripwire (Slice 10c): the occupancy scan + the hook's
                 // chain walk, riding the redstone family's scheduled-tick
                 // queue + the cross-system neighbor bus.
@@ -2273,20 +2329,51 @@ public final class EngineServer implements Server, EngineBridge {
                 // The dispensers (Slice 11a): the 4-tick reaction + the
                 // behavior registry (the dropper's container push walks the
                 // hopper system's adapter, the dispenser family's own
-                // container state joins it the other way).
+                // container state joins it the other way). Wave FL4-GAP2
+                // Slice B: every dimension owns its own family — each
+                // system dispenses through its OWN world and pushes into
+                // the SAME dimension's hopper adapter; the ZDD v2 row
+                // carries the dimension stamp.
                 dispenserSystem = new net.zaminmc.torch.server.dispenser.DispenserSystem(
                         world, redstoneSystem, itemEntities, projectiles, tntSystem,
                         hopperSystem, fxManager, new java.util.Random());
-                dispenserSystem.setEventBus(eventBus); // §27.7: the public dispense gate
+                netherDispensers = new net.zaminmc.torch.server.dispenser.DispenserSystem(
+                        netherWorld, netherRedstone, itemEntities, projectiles, tntSystem,
+                        netherHoppers, fxManager, new java.util.Random());
+                endDispensers = new net.zaminmc.torch.server.dispenser.DispenserSystem(
+                        endWorld, endRedstone, itemEntities, projectiles, tntSystem,
+                        endHoppers, fxManager, new java.util.Random());
+                for (net.zaminmc.torch.server.dispenser.DispenserSystem family
+                        : new net.zaminmc.torch.server.dispenser.DispenserSystem[]{
+                                dispenserSystem, netherDispensers, endDispensers}) {
+                    family.setEventBus(eventBus); // §27.7: the public dispense gate
+                }
                 // The dispenser family's slot persistence (Slice 11f, the
-                // ledgered ZDD): the nine slots survive restarts.
+                // ledgered ZDD): the nine slots survive restarts — every
+                // dimension's family in one file, each row stamped with its
+                // own world (the v2 law).
                 dispenserStore = new net.zaminmc.torch.server.dispenser.DispenserDataStore(
                         config.worldDataDir().resolve("dispensers.bin"));
-                dispenserSystem.restoreAll(dispenserStore.load());
+                for (net.zaminmc.torch.server.dispenser.DispenserDataStore.Loaded row
+                        : dispenserStore.load()) {
+                    dispensersFor(row.dimension()).restoreAll(
+                            java.util.Map.of(row.position(), row.container()));
+                }
                 world.addChangeListener(dispenserSystem); // the placement creates the BE state
+                netherWorld.addChangeListener(netherDispensers);
+                endWorld.addChangeListener(endDispensers);
                 redstoneSystem.addNeighborListener(dispenserSystem::neighborHeard);
+                netherRedstone.addNeighborListener(netherDispensers::neighborHeard);
+                endRedstone.addNeighborListener(endDispensers::neighborHeard);
                 redstoneSystem.setDispenserTicker(dispenserSystem::scheduledTick);
+                netherRedstone.setDispenserTicker(netherDispensers::scheduledTick);
+                endRedstone.setDispenserTicker(endDispensers::scheduledTick);
+                // The cross-family pulls (Slice B's own law): each
+                // dimension's hoppers consult the SAME dimension's
+                // dispenser family.
                 hopperSystem.setDispenserLookup(dispenserSystem::getOrCreate);
+                netherHoppers.setDispenserLookup(netherDispensers::getOrCreate);
+                endHoppers.setDispenserLookup(endDispensers::getOrCreate);
                 // The command-block family (Slice 72 — CommandBlock 1:1):
                 // the tile store + the redstone run's dispatch (the
                 // executor's own sender shape over the CommandService).
@@ -2301,16 +2388,31 @@ public final class EngineServer implements Server, EngineBridge {
                 redstoneSystem.setCommandTicker(this::runCommandBlockAt);
                 // The brewing stands (Slice 11e): the per-tick brew walk;
                 // the state creation rides the open path + the hopper
-                // lookups (the placement never writes slots).
+                // lookups (the placement never writes slots). Wave
+                // FL4-GAP2 Slice B: every dimension owns its own family —
+                // each system brews through its OWN world's tick and arms
+                // its OWN redstone; the ZBD v2 row carries the dimension
+                // stamp.
                 brewingStands = new net.zaminmc.torch.server.brewing.BrewingStandSystem();
+                netherBrewingStands = new net.zaminmc.torch.server.brewing.BrewingStandSystem();
+                endBrewingStands = new net.zaminmc.torch.server.brewing.BrewingStandSystem();
                 brewingStands.setContentsChanged(
                         position -> redstoneSystem.wakeComparators(position));
+                netherBrewingStands.setContentsChanged(
+                        position -> netherRedstone.wakeComparators(position));
+                endBrewingStands.setContentsChanged(
+                        position -> endRedstone.wakeComparators(position));
                 // The brewing stands' persistence (Slice 11f, the ZBD): the
                 // four slots + the timer survive restarts (the reference's
-                // own Items + BrewTime NBT pair).
+                // own Items + BrewTime NBT pair) — every dimension's
+                // family in one file, each row stamped with its own world.
                 brewingStore = new net.zaminmc.torch.server.brewing.BrewingStandDataStore(
                         config.worldDataDir().resolve("brewing_stands.bin"));
-                brewingStands.restoreAll(brewingStore.load());
+                for (net.zaminmc.torch.server.brewing.BrewingStandDataStore.Loaded row
+                        : brewingStore.load()) {
+                    brewingStandsFor(row.dimension()).restoreAll(
+                            java.util.Map.of(row.position(), row.stand()));
+                }
                 // The beacons (Slice 29b — the reference port of
                 // BeaconBlock + BeaconBlockEntity): the 80-tick update walk
                 // (the pyramid recompute + the effect spread), the neighbor
@@ -2346,34 +2448,51 @@ public final class EngineServer implements Server, EngineBridge {
                 beaconStore = new net.zaminmc.torch.server.beacon.BeaconDataStore(
                         config.worldDataDir().resolve("beacons.bin"));
                 beaconSystem.restoreAll(beaconStore.load());
+                // The cross-family pulls' remainder (Slice B's law): each
+                // dimension's hoppers consult the SAME dimension's brewing
+                // family; the mob consult and the rolling-container scan
+                // are shared engines (the mobs and the carts carry their
+                // own dimension stamps — the scans gate on them inside).
                 hopperSystem.setBrewingLookup(brewingStands::getOrCreate);
+                netherHoppers.setBrewingLookup(netherBrewingStands::getOrCreate);
+                endHoppers.setBrewingLookup(endBrewingStands::getOrCreate);
                 // The chest lock's ocelot consult (ChestBlock.isLockedByOcelot
                 // through getInventoryAt's getInventory): the mob manager's
                 // sitting ocelots above a chest refuse the transfer view.
-                hopperSystem.setMobLookup(mobManager);
-                // The rolling containers' scan (Slice 25e — getInventoryAt's
-                // entity fallback): the chest minecarts inside the cell's
-                // 1x1x1 box, the hopper's cart arm.
-                hopperSystem.setCartLookup(cell -> {
-                    java.util.List<net.zaminmc.torch.server.entity.vehicle.ChestMinecartEntity>
-                            found = new java.util.ArrayList<>();
-                    double cx = cell.x() + 0.5;
-                    double cy = cell.y() + 0.5;
-                    double cz = cell.z() + 0.5;
-                    for (net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle
-                            : vehicleManager.all()) {
-                        if (!(vehicle
-                                instanceof net.zaminmc.torch.server.entity.vehicle.ChestMinecartEntity cart)) {
-                            continue;
+                for (net.zaminmc.torch.server.hopper.HopperSystem family
+                        : new net.zaminmc.torch.server.hopper.HopperSystem[]{
+                                hopperSystem, netherHoppers, endHoppers}) {
+                    family.setMobLookup(mobManager);
+                    // The rolling containers' scan (Slice 25e —
+                    // getInventoryAt's entity fallback): the chest minecarts
+                    // inside the cell's 1x1x1 box, the hopper's cart arm —
+                    // gated to THIS system's own world (a cart parked at
+                    // the same coordinates in another world is no container
+                    // here, the reference's per-world entity list).
+                    family.setCartLookup(cell -> {
+                        java.util.List<net.zaminmc.torch.server.entity.vehicle.ChestMinecartEntity>
+                                found = new java.util.ArrayList<>();
+                        double cx = cell.x() + 0.5;
+                        double cy = cell.y() + 0.5;
+                        double cz = cell.z() + 0.5;
+                        for (net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle
+                                : vehicleManager.all()) {
+                            if (!(vehicle
+                                    instanceof net.zaminmc.torch.server.entity.vehicle.ChestMinecartEntity cart)) {
+                                continue;
+                            }
+                            if (cart.dimension() != family.dimension()) {
+                                continue; // another world's cart
+                            }
+                            Position at = vehicle.position();
+                            if (Math.abs(at.x() - cx) <= 0.5 && Math.abs(at.y() - cy) <= 0.5
+                                    && Math.abs(at.z() - cz) <= 0.5) {
+                                found.add(cart);
+                            }
                         }
-                        Position at = vehicle.position();
-                        if (Math.abs(at.x() - cx) <= 0.5 && Math.abs(at.y() - cy) <= 0.5
-                                && Math.abs(at.z() - cz) <= 0.5) {
-                            found.add(cart);
-                        }
-                    }
-                    return found;
-                });
+                        return found;
+                    });
+                }
                 // The potions (Slice 11b): the per-body effect stores, the
                 // cadenced periodic application, and the splash's area walk.
                 potionSystem = new net.zaminmc.torch.server.potion.PotionSystem(
@@ -2789,8 +2908,12 @@ public final class EngineServer implements Server, EngineBridge {
                 // the chests, and the furnaces.
                 vehicleStore = new net.zaminmc.torch.server.entity.vehicle.VehicleDataStore(
                         config.worldDataDir().resolve("vehicles.bin"));
+                // Wave FL4-GAP2 Slice B: the host routes by the CART's own
+                // dimension (a restored nether cart consults the nether's
+                // families — the reference's per-world HopperBlockEntity
+                // statics).
                 vehicles.restoreAll(vehicleStore.load(),
-                        () -> hopperSystem::hopperCartTransfer,
+                        () -> cart -> hoppersFor(cart.dimension()).hopperCartTransfer(cart),
                         this::spawnerCartHost,
                         this::commandCartHost);
                 // The fishing (Slice 67 — FishingBobberEntity +
@@ -3009,10 +3132,18 @@ public final class EngineServer implements Server, EngineBridge {
                 // chest/furnace/hopper/brewing-stand reads over the four
                 // managers (the engine objects dressed as live handles,
                 // §27.5) — the write arms assert this world's
-                // authoritative context.
+                // authoritative context. Wave FL4-GAP2 Slice B: every
+                // world dresses its OWN families (a nether containers()
+                // read never sees the overworld's tiles).
                 world.attachContainerView(new ContainerViews(
                         chestManager, furnaceManager, hopperSystem,
                         brewingStands, world));
+                netherWorld.attachContainerView(new ContainerViews(
+                        netherChests, netherFurnaces, netherHoppers,
+                        netherBrewingStands, netherWorld));
+                endWorld.attachContainerView(new ContainerViews(
+                        endChests, endFurnaces, endHoppers,
+                        endBrewingStands, endWorld));
                 // The public §27.3 block-entity views beyond the containers:
                 // the spawner/sign reads — the spawners filtered to this
                 // world's own dimension (the manager is global).
@@ -3097,8 +3228,12 @@ public final class EngineServer implements Server, EngineBridge {
                     profiled("redstone", endRedstone::tick); // the End's own queue (Wave FL4-F10)
                     profiled("pistons", pistonSystem::tick); // the piston block events + the moving carriers
                     profiled("hoppers", hopperSystem::tick); // the hoppers' 8-tick transfer cadence
+                    profiled("hoppers", netherHoppers::tick); // the nether's own family (Slice B)
+                    profiled("hoppers", endHoppers::tick); // the End's own family (Slice B)
                     profiled("daylightDetectors", daylightDetectors::tick); // the 20-tick sky-light power band (Slice 27c)
                     profiled("dispensers", dispenserSystem::tick); // the stale-state sweep (Slice 11a)
+                    profiled("dispensers", netherDispensers::tick); // the nether's own family (Slice B)
+                    profiled("dispensers", endDispensers::tick); // the End's own family (Slice B)
                     profiled("tripwire", tripwireSystem::tick); // the tripwire occupancy scan
                     profiled("tnt", tntSystem::tick); // the primed TNT fuses + physics
                     profiled("mining", blockInteraction::tickMining); // the vanilla dig accumulator + 0x28 stages
@@ -3133,6 +3268,8 @@ public final class EngineServer implements Server, EngineBridge {
                     // each family's discard walk reads its OWN world's cells).
                     profiled("chests", () -> netherChests.tick(netherWorld));
                     profiled("chests", () -> endChests.tick(endWorld));
+                    profiled("furnaces", () -> netherFurnaces.tick(netherWorld, itemEntities));
+                    profiled("furnaces", () -> endFurnaces.tick(endWorld, itemEntities));
                     profiled("signs", () -> signManager.tick(world));
                     profiled("commandBlocks", () -> {
                         if (commandBlocks != null) {
@@ -3238,6 +3375,8 @@ public final class EngineServer implements Server, EngineBridge {
                     profiled("netherScheduledBlockTicks", netherScheduledTicks::tick);
                     profiled("endScheduledBlockTicks", endScheduledTicks::tick);
                     profiled("brewingStands", () -> brewingStands.tick(world));
+                    profiled("brewingStands", () -> netherBrewingStands.tick(netherWorld));
+                    profiled("brewingStands", () -> endBrewingStands.tick(endWorld));
                     profiled("beacons", () -> beaconSystem.tick(world.totalTicks())); // the brew cycles (Slice 11e)
                     profiled("furnaceViewers", this::tickFurnaceViewers);
                     profiled("brewingViewers", this::tickBrewingViewers);
@@ -3340,16 +3479,20 @@ public final class EngineServer implements Server, EngineBridge {
                 // pumpkin/armor families consult the engine's own stores.
                 // Wired here — the last of the five (the skull store) is
                 // the boot's own construction order, the setEventBus shape.
-                dispenserSystem.setEngineSurfaces(
-                        mobManager, fireworks, vehicleManager, skulls, players);
+                for (net.zaminmc.torch.server.dispenser.DispenserSystem family
+                        : new net.zaminmc.torch.server.dispenser.DispenserSystem[]{
+                                dispenserSystem, netherDispensers, endDispensers}) {
+                    family.setEngineSurfaces(
+                            mobManager, fireworks, vehicleManager, skulls, players);
+                }
                 // The tile NBT projections (Slice 89 — the reference's
                 // BlockEntity.writeNbt/readNbt over the engine's tile
                 // families): the /blockdata and /testforblock dataTag
                 // arms ride this surface.
                 tileNbt = new net.zaminmc.torch.server.nbt.TileNbt(
                         new net.zaminmc.torch.server.nbt.TileNbt.Seams(
-                                this::chestsFor, furnaceManager, hopperSystem,
-                                dispenserSystem, brewingStands, beaconSystem,
+                                this::chestsFor, this::furnacesFor, this::hoppersFor,
+                                this::dispensersFor, this::brewingStandsFor, beaconSystem,
                                 signManager, spawners, commandBlocks, noteBlocks,
                                 skulls, jukeboxes, bannerManager));
                 blockInteraction = new BlockInteractionService(world, ticker,
@@ -3539,13 +3682,20 @@ public final class EngineServer implements Server, EngineBridge {
                                     brokenType.identifier())) {
                         bannerManager.remove(position);
                     }
-                    furnaceManager.onBlockBroken(position, itemEntities);
+                    // Wave FL4-GAP2 Slice B: every container family
+                    // consults the break's OWN dimension (the acting
+                    // world rides the hook) and spills into that world
+                    // alone.
+                    furnacesFor(actingWorld.dimension()).onBlockBroken(
+                            position, itemEntities, actingWorld.dimension());
                     // Wave FL4-GAP2: the spill consults the break's OWN
                     // dimension's family (the acting world rides the hook).
-                    chestsFor(actingWorld.dimension()).onBlockBroken(position, itemEntities);
-                    hopperSystem.onBlockBroken(position);
-                    dispenserSystem.onBlockBroken(position);
-                    brewingStands.onBlockBroken(position, itemEntities);
+                    chestsFor(actingWorld.dimension()).onBlockBroken(
+                            position, itemEntities, actingWorld.dimension());
+                    hoppersFor(actingWorld.dimension()).onBlockBroken(position);
+                    dispensersFor(actingWorld.dimension()).onBlockBroken(position);
+                    brewingStandsFor(actingWorld.dimension()).onBlockBroken(
+                            position, itemEntities, actingWorld.dimension());
                     beaconSystem.onBlockBroken(position);
                     noteBlocks.onBlockBroken(position);
                     jukeboxes.onBlockBroken(position);
@@ -5187,7 +5337,8 @@ public final class EngineServer implements Server, EngineBridge {
                 continue;
             }
             var position = session.openContainerPosition();
-            var stand = position == null ? null : brewingStands.peek(position);
+            var stand = position == null ? null
+                    : brewingStandsFor(session.openContainerDimension()).peek(position);
             if (stand == null) {
                 continue;
             }
@@ -5269,7 +5420,8 @@ public final class EngineServer implements Server, EngineBridge {
                 continue;
             }
             var position = session.openContainerPosition();
-            FurnaceBlockEntity furnace = position == null ? null : furnaceManager.peek(position);
+            FurnaceBlockEntity furnace = position == null ? null
+                    : furnacesFor(session.openContainerDimension()).peek(position);
             if (furnace == null) {
                 continue;
             }
@@ -5392,7 +5544,8 @@ public final class EngineServer implements Server, EngineBridge {
             switch (session.openContainerKind()) {
                 case HOPPER -> {
                     var position = session.openContainerPosition();
-                    hopper = position == null ? null : hopperSystem.peek(position);
+                    hopper = position == null ? null
+                            : hoppersFor(session.openContainerDimension()).peek(position);
                 }
                 case HOPPER_MINECART -> {
                     var vehicle = vehicleManager == null
@@ -5440,7 +5593,8 @@ public final class EngineServer implements Server, EngineBridge {
                 continue;
             }
             var position = session.openContainerPosition();
-            var dispenser = position == null ? null : dispenserSystem.peek(position);
+            var dispenser = position == null ? null
+                    : dispensersFor(session.openContainerDimension()).peek(position);
             if (dispenser == null) {
                 continue;
             }
@@ -5574,6 +5728,64 @@ public final class EngineServer implements Server, EngineBridge {
             return java.util.Objects.requireNonNull(endChests, "end chests");
         }
         return chestManager;
+    }
+
+    /**
+     * The dimension's own furnace family (Wave FL4-GAP2 Slice B — the
+     * chestsFor form): a nether furnace and an overworld furnace at the
+     * same coordinates are TWO tiles, each in its own world's map.
+     */
+    public FurnaceManager furnacesFor(int dimension) {
+        if (dimension == -1) {
+            return java.util.Objects.requireNonNull(netherFurnaces, "nether furnaces");
+        }
+        if (dimension == 1) {
+            return java.util.Objects.requireNonNull(endFurnaces, "end furnaces");
+        }
+        return furnaceManager;
+    }
+
+    /** The dimension's own hopper family (Wave FL4-GAP2 Slice B — the chestsFor form). */
+    public net.zaminmc.torch.server.hopper.HopperSystem hoppersFor(int dimension) {
+        if (dimension == -1) {
+            return java.util.Objects.requireNonNull(netherHoppers, "nether hoppers");
+        }
+        if (dimension == 1) {
+            return java.util.Objects.requireNonNull(endHoppers, "end hoppers");
+        }
+        return hopperSystem;
+    }
+
+    /** The dimension's own dispenser family (Wave FL4-GAP2 Slice B — the chestsFor form). */
+    public net.zaminmc.torch.server.dispenser.DispenserSystem dispensersFor(int dimension) {
+        if (dimension == -1) {
+            return java.util.Objects.requireNonNull(netherDispensers, "nether dispensers");
+        }
+        if (dimension == 1) {
+            return java.util.Objects.requireNonNull(endDispensers, "end dispensers");
+        }
+        return dispenserSystem;
+    }
+
+    /** The dimension's own brewing family (Wave FL4-GAP2 Slice B — the chestsFor form). */
+    public net.zaminmc.torch.server.brewing.BrewingStandSystem brewingStandsFor(int dimension) {
+        if (dimension == -1) {
+            return java.util.Objects.requireNonNull(netherBrewingStands, "nether brewing");
+        }
+        if (dimension == 1) {
+            return java.util.Objects.requireNonNull(endBrewingStands, "end brewing");
+        }
+        return brewingStands;
+    }
+
+    /**
+     * Every dimension's furnace map, the save union's own shape (Wave
+     * FL4-GAP2 Slice B — the chest union's form).
+     */
+    private java.util.Map<Integer, java.util.Map<net.zaminmc.torch.block.BlockPosition,
+            net.zaminmc.torch.server.furnace.FurnaceBlockEntity>> furnaceUnion() {
+        return java.util.Map.of(0, furnaceManager.snapshot(),
+                -1, netherFurnaces.snapshot(), 1, endFurnaces.snapshot());
     }
 
     /** Observers of the survival body (health sync, death, respawn anchors). */
@@ -9627,7 +9839,8 @@ public final class EngineServer implements Server, EngineBridge {
                 return playerTailSlot(inventory, chestEngineSlotOf(wireSlot));
             }
             case FURNACE -> {
-                var furnace = furnaceManager.peek(session.openContainerPosition());
+                var furnace = furnacesFor(session.openContainerDimension())
+                        .peek(session.openContainerPosition());
                 if (furnace == null) {
                     return null;
                 }
@@ -9668,7 +9881,8 @@ public final class EngineServer implements Server, EngineBridge {
                 return playerTailSlot(inventory, furnaceEngineSlotOf(wireSlot));
             }
             case HOPPER -> {
-                var hopper = hopperSystem.peek(session.openContainerPosition());
+                var hopper = hoppersFor(session.openContainerDimension())
+                        .peek(session.openContainerPosition());
                 if (hopper == null) {
                     return null;
                 }
@@ -9694,7 +9908,8 @@ public final class EngineServer implements Server, EngineBridge {
                 return playerTailSlot(inventory, hopperEngineSlotOf(wireSlot));
             }
             case DISPENSER -> {
-                var container = dispenserSystem.peek(session.openContainerPosition());
+                var container = dispensersFor(session.openContainerDimension())
+                        .peek(session.openContainerPosition());
                 if (container == null) {
                     return null;
                 }
@@ -9706,7 +9921,8 @@ public final class EngineServer implements Server, EngineBridge {
                 return playerTailSlot(inventory, dispenserEngineSlotOf(wireSlot));
             }
             case BREWING_STAND -> {
-                var stand = brewingStands.peek(session.openContainerPosition());
+                var stand = brewingStandsFor(session.openContainerDimension())
+                        .peek(session.openContainerPosition());
                 if (stand == null) {
                     return null;
                 }
@@ -10057,7 +10273,8 @@ public final class EngineServer implements Server, EngineBridge {
                                              int mode) {
         var inventory = session.inventory();
         var position = session.openContainerPosition();
-        var furnace = position == null ? null : furnaceManager.peek(position);
+        var furnace = position == null ? null
+                : furnacesFor(session.openContainerDimension()).peek(position);
         if (furnace == null) {
             return false; // stale window (state discarded): rejected, resync restores
         }
@@ -10225,7 +10442,8 @@ public final class EngineServer implements Server, EngineBridge {
                                             int mode) {
         var inventory = session.inventory();
         var position = session.openContainerPosition();
-        var hopper = position == null ? null : hopperSystem.peek(position);
+        var hopper = position == null ? null
+                : hoppersFor(session.openContainerDimension()).peek(position);
         if (hopper == null) {
             return false; // stale window (state discarded): rejected, resync restores
         }
@@ -11003,7 +11221,8 @@ public final class EngineServer implements Server, EngineBridge {
                                                int mode) {
         var inventory = session.inventory();
         var position = session.openContainerPosition();
-        var container = position == null ? null : dispenserSystem.peek(position);
+        var container = position == null ? null
+                : dispensersFor(session.openContainerDimension()).peek(position);
         if (container == null) {
             return false; // stale window (state discarded): rejected, resync restores
         }
@@ -11123,7 +11342,8 @@ public final class EngineServer implements Server, EngineBridge {
                                                   int mode) {
         var inventory = session.inventory();
         var position = session.openContainerPosition();
-        var container = position == null ? null : brewingStands.peek(position);
+        var container = position == null ? null
+                : brewingStandsFor(session.openContainerDimension()).peek(position);
         if (container == null) {
             return false; // stale window (state discarded): rejected, resync restores
         }
@@ -13073,7 +13293,7 @@ public final class EngineServer implements Server, EngineBridge {
         net.zaminmc.torch.item.ItemStack heldStack = session.inventory().held();
         if (!heldStack.isEmpty()) {
             net.zaminmc.torch.server.furnace.FurnaceBlockEntity furnace =
-                    furnaceManager.getOrCreate(target);
+                    furnacesFor(session.dimension()).getOrCreate(target);
             if (heldStack.displayName() != null && furnace != null) {
                 furnace.setCustomName(heldStack.displayName());
             }
@@ -13330,7 +13550,7 @@ public final class EngineServer implements Server, EngineBridge {
         // The placement re-orientation (DispenserBlock.onAdded lines 49-75):
         // a dispenser placed facing into an opaque wall flips to the open
         // side (the flag-1 placement walk).
-        dispenserSystem.updateFacingOnPlacement(target);
+        dispensersFor(session.dimension()).updateFacingOnPlacement(target);
         consumePlaced(session, creativeHeld);
     }
 
@@ -15758,7 +15978,7 @@ public final class EngineServer implements Server, EngineBridge {
             // own mouth.
             if (hopperSystem == null
                     || vehicleManager.spawnHopperMinecart(
-                            spawnAt, hopperSystem::hopperCartTransfer,
+                            spawnAt, hoppersFor(session.dimension())::hopperCartTransfer,
                             session.dimension()) == null) {
                 return; // the §27.7 gate withheld the cart — the item stays
             }
@@ -17748,14 +17968,16 @@ public final class EngineServer implements Server, EngineBridge {
         session.stats().increment(
                 net.zaminmc.torch.server.stat.EngineStats.FURNACE_INTERACTIONS, 1);
 
-        FurnaceBlockEntity furnace = furnaceManager.getOrCreate(position);
+        FurnaceBlockEntity furnace = furnacesFor(session.dimension())
+                .getOrCreate(position);
         if (containerLockedAgainst(session, furnace.lockKey(), furnace.customName(), "Furnace")) {
             return; // the reference's lock-out: no window
         }
         int windowId = nextContainerWindowId;
         nextContainerWindowId = nextContainerWindowId >= LAST_CONTAINER_WINDOW_ID
                 ? FIRST_CONTAINER_WINDOW_ID : nextContainerWindowId + 1;
-        session.openContainerWindow(windowId, PlayerSession.ContainerKind.FURNACE, position);
+        session.openContainerWindow(windowId, PlayerSession.ContainerKind.FURNACE, position,
+                session.dimension());
         onTableOpened.accept(windowId);
     }
 
@@ -17959,14 +18181,15 @@ public final class EngineServer implements Server, EngineBridge {
         session.stats().increment(
                 net.zaminmc.torch.server.stat.EngineStats.HOPPERS_INSPECTED, 1);
 
-        var hopper = hopperSystem.getOrCreate(position);
+        var hopper = hoppersFor(session.dimension()).getOrCreate(position);
         if (containerLockedAgainst(session, hopper.lockKey(), hopper.customName(), "Hopper")) {
             return; // the reference's lock-out: no window
         }
         int windowId = nextContainerWindowId;
         nextContainerWindowId = nextContainerWindowId >= LAST_CONTAINER_WINDOW_ID
                 ? FIRST_CONTAINER_WINDOW_ID : nextContainerWindowId + 1;
-        session.openContainerWindow(windowId, PlayerSession.ContainerKind.HOPPER, position);
+        session.openContainerWindow(windowId, PlayerSession.ContainerKind.HOPPER, position,
+                session.dimension());
         onTableOpened.accept(windowId);
     }
 
@@ -17997,7 +18220,7 @@ public final class EngineServer implements Server, EngineBridge {
             session.stats().increment(
                     net.zaminmc.torch.server.stat.EngineStats.DROPPERS_INSPECTED, 1);
         }
-        var dispenser = dispenserSystem.getOrCreate(position);
+        var dispenser = dispensersFor(session.dimension()).getOrCreate(position);
         if (containerLockedAgainst(session, dispenser.lockKey(), dispenser.customName(),
                 "Dispenser")) {
             return; // the reference's lock-out: no window
@@ -18005,7 +18228,8 @@ public final class EngineServer implements Server, EngineBridge {
         int windowId = nextContainerWindowId;
         nextContainerWindowId = nextContainerWindowId >= LAST_CONTAINER_WINDOW_ID
                 ? FIRST_CONTAINER_WINDOW_ID : nextContainerWindowId + 1;
-        session.openContainerWindow(windowId, PlayerSession.ContainerKind.DISPENSER, position);
+        session.openContainerWindow(windowId, PlayerSession.ContainerKind.DISPENSER, position,
+                session.dimension());
         onTableOpened.accept(windowId);
     }
 
@@ -18022,14 +18246,15 @@ public final class EngineServer implements Server, EngineBridge {
         session.stats().increment(
                 net.zaminmc.torch.server.stat.EngineStats.BREWING_STAND_INTERACTIONS, 1);
 
-        var brewing = brewingStands.getOrCreate(position);
+        var brewing = brewingStandsFor(session.dimension()).getOrCreate(position);
         if (containerLockedAgainst(session, brewing.lockKey(), brewing.customName(), "Brewing")) {
             return; // the reference's lock-out: no window
         }
         int windowId = nextContainerWindowId;
         nextContainerWindowId = nextContainerWindowId >= LAST_CONTAINER_WINDOW_ID
                 ? FIRST_CONTAINER_WINDOW_ID : nextContainerWindowId + 1;
-        session.openContainerWindow(windowId, PlayerSession.ContainerKind.BREWING_STAND, position);
+        session.openContainerWindow(windowId, PlayerSession.ContainerKind.BREWING_STAND,
+                position, session.dimension());
         onTableOpened.accept(windowId);
     }
 
@@ -19688,24 +19913,16 @@ public final class EngineServer implements Server, EngineBridge {
                     chestsFor(changed.dimension()).getOrCreate(position);
                 }
                 case "furnace", "lit_furnace" -> {
-                    if (furnaceManager != null) {
-                        furnaceManager.getOrCreate(position);
-                    }
+                    furnacesFor(changed.dimension()).getOrCreate(position);
                 }
                 case "hopper" -> {
-                    if (hopperSystem != null) {
-                        hopperSystem.getOrCreate(position);
-                    }
+                    hoppersFor(changed.dimension()).getOrCreate(position);
                 }
                 case "dispenser", "dropper" -> {
-                    if (dispenserSystem != null) {
-                        dispenserSystem.getOrCreate(position);
-                    }
+                    dispensersFor(changed.dimension()).getOrCreate(position);
                 }
                 case "brewing_stand" -> {
-                    if (brewingStands != null) {
-                        brewingStands.getOrCreate(position);
-                    }
+                    brewingStandsFor(changed.dimension()).getOrCreate(position);
                 }
                 case "beacon" -> {
                     if (beaconSystem != null) {
@@ -20043,7 +20260,7 @@ public final class EngineServer implements Server, EngineBridge {
                                 new net.zaminmc.torch.block.BlockPosition(
                                         pending.x(), pending.y(), pending.z());
                         net.zaminmc.torch.server.dispenser.DispenserBlockEntity dispenser =
-                                dispenserSystem.getOrCreate(position);
+                                dispensersFor(worldDimension).getOrCreate(position);
                         // The same guard as the chest: a dispenser with
                         // contents (the ZCD store's restore) skips the
                         // re-roll.
@@ -26113,7 +26330,7 @@ public final class EngineServer implements Server, EngineBridge {
             }
             if (net.zaminmc.torch.server.hopper.HopperBlocks.isHopper(block)) {
                 net.zaminmc.torch.server.hopper.HopperBlockEntity hopper =
-                        hopperSystem.peek(position);
+                        hoppersFor(probeWorld.dimension()).peek(position);
                 return hopper == null ? 0
                         : net.zaminmc.torch.server.redstone.RedstoneSystem.containerFullness(
                                 hopper.snapshotSlots(), 64);
@@ -26123,7 +26340,8 @@ public final class EngineServer implements Server, EngineBridge {
                 // walk the reference runs on every Inventory —
                 // DispenserBlock.getAnalogSignal lines 186-189).
                 net.zaminmc.torch.server.dispenser.DispenserBlockEntity container =
-                        dispenserSystem == null ? null : dispenserSystem.peek(position);
+                        dispenserSystem == null ? null
+                                : dispensersFor(probeWorld.dimension()).peek(position);
                 return container == null ? 0
                         : net.zaminmc.torch.server.redstone.RedstoneSystem.containerFullness(
                                 container.snapshotSlots(), 64);
@@ -26134,7 +26352,8 @@ public final class EngineServer implements Server, EngineBridge {
                 // InventoryMenu.getAnalogSignal — the same fullness
                 // walk every container runs).
                 net.zaminmc.torch.server.brewing.BrewingStandBlockEntity stand =
-                        brewingStands == null ? null : brewingStands.peek(position);
+                        brewingStands == null ? null
+                                : brewingStandsFor(probeWorld.dimension()).peek(position);
                 return stand == null ? 0
                         : net.zaminmc.torch.server.redstone.RedstoneSystem.containerFullness(
                                 stand.snapshotSlots(), 64);
@@ -26143,7 +26362,7 @@ public final class EngineServer implements Server, EngineBridge {
                     || block.identifier().equals(BuiltinBlocks.FURNACE_LIT.identifier())
                     || net.zaminmc.torch.server.furnace.FurnaceFacingBlocks.isAnyFacing(block)) {
                 net.zaminmc.torch.server.furnace.FurnaceBlockEntity furnace =
-                        furnaceManager.peek(position);
+                        furnacesFor(probeWorld.dimension()).peek(position);
                 return furnace == null ? 0
                         : net.zaminmc.torch.server.redstone.RedstoneSystem.containerFullness(
                                 new net.zaminmc.torch.item.ItemStack[]{
@@ -28167,19 +28386,23 @@ public final class EngineServer implements Server, EngineBridge {
                 }
             } else if (blockName.equals("furnace") || blockName.equals("lit_furnace")) {
                 if (j >= 0 && j < net.zaminmc.torch.server.furnace.FurnaceBlockEntity.SLOT_COUNT) {
-                    furnaceManager.getOrCreate(pos).setSlot(j, placed != null ? placed : empty);
+                    furnacesFor(sender.sourceDimension()).getOrCreate(pos)
+                            .setSlot(j, placed != null ? placed : empty);
                 }
             } else if (blockName.startsWith("hopper")) {
                 if (j >= 0 && j < net.zaminmc.torch.server.hopper.HopperBlockEntity.SLOT_COUNT) {
-                    hopperSystem.getOrCreate(pos).setItem(j, placed); // null empties
+                    hoppersFor(sender.sourceDimension()).getOrCreate(pos)
+                            .setItem(j, placed); // null empties
                 }
             } else if (blockName.startsWith("brewing_stand")) {
                 if (j >= 0 && j < net.zaminmc.torch.server.brewing.BrewingStandBlockEntity.SLOT_COUNT) {
-                    brewingStands.getOrCreate(pos).setItem(j, placed);
+                    brewingStandsFor(sender.sourceDimension()).getOrCreate(pos)
+                            .setItem(j, placed);
                 }
             } else if (blockName.startsWith("dispenser") || blockName.startsWith("dropper")) {
                 if (j >= 0 && j < net.zaminmc.torch.server.dispenser.DispenserBlockEntity.SLOT_COUNT) {
-                    dispenserSystem.getOrCreate(pos).setItem(j, placed);
+                    dispensersFor(sender.sourceDimension()).getOrCreate(pos)
+                            .setItem(j, placed);
                 }
             } else {
                 return "There is no container at " + bx + ", " + by + ", " + bz;
@@ -30374,11 +30597,11 @@ public final class EngineServer implements Server, EngineBridge {
                     // on the I/O lane, the named sequence gate at the file.
                     if (pipeline != null) {
                         publications.add(pipeline.submitSave("furnace",
-                                furnaceStore.capture(furnaceManager.snapshot()),
+                                furnaceStore.capture(furnaceUnion()),
                                 furnaceStore::serialize,
                                 furnaceStore::writeSerialized));
                     } else {
-                        furnaceStore.save(furnaceManager.snapshot());
+                        furnaceStore.save(furnaceUnion());
                     }
                 }
                 if (chestStore != null && chestManager != null) {
@@ -30398,13 +30621,20 @@ public final class EngineServer implements Server, EngineBridge {
                     }
                 }
                 if (hopperStore != null && hopperSystem != null) {
+                    // Wave FL4-GAP2 Slice B: the union over every
+                    // dimension's hopper family (each row stamped with its
+                    // own world — the v2 law).
+                    java.util.Map<Integer, java.util.Map<net.zaminmc.torch.block.BlockPosition,
+                            net.zaminmc.torch.server.hopper.HopperBlockEntity>> hopperUnion =
+                            java.util.Map.of(0, hopperSystem.snapshot(),
+                                    -1, netherHoppers.snapshot(), 1, endHoppers.snapshot());
                     if (pipeline != null) {
                         publications.add(pipeline.submitSave("hopper",
-                                hopperStore.capture(hopperSystem.snapshot()),
+                                hopperStore.capture(hopperUnion),
                                 hopperStore::serialize,
                                 hopperStore::writeSerialized));
                     } else {
-                        hopperStore.save(hopperSystem.snapshot());
+                        hopperStore.save(hopperUnion);
                     }
                 }
                 if (noteStore != null && noteBlocks != null) {
@@ -30579,25 +30809,39 @@ public final class EngineServer implements Server, EngineBridge {
                 }
                 if (dispenserStore != null && dispenserSystem != null) {
                     // S4: the pipeline's named path (the deep capture on
-                    // the tick lane, the rest off it).
+                    // the tick lane, the rest off it) — the union over every
+                    // dimension's family (Slice B's v2 law).
+                    java.util.Map<Integer, java.util.Map<net.zaminmc.torch.block.BlockPosition,
+                            net.zaminmc.torch.server.dispenser.DispenserBlockEntity>>
+                            dispenserUnion = java.util.Map.of(
+                            0, dispenserSystem.snapshot(),
+                            -1, netherDispensers.snapshot(),
+                            1, endDispensers.snapshot());
                     if (pipeline != null) {
                         publications.add(pipeline.submitSave("dispenser",
-                                dispenserStore.capture(dispenserSystem.snapshot()),
+                                dispenserStore.capture(dispenserUnion),
                                 dispenserStore::serialize,
                                 dispenserStore::writeSerialized));
                     } else {
-                        dispenserStore.save(dispenserSystem.snapshot());
+                        dispenserStore.save(dispenserUnion);
                     }
                 }
                 if (brewingStore != null && brewingStands != null) {
-                    // S4: the pipeline's named path.
+                    // S4: the pipeline's named path — the union over every
+                    // dimension's family (Slice B's v2 law).
+                    java.util.Map<Integer, java.util.Map<net.zaminmc.torch.block.BlockPosition,
+                            net.zaminmc.torch.server.brewing.BrewingStandBlockEntity>>
+                            brewingUnion = java.util.Map.of(
+                            0, brewingStands.snapshot(),
+                            -1, netherBrewingStands.snapshot(),
+                            1, endBrewingStands.snapshot());
                     if (pipeline != null) {
                         publications.add(pipeline.submitSave("brewing",
-                                brewingStore.capture(brewingStands.snapshot()),
+                                brewingStore.capture(brewingUnion),
                                 brewingStore::serialize,
                                 brewingStore::writeSerialized));
                     } else {
-                        brewingStore.save(brewingStands.snapshot());
+                        brewingStore.save(brewingUnion);
                     }
                 }
                 if (beaconStore != null && beaconSystem != null) {
@@ -30969,7 +31213,8 @@ public final class EngineServer implements Server, EngineBridge {
                                 scheduledTickSystem,
                                 new net.zaminmc.torch.server.world.anvil.AnvilWorldImport.VehicleSeams(
                                         vehicleManager,
-                                        () -> hopperSystem::hopperCartTransfer,
+                                        () -> cart -> hoppersFor(cart.dimension())
+                                                .hopperCartTransfer(cart),
                                         this::spawnerCartHost,
                                         this::commandCartHost),
                                 projectileManager, decorations, experienceOrbs,

@@ -54,12 +54,19 @@ class EffectTileSaveSplitTest {
 
     @Test
     void dispenserSplitRoundTripsThroughTheSyncSaveAndThePipeline() throws Exception {
-        Map<BlockPosition, DispenserBlockEntity> live = new LinkedHashMap<>();
+        Map<Integer, Map<BlockPosition, DispenserBlockEntity>> live = new LinkedHashMap<>();
+        Map<BlockPosition, DispenserBlockEntity> overworld = new LinkedHashMap<>();
         DispenserBlockEntity seeded = new DispenserBlockEntity();
         seeded.setItem(0, ItemStack.of(BuiltinItems.IRON_INGOT, 4));
         seeded.setItem(8, new ItemStack(BuiltinItems.COAL, 1, 0).withName("Cannonball"));
-        live.put(new BlockPosition(3, 21, -6), seeded);
-        live.put(new BlockPosition(7, 7, 7), new DispenserBlockEntity());
+        overworld.put(new BlockPosition(3, 21, -6), seeded);
+        overworld.put(new BlockPosition(7, 7, 7), new DispenserBlockEntity());
+        // Wave FL4-GAP2 Slice B: a nether row rides the same file, stamped
+        // with its own world.
+        DispenserBlockEntity netherSeeded = new DispenserBlockEntity();
+        netherSeeded.setItem(0, ItemStack.of(BuiltinItems.DIAMOND, 2));
+        live.put(0, overworld);
+        live.put(-1, Map.of(new BlockPosition(3, 21, -6), netherSeeded));
 
         var store = new net.zaminmc.torch.server.dispenser.DispenserDataStore(
                 dir.resolve("dispensers.bin"));
@@ -68,10 +75,21 @@ class EffectTileSaveSplitTest {
         assertArrayEquals(pure, Files.readAllBytes(dir.resolve("dispensers.bin")),
                 "the sync save's file carries the serializer's bytes");
         var restored = store.load();
-        assertEquals(4, restored.get(new BlockPosition(3, 21, -6)).snapshotSlots()[0].count());
+        assertEquals(3, restored.size(), "the overworld pair + the nether row");
+        var overworldRow = restored.stream()
+                .filter(row -> row.dimension() == 0 && row.position().equals(
+                        new BlockPosition(3, 21, -6))).findFirst().orElseThrow();
+        assertEquals(4, overworldRow.container().snapshotSlots()[0].count());
         assertEquals("Cannonball",
-                restored.get(new BlockPosition(3, 21, -6)).snapshotSlots()[8].displayName());
-        assertTrue(restored.get(new BlockPosition(7, 7, 7)).snapshotSlots()[0].isEmpty());
+                overworldRow.container().snapshotSlots()[8].displayName());
+        var emptyRow = restored.stream()
+                .filter(row -> row.dimension() == 0 && row.position().equals(
+                        new BlockPosition(7, 7, 7))).findFirst().orElseThrow();
+        assertTrue(emptyRow.container().snapshotSlots()[0].isEmpty());
+        var netherRow = restored.stream()
+                .filter(row -> row.dimension() == -1).findFirst().orElseThrow();
+        assertEquals(2, netherRow.container().snapshotSlots()[0].count(),
+                "the same-coordinate nether tile is its own row");
 
         // the pipeline ride
         OwnershipDomain domain = OwnershipDomain.create("s4disp:test");
@@ -94,11 +112,13 @@ class EffectTileSaveSplitTest {
 
     @Test
     void brewingSplitRoundTripsThroughTheSyncSave() throws Exception {
-        Map<BlockPosition, BrewingStandBlockEntity> live = new LinkedHashMap<>();
+        Map<Integer, Map<BlockPosition, BrewingStandBlockEntity>> live = new LinkedHashMap<>();
+        Map<BlockPosition, BrewingStandBlockEntity> overworld = new LinkedHashMap<>();
         BrewingStandBlockEntity seeded = new BrewingStandBlockEntity();
         seeded.setItem(0, ItemStack.of(BuiltinItems.IRON_ORE, 1));
         seeded.setItem(3, ItemStack.of(BuiltinItems.COAL, 2));
-        live.put(new BlockPosition(-2, 44, 9), seeded);
+        overworld.put(new BlockPosition(-2, 44, 9), seeded);
+        live.put(0, overworld);
 
         var store = new net.zaminmc.torch.server.brewing.BrewingStandDataStore(
                 dir.resolve("brewing.bin"));
@@ -107,8 +127,11 @@ class EffectTileSaveSplitTest {
         assertArrayEquals(pure, Files.readAllBytes(dir.resolve("brewing.bin")),
                 "the sync save's file carries the serializer's bytes");
         var restored = store.load();
-        assertEquals(1, restored.get(new BlockPosition(-2, 44, 9)).snapshotSlots()[0].count());
-        assertEquals(2, restored.get(new BlockPosition(-2, 44, 9)).snapshotSlots()[3].count());
+        var row = restored.get(0);
+        assertEquals(new BlockPosition(-2, 44, 9), row.position());
+        assertEquals(0, row.dimension());
+        assertEquals(1, row.stand().snapshotSlots()[0].count());
+        assertEquals(2, row.stand().snapshotSlots()[3].count());
     }
 
     @Test
