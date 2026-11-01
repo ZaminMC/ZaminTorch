@@ -84,6 +84,19 @@ public final class ProjectileManager {
         default boolean solidAt(double x, double y, double z) {
             return solid(x, y, z);
         }
+
+        /**
+         * VT-015 — the block-type consult at a cell (the tracked-block
+         * un-stick law's read, ArrowEntity lines 172-186: the grounded
+         * tick re-reads the tracked cell and compares against the
+         * remembered block): the block at the cell in the ACTIVE
+         * dimension, or null when the query carries no type surface (the
+         * default) — a null consult never un-sticks, so stub queries
+         * keep their stick-clock-only semantics.
+         */
+        default net.zaminmc.torch.block.BlockType blockTypeAt(int x, int y, int z) {
+            return null;
+        }
     }
 
     /** Resolves the entity a projectile is inside of, if any (tick thread). */
@@ -851,9 +864,33 @@ public final class ProjectileManager {
         for (int i = projectiles.size() - 1; i >= 0; i--) {
             ProjectileEntity projectile = projectiles.get(i);
             if (projectile.inGround()) {
-                projectile.integrate(DRAG, ARROW_GRAVITY); // only the stick clock runs
-                if (projectile.ticksInGround() >= ARROW_GROUND_TICKS) {
-                    remove(projectile, "expired");
+                // VT-015 — the tracked-block consult (ArrowEntity lines
+                // 172-186): every stuck tick re-reads the tracked cell in
+                // the body's own dimension; a block that no longer matches
+                // the remembered pair un-sticks the arrow (the randomized
+                // velocity re-arm, both clocks reset) — the flight resumes
+                // on the NEXT tick (the reference's own branch shape: the
+                // un-stick lands inside the inGround branch, after the
+                // branch was chosen, and the tick moves the body no further).
+                // Untracked bodies (the hand-stuck form, the import's §31.6
+                // tail) and null consults (the stub queries) keep the stick
+                // clock alone — the pre-fix behavior.
+                boolean unstuck = false;
+                net.zaminmc.torch.block.BlockPosition trackedCell = projectile.trackedCell();
+                if (trackedCell != null) {
+                    solid.setActiveDimension(projectile.dimension());
+                    net.zaminmc.torch.block.BlockType stuckIn = solid.blockTypeAt(
+                            trackedCell.x(), trackedCell.y(), trackedCell.z());
+                    if (stuckIn != null && !stuckIn.equals(projectile.trackedBlock())) {
+                        projectile.unstick(random);
+                        unstuck = true;
+                    }
+                }
+                if (!unstuck) {
+                    projectile.integrate(DRAG, ARROW_GRAVITY); // only the stick clock runs
+                    if (projectile.ticksInGround() >= ARROW_GROUND_TICKS) {
+                        remove(projectile, "expired");
+                    }
                 }
                 continue;
             }
@@ -1192,7 +1229,23 @@ public final class ProjectileManager {
                                 (int) Math.floor(point.z())), projectile.dimension())) {
                     return false; // the cell opened — the walk continues
                 }
-                projectile.landInGround();
+                // VT-015 — the LIVE stick records the tracked pair (the
+                // reference's blockX/Y/Z + block/blockData, ArrowEntity
+                // lines 289-295): the cell the solid sample found and the
+                // block it held, so the grounded tick's consult can un-stick
+                // the arrow when the cell changes. A null type consult (the
+                // stub queries) sticks untracked — the pre-fix behavior.
+                int stuckCellX = (int) Math.floor(point.x());
+                int stuckCellY = (int) Math.floor(point.y());
+                int stuckCellZ = (int) Math.floor(point.z());
+                net.zaminmc.torch.block.BlockType stuckIn = solid.blockTypeAt(
+                        stuckCellX, stuckCellY, stuckCellZ);
+                projectile.landInGround(
+                        stuckIn != null
+                                ? new net.zaminmc.torch.block.BlockPosition(
+                                        stuckCellX, stuckCellY, stuckCellZ)
+                                : null,
+                        stuckIn);
                 for (Listener listener : listeners) {
                     listener.onProjectileLanded(projectile);
                 }

@@ -32254,6 +32254,24 @@ public final class EngineServer implements Server, EngineBridge {
             return groundSolidAtPoint(x, y, z);
         }
 
+        /**
+         * VT-015 — the projectile family's block-type consult (the
+         * tracked-block un-stick law's read, ArrowEntity lines 172-186):
+         * the block at the cell in the ACTIVE dimension, the same guard
+         * the collision surface carries (the out-of-bounds y band answers
+         * air). The manager flips the dimension to the stuck arrow's own
+         * world before the consult.
+         */
+        @Override
+        public net.zaminmc.torch.block.BlockType blockTypeAt(int x, int y, int z) {
+            if (y < net.zaminmc.torch.block.BlockPosition.MIN_Y
+                    || y > net.zaminmc.torch.block.BlockPosition.MAX_Y) {
+                return world.airType();
+            }
+            return activeGroundWorld().getBlock(
+                    new net.zaminmc.torch.block.BlockPosition(x, y, z));
+        }
+
         @Override
         public double supportY(double x, double y, double z) {
             return groundSupportYAt(x, y, z);

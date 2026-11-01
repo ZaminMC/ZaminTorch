@@ -1,9 +1,12 @@
 package net.zaminmc.torch.server.entity.projectile;
 
+import net.zaminmc.torch.block.BlockPosition;
+import net.zaminmc.torch.block.BlockType;
 import net.zaminmc.torch.util.Identifier;
 import net.zaminmc.torch.util.Position;
 
 import java.util.Objects;
+import java.util.Random;
 
 /**
  * One airborne projectile: an arrow, a thrown snowball or an egg.
@@ -250,12 +253,78 @@ public final class ProjectileEntity implements net.zaminmc.torch.entity.Projecti
         this.pickup = pickup;
     }
 
-    /** Marks the arrow as stuck (it stops moving and starts its removal clock). */
+    /**
+     * The stuck arrow's tracked cell (the reference's blockX/Y/Z,
+     * ArrowEntity lines 289-292 — the cell the hit ray found) and its
+     * remembered block (the reference's block/blockData pair — the
+     * engine's block type carries the state in its own granularity).
+     * Null on the untracked forms (the hand-stuck test shape, the
+     * Anvil import's §31.6 tail — the xTile/inTile rows stay isolated):
+     * an untracked body never consults, the stick clock alone runs.
+     */
+    private BlockPosition trackedCell;
+    private BlockType trackedBlock;
+
+    /**
+     * Marks the arrow as stuck (it stops moving and starts its removal
+     * clock) — the UNTRACKED form: no cell is remembered, so the
+     * tracked-block consult never un-sticks this body (the hand-stuck
+     * test shape; the reference's own import would restore the pair).
+     */
     public void landInGround() {
         this.inGround = true;
         this.vx = 0;
         this.vy = 0;
         this.vz = 0;
+    }
+
+    /**
+     * The LIVE stick (the reference's block-hit arm, ArrowEntity lines
+     * 288-309): the tracked pair — the hit cell and its block — is
+     * remembered beside the flag, so the grounded tick's consult
+     * (ArrowEntity lines 172-186) can un-stick the arrow when the cell
+     * no longer holds the same block.
+     *
+     * @param trackedCell the cell the solid sample found (the hit block)
+     * @param trackedBlock the block the cell held at stick time
+     */
+    public void landInGround(BlockPosition trackedCell, BlockType trackedBlock) {
+        this.inGround = true;
+        this.trackedCell = trackedCell;
+        this.trackedBlock = trackedBlock;
+        this.vx = 0;
+        this.vy = 0;
+        this.vz = 0;
+    }
+
+    /** @return the tracked cell the arrow stuck in, or null (untracked). */
+    public BlockPosition trackedCell() {
+        return trackedCell;
+    }
+
+    /** @return the remembered block of the tracked cell, or null. */
+    public BlockType trackedBlock() {
+        return trackedBlock;
+    }
+
+    /**
+     * The tracked-block UN-STICK (the reference's ArrowEntity lines
+     * 180-185): the tracked cell no longer holds the remembered block,
+     * so the arrow un-sticks — the flag flips, every velocity component
+     * re-arms as {@code v * (random.nextFloat() * 0.2F)} (three separate
+     * rolls, X/Y/Z order), and both clocks reset ({@code inBlockTicks}
+     * and {@code inAirTicks} — the stick clock and the airborne age).
+     * The flight resumes on the NEXT tick (the reference's un-stick
+     * lands inside the inGround branch, after the branch was chosen).
+     * Package-private: the manager's grounded consult is the caller.
+     */
+    void unstick(Random random) {
+        this.inGround = false;
+        this.vx = this.vx * (random.nextFloat() * 0.2F);
+        this.vy = this.vy * (random.nextFloat() * 0.2F);
+        this.vz = this.vz * (random.nextFloat() * 0.2F);
+        this.ticksInGround = 0;
+        this.age = 0;
     }
 
     /**
