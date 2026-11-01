@@ -1757,8 +1757,15 @@ public final class V18ProtocolServer implements ProtocolAdapter {
 
             @Override
             public void onProjectileLanded(net.zaminmc.torch.server.entity.projectile.ProjectileEntity projectile) {
-                // A landed arrow just stops receiving teleport syncs; the
-                // clients hold the last position until the destroy arrives.
+                // VT-014 — the landed arrow's REST POSITION is published
+                // (the reference's tracker keeps sending the arrow's
+                // position; the stuck rest — the crossed face +0.05 backoff
+                // — is what every client renders). Before the placement
+                // repair the rest was never sent and the clients held the
+                // PRE-STEP position, up to a full step away from the face.
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendProjectileMoved(projectile);
+                }
             }
 
             @Override

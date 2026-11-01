@@ -1192,6 +1192,19 @@ public final class ProjectileManager {
                                 (int) Math.floor(point.z())), projectile.dimension())) {
                     return false; // the cell opened — the walk continues
                 }
+                // VT-014 — the reference's stick placement (ArrowEntity.tick
+                // lines 288-330): the rest is 0.05 OUTSIDE the crossed face,
+                // in the cell the arrow flew through — never the post-step
+                // endpoint. The face walk below backs the position off to the
+                // first crossed face along the step (the reference's own
+                // rayTrace cell walk, at the engine's cell granularity), then
+                // the 0.05 backoff lands the rest exactly where the
+                // reference's composition does:
+                // (pos - 0.05*unit) + (face - pos) = face - 0.05*unit.
+                Position stickRest = stickRestPosition(from, point);
+                if (stickRest != null) {
+                    projectile.teleport(stickRest);
+                }
                 projectile.landInGround();
                 for (Listener listener : listeners) {
                     listener.onProjectileLanded(projectile);
@@ -1256,6 +1269,148 @@ public final class ProjectileManager {
             return true;
         }
         return false;
+    }
+
+    /**
+     * VT-014 — the stick placement's face walk (the reference's rayTrace
+     * cell walk, {@code World.rayTrace} lines 639-760, at the engine's cell
+     * granularity): walks the segment from the step's START toward the
+     * solid sample, crossing one cell boundary at a time (the parametric
+     * face math and the axis ordering the reference itself uses, the
+     * negative-zero guards included), and answers the rest position for a
+     * stick at the FIRST crossed face whose entered cell consults solid —
+     * the face the reference's ray would have hit, backed off 0.05 along
+     * the approach exactly as the reference's stick arm composes it
+     * (ArrowEntity lines 296-302: {@code pos - (face - pos)/f5 * 0.05},
+     * the doubled-precision form of the reference's float composition).
+     *
+     * <p>Null when the walk finds no crossed solid cell: the same-cell
+     * residue (the start cell itself holds the solid sample — the
+     * spawned-inside-block shape, where the endpoint rest stands, the
+     * engine's cell-granularity limitation named in the finding's
+     * record).</p>
+     */
+    private Position stickRestPosition(Position from, Position point) {
+        int targetX = (int) Math.floor(point.x());
+        int targetY = (int) Math.floor(point.y());
+        int targetZ = (int) Math.floor(point.z());
+        int cellX = (int) Math.floor(from.x());
+        int cellY = (int) Math.floor(from.y());
+        int cellZ = (int) Math.floor(from.z());
+        // The same-cell residue: no face crossing exists to back off to.
+        if (cellX == targetX && cellY == targetY && cellZ == targetZ) {
+            return null;
+        }
+        double stepX = point.x() - from.x();
+        double stepY = point.y() - from.y();
+        double stepZ = point.z() - from.z();
+        int guard = 200; // the reference's own iteration cap
+        while (guard-- >= 0) {
+            if (cellX == targetX && cellY == targetY && cellZ == targetZ) {
+                return null; // the walk exhausted without a solid entry
+            }
+            // The next boundary plane per axis (the reference's own
+            // 999-sentinel shape: an axis the segment does not advance
+            // along never wins the min).
+            double boundaryX = 999.0;
+            double boundaryY = 999.0;
+            double boundaryZ = 999.0;
+            boolean advancesX = false;
+            boolean advancesY = false;
+            boolean advancesZ = false;
+            if (targetX > cellX) {
+                boundaryX = cellX + 1.0;
+                advancesX = true;
+            } else if (targetX < cellX) {
+                boundaryX = cellX + 0.0;
+                advancesX = true;
+            }
+            if (targetY > cellY) {
+                boundaryY = cellY + 1.0;
+                advancesY = true;
+            } else if (targetY < cellY) {
+                boundaryY = cellY + 0.0;
+                advancesY = true;
+            }
+            if (targetZ > cellZ) {
+                boundaryZ = cellZ + 1.0;
+                advancesZ = true;
+            } else if (targetZ < cellZ) {
+                boundaryZ = cellZ + 0.0;
+                advancesZ = true;
+            }
+            double paramX = 999.0;
+            double paramY = 999.0;
+            double paramZ = 999.0;
+            if (advancesX) {
+                paramX = (boundaryX - from.x()) / stepX;
+            }
+            if (advancesY) {
+                paramY = (boundaryY - from.y()) / stepY;
+            }
+            if (advancesZ) {
+                paramZ = (boundaryZ - from.z()) / stepZ;
+            }
+            // The reference's negative-zero guard (World line 724): a
+            // boundary coincident with the start must not win the min.
+            if (paramX == -0.0) {
+                paramX = -1.0E-4;
+            }
+            if (paramY == -0.0) {
+                paramY = -1.0E-4;
+            }
+            if (paramZ == -0.0) {
+                paramZ = -1.0E-4;
+            }
+            double faceX;
+            double faceY;
+            double faceZ;
+            if (paramX < paramY && paramX < paramZ) {
+                faceX = boundaryX;
+                faceY = from.y() + stepY * paramX;
+                faceZ = from.z() + stepZ * paramX;
+                // The reference recomputes ALL THREE cell coordinates from
+                // the advanced crossing point each iteration (World lines
+                // 758-760): the crossed axis carries the direction
+                // correction, the parametrically-advanced others land on
+                // their own floors — a same-iteration boundary crossing on
+                // another axis is picked up here, never missed.
+                cellX = (int) Math.floor(faceX) - (targetX < cellX ? 1 : 0);
+                cellY = (int) Math.floor(faceY);
+                cellZ = (int) Math.floor(faceZ);
+            } else if (paramY < paramZ) {
+                faceX = from.x() + stepX * paramY;
+                faceY = boundaryY;
+                faceZ = from.z() + stepZ * paramY;
+                cellX = (int) Math.floor(faceX);
+                cellY = (int) Math.floor(faceY) - (targetY < cellY ? 1 : 0);
+                cellZ = (int) Math.floor(faceZ);
+            } else {
+                faceX = from.x() + stepX * paramZ;
+                faceY = from.y() + stepY * paramZ;
+                faceZ = boundaryZ;
+                cellX = (int) Math.floor(faceX);
+                cellY = (int) Math.floor(faceY);
+                cellZ = (int) Math.floor(faceZ) - (targetZ < cellZ ? 1 : 0);
+            }
+            // The entered cell's solidity consult (the engine's
+            // point-consult granularity, the cell's center — the same
+            // consult the block-hit arm itself uses).
+            if (solid.solidAt(cellX + 0.5, cellY + 0.5, cellZ + 0.5)) {
+                double remainX = faceX - from.x();
+                double remainY = faceY - from.y();
+                double remainZ = faceZ - from.z();
+                double length = Math.sqrt(remainX * remainX + remainY * remainY
+                        + remainZ * remainZ);
+                if (length < 1.0E-7) {
+                    return null; // the degenerate zero-step residue
+                }
+                return new Position(faceX - remainX / length * 0.05,
+                        faceY - remainY / length * 0.05,
+                        faceZ - remainZ / length * 0.05);
+            }
+        }
+        return null;
     }
 
     /**
