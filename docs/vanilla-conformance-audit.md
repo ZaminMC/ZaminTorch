@@ -5353,7 +5353,406 @@ review note's class) against #138's green.
 
 ---
 
-## The forty-eighth pass — the merge watch's absorption event + the restack
+## The forty-seventh pass — F-SP2 discovered (the queue's standing head: F-SP1's named tails, the wire/plate/repeater `hasSupportBelow` family), F-SP3 discovered beside it (the `FireBlocks.hasSolidTop` translucent fallthrough)
+
+**The baseline:** `origin/develop` advanced `149eb1f0` → `efcd0c4f` (the
+FL4-GAP2 Slice C landing — the tile families' dimension ownership; PR #124
+MERGED — VT-018's both arms; three CI seat retirements). The lane branches
+from the forty-sixth lane's pushed state (the docs union carried forward),
+the develop advance fetched read-only.
+
+**The finding (F-SP2, pass 1 — the source walk):** the engine's ONE floor
+consult for the whole redstone floor-mounted family —
+`RedstoneSystem.hasSupportBelow` (lines 2297-2299, the javadoc citing
+`RedstoneWireBlock.canBePlaced` lines 92-94) — answers the collision-solid
+question `WorldSolidity.isSolid(below)`, where vanilla answers a DIFFERENT
+law per family, every one of them built on `World.hasSolidTop` (World.java
+lines 1740-1752, the five arms: the solid-blocking cube, the TOP-half
+stairs, the TOP-half slabs, the hopper, the seven-layer snow):
+
+- **The wire** — `RedstoneWireBlock.canBePlaced` (lines 91-93) and the
+  `neighborChanged` survival arm (lines 235-244, popping at the SAME law):
+  `World.hasSolidTop(world, pos.down()) || world.getBlockState(pos.down()).getBlock() == Blocks.GLOWSTONE`.
+- **The repeater and the comparator** — `DiodeBlock.canBePlaced` (lines
+  29-31), `canSurvive` (lines 33-35) and the `neighborChanged` survival arm
+  (lines 80-90, the pop + the six-neighbor ring): `World.hasSolidTop(world,
+  pos.down())` ALONE — no glowstone disjunct, no fence arm.
+- **The plates — wooden, stone AND both weighted pairs** (PressurePlateBlock
+  and WeightedPressurePlateBlock both extend AbstractPressurePlateBlock):
+  `canBePlaced` (lines 72-74) delegates to `canSitOnTop` (lines 86-88):
+  `World.hasSolidTop(world, pos) || world.getBlockState(pos).getBlock()
+  instanceof FenceBlock` — the FenceBlock census exactly seven families
+  (Block.java lines 1185/1236/1419-1455: oak, the nether brick fence,
+  spruce, birch, jungle, dark_oak, acacia — NOT the cobblestone wall, NOT
+  the fence gate); the `neighborChanged` arm (lines 79-84) pops at the same
+  law.
+- **The rails — all four families** — `AbstractRailBlock.canBePlaced`
+  (lines 71-73) and the `neighborChanged` survival walk (lines 86-111):
+  `World.hasSolidTop` for the floor AND for each ASCENDING shape's headwall
+  (the run cell the ramp climbs into).
+
+**The engine's arms (develop `efcd0c4f`):** `hasSupportBelow` serves SIX
+survival arms — the wire (line 864), the repeater (888), the comparator
+(903), the weighted plates (963), the wooden/stone plates (974) and the
+rails (1155) — plus the rail headwall consult (line 1160, the same
+`WorldSolidity.isSolid` form). The placement surface carries NO gate for
+any of these families (the `setPlacementSupportGate` predicate covers the
+flora, the dead bush, the cake, the flower pot and the mushrooms alone —
+vanilla refuses an unsupported wire/plate/repeater/rail placement outright
+at `World.canPlace` → `canBePlaced`), and the rail placement's own
+post-place re-check (EngineServer line 15880, the alwaysStraight trio
+alone) consults the SECOND, imprecise form — F-SP3 below.
+
+**The divergence rows (the engine HOLDS where vanilla POPS — the F-SP1
+class exactly):** every collision-solid host that is neither a hasSolidTop
+member nor the family's own disjunct member — the translucent materials
+(GLASS, ICE, TNT, every `_leaves`, the CACTUS, the SEA_LANTERN, the
+GLOWSTONE outside the wire's own disjunct), the bottom-half slabs and
+stairs, the non-cube solids (the seven fences outside the plates' own
+disjunct, the cobblestone walls, the iron bars, the glass panes, the
+closed fence gates, the chests). The REVERSE direction is closed: the
+hopper agrees (hasSolidTop's fourth arm, the engine's collision-solid
+fallthrough), the seven-layer snow is VT-003's named tail (the engine's
+single one-layer state), the air/fluid/flora/rail floors agree (both fell),
+and GLOWSTONE agrees for the WIRE alone (the explicit disjunct).
+
+**The rails' partial compensation (the F-SP1 "fifth site" class, widened):**
+the BlockUpdateSystem's parallel rail arm (line 507 →
+`RailConnections.survivesAt` → `FireBlocks.hasSolidTop`) agrees with
+vanilla for the NON-CUBE rows (the fences, the gates, the walls, the
+chests, the bottom slabs — its own explicit arms) but NOT for the
+translucent rows: the `FireBlocks.hasSolidTop` common case (line 358)
+falls through to `WorldSolidity.isSolid`, so GLASS, ICE, TNT, the leaves,
+the glowstone and the cactus all answer TRUE where the reference's
+`World.hasSolidTop` answers FALSE. A rail on a floor that becomes GLASS
+survives in the engine through BOTH consults; the wire, the plates, the
+repeater and the comparator survive through their single consult.
+
+**F-SP3 (discovered this pass, pass 1 complete — the next standing head):**
+the `FireBlocks.hasSolidTop` translucent fallthrough is its OWN finding —
+the fire family's FOUR consults read the same imprecise form
+(`FireBlocks` lines 403/431/557/688 — the reference's `FireBlock`
+`updateShape` line 38, `tick` line 168, `canBePlaced` lines 306-308 and
+`neighborChanged` lines 311-315, each `World.hasSolidTop(pos.down())`):
+fire standing on GLASS, ICE, TNT, leaves, glowstone or the sea lantern
+SURVIVES in the engine where vanilla pops it (absent a flammable
+neighbour). The rail arm's BlockUpdateSystem consult and the rail
+placement re-check ride the same imprecise form. The correction routes
+`FireBlocks.hasSolidTop` through the SupportConsult cube/material law —
+its own discovery pass, its own seats.
+
+**The proposed F-SP2 correction:** the per-family consults routed through
+the F-SP1 carrier's `SupportConsult.hasSolidTop` (the stack: this lane's
+correction branches on `fix/support-consult-family-parity-audit-b`, PR
+#138 — the SupportConsult class there, the merge order documented) — the
+wire's `hasSolidTop || GLOWSTONE`, the plates' `hasSolidTop || FenceBlock`
+(the engine's `WorldSolidity.isFence` covering exactly the reference's
+seven-family census), the diode's `hasSolidTop` alone, the rails' floor
+and headwall through `hasSolidTop`, `RailConnections.survivesAt` routed
+through the same precise law (fixing the BlockUpdateSystem rail arm and
+the rail placement re-check at the one site), and the placement-support
+gate's four new rows (the wire/plate/diode/rail placements refused
+outright on unsupported floors — vanilla's `World.canPlace` consult).
+
+## The forty-seventh pass's second and third acts — F-SP2 CONFIRMED through the three-pass discipline and CORRECTED (PR #141, stacked on the F-SP1 carrier #138): the six survival arms + the placement gates + the second site all reading the reference's own laws
+
+**Pass 2 (behavioral):** six seats written and run RED 6/6 on unfixed
+develop at exactly the FIRST divergence assert of every row (each failure
+`expected: <true> but was: <false>` — the engine KEPT each family where
+vanilla fells it): the wire on glass (the GLOWSTONE agreement row and the
+dirt control staying behind the fail-fast assert), the repeater on glass
+AND glowstone (the diode's no-disjunct contrast row), the comparator on
+glass, the plate on glass AND the cobblestone wall (the oak-fence
+agreement row and the dirt control behind), the weighted plate on glass
+(the fence agreement row behind), the rail on glass (both consults
+answering the collision question). All six GREEN 6/0 on the fix tree,
+every agreement row and control lifted with them.
+
+**Pass 3 (independent):**
+- *The reference re-read* at every family (the laws re-derived from the
+  reference files with the line numbers pinned above) and at the
+  PLACEMENT chain — `World.canPlace` → `canBePlaced` per family, the
+  engine's five special placement paths (`placeRedstoneDustOnTick` /
+  `placePlateOnTick` / `placeRepeaterOnTick` / `placeComparatorOnTick` /
+  `placeRailOnTick`) plus the generic gate each carrying the wrong law
+  (the collision question for the dust/plate/diode paths, the imprecise
+  FireBlocks form for the rail path, NO row at all for the weighted pair
+  riding the generic path).
+- *The compensating hunt:* NEGATIVE for the wire/plates/diodes (the six
+  RedstoneSystem arms are the only support consults — no onAdded consult,
+  no scheduled-tick sweep, no second site); PARTIAL for the rails (the
+  BlockUpdateSystem arm's `RailConnections.survivesAt` agreeing with
+  vanilla on the non-cube rows alone — its own explicit fence/gate/wall/
+  chest/slab arms — while the translucent rows fell through
+  `FireBlocks.hasSolidTop`'s common case to TRUE).
+- *The intentionality challenge:* NEGATIVE — `hasSupportBelow`'s javadoc
+  cites `RedstoneWireBlock.canBePlaced` lines 92-94 with no approximation
+  disclaimer (the honest-omission class, the F-EC1/F-TC1/F-SP1
+  precedent), and each arm's comment cites the reference's own law while
+  the implementation answers a different question.
+- *The blast-radius walk:* NO harness re-pins needed — the existing
+  constructions all ride stone/dirt floors (the F-SP1 lever-on-piston
+  class absent); the regression surface 535/0 across the redstone+block
+  lanes (352), the interaction+vehicle+root acceptance lanes (84), the
+  piston+chest+container+misc lanes (93), and the seats (6), the F-SP1
+  seats green on the same tree.
+- *The reverse direction:* closed (the hopper agreeing through
+  hasSolidTop's fourth arm; the 7-layer snow VT-003's named tail — the
+  engine's single one-layer state; the air/fluid/flora/rail floors
+  agreeing both ways; the glowstone agreeing for the wire alone).
+
+**THE CORRECTION (PR #141 OPEN, `fix/has-support-below-family-parity-audit`
+stacked on the F-SP1 carrier `fix/support-consult-family-parity-audit-b`
+— PR #138, the SupportConsult class there; the merge order documented):
+the per-family consults `wireFloorHolds` (hasSolidTop || GLOWSTONE) /
+`diodeFloorHolds` (hasSolidTop alone) / `plateFloorHolds` (hasSolidTop ||
+the FenceBlock census at `WorldSolidity.isFence`) replacing the one
+`hasSupportBelow` at all six arms; the rail headwall through
+`SupportConsult.hasSolidTop`; `RailConnections.survivesAt` routed through
+the same precise law (the BlockUpdateSystem rail arm + the trio's
+onAdded re-check + the rail placement gate at the one site); the five
+placement gates + the weighted pair's generic-gate row carrying the same
+per-family laws. The seats ride the fix branch GREEN 6/0.**
+
+**The queue for the next pass:** F-SP3 the NEW STANDING HEAD (the
+`FireBlocks.hasSolidTop` translucent fallthrough serving the FIRE
+family's own four consults — `FireBlocks` lines 403/431/557/688 against
+the reference's `FireBlock` updateShape line 38 / tick line 168 /
+canBePlaced lines 306-308 / neighborChanged lines 311-315: fire standing
+on glass, ice, TNT, leaves, glowstone or the sea lantern SURVIVES where
+vanilla pops it, absent a flammable neighbour) — its own discovery pass,
+its own seats, the same three-pass discipline; the tripwire family's own
+`WorldSolidity.isSolid` consults (TripwireSystem lines 88/229/338/350/373
+against the reference's `!World.hasSolidTop(pos.down())` SUSPENDED law —
+`TripwireBlock` lines 89/112, `TripwireHookBlock` lines 35/101) the
+named tail beside it; the merge watch refreshed (twenty-nine-PR open
+set, #141 joining; the VT-025 collision note standing; the F-SP1
+convergence #137/#138/#139 the maintainer's pick with #141 stacked on
+#138's tree).
+
+## The forty-eighth pass (renumbered from the forty-seventh — the concurrent lane's pushed branch took the name publicly first, the fetch at the push window finding their `audit/verifier-pass-47-discovery` with the same standing head taken; the established protocol, this lane's commits never pushed under the draft name, nothing public renamed) — the CONVERGENCE on the hasSupportBelow family recorded, the HOPPER RIDER absorbed (the concurrent lane's cross-tree review finding), the lane's record completed
+
+**THE CONVERGENCE (the honest record):** a concurrent lane completed the
+same standing head in the same window — their
+`audit/verifier-pass-47-discovery` (a88326d6) numbering the finding
+**VT-029** with eight seats RED 8/8
+(`WirePlateDiodeSupportParityDiscoveryTest` — the wire on glass with the
+glowstone agreement control, the wire on the bottom slab with the
+top-slab control, the wire on the fence, the plate on glass with the
+fence agreement control, the plates on the bottom slab, the weighted
+plate on glass, the diodes on glass AND glowstone, the diodes on the
+fence — this lane's six seats the same rows minus the slab/fence
+divergence rows, their pass-3 census the same compensating-hunt and
+placement-gate walks). THIS lane numbered the finding **F-SP2** (the
+F-SP1-tail class naming) and carried the CORRECTION first: **PR #141
+OPEN** (`fix/has-support-below-family-parity-audit`, stacked on the F-SP1
+carrier #138), the per-family consults + the placement gates + the
+second site (`RailConnections.survivesAt`) + the seats GREEN 6/0. The
+numbering divergence recorded for the next reconciliation (the VT-029
+number their lane's public claim; the F-SP2 number this lane's — the
+VT-025 collision precedent, the later public claim renumbering; nothing
+public renamed by this lane). Their lane's own named next act — the
+cross-tree review seat over the #138 hopper arm — is ABSORBED below.
+
+**THE HOPPER RIDER (the concurrent lane's #138 dead-arm discovery,
+absorbed into PR #141 as its second commit 8d2be866):**
+`SupportConsult.hasSolidTop`'s FOURTH arm read `value.equals("hopper")`
+— a DEAD ARM on the engine's flattened state model (NO bare
+`minecraft:hopper` registered, only the `hopper_<facing>[_disabled]`
+band — `HopperBlocks.buildStates`), so every registered hopper state
+answered FALSE where the reference's `instanceof HopperBlock` answers
+TRUE: the F-SP2 consults routing through the shared class would have
+inherited a REVERSE divergence — a wire, a diode, a plate or a rail
+standing on a hopper floor POPPING at the floor's own state change
+where vanilla keeps every one (World.hasSolidTop's fourth arm, World.java
+line 1750). The rider reads the band whole
+(`value.startsWith("hopper_")` — `FireBlocks.hasSolidTop`'s own correct
+form at its lines 346-348); the F-SP1 consults riding the same class
+gain the corrected arm with it. THE SEVENTH SEAT
+(`theFloorFamiliesStayOnTheHopperFloor`): a wire, a repeater, a plate
+AND a rail each staying when the stone floor becomes a hopper state —
+the dead bare-form read guarded. EVIDENCE: 13/0 across the three support
+seat files, 56/0 over the hopper+redstone lanes.
+
+**The merge watch (this pass's fetch):** the OPEN set at twenty-nine
+PRs — #141 joining (stacked on #138; the merge order documented: #138
+first, or rebase after it lands; whichever of #137/#138/#139 the
+maintainer picks, the SupportConsult class rebases the same way — the
+four laws identical across the carriers, the hopper rider owed into
+whichever tree lands). #140 (VT-030 — the burning arrow's stick-before-
+TNT preemption, another lane's finding) and #139 (the F-SP1 plain-name
+third carrier) both created this window. The VT numbering landscape:
+VT-029 the concurrent lane's claim on this same finding, VT-030 #140's,
+VT-032 #136's renumber — the next free number VT-033.
+
+**The queue for the next pass:** F-SP3 the STANDING HEAD (the
+`FireBlocks.hasSolidTop` translucent fallthrough serving the FIRE
+family's own four consults — fire on glass/ice/TNT/leaves/glowstone/
+sea-lantern surviving where vanilla pops it) — its own discovery pass
+with the same three-pass discipline; the tripwire family's own
+`WorldSolidity.isSolid` consults (the SUSPENDED flag's floor law) the
+named tail beside it; the placement-gate absorption riding the
+#137/#138/#139/#141 picks.
+
+## The forty-eighth pass's second act — F-SP3 CONFIRMED through the three-pass discipline and CORRECTED (PR #145, stacked on the F-SP2 branch #141 — the chain #138 -> #141 -> #145): the fire family's floor consult delegated whole to the shared law
+
+**Pass 1 (source, the record above):** the four fire consult sites
+(`FireBlocks.canBePlaced` 402-405, `neighborChanged` 429-436, the tick
+burn-out 557, the block-change support gate 688-691) each the reference's
+own law over `World.hasSolidTop` — the engine's form carrying the
+translucent fallthrough (the common case at line 358 falling through to
+`WorldSolidity.isSolid`: glass, ice, TNT, every leaves, glowstone, the
+sea lantern, the cactus each answering TRUE).
+
+**Pass 2 (behavioral):** the seats RED 2/2 on unfixed develop at exactly
+the first divergence assert — the fire SURVIVING on the glass floor (the
+dirt control staying), the ice + glowstone pair the same. THE FIRST
+DRAFT'S OWN ERROR caught on the fix tree: the leaves row (and the TNT
+row the draft never carried) asserts a POP that vanilla never makes —
+the leaves (flammability 30) and the TNT (15) are TRANSLUCENT but
+FLAMMABLE, a fire on either FED by the floor through the fuel consult's
+six-neighbour walk, vanilla KEEPING it — the corrected seats carry only
+the NON-flammable translucents (glass, ice, glowstone), the nuance
+recorded in the javadoc. The corrected seats re-run RED 2/2 on the
+unfixed lane.
+
+**Pass 3 (independent):** the compensating hunt NEGATIVE (the rain
+extinguish reads the rain envelope alone; the tick burn-out rides the
+SAME imprecise form — no second consult pops the fire on glass; the
+age law kills an unfed flame only after i > 3, four tick cycles past the
+seat's one-tick observation); the intentionality challenge NEGATIVE (the
+form's javadoc claims "World.java lines 1740-1750, 1:1 over the engine's
+surfaces" while the common-case comment EXPLICITLY lists "leaves, tnt"
+as solid tops — each translucent in the reference — the honest-omission
+class, the citation present, the law wrong); the arms-equivalence walk
+(the delegation's blast radius bounded: the stairs/slab/hopper/
+never-solid-top arms answering identically through the shared law — the
+bottom slabs, fences, gates, walls, chests, 1-layer snow each false; the
+TOP halves, the doubles, the hopper band each true — the ONLY behavioral
+change the translucent rows, the demonstrated divergence); the consumer
+census (the four fire sites alone — the rail consult F-SP2 already
+re-routed).
+
+**THE CORRECTION (PR #145 OPEN, `fix/fire-floor-support-parity-audit`
+stacked on the F-SP2 branch — the chain #138 -> #141 -> #145, the merge
+order documented): `FireBlocks.hasSolidTop` delegated whole to
+`SupportConsult.hasSolidTop(world.getBlock(pos))` — the five arms 1:1,
+the F-SP2 hopper rider's band read riding along, the duplicated arms
+retired, the translucent fallthrough replaced by the material law. The
+seats GREEN 2/0 on the fix.**
+
+**REGRESSION:** 364/0 — the fire family lanes (45: FireBlocksTest, the
+per-dimension fire acceptance, the scheduled-tick lanes, the TNT and
+dispenser lanes) and the block package + the F-SP2 seats (319) on the
+stacked tree.
+
+**The queue for the next pass:** the tripwire family's own
+`WorldSolidity.isSolid` consults (TripwireSystem lines 88/229/338/350/373
+against the reference's `!World.hasSolidTop(pos.down())` SUSPENDED law —
+`TripwireBlock` lines 89/112, `TripwireHookBlock` lines 35/101) the NEW
+STANDING HEAD (the F-SP class's fourth member — the suspended flag's
+floor law, its own discovery pass); the snow layer's 7-layer band
+(VT-003's standing tail — hasSolidTop's fifth arm); the merge watch at
+the thirty-two-PR open set with #145 joining the #138 -> #141 -> #145
+chain; the placement-gate absorption riding the carrier picks.
+
+## The forty-eighth pass's closing act — F-SP4 discovered (the tripwire family's own consults, the F-SP class's fourth member): the SUSPENDED flag's floor law reading the collision question
+
+**Pass 1 (source):** the tripwire family's reference law — the SUSPENDED
+flag and the pop arm both over `World.hasSolidTop(pos.down())`:
+
+- `TripwireBlock.onAdded` (lines 110-114): `SUSPENDED :=
+  !World.hasSolidTop(pos.down())` at the commit.
+- `TripwireBlock.neighborChanged` (lines 87-94): `flag = state.get(
+  SUSPENDED); flag1 = !World.hasSolidTop(pos.down()); if (flag !=
+  flag1) { dropItems + removeBlock }` — the wire POPS when the floor's
+  hasSolidTop verdict has FLIPPED since the commit (a stone-floor wire
+  whose floor becomes glass: flag false, flag1 true — the pop).
+- `TripwireHookBlock.resolveVirtualProperties` (lines 34-36): the hook's
+  own `SUSPENDED := !hasSolidTop(pos.down())`.
+- `TripwireHookBlock.updateState` (line 101+): `flag2 =
+  !World.hasSolidTop(pos.down())` — the run walk's consult.
+
+**The engine (develop `efcd0c4f`):** `TripwireSystem` reads
+`WorldSolidity.isSolid(below)` at FIVE sites (lines 88, 229, 338, 350,
+373) — the collision question. The divergence rows (the F-SP class
+again): a tripwire on GLASS, ICE, TNT, the leaves, the glowstone or any
+translucent-but-collision-solid floor reads SUSPENDED=FALSE in the engine
+(never suspended) where vanilla reads TRUE (the wire hanging from its
+hooks); a stone-floor wire whose floor becomes glass STAYS in the engine
+(flag==flag1, both false) where vanilla pops it (flag false, flag1
+true). The reverse direction: the non-cube solids (the fences, the
+walls, the bottom slabs) read suspended in BOTH (each not-hasSolidTop,
+each not-collision-solid — the agreement by coincidence); the hopper and
+the TOP-half floors agree unsuspended.
+
+**The proposed correction (the next run's acts, the same three-pass
+discipline):** the five consult sites routed through
+`SupportConsult.hasSolidTop` — the same one-consult-per-site shape, the
+flag and the pop arm reading the reference's law. The seats: the
+stone-floor wire whose floor becomes glass (the pop), the suspended
+flag's value on the translucent floors, the dirt control. The next
+numbering: F-SP4 (the class's fourth member) — the tripwire family's own
+discovery pass.
+
+## The forty-eighth pass's third act — F-SP4 CONFIRMED through the three-pass discipline and CORRECTED (PR #148, stacked on the F-SP3 branch #145 — the chain #138 -> #141 -> #145 -> #148)
+
+**Pass 2 (behavioral):** the seats RED 2/2 on unfixed develop at exactly
+the predicted asserts — the tripwire STAYING when its floor becomes
+glass (the flag never flipping under the collision question, the dirt
+control staying) and the UNSUSPENDED form landing on the glass floor
+(the commit arm's collision read). GREEN 2/0 on the fix.
+
+**Pass 3 (independent):** the reference re-read at all three sites (the
+commit arm 110-114, the hook walk's line 101, the neighborChanged pop
+87-94 — each over `World.hasSolidTop`); the compensating hunt NEGATIVE
+(the hook's own wall consult at line 350 is a DIFFERENT law — the
+mount, not the floor; no second floor consult exists for the wire); the
+intentionality challenge NEGATIVE (the commit arm's comment cites
+"TripwireBlock.onAdded lines 116-121" — the citation present, the law
+wrong, the honest-omission class); the named tail recorded (the HOOK's
+wall consults at lines 350/373 reading the collision question where the
+reference reads `Block.isSolid()` — the three-conjunct signal consult —
+the lever/button class, its own discovery pass); the blast-radius walk
+(the tripwire lanes + the redstone package + the fire seats 65/0 on the
+stacked tree, no re-pins).
+
+**THE CORRECTION (PR #148 OPEN, `fix/tripwire-floor-support-parity-audit`
+stacked on #145): the three floor-law sites routed through
+`SupportConsult.hasSolidTop` — the commit arm, the hook walk and the
+support re-check reading the reference's five-arm law, the translucent
+floors suspending the wire and the flag flip popping it exactly as
+vanilla. The seats GREEN 2/0.**
+
+**The lane's complete run (the forty-eighth):** F-SP2 CONFIRMED and
+CORRECTED (PR #141, with the hopper rider), F-SP3 CONFIRMED and
+CORRECTED (PR #145), F-SP4 CONFIRMED and CORRECTED (PR #148) — the
+F-SP class's three remaining members whole, the chain #138 -> #141 ->
+#145 -> #148 documented. The F-SP class now covers every recorded member:
+the mounts (F-SP1, #137/#138/#139), the floors (F-SP2), the fire (F-SP3),
+the tripwire (F-SP4).
+
+**The queue for the next pass:** the HOOK's wall consults (the lever/
+button class — `Block.isSolid()` vs the collision question at
+TripwireSystem 350/373) the NEW STANDING HEAD; the snow layer's 7-layer
+band (VT-003's tail — hasSolidTop's fifth arm); the merge watch at the
+thirty-five-PR open set with the four-link chain documented; the
+placement-gate absorption riding the carrier picks.
+
+## The forty-eighth pass's closing note — the F-SP2 CONVERGENCE widened (PR #147, the concurrent lane's core carrier)
+
+The fetch at the run's close: **PR #147 OPEN** (`F-SP2 (the core): the
+floor-consult family's four laws restored`) — the concurrent
+forty-seventh lane's carrier for the same root finding, the fourth
+convergent carrier of the window beside #141 (this lane's, stacked on
+#138 with the rails + the placement gates + the hopper rider). The
+maintainer owns the pick; the convergence note stands on both carriers'
+records. The chain this lane documents: #138 (the F-SP1 carrier) ->
+#141 (F-SP2 + the rider) -> #145 (F-SP3) -> #148 (F-SP4) — the four
+links rebasing the same way whichever carrier the maintainer picks at
+each level.
+
+## The forty-ninth pass (renumbered from the forty-eighth — the concurrent lane's branch `audit/verifier-pass-48-discovery` took the name publicly first, this lane's commits never pushed under the draft name, the established protocol) — the merge watch's absorption event + the restack
 
 Baseline: `origin/develop` at `1139f2c3` (the pass-47 close left it at
 `efcd0c4f`; nineteen commits landed between — the F-SP1 carrier **#139
@@ -5423,3 +5822,15 @@ merged; #108/#109/#110/#113/#119/#137/#138 closed superseded. The open
 set (24): #116/#117/#120/#121/#122/#123/#125/#126/#128/#129/#130/
 #131/#132/#133/#134/#135/#136/#140/#141/#142/#143/#144/#145/#146/
 #147/#148/#149.
+
+**THE CONVERGENCE NOTE (this lane's #149 beside the concurrent lane's
+chain):** the F-SP2 territory is now carried by four open lanes — #141
+(the concurrent lane's carrier, stacked on the dead #138 base, landed
+first), #143 (the door member + the hopper arm repair), #147 (the
+concurrent lane's widened core carrier), and this lane's #149 (restacked
+DIRECTLY on develop — the only carrier standing on the current baseline,
+the dead-base question retired). The maintainer's pick stands; this
+lane's record holds the full three-pass evidence either way. The
+concurrent lane's queue head — the tripwire HOOK's wall consults (the
+`Block.isSolid` lever/button class at TripwireSystem 350/373) — is
+THEIRS; this lane does not take it up while their chain stands.
