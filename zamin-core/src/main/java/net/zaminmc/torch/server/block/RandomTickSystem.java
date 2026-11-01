@@ -488,7 +488,15 @@ public final class RandomTickSystem {
         // The historical light gates, sampled at the cell ABOVE (vanilla
         // getLightFromNeighborsFor(pos.up()) — opaque cells store no light,
         // so the gates read the air that would host the sapling/grass top).
-        if (lightAt(position.offset(0, 1, 0)) < 4) {
+        // The decay's SECOND conjunct (VT-017's correction — GrassBlock.tick
+        // lines 49-52, the mycelium arm's own Slice-42 form): the cover's
+        // opacity must be above 2 — a bed, a flower, a snow layer or a
+        // torch above never shades the grass even in the dark (their
+        // non-solid-render rows answer opacity 0), where the light-alone
+        // gate killed it.
+        if (lightAt(position.offset(0, 1, 0)) < 4
+                && BlockLightTable.filter(world.getBlock(
+                        position.offset(0, 1, 0))) > 2) {
             world.setBlock(position, BuiltinBlocks.DIRT); // the historical decay
             return;
         }
