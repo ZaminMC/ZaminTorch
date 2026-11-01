@@ -259,6 +259,25 @@ public final class ProjectileEntity implements net.zaminmc.torch.entity.Projecti
     }
 
     /**
+     * The stick placement's landing (VT-014 — the reference's ArrowEntity
+     * block-hit arm, lines 289-330): the rest lands EXACTLY 0.05 OUTSIDE
+     * the hit face, on the approach side, in the cell the arrow flew
+     * through (the arm's velocity-to-face replacement at 296-298, the
+     * 0.05 backoff at 300-302, and the flight tail's advance at 328-330
+     * compose to that rest). The pre-fix form left the body at the
+     * post-step ENDPOINT — up to a full step INSIDE the hit block, or
+     * hanging in the air past a thin wall when the midpoint sample alone
+     * landed inside. A {@code null} rest keeps the endpoint (the
+     * spawned-inside degenerate — the reference's own edge, out of scope).
+     */
+    public void landInGround(Position rest) {
+        if (rest != null) {
+            this.position = rest;
+        }
+        landInGround();
+    }
+
+    /**
      * The restored stuck form (the Anvil import's {@code inGround} +
      * {@code life} rows — the reference's readCustomNbt): the stick clock
      * resumes at the saved life. The saved velocity stays as loaded

@@ -32254,6 +32254,26 @@ public final class EngineServer implements Server, EngineBridge {
             return groundSolidAtPoint(x, y, z);
         }
 
+        /**
+         * VT-014 — the stick placement's box view (the reference's
+         * rayTrace against the block's collision shape): the ACTIVE
+         * dimension's collision boxes for the block whose cell the point
+         * sits in, the same probe the point test resolves its connection
+         * families against. Out-of-bounds answers null (the caller's
+         * unit-cube fallback).
+         */
+        @Override
+        public java.util.List<net.zaminmc.torch.server.block.CollisionShapes.Box> solidBoxesAt(
+                double x, double y, double z) {
+            if (y < net.zaminmc.torch.block.BlockPosition.MIN_Y
+                    || y > net.zaminmc.torch.block.BlockPosition.MAX_Y) {
+                return null;
+            }
+            EngineWorld ground = activeGroundWorld();
+            return net.zaminmc.torch.server.block.CollisionShapes.cellBoxes(
+                    ground.getBlock(blockAt(x, y, z)), groundProbe(ground, x, y, z));
+        }
+
         @Override
         public double supportY(double x, double y, double z) {
             return groundSupportYAt(x, y, z);

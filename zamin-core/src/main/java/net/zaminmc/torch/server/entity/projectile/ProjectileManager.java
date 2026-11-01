@@ -84,6 +84,20 @@ public final class ProjectileManager {
         default boolean solidAt(double x, double y, double z) {
             return solid(x, y, z);
         }
+
+        /**
+         * The collision boxes of the block whose cell the point sits in
+         * (VT-014 — the stick placement's face computation, the reference's
+         * {@code rayTrace} against the block's collision shape,
+         * ArrowEntity.tick line 191): cell-fraction boxes, or {@code null}
+         * when the query carries no box view — the stub queries keep their
+         * point-test semantics and the caller falls back to the hit cell's
+         * unit cube.
+         */
+        default java.util.List<net.zaminmc.torch.server.block.CollisionShapes.Box> solidBoxesAt(
+                double x, double y, double z) {
+            return null;
+        }
     }
 
     /** Resolves the entity a projectile is inside of, if any (tick thread). */
@@ -1192,7 +1206,14 @@ public final class ProjectileManager {
                                 (int) Math.floor(point.z())), projectile.dimension())) {
                     return false; // the cell opened — the walk continues
                 }
-                projectile.landInGround();
+                // VT-014 — the reference's stick placement (ArrowEntity.tick
+                // 289-330): the composed law (the velocity-to-face
+                // replacement, the 0.05 backoff, the flight tail's advance)
+                // rests the arrow EXACTLY 0.05 OUTSIDE the hit face, on the
+                // approach side, in the cell the arrow flew through — never
+                // at the post-step endpoint buried inside the hit block or
+                // past a thin wall.
+                projectile.landInGround(restAtTheHitFace(from, point));
                 for (Listener listener : listeners) {
                     listener.onProjectileLanded(projectile);
                 }
@@ -1256,6 +1277,128 @@ public final class ProjectileManager {
             return true;
         }
         return false;
+    }
+
+    /**
+     * VT-014 — the stick placement's face computation (the reference's
+     * ArrowEntity.tick lines 289-330, 1:1 in effect): the segment from the
+     * pre-tick origin to the solid sample crosses the hit cell's collision
+     * boxes, and the FIRST box entry is the hit face. The reference's
+     * composed law — the velocity-to-face replacement at 296-298, the 0.05
+     * backoff at 300-302, the flight tail's advance at 328-330 — rests the
+     * arrow exactly 0.05 OUTSIDE that face, on the approach side, in the
+     * cell the arrow flew through. Partial shapes answer their OWN faces
+     * through the box view (a slab's half-height surface, never the cell
+     * boundary); queries without one fall back to the hit cell's unit cube.
+     * The degenerates answer {@code null} and the caller keeps the
+     * endpoint rest: the origin already inside every box of the cell (an
+     * arrow spawned inside a block — the reference's own edge, out of
+     * scope), or a zero-length approach.
+     */
+    private Position restAtTheHitFace(Position from, Position point) {
+        double px = point.x();
+        double py = point.y();
+        double pz = point.z();
+        int cx = (int) Math.floor(px);
+        int cy = (int) Math.floor(py);
+        int cz = (int) Math.floor(pz);
+        java.util.List<net.zaminmc.torch.server.block.CollisionShapes.Box> boxes =
+                solid.solidBoxesAt(px, py, pz);
+        if (boxes == null || boxes.isEmpty()) {
+            boxes = java.util.List.of(new net.zaminmc.torch.server.block.CollisionShapes.Box(
+                    0, 0, 0, 1, 1, 1));
+        }
+        double dx = px - from.x();
+        double dy = py - from.y();
+        double dz = pz - from.z();
+        double bestT = Double.POSITIVE_INFINITY;
+        for (net.zaminmc.torch.server.block.CollisionShapes.Box box : boxes) {
+            Double entry = segmentEntry(from, dx, dy, dz,
+                    cx + box.minX(), cy + box.minY(), cz + box.minZ(),
+                    cx + box.maxX(), cy + box.maxY(), cz + box.maxZ());
+            if (entry != null && entry < bestT) {
+                bestT = entry;
+            }
+        }
+        if (bestT == Double.POSITIVE_INFINITY) {
+            return null; // the origin inside every box — the endpoint rest stands
+        }
+        double fx = from.x() + dx * bestT;
+        double fy = from.y() + dy * bestT;
+        double fz = from.z() + dz * bestT;
+        double ax = fx - from.x();
+        double ay = fy - from.y();
+        double az = fz - from.z();
+        double length = Math.sqrt(ax * ax + ay * ay + az * az);
+        if (length < 1e-9) {
+            return null; // the origin on the face itself — the reference would NaN
+        }
+        return new Position(
+                fx - ax / length * 0.05,
+                fy - ay / length * 0.05,
+                fz - az / length * 0.05);
+    }
+
+    /**
+     * The segment [{@code from}, {@code from + (dx, dy, dz)}]'s entry
+     * parameter into the world-space box, or {@code null} when the segment
+     * never enters it in front of the origin: the slab method per axis,
+     * the parallel-outside reject, and the behind-entry reject (the origin
+     * starting inside THIS box — that box's face is not the hit face).
+     */
+    private static Double segmentEntry(Position from, double dx, double dy, double dz,
+            double minX, double minY, double minZ, double maxX, double maxY, double maxZ) {
+        double tLo = Double.NEGATIVE_INFINITY;
+        double tHi = Double.POSITIVE_INFINITY;
+        if (dx == 0.0) {
+            if (from.x() < minX || from.x() >= maxX) {
+                return null;
+            }
+        } else {
+            double t1 = (minX - from.x()) / dx;
+            double t2 = (maxX - from.x()) / dx;
+            if (t1 > t2) {
+                double swap = t1;
+                t1 = t2;
+                t2 = swap;
+            }
+            tLo = Math.max(tLo, t1);
+            tHi = Math.min(tHi, t2);
+        }
+        if (dy == 0.0) {
+            if (from.y() < minY || from.y() >= maxY) {
+                return null;
+            }
+        } else {
+            double t1 = (minY - from.y()) / dy;
+            double t2 = (maxY - from.y()) / dy;
+            if (t1 > t2) {
+                double swap = t1;
+                t1 = t2;
+                t2 = swap;
+            }
+            tLo = Math.max(tLo, t1);
+            tHi = Math.min(tHi, t2);
+        }
+        if (dz == 0.0) {
+            if (from.z() < minZ || from.z() >= maxZ) {
+                return null;
+            }
+        } else {
+            double t1 = (minZ - from.z()) / dz;
+            double t2 = (maxZ - from.z()) / dz;
+            if (t1 > t2) {
+                double swap = t1;
+                t1 = t2;
+                t2 = swap;
+            }
+            tLo = Math.max(tLo, t1);
+            tHi = Math.min(tHi, t2);
+        }
+        if (tLo > tHi || tLo < 0.0 || tLo > 1.0) {
+            return null; // no overlap, the origin inside, or the entry beyond the sample
+        }
+        return tLo;
     }
 
     /**
