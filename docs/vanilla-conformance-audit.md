@@ -2936,3 +2936,17 @@ review verifications owed on the open carrier PRs (#116, #118, #126,
 spawn-destination lane's `getSpawnPoint` fallback finding (named this
 run); the union's stick-tick residue (RED on develop and the #123+#128
 union — its own VT number owed at its fix).
+
+**The FX tail's census direction (the run's closing bounded look, the
+next run's concrete start):** the API itself is dimension-aware (Wave
+TF-12 — the event's `dimension()`, the dimension-aware overloads, the
+no-dimension overloads documented as stamping the overworld 0), but a
+coarse grep of the no-dimension overload callers finds 16+ sites in
+EngineServer alone whose multi-line shapes the grep cannot resolve —
+several in PLAYER-SESSION contexts where the session's dimension is
+the acting one (the eat/burp/bow/drink family at ~6192/~6208/~8559/
+~8593/~8624, the thorns family at ~7221/~7734/~7814 — a nether player's
+eat sound must play in the NETHER through the reference's per-world
+event listener sends, PlayerManager lines 630-640); the next run traces
+each site's acting dimension against that law (suspected-level until
+then; no claim without the per-site source pass).
