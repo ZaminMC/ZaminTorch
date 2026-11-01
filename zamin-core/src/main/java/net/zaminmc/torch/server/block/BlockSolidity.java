@@ -86,6 +86,18 @@ public final class BlockSolidity {
     /**
      * The reference's {@code isCube()} consult (the render cube): the
      * double slab's full cube, then the full-box collision shape minus the
+     * reference's own full-box isCube-false families. Public for the
+     * mount-survival laws ({@link SupportConsult} — the torch wall's
+     * {@code isSolidBlockingCube} and the trapdoor mount's first arm read
+     * the same conjunct).
+     */
+    public static boolean isCube(BlockType type) {
+        return isCube(type, type.identifier());
+    }
+
+    /**
+     * The reference's {@code isCube()} consult (the render cube): the
+     * double slab's full cube, then the full-box collision shape minus the
      * reference's own full-box isCube-false families.
      */
     private static boolean isCube(BlockType type, Identifier id) {

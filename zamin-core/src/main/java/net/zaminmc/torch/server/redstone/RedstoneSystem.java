@@ -1345,32 +1345,38 @@ public final class RedstoneSystem implements WorldChangeListener {
         }
     }
 
-    /** The mount read (canBePlacedOn over the wall cell). */
+    /**
+     * The mount read (canBePlacedOn lines 188-190 over the wall cell):
+     * {@code material.isSolidBlocking() && isCube() || GLOWSTONE ||
+     * instanceof SlabBlock || instanceof StairsBlock} — the reference's
+     * explicit arms beside the cube law (the translucent mounts and the
+     * non-cube mounts never hold the closed family; the engine's former
+     * carves — the fences, the gates, the doors, the rails, the chests —
+     * all die at the isCube conjunct of the new first arm).
+     */
     private boolean trapdoorMountHolds(BlockType mount) {
         String value = mount.identifier().value();
         if (mount.identifier().equals(BuiltinBlocks.GLOWSTONE.identifier())) {
-            return true;
+            return true; // the reference's explicit arm (its translucent material alone would fail the first)
         }
         if (net.zaminmc.torch.server.block.TrapdoorBlocks.isTrapdoor(mount)) {
-            return false; // the partial panel never holds another
+            return false; // the partial panel never holds another (every arm refuses the DECORATION material)
         }
-        if (value.endsWith("_slab") || value.endsWith("_slab_top")) {
+        // instanceof SlabBlock: every slab family's every form (the
+        // _slab2 family and the seamless doubles join the census).
+        if (value.endsWith("_slab") || value.endsWith("_slab_top")
+                || value.endsWith("_slab2") || value.endsWith("_slab2_top")
+                || value.endsWith("_slab_seamless") || value.endsWith("_slab2_seamless")) {
             return true;
         }
-        if (net.zaminmc.torch.server.block.WoodShapeBlocks.isStairsState(value)
-                || net.zaminmc.torch.server.block.WoodShapeBlocks.isStairsItem(value)
-                || value.startsWith("oak_stairs") || value.startsWith("cobblestone_stairs")
-                || value.startsWith("sandstone_stairs")
-                || value.startsWith("nether_brick_stairs")) {
+        // instanceof StairsBlock: every stair family's every state (the
+        // bare item forms and the directional states, the tops included).
+        if (net.zaminmc.torch.server.block.WoodShapeBlocks.isStairsItem(value)
+                || net.zaminmc.torch.server.block.WoodShapeBlocks.isStairsState(value)) {
             return true;
         }
-        return WorldSolidity.isSolid(mount)
-                && !value.startsWith("minecraft:fence")
-                && !net.zaminmc.torch.server.block.FenceGateBlocks.isGateItem(value)
-                && !value.contains("_door")
-                && !WorldSolidity.isRail(mount.identifier())
-                && !net.zaminmc.torch.server.block.RailBlocks.isRailItem(value)
-                && !value.equals("chest") && !value.startsWith("chest_");
+        // The first arm: material.isSolidBlocking() && isCube().
+        return net.zaminmc.torch.server.block.SupportConsult.isSolidBlockingCube(mount);
     }
 
     /** The door item of a family for the pop arm's drop. */
@@ -1425,9 +1431,16 @@ public final class RedstoneSystem implements WorldChangeListener {
             return;
         }
         if (RedstoneBlocks.isTorch(type)) {
+            // TorchBlock.onAdded (lines 91-93, inherited whole by the
+            // redstone family — canSurviveOrBreak): the support consult
+            // FIRST — an unsupported torch pops at its own commit — then
             // RedstoneTorchBlock lines 56-62: a LIT torch announces itself
             // to all six neighbors on arrival (the two-hop ring — its
             // neighbors' neighbors hear it through updateNeighbors).
+            if (!torchSupported(type, pos)) {
+                popBlock(pos, BuiltinItems.REDSTONE_TORCH);
+                return;
+            }
             if (RedstoneBlocks.torchLit(type)) {
                 for (int[] offset : OFFSETS) {
                     updateNeighbors(pos.offset(offset[0], offset[1], offset[2]));
@@ -1681,10 +1694,22 @@ public final class RedstoneSystem implements WorldChangeListener {
         return signal(attachment, dir) > 0;
     }
 
-    /** Whether the torch still hangs on its attachment (TorchBlock.tryBreak). */
+    /**
+     * Whether the torch still hangs on its attachment (TorchBlock.tryBreak
+     * lines 100-122): the WALL arm reads {@code World.isSolidBlockingCube}
+     * (the opaque-material full cube — SupportConsult, the translucent
+     * materials and the non-cubes never answer); the FLOOR arm reads
+     * {@code TorchBlock.canSitOnTop} (hasSolidTop's five arms OR the
+     * explicit FENCES/GLASS/COBBLESTONE_WALL/STAINED_GLASS list).
+     */
     private boolean torchSupported(BlockType type, BlockPosition pos) {
-        int[] step = torchAttachmentStep(RedstoneBlocks.torchFacing(type));
-        return WorldSolidity.isSolid(world.getBlock(pos.offset(step[0], step[1], step[2])));
+        int facing = RedstoneBlocks.torchFacing(type);
+        int[] step = torchAttachmentStep(facing);
+        BlockType host = world.getBlock(pos.offset(step[0], step[1], step[2]));
+        if (facing == 1) { // UP: the standing torch's floor consult
+            return net.zaminmc.torch.server.block.SupportConsult.canSitOnTop(host);
+        }
+        return net.zaminmc.torch.server.block.SupportConsult.isSolidBlockingCube(host);
     }
 
     // ------------------------------------------------------------------
@@ -2219,16 +2244,32 @@ public final class RedstoneSystem implements WorldChangeListener {
         return probe.test(pos, RedstoneBlocks.plateWooden(world.getBlock(pos))) ? 15 : 0;
     }
 
-    /** Whether the lever still hangs on its attachment (canSurvive's test). */
+    /**
+     * Whether the lever still hangs on its attachment (ButtonBlock.canSurvive
+     * lines 70-73, the lever's own consult delegating to it): the FLOOR
+     * mount (the attachment DOWN) reads {@code World.hasSolidTop}'s five
+     * arms; every wall/ceiling mount reads {@code Block.isSolid()} (the
+     * three conjuncts — SupportConsult.buttonOrLeverSurvives).
+     */
     private boolean leverSupported(BlockType type, BlockPosition pos) {
         int[] away = attachmentOppositeOffset(RedstoneBlocks.leverAttachment(type));
-        return WorldSolidity.isSolid(world.getBlock(pos.offset(away[0], away[1], away[2])));
+        BlockType host = world.getBlock(pos.offset(away[0], away[1], away[2]));
+        return net.zaminmc.torch.server.block.SupportConsult.buttonOrLeverSurvives(
+                RedstoneBlocks.leverAttachment(type) == 1, host);
     }
 
-    /** Whether the button still hangs on its mount (canSurvive: the block at FACING.opposite). */
+    /**
+     * Whether the button still hangs on its mount (ButtonBlock.canSurvive
+     * lines 70-73 — the block at FACING.opposite): the FLOOR mount reads
+     * {@code World.hasSolidTop}'s five arms; every wall/ceiling mount
+     * reads {@code Block.isSolid()} (the three conjuncts —
+     * SupportConsult.buttonOrLeverSurvives).
+     */
     private boolean buttonSupported(BlockType type, BlockPosition pos) {
         int[] away = OFFSETS[RedstoneBlocks.buttonFacing(type)];
-        return WorldSolidity.isSolid(world.getBlock(pos.offset(-away[0], -away[1], -away[2])));
+        BlockType host = world.getBlock(pos.offset(-away[0], -away[1], -away[2]));
+        return net.zaminmc.torch.server.block.SupportConsult.buttonOrLeverSurvives(
+                RedstoneBlocks.buttonFacing(type) == 1, host);
     }
 
     /** The offset of a direction's opposite (the reference's getOpposite). */
