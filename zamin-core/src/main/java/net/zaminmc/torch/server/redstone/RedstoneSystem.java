@@ -4,6 +4,7 @@ import net.zaminmc.torch.block.BlockPosition;
 import net.zaminmc.torch.block.BlockType;
 import net.zaminmc.torch.server.block.BlockSolidity;
 import net.zaminmc.torch.server.block.BuiltinBlocks;
+import net.zaminmc.torch.server.block.SupportConsult;
 import net.zaminmc.torch.server.block.WorldSolidity;
 import net.zaminmc.torch.server.item.BuiltinItems;
 import net.zaminmc.torch.server.entity.ItemEntity;
@@ -860,8 +861,10 @@ public final class RedstoneSystem implements WorldChangeListener {
         if (RedstoneBlocks.isWire(type)) {
             // RedstoneWireBlock lines 235-244: recompute (the support gate
             // is the placement rule — the wire pops when its floor vanishes,
-            // handled by the support check here).
-            if (!hasSupportBelow(pos)) {
+            // handled by the support check here). The wire's OWN law:
+            // hasSolidTop || GLOWSTONE (canBePlaced lines 92-94) — the
+            // glowstone member the wire's alone.
+            if (!wireFloorHolds(pos)) {
                 popBlock(pos, BuiltinItems.REDSTONE);
                 return;
             }
@@ -884,8 +887,10 @@ public final class RedstoneSystem implements WorldChangeListener {
         }
         if (RedstoneBlocks.isRepeater(type)) {
             // DiodeBlock lines 80-91: the support break first, then the
-            // output-state check (the delayed reaction).
-            if (!hasSupportBelow(pos)) {
+            // output-state check (the delayed reaction). The diode's OWN
+            // law: hasSolidTop alone (canSurvive lines 33-35) — no
+            // glowstone arm, no fence arm.
+            if (!diodeFloorHolds(pos)) {
                 popBlock(pos, BuiltinItems.REPEATER);
                 for (int[] offset : OFFSETS) {
                     neighborChanged(pos.offset(offset[0], offset[1], offset[2]));
@@ -899,8 +904,9 @@ public final class RedstoneSystem implements WorldChangeListener {
             // DiodeBlock lines 80-91 + ComparatorBlock lines 157-170: the
             // support break first, then the output-state check — the
             // comparator never locks (its isLocked stays false), so the
-            // neighborChanged arm goes straight to the value check.
-            if (!hasSupportBelow(pos)) {
+            // neighborChanged arm goes straight to the value check. The
+            // diode's OWN law: hasSolidTop alone.
+            if (!diodeFloorHolds(pos)) {
                 popBlock(pos, BuiltinItems.COMPARATOR);
                 for (int[] offset : OFFSETS) {
                     neighborChanged(pos.offset(offset[0], offset[1], offset[2]));
@@ -960,7 +966,10 @@ public final class RedstoneSystem implements WorldChangeListener {
         if (net.zaminmc.torch.server.redstone.WeightedPlateBlocks.isWeightedPlate(type.identifier())) {
             // The weighted pair's floor rule (the same neighborChanged
             // lines 92-97): the floor break pops the plate with its item.
-            if (!hasSupportBelow(pos)) {
+            // The plate's OWN law: hasSolidTop || FenceBlock
+            // (AbstractPressurePlateBlock.canSitOnTop lines 84-86) — the
+            // fence member the plates' alone.
+            if (!plateFloorHolds(pos)) {
                 popBlock(pos, net.zaminmc.torch.server.redstone.WeightedPlateBlocks
                         .familyOf(type.identifier()) == 0
                         ? BuiltinItems.LIGHT_WEIGHTED_PRESSURE_PLATE
@@ -970,8 +979,9 @@ public final class RedstoneSystem implements WorldChangeListener {
         }
         if (RedstoneBlocks.isPlate(type)) {
             // AbstractPressurePlateBlock.neighborChanged (lines 92-97): the
-            // floor break pops the plate.
-            if (!hasSupportBelow(pos)) {
+            // floor break pops the plate. The plate's OWN law:
+            // hasSolidTop || FenceBlock (canSitOnTop lines 84-86).
+            if (!plateFloorHolds(pos)) {
                 popBlock(pos, RedstoneBlocks.plateWooden(type)
                         ? BuiltinItems.WOODEN_PRESSURE_PLATE : BuiltinItems.STONE_PRESSURE_PLATE);
             }
@@ -2319,9 +2329,59 @@ public final class RedstoneSystem implements WorldChangeListener {
     // Support and drops
     // ------------------------------------------------------------------
 
-    /** The wire's floor rule (RedstoneWireBlock.canBePlaced lines 92-94). */
+    /**
+     * The rail arm's legacy floor consult (AbstractRailBlock
+     * .neighborChanged lines 86-111) — SUPERSEDED on every observable by
+     * the update system's rail arm (`RailConnections.survivesAt` over
+     * `FireBlocks.hasSolidTop`, the merged thirteenth-pass fix): no
+     * `isSolid`-false kind answers hasSolidTop-true, so this consult
+     * never changes a rail's fate — it stays only because the rail arm
+     * below still reads it. The redstone floor families left this form
+     * in the forty-seventh pass (VT-029): the wire, the plates and the
+     * diodes each read their own reference law now
+     * (`wireFloorHolds` / `plateFloorHolds` / `diodeFloorHolds`).
+     */
     private boolean hasSupportBelow(BlockPosition pos) {
         return WorldSolidity.isSolid(world.getBlock(pos.offset(0, -1, 0)));
+    }
+
+    /**
+     * The WIRE's floor law (RedstoneWireBlock.canBePlaced lines 92-94 —
+     * the survival walk at lines 235-244 re-reads the same law):
+     * {@code World.hasSolidTop(pos.down()) || below == Blocks.GLOWSTONE}
+     * — the five-arm law PLUS the wire's own explicit glowstone member
+     * (the translucent floors never answer the first arm; the glowstone
+     * is the wire's alone — the plates and the diodes never read it).
+     */
+    private boolean wireFloorHolds(BlockPosition pos) {
+        BlockType below = world.getBlock(pos.offset(0, -1, 0));
+        return SupportConsult.hasSolidTop(below)
+                || below.identifier().equals(BuiltinBlocks.GLOWSTONE.identifier());
+    }
+
+    /**
+     * The PLATES' floor law (AbstractPressurePlateBlock lines 72-86 —
+     * canBePlaced over canSitOnTop, the survival walk at lines 77-82
+     * re-reading it): {@code World.hasSolidTop(pos.down()) || below
+     * instanceof FenceBlock} — the fence is the plate's OWN explicit
+     * member (a stone plate sits on a fence in vanilla) beside the
+     * five-arm law.
+     */
+    private boolean plateFloorHolds(BlockPosition pos) {
+        BlockType below = world.getBlock(pos.offset(0, -1, 0));
+        return SupportConsult.hasSolidTop(below)
+                || WorldSolidity.isFence(below.identifier());
+    }
+
+    /**
+     * The DIODES' floor law (DiodeBlock lines 29-35 — canSurvive, the
+     * survival walk at lines 80-91 re-reading it):
+     * {@code World.hasSolidTop(pos.down())} ALONE — the repeater and the
+     * comparator carry NEITHER the wire's glowstone arm NOR the plate's
+     * fence arm.
+     */
+    private boolean diodeFloorHolds(BlockPosition pos) {
+        return SupportConsult.hasSolidTop(world.getBlock(pos.offset(0, -1, 0)));
     }
 
     /** The removal + drop (the reference's dropItems + removeBlock). */
