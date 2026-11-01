@@ -4712,3 +4712,50 @@ the snow-7 tail stays unfixable until a layer model exists.
 **STATUS: VT-028 CONFIRMED — three passes complete, Phase E eligible.**
 The finding keeps its F-SP1 lineage identity (SIGNAL_CONSULT_PARITY_
 FINDINGS.md's standing lane); VT-028 is its ledger number.
+
+
+## The forty-fifth pass's closing act — THE CONVERGENCE: VT-020 and VT-028 are the SAME reference law, and PR #121's construction misses VT-028's material conjunct
+
+The pass's closing verification walk (the fix-shape preparation) found
+the structural connection the two findings' lanes had not yet recorded:
+
+**`World.hasSolidTop` is ONE law with MANY consumers** — the support
+floors (VT-028's ten sites) AND the spawn floor
+(`NaturalSpawner.isValidSpawnPos`, reference lines 156-166: the
+`hasSolidTop(world, blockpos)` consult at line 160) AND the bed's
+spawn-point validity (`BedBlock.isValidSpawnPos`, lines 161-165). The
+reference's first arm — `material.isSolidBlocking() && isCube()` —
+REFUSES the translucent materials at every consumer: no wire on glass,
+and **no mob spawn on glass or leaves either**.
+
+**PR #121's construction (VT-020, the spawn floor — OPEN) carries the
+VT-028 material-conjunct gap**: its `isFullCubeGround` composes
+`WorldSolidity.isSolid(type) && !isFence && !isPartialShape(type)` —
+a MOVEMENT-consult derivation that subtracts the partial shapes and
+the fences but NEVER the translucent materials. The glass, the leaves,
+the glowstone, the TNT and the ice are movement-solid with no
+partial-shape suffix: **they PASS the PR's spawn floor where the
+reference's first arm refuses them** — mobs spawn on glass and leaves
+on the #121 tree (the unpinned divergent member; the PR's seats pinned
+the slab/stairs rows alone, the stone/top-slab/top-stair controls).
+
+**THE CONVERGENCE'S FIX SHAPE** (recorded for both lanes): the ONE
+structural helper serves every consumer —
+`isSolidBlockingCube` = `!MaterialSolidity.isTranslucentMaterial &&
+MaterialSolidity.blocksMovement && isCube` (the very conjuncts
+`BlockSolidity` documents, minus its signal conjunct — equivalently
+`BlockSolidity.isSolid(t) || t == REDSTONE_BLOCK`, the census's lone
+divergent member) and `hasSolidTop` = `isSolidBlockingCube ||
+top-stairs || top-slab || hopper` (PR #121's own
+`double_`-carve/`_slab`-suffix/directional-fold rows ARE the
+shaped-top refinements, already correct). The VT-028 Phase E branch
+should either adopt the helper wholesale (the #121 merge first, the
+consult extraction riding it) or carry the helper itself with the #121
+consult's adoption noted — **the dependency documented per the
+workflow's rule, the PR base coordinated, no misleading PRs against
+stale code.** The review note posted on #121 carries the glass/leaves
+member so the spawn-floor lane can pin it (the seat member their
+construction owes) or adopt the helper when the VT-028 branch lands.
+
+The snow-layer-7 row stays the shared architectural tail (the
+layer-less id — the VT-003 state-surface tail named again).
