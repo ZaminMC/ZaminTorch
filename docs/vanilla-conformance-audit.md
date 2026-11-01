@@ -4338,3 +4338,48 @@ RangedCombat 10/0, TntSystem 2/0, AnvilImport 6/0, the parity seats
   grown (1.0, 0.0, 1.0)).
 - **Associated artifacts:** the seats + this record on
   `audit/verifier-pass-38-discovery`.
+
+
+## The thirty-eighth pass's close — the lane's run summary (the next run's handoff)
+
+**The run's landings:** VT-021 (the partial-shape stick face)
+confirmed whole against develop AND PR #117's landed construction —
+the review note posted on #117 with the fresh observed rest
+`y=18.8268`, the box-view alternative opened as **PR #122** (the
+maintainer's pick between the constructions); VT-019's passes 2-3
+completed (the behavioral seat RED at `[10, 39, 10]`, the timing
+probe pinning the prime to the stick tick, the live wiring verified)
+— the correction converged with the sibling lane's identical gate,
+**PR #123 the carrier**, the convergence note posted (the timing
+probe + the band-limit control offered, this lane's 3-arm seat green
+on the #123 tree); VT-023 (the flight band's feet law) confirmed
+whole — RED on develop AND on the #123 tree (the gate's
+orthogonality pinned) — **PR #128 OPEN** (the two-line band
+correction, the #123-union verified live on both lanes' seats); VT-024
+(the pickup envelope) confirmed whole — three seats RED on develop at
+exactly the predicted shapes — **Phase E the next run's head** (the
+three-line envelope correction + the item/orb family's same-form
+walk).
+
+**The next run's queue (this lane's view, unioned with the
+standing items):**
+1. **VT-024's Phase E** — the envelope correction (`maxHorizontal`
+   carrying the player's 0.3 half-width; `arrowBottom/Top` = the feet
+   law's [y, y+0.5]) + the item/orb pickup family's same-form walk
+   (the class census — the engine's javadoc claims the arrow's form
+   is "the orb pickup's exact shape").
+2. **The merge watch**: #108/#109/#110/#111/#113/#114/#116/#117/
+   #118/#119/#120/#121/#122/#123/#124/#125/#126/#128 — the open set;
+   after the arrow family's carriers merge, the bobber's parallel
+   un-stick arm (VT-015's named follow-up) and VT-022's passes (the
+   stick-vs-prime ordering, the pass-36 lane's claim) are the
+   projectile family's standing items.
+3. **F-SP1's passes** (the support-consult family — the 38b lane's
+   source pass the record; the behavioral seats owed).
+4. **The dimension tails** (the PR #90 ledger): the FX dimension
+   awareness, the per-dimension world border, the zombie arm's world
+   binding; the furnace/dispenser/brewing families' per-dimension
+   stores (the FL4-GAP2 Slice B tail).
+5. **The blast RNG tail** (VT-007's named tail): the End/nether
+   services' shared `gameplayRandom` vs the reference's per-world
+   `world.random`.
