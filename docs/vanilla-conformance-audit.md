@@ -1089,12 +1089,12 @@ seats, the independent angles):
    run — the nether-anchored session construction, exactly the arrow
    family's seat precedent).
 
-## VT-007 — the blast family's dimension routing is partial: the fireball, skull, creeper, wither-birth, and TNT-cart detonations still bind the overworld, and the blast drop stamp carries dimension 0 (the CORE resolved by PR #100 — honest convergence; the CART slice **PR #105 OPEN**)
+## VT-007 — the blast family's dimension routing is partial: the fireball, skull, creeper, wither-birth, and TNT-cart detonations still bind the overworld, and the blast drop stamp carries dimension 0 (the CORE resolved by PR #100 — honest convergence; the CART slice RESOLVED — **PR #105 MERGED** (`278b139e`))
 
 **Subsystem:** explosions / dimension routing (the queue's named audit)
 **Affected version:** the current develop baseline (deef2a17)
 **Status:** the CORE resolved by PR #100 (merged — another stream's
-honest convergence, recorded); the CART slice **PR #105 OPEN**; PR
+honest convergence, recorded); the CART slice RESOLVED — **PR #105 MERGED** (`278b139e`, the rider at `32af09f3`); PR
 #103 (this stream's whole-family fix) closed as superseded with the
 overlap and the remaining slice named
 
@@ -1308,7 +1308,7 @@ overlap and the remaining slice named in the closing note. THE
 REMAINING SLICE — the census's ONE site PR #100 did not cover: the
 TNT cart's `BlastSink` carried no dimension and the factory still
 routed through `detonateAtWithSource`'s hardcoded overworld triple
-— LANDED as **PR #105 OPEN** (`fix/tnt-cart-blast-dimension-parity
+— LANDED as **PR #105, MERGED** (`278b139e`; the branch `fix/tnt-cart-blast-dimension-parity
 -audit` based on the post-#100 develop `a95e7ca6`: the BlastSink
 dimension carry, the factory's routed `detonateAtIn`, the cart's
 own law preserved — destructive TRUE hardcoded, createFire false —
@@ -2488,14 +2488,423 @@ its own finding, pass 1 complete, the seats owed):**
   five-family arms consult the position cell alone. A body grazing a
   portal cell's boundary without its center entering — vanilla
   crosses it, the engine does not. A narrow edge; its seat folds into
-  VT-014's pass-2 run. NOT REACHED this pass (the thirty-second): the
+  VT-014's pass-2 run. NOT REACHED this pass (the thirty-third): the
   grazing edge rides the five-family arms that live on the OPEN #109/
   #113 branches; its seat belongs to a union-tree pass (the
   thirty-first's protocol), deferred behind VT-014/VT-015's own
   corrections — the edge is RECORDED, not forgotten.
 
 
-## The thirty-second pass — VT-014 and VT-015 confirmed whole (the seats + the independent walks), VT-016 discovered (the stuck burning arrow's TNT re-prime)
+## The twenty-seventh pass (the bed-coverage lane) — VT-008's verification completed (#102's coverage independently confirmed) + the multi-part pair-integrity arms discovered (VT-009)
+
+PR #98 has MERGED (the mobs family's entity-level crossing); the
+remaining crossing families remain blocked behind the seam's review.
+The pass took the queue's named head: **VT-008's coverage verification
+of PR #102** (the other stream's F-EX6 carrier — the honest-convergence
+protocol, no re-fix). The verification ran with THIS stream's own seat
+construction over the REAL use wire — `BedWrongWorldNightWalkVerificationTest`,
+three independently authored seats with new angles over #102's own
+trio: the HEAD cell clicked directly (their seat drives the foot
+redirect), the overworld clock held INSIDE the night window (the
+pre-fix tree's deepest wrong — the sleep walk runs all the way, the
+spawn anchor lands), the END dimension driven (the gate's third
+answer, their trio never covered it), the spawn-anchor and epicenter
+pins (never pinned by their seats). Both wrong-world seats ran RED on
+develop (a95e7ca6) at exactly the predicted awaits — the scratch RED
+probe documenting develop's actual behavior (the nether bed click at
+night SETS A NETHER BED SPAWN, no blast) — and all three GREEN on
+#102's head (3e41cf7b). The neighboring lanes re-ran independently:
+the bed/sleep family whole green. **VT-008's three passes stand
+COMPLETE from this stream; #102's coverage CONFIRMED.**
+
+The pass's independent angle (the reference's synchronous
+neighbor-update path — World.removeBlock's flags-3 walk) surfaced the
+adjacent discovery **VT-009**: vanilla's BedBlock.neighborChanged
+carries the pair-integrity arm (an orphaned half self-removes; the
+foot's departure DROPS the bed item) that runs from ANY sibling
+removal path — the engine carries NO bed arm anywhere, so a clipped
+half leaves the survivor FLOATING where vanilla clears it. The
+behavioral seats ran the same run: the two BED seats RED on the
+unguarded tree BY CONTRACT (`MultiPartPairIntegrityDiscoveryTest`),
+the DOOR seat GREEN — refuting the door half of the first hypothesis
+(the compensating path: `RedstoneSystem.doorNeighborChanged`,
+DoorBlock lines 157-198, 1:1) and riding on as the regression guard.
+VT-009 stands UNDER VERIFICATION: the bed half's source + behavioral
+passes done, the independent pass owed.
+
+## VT-009 (the bed-coverage lineage's claim — PR #114; distinct from the pass-28 lane's VT-009 pair-break walks, PR #106, and the develop-merged VT-009 mob portal cooldown, PR #107) — the BED family's neighbor-changed pair-integrity arm is absent: a clipped bed half FLOATS where vanilla removes it (CONFIRMED — three passes; the correction LANDED on `fix/bed-pair-integrity-parity-audit`)
+
+**Subsystem:** block updates / the bed family
+**Affected version:** the current develop baseline (a95e7ca6) and #102's
+head (3e41cf7b) alike
+**Status:** CONFIRMED over three passes (the source census, the
+behavioral seat matrix RED on the unguarded tree, the independent
+challenge below); the correction LANDED on
+`fix/bed-pair-integrity-parity-audit` (**PR #114 OPEN**, based on
+develop a95e7ca6): one
+family arm in `BlockUpdateSystem.runUpdate` — the class law from
+`bedSiblingCleanup` (the HEAD ids carry the `bed_head` prefix, the FOOT
+ids are `bed` + the direction forms), the orphan removes itself, the
+FOOT arm alone dropping the bed item. The four discovery seats GREEN
+(both orphan directions + the drop law + the door regression guard);
+the regression lanes green (the block package 309/0, the interaction +
+world packages 250/0, the update/sleep family 24/0 combined); one
+pre-existing test's CONSTRUCTION repaired in the open (see the fix
+record below — its orphan-foot cell was never a vanilla-stable bed).
+THE DOOR HALF IS REJECTED: the pass's first door seat PASSED on the
+unguarded tree and the source hunt found the compensating path —
+`RedstoneSystem.doorNeighborChanged` (DoorBlock.neighborChanged lines
+157-198, 1:1: the orphaned upper removes itself silently, the lower's
+floor-support failure pops the pair with the item, the signal edge
+flips POWERED/OPEN). The original hypothesis's "no door arm" was an
+artifact of censusing only `BlockUpdateSystem.runUpdate` — the
+neighborChanged surface is SPLIT across the update queue AND the
+redstone system's own dispatch; the census method is the lesson.
+
+### The reference's law (BedBlock.neighborChanged lines 109-121 + DoorBlock.neighborChanged lines 45-80)
+
+A bed half whose SIBLING departs removes ITSELF — and a FOOT half's
+self-removal DROPS the bed item (`dropItems(world, pos, state, 0)`, line
+118). A door's UPPER removes itself when its lower departs; a door's
+LOWER removes itself when its upper departs or when the floor below
+loses its solid top (both halves leave, the drop fires). These arms run
+from ANY sibling removal path — a blast clipping one half, a fluid
+wash, a piston, a plugin write — because the removal's neighbor updates
+fire SYNCHRONOUSLY (World.removeBlock = setBlockState(flags 3) →
+onBlockChanged → updateNeighbors → the six neighbors' neighborChanged).
+
+### The engine's shape
+
+`BlockUpdateSystem.runUpdate` — the scheduled neighbor-update drain —
+carries the arms for the torch, the standing/wall signs, the rail
+families, the vine, the banners, the carpets, the cocoa, the lily (and
+the gravity families through the fall seam) — but NO bed arm; the
+redstone system's own neighbor-changed dispatch carries the door, the
+plates, the gates, the trapdoors, the rails' signal arm — but NO bed
+arm either (the bed is no redstone component). The bed pair's integrity
+rides the BREAK walk alone (`bedSiblingCleanup` — one half MINED takes
+the sibling with no drop) and the wrong-world blast arm (#102's
+`detonateBedOnTick` removes both halves directly). A NON-BREAK removal
+of one half (an explosion whose ray fan happens to take exactly one
+cell of the pair, a fluid wash, a piston, a plugin write) leaves the
+surviving half STANDING in the engine — vanilla clears it (and the
+foot's departure drops a bed item). The removal's commit DOES wake the
+six neighbors (the update queue's listener fires on every setBlock) —
+the wake lands but no arm runs for the bed family.
+
+### The drop-law note (the mining path — NOT a defect)
+
+Vanilla mining EITHER bed half yields exactly ONE bed item (the foot's
+own dropItems when the foot is mined; the FOOT's neighborChanged drop
+when the head is mined — the head itself never drops). The engine's
+break walk yields exactly ONE bed item for either half (the behavior
+table's `minecraft:bed` ×1 row on every half id, the sibling cleanup
+dropping nothing) — observably equivalent. The orphan edge differs
+(mining an orphan head: vanilla nothing — it self-removed — vs the
+engine 1 bed), but the orphan head itself is this finding's subject.
+
+### The proposed minimal correction
+
+One family arm in `BlockUpdateSystem.runUpdate`: the bed arm (a half
+whose adjacent opposite-class sibling is gone removes itself, the FOOT
+arm dropping the bed item per the reference's line 118), using the
+pair-resolution convention the engine already carries
+(`bedHeadCell`/`bedSiblingCleanup`'s class-adjacency). The door family
+needs nothing — its arm lives in the redstone system.
+
+### Verification pass history
+
+- **Pass 1 (source, the twenty-seventh pass, 2026-10-31):** the
+  reference's BedBlock.neighborChanged (lines 109-121) and
+  DoorBlock.neighborChanged (lines 157-198) read in full; the engine's
+  update queue censused (runUpdate's family arms enumerated — no bed,
+  no door THERE); the break-walk pair cleanups and #102's blast arm
+  read (the only bed pair-integrity sites); the 47-block
+  neighborChanged override census bounded. CONCLUSION (as first
+  stated): both arms absent — INCORRECT for the door half, see pass 2.
+- **Pass 2 (behavioral, the twenty-seventh pass, 2026-10-31):**
+  `MultiPartPairIntegrityDiscoveryTest` — the seats drive the trigger
+  through the engine's own commit wire (`world.setBlock` on the tick
+  thread; the §466 listener wakes the six neighbors exactly as any
+  removal path does):
+  - THE BED SELF-REMOVAL SEAT: the head removed; the foot must leave —
+    RED on the unguarded tree at exactly the predicted await (the foot
+    FLOATS). The gap confirmed behaviorally.
+  - THE BED ITEM DROP SEAT: the foot's departure must drop the bed
+    item (line 118) — RED on the unguarded tree (nothing drops; the
+    survivor is mined later for its behavior-row drop instead).
+  - THE DOOR SEAT (originally the third discovery seat): the orphaned
+    door upper self-removes — PASSED on the unguarded tree, which
+    REFUTED the door half of the hypothesis. The follow-up scratch
+    probe (never committed) pinned the timeline (the upper gone within
+    5 ticks of the lower's removal) and the source hunt found the
+    compensating path: `RedstoneSystem.doorNeighborChanged`
+    (DoorBlock lines 157-198, 1:1). THE DOOR HALF REJECTED — and the
+    seat rides on as the regression guard (the bed correction must not
+    touch the door's law).
+  CONCLUSION: the BED family's arm is absent (two RED seats, the
+  source census, the compensating hunt's negative result); the DOOR
+  family's arm exists (one green seat + the named compensating path).
+- **Pass 3 (independent, the twenty-seventh pass, 2026-10-31):** the
+  hypothesis challenged from every remaining angle:
+  (1) THE ORPHAN-DIRECTION SEAT — the reference's HEAD arm (lines
+  110-114: the foot departs → the HEAD self-removes with NO drop; the
+  FOOT arm alone drops, line 118) got its own seat
+  (`theOrphanedBedHeadSelfRemovesWithNoDrop`): RED on the unguarded
+  tree at exactly the predicted await (the head FLOATS) — the
+  behavioral matrix now covers BOTH directions plus the drop law:
+  head-gone → foot leaves + bed item; foot-gone → head leaves, no
+  item.
+  (2) THE OTHER REMOVAL PATHS (source) — the blast's
+  `ExplosionService.commitDamaged` commits every destroyed cell through
+  `world.setBlock` (the §466 listener wakes the six neighbors — the
+  wake lands, no arm runs for the bed); the fluid wash's cell
+  replacement rides the same commit wire; the PISTON path turned out
+  to be its own finding (VT-010 below — vanilla breaks pushed beds
+  outright, the engine MOVES them, compounding this gap).
+  (3) THE COMPENSATING CENSUS completed — the engine's neighborChanged
+  surface is SPLIT: `BlockUpdateSystem.runUpdate` (the full arm list
+  enumerated — torch, signs, rails, vine, banners, carpets, cocoa,
+  lily, flowers, mushrooms, nether wart, double plants, pots, cake,
+  fire, portal, cane, cactus, farmland crops, farmland, grass — NO
+  bed) and `RedstoneSystem`'s own dispatch (plates, gates, doors,
+  trapdoors, the rails' signal arm — NO bed); the TilePlacement/
+  PublicBlockChange bridges carry no bed arm; the four seats' negative
+  results close the loop. No path cleans the orphan bed half.
+  (4) THE INTENTIONALITY CHALLENGE — the engine's own precedent ports
+  these arms (the door's 1:1 port in the redstone system; the update
+  queue's arm-per-family shape; `bedSiblingCleanup`'s javadoc itself
+  citing "the vanilla unit rule" — the author knew the rule and
+  implemented the break-path half alone); nothing marks the non-break
+  arm's absence intentional.
+  (5) THE FIX'S REGRESSION SURFACE bounded — the arm's natural home is
+  `runUpdate` beside the other families (the class-adjacency convention
+  `bedSiblingCleanup` already carries); the wake coalescing's addressee
+  pin preserves the foot's own type for its wake (the LATEST addressee
+  wins); the arm must NOT drop for the HEAD direction (the seat's
+  no-drop pin); and the `bedSpawnCleanup` interaction is the fix's one
+  design note (the anchor invalidation rides the break walk today —
+  vanilla validates lazily at respawn; the fix branch should decide
+  whether the arm calls it too).
+  CONCLUSION: the bed family's pair-integrity arm is absent and
+  UNCOMPENSATED engine-wide; the finding is CONFIRMED. The pass also
+  surfaced **VT-010** (the piston push table's membership — see below).
+
+### The correction (landed the same run — `fix/bed-pair-integrity-parity-audit`)
+
+THE ARM: one family arm in `BlockUpdateSystem.runUpdate`, placed after
+the double-plant family (the pair-integrity locality): a minecraft bed
+half (the identifier `bed` or `bed_*`) whose four horizontal neighbors
+hold NO opposite-class bed half removes itself — the FOOT arm dropping
+the bed item (line 118), the HEAD arm silent (lines 111-114). The class
+law is the engine's own (`bedSiblingCleanup`'s — the HEAD ids carry the
+`bed_head` prefix; the FOOT ids are `bed`, `bed_west`, `bed_north`,
+`bed_east`).
+
+THE FIRST DRAFT'S DEFECT (caught by the seats before any commit): the
+draft matched the foot class by `bed_foot*` — the engine's FOOT ids are
+`bed` and the direction forms, so the foot-direction seats stayed RED
+until the class law was corrected. The four-seat matrix caught it in
+one run.
+
+THE CONSTRUCTION REPAIR (in the open — the one pre-existing test the
+arm exposed): `PlayerDataPersistenceTest
+.bedSpawnSurvivesARestartAndABrokenBedResetsIt` laid a single orphan
+FOOT cell as "the bed" and expected it to persist across a restart.
+Under the restored law an orphan half pops on the first neighbor
+change — exactly vanilla — and the scene's own engine-side trigger
+arrived within ticks (the grass under the bed dying to dirt, its commit
+waking the foot: the traced evidence
+`[2,4,2=dirt]`). The test's INTENT (the anchor survives a restart; a
+broken bed resets it) is unchanged and its assertions untouched; the
+scene now lays the WHOLE PAIR (the MultiplayerSleepAcceptanceTest
+convention) — a vanilla-stable bed. The grass-die trigger itself is
+NOT vanilla (see VT-011 below) but the arm's law stands independent of
+it: ANY neighbor change pops an orphan half in vanilla.
+
+THE REGRESSION LANES: the four discovery seats 4/0; the persistence
+class 5/0 (the repaired construction); Sleep 1/0 + MultiplayerSleep
+3/0 + BlockUpdateSystem 6/0 + NetherBlockUpdateRouting 3/0 +
+ScheduledUpdatesApi 2/0; the block package whole 309/0; the
+interaction + world packages 250/0. The one batch-level
+NetherBlastRouting failure reproduced GREEN in isolation on BOTH trees
+(the known load-flake class — passing alone, no bed path touched).
+
+THE REBASE INTERACTION (develop moved mid-run — the #101/#102/#104
+wave + FL4-F10 landed; the branch rebased onto a23011fa cleanly and
+re-verified): #102's ORPHAN-FOOT GUARD seat staged its orphan through
+an update-bearing `setBlock` — under the restored law the orphan foot
+pops the same tick (exactly vanilla — the flags-3 removal fires the
+neighbor updates synchronously in the reference too). The seat's LAW
+(the orphan use is consumed with neither arm, BedBlock.use lines
+40-43) is unchanged and vanilla-reachable; its staging now rides the
+FLAG-4 SILENT write (`setBlockStateSilently` — the reference's
+update-free `setBlockState(pos, state, 4)` family, the one path that
+leaves an orphan standing to be clicked). Their trio 3/0, the
+discovery seats 4/0, the persistence class 5/0, the update/sleep
+lanes, and the block + interaction packages 313/0 on the rebased tree.
+The facing-exact resolution PR (#111, another stream's lane over the
+same pair walks) is COMPLEMENTARY: it makes the walks facing-exact;
+this arm's sibling scan rides the engine's current class-adjacency
+convention and would follow #111's law in a small follow-up (the
+reference's neighborChanged reads the facing-named cell).
+
+## VT-017 — the grass-decay shade consult is the 3-block allowlist, not the reference's opacity law: grass dies under beds, flowers, slabs and every non-solid-render block where vanilla keeps it (SUSPECTED — one source pass + observed evidence)
+
+**Subsystem:** block updates / the grass family / the shade consult
+**Affected version:** the current develop baseline (a95e7ca6)
+**Status:** SUSPECTED — the source pass complete (the reference's
+opacity law + the engine's allowlist read) with OBSERVED behavioral
+evidence (the dirt-under-bed commit caught by the VT-009 fix run's
+trace); the behavioral seats owed; the independent pass owed.
+
+### The reference's law (GrassBlock.tick lines 49-52)
+
+The grass dies to dirt only when
+`world.getRawBrightness(pos.up()) < 4 && world.getBlockState(pos.up())
+.getBlock().getOpacity() > 2` — the OPACITY consult: every
+non-solid-render block answers opacity 0 (Block's constructor line 216:
+`this.opacity = this.isSolidRender() ? 255 : 0` — the bed's
+`isSolidRender()` is FALSE, BedBlock lines 99-102; flowers, slabs,
+stairs, fences, torches, glass likewise) — the grass SURVIVES under
+them all. Only true solid-render blocks (opacity 255) shade the grass
+to death (plus the brightness arm).
+
+### The engine's shape
+
+`BlockUpdateSystem.isOpaque` (line 1053): opaque unless the id is air,
+torch or glass — a 3-block allowlist standing in for the opacity law.
+The grass-decay arm (line 996-999) consults it: the grass under a BED,
+a FLOWER, a SAPLING, a CROP, a SLAB, STAIRS, a FENCE... dies to dirt
+where vanilla keeps it green. The observed evidence: the VT-009 fix
+run's trace caught the grass at (2,4,2) dying to DIRT under the bed
+foot within ~4 ticks of the placement (the commit that woke the orphan
+half). The scope is every non-solid-render block the allowlist misses.
+
+### The proposed minimal correction
+
+The consult swaps to the engine's own light-opacity table
+(`BlockLightTable.filter(type) > 2` — the same table the light engine
+already rides, the vanilla `getOpacity` port) with the brightness arm
+consulted beside it; the allowlist retires.
+
+### Verification pass history
+
+- **Pass 1 (source, the twenty-seventh pass, 2026-10-31):** the
+  reference's GrassBlock.tick read (the two-conjunct death gate); the
+  opacity derivation traced (Block's constructor: isSolidRender ? 255 :
+  0; BedBlock's isSolidRender false); the engine's isOpaque allowlist
+  read; the observed dirt-under-bed caught by the VT-009 trace.
+  CONCLUSION: the consult diverges at the source level with observed
+  behavior.
+- Pass 2 (behavioral): owed — the seats: grass under a bed/flower/slab
+  survives (vanilla) vs dies (engine today); the positive control (the
+  grass under a stone block still dies).
+- Pass 3 (independent): owed.
+
+## VT-016 — the piston push table's DESTROY/BLOCK membership diverges from the reference's material census: beds, doors, weighted plates, and cocoa are PUSHED where vanilla destroys them; anvils are PUSHED where vanilla refuses (SUSPECTED — one source pass)
+
+**Subsystem:** redstone / the piston families / the pushability table
+**Affected version:** the current develop baseline (a95e7ca6)
+**Status:** SUSPECTED — the source pass complete (the reference's
+material/override census + `canMoveBlock` + the toBreak drop law; the
+engine's table + gate read); the behavioral seat owed (the
+piston-push construction); the independent pass owed.
+
+### The reference's law
+
+`PistonBaseBlock.canMoveBlock` (lines 247-271): obsidian hardcoded
+immovable; the world border; `getMiningTime == -1` (the unbreakables);
+`getPistonMoveBehavior() == 2` (BLOCK — the ANVIL, PORTAL, PISTON,
+BARRIER materials) → immovable; `== 1` (DESTROY) → breakable under
+`allowBreaking`. The behavior value comes from the MATERIAL
+(`Material.setDestroyOnPistonMove` → 1: WATER, LAVA, LEAVES, PLANT,
+REPLACEABLE_PLANT, FIRE, DECORATION, CORAL, SNOW_LAYER, CACTUS,
+PUMPKIN, EGG, CAKE) or the BLOCK OVERRIDE (**BedBlock line 175: 1**;
+**DoorBlock: 1**; **AbstractPressurePlateBlock: 1** — all plates;
+AbstractRailBlock: 0 pushable; IceBlock: 0). The toBreak consumption
+(`move`, lines 303-309): **`block.dropItems(world, pos, state, 0)` +
+`world.removeBlock`** — the destroyed blocks DROP their items (a pushed
+bed: the pushed half's dropItems — the FOOT's bed item alone — then
+the survivor's neighborChanged self-removal with ITS drop: exactly ONE
+bed item, both halves gone, the piston extends).
+
+### The engine's shape
+
+`PistonSystem.pistonMoveBehavior` — the BLOCK family lists the portal,
+the piston head, the moving block (the barrier via the hardness -1
+gate); the DESTROY family lists the torch, the redstone components,
+the saplings, the grasses, the flowers, the wheat, the cane, the
+cactus, the pumpkin, the snow layer, the fire, the liquids, the
+leaves, the cake, the egg — **NO bed, NO door family, NO weighted
+pressure plates, NO cocoa, NO anvil**: all five answer BEHAVIOR_PUSH.
+`canMoveBlock`'s gate is otherwise a faithful port (obsidian, the
+bounds, the -1 hardness, the block-entity-backed containers). The
+observable for a pushed bed: the half MOVES to the next cell (the pair
+splits, the survivor FLOATS — VT-009's own gap compounding), NO drop,
+a displaced bed half at the landing cell. Vanilla: the pair gone,
+exactly one bed item, the piston extends. The door family's push
+observably self-compensates through the redstone pair arm (the moved
+lower pops with the door item, the orphaned upper goes silently —
+roughly vanilla's destroy-on-push outcome); the bed has no such arm.
+
+### The proposed minimal correction
+
+The table's membership rows: the bed family → DESTROY (the four
+`bed_head_*`/`bed_foot_*` ids... the engine's bed ids are
+direction-suffixed — `value.startsWith("bed_")`), the door family →
+DESTROY (`WoodDoorFamily.isDoor`), the weighted plates → DESTROY, the
+cocoa → DESTROY, the anvil → BLOCK. The DESTROY arm already carries
+the reference's drop law (the engine's toBreak consumption — to verify
+in the fix pass).
+
+### Verification pass history
+
+- **Pass 1 (source, the twenty-seventh pass, 2026-10-31):** the
+  reference's Material piston setters read (setDestroyOnPistonMove →
+  1, setBlocksPistonMove → 2, the doc's value semantics); the block
+  overrides censused (BedBlock 1, DoorBlock 1, all pressure plates 1,
+  rails 0, ice 0); `canMoveBlock`'s gate chain read; the toBreak
+  consumption read (dropItems + removeBlock — the drops DO land); the
+  engine's `pistonMoveBehavior`/`canMoveBlock` read with the
+  membership diff enumerated. CONCLUSION: five membership divergences
+  at the source level (bed, door, weighted plates, cocoa, anvil), the
+  bed's the most observable (it compounds VT-009).
+- Pass 2 (behavioral): owed — the piston-push seat (a piston extending
+  into a bed pair: vanilla's observable is the pair gone + one bed
+  item; the engine's today is the displaced half + the floating
+  survivor). The construction needs the piston extension path (the
+  redstone wire or the direct system API).
+- Pass 3 (independent): owed.
+
+
+## The thirty-second pass — the bed-coverage lineage's records unioned in (VT-016/VT-017 renumbered), the fourth lane's report whole
+
+**The baseline:** `origin/develop` at `6b29c46f` (2026-11-01) — the same
+tip the thirty-first pass closed against (the vine wire-row repair on
+top). The open PR set is unchanged: #106, #108, #109, #110, #111,
+#113, #114, #115 — all clean.
+
+**This lane's act:** the bed-coverage lineage — the stream whose
+VT-009 record rides **PR #114** (the bed family's neighbor-changed
+pair-integrity arm) — unions its report copy into the pushed pass-31
+lane's (the most current union). The bed-coverage lane's own
+twenty-seventh-pass section and the VT-009 record ride in whole; its
+two suspected findings, orphaned by the concurrent numbering, renumber
+to the next free ids: **VT-016 (the piston push table's DESTROY/BLOCK
+membership)** and **VT-017 (the grass-decay shade consult)** — VT-013
+(taken: the pass-31 lane's rejected stuck-arrow crossing), VT-014
+(taken: the stick placement residue), VT-015 (taken: the un-stick law
+residue) all stand in the pushed lane. **This pass's heads:
+VT-017's behavioral + independent passes** (the grass-decay seats —
+the observed dirt-under-bed evidence came from the VT-009 fix run's
+own trace; the reference's opacity law vs the engine's 3-block
+allowlist), **then VT-016's** (the piston-push bed seat — the pair
+gone + one bed item in vanilla, the displaced half + floating
+survivor today).
+
+
+## The thirty-third pass (this stream, renamed from its thirty-second draft — the bed-coverage lane's pushed pass-32 branch owns the name, the established protocol) — VT-014 and VT-015 confirmed whole (the seats + the independent walks), VT-018 discovered (the stuck burning arrow's TNT re-prime; renumbered from this pass's first VT-016 draft — the pass-32 lane's VT-016/VT-017 piston/grass claims took the ids first, the VT-012->VT-013 precedent)
 
 The thirty-first pass's queue head taken in order: the two honest
 residue findings' pass-2 seats and pass-3 independent walks, both over
@@ -2601,8 +3010,12 @@ design-choice walk). **VT-015 CONFIRMED — three passes complete**
 pass's reference re-read + compensation + family/import walk). Both
 eligible for correction (Phase E).
 
-**VT-016 DISCOVERED (suspected, pass 1 complete — the source walk;
-the seat owed):** the STUCK BURNING ARROW's TNT re-prime. The
+**VT-018 DISCOVERED (suspected, pass 1 complete — the source walk;
+the seat owed; RENUMBERED from this pass's first VT-016 draft — the
+pass-32 lane's VT-016 (the piston push table) and VT-017 (the
+grass-decay shade consult) claims took the ids first, the
+VT-012->VT-013 renumber precedent):** the STUCK BURNING ARROW's TNT
+re-prime. The
 reference consults `onEntityCollision` for an arrow from exactly two
 sites: the FLIGHT branch's tail box scan (ArrowEntity line 382 —
 inside the `else` opened at line 188; the inGround branch at 172-187
@@ -2734,132 +3147,96 @@ it), the TNT's survival asserted against the engine's detonation.
   the import's isolated-row note shrinks when the rows land.
 
 
-## Coverage ledger (updated by the thirty-second pass)
+## Coverage ledger (updated by the thirty-third pass — the pass-32 lane's refresh UNIONED with the pass-33 lane's projectile rows)
 
 | Area | Status |
 |---|---|
 | Fire family — overworld tick/spread/burn (FireBlocks vs FireBlock) | inspected, verified 1:1 on the overworld path (the fourteenth-pass-era migration); the per-dimension arm LANDED by Wave FL4-F2 (VT-001 resolved) |
 | Fire family — nether/End scheduling | LANDED by Wave FL4-F2 (the VT-001 correction; `PerDimensionFireAcceptanceTest` is the record) |
 | Fluid family — per-dimension simulation | landed by FL4; not re-audited (the FL4 seats are the record) |
-| Dig path — dimension routing | LANDED by PR #90 (the VT-002 remaining slice; `DigPathDimensionParityTest` 4/0) |
-| Use/place families — dimension routing | the family arms LANDED by Wave FL4-F3; the generic surface LANDED by PR #90 |
-| Generic placement (placeOnTick/survivalPlaceOnTick) — dimension routing | LANDED by PR #90 |
-| Ice family — break-to-water, melt | LANDED by Wave FL4-F4 on develop (the house stream's own carrier; VT-003's PR #89 closed unmerged — the convergence, the wave's ice-melt gate defect independently found and verified in review, `IceMeltParityAcceptanceTest` 11/0 the record on develop) |
+| Dig path — dimension routing | RESOLVED — PR #90 closed as superseded (Wave FL4-F5 landed the identical design first; the unique riders adopted at e088de73; `DigPathDimensionParityTest` the record) |
+| Use/place families — dimension routing | the family arms LANDED by Wave FL4-F3; the generic surface resolved (PR #90's riders adopted — see the dig-path row) |
+| Ice family — break-to-water, melt | RESOLVED — PR #89 closed as superseded with the corrections ADOPTED as riders on develop (the FL4-F4/F5/F6 waves) |
 | Snow layer — placement support/melt/drops | drops landed (the mining-speed audit); melt + the 7-layer state surface recorded as VT-003's tail |
-| Packed ice — melt/break laws | inspected: the reference's PackedIceBlock carries no melt arm (the `setTicksRandomly` false, the silk-drop row landed); nothing owed |
-| Portal mechanics (flag1, forcer) | landed by FL4-F1; not re-audited — the stand clock's re-fire law is VT-004 (CONFIRMED, three passes; the correction **MERGED — PR #91**; the seat PortalRefireDiscoveryTest rides green on develop) |
-| Portal mechanics — the non-player crossing (the entity-level arm) | the MOBS family LANDED by **PR #98** (VT-006's correction: the entity-level crossing service + the mobs family — the gated collision, the threshold-0 clock, the 300 cooldown with the re-arm pin, the 8:1 walk, the forcer's placement, the stamp swap, the per-dimension wire; `PortalMobCrossingDiscoveryTest` 3/0 with the cooldown and riding-gate pins). The ITEMS family's pass 3 (the independent walk, the parallel stream's twenty-ninth pass): CONFIRMED — `ItemEntityManager.tick`'s walk re-walked on the `a23011fa` tree (expired → inVoid → the TF-9 dimension flip → the physics → the same-world pickup — zero portal consults, `portalFrameAt` called nowhere in the manager); the reference re-read fresh (`ItemEntity.tick` line 64's `super.tick()` → the Entity portal arm lines 282-313: `vehicle == null && portalTime++ >= getMaxNetherPortalTime()` — the base 0 — then `changeDimension`, the cooldown `getPortalCooldown()`); the compensation hunt NEGATIVE (the pickup's own same-world gate means no other mover exists for a stack standing in a portal cell); the design-choice challenge NEGATIVE (the engine's own `leaveEndOnTick` javadoc LEDGERS the gap — a planned gap, PR #98's own follow-up plan, never an intentional divergence). THE HONEST CONVERGENCE (the thirty-first pass's record): the pass-29 close-out deferred the items fix to "the next run's head" WITHOUT the #109 absorption — **PR #109 OPEN** (opened 10-31 12:39, the close-out 13:18 names only #105/#106/#111/#115) ALREADY CARRIES the items, orbs, and vehicles arms whole (the identical law + the cleaner removal fan), beside this stream's PR #112 CLOSED as superseded (the flake root-caused by both streams; this stream's strictly-deterministic `spawnThrown` seat construction + the 3-run stability record offered to #109's review). The ARROWS carried by **PR #113 OPEN** (stacked on #109) with **#110** the same stream's shared-holder variant. THE COVERAGE VERIFIED (the thirty-first pass): #109's and #113's arms GREEN through this stream's INDEPENDENT seat constructions on the union tree `0e3151fe` — the five family seats whole (item 1/0, orb 1/0, vehicle 2/0, arrow 1/0, mob 3/0 — the #98 regression) plus this stream's two NEW constructions (the ARC flight-path seat and the far-side SNOWBALL seat, both GREEN — the record below). The STUCK-ARROW edge the handoff named is VT-013 (the row below) — a NEW finding beyond #113's coverage, not a failure of its arm. The End-origin arm is the named tail; the TNT and falling families excluded by the census |
-| Bed use — the out-of-dimension blast arm | CONFIRMED over three passes (the twenty-sixth's census + source; the twenty-seventh's behavioral + independent); the correction **MERGED — PR #102 onto develop**, verified by BOTH streams independently: the twenty-seventh's `BedOutOfDimensionBlastDiscoveryTest` (the portal-walk anchoring, the clock pin, the End seat, the seated HELL-biome conjunct — RED pre-fix, GREEN on the fix) and the twenty-eighth's `BedWrongWorldBlastVerificationTest` on the MERGED tree (the End seat + the HEAD-half identity click, both GREEN — the second-construction confirmation) |
-| Portal mechanics — the riding gate (vehicle == null && rider == null) | VT-005 CONFIRMED (three passes — source, the pig-in-portal behavioral seat, the dismount-control independent pass; the correction **MERGED — PR #94**) |
-| Drops — the TF-9 dimension stamp | LANDED by PR #90 (the dig/place walks stamp `world.dimension()`; the tile-family spill sites remain the per-dimension tile tail) |
-| Tile families — per-dimension stores | NOT INSPECTED as its own pass (the PR #90 ledger: the furnace/chest/skull/banner spill + cleanup ride the single-instance managers — the FL4 fluids/fire precedent applies; the nether tile placement/cleanup is its own architectural pass) |
-| Break-path pair walks (door/bed sibling cleanups) — dimension routing | RESOLVED (the twenty-eighth pass): **VT-009** CONFIRMED three passes and corrected as **PR #106 OPEN** (`fix/pair-break-dimension-parity-audit`: the `BlockBrokenHook` three-arg listener, the parameterized walks; the parity pin 3/0 + the regression lanes 75/0; the discovery seats' RED record rides this audit branch) |
-| Bed pair — the sibling resolution model | CONFIRMED over three passes (the twenty-eighth's census + the three RED seats; the twenty-ninth's wire/legacy suffix-consistency walk — the id family IS the reference's metadata space, total across `BuiltinBlocks`/`AnvilBlockIds`/`LegacyBlockIds`/`/setblock`, no writer can stamp a geometry-inconsistent suffix; the class-membership sub-divergence pinned: the reference's redirect accepts ANY half at the facing cell, `!= this`); RESOLVED by **PR #111 OPEN** (`fix/bed-pair-facing-resolution-parity-audit`, commit 8b1eefb0 over develop `a23011fa`: the facing-exact helper shared by the four walks, the block-class membership, the anchor-state detonate removal; the parity pin `BedPairFacingResolutionParityTest` 4/0 GREEN on the fix, 4/4 RED on the pre-fix tree by the stash discrimination — the three discovery values + the corner's silent no-blast; the regression lanes 104/0) |
-| Anvil import — the bed's OCCUPIED nibbles (26: metas 12-15 the reference persists for occupied heads, 4-7 the editor-corrupted feet) | RESOLVED (the twenty-ninth pass, **VT-011**): confirmed over three passes (pass 1 the source law — the reference's write/read pair + the sleep-entry stamp; pass 2 the behavioral seats — `BedOccupiedImportDiscoveryTest` 2/2 RED on develop with the import's own ledger counting `id 26 meta 12 x1` and `id 26 meta 5 x1`, the controls green in the same scenes; pass 3 the lifecycle walk — the wake clear at `PlayerEntity` 1174, the mid-sleep save window — the sixteen-nibble census (the residual exactly {4-7, 12-15}), the compensation hunt (the raw nibble, the single resolution point, the import-only scope)); the correction is **PR #115 OPEN** (`fix/bed-occupied-anvil-import-parity-audit`, commit 512b0c09 over develop `a23011fa`: the eight rows + the javadoc band + the integrity test's expected bands with the count re-pinned 1321 → 1329; the parity pin `BedOccupiedImportParityTest` 2/0 GREEN, the anvil family 47/0, the drift guard 2/0, the protocol block-id lanes 15/0) |
-| Block-update wake (BlockUpdateSystem.runUpdate, RedstoneSystem.neighborChanged) — world binding | SURFACED as VT-009's pass-3 non-compensation evidence: BOTH reads consult the overworld field (the changed-world parameter ignored in the six-neighbor dispatch) — the house stream's FL4-F10 lane, NOT duplicated here; this stream's door/bed seats are the evidence cross-reference |
+| Packed ice — melt/break laws | inspected: the reference's PackedIceBlock carries no melt arm; nothing owed |
+| Portal mechanics (flag1, forcer) | landed by FL4-F1; the stand clock's re-fire law is VT-004 (RESOLVED — **PR #91 MERGED**) |
+| Portal mechanics — the non-player crossing (the entity-level arm) | the MOBS family LANDED by **PR #98**; the REMAINING families (items, orbs, vehicles, arrows) carried by the open PRs #108/#109/#110/#113 (the fourth-fold concurrent convergence recorded in the pass-30/31 lanes; the coverage verified through the independent arc + snowball seats on the union tree `0e3151fe`). The named tails: the End-origin arm, the box-scan nuance (VT-013's rejection record), the four families' `PortalCooldown` persistence, the vehicle yaw modeling, the fishing bobber |
+| Bed use — the out-of-dimension blast arm | RESOLVED: PR #102 (F-EX6) MERGED (b6718ab3) — the coverage verified by BOTH streams' independent seats |
+| Portal mechanics — the riding gate | VT-005 RESOLVED — **PR #94 MERGED** |
+| Portal mechanics — the mob re-entry cooldown decay | RESOLVED — **PR #107 MERGED** (98ded357): the cooldown decays ONE per tick (Entity.baseTick lines 311-313) |
+| Drops — the TF-9 dimension stamp | RESOLVED (PR #90's riders adopted; the tile-family spill sites remain the per-dimension tile tail) |
+| Tile families — per-dimension stores | the CHEST family LANDED by **Wave FL4-GAP2 Slice A** (`2d0f74af`: three ChestManager instances, the ZCD v3 dimension stamp, the consult sites routed — `ChestDimensionOwnershipAcceptanceTest` 4/0 the record); Slice B's honest tail: the hopper system, the ContainerViews, the furnace/dispenser/brewing families stay single-instance |
+| Block updates — the multi-part families' pair-integrity arms | THREE arms in flight: the BED family's neighborChanged self-removal arm (**VT-009 the bed-coverage lineage's claim — CONFIRMED, three passes, PR #114 OPEN**); the break-path pair walks' world binding (**VT-009 the pass-28 lane's claim — CONFIRMED, PR #106 OPEN**); the bed pair's sibling resolution (**VT-010 — CONFIRMED, PR #111 OPEN**). The DOOR family's neighborChanged arm EXISTS (`RedstoneSystem.doorNeighborChanged`, DoorBlock lines 157-198 — the door half REJECTED by its own green seat, now the regression guard) |
+| Grass decay — the shade consult | **VT-017 SUSPECTED** (the bed-coverage lane's twenty-seventh pass, renumbered): the engine's `isOpaque` 3-block allowlist (air/torch/glass) stands in for the reference's opacity law (`getOpacity() > 2` — every non-solid-render block answers 0) — the grass dies under beds, flowers, slabs, stairs where vanilla keeps it; one source pass + the OBSERVED dirt-under-bed evidence from the VT-009 trace; this pass takes the seats up |
+| Piston pushability — the behavior table's membership | **VT-016 SUSPECTED** (the bed-coverage lane's twenty-seventh pass, renumbered): the engine's `pistonMoveBehavior` DESTROY/BLOCK lists omit the bed family, the door family, the weighted plates, the cocoa (vanilla DESTROY) and the anvil (vanilla BLOCK) — a pushed bed MOVES where vanilla breaks it with its drop; one source pass done, the piston-push seat this pass's second head |
+| Projectile family — the stick placement (the resting position's geometry) | **VT-014 CONFIRMED** (three passes: the thirty-first's source walk; the thirty-third's two behavioral seats at the predicted deterministic values — 0.786 INSIDE a 0.8/tick floor hit, 0.77 PAST a one-block wall in open air; the thirty-third's call-order + compensation + design-choice walk). The correction OWED (Phase E): `resolveCollisions`' arrow arm rests the arrow at face − 0.05·û with the tracked cell recorded. The seats ride the pass-33 audit branch (`ArrowStuckStateParityDiscoveryTest`) |
+| Projectile family — the tracked-block un-stick law | **VT-015 CONFIRMED** (three passes: the thirty-first's source walk; the thirty-third's behavioral seat — the stuck arrow FROZEN through its block's removal; the thirty-third's reference re-read + compensation + family/import walk — the bobber the same law's second member, the import's xTile/inTile/inData rows the engine's own recorded gap). The correction OWED (Phase E): the tracked cell + the per-tick identity consult + the randomized re-arm; the bobber's parallel arm its own follow-up fix (the family-member protocol) |
+| Projectile family — the stuck burning arrow's TNT consult | **VT-018 SUSPECTED** (the thirty-third pass, pass 1 complete; renumbered from its VT-016 draft — the pass-32 lane's piston/grass claims took 16/17): the reference consults `onEntityCollision` from the FLIGHT branch's tail scan + the stick arm's single-hit-block consult alone (ArrowEntity 382, 311-313); the engine's `burningTntPass` walks STUCK burning arrows every tick — a stuck burning arrow beside TNT detonates it in the engine, primes nothing in the reference. The seat owed (pass 2) |
+| Block-update wake (BlockUpdateSystem.runUpdate, RedstoneSystem.neighborChanged) — world binding | SURFED as VT-009's pass-3 non-compensation evidence: BOTH reads consult the overworld field (the changed-world parameter ignored in the six-neighbor dispatch) — the house stream's FL4-F10 lane landed the redstone world binding (`0328e92f`); the block-update arm's coverage rides that wave's seats |
+| Block identity — the legacy wire rows | the vine family's gap LANDED by `6b29c46f` (the house's own production-crash repair; `LegacyBlockIdsIntegrityTest`'s skip set now EMPTY and pinned) |
 | Mob spawns — the dimension stamp | NOT INSPECTED (the PR #90 ledger names `MobManager.spawnAt`; the infested burst is the surfaced site) |
 | FX broadcasts — the dimension awareness | NOT INSPECTED (the FxManager position-only API; the PR #90 ledger) |
-| World border — per-dimension | NOT INSPECTED (the reference's per-World border vs the engine's shared one; surfaced by the dig-start gate review) |
-| Zombie/mob arms — world binding | NOT INSPECTED (the zombie door-break consults the overworld field; surfaced by PR #90's cleanup threading) |
-| Explosions — dimension routing | AUDITED this pass (the twenty-sixth): the call-site census whole — the primed TNT (FL4-F7) and the End crystal (Slice 62) correct; the ghast fireball and wither skull sinks pass the routed world with the OVERWORLD service, the creeper/wither-birth/TNT-cart wrappers bind the overworld outright, and the shared drop roll stamps dimension 0 (**VT-007: the CORE resolved by PR #100** — another stream's honest convergence with this census, the overlap recorded, PR #103 closed as superseded; **the CART slice PR #105 OPEN** — the BlastSink dimension carry, the stash-discriminated seat nether=0/overworld=18 unfixed; the fireball + creeper seats 2/0 green on post-#100 develop, the independent confirmation riding in #105). The blast WOUND walks are routed (the dimension gate + the blastWorld consult); the fire placement is routed (F-EX4/PR #92); the named tail: the End/nether services' shared `gameplayRandom` vs the reference's per-world `world.random` |
+| World border — per-dimension | NOT INSPECTED (the reference's per-World border vs the engine's shared one) |
+| Zombie/mob arms — world binding | NOT INSPECTED (the zombie door-break consults the overworld field) |
+| Explosions — dimension routing | AUDITED (the twenty-sixth pass): the CORE resolved by PR #100; the CART slice RESOLVED — **PR #105 MERGED** (`278b139e`, the review rider at `32af09f3`). The named tail stands: the End/nether services' shared `gameplayRandom` vs the reference's per-world `world.random` |
 | Item entities / pickup — dimension | the TF-9 stamped sites are the record; the pickup consult un-audited |
-| Projectile family — the stuck arrow's crossing (the portal-lights-later construction) | **VT-013 REJECTED** (the thirty-first pass's pass-3 challenge): the original hypothesis — a portal lighting around an already-stuck arrow crosses it — is disproven by the reference's own tick chain (`ArrowEntity.tick` line 381 calls the box scan from the FLIGHT branch alone; the `inGround` branch at 172-186 runs the stick clock and the tracked-block check only). The corrected seat (`PortalStuckArrowCrossingDiscoveryTest.theStuckArrowStaysWhenThePortalLightsAroundIt`) pins the true law — NO crossing — GREEN on develop AND on the #113 tree. No fix owed. The honest residue re-recorded as VT-014 (the stick placement) and VT-015 (the un-stick law), both below |
-| Projectile family — the stick placement (the resting position's geometry) | **VT-014 CONFIRMED** (three passes: the thirty-first's source walk; the thirty-second's two behavioral seats at the predicted deterministic values — 0.786 INSIDE a 0.8/tick floor hit, 0.77 PAST a one-block wall in open air; the thirty-second's call-order + compensation + design-choice walk). The correction OWED (Phase E): `resolveCollisions`' arrow arm rests the arrow at face − 0.05·û with the tracked cell recorded. The seats ride this audit branch (`ArrowStuckStateParityDiscoveryTest`) |
-| Projectile family — the tracked-block un-stick law | **VT-015 CONFIRMED** (three passes: the thirty-first's source walk; the thirty-second's behavioral seat — the stuck arrow FROZEN through its block's removal; the thirty-second's reference re-read + compensation + family/import walk — the bobber the same law's second member, the import's xTile/inTile/inData rows the engine's own recorded gap). The correction OWED (Phase E): the tracked cell + the per-tick identity consult + the randomized re-arm; the bobber's parallel arm its own follow-up fix (the family-member protocol) |
-| Projectile family — the stuck burning arrow's TNT consult | **VT-016 SUSPECTED** (the thirty-second pass, pass 1 complete): the reference consults `onEntityCollision` from the FLIGHT branch's tail scan + the stick arm's single-hit-block consult alone (ArrowEntity 382, 311-313); the engine's `burningTntPass` walks STUCK burning arrows every tick — a stuck burning arrow beside TNT detonates it in the engine, primes nothing in the reference. The seat owed (pass 2) |
-
 ## The queue for the next pass
 
-0. ~~VT-014's and VT-015's seats~~ — **DONE (the thirty-second pass,
-   this run)**: both findings CONFIRMED over three passes (the record
-   above). **THE PHASE E CORRECTIONS ARE THE NEXT RUN'S HEAD** (or
-   this run's, if the clock allows): VT-015's tracked-cell surface +
-   the per-tick identity consult + the randomized un-stick re-arm
-   (branch `fix/arrow-unstick-law-parity-audit`); VT-014's
-   face−0.05·û rest in `resolveCollisions`' arrow arm (branch
+0. **THE PHASE E CORRECTIONS — the new head** (the thirty-third
+   pass's completion of the seats this item once owed: both VT-014
+   and VT-015 CONFIRMED over three passes, the record above):
+   VT-015's tracked-cell surface + the per-tick identity consult +
+   the randomized un-stick re-arm (branch
+   `fix/arrow-unstick-law-parity-audit`); VT-014's face−0.05·û
+   rest in `resolveCollisions`' arrow arm (branch
    `fix/arrow-stick-placement-parity-audit`, stacked on VT-015's
    branch — the tracked cell both fixes share; the stack documented
    in both PR bodies). The bobber's parallel un-stick arm is
    VT-015's named follow-up (its own branch, the family-member
-   protocol); the parity pins land with the fixes (the discovery
-   seats already on this audit branch go GREEN on the fix trees).
-   Beside them: the pass-30 lane's docs-only union (the second
-   parallel stream's records; the engine files stay on the #110
-   branch) — still owed.
+   protocol). The parity pins land with the fixes; the discovery
+   seats on the pass-33 audit branch go GREEN on the fix trees.
 
-0a. **VT-016's seat** (the stuck burning arrow's TNT re-prime —
-   pass 1 complete this run): a burning arrow stuck beside (not in) a
-   TNT block; the reference leaves the TNT standing, the engine
-   detonates it. The seat + the pass-3 challenge (the flight-band
-   grazing edges named in the record) — a compact next discovery
-   pass.
-
-1. ~~VT-010's pass 3~~ — **DONE (the parallel stream's twenty-ninth
-   pass: the wire/legacy suffix-consistency walk)**, and with it
-   **VT-010 is CONFIRMED — three passes complete**. The correction is
-   **PR #111 OPEN** (their Phase E act: the facing-exact helper for
-   the four walks, the parity pin with the three seats + the
-   foreign-foot corner 4/0 — RED 4/4 on the pre-fix tree by the stash
-   discrimination, the regression lanes 104/0; the #106 interaction
-   documented in the PR body — one shared method, the selection law
-   ports to the three-arg form unchanged).
-2. ~~VT-011's passes 2-3~~ — **DONE (the parallel stream's twenty-ninth
-   pass, the same run)**: the behavioral seats RED on develop with the
-   ledger's own counted rows (`id 26 meta 12 x1`, `id 26 meta 5 x1`)
-   and the controls green; the independent pass's lifecycle walk +
-   census + compensation hunt. **VT-011 CONFIRMED — three passes
-   complete**; the correction is **PR #115 OPEN**
-   (`fix/bed-occupied-anvil-import-parity-audit`, commit 512b0c09:
-   the eight rows, the javadoc band, the integrity test's expected
-   bands + the count re-pinned 1321 → 1329; the parity pin 2/0 GREEN,
-   the anvil family 47/0, the drift guard 2/0, the protocol block-id
-   lanes 15/0 — the full protocol suite itself cannot run in this
-   environment, SIGKILL 137 at the memory ceiling, verified identical
-   on the clean develop tree).
-3. ~~The crossing families' arms — the coverage verification~~ —
-   **DONE (the thirty-first pass, this stream's lane)**: the pass-29
-   close-out's "items fix as the next run's head" is SUPERSEDED BY
-   THE CONVERGENCE — **PR #109 ALREADY CARRIES the items, orbs, and
-   vehicles arms** (opened 10-31 12:39, before the close-out's 13:18
-   watch list that names neither), and **PR #113 the arrows** (stacked
-   on #109). THE COVERAGE VERIFIED this pass through the independent
-   seats on the union tree `0e3151fe`: the five family seats whole
-   (item 1/0, orb 1/0, vehicle 2/0, arrow 1/0, mob 3/0 — the #98
-   regression) plus this stream's TWO NEW constructions — the ARC
-   flight-path seat (the crossing firing MID-FLIGHT with the vertical
-   motion the rotation never touches) and the far-side SNOWBALL seat
-   (the family-wide arm through a NON-ARROW kind) — both GREEN.
-   **THE STUCK-ARROW EDGE the handoff named is VT-013** (the record
-   below): the reference's box-scan collision + face+0.05 stick
-   placement against the engine's position-cell consult + endpoint
-   placement — RED on develop AND on the #113 tree; its passes 2-3
-   are the next run's head. The End-origin arm stays the named tail;
-   the TNT and falling families stay EXCLUDED (the census's
-   accidental matches); the fishing bobber's own arm is the named tail
-   beside them.
-4. ~~The standing lanes~~ — F-EC1 RESOLVED-BY-PR (the twenty-fourth
-   pass: confirmed over three passes and corrected — **PR #95 MERGED**, the one-consult
-   swap to `BlockSolidity.isSolid`; F-TC1 was already resolved by PR
-   #87's merge). The F-SP1 support-consult family and F-DS1 (the double
-   slab's collision row) remain suspected from the twentieth pass's
-   record — their passes owed.
-5. The newly-ledgered dimension tails (each its own discovery pass, the
-   PR #90 ledger): the per-dimension tile families, the mob spawn's
-   dimension stamp, the FX dimension awareness, the per-dimension world
-   border, the zombie arm's world binding.
-6. The watch items (the thirty-first pass's fetch, the current truth):
-   **#91/#94/#95/#98/#101/#102/#104/#105/#107 ALL MERGED onto
-   develop** (`d26a1ebd` — the TNT-cart blast slice #105 and the mob
-   cooldown's decay lane #107 landed with the FL4-GAP2 chest wave and
-   the flake retirements); the OPEN set awaiting the maintainer's
-   review: **#106** (VT-009's pair-break correction), **#108** (the
-   crossing families' superseded first iteration), **#109** (the
-   crossing families' carrier — the coverage VERIFIED this pass), 
-   **#110** (the shared-holder + arrows variant), **#111** (VT-010's
-   facing-exact resolution), **#113** (the arrows stacked on #109 —
-   the coverage VERIFIED this pass), **#114** (VT-009's bed
-   neighbor-changed arm), and **#115** (VT-011's occupied-nibble
-   import) — with this stream's **#112 CLOSED as superseded by #109**
-   (the convergence recorded) and **#103 CLOSED as superseded by
-   #100**. The maintainer owns the pick among the convergent carriers;
-   the next runs verify rather than re-fix (the VT-008 protocol).
+1. **VT-017's passes** (this pass's head): the grass-decay behavioral
+   seats — grass under a BED (the observed case), under a FLOWER, under
+   a SLAB, with the stone positive control and the open-sky negative
+   control; then the independent pass (the `BlockLightTable.filter`
+   consult's equivalence to `getOpacity` verified, the compensating
+   behavior hunted).
+2. **VT-016's passes**: the piston-push behavioral seat — a piston
+   extending into a bed pair: vanilla's observable is the pair gone +
+   exactly one bed item; the engine's today is the displaced half + the
+   floating survivor. Then the independent pass over the remaining
+   membership rows (doors, weighted plates, cocoa, anvil).
+2a. **VT-018's seat** (the thirty-third pass's discovery, pass 1
+   complete): a burning arrow stuck BESIDE (not in) a TNT block
+   — the reference leaves the TNT standing (the flight-branch
+   scan alone consults onEntityCollision), the engine's
+   `burningTntPass` detonates it on the next tick. The seat +
+   the pass-3 challenge (the flight band's grazing edges named
+   in the record) — a compact discovery pass.
+3. ~~VT-014's and VT-015's seats~~ — **DONE (the thirty-third pass,
+   the pass-33 lane — this lane's item taken by the stream that
+   owned the queue head)**: the stuck-position seat, the thin-wall
+   air-stick seat, and the block-break un-stick seat all RED on
+   develop at the predicted deterministic values; both findings
+   CONFIRMED whole (the record above).
+4. The merge watch: #106, #108, #109, #110, #111, #113, #114, #115 all
+   open and clean against `6b29c46f` — after the crossing PRs merge,
+   the End-origin arm (the forced-spawn consult,
+   `PlayerManager.changeDimension` lines 473-484) becomes the portal
+   family's one remaining architectural tail, and the four families'
+   `PortalCooldown` persistence pass opens behind it.
+5. **F-SP1 / F-DS1's owed passes** (the twentieth pass's record, still
+   standing): the support-consult family and the double slab's
+   collision row — suspected, the three passes not begun.
+6. The dimension tails (the PR #90 ledger): the mob spawn's dimension
+   stamp (`MobManager.spawnAt`), the FX dimension awareness, the
+   per-dimension world border, the zombie arm's world binding. The
+   furnace/dispenser/brewing tile families' per-dimension stores ride
+   the FL4-GAP2 Slice B tail.
+7. The blast RNG tail (VT-007's named tail): the End/nether services'
+   shared `gameplayRandom` vs the reference's per-world `world.random`.
+8. **VT-012's own pass** (the pass-30 lane's discovery): the
+   `NetherBlastRoutingAcceptanceTest` flake's bounded fix — the seat's
+   read order (await the event reference, not the cell alone); a
+   test-infrastructure correction.
