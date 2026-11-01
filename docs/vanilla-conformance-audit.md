@@ -2374,7 +2374,7 @@ the `double_` prefix).
 
 ---
 
-## F-SP1 — the support-consult family: the engine's mount consults answer one collision-solid question where vanilla answers material-aware, shape-aware, side-aware laws (CONFIRMED — three passes complete: the pass-38b source census, the pass-39 behavioral seats, the pass-39 independent pass; fix-ready, Phase E owed)
+## F-SP1 — the support-consult family: the engine's mount consults answer one collision-solid question where vanilla answers material-aware, shape-aware, side-aware laws (CORRECTED — three passes + Phase E complete; PR #139 OPEN over develop 149eb1f0)
 
 **Subsystem:** block attachment / the mount-survival consults (the
 redstone family's torch/lever/button/trapdoor arms). **Status:**
@@ -2621,6 +2621,75 @@ which the survival walk now correctly performs); the adjacent
 wire/diode/plate/door floor consults are NOT touched by this PR (their
 own passes owed).
 
+**THE CORRECTION (pass 39, Phase E — PR #139 OPEN):**
+`fix/support-consult-family-parity-audit`, commit `ad71bb32` over
+develop `149eb1f0`, **PR #139 targeting develop**. The correction
+landed exactly per the fix-ready proposal: the new `SupportConsult`
+(the block package, the material conjuncts delegating to
+`MaterialSolidity`, the render cube to `BlockSolidity.isCube` made
+public — the one visibility change); the four survival consults
+swapped (`torchSupported`'s wall/floor split by facing,
+`leverSupported`/`buttonSupported`'s DOWN-arm split with
+`consultDown = the pointing direction is UP`,
+`trapdoorMountHolds` delegating wholesale — the suffix arms, the final
+arm's carves AND the dead fence carve retired by the structured law);
+the four placement gates swapped (the torch's face consult + fallback
+walk, the lever's mount consult + floor fallback, the button GAINING
+the reference's canSurvive gate with the doomed DOWN fallback, the
+trapdoor's `isTrapdoorMount` duplicate deleted). One refinement the
+implementation carried beyond the proposal: the torch floor's
+COBBLESTONE_WALL arm covers BOTH engine variants (`cobblestone_wall` +
+`mossy_cobblestone_wall` — the reference's single block carries the
+mossy form as a VARIANT), and the STAINED_GLASS arm excludes the pane
+family.
+
+**The seats GREEN:** `SupportConsultParityDiscoveryTest` 6/6 — all 98
+rows (the 68 formerly-divergent + the 30 agreement controls) answer
+the reference's law on the fixed tree.
+
+**THE PISTON BENCH REPAIR (the correction's exposed defect):** the
+piston lanes failed on the first post-fix run — 23 tests, all "the
+piston flipped to its extended pair" never reached. The root cause:
+the benches stood a **floor lever ON the piston base** — an
+arrangement vanilla itself refuses (`PistonBaseBlock.isCube()` false,
+reference line 223 → `hasSolidTop` false → the lever never survives
+placement in vanilla; the pre-fix engine accepted it through the
+one-question consult). The 18 sites across
+`PistonEntityPushTest`/`PistonSystemTest`/
+`PistonFluidEventAcceptanceTest` moved to the VANILLA-VALID
+arrangement: the stone above the piston carries the lever; the flip
+strongly powers the stone (the lever's attachment arm); the stone
+re-radiates the weak 15 down to the piston — the same engine paths,
+now exercised through a vanilla-legal power feed. The two benches
+already standing on valid mounts (the upward carrier's ground lever,
+the quasi-power test's wall lever on a placed stone) were untouched.
+The piston lanes 23/0 post-repair.
+
+**Regression lanes (all on the fix branch):** the seats 6/6; the
+redstone package 36/0; the block package 309/0; the
+placement/interaction lanes 34/0; the piston family 23/0; the
+tnt/spawn/explosion lanes 24/0; the world/fx/dispenser/hopper lanes
+287/0 — **742 targeted tests, 0 failures**.
+`MissingCommandsWaveOneTest`'s `theFillArm` showed one failure inside
+a timeout-killed full-suite attempt and passes 23/0 in isolation on
+BOTH the fix branch and the clean develop baseline (the interruption
+artifact, not a regression — root-caused). The FULL protocol suite
+could not complete inside this environment's window (the known
+10-minute tail, the F-DS1 record's own named limit; a background run
+attempt wedged on an orphaned worker from the killed attempt and was
+cleaned up) — the targeted lanes above cover every family the consult
+sites touch.
+
+**The named tails:** the adjacent wire/diode/plate/door floor consults
+(the `hasSupportBelow`/`placePlateOnTick` sites) remain untouched by
+PR #139 — their own three-pass verification is the next lane; the
+button's and lever's placement fallback STRUCTURES (the reference's
+horizontal-walk-then-floor order vs the engine's floor-only fallback)
+carry pre-existing structural differences not demonstrated by the
+seats — recorded for their own discovery pass; `FireBlocks.hasSolidTop`
+(the fire family's own port) carries the same translucent fallthrough
+plus the stone_slab2 bottom row — the same class, its own lane.
+
 ---
 
 ## Coverage ledger (updated by the thirty-ninth pass)
@@ -2654,7 +2723,7 @@ own passes owed).
 
 | Collision shapes — the double slabs' full-cube row | **RESOLVED-BY-PR #118** (F-DS1: the F-DS1 stream's three-pass verification — the ten `_slab`-suffixed doubles carried the HALF box; the rest walks, the side-entry, the isFullCube family all poisoned; the one-arm carve, `DoubleSlabCollisionParityTest` 5/0) |
 | Natural spawn — the spawn floor's consult | **RESOLVED-BY-PR #121** (VT-020: the suffix approximation missed in BOTH directions — the ten doubles refused where `hasSolidTop`'s first arm hosts them, the bottom stairs and the red sandstone bottom single hosted where the HALF==TOP arms refuse them; the one-consult correction with the `double_` carve + the half laws, three seats) |
-| The support-consult family (torch/lever/button/trapdoor mounts) | **F-SP1 CONFIRMED over three passes** (the pass-38b source census; the pass-39 behavioral seats `SupportConsultParityDiscoveryTest` — 68 divergent rows RED, all "engine holds where vanilla pops", 30+ agreement controls GREEN; the pass-39 independent pass — the placement-gates census (torch/lever gates duplicate the approximation, the trapdoor's a second copy with the same dead fence carve, the button's placement UNGATED), the compensating hunt NEGATIVE, the intentionality challenge resolved to approximation, the adjacent wire/diode/plate/door floor lanes recorded for their own passes). **Phase E owed: the SupportConsult correction + the four placement gates + the seats as parity pins.** |
+| The support-consult family (torch/lever/button/trapdoor mounts) | **F-SP1 CORRECTED — PR #139 OPEN** (`fix/support-consult-family-parity-audit`, `ad71bb32` over develop `149eb1f0`): the three passes whole (the pass-38b source census; the pass-39 behavioral seats — 68 divergent rows RED, all "engine holds where vanilla pops", 30+ agreement controls GREEN; the pass-39 independent pass — the placement-gates census, the compensating hunt NEGATIVE, the intentionality challenge resolved to approximation) + Phase E (the `SupportConsult` correction: the four survival consults + the four placement gates swapped to the reference's laws, the dead fence carve retired, the seats 6/6 GREEN as the parity pins, the piston benches repaired to the vanilla-valid power arrangement, the regression lanes 742/0). The adjacent wire/diode/plate/door floor consults are the named next lanes. |
 | The slab-family suffix census | INSPECTED (the whole-repository `endsWith("_slab")` census: `BlockSolidity.isCube` and `FireBlocks` already correct with the `double_` carve — the house convention; `CollisionShapes` corrected by PR #118; `NaturalSpawnSystem` corrected by PR #121 (VT-020 — the spawn consult, the directional stair states and the `_slab2` row joining the census); `RedstoneSystem.trapdoorMountHolds` name-based, the double agreeing, the SINGLES' rows F-SP1's lane; the held-id dispatch and the dormant `woodenSlabFamilyOf` unaffected) |
 
 ## The queue for the next pass
@@ -2724,16 +2793,24 @@ own passes owed).
    naming-accident class, independent and composable files; the FULL
    protocol suite over the F-DS1 branch (the 10-minute timeout tail —
    the targeted wire lanes already green). ~~F-SP1's passes are the
-   next run's head~~ — **COMPLETE (pass 39, this run): F-SP1 CONFIRMED
-   over three passes** (the record above; the seats
-   `SupportConsultParityDiscoveryTest` 68 RED rows + the independent
-   pass whole). **THE NEXT RUN'S HEAD: F-SP1's Phase E** — the isolated
-   fix branch `fix/support-consult-family-parity-audit` over the latest
-   `origin/develop`, the shared `SupportConsult` + the four consult
-   swaps + the four placement-gate swaps + the dead fence carve
-   retired, the seats turned GREEN (the parity pins), the regression
-   lanes (the redstone family whole + the placement lanes + the
-   trapdoor/wire/plate lanes), then the PR targeting `develop`. The
-   adjacent lanes (the wire/diode/plate/door floor consults — the
-   hasSupportBelow/placePlateOnTick sites) follow as their own
-   discovery passes.
+   next run's head~~ — ~~COMPLETE (pass 39)~~ — **F-SP1 CORRECTED,
+   Phase E complete this run: PR #139 OPEN** (`ad71bb32` over develop
+   `149eb1f0`: the SupportConsult correction — the four survival
+   consults + the four placement gates + the dead fence carve retired;
+   the seats 6/6 GREEN; the piston benches repaired to the
+   vanilla-valid power arrangement after the correction exposed the
+   non-vanilla lever-on-piston bench; the regression lanes 742/0 with
+   the theFillArm interruption artifact root-caused against the clean
+   baseline). **THE NEXT RUN'S HEADS:** (a) the adjacent
+   wire/diode/plate/door floor consults — the `hasSupportBelow` and
+   `placePlateOnTick` sites riding the same one-question approximation
+   where vanilla reads hasSolidTop (+ the wire's glowstone row, + the
+   plate's fence row) — their own source+behavioral+independent
+   passes, then either their own PR or an extension consult with the
+   maintainer; (b) `FireBlocks.hasSolidTop`'s translucent fallthrough
+   + the stone_slab2 bottom row (the same class, the fire family's own
+   port); (c) the button/lever placement fallback structures (the
+   reference's horizontal-walk-then-floor order vs the engine's
+   floor-only fallback) — the named tails of PR #139; (d) the standing
+   watch items: the OPEN PR set (#105, #106, #107, #108, #109, #110,
+   #111, #113, #114, #116-#131) and the VT-010 pass-3 lane.
