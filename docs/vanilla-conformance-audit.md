@@ -5388,3 +5388,50 @@ observation).
 5. **The merge watch** (this pass's fetch): the twenty-eight-PR open set
    (#108-#111, #113-#114, #116-#122, #125-#126, #128-#133, #137-#139,
    #142) — the placement-gate absorption rides the #137/#138/#139 pick.
+
+## VT-034 — the repeater's phantom click: the delay cycle is SILENT (CONFIRMED — three passes; the correction is **PR #144 OPEN**)
+
+**Subsystem:** the use-path audio rows (the redstone family). **Baseline:**
+develop `efcd0c4f` for the discovery; the fix branch rebased onto the
+newest `ac420ca2` (Slice D's decoration half landing — no conflict with
+the site).
+
+- **The reference law (pass 1):** NO playSound and NO doEvent anywhere
+  in `RepeaterBlock` or its `DiodeBlock` parent (swept whole) — `use`
+  (lines 38-45) is exactly the canModifyWorld gate, the flag-3
+  `setBlockState(pos, state.next(DELAY), 3)`, and the return. The CLICK
+  belongs to the comparator alone (`ComparatorBlock.use` 148-152 — the
+  0.3F volume, the pitch answering the NEW mode: 0.55F subtract /
+  0.50F compare).
+- **The engine's row:** `cycleRepeaterDelayOnTick` played
+  `random.click` at 0.3F/0.6F — the BUTTON's law (the shape's own
+  origin, the button arm at 12364-12365 the same numbers), a sound the
+  reference never plays at the site. The comparator arm beside it
+  (12347-12353) is correct — the click with `session.dimension()` and
+  the mode-answer pitch.
+- **Pass 2 (behavioral):** `RepeaterPhantomClickDiscoveryTest` — the
+  repeater use through the REAL wire (`useItemOnBlock`, the empty-hand
+  block stage) **RED on develop**: the phantom fired (`random.click`
+  0.3/0.6 observed at the delay step); the **comparator control
+  GREEN** (the click at the reference's 0.3/0.55 mode-answer law) —
+  the seat's construction sound, the removal surgical.
+- **Pass 3 (independent):** the compensating hunt NEGATIVE (the
+  reference's flag-3 setBlockState carries no audio; the client plays
+  nothing for a block-change packet alone); the intentionality
+  challenge NEGATIVE (the arm's own comment cites
+  `RepeaterBlock.use lines 38-45` — the citation's reference contains
+  no sound; the sound is an addition beyond the cited law); no
+  existing test asserts the phantom (the delay-cycle rows assert the
+  state alone — `RedstoneInteractionTest`'s own walk verified).
+- **The correction (PR #144, `fix/repeater-phantom-click-parity-audit`
+  from `ac420ca2`):** the `fxManager.sound(...)` call REMOVED from
+  `cycleRepeaterDelayOnTick`; the javadoc records the silence law with
+  the reference citations. The seats 2/0 GREEN on the fix; the
+  regression 21/0 green (TwoStageUseLawAcceptanceTest 12,
+  RedstoneInteractionTest 4 — the delay cycle's own observable row
+  unregressed, RedstoneSystemTest 5).
+
+**The run's second correction. The lane's remaining queue stands: the
+hasSupportBelow family (the standing head), VT-033's seats (the anvil
+window's site binding), the note family's BlockAction relay (VT-029's
+named follow-up), the merge watch (now thirty PRs open).**
