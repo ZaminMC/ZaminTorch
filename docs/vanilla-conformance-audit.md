@@ -5691,3 +5691,105 @@ the survival pops) the NEW STANDING HEAD; the snow layer's 7-layer
 band (VT-003's tail — hasSolidTop's fifth arm); the merge watch at
 the twenty-eight-PR open set with the five-link chain #138 -> #141 ->
 #145 -> #148 -> #150 documented.
+
+## The fifty-third pass's closing act — VT-037/VT-038/VT-039 discovered (the tripwire family's removal surface): the pop arms' missing drops, the absent shears-disarm arm, and the disarmed dig row
+
+The F-SP5 correction's named tail, taken up as this run's closing
+discovery. **The numbering:** VT-036 taken publicly by PR #151 (the
+concurrent lane's per-dimension tripwire/TNT machinery); these three
+take VT-037/VT-038/VT-039.
+
+### VT-037 — the tripwire family's SURVIVAL POP arms never drop their items (the wire's string, the hook's hook item) (SUSPECTED — pass 1, the source pass)
+
+**The reference law:** both pop arms call `dropItems` before the
+removal — the SAME drop path the dig consult uses:
+
+- `TripwireBlock.neighborChanged` lines 87-94 (the flag-flip pop):
+  `this.dropItems(world, pos, state, 0); world.removeBlock(pos);` →
+  `Block.dropItems` lines 494-509 → `getDropCount` = 1 → `getDropItem`
+  = **`Items.STRING`** (`TripwireBlock` lines 77-79, the explicit
+  override) → `Block.dropItem` lines 511-523 (the `doTileDrops`
+  gamerule gate, the randomized in-cell offset, the default pickup
+  delay). The drop is UNCONDITIONAL — no DISARMED gate on the pop
+  path.
+- `TripwireHookBlock.neighborChanged` lines 85-95 AND
+  `canSurviveOrBreak` lines 194-202 (the mount pops): the same
+  `dropItems(world, pos, state, 0)` + `removeBlock` — no getDropItem
+  override → `Item.byBlock(this)` = the tripwire hook's item form.
+- The wiki's cross-check (minecraft.wiki/w/String, "Breaking";
+  minecraft.wiki/w/Tripwire_Hook): "Tripwire can be broken instantly
+  with any tool, dropping string. Tripwire is also removed and drops
+  string as an item when: water flows into its space; a piston pushes
+  it or moves a block into its space" + "A tripwire hook is also
+  removed and drops itself as an item if: its attachment block..." —
+  the reference and the documented game behavior agree.
+
+**The engine (the F-SP5-fixed tree):** `TripwireSystem.checkSupport`'s
+TWO pop arms set air with NO drop consult — the wire arm (the
+blockShatter fx + `world.setBlock(pos, airType())`, the comment at
+line 340 SAYING "with the string drop" while dropping nothing — the
+citation present, the drop absent) and the hook arm (the bare
+`world.setBlock(pos, airType())`, no fx, no drop). The drop machinery
+EXISTS and serves the dig path whole — `DropService.dropsFor` consults
+`BlockBehavior.drops()` and the wire's sixteen rows carry the
+`minecraft:string` drop (`BlockBehaviorTable` lines 1527-1556, the
+hook rows the `minecraft:tripwire_hook` drop) — only the POP arms
+never consult it. The engine's own pop convention —
+`RedstoneSystem.popBlock` (line 2328: setBlock air +
+`itemEntities.spawnDropAtBlock`) — is unused by this family.
+
+**The observable:** a stone-floor wire whose floor becomes glass (the
+F-SP4 pop) vanishes with NO string item in the engine; vanilla drops
+one. A hook whose mount pops (the F-SP5 pop) vanishes with NO hook
+item; vanilla drops one. The seats + the independent passes owed to
+the next run (the item-entity scan the rig's `popBlock` seats already
+exercise).
+
+### VT-038 — the shears DISARM arm absent: a player cannot defuse a tripwire (the removal always pulses the trap) (SUSPECTED — pass 1, the source observation)
+
+**The reference:** `TripwireBlock.beforeMinedByPlayer` lines 123-129 —
+shears held → `world.setBlockState(pos, state.set(DISARMED, true), 4)`
+(the flag-4 write: no neighbor reaction — the disarm must not re-fire
+the hooks). The DISARMED bit then suppresses the trap signal on the
+removal: `TripwireHookBlock.updateState` line 125's `flag5 =
+!blockstate.get(DISARMED)` feeding `flag4 |= flag5 && flag6` — a
+removed DISARMED wire never powers the chain (the classic defuse: shear
+the wire, break it, the trap stays silent).
+
+**The engine:** NO arm anywhere sets the DISARMED bit (the whole-tree
+census: the only `disarm` hits are the anvil-import state maps and the
+`wireDisarmed` READS in TripwireSystem's chain walk) — the
+TripwireSystem javadoc CLAIMS "the shears disarmed arm" (line 24) while
+the code carries none: the honest-omission signature again. The
+consequence: `onBlockRemoved` passes `POWERED=true` to the hooks for a
+powered wire unconditionally — the trap ALWAYS pulses on removal, the
+defuse mechanic impossible. The disarmed states reach the engine only
+through anvil-imported worlds.
+
+### VT-039 — the dig path's DISARMED-no-drop row contradicts the reference's unconditional string (SUSPECTED — pass 1, the source observation)
+
+**The reference:** the dig drop is UNCONDITIONAL string —
+`getDropItem` returns `Items.STRING` whatever the state (lines 77-79);
+`afterMinedByPlayer` (Block.java lines 773-786, the dig path's drop
+call — `ServerPlayerInteractionManager.tryMineBlock` line 215 →
+`mineBlock` line 175 → the `beforeMinedByPlayer`/`removeBlock`/`onBroken`
+trio, the drop at `afterMinedByPlayer` lines 784-785) never consults
+DISARMED. A sheared-then-broken wire drops its string like any other
+(the shears arm's DISARMED write is the trap-signal suppressor, not a
+drop gate). The wiki agrees ("broken instantly with any tool, dropping
+string").
+
+**The engine:** `BlockBehaviorTable` lines 1548-1552 — the disarmed
+wire states carry `List.of()` (nothing) with the comment "the shears
+already paid the string out — the reference's DISARMED arm" — a
+reference claim the reference does not make. The row is (nearly)
+unreachable without VT-038's shears arm (the anvil-import path alone
+reaches it), but the row itself reads the wrong law.
+
+**The queue for the next pass:** VT-037's seats + independent pass
+(the pop drops through the real survival walks — the item-entity scans
+beside the F-SP4/F-SP5 seat shapes) the NEW STANDING HEAD; VT-038's
+behavioral pass (the shears use through the real item-use wire) and
+VT-039's row correction named behind it; the merge watch at the
+twenty-eight-PR open set with the five-link F-SP chain
+#138 -> #141 -> #145 -> #148 -> #150 standing.
