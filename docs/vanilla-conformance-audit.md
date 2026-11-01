@@ -4375,7 +4375,7 @@ must pin the pops, the pre-fix holds).
 | Collision shapes — the double slabs' full-cube row | **RESOLVED-BY-PR #118** (F-DS1: the F-DS1 stream's three-pass verification — the ten `_slab`-suffixed doubles carried the HALF box; the rest walks, the side-entry, the isFullCube family all poisoned; the one-arm carve, `DoubleSlabCollisionParityTest` 5/0) |
 | Natural spawn — the spawn floor's consult | **RESOLVED-BY-PR #121** (VT-020: the suffix approximation missed in BOTH directions — the ten doubles refused where `hasSolidTop`'s first arm hosts them, the bottom stairs and the red sandstone bottom single hosted where the HALF==TOP arms refuse them; the one-consult correction with the `double_` carve + the half laws, three seats) |
 | The support-consult family (torch/lever/button/trapdoor mounts + the plain torch's own walk) | **F-SP1 CONFIRMED — three passes (the 38b source + the 46th's seats and independent walk); the correction the CONVERGENT PAIR PR #137 / PR #138 OPEN** (the maintainer's pick): the four mount consults + the fifth site (the plain torch's below-air walk) + the redstone torch's onAdded consult all reading the reference's own laws through the shared `SupportConsult`; the translucent materials and the non-cube mounts popping exactly as vanilla; the 21 lever-on-piston harnesses re-pinned (the PistonBaseBlock.isCube() false law); #137 uniquely holding the four placement gates; **#138's dead hopper arm the forty-seventh pass's cross-tree find** (`value.equals("hopper")` — no bare hopper block exists; the review note owed) |
-| The redstone floor consults (the wire/plate/weighted-plate/repeater/comparator survival walks) | **VT-029 CONFIRMED — three passes (the forty-seventh)**: `RedstoneSystem.hasSupportBelow` answering `WorldSolidity.isSolid` for all five members where vanilla answers three family-specific laws (the wire `hasSolidTop || GLOWSTONE`, the plates `hasSolidTop || FenceBlock`, the diodes `hasSolidTop` alone) — the engine HOLDING on the translucent/non-cube/bottom-half floors where vanilla pops each family; the seats 8/8 RED on unfixed develop; the correction stacked on the #137 carrier (PR owed); the placement gates the named tail |
+| The redstone floor consults (the wire/plate/weighted-plate/repeater/comparator survival walks) | **VT-029 CONFIRMED and CORRECTED — three passes (the forty-seventh)**: `RedstoneSystem.hasSupportBelow` was answering `WorldSolidity.isSolid` for all five members where vanilla answers three family-specific laws (the wire `hasSolidTop \|\| GLOWSTONE`, the plates `hasSolidTop \|\| FenceBlock`, the diodes `hasSolidTop` alone); the seats 8/8 RED on unfixed develop, GREEN on the fix; **PR #149 OPEN (stacked on #138, the dead hopper arm retired as the rider — the cross-tree seat the pin)**; the placement gates the named tail |
 | The slab-family suffix census | INSPECTED (the whole-repository `endsWith("_slab")` census: `BlockSolidity.isCube` and `FireBlocks` already correct with the `double_` carve — the house convention; `CollisionShapes` corrected by PR #118; `NaturalSpawnSystem` corrected by PR #121 (VT-020 — the spawn consult, the directional stair states and the `_slab2` row joining the census); `RedstoneSystem.trapdoorMountHolds` name-based, the double agreeing, the SINGLES' rows F-SP1's lane; the held-id dispatch and the dormant `woodenSlabFamilyOf` unaffected) |
 
 ## The queue for the next pass
@@ -5106,7 +5106,7 @@ pick; the merge watch refreshed to the eighteen-PR open set; the VT-025
 collision note standing.
 
 
-## The forty-seventh pass — the wire/plate/repeater `hasSupportBelow` family taken whole (VT-029 CONFIRMED through the three-pass discipline; the correction stacked on the #137 carrier) + the #138 carrier's dead hopper arm discovered in the fix-design walk
+## The forty-seventh pass — the wire/plate/repeater `hasSupportBelow` family taken whole (VT-029 CONFIRMED through the three-pass discipline and CORRECTED as **PR #149 OPEN**, stacked on #138 with its dead hopper arm retired as the rider) + the #138 carrier's dead hopper arm discovered in the fix-design walk
 
 **The baseline:** `origin/develop` at `efcd0c4f` (VT-018's entity-hit
 arm merged, the FL4-GAP2 Slice C tile families landed) merged into the
@@ -5243,24 +5243,56 @@ where unfixed develop holds it too: `isSolid(hopper_*)` = true — the
 fix would REGRESS the row). #137's family check is the correct form;
 the review note owed on #138 with the behavioral cross-tree seat.
 
-**THE CORRECTION (Phase E, this pass):** the fix branch
-`fix/redstone-floor-support-parity-audit` STACKED ON the #137 carrier
-(the #131-on-#126 precedent — SupportConsult is the #137/#138 pair's
-class; #137's hopper arm the correct form): the five consult sites in
+**THE CORRECTION (Phase E, this pass — **PR #149 OPEN**, stacked on the
+#138 carrier):** the fix branch `fix/redstone-floor-support-parity-audit`
+— first cut on the #137 carrier (its hopper arm the correct form), then
+**RESTACKED on #138** with the hopper correction riding as this PR's own
+one-line rider: the #137 base carries none of the 21 harness re-pins and
+fails the piston/region classes 20/31 (verified on the clean tree — the
+pass-46 review note's own class), while #138's base carries the re-pins
+and answers green. The five consult sites in
 `RedstoneSystem.neighborChanged` swap from `hasSupportBelow` (the one
-question) to the family laws — the wire
-`SupportConsult.hasSolidTop(below) || below == GLOWSTONE`, the plates
-`SupportConsult.hasSolidTop(below) || WorldSolidity.isFence(below)`,
-the diodes `SupportConsult.hasSolidTop(below)` — the same
+question) to the family laws — the wire `wireFloorHolds`
+(`SupportConsult.hasSolidTop(below) || below == GLOWSTONE`), the plates
+`plateFloorHolds` (`SupportConsult.hasSolidTop(below) ||
+WorldSolidity.isFence(below)`), the diodes `diodeFloorHolds`
+(`SupportConsult.hasSolidTop(below)`) — the same
 one-consult-per-site shape the F-SP1, F-EC1 and VT-020 corrections
-carried. `hasSupportBelow` itself retires (no other caller: the rail
-arm's consult at line 1155 is shadowed by the BlockUpdateSystem's rail
-arm — `RailConnections.survivesAt` over `FireBlocks.hasSolidTop`, the
-merged thirteenth-pass fix — verified: no `isSolid`-false family
+carried. `hasSupportBelow` itself RETITLED the rail arm's legacy
+consult — SUPERSEDED on every observable by the BlockUpdateSystem's
+rail arm (`RailConnections.survivesAt` over `FireBlocks.hasSolidTop`,
+the merged thirteenth-pass fix — verified: no `isSolid`-false family
 member answers hasSolidTop-true, so the stale consult never changes an
-observable). The merge order documented: #137 first, or rebase after
-it lands; if the maintainer picks #138, the hopper-arm correction must
-land first (the review note's form: `HopperBlocks.isHopper(type)`).
+observable). THE HOPPER RIDER: #138's dead fourth arm retired
+(`value.equals("hopper")` → `|| HopperBlocks.isHopper(type)`, the #137
+form — the review note's correction landed as this PR's rider so the
+stacked tree answers green on the hopper row; the cross-tree seat rides
+the branch as the pin). The merge order documented: **#138 first, or
+this branch rebases**; if the maintainer picks #137 instead, the five
+swaps apply cleanly there too (the consult arms are untouched by either
+carrier's other rows).
+
+**THE SEAT RESTRUCTURE (the fix run's own find):** the wire's own
+`onAdded` vertical ring (RedstoneWireBlock lines 181-183 —
+`updateNeighbors(pos.down())` waking the wire's own cell through the
++Y offset) makes a DIRECTLY-WRITTEN wire on a bad floor pop at its own
+commit once the consult reads the reference's law — the first seat cut
+placed the wire directly on the divergence floors and the await failed
+at the placement (the pop at the own commit IS the vanilla structure,
+the reference's own ring); the seats restructured to the place-then-swap
+shape (place on stone, swap the floor — the F-SP1 seat form), the pop
+observed at the swap exactly as vanilla fells it. The plates carry no
+`onAdded` override in the reference, so their direct placements float
+until the trigger — the seat shapes now mirror each family's own
+reference structure.
+
+**THE RUNS:** the seats 8/8 GREEN on the fix tree (RED 8/8 on unfixed
+develop); the hopper cross-tree seat GREEN on the fix tree (GREEN on
+develop, GREEN on #137, RED on #138 — the three-tree evidence); the
+redstone package 45/0 (both F-SP1 seat files among them); the touched
+lanes 393/0 (chest/container/block/piston/region-boundary/
+nether-routing/eye-insertion/two-stage/blast-fallback); the wider lanes
+73/0 (interaction/hopper/tnt/noteblock).
 
 **The named tails:**
 1. **The placement gates** — vanilla refuses an unsupported wire/plate/
@@ -5279,3 +5311,42 @@ land first (the review note's form: `HopperBlocks.isHopper(type)`).
 #114/#116/#117/#118/#119/#120/#121/#122/#123/#124✓MERGED/#125/#126/
 #128/#129/#130/#131/#132/#133/#134/#135/#136/#137/#138 — #124 merged
 at `155cd53e`/`ea5cb7e9` (VT-018 whole).
+
+**THE PASS'S CLOSE (the forty-seventh):** VT-029 taken whole in one
+run — the discovery (the source pass over the queue's standing head),
+the three-pass discipline complete (the seats RED 8/8 on unfixed
+develop, the independent walk's five angles), the correction landed
+(**PR #149**, stacked on #138, the dead hopper arm retired as the
+rider), and the #138 cross-tree review note posted
+(https://github.com/ZaminMC/ZaminTorch/pull/138#issuecomment-6556729971
+— the three-tree evidence: develop GREEN, #137 GREEN, #138 RED on the
+hopper row). The branch protocol: the fix first cut on #137, restacked
+on #138 after the clean-base runs showed the #137 tree's 20 piston/
+region failures (the base's missing harness re-pins — the pass-46
+review note's class) against #138's green.
+
+**THE NEXT RUN'S QUEUE (the unioned view):**
+1. **The placement gates** for the redstone floor family (VT-029's
+   named tail — vanilla refuses an unsupported placement outright
+   through `World.canPlace` → `canBePlaced`; the engine accepts then
+   fells at the own-commit ring) — riding the #137/#138/#149
+   absorption question, each carrier's placement-gate rows the
+   maintainer's pick.
+2. **The merge watch** (the open set, 24 PRs): #108/#109/#110/#111/
+   #113/#114/#116/#117/#118/#119/#120/#121/#122/#123/#125/#126/#128/
+   #129/#130/#131/#132/#133/#134/#135/#136/#137/#138/#149 — after the
+   F-SP1 family's carriers merge, the wire's placement gates and the
+   projectile family's standing items (the bobber's un-stick arm
+   VT-015's follow-up, the stick-tick residue slice RED on the
+   #123+#128 union) are the heads.
+3. **VT-026's lane** (the nether border containment, fix-ready per its
+   lane) + the dimension tails (the PR #90 ledger: the FX dimension
+   awareness, the zombie arm's world binding) + the blast RNG tail
+   (VT-007's).
+4. **The VT-025 collision reconciliation** (this lineage's piston
+   toBreak #131 vs #133's nether border) — the later public claim
+   renumbers.
+5. **The report union's remaining lanes** (bookkeeping): the
+   spawn-floor lane (`audit/verifier-pass-38b-discovery`) and the
+   spawn-stamp lineage (`audit/vt-013-postfan-stamp`) still ride their
+   own branches.
