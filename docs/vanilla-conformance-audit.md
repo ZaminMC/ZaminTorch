@@ -6738,3 +6738,20 @@ mechanical.
 suspension, the pot's floor) and the named tails (the cake's reverse
 law, the hook's wall mount) remain the next runs' acts per the close's
 queue.
+
+**The convergence record (the window's closing look):** the sibling
+lanes delivered convergent and adjacent carriers during this run —
+**#141** (the hasSupportBelow family's core, opened 10:25:48,
+twenty-three minutes before #147 — the convergence note posted with
+the seat record and the maintainer's pick), **#143** (the door member
++ the #138 hopper arm repair), **#145** (F-SP3 — the fire family's
+fallthrough, this finding's fire slice under its own ID), and **#148**
+(F-SP4 — the tripwire family's floor law, the widened family's
+tripwire slice). The family's coverage now spans five carriers; the
+maintainer's picks and the cross-verifications are the next runs'
+protocol acts. Also new this window: #140 (the burning-arrow stick
+order — the 44th lane's VT-028 finding carried, its VT-030 title
+colliding with the TNT-hiss renumber's VT-030 — the arbitration note
+owed), #142 (the no-dimension FX residual, the border lane's
+continuation), #144 (VT-034 — the repeater's phantom click, a new
+finding), #146 (VT-033 — the wither-summon dimension family).
