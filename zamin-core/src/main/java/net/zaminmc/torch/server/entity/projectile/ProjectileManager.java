@@ -906,9 +906,14 @@ public final class ProjectileManager {
      *  pickup carries: grown 1.0 horizontal / 0.5 vertical). */
     static final double PICKUP_GROWTH_HORIZONTAL = 1.0;
     static final double PICKUP_GROWTH_VERTICAL = 0.5;
-    /** The arrow's own half-size (setSize(0.5F, 0.5F), ArrowEntity line 45). */
+    /** The player's own half-width (PlayerEntity line 424:
+     *  setSize(0.6F, 1.8F) — the box the growth widens). */
+    static final double PLAYER_HALF_WIDTH = 0.3;
+    /** The arrow's own half-width (setSize(0.5F, 0.5F), ArrowEntity line 46). */
     static final double ARROW_HALF_WIDTH = 0.25;
-    static final double ARROW_HALF_HEIGHT = 0.25;
+    /** The arrow's own height (setSize(0.5F, 0.5F), ArrowEntity line 46):
+     *  the box's top sits 0.5 above the position — the feet law's box. */
+    static final double ARROW_HEIGHT = 0.5;
 
     /**
      * The grounded arrows' player pickup (ArrowEntity.onPlayerCollision
@@ -973,20 +978,31 @@ public final class ProjectileManager {
         }
     }
 
-    /** The player box grown 1.0/0.5 against the arrow's own 0.5 box (the
-     *  orb pickup's exact shape over the arrow's half-size). */
+    /** The grown player box INTERSECTED with the arrow's own box
+     *  (PlayerEntity.playerTick lines 482-498: the player's own box
+     *  (setSize(0.6F, 1.8F), line 424 — half-width 0.3, the feet law
+     *  [py, py+1.8]) grown (1.0, 0.5, 1.0), the entities walked through
+     *  world.getEntities over Box.intersects' STRICT form — exactly
+     *  touching boxes do NOT intersect) against the arrow's feet-law box
+     *  [ax-0.25, ax+0.25] x [y, y+0.5] x [az-0.25, az+0.25]
+     *  (Entity.setPosition lines 240-247: the position IS the box
+     *  bottom; ArrowEntity line 46: setSize(0.5F, 0.5F)). The horizontal
+     *  reach |dx| &lt; 0.3 + 1.0 + 0.25 = 1.55; the vertical y+0.5 &gt;
+     *  py-0.5 and y &lt; py+2.3. The walking form; the riding union
+     *  (grown (1.0, 0.0, 1.0), PlayerEntity lines 484-486) is the
+     *  vehicle family's own envelope tail. */
     private boolean withinArrowPickupRange(
             net.zaminmc.torch.server.player.PlayerSession player, ProjectileEntity projectile) {
         Position playerPosition = player.position();
         Position arrowPosition = projectile.position();
         double dx = Math.abs(arrowPosition.x() - playerPosition.x());
         double dz = Math.abs(arrowPosition.z() - playerPosition.z());
-        double maxHorizontal = ARROW_HALF_WIDTH + PICKUP_GROWTH_HORIZONTAL;
-        if (dx > maxHorizontal || dz > maxHorizontal) {
+        double maxHorizontal = PLAYER_HALF_WIDTH + PICKUP_GROWTH_HORIZONTAL + ARROW_HALF_WIDTH;
+        if (dx >= maxHorizontal || dz >= maxHorizontal) {
             return false;
         }
-        double arrowBottom = arrowPosition.y() - ARROW_HALF_HEIGHT;
-        double arrowTop = arrowPosition.y() + ARROW_HALF_HEIGHT;
+        double arrowBottom = arrowPosition.y();
+        double arrowTop = arrowPosition.y() + ARROW_HEIGHT;
         double rangeBottom = playerPosition.y() - PICKUP_GROWTH_VERTICAL;
         double rangeTop = playerPosition.y() + 1.8 + PICKUP_GROWTH_VERTICAL;
         return arrowTop > rangeBottom && arrowBottom < rangeTop;
