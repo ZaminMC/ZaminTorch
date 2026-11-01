@@ -3654,9 +3654,12 @@ public final class EngineServer implements Server, EngineBridge {
                                 world.getBlock(target.offset(0, -1, 0)));
                     }
                     if (name.equals("flower_pot")) {
-                        // FlowerPotBlock.canBePlaced lines 118-120: the
-                        // block below must have a SOLID TOP.
-                        return net.zaminmc.torch.server.block.WorldSolidity.isSolid(
+                        // FlowerPotBlock.canBePlaced lines 136-137: the
+                        // block below must have a SOLID TOP — the
+                        // reference's World.hasSolidTop over
+                        // SupportConsult (the translucent materials and
+                        // the non-cubes never answer).
+                        return net.zaminmc.torch.server.block.SupportConsult.hasSolidTop(
                                 world.getBlock(target.offset(0, -1, 0)));
                     }
                     if (name.equals("brown_mushroom") || name.equals("red_mushroom")) {

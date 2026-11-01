@@ -188,12 +188,18 @@ public final class FlowerPotBlocks {
     }
 
     /**
-     * The support read (FlowerPotBlock.neighborChanged lines 122-128 +
-     * canBePlaced lines 118-120): the block below must have a SOLID TOP
-     * — the engine's solid stand-in.
+     * The support read (FlowerPotBlock.canBePlaced lines 136-137 +
+     * neighborChanged lines 141-143): the block below must have a SOLID
+     * TOP — {@code World.hasSolidTop(pos.down())} 1:1 over
+     * {@link SupportConsult#hasSolidTop} (the reference's five arms: the
+     * solid-blocking cubes, the TOP halves of the stairs and slabs, the
+     * hoppers, the 7-layer snow). The translucent materials (glass,
+     * glowstone, ice, TNT, the leaves, the cactus) NEVER answer; the
+     * non-cubes (fences, panes, walls) NEVER answer; the bottom halves
+     * NEVER answer.
      */
     public static boolean isSupported(net.zaminmc.torch.server.world.EngineWorld world,
             net.zaminmc.torch.block.BlockPosition pos) {
-        return WorldSolidity.isSolid(world.getBlock(pos.offset(0, -1, 0)));
+        return SupportConsult.hasSolidTop(world.getBlock(pos.offset(0, -1, 0)));
     }
 }
