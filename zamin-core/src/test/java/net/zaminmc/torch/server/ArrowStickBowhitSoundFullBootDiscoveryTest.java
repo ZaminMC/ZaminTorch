@@ -55,7 +55,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * band).</p>
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class ArrowStickBowhitSoundDiscoveryTest {
+class ArrowStickBowhitSoundFullBootDiscoveryTest {
 
     @org.junit.jupiter.api.io.TempDir
     Path dataDir;
