@@ -5446,3 +5446,47 @@ stone-floor wire whose floor becomes glass (the pop), the suspended
 flag's value on the translucent floors, the dirt control. The next
 numbering: F-SP4 (the class's fourth member) — the tripwire family's own
 discovery pass.
+
+## The forty-eighth pass's third act — F-SP4 CONFIRMED through the three-pass discipline and CORRECTED (PR #148, stacked on the F-SP3 branch #145 — the chain #138 -> #141 -> #145 -> #148)
+
+**Pass 2 (behavioral):** the seats RED 2/2 on unfixed develop at exactly
+the predicted asserts — the tripwire STAYING when its floor becomes
+glass (the flag never flipping under the collision question, the dirt
+control staying) and the UNSUSPENDED form landing on the glass floor
+(the commit arm's collision read). GREEN 2/0 on the fix.
+
+**Pass 3 (independent):** the reference re-read at all three sites (the
+commit arm 110-114, the hook walk's line 101, the neighborChanged pop
+87-94 — each over `World.hasSolidTop`); the compensating hunt NEGATIVE
+(the hook's own wall consult at line 350 is a DIFFERENT law — the
+mount, not the floor; no second floor consult exists for the wire); the
+intentionality challenge NEGATIVE (the commit arm's comment cites
+"TripwireBlock.onAdded lines 116-121" — the citation present, the law
+wrong, the honest-omission class); the named tail recorded (the HOOK's
+wall consults at lines 350/373 reading the collision question where the
+reference reads `Block.isSolid()` — the three-conjunct signal consult —
+the lever/button class, its own discovery pass); the blast-radius walk
+(the tripwire lanes + the redstone package + the fire seats 65/0 on the
+stacked tree, no re-pins).
+
+**THE CORRECTION (PR #148 OPEN, `fix/tripwire-floor-support-parity-audit`
+stacked on #145): the three floor-law sites routed through
+`SupportConsult.hasSolidTop` — the commit arm, the hook walk and the
+support re-check reading the reference's five-arm law, the translucent
+floors suspending the wire and the flag flip popping it exactly as
+vanilla. The seats GREEN 2/0.**
+
+**The lane's complete run (the forty-eighth):** F-SP2 CONFIRMED and
+CORRECTED (PR #141, with the hopper rider), F-SP3 CONFIRMED and
+CORRECTED (PR #145), F-SP4 CONFIRMED and CORRECTED (PR #148) — the
+F-SP class's three remaining members whole, the chain #138 -> #141 ->
+#145 -> #148 documented. The F-SP class now covers every recorded member:
+the mounts (F-SP1, #137/#138/#139), the floors (F-SP2), the fire (F-SP3),
+the tripwire (F-SP4).
+
+**The queue for the next pass:** the HOOK's wall consults (the lever/
+button class — `Block.isSolid()` vs the collision question at
+TripwireSystem 350/373) the NEW STANDING HEAD; the snow layer's 7-layer
+band (VT-003's tail — hasSolidTop's fifth arm); the merge watch at the
+thirty-five-PR open set with the four-link chain documented; the
+placement-gate absorption riding the carrier picks.
