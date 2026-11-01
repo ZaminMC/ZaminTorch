@@ -3811,6 +3811,40 @@ confirmed finding — the one-PR-per-issue rule's violation to
 resolve this pass's next act. Neither carrier is stacked on #117;
 the kept tree owes the VT-014 interaction check.
 
+**The VT-015 carrier resolution (queue item 0, DONE this
+pass)**: both carriers verified green standalone in fresh runs this pass
+(#119's `ArrowUnstickParityTest` 2/0; #120's five seats 11/11 — the
+Discovery/Verification constructions, the VT-013 no-crossing guard, the
+pickup regression 8/0, the import regression 6/0), and the core law is
+identical in both trees (the tracked-cell stamp, the per-tick identity
+consult in the body's own dimension, the per-axis `nextFloat()*0.2`
+re-arm, both clock resets, the un-stick tick ending the branch). **The
+pick: #120 is the keeper** — it carries the confirmed fix scope's
+remaining member (the import persistence rows: `readCustomNbt` lines
+402-413, `restoreGrounded`'s 5-arg form + the `AnvilWorldImport` rows)
+where #119 defers them as the cell-less §31.6 tail. **#119 closed** with
+the comparison comment (`#issuecomment-6554239228`); its unique members
+recorded for salvage (the `SolidConsult` default-method extension — no
+new interface; the re-stick parity pin at `77a052a1` — the popped arrow
+RE-STICKS in the swapped-in solid, a placement-independent lifecycle
+assertion #120's seats do not carry).
+
+**The VT-014 interaction check (the kept tree's owed run, DONE)**: #117 ∪
+#120 merges with ONE textual conflict at the shared stick site (the
+`landInGround` call in `resolveCollisions`' block-hit arm) — the designed
+composition, #117's `stickRestPosition` teleport preceding #120's
+tracked-cell stamp. The union tree (local-only, no branch pushed) runs
+the arrow family **21/21** and the projectile package **48/48** green
+(fresh runs: `ArrowStickPlacement*` 4/0, `ArrowUnstick*` 2/0, the VT-013
+guard 1/0, `ArrowPickupTest` 8/0, `AnvilImportAcceptanceTest` 6/0,
+`BowFamily`/`FireballDeflection`/`FireworksAndBottle`/
+`GhastFireballFlightParity`/`ProjectileDimensionReads`/
+`ProjectileManager`/`WitherSkull` 48/0 whole). The named nuance for the
+merge order: the reference stamps the RAY hit's cell (the face walk's
+entered cell) while the engine's hit model samples `point` — the cells
+coincide in every seat geometry, the difference below the engine's
+sampling granularity (the union's comment block records it at the site).
+
 **The crashed session's worktree draft** (recovered before any
 reset): the combined VT-014+VT-015 single-tree form — the stick
 placement walk and the tracked-cell recording in one
@@ -3861,22 +3895,14 @@ branch.
 
 ## The queue for the next pass
 
-0. **The VT-015 carrier resolution** (the thirty-sixth pass's watch):
-   PRs #119 and #120 both carry VT-015's correction from two
-   convergent lanes (the tracked-block lane's `ArrowUnstickParityTest`
-   seat vs the unstick lane's `ArrowUnstickDiscoveryTest`/
-   `ArrowUnstickVerificationTest` seats — the rename protocol's
-   canonical names). One carrier must win: the review compares the
-   two trees' consult shapes against the reference's lines 172-186
-   (the tracked-cell identity consult, the per-component
-   `random*0.2` re-arm over the stored face vector, both clock
-   resets), the loser closes with a pointer comment, and the kept
-   tree runs the union-tree regression set (the pickup family, the
-   portal family's five crossing seats, the persistence lanes) —
-   noting neither carrier is stacked on #117's tracked-cell
-   recording, so the kept tree owes the VT-014 interaction check
-   (the un-stick re-arm reads the velocity VT-014's fix sets to the
-   face vector).
+0. ~~The VT-015 carrier resolution~~ — **DONE this pass**: #119 CLOSED
+   (the duplicate, the comparison comment posted); **#120 is the
+   keeper** (the import persistence rows — the confirmed scope's
+   remaining member — plus the canonical seat names and the VT-013
+   guard). The VT-014 interaction check DONE beside it: the #117∪#120
+   union runs the arrow family 21/21 and the projectile package 48/48
+   green (the one textual conflict's resolution documented on #120,
+   `#issuecomment-6554240538`). The maintainer owns both merges.
 1. **VT-019's passes 2-3** (the stuck burning arrow's TNT re-prime,
    the thirty-fifth lane's discovery): the seat — a burning arrow
    stuck BESIDE (not in) a TNT block: the reference leaves the TNT
