@@ -905,7 +905,7 @@ public final class BlockInteractionService {
         if (net.zaminmc.torch.server.block.InfestedBlocks.isInfested(current.identifier())) {
             InfestedBurstHook burst = infestedBurstHook;
             if (burst != null) {
-                burst.onEggBroken(target);
+                burst.onEggBroken(target, world.dimension());
             }
         }
         // The ice's own water law (Wave FL4-F6 — IceBlock.afterMinedByPlayer
@@ -1129,10 +1129,13 @@ public final class BlockInteractionService {
      * The infested-egg burst (Slice 18c — InfestedBlock.dropItems lines
      * 79-88): a SURVIVAL break of an egg spawns the silverfish at the
      * block's own position (the creative break skips the reference's
-     * afterMinedByPlayer arm entirely, so no burst). Tick-thread context.
+     * afterMinedByPlayer arm entirely, so no burst). The dimension is
+     * the dig's own acting world (the reference's {@code world}
+     * parameter — the silverfish lives where the egg broke).
+     * Tick-thread context.
      */
     public interface InfestedBurstHook {
-        void onEggBroken(BlockPosition position);
+        void onEggBroken(BlockPosition position, int dimension);
     }
 
     /** The egg burst sink (the engine's mob-spawn wiring). */
