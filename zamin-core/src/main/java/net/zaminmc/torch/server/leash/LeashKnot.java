@@ -11,17 +11,24 @@ import net.zaminmc.torch.util.Position;
  * fence stands (the reference's own 100-tick {@code canSurvive} poll),
  * and carries a global engine entity id so the wire can spawn it (Spawn
  * Object type 77) and the leashes can name it as their holder.
+ *
+ * <p>FL4-GAP2 Slice D — the dimension column: the knot carries its own
+ * world's stamp (the reference's knot IS a per-WorldServer entity), so
+ * the wire's observer gate and the family router read it.</p>
  */
 public final class LeashKnot {
 
     private final int entityId;
     private final BlockPosition fence;
+    /** The owning world's stamp (the wire's observer gate). */
+    private final int dimension;
     /** The validation age (the reference's {@code ticksSinceValidation}). */
     private int validationTicks;
 
-    LeashKnot(int entityId, BlockPosition fence) {
+    LeashKnot(int entityId, BlockPosition fence, int dimension) {
         this.entityId = entityId;
         this.fence = fence;
+        this.dimension = dimension;
     }
 
     /** The knot's engine entity id (the Spawn Object 77 wire id). */
@@ -32,6 +39,11 @@ public final class LeashKnot {
     /** The fence post the knot hangs on. */
     public BlockPosition fence() {
         return fence;
+    }
+
+    /** The owning world's stamp (the wire's observer gate reads it). */
+    public int dimension() {
+        return dimension;
     }
 
     /** The knot's entity position (the fence center + 0.5, the reference's own). */

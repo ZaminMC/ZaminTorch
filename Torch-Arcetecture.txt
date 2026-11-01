@@ -7899,11 +7899,14 @@ both test-seat defects — see the census doc) and the mob-integration
 status read (the body-filtered form): runs 578/579 green, builds
 155/156 published, the four-day stall over.
 
-NEXT WORK (in order): Slice D (the transient families — the piston
-movingBlocks, the decorations, the leads); the PR wave's remainder
-(#111, #113, #114, the VT-006 trio #108-#110, and the newer VT stack
-#116-#131 — #106, #115 already merged) reviews as time permits, the
-three-pass discipline each.
+NEXT WORK (in order): Slice D IS WHOLE (all three transient families
+landed — the piston, the decoration, the lead; row 4's ledgered tail
+above); the PR wave's remainder (the support-consult chain #137-#149,
+and the VT stack #116-#136 — this session merged #109/#111/#113/#114
+and closed #108/#110 with the three-pass discipline) reviews as time
+permits; the dimension-ownership ledger's next rows (the redstone
+world's remaining consults, the container/storage ownership) name
+their own acts.
 
 SLICE B LANDED (2026-11-01, the container-remainder session): the
 four families whole, exactly per row 2 — the furnace/dispenser/brewing/
@@ -8079,6 +8082,108 @@ own law). Seats: a nether piston displacing only the nether's bodies;
 a nether comparator reading only the nether's frames; a nether fence
 tying only the nether's mobs; the decorations' two-tile restart
 through a real reboot.
+
+SLICE D LANDED, TWO OF THREE FAMILIES (2026-11-01, commit ac420ca2 —
+the message names the decoration half; the PISTON half's engine
+changes rode the same commit, both whole): the piston and decoration
+families, each exactly per the trace above.
+
+- THE PISTON FAMILY: the three instances at the chestsFor form (each
+  dimension's PistonSystem over its OWN world + its OWN redstone — a
+  nether piston now RUNS on nether power and nether changes where
+  before it never ran at all), the change listeners and neighbor
+  listeners and ticks per dimension, the pistonsFor(dim) router, and
+  THE NAMED LEAK CLOSED: the push surface extracted into
+  pistonPushSurface(dim) with EVERY body family's scan gated on the
+  body's own dimension (the mobs, the vehicles, the TNT, the falling
+  blocks, the projectiles GAIN the gate; the items, the orbs, the
+  stands' hard != 0 pins GENERALIZE to it — the hopper suck-gate's
+  own law). Seats 3/0 (PistonSliceDOwnershipAcceptanceTest: the
+  nether piston displacing only the nether's bodies — the overworld
+  pig at the same coordinates never moves and the overworld cells
+  never see the flight's writes; the overworld piston never
+  displacing a nether body; the nether piston never arming on
+  overworld power with the nether-lever positive control). The
+  piston lanes whole on the converted tree (28/0).
+- THE DECORATION FAMILY: the three systems sharing ONE id allocator
+  (the wire's Spawn Object ids stay unique across the worlds), the
+  ItemFrame/Painting dimension column, the ZED v2 stamp (the
+  dimension byte at each row's tail, the union save, the routed
+  restore, v1 files as overworld rows — TileExtraSaveSplitTest's
+  split pair rewritten + the new migration seat), every consult site
+  routed by its traced source (the attack by the attacker's
+  dimension, the placement by the placer's, the interact by the
+  player's, the survival poll x3, the framed-maps audience walk over
+  all three families with the frame's own dimension, the blast wound
+  by the blast's dimension — the old dimension != 0 gate retired, the
+  anvil import by the target world's, the frame readers per
+  dimension — THE NAMED LEAK CLOSED, the adapter's six wire arms
+  observer-gated, the per-world DecorationViews with the stands
+  filtered to the view's world, the break drops stamped with the
+  surface's own dimension). Seats 2/0 (the named leak's seat — a
+  nether frame and an overworld frame at the SAME cell answering
+  their own comparators' signals; the two-tile restart through a real
+  reboot — each family answering its own frames, paintings, and
+  displays). The decoration + map + redstone-routing lanes whole
+  (8/0, 5/0, 2/0, 1/0, 2/0, 20/0, and the routing suites).
+- THE SAME SESSION'S CENSUS (the CI-unblock lane): run 591's
+  attribution NPE root-caused and retired at the source (the all()
+  accessors' off-thread snapshot race — MobManager's List.copyOf over
+  a plain ArrayList handing List.of the nulled tail inside a
+  concurrent removal's window; both entity registries now
+  copy-on-write, the iterator.remove arms converted to the remove(mob,
+  reason) law — TWO MISSED ARMS (the creeper's explosion, the
+  endermite's expiry) caught by the local blast lane and fixed in
+  688e4f70, the pushed d1590655 carried them broken), and run 593's
+  dense-owner member retired (the superlinear ceiling pin's
+  shared-runner escalation — the growth becomes a printed evidence
+  line, the re-measure takes the min of its windows; the two floor
+  pins and the equivalence seats hold the walk's law).
+- THE LEAD FAMILY LANDED (2026-11-01, commit 5a53d2fd — row 4's third
+  and final family; Slice D WHOLE): the three families at the chestsFor
+  form (leadsFor(dim) beside the legacy accessor, each instance holding
+  its OWN world + the fence identifier in the constructor —
+  setSurvivalRead's single-world pin RETIRED — the three sharing ONE
+  IntSupplier so the Spawn Object 77 ids stay unique across the worlds,
+  the decoration family's own law), the LeashKnot's dimension column
+  (the wire's observer gate), the tick walk gated on the body's own
+  dimension, LeadSurface's mobsIn gated on the body's own dimension
+  (THE NAMED LEAK CLOSED — a nether fence ties only the nether's mobs),
+  dropLead stamped with the leashed body's own dimension, the fence use
+  routed by the PLAYER's dimension (the block consult AND the tie), the
+  knot interact served on the knot's own family through knotById, the
+  detacher's requireMutationContext reading the MOB's own world (the
+  owner-context assert at the right world), the anvil import's knot rows
+  routed by the target world's dimension, and the protocol's knot arms +
+  the join replay observer-gated (the Wave AS shape). THE STASH AUDIT
+  the trace named: NO v+1 pass needed — the knots ride the mob's Leash
+  NBT stash and the mob store already carries the dimension row; the
+  stash resolves against the mob's own dimension's family through the
+  tick's gate (verified, not assumed). Seats 3/0
+  (LeadSliceDOwnershipAcceptanceTest): the named leak's seat (the
+  overworld cow at the SAME coordinates held by the SAME player keeps
+  its player hold, the overworld family never gains a knot), the
+  survival poll's seat (a nether knot surviving a full 100-tick cadence
+  over the overworld's AIR at the same coordinates, then falling when
+  its OWN fence breaks — both directions), and the drop stamp's seat (a
+  nether mob's snapped lead dropping as a NETHER item). Regression:
+  LeadSystemTest 8/0 (the rig rewired), LeashApiAcceptanceTest 3/0,
+  AnvilImportAcceptanceTest 6/0, DimensionWalkTest 1/0, the Slice D
+  siblings unregressed (Decoration 2/0, Piston 3/0, Tile 4/0), the
+  block + entity packages whole 891/0. ROW 4 IS WHOLE: all three
+  transient families (the piston, the decoration, the lead) at the
+  per-dimension form; the dimension-ownership ledger's remaining rows
+  name their own next acts.
+
+- Run 591's OTHER member — SurvivalFlow's drop-settle miss — stays the
+  open census question (the full static analysis eliminated every
+  removal and id-space candidate: the engine ran at NOMINAL 20 TPS
+  through the whole 400-tick await on a fresh flat world with no
+  collector in range, no merge partner, and the wire id verified
+  engine-native; the failure census instrument landed in 57f19ad5 —
+  the next CI occurrence reads the drop's fate straight from the test
+  report: absent-from-list, present-but-airborne, present-but-wrong-id,
+  or grounded-but-late).
 
 ---
 

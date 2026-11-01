@@ -115,12 +115,10 @@ class LeadSystemTest {
             }
 
             @Override
-            public void dropLead(Position at) {
+            public void dropLead(Position at, int dimension) {
                 drops.at.add(at);
             }
-        }, 5_000_000);
-        leads.addListener(wire);
-        leads.setSurvivalRead(new World() {
+        }, () -> 5_000_000, new World() {
             @Override public String name() { return "stub"; }
             @Override public long timeOfDay() { return 0; }
             @Override public long totalTicks() { return 0; }
@@ -142,7 +140,8 @@ class LeadSystemTest {
             @Override public int skyLightAt(net.zaminmc.torch.block.BlockPosition p) { return 15; }
             @Override public String biomeAt(net.zaminmc.torch.block.BlockPosition p) { return "plains"; }
 
-        }, BuiltinBlocks.FENCE.identifier());
+        }, BuiltinBlocks.FENCE.identifier(), 0);
+        leads.addListener(wire);
         return new Rig(mobs, leads, drops, wire);
     }
 
