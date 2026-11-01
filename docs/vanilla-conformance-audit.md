@@ -2903,10 +2903,176 @@ allowlist), **then VT-016's** (the piston-push bed seat — the pair
 gone + one bed item in vanilla, the displaced half + floating
 survivor today).
 
+## The thirty-third pass — VT-014's and VT-015's pass-2 seats (the honest residue's behavioral verification): both findings RED on develop at exactly the predicted geometries
 
-## The thirty-third pass (this stream, renamed from its thirty-second draft — the bed-coverage lane's pushed pass-32 branch owns the name, the established protocol) — VT-014 and VT-015 confirmed whole (the seats + the independent walks), VT-018 discovered (the stuck burning arrow's TNT re-prime; renumbered from this pass's first VT-016 draft — the pass-32 lane's VT-016/VT-017 piston/grass claims took the ids first, the VT-012->VT-013 precedent)
+The baseline `6b29c46f` (this lane merged the vine wire-row repair in
+before any work; the fourth lane's union arrived mid-run and rides
+whole beneath this merge — the rename protocol: their docs-only lane
+owns the thirty-second name, this lane the thirty-third). The pass-31
+handoff named this run's head: **VT-014's and VT-015's seats** —
+VT-013's honest residue after the rejection, both findings carrying
+pass 1 (the source walk) from the thirty-first pass's record. This
+pass adds pass 2 (the behavioral seats) to both — the fourth lane's
+queue item 3 named this exact act for this lane, not a duplication.
 
-The thirty-first pass's queue head taken in order: the two honest
+**VT-014's pass 2 — the stick placement's two observables, both RED on
+develop `6b29c46f`** (`ArrowStickPlacementDiscoveryTest`):
+
+1. **THE STUCK-POSITION SEAT** (`theStuckArrowRestsOutsideTheHitFace`):
+   a 5x5 stone platform, top face y=20 (the cells at y=19), an arrow
+   shot straight down (pitch 90, speed 0.8) from four and a half
+   blocks above. THE PIN: the rest must sit ON THE APPROACH SIDE of
+   the hit face (y >= 20.0 — the reference's exact rest is face+0.05
+   along the approach; a near-vertical shot answers within
+   [20.0, 20.05]). RED at exactly that assert with the observed rest
+   `Position[x=42.512, y=19.841, z=42.490]` (cell (42, 19, 42)) — the
+   post-step ENDPOINT placement INSIDE the hit block's cell, 0.159
+   BELOW the face. The preconditions green (the platform stands, the
+   launch lands, the stick fires) — the failure is the placement law
+   alone.
+2. **THE THIN-WALL AIR-STICK SEAT**
+   (`theThinWallShotRestsAtTheNearFaceNotInTheAirBeyond`): a
+   one-block-thick wall (the column x=50, five tall, five deep), a
+   flat shot (yaw 270 = +x, pitch 0, speed 2.0) whose ~1.96-block
+   second step has its MIDPOINT inside the wall's single cell while
+   its ENDPOINT clears the far face (x=51). THE PIN: the rest must sit
+   on the APPROACH side of the near face (x < 50.0 — the reference's
+   exact rest: 49.95). RED at exactly that assert with the observed
+   rest `Position[x=51.480, y=22.333, z=47.499]` (cell (51, 22, 47))
+   — the arrow HANGING IN THE AIR beyond the wall, half a block past
+   its far face. The engine's midpoint consult sticks the body at the
+   already-integrated endpoint; the reference's ray hits the near face
+   and the 0.05 backoff (ArrowEntity 296-302) composes with the
+   replaced-velocity advance (328-330) to rest 0.05 before it.
+
+**VT-015's pass 2 — the block-break un-stick seat, RED on develop
+`6b29c46f`** (`ArrowUnstickDiscoveryTest.theBrokenBlockUnderAStuckArrowUnsticksIt`):
+the same straight-down construction, the stuck arrow's tracked cell
+(the platform's top cell at the arrow's x/z — the reference's
+recorded `blockX/blockY/blockZ` and, at the engine's endpoint
+placement, the embedded cell; the same cell for this construction)
+BROKEN to air, forty ticks observed. THE PIN: the arrow must LEAVE its
+rest (the reference's else arm at ArrowEntity 179-186 — `inGround =
+false`, the per-axis `random * 0.2` velocity re-arm, the clocks
+reset, the fall resumes; the flat world's terrain sits at y<=4, so
+ANY movement is the un-stick's signature). RED at exactly that assert
+with the observed rest `Position[x=42.508, y=19.886, z=42.528]` —
+IDENTICAL to the pre-break rest, the stick clock alone running. The
+complementary pin (never inGround AT the broken cell again) fails
+with it. The engine's `inGround` branch (ProjectileManager.tick lines
+~853-858) carries no block consult anywhere.
+
+**The regression check:** VT-013's corrected seat
+(`PortalStuckArrowCrossingDiscoveryTest`) re-run GREEN on this tree —
+the no-crossing law the rejection established holds unchanged beside
+the two new findings.
+
+**The build environment note:** Maven Central answered Gradle's
+dependency resolution with HTTP 429 (the rate limit) while plain curl
+succeeded — the pass's runs went through an Aliyun mirror init script
+(`.gradle-init/mirror.gradle`, uncommitted: environment scaffolding,
+not engine work). The test lanes themselves are the standard Gradle
+test task.
+
+**The tally:** two findings at pass 2 of 3 (the seats complete, the
+evidence recorded in the failure messages); the pass-3 independent
+walks — the execution-path challenge (any other mover or un-stick
+path in the engine), the design-choice challenge (any javadoc naming
+the placement or the missing consult as deliberate), and the edge
+walk (the metadata-change arm, the head-of-tick re-stick at lines
+157-166, the NBT persistence surface) — are this lane's next head,
+beside the fix-scope mapping (the tracked-cell model the VT-015
+correction must add, its persistence rows included).
+
+**VT-014's and VT-015's pass 3 — the independent walks, COMPLETE this
+same run (both findings CONFIRMED, three passes each):**
+
+1. **THE EXECUTION-PATH CHALLENGE — NEGATIVE for compensation.** The
+   complete census of every writer of a projectile's position or
+   `inGround` state engine-wide: the flight step
+   (`ProjectileEntity.integrate` line 432, gated by `!inGround`); the
+   piston/blast push (`pushProjectile` line 579's `teleport` — the
+   javadoc's own law: the push DISPLACES without un-sticking, the
+   reference-matching shape, so it cannot compensate a tracked-cell
+   change); the anvil import's `restoreGrounded` (load-time, sets
+   `inGround = true` alone); `landInGround` (the stick site — sets
+   the flag, zeroes the velocity, NEVER touches the position); the
+   constructor and the two mob/player `teleport` sites in
+   EngineServer (the spread-pile landing and the /summon override —
+   not projectile surfaces). **`inGround` is set to true at exactly
+   two sites (lines 255, 271) and cleared NOWHERE** — no un-stick
+   exists anywhere in the engine, and no mover adjusts a stuck
+   arrow's rest.
+2. **THE DESIGN-CHOICE CHALLENGE — the gaps are LEDGERED omissions,
+   never parity claims.** Three independent citations in the engine's
+   own documentation: (a) `pushProjectile`'s javadoc cites the
+   reference's revalidation ("the arrow's own revalidation
+   (ProjectileEntity.tick lines 84-92) reads the STICK CELL, which
+   the push never changes") — the stick-cell concept was known;
+   (b) `flingVelocity`'s javadoc names the un-stick law itself:
+   "the reference's own damped 0.2 factor applies to them only if
+   the stick cell's block ever changes" — the engine "carries the
+   set components as dead state", the law acknowledged and left
+   unimplemented; (c) the anvil import's ledger COUNTS the
+   xTile/yTile/zTile/inTile/inData rows as "projectile rows without
+   an engine surface (the point model derives the cell, the block
+   and the damage from the motion)" — and the derivation never
+   happens (no runtime consult exists). The VT-006 precedent's
+   shape: a ledgered planned gap is still a genuine vanilla
+   mismatch; none of these javadocs claims parity for the divergent
+   behavior.
+3. **THE EDGE WALK.** (a) The metadata arm: the reference's ARROW
+   override checks `block == this.block && j == this.blockData`
+   (ArrowEntity 173-174) — a metadata-only change (a door opened, a
+   repeater re-delayed in the tracked cell) also un-sticks; the base
+   ProjectileEntity's family-wide copy (lines 84-99) is
+   identity-only with a 600 expiry — dead code for the fireballs
+   (they explode on hit, never stick), so the engine's arrow-only
+   sticking surface matches where sticking happens. (b) The
+   head-of-tick re-stick arm (ArrowEntity 157-166): re-arms
+   `inGround` when the tracked cell's block is non-air AND its
+   collision box contains the arrow's position — a safety net (the
+   fresh-arrow field init is `-1, -1, -1`, the void cell, so it
+   no-ops for fresh bodies); a narrow tail for the fix scope. (c)
+   The NBT surface: the reference persists the tracked cell whole
+   (writeCustomNbt 388-394: xTile/yTile/zTile shorts, the inTile
+   key, the inData byte; readCustomNbt 402-414 restores them beside
+   life/inGround) — the engine restores `inGround` + `life` alone
+   (AnvilWorldImport 1150-1157), the tracked-cell rows isolated in
+   its ledger. The VT-015 fix scope must add the tracked-cell model
+   AND its persistence rows; the un-stick's re-arm reads the SAVED
+   velocity (the reference's stick site sets it to the face vector
+   before the drag/gravity tail — ArrowEntity 296-298 + 377-380 —
+   so the velocity-save belongs to VT-015's scope, not VT-014's).
+
+**THE VERDICTS: VT-014 CONFIRMED — three passes** (pass 1 the
+thirty-first pass's source walk; pass 2 this pass's two RED seats;
+pass 3 this run's independent walks). **VT-015 CONFIRMED — three
+passes** (pass 1 the source walk; pass 2 the RED seat; pass 3 the
+independent walks). Both findings are Phase E eligible. The
+corrections are separable roots — the placement (a position
+computation at the stick site) and the un-stick law (a per-tick
+state consult + the tracked-cell model + the persistence rows) —
+one PR each. **The fix-scope mapping for VT-014:** the stick site
+( ProjectileManager.resolveCollisions' ARROW solid arm, line ~1195)
+computes the segment-from-`from`-to-`point`'s entry face into the
+solid cell and rests the arrow at face − 0.05·unit (the reference's
+composed law); the shape-aware surface (WorldSolidity's partial
+shapes — a slab's true face is NOT the cell boundary) and the
+from-inside-the-cell degenerate are the scope's two named edges.
+**For VT-015:** ProjectileEntity gains the tracked cell + identity
+(the block type and its metadata), the stick site records them, the
+manager's inGround branch consults them per tick and un-sticks on
+any change (the per-axis `random * 0.2` velocity re-arm, both
+clocks reset), the save/import walks persist the five rows, and the
+stick site's velocity save (the face vector damped) feeds the
+re-arm.
+
+
+
+## The thirty-fourth pass (this stream's lane, renamed AGAIN — the third concurrent stream's pushed pass-33 branch owns the thirty-third name; the triple-stream convergence on VT-014/VT-015 recorded in both records) — VT-014 and VT-015 confirmed whole through THIS lane's independent seats and walks, VT-018 discovered (the stuck burning arrow's TNT re-prime; renumbered from this pass's first VT-016 draft — the pass-32 lane's VT-016/VT-017 piston/grass claims took the ids first, the VT-012->VT-013 precedent)
+
+The thirty-first pass's queue head taken in order (the same head the third stream's pass-33 lane took in the same window — the two lanes' seats are INDEPENDENT constructions: theirs launch-based with observed rests y=19.841 / x=51.480, this lane's spawnRestored-deterministic with observed rests y=20.2143 / x=61.77; both RED on develop at their own predicted values — the cross-stream confirmation of the same laws): the two honest
 residue findings' pass-2 seats and pass-3 independent walks, both over
 the freshly-fetched develop `6b29c46f` (the vine wire repair merged
 into this pass's base through `d26a1ebd`). The seats:
@@ -3147,7 +3313,7 @@ it), the TNT's survival asserted against the engine's detonation.
   the import's isolated-row note shrinks when the rows land.
 
 
-## Coverage ledger (updated by the thirty-third pass — the pass-32 lane's refresh UNIONED with the pass-33 lane's projectile rows)
+## Coverage ledger (updated by the thirty-fourth pass — the pass-32 refresh UNIONED with the pass-33/34 projectile rows)
 
 | Area | Status |
 |---|---|
@@ -3169,8 +3335,8 @@ it), the TNT's survival asserted against the engine's detonation.
 | Block updates — the multi-part families' pair-integrity arms | THREE arms in flight: the BED family's neighborChanged self-removal arm (**VT-009 the bed-coverage lineage's claim — CONFIRMED, three passes, PR #114 OPEN**); the break-path pair walks' world binding (**VT-009 the pass-28 lane's claim — CONFIRMED, PR #106 OPEN**); the bed pair's sibling resolution (**VT-010 — CONFIRMED, PR #111 OPEN**). The DOOR family's neighborChanged arm EXISTS (`RedstoneSystem.doorNeighborChanged`, DoorBlock lines 157-198 — the door half REJECTED by its own green seat, now the regression guard) |
 | Grass decay — the shade consult | **VT-017 SUSPECTED** (the bed-coverage lane's twenty-seventh pass, renumbered): the engine's `isOpaque` 3-block allowlist (air/torch/glass) stands in for the reference's opacity law (`getOpacity() > 2` — every non-solid-render block answers 0) — the grass dies under beds, flowers, slabs, stairs where vanilla keeps it; one source pass + the OBSERVED dirt-under-bed evidence from the VT-009 trace; this pass takes the seats up |
 | Piston pushability — the behavior table's membership | **VT-016 SUSPECTED** (the bed-coverage lane's twenty-seventh pass, renumbered): the engine's `pistonMoveBehavior` DESTROY/BLOCK lists omit the bed family, the door family, the weighted plates, the cocoa (vanilla DESTROY) and the anvil (vanilla BLOCK) — a pushed bed MOVES where vanilla breaks it with its drop; one source pass done, the piston-push seat this pass's second head |
-| Projectile family — the stick placement (the resting position's geometry) | **VT-014 CONFIRMED** (three passes: the thirty-first's source walk; the thirty-third's two behavioral seats at the predicted deterministic values — 0.786 INSIDE a 0.8/tick floor hit, 0.77 PAST a one-block wall in open air; the thirty-third's call-order + compensation + design-choice walk). The correction OWED (Phase E): `resolveCollisions`' arrow arm rests the arrow at face − 0.05·û with the tracked cell recorded. The seats ride the pass-33 audit branch (`ArrowStuckStateParityDiscoveryTest`) |
-| Projectile family — the tracked-block un-stick law | **VT-015 CONFIRMED** (three passes: the thirty-first's source walk; the thirty-third's behavioral seat — the stuck arrow FROZEN through its block's removal; the thirty-third's reference re-read + compensation + family/import walk — the bobber the same law's second member, the import's xTile/inTile/inData rows the engine's own recorded gap). The correction OWED (Phase E): the tracked cell + the per-tick identity consult + the randomized re-arm; the bobber's parallel arm its own follow-up fix (the family-member protocol) |
+| Projectile family — the stick placement (the resting position's geometry) | **VT-014 CONFIRMED — TWO STREAMS INDEPENDENTLY** (three passes each: the thirty-first's source walk; the pass-33 lane's two launch-based seats — observed rests y=19.841 INSIDE the hit cell and x=51.480 hanging past the thin wall, both RED on develop `6b29c46f`; the pass-34 lane's two spawnRestored-deterministic seats — 0.786 INSIDE a 0.8/tick floor hit, 0.77 PAST a one-block wall in open air, RED at exactly the predicted values; the two lanes' pass-3 walks — the writer census (inGround set true at exactly two sites and cleared NOWHERE) + the call-order inversion + the compensation hunts + the design-choice challenges (the engine's own javadocs and import ledger name the gaps) + the edge walks). The correction OWED (Phase E): `resolveCollisions`' arrow arm rests the arrow at face − 0.05·û with the tracked cell recorded (the fix-scope mapping in the pass-33 record: the shape-aware partial shapes and the from-inside degenerate the two named edges). The seats ride the pass-33/34 audit branches |
+| Projectile family — the tracked-block un-stick law | **VT-015 CONFIRMED — TWO STREAMS INDEPENDENTLY** (three passes each: the thirty-first's source walk; the pass-33 lane's seat — the rest IDENTICAL through the broken cell, RED; the pass-34 lane's seat — the arrow STILL inGround, FROZEN at the endpoint, RED; the pass-3 walks — the writer census + the reference re-read (the per-component fresh random*0.2 re-arm over the STORED face-relative vector, both clocks reset) + the family walk (the bobber the same law's second member) + the import walk (the xTile/inTile/inData rows the engine's own recorded gap) + the javadoc citations (`flingVelocity` names the un-stick's 0.2 factor as reference-only)). The correction OWED (Phase E): the tracked cell + the per-tick identity consult + the randomized re-arm + the five persistence rows (the pass-33 record's fix-scope mapping); the bobber's parallel arm its own follow-up fix (the family-member protocol) |
 | Projectile family — the stuck burning arrow's TNT consult | **VT-018 SUSPECTED** (the thirty-third pass, pass 1 complete; renumbered from its VT-016 draft — the pass-32 lane's piston/grass claims took 16/17): the reference consults `onEntityCollision` from the FLIGHT branch's tail scan + the stick arm's single-hit-block consult alone (ArrowEntity 382, 311-313); the engine's `burningTntPass` walks STUCK burning arrows every tick — a stuck burning arrow beside TNT detonates it in the engine, primes nothing in the reference. The seat owed (pass 2) |
 | Block-update wake (BlockUpdateSystem.runUpdate, RedstoneSystem.neighborChanged) — world binding | SURFED as VT-009's pass-3 non-compensation evidence: BOTH reads consult the overworld field (the changed-world parameter ignored in the six-neighbor dispatch) — the house stream's FL4-F10 lane landed the redstone world binding (`0328e92f`); the block-update arm's coverage rides that wave's seats |
 | Block identity — the legacy wire rows | the vine family's gap LANDED by `6b29c46f` (the house's own production-crash repair; `LegacyBlockIdsIntegrityTest`'s skip set now EMPTY and pinned) |
@@ -3207,19 +3373,15 @@ it), the TNT's survival asserted against the engine's detonation.
    exactly one bed item; the engine's today is the displaced half + the
    floating survivor. Then the independent pass over the remaining
    membership rows (doors, weighted plates, cocoa, anvil).
-2a. **VT-018's seat** (the thirty-third pass's discovery, pass 1
+
+2a. **VT-018's seat** (the thirty-fourth pass's discovery, pass 1
    complete): a burning arrow stuck BESIDE (not in) a TNT block
    — the reference leaves the TNT standing (the flight-branch
    scan alone consults onEntityCollision), the engine's
    `burningTntPass` detonates it on the next tick. The seat +
    the pass-3 challenge (the flight band's grazing edges named
    in the record) — a compact discovery pass.
-3. ~~VT-014's and VT-015's seats~~ — **DONE (the thirty-third pass,
-   the pass-33 lane — this lane's item taken by the stream that
-   owned the queue head)**: the stuck-position seat, the thin-wall
-   air-stick seat, and the block-break un-stick seat all RED on
-   develop at the predicted deterministic values; both findings
-   CONFIRMED whole (the record above).
+3. ~~VT-014's and VT-015's seats~~ — **DONE BY BOTH LANES IN THE SAME WINDOW** (the honest triple convergence: the pass-33 lane and the pass-34 lane each took the pass-31 handoff's head with INDEPENDENT seat constructions — theirs launch-based, this lane's spawnRestored-deterministic — both RED on develop `6b29c46f` at their own predicted values, and both lanes' pass-3 walks completed the same run): VT-014 and VT-015 CONFIRMED whole, three passes each, **Phase E eligible — item 0 above is the head** (the two lanes' fix-scope mappings AGREE: the placement face−0.05·û rest at the stick site, the tracked-cell model + the per-tick consult + the randomized re-arm + the persistence rows; one PR per finding, separable roots).
 4. The merge watch: #106, #108, #109, #110, #111, #113, #114, #115 all
    open and clean against `6b29c46f` — after the crossing PRs merge,
    the End-origin arm (the forced-spawn consult,
