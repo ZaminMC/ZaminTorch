@@ -3802,6 +3802,7 @@ it), the TNT's survival asserted against the engine's detonation.
 | Item entities / pickup — dimension | the TF-9 stamped sites are the record; the pickup consult un-audited |
 | Projectile family — the stuck arrow's crossing (the portal-lights-later construction) | **VT-013 REJECTED** (the thirty-first pass's pass-3 challenge): the original hypothesis — a portal lighting around an already-stuck arrow crosses it — is disproven by the reference's own tick chain (`ArrowEntity.tick` line 381 calls the box scan from the FLIGHT branch alone; the `inGround` branch at 172-186 runs the stick clock and the tracked-block check only). The corrected seat (`PortalStuckArrowCrossingDiscoveryTest.theStuckArrowStaysWhenThePortalLightsAroundIt`) pins the true law — NO crossing — GREEN on develop AND on the #113 tree. No fix owed. The honest residue re-recorded as VT-014 (the stick placement) and VT-015 (the un-stick law), both below |
 | Projectile family — the stick's bowhit sound | **VT-018 CONFIRMED — three passes complete, Phase E eligible** (the pass-35 lane's source walk + the thirty-ninth's seat and independent challenge): the reference plays `random.bowhit` at BOTH impact arms — the BLOCK stick (ArrowEntity line 303, at the rest position, the pitch `1.2F/(rand·0.2+0.9)` band [1.0909, 1.3333], one draw per stick) and the ENTITY hit (line 276, before the remove); the engine plays NEITHER — the stick arm fires the no-op `onProjectileLanded` fan alone, `hitMob`/`hitPlayer`/`hitVehicle` soundless, `random.bowhit` at the tripwire alone. The seat RED on develop `777b7c86`: the stick in COMPLETE SILENCE (the recorder holding one event — the control pulse), the stuck position matching the known geometry; the POP CONTRAST decisive — the reference's third arrow sound (the pickup pop, line 436) IS wired with the exact pitch formula (the `onProjectileCollected` dispatch), the family's sounds implemented one by one, the bowhit pair alone missing. The fix: both arms play the sound (the arrow kind alone), the manager's `random` the draw source, the seat's pitch-band assert the parity pin |
+| The support consult family — the structural law (`hasSolidTop` / `isSolidBlockingCube`) the engine never wrote | **VT-028 CONFIRMED — three passes complete, Phase E eligible** (F-SP1's lane, the forty-fifth pass — the queue's last uncarried standing lane taken up; the finding first numbered VT-025, renumbered twice at the pushes as the concurrent lanes' findings took the numbers publicly first — VT-025 the piston toBreak (#131's updated title) colliding with the nether border (#133), VT-026 the TNT hiss (#134) and the union's nether-border assignment, VT-027 the union's post-fan stamp — the public-first protocol each time): every support site reads the MOVEMENT consult (`WorldSolidity.isSolid`) or a coarser stand-in (the plain torch's not-air arm, BlockUpdateSystem 445-455) where the reference reads its OWN structural law family — `World.hasSolidTop` (World 1740-1752: `isSolidBlocking && isCube`, the shaped tops, the per-family allowlists — the wire's glowstone, the plate's fence, the torch's canSitOnTop glass/fence/wall), `World.isSolidBlockingCube` (the torch's horizontal mount alone, TorchBlock 69-73) and `Block.isSolid()` (the button/lever side mounts — MaterialSolidity, already written). The TRANSLUCENT materials (glass, leaves, glowstone, TNT, ice, cactus — Material 21's setTranslucent, isSolidBlocking 100-102) fail every floor law: the engine keeps a wire/rail/repeater/comparator/plate/pot/door/tripwire on GLASS forever (vanilla refuses the placement — `BlockItem.useOn` 43's `World.canPlace → canBePlaced`, which the engine's placement gate lacks for EIGHT families — and pops each when the floor becomes glass). The seat (StructuralSupportLawDiscoveryTest, this lane's branch) RED 5/5 on develop `149eb1f0` at exactly the predicted observables (the wire/rail/pot placed on glass, the wire surviving the floor swap, the wall torch hanging on glass) with 7/7 controls GREEN (the stone floors, the glowstone/fence/glass allowlist arms, the vanish pop). The fix shape: the structural helper over BlockSolidity's own documented conjunct tables (minus its signal conjunct) + the shaped-top refinements over the `_top`-suffix ids + the site routings + the eight placement gates; the snow-layer-7 inverse member the named architectural tail (the layer-less id) |
 
 ## The queue for the next pass
 
@@ -3863,10 +3864,17 @@ it), the TNT's survival asserted against the engine's detonation.
    `PlayerManager.changeDimension` lines 473-484) becomes the portal
    family's one remaining architectural tail, and the four families'
    `PortalCooldown` persistence pass opens behind it.
-5. **F-SP1's owed passes** (the twentieth pass's residue, the last
-   uncarried standing lane): the support-consult family's passes not
-   begun. **F-DS1 is CARRIED by PR #118 OPEN** (the double slab's
-   collision row — the review verification the remaining act).
+5. ~~**F-SP1's owed passes**~~ — **DONE (the forty-fifth pass, this
+   lane)**:
+   the support-consult family discovered and confirmed whole as
+   **VT-028** (the record in the forty-fifth pass's section below; the
+   seat `StructuralSupportLawDiscoveryTest` RED 5/5 on develop
+   `149eb1f0`, the controls 7/7 GREEN; three passes complete, Phase E
+   eligible — the fix the next run's head, the bounded split proposed:
+   the structural helper + the floor-law routings first, the torch's
+   dual law + the placement gates second). **F-DS1 is CARRIED by PR
+   #118 OPEN** (the double slab's collision row — the review
+   verification the remaining act).
 5a. **VT-012's own pass** (the pass-30 lane's discovery): the
    `NetherBlastRoutingAcceptanceTest` flake's bounded fix — the
    seat's read order (await the event reference, not the cell
@@ -3878,27 +3886,42 @@ it), the TNT's survival asserted against the engine's detonation.
    the FL4-GAP2 Slice B tail. The blast RNG tail (VT-007's named
    tail): the End/nether services' shared `gameplayRandom` vs the
    reference's per-world `world.random`.
-7a. **THE #131 VT-023 COLLISION** (this pass's closing fetch): PR
-   #131 (the piston toBreak drop consult, `fix/piston-break-drops-
-   parity-audit`) claims VT-023 — but PR #128 (the flight band,
-   opened 06:37:51) owns the number publicly first. The
-   public-first protocol: #131's finding renumbers to **VT-024**
+7a. **THE #131 VT-023 COLLISION** (the thirty-ninth pass's closing
+   fetch): PR #131 (the piston toBreak drop consult,
+   `fix/piston-break-drops-parity-audit`) claims VT-023 — but PR #128
+   (the flight band, opened 06:37:51) owns the number publicly first.
+   The public-first protocol: #131's finding renumbers to **VT-024**
    (the next free number — VT-020/021/022 taken by the spawn floor,
-   the partial-shape face, the piston entity gate); the correction
-   belongs to #131's lane or the next union.
-7. The watch items (the thirty-ninth pass's fetch): **MERGED onto
-   develop `777b7c86`**: #106 (`becf84b0`), #115 (`e17c538b`). The
-   OPEN set: **#108, #109, #110, #111, #113 (the `!inGround` gate
+   the partial-shape face, the piston entity gate). **VT-028 now
+   claimed by THIS lane (the forty-fifth pass — the support consult
+   family, the record below); the next free number VT-029.** (The
+   window's concurrent lanes settled the intervening numbers publicly:
+   VT-024 the arrow pickup envelope (#132, 07:23:08), VT-025 the piston
+   toBreak (#131's title updated 07:29:59, COLLIDING with the nether
+   border's #133 at 07:42:28 — the public-first protocol gives #131 the
+   number, #133's lane owed the renumber), VT-026 the TNT prime hiss
+   (#134, 07:43:50), VT-027 the union's post-fan stamp (the forty-second
+   union's docs claim). This lane's finding takes VT-028, the first
+   number no public artifact claims.)
+7. The watch items (the forty-fifth pass's fetch — develop MOVED to
+   `149eb1f0`, the FL4-GAP2 Slice B landing: the container remainder's
+   dimension ownership; the house's own lane): **MERGED onto
+   develop**: #106 (`becf84b0`), #115 (`e17c538b`). The OPEN set
+   (twenty): **#108, #109, #110, #111, #113 (the `!inGround` gate
    note posted), #114, #116 (VT-017), #117 (VT-014), #118 (F-DS1),
-   #119/#120 (VT-015's convergent carriers)** — #109/#113's coverage
-   VERIFIED (the thirty-first pass's independent seats); VT-021's
-   correction rides the b-branch `237611d3` offered through #117's
-   review; VT-020's (the spawn floor) PR owed on
-   `fix/spawn-floor-solid-top-parity-audit`; VT-012's fix branch owed
-   on `audit/vt-012-spawn-dimension-stamp`. The maintainer owns the
-   pick among the convergent carriers. The pass-30 lane's docs union
-   is DONE (the pass-35 lane's thirty-fifth pass); their engine files
-   stay on the #110 branch.
+   #119/#120 (VT-015's convergent carriers), #121 (VT-020, opened
+   06:04), #122 (VT-021+VT-014, the b-lane), #123 (VT-019), #124
+   (VT-018), #125 (VT-012), #126 (VT-016), #128 (VT-023), #129
+   (VT-022), #130 (VT-013-postfan), #131 (VT-024 per 7a)** —
+   #109/#113's coverage VERIFIED (the thirty-first pass's independent
+   seats); #122/#123/#124/#128 cross-tree verified (the thirty-ninth
+   pass's constructions); the VT-019 stick-tick residue seated RED on
+   the #123+#128 union (the thirty-ninth pass's fifth act — the slice
+   owed its own VT number at the fix). VT-025 (the support consult
+   family, this pass's finding) the fix the next head. The maintainer
+   owns the pick among the convergent carriers. The pass-30 lane's
+   docs union is DONE (the pass-35 lane's thirty-fifth pass); their
+   engine files stay on the #110 branch.
 
 
 
@@ -4495,3 +4518,197 @@ review notes posted (#122, #123, #124, #128, and the union-conflict
 correction on #123/#128); seven new seats on this lane's branch (the
 VT-019 pair, the VT-018 full-boot pair — renamed per the
 file-resolution protocol, the VT-023 pair, the stick-tick seat).
+
+
+## The forty-fifth pass (renumbered at every push — the piston family's sibling lane owns the fortieth name publicly, the arrow family's the forty-first, the union lane's the forty-second, the convergence lanes' the forty-third and the forty-fourth; the established concurrent-stream protocol) — F-SP1 taken up at last (the queue's final uncarried standing lane): the support consult family discovered and confirmed whole as VT-028 — the structural law the engine never wrote
+
+The queue's item 5 named F-SP1 "the last uncarried standing lane" — the
+support-consult family's passes not begun. This pass took it up. The
+baseline moved under the pass: `origin/develop` at `149eb1f0` (the
+FL4-GAP2 Slice B landing — the container remainder's dimension
+ownership; the house's own lane, no interaction with this finding's
+surface). The reference law was read whole, the engine's sites were
+censused, the seat was built and run, and the independent challenge
+walked the compensation hunt, the design-choice question, and the edge
+cases. **Three passes in one run — VT-028 CONFIRMED, Phase E eligible.**
+
+**THE REFERENCE'S LAW MAP** (the support consults are their own law
+family — three distinct laws, none of them the movement consult):
+
+1. **`World.hasSolidTop`** (World.java lines 1740-1752) — the FLOOR
+   law: `material.isSolidBlocking() && block.isCube()`, refined by the
+   shaped tops (a TOP stair, a TOP slab, the hopper, the 7-layer snow)
+   and extended per family by explicit allowlists: the wire's glowstone
+   (RedstoneWireBlock.canBePlaced lines 92-94), the plate's fence
+   (AbstractPressurePlateBlock line 85), the torch's `canSitOnTop`
+   (TorchBlock lines 49-54 — fence, GLASS, the cobblestone wall, the
+   stained glass). Consulted by: the wire's canBePlaced +
+   neighborChanged (RedstoneWireBlock 92-94, 235-244), the diode's
+   canBePlaced + canSurvive (DiodeBlock 29-35, neighborChanged 80-91),
+   the rail's bed AND ascending headwall (AbstractRailBlock 71-73,
+   90-102), the plate's canBePlaced (AbstractPressurePlateBlock 72-74),
+   the door's floor (DoorBlock 175, 214), the pot (FlowerPotBlock
+   137-145), the tripwire's and hook's floors (TripwireBlock 89,
+   TripwireHookBlock 35, 101), the torch's vertical arm and the
+   button/lever's DOWN arm (TorchBlock.canSitOnTop,
+   ButtonBlock.canSurvive line 72 over LeverBlock.canSurvive line 60).
+2. **`World.isSolidBlockingCube`** (World.java lines 1754-1766) — the
+   torch's HORIZONTAL mount ALONE (TorchBlock.canAttach lines 69-73):
+   `material.isSolidBlocking() && isCube()`, no allowlist, no shaped
+   refinement. The GLASS side holds NO torch.
+3. **`Block.isSolid()`** (Block.java lines 274-276, the material
+   consult) — the button/lever's SIDE mounts
+   (ButtonBlock.canSurvive line 72: `facing == DOWN ? hasSolidTop :
+   block.isSolid()`) and the wall sign's behind-consult (WallSignBlock
+   line 45). The engine ALREADY has this law: `MaterialSolidity`
+   (the sign family's twelfth-pass consult).
+
+The material conjunct is the discriminator:
+`Material.isSolidBlocking()` (Material.java lines 100-102) =
+`!translucent && blocksMovement()`, and the TRANSLUCENT materials —
+GLASS (line 21, `setTranslucent()`), the leaves, the glowstone, the sea
+lantern, the TNT, the ice, the cactus (the snow layer) — FAIL it. Every
+floor law therefore refuses them: **vanilla REFUSES to place a wire, a
+rail, a repeater, a comparator, a plate, a pot, a door or a tripwire on
+a glass floor, and POPS each when the floor becomes glass.**
+
+**THE ENGINE'S SITE CENSUS** (develop `149eb1f0`) — every support site
+reads the MOVEMENT consult (`WorldSolidity.isSolid` — what blocks a
+body) or a coarser stand-in, and the glass/leaves/glowstone/TNT/ice
+family is movement-SOLID:
+
+1. `RedstoneSystem.hasSupportBelow` (lines 2297-2299) — the wire (864),
+   the repeater (888), the comparator (903), the weighted plates (963),
+   the plates (974). The javadoc CITES "RedstoneWireBlock.canBePlaced
+   lines 92-94" — the right law, the wrong consult read.
+2. `RedstoneSystem.torchSupported` (lines 1685-1688) — the redstone
+   torch's mount, no horizontal/vertical split (the reference's
+   isSolidBlockingCube/canSitOnTop pair).
+3. `RedstoneSystem.railNeighborChanged` (lines 1155-1160) — the rail's
+   bed and ascending headwall.
+4. `RedstoneSystem.doorNeighborChanged` (line 1047) — the comment CITES
+   "No solid top (World.hasSolidTop)" while the code reads the movement
+   consult.
+5. `RedstoneSystem.leverSupported` (2223) / `buttonSupported` (2229) —
+   the mounts; the reference reads the material law for the side arms
+   (mostly convergent by accident — glass is both movement- and
+   material-solid; the cobweb side and the glass-ceiling DOWN arm the
+   narrow divergent edges).
+6. `TripwireSystem` (88, 229, 338 — the floors; 350, 373 — the hook's
+   walls).
+7. `FlowerPotBlocks` (line 197) + the placement gate's pot arm
+   (EngineServer line 3440) — the comment CITES "must have a SOLID TOP"
+   (FlowerPotBlock.canBePlaced lines 137-139) while the code reads the
+   movement consult. The finding's sharpest single-site member.
+8. `BlockUpdateSystem`'s plain-torch arm (lines 445-455) — the COARSER
+   stand-in: "supported = the floor is not AIR." A floor torch on
+   leaves, on a bottom slab, on a rail — the engine keeps every one.
+9. The placement gate's cake arm (EngineServer line 3437) — the
+   movement consult stands in for CakeBlock.canSurvive's
+   `material.isSolid()` (lines 100-102); near-convergent (the movement
+   exclusions and the PlantMaterial set overlap), the narrow tail.
+10. **THE MISSING GATES**: the placement path consults support for the
+    flora, the cake, the pot and the mushrooms ALONE (EngineServer
+    lines 3413-3457). The wire, the rail, the diode pair, the plates,
+    the torches, the lever, the button and the tripwire have NO
+    placement consult at all — `BlockItem.useOn` line 43's
+    `World.canPlace → block.canBePlaced` consult (the reference refuses
+    the placement itself) has no engine counterpart for eight families.
+
+**PASS 2 — THE SEAT** (`StructuralSupportLawDiscoveryTest`, the full-boot
+deterministic construction, this lane's branch): five finding members,
+all RED on develop `149eb1f0` at exactly the predicted observables, and
+seven controls GREEN (the pop wiring live, the allowlists honest):
+
+- **Member 1, the placement arm** — `submitPlace` a wire on a glass
+  floor: observed `redstone_wire` STANDING (expected AIR — the
+  reference's canBePlaced refuses the placement itself). Control: the
+  wire places on stone (both laws). Allowlist control: the wire places
+  on GLOWSTONE (the reference's own explicit arm, line 93 — the engine
+  right by the movement consult).
+- **Member 2, the survival arm** — a wire standing legally on stone,
+  its floor swapped to glass: observed `redstone_wire` STANDING
+  (expected AIR + the redstone drop — the reference's neighborChanged
+  re-consult pops it). Control: the floor swapped to AIR pops the wire
+  in both models (the pop arm live).
+- **Member 3, the torch's horizontal mount** — a wall torch
+  (`redstone_torch_east`) hung on glass, a neighbor update fired:
+  observed the torch HANGING (expected AIR + the drop — the reference's
+  tryBreak consults isSolidBlockingCube alone for the horizontal arm).
+  Controls: the stone wall holds the torch (both laws); the STANDING
+  torch on a glass TOP stands in BOTH models — `canSitOnTop`'s own
+  allowlist names the glass (TorchBlock lines 49-54), the engine right
+  by the movement consult. The vertical arm's exception is pinned so
+  the fix cannot flip it.
+- **Member 4, the pot's gate** — `submitPlace` a flower pot on a glass
+  floor: observed `flower_pot` STANDING (expected AIR — the gate's own
+  comment cites hasSolidTop). Control: the pot places on stone.
+- **Member 5, the rail's placement arm** — observed `rail` STANDING on
+  glass (expected AIR — AbstractRailBlock.canBePlaced lines 71-73).
+  Control: the rail places on stone.
+
+**PASS 3 — THE INDEPENDENT CHALLENGE**:
+
+1. **The compensation hunt (NEGATIVE)**: no other mechanism pops these
+   families on translucent floors. The `BlockUpdateSystem`'s own-commit
+   law (the changed cell runs its family's onAdded arm ALONE — the
+   twelfth pass's correction, lines 175-207) means a directly-written
+   wire on glass never hears a support check until a neighbor changes;
+   the plain torch's onAdded arm reads the not-air consult (keeps on
+   glass); the neighborChanged walks read the movement consult. The
+   seat's observed values are the behavioral proof — the blocks stood
+   through the settles.
+2. **The design-choice challenge (NEGATIVE — the intent was the
+   reference's law)**: THREE comment/code mismatches — the pot arm
+   ("must have a SOLID TOP"), `hasSupportBelow`'s javadoc (cites
+   RedstoneWireBlock.canBePlaced lines 92-94), the door arm's comment
+   ("No solid top (World.hasSolidTop)") — each site's author intended
+   the reference's law and the wrong consult was wired (the VT-006
+   precedent: an omission, not a choice). The engine's OWN pattern
+   proves the deliberate form: when the sign family's support law was
+   implemented (the twelfth pass), the correct consult was chosen
+   (`MaterialSolidity` — the material law, exactly the reference's
+   StandingSignBlock consult). The support sites predate or missed the
+   structural law, which the engine has never written.
+3. **The edge-case walk**: the allowlist members (wire+glowstone,
+   plate+fence, torch-top+glass/fence/wall) are RIGHT by the movement
+   consult — the fix must preserve them (the seat's controls pin all
+   three). The INVERSE members (missed support): the snow-layer-7 floor
+   (hasSolidTop true — vanilla KEEPS a wire on 7-layer snow; the
+   engine's flora-excluded movement consult pops it) is REAL but
+   ARCHITECTURALLY BLOCKED — the engine's `minecraft:snow_layer` is a
+   single layer-less id, the LAYERS refinement cannot even be
+   expressed; recorded as the named tail. The hopper floor (hasSolidTop
+   explicit) is right by accident (movement-solid). The bottom-slab
+   floor (hasSolidTop false for the bottom half) is another
+   false-support member — the engine's `stone_slab`/`stone_slab_top`
+   ids carry the half, the fix reads the suffix. The lever/button side
+   mounts are near-convergent (glass agrees); the cobweb mount (material
+   true, movement false) and the glass-ceiling DOWN arm are the narrow
+   divergent edges, recorded beside the members.
+
+**THE FIX SHAPE (Phase E, proposed bounded)**: write the structural law
+the engine has never had — a `StructuralSolidity`-style helper:
+`isSolidBlockingCube` = `!MaterialSolidity.isTranslucentMaterial &&
+MaterialSolidity.blocksMovement && isCube` (the very conjunct tables
+`BlockSolidity`'s javadoc already documents, minus its signal conjunct)
+and `hasSolidTop` = `isSolidBlockingCube || top-stairs || top-slab ||
+hopper` (the engine's `_top`-suffix slab/stair state ids; the snow-7
+row the named architectural tail). Then route the sites: the floor
+family (hasSupportBelow → hasSolidTop + the wire's glowstone arm + the
+plate's fence arm), the torch's horizontal/vertical split
+(isSolidBlockingCube / canSitOnTop's allowlist), the rail bed +
+headwall, the door floor, the tripwire floors (the hook walls →
+MaterialSolidity), the pot's gate + arm, the plain torch's not-air arm
+→ canSitOnTop, the lever/button DOWN arm → hasSolidTop (the side arms →
+MaterialSolidity), and the placement gates for the eight families. The
+bounded split: one PR per law family if the maintainer prefers (the
+floor law first — the widest member set), the helper shared. The
+regression surface: the redstone/block-update/container lanes (the
+existing seats' floors are stone — hasSolidTop true — safe), the
+trapdoor's `trapdoorMountHolds` is a DIFFERENT family (untouched), and
+the snow-7 tail stays unfixable until a layer model exists.
+
+**STATUS: VT-028 CONFIRMED — three passes complete, Phase E eligible.**
+The finding keeps its F-SP1 lineage identity (SIGNAL_CONSULT_PARITY_
+FINDINGS.md's standing lane); VT-028 is its ledger number.
