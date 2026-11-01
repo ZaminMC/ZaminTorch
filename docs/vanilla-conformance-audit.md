@@ -2692,7 +2692,7 @@ plus the stone_slab2 bottom row — the same class, its own lane.
 
 ---
 
-## The forty-eighth pass — the numbering collisions resolved by the push-order protocol (the parallel streams' lanes own the fortieth through forty-seventh names publicly — the piston family's #126/#129/#131, the F-SP2 ledger row's #141, the #132/#140 convergence, the VT-028/#136, the VT-030/#140, the FX lane's VT-029, the F-SP1 convergent #137/#138, and the hasSupportBelow three-pass lane — this lane renumbered twice at the push windows, nothing public renamed), the baseline advanced (efcd0c4f), the queue's head (a) taken: the floor-consult family's source pass (F-SP2), the hasSolidTop port's own defects recorded as the law's dependency (F-SP3), then THE HONEST CONVERGENCE — PR #141 the F-SP2 carrier, this lane's independent cross-tree verification, the door member and the hopper arm carried as PR #143 (the rider)
+## The fiftieth pass (renumbered from the forty-eighth at the push — the concurrent lanes took the forty-eighth AND forty-ninth names publicly while this lane's close-record was being written; the established push-order protocol, nothing public renamed) — the numbering collisions resolved, the baseline advanced (efcd0c4f), the queue's head (a) taken: the floor-consult family's source pass (F-SP2), the hasSolidTop port's own defects recorded as the law's dependency (F-SP3), then THE HONEST CONVERGENCE — PR #141 the F-SP2 carrier, this lane's independent cross-tree verification, the door member carried as PR #143 (the rider, rebased onto the carrier's absorbed hopper fix)
 
 The pass-39 lane closed with PR #139 OPEN (the F-SP1 correction over
 develop `149eb1f0`) and the queue re-pinned to four heads: (a) the
@@ -2719,13 +2719,13 @@ PR #139 stand over the fresh baseline. The open PR set at this pass's
 open: 27 PRs (#108–#139, the convergent carriers among them — #137/#138
 the F-SP1 b-lanes beside this stream's #139).
 
-## F-SP2 — the floor-consult family: the wire's, the diodes', the plates' and the door's survival walks (and the five placement gates) answer the one collision-solid question where vanilla answers the structured hasSolidTop laws (+ the wire's glowstone row, + the plates' fence row) (THE HONEST CONVERGENCE — PR #141 the carrier (the pass-47 lane, stacked on #138); this lane's passes 1-2 + the independent cross-tree verification of #141 COMPLETE; THE DOOR MEMBER and the #138 hopper arm CARRIED as PR #143 — the rider over #141)
+## F-SP2 — the floor-consult family: the wire's, the diodes', the plates' and the door's survival walks (and the five placement gates) answer the one collision-solid question where vanilla answers the structured hasSolidTop laws (+ the wire's glowstone row, + the plates' fence row) (THE HONEST CONVERGENCE — PR #141 the carrier (the pass-47 lane, stacked on #138, the hopper rider ABSORBED at 8d2be866); this lane's passes 1-2 + the independent cross-tree verification of #141 COMPLETE; THE DOOR MEMBER carried as PR #143 — the rider over #141's current head)
 
 **Subsystem:** the redstone family's survival walks + the placement
 gates (the block-update dispatch). **Affected version:** all (the
 consult shape predates the slices).
 
-**Status:** the honest convergence — PR #141 OPEN (the pass-47 lane's carrier, stacked on #138; this lane's independent verification of its coverage COMPLETE with TWO GAPS caught: the door member and the #138 hopper arm — both carried as PR #143, the rider). The parallel discovery record: the pass-42 lane's ledger row (F-SP2 pass 1), the pass-47 lane's VT-029 (the three-pass discipline + the carrier), this lane's census (the door + the rail reclassification + the F-SP3 dependency — the two members the other lanes' records lack).
+**Status:** the honest convergence — PR #141 OPEN (the pass-47 lane's carrier, stacked on #138, THE HOPPER RIDER ABSORBED by the author at `8d2be866` — the band-read `startsWith("hopper_")` + the seventh seat guarding; this lane's review comment the trigger); this lane's independent verification of the carrier's coverage COMPLETE; THE DOOR MEMBER — the one family the carrier omits — carried as **PR #143** (the rider, REBASED onto the carrier's absorbed head, carrying the door's two sites alone). The parallel discovery record: the pass-42 lane's ledger row (F-SP2 pass 1), the pass-47 lane's VT-029 (the three-pass discipline + the carrier), this lane's census (the door + the rail reclassification + the F-SP3 dependency).
 
 **Affected ZaminTorch files and methods:**
 
@@ -2963,29 +2963,35 @@ UNTOUCHED (seat 4 still 17 rows RED on the #141 tree — the door family
 absent from the carrier's six arms and its placement-gate set, its
 seat file carrying zero door references).
 
-**THE PHASE E CORRECTION (this lane's unique members, PR #143 OPEN):**
-`fix/door-floor-consult-parity-audit`, the rider over #141's head
-`b09a8ed8` (the stack documented: #138 → #141 → #143, or rebase; the
-merge-order note in the PR body). The three diffs: (1)
-`RedstoneSystem.doorNeighborChanged`'s inline consult swapped to the
-new `doorFloorHolds` (the carrier's per-family shape:
+**THE PHASE E CORRECTION (this lane's unique member, PR #143 OPEN):**
+`fix/door-floor-consult-parity-audit`, the rider over #141. **THE
+ABSORPTION (the honest convergence's own resolution):** the carrier's
+author read this lane's review comment (#141 comment `6556829181`)
+and ABSORBED the hopper arm's repair at their own head (`8d2be866` —
+the band-read `startsWith("hopper_")`, the seventh seat guarding; the
+pass-48 lane's record naming this lane's discovery as "their #138
+dead-arm discovery"). This lane's rider was then REBASED onto that
+head, dropping its own hopper diff (the carrier's form serving) and
+carrying **the door member ALONE** — the re-verification on the
+carrier's current tree: the wire/diode/plate seats GREEN (the hopper
+rows now passing through the absorbed fix), the door seat STILL 17
+rows RED (the family the carrier's arms and seats omit — their seat
+file carrying zero door references). The rider's two diffs:
+(1) `RedstoneSystem.doorNeighborChanged`'s inline consult swapped to
+the new `doorFloorHolds` (the carrier's per-family shape:
 `SupportConsult.hasSolidTop`, the javadoc citing DoorBlock's lines);
 (2) `EngineServer.placeDoorOnTick`'s placement gate the same
-delegation; (3) **the #138 hopper arm's one-line repair** — the
-family check `HopperBlocks.isHopper(type)` beside the bare-name
-equality (#137's form), REQUIRED by the door's own parity pin (the
-hopper a control row of the door's law) and by every other family the
-carrier routes through the class. THE SEATS 4/4 GREEN on the rider
-tree (the wire/diode/plate seats covering the carrier's families
-through the independent construction NOW passing with the hopper arm
-repaired — the pin the carrier's own tree cannot hold); the
-regression lanes 410/0 (the redstone package whole 64 — the carrier's
-seats + the F-SP1 seats + the rider's among them; the block package +
-the interaction lanes 319; the piston family 23). The review comments
-delivered: the verification record + the two gaps on **#141**
-(comment `6556829181`), the dead hopper arm + the one-line fix on
-**#138** (comment `6556831484`) — the maintainer owns the pick (fold
-the door rows and the arm into #141, or merge the rider).
+delegation. THE SEATS 17/0 combined on the rider tree (this lane's 4
++ the carrier's 7 + the F-SP1's 6); the regression lanes 58/0 on the
+rider's direct consumers (the redstone package whole + the door
+family + the block-update system), the wider lanes verified on the
+pre-rebase rider carrying the same door diffs (410/0: the block
+package + the interaction lanes 319, the piston family 23). The
+review comments delivered: the verification record + the two gaps on
+**#141** (comment `6556829181` — the trigger the author answered),
+the dead hopper arm + the one-line fix on **#138** (comment
+`6556831484`) — the maintainer owns the pick (fold the door rows into
+#141, or merge the rider).
 
 **Confidence and remaining uncertainties:** high on the source walk
 (the consult shape is unambiguous and the comments cite the laws they
@@ -3098,7 +3104,7 @@ lines 307-336 — needs the walk re-read at the behavioral pass).
 
 ---
 
-## Coverage ledger (updated by the forty-eighth pass)
+## Coverage ledger (updated by the fiftieth pass)
 
 | Area | Status |
 |---|---|
@@ -3130,7 +3136,7 @@ lines 307-336 — needs the walk re-read at the behavioral pass).
 | Collision shapes — the double slabs' full-cube row | **RESOLVED-BY-PR #118** (F-DS1: the F-DS1 stream's three-pass verification — the ten `_slab`-suffixed doubles carried the HALF box; the rest walks, the side-entry, the isFullCube family all poisoned; the one-arm carve, `DoubleSlabCollisionParityTest` 5/0) |
 | Natural spawn — the spawn floor's consult | **RESOLVED-BY-PR #121** (VT-020: the suffix approximation missed in BOTH directions — the ten doubles refused where `hasSolidTop`'s first arm hosts them, the bottom stairs and the red sandstone bottom single hosted where the HALF==TOP arms refuse them; the one-consult correction with the `double_` carve + the half laws, three seats) |
 | The support-consult family (torch/lever/button/trapdoor mounts) | **F-SP1 CORRECTED — PR #139 OPEN** (`fix/support-consult-family-parity-audit`, `ad71bb32` over develop `149eb1f0`): the three passes whole (the pass-38b source census; the pass-39 behavioral seats — 68 divergent rows RED, all "engine holds where vanilla pops", 30+ agreement controls GREEN; the pass-39 independent pass — the placement-gates census, the compensating hunt NEGATIVE, the intentionality challenge resolved to approximation) + Phase E (the `SupportConsult` correction: the four survival consults + the four placement gates swapped to the reference's laws, the dead fence carve retired, the seats 6/6 GREEN as the parity pins, the piston benches repaired to the vanilla-valid power arrangement, the regression lanes 742/0). The adjacent wire/diode/plate/door floor consults are the named next lanes. |
-| The floor-consult family (wire/repeater/comparator/plate/weighted-plate/door survival walks + the five placement gates) | **F-SP2 — THE HONEST CONVERGENCE COMPLETE (the forty-eighth lane)**: PR #141 the carrier (the pass-47 lane's, stacked on #138 — the wire/diode/plate/rail consults + the placement gates routed through SupportConsult.hasSolidTop); THIS LANE'S RECORD: the source census (the DOOR member + the rail reclassification + the F-SP3 dependency — the two members the other lanes' records lack), the behavioral seats (`FloorConsultParityDiscoveryTest` — 65 divergent row-observations RED on `efcd0c4f`, the 24-row battery), the independent CROSS-TREE verification of #141 (the coverage verified GREEN 23/24 rows per family; TWO GAPS caught — the door rows untouched, the hopper row REGRESSED through #138's dead hopper arm) → **PR #143 OPEN** (the rider over #141: the door's two sites + the hopper arm's one-line family-check repair; the seats 4/4 GREEN; the regression 410/0; the review comments delivered on #141 and #138). The maintainer owns the pick. |
+| The floor-consult family (wire/repeater/comparator/plate/weighted-plate/door survival walks + the five placement gates) | **F-SP2 — THE HONEST CONVERGENCE COMPLETE (the fiftieth lane, renumbered from the forty-eighth)**: PR #141 the carrier (the pass-47 lane's, stacked on #138 — the wire/diode/plate/rail consults + the placement gates routed through SupportConsult.hasSolidTop, THE HOPPER RIDER ABSORBED at 8d2be866 through this lane's review comment); THIS LANE'S RECORD: the source census (the DOOR member + the rail reclassification + the F-SP3 dependency — the members the other lanes' records lack), the behavioral seats (`FloorConsultParityDiscoveryTest` — 65 divergent row-observations RED on `efcd0c4f`, the 24-row battery), the independent CROSS-TREE verification of #141 (the coverage verified GREEN 23/24 rows per family; TWO GAPS caught — the door rows untouched, the hopper row REGRESSED through #138's dead hopper arm) → **PR #143 OPEN** (the rider over #141's CURRENT head, rebased post-absorption, carrying the door's two sites ALONE; the seats 17/0 combined with the carrier's and the F-SP1's; the regression 58/0 direct + 410/0 wider on the same door diffs; the review comments delivered on #141 `6556829181` and #138 `6556831484`). The maintainer owns the pick. |
 | The hasSolidTop structured port (`FireBlocks.hasSolidTop`) | **F-SP3 SUSPECTED** (the forty-first pass's source census): the translucent fallthrough (glass/stained glass/glowstone/leaves/TNT/ice/cactus answer TRUE where the reference's `material.isSolidBlocking()` refuses) + the stone_slab2 bottom row (the `endsWith("_slab")` arms miss the second slab family's states); the consumers: the fire family's own consults + the rail's placement gate AND the rail's survival walk (`RailConnections.survivesAt` — the reclassified consumer, the pass-2 correction); F-SP2's own delegation dependency; its behavioral and independent passes owed. |
 | The slab-family suffix census | INSPECTED (the whole-repository `endsWith("_slab")` census: `BlockSolidity.isCube` and `FireBlocks` already correct with the `double_` carve — the house convention; `CollisionShapes` corrected by PR #118; `NaturalSpawnSystem` corrected by PR #121 (VT-020 — the spawn consult, the directional stair states and the `_slab2` row joining the census); `RedstoneSystem.trapdoorMountHolds` name-based, the double agreeing, the SINGLES' rows F-SP1's lane; the held-id dispatch and the dormant `woodenSlabFamilyOf` unaffected) |
 
@@ -3153,12 +3159,14 @@ lines 307-336 — needs the walk re-read at the behavioral pass).
    standing head (c): the reference's horizontal-walk-then-floor order
    vs the engine's floor-only fallback — the F-SP1 record's named
    tail, its own discovery pass).
-4. **The watch items**: the OPEN PR set — **#143 NEW** (this lane's
-   door rider over #141), #141 (the F-SP2 carrier), the F-SP1
+4. **The watch items**: the OPEN PR set — **#143** (this lane's door
+   rider over #141's CURRENT head, rebased post-absorption), #141 (the
+   F-SP2 carrier, THE HOPPER RIDER ABSORBED at `8d2be866`), the F-SP1
    convergent set #137/#138/#139, and the standing #105-#140 wave; the
-   merge-order question (the hopper arm + the door rows) now before
-   the maintainer through the delivered review comments (#141 comment
-   `6556829181`, #138 comment `6556831484`).
+   remaining merge-order question (the DOOR ROWS alone — fold into
+   #141 or merge the rider) before the maintainer through the
+   delivered review comments (#141 comment `6556829181` — answered by
+   the absorption; #138 comment `6556831484`).
 5. **The standing verification lanes** (the VT-008 protocol — verify,
    not re-fix): VT-010's pass 3 (the wire/legacy suffix-consistency
    walk; PR #111 the open carrier), the crossing families' coverage
@@ -3169,6 +3177,7 @@ lines 307-336 — needs the walk re-read at the behavioral pass).
    arm's world binding — the PR #90 ledger).
 6. ~~The previous pass's head (a) — the adjacent wire/diode/plate/door
    floor consults~~ — **COMPLETE (this lane)**: the honest convergence
-   delivered (the #141 carrier verified through the cross-tree seats;
-   the door member + the #138 hopper arm carried as PR #143); heads
-   (b) and (c) remain items 1 and 3 above.
+   delivered whole (the #141 carrier verified through the cross-tree
+   seats; the hopper arm ABSORBED by the carrier's author at this
+   lane's review comment; the door member carried as the REBASED PR
+   #143); heads (b) and (c) remain items 1 and 3 above.
