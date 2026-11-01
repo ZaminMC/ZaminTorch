@@ -367,17 +367,42 @@ class ProjectileManagerTest {
         // The reference's per-block entity collision (Entity lines
         // 665-689 walking the arrow's box, TntBlock.onEntityCollision
         // lines 91-104 priming every TNT cell a burning arrow overlaps):
-        // a stuck burning arrow on the TNT face primes it; a plain arrow
-        // in the same place never does; a burning arrow away from the
-        // band never does.
+        // a burning arrow dropping onto a TNT cell primes it AT THE STICK
+        // ARM (ArrowEntity lines 311-313, the single-hit-block consult —
+        // the tntIgniteSink arm) and the arrow KEEPS ITS FLIGHT through
+        // the opened cell (the reference's collision consult removes the
+        // block, never the arrow), sticking in whatever stands below; a
+        // plain arrow in the same place never primes; a burning arrow
+        // away from the band never does. The stuck arrow itself consults
+        // NOTHING (the inGround branch, lines 172-186 — VT-019's gate).
         java.util.List<net.zaminmc.torch.block.BlockPosition> primed = new ArrayList<>();
         java.util.Set<net.zaminmc.torch.block.BlockPosition> tntCells = new java.util.HashSet<>(
                 java.util.Set.of(new net.zaminmc.torch.block.BlockPosition(10, 40, 10)));
+        // The floor under the opened TNT cell: the continuation's landing
+        // site (the solid query answers inside the TNT cell and the floor
+        // alone; the plain control's column stays floorless).
+        java.util.Set<net.zaminmc.torch.block.BlockPosition> solidCells = new java.util.HashSet<>(
+                java.util.Set.of(new net.zaminmc.torch.block.BlockPosition(10, 35, 10)));
         ProjectileManager manager = new ProjectileManager(
                 (x, y, z) -> tntCells.contains(new net.zaminmc.torch.block.BlockPosition(
-                        (int) Math.floor(x), (int) Math.floor(y), (int) Math.floor(z))),
+                        (int) Math.floor(x), (int) Math.floor(y), (int) Math.floor(z)))
+                        || solidCells.contains(new net.zaminmc.torch.block.BlockPosition(
+                                (int) Math.floor(x), (int) Math.floor(y), (int) Math.floor(z))),
                 new RiggedHits(), new RecordingCombat(), FX,
                 new Random(3), 3_000);
+        // The stick arm's own consult (ArrowEntity 311-313): the HIT block
+        // alone, on the stick tick — the vanilla path for a burning arrow
+        // landing on TNT.
+        manager.setTntIgniteSink((cell, dimension) -> {
+            if (tntCells.contains(cell)) {
+                primed.add(cell);
+                // The reference's world.removeBlock(pos): the primed cell
+                // leaves the world, and the arrow keeps its flight.
+                tntCells.remove(cell);
+                return true;
+            }
+            return false;
+        });
         manager.setBurningTntArm(new ProjectileManager.BurningTntArm() {
             @Override public boolean isTnt(net.zaminmc.torch.block.BlockPosition pos, int dimension) {
                 return tntCells.contains(pos);
@@ -391,8 +416,8 @@ class ProjectileManagerTest {
             }
         });
 
-        // The burning arrow drops onto the TNT cell and sticks on its
-        // face (the solid query answers inside the cell alone).
+        // The burning arrow drops onto the TNT cell; the plain control
+        // drops over a floorless plain column.
         ProjectileEntity burning = manager.launchVector(
                 ProjectileEntity.Kind.ARROW, -1,
                 new Position(10.5, 44.0, 10.5), 0.0, -1.0, 0.0, 1.0, 0.4, 0);
@@ -407,7 +432,15 @@ class ProjectileManagerTest {
         for (int i = 0; i < 20; i++) {
             manager.tick(java.util.List.of());
         }
-        assertTrue(burning.inGround(), "the burning arrow stuck on the TNT face");
+        // THE CONTINUATION (the reference's own law): the burning arrow
+        // kept its flight through the opened TNT cell and stuck in the
+        // floor below — never at the TNT's face (the collision consult
+        // removes the block, never the arrow).
+        assertTrue(burning.inGround(), "the burning arrow continued through the opened "
+                + "TNT cell and stuck in the floor below");
+        assertTrue(burning.position().y() >= 35.0 && burning.position().y() < 36.0,
+                "the continuation's stick is in the floor cell at y=35; observed "
+                        + burning.position());
         assertTrue(plain.inGround() == false, "the control keeps falling past its plain cell");
 
         assertTrue(primed.contains(new net.zaminmc.torch.block.BlockPosition(10, 40, 10)),

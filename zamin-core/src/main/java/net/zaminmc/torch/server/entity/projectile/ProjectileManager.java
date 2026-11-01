@@ -995,11 +995,15 @@ public final class ProjectileManager {
     /**
      * The burning arrows' per-block TNT walk (the reference's
      * checkBlockCollisions, Entity lines 665-689, over the TntBlock's
-     * onEntityCollision, lines 91-104): every burning arrow — in flight
-     * or stuck in the ground — walks the cells its 0.5 box overlaps (the
-     * faces shrunk by the reference's 0.001) and primes every TNT cell
-     * found. The engine's point-model walks the 0.25 band around the
-     * flight position (the box-center envelope).
+     * onEntityCollision, lines 91-104): every burning arrow IN FLIGHT —
+     * the box scan rides the FLIGHT branch's tail alone (ArrowEntity line
+     * 385; the inGround branch at 172-186 consults nothing, VT-019) —
+     * walks the cells its 0.5 box overlaps (the faces shrunk by the
+     * reference's 0.001) and primes every TNT cell found. The engine's
+     * point-model walks the 0.25 band around the flight position (the
+     * box-center envelope). Stuck arrows are SKIPPED: a burning arrow
+     * stuck beside a TNT block leaves it standing, exactly as the
+     * reference's clock-only inGround branch does.
      */
     private void burningTntPass() {
         if (burningTnt == null) {
@@ -1007,7 +1011,16 @@ public final class ProjectileManager {
         }
         for (int i = projectiles.size() - 1; i >= 0; i--) {
             ProjectileEntity projectile = projectiles.get(i);
-            if (projectile.kind() != ProjectileEntity.Kind.ARROW || !projectile.burning()) {
+            // VT-019 — the reference's stuck arrow consults NOTHING
+            // (ArrowEntity.tick's inGround branch, lines 172-186, runs the
+            // stick clock alone); the box scan rides the FLIGHT branch's
+            // tail alone (line 385) and the stick arm's consult touches
+            // the HIT block alone (lines 311-313, the tntIgniteSink arm
+            // below). A burning arrow STUCK beside a TNT block leaves it
+            // standing in the reference; the ungated pass here walked the
+            // stuck body's band every tick and primed it.
+            if (projectile.kind() != ProjectileEntity.Kind.ARROW || !projectile.burning()
+                    || projectile.inGround()) {
                 continue;
             }
             Position at = projectile.position();
