@@ -3503,7 +3503,10 @@ public final class EngineServer implements Server, EngineBridge {
                 // hook emits the break/place feedback through the FX bus.
                 // Wave FL4-GAP2: the acting world rides the callback — the
                 // chest family's spill walk consults the break's OWN
-                // dimension (a nether break spills the nether's tile).
+                // dimension (a nether break spills the nether's tile); VT-009's
+                // pair-death walks ride the same seat (the door/bed sibling
+                // cleanups read the dig's own world, never another world's
+                // cells at the same coordinates).
                 blockInteraction.setBlockBrokenListener((position, brokenType, actingWorld) -> {
                     // The skull's typed drop (Slice 60 — SkullBlock
                     // .onRemoved lines 132-152): the tile's TYPE rides the
@@ -3547,8 +3550,8 @@ public final class EngineServer implements Server, EngineBridge {
                     noteBlocks.onBlockBroken(position);
                     jukeboxes.onBlockBroken(position);
                     daylightDetectors.onBlockBroken(position);
-                    doorSiblingCleanup(position);
-                    bedSiblingCleanup(position, brokenType);
+                    doorSiblingCleanup(position, actingWorld);
+                    bedSiblingCleanup(position, brokenType, actingWorld);
                     bedSpawnCleanup(position);
                 });
                 // The mining award (the historical dropXp rolls): a survival
@@ -14539,13 +14542,16 @@ public final class EngineServer implements Server, EngineBridge {
 
     /**
      * Breaking one half removes the other (the two-block block dies as a
-     * unit; one door item drops from the broken half's behavior table). The
-     * break has already committed, so the survivor is whichever door half
-     * sits directly above or below the air — the pair must belong to the
-     * same family (DoorBlock.neighborChanged's own blockstate.getBlock()
+     * unit; one door item drops from the broken half's behavior table) —
+     * IN THE DIG'S OWN WORLD, the reference's per-world neighborChanged
+     * dispatch (a wrong-world break never consults another dimension's
+     * cells at the same coordinates). The break has already committed, so
+     * the survivor is whichever door half sits directly above or below
+     * the air in the ACTING world — the pair must belong to the same
+     * family (DoorBlock.neighborChanged's own blockstate.getBlock()
      * != this test). Tick-thread context.
      */
-    private void doorSiblingCleanup(BlockPosition broken) {
+    private void doorSiblingCleanup(BlockPosition broken, EngineWorld world) {
         BlockType below = world.getBlock(broken.offset(0, -1, 0));
         BlockType above = world.getBlock(broken.offset(0, 1, 0));
         boolean belowDoor = isDoorHalf(below);
@@ -14581,12 +14587,14 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /**
-     * The bed pair break (the vanilla unit rule): breaking one half removes
-     * the other — a foot takes its head, a head takes its foot. The sibling
-     * is the horizontal neighbor of the opposite half class (two adjacent
-     * beds never share a class across the pair line). Tick-thread context.
+     * The bed pair break (the vanilla unit rule, in the dig's OWN world —
+     * BedBlock.neighborChanged's per-world dispatch): breaking one half
+     * removes the other — a foot takes its head, a head takes its foot.
+     * The sibling is the horizontal neighbor of the opposite half class
+     * IN THE ACTING WORLD (two adjacent beds never share a class across
+     * the pair line). Tick-thread context.
      */
-    private void bedSiblingCleanup(BlockPosition broken, BlockType brokenType) {
+    private void bedSiblingCleanup(BlockPosition broken, BlockType brokenType, EngineWorld world) {
         if (!isBedHalf(brokenType)) {
             return;
         }
@@ -22630,8 +22638,11 @@ public final class EngineServer implements Server, EngineBridge {
             var type = world.getBlock(at);
             world.setBlock(at, world.airType());
             // The door halves die as a unit (the engine's own cleanup the
-            // player break path carries — DoorBlock.onRemoved's pair).
-            doorSiblingCleanup(at);
+            // player break path carries — DoorBlock.onRemoved's pair). The
+            // arm passes the SAME world its own read and removal already
+            // consult — the zombie lane's world binding is its own ledgered
+            // row and is deliberately unchanged by this fix.
+            doorSiblingCleanup(at, world);
             Position center = new Position(x + 0.5, y + 0.5, z + 0.5);
             for (MobManager.Listener listener : mobListeners) {
                 listener.onWorldEventAt(center, 1012, mob.dimension());

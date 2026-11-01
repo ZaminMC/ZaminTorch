@@ -93,10 +93,13 @@ public final class BlockInteractionService {
     private final java.util.function.Consumer<PlayerSession> inventorySync;
     /**
      * The post-break hook (Wave FL4-GAP2 — the acting world rides the
-     * callback, the FL4-F8 listener form): fires on the tick thread after a
-     * break commits, with the broken block's position, its pre-break type,
-     * and the world the break walked (the acting player's own — the tile
-     * cleanups route their per-dimension state through it).
+     * callback, the FL4-F8 listener form; VT-009's pair-death walks ride
+     * the same seat): fires on the tick thread after a break commits,
+     * with the broken block's position, its pre-break type, and the world
+     * the break walked (the acting player's own — the reference's
+     * per-world neighborChanged dispatch: the tile cleanups AND the
+     * door/bed pair walks route their per-dimension state through it,
+     * never another world's cells at the same coordinates).
      */
     @FunctionalInterface
     public interface BlockBrokenListener {
@@ -951,7 +954,8 @@ public final class BlockInteractionService {
         }
         if (listener != null) {
             // Wave FL4-GAP2: the acting world rides the callback — the tile
-            // cleanups route their per-dimension state through it.
+            // cleanups and VT-009's pair-death walks route their
+            // per-dimension state through it (the dig's own dimension).
             listener.onBlockBroken(target, current, world); // container spill runs after the block is gone
         }
         BreakReport report = breakReport;
@@ -1110,8 +1114,12 @@ public final class BlockInteractionService {
     /**
      * Registers the post-break hook invoked on the tick thread after a break
      * commits (the broken block's position, its pre-break type, and the world
-     * the break walked). Used by the engine to spill container contents
-     * (furnace slots) into the world and to invalidate bed spawns.
+     * the break walked — the ACTING world, the reference's per-world
+     * neighborChanged dispatch: the pair-death walks and the cleanups read
+     * the dig's own dimension, never another world's cells at the same
+     * coordinates). Used by the engine to kill door/bed pairs as a unit, to
+     * spill container contents (furnace slots) into the world and to
+     * invalidate bed spawns.
      */
     public void setBlockBrokenListener(BlockBrokenListener listener) {
         this.blockBrokenListener = listener;

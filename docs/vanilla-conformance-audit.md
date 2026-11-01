@@ -2494,7 +2494,6 @@ its own finding, pass 1 complete, the seats owed):**
   thirty-first's protocol), deferred behind VT-014/VT-015's own
   corrections — the edge is RECORDED, not forgotten.
 
-
 ## The thirty-fifth pass (this lane — first numbered the thirty-second, renumbered twice mid-flight: the fourth stream's lane took the thirty-second's name, the sibling lane the thirty-third and the thirty-fourth; the established concurrent-stream protocol) — VT-014 and VT-015 verified whole (the seats + the independent walks: both CONFIRMED, three passes each, fix-ready), VT-018 discovered (the stick's bowhit sound), the pass-30 lane's docs union landed
 
 The baseline advanced to `6b29c46f` (the vine family's wire rows —
@@ -2948,7 +2947,6 @@ Named tails recorded (each its own pass, not owed by this correction):
    the wire — the objects' spawn carries no yaw in 1.8.8). The
    reference's boats/carts DO carry a rendered heading; the modeling
    gap predates this arm (the seat does not pin the arrival yaw).
-
 ## The twenty-seventh pass (the bed-coverage lane) — VT-008's verification completed (#102's coverage independently confirmed) + the multi-part pair-integrity arms discovered (VT-009)
 
 PR #98 has MERGED (the mobs family's entity-level crossing); the
@@ -3766,6 +3764,366 @@ it), the TNT's survival asserted against the engine's detonation.
   the import's isolated-row note shrinks when the rows land.
 
 
+## The thirty-sixth pass — the five-lane union landed (the pass-36 lane's deferred item 0a), the baseline advanced to `777b7c86`, and the end-of-run burst's five PRs recorded
+
+The union this pass opens with: the pass-35 lane's pushed branch
+(`a8c79f5f` — their seat set y=20.919 / z=41.486 / the pedestal
+break, their pass-3 walks, their VT-018 the bowhit sound, the
+pass-30 docs union) merged into the pass-36 lane's record whole
+(both thirty-fifth sections standing under their own names — the
+QUADRUPLE convergence on VT-014/VT-015 now recorded from all four
+constructions). The bookkeeping-only conflict map their queue named:
+the grazing-bullet tail, their pass-3 walks + the ledger heading,
+the arrow-family rows, and the queue — resolved as the union, the
+TNT re-prime row renumbered to its final **VT-019**.
+
+The baseline advanced to `origin/develop` `777b7c86`: PR #106
+MERGED (the break-path door/bed pair walks' world binding), PR #107
+MERGED (the mob portal cooldown's one-per-tick decay), PR #115
+MERGED (the anvil import's OCCUPIED bed states), plus the house's
+flake retirements (runs 580/581/582) and the vine wire repair's
+follow-on doc close.
+
+**The end-of-run burst's five PRs** (fetched this pass; all five
+created 05:34-05:46 UTC, all targeting `develop` at base `6b29c46f`):
+
+- **PR #117 — VT-014** (`fix/arrow-stick-placement-parity-audit`):
+  the stick placement's face−0.05 rest (the ray-stick placement
+  walk), the tracked-cell recording, the kept face-vector velocity,
+  the landed wire publication.
+- **PR #119 — VT-015** (`fix/arrow-unstick-tracked-block-parity-
+  audit`): the tracked-block lane's carrier — the `landInGround`
+  tracked-cell signature, the per-tick identity consult, the
+  `ArrowUnstickParityTest` seat (the popped arrow RE-STICKS row
+  re-pinned at `77a052a1`).
+- **PR #120 — VT-015** (`fix/arrow-unstick-parity-audit`): the
+  unstick lane's carrier — the `ArrowUnstickDiscoveryTest` +
+  `ArrowUnstickVerificationTest` seats (the rename protocol's
+  canonical names), a consult shape landing without #117's
+  tracked-cell recording.
+- **PR #116 — VT-017** (`fix/grass-shade-parity-audit`): the
+  grass-decay shade law (the reference's two conjuncts).
+- **PR #118 — F-DS1** (`fix/double-slab-collision-parity-audit`):
+  the double slab's full-cube collision row.
+
+**The VT-015 duplication** (queue item 0): two carriers for one
+confirmed finding — the one-PR-per-issue rule's violation to
+resolve this pass's next act. Neither carrier is stacked on #117;
+the kept tree owes the VT-014 interaction check.
+
+**The VT-015 carrier resolution (queue item 0, DONE this
+pass)**: both carriers verified green standalone in fresh runs this pass
+(#119's `ArrowUnstickParityTest` 2/0; #120's five seats 11/11 — the
+Discovery/Verification constructions, the VT-013 no-crossing guard, the
+pickup regression 8/0, the import regression 6/0), and the core law is
+identical in both trees (the tracked-cell stamp, the per-tick identity
+consult in the body's own dimension, the per-axis `nextFloat()*0.2`
+re-arm, both clock resets, the un-stick tick ending the branch). **The
+pick: #120 is the keeper** — it carries the confirmed fix scope's
+remaining member (the import persistence rows: `readCustomNbt` lines
+402-413, `restoreGrounded`'s 5-arg form + the `AnvilWorldImport` rows)
+where #119 defers them as the cell-less §31.6 tail. **#119 closed** with
+the comparison comment (`#issuecomment-6554239228`); its unique members
+recorded for salvage (the `SolidConsult` default-method extension — no
+new interface; the re-stick parity pin at `77a052a1` — the popped arrow
+RE-STICKS in the swapped-in solid, a placement-independent lifecycle
+assertion #120's seats do not carry).
+
+**The VT-014 interaction check (the kept tree's owed run, DONE)**: #117 ∪
+#120 merges with ONE textual conflict at the shared stick site (the
+`landInGround` call in `resolveCollisions`' block-hit arm) — the designed
+composition, #117's `stickRestPosition` teleport preceding #120's
+tracked-cell stamp. The union tree (local-only, no branch pushed) runs
+the arrow family **21/21** and the projectile package **48/48** green
+(fresh runs: `ArrowStickPlacement*` 4/0, `ArrowUnstick*` 2/0, the VT-013
+guard 1/0, `ArrowPickupTest` 8/0, `AnvilImportAcceptanceTest` 6/0,
+`BowFamily`/`FireballDeflection`/`FireworksAndBottle`/
+`GhastFireballFlightParity`/`ProjectileDimensionReads`/
+`ProjectileManager`/`WitherSkull` 48/0 whole). The named nuance for the
+merge order: the reference stamps the RAY hit's cell (the face walk's
+entered cell) while the engine's hit model samples `point` — the cells
+coincide in every seat geometry, the difference below the engine's
+sampling granularity (the union's comment block records it at the site).
+
+**The crashed session's worktree draft** (recovered before any
+reset): the combined VT-014+VT-015 single-tree form — the stick
+placement walk and the tracked-cell recording in one
+`ProjectileManager`, the `stickIn` method with the tracked rows,
+the `EngineServer.blockTypeAt` consult — superseded by the pushed
+carriers, preserved whole at `archive/vt014-vt015-combined-draft`
+(`967cf1f4`); its three seat files are byte-identical to #117's
+branch.
+
+## VT-025 — the burning arrow's TNT hit never sticks the arrow: the engine primes and continues the flight; the reference sticks at the face−0.05 rest, primes, then un-sticks when the TNT's removal opens the tracked cell (SUSPECTED — pass 1, the source walk; FIRST NUMBERED VT-022 by this lane — renumbered by the forty-first pass's reconciliation: PR #129's piston entity gate took the number publicly first, and the number is yielded to the stronger public artifact per this lane's own twice-renumbered precedent)
+
+- **Status:** suspected (pass 1 complete — the source walk, both sides
+  read this pass; discovered during the PR #123 review; the
+  forty-first pass re-verified the reference's arm ordering directly
+  — `playSound` at 303, `inGround = true` at **304**, the consult at
+  **308**, `TntBlock.onEntityCollision`'s ignite + `removeBlock` at
+  91-104 — and confirmed the b2 lane's reworked unit seat pins the
+  ENGINE's flight-continues shape, not the reference's).
+- **Subsystem:** projectile physics — the block-hit arm's burning-TNT
+  consult (the arrow's post-priming trajectory; composes with VT-014's
+  placement and VT-015's un-stick law).
+- **Affected engine files/methods:**
+  `ProjectileManager.resolveCollisions`' block-hit arm — the
+  `tntIgniteSink.ignite(...)` → `return false` at lines 1188-1193 (the
+  ignite consult PREEMPTS the stick: a burning arrow whose sample lands
+  in a TNT cell never reaches `landInGround`, keeping its flight at full
+  speed through the opened cell); `ProjectileManagerTest
+  .aBurningArrowPrimesTheTntItOverlaps` (the pass-37 lane's
+  re-mechanized unit test PINS the flight-continues shape as "the
+  engine's documented" form — the pin is the divergence itself).
+- **Vanilla reference (the chain, every line read this pass):**
+  `ArrowEntity.tick`'s stick arm — the tracked cell stamped at
+  289-295, the velocity := face−pos at 296-298, the 0.05 backoff at
+  300-302, `inGround = true` at **line 304**, and ONLY THEN the
+  hit-block consult at **line 308** (`onEntityCollision` →
+  `TntBlock` lines 91-104: the flame arrow's `isOnFire` gate, the
+  ignite, and `world.removeBlock(pos)` — the TNT cell becomes AIR).
+  The next tick's `inGround` branch (172-186): the tracked cell (TNT)
+  now reads AIR → **the un-stick** — `inGround = false`, the
+  per-component `random.nextFloat()*0.2` re-arm over the STORED
+  face-relative vector, both clocks reset — the arrow hops/falls out
+  NEAR the TNT, ahead of the ~80-tick fuse, and the later explosion
+  scatters it.
+- **Expected behavior:** a flame arrow shot at a TNT block sticks at
+  the face, primes it, un-sticks when the cell opens, and ends up on
+  the ground beside the TNT.
+- **Observed behavior (the engine, on develop and on every open fix
+  tree incl. #123's and #117's rider `dd29ee01`):** the block-hit
+  arm's ignite returns false — the arrow NEVER STICKS, flying through
+  the opened cell at speed; it ends up far beyond, wherever the
+  terrain catches it. (The rider keeps the face vector at the STICK
+  site alone; the ignite path at 1188-1193 returns BEFORE any stick —
+  the preemption is untouched by every open PR.)
+- **The precise divergence:** the consult's position in the chain —
+  the reference consults AFTER the stick (the arrow already
+  `inGround`, resting at face−0.05); the engine consults INSTEAD OF
+  the stick. The engine's own javadoc ("the reference's collision
+  consult removes the block, never the arrow") conflates "the consult
+  does not remove the arrow" with "the arrow keeps flying" — the
+  arrow is STUCK when the consult fires; what removes it from the
+  face is VT-015's un-stick law on the NEXT tick, with the randomized
+  hop, not the flight.
+- **The two consults' distinct roles (the walk's map):** the reference
+  has TWO onEntityCollision sites and they answer DIFFERENT
+  constructions — (1) the flight tail's box scan (line 382): a FLYING
+  arrow whose 0.5 box GRAZES a TNT cell primes it WITHOUT any hit or
+  stick (the engine's flying band walk, `burningTntPass` post-#123,
+  is this site's carrier — correct, modulo the band-shape tail); (2)
+  the stick arm's hit consult (line 308): the ray HITS the TNT —
+  stick THEN prime (the engine's block-hit arm carries the prime but
+  drops the stick — this finding). #123's gate is right for site (1);
+  this finding is site (2).
+- **Reproduction (the seat owed, pass 2):** a flame arrow shot
+  straight at a lone TNT block — the reference's answer: the arrow
+  grounded beside the TNT after the un-stick hop + fall (inGround
+  true again after re-sticking on the terrain, its position within a
+  few blocks of the TNT); the engine's answer: the arrow flying
+  through / stuck far beyond. The control in
+  `StuckBurningArrowTntDiscoveryTest` asserts the PRIME alone (both
+  sides agree) — the arrow's state post-priming is unpinned there.
+- **Verification history:** pass 1 (this pass, the #123 review): the
+  source walk — the reference's arm ordering (304 before 308) and
+  TntBlock's removeBlock read directly; the engine's preemption read
+  directly; the pass-37 record's own "flight-continues" pin located in
+  the re-mechanized unit test. Passes 2-3 owed.
+- **Confidence:** high on the divergence itself (the reference's arm
+  ordering is unambiguous); the fix shape — drop the ignite-return-
+  false preemption, let the arrow stick (the tracked cell = the TNT
+  cell), and let the consult ride AFTER the stick exactly as the
+  reference orders it — composes with #117's placement rest and
+  #120's un-stick law into the reference's whole chain.
+- **Regression risks:** the unit test's flight-continues pin must be
+  re-pinned to the reference's chain (the pass-37 lane's own
+  re-mechanization inverted the shape); the mid-flight band walk's
+  semantics for the genuinely-flying arrow must survive untouched
+  (#123's gate); the `return false` path also serves the case where
+  the arrow's own consult opens the cell for a LATER sample — the fix
+  removes that path's only user at this arm, and the flight band
+  walk carries the grazing law alone.
+
+**The kept-face-vector rider LANDED on #117** (`dd29ee01`, the
+sibling lane's named gap closed the same pass): the reference's stuck
+velocity is the face-relative vector (ArrowEntity lines 296-298 —
+`(float)(facePos - pos)`, the remaining step of the crossing tick; the
+tail advance at 328-330 consumes it for the position while leaving it
+standing; the `inGround` branch never touches it, the engine's
+`integrate` gate its own 1:1), and its ONLY consumer anywhere is the
+un-stick arm's `random*0.2` damping (lines 179-186) — the un-stuck
+arrow hops up to a fifth of its remaining step along the flight
+direction instead of falling straight down. The engine's
+`landInGround()` zeroed it, so the hop composed over zero on every
+tree (develop, #117, #119, #120 alike). THE REPAIR: the face walk
+widened into the `StickSite` record (the rest + the vector, the walk's
+own `remain` — no second derivation); the stick arm's
+`landInGround(double, double, double)` overload keeps the vector, the
+bare zeroing form staying for the same-cell residue; the wire
+UNTOUCHED (`sendProjectileMoved` is the position-only teleport; the
+reference's tracker never marks a stuck arrow `velocityChanged`).
+THE SEAT (SEAT C, stash-discriminated): a `spawnRestored` arrow
+exactly one block above the face at velocity −1.0 — the crossing tick
+starts at `from = face+1.0`, so the remaining step is EXACTLY −1.0
+independent of the drag chain — pinning the stuck velocity at
+(0, −1, 0); **RED on the pre-rider tree** (`Observed: vy=0.0`),
+**GREEN on the rider**. REGRESSION: the stick family 5/0, the VT-013
+guard 1/0, the projectile package 48/0, the portal neighbors — 61/0.
+THE RIDER-UNION RE-RUN (#117+rider ∪ #120, local-only): **62/0 whole**
+— the composition now carries the reference's un-stick hop (the kept
+vector × `random*0.2`, the arithmetic composition both seats pin from
+their own sides).
+
+## VT-019 — the stuck burning arrow's TNT re-prime (CONFIRMED — three passes complete; the correction is PR #123 OPEN — the first carrier; this session's #127 CLOSED as the same-window duplicate)
+
+- **Status:** CONFIRMED (pass 1 the thirty-fifth lane's source walk,
+  re-verified this pass; pass 2 the behavioral seat below; pass 3 the
+  independent walk below). The correction opened TWICE in the same
+  window — the sibling lane's **PR #123** first, this session's **PR
+  #127** second (the concurrent-session race, the #119/#120 precedent)
+  — **#123 is the keeper** (the first carrier; #127 CLOSED with the
+  comparison comment, its unique members named for salvage: the
+  discovery seat `BurningArrowTntPrimeDiscoveryTest` and the unit
+  test's review correction). **The unit-test correction in BOTH
+  carriers pins the flight-continues shape that VT-025's pass-1 record
+  names as the divergence itself** — the pin re-pins when VT-025's
+  own correction lands (the stick-then-prime-then-un-stick order).
+- **Subsystem:** projectile physics — the burning arrow's TNT consult
+  (the Flame bow's observable).
+- **Affected engine files/methods:**
+  `ProjectileManager.burningTntPass` (the tick's tail walk — no
+  `inGround` gate) + its javadoc's over-generalization ("in flight or
+  stuck in the ground").
+- **Vanilla reference:** `ArrowEntity.tick` — `checkBlockCollisions`
+  at line 382 (inside the flight branch's `else`, opened at line 188)
+  over `Entity.checkBlockCollisions` lines 665-689 (the 0.001-shrunk
+  box walk) + the stick arm's single-hit-block consult at lines
+  311-313; the `inGround` branch at 172-187 runs the stick clock and
+  the tracked-cell identity consult only.
+- **Expected behavior:** a burning arrow stuck beside — or in the same
+  cell as — a TNT block leaves that TNT standing, forever (the stuck
+  arrow consults nothing beside its tracked cell). A burning arrow
+  flying INTO a TNT block primes it AT the stick (311-313) and the
+  primed cell's opening un-sticks the arrow the next tick.
+- **Observed behavior (the seat, RED on develop):** a burning
+  `spawnRestored` arrow stuck into a stone platform (the face+0.05
+  rest, the tracked cell the stone); TNT placed in the arrow's OWN
+  rest cell (the tracked cell untouched — the reference's no-consult
+  construction). The engine's answer at the cell: **AIR** — the TNT
+  detonated within the tick of the placement (the defect's own
+  signature: the seat's first form could not even OBSERVE the
+  placement standing, the await starved before the re-pinned form
+  confirmed the placement through the task's own flag). The
+  flight-prime control seat GREEN before and after.
+- **Pass 3 (the independent walk):** (a) the single-call-site
+  verification — `checkBlockCollisions` appears EXACTLY ONCE in
+  ArrowEntity (line 382, the flight branch); (b) the intent challenge
+  — the javadoc's citation is a MISREAD, not an intentional
+  divergence (it names `Entity` lines 665-689 for the scan mechanics —
+  correct, the engine's ±0.25 band is exactly that box walk's
+  point-model envelope — but claims the reference runs it for stuck
+  arrows too; the call-site gate says otherwise); (c) no compensating
+  behavior (the fire clock survives the stick — `tickFire` only
+  decrements; nothing re-gates the pass); (d) the #120 composition
+  edge — a tracked cell replaced BY TNT: the reference un-sticks on
+  the identity mismatch and the flight scan primes the NEXT tick,
+  while the ungated engine primed on the swap tick itself — the gate
+  aligns the timing; (e) the named tail stands (the in-flight band's
+  symmetric ±0.25 against the reference's feet-anchored box
+  `[y, y+0.5]` — the grazing half-cell edge, the portal consults'
+  class — NOT this correction's scope).
+- **The correction:** `|| projectile.inGround()` joins the pass's skip
+  condition; the javadoc corrected to the flight-alone law. **The one
+  review correction carried:**
+  `ProjectileManagerTest.aBurningArrowPrimesTheTntItOverlaps` — the
+  old rig left the flight consult's sink DEAD
+  (`setBurningTntArm` alone) so its arrow stuck INTO the TNT cell and
+  the ungated pass did the priming (the one shape the reference never
+  produces); the corrected rig wires BOTH sinks (as the real engine
+  wires both to the one `tntSystem`) and the assertions re-pin the
+  flight law (the prime on entry, the flight continuing through the
+  opened cell, never sticking).
+- **Regression:** the projectile package whole **50/0** (the corrected
+  seat included), the TNT neighbors (`NetherTntRouting`,
+  `ExplosionTntRedstoneApi`, `ExplosionEntityGather`) green.
+
+## The thirty-sixth pass's review record — the five end-of-run-burst PRs independently reviewed (this lane's verification pass)
+
+This lane's head after the union was the independent review of the
+sibling lanes' corrections — the review notes posted on the PRs, the
+evidence fresh-run in this pass's worktrees:
+
+- **PR #123 (VT-019, the stuck burning arrow's TNT gate)** — VERIFIED:
+  the `!inGround` gate is exactly the minimal correction
+  (`checkBlockCollisions` rides `ArrowEntity.tick` line 382 inside the
+  flight branch alone; the `inGround` branch at 172-186 runs the stick
+  clock and the tracked-block check only). Fresh runs: the seat 2/0,
+  the projectile package 48/0, TntSystem 2/0, NetherTntRouting 1/0,
+  ExplosionTntRedstoneApi 2/0, HopperSuckBand 5/0 — all green. The
+  review's own product: **VT-025 discovered** (first numbered VT-022 here; the block-hit arm's
+  stick preemption — the record above; the note on #123 posted).
+- **PR #116 (VT-017, the grass-decay shade law)** — VERIFIED FAITHFUL:
+  the two-conjunct law (`getRawBrightness(pos.up()) < 4 &&
+  getOpacity() > 2`, GrassBlock.tick lines 49-52) with the opacity
+  consult mapped through the vanilla-1:1-audited `BlockLightTable`
+  (full cubes 15, water/ice 3, leaves 1, glass/chest/snow-layer 0 —
+  the constructor default `isSolidRender() ? 255 : 0` at Block.java
+  line 216 behind them); both engine arms (the update walk + the
+  random tick) corrected; the one-arg `getRawBrightness` reads the
+  stored light (no darkness subtraction) — the engine's
+  `max(blockLight, skyLight)` at the cover cell matches. Fresh runs:
+  the seats 6/0 on the fix tree, **4/6 RED on the develop baseline**
+  (the seat file copied onto `777b7c86` — the four shade-law seats
+  failing, the two stone controls passing on both trees: the contract
+  holds), BlockUpdateSystemTest 6/0, RandomTickSystemTest 3/0. Two
+  narrow residues named in the note: (1) the water cover's
+  `usesNeighborLight` branch (World.java 449-481 — the reference reads
+  the four horizontal neighbors + up for a water cover; the engine
+  reads the cell's own stored light; a pool-edge cell with neighbor
+  light 4-6 against the cell's own < 4 diverges), and (2) the
+  update-walk arm's instant timing (vanilla's decay rides the random
+  tick alone — ~68 s average at the default rate; the engine's update
+  arm decays on the placement's own drain; a strict improvement over
+  the old allowlist arm, the timing shape an inherited residue).
+- **PR #118 (F-DS1, the double slab's full-cube collision row)** —
+  VERIFIED FAITHFUL: `SlabBlock.updateShape` lines 39-52
+  (`isDouble() → setShape(0,0,0,1,1,1)`) with `isCube() = isDouble()`
+  (line 71); the suffix carve placed after the stair states and before
+  the singles' half rows; all 13 registered double names covered by
+  the four suffix patterns (the non-slab `double_` plants correctly
+  falling through). Fresh runs: the seats 5/0 on the fix tree, **4/5
+  RED on the develop baseline** (the `_slab`-suffixed doubles failing;
+  the three fall-through names passing on both trees — the PR's own
+  story), and the whole `server.block` package green — 51 classes,
+  337 tests, 0 failures, the neighboring slab lanes
+  (CollisionShapeTest 19/0, DoubleStoneSlabFamily 2/0,
+  DoubleWoodenSlab 2/0) unregressed. One consistency note in the
+  review: the carve is name-based like the file's established style —
+  a future double-slab name without one of the four suffixes would
+  fall to the singles' half rows silently (no such name today).
+- **PRs #117/#119/#120** — reviewed earlier in the pass (before the
+  sibling session's carrier resolution landed): all three carriers'
+  seats + regressions verified green in this lane's worktrees
+  (#117's 5/0 + 48/0; #119's 2/0 + 48/0; #120's 3/0 + 48/0 + the
+  anvil family 47/0), the #117∪#120 union tree built and verified
+  green whole (53/0 + 47/0) with the one-region conflict resolved in
+  the reference's own arm order, and the velocity-composition gap
+  flagged in this lane's reconcile — closed by the sibling session's
+  rider `dd29ee01` the same pass (SEAT C stash-discriminated, the
+  rider-union 62/0). The carrier resolution itself (#119 closed,
+  #120 the keeper) was the sibling session's act, verified and kept
+  in the union.
+- **The VT-020/VT-021 numbering collision** — resolved and posted
+  cross-lane on PRs #121 (the pointer) and #122 (the disambiguation):
+  the spawn-floor claim is earlier on the public record (PR #121
+  created 06:04:43 vs the partial-shape record's push 06:05:09), so
+  the spawn floor keeps VT-020 and the partial-shape stick face
+  renumbers **VT-021** — the pass-38b lane's own resolution
+  (`1f62e71d`), carried to the PR level by this lane's notes so both
+  lanes and the maintainer see it.
+
+
 ## Coverage ledger (updated by the thirty-sixth pass — the FIVE-LANE UNION: the pass-32 refresh + the pass-33/34/35/36 projectile rows, the Phase E corrections’ records unioned)
 
 | Area | Status |
@@ -3786,13 +4144,14 @@ it), the TNT's survival asserted against the engine's detonation.
 | Drops — the TF-9 dimension stamp | RESOLVED (PR #90's riders adopted; the tile-family spill sites remain the per-dimension tile tail) |
 | Tile families — per-dimension stores | the CHEST family LANDED by **Wave FL4-GAP2 Slice A** (`2d0f74af`: three ChestManager instances, the ZCD v3 dimension stamp, the consult sites routed — `ChestDimensionOwnershipAcceptanceTest` 4/0 the record); Slice B's honest tail: the hopper system, the ContainerViews, the furnace/dispenser/brewing families stay single-instance |
 | Block updates — the multi-part families' pair-integrity arms | TWO arms in flight, ONE landed: the BED family's neighborChanged self-removal arm (**VT-009 the bed-coverage lineage's claim — CONFIRMED, three passes, PR #114 OPEN**); the break-path pair walks' world binding (**VT-009 the pass-28 lane's claim — RESOLVED — PR #106 MERGED** `becf84b0`, its review correction carried); the bed pair's sibling resolution (**VT-010 — CONFIRMED, PR #111 OPEN**). The DOOR family's neighborChanged arm EXISTS (`RedstoneSystem.doorNeighborChanged`, DoorBlock lines 157-198 — the door half REJECTED by its own green seat, now the regression guard) |
-| Grass decay — the shade consult | **VT-017 SUSPECTED** (the bed-coverage lane's twenty-seventh pass, renumbered): the engine's `isOpaque` 3-block allowlist (air/torch/glass) stands in for the reference's opacity law (`getOpacity() > 2` — every non-solid-render block answers 0) — the grass dies under beds, flowers, slabs, stairs where vanilla keeps it; one source pass + the OBSERVED dirt-under-bed evidence from the VT-009 trace; this pass takes the seats up |
+| Grass decay — the shade consult | **VT-017 CONFIRMED — the correction is PR #116 OPEN, independently reviewed by the thirty-sixth lane** (the bed-coverage lane's twenty-seventh pass, renumbered): the engine's `isOpaque` 3-block allowlist (air/torch/glass) stands in for the reference's opacity law (`getOpacity() > 2` — every non-solid-render block answers 0) — the grass dies under beds, flowers, slabs, stairs where vanilla keeps it; one source pass + the OBSERVED dirt-under-bed evidence from the VT-009 trace; **the correction is PR #116 OPEN — independently reviewed this pass: the two-conjunct law verified faithful against GrassBlock.tick 49-52 and the 1:1 light table, the seats 6/0 on the fix tree, 4/6 RED on the develop baseline, the two narrow residues named in the note (the water cover's usesNeighborLight read; the update arm's instant timing — both ledger material, not blockers)** |
 | Piston pushability — the behavior table's membership | **VT-016 SUSPECTED** (the bed-coverage lane's twenty-seventh pass, renumbered): the engine's `pistonMoveBehavior` DESTROY/BLOCK lists omit the bed family, the door family, the weighted plates, the cocoa (vanilla DESTROY) and the anvil (vanilla BLOCK) — a pushed bed MOVES where vanilla breaks it with its drop; one source pass done, the piston-push seat this pass's second head |
 | Projectile family — the stick placement (the resting position's geometry) | **VT-014 CONFIRMED — FOUR INDEPENDENT CONSTRUCTIONS, FIVE LANES** (three passes each; the quadruple convergence the thirty-fifth/thirty-sixth passes recorded): pass 1 the thirty-first's source walk; pass 2 the seats — the pass-33 lane's launch-based pair (the observed rest y=19.841 INSIDE the hit cell, x=51.480 hanging past the thin wall), the pass-34 lane's spawnRestored-deterministic pair (y=19.4079402396 at velocity exactly -1.0, x=61.97 past the wall in open air — the exact face±0.05 pins at 0.001), the pass-35 lane's pair (y=20.919 below the face at 21.0, z=41.486 one full block past the wall), the pass-36 lane's own pair (y=20.2143 / x=61.77) — all RED on develop `6b29c46f` at exactly the placement asserts; pass 3 the walks (the writer census — `inGround` set true at exactly two sites and cleared NOWHERE; the design-choice challenges negative on both lanes; the consumers walk; the import-coherence edge). **THE CORRECTION OPEN: PR #117** (`fix/arrow-stick-placement-parity-audit` over develop `6b29c46f`: the reference's rayTrace face walk at the engine's cell granularity + the 0.05 backoff + the landed wire publish; both the pass-33 and pass-34 lanes' seats GREEN 4/0 on the fix tree, the projectile package 48/0, the neighbor lanes 34/0; **the #113 interaction reviewed** — the `!inGround` gate note posted, the union's lights-later regression named) — **but the construction leaves the PARTIAL-SHAPE face unfixed: VT-021 CONFIRMED against it — the thirty-eighth pass's record below** (the slab seat RED on the #117 tree, observed rest y=18.8268 THROUGH the slab's surface against the reference's 19.55; the record in the thirty-eighth pass's section below; the b-lane's box-view branch `237611d3` carries all three seats GREEN — the review note on #117 the channel, the construction pick the maintainer's) — **PR #122 OPEN** as the alternative carrier (the review note: https://github.com/ZaminMC/ZaminTorch/pull/117#issuecomment-6554234533) |
 | Projectile family — the tracked-block un-stick law (the arrow; the bobber beside it) | **VT-015 CONFIRMED — FOUR INDEPENDENT CONSTRUCTIONS, FIVE LANES** (three passes each): pass 1 the thirty-first's source walk; pass 2 the seats — the pass-33 lane's (the rest IDENTICAL through the broken cell), the pass-34 lane's (STILL inGround, FROZEN at the endpoint), the pass-35 lane's pedestal break, the pass-36 lane's own construction — all RED on develop; pass 3 the walks (the reference re-read — the per-component fresh `random*0.2` re-arm over the STORED face-relative vector, both clocks reset; the compensation hunts negative; the family walk — the bobber the same law's second member; the import walk — the xTile/inTile/inData rows the engine's own recorded gap; the javadoc citations — `flingVelocity` names the un-stick's 0.2 factor as reference-only). **THE CORRECTIONS OPEN — the convergence:** **PR #120** (`fix/arrow-unstick-parity-audit` over develop `6b29c46f`: the tracked cell + the per-tick identity consult + the exact damped re-arm + the import's xTile/inTile rows landing — the reference's readCustomNbt 402-411 restores them; both lanes' seats GREEN, the anvil family 47/0) and **PR #119** (`fix/arrow-unstick-tracked-block-parity-audit`: the same live law 1:1, the import surface deferred as its named tail — the convergence note posted, the carrier pick the maintainer's, the unique coverage worth absorbing either way); the bobber's parallel arm the named follow-up (the family-member protocol) |
 | Projectile family — the stuck burning arrow's TNT consult | **VT-019 CONFIRMED — three passes complete; the correction is PR #123 OPEN** (the #119-closed/#120-keeper convergence resolved by the thirty-seventh pass; pass 1 the thirty-sixth's source walk; pass 2 TWO independent seats — the thirty-eighth lane's (RED on develop `777b7c86` at exactly the predicted cell `[10, 39, 10]`, both controls green, the b2 lane's re-based construction `026e9135` seating the stone-face-above-TNT shape) and the thirty-ninth lane's (RED at the pre-computed geometry — the stuck arrow at `Position[60.147, 41.1, 51.5]`, the adjacent TNT at (60,40,51) primed on the stick tick itself; the control green — the landing-on-TNT ignition live; the placement-independent construction RED on PR #117's tree too); pass 3 the independent challenges (the timing probe — the prime fires ON THE STICK TICK, never during flight; the execution-path census — `Entity.move()`'s own scan never runs for arrows, `Entity.tick` is baseTick alone; the live-wiring verification — the real engine already wires the vanilla stick-arm consult `igniteByArrow`, the ungated pass purely additive; the fire-clock amplification — the engine's stuck fire FREEZES where the reference's baseTick decays it, the detonation eternal; the design-intent challenge negative)). The named tails: (a) the stick-tick's rest-box scan (SEATED by the thirty-ninth pass's fifth act — `ArrowStickTickTntScanDiscoveryTest`, RED on develop AND on the #123+#128 union — its own fix slice), (b) the flight band's vertical shift (**VT-023** below), (c) the existing seat `aBurningArrowPrimesTheTntItOverlaps`'s stub review correction (carried by the b2 lane's rework — the stub now wires the stick arm; its flight-continues pin is VT-025's named re-pin target, the record below) |
 | Projectile family — the burning arrow's FLIGHT band shape | **VT-023 CONFIRMED — three passes; the correction is PR #128 OPEN** (VT-019's named tail (b), elevated to its own finding; the number after the pass-36 lane's VT-022 claim — the stick-vs-prime ordering): the engine's `burningTntPass` flying walk consults the symmetric [y−0.25, y+0.25] band around the position; the reference's flight consult (`checkBlockCollisions` over the arrow's box) walks the feet-law box [y, y+0.5] — `Entity.setPosition` line 240-247: `setShape(new Box(x−w/2, y, z−w/2, x+w/2, y+height, z+w/2))`, the arrow's `setSize(0.5F, 0.5F)`. Two divergences, both seated RED on develop AND on the #123 tree (the VT-019 gate is orthogonal): (A) the extra reach below — a TNT cell under the flight path primes in the engine (the band dips 0.25 below the position), stands in the reference; (B) the missed reach above — the box's top quarter [y+0.25, y+0.5] primes in the reference, the engine's band misses it. Pass 2: the two seats (`BurningArrowFlightBandParityDiscoveryTest`) RED at exactly the predicted shapes — arm A observed primed `[10, 39, 10]` where vanilla stands; arm B observed standing where vanilla primes; the thirty-ninth lane's fourth act re-seated both grazing edges as full-boot deterministic constructions and ran them GREEN on the #128 tree. Pass 3: the premise walk (setPosition's feet law read directly; the engine's position = the reference's position pinned by VT-014's rest law across four constructions), the compensation hunt (negative — no consult covers the top quarter), the design-intent challenge (the javadoc's own 'box-center envelope' framing is the misreading — the position is the box BOTTOM; the same class as VT-019's 'or stuck in the ground' clause) |
 | Projectile family — the arrow pickup's envelope shape | **VT-024 CONFIRMED — three passes; the correction is PR #132 OPEN** (VT-023's named follow-up, the same class): `withinArrowPickupRange`'s horizontal center-distance cap 1.25 (ARROW_HALF_WIDTH + PICKUP_GROWTH_HORIZONTAL) MISSES the player's own half-width 0.3 — the reference's intersection reaches 1.55 (the player's box grown 1.0 horizontal over the arrow's box); the vertical envelope [y−0.25, y+0.25] is the same shifted-down 0.25 as VT-023's flight band (the feet law's box [y, y+0.5]) — missing [py−1.0, py−0.75] below and over-reaching [py+2.3, py+2.55) above. The reference (PlayerEntity 486-505): the player's own box (setSize(0.6F, 1.8F)) GROWN (1.0, 0.5, 1.0) intersected with the arrow's box; `onPlayerCollision` per entity. Pass 2: three seats RED on develop `777b7c86` at exactly the predicted shapes — arm A the horizontal shortfall (the arrow at dx=1.4 left standing, vanilla collects), arm B the vertical miss below (the arrow at py−0.9 left standing, vanilla collects), arm C the vertical over-reach above (the arrow at py+2.4 COLLECTED, vanilla leaves it above the grown ceiling). Pass 3: the premise carried from VT-023's verified feet law, the horizontal law read directly, the compensation hunt (negative — the engine's pickup pass is the only consult), the design-intent challenge (the javadoc claims 'the player box grown 1.0/0.5 against the arrow's own 0.5 box' — the code drops the player's half-width and shifts the arrow's envelope; the retired box-center framing again). **The forty-first pass's Phase E act**: independently re-verified whole (the reference's `Box.intersects` strictness read directly, the three seats re-run RED on unfixed develop `149eb1f0` by this lane's own run, the family convention confirmed — the orb/item walks already carry the 0.3) and corrected as **PR #132** (`fix/arrow-pickup-envelope-parity-audit`, the seats 3/0 GREEN, the projectile package 48/0, the orb/item family lanes 45/0, the combat lanes 15/0) |
+| Projectile family — the burning arrow's TNT hit consult preempts the stick | **VT-025 SUSPECTED — pass 1 complete; RENUMBERED from this lane's VT-022 draft by the forty-first pass's reconciliation (PR #129's piston entity gate took 22 publicly first, 06:38:58 vs this record's push 06:30:35 — the number yielded to the stronger public artifact, the lane's own twice-renumbered precedent honored; discovered in the #123 review)**: the reference sticks the arrow BEFORE the hit-block consult (`inGround = true` at ArrowEntity line 304 precedes `onEntityCollision` at 308; TntBlock's consult ignites AND `removeBlock`s — the tracked cell opens, and VT-015's un-stick law hops the arrow out beside the TNT on the next tick); the engine's block-hit arm ignites and returns false — the arrow NEVER STICKS, flying through the opened cell at speed (the javadoc's "the arrow KEEPS ITS FLIGHT" conflates not-removed with flying). The pass-37 lane's re-mechanized `ProjectileManagerTest` pins the flight-continues shape — the pin is the divergence. Pass 1 complete (the source walk); the seat owed (pass 2) |
 | Block-update wake (BlockUpdateSystem.runUpdate, RedstoneSystem.neighborChanged) — world binding | SURFED as VT-009's pass-3 non-compensation evidence: BOTH reads consult the overworld field (the changed-world parameter ignored in the six-neighbor dispatch) — the house stream's FL4-F10 lane landed the redstone world binding (`0328e92f`); the block-update arm's coverage rides that wave's seats |
 | Block identity — the legacy wire rows | the vine family's gap LANDED by `6b29c46f` (the house's own production-crash repair; `LegacyBlockIdsIntegrityTest`'s skip set now EMPTY and pinned) |
 | Mob spawns — the dimension stamp | **VT-012 CONFIRMED — three passes complete, fix-ready** (`audit/vt-012-spawn-dimension-stamp`: fourteen unstamped sites censused — the eggs, /summon, the wither, the spawner cart, the mooshroom shear, the infection/cure, the slime split, breeding, the golems, the infested burst; the wrong-stamped nether body invisible to the nether player, its physics reading the overworld's cells, a permanent ghost on the despawn walk) — the fix branch the next run's head |
@@ -4799,3 +5158,4 @@ review notes posted (#122, #123, #124, #128, and the union-conflict
 correction on #123/#128); seven new seats on this lane's branch (the
 VT-019 pair, the VT-018 full-boot pair — renamed per the
 file-resolution protocol, the VT-023 pair, the stick-tick seat).
+
