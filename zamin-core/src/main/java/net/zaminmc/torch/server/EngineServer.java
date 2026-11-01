@@ -21226,9 +21226,11 @@ public final class EngineServer implements Server, EngineBridge {
         }
 
         @Override
-        public void playerHit(ProjectileEntity projectile, PlayerSession victim,
-                              float damage, double kbYaw) {
-            projectileHitPlayerOnTick(projectile, victim, damage, kbYaw,
+        public boolean playerHit(ProjectileEntity projectile, PlayerSession victim,
+                float damage, double kbYaw) {
+            // The landed verdict flows (VT-018's entity-hit bowhit gate —
+            // the reference's takeDamage boolean, ArrowEntity line 276).
+            return projectileHitPlayerOnTick(projectile, victim, damage, kbYaw,
                     projectile.throwerId());
         }
 
@@ -21278,11 +21280,17 @@ public final class EngineServer implements Server, EngineBridge {
      * The zero-reach projectile hit on a player: the projectile already
      * traveled, so no reach check — but the hurt window, knockback and death
      * path stay identical to melee PvP. Tick-thread context.
+     *
+     * @return the landed verdict (the reference's takeDamage boolean —
+     * VT-018's entity-hit bowhit gate: the failed-damage branches — pvp
+     * off, the dead/idle body, the cancelled event, the armor-eaten
+     * amount, the hurt-window absorption — are the reference's false
+     * rows, the landed path its true).
      */
-    private void projectileHitPlayerOnTick(ProjectileEntity projectile, PlayerSession victim,
+    private boolean projectileHitPlayerOnTick(ProjectileEntity projectile, PlayerSession victim,
                                             float damage, double kbYaw, int shooterId) {
         if (!config.pvp() || victim.dead() || victim.state() != PlayerState.PLAYING) {
-            return;
+            return false;
         }
         // The armor envelope eats its share of a physical hit before the
         // invulnerability bookkeeping (the historical order), then the
@@ -21298,14 +21306,14 @@ public final class EngineServer implements Server, EngineBridge {
                         victim, damage, net.zaminmc.torch.event.DamageCause.PROJECTILE);
         eventBus.fire(damageEvent);
         if (damageEvent.cancelled()) {
-            return;
+            return false;
         }
         damage = damageEvent.amount();
         if (damage <= 0) {
-            return;
+            return false;
         }
         if (victim.hurtInvulnerable() && damage <= victim.lastHurtDamage()) {
-            return; // absorbed by the hurt window (a bruise out-damages nothing)
+            return false; // absorbed by the hurt window (a bruise out-damages nothing)
         }
         float applied = victim.hurtInvulnerable() ? Math.max(0.0f, damage - victim.lastHurtDamage())
                 : damage;
@@ -21463,6 +21471,7 @@ public final class EngineServer implements Server, EngineBridge {
         } else {
             publishBodyChanged(victim);
         }
+        return true; // the hit landed — the hurt window bookkeeping accepted it
     }
 
     /**
