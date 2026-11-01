@@ -3788,7 +3788,7 @@ it), the TNT's survival asserted against the engine's detonation.
 | Block updates — the multi-part families' pair-integrity arms | THREE arms in flight: the BED family's neighborChanged self-removal arm (**VT-009 the bed-coverage lineage's claim — CONFIRMED, three passes, PR #114 OPEN**); the break-path pair walks' world binding (**VT-009 the pass-28 lane's claim — CONFIRMED, PR #106 OPEN**); the bed pair's sibling resolution (**VT-010 — CONFIRMED, PR #111 OPEN**). The DOOR family's neighborChanged arm EXISTS (`RedstoneSystem.doorNeighborChanged`, DoorBlock lines 157-198 — the door half REJECTED by its own green seat, now the regression guard) |
 | Grass decay — the shade consult | **VT-017 SUSPECTED** (the bed-coverage lane's twenty-seventh pass, renumbered): the engine's `isOpaque` 3-block allowlist (air/torch/glass) stands in for the reference's opacity law (`getOpacity() > 2` — every non-solid-render block answers 0) — the grass dies under beds, flowers, slabs, stairs where vanilla keeps it; one source pass + the OBSERVED dirt-under-bed evidence from the VT-009 trace; this pass takes the seats up |
 | Piston pushability — the behavior table's membership | **VT-016 SUSPECTED** (the bed-coverage lane's twenty-seventh pass, renumbered): the engine's `pistonMoveBehavior` DESTROY/BLOCK lists omit the bed family, the door family, the weighted plates, the cocoa (vanilla DESTROY) and the anvil (vanilla BLOCK) — a pushed bed MOVES where vanilla breaks it with its drop; one source pass done, the piston-push seat this pass's second head |
-| Projectile family — the stick placement (the resting position's geometry) | **VT-014 CONFIRMED — FOUR INDEPENDENT CONSTRUCTIONS, FIVE LANES** (three passes each; the quadruple convergence the thirty-fifth/thirty-sixth passes recorded): pass 1 the thirty-first's source walk; pass 2 the seats — the pass-33 lane's launch-based pair (the observed rest y=19.841 INSIDE the hit cell, x=51.480 hanging past the thin wall), the pass-34 lane's spawnRestored-deterministic pair (y=19.4079402396 at velocity exactly -1.0, x=61.97 past the wall in open air — the exact face\u00b10.05 pins at 0.001), the pass-35 lane's pair (y=20.919 below the face at 21.0, z=41.486 one full block past the wall), the pass-36 lane's own pair (y=20.2143 / x=61.77) — all RED on develop `6b29c46f` at exactly the placement asserts; pass 3 the walks (the writer census — `inGround` set true at exactly two sites and cleared NOWHERE; the design-choice challenges negative on both lanes; the consumers walk; the import-coherence edge). **THE CORRECTION OPEN: PR #117** (`fix/arrow-stick-placement-parity-audit` over develop `6b29c46f`: the reference's rayTrace face walk at the engine's cell granularity + the 0.05 backoff + the landed wire publish; both the pass-33 and pass-34 lanes' seats GREEN 4/0 on the fix tree, the projectile package 48/0, the neighbor lanes 34/0; **the #113 interaction reviewed** — the `!inGround` gate note posted, the union's lights-later regression named) |
+| Projectile family — the stick placement (the resting position's geometry) | **VT-014 CONFIRMED — FOUR INDEPENDENT CONSTRUCTIONS, FIVE LANES** (three passes each; the quadruple convergence the thirty-fifth/thirty-sixth passes recorded): pass 1 the thirty-first's source walk; pass 2 the seats — the pass-33 lane's launch-based pair (the observed rest y=19.841 INSIDE the hit cell, x=51.480 hanging past the thin wall), the pass-34 lane's spawnRestored-deterministic pair (y=19.4079402396 at velocity exactly -1.0, x=61.97 past the wall in open air — the exact face\u00b10.05 pins at 0.001), the pass-35 lane's pair (y=20.919 below the face at 21.0, z=41.486 one full block past the wall), the pass-36 lane's own pair (y=20.2143 / x=61.77) — all RED on develop `6b29c46f` at exactly the placement asserts; pass 3 the walks (the writer census — `inGround` set true at exactly two sites and cleared NOWHERE; the design-choice challenges negative on both lanes; the consumers walk; the import-coherence edge). **THE CORRECTION OPEN: PR #117** (`fix/arrow-stick-placement-parity-audit` over develop `6b29c46f`: the reference's rayTrace face walk at the engine's cell granularity + the 0.05 backoff + the landed wire publish; both the pass-33 and pass-34 lanes' seats GREEN 4/0 on the fix tree, the projectile package 48/0, the neighbor lanes 34/0; **the #113 interaction reviewed** — the `!inGround` gate note posted, the union's lights-later regression named) — **but the construction leaves the PARTIAL-SHAPE face unfixed: VT-020 CONFIRMED against it — the thirty-eighth pass's record below** (the slab seat RED on the #117 tree, observed rest y=18.8268 THROUGH the slab's surface against the reference's 19.55; the record in the thirty-eighth pass's section below; the b-lane's box-view branch `237611d3` carries all three seats GREEN — the review note on #117 the channel, the construction pick the maintainer's) |
 | Projectile family — the tracked-block un-stick law (the arrow; the bobber beside it) | **VT-015 CONFIRMED — FOUR INDEPENDENT CONSTRUCTIONS, FIVE LANES** (three passes each): pass 1 the thirty-first's source walk; pass 2 the seats — the pass-33 lane's (the rest IDENTICAL through the broken cell), the pass-34 lane's (STILL inGround, FROZEN at the endpoint), the pass-35 lane's pedestal break, the pass-36 lane's own construction — all RED on develop; pass 3 the walks (the reference re-read — the per-component fresh `random*0.2` re-arm over the STORED face-relative vector, both clocks reset; the compensation hunts negative; the family walk — the bobber the same law's second member; the import walk — the xTile/inTile/inData rows the engine's own recorded gap; the javadoc citations — `flingVelocity` names the un-stick's 0.2 factor as reference-only). **THE CORRECTIONS OPEN — the convergence:** **PR #120** (`fix/arrow-unstick-parity-audit` over develop `6b29c46f`: the tracked cell + the per-tick identity consult + the exact damped re-arm + the import's xTile/inTile rows landing — the reference's readCustomNbt 402-411 restores them; both lanes' seats GREEN, the anvil family 47/0) and **PR #119** (`fix/arrow-unstick-tracked-block-parity-audit`: the same live law 1:1, the import surface deferred as its named tail — the convergence note posted, the carrier pick the maintainer's, the unique coverage worth absorbing either way); the bobber's parallel arm the named follow-up (the family-member protocol) |
 | Projectile family — the stuck burning arrow's TNT consult | **VT-019 SUSPECTED** (the thirty-sixth pass, pass 1 complete; TWICE renumbered — the VT-016 draft lost 16/17 to the pass-32 lane's piston/grass claims, the VT-018 draft lost 18 to the pass-35 lane's bowhit-sound claim): the reference consults `onEntityCollision` from the FLIGHT branch's tail scan + the stick arm's single-hit-block consult alone (ArrowEntity 382, 311-313); the engine's `burningTntPass` walks STUCK burning arrows every tick — a stuck burning arrow beside TNT detonates it in the engine, primes nothing in the reference. The seat owed (pass 2) — the compact discovery pass this run's head |
 | Block-update wake (BlockUpdateSystem.runUpdate, RedstoneSystem.neighborChanged) — world binding | SURFED as VT-009's pass-3 non-compensation evidence: BOTH reads consult the overworld field (the changed-world parameter ignored in the six-neighbor dispatch) — the house stream's FL4-F10 lane landed the redstone world binding (`0328e92f`); the block-update arm's coverage rides that wave's seats |
@@ -3878,3 +3878,196 @@ it), the TNT's survival asserted against the engine's detonation.
    pass-30 lane's docs union is DONE (this lane's thirty-fifth pass);
    their engine files stay on the #110 branch.
 
+
+
+## The thirty-eighth pass — the recovery reconciliation + VT-020 discovered and confirmed whole against PR #117's landed construction (the partial-shape stick face)
+
+**The recovery.** The environment reset with the pass-33 b-lane's VT-014
+fix commit (`237611d3`, the box-view construction) committed but UNPUSHED,
+while the pass-34 lane had pushed its own VT-014 fix (`30650d74`, the
+rayTrace cell walk) and opened **PR #117**. The two commits are SIBLINGS
+on `6b29c46f` — two independent constructions of the same law. The
+b-lane's branch is renamed `fix/arrow-stick-placement-parity-audit-b`
+(preserved; the remote name belongs to #117's head — no force-push, no
+duplicate PR against the same finding without new evidence). This pass's
+first act: **independently verify the landed construction** — the
+verifier's duty to an open PR, not just to develop.
+
+**The discovery (VT-020's pass 1 — the source walk).** PR #117's
+`stickRestPosition` walks CELL-BOUNDARY planes (the integer faces
+`cellY+1.0`/`cellY+0.0`) and consults solidity at each ENTERED cell's
+CENTER point (`solidAt(cellX+0.5, cellY+0.5, cellZ+0.5)`). The reference
+(`World.rayTrace` lines 639-760) walks cells the same way, but at every
+entered cell it calls **`block.rayTrace(world, pos, from, to)`**
+(`Block.java` lines 546-590) — which FIRST `updateShape`s the block then
+clips the segment against the block's **OWN SHAPE BOUNDS**
+(`this.minX/maxX/minY/maxY/minZ/maxZ`, the six
+`intermediateWithX/Y/Z` crossings each containment-checked, the nearest
+kept). For a bottom slab (`SlabBlock.updateShape`:
+`setShape(0,0,0,1,0.5,1)`; the hierarchy
+`SingleStoneSlabBlock → StoneSlabBlock → SlabBlock → Block` overrides
+`rayTrace` NOWHERE) the hit face is the slab's half-height TOP at
+y=19.5 — NOT the cell boundary at y=20. The stick arm then composes the
+rest at face − 0.05·û (ArrowEntity 296-302 + the 328-330 tail) =
+**y=19.55** for a falling arrow. The engine's own `CollisionShapes`
+carries the identical half-height box (`Box(0,0,0,1,0.5,1)`, the
+exclusive-max `contains`), so the shape face is CONSULTABLE — the cell
+walk just never asks. Two structural misses, both verified by reading
+the #117 tree: (a) the walk consults only cells it ENTERS — a
+fast-falling arrow whose pre-step position is already INSIDE the slab's
+cell (the step started above the slab's box top but below the cell top)
+never consults the slab's cell at all; (b) even when the walk enters
+the slab's cell, the center-point consult at y=19.5 answers FALSE (the
+exclusive-max `contains`: `0.5 < 0.5` is false) and the boundary plane
+it would back off to is the CELL top at 20 — the walk is INCAPABLE of
+answering a face inside the cell. The fence/stairs/anvil/snow-layer
+class extends the gap beyond slabs: every non-full-cube collidable's
+face sits inside its cell.
+
+**VT-020's pass 2 — the behavioral seat, RED on the #117 tree.** The
+b-lane's slab seat (`ArrowStickPlacementParityTest
+.theStuckArrowRestsAtTheSlabShapeFaceNotTheCellBoundary`: a 5×5 bottom
+slab platform at cell y=19 — shape top 19.5, cell boundary 20 — an
+arrow launched down into it; the rest must sit within [19.5, 19.55])
+ran against the #117 worktree: **RED, observed rest
+`Position[x=42.45938855034985, y=18.826805946041848, z=42.51259591165122]`**
+— the arrow tunneled THROUGH the slab's 0.5-thick box (the flight's
+discrete midpoint/end-point sampling skipped past the shape face), the
+cell walk answered null, and the rest fell back to the ENDPOINT: 0.72
+BELOW the shape face, embedded through the slab's surface, in open air
+under the platform. Vanilla's answer for the same step: the rayTrace
+hits the slab's top at 19.5, the rest composes at 19.55. On the
+b-lane's box-view construction (`237611d3`): the same seat **GREEN**
+(rest within [19.5, 19.55]), all three seats 3/0 — the full-cube
+platform and the thin-wall seats ride GREEN on BOTH constructions (the
+law they share), the slab seat discriminates them.
+
+**VT-020's pass 3 — the independent challenge.** (1) The slab hierarchy
+walk: no `rayTrace` override anywhere below `Block` in the slab family —
+the shape-bounds clipping is the slab's own law, not an inherited
+accident. (2) The compensation hunt on the #117 tree: the observed
+18.8268 IS the raw endpoint rest (the walk's null path) — nothing else
+in the PR moves the rest; the wire's new teleport publish faithfully
+publishes the WRONG value. (3) The alternative-hypothesis challenge: is
+the tunneling itself the bug (the sampling, not the placement)? No —
+the sampling granularity is the engine's own named limitation (the
+midpoint/end-point discrete walk, the same limitation #117's own record
+names for the same-cell residue), and the placement law stands
+independently: WHENEVER the stick triggers, the rest must sit at the
+collision SHAPE's face — 0.05 outside it along the approach. The
+placement is the observable; the sampling depth is a separate, already-
+named tail. (4) The intentional-design challenge: the PR's own doc
+names the same-cell residue as the accepted cell-granularity
+limitation — but the slab case is NOT the same-cell residue: the arrow
+flew a full cell-plus through open air above the shape; the shape face
+was CROSSED and missed. The gap is a genuine divergence from the
+demonstrated reference law, not a documented trade-off.
+
+**The verdict: VT-020 CONFIRMED — three passes** (source walk,
+behavioral seat on the #117 tree, independent challenge), against
+BOTH develop (the endpoint rest, observed 18.815 in the pass-33
+record) AND PR #117's construction (observed 18.8268 fresh). The
+correction: the box-view face computation — the b-lane's
+`restAtTheHitFace` + `segmentEntry` construction (the entry face of
+the from→sample segment against the hit cell's collision BOXES, the
+slab method per axis with the behind-entry reject, `SolidQuery
+.solidBoxesAt` answered by `ShapeGround` over `CollisionShapes
+.cellBoxes` with the same neighbour probe the point test uses). The
+b-branch carries it with all three seats green; the review note on
+PR #117 documents the gap with the fresh observed values, and the
+maintainer picks the construction — #117 amended with the box consult,
+or the b-branch's whole alternative (both lift the same three
+full-cube/thin-wall/slab seats green; the regression lanes ran fresh
+on the b-branch this pass: the projectile package whole 48/0,
+RangedCombat 10/0, TntSystem 2/0, AnvilImport 6/0, the parity seats
+3/0 — 69 tests, no failures).
+
+
+## VT-020 — the stick placement's PARTIAL-SHAPE face: the rest must sit at the collision shape's own face, never the cell boundary or the tunneled endpoint (CONFIRMED — three passes; RED on develop AND on PR #117's construction; the box-view alternative construction the correction)
+
+- **Status:** CONFIRMED (three passes complete; the correction exists
+  as the b-lane branch `fix/arrow-stick-placement-parity-audit-b`
+  (`237611d3`), offered as the alternative to PR #117 through the
+  review note — the maintainer picks the construction).
+- **Subsystem:** projectile physics — the arrow family's block-hit
+  resting geometry for NON-FULL-CUBE collidables (slabs, stairs,
+  fences, anvils, snow layers, and every partial shape whose face
+  sits inside its cell). Extends VT-014's placement law; distinct
+  finding because the reference surface differs (the shape-bounds
+  clip vs the cell walk) and PR #117's landed construction fixes
+  VT-014's full-cube cases while leaving this one.
+- **Affected engine files/methods:** `ProjectileManager
+  .stickRestPosition` (PR #117's walk — the cell-boundary planes and
+  the entered-cell center consults, both incapable of answering an
+  intra-cell shape face); the pre-fix `resolveCollisions` solid arm
+  (develop — the endpoint rest); the flight's discrete sampling (the
+  midpoint/end-point walk whose tunneling through thin shapes the
+  placement must absorb).
+- **Vanilla reference:** `World.rayTrace` (lines 639-760) → at every
+  entered cell `block.rayTrace(this, blockpos, from, to)` (`Block`
+  lines 546-590: `updateShape` then the six-plane clip against the
+  block's OWN `minX/maxX/minY/maxY/minZ/maxZ`, the nearest contained
+  crossing kept) → the stick arm's composition (ArrowEntity 296-302 +
+  328-330: rest = face − 0.05·û). The slab family overrides nothing:
+  `SlabBlock.updateShape` sets the half-height bounds
+  (`setShape(0,0,0,1,0.5,1)` bottom, `(0,0.5,0,1,1,1)` top).
+- **Expected behavior:** an arrow sticking into a bottom slab rests
+  0.05 above the slab's half-height surface (y=19.55 for a slab at
+  cell 19) — the shaft visibly standing on the slab's surface, in the
+  cell the arrow flew through, collectable from there.
+- **Observed behavior:** develop: the endpoint rest, observed 18.815
+  (the pass-33 stash-discrimination record). PR #117's tree (fresh,
+  this pass): **18.826805946041848** — the arrow through the slab's
+  surface, hanging in the air below the platform. Both ~0.72 below
+  the reference's 19.55.
+- **Exact technical explanation:** the #117 walk's faces are the
+  integer cell boundaries; a partial shape's face (the slab's 19.5)
+  is interior to the cell and unreachable by the walk. The walk
+  consults only ENTERED cells at their CENTER points: (a) a
+  fast-falling arrow whose step STARTS inside the slab's cell (above
+  the box top 19.5, below the cell top 20) never consults the slab's
+  cell; (b) the exclusive-max `contains` (`0.5 < 0.5` false) makes
+  the center consult false anyway; (c) the walk returns null and the
+  rest falls back to the post-step endpoint — which the discrete
+  sampling can have carried a full block past the shape face (the
+  tunneling). The reference's ray consult is continuous over the
+  step and clips the SHAPE's planes, so vanilla never tunnels and
+  always answers the shape face.
+- **Reproduction:** `ArrowStickPlacementParityTest
+  .theStuckArrowRestsAtTheSlabShapeFaceNotTheCellBoundary`
+  (the b-branch `237611d3`): RED on develop and on the #117 tree
+  (observed values above), GREEN on the b-branch (rest within
+  [19.5, 19.55]).
+- **Verification pass history:** pass 1 (the thirty-eighth): the
+  source walk (the reference's block-level shape clip vs the walk's
+  cell granularity; the slab hierarchy's non-override; the engine's
+  own CollisionShapes box availability). Pass 2 (the
+  thirty-seventh): the behavioral seat run fresh on the #117
+  worktree — RED at 18.8268; GREEN 3/3 on the b-branch. Pass 3 (the
+  thirty-seventh): the independent challenge (the compensation hunt
+  negative, the tunneling-vs-placement separation, the
+  intentional-design challenge negative — the PR's named
+  same-cell-residue limitation does not cover this case).
+- **Confidence:** high — deterministic construction, exact reference
+  arithmetic, fresh observed values on both trees.
+- **Proposed minimal correction:** the box-view face computation:
+  `restAtTheHitFace` computes the from→sample segment's entry face
+  against the HIT CELL's collision boxes (`segmentEntry`, the slab
+  method per axis with the behind-entry reject), rests the arrow at
+  face − 0.05·û; `SolidQuery.solidBoxesAt` (a default-null view)
+  answered by `ShapeGround` over `CollisionShapes.cellBoxes` with
+  the same neighbour probe the point test uses — partial shapes
+  answer their OWN faces. Carried by the b-branch, offered as the
+  alternative construction in the PR #117 review note (or #117's
+  walk gains the same box consult at its entered cells).
+- **Regression risks:** the same family as VT-014's (the wire's
+  stuck-position consumers, the pickup band) — no new surface beyond
+  the shape-aware consult; the stub `SolidQuery` implementations keep
+  their point-test semantics (the default null, the caller's unit-
+  cube fallback); the fence/stairs neighbour-probe shapes must
+  answer their own composed boxes (the probe the point test already
+  uses).
+- **Associated branch:** `fix/arrow-stick-placement-parity-audit-b`
+  (`237611d3`), pushed this pass; the review note on PR #117 the
+  channel; no competing PR opened pending the maintainer's pick
+  between the constructions (the note offers the branch).
