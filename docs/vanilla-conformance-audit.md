@@ -3811,6 +3811,40 @@ confirmed finding — the one-PR-per-issue rule's violation to
 resolve this pass's next act. Neither carrier is stacked on #117;
 the kept tree owes the VT-014 interaction check.
 
+**The VT-015 carrier resolution (queue item 0, DONE this
+pass)**: both carriers verified green standalone in fresh runs this pass
+(#119's `ArrowUnstickParityTest` 2/0; #120's five seats 11/11 — the
+Discovery/Verification constructions, the VT-013 no-crossing guard, the
+pickup regression 8/0, the import regression 6/0), and the core law is
+identical in both trees (the tracked-cell stamp, the per-tick identity
+consult in the body's own dimension, the per-axis `nextFloat()*0.2`
+re-arm, both clock resets, the un-stick tick ending the branch). **The
+pick: #120 is the keeper** — it carries the confirmed fix scope's
+remaining member (the import persistence rows: `readCustomNbt` lines
+402-413, `restoreGrounded`'s 5-arg form + the `AnvilWorldImport` rows)
+where #119 defers them as the cell-less §31.6 tail. **#119 closed** with
+the comparison comment (`#issuecomment-6554239228`); its unique members
+recorded for salvage (the `SolidConsult` default-method extension — no
+new interface; the re-stick parity pin at `77a052a1` — the popped arrow
+RE-STICKS in the swapped-in solid, a placement-independent lifecycle
+assertion #120's seats do not carry).
+
+**The VT-014 interaction check (the kept tree's owed run, DONE)**: #117 ∪
+#120 merges with ONE textual conflict at the shared stick site (the
+`landInGround` call in `resolveCollisions`' block-hit arm) — the designed
+composition, #117's `stickRestPosition` teleport preceding #120's
+tracked-cell stamp. The union tree (local-only, no branch pushed) runs
+the arrow family **21/21** and the projectile package **48/48** green
+(fresh runs: `ArrowStickPlacement*` 4/0, `ArrowUnstick*` 2/0, the VT-013
+guard 1/0, `ArrowPickupTest` 8/0, `AnvilImportAcceptanceTest` 6/0,
+`BowFamily`/`FireballDeflection`/`FireworksAndBottle`/
+`GhastFireballFlightParity`/`ProjectileDimensionReads`/
+`ProjectileManager`/`WitherSkull` 48/0 whole). The named nuance for the
+merge order: the reference stamps the RAY hit's cell (the face walk's
+entered cell) while the engine's hit model samples `point` — the cells
+coincide in every seat geometry, the difference below the engine's
+sampling granularity (the union's comment block records it at the site).
+
 **The crashed session's worktree draft** (recovered before any
 reset): the combined VT-014+VT-015 single-tree form — the stick
 placement walk and the tracked-cell recording in one
@@ -3853,9 +3887,12 @@ branch.
   the face, primes it, un-sticks when the cell opens, and ends up on
   the ground beside the TNT.
 - **Observed behavior (the engine, on develop and on every open fix
-  tree incl. #123's):** the block-hit arm's ignite returns false — the
-  arrow NEVER STICKS, flying through the opened cell at speed; it ends
-  up far beyond, wherever the terrain catches it.
+  tree incl. #123's and #117's rider `dd29ee01`):** the block-hit
+  arm's ignite returns false — the arrow NEVER STICKS, flying through
+  the opened cell at speed; it ends up far beyond, wherever the
+  terrain catches it. (The rider keeps the face vector at the STICK
+  site alone; the ignite path at 1188-1193 returns BEFORE any stick —
+  the preemption is untouched by every open PR.)
 - **The precise divergence:** the consult's position in the chain —
   the reference consults AFTER the stick (the arrow already
   `inGround`, resting at face−0.05); the engine consults INSTEAD OF
@@ -3903,6 +3940,36 @@ branch.
   removes that path's only user at this arm, and the flight band
   walk carries the grazing law alone.
 
+**The kept-face-vector rider LANDED on #117** (`dd29ee01`, the
+sibling lane's named gap closed the same pass): the reference's stuck
+velocity is the face-relative vector (ArrowEntity lines 296-298 —
+`(float)(facePos - pos)`, the remaining step of the crossing tick; the
+tail advance at 328-330 consumes it for the position while leaving it
+standing; the `inGround` branch never touches it, the engine's
+`integrate` gate its own 1:1), and its ONLY consumer anywhere is the
+un-stick arm's `random*0.2` damping (lines 179-186) — the un-stuck
+arrow hops up to a fifth of its remaining step along the flight
+direction instead of falling straight down. The engine's
+`landInGround()` zeroed it, so the hop composed over zero on every
+tree (develop, #117, #119, #120 alike). THE REPAIR: the face walk
+widened into the `StickSite` record (the rest + the vector, the walk's
+own `remain` — no second derivation); the stick arm's
+`landInGround(double, double, double)` overload keeps the vector, the
+bare zeroing form staying for the same-cell residue; the wire
+UNTOUCHED (`sendProjectileMoved` is the position-only teleport; the
+reference's tracker never marks a stuck arrow `velocityChanged`).
+THE SEAT (SEAT C, stash-discriminated): a `spawnRestored` arrow
+exactly one block above the face at velocity −1.0 — the crossing tick
+starts at `from = face+1.0`, so the remaining step is EXACTLY −1.0
+independent of the drag chain — pinning the stuck velocity at
+(0, −1, 0); **RED on the pre-rider tree** (`Observed: vy=0.0`),
+**GREEN on the rider**. REGRESSION: the stick family 5/0, the VT-013
+guard 1/0, the projectile package 48/0, the portal neighbors — 61/0.
+THE RIDER-UNION RE-RUN (#117+rider ∪ #120, local-only): **62/0 whole**
+— the composition now carries the reference's un-stick hop (the kept
+vector × `random*0.2`, the arithmetic composition both seats pin from
+their own sides).
+
 ## Coverage ledger (updated by the thirty-sixth pass — the five-lane union)
 
 | Area | Status |
@@ -3945,30 +4012,29 @@ branch.
 
 ## The queue for the next pass
 
-0. **The VT-015 carrier resolution** (the thirty-sixth pass's watch):
-   PRs #119 and #120 both carry VT-015's correction from two
-   convergent lanes (the tracked-block lane's `ArrowUnstickParityTest`
-   seat vs the unstick lane's `ArrowUnstickDiscoveryTest`/
-   `ArrowUnstickVerificationTest` seats — the rename protocol's
-   canonical names). One carrier must win: the review compares the
-   two trees' consult shapes against the reference's lines 172-186
-   (the tracked-cell identity consult, the per-component
-   `random*0.2` re-arm over the stored face vector, both clock
-   resets), the loser closes with a pointer comment, and the kept
-   tree runs the union-tree regression set (the pickup family, the
-   portal family's five crossing seats, the persistence lanes) —
-   noting neither carrier is stacked on #117's tracked-cell
-   recording, so the kept tree owes the VT-014 interaction check —
-   and the review must pin the VELOCITY composition gap: the
-   reference's stuck velocity is the face-relative vector (ArrowEntity
-   lines 296-298, never zeroed — the tail integration advances the
-   position by it but leaves it standing), and the un-stick re-arm
-   multiplies THAT; on all three PR trees `landInGround` still zeroes
-   the velocity, so the un-stick hop is always zero — the reference's
-   randomized 0.2·remaining-step kick along the flight direction is
-   carried by NO open PR (a named rider on the kept tree, not a
-   blocker: the seated observables — the un-stick, the fall, the
-   re-stick — hold either way).
+0. ~~The VT-015 carrier resolution~~ — **DONE this pass**: #119 CLOSED
+   (the duplicate, the comparison comment posted,
+   `#issuecomment-6554239228`); **#120 is the keeper** (the import
+   persistence rows — the confirmed scope's remaining member — plus
+   the canonical seat names and the VT-013 guard). The VT-014
+   interaction check DONE beside it: the #117∪#120 union runs the
+   arrow family 21/21 and the projectile package 48/48 green (the one
+   textual conflict's resolution documented on #120,
+   `#issuecomment-6554240538`). The maintainer owns both merges.
+   **The sibling lane's velocity correction carried** (verified
+   against the reference this pass — ArrowEntity lines 296-298 read
+   directly): #117's diff touches no `ProjectileEntity`;
+   `landInGround` still zeroes the velocity on every PR tree, so the
+   un-stick re-arm composes over zero. The reference's stuck velocity
+   is the face-relative vector (lines 296-298, never zeroed — the
+   tail advance at 328-330 consumes it for the position but leaves it
+   standing), and the un-stick's `random*0.2` multiplies THAT — the
+   randomized 0.2·remaining-step kick along the flight direction was
+   carried by NO open PR — **CLOSED the same pass: the sibling
+   session's rider `dd29ee01` landed on #117** (the `StickSite`
+   record keeping the face vector at the stick, SEAT C
+   stash-discriminated RED→GREEN, the rider-union re-run 62/0 — the
+   record below).
 1. ~~VT-019's passes 2-3~~ — **DONE WHOLE (the thirty-seventh lane:
    the seat RED on develop, the pass-3 walk, the correction PR #123
    OPEN — this pass's review verified the gate minimal and the
