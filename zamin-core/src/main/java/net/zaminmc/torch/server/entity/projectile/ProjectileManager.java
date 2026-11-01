@@ -1193,6 +1193,18 @@ public final class ProjectileManager {
                     return false; // the cell opened — the walk continues
                 }
                 projectile.landInGround();
+                // VT-018 — the stick's bowhit (ArrowEntity line 303):
+                // the reference plays random.bowhit at the rest — the
+                // volume 1.0, the pitch the reference's own random draw
+                // (1.2 / (nextFloat()*0.2 + 0.9), the band [~1.09,
+                // ~1.33]) — in the arrow's OWN world (the reference's
+                // playSound on the entity's world). The entity-hit arm
+                // plays the same name at line 276 (the same pitch law,
+                // a fresh draw) — that site's absence is the finding's
+                // named follow-up (its own seat owed).
+                fx.sound(projectile.position(), "random.bowhit", 1.0f,
+                        (float) (1.2 / (random.nextFloat() * 0.2 + 0.9)),
+                        projectile.dimension());
                 for (Listener listener : listeners) {
                     listener.onProjectileLanded(projectile);
                 }
