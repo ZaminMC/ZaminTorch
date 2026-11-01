@@ -7604,3 +7604,60 @@ feet form — with the ITEM family's simpler one-size law.
 after VT-037 (PR #156, this lane); the pass-52 lane's private VT-036
 draft (the lever/button placement gates) rides its own renumber at
 its PR's open.
+
+## VT-038 — pass 2 (behavioral): the seats RED on develop at the predicted edges
+
+`ItemBoxModelDiscoveryTest` (three tests, run on this branch whose item
+code matches develop `1139f2c3` — the family untouched since the
+baseline): **2 RED at the predicted margins + the control GREEN**:
+
+- **THE RESTORED FIRST-READ BOX** — a restored item at savedY 70.0
+  with the player 0.65 above: the reference's post-tick box [69.96,
+  70.21] (gravity 0.04, no clip) clears the grown band's bottom edge
+  (70.15) by 0.06 and collects; the engine's center-anchored box
+  [69.835, 70.085] misses the same edge by 0.065 — the item STANDS.
+  The orb's third seat's own discriminator shape, at the item's
+  0.25 box.
+- **THE SPAWN-PATH TRANSIENT** — the drop-at-block's first tick: the
+  seat's first construction forgot the spawn's 0.2 TOSS POP (the
+  item RISES 0.16 on its first tick, it does not fall) and GREENED
+  on develop; the corrected discriminator rides the toss rise — the
+  player 1.35 above the block's base: the reference's post-tick box
+  [62.66, 62.91] clears the band's bottom edge (62.85) by 0.06 and
+  collects; the engine's center-anchored box tops at 62.785 and
+  misses by 0.065. The honest correction recorded: the first form's
+  claimed vanilla answers were derived for a falling body — the
+  toss pop feeds the first tick's move.
+- **THE CONTROL** — the settled item (100 ticks, the scatter decayed,
+  the landing clip done): the box bottoms on the floor at [60.0,
+  60.25] in BOTH worlds (the engine's clip seats the bottom exactly
+  like the reference's move-clip — the convergence the
+  `ItemOrbLandingPhysicsParityTest` 9/0 record carries); the player
+  at the rest position collects in both. GREEN on develop — the
+  rig's sanity, isolating the ANCHORING as the sole divergence.
+
+The construction discipline: the restored seat has no toss (the
+saved Motion rows apply after through the setter — the seat spawns
+at rest-state and reads the first tick); the transient seat's read
+is post-tick with the toss rise carried; the control settles before
+the read. No attraction exists for items (no retarget-window
+discipline needed — unlike the orb seats).
+
+**The wire-y slice (the packet form)**: the seats above drive the
+manager rig alone; the wire arms' seats (the Spawn Object y and the
+teleport position against the packet law) need the connection
+harness — the source pass's census stands as the current evidence
+(the engine writes `entity.position().y()` — the center — where the
+reference's `SpawnObjectS2CPacket` writes `entity.y * 32`, the
+bottom); the pass-3 walk owns the choice between a harness seat or
+the source evidence + the fix's own regression pin.
+
+**STATUS: VT-038 under verification — pass 2 complete.** The
+independent walk (pass 3) owed: the constructor census both sides
+(the engine's `ItemEntityManager` callers against the reference's
+thirteen sites), the compensating-behavior hunt (every
+`position.y - HALF_HEIGHT` read site — the physics consults
+propagate consistently, the pass-1 spot census says), and the
+design-intent challenge (the class documents the CENTER convention,
+never a bottom-anchoring rationale — the same challenge shape as
+the orb's, NEGATIVE there).
