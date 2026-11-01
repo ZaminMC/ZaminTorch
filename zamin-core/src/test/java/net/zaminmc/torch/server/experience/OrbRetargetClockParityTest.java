@@ -190,7 +190,7 @@ class OrbRetargetClockParityTest {
         assertEquals(1, sounds.heard.size(), "the unconditional fizz fired");
         Position at = sounds.heard.get(0).at();
         assertEquals(0.0, at.x(), 1.0e-9, "the sound's x is the pre-move center x");
-        assertEquals(64.125 - ExperienceOrbEntity.HALF_HEIGHT, at.y(), 1.0e-9,
+        assertEquals(64.125 - orb.halfHeight(), at.y(), 1.0e-9,
                 "the sound's y is the box BOTTOM (the reference's own y)");
         assertEquals(0.0, at.z(), 1.0e-9);
     }

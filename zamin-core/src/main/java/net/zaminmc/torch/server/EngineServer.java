@@ -25826,10 +25826,11 @@ public final class EngineServer implements Server, EngineBridge {
     /**
      * THE ORB WOUNDS (the reference's damageEntities walk over the
      * experience family — ExperienceOrbEntity.takeDamage lines 141-151):
-     * the same shape over the engine's own 0.25 orb body (the family's
-     * established convention; vanilla's spawned orb carries a 0.5 box) —
-     * the health-5 wound through the manager's verb, the death-at-zero
-     * removal with no payout, and the unconditional scatter.
+     * the same shape over the body's OWN box (VT-037 — the per-body
+     * half-size: a spawned orb's 0.5 box, a restored one's 0.25, the
+     * reference's two-constructor law) — the health-5 wound through
+     * the manager's verb, the death-at-zero removal with no payout,
+     * and the unconditional scatter.
      */
     private void woundOrbsFromBlast(EngineWorld blastWorld, int dimension,
                                     double cx, double cy, double cz, float f3,
@@ -25839,7 +25840,7 @@ public final class EngineServer implements Server, EngineBridge {
                 continue;
             }
             Position p = orb.position();
-            double half = net.zaminmc.torch.server.experience.ExperienceOrbEntity.HALF_HEIGHT;
+            double half = orb.halfHeight();
             double feetY = p.y() - half;
             double feetDx = p.x() - cx;
             double feetDy = feetY - cy;
@@ -25860,12 +25861,12 @@ public final class EngineServer implements Server, EngineBridge {
             d7 /= d13;
             d9 /= d13;
             double d14 = blockDensity(blastWorld, cx, cy, cz,
-                    p.x() - net.zaminmc.torch.server.experience.ExperienceOrbEntity.HALF_WIDTH,
+                    p.x() - orb.halfWidth(),
                     feetY,
-                    p.z() - net.zaminmc.torch.server.experience.ExperienceOrbEntity.HALF_WIDTH,
-                    p.x() + net.zaminmc.torch.server.experience.ExperienceOrbEntity.HALF_WIDTH,
+                    p.z() - orb.halfWidth(),
+                    p.x() + orb.halfWidth(),
                     feetY + half * 2.0,
-                    p.z() + net.zaminmc.torch.server.experience.ExperienceOrbEntity.HALF_WIDTH);
+                    p.z() + orb.halfWidth());
             double d10 = (1.0 - d12) * d14;
             float damage = (int) ((d10 * d10 + d10) / 2.0 * 8.0 * f3 + 1.0);
             experienceOrbs.hurtFromExplosion(orb, damage);
