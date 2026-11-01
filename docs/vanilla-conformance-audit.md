@@ -5407,3 +5407,42 @@ floor law, its own discovery pass); the snow layer's 7-layer band
 (VT-003's standing tail — hasSolidTop's fifth arm); the merge watch at
 the thirty-two-PR open set with #145 joining the #138 -> #141 -> #145
 chain; the placement-gate absorption riding the carrier picks.
+
+## The forty-eighth pass's closing act — F-SP4 discovered (the tripwire family's own consults, the F-SP class's fourth member): the SUSPENDED flag's floor law reading the collision question
+
+**Pass 1 (source):** the tripwire family's reference law — the SUSPENDED
+flag and the pop arm both over `World.hasSolidTop(pos.down())`:
+
+- `TripwireBlock.onAdded` (lines 110-114): `SUSPENDED :=
+  !World.hasSolidTop(pos.down())` at the commit.
+- `TripwireBlock.neighborChanged` (lines 87-94): `flag = state.get(
+  SUSPENDED); flag1 = !World.hasSolidTop(pos.down()); if (flag !=
+  flag1) { dropItems + removeBlock }` — the wire POPS when the floor's
+  hasSolidTop verdict has FLIPPED since the commit (a stone-floor wire
+  whose floor becomes glass: flag false, flag1 true — the pop).
+- `TripwireHookBlock.resolveVirtualProperties` (lines 34-36): the hook's
+  own `SUSPENDED := !hasSolidTop(pos.down())`.
+- `TripwireHookBlock.updateState` (line 101+): `flag2 =
+  !World.hasSolidTop(pos.down())` — the run walk's consult.
+
+**The engine (develop `efcd0c4f`):** `TripwireSystem` reads
+`WorldSolidity.isSolid(below)` at FIVE sites (lines 88, 229, 338, 350,
+373) — the collision question. The divergence rows (the F-SP class
+again): a tripwire on GLASS, ICE, TNT, the leaves, the glowstone or any
+translucent-but-collision-solid floor reads SUSPENDED=FALSE in the engine
+(never suspended) where vanilla reads TRUE (the wire hanging from its
+hooks); a stone-floor wire whose floor becomes glass STAYS in the engine
+(flag==flag1, both false) where vanilla pops it (flag false, flag1
+true). The reverse direction: the non-cube solids (the fences, the
+walls, the bottom slabs) read suspended in BOTH (each not-hasSolidTop,
+each not-collision-solid — the agreement by coincidence); the hopper and
+the TOP-half floors agree unsuspended.
+
+**The proposed correction (the next run's acts, the same three-pass
+discipline):** the five consult sites routed through
+`SupportConsult.hasSolidTop` — the same one-consult-per-site shape, the
+flag and the pop arm reading the reference's law. The seats: the
+stone-floor wire whose floor becomes glass (the pop), the suspended
+flag's value on the translucent floors, the dirt control. The next
+numbering: F-SP4 (the class's fourth member) — the tripwire family's own
+discovery pass.
