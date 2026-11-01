@@ -5603,3 +5603,80 @@ vanilla, stays in the engine), the mount-swap signature row (stone →
 redstone block: the third conjunct's kill), the placement refusal
 (the hook against glass never landing in vanilla, landing in the
 engine), and the dirt control (the opaque mount holding in both).
+
+## The fiftieth pass's second and third acts — F-SP5 CONFIRMED through the three-pass discipline and CORRECTED (PR #150, stacked on the F-SP4 branch #148 — the chain #138 -> #141 -> #145 -> #148 -> #150)
+
+**Pass 2 (behavioral):** the seats RED on the unfixed baseline (the
+lane's merged tree over develop `1139f2c3`) at exactly the predicted
+row tables — `TripwireHookWallSupportParityDiscoveryTest`:
+
+- The SURVIVAL seat (sixteen divergent rows): every translucent
+  (glass, stained glass, glowstone, TNT, ice, the leaves, the cactus),
+  every non-cube solid (the fence, the single slab, the stair, the
+  pane, the bars, the cobblestone wall, the chest, the hopper) and
+  THE SIGNATURE ROW the redstone block reading `engine=hold` where
+  vanilla pops — the mount swap firing the walk synchronously (the
+  seats' preconditions proving the dispatch chain intact; the LAW the
+  only wrong part). The controls agreeing both directions: the
+  stone/cobblestone/double-slab mounts holding, the AIR mount popping
+  (the engine agrees on the material conjunct).
+- The PLACEMENT seat (ten divergent rows): the gate accepting every
+  host vanilla refuses outright — the same band, the redstone block
+  the signature row again. The stone and double-slab controls taking
+  the placement in both.
+
+**Pass 3 (independent):**
+
+- The compensating hunt NEGATIVE at BOTH levels: source — no other
+  `isHook` survival arm exists anywhere in the engine's main tree
+  (the two RedstoneSystem arms are the SIGNAL dispatch — getSignal/
+  getDirectSignal, the emission, never the survival); behavioral —
+  the seats themselves (every divergent mount reading engine=hold:
+  no compensating pop fired on any row).
+- The intentionality challenge NEGATIVE: the comments at both sites
+  cite the reference methods while reading the collision
+  approximation — `checkSupport`'s javadoc "a hook re-checks its
+  mount (lines 108-119 — the mount gone breaks the hook)" narrows the
+  law to the GONE mount where vanilla pops the NOT-isSolid mount
+  (glass is not gone); `hookPlacementSupported`'s comment "a
+  horizontal face with a solid block behind it" reading "solid" as
+  the collision question. The citation present, the law imprecise —
+  the honest-omission class, the same signature as F-SP1/F-SP4.
+- The blast-radius walk: the gate's ONE production caller
+  (`placeTripwireHookOnTick`); the pop arm's single bus path; the
+  harness census NEGATIVE for re-pins — `TripwireSystemTest` mounts
+  its hooks on STONE (the agreeing control), the temple lanes count
+  structure-placed hooks (direct world writes, no consult), no other
+  test drives the gate or pins a divergent mount.
+- The four-scan subsumption re-derived: the reference's
+  `canSurviveOrBreak` four-direction scan is observationally subsumed
+  by the mount check (a solid mount passes the scan as one of the
+  four; a non-solid mount falls to the mount check whatever the scan
+  says) — the engine's mount-only arm the correct structure, the
+  consult the only wrong part.
+
+**THE CORRECTION (PR #150 OPEN, `fix/tripwire-hook-wall-support-parity-audit`
+stacked on the F-SP4 branch — the chain #138 -> #141 -> #145 ->
+#148 -> #150): the two wall sites routed through
+`BlockSolidity.isSolid` — the engine's landed `Block.isSolid()`
+(the F-SP1 merge, PR #139) — the same one-consult-per-site shape the
+F-SP chain carries. The seats GREEN 2/0 on the fix.**
+
+**The named tail (its own discovery pass, NOT folded in):** the
+tripwire family's pop arms carry no item drop — the reference's pop
+drops the string/hook item (`dropItems + removeBlock`) while the
+engine's arm sets air with the shatter fx alone (`popBlock`'s
+convention — the item-entity drop — unused by this family); the wire
+and the hook both, the drops' own census a future pass's head.
+
+**REGRESSION:** 363/0 — the redstone package whole (47: the tripwire
+lanes, the F-SP1/F-SP2/F-SP4 seats and the family core), the block
+package (312) and the temple structure lanes (4 — the jungle temple's
+own tripwire trap).
+
+**The queue for the next pass:** the tripwire family's pop-drop law
+(the named tail above — the string and hook items never dropping on
+the survival pops) the NEW STANDING HEAD; the snow layer's 7-layer
+band (VT-003's tail — hasSolidTop's fifth arm); the merge watch at
+the twenty-eight-PR open set with the five-link chain #138 -> #141 ->
+#145 -> #148 -> #150 documented.
