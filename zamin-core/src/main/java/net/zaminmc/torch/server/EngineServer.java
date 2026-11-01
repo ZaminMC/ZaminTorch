@@ -15205,7 +15205,7 @@ public final class EngineServer implements Server, EngineBridge {
         if (!isBedHalf(brokenType)) {
             return;
         }
-        BlockPosition sibling = bedFacingPartner(broken, brokenType);
+        BlockPosition sibling = net.zaminmc.torch.server.block.BedBlocks.facingPartner(broken, brokenType);
         if (sibling == null) {
             return; // an id outside the family: nothing to consult
         }
@@ -15552,89 +15552,9 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /** Whether the block type is a bed half (either foot or head). */
+    /** The family home's own test (BedBlocks.isHalf — the public seam the tests read). */
     public static boolean isBedHalf(net.zaminmc.torch.block.BlockType type) {
-        String id = type.identifier().value();
-        return type.identifier().namespace().equals("minecraft")
-                && (id.equals("bed") || id.startsWith("bed_"));
-    }
-
-    /** The four look bands' horizontal offsets (the placement's own
-     * S/W/N/E law, `Direction` SOUTH/WEST/NORTH/EAST's normal vectors:
-     * S=+z, W=-x, N=-z, E=+x). */
-    private static final int[][] BED_BAND_OFFSETS = {{0, 1}, {-1, 0}, {0, -1}, {1, 0}};
-
-    /**
-     * The facing band a bed half's OWN identifier names (S=0, W=1, N=2,
-     * E=3 — `Direction.getIdHorizontal`'s law, the reference's enum lines
-     * 14-17). The engine's eight bed ids ARE the reference's metadata
-     * space: `BuiltinBlocks` registers the feet at metas 0-3 and the
-     * heads at 8-11 with the facing in the suffix (`bed`/`bed_west`/
-     * `bed_north`/`bed_east`, `bed_head`/`bed_head_west`/
-     * `bed_head_north`/`bed_head_east` — the suffix-less ids are the
-     * SOUTH variants, vanilla metas 0 and 8), the anvil import's
-     * 26-rows and the wire's `metadataOf` carry the same numbers — so
-     * every registered bed half answers a band, and the suffix always
-     * names the pair's own geometry. Answers -1 for any id outside the
-     * eight (unreachable through placement, import, or /setblock — the
-     * family is total).
-     */
-    private static int bedFacingBand(net.zaminmc.torch.block.BlockType type) {
-        String id = type.identifier().value();
-        if (!type.identifier().namespace().equals("minecraft")) {
-            return -1;
-        }
-        if (id.equals("bed") || id.equals("bed_head")) {
-            return 0; // south — the suffix-less variants (vanilla metas 0 and 8)
-        }
-        if (id.equals("bed_west") || id.equals("bed_head_west")) {
-            return 1; // west
-        }
-        if (id.equals("bed_north") || id.equals("bed_head_north")) {
-            return 2; // north
-        }
-        if (id.equals("bed_east") || id.equals("bed_head_east")) {
-            return 3; // east
-        }
-        return -1;
-    }
-
-    /**
-     * The cell the reference's FACING law names for a bed half: a
-     * foot's HEAD cell (`BedBlock.use` lines 38-41 — the redirect:
-     * {@code pos.offset(state.get(FACING))}), a head's FOOT cell (the
-     * `use` else arm lines 71-75 and `beforeMinedByPlayer` lines
-     * 190-197 — {@code pos.offset(state.get(FACING).getOpposite())}).
-     * Answers null for an id outside the family.
-     */
-    private static BlockPosition bedFacingPartner(BlockPosition pos,
-                                                   net.zaminmc.torch.block.BlockType type) {
-        int band = bedFacingBand(type);
-        if (band < 0) {
-            return null;
-        }
-        int[] offset = BED_BAND_OFFSETS[band];
-        // The head's partner sits at the facing-OPPOSITE cell; the
-        // foot's at the facing cell.
-        return type.identifier().value().startsWith("bed_head")
-                ? pos.offset(-offset[0], 0, -offset[1])
-                : pos.offset(offset[0], 0, offset[1]);
-    }
-
-    /**
-     * The cell BEHIND a bed half — the facing-OPPOSITE cell whatever
-     * the half's class: the `use` else arm's own removal law (lines
-     * 72-76 read the ANCHOR's state — {@code pos.offset(state.get(
-     * FACING).getOpposite())} — from whatever half the redirect landed
-     * on). Answers null for an id outside the family.
-     */
-    private static BlockPosition bedFacingBackward(BlockPosition pos,
-                                                    net.zaminmc.torch.block.BlockType type) {
-        int band = bedFacingBand(type);
-        if (band < 0) {
-            return null;
-        }
-        int[] offset = BED_BAND_OFFSETS[band];
-        return pos.offset(-offset[0], 0, -offset[1]);
+        return net.zaminmc.torch.server.block.BedBlocks.isHalf(type);
     }
 
     /**
@@ -15701,7 +15621,7 @@ public final class EngineServer implements Server, EngineBridge {
         // state read BEFORE its removal.
         BlockType anchorType = world.getBlock(head);
         world.setBlock(head, world.airType());
-        BlockPosition sibling = bedFacingBackward(head, anchorType);
+        BlockPosition sibling = net.zaminmc.torch.server.block.BedBlocks.facingBackward(head, anchorType);
         if (sibling != null && isBedHalf(world.getBlock(sibling))) {
             world.setBlock(sibling, world.airType());
         }
@@ -15733,7 +15653,7 @@ public final class EngineServer implements Server, EngineBridge {
         if (type.identifier().value().startsWith("bed_head")) {
             return clicked;
         }
-        BlockPosition redirect = bedFacingPartner(clicked, type);
+        BlockPosition redirect = net.zaminmc.torch.server.block.BedBlocks.facingPartner(clicked, type);
         if (redirect == null || !isBedHalf(world.getBlock(redirect))) {
             return null; // the orphan foot: consumed, neither arm
         }
@@ -15806,7 +15726,7 @@ public final class EngineServer implements Server, EngineBridge {
         if (type.identifier().value().startsWith("bed_head")) {
             return clicked;
         }
-        BlockPosition redirect = bedFacingPartner(clicked, type);
+        BlockPosition redirect = net.zaminmc.torch.server.block.BedBlocks.facingPartner(clicked, type);
         if (redirect == null || !isBedHalf(world.getBlock(redirect))) {
             return clicked; // the defensive row (the dispatch aborted the orphan first)
         }
