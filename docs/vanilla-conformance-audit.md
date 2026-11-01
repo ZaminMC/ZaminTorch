@@ -2269,6 +2269,156 @@ work, in the queue's order:
    next run rather than risked half-done at the environment's edge.
    The orbs/boats/carts/arrows walks follow it.
 
+## The thirty-first pass — the #109/#113 coverage VERIFIED through the independent seats (the honest-convergence protocol), VT-013 discovered (the stuck arrow's crossing: the stick placement + the box-scan collision against the position-cell consult)
+
+The baseline advanced to `d26a1ebd` (PR #105 the TNT-cart slice and
+#107 the mob cooldown's decay lane MERGED, the FL4-GAP2 Slice A chest
+wave, the two build-blocker flakes retired). This lane — renamed twice
+under the concurrent streams (the twenty-ninth and thirtieth names
+were both taken mid-run; the pass-29 lane's records are merged whole
+above) — took the handoff's named head: **the #109/#113 coverage
+verification through this stream's independent seat constructions**
+plus the stuck-arrow edge as the discriminator.
+
+**THE VERIFICATION (the VT-008 protocol — independent constructions,
+not the re-fix).** Two new seats, both RED on develop `d26a1ebd` at
+exactly the crossing asserts (the preconditions green) and both GREEN
+on the #113 union tree `0e3151fe` (= #109 + the arrows):
+
+1. **THE ARC FLIGHT-PATH SEAT** (`PortalArrowArcCrossingDiscoveryTest`)
+   — the handoff's owed construction: an arrow launched FOUR blocks
+   out, pitch 10 down, speed 1.4 — the flight crossing the plane
+   MID-FLIGHT on the third tick while the arrow still descends at
+   ~0.2 blocks/tick (the vertical motion the facing quarter-turn
+   rotation never touches, carried whole through the reference's NBT
+   copy — `PortalForcer.findNetherPortal` lines 149-152 rotate X/Z
+   alone). The seat discriminates beyond #113's own face shot: the
+   crossing fires with non-zero vertical motion and the arrival's
+   continued flight lands inside the pre-built destination frame's
+   band before the catcher set (the lid + floor + walls, this seat's
+   own wider form) ends it. GREEN on `0e3151fe` — the mid-flight law,
+   the arrival band, the continued flight, and the nether stamp all
+   hold.
+2. **THE FAMILY-WIDE SEAT** (`PortalThrownCrossingDiscoveryTest`) —
+   the far-side snowball: thrown from BELOW the plane (the -Z face,
+   the mirror approach) at the interior's second column, the
+   `ThrownEntity` super-chain arm (the reference's own scope: the
+   snowball/egg/potion/exp-bottle family — `ThrownEntity.tick` line
+   123's `super.tick()`). GREEN on `0e3151fe` — the arm covers a
+   NON-ARROW kind: the family-wide claim of the #113 census (every
+   `Kind` body walks the same per-body arm) verified through the
+   second family.
+
+The regression set on the union tree: the five family seats whole —
+the item 1/0, the orb 1/0, the vehicle 2/0 (the seats as they ride on
+#109's tree), the arrow 1/0 (#113's own face shot), and the mob 3/0
+(PR #98's regression seats). **#109's and #113's coverage is
+VERIFIED.**
+
+**THE STUCK-ARROW EDGE — VT-013 DISCOVERED** (the handoff's named
+discriminator, taken to its root; renumbered from the draft VT-012 —
+the second parallel lane's own VT-012 is the NetherBlastRouting flake
+record, the collision resolved by this renumber). The record:
+
+- **ID and title:** VT-013 — the stuck arrow never crosses: the stick
+  placement (the post-step endpoint) and the position-cell consult
+  compose against the reference's face+0.05 placement and box-scan
+  collision.
+- **Subsystem:** the projectile family's block-hit walk + the
+  entity-level portal arm (every crossing family shares the consult
+  form).
+- **Status:** UNDER VERIFICATION — passes 1-2 complete (source +
+  behavioral); the independent pass 3 owed.
+- **Affected engine files and methods:**
+  `ProjectileManager.resolveCollisions` (the solid arm calls
+  `landInGround()` without touching the position — the body rests at
+  the post-step ENDPOINT, up to a full step inside the block);
+  `ProjectileEntity.landInGround` (the flag + velocity zeroing alone);
+  the per-family `tickPortalArm` consults (`portalFrameAt(feet/pos
+  cell)` — the position cell ALONE).
+- **Vanilla reference:** `ArrowEntity.tick` lines 288-309 — the
+  block-hit arm sets the velocity to the segment TO THE FACE, backs
+  the position off 0.05 along the approach, then advances by the full
+  segment: the final position is 0.05 OUTSIDE the hit face, in the
+  cell the arrow was flying through (a floor hit inside a portal frame
+  rests the arrow INSIDE the portal cell above the floor);
+  `Entity.checkBlockCollisions` lines 667-688 — a full BOX scan:
+  every cell the body's shape overlaps receives `onEntityCollision`;
+  `PortalBlock.onEntityCollision` arms `inPortal` for the stuck arrow
+  (a projectile never rides); `ArrowEntity.tick` line 150's
+  `super.tick()` runs baseTick's portal arm BEFORE the inGround branch
+  — the threshold-0 crossing fires for a STUCK arrow on the first
+  armed tick. **A portal that LIGHTS UP around an already-stuck arrow
+  crosses it on the very next tick.**
+- **Observed (the seat, `PortalStuckArrowCrossingDiscoveryTest`):**
+  the empty-frame construction (the interior AIR) — the arrow shot
+  steeply down into the interior sticks in the floor; the observed
+  stuck position `y=19.947` against the floor's face at `y=20`, the
+  cell `(41, 19, 40)` = the OBSIDIAN floor row; the portal then lit
+  around it (the flint-and-steel result) — the crossing NEVER fires:
+  RED on develop `d26a1ebd` (no arm at all) AND RED on the #113 union
+  tree `0e3151fe` (the arm's position-cell consult reads the obsidian
+  cell forever — `portalFrameAt` answers null for a non-portal cell).
+  The vanilla answer: the position rests at `y=20.05` inside the
+  interior cell `(41, 20, 40)`, the box scan overlaps the new portal
+  cell, and the crossing fires within a tick of the lighting.
+- **The exact mismatch (two stacked rows):** (a) the PLACEMENT — the
+  engine leaves the position at the integrate endpoint (inside the
+  solid cell, up to a full step deep) while the reference backs off to
+  the face+0.05 (the cell the arrow flew through); (b) the CONSULT —
+  the engine's per-family arms read the position cell alone while the
+  reference scans every cell the body's shape overlaps. The flying
+  families compose these safely (a flying body's position cell enters
+  the portal plane before its box leaves it); the STUCK body composes
+  them into a permanent miss.
+- **The second observable of row (a):** the stick placement itself
+  diverges for EVERY stuck arrow — the reference's arrow rests 0.05
+  outside the hit face (the rendered shaft stands out of the block,
+  the pickup/shake sampling sits at the face); the engine's rests
+  inside the block's cell (up to a full step deep for a fast shot).
+  The thin-wall shape follows from the same row: a step whose MIDPOINT
+  sample lands inside a one-block wall sticks the arrow at the
+  ENDPOINT — in the AIR past the wall (the reference's ray hits the
+  near face and rests there). Not seated this pass; the record names
+  it as the same root.
+- **Proposed minimal correction (the fix shape, for the pass-3 run):**
+  the placement repair at the block-hit arm — back the position off
+  to the hit sample's face (the midpoint/endpoint solid consult gains
+  the face-landing form: the position lands 0.05 outside the crossed
+  face along the step's approach) — composes with the existing
+  position-cell consult to restore the vanilla observable for the
+  stuck arrow (the position cell becomes the interior cell). The
+  box-scan consult (the reference's own form) is the WIDER law — it
+  would also cover edge-overlap bodies (a large mob straddling a
+  boundary) — but it is a five-family architectural change; the
+  placement repair alone restores the named observable. The pass-3
+  run owns the choice.
+- **Regression risks:** the stick placement is consumed by the pickup
+  walk (the grown-box overlap), the shake/particle sampling, the
+  persistence rows (the anvil import's `restoreGrounded`), and the
+  stuck-arrow seats' geometry — the re-pins ride the fix's review.
+
+**THE SECOND PARALLEL LANE (the union deferred):** the pass-30 lane
+(the #110 carrier — the shared-holder `EntityPortalClock` variant)
+carries its ENGINE IMPLEMENTATION inside the audit lane (the
+`EntityPortalClock.java` + the five managers' arms over `a23011fa`);
+merging it whole onto this lane (develop `d26a1ebd` + seats) would
+layer a half-merged engine implementation beside the FL4-GAP2 chest
+wave's engine changes — the unsafe union this protocol exists to
+avoid. The lane's own close-out says "the union with the pass-29 lane
+and the develop advance is the NEXT RUN'S HEAD" — the deferral is
+mutual and recorded. THE VT NUMBERING: that lane's VT-012 is the
+NetherBlastRouting flake record; this lane's stuck-arrow finding is
+VT-013 (renumbered this pass, the collision resolved).
+
+**The queue after this pass:** (1) VT-013's pass 3 (the independent
+re-verification: the execution-path walk over the pickup/persistence
+consumers, the thin-wall shape's own seat, the fix-shape choice
+between the placement repair and the box-scan consult) then the fix
+branch if it holds; (2) the pass-30 lane's union (the docs-only
+union, the engine files staying on the #110 branch); (3) the standing
+lanes (F-SP1/F-DS1) and the dimension tails.
+
 
 ## Coverage ledger (updated by the twenty-ninth pass)
 
@@ -2284,7 +2434,7 @@ work, in the queue's order:
 | Snow layer — placement support/melt/drops | drops landed (the mining-speed audit); melt + the 7-layer state surface recorded as VT-003's tail |
 | Packed ice — melt/break laws | inspected: the reference's PackedIceBlock carries no melt arm (the `setTicksRandomly` false, the silk-drop row landed); nothing owed |
 | Portal mechanics (flag1, forcer) | landed by FL4-F1; not re-audited — the stand clock's re-fire law is VT-004 (CONFIRMED, three passes; the correction **MERGED — PR #91**; the seat PortalRefireDiscoveryTest rides green on develop) |
-| Portal mechanics — the non-player crossing (the entity-level arm) | the MOBS family LANDED by **PR #98** (VT-006's correction: the entity-level crossing service + the mobs family — the gated collision, the threshold-0 clock, the 300 cooldown with the re-arm pin, the 8:1 walk, the forcer's placement, the stamp swap, the per-dimension wire; `PortalMobCrossingDiscoveryTest` 3/0 with the cooldown and riding-gate pins). The ITEMS family's pass 3 (the independent walk, the parallel stream's twenty-ninth pass): CONFIRMED — `ItemEntityManager.tick`'s walk re-walked on the `a23011fa` tree (expired → inVoid → the TF-9 dimension flip → the physics → the same-world pickup — zero portal consults, `portalFrameAt` called nowhere in the manager); the reference re-read fresh (`ItemEntity.tick` line 64's `super.tick()` → the Entity portal arm lines 282-313: `vehicle == null && portalTime++ >= getMaxNetherPortalTime()` — the base 0 — then `changeDimension`, the cooldown `getPortalCooldown()`); the compensation hunt NEGATIVE (the pickup's own same-world gate means no other mover exists for a stack standing in a portal cell); the design-choice challenge NEGATIVE (the engine's own `leaveEndOnTick` javadoc LEDGERS the gap — a planned gap, PR #98's own follow-up plan, never an intentional divergence). THE HONEST CONVERGENCE (the thirtieth pass's record): the pass-29 close-out deferred the items fix to "the next run's head" WITHOUT the #109 absorption — **PR #109 OPEN** (opened 10-31 12:39, the close-out 13:18 names only #105/#106/#111/#115) ALREADY CARRIES the items, orbs, and vehicles arms whole (the identical law + the cleaner removal fan), beside this stream's PR #112 CLOSED as superseded (the flake root-caused by both streams; this stream's strictly-deterministic `spawnThrown` seat construction + the 3-run stability record offered to #109's review). The ARROWS carried by **PR #113 OPEN** (stacked on #109) with **#110** the same stream's shared-holder variant. THE COVERAGE VERIFIED (the thirtieth pass): #109's and #113's arms GREEN through this stream's INDEPENDENT seat constructions on the union tree `0e3151fe` — the five family seats whole (item 1/0, orb 1/0, vehicle 2/0, arrow 1/0, mob 3/0 — the #98 regression) plus this stream's two NEW constructions (the ARC flight-path seat and the far-side SNOWBALL seat, both GREEN — the record below). The STUCK-ARROW edge the handoff named is VT-012 (the row below) — a NEW finding beyond #113's coverage, not a failure of its arm. The End-origin arm is the named tail; the TNT and falling families excluded by the census |
+| Portal mechanics — the non-player crossing (the entity-level arm) | the MOBS family LANDED by **PR #98** (VT-006's correction: the entity-level crossing service + the mobs family — the gated collision, the threshold-0 clock, the 300 cooldown with the re-arm pin, the 8:1 walk, the forcer's placement, the stamp swap, the per-dimension wire; `PortalMobCrossingDiscoveryTest` 3/0 with the cooldown and riding-gate pins). The ITEMS family's pass 3 (the independent walk, the parallel stream's twenty-ninth pass): CONFIRMED — `ItemEntityManager.tick`'s walk re-walked on the `a23011fa` tree (expired → inVoid → the TF-9 dimension flip → the physics → the same-world pickup — zero portal consults, `portalFrameAt` called nowhere in the manager); the reference re-read fresh (`ItemEntity.tick` line 64's `super.tick()` → the Entity portal arm lines 282-313: `vehicle == null && portalTime++ >= getMaxNetherPortalTime()` — the base 0 — then `changeDimension`, the cooldown `getPortalCooldown()`); the compensation hunt NEGATIVE (the pickup's own same-world gate means no other mover exists for a stack standing in a portal cell); the design-choice challenge NEGATIVE (the engine's own `leaveEndOnTick` javadoc LEDGERS the gap — a planned gap, PR #98's own follow-up plan, never an intentional divergence). THE HONEST CONVERGENCE (the thirty-first pass's record): the pass-29 close-out deferred the items fix to "the next run's head" WITHOUT the #109 absorption — **PR #109 OPEN** (opened 10-31 12:39, the close-out 13:18 names only #105/#106/#111/#115) ALREADY CARRIES the items, orbs, and vehicles arms whole (the identical law + the cleaner removal fan), beside this stream's PR #112 CLOSED as superseded (the flake root-caused by both streams; this stream's strictly-deterministic `spawnThrown` seat construction + the 3-run stability record offered to #109's review). The ARROWS carried by **PR #113 OPEN** (stacked on #109) with **#110** the same stream's shared-holder variant. THE COVERAGE VERIFIED (the thirty-first pass): #109's and #113's arms GREEN through this stream's INDEPENDENT seat constructions on the union tree `0e3151fe` — the five family seats whole (item 1/0, orb 1/0, vehicle 2/0, arrow 1/0, mob 3/0 — the #98 regression) plus this stream's two NEW constructions (the ARC flight-path seat and the far-side SNOWBALL seat, both GREEN — the record below). The STUCK-ARROW edge the handoff named is VT-013 (the row below) — a NEW finding beyond #113's coverage, not a failure of its arm. The End-origin arm is the named tail; the TNT and falling families excluded by the census |
 | Bed use — the out-of-dimension blast arm | CONFIRMED over three passes (the twenty-sixth's census + source; the twenty-seventh's behavioral + independent); the correction **MERGED — PR #102 onto develop**, verified by BOTH streams independently: the twenty-seventh's `BedOutOfDimensionBlastDiscoveryTest` (the portal-walk anchoring, the clock pin, the End seat, the seated HELL-biome conjunct — RED pre-fix, GREEN on the fix) and the twenty-eighth's `BedWrongWorldBlastVerificationTest` on the MERGED tree (the End seat + the HEAD-half identity click, both GREEN — the second-construction confirmation) |
 | Portal mechanics — the riding gate (vehicle == null && rider == null) | VT-005 CONFIRMED (three passes — source, the pig-in-portal behavioral seat, the dismount-control independent pass; the correction **MERGED — PR #94**) |
 | Drops — the TF-9 dimension stamp | LANDED by PR #90 (the dig/place walks stamp `world.dimension()`; the tile-family spill sites remain the per-dimension tile tail) |
@@ -2298,9 +2448,20 @@ work, in the queue's order:
 | World border — per-dimension | NOT INSPECTED (the reference's per-World border vs the engine's shared one; surfaced by the dig-start gate review) |
 | Zombie/mob arms — world binding | NOT INSPECTED (the zombie door-break consults the overworld field; surfaced by PR #90's cleanup threading) |
 | Explosions — dimension routing | AUDITED this pass (the twenty-sixth): the call-site census whole — the primed TNT (FL4-F7) and the End crystal (Slice 62) correct; the ghast fireball and wither skull sinks pass the routed world with the OVERWORLD service, the creeper/wither-birth/TNT-cart wrappers bind the overworld outright, and the shared drop roll stamps dimension 0 (**VT-007: the CORE resolved by PR #100** — another stream's honest convergence with this census, the overlap recorded, PR #103 closed as superseded; **the CART slice PR #105 OPEN** — the BlastSink dimension carry, the stash-discriminated seat nether=0/overworld=18 unfixed; the fireball + creeper seats 2/0 green on post-#100 develop, the independent confirmation riding in #105). The blast WOUND walks are routed (the dimension gate + the blastWorld consult); the fire placement is routed (F-EX4/PR #92); the named tail: the End/nether services' shared `gameplayRandom` vs the reference's per-world `world.random` |
-| Item entities / pickup — dimension | the TF-9 stamped sites are the record; the pickup consult un-audited
+| Item entities / pickup — dimension | the TF-9 stamped sites are the record; the pickup consult un-audited |
+| Projectile family — the stick placement + the portal consult (the stuck arrow's crossing) | **VT-013 UNDER VERIFICATION** (the thirty-first pass): passes 1-2 complete — the source walk (the reference's face+0.05 placement at ArrowEntity 288-309 + the box-scan collision at Entity 667-688 vs the engine's endpoint placement + position-cell consult) and the behavioral seat (`PortalStuckArrowCrossingDiscoveryTest`, RED on develop AND on the #113 tree with the placement evidence y=19.947 against the face at y=20); the pass-3 walk owed, then the fix branch (the placement repair the minimal shape). The thin-wall air-stick is the same root's second observable, named in the record |
 
 ## The queue for the next pass
+
+0. **VT-013's pass 3** (the thirty-first pass's head for the next
+   run): the independent re-verification — the execution-path walk
+   over the stick placement's consumers (the pickup walk's grown-box
+   overlap, the persistence rows, the anvil import's
+   `restoreGrounded`), the thin-wall air-stick shape's own seat, and
+   the fix-shape choice (the placement repair vs the box-scan
+   consult) — then the fix branch if it holds. Beside it: the pass-30
+   lane's docs-only union (the second parallel stream's records; the
+   engine files stay on the #110 branch).
 
 1. ~~VT-010's pass 3~~ — **DONE (the parallel stream's twenty-ninth
    pass: the wire/legacy suffix-consistency walk)**, and with it
@@ -2325,7 +2486,7 @@ work, in the queue's order:
    environment, SIGKILL 137 at the memory ceiling, verified identical
    on the clean develop tree).
 3. ~~The crossing families' arms — the coverage verification~~ —
-   **DONE (the thirtieth pass, this stream's lane)**: the pass-29
+   **DONE (the thirty-first pass, this stream's lane)**: the pass-29
    close-out's "items fix as the next run's head" is SUPERSEDED BY
    THE CONVERGENCE — **PR #109 ALREADY CARRIES the items, orbs, and
    vehicles arms** (opened 10-31 12:39, before the close-out's 13:18
@@ -2337,7 +2498,7 @@ work, in the queue's order:
    flight-path seat (the crossing firing MID-FLIGHT with the vertical
    motion the rotation never touches) and the far-side SNOWBALL seat
    (the family-wide arm through a NON-ARROW kind) — both GREEN.
-   **THE STUCK-ARROW EDGE the handoff named is VT-012** (the record
+   **THE STUCK-ARROW EDGE the handoff named is VT-013** (the record
    below): the reference's box-scan collision + face+0.05 stick
    placement against the engine's position-cell consult + endpoint
    placement — RED on develop AND on the #113 tree; its passes 2-3
@@ -2355,7 +2516,7 @@ work, in the queue's order:
    PR #90 ledger): the per-dimension tile families, the mob spawn's
    dimension stamp, the FX dimension awareness, the per-dimension world
    border, the zombie arm's world binding.
-6. The watch items (the thirtieth pass's fetch, the current truth):
+6. The watch items (the thirty-first pass's fetch, the current truth):
    **#91/#94/#95/#98/#101/#102/#104/#105/#107 ALL MERGED onto
    develop** (`d26a1ebd` — the TNT-cart blast slice #105 and the mob
    cooldown's decay lane #107 landed with the FL4-GAP2 chest wave and

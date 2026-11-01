@@ -20,7 +20,7 @@ import java.util.function.BooleanSupplier;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * THE VERIFIER'S VT-012 DISCOVERY SEAT — the stuck arrow's portal
+ * THE VERIFIER'S VT-013 DISCOVERY SEAT — the stuck arrow's portal
  * crossing (docs/vanilla-conformance-audit.md): an arrow ALREADY STUCK
  * in the portal frame's floor crosses when the portal lights up around
  * it — the box-scan collision law the engine's position-cell consult
@@ -61,7 +61,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * stuck arrow's position cell is the OBSIDIAN floor cell — the portal
  * consult answers null FOREVER, and the stuck arrow never crosses, on
  * develop (no arm) AND on the #113 tree (the arm's consult misses).
- * This seat is RED on both; VT-012 owns the law. Do not re-pin it to
+ * This seat is RED on both; VT-013 owns the law. Do not re-pin it to
  * the engine's current answer.</p>
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -117,7 +117,7 @@ class PortalStuckArrowCrossingDiscoveryTest {
     }
 
     /**
-     * VT-012: an arrow stuck in the portal frame's floor crosses when the
+     * VT-013: an arrow stuck in the portal frame's floor crosses when the
      * portal lights up around it — vanilla's box-scan law. The engine's
      * stick placement (the endpoint inside the floor cell) plus the
      * position-cell consult leave the stuck arrow stranded forever.
@@ -190,7 +190,7 @@ class PortalStuckArrowCrossingDiscoveryTest {
         ProjectileEntity arrow = launched.get();
         await(() -> arrow.inGround(), "the arrow sticks in the frame's floor");
 
-        // VT-012's PLACEMENT EVIDENCE (observed, not asserted as law):
+        // VT-013's PLACEMENT EVIDENCE (observed, not asserted as law):
         // the engine's stuck position is the post-step endpoint — BELOW
         // the floor's face, its cell the OBSIDIAN floor row; the
         // reference's placement is the face+0.05 — INSIDE the interior
@@ -216,12 +216,12 @@ class PortalStuckArrowCrossingDiscoveryTest {
         // ENGINE'S SHAPE: the position-cell consult reads the OBSIDIAN
         // floor cell (the stick placement's endpoint) — null forever —
         // and the stuck arrow never leaves the overworld, on develop and
-        // on the #113 tree alike (VT-012's record, the handoff's named
+        // on the #113 tree alike (VT-013's record, the handoff's named
         // stuck-arrow discriminator).
         boolean crossed = EngineAwaits.awaitConditionWithin(server.world(),
                 () -> arrow.dimension() == -1, 100, "the stuck arrow's portal crossing");
         assertTrue(crossed,
-                "VT-012: the arrow stuck in the portal frame's floor crosses when the "
+                "VT-013: the arrow stuck in the portal frame's floor crosses when the "
                         + "portal lights around it (the reference's box-scan collision — "
                         + "checkBlockCollisions lines 667-688 — arms inPortal for the "
                         + "STUCK arrow whose shape overlaps the portal cell, and baseTick's "
