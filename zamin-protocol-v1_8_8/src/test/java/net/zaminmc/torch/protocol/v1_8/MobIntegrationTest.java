@@ -67,12 +67,30 @@ class MobIntegrationTest extends ProtocolTestBase {
             Position live = mobs.byId(pigId).position();
             client.walkTo(live.x(), live.y(), live.z(), true);
             client.sendUseEntity(pigId, Protocol18.USE_ENTITY_ATTACK);
+            // THE RE-WALK (run 582's member — the dead-window retirement):
+            // a refused swing used to burn the whole 5s window watching a
+            // body that would never change — the pig strolls on, and under
+            // the hosted runner's load (the tick lane's catch-up aging the
+            // AI while the packets sit queued) the next walk's read could
+            // already be stale again, ~12 attempts in 60s. The window now
+            // RE-CLOSES the distance every ~1.2s: walk the live cell and
+            // swing again (four attempts per window, the tail compounding
+            // 4x) — the reach gate itself is never weakened, every swing
+            // follows a fresh walk (the far-swing violations stay rare,
+            // the kick ladder's 20 never near).
             long landed = System.currentTimeMillis() + 5_000;
+            long nextSwing = System.currentTimeMillis() + 1_200;
             while (System.currentTimeMillis() < landed) {
                 MobEntity body = server.mobs().byId(pigId);
                 if (body == null || (killed ? body.dead()
                         : body.health() < body.maxHealth())) {
                     return;
+                }
+                if (System.currentTimeMillis() >= nextSwing) {
+                    Position walk = body.position();
+                    client.walkTo(walk.x(), walk.y(), walk.z(), true);
+                    client.sendUseEntity(pigId, Protocol18.USE_ENTITY_ATTACK);
+                    nextSwing = System.currentTimeMillis() + 1_200;
                 }
                 Thread.sleep(50);
                 client.pumpKeepAlives();
@@ -125,6 +143,36 @@ class MobIntegrationTest extends ProtocolTestBase {
             assertTrue(pig[0] >= 1_100_000, "mob ids live in their own band");
             assertEquals(10, pig[5], "the pig's health rides the living metadata");
             int pigId = pig[0];
+
+            // THE DAWN-ZOMBIE GUARD (run 582's member — the frozen-pig
+            // retirement, the probe-verified root cause): the natural
+            // cycle can seat a hostile at the world's spawn before the
+            // client joins (the boot-time dawn light's randomized rule),
+            // and a STATIONARY test player is zombie food — the eaten
+            // player then answers every later gate exactly like a
+            // disconnected one: the despawn scan skips the dead body, the
+            // pig's far-window climbs past 100 and the animal NEVER
+            // strolls again (canDespawn false for the penned family — a
+            // frozen-forever pig), and the attack ladder's own
+            // dead-player return no-ops every swing at any distance. The
+            // probe run caught it red-handed: ZOMBIE@0,0 eating the
+            // hunter's 20 hp over ten seconds while the pig stood frozen
+            // beside it. The guard: NOON (the seat's own duration — no
+            // hostile spawns under the noon light; the night test below
+            // sets its own) plus a sweep of whatever hostiles the boot
+            // already seated.
+            client.sendChat("/time set noon");
+            server.ticker().submit(() -> {
+                for (var mob : server.mobs().all().toArray(new net.zaminmc.torch.server.entity.MobEntity[0])) {
+                    if (mob.type().hostile) {
+                        server.mobs().remove(mob, "the seat's dawn guard");
+                    }
+                }
+            });
+            awaitCondition(() -> server.mobs().all().stream()
+                            .noneMatch(m -> m.type().hostile)
+                            && server.world().timeOfDay() >= 6000,
+                    "the dawn guard swept the hostiles and the noon is set");
 
             // The AI walks: a Rel Move Look (0x17) for the pig arrives (other
             // mobs of the population wander too, so chase the pig's own id).

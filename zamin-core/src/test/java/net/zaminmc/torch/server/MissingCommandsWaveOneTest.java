@@ -519,15 +519,24 @@ class MissingCommandsWaveOneTest {
         int cz = (int) Math.floor(alice.position().z());
         // Two players spread apart in a generous box: both land inside the
         // range bounds and (allowing the floor+0.5 landing shift) at least
-        // the spread distance apart.
+        // the spread distance apart. THE BOUNDS' OWN 0.5 SHIFT (run 582's
+        // member): the relaxation's clamp snaps an edge-pushed pile to the
+        // box boundary EXACTLY (the reference's own clamp, SpreadPlayers
+        // Command.java lines 281-291), and the landing is floor(x) + 0.5 —
+        // a boundary-snapped pile therefore lands HALF A BLOCK outside the
+        // ±maxRange band, 20.5 over a 20. The engine is 1:1 (the same
+        // clamp, the same landing); the seat's bounds were tighter than
+        // the command's own contract, and the edge landing made the await
+        // permanently unsatisfiable — the 30s timeout (the distance arm
+        // already carried the shift, the bounds arm missed it).
         dispatch("/spreadplayers ~ ~ 5 20 false Alice Bob");
         await(() -> {
             double ax = alice.position().x();
             double az = alice.position().z();
             double bx = bob.position().x();
             double bz = bob.position().z();
-            return Math.abs(ax - cx) <= 20.0 && Math.abs(az - cz) <= 20.0
-                    && Math.abs(bx - cx) <= 20.0 && Math.abs(bz - cz) <= 20.0
+            return Math.abs(ax - cx) <= 20.5 && Math.abs(az - cz) <= 20.5
+                    && Math.abs(bx - cx) <= 20.5 && Math.abs(bz - cz) <= 20.5
                     && Math.hypot(ax - bx, az - bz) >= 3.5;
         }, "both players spread inside the box, at least 5 apart");
 
