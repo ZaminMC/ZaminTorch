@@ -13284,7 +13284,13 @@ public final class EngineServer implements Server, EngineBridge {
                 && session.inventory().held().isEmpty()) {
             return;
         }
-        if (!WorldSolidity.isSolid(world.getBlock(target.offset(0, -1, 0)))) {
+        // RedstoneWireBlock.canBePlaced lines 92-94: hasSolidTop || the
+        // explicit GLOWSTONE arm (F-SP2 — the family's own law, not the
+        // collision-solid approximation).
+        if (!net.zaminmc.torch.server.block.SupportConsult.hasSolidTop(
+                world.getBlock(target.offset(0, -1, 0)))
+                && !world.getBlock(target.offset(0, -1, 0)).identifier().value()
+                        .equals("glowstone")) {
             return; // the wire needs its solid bed (the vanilla gate)
         }
         world.setBlock(target, net.zaminmc.torch.server.redstone.RedstoneBlocks.wireOfPower(0));
@@ -13530,7 +13536,12 @@ public final class EngineServer implements Server, EngineBridge {
                 && session.inventory().held().isEmpty()) {
             return;
         }
-        if (!WorldSolidity.isSolid(world.getBlock(target.offset(0, -1, 0)))) {
+        // AbstractPressurePlateBlock.canSitOnTop lines 84-86: hasSolidTop
+        // || FenceBlock (F-SP2 — the family's own law).
+        if (!net.zaminmc.torch.server.block.SupportConsult.hasSolidTop(
+                world.getBlock(target.offset(0, -1, 0)))
+                && !WorldSolidity.isFence(
+                        world.getBlock(target.offset(0, -1, 0)).identifier())) {
             return; // the plate needs its solid bed
         }
         world.setBlock(target, net.zaminmc.torch.server.redstone.RedstoneBlocks.plateOf(false, wooden));
@@ -13612,8 +13623,10 @@ public final class EngineServer implements Server, EngineBridge {
                 && session.inventory().held().isEmpty()) {
             return;
         }
-        if (!WorldSolidity.isSolid(world.getBlock(target.offset(0, -1, 0)))) {
-            return; // the diode needs its solid bed
+        if (!net.zaminmc.torch.server.block.SupportConsult.hasSolidTop(
+                world.getBlock(target.offset(0, -1, 0)))) {
+            return; // the diode needs its solid bed (DiodeBlock.canSurvive
+                    // line 34: hasSolidTop ALONE — F-SP2, the family's law)
         }
         double yaw = ((session.rotation().yaw() % 360.0) + 360.0 + 45.0) % 360.0;
         int lookBand = (int) (yaw / 90.0) % 4; // 0=S,1=W,2=N,3=E of the look
@@ -13645,8 +13658,10 @@ public final class EngineServer implements Server, EngineBridge {
                 && session.inventory().held().isEmpty()) {
             return;
         }
-        if (!WorldSolidity.isSolid(world.getBlock(target.offset(0, -1, 0)))) {
-            return; // the diode needs its solid bed
+        if (!net.zaminmc.torch.server.block.SupportConsult.hasSolidTop(
+                world.getBlock(target.offset(0, -1, 0)))) {
+            return; // the diode needs its solid bed (DiodeBlock.canSurvive
+                    // line 34: hasSolidTop ALONE — F-SP2, the family's law)
         }
         double yaw = ((session.rotation().yaw() % 360.0) + 360.0 + 45.0) % 360.0;
         int lookBand = (int) (yaw / 90.0) % 4; // 0=S,1=W,2=N,3=E of the look
@@ -15967,7 +15982,10 @@ public final class EngineServer implements Server, EngineBridge {
                 && !WorldSolidity.isReplaceable(above.identifier())) {
             return; // the upper half's headroom
         }
-        if (!WorldSolidity.isSolid(world.getBlock(target.offset(0, -1, 0)))) {
+        // DoorBlock.canBePlaced line 214: World.hasSolidTop (F-SP2 — the
+        // comment finally true, the collision-solid approximation retired).
+        if (!net.zaminmc.torch.server.block.SupportConsult.hasSolidTop(
+                world.getBlock(target.offset(0, -1, 0)))) {
             return; // World.hasSolidTop: no floor, no door
         }
         if (intersectsPlayerBox(session.position(), target)) {

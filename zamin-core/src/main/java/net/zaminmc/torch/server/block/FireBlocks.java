@@ -310,17 +310,19 @@ public final class FireBlocks {
 
     /**
      * The reference's World.hasSolidTop (World.java lines 1740-1750, 1:1
-     * over the engine's surfaces): the full-cube common case through
-     * {@link WorldSolidity#isSolid} (the engine's own solid predicate —
-     * the reference's material.isSolidBlocking + isCube pair has no
-     * separate engine form, named), with the partial families carrying
-     * their own arms BEFORE it (the reference's StairsBlock/SlabBlock
-     * else-chain): the stairs TOP half alone (a bottom stair is not),
-     * the single slab's TOP half alone (a double slab IS a full cube —
-     * the fallthrough answers it), the hopper, and the never-solid-tops
-     * the reference's isCube gate refuses (fences, gates, walls, chests,
-     * the 1-layer snow). The 7-layer snow arm never fires: the engine's
-     * snow layer is the single 1-layer state.
+     * over the engine's surfaces) — delegated whole to
+     * {@link SupportConsult#hasSolidTop} (F-SP2): the full-cube common
+     * case through the reference's own pair,
+     * {@code material.isSolidBlocking() && isCube()} (the translucent
+     * materials — LEAVES, GLASS (the glass family, the glowstone, the sea
+     * lantern, the panes), TNT, ICE, SNOW_LAYER, CACTUS — NEVER answer,
+     * Material.java lines 13/22/24/26/28/30), with the partial families
+     * carrying their own arms (the StairsBlock/SlabBlock else-chain: the
+     * TOP halves alone, the double slab a full cube, the hopper family),
+     * and the never-solid-tops the reference's isCube gate refuses
+     * (fences, gates, walls, chests, the 1-layer snow). The 7-layer snow
+     * arm never fires: the engine's snow layer is the single 1-layer
+     * state.
      */
     public static boolean hasSolidTop(EngineWorld world, BlockPosition pos) {
         BlockType type = world.getBlock(pos);
@@ -354,8 +356,14 @@ public final class FireBlocks {
             return false;
         }
         // The full-cube common case (stone, dirt, grass, planks, logs,
-        // leaves, tnt, netherrack, bedrock — and the doubles above).
-        return WorldSolidity.isSolid(type);
+        // netherrack, bedrock — and the doubles above): the reference's
+        // arm 1, material.isSolidBlocking() && isCube() — the translucent
+        // materials never answer (F-SP2; the prior WorldSolidity.isSolid
+        // fallthrough accepted glass, glowstone, ice, TNT, the leaves and
+        // the cactus against the reference's refusal).
+        return !MaterialSolidity.isTranslucentMaterial(id)
+                && MaterialSolidity.blocksMovement(id)
+                && BlockSolidity.isCube(type, id);
     }
 
     /**
