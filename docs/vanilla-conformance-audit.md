@@ -5205,3 +5205,79 @@ through the same precise law (fixing the BlockUpdateSystem rail arm and
 the rail placement re-check at the one site), and the placement-support
 gate's four new rows (the wire/plate/diode/rail placements refused
 outright on unsupported floors — vanilla's `World.canPlace` consult).
+
+## The forty-seventh pass's second and third acts — F-SP2 CONFIRMED through the three-pass discipline and CORRECTED (PR #141, stacked on the F-SP1 carrier #138): the six survival arms + the placement gates + the second site all reading the reference's own laws
+
+**Pass 2 (behavioral):** six seats written and run RED 6/6 on unfixed
+develop at exactly the FIRST divergence assert of every row (each failure
+`expected: <true> but was: <false>` — the engine KEPT each family where
+vanilla fells it): the wire on glass (the GLOWSTONE agreement row and the
+dirt control staying behind the fail-fast assert), the repeater on glass
+AND glowstone (the diode's no-disjunct contrast row), the comparator on
+glass, the plate on glass AND the cobblestone wall (the oak-fence
+agreement row and the dirt control behind), the weighted plate on glass
+(the fence agreement row behind), the rail on glass (both consults
+answering the collision question). All six GREEN 6/0 on the fix tree,
+every agreement row and control lifted with them.
+
+**Pass 3 (independent):**
+- *The reference re-read* at every family (the laws re-derived from the
+  reference files with the line numbers pinned above) and at the
+  PLACEMENT chain — `World.canPlace` → `canBePlaced` per family, the
+  engine's five special placement paths (`placeRedstoneDustOnTick` /
+  `placePlateOnTick` / `placeRepeaterOnTick` / `placeComparatorOnTick` /
+  `placeRailOnTick`) plus the generic gate each carrying the wrong law
+  (the collision question for the dust/plate/diode paths, the imprecise
+  FireBlocks form for the rail path, NO row at all for the weighted pair
+  riding the generic path).
+- *The compensating hunt:* NEGATIVE for the wire/plates/diodes (the six
+  RedstoneSystem arms are the only support consults — no onAdded consult,
+  no scheduled-tick sweep, no second site); PARTIAL for the rails (the
+  BlockUpdateSystem arm's `RailConnections.survivesAt` agreeing with
+  vanilla on the non-cube rows alone — its own explicit fence/gate/wall/
+  chest/slab arms — while the translucent rows fell through
+  `FireBlocks.hasSolidTop`'s common case to TRUE).
+- *The intentionality challenge:* NEGATIVE — `hasSupportBelow`'s javadoc
+  cites `RedstoneWireBlock.canBePlaced` lines 92-94 with no approximation
+  disclaimer (the honest-omission class, the F-EC1/F-TC1/F-SP1
+  precedent), and each arm's comment cites the reference's own law while
+  the implementation answers a different question.
+- *The blast-radius walk:* NO harness re-pins needed — the existing
+  constructions all ride stone/dirt floors (the F-SP1 lever-on-piston
+  class absent); the regression surface 535/0 across the redstone+block
+  lanes (352), the interaction+vehicle+root acceptance lanes (84), the
+  piston+chest+container+misc lanes (93), and the seats (6), the F-SP1
+  seats green on the same tree.
+- *The reverse direction:* closed (the hopper agreeing through
+  hasSolidTop's fourth arm; the 7-layer snow VT-003's named tail — the
+  engine's single one-layer state; the air/fluid/flora/rail floors
+  agreeing both ways; the glowstone agreeing for the wire alone).
+
+**THE CORRECTION (PR #141 OPEN, `fix/has-support-below-family-parity-audit`
+stacked on the F-SP1 carrier `fix/support-consult-family-parity-audit-b`
+— PR #138, the SupportConsult class there; the merge order documented):
+the per-family consults `wireFloorHolds` (hasSolidTop || GLOWSTONE) /
+`diodeFloorHolds` (hasSolidTop alone) / `plateFloorHolds` (hasSolidTop ||
+the FenceBlock census at `WorldSolidity.isFence`) replacing the one
+`hasSupportBelow` at all six arms; the rail headwall through
+`SupportConsult.hasSolidTop`; `RailConnections.survivesAt` routed through
+the same precise law (the BlockUpdateSystem rail arm + the trio's
+onAdded re-check + the rail placement gate at the one site); the five
+placement gates + the weighted pair's generic-gate row carrying the same
+per-family laws. The seats ride the fix branch GREEN 6/0.**
+
+**The queue for the next pass:** F-SP3 the NEW STANDING HEAD (the
+`FireBlocks.hasSolidTop` translucent fallthrough serving the FIRE
+family's own four consults — `FireBlocks` lines 403/431/557/688 against
+the reference's `FireBlock` updateShape line 38 / tick line 168 /
+canBePlaced lines 306-308 / neighborChanged lines 311-315: fire standing
+on glass, ice, TNT, leaves, glowstone or the sea lantern SURVIVES where
+vanilla pops it, absent a flammable neighbour) — its own discovery pass,
+its own seats, the same three-pass discipline; the tripwire family's own
+`WorldSolidity.isSolid` consults (TripwireSystem lines 88/229/338/350/373
+against the reference's `!World.hasSolidTop(pos.down())` SUSPENDED law —
+`TripwireBlock` lines 89/112, `TripwireHookBlock` lines 35/101) the
+named tail beside it; the merge watch refreshed (twenty-nine-PR open
+set, #141 joining; the VT-025 collision note standing; the F-SP1
+convergence #137/#138/#139 the maintainer's pick with #141 stacked on
+#138's tree).
