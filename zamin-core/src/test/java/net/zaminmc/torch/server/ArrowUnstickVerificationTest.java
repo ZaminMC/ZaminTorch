@@ -17,7 +17,7 @@ import java.nio.file.Path;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
 
-import static org.junit.jupiter.api.Assertions.assertFalse;
+
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -150,35 +150,35 @@ class ArrowUnstickVerificationTest {
         await(() -> world.getBlock(new BlockPosition(cx, stoneY, cz)).equals(world.airType()),
                 "the stuck cell is broken to air");
 
-        // Forty ticks of the opened cell: the reference's arrow
-        // un-stuck on the first of them (the stamped pair stone/0 vs
-        // the cell's air — the mismatch arm) and has been falling
-        // since (the damped ~0.2 re-arm, then gravity's -0.05 per
-        // tick; forty ticks is deep into the fall).
-        EngineAwaits.awaitTicks(world, 40, "the broken cell settles");
-
-        assertFalse(arrow.inGround(),
-                "VT-015: the stuck arrow must UN-STICK when the block it is stuck "
-                        + "in changes (the reference's tracked-cell consult, ArrowEntity "
-                        + "lines 172-186: the inGround branch reads the stamped "
-                        + "blockX/blockY/blockZ cell every tick, and a stone-to-air "
-                        + "change fails the block == this.block && meta == this.blockData "
-                        + "match — inGround flips false, the velocity re-arms with the "
-                        + "nextFloat()*0.2 damping, the clocks reset, and the arrow "
-                        + "falls out of the opened cell). Observed: the arrow is STILL "
-                        + "inGround forty ticks after the cell it rests in (" + cx + ", "
-                        + stoneY + ", " + cz + ") was broken to air — the engine's "
-                        + "inGround arm (ProjectileManager.tick) runs the stick clock "
-                        + "and the 1200-tick expiry alone; no tracked cell exists in "
-                        + "the model and no consult fires. The rest position was y="
-                        + stuckY + " (the engine's endpoint rest, inside the now-air "
-                        + "cell).");
+        // THE PIN — the un-stick's observable is THE FALL, not the
+        // inGround flag at a fixed tick: the reference's arrow un-sticks
+        // on the first tick after the change (the stamped stone vs the
+        // cell's air — the mismatch arm, ArrowEntity 179-186), drops out
+        // of the opened cell under the damped re-arm + gravity, and
+        // RE-STICKS on whatever it lands on far below (the flat world's
+        // terrain ~15 blocks under the platform) — inGround is TRUE again
+        // in the reference by tick 40. The vanilla-faithful pin: the
+        // position must LEAVE the rest within the forty-tick window
+        // (the thirty-third lane's seat pins the same law through the
+        // far-below rest position).
+        EngineAwaits.awaitCondition(world,
+                () -> arrow.position().y() < stuckY - 0.01,
+                40,
+                "VT-015: the un-stick's fall — the arrow leaves its stuck rest when "
+                        + "the block it is stuck in (" + cx + ", " + stoneY + ", " + cz
+                        + ") breaks (the reference's tracked-cell consult, ArrowEntity "
+                        + "lines 172-186: the stamped stone/air mismatch flips inGround "
+                        + "false, the nextFloat()*0.2 damped re-arm plus gravity drops "
+                        + "the arrow out of the opened cell; the un-stuck body may "
+                        + "re-stick far below — the fall is the observable). Observed: "
+                        + "the arrow never left its stuck rest y=" + stuckY
+                        + " (the engine's inGround arm runs the stick clock and the "
+                        + "1200-tick expiry alone; no tracked-cell consult exists)");
         assertTrue(arrow.position().y() < stuckY,
                 "VT-015: the un-stuck arrow FALLS (the reference's re-armed velocity "
                         + "plus gravity — the arrow drops out of the opened cell and "
-                        + "flies again). Observed: the arrow's position is unchanged "
-                        + "at y=" + arrow.position().y() + " forty ticks after the "
-                        + "break (stuck rest was y=" + stuckY + ") — the body hangs "
-                        + "in the opened cell.");
+                        + "flies again). Observed: the arrow's position is "
+                        + arrow.position() + " after the break (stuck rest was y="
+                        + stuckY + ") — the body hangs in the opened cell.");
     }
 }
