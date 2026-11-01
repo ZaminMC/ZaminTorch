@@ -81,14 +81,15 @@ class TileStateSaveSplitTest {
         return sink.toByteArray();
     }
 
-    private static byte[] legacyJukeboxBytes(Map<BlockPosition, ItemStack> records)
+    private static byte[] legacyJukeboxBytes(int dimension,
+            Map<BlockPosition, ItemStack> records)
             throws Exception {
         ByteArrayOutputStream sink = new ByteArrayOutputStream();
         DataOutputStream out = new DataOutputStream(sink);
         out.writeByte('Z');
         out.writeByte('J');
         out.writeByte('D');
-        out.writeByte(1);
+        out.writeByte(2);
         writeVarInt(out, records.size());
         for (Map.Entry<BlockPosition, ItemStack> entry : records.entrySet()) {
             BlockPosition position = entry.getKey();
@@ -115,6 +116,7 @@ class TileStateSaveSplitTest {
                     out.write(bytes);
                 }
             }
+            out.writeByte(dimension);
         }
         out.flush();
         return sink.toByteArray();
@@ -171,14 +173,21 @@ class TileStateSaveSplitTest {
                 new ItemStack(BuiltinItems.COAL, 1, 0).withName("Named Disc"));
 
         JukeboxDataStore store = new JukeboxDataStore(dir.resolve("jukeboxes.bin"));
-        byte[] split = store.serialize(live);
-        assertArrayEquals(legacyJukeboxBytes(live), split,
+        // Wave FL4-GAP2 Slice C: the union save, each row stamped with its
+        // world (the ZJD v2 law).
+        Map<Integer, Map<BlockPosition, ItemStack>> union = Map.of(0, live);
+        byte[] split = store.serialize(union);
+        assertArrayEquals(legacyJukeboxBytes(0, live), split,
                 "the off-tick serialization and the historical walk are byte-identical");
 
-        store.save(live);
+        store.save(union);
         assertArrayEquals(split, Files.readAllBytes(dir.resolve("jukeboxes.bin")),
                 "the sync save's file carries the split path's bytes");
-        Map<BlockPosition, ItemStack> restored = store.load();
+        Map<BlockPosition, ItemStack> restored = new LinkedHashMap<>();
+        for (JukeboxDataStore.Loaded row : store.load()) {
+            assertEquals(0, row.dimension(), "every row stamps the overworld");
+            restored.put(row.position(), row.record());
+        }
         assertEquals(1, restored.get(new BlockPosition(2, 3, 4)).count());
         assertTrue(restored.get(new BlockPosition(5, 6, 7)).isEmpty(),
                 "the empty record loads empty");
@@ -203,12 +212,13 @@ class TileStateSaveSplitTest {
                     new ComparatorDataStore.StoredOutput(new BlockPosition(2, 2, 2), -1, 4));
             Map<BlockPosition, ItemStack> records =
                     Map.of(new BlockPosition(2, 2, 2), ItemStack.of(BuiltinItems.COAL, 1));
+            Map<Integer, Map<BlockPosition, ItemStack>> recordUnion = Map.of(0, records);
             byte[] comparatorBytes = comparatorStore.serialize(outputs);
-            byte[] jukeboxBytes = jukeboxStore.serialize(records);
+            byte[] jukeboxBytes = jukeboxStore.serialize(recordUnion);
 
             CountDownLatch comparatorDone = pipeline.submitSave("comparator", outputs,
                     comparatorStore::serialize, comparatorStore::writeSerialized);
-            CountDownLatch jukeboxDone = pipeline.submitSave("jukebox", records,
+            CountDownLatch jukeboxDone = pipeline.submitSave("jukebox", recordUnion,
                     jukeboxStore::serialize, jukeboxStore::writeSerialized);
             drainUntil(domain, compute, io, comparatorDone);
             drainUntil(domain, compute, io, jukeboxDone);
@@ -221,7 +231,8 @@ class TileStateSaveSplitTest {
                     "the landed jukebox file carries the serializer's bytes");
             assertEquals(9, comparatorStore.load().get(0).output());
             assertEquals(0, comparatorStore.load().get(0).dimension());
-            assertEquals(1, jukeboxStore.load().get(new BlockPosition(2, 2, 2)).count());
+            assertEquals(1, jukeboxStore.load().get(0).record().count(),
+                    "the record row round-trips");
         } finally {
             compute.shutdown();
             io.shutdown();

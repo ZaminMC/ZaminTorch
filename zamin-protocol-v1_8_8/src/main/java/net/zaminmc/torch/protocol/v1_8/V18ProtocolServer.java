@@ -1200,13 +1200,19 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                 }
             }
         });
-        // The leashes (Slice 11c): the knot's Spawn Object 77 / Destroy, the
-        // mob's Attach Entity pair (the holder in each observer's own id
-        // space), all broadcast to every connection.
+        // The leashes (Slice 11c + FL4-GAP2 Slice D): the knot's Spawn
+        // Object 77 / Destroy, the mob's Attach Entity pair (the holder in
+        // each observer's own id space) — the knot arms gated on the
+        // OBSERVER's own dimension (the reference's per-world tracker; the
+        // mob arms carry their own TF-12 gate inside the send), all
+        // broadcast to every connection.
         server.addLeadListener(new net.zaminmc.torch.server.leash.LeadSystem.Listener() {
             @Override
             public void onKnotSpawned(net.zaminmc.torch.server.leash.LeashKnot knot) {
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    if (connection.dimensionOfSession() != knot.dimension()) {
+                        continue; // another world's knot
+                    }
                     connection.sendKnotSpawned(knot);
                 }
             }
@@ -1214,6 +1220,9 @@ public final class V18ProtocolServer implements ProtocolAdapter {
             @Override
             public void onKnotRemoved(net.zaminmc.torch.server.leash.LeashKnot knot) {
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    if (connection.dimensionOfSession() != knot.dimension()) {
+                        continue; // another world's knot
+                    }
                     connection.sendKnotRemoved(knot.entityId());
                 }
             }
@@ -1238,7 +1247,12 @@ public final class V18ProtocolServer implements ProtocolAdapter {
         server.addDecorationListener(new net.zaminmc.torch.server.decoration.DecorationSystem.Listener() {
             @Override
             public void onFrameSpawned(net.zaminmc.torch.server.decoration.ItemFrame frame) {
+                // FL4-GAP2 Slice D — the frame's own-world gate (the
+                // reference's per-world tracker, the Wave AS shape).
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    if (connection.dimensionOfSession() != frame.dimension()) {
+                        continue; // another world's frame
+                    }
                     connection.sendFrameSpawned(frame);
                 }
             }
@@ -1246,6 +1260,9 @@ public final class V18ProtocolServer implements ProtocolAdapter {
             @Override
             public void onFrameRemoved(net.zaminmc.torch.server.decoration.ItemFrame frame) {
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    if (connection.dimensionOfSession() != frame.dimension()) {
+                        continue; // another world's frame
+                    }
                     connection.sendFrameRemoved(frame.entityId());
                 }
             }
@@ -1253,6 +1270,9 @@ public final class V18ProtocolServer implements ProtocolAdapter {
             @Override
             public void onFrameItemChanged(net.zaminmc.torch.server.decoration.ItemFrame frame) {
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    if (connection.dimensionOfSession() != frame.dimension()) {
+                        continue; // another world's frame
+                    }
                     connection.sendFrameItemChanged(frame);
                 }
             }
@@ -1261,6 +1281,9 @@ public final class V18ProtocolServer implements ProtocolAdapter {
             public void onFrameRotationChanged(
                     net.zaminmc.torch.server.decoration.ItemFrame frame) {
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    if (connection.dimensionOfSession() != frame.dimension()) {
+                        continue; // another world's frame
+                    }
                     connection.sendFrameRotationChanged(frame);
                 }
             }
@@ -1269,6 +1292,9 @@ public final class V18ProtocolServer implements ProtocolAdapter {
             public void onPaintingSpawned(
                     net.zaminmc.torch.server.decoration.Painting painting) {
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    if (connection.dimensionOfSession() != painting.dimension()) {
+                        continue; // another world's painting
+                    }
                     connection.sendPaintingSpawned(painting);
                 }
             }
@@ -1277,6 +1303,9 @@ public final class V18ProtocolServer implements ProtocolAdapter {
             public void onPaintingRemoved(
                     net.zaminmc.torch.server.decoration.Painting painting) {
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    if (connection.dimensionOfSession() != painting.dimension()) {
+                        continue; // another world's painting
+                    }
                     connection.sendPaintingRemoved(painting.entityId());
                 }
             }
@@ -2169,8 +2198,9 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                 }
             }
         }
-        // The leash knots already tied (Slice 11c): the same world snapshot.
-        var leads = engine.leads();
+        // The leash knots already tied (Slice 11c + FL4-GAP2 Slice D): the
+        // same world snapshot — the NEWCOMER's own world's family alone.
+        var leads = engine.leadsFor(newcomer.dimensionOfSession());
         if (leads != null) {
             for (net.zaminmc.torch.server.leash.LeashKnot knot : leads.allKnots()) {
                 newcomer.sendKnotSpawned(knot);

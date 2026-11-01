@@ -36,8 +36,26 @@ class SurvivalFlowIntegrationTest extends ProtocolTestBase {
         // Settle check is filtered by the entity id we already read from the
         // wire: the engine list may gain or lose other entities concurrently,
         // so an index-based peek here raced with removals (the old get(0)).
-        awaitCondition(() -> server.itemEntities().all().stream()
-                .anyMatch(e -> e.entityId() == entityId && e.onGround()), "the drop settled");
+        try {
+            awaitCondition(() -> server.itemEntities().all().stream()
+                    .anyMatch(e -> e.entityId() == entityId && e.onGround()), "the drop settled");
+        } catch (AssertionError timeout) {
+            // Run 591's unexplained one-off (the engine ran at NOMINAL 20 TPS
+            // through the whole 400-tick await, on a fresh flat world, with
+            // every removal and id-space candidate eliminated by the static
+            // analysis): the NEXT failure carries the item census — which
+            // bodies the engine list holds, where they are, and whether any
+            // is grounded — so the missing-settle's fate reads from the CI
+            // log without a local reproduction.
+            StringBuilder census = new StringBuilder("the item census at the timeout: [");
+            for (var item : server.itemEntities().all()) {
+                census.append(String.format("#%d(x=%.2f,y=%.2f,z=%.2f,dim=%d,ground=%s) ",
+                        item.entityId(), item.position().x(), item.position().y(),
+                        item.position().z(), item.dimension(), item.onGround()));
+            }
+            throw new AssertionError(timeout.getMessage() + " — " + census
+                    + "] (the awaited wire id was " + entityId + ")", timeout);
+        }
         // Stand where the drop rests: a real client falls into the mined hole
         // (gravity), which is what brings the item into pickup range.
         client.walkTo(spawn[2] / 32.0, spawn[3] / 32.0 - 0.125, spawn[4] / 32.0, true);

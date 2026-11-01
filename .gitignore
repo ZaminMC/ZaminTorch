@@ -35,3 +35,7 @@ players/
 launcher.pid
 zamin.properties
 __pycache__/
+run*-logs/
+run*-logs.zip
+run*-reports/
+run*-reports.zip

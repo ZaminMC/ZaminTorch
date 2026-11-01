@@ -197,8 +197,22 @@ class BedWrongWorldBlastAcceptanceTest {
         server.useItemOnBlock(sleeper, foot, 1, java.util.Optional.empty(),
                 windowId -> { });
 
-        EngineAwaits.awaitCondition(server.world(), sleeper::sleeping,
+        // THE SLEEP'S OWN PERSISTENT SIGNATURE (run 589's member, the
+        // probe-caught observation window): the sleeping flag itself is a
+        // TRANSIENT — the single-player morning jump fires within ticks
+        // of the entry and wakes the body, so a 25ms poll can miss the
+        // flip entirely under load (the probe's red-handed rounds: the
+        // complete cycle — sleep, dawn jump to time 59, wake — landed
+        // INSIDE the 3s watch window, sleeping=false at every read). The
+        // bed spawn is the walk's own lasting side effect (set at the
+        // entry, surviving every wake path, PlayerEntity.trySleep's own
+        // row) — the seat observes the law, never the transient.
+        EngineAwaits.awaitCondition(server.world(),
+                () -> sleeper.bedSpawn() != null,
                 40, "the overworld bed entered the sleep walk");
+        assertEquals(new Position(head.x() + 0.5, head.y() + 1.0, head.z() + 0.5),
+                sleeper.bedSpawn(),
+                "the bed spawn is the head cell's own rest position");
         assertTrue(EngineServer.isBedHalf(server.world().getBlock(head))
                         && EngineServer.isBedHalf(server.world().getBlock(foot)),
                 "the overworld bed's pair stands whole");
@@ -215,8 +229,15 @@ class BedWrongWorldBlastAcceptanceTest {
     @Test
     void theOrphanFootConsumesTheUseWithNoArm() throws Exception {
         layNetherPlatformAndBed();
-        // The head leaves: the foot is an orphan.
-        server.ticker().submit(() -> nether.setBlock(HEAD, nether.airType()));
+        // The head leaves: the foot is an orphan. The departure rides the
+        // FLAG-4 SILENT write (World.setBlockState's (flags & 4) family —
+        // no neighbor updates): under the restored pair-integrity law
+        // (BedBlock.neighborChanged lines 109-121, PR #114's arm) an
+        // update-bearing removal pops the orphan foot the same tick —
+        // exactly vanilla — so the orphan-click scene stages itself the
+        // vanilla-faithful way: a plugin's update-free write is the one
+        // path that leaves an orphan standing to be clicked.
+        server.ticker().submit(() -> nether.setBlockStateSilently(HEAD, nether.airType()));
         EngineAwaits.awaitCondition(server.world(),
                 () -> nether.getBlock(HEAD).equals(nether.airType()),
                 40, "the head left");

@@ -96,7 +96,11 @@ class TileExtraSaveSplitTest {
         return sink.toByteArray();
     }
 
-    /** The historical decoration walk (the pre-S5 save body, verbatim). */
+    /**
+     * The historical decoration walk (the pre-S5 save body, verbatim —
+     * the FL4-GAP2 Slice D v2 form: the dimension byte at each row's
+     * tail, the signed byte carrying -1 as u8 255).
+     */
     private static byte[] legacyDecorationBytes(
             List<DecorationSystem.FrameRecord> frames,
             List<DecorationSystem.PaintingRecord> paintings) throws Exception {
@@ -105,7 +109,7 @@ class TileExtraSaveSplitTest {
         out.writeByte('Z');
         out.writeByte('E');
         out.writeByte('D');
-        out.writeByte(1);
+        out.writeByte(2);
         writeVarInt(out, frames.size());
         for (DecorationSystem.FrameRecord record : frames) {
             out.writeInt(record.pos().x());
@@ -114,6 +118,7 @@ class TileExtraSaveSplitTest {
             out.writeByte(record.facing());
             legacyStack(out, record.item());
             out.writeByte(record.rotation());
+            out.writeByte(record.dimension());
         }
         writeVarInt(out, paintings.size());
         for (DecorationSystem.PaintingRecord record : paintings) {
@@ -124,6 +129,7 @@ class TileExtraSaveSplitTest {
             byte[] bytes = record.motive().getBytes(StandardCharsets.UTF_8);
             writeVarInt(out, bytes.length);
             out.write(bytes);
+            out.writeByte(record.dimension());
         }
         out.flush();
         return sink.toByteArray();
@@ -227,12 +233,12 @@ class TileExtraSaveSplitTest {
     void decorationSplitIsByteIdenticalToTheHistoricalWalkAndRoundTrips() throws Exception {
         List<DecorationSystem.FrameRecord> frames = List.of(
                 new DecorationSystem.FrameRecord(new BlockPosition(3, 40, -2), 2,
-                        ItemStack.of(BuiltinItems.DIAMOND, 1).withName("Shiny"), 5),
+                        ItemStack.of(BuiltinItems.DIAMOND, 1).withName("Shiny"), 5, 0),
                 new DecorationSystem.FrameRecord(new BlockPosition(0, 1, 0), 0,
-                        ItemStack.EMPTY, 0));
+                        ItemStack.EMPTY, 0, -1));
         List<DecorationSystem.PaintingRecord> paintings = List.of(
-                new DecorationSystem.PaintingRecord(new BlockPosition(-9, 65, 11), 1, "Kebab"),
-                new DecorationSystem.PaintingRecord(new BlockPosition(4, 4, 4), 3, "Wanderer"));
+                new DecorationSystem.PaintingRecord(new BlockPosition(-9, 65, 11), 1, "Kebab", 0),
+                new DecorationSystem.PaintingRecord(new BlockPosition(4, 4, 4), 3, "Wanderer", 1));
 
         DecorationDataStore store = new DecorationDataStore(dir.resolve("decorations.bin"));
 
@@ -248,8 +254,45 @@ class TileExtraSaveSplitTest {
         assertEquals(BuiltinItems.DIAMOND, restored.frames().get(0).item().type());
         assertEquals("Shiny", restored.frames().get(0).item().displayName());
         assertEquals(5, restored.frames().get(0).rotation());
+        assertEquals(0, restored.frames().get(0).dimension(), "the overworld frame's stamp");
+        assertEquals(-1, restored.frames().get(1).dimension(), "the nether frame's stamp");
         assertEquals(2, restored.paintings().size(), "the painting rows round-trip");
         assertEquals("Kebab", restored.paintings().get(0).motive());
+        assertEquals(1, restored.paintings().get(1).dimension(), "the end painting's stamp");
+    }
+
+    /**
+     * FL4-GAP2 Slice D — the ZED v1 migration law: a version 1 file's
+     * rows carry no dimension byte; they load as overworld rows (the
+     * migration law every GAP2 store carries).
+     */
+    @Test
+    void aVersionOneDecorationFileLoadsAsOverworldRows() throws Exception {
+        // The v1 form, hand-written (magic ZED + version 1 + one frame
+        // row without any dimension byte).
+        ByteArrayOutputStream sink = new ByteArrayOutputStream();
+        DataOutputStream out = new DataOutputStream(sink);
+        out.writeByte('Z');
+        out.writeByte('E');
+        out.writeByte('D');
+        out.writeByte(1);
+        writeVarInt(out, 1);
+        out.writeInt(7);
+        out.writeInt(40);
+        out.writeInt(-3);
+        out.writeByte(2);
+        out.writeByte(0); // the absent stack
+        out.writeByte(4); // rotation
+        writeVarInt(out, 0); // no paintings
+        out.flush();
+        Files.write(dir.resolve("v1-decorations.bin"), sink.toByteArray());
+
+        DecorationDataStore store = new DecorationDataStore(dir.resolve("v1-decorations.bin"));
+        DecorationDataStore.DecorationSnapshot restored = store.load();
+        assertEquals(1, restored.frames().size(), "the v1 frame row loads");
+        assertEquals(0, restored.frames().get(0).dimension(),
+                "the v1 row loads as an overworld row (the migration law)");
+        assertEquals(4, restored.frames().get(0).rotation());
     }
 
     @Test
@@ -277,9 +320,9 @@ class TileExtraSaveSplitTest {
                     new DecorationDataStore(dir.resolve("live-decorations.bin"));
             List<DecorationSystem.FrameRecord> frames = List.of(
                     new DecorationSystem.FrameRecord(new BlockPosition(1, 2, 3), 1,
-                            ItemStack.of(BuiltinItems.DIAMOND, 1), 2));
+                            ItemStack.of(BuiltinItems.DIAMOND, 1), 2, 0));
             List<DecorationSystem.PaintingRecord> paintings = List.of(
-                    new DecorationSystem.PaintingRecord(new BlockPosition(5, 6, 7), 2, "Kebab"));
+                    new DecorationSystem.PaintingRecord(new BlockPosition(5, 6, 7), 2, "Kebab", 0));
             byte[] decorationBytes = decorationStore.serialize(frames, paintings);
 
             CountDownLatch crystalsDone = pipeline.submitSave("ender-crystal", cells,
