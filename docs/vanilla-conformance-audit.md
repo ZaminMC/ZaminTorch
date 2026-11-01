@@ -3795,7 +3795,7 @@ it), the TNT's survival asserted against the engine's detonation.
 | Block identity — the legacy wire rows | the vine family's gap LANDED by `6b29c46f` (the house's own production-crash repair; `LegacyBlockIdsIntegrityTest`'s skip set now EMPTY and pinned) |
 | Mob spawns — the dimension stamp | **VT-012 CONFIRMED — three passes complete, fix-ready** (`audit/vt-012-spawn-dimension-stamp`: fourteen unstamped sites censused — the eggs, /summon, the wither, the spawner cart, the mooshroom shear, the infection/cure, the slime split, breeding, the golems, the infested burst; the wrong-stamped nether body invisible to the nether player, its physics reading the overworld's cells, a permanent ghost on the despawn walk) — the fix branch the next run's head |
 | Natural spawn — the floor consult (`hasSolidTop`) | **VT-020 CONFIRMED — three passes complete, fix-ready** (the spawn-floor lane's record, provenance `fix/spawn-floor-solid-top-parity-audit` `0f4bbfb4`, pushed 06:04:09 — the lane's report record owed): `NaturalSpawnSystem.isPartialShape`'s two suffix arms (`endsWith(_slab)` / `endsWith(_stairs)`) approximated `World.hasSolidTop`'s structured law (lines 1740-1752) and missed in BOTH directions — the ten double-slab floors REFUSED a spawn vanilla hosts (the first arm's `isCube()` accepts them), the stored bottom-stair and stone_slab2 floors HOSTED 1966 night spawns vanilla refuses (`HALF == TOP` alone passes), the same family refusing the spawn under ten names and hosting it under three; three RED seats at exactly the predicted values, 3/3 GREEN on the fix tree, the five-arm re-read + the 56-identifier census + the compensation hunt (negative) the independent pass; the spawn suite 16/0, the spawn-adjacent lanes 70/0, the block package 311/0 — the PR owed |
-| FX broadcasts — the dimension awareness | **CENSUSED (the forty-first pass) + TWO FAMILIES CORRECTED**: the bus itself carries the dimension on every event (Wave TF-12 — the javadoc's own law, `FxDimensionReadsTest` the forms' record) and the wire's fan refuses cross-dimension observers (`V18Connection.fxEligible`, verified in the walk) — the UNCOVERED surface was the CALLERS' overload choice: **32 no-dimension emit sites** (the overworld-0 stamp), censused engine-wide. **VT-026 CONFIRMED AND CORRECTED — PR #134 OPEN** (the TNT prime hiss: `TntSystem.ignite` + `spawnPrimedAt` — the body carried the acting dimension since FL4-F7 while its own hiss stamped the overworld; the nether prime silent to the players beside it, the phantom hiss in the overworld; the seat RED on develop at both arms, the fix the acting dimension at both sites). **VT-027 CONFIRMED AND CORRECTED — PR #135 OPEN** (the dig/place commit feedback: the `Commit` record carried NO dimension — the nether dig's break sound stamped 0, the digger breaking blocks in COMPLETE SILENCE while the overworld heard the phantom; the fix the record's dimension field + the closure's three stamps). The remaining census: the redstone-family sites (noteblock/piston/tripwire) ride the FL4 per-dimension redstone tail (their systems are overworld-bound today, the stamp consistent with the binding); the thunder pair CORRECT-BY-BINDING (the lightning strikes over the overworld's chunks alone — vanilla's no-nether-weather law, the bolt fan already gated 0); **~20 same-class candidate sites ledgered as the census tail** (the wither-summon poof — **TAKEN, VT-033/PR #146, the fiftieth pass: the poof's dimension corrected with the whole summon family's residues**, the anvil use/land events, the iron door/trapdoor, the eye-of-ender frame smoke, the fire placement's portal arm, the double-plant/farmland/cocoa place sounds, the door world-events, the falling-block land 1022) — each needing its own three-pass verification of the acting flow's dimension |
+| FX broadcasts — the dimension awareness | **CENSUSED (the forty-first pass) + TWO FAMILIES CORRECTED**: the bus itself carries the dimension on every event (Wave TF-12 — the javadoc's own law, `FxDimensionReadsTest` the forms' record) and the wire's fan refuses cross-dimension observers (`V18Connection.fxEligible`, verified in the walk) — the UNCOVERED surface was the CALLERS' overload choice: **32 no-dimension emit sites** (the overworld-0 stamp), censused engine-wide. **VT-026 CONFIRMED AND CORRECTED — PR #134 OPEN** (the TNT prime hiss: `TntSystem.ignite` + `spawnPrimedAt` — the body carried the acting dimension since FL4-F7 while its own hiss stamped the overworld; the nether prime silent to the players beside it, the phantom hiss in the overworld; the seat RED on develop at both arms, the fix the acting dimension at both sites). **VT-027 CONFIRMED AND CORRECTED — PR #135 OPEN** (the dig/place commit feedback: the `Commit` record carried NO dimension — the nether dig's break sound stamped 0, the digger breaking blocks in COMPLETE SILENCE while the overworld heard the phantom; the fix the record's dimension field + the closure's three stamps). The remaining census: the redstone-family sites (noteblock/piston/tripwire) ride the FL4 per-dimension redstone tail (their systems are overworld-bound today, the stamp consistent with the binding); the thunder pair CORRECT-BY-BINDING (the lightning strikes over the overworld's chunks alone — vanilla's no-nether-weather law, the bolt fan already gated 0); **~20 same-class candidate sites ledgered as the census tail** (the wither-summon poof — **TAKEN, VT-033/PR #146, the fiftieth pass**, the anvil use/land events — **the land 1022 TAKEN, VT-032/PR #136; the use/break 1020/1021 pair TAKEN, VT-035/PR #152, the fifty-second pass, carried with the whole window family's dimension routing**, the iron door/trapdoor, the eye-of-ender frame smoke, the fire placement's portal arm, the double-plant/farmland/cocoa place sounds, the door world-events, the falling-block land 1022 — **the FX-sweep residue TAKEN WHOLE by PR #142 (VT-029), the sixteen per-dimension-context sites**) — each needing its own three-pass verification of the acting flow's dimension |
 | World border — per-dimension | NOT INSPECTED (the reference's per-World border vs the engine's shared one) |
 | Zombie/mob arms — world binding | NOT INSPECTED (the zombie door-break consults the overworld field) |
 | Explosions — dimension routing | AUDITED (the twenty-sixth pass): the CORE resolved by PR #100; the CART slice RESOLVED — **PR #105 MERGED** (`278b139e`, the review rider at `32af09f3`). The named tail stands: the End/nether services' shared `gameplayRandom` vs the reference's per-world `world.random` |
@@ -3806,6 +3806,7 @@ it), the TNT's survival asserted against the engine's detonation.
 | Projectile family — the TNT prime hiss's dimension | **VT-026 CONFIRMED AND CORRECTED — PR #134 OPEN** (the forty-first pass, three passes): the reference plays `game.tnt.primed` in the IGNITING/DISPENSING world (`TntBlock.ignite` line 65 + `Bootstrap` lines 329-338 over `World.playSound` 769-773 — that world's listener list alone); the blast-consumed prime plays NOTHING (`onExploded` 47-54 — `primeFromBlast` already matches). The engine's `PrimedTnt` body carried the acting dimension (FL4-F7) while the hiss rode the no-dimension overload — the overworld 0 stamp. Pass 2 THE SEAT (`TntPrimeHissDimensionDiscoveryTest`, the full-boot construction over the FL4-F7 seat's own wire): RED on develop at both arms (the nether flint prime's hiss stamped 0, the dispensed arm's stamped 0; the controls green — the prime landed, the body carrying -1); pass 3 the walk (the wire's fan gate at `fxEligible`; the `game.tnt.primed` census — the two sites alone; the FL4-F7 body-stamp contrast). **PR #134** (`fix/tnt-prime-hiss-dimension-parity-audit` over develop `149eb1f0`): both sites pass `actingWorld.dimension()`; the seat 2/0 GREEN, the tnt/explosion/redstone lanes 25/0 |
 | Interaction family — the dig/place commit feedback's dimension | **VT-027 CONFIRMED AND CORRECTED — PR #135 OPEN** (the forty-first pass, three passes): the reference's break feedback (the 2001 event the client plays the dig sound from, `tryMineBlock` line 211's `this.world.doEvent`) and the place sound (`BlockItem.place` lines 53-60) ride the DIG WIRE'S OWN WORLD. The engine's writes routed the acting world since FL4-F5 while the `Commit` record carried NO dimension — the feedback closure's three stamps all overworld 0: the nether digger broke blocks in COMPLETE SILENCE (the phantom dig in the overworld), the place arm the same. Pass 2 THE SEAT (`NetherDigSoundDimensionDiscoveryTest`, the full-boot construction over the FL4-F5 seat's own wire): RED on develop at both arms (the dig sound stamped 0, the place's family sound stamped 0); pass 3 the walk (the compensation hunt NEGATIVE — the block-change packet plays nothing in 1.8, the `blockShatter` encodes to particles, the named sound the ONLY source; the Commit census — one constructor, one consumer). **PR #135** (`fix/dig-place-feedback-dimension-parity-audit` over develop `149eb1f0`): the record gains the dimension (the acting world the commit already receives), the closure reads it at both arms; the seat 2/0 GREEN (the hardened awaits — no same-tick race), the dig family lanes 16/0 |
 | Falling family — the anvil's land sound's dimension | **VT-028 CONFIRMED AND CORRECTED — PR #136 OPEN** (the forty-first pass, three passes — the census tail's first head): the reference's landing places the block SILENTLY (setBlockState flag 3) and calls the block's OWN hook — the BASE FallingBlock's hook is EMPTY (76-77: the ordinary sand/gravel landing fires NOTHING), the ANVIL's override alone firing `world.doEvent(1022, pos, 0)` on the falling body's OWN WORLD (AnvilBlock 89-91 — the per-world listener list; the client answers random.anvil_land). The engine's falling body carried its dimension since FL4-F9 while the land sound rode the no-dimension overload — the overworld 0 stamp. Pass 2 THE SEAT (`FallingAnvilLandDimensionDiscoveryTest`, the full-boot construction over the REAL gravity chain): RED on develop at the traced pin (the land sound stamped 0, expected -1); THE SCOPE GUARD green (the ordinary SAND landing plays NOTHING — the base hook's empty law); pass 3 the walk (the body-stamp contrast, the onFallingEnded census, the wire's fan gate). **PR #136** (`fix/anvil-land-dimension-parity-audit` over develop `149eb1f0`): one line — `entity.dimension()` rides the sound; the seat 2/0 GREEN, the falling/anvil/gravity families 109/0 |
+| The anvil window family — the block-consult windows' dimension ownership | **VT-035 CONFIRMED AND CORRECTED — PR #152 OPEN** (the fifty-second pass, three passes — the census tail's window head): the reference's anvil menu is CONSTRUCTED over the world the right-click happened in (AnvilMenu lines 44-46) and every later consult reads THAT world — the walk-away gate (isValid 309), the take's damage walk (the 0.12 roll's anvil read, the DAMAGE write, the remove — lines 81-89) and the 1020/1021 events (world.doEvent 86/89/92 over the per-world listener list); the enchanting menu the same (EnchantingTableMenu 44-46: the bookshelf power scan AND the gate). The engine left the two BLOCK-consult windows on Slice B's 3-arg 0-stamp open form with the viewer ticks' validity consults and the take's site consults (`anvilSiteAt`) reading the OVERWORLD FIELD — a nether anvil's window SLAMMED SHUT on the first viewer tick (the GUI unusable, the inputs dropped), a mirrored overworld anvil at the same coordinates kept it alive AND TOOK THE DAMAGE WRITES (the cross-dimension corruption, the VT-033 class), the 1020/1021 sounds stamped 0, and the nether enchanting table's bookshelf scan counted the OVERWORLD's shelves (the offers shaped by a mirrored geometry). Pass 2 THE SEAT (`AnvilWindowDimensionDiscoveryTest`, the full-boot construction, every step through the REAL wires — the use wire opens, the window-click wire carries the inputs and the take, the player random SEEDED for the deterministic 0.12 roll): RED on develop at every traced pin (the anvil slam-shut `expected ANVIL, observed NONE`; the corruption — the nether anvil's damage 0 where 1 expected, the overworld mirror advanced; the enchanting twin's slam-shut); pass 3 the walk (the compensation hunt NEGATIVE — the engine's own use wire opens the nether window then its own viewer tick kills it one tick later, an internal inconsistency not a design; the engine's own-law contrasts — Slice B's stamped opens, the chestsFor stamp convention, throwFromPlayer's session-dimension stamp; the stillValid consumer census; the overworld path byte-identical under worldFor(0)). **PR #152** (`fix/anvil-window-dimension-parity-audit` over develop `1139f2c3`): five sites, one law — the anvil open stamps the player's dimension (the 4-arg form), the enchanting open the same plus the bookshelf attach over the OPENING world, the two viewer ticks route by the OPEN'S DIMENSION STAMP, and `anvilSiteAt` gains the dimension (every site consult + the dimensioned sound overload); the seat 3/0 GREEN, the anvil/enchanting families 35/0, the container family 19/0, the protocol window lanes 8/0, the dimension/FX lanes 9/0 — 74 beside the seat |
 
 ## The queue for the next pass
 
@@ -4896,9 +4897,126 @@ census tail's next heads.
   record + the seat) and `fix/wither-summon-dimension-parity-audit`
   (PR #146's carrier), both pushed.
 
-**THE NEXT HEADS** (the fifty-first pass's queue): the census tail's
-remaining sites (item 8 — the bone-meal 2005 family the likeliest next:
-five sites in one dye-useOn flow, the dimension available at each), the
-banner tile fan (the named adjacent tail), the standing merge watch (the
-maintainer's pick among the convergent carriers), and whatever the
-pass-42 through pass-49 lanes' records union in.
+## The fifty-fourth pass (this lane — the branch renumbered twice at the push windows: the concurrent streams took the forty-eighth through fifty-third names publicly, the established push-order protocol; the work done in the fifty-first window over the post-merge tree) — VT-035: the anvil window family's dimension ownership (the census tail's window head, the Slice B block-consult remainder; the correction PR #152)
+
+The fiftieth pass's close named the bone-meal 2005 family the likeliest
+next head. THE RE-PICK: PR #142 (VT-029's sixteen-site FX sweep, opened
+inside the window) had already taken the bone-meal family WHOLE — its
+diff carries all five dye-useOn sites (`world.dimension()` at each, the
+DyeItem.useOn line 45 citations), the eye-of-ender frame smoke, the
+door/trapdoor/gate sounds, the flint ignite, and the place-family direct
+sounds. The re-run of the FX census against the lane's post-merge tree,
+crossed against the open PRs' claims, left ONE unclaimed head: the
+anvil use/break sound pair (`anvilSiteAt`'s `soundAt` — the 1020/1021
+events) — and the walk widened it into the whole window family's
+dimension ownership.
+
+**THE DISCOVERY (pass 1, source — over develop `1139f2c3`)**: the five
+2005 sites and their neighbors led to `useFarmingOnTick`'s contrast —
+the dye arms' no-dimension overloads against the acting `world` the
+method already holds — and then to the window family itself:
+
+- `openAnvilOnTick` rode the **3-arg `openContainerWindow`** (the 0
+  dimension stamp) — Slice B armed the four TILE families (furnace,
+  hopper, dispenser, brewing) with the 4-arg form; the two
+  **BLOCK-consult** windows (the anvil, the enchanting table) were left
+  behind.
+- `tickAnvilViewers`' walk-away gate consulted
+  `menu.stillValid(world::getBlock, ...)` — the **OVERWORLD FIELD**;
+  `tickEnchantingViewers` the same shape.
+- `anvilSiteAt(position)` — the take's `AnvilSite` — read and wrote the
+  same field in all five members (`anvilStands`, `damageState`,
+  `progressDamage`, `breakAnvil`, `useSound`), with `soundAt` on the
+  no-dimension fx overload.
+- `openEnchantingTableOnTick`'s `menu.attach(world::getBlock)` bound the
+  BOOKSHELF POWER SCAN to the overworld field too — the offers' shape.
+
+**THE REFERENCE LAW (re-walked twice)**: `AnvilMenu` lines 44-46 — the
+menu is CONSTRUCTED over the world the right-click happened in (the
+ctor's own `world` parameter), and every later consult reads THAT world:
+the walk-away gate (`isValid` line 309's `getBlockState` + the
+squared-distance-64 band), the take's damage walk (lines 81-93: the 0.12
+roll's anvil read, the DAMAGE progression write, the remove, and the
+**1020/1021 events** over `world.doEvent` lines 86/89/92 — that world's
+listener list alone, `World.doEvent` 2613-2626); `EnchantingTableMenu`
+lines 44-46 the same (the bookshelf power scan lines 123-160 AND the
+gate). A nether anvil's window stays open over the NETHER's cell, its
+repairs age the NETHER's anvil, its use sound plays IN THE NETHER.
+
+**THE OBSERVED CONSEQUENCES (the pre-fix tree, a nether anvil —
+legitimate vanilla play)**: (a) the window **SLAMS SHUT on the first
+viewer tick** — the overworld cell at the anvil's coordinates is not an
+anvil, the GUI unusable, the input items dropped at the player's feet on
+every open; (b) a mirrored overworld anvil at the SAME coordinates keeps
+the nether's window alive AND **takes the damage writes** (the
+cross-dimension corruption, the VT-033 SkullManager class); (c) the
+1020/1021 events stamp the overworld 0 — the nether players hear
+nothing, the overworld hears the phantom; (d) the enchanting twin: the
+nether table's window slams shut the same way, and its bookshelf scan
+counts the OVERWORLD's shelves at the same coordinates.
+
+**PASS 2 (the seat, `AnvilWindowDimensionDiscoveryTest` — the full-boot
+construction, every step through the REAL wires)**: the use wire opens
+the window, the window-click wire carries the inputs (hotbar → cursor →
+menu slots) and the take, and the player random is **SEEDED for the
+deterministic 0.12 roll** — `setSeed(8491153766255516575L)` then
+`nextFloat() == 0.098667204 < 0.12` (the seed arithmetic verified
+against the JVM itself: the small seeds' first floats cluster at ~0.73 —
+the LCG's top-24-bit dominance — so the hit seed carries high bits; the
+roll's draw verified the FIRST on the take path against every consumer).
+**RED on develop at every traced pin**: arm A the anvil slam-shut
+(`expected: <ANVIL> but was: <NONE>`); arm B the corruption (the nether
+anvil's damage 0 where 1 expected — the overworld mirror advanced
+instead, the take itself observed running: the cost 1, the output
+formed, the verdict true); arm C the enchanting twin's slam-shut
+(`expected: <ENCHANTING_TABLE> but was: <NONE>`).
+
+**PASS 3 (the independent challenge)**: the compensation hunt NEGATIVE —
+the engine's own use wire OPENS the nether window (the block consult at
+the anvil arm reads the ACTING world, the FL4 routing), and then the
+engine's own viewer tick kills it one tick later: an internal
+inconsistency, not a design (the VT-026/#134 and VT-027/#135 precedent
+class); the engine's own-law contrasts (Slice B's stamped opens, the
+`chestsFor(session.openContainerDimension())` convention, the beacon
+window's separate named tail); `throwFromPlayer`'s session-dimension
+stamp (the slam-shut's drops land in the nether — the loss-of-GUI
+damage, not a cross-dimension one); the stillValid consumer census (the
+two viewer ticks alone); the overworld path byte-identical under
+`worldFor(0)`; the stamp semantics match the reference's fixed
+menu-world (the open's dimension is frozen at the open, the reference's
+menu carrying its construction world).
+
+**THE CORRECTION — PR #152 OPEN** (`fix/anvil-window-dimension-parity-audit`
+over develop `1139f2c3`): five sites, one law — the anvil open stamps the
+player's dimension (Slice B's 4-arg form), the enchanting open the same
+plus the bookshelf scan's attach over the OPENING world
+(`worldFor(session.dimension())`), the two viewer ticks route their
+validity consults by the OPEN'S DIMENSION STAMP
+(`worldFor(session.openContainerDimension())`), and `anvilSiteAt` gains
+the dimension parameter (every site consult + the dimensioned sound
+overload over the site world's own row). **The seat 3/0 GREEN on the fix
+tree** (the windows stay open, the take ages the NETHER's anvil, the
+mirror stays untouched, the 1021 sound stamps -1); the regression: the
+anvil/enchanting families **35/0** (AnvilGui 13, EnchantingMenu 13,
+AnvilImportApi 4, EnchantmentEffect 5), the container family **19/0**
+(ContainerSliceB 5, the api/lock/open-event/window-click-rejection/
+inventory lanes), the protocol window lanes **8/0**, the dimension/FX
+lanes **9/0** — **74 beside the seat**.
+
+**THE COORDINATION**: PR #142 (VT-029) retired the FX-residual sites;
+this PR takes the two BLOCK-consult WINDOW members left outside that
+sweep — no site overlap; PR #136 (VT-032, the anvil LAND sound) is the
+falling-block family's own member; the beacon window's store
+(`beaconSystem`) remains the VT-033 record's named adjacent tail.
+
+**THE LEDGER**: the new VT-035 row; the census-tail row refreshed (the
+anvil-use pair TAKEN, the #142 sweep's sixteen sites TAKEN WHOLE).
+
+**THE NEXT HEADS** (the fifty-third pass's queue): the beacon window's
+store (the `beaconSystem` single-instance field — the VT-033 record's
+named adjacent tail, the wither-fall/beacon award walks beside it), the
+banner tile fan (the VT-033 coordination's named tail), the standing
+merge watch (27 PRs open, the maintainer's pick among the convergent
+carriers — #117/#122, #134/#140's VT-030 collision noted for the
+maintainers' numbering review), and whatever the pass-42 through
+pass-51 lanes' records union in.
