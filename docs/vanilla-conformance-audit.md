@@ -1464,7 +1464,7 @@ effective law for the vanilla dimensions).
 | Bed pair — the sibling resolution model | RESOLVED by the parallel stream's **PR #111 OPEN** (`fix/bed-pair-facing-resolution-parity-audit`, commit 8b1eefb0: the facing-exact helper shared by the four walks, the block-class membership, the anchor-state detonate removal; the parity pin 4/0 GREEN on the fix, 4/4 RED pre-fix by the stash discrimination; the regression lanes 104/0) — three passes complete on its lineage (the census + the three RED seats + the wire/legacy suffix-consistency walk: the id family IS the reference's metadata space; the class-membership sub-divergence pinned) |
 | Anvil import — the bed's OCCUPIED nibbles (26: metas 12-15 the reference persists for occupied heads, 4-7 the editor-corrupted feet) | RESOLVED by the parallel stream's **PR #115 OPEN** (`fix/bed-occupied-anvil-import-parity-audit`, commit 512b0c09: the eight rows + the javadoc band + the integrity test's expected bands, the count re-pinned 1321 → 1329; the parity pin 2/0 GREEN, the anvil family 47/0, the drift guard 2/0, the protocol block-id lanes 15/0) — **VT-011**, three passes complete (the source law, the behavioral seats 2/2 RED with the import's own ledger rows in the failure messages, the lifecycle walk) |
 | Block-update wake (BlockUpdateSystem.runUpdate, RedstoneSystem.neighborChanged) — world binding | SURFACED as VT-009's pass-3 non-compensation evidence (the parallel stream): BOTH reads consult the overworld field (the changed-world parameter ignored in the six-neighbor dispatch) — the house stream's FL4-F10 lane LANDED on develop (`0328e92f`), NOT duplicated; the door/bed seats are the evidence cross-reference |
-| Spawn precedents — the post-fan stamp ordering | **VT-013 CONFIRMED — three passes complete, fix-ready (stacked on #125)**: the block spawner, the End dragon, and the chicken egg post-stamp after `spawnAt` returns, so their live `onMobSpawned` publishes (the wire's Slice 25d gate) read the un-stamped 0 at the event — a nether spawner's body invisible at its own spawn moment to the nether player beside it; pass 3 CORRECTED the dragon's exposure (the End generates lazily — the chunk-(0,0) drain fires with the approaching player LIVE, so the first End visitor never sees the dragon spawn); both spawner seats RED on the #125 tree (`PostFanStampOrderingTest`, `expected: <-1> but was: <0>`), the fix is each site's migration to the dimension-aware arm |
+| Spawn precedents — the post-fan stamp ordering | **VT-013 RESOLVED IN FLIGHT — PR #130 OPEN (stacked on #125)** — three passes complete: the block spawner, the End dragon, and the chicken egg post-stamp after `spawnAt` returns, so their live `onMobSpawned` publishes (the wire's Slice 25d gate) read the un-stamped 0 at the event — a nether spawner's body invisible at its own spawn moment to the nether player beside it; pass 3 CORRECTED the dragon's exposure (the End generates lazily — the chunk-(0,0) drain fires with the approaching player LIVE, so the first End visitor never sees the dragon spawn); both spawner seats RED on the #125 tree (`PostFanStampOrderingTest`, `expected: <-1> but was: <0>`), the fix is each site's migration to the dimension-aware arm |
 | FX broadcasts — the dimension awareness | NOT INSPECTED (the FxManager position-only API; the PR #90 ledger) |
 | World border — per-dimension | NOT INSPECTED (the reference's per-World border vs the engine's shared one; surfaced by the dig-start gate review) |
 | Zombie/mob arms — world binding | NOT INSPECTED (the zombie door-break consults the overworld field; surfaced by PR #90's cleanup threading) |
@@ -1891,11 +1891,12 @@ whole).
 
 ## VT-013 — the remaining post-stamp precedents stamp AFTER the spawn fan: the block spawner's, the dragon's, and the chicken egg's live publishes read the un-stamped 0 at the event
 
-**Status: CONFIRMED — three passes complete (this run), fix-ready; the
-fix depends on PR #125's dimension-aware arm (stacked).** Priority
-tier 2 (the same damage class as VT-012: invisible bodies at their own
-spawn moment, phantom packets to same-chunk-coordinate overworld
-observers).
+**Status: PR #130 OPEN — the correction landed** (`fix/post-fan-stamp-ordering-parity-audit`,
+commit `4866ec1e` stacked on PR #125's branch — the dependency
+documented, #130 merges after #125; three verification passes complete
+before the fix). Priority tier 2 (the same damage class as VT-012:
+invisible bodies at their own spawn moment, phantom packets to
+same-chunk-coordinate overworld observers).
 
 **Affected sites** (each verified to post-stamp after `spawnAt`
 returns, against the reference's construction law — Entity's
@@ -1979,7 +1980,12 @@ convention rides `spawnAtCore` unchanged.
 
 **Branch:** `audit/vt-013-postfan-stamp` (based on PR #125's fix
 branch — the dependency documented; the seats + this record). The fix
-branch is the next act.
+landed as **PR #130** (stacked on #125): the three sites' migrations
+to the dimension-aware arm, the seats riding (GREEN 2/2 on the fix,
+RED at `expected: <-1> but was: <0>` on the #125 tree), the entity
+package + the VT-012 seats 581/0 on the stacked tree, the spawner
+package / the dragon lane / the projectile egg lanes / the FX
+dimension-reads lane green.
 
 ## The parallel stream's records (the report union — this pass's second act)
 
@@ -2673,7 +2679,9 @@ work, in the queue's order:
    own acceptance-test shape). **Update, same run: VT-013's three
    passes completed** (the record above) — the seats RED on the #125
    tree, the dragon exposure corrected (the End's lazy generation), the
-   fix stacked on #125 the next act.
+   fix stacked on #125 landed as **PR #130** the same run (the three
+   migrations, the seats riding GREEN 2/2, the stacked-tree regression
+   581/0).
 
 13. **The parallel stream's watch items (the union's queue merge):**
     **#106** (VT-009's break-path pair walks), **#111** (VT-010's bed
