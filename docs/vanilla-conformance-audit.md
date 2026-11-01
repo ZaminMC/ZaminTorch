@@ -3878,6 +3878,14 @@ it), the TNT's survival asserted against the engine's detonation.
    the FL4-GAP2 Slice B tail. The blast RNG tail (VT-007's named
    tail): the End/nether services' shared `gameplayRandom` vs the
    reference's per-world `world.random`.
+7a. **THE #131 VT-023 COLLISION** (this pass's closing fetch): PR
+   #131 (the piston toBreak drop consult, `fix/piston-break-drops-
+   parity-audit`) claims VT-023 — but PR #128 (the flight band,
+   opened 06:37:51) owns the number publicly first. The
+   public-first protocol: #131's finding renumbers to **VT-024**
+   (the next free number — VT-020/021/022 taken by the spawn floor,
+   the partial-shape face, the piston entity gate); the correction
+   belongs to #131's lane or the next union.
 7. The watch items (the thirty-ninth pass's fetch): **MERGED onto
    develop `777b7c86`**: #106 (`becf84b0`), #115 (`e17c538b`). The
    OPEN set: **#108, #109, #110, #111, #113 (the `!inGround` gate
