@@ -4872,3 +4872,33 @@ findings, not folded here): the banner family's tile fan the same
 ungated shape; the wither-fall and beacon-power award walks still
 ungated; the eye-of-ender frame smoke and the bone-meal 2005 family the
 census tail's next heads.
+
+**THE FIFTIETH PASS'S CLOSE — the run's tally**:
+- **VT-033 confirmed whole and corrected (PR #146)**: the wither-summon
+  family's dimension ownership — the census tail's second head (the wither
+  poof) widened into the whole family; the pre-Slice-C core (the
+  overworld-bound store: the missing nether mechanic, the cross-dimension
+  corruption) discovered independently, the Slice C landing verified
+  cross-tree through this lane's seat, and the five residues (the poof's
+  stamp, the birth stamp's fan timing, the achievement's world, the break
+  drop's world, the tile fan) confirmed at observed values and corrected.
+  The seat 3/0 GREEN on the fix tree; the regression 155/0 across eight
+  family lanes; **the numbering renumbered VT-029->VT-033 by the
+  public-first protocol** (PR #142's sixteen-site FX sweep owns VT-029,
+  opened before #146).
+- **The coordination records**: PR #125's VT-012 (the engine-wide
+  birth-stamp law) composes with this PR's explicit-dimension member —
+  the overlap documented in both bodies; the banner family's tile fan,
+  the wither-fall/beacon award walks, the bone-meal 2005 family, and the
+  eye-of-ender frame smoke ledgered as the named adjacent tails (queue
+  item 8, ~16 remaining).
+- **The lane's branches**: `audit/verifier-pass-50-discovery` (this
+  record + the seat) and `fix/wither-summon-dimension-parity-audit`
+  (PR #146's carrier), both pushed.
+
+**THE NEXT HEADS** (the fifty-first pass's queue): the census tail's
+remaining sites (item 8 — the bone-meal 2005 family the likeliest next:
+five sites in one dye-useOn flow, the dimension available at each), the
+banner tile fan (the named adjacent tail), the standing merge watch (the
+maintainer's pick among the convergent carriers), and whatever the
+pass-42 through pass-49 lanes' records union in.
