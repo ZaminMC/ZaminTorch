@@ -5,7 +5,6 @@ import net.zaminmc.torch.block.BlockType;
 import net.zaminmc.torch.server.fx.FxManager;
 import net.zaminmc.torch.server.world.EngineWorld;
 import net.zaminmc.torch.server.world.WorldChangeListener;
-import net.zaminmc.torch.server.block.WorldSolidity;
 import net.zaminmc.torch.util.Position;
 
 import java.util.HashSet;
@@ -357,7 +356,18 @@ public final class TripwireSystem implements WorldChangeListener {
         } else if (TripwireBlocks.isHook(type)) {
             int facing = TripwireBlocks.hookFacing(type);
             int[] o = OFFSETS[facing];
-            if (!WorldSolidity.isSolid(world.getBlock(pos.offset(-o[0], 0, -o[2])))) {
+            // TripwireHookBlock.neighborChanged lines 85-95 (F-SP5): the
+            // mount check over the SIGNAL consult Block.isSolid()
+            // (Block.java lines 274-276 — material.isSolidBlocking() &&
+            // isCube() && !isSignalSource(), the lever/button class's
+            // law) — never the collision question: the translucents
+            // (glass, glowstone, ice, TNT, the leaves), the non-cube
+            // solids (the slabs, the stairs, the fences, the walls, the
+            // chests, the hoppers) and the redstone block itself
+            // (isSignalSource TRUE — the third conjunct's kill) each
+            // pop the hook exactly as vanilla does.
+            if (!net.zaminmc.torch.server.block.BlockSolidity.isSolid(
+                    world.getBlock(pos.offset(-o[0], 0, -o[2])))) {
                 world.setBlock(pos, world.airType());
             }
         }
@@ -374,13 +384,17 @@ public final class TripwireSystem implements WorldChangeListener {
      */
     public static boolean hookPlacementSupported(EngineWorld world, BlockPosition target,
                                                  int clickedFace) {
-        // TripwireHookBlock.canBePlaced: a horizontal face with a solid
-        // block behind it.
+        // TripwireHookBlock.canBePlaced lines 54-56 (F-SP5): a horizontal
+        // face whose host answers the SIGNAL consult Block.isSolid()
+        // (the three conjuncts — the lever/button class's law, the
+        // engine's landed BlockSolidity.isSolid) — never the collision
+        // question: vanilla refuses the hook against glass, glowstone,
+        // the slabs, the fences, the chests and the redstone block.
         if (clickedFace < 2 || clickedFace > 5) {
             return false;
         }
         int[] o = OFFSETS[clickedFace];
-        return WorldSolidity.isSolid(world.getBlock(
+        return net.zaminmc.torch.server.block.BlockSolidity.isSolid(world.getBlock(
                 target.offset(-o[0], -o[1], -o[2])));
     }
 
