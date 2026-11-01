@@ -3841,12 +3841,14 @@ named head):**
   NetherTntRouting 1, ExplosionTntRedstoneApi 2, PortalStuckArrow 1,
   HopperSuckBand 5).
 
-**The run's tally:** the union landed (five lanes, one report); one
-finding taken from suspected to corrected whole (VT-019 — the seat,
-the pass-3 walk, PR #123); one unit test's mechanism corrected beside
-it. The next heads: VT-018's passes 2-3 (the bowhit sound — the
-pass-35 lane's discovery), F-SP1's owed passes (the last uncarried
-standing lane), the PR reviews' follow-ups, and the dimension tails.
+**The run's tally:** the union landed (five lanes, one report); TWO
+findings taken from suspected to corrected whole (VT-019 — the seat,
+the pass-3 walk, PR #123; VT-018 — the FX-capture seat, the pass-3
+walk with the entity-hit site discovered, PR #124); one unit test's
+mechanism corrected beside them. The next heads: the entity-hit
+bowhit site's seat (VT-018's named follow-up), F-SP1's owed passes
+(the last uncarried standing lane), the PR reviews' follow-ups (the
+eleven-PR open set), and the dimension tails.
 
 ## Coverage ledger (updated by the thirty-sixth pass — the FIVE-LANE UNION: the pass-32 refresh + the pass-33/34/35/36 projectile rows, the Phase E corrections’ records unioned)
 
@@ -3882,7 +3884,7 @@ standing lane), the PR reviews' follow-ups, and the dimension tails.
 | Explosions — dimension routing | AUDITED (the twenty-sixth pass): the CORE resolved by PR #100; the CART slice RESOLVED — **PR #105 MERGED** (`278b139e`, the review rider at `32af09f3`). The named tail stands: the End/nether services' shared `gameplayRandom` vs the reference's per-world `world.random` |
 | Item entities / pickup — dimension | the TF-9 stamped sites are the record; the pickup consult un-audited |
 | Projectile family — the stuck arrow's crossing (the portal-lights-later construction) | **VT-013 REJECTED** (the thirty-first pass's pass-3 challenge): the original hypothesis — a portal lighting around an already-stuck arrow crosses it — is disproven by the reference's own tick chain (`ArrowEntity.tick` line 381 calls the box scan from the FLIGHT branch alone; the `inGround` branch at 172-186 runs the stick clock and the tracked-block check only). The corrected seat (`PortalStuckArrowCrossingDiscoveryTest.theStuckArrowStaysWhenThePortalLightsAroundIt`) pins the true law — NO crossing — GREEN on develop AND on the #113 tree. No fix owed. The honest residue re-recorded as VT-014 (the stick placement) and VT-015 (the un-stick law), both below |
-| Projectile family — the stick's bowhit sound | **VT-018 SUSPECTED** (the thirty-second pass, pass 1 complete): the reference plays `random.bowhit` at the stick (ArrowEntity line 303); the engine's landed fan plays nothing (the sound exists in the engine at the tripwire alone). The FX-assert seat owed (pass 2) |
+| Projectile family — the stick's bowhit sound | **VT-018 CONFIRMED (three passes) and CORRECTED — PR #124 OPEN** (the thirty-seventh pass): the reference plays `random.bowhit` at the stick (ArrowEntity line 303: volume 1.0, the pitch `1.2/(nextFloat()*0.2+0.9)` over [~1.09, ~1.33], in the arrow's OWN world); the engine's landed fan played nothing (the name exists at the tripwire alone). Pass 2 THE SEAT (`ArrowStickBowhitSoundDiscoveryTest` — the FxManager's listener capturing the Sound stream at a stub-cell stick — RED on develop with the captured sounds `[]` EMPTY); pass 3 the walk (the consumers' census — the FxManager IS wired into the manager, the shatter family flows through it; the design-choice challenge negative — the VII1 shake note derived the VISUAL away, never the sound; THE ENTITY-HIT SITE discovered missing too — the reference's line 276 plays the same name on a successful hit, named as the finding's follow-up site, its own seat owed; the RNG note — the pitch draw rides the shared random, the regression proving no seated sequence depends on it). **PR #124** (`fix/arrow-stick-bowhit-sound-parity-audit` over develop `6b29c46f`): the stick arm plays the reference's exact law through the engine's dimension-carrying sound form; the seat GREEN (the name + the volume 1.0 + the pitch band + the no-other-sound control); the regression 49/0 |
 
 ## The queue for the next pass
 
@@ -3932,14 +3934,21 @@ standing lane), the PR reviews' follow-ups, and the dimension tails.
    named in the record, both follow-up discoveries.
 3. ~~VT-014's and VT-015's seats~~ — **DONE BY FOUR LANES IN THE SAME
    WINDOW** (the quadruple convergence, item 0's PRs the carriers).
-3a. **VT-018's passes 2-3** (the pass-35 lane's discovery — the
-   stick's bowhit sound): the FX-assert seat + the independent walk
-   (the listener fan's consumers, the pitch row's RNG consumption).
+3a. ~~VT-018's passes 2-3~~ — **DONE WHOLE (the thirty-seventh
+   pass)**: the FX-assert seat RED on develop (the captured Sound
+   stream `[]` at the stick), the pass-3 walk complete (the consumers'
+   census, the design-choice challenge negative, the ENTITY-HIT SITE
+   discovered missing — line 276, the same law on a successful hit,
+   its own seat owed), and the correction **PR #124 OPEN** (the
+   reference's exact law through the engine's dimension-carrying
+   sound form; the seat GREEN, the regression 49/0). **The named
+   follow-up**: the entity-hit site's seat (a mob-hit construction
+   with the combat sink's verdict).
 4. The merge watch: #106 MERGED (becf84b0), #115 MERGED (e17c538b);
    the OPEN set: #108, #109, #110, #111, #113 (the `!inGround` gate
    note posted), #114, #116 (VT-017), #117 (VT-014), #118 (F-DS1),
    #119/#120 (VT-015's convergent carriers), #123 (VT-019's
-   stuck-arrow gate) — after the crossing PRs
+   stuck-arrow gate), #124 (VT-018's bowhit) — after the crossing PRs
    merge, the End-origin arm (the forced-spawn consult,
    `PlayerManager.changeDimension` lines 473-484) becomes the portal
    family's one remaining architectural tail, and the four families'
