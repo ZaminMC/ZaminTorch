@@ -2655,8 +2655,12 @@ public final class EngineServer implements Server, EngineBridge {
                         gameRules.getBoolean("mobGriefing"), false,
                         charged ? net.zaminmc.torch.server.block.BlastSources.CHARGED_SKULL : net.zaminmc.torch.server.block.ExplosionService.BlastSource.PLAIN, null));
                 // The burning arrow's TNT arm (TntBlock.onEntityCollision
-                // lines 96-113): a burning arrow entering the TNT cell
-                // primes it — the block leaves, the arrow keeps its flight.
+                // lines 91-104): a burning arrow STICKING into the TNT cell
+                // primes it — the block leaves, and the stuck arrow's
+                // tracked-cell consult un-sticks it a tick later (VT-030's
+                // order: the stick at ArrowEntity line 304 precedes the
+                // consult at 308; the arrow never carries its flight
+                // through the opened cell).
                 projectiles.setTntIgniteSink((cell, dimension) -> tntSystem != null
                         && tntSystem.igniteByArrow(worldForSafe(dimension), cell));
                 // The ender pearl's teleport arm (Slice 17c —
