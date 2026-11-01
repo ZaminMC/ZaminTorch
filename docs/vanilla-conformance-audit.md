@@ -4382,7 +4382,7 @@ must pin the pops, the pre-fix holds).
 | Collision shapes — the double slabs' full-cube row | **RESOLVED-BY-PR #118** (F-DS1: the F-DS1 stream's three-pass verification — the ten `_slab`-suffixed doubles carried the HALF box; the rest walks, the side-entry, the isFullCube family all poisoned; the one-arm carve, `DoubleSlabCollisionParityTest` 5/0) |
 | Natural spawn — the spawn floor's consult | **RESOLVED-BY-PR #121** (VT-020: the suffix approximation missed in BOTH directions — the ten doubles refused where `hasSolidTop`'s first arm hosts them, the bottom stairs and the red sandstone bottom single hosted where the HALF==TOP arms refuse them; the one-consult correction with the `double_` carve + the half laws, three seats) |
 | The support-consult family (torch/lever/button/trapdoor mounts) | **F-SP1 CONFIRMED and CORRECTED** (the forty-second pass: the passes 2-3 landed — EIGHT seats RED on unfixed develop at exactly the predicted points with THREE controls green, the placement-path census widening the finding to BOTH gates — the button's placement carried no mount gate at all, the trapdoor's fence carve dead code; **PR #137 OPEN**: the `SupportConsult` laws — isSolidBlockingCube, hasSolidTop's five arms, canSitOnTop's explicit list, the lever/button split, the trapdoor's canBePlacedOn — at the four survival consults AND the four placement gates; the seats 11/0 on the fix, the regression lanes 457/0; the named tails: the wire/plate/repeater floor consults — `hasSupportBelow` still reads WorldSolidity, each family's own law a future pass) |
-| The floor-consult family (wire/plates/diodes/rails/doors/tripwire/pot/bed/fire floors) | **F-SP2's CORE CONFIRMED — three passes complete, Phase E eligible** (the forty-third pass, F-SP1's named tail): `hasSupportBelow`'s one collision-solid consult serves six families where vanilla answers four laws (wire `hasSolidTop\|\|GLOWSTONE`, plates `hasSolidTop\|\|FenceBlock`, diodes and rails bare `hasSolidTop`); the four placement gates the same approximation; `FireBlocks.hasSolidTop`'s fallthrough accepts the translucents against `material.isSolidBlocking()`'s refusal — the fire family inherits the class; TEN RED seats + SIX GREEN controls on unfixed develop; the sweep widened the family (the doors' both gates, the tripwire suspension, the pot's floor — suspected, the seats owed; the bed's placement gate MISSING entirely — vanilla's BedItem line 42 requires hasSolidTop under both halves); the named tails: the cake's REVERSE law (material.isSolid — the engine pops flora beds vanilla holds), the hook's wall mount (F-SP1's missed member) |
+| The floor-consult family (wire/plates/diodes/rails/doors/tripwire/pot/bed/fire floors) | **F-SP2's CORE CONFIRMED and CORRECTED — PR #147 OPEN (stacked on #137), the seats 16/0, the redstone package 71/0** (three passes complete (the forty-third pass, F-SP1's named tail): `hasSupportBelow`'s one collision-solid consult serves six families where vanilla answers four laws (wire `hasSolidTop\|\|GLOWSTONE`, plates `hasSolidTop\|\|FenceBlock`, diodes and rails bare `hasSolidTop`); the four placement gates the same approximation; `FireBlocks.hasSolidTop`'s fallthrough accepts the translucents against `material.isSolidBlocking()`'s refusal — the fire family inherits the class; TEN RED seats + SIX GREEN controls on unfixed develop; the sweep widened the family (the doors' both gates, the tripwire suspension, the pot's floor — suspected, the seats owed; the bed's placement gate MISSING entirely — vanilla's BedItem line 42 requires hasSolidTop under both halves); the named tails: the cake's REVERSE law (material.isSolid — the engine pops flora beds vanilla holds), the hook's wall mount (F-SP1's missed member) |
 | The slab-family suffix census | INSPECTED (the whole-repository `endsWith("_slab")` census: `BlockSolidity.isCube` and `FireBlocks` already correct with the `double_` carve — the house convention; `CollisionShapes` corrected by PR #118; `NaturalSpawnSystem` corrected by PR #121 (VT-020 — the spawn consult, the directional stair states and the `_slab2` row joining the census); `RedstoneSystem.trapdoorMountHolds` name-based, the double agreeing, the SINGLES' rows F-SP1's lane; the held-id dispatch and the dormant `woodenSlabFamilyOf` unaffected) |
 
 ## The queue for the next pass
@@ -6408,7 +6408,7 @@ own lanes' reports (the border lane's `audit/vt-013-postfan-stamp`, the
 44th lane's `audit/verifier-pass-44-discovery`). Nothing about any
 finding's code or evidence changes — only the IDs.
 
-## F-SP2 — the floor-consult family: the surface families' floor gates read the collision-solid approximation (and `FireBlocks.hasSolidTop` a translucent-accepting fallthrough), not the reference's per-family laws (the CORE — the wire/plates/diodes/rails groups — CONFIRMED, three passes, Phase E eligible; the widened families — doors/tripwire/pot/bed — suspected, the seats owed; the tails — the cake's reverse law, the hook's wall mount — named)
+## F-SP2 — the floor-consult family: the surface families' floor gates read the collision-solid approximation (and `FireBlocks.hasSolidTop` a translucent-accepting fallthrough), not the reference's per-family laws (the CORE — the wire/plates/diodes/rails/door/fire groups — CONFIRMED and CORRECTED: **PR #147 OPEN**, stacked on #137; the widened families — the bed's missing gate/tripwire/pot — suspected, the seats owed; the tails — the cake's reverse law, the hook's wall mount — named)
 
 **Subsystem:** redstone surface placement / block support — the wire, the
 four pressure plates, the two diodes, the four rail families, the fire
@@ -6699,3 +6699,42 @@ instance arm (the control seat GREEN).
 during the seats (the 429s; a 90-second cooldown cleared it); the
 seats, the record, and this close are all pushed on
 `audit/verifier-pass-42-discovery` (the lane's forty-third pass).
+
+## The forty-third pass's fourth act — F-SP2's core CORRECTED (PR #147 OPEN, stacked on #137): the floor laws landed
+
+**The correction** (`fix/floor-consult-parity-audit` over PR #137's head
+`850d3529`, **PR #147 OPEN** targeting develop with the stack
+documented): `hasSupportBelow` retired for the four family laws over
+`SupportConsult.hasSolidTop` — `wireFloorHolds` (the explicit GLOWSTONE
+arm), `diodeFloorHolds` (bare), `plateFloorHolds` (the `isFence` arm),
+`railFloorHolds` (bare) — the six survival consults, the ascending
+headwall, and the door walk swapped; the five placement gates (dust /
+plate / repeater / comparator / door) the same laws;
+`FireBlocks.hasSolidTop`'s fallthrough closed to the reference's arm 1
+(`!isTranslucentMaterial && blocksMovement && isCube`), the javadoc's
+wrong "leaves, tnt" expected-true list corrected.
+
+**The evidence:** the seats **16/0 on the fix tree** (the ten divergent
+rows popping exactly as vanilla, the six controls green — the wire's
+glowstone arm and the plate's fence arm the regression pins); RED BY
+CONTRACT on unfixed develop (10 failed / 6 passed, the second act's
+record). **The regression lanes: the redstone package whole 71/0** —
+F-SP1's own seats (`SupportConsultSurvivalParityDiscoveryTest` 11/0)
+unregressed, `FireBlocksTest` 14/0 (the fire family's rows over the
+delegated consult), the comparator/interaction/lamp/sources/system/
+trapped-chest/tripwire/weighted-plate lanes green. NOT RUN this window
+(the two-hour boundary): the block package, the placement-gate suites,
+the protocol module — the next run's first regression act, recorded on
+the PR.
+
+**The dependency note:** the fix consults `SupportConsult`, which lives
+on PR #137's branch — the PR carries the stack (the #130-on-#125
+precedent); if #137 merges first this branch rebases clean; if another
+F-SP1 carrier (#138/#139) is picked the one-class carry-over is
+mechanical.
+
+**The finding's state:** F-SP2's core **CONFIRMED and CORRECTED** (PR
+#147); the widened families (the bed's missing gate, the tripwire
+suspension, the pot's floor) and the named tails (the cake's reverse
+law, the hook's wall mount) remain the next runs' acts per the close's
+queue.
