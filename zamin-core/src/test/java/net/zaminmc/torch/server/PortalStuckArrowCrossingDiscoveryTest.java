@@ -17,52 +17,44 @@ import org.junit.jupiter.api.TestInstance;
 import java.nio.file.Path;
 import java.util.function.BooleanSupplier;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * THE VERIFIER'S VT-013 DISCOVERY SEAT — the stuck arrow's portal
- * crossing (docs/vanilla-conformance-audit.md): an arrow ALREADY STUCK
- * in the portal frame's floor crosses when the portal lights up around
- * it — the box-scan collision law the engine's position-cell consult
- * cannot reproduce.
+ * THE VERIFIER'S VT-013 CORRECTED SEAT — the stuck arrow and the
+ * portal that lights around it (docs/vanilla-conformance-audit.md,
+ * the thirty-first pass's REJECTION record): the reference's answer
+ * is NO CROSSING, and this seat now PINS that law.
  *
- * <p>THE REFERENCE LAW (reference/1.8.8), the full chain:
- * <ol>
- * <li>THE STICK PLACEMENT: {@code ArrowEntity.tick}'s block-hit arm
- * (lines 288-309) sets the velocity to the segment to the hit face
- * (lines 296-298), backs the position off 0.05 ALONG the approach
- * (lines 300-302), then advances by the full segment (lines 328-330) —
- * the final position is 0.05 OUTSIDE the hit face, in the cell the
- * arrow was flying through. An arrow sticking in the portal floor's top
- * face rests with its position INSIDE the portal cell above the
- * floor.</li>
- * <li>THE COLLISION: {@code Entity.tick}'s movement walk ends in
- * {@code checkBlockCollisions()} (line 627 → lines 667-688) — a full
- * BOX scan: every cell the body's shape overlaps receives
- * {@code onEntityCollision}; {@code PortalBlock.onEntityCollision}
- * (lines 158-162) arms {@code inPortal} for the stuck arrow (a
- * projectile never rides — the gate passes) and derives the entry
- * memory.</li>
- * <li>THE ARM: {@code ArrowEntity.tick} line 150 calls
- * {@code super.tick()} BEFORE the inGround branch — baseTick's portal
- * arm (lines 282-313) reads {@code inPortal} for STUCK arrows too, the
- * BASE threshold 0 (lines 354-355) crossing on the first armed tick.
- * A portal that LIGHTS UP around an already-stuck arrow crosses it on
- * the very next tick.</li>
- * </ol></p>
+ * <p>THE CORRECTION (the pass-3 challenge, recorded): this seat's
+ * first form asserted the opposite vanilla answer — that a portal
+ * lighting around an already-stuck arrow crosses it "on the very next
+ * tick" through the box-scan collision. That reading was WRONG: the
+ * box scan ({@code checkBlockCollisions}, Entity lines 667-688) is
+ * called from {@code ArrowEntity.tick} line 381 — INSIDE THE FLIGHT
+ * BRANCH ALONE. The {@code inGround} branch (lines 172-186) runs only
+ * the stick clock and the tracked-block check; a STUCK arrow never
+ * re-arms {@code inPortal}. (The mobs, the items, and the other
+ * move()-based families DO scan every tick — their tick calls
+ * {@code Entity.move()}, whose tail is the same scan. The arrow's
+ * custom tick advances its position directly and scans only while
+ * flying.) The reference's own stuck-arrow law is the TRACKED-BLOCK
+ * UN-STICK at lines 173-186 — the engine's missing mechanic recorded
+ * as VT-015 — and the stick placement's face+0.05 rests the flying
+ * arrow's body inside the portal cell on the STICK TICK (the scan's
+ * last flight-branch run), arming the crossing that fires on the very
+ * next tick: an arrow shot into an ALREADY-LIT portal's floor crosses
+ * ONE TICK AFTER STICKING. The lights-LATER construction arms nothing
+ * — no crossing, in the reference or in the engine.</p>
  *
- * <p>THE ENGINE'S SHAPE (the divergence, TWO stacked rows): the stick
- * placement is the post-step ENDPOINT — inside the solid cell, up to a
- * full step deep ({@code ProjectileManager.resolveCollisions}'s solid
- * arm calls {@code landInGround()} without touching the position), not
- * vanilla's face+0.05; and the crossing consult (PR #113's arm, the
- * same position-cell form the mob/item/orb/vehicle families ride) reads
- * the position cell ALONE, not the box overlap. The composition: a
- * stuck arrow's position cell is the OBSIDIAN floor cell — the portal
- * consult answers null FOREVER, and the stuck arrow never crosses, on
- * develop (no arm) AND on the #113 tree (the arm's consult misses).
- * This seat is RED on both; VT-013 owns the law. Do not re-pin it to
- * the engine's current answer.</p>
+ * <p>THIS SEAT now pins the honest law: the lights-later stuck arrow
+ * stays in the overworld — GREEN on develop AND on the #113 tree (the
+ * engine's no-crossing matches the reference here, for different
+ * reasons: no arm at all on develop; the arm's position-cell consult
+ * reading the obsidian floor cell on #113). The seat also OBSERVES
+ * the stick placement's geometry (the engine's endpoint-inside
+ * placement vs the reference's face+0.05 — VT-014's record) in the
+ * stuck-position sample.</p>
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class PortalStuckArrowCrossingDiscoveryTest {
@@ -94,7 +86,7 @@ class PortalStuckArrowCrossingDiscoveryTest {
     /**
      * The 4x5 X-plane frame with the interior LEFT AIR (the pre-lighting
      * shape): the arrow must stick in the floor BEFORE any portal cell
-     * exists — the mid-fall crossing can never fire.
+     * exists — no flight-branch scan can arm anything.
      */
     private static void buildEmptyFrame(EngineWorld world, int x, int y, int z) {
         for (int w = 0; w < 4; w++) {
@@ -117,63 +109,29 @@ class PortalStuckArrowCrossingDiscoveryTest {
     }
 
     /**
-     * VT-013: an arrow stuck in the portal frame's floor crosses when the
-     * portal lights up around it — vanilla's box-scan law. The engine's
-     * stick placement (the endpoint inside the floor cell) plus the
-     * position-cell consult leave the stuck arrow stranded forever.
+     * VT-013's corrected pin: a portal that lights up around an
+     * ALREADY-STUCK arrow does not cross it — the reference's arrow
+     * scans portal cells only while FLYING (ArrowEntity.tick line 381,
+     * the flight branch), and the stuck branch's tracked cell (the
+     * obsidian floor) never changes. The engine's answer matches: no
+     * arm consults a stuck body's cells on develop, and the #113 arm's
+     * position-cell consult reads the obsidian floor cell forever.
      */
     @Test
-    void theStuckArrowCrossesWhenThePortalLightsAroundIt() throws Exception {
+    void theStuckArrowStaysWhenThePortalLightsAroundIt() throws Exception {
         EngineWorld overworld = server.world();
-        EngineWorld nether = server.worldFor(-1);
 
         int overX = 40;
         int overZ = 40;
         int overY = 20;
         // The EMPTY frame first — the interior air, so the arrow's fall
-        // through the frame's column never touches a portal cell.
+        // through the frame's column never arms anything.
         server.ticker().submit(() -> buildEmptyFrame(overworld, overX, overY, overZ));
         await(() -> BuiltinBlocks.OBSIDIAN.equals(overworld.getBlock(
                         new BlockPosition(overX + 1, overY - 1, overZ)))
                         && overworld.getBlock(new BlockPosition(overX + 1, overY, overZ))
                                 .equals(overworld.airType()),
                 "the empty obsidian frame stands with an air interior");
-
-        // The PRE-BUILT nether frame AT THE SCALED DESTINATION (40/8 = 5)
-        // — ready for the crossing the reference's law fires.
-        int netherX = 5;
-        int netherZ = 5;
-        int netherY = 20;
-        for (int cx = (netherX - 4) >> 4; cx <= (netherX + 4) >> 4; cx++) {
-            for (int cz = (netherZ - 4) >> 4; cz <= (netherZ + 4) >> 4; cz++) {
-                ChunkPosition at = new ChunkPosition(cx, cz);
-                if (!nether.isChunkLoaded(at)) {
-                    server.requestChunkLoad(nether.dimension(), at, chunk -> { });
-                }
-            }
-        }
-        EngineAwaits.awaitCondition(server.world(),
-                () -> nether.isChunkLoaded(new ChunkPosition(netherX >> 4, netherZ >> 4)),
-                200, "the nether frame chunk loaded");
-        server.ticker().submit(() -> {
-            for (int dx = -3; dx <= 6; dx++) {
-                for (int dz = -3; dz <= 3; dz++) {
-                    for (int dy = -2; dy <= 5; dy++) {
-                        nether.setBlock(new BlockPosition(netherX + dx, netherY + dy, netherZ + dz),
-                                nether.airType());
-                    }
-                }
-            }
-            for (int w = 0; w < 4; w++) {
-                for (int h = -1; h < 4; h++) {
-                    boolean frameCell = w == 0 || w == 3 || h == -1 || h == 3;
-                    nether.setBlock(new BlockPosition(netherX + w, netherY + h, netherZ),
-                            frameCell ? BuiltinBlocks.OBSIDIAN : BuiltinBlocks.NETHER_PORTAL);
-                }
-            }
-        });
-        await(() -> nether.getBlock(new BlockPosition(netherX + 1, netherY, netherZ))
-                .equals(BuiltinBlocks.NETHER_PORTAL), "the pre-built nether frame stands");
 
         // The body: an arrow shot steeply down INTO the frame's interior
         // from above and one block out — pitch 80 down, speed 0.8. The
@@ -190,12 +148,13 @@ class PortalStuckArrowCrossingDiscoveryTest {
         ProjectileEntity arrow = launched.get();
         await(() -> arrow.inGround(), "the arrow sticks in the frame's floor");
 
-        // VT-013's PLACEMENT EVIDENCE (observed, not asserted as law):
-        // the engine's stuck position is the post-step endpoint — BELOW
-        // the floor's face, its cell the OBSIDIAN floor row; the
-        // reference's placement is the face+0.05 — INSIDE the interior
-        // cell that is about to become a portal cell. The crossing
-        // assert's failure message carries both readings.
+        // VT-014's OBSERVED EVIDENCE (the stick placement's geometry,
+        // recorded for the finding — no assert pins it): the engine's
+        // stuck position is the post-step ENDPOINT — BELOW the floor's
+        // face, its cell the OBSIDIAN floor row; the reference rests the
+        // arrow at the face+0.05 — INSIDE the interior cell that the
+        // lighting is about to turn into a portal cell. The sample rides
+        // the failure messages of the VT-014/VT-015 seats to come.
         Position stuckAt = arrow.position();
         BlockPosition stuckCell = new BlockPosition(
                 (int) Math.floor(stuckAt.x()),
@@ -203,34 +162,36 @@ class PortalStuckArrowCrossingDiscoveryTest {
                 (int) Math.floor(stuckAt.z()));
 
         // LIGHT THE PORTAL around the stuck arrow — the flint-and-steel
-        // ignition's result: the interior cells the arrow rests against
-        // become portal cells.
+        // ignition's result: the interior cells above the floor become
+        // portal cells. The tracked cell (the floor) is untouched.
         server.ticker().submit(() -> lightPortal(overworld, overX, overY, overZ));
         await(() -> BuiltinBlocks.NETHER_PORTAL.equals(overworld.getBlock(
                         new BlockPosition(overX + 1, overY, overZ))),
                 "the portal lights around the stuck arrow");
 
-        // THE CROSSING: the reference's law — the box scan arms inPortal
-        // on the very next tick (the stuck arrow's shape overlaps the
-        // new portal cell), and the threshold-0 arm crosses it. THE
-        // ENGINE'S SHAPE: the position-cell consult reads the OBSIDIAN
-        // floor cell (the stick placement's endpoint) — null forever —
-        // and the stuck arrow never leaves the overworld, on develop and
-        // on the #113 tree alike (VT-013's record, the handoff's named
-        // stuck-arrow discriminator).
-        boolean crossed = EngineAwaits.awaitConditionWithin(server.world(),
-                () -> arrow.dimension() == -1, 100, "the stuck arrow's portal crossing");
-        assertTrue(crossed,
-                "VT-013: the arrow stuck in the portal frame's floor crosses when the "
-                        + "portal lights around it (the reference's box-scan collision — "
-                        + "checkBlockCollisions lines 667-688 — arms inPortal for the "
-                        + "STUCK arrow whose shape overlaps the portal cell, and baseTick's "
-                        + "threshold-0 arm crosses it on the next tick). The engine's "
-                        + "answer: the stuck position " + stuckAt + " (cell " + stuckCell
-                        + ", the obsidian floor row — the post-step-endpoint placement) "
-                        + "reads null at the position-cell consult forever; the reference "
-                        + "rests the arrow at the face+0.05 — inside the interior cell "
-                        + "(" + (overX + 1) + ", " + overY + ", " + overZ + ") — whose "
-                        + "overlap arms the crossing");
+        // THE PIN: a hundred ticks of the lit portal around the stuck
+        // arrow — the reference's answer is NO CROSSING (the flight
+        // branch's scan alone arms the portal; the stuck branch runs
+        // the stick clock and the tracked-block check only, and the
+        // tracked floor cell never changed). The engine's answer
+        // matches — on develop (no arm) and on the #113 tree (the
+        // position-cell consult reads the floor cell forever) alike.
+        EngineAwaits.awaitTicks(server.world(), 100,
+                "the lit portal stands around the stuck arrow");
+        assertFalse(arrow.dimension() == -1,
+                "VT-013's corrected pin: the ALREADY-STUCK arrow does not cross when "
+                        + "the portal lights around it (the reference's box scan rides "
+                        + "ArrowEntity.tick's FLIGHT branch alone — line 381; the inGround "
+                        + "branch at lines 172-186 runs the stick clock and the "
+                        + "tracked-block check only, and the tracked floor cell never "
+                        + "changed). The engine's answer matches for its own reasons — "
+                        + "observed stuck position " + stuckAt + " (cell " + stuckCell
+                        + ", the obsidian floor row — the endpoint placement VT-014 "
+                        + "records; the reference would rest at the face+0.05, inside "
+                        + "the interior cell (" + (overX + 1) + ", " + overY + ", "
+                        + overZ + "))");
+        assertTrue(arrow.inGround(),
+                "the stuck arrow stays stuck through the lighting (the reference's "
+                        + "tracked cell — the floor — is untouched by the ignition)");
     }
 }
