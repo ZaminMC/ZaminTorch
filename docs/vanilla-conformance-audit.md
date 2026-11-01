@@ -4413,3 +4413,50 @@ posted on the PR with the construction details. The PR's own record
 (the column-crossing helper, the #123-union verification, the
 regression lanes) agrees with this lane's reading on every point of
 the law.
+
+
+## The thirty-ninth pass, fifth act — the stick tick's resting-box scan SEATED (VT-019's named tail (a), the uncarried slice): RED on develop AND on the #123+#128 union
+
+The #123 review note named the stick-tick scan as the uncarried
+residue; this act seats it (`ArrowStickTickTntScanDiscoveryTest`, the
+placement-independent full-boot construction): a burning arrow's
+one-tick flight (velocity `(0.3, 0, 0)`, the spawn at `(59.85, 41.7,
+51.5)`) sticks in the stone at `(60, 41, 51)` with the TNT at `(60,
+42, 51)` atop it — the rest box's upper quarter holds the TNT's cell
+under BOTH rest geometries (the develop endpoint `41.65` and the
+VT-014-fixed `41.683` both box to cells {41, 42}), outside the band
+under both, and never touched by the flight samples (cell 41 alone).
+
+- **RED on develop** (the symmetric band's top 41.899 a half-block
+  short of the box's top).
+- **RED on the #123+#128 union** (the scratch union merged and
+  resolved this act — the javadoc conflict both carriers' edits
+  create): the gate skips the stuck body, stick tick included, and
+  the feet-law band runs for flying bodies alone. The union is the
+  truthful composite of the two open carriers — the residue lives
+  there.
+- **#128 alone would answer GREEN for this construction — by
+  ACCIDENT**: its un-gated feet-law band at the ENDPOINT rest covers
+  cell 42 here, but the endpoint is not the reference's rest (the
+  face−0.05 composition is), so the coverage is construction-specific,
+  not the law. The gate (#123) removes even the accidental coverage.
+
+**The reference's law, the seat's record**: the stick tick IS a
+flight tick — the stick arm sets `inGround` (ArrowEntity 288-309),
+the tail integration lands the rest (328-330), `setPosition` (381),
+then `checkBlockCollisions()` (382) scans the REST BOX `[y, y+0.5]`
+on the very stick tick — the LAST consult the reference ever makes
+for that arrow. The slice's fix shape: the flight walk's landing arm
+(the stick tick) consults the band at the rest position once, with
+the feet-law window, before the stuck body exits the flight walk —
+the reference's own structure. Its own VT number is owed at the fix
+(the VT-023 precedent: a named tail elevated when its carrier opens).
+
+**THE #128 UNION-CLAIM CORRECTION** (the review's honest note): the
+#128 commit message claims "UNION with #123: merge verified clean" —
+against the CURRENT #123 head (`1a5e2059`) the merge CONFLICTS (both
+carriers rewrote `burningTntPass`'s javadoc: the gate's flying-only
+law and the feet-law note). The resolution is trivial (this act's
+scratch union carries it: the two notes compose in the one javadoc),
+but the claim is stale — the review notes on both PRs should carry
+the correction so the maintainer expects the one-hunk conflict.
