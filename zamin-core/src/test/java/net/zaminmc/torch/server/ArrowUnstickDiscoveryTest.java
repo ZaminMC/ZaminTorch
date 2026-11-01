@@ -21,40 +21,36 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * THE VERIFIER'S VT-015 SEAT — the stuck arrow's TRACKED-BLOCK UN-STICK
+ * THE VERIFIER'S VT-015 SEAT — the tracked-block UN-STICK law
  * (docs/vanilla-conformance-audit.md, the thirty-first pass's honest
- * residue; this is the finding's PASS 2, the behavioral construction).
+ * residue, pass 2 of 3): what happens to a stuck arrow when the block
+ * it rests in CHANGES under it.
  *
- * <p>THE REFERENCE LAW (ArrowEntity.java lines 172-186, the
- * {@code inGround} branch that runs every stuck tick): the arrow
- * consults its TRACKED cell — the block the flight ray hit, recorded at
- * stick time as {@code blockX/Y/Z} + {@code block}/{@code blockData}
- * (lines 289-293). When that cell's block OR metadata no longer matches
- * (a piston moves it, a blast clears it, a player breaks it, the
- * arrow's own burning-TNT ignite arm opens the cell), the arrow
- * UN-STICKS: {@code inGround = false} (line 180), the velocity re-arms
- * with the ~0.2-randomized components (lines 181-183), the stick and
- * air clocks reset (lines 184-185) — and the arrow FALLS OUT and flies
- * again from the next tick.</p>
+ * <p>THE REFERENCE LAW (reference/1.8.8, ArrowEntity.tick lines
+ * 157-186 — the head of every tick, before the {@code inGround}
+ * branch): the STUCK arrow re-reads its TRACKED cell
+ * ({@code blockX/blockY/blockZ} — the hit block's cell, recorded at
+ * the stick, lines 290-292) every tick. When the block there no
+ * longer matches the recorded identity — a piston moved it, a blast
+ * cleared it, a player broke it — the else arm (lines 179-186)
+ * UN-STICKS the arrow: {@code inGround = false}, each velocity
+ * component multiplied by its own {@code random.nextFloat() * 0.2}
+ * (a fresh random multiplier per axis), {@code inBlockTicks = 0},
+ * {@code inAirTicks = 0}. The arrow falls out of the opened cell and
+ * flies again (the flight branch resumes; gravity and drag re-run).
+ * The un-changed arm (174-178) only counts the 1200-tick expiry.</p>
  *
- * <p>THE ENGINE'S LAW: {@code ProjectileEntity.inGround} has NO false
- * writer at all — {@code landInGround()} and {@code restoreGrounded()}
- * both set it true and nothing ever clears it; the manager's stuck arm
- * (ProjectileManager.tick's {@code inGround} branch) runs the stick
- * clock and the 1200-tick expiry ALONE. The engine's own javadoc
- * acknowledges the reference's law it does not implement
- * (ProjectileEntity.flingVelocity: "the reference's own damped 0.2
- * factor applies to them only if the stick cell's block ever changes"
- * — it never can, no consult exists).</p>
+ * <p>THE ENGINE'S SHAPE (ProjectileManager.tick's inGround branch,
+ * lines ~853-858): the stuck arrow runs the stick clock ALONE —
+ * {@code integrate} increments {@code ticksInGround}, the 1200 expiry
+ * removes. NO block consult exists anywhere on the stuck path; the
+ * engine's stuck arrow hangs in the air until expiry whatever happens
+ * to the block it rests in.</p>
  *
- * <p>THE SEAT: an arrow stuck in a free-standing one-block pedestal
- * (the flat world's terrain ends at y=4; the pedestal row is y=25, so
- * the fall below the face is observable for dozens of ticks before any
- * terrain). Break the pedestal — the whole 3x3 row, so whichever cell
- * holds the tracked block (the engine's endpoint-inside cell or a fixed
- * engine's face-rest cell above it), it is gone. The reference un-sticks
- * and falls; the engine's arrow hangs stuck in the air until the
- * 1200-tick expiry.</p>
+ * <p>This seat is EXPECTED RED on develop until VT-015's correction
+ * lands (the tracked-block consult + the randomized re-arm). Do not
+ * re-pin it to the engine's current answer; the finding record owns
+ * the mismatch.</p>
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class ArrowUnstickDiscoveryTest {
@@ -84,75 +80,91 @@ class ArrowUnstickDiscoveryTest {
     }
 
     /**
-     * THE PIN — break the block a stuck arrow rests in and the arrow must
-     * un-stick and fall (the reference's tracked-cell consult). The whole
-     * 3x3 pedestal row goes to air so the tracked cell is certainly among
-     * the removed blocks under EITHER placement model (the engine's
-     * endpoint-inside rest or a corrected face+0.05 rest whose tracked
-     * cell is the pedestal row below the body).
+     * VT-015's seat: break the block a stuck arrow rests in — the
+     * reference's tracked cell changes (the recorded identity no
+     * longer matches), the un-stick arm fires, and the arrow FALLS OUT
+     * of the opened cell (the randomized re-arm + the resumed gravity).
+     * The engine's stuck arrow never consults the block: it hangs in
+     * the air at its rest position until the 1200-tick expiry.
+     *
+     * <p>The construction: a 5x5 stone platform, top face y=20, an
+     * arrow shot straight down into its center. The break targets the
+     * platform's TOP CELL at the arrow's x/z — the hit block (the
+     * reference's tracked cell; the engine's embedded cell at the
+     * endpoint placement, the same cell for this construction). The
+     * flat world's own terrain sits at y<=4 — the falling arrow meets
+     * nothing between the platform and the ground, so ANY movement
+     * after the break is the un-stick's signature; forty ticks later
+     * the reference's arrow has either fallen past the platform's band
+     * or re-stuck on the world's grass, both far below the rest.
      */
     @Test
-    void theStuckArrowUnsticksWhenItsBlockBreaks() throws Exception {
-        EngineWorld world = server.world();
-        int pedestalY = 25; // the single stone row; top face at y=26
-
+    void theBrokenBlockUnderAStuckArrowUnsticksIt() throws Exception {
+        EngineWorld overworld = server.world();
+        int cx = 42;
+        int cz = 42;
         server.ticker().submit(() -> {
-            for (int x = 39; x <= 41; x++) {
-                for (int z = 39; z <= 41; z++) {
-                    world.setBlock(new BlockPosition(x, pedestalY, z), BuiltinBlocks.STONE);
+            for (int dx = -2; dx <= 2; dx++) {
+                for (int dz = -2; dz <= 2; dz++) {
+                    overworld.setBlock(new BlockPosition(cx + dx, 19, cz + dz),
+                            BuiltinBlocks.STONE);
                 }
             }
         });
-        await(() -> BuiltinBlocks.STONE.equals(world.getBlock(new BlockPosition(40, pedestalY, 40))),
-                "the stone pedestal stands");
+        await(() -> BuiltinBlocks.STONE.equals(overworld.getBlock(
+                        new BlockPosition(cx, 19, cz))),
+                "the stone platform stands with its top face at y=20");
 
         AtomicReference<ProjectileEntity> launched = new AtomicReference<>();
         server.ticker().submit(() -> launched.set(server.projectiles().launch(
                 ProjectileEntity.Kind.ARROW, -1,
-                new Position(40.5, 30.5, 40.5),
-                180.0, 80.0, 0.8, 0)));
-        await(() -> launched.get() != null, "the arrow launched above the pedestal");
+                new Position(cx + 0.5, 24.5, cz + 0.5),
+                180.0, 90.0, 0.8, 0)));
+        await(() -> launched.get() != null, "the arrow launched straight down at the platform");
         ProjectileEntity arrow = launched.get();
-        await(arrow::inGround, "the arrow sticks in the pedestal");
+        await(() -> arrow.inGround(), "the arrow sticks in the platform's top face (y=20)");
 
-        Position restAt = arrow.position();
+        Position rest = arrow.position();
+        // The hit block: the platform's top-layer cell at the arrow's
+        // x/z — the reference's tracked cell (the recorded block) and,
+        // at the engine's endpoint placement, the embedded cell — the
+        // same cell for this straight-down construction.
+        BlockPosition hitCell = new BlockPosition(
+                (int) Math.floor(rest.x()), 19, (int) Math.floor(rest.z()));
 
-        // BREAK THE PEDESTAL — the whole row, so the tracked cell (the
-        // block the flight ray hit) is gone whatever the resting
-        // geometry. This is the reference's un-stick trigger exactly: a
-        // block/metadata change at the tracked cell.
-        server.ticker().submit(() -> {
-            for (int x = 39; x <= 41; x++) {
-                for (int z = 39; z <= 41; z++) {
-                    world.setBlock(new BlockPosition(x, pedestalY, z), world.airType());
-                }
-            }
-        });
-        await(() -> world.airType().equals(world.getBlock(new BlockPosition(40, pedestalY, 40))),
-                "the pedestal is broken out from under the arrow");
+        // BREAK THE BLOCK THE ARROW RESTS IN — the player's pickaxe, the
+        // blast's clearance, the piston's move: the tracked identity
+        // no longer matches the cell.
+        server.ticker().submit(() -> overworld.setBlock(hitCell, overworld.airType()));
+        await(() -> overworld.getBlock(hitCell).equals(overworld.airType()),
+                "the block under the stuck arrow is broken (cell " + hitCell + ")");
 
-        // Ten ticks: the reference un-sticks on the FIRST stuck tick
-        // after the change and falls from the next (gravity -0.05/tick
-        // accumulates ~2 blocks over the window; the terrain is 21
-        // blocks below, so no re-stick can mask the fall).
-        EngineAwaits.awaitTicks(server.world(), 10,
-                "the window after the pedestal break");
+        // Forty ticks — the reference's un-stick fires on the FIRST tick
+        // after the change; the fall needs a handful more. The engine's
+        // answer: nothing moves.
+        EngineAwaits.awaitTicks(server.world(), 40,
+                "the broken cell stands open under the stuck arrow");
 
-        Position afterBreak = arrow.position();
-        assertFalse(arrow.inGround(),
-                "VT-015's pin: the stuck arrow must UN-STICK when the block it rests in "
-                        + "breaks (the reference's ArrowEntity lines 172-186 — the tracked "
-                        + "cell's block no longer matches the recorded block/blockData, so "
-                        + "inGround flips false, the velocity re-arms ~0.2-randomized, the "
-                        + "clocks reset, and the arrow falls out). Observed: the engine's "
-                        + "arrow is STILL STUCK at " + afterBreak + " (rested at " + restAt
-                        + " before the break) — ProjectileEntity.inGround has no false "
-                        + "writer anywhere; the stuck arm runs the stick clock and the "
-                        + "1200-tick expiry alone, so the arrow hangs in the air whatever "
-                        + "happens to the block.");
-        assertTrue(afterBreak.y() < restAt.y(),
-                "VT-015's pin (the fall): the un-stuck arrow must fall once its block is "
-                        + "gone. Observed rest " + afterBreak + " against the pre-break rest "
-                        + restAt + " — the body never moved.");
+        // THE PIN: the arrow LEFT its rest — the un-stick's randomized
+        // re-arm plus the resumed gravity carry it out of the opened
+        // cell (the reference's else arm, ArrowEntity 179-186). The
+        // engine's stuck arrow stays at its rest position, inGround,
+        // until the 1200-tick expiry.
+        assertTrue(arrow.position().y() < rest.y() - 0.5,
+                "VT-015: the stuck arrow must FALL when the block it rests in is broken — "
+                        + "the reference's ArrowEntity (lines 173-186) re-reads the tracked "
+                        + "cell (" + hitCell + ") every tick and the changed identity fires "
+                        + "the un-stick arm: inGround=false, the per-axis "
+                        + "random*0.2 re-arm, the clocks reset, the fall resumes. Observed "
+                        + "rest " + arrow.position() + " against the pre-break rest " + rest
+                        + " — the arrow HANGS IN THE AIR at the broken cell, the stick "
+                        + "clock alone running (the engine's inGround branch carries no "
+                        + "block consult)");
+        assertFalse(arrow.inGround() && arrow.position().y() > rest.y() - 0.5,
+                "VT-015's complementary observation: the engine's arrow is still inGround "
+                        + "AT THE BROKEN CELL's rest — the reference's arrow is never "
+                        + "inGround there again (it un-stuck the moment the tracked cell "
+                        + "changed; a re-stuck body would sit on the world's grass at "
+                        + "y~5, never at the platform's band)");
     }
 }

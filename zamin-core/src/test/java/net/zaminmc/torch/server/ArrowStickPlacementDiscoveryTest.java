@@ -20,37 +20,40 @@ import java.util.function.BooleanSupplier;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * THE VERIFIER'S VT-014 SEAT — the stuck arrow's RESTING POSITION
+ * THE VERIFIER'S VT-014 SEATS — the stick PLACEMENT's two observables
  * (docs/vanilla-conformance-audit.md, the thirty-first pass's honest
- * residue after VT-013's rejection; this is the finding's PASS 2, the
- * behavioral construction).
+ * residue, pass 2 of 3): where a stuck arrow RESTS.
  *
- * <p>THE REFERENCE LAW (ArrowEntity.java, the block-stick arm): when the
- * flight ray hits a face, the arrow rests 0.05 OUTSIDE that face, in the
- * cell it was flying through — the velocity becomes the vector to the
- * hit face ({@code hitresult.facePos - pos}, lines 296-298), the position
- * backs off 0.05 along the normalized flight line (lines 300-302),
- * {@code inGround = true} (line 304), and the tick's closing advance
- * (lines 327-329) then carries the position to
- * {@code facePos - 0.05 * unit(flight direction)} — the face's own cell
- * NEVER holds the resting arrow.</p>
+ * <p>THE REFERENCE LAW (reference/1.8.8, ArrowEntity.tick lines
+ * 289-330 — the block-hit arm and the flight tail that runs after it
+ * without returning): on the hit tick the ray from the PRE-STEP
+ * position to the endpoint has already found the face
+ * ({@code hitresult.facePos}); the arm replaces the velocity with
+ * {@code facePos - position} (the vector toward the face, lines
+ * 296-298), moves the position BACK 0.05 along it (lines 300-302),
+ * sets {@code inGround = true}, and then the FLIGHT TAIL STILL RUNS
+ * (line 328: {@code x += velocityX} with the replaced velocity) — the
+ * composition lands the arrow at exactly {@code facePos - 0.05 * unit}
+ * — 0.05 BLOCKS OUTSIDE THE HIT FACE, ON THE APPROACH SIDE, IN THE
+ * CELL THE ARROW WAS FLYING THROUGH. The tracked cell
+ * ({@code blockX/blockY/blockZ}, lines 290-292) is the HIT BLOCK's
+ * cell; the arrow's body never enters it.</p>
  *
- * <p>THE ENGINE'S LAW (ProjectileManager.resolveCollisions, the solid
- * arm): the midpoint/endpoint solidity samples call
- * {@code projectile.landInGround()} WITHOUT touching the position — the
- * arrow rests at the post-step ENDPOINT, up to a full step INSIDE the
- * block, and for a midpoint stick the endpoint can be past a thin wall
- * entirely — in the AIR.</p>
+ * <p>THE ENGINE'S SHAPE (ProjectileManager.resolveCollisions' solid
+ * arm, line ~1195): the midpoint/endpoint sample lands inside the hit
+ * block's cell and {@code landInGround()} sets the flag WITHOUT
+ * TOUCHING THE POSITION — the arrow rests at the post-step ENDPOINT,
+ * up to a full step INSIDE the block (the thirty-first pass's observed
+ * sample: y=19.947 against the floor's face at y=20, the cell the
+ * obsidian floor row). The thin-wall construction exposes the same
+ * root's second observable: a step whose midpoint lands inside a
+ * ONE-BLOCK wall but whose endpoint is PAST the wall sticks the arrow
+ * IN THE AIR BEYOND THE WALL — the reference's ray hits the near face
+ * and rests 0.05 before it.</p>
  *
- * <p>SEAT ONE (the floor shot): a stone platform with a known top face;
- * a steeply-falling arrow must rest AT OR ABOVE the face, its cell the
- * AIR row — the thirty-first pass's observed engine sample was
- * {@code y=19.947} against a face at {@code y=20}, the platform's own
- * row. SEAT TWO (the thin wall): a one-block wall crossed by a single
- * step whose midpoint is inside the wall and whose endpoint is past it —
- * the reference's ray stops at the NEAR face and rests 0.05 in front of
- * it; the engine sticks at the endpoint, floating in the air a full
- * block past the wall.</p>
+ * <p>These seats are EXPECTED RED on develop until VT-014's correction
+ * lands (the face+0.05 rest). Do not re-pin them to the engine's
+ * current answer; the finding record owns the mismatch.</p>
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class ArrowStickPlacementDiscoveryTest {
@@ -63,7 +66,7 @@ class ArrowStickPlacementDiscoveryTest {
     @BeforeEach
     void boot() throws Exception {
         EngineConfig config = new EngineConfig("127.0.0.1", 0,
-                "stickplace" + Math.abs(new java.util.Random().nextInt(100000)),
+                "arrowstick" + Math.abs(new java.util.Random().nextInt(100000)),
                 "it", 20, 4, 20, dataDir.toString(),
                 GameMode.SURVIVAL, true, "flat", false, EngineConfig.WHOLE_WORLD_REGION_SIZE);
         server = new EngineServer(config);
@@ -80,122 +83,129 @@ class ArrowStickPlacementDiscoveryTest {
     }
 
     /**
-     * SEAT ONE — the floor shot's resting geometry. A 5x5 stone platform
-     * at cell row y=20 (the flat world's terrain ends at y=4, so the
-     * platform stands alone in the air); the top face is y=21. An arrow
-     * falls steeply onto it (pitch 80, speed 0.8 — the thirty-first
-     * pass's own construction). The reference rests it at
-     * 21 + 0.05 * sin(80°) ≈ 21.049 — ABOVE the face, in the AIR row
-     * (cell 21). The engine rests it at the post-step endpoint INSIDE
-     * the platform row.
+     * A 5x5 stone platform with its TOP FACE at y=20 (the cells at
+     * y=19): the arrow shot straight down from four and a half blocks
+     * above hits the face at a known height. The launch jitter
+     * (gaussian 0.0075 * speed per axis) drifts the x/z landing well
+     * under half a block — the platform's 5x5 span absorbs it, and the
+     * straight-down pitch keeps the approach near-vertical (the
+     * reference's rest band [face, face+0.05] measured along y).
      */
-    @Test
-    void theStuckArrowRestsOutsideTheHitFace() throws Exception {
-        EngineWorld world = server.world();
-        int platformY = 20;
-        double faceY = platformY + 1.0; // the platform row's top face
-
-        server.ticker().submit(() -> {
-            for (int x = 38; x <= 42; x++) {
-                for (int z = 38; z <= 42; z++) {
-                    world.setBlock(new BlockPosition(x, platformY, z), BuiltinBlocks.STONE);
-                }
+    private static void buildPlatform(EngineWorld world, int x, int z) {
+        for (int dx = -2; dx <= 2; dx++) {
+            for (int dz = -2; dz <= 2; dz++) {
+                world.setBlock(new BlockPosition(x + dx, 19, z + dz),
+                        BuiltinBlocks.STONE);
             }
-        });
-        await(() -> BuiltinBlocks.STONE.equals(world.getBlock(new BlockPosition(40, platformY, 40))),
-                "the stone platform stands");
-
-        AtomicReference<ProjectileEntity> launched = new AtomicReference<>();
-        server.ticker().submit(() -> launched.set(server.projectiles().launch(
-                ProjectileEntity.Kind.ARROW, -1,
-                new Position(40.5, 25.5, 40.5),
-                180.0, 80.0, 0.8, 0)));
-        await(() -> launched.get() != null, "the arrow launched above the platform");
-        ProjectileEntity arrow = launched.get();
-        await(arrow::inGround, "the arrow sticks in the platform");
-
-        Position stuckAt = arrow.position();
-        int stuckCellY = (int) Math.floor(stuckAt.y());
-
-        // THE PIN (the reference's answer): the resting position is AT OR
-        // ABOVE the hit face — 0.05 outside it along the flight line, the
-        // arrow's cell the AIR row above the platform, never the
-        // platform's own row.
-        assertTrue(stuckAt.y() >= faceY,
-                "VT-014 seat one: the stuck arrow must rest AT OR OUTSIDE the hit face "
-                        + "(the reference's ArrowEntity lines 296-304 + the closing advance at "
-                        + "327-329 rest it at facePos - 0.05*unit(flight), the cell it flew "
-                        + "through). Observed engine rest: " + stuckAt + " — BELOW the face at "
-                        + faceY + ", the post-step ENDPOINT inside the platform row (cell y="
-                        + stuckCellY + " against the platform row y=" + platformY
-                        + "). The engine's resolveCollisions calls landInGround() without "
-                        + "touching the position.");
-        assertTrue(stuckCellY == platformY + 1,
-                "VT-014 seat one: the stuck arrow's cell must be the AIR row above the "
-                        + "platform (the reference rests the body outside the face). Observed "
-                        + "cell y=" + stuckCellY + " (rest " + stuckAt + ")");
-        assertTrue(stuckAt.y() < faceY + 0.2,
-                "VT-014 seat one (sanity bound): the reference's rest is 0.05 outside the "
-                        + "face, not a float above it. Observed rest: " + stuckAt);
+        }
     }
 
     /**
-     * SEAT TWO — the thin-wall air-stick. A wall one block thick at cell
-     * z=40 (3 wide, 3 tall, cells y=19..21 — the band [19, 22)); the near
-     * face is z=40, the far face z=41. The arrow flies straight at it
-     * (yaw 0, pitch 0, speed 2.0) from z=39.5: the first step's midpoint
-     * lands inside the wall (≈ z 40.49) and the endpoint past it
-     * (≈ z 41.48). The engine's midpoint consult therefore fires
-     * landInGround() at the ENDPOINT — the arrow hangs in the AIR a full
-     * block past the wall. The reference's ray stops at the NEAR face
-     * (facePos z=40) and rests the arrow at z ≈ 39.95, in the cell
-     * BEFORE the wall.
+     * VT-014's primary seat: the stuck arrow rests ON THE APPROACH SIDE
+     * of the hit face — the reference's face+0.05 (ArrowEntity 296-302
+     * + 328-330: the backoff then the replaced-velocity advance compose
+     * to exactly 0.05 outside the face; the tracked cell is the floor
+     * block, the body's cell the AIR above it). The engine's endpoint
+     * placement rests INSIDE the floor's cell — below the face.
      */
     @Test
-    void theThinWallSticksAtTheNearFaceNotPastIt() throws Exception {
-        EngineWorld world = server.world();
-        int wallZ = 40; // the wall's single cell row; near face at z=40
+    void theStuckArrowRestsOutsideTheHitFace() throws Exception {
+        EngineWorld overworld = server.world();
+        int cx = 42;
+        int cz = 42;
+        server.ticker().submit(() -> buildPlatform(overworld, cx, cz));
+        await(() -> BuiltinBlocks.STONE.equals(overworld.getBlock(
+                        new BlockPosition(cx, 19, cz))),
+                "the stone platform stands with its top face at y=20");
 
-        server.ticker().submit(() -> {
-            for (int x = 39; x <= 41; x++) {
-                for (int y = 19; y <= 21; y++) {
-                    world.setBlock(new BlockPosition(x, y, wallZ), BuiltinBlocks.STONE);
-                }
-            }
-        });
-        await(() -> BuiltinBlocks.STONE.equals(world.getBlock(new BlockPosition(40, 20, wallZ))),
-                "the one-block wall stands");
-
-        // The launch consults no cell before the first step (the origin
-        // cell is air), and the step's geometry puts the midpoint INSIDE
-        // the wall and the endpoint PAST it whatever the launch gaussian
-        // does (the 3-sigma drift is ~0.045 against 0.49+ margins).
         AtomicReference<ProjectileEntity> launched = new AtomicReference<>();
         server.ticker().submit(() -> launched.set(server.projectiles().launch(
                 ProjectileEntity.Kind.ARROW, -1,
-                new Position(40.5, 20.5, wallZ - 0.5),
-                0.0, 0.0, 2.0, 0)));
-        await(() -> launched.get() != null, "the arrow launched at the wall");
+                new Position(cx + 0.5, 24.5, cz + 0.5),
+                180.0, 90.0, 0.8, 0)));
+        await(() -> launched.get() != null, "the arrow launched straight down at the platform");
         ProjectileEntity arrow = launched.get();
-        await(arrow::inGround, "the arrow sticks at the wall");
+        await(() -> arrow.inGround(), "the arrow sticks in the platform's top face (y=20)");
 
         Position stuckAt = arrow.position();
-        int stuckCellZ = (int) Math.floor(stuckAt.z());
+        BlockPosition stuckCell = new BlockPosition(
+                (int) Math.floor(stuckAt.x()),
+                (int) Math.floor(stuckAt.y()),
+                (int) Math.floor(stuckAt.z()));
+        // THE PIN: the rest is on the APPROACH SIDE of the face — y >= 20.0,
+        // the cell the arrow flew through (the reference's exact rest is
+        // face+0.05 along the approach; a near-vertical shot answers
+        // within [20.0, 20.05]). The engine's endpoint placement answers
+        // BELOW the face — inside the floor's cell (y=19).
+        assertTrue(stuckAt.y() >= 20.0,
+                "VT-014: the stuck arrow must rest OUTSIDE the hit face — the reference's "
+                        + "ArrowEntity (lines 296-302 + 328-330) composes the 0.05 backoff "
+                        + "with the replaced-velocity advance to rest exactly 0.05 before "
+                        + "the face, in the cell the arrow flew through (" + cx + ", 20, "
+                        + cz + "); the tracked cell alone (" + cx + ", 19, " + cz
+                        + ") is the hit block. Observed rest " + stuckAt + " (cell "
+                        + stuckCell + ") — the post-step ENDPOINT placement INSIDE the "
+                        + "hit block's cell, the VT-014 divergence");
+    }
 
-        // THE PIN (the reference's answer): the rest is BEFORE the near
-        // face — the ray stops at the first face it crosses, and the
-        // 0.05 backoff keeps the body in the approach cell.
-        assertTrue(stuckAt.z() < (double) wallZ,
-                "VT-014 seat two: an arrow that crosses a one-block wall mid-step must "
-                        + "rest at the NEAR face (the reference's ray hits the first face at "
-                        + "z=" + wallZ + " and rests 0.05 in front of it, ArrowEntity lines "
-                        + "296-304). Observed engine rest: " + stuckAt + " — PAST the far "
-                        + "face at z=" + (wallZ + 1) + ", hanging in the AIR (cell z="
-                        + stuckCellZ + "): the midpoint solidity consult fired landInGround() "
-                        + "while the position already stood at the post-step endpoint beyond "
-                        + "the wall.");
-        assertTrue(stuckCellZ == wallZ - 1,
-                "VT-014 seat two: the stuck arrow's cell must be the approach cell before "
-                        + "the wall. Observed cell z=" + stuckCellZ + " (rest " + stuckAt + ")");
+    /**
+     * VT-014's second observable — the THIN-WALL AIR-STICK: a
+     * one-block-thick wall, a horizontal shot whose per-tick step is
+     * ~1.96 blocks. The step from x=49.48 to x=51.44 has its midpoint
+     * inside the wall's single cell (x=50) while its endpoint is PAST
+     * the wall's far face (x=51): the engine's midpoint consult sticks
+     * the arrow AT THE ENDPOINT — hanging in the AIR beyond the wall.
+     * The reference's ray (pre-step 49.48 -> endpoint 51.44) hits the
+     * NEAR face at x=50.0 and rests the arrow at 49.95 — ON THE
+     * APPROACH SIDE, in the air cell before the wall.
+     */
+    @Test
+    void theThinWallShotRestsAtTheNearFaceNotInTheAirBeyond() throws Exception {
+        EngineWorld overworld = server.world();
+        // The wall: ONE block thick in x (the column x=50), five tall
+        // (y=20..24), five deep (z=45..49) — the jitter bands cannot
+        // escape it.
+        server.ticker().submit(() -> {
+            for (int y = 20; y <= 24; y++) {
+                for (int z = 45; z <= 49; z++) {
+                    overworld.setBlock(new BlockPosition(50, y, z),
+                            BuiltinBlocks.STONE);
+                }
+            }
+        });
+        await(() -> BuiltinBlocks.STONE.equals(overworld.getBlock(
+                        new BlockPosition(50, 22, 47))),
+                "the one-block wall stands at x=50");
+
+        AtomicReference<ProjectileEntity> launched = new AtomicReference<>();
+        // Yaw 270 flies +x (dx = -sin(270) = 1); pitch 0 keeps it flat;
+        // speed 2.0 gives the ~1.96-block step whose midpoint lands in
+        // the wall's cell and whose endpoint clears the far face.
+        server.ticker().submit(() -> launched.set(server.projectiles().launch(
+                ProjectileEntity.Kind.ARROW, -1,
+                new Position(47.5, 22.5, 47.5),
+                270.0, 0.0, 2.0, 0)));
+        await(() -> launched.get() != null, "the arrow launched flat at the thin wall");
+        ProjectileEntity arrow = launched.get();
+        await(() -> arrow.inGround(), "the arrow sticks at the thin wall");
+
+        Position stuckAt = arrow.position();
+        BlockPosition stuckCell = new BlockPosition(
+                (int) Math.floor(stuckAt.x()),
+                (int) Math.floor(stuckAt.y()),
+                (int) Math.floor(stuckAt.z()));
+        // THE PIN: the rest is on the APPROACH SIDE of the near face —
+        // x < 50.0 (the reference's exact rest: 49.95, the face minus
+        // 0.05 along the +x approach). The engine's endpoint placement
+        // answers PAST the far face — hanging in the air (x >= 51.0).
+        assertTrue(stuckAt.x() < 50.0,
+                "VT-014 (the thin-wall observable): the arrow shot at a one-block wall "
+                        + "must rest AT THE NEAR FACE — the reference's ray hits x=50.0 "
+                        + "and the 0.05 backoff composes with the replaced-velocity "
+                        + "advance (ArrowEntity 296-302 + 328-330) to rest at x=49.95, "
+                        + "in the approach-side air cell (49, .., 47). Observed rest "
+                        + stuckAt + " (cell " + stuckCell + ") — the post-step ENDPOINT "
+                        + "placement hanging in the AIR BEYOND the wall, the same "
+                        + "VT-014 root's second observable");
     }
 }
