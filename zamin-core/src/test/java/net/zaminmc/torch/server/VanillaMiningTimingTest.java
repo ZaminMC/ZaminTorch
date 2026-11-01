@@ -75,6 +75,36 @@ class VanillaMiningTimingTest {
         await(() -> server.world().getBlock(at).equals(type), "seeded at " + at);
     }
 
+    /**
+     * THE GRASS-SPREAD HAZARD CLEAR (the run-573 root cause): the flat
+     * world's grass layer at y=4 randomly ticks, and vanilla grass spread
+     * converts a DIRT dig target within its 3x5x3 reach — the seeded dirt
+     * at (2,5,2) sits directly on that field, and a mid-dig conversion
+     * flips the cell to grass (hardness 0.6), regressing the recomputed
+     * progress (the observed stage 7 -> 6 at tick 60) and stretching a
+     * 75-tick dig to ~91 — past every time budget, a per-boot random-tick
+     * lottery (~8% per run locally). The engine is 1:1 CORRECT (the spread,
+     * the hardness, the live recompute are all vanilla); the SCENE seeded
+     * its dig target on a live grass field. The clear: replace the 3x3
+     * patch of the field whose spread reach covers the target — no grass
+     * source remains within range (a grass block at y=4 spreads at most
+     * one block up and one sideways), so the target can never convert
+     * mid-dig.
+     */
+    private void clearGrassFieldAroundDigs() throws InterruptedException {
+        server.ticker().submit(() -> {
+            for (int dx = 1; dx <= 3; dx++) {
+                for (int dz = 1; dz <= 3; dz++) {
+                    server.world().setBlock(new BlockPosition(dx, 4, dz),
+                            BuiltinBlocks.DIRT);
+                }
+            }
+        });
+        await(() -> server.world().getBlock(new BlockPosition(2, 4, 2))
+                        .equals(BuiltinBlocks.DIRT),
+                "the grass patch under the dig target cleared");
+    }
+
     // ------------------------------------------------------------------ the math
 
     @Test
@@ -165,8 +195,17 @@ class VanillaMiningTimingTest {
         // vanilla wasMining accumulation, no further packets needed.
         await(() -> server.world().getBlock(stone).equals(BuiltinBlocks.AIR),
                 "the parked early finish self-completes at progress 1.0");
-        assertEquals(1, player.inventory().held().damage(),
-                "the self-completed break wears the tool like any other");
+        // (The wear poll — the visibility race the direct assertEquals read:
+        // the completion walk commits the AIR block BEFORE wearHeldTool
+        // runs (the same walk's later arm), and the slot array write is a
+        // plain engine-thread store with no happens-before for the test
+        // thread's read — one local run observed the block gone with the
+        // held stack's damage still the stale 0. The tick-budget poll
+        // converges on the worn record, the same-walk write landing within
+        // the first tick.)
+        EngineAwaits.awaitCondition(server.world(),
+                () -> player.inventory().held().damage() == 1,
+                5, "the self-completed break wears the tool like any other");
         assertTrue(!server.itemEntities().all().isEmpty()
                         && server.itemEntities().all().get(0).stack().type().identifier()
                                 .toString().equals("minecraft:cobblestone"),
@@ -200,6 +239,7 @@ class VanillaMiningTimingTest {
         PlayerSession player = join("EarlyFinisher");
 
         BlockPosition dirt = new BlockPosition(2, 5, 2);
+        clearGrassFieldAroundDigs();
         seedBlock(player, dirt, BuiltinBlocks.DIRT);
 
         // Dirt by hand: 15 ticks to 1.0. A finish at 300ms (6 ticks, f = 0.47)
@@ -221,7 +261,10 @@ class VanillaMiningTimingTest {
         PlayerSession player = join("JumpingMiner");
 
         BlockPosition dirt = new BlockPosition(2, 5, 2);
+        clearGrassFieldAroundDigs();
         seedBlock(player, dirt, BuiltinBlocks.DIRT);
+        // (The hazard clear's own comment lives on the helper — the airborne
+        // dig's 75-tick window is the conversion lottery's widest exposure.)
 
         // Feet leave the ground: the vanilla /5 divisor applies to the whole
         // dig. Dirt by hand 15 ticks becomes 75; the finish at 1.5s (30 ticks,
@@ -234,8 +277,20 @@ class VanillaMiningTimingTest {
         server.blockInteraction().submitMiningFinished(player, dirt);
         assertTrue(server.world().getBlock(dirt).equals(BuiltinBlocks.DIRT),
                 "an airborne dig cannot finish in a grounded dig's time");
-        await(() -> server.world().getBlock(dirt).equals(BuiltinBlocks.AIR),
-                "the airborne dig still self-completes on the slowed clock");
+        // (The wall-clock poll retired — the run-573 load flake: the
+        // self-completion needs 45 MORE ENGINE ticks (75 total, 30 spent)
+        // but the 3s wall budget assumed the nominal 50ms tick — under a
+        // loaded runner the tick loop stretches past 15 TPS and the wall
+        // deadline expires with the engine's own clock short of the
+        // completion. The ML-002 conversion this await missed: the
+        // engine's tick clock is the honest clock — the 60-tick budget
+        // (45 nominal + the submission and admission slack) fails only
+        // when the engine COMPLETED those ticks without the block
+        // landing; with the grass hazard cleared the completion is
+        // deterministic at tick 76.)
+        EngineAwaits.awaitCondition(server.world(),
+                () -> server.world().getBlock(dirt).equals(BuiltinBlocks.AIR),
+                60, "the airborne dig still self-completes on the slowed clock");
         server.shutdown(null);
     }
 
