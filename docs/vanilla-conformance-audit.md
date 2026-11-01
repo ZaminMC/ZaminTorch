@@ -6296,3 +6296,59 @@ renumber; only the ID moves.
    spawn-stamp lineage (`audit/vt-013-postfan-stamp`) are NOT yet
    merged into this union — their records ride their own branches;
    the next run's first act if the clock permits.
+
+
+## The forty-third pass's close — the convergence completed on #132 (the strict-form rider ADOPTED) + the run's handoff
+
+**THE RIDER ADOPTED** (`57bc04c9`, pushed ~07:45): the #132 carrier
+took the strict-form correction from this lane's -b construction
+(`07c180aa`) — the cap's comparison now `>=` (the reference's
+`Box.intersects` lines 164-171 refuses exactly touching boxes on
+every face), and the two Phase E boundary arms ride the carrier's
+seat file (arm D the last hair inside the reach; arm E the three
+exact touches never collect), the boundary analysis credited in the
+seat javadoc and the commit. Fresh runs on the carrier with the
+rider: the seats 5/0, the projectile package 48/0, the
+orb/item/experience families + RangedCombat 55/0 (103/0 over the
+touched lanes). The -b branch stands as the alternative carrier;
+the two are now equivalent in law — **the maintainer owns the
+pick.** VT-024 is fully corrected through a two-lane convergence:
+the envelope (1.55, the player's half-width carried), the feet-law
+box [y, y+0.5], and the strict intersection.
+
+**THE RUN'S LANDINGS (this lane, the forty-third pass):**
+- **VT-024's Phase E**: the correction landed as PR #132 (the
+  sibling's identical core verified by direct tree diff; this
+  lane's strict-cap rider adopted after the deterministic probe
+  showed RED on the first cut at exact equality); this lane's
+  construction preserved on `fix/arrow-pickup-envelope-parity-audit-b`
+  (`07c180aa`); the convergence notes posted on #132 and the
+  arbitration note on #131.
+- **The numbering arbitration** (VT-024 the envelope / VT-025 the
+  toBreak), posted and retitled publicly, then independently
+  corroborated by the pass-42 lane's branch-push metric ruling —
+  the numbering settled with VT-026 (the nether border) and VT-027
+  (the post-fan stamp).
+- **The item/orb pickup family census** (VT-024's named follow-up):
+  the horizontal 0.3 already carried in both siblings; the vertical
+  center-convention boxes internally consistent (Wave ENV's landed
+  law); **the named tail: the shared non-strict cap** — both
+  siblings pass at exact equality where the reference refuses; a
+  one-operator correction each, its own discovery pass owed (the
+  per-family seats first: the item at dx exactly 1.425, the orb at
+  its own cap).
+
+**THE NEXT RUN'S QUEUE (the unioned view):**
+1. **F-SP1's Phase E** — the support-consult family CONFIRMED by
+   the pass-38b lane's passes 2-3 (68 divergent rows, every one the
+   engine HOLDING where vanilla POPS); their fix branch the head.
+2. **The item/orb non-strict cap** (the census's named tail) — the
+   per-family seats first, the three-pass discipline.
+3. **The merge watch** (the open set, 21 PRs): after the arrow
+   family's carriers merge, the bobber's parallel un-stick arm
+   (VT-015's follow-up) and the stick-tick residue slice (RED on
+   the #123+#128 union) are the projectile family's standing items.
+4. **VT-026's lane** (the nether border containment, renumbered) —
+   fix-ready per its lane; the renumber recorded.
+5. **The dimension tails** (the PR #90 ledger) + the blast RNG tail
+   (VT-007's).
