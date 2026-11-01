@@ -177,6 +177,46 @@ final class TestClient18 implements AutoCloseable {
     }
 
     /**
+     * The keep-alive pump — the non-discarding drain for READ-SILENT phases
+     * (run 569's root cause): a poll loop that watches the engine's own
+     * simulation state (the chase/swing form) reads nothing off the wire for
+     * as long as the poll runs, so the server's pending keep-alive sits
+     * unanswered and the listener's own kick arm (interval x 3 — 15s at the
+     * 5s rig cadence, 30s at the 10s default) closes the channel mid-poll;
+     * the next write then dies as a broken pipe. A real vanilla client
+     * answers keep-alives independently of its movement, and so must the
+     * fixture: reads whatever has arrived with a near-zero timeout, ANSWERS
+     * any keep-alive met mid-pump (the auto-answer inside readPacket), and
+     * re-queues every other packet in order for the next typed read —
+     * nothing is consumed, no assertion's meaning changes. The read timeout
+     * is restored on exit.
+     */
+    void pumpKeepAlives() throws IOException {
+        int previous = socket.getSoTimeout();
+        socket.setSoTimeout(5);
+        java.util.List<byte[]> kept = new java.util.ArrayList<>();
+        try {
+            while (true) {
+                byte[] payload;
+                try {
+                    payload = readPacket();
+                } catch (java.net.SocketTimeoutException quiet) {
+                    break; // the wire is quiet: everything available is pumped
+                }
+                if (readPacketId(payload) == Protocol18.S2C_KEEP_ALIVE) {
+                    continue; // answered inside readPacket; never re-queued
+                }
+                kept.add(payload); // not ours to take
+            }
+        } finally {
+            socket.setSoTimeout(previous);
+        }
+        for (int i = kept.size() - 1; i >= 0; i--) {
+            pushbackQueue.addFirst(kept.get(i));
+        }
+    }
+
+    /**
      * Drains the give ghost's wire wake — the vanilla makeFakeItem quirk
      * the aligned /give carries (ML-008): a full-fit grant drops a
      * one-tick ghost, so the wire sees a Spawn Entity, its Entity
@@ -1203,6 +1243,31 @@ final class TestClient18 implements AutoCloseable {
         int entityId = buffer.readInt();
         int status = buffer.readByte();
         return new int[]{entityId, status};
+    }
+
+    /**
+     * Reads the next Entity Status packet OF THE TARGET BODY (the local
+     * reproduction of the MobIntegration seat's hosted-runner flake: the
+     * natural spawn cycle's own hurt packets — a fall wound, an ambient
+     * brawl — interleave the stream, and a body-agnostic read lands
+     * whichever came first; the seat's own body is the one it asked for).
+     */
+    int[] readEntityStatusFor(int entityId, long timeoutMs) throws IOException {
+        long deadline = System.currentTimeMillis() + timeoutMs;
+        while (System.currentTimeMillis() < deadline) {
+            byte[] payload = readPacket();
+            if (readPacketId(payload) == Protocol18.S2C_ENTITY_STATUS) {
+                ByteBuf buffer = Unpooled.wrappedBuffer(payload);
+                ByteBufOps.readVarInt(buffer); // packet id
+                int readId = buffer.readInt();
+                int status = buffer.readByte();
+                if (readId == entityId) {
+                    return new int[]{readId, status};
+                }
+                // another body's status: skipped, the target's own follows
+            }
+        }
+        throw new IOException("Timed out waiting for entity status of " + entityId);
     }
 
     /** Reads a Rel Move Look packet, returning {entityId, dx, dy, dz, onGround}. */

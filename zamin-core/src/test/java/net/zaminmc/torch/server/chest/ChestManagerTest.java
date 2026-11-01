@@ -40,8 +40,11 @@ class ChestManagerTest {
         original.setSlot(1, new ItemStack(BuiltinItems.COAL, 4, 1)); // charcoal
         original.setSlot(26, ItemStack.of(BuiltinItems.SAND, 7));    // last slot
 
-        store.save(Map.of(POS, original));
-        Map<BlockPosition, ChestBlockEntity> loaded = store.load();
+        store.save(Map.of(0, Map.of(POS, original)));
+        Map<BlockPosition, ChestBlockEntity> loaded = new java.util.LinkedHashMap<>();
+        for (net.zaminmc.torch.server.chest.ChestDataStore.Loaded row : store.load()) {
+            loaded.put(row.position(), row.chest());
+        }
         assertEquals(1, loaded.size());
         ChestBlockEntity restored = loaded.get(POS);
         assertEquals(30, restored.snapshotSlots()[0].count());

@@ -110,9 +110,18 @@ class TerminalLogBridgeTest {
             bridge.publish(record(Level.INFO, "line " + i)); // must not block
         }
         long publishNanos = System.nanoTime() - start;
-        assertTrue(publishNanos < 20_000_000L,
-                "50 publishes against a slow 4-slot queue return in well under the slow sink's"
-                        + " 2.5 s drain — the logging thread never waits");
+        // The property is NEVER-BLOCKING, not zero descheduling: publish is
+        // format + offer (no wait anywhere), and the failure mode this seat
+        // pins — a publish that waits on the sink's 50 ms/line drain — costs
+        // the loop ~2.3 s (46 unabsorbed lines x 50 ms). A budget well under
+        // half that failure mode discriminates cleanly while a loaded
+        // runner's thread descheduling (run 571's three-fork contention, the
+        // cold-compile heat of a first run) stays far under it; the old
+        // 20 ms wall measured the scheduler, not the bridge.
+        assertTrue(publishNanos < 1_000_000_000L,
+                "50 publishes against a slow 4-slot queue return in well under the"
+                        + " ~2.3 s a blocking publish would cost — the logging thread"
+                        + " never waits on the sink");
         assertTrue(bridge.droppedCount() > 0, "the overflow was counted loudly");
         bridge.close();
         // Everything that made it into the queue is delivered in publish order

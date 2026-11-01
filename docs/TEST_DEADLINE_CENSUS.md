@@ -135,6 +135,42 @@ evidence — these were never added to the list):
   diagnosed mechanism yet, and the membership law requires one. If they
   recur, the path is root-cause first (the reports upload makes the
   forensics a download), census row second, allowlist last.
+- `VanillaMiningTimingTest.airborneDigTakesFiveTimesLonger` (run 573) —
+  NOT a flake: a TEST-SCENE DEFECT, the grass-spread lottery. The flat
+  world's grass layer at y=4 randomly ticks (the RandomTickSystem's own
+  vanilla 1:1 spread, a 3x5x3 reach), and the seat seeded its DIRT dig
+  target directly on that field; a mid-dig conversion flips the cell to
+  grass (hardness 0.6 vs dirt's 0.5), the live-recompute progress law
+  REGRESSES the accumulated progress (the probe's stage-ladder evidence:
+  stage 7 -> 6 at tick 60) and the 75-tick airborne dig stretches to ~91
+  — past the 3s wall budget and every honest tick budget (~8% of local
+  runs). The engine is 1:1 CORRECT (spread, hardness, recompute are each
+  vanilla); the scene fix clears the 3x3 grass patch whose spread reach
+  covers the target (both dirt seats in the class), the self-completion
+  await converts to `EngineAwaits.awaitCondition` (60-tick budget over
+  the 45 nominal — the ML-002 shape this await missed), and the tool-wear
+  assert converts with it (a visibility race: the completion walk commits
+  the AIR block BEFORE wearHeldTool, the slot write carrying no
+  happens-before for the test thread's read). THE HAZARD CLASS, for every
+  future seat that digs a seeded dirt block on a flat world: clear the
+  grass field under the target first (`clearGrassFieldAroundDigs`'s
+  shape); the sibling dig seats (StatsParity's dirt rows,
+  SurvivalMining's, DigHandlerGates', AdventureGates') ride 15-18-tick
+  windows with wall awaits that absorb the 3-tick grass slowdown —
+  diagnosed, tolerated, and to be converted at the root if any of them
+  ever fails this shape.
+- `VehicleWorldDamageTest.theLavaKillsTheCartWithTheFireSourceAndTheDeathLawReadsIt`
+  (run 577) — NOT a flake: a ONE-SHOT WINDOW polled as a stable
+  condition. The pool deaths land on tick N's lava walk but the death
+  blast kills the dry control on tick N+1's SAME iterator pass that
+  sweeps the pool carts (the in-order removal wounds it dead moments
+  before the cursor reaches its slot), so a test thread that first
+  observes the pool deaths after that pass — one missed 25ms poll under
+  load — sees the dry control dead too, false forever after. The
+  never-burned law re-pinned on the PERMANENT observable (the control's
+  one wound is the detonation's EXPLOSIVE arm, asserted after the
+  chain-stone await) — the same retirement shape as the bed seat's night
+  hunt and the GroupTwo death await before it.
 
 ## The audit list (hand-adjudicated rows)
 

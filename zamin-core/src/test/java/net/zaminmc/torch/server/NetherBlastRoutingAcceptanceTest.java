@@ -103,6 +103,13 @@ class NetherBlastRoutingAcceptanceTest {
         EngineAwaits.awaitCondition(server.world(),
                 () -> nether.getBlock(CENTER).equals(nether.airType()),
                 60, "the nether creeper's blast tore the nether's platform cell");
+        // The event fires at the walk's END (the cells torn, the destroy
+        // event, then the listener fan) — a test-thread poll can observe
+        // the torn cell inside that same-walk window, so the AWAITED
+        // observable for the event rows is the listener's own observation,
+        // never the cell alone (run 571's NPE at the dimension read).
+        EngineAwaits.awaitCondition(server.world(), () -> blast.get() != null,
+                60, "the creeper blast's event fired");
         assertEquals(-1, blast.get().dimension(),
                 "the blast's own dimension row (the pre-fix event carried the overworld's 0)");
         assertTrue(BuiltinBlocks.GLASS.equals(server.world().getBlock(CENTER)),
@@ -137,6 +144,11 @@ class NetherBlastRoutingAcceptanceTest {
 
         EngineAwaits.awaitCondition(server.world(), this::anyPlatformCellTorn,
                 120, "the nether fireball's blast tore the nether's platform");
+        // The listener fan runs at the blast walk's end — the torn cell
+        // alone can be observed before the event reference is set (run
+        // 571's NPE class; the creeper seat's own note above).
+        EngineAwaits.awaitCondition(server.world(), () -> blast.get() != null,
+                120, "the fireball blast's event fired");
         assertEquals(-1, blast.get().dimension(),
                 "the fireball blast's own dimension row (the pre-fix event carried the overworld's 0)");
         assertTrue(BuiltinBlocks.GLASS.equals(server.world().getBlock(CENTER)),

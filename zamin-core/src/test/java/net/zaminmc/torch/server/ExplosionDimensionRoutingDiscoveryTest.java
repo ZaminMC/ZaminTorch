@@ -285,12 +285,35 @@ class ExplosionDimensionRoutingDiscoveryTest {
         server.ticker().submit(() -> {
             buildProbe(overworld);
             buildProbe(nether);
+            // The creeper's standing pocket in the nether (the review
+            // correction carried with the PR #105 merge): the body flips
+            // to dimension -1 at the box's top (y PROBE_Y+4), and the
+            // NETHER's own generated terrain at that band is a per-boot
+            // lottery (the random world seed) — a rock cell inside the
+            // body's box embeds the flipped creeper (the suffocation /
+            // unstuck-ejection hazard class, one no-blast observed in 17
+            // runs on the unmodified seat, the ejected body detonating
+            // away from the measured box). The pocket clears the three
+            // layers above the box in the nether ALONE — the overworld's
+            // flat sky is already air there, and the measured box cells
+            // (dy 1..3) are never touched.
+            for (int dx = -1; dx <= 1; dx++) {
+                for (int dy = 4; dy <= 6; dy++) {
+                    for (int dz = -1; dz <= 1; dz++) {
+                        nether.setBlock(new BlockPosition(
+                                PROBE_X + dx, PROBE_Y + dy, PROBE_Z + dz),
+                                BuiltinBlocks.AIR);
+                    }
+                }
+            }
         });
         await(() -> BuiltinBlocks.DIRT.equals(overworld.getBlock(
                         new BlockPosition(PROBE_X, PROBE_Y + 2, PROBE_Z)))
                         && BuiltinBlocks.DIRT.equals(nether.getBlock(
-                        new BlockPosition(PROBE_X, PROBE_Y + 2, PROBE_Z))),
-                "both dimensions' probes stand");
+                        new BlockPosition(PROBE_X, PROBE_Y + 2, PROBE_Z)))
+                        && BuiltinBlocks.AIR.equals(nether.getBlock(
+                        new BlockPosition(PROBE_X, PROBE_Y + 5, PROBE_Z))),
+                "both dimensions' probes stand and the pocket is clear");
 
         // The nether creeper: spawned at the box's center (the probe
         // stands in BOTH dimensions at the same coordinates, so the body

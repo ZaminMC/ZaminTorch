@@ -91,8 +91,22 @@ public final class BlockInteractionService {
     private final java.util.function.BiFunction<net.zaminmc.torch.item.ItemType, Integer,
             java.util.Optional<BlockType>> blockItemResolver;
     private final java.util.function.Consumer<PlayerSession> inventorySync;
-    /** Post-break hook (furnace spill, future block entities). Tick-thread context. */
-    private volatile java.util.function.BiConsumer<BlockPosition, net.zaminmc.torch.block.BlockType> blockBrokenListener;
+    /**
+     * The post-break hook (Wave FL4-GAP2 — the acting world rides the
+     * callback, the FL4-F8 listener form): fires on the tick thread after a
+     * break commits, with the broken block's position, its pre-break type,
+     * and the world the break walked (the acting player's own — the tile
+     * cleanups route their per-dimension state through it).
+     */
+    @FunctionalInterface
+    public interface BlockBrokenListener {
+
+        /** @param actingWorld the world the break walked (the acting player's own) */
+        void onBlockBroken(BlockPosition position, net.zaminmc.torch.block.BlockType type,
+                EngineWorld actingWorld);
+    }
+
+    private volatile BlockBrokenListener blockBrokenListener;
     /** The survival-break XP hook (mining awards; creative breaks never fire it). */
     private volatile SurvivalXpHook survivalXpListener;
     /**
@@ -476,7 +490,7 @@ public final class BlockInteractionService {
         // container contents spill (the historical creative-break behavior).
         var listener = blockBrokenListener;
         if (listener != null) {
-            listener.accept(position, previous);
+            listener.onBlockBroken(position, previous, world);
         }
         BreakReport report = breakReport;
         if (report != null) {
@@ -936,7 +950,9 @@ public final class BlockInteractionService {
             mined.onSurvivalMined(player, current, target);
         }
         if (listener != null) {
-            listener.accept(target, current); // container spill runs after the block is gone
+            // Wave FL4-GAP2: the acting world rides the callback — the tile
+            // cleanups route their per-dimension state through it.
+            listener.onBlockBroken(target, current, world); // container spill runs after the block is gone
         }
         BreakReport report = breakReport;
         if (report != null) {
@@ -1092,13 +1108,12 @@ public final class BlockInteractionService {
     }
 
     /**
-     * Registers a post-break hook invoked on the tick thread after a break
-     * commits (the broken block's position and its pre-break type). Used by
-     * the engine to spill container contents (furnace slots) into the world
-     * and to invalidate bed spawns.
+     * Registers the post-break hook invoked on the tick thread after a break
+     * commits (the broken block's position, its pre-break type, and the world
+     * the break walked). Used by the engine to spill container contents
+     * (furnace slots) into the world and to invalidate bed spawns.
      */
-    public void setBlockBrokenListener(
-            java.util.function.BiConsumer<BlockPosition, net.zaminmc.torch.block.BlockType> listener) {
+    public void setBlockBrokenListener(BlockBrokenListener listener) {
         this.blockBrokenListener = listener;
     }
 

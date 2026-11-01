@@ -317,6 +317,10 @@ public final class EngineServer implements Server, EngineBridge {
     /** The brewing stand state store (ZBD v1, Slice 11f). */
     private net.zaminmc.torch.server.brewing.BrewingStandDataStore brewingStore;
     private ChestManager chestManager;
+    /** The nether's own chest family (Wave FL4-GAP2 — the per-world tile law). */
+    private ChestManager netherChests;
+    /** The End's own chest family (Wave FL4-GAP2 — the per-world tile law). */
+    private ChestManager endChests;
     private ChestDataStore chestStore;
     private net.zaminmc.torch.server.hopper.HopperDataStore hopperStore;
     /** The beacon system (Slice 29b — the pyramid + the effect spread). */
@@ -977,10 +981,19 @@ public final class EngineServer implements Server, EngineBridge {
                 furnaceManager.setEventBus(eventBus); // §27.7: the burn + smelt gates
                 furnaceStore = new FurnaceDataStore(config.worldDataDir().resolve("furnaces.bin"));
                 furnaceManager.restoreAll(furnaceStore.load());
-                // Chest block entities: world-state containers, ZCD persistence.
+                // Chest block entities: world-state containers, ZCD
+                // persistence (Wave FL4-GAP2 — the per-world tile law: each
+                // dimension owns its own family, a same-coordinate pair two
+                // tiles; the v3 row carries the dimension stamp, v1/v2 files
+                // load as overworld rows).
                 chestManager = new ChestManager();
+                netherChests = new ChestManager();
+                endChests = new ChestManager();
                 chestStore = new ChestDataStore(config.worldDataDir().resolve("chests.bin"));
-                chestManager.restoreAll(chestStore.load());
+                for (net.zaminmc.torch.server.chest.ChestDataStore.Loaded row : chestStore.load()) {
+                    chestsFor(row.dimension()).restoreAll(
+                            java.util.Map.of(row.position(), row.chest()));
+                }
                 // Sign block entities: world text state, ZSD persistence.
                 signManager = new SignManager();
                 signStore = new SignDataStore(config.worldDataDir().resolve("signs.bin"));
@@ -1705,8 +1718,15 @@ public final class EngineServer implements Server, EngineBridge {
                 // The container-content wake (the reference's
                 // TileEntity.markDirty -> updateNeighborComparators): every
                 // chest/furnace slot mutation re-arms the comparators reading
-                // that container.
+                // that container. Wave FL4-GAP2: each dimension's chest family
+                // wakes its OWN world's comparators (the acting-dimension
+                // law — a nether chest's change never arms the overworld's
+                // wires).
                 chestManager.setContentsChanged(position -> redstoneSystem.wakeComparators(position));
+                netherChests.setContentsChanged(
+                        position -> netherRedstone.wakeComparators(position));
+                endChests.setContentsChanged(
+                        position -> endRedstone.wakeComparators(position));
                 furnaceManager.setContentsChanged(position -> redstoneSystem.wakeComparators(position));
                 // The pistons (Slice 9e): the block-event state machine + the
                 // two-tick moving carriers, hearing every committed change
@@ -2745,16 +2765,23 @@ public final class EngineServer implements Server, EngineBridge {
                 // item-use spawn, so a restored cart burst nothing.
                 vehicles.setBlastSinkFactory(() ->
                         (net.zaminmc.torch.server.entity.vehicle.TntMinecartEntity.BlastSink)
-                                (x, y, z, power, primed) -> detonateAtWithSource(
+                                (x, y, z, power, primed, dimension) -> detonateAtIn(
+                                        worldForSafe(dimension),
+                                        explosionServiceFor(dimension), dimension,
                                         x, y, z, power,
                                         // TntMinecartEntity.explode line 92: the six-arg
                                         // explode(..., TRUE) — the cart's blast HARDCODES
                                         // the destructive flag (the famous exception:
                                         // a TNT cart craters even in a no-grief world;
                                         // mobGriefing never gates it — only the fireball
-                                        // and the creeper family ride the rule).
-                                        true,
-                                        primed ? net.zaminmc.torch.server.block.BlastSources.PRIMED_CART : net.zaminmc.torch.server.block.ExplosionService.BlastSource.PLAIN));
+                                        // and the creeper family ride the rule). The
+                                        // createFire arm stays false (the five-arg
+                                        // explode's own default) and the detonation
+                                        // tears the cart's OWN world (F-EX11's last
+                                        // call site — the FL4-F7 form).
+                                        true, false,
+                                        primed ? net.zaminmc.torch.server.block.BlastSources.PRIMED_CART : net.zaminmc.torch.server.block.ExplosionService.BlastSource.PLAIN,
+                                        null));
                 vehicles.addListener(new VehicleEventDispatch());
                 // Vehicle persistence (Slice 25g — the ZVD store): the
                 // whole family's pre-25g gap closes — the carts (and the
@@ -3102,6 +3129,10 @@ public final class EngineServer implements Server, EngineBridge {
                     profiled("fishing", this::tickFishing);            // the bobbers' float + bite window (Slice 67)
                     profiled("furnaces", () -> furnaceManager.tick(world, itemEntities));
                     profiled("chests", () -> chestManager.tick(world));
+                    // The nether's and the End's own sweeps (Wave FL4-GAP2 —
+                    // each family's discard walk reads its OWN world's cells).
+                    profiled("chests", () -> netherChests.tick(netherWorld));
+                    profiled("chests", () -> endChests.tick(endWorld));
                     profiled("signs", () -> signManager.tick(world));
                     profiled("commandBlocks", () -> {
                         if (commandBlocks != null) {
@@ -3317,7 +3348,7 @@ public final class EngineServer implements Server, EngineBridge {
                 // arms ride this surface.
                 tileNbt = new net.zaminmc.torch.server.nbt.TileNbt(
                         new net.zaminmc.torch.server.nbt.TileNbt.Seams(
-                                chestManager, furnaceManager, hopperSystem,
+                                this::chestsFor, furnaceManager, hopperSystem,
                                 dispenserSystem, brewingStands, beaconSystem,
                                 signManager, spawners, commandBlocks, noteBlocks,
                                 skulls, jukeboxes, bannerManager));
@@ -3470,7 +3501,10 @@ public final class EngineServer implements Server, EngineBridge {
                 // A survival-broken furnace spills its slots, and a survival-
                 // broken chest spills its 27, into the world first. The same
                 // hook emits the break/place feedback through the FX bus.
-                blockInteraction.setBlockBrokenListener((position, brokenType) -> {
+                // Wave FL4-GAP2: the acting world rides the callback — the
+                // chest family's spill walk consults the break's OWN
+                // dimension (a nether break spills the nether's tile).
+                blockInteraction.setBlockBrokenListener((position, brokenType, actingWorld) -> {
                     // The skull's typed drop (Slice 60 — SkullBlock
                     // .onRemoved lines 132-152): the tile's TYPE rides the
                     // dropped stack's damage (the block itself carries no
@@ -3503,7 +3537,9 @@ public final class EngineServer implements Server, EngineBridge {
                         bannerManager.remove(position);
                     }
                     furnaceManager.onBlockBroken(position, itemEntities);
-                    chestManager.onBlockBroken(position, itemEntities);
+                    // Wave FL4-GAP2: the spill consults the break's OWN
+                    // dimension's family (the acting world rides the hook).
+                    chestsFor(actingWorld.dimension()).onBlockBroken(position, itemEntities);
                     hopperSystem.onBlockBroken(position);
                     dispenserSystem.onBlockBroken(position);
                     brewingStands.onBlockBroken(position, itemEntities);
@@ -5293,8 +5329,12 @@ public final class EngineServer implements Server, EngineBridge {
                     var pairFirst = session.openContainerPairFirst();
                     var pairSecond = session.openContainerPairSecond();
                     if (pairFirst != null && pairSecond != null) {
-                        chest = chestManager.peek(pairFirst);
-                        second = chestManager.peek(pairSecond);
+                        // Wave FL4-GAP2: the window's tile consults route
+                        // through the OPEN's own dimension (the session's
+                        // stamp — a nether window never reads the overworld's
+                        // same-coordinate tile).
+                        chest = chestsFor(session.openContainerDimension()).peek(pairFirst);
+                        second = chestsFor(session.openContainerDimension()).peek(pairSecond);
                     } else {
                         var position = session.openContainerPosition();
                         chest = position == null ? null : chestManager.peek(position);
@@ -5514,6 +5554,22 @@ public final class EngineServer implements Server, EngineBridge {
 
     /** The simulation-owned chest block entities (present once the world is up). */
     public ChestManager chests() {
+        return chestManager;
+    }
+
+    /**
+     * The dimension's own chest family (Wave FL4-GAP2 — the worldFor form,
+     * the reference's per-world tile-entity law): a nether chest and an
+     * overworld chest at the same coordinates are TWO tiles, each in its
+     * own world's map.
+     */
+    public ChestManager chestsFor(int dimension) {
+        if (dimension == -1) {
+            return java.util.Objects.requireNonNull(netherChests, "nether chests");
+        }
+        if (dimension == 1) {
+            return java.util.Objects.requireNonNull(endChests, "end chests");
+        }
         return chestManager;
     }
 
@@ -9207,8 +9263,8 @@ public final class EngineServer implements Server, EngineBridge {
                 var pairSecond = session.openContainerPairSecond();
                 boolean merged = pairFirst != null && pairSecond != null;
                 if (merged) {
-                    if (chestManager.peek(pairFirst) == null
-                            || chestManager.peek(pairSecond) == null) {
+                    if (chestsFor(session.openContainerDimension()).peek(pairFirst) == null
+                            || chestsFor(session.openContainerDimension()).peek(pairSecond) == null) {
                         return "stale-chest";
                     }
                     if (wireSlot >= 0 && wireSlot <= DOUBLE_CHEST_WIRE_SLOT_LAST) {
@@ -9219,7 +9275,8 @@ public final class EngineServer implements Server, EngineBridge {
                     }
                     return "chest-click-refused";
                 }
-                if (position == null || chestManager.peek(position) == null) {
+                if (position == null
+                        || chestsFor(session.openContainerDimension()).peek(position) == null) {
                     return "stale-chest";
                 }
                 if (wireSlot >= 0 && wireSlot <= CHEST_WIRE_SLOT_LAST) {
@@ -9515,8 +9572,8 @@ public final class EngineServer implements Server, EngineBridge {
                     var pairFirst = session.openContainerPairFirst();
                     var pairSecond = session.openContainerPairSecond();
                     if (pairFirst != null && pairSecond != null) {
-                        var first = chestManager.peek(pairFirst);
-                        var second = chestManager.peek(pairSecond);
+                        var first = chestsFor(session.openContainerDimension()).peek(pairFirst);
+                        var second = chestsFor(session.openContainerDimension()).peek(pairSecond);
                         if (first == null || second == null) {
                             return null; // a half died: the stale window paints nothing
                         }
@@ -9529,7 +9586,8 @@ public final class EngineServer implements Server, EngineBridge {
                         }
                         return playerTailSlot(inventory, doubleChestEngineSlotOf(wireSlot));
                     }
-                    var chest = chestManager.peek(session.openContainerPosition());
+                    var chest = chestsFor(session.openContainerDimension())
+                            .peek(session.openContainerPosition());
                     if (chest == null) {
                         return null;
                     }
@@ -10550,13 +10608,14 @@ public final class EngineServer implements Server, EngineBridge {
         net.zaminmc.torch.server.chest.ChestBlockEntity second = null;
         boolean merged = pairFirst != null && pairSecond != null;
         if (merged) {
-            first = chestManager.peek(pairFirst);
-            second = chestManager.peek(pairSecond);
+            first = chestsFor(session.openContainerDimension()).peek(pairFirst);
+            second = chestsFor(session.openContainerDimension()).peek(pairSecond);
             if (first == null || second == null) {
                 return false; // a half's state died: stale window, resync restores
             }
         } else {
-            var chest = position == null ? null : chestManager.peek(position);
+            var chest = position == null ? null
+                    : chestsFor(session.openContainerDimension()).peek(position);
             if (chest == null) {
                 return false; // stale window (state discarded): rejected, resync restores
             }
@@ -17725,9 +17784,11 @@ public final class EngineServer implements Server, EngineBridge {
         // merged view resolves BEFORE anything opens — null (a solid block
         // or a sitting ocelot above EITHER half) answers the reference's
         // own no-window return, no stat, no lid.
+        // Wave FL4-GAP2: the open resolves through the ACTING world's own
+        // family (the player's world — the reference's player.world law).
         net.zaminmc.torch.server.chest.ChestPairs.View view =
                 net.zaminmc.torch.server.chest.ChestPairs.resolve(
-                        world, chestManager, mobManager, position);
+                        world, chestsFor(world.dimension()), mobManager, position);
         if (view == null) {
             return; // the locked view: the use consumed, nothing opens
         }
@@ -17750,7 +17811,8 @@ public final class EngineServer implements Server, EngineBridge {
         int windowId = nextContainerWindowId;
         nextContainerWindowId = nextContainerWindowId >= LAST_CONTAINER_WINDOW_ID
                 ? FIRST_CONTAINER_WINDOW_ID : nextContainerWindowId + 1;
-        session.openContainerWindow(windowId, PlayerSession.ContainerKind.CHEST, position);
+        session.openContainerWindow(windowId, PlayerSession.ContainerKind.CHEST, position,
+                world.dimension());
         if (second != null) {
             // The merged window pins its halves once (the reference
             // constructs the DoubleInventory at the open, lines 361-363):
@@ -19613,9 +19675,9 @@ public final class EngineServer implements Server, EngineBridge {
             String name = newType.identifier().value();
             switch (name) {
                 case "chest", "trapped_chest" -> {
-                    if (chestManager != null) {
-                        chestManager.getOrCreate(position);
-                    }
+                    // Wave FL4-GAP2: the tile lands in the CHANGED world's
+                    // own family (the FL4-F8 listener form).
+                    chestsFor(changed.dimension()).getOrCreate(position);
                 }
                 case "furnace", "lit_furnace" -> {
                     if (furnaceManager != null) {
@@ -19939,7 +20001,7 @@ public final class EngineServer implements Server, EngineBridge {
                                 new net.zaminmc.torch.block.BlockPosition(
                                         pending.x(), pending.y(), pending.z());
                         net.zaminmc.torch.server.chest.ChestBlockEntity chest =
-                                chestManager.getOrCreate(position);
+                                chestsFor(worldDimension).getOrCreate(position);
                         // The same guard for the loot: a chest with contents
                         // (the ZCD store's restore) was already filled by a
                         // previous life — only an untouched chest takes the
@@ -24285,16 +24347,6 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /**
-     * One detonation in the OVERWORLD (the generalized walk's own dimension-0
-     * binding — the creeper, the TNT, the fireballs, the wither).
-     */
-    private void detonateAtWithSource(double cx, double cy, double cz, float power,
-                                      boolean destructive,
-                                      net.zaminmc.torch.server.block.ExplosionService.BlastSource source) {
-        detonateAtIn(world, explosionService, 0, cx, cy, cz, power, destructive, false, source, null);
-    }
-
-    /**
      * The per-dimension blast-walk resolver (Wave FL4-F7 — the primed
      * TNT body's dimension-routed detonation): each dimension's ray fan
      * reads and commits its OWN world's cells — the End's own service was
@@ -26042,7 +26094,8 @@ public final class EngineServer implements Server, EngineBridge {
                 // null, lines 346/354).
                 net.zaminmc.torch.server.chest.ChestPairs.View view =
                         net.zaminmc.torch.server.chest.ChestPairs.resolve(
-                                probeWorld, chestManager, mobManager, position);
+                                probeWorld, chestsFor(probeWorld.dimension()), mobManager,
+                                position);
                 return view == null ? 0
                         : net.zaminmc.torch.server.redstone.RedstoneSystem.containerFullness(
                                 view.snapshotAll(), 64);
@@ -28098,7 +28151,8 @@ public final class EngineServer implements Server, EngineBridge {
             var empty = net.zaminmc.torch.item.ItemStack.EMPTY;
             if (blockName.equals("chest") || blockName.equals("trapped_chest")) {
                 if (j >= 0 && j < net.zaminmc.torch.server.chest.ChestBlockEntity.SLOT_COUNT) {
-                    chestManager.getOrCreate(pos).setSlot(j, placed != null ? placed : empty);
+                    chestsFor(sender.sourceDimension()).getOrCreate(pos)
+                            .setSlot(j, placed != null ? placed : empty);
                 }
             } else if (blockName.equals("furnace") || blockName.equals("lit_furnace")) {
                 if (j >= 0 && j < net.zaminmc.torch.server.furnace.FurnaceBlockEntity.SLOT_COUNT) {
@@ -30317,13 +30371,19 @@ public final class EngineServer implements Server, EngineBridge {
                     }
                 }
                 if (chestStore != null && chestManager != null) {
+                    // Wave FL4-GAP2: the union over every dimension's family
+                    // (each row stamped with its own world — the v3 law).
+                    java.util.Map<Integer, java.util.Map<net.zaminmc.torch.block.BlockPosition,
+                            net.zaminmc.torch.server.chest.ChestBlockEntity>> chestUnion =
+                            java.util.Map.of(0, chestManager.snapshot(),
+                                    -1, netherChests.snapshot(), 1, endChests.snapshot());
                     if (pipeline != null) {
                         publications.add(pipeline.submitSave("chest",
-                                chestStore.capture(chestManager.snapshot()),
+                                chestStore.capture(chestUnion),
                                 chestStore::serialize,
                                 chestStore::writeSerialized));
                     } else {
-                        chestStore.save(chestManager.snapshot());
+                        chestStore.save(chestUnion);
                     }
                 }
                 if (hopperStore != null && hopperSystem != null) {

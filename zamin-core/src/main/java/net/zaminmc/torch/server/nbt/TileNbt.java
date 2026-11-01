@@ -64,7 +64,7 @@ public final class TileNbt {
      * layer constructs once).
      */
     public record Seams(
-            ChestManager chests,
+            java.util.function.IntFunction<ChestManager> chestsFor,
             FurnaceManager furnaces,
             HopperSystem hoppers,
             DispenserSystem dispensers,
@@ -176,7 +176,9 @@ public final class TileNbt {
         NbtOps.putInt(rows, "z", pos.z());
         switch (id) {
             case "Chest" -> {
-                var chest = seams.chests().getOrCreate(pos);
+                // Wave FL4-GAP2: the seam routes through the world's own
+                // chest family (the acting dimension rides the walk).
+                var chest = seams.chestsFor().apply(dimension).getOrCreate(pos);
                 writeItems(rows, chest.snapshotSlots());
                 writeNameLockRows(rows, chest.customName(), chest.lockKey());
             }
@@ -324,7 +326,8 @@ public final class TileNbt {
         }
         switch (id) {
             case "Chest" -> {
-                var chest = seams.chests().getOrCreate(pos);
+                // Wave FL4-GAP2: the import lands in the world's own family.
+                var chest = seams.chestsFor().apply(dimension).getOrCreate(pos);
                 readItems(rows, (slot, stack) ->
                         chest.setSlot(slot, stack == null ? ItemStack.EMPTY : stack), 27);
                 readNameLockRows(rows, chest::setCustomName, chest::setLockKey);

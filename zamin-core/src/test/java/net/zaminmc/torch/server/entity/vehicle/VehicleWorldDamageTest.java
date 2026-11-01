@@ -120,7 +120,7 @@ class VehicleWorldDamageTest {
         final List<float[]> detonations = new ArrayList<>();
         TntMinecartEntity cart = new TntMinecartEntity(3_200,
                 new Position(0.5, 64.0, 0.5), new Random(71L));
-        cart.setBlastSink((x, y, z, power, primed) -> detonations.add(
+        cart.setBlastSink((x, y, z, power, primed, dimension) -> detonations.add(
                 new float[]{(float) x, (float) y, (float) z, power}));
         RiggedHits hits = new RiggedHits();
         hits.vehicle = cart;
@@ -208,7 +208,17 @@ class VehicleWorldDamageTest {
             // the pool (the 4-health body model), the dry control stands.
             await(() -> furnaceCart.get().dead() && tntCart.get().dead(),
                     "the lava killed both pool carts");
-            await(() -> !dryCart.get().dead(), "the dry control never burned");
+            // (The dry control's liveness poll retired — the run-577 race:
+            // the pool deaths land on tick N's lava walk but the death
+            // blast kills the dry control on tick N+1's SAME iterator pass
+            // that sweeps the pool carts (the in-order removal: the blast
+            // wounds it dead moments before the cursor reaches its slot),
+            // so a test thread that first observes the pool deaths after
+            // that pass — one missed 25ms poll under load — sees the dry
+            // control dead too, a one-shot window polled as a stable
+            // condition, false forever after. The never-burned law moves
+            // to the permanent observable below: the control's ONE wound
+            // is the detonation's EXPLOSIVE arm, never the lava's FIRE.)
             assertEquals(VehicleEntity.DamageSource.FIRE,
                     furnaceCart.get().lastDamageSource(),
                     "the furnace cart died of the lava's fire");
@@ -225,6 +235,17 @@ class VehicleWorldDamageTest {
             await(() -> server.world().getBlock(chainStone)
                             .equals(server.world().airType()),
                     "the fire-death TNT cart detonated (the chain stone took the blast)");
+            // THE DRY CONTROL'S NEVER-BURNED LAW (the retired poll's race-free
+            // pin): the blast tears the chain stone and wounds the dry
+            // control dead on the SAME walk, so past this await the
+            // control's one wound is observable and permanent — it died to
+            // the detonation's EXPLOSIVE arm alone; the lava's FIRE never
+            // reached it (it stands on dry stone, 3+ blocks from the pool).
+            assertEquals(VehicleEntity.DamageSource.EXPLOSIVE,
+                    dryCart.get().lastDamageSource(),
+                    "the dry control never burned — the lava's fire never"
+                            + " reached it (its one wound is the detonation's"
+                            + " explosive arm)");
             // THE DROP-THEN-DETONATE LAW (TntMinecartEntity.dropItems lines
             // 73-81, the blast-gather parity re-pin): a FIRE death DROPS
             // the TNT block (line 102's gate is !isExplosive() alone — the

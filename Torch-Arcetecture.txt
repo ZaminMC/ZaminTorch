@@ -7790,6 +7790,122 @@ their dimension rows; the cross-dimension collision the Section X
 audit names as a TODAY defect) — the entanglement this wave's
 honest-tail form deliberately left for it.
 
+## Wave FL4-GAP2 — the 2026-10-31 container/storage wave's TRACE and
+PLAN (the Section X audit's Gap 2, traced whole; SLICE A LANDED
+2026-11-01 — the chest family, exactly per row 1 below; Slices B/C/D
+remain, each per its own row, the FL4-F10 precedent)
+
+THE TRACE (the full ownership and call graph, read before any code
+change): EIGHTEEN families carry position-keyed state with NO
+dimension in the key — a container at (x,y,z) in the nether and a
+container at the SAME coordinates in the overworld are THE SAME MAP
+ENTRY (the contents collide, the persistence serializes the collided
+shape). The census, with every consult site's dimension source named:
+
+- THE CONTAINER FAMILIES (the audit's named core — the §4.2 list:
+  inventories, viewers, item movement, persistence): CHEST
+  (ChestManager's Map<BlockPosition, ChestBlockEntity> — 21
+  EngineServer sites + 5 V18Connection peeks + 2 TileNbt seams +
+  ContainerViews + the hopper's pull consult), FURNACE (5 sites),
+  DISPENSER (4), BREWING STAND (3), HOPPER (5 + the cross-family
+  chest/furnace pulls). The consult clusters and their dimension
+  sources: the WINDOW paths (the open/close/click family at EngineServer
+  5295/9210/9520/10550) all consult through session.openContainer*
+  — the SESSION carries the dimension; the BLOCK-CHANGE listener
+  (19624) receives the changed WORLD (the FL4-F8 listener form); the
+  GENERATION path (19949, PendingGenChest) rides the CHUNK's world;
+  the STRUCTURE placement (28098) already routes through
+  worldFor(sender.sourceDimension()); the TICK SWEEP (3111) consults
+  the world's blocks; the BREAK path (3513) sits in the per-world
+  break walk; the PERSISTENCE walk (30319/30323) snapshots for the
+  save; the CONTENTS-CHANGED wake (1709) fans the comparator
+  re-evaluation — which since FL4-F10 must route through
+  redstoneFor(dim), not the overworld system alone.
+- THE TILE FAMILIES (state + persistence): SIGN (6 sites), JUKEBOX
+  (3), NOTE BLOCK (5), BANNER (7), BEACON (7), SKULL (5), COMMAND
+  BLOCK (5).
+- THE TRANSIENT/STRUCTURAL FAMILIES: PISTON (13 sites — the
+  movingBlocks animation state), DECORATION (the item frames and the
+  paintings, two maps), LEAD (the leash ties).
+- ALREADY CARRYING THE DIMENSION (no work): SPAWNER (Slice 18e — the
+  tile row itself), COMPARATOR (FL4-F10's ZCD v2 stamp), the redstone
+  systems (per-dimension instances), the block updates (FL4-F8), the
+  fluids (FL4), the TNT (F7), the falling (F9), the fire (F2), the
+  placement (F3/F5).
+
+THE REFERENCE'S LAW: every WorldServer owns its own tile entities
+(World.loadedTileEntityList + the per-chunk maps) — the per-world
+instance is the reference's own shape, the FL4-F8/F10 precedent.
+
+THE PLAN (the smallest coherent boundaries, four slices, each with
+its own acceptance seats and stash discrimination):
+1. SLICE A — THE CHEST FAMILY (the audit's named core): per-dimension
+   ChestManager instances booted at the FL4-F8 form (chestsFor(dim)
+   router mirroring redstoneFor), the ZCD store's v3 row gains the
+   dimension stamp (the TF-9/FL4-F10 comparator law — the signed byte
+   at the row's tail; v1/v2 files load as overworld rows), the save
+   unions every dimension's maps, the restore routes by row dimension,
+   the 21+9 consult sites route by their traced dimension source, the
+   contents-changed wake routes through redstoneFor(dim). SEATS: a
+   nether chest and an overworld chest at the SAME coordinates
+   carrying DIFFERENT contents through a restart; the window open path
+   per dimension; the hopper pull per dimension; the comparator wake
+   arming the ACTING dimension's system.
+2. SLICE B — the container remainder: furnace, dispenser, brewing,
+   hopper + the cross-family pulls (the hopper's own dimension
+   consults the chest/furnace family of the SAME dimension).
+3. SLICE C — the tile families: sign, jukebox, note block, banner,
+   beacon, skull, command block (the store stamps family by family,
+   the same v+1 law).
+4. SLICE D — the transient families: the piston movingBlocks, the
+   decorations, the leads (the collision window is the animation/lifetime
+   alone, but the key must still carry the world).
+
+THE ENTANGLEMENT NAMED: the protocol adapter's window paths consult
+the containers through the session's open state (the pair positions
+recorded at open time in the session's own dimension — the routing is
+mechanical); TileNbt's import/export seams carry the chunk's world;
+the spawner family needs NO pass (its own dimension model is complete)
+but its STORE row may need the same v+1 audit if its file shares the
+position-only key (verify, do not assume).
+
+SESSION RECORD (2026-10-31, the CI-unblock session): the session went
+to the release pipeline's standing blockage first — every known
+failing member root-caused and retired at the source (runs 569/571's
+seven + 565's fire member, every one a TEST-SEAT defect with the
+engine verified 1:1: the swing loop's read-silent keep-alive kick, the
+death await's precondition flag, the bed seat's night-hunt spawn
+cycle, the blast event's same-walk window, the terminal bridge's
+scheduler wall, the hash seat's invented 40-char law, the arrow
+seat's edge-riding geometry, the fire arm's binomial tail) + the PR
+#105 merge (the TNT cart's blast dimension, one review correction
+carried: the creeper seat's nether standing pocket) + this trace.
+
+SLICE A LANDED (2026-11-01, commit 2d0f74af): the chest family whole,
+exactly per row 1 — the three managers at the FL4-F8 form (chestsFor),
+the ZCD v3 stamp (v1/v2 files as overworld rows), the save union, the
+restore routing, all 21+9 consult sites routed by their traced source
+(the window family through the session's new openContainerDimension
+stamp — a 4-arg openContainerWindow beside the legacy form; the
+block-broken listener GAINING the acting world, its one implementer
+updated; the TileNbt seams through an IntFunction router), the
+per-family comparator wake. Seats 4/0 (the two-tile restart, the
+window open, the hopper pull, the comparator wake). The honest tail:
+the hopper system and the ContainerViews stay overworld-bound (Slice
+B), the furnace/dispenser/brewing families single-instance (Slice B).
+The same session retired the last publish blockers (runs 573/577,
+both test-seat defects — see the census doc) and the mob-integration
+status read (the body-filtered form): runs 578/579 green, builds
+155/156 published, the four-day stall over.
+
+NEXT WORK (in order): Slice B (the container remainder — furnace,
+dispenser, brewing, hopper + the cross-family pulls, each manager
+gaining the per-dimension form and its store the v+1 stamp); Slice C
+(the tile families — sign, jukebox, note block, banner, beacon,
+skull, command block); Slice D (the transient families — the piston
+movingBlocks, the decorations, the leads); the PR wave (#106, #108-
+#115) reviews as time permits, the three-pass discipline each.
+
 ---
 
 # 34. ENGINEERING AUTHENTICITY AND AI-GENERATED CODE QUALITY

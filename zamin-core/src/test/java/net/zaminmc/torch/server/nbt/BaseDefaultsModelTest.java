@@ -301,10 +301,16 @@ class BaseDefaultsModelTest {
     void thePortalCooldownTicksDown() {
         MobEntity mob = cow(new StubWorld(0, -1000));
         mob.setPortalCooldown(10);
-        mob.tick(false);
+        // VT-009 (PR #107): the decrement's ONE call site is the manager's
+        // per-tick portal arm (advanceEntityPortalClock — the reference's
+        // own single baseTick tail, Entity.baseTick lines 311-313); the
+        // old tail decrement beside it halved the 300-tick re-entry
+        // immunity and is retired. The direct mob.tick() walk carries no
+        // portal arm — the manager's walk does.
+        mob.advanceEntityPortalClock(false);
         assertEquals(9, mob.portalCooldown());
         for (int i = 0; i < 20; i++) {
-            mob.tick(false);
+            mob.advanceEntityPortalClock(false);
         }
         assertEquals(0, mob.portalCooldown()); // floors at zero
         Map<String, Snbt.Tag> written = new java.util.LinkedHashMap<>();

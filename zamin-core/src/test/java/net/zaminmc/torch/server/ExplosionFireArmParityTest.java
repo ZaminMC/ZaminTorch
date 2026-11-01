@@ -122,32 +122,68 @@ class ExplosionFireArmParityTest {
      * crater around the struck body (mobGriefing on). The pre-fix engine's
      * mob-hit stand-in answers at most ONE fire whole; the arm's roll over
      * the blast's own candidates answers several.
+     *
+     * <p>THE ROLL IS A LOTTERY (run 565's member): the reference's own
+     * 1-in-3 per eligible cell means a single blast's fire count is
+     * Binomial(eligible, 1/3) — the old single-shot seat's {@code >= 2}
+     * assertion rode that tail (one unlucky detonation answered exactly
+     * one). The seat now fires FOUR independent blasts, each its own site
+     * (own ghast, own wall, own census region), and requires ANY ONE blast
+     * to answer several fires — the discrimination is unchanged (the
+     * pre-fix stand-in can NEVER answer two in one blast) while the tail
+     * compounds to a practical zero.</p>
      */
     @Test
     void theStruckBodyBlastLightsTheCrater() throws Exception {
         EngineServer server = boot();
         try {
             placeDirtWall(server);
-            var ghast = server.mobs().spawnAt(MobType.GHAST, new Position(12.5, 5.0, 12.5));
-            assertNotNull(ghast, "the ghast spawned");
-            // The shot from 1.5 blocks off the box's west face at torso
-            // height: the reference's own 0.4-sigma aim jitter cannot carry
-            // it past a 4-block box over 1.5 blocks of flight — and a rare
-            // miss resolves on the wall behind, whose own dirt crater lights
-            // just the same.
-            int shot = launchGhastShotAt(server, new Position(9.0, 6.5, 12.5), 1.0, 0.0, 0.0);
-            await(server, () -> server.projectiles().all().stream()
-                            .noneMatch(p -> p.entityId() == shot),
-                    "the fireball resolved");
-            List<BlockPosition> fires = firesIn(server, 4, 0, 24, 12, 4, 22);
-            assertTrue(fires.size() >= 2,
-                    "the blast at the struck body lights several fires (got "
-                            + fires.size() + " — the stand-in law answers at most one)");
-            for (BlockPosition fire : fires) {
-                assertTrue(BlockLightTable.filter(server.world()
-                                .getBlock(fire.offset(0, -1, 0))) == 15,
-                        "the fire at " + fire + " sits on an opaque floor");
+            // Four sites, twenty blocks apart — the craters and the census
+            // regions never overlap.
+            int[] shots = new int[4];
+            for (int site = 0; site < 4; site++) {
+                double ox = site * 20.0;
+                var ghast = server.mobs().spawnAt(MobType.GHAST,
+                        new Position(12.5 + ox, 5.0, 12.5));
+                assertNotNull(ghast, "the ghast spawned at site " + site);
+                // The shot from 1.5 blocks off the box's west face at torso
+                // height: the reference's own 0.4-sigma aim jitter cannot
+                // carry it past a 4-block box over 1.5 blocks of flight —
+                // and a rare miss resolves on the wall behind, whose own
+                // dirt crater lights just the same.
+                shots[site] = launchGhastShotAt(server,
+                        new Position(9.0 + ox, 6.5, 12.5), 1.0, 0.0, 0.0);
             }
+            await(server, () -> {
+                for (int id : shots) {
+                    final int fid = id;
+                    if (server.projectiles().all().stream()
+                            .anyMatch(p -> p.entityId() == fid)) {
+                        return false;
+                    }
+                }
+                return true;
+            }, "all four fireballs resolved");
+            int bestSite = -1;
+            int bestFires = 0;
+            for (int site = 0; site < 4; site++) {
+                int ox = site * 20;
+                List<BlockPosition> fires = firesIn(server,
+                        4 + ox, 0, 24 + ox, 12, 4, 22);
+                if (fires.size() > bestFires) {
+                    bestFires = fires.size();
+                    bestSite = site;
+                }
+                for (BlockPosition fire : fires) {
+                    assertTrue(BlockLightTable.filter(server.world()
+                                    .getBlock(fire.offset(0, -1, 0))) == 15,
+                            "the fire at " + fire + " sits on an opaque floor");
+                }
+            }
+            assertTrue(bestFires >= 2,
+                    "some blast at the struck body lights several fires (best site "
+                            + bestSite + " answered " + bestFires
+                            + " — the stand-in law answers at most one per blast)");
         } finally {
             server.shutdown(() -> { });
         }
@@ -230,23 +266,29 @@ class ExplosionFireArmParityTest {
     // --- the harness -------------------------------------------------------
 
     /**
-     * The dirt wall behind the ghast (x=16, y=4..12, z=6..20): the aim
-     * jitter's escape surface. A shot that misses the ghast resolves on the
-     * wall — and the wall's own cheap dirt answers the blast with a crater
-     * and fire candidates just like the plain, so both resolution paths pin
-     * the same law.
+     * The dirt wall behind each site's ghast (x=16+ox, y=4..12, z=6..20):
+     * the aim jitter's escape surface. A shot that misses the ghast
+     * resolves on the wall — and the wall's own cheap dirt answers the
+     * blast with a crater and fire candidates just like the plain, so both
+     * resolution paths pin the same law. One wall per struck-body site
+     * (seat 2's four sites, twenty blocks apart).
      */
     private void placeDirtWall(EngineServer server) throws InterruptedException {
         server.ticker().submit(() -> {
-            for (int y = 4; y <= 12; y++) {
-                for (int z = 6; z <= 20; z++) {
-                    server.world().setBlock(new BlockPosition(16, y, z), BuiltinBlocks.DIRT);
+            for (int site = 0; site < 4; site++) {
+                int wx = 16 + site * 20;
+                for (int y = 4; y <= 12; y++) {
+                    for (int z = 6; z <= 20; z++) {
+                        server.world().setBlock(new BlockPosition(wx, y, z), BuiltinBlocks.DIRT);
+                    }
                 }
             }
         });
         await(server, () -> server.world().getBlock(new BlockPosition(16, 8, 13))
+                        .equals(BuiltinBlocks.DIRT)
+                        && server.world().getBlock(new BlockPosition(76, 8, 13))
                         .equals(BuiltinBlocks.DIRT),
-                "the dirt wall placed");
+                "the dirt walls placed");
     }
 
     /** One ghast fireball straight down (the ground-impact seat's shot). */
