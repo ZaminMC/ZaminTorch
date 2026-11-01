@@ -197,8 +197,22 @@ class BedWrongWorldBlastAcceptanceTest {
         server.useItemOnBlock(sleeper, foot, 1, java.util.Optional.empty(),
                 windowId -> { });
 
-        EngineAwaits.awaitCondition(server.world(), sleeper::sleeping,
+        // THE SLEEP'S OWN PERSISTENT SIGNATURE (run 589's member, the
+        // probe-caught observation window): the sleeping flag itself is a
+        // TRANSIENT — the single-player morning jump fires within ticks
+        // of the entry and wakes the body, so a 25ms poll can miss the
+        // flip entirely under load (the probe's red-handed rounds: the
+        // complete cycle — sleep, dawn jump to time 59, wake — landed
+        // INSIDE the 3s watch window, sleeping=false at every read). The
+        // bed spawn is the walk's own lasting side effect (set at the
+        // entry, surviving every wake path, PlayerEntity.trySleep's own
+        // row) — the seat observes the law, never the transient.
+        EngineAwaits.awaitCondition(server.world(),
+                () -> sleeper.bedSpawn() != null,
                 40, "the overworld bed entered the sleep walk");
+        assertEquals(new Position(head.x() + 0.5, head.y() + 1.0, head.z() + 0.5),
+                sleeper.bedSpawn(),
+                "the bed spawn is the head cell's own rest position");
         assertTrue(EngineServer.isBedHalf(server.world().getBlock(head))
                         && EngineServer.isBedHalf(server.world().getBlock(foot)),
                 "the overworld bed's pair stands whole");

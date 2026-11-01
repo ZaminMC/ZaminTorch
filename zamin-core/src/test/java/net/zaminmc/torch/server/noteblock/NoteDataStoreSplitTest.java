@@ -28,22 +28,26 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * split path's bytes and the historical interleaved walk's bytes are
  * BYTE-IDENTICAL; the sync file and the pipeline bytes agree; the load
  * round-trip restores the same rows. THE PIPELINE: the named path
- * through the real compute subsystem + I/O lane.
+ * through the real compute subsystem + I/O lane. Wave FL4-GAP2 Slice C:
+ * the ZND v2 row carries the dimension stamp (the chest store's own
+ * v+1 law) — the legacy walk below writes the v2 form, each row's own
+ * world at its tail.
  */
 class NoteDataStoreSplitTest {
 
     @TempDir
     Path dir;
 
-    /** The historical walk (the pre-S4 save body, verbatim). */
-    private static byte[] legacyBytes(Map<BlockPosition, NoteBlockSystem.NoteTile> notes)
-            throws Exception {
+    /** The historical walk (the pre-S4 save body, verbatim — the v2 form
+     *  with the dimension stamp at each row's tail). */
+    private static byte[] legacyBytes(int dimension,
+            Map<BlockPosition, NoteBlockSystem.NoteTile> notes) throws Exception {
         ByteArrayOutputStream sink = new ByteArrayOutputStream();
         DataOutputStream out = new DataOutputStream(sink);
         out.writeByte('Z');
         out.writeByte('N');
         out.writeByte('D');
-        out.writeByte(1);
+        out.writeByte(2);
         writeVarInt(out, notes.size());
         for (Map.Entry<BlockPosition, NoteBlockSystem.NoteTile> entry : notes.entrySet()) {
             BlockPosition position = entry.getKey();
@@ -51,6 +55,7 @@ class NoteDataStoreSplitTest {
             out.writeInt(position.y());
             out.writeInt(position.z());
             out.writeByte(entry.getValue().note());
+            out.writeByte(dimension);
         }
         out.flush();
         return sink.toByteArray();
@@ -74,18 +79,27 @@ class NoteDataStoreSplitTest {
 
         NoteDataStore store = new NoteDataStore(dir.resolve("notes.bin"));
 
-        byte[] split = store.serialize(store.capture(live));
-        assertArrayEquals(legacyBytes(live), split,
+        Map<Integer, Map<BlockPosition, NoteBlockSystem.NoteTile>> union = Map.of(0, live);
+        byte[] split = store.serialize(store.capture(union));
+        assertArrayEquals(legacyBytes(0, live), split,
                 "the off-tick serialization and the historical walk are byte-identical");
 
-        store.save(live);
+        store.save(union);
         assertArrayEquals(split, Files.readAllBytes(dir.resolve("notes.bin")),
                 "the sync save's file carries the split path's bytes");
-        Map<BlockPosition, Byte> restored = store.load();
+        java.util.List<NoteDataStore.Loaded> restored = store.load();
         assertEquals(3, restored.size());
-        assertEquals((byte) 0, restored.get(new BlockPosition(3, 40, -2)));
-        assertEquals((byte) 25, restored.get(new BlockPosition(-9, 65, 11)));
-        assertEquals((byte) 12, restored.get(new BlockPosition(0, 1, 0)));
+        assertEquals(0, restored.stream().filter(
+                row -> row.position().equals(new BlockPosition(3, 40, -2))).findFirst().orElseThrow()
+                .note());
+        assertEquals((byte) 25, restored.stream().filter(
+                row -> row.position().equals(new BlockPosition(-9, 65, 11))).findFirst().orElseThrow()
+                .note());
+        assertEquals((byte) 12, restored.stream().filter(
+                row -> row.position().equals(new BlockPosition(0, 1, 0))).findFirst().orElseThrow()
+                .note());
+        restored.forEach(row -> assertEquals(0, row.dimension(),
+                "every row stamps the overworld"));
     }
 
     @Test
@@ -98,7 +112,7 @@ class NoteDataStoreSplitTest {
             Map<BlockPosition, NoteBlockSystem.NoteTile> live = new LinkedHashMap<>();
             live.put(new BlockPosition(5, 5, 5), new NoteBlockSystem.NoteTile((byte) 7, false));
             NoteDataStore store = new NoteDataStore(dir.resolve("live-notes.bin"));
-            NoteDataStore.Snapshot snapshot = store.capture(live);
+            NoteDataStore.Snapshot snapshot = store.capture(Map.of(0, live));
             byte[] pure = store.serialize(snapshot);
 
             CountDownLatch done = pipeline.submitSave("note", snapshot,
@@ -117,7 +131,9 @@ class NoteDataStoreSplitTest {
             assertTrue(done.await(0, TimeUnit.MILLISECONDS), "the save landed");
             assertArrayEquals(pure, Files.readAllBytes(dir.resolve("live-notes.bin")),
                     "the landed file carries exactly the pure serializer's bytes");
-            assertEquals((byte) 7, store.load().get(new BlockPosition(5, 5, 5)),
+            assertEquals((byte) 7, store.load().stream().filter(
+                    row -> row.position().equals(new BlockPosition(5, 5, 5)))
+                    .findFirst().orElseThrow().note(),
                     "the note row round-trips");
         } finally {
             compute.shutdown();

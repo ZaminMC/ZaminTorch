@@ -124,7 +124,7 @@ public final class BlockInteractionService {
     private volatile MiningProgressListener miningProgressListener;
     /** The dig-start hook (Slice 27a — the reference's block.startMining arm,
      *  the note block's play); null until registered. Tick-thread context. */
-    private volatile java.util.function.Consumer<BlockPosition> miningStartListener;
+    private volatile java.util.function.BiConsumer<PlayerSession, BlockPosition> miningStartListener;
     /** The public event bus (§27.7 observe/cancel); null until wired. */
     private volatile EngineEventBus eventBus;
     /**
@@ -264,7 +264,8 @@ public final class BlockInteractionService {
 
     /** Wires the dig-start hook (the reference's startMining arm — the note
      *  block's play on the survival dig's start). */
-    public void setMiningStartListener(java.util.function.Consumer<BlockPosition> listener) {
+    public void setMiningStartListener(
+            java.util.function.BiConsumer<PlayerSession, BlockPosition> listener) {
         this.miningStartListener = java.util.Objects.requireNonNull(listener, "listener");
     }
 
@@ -553,9 +554,11 @@ public final class BlockInteractionService {
         extinguishFireAt(face >= 0 ? target : null, face, world);
         // The reference's startMining arm (ServerPlayerInteractionManager
         // line 133: block.startMining before the speed consult) — the note
-        // block plays here; creative never reaches this path.
+        // block plays here; creative never reaches this path. Wave
+        // FL4-GAP2 Slice C: the digger rides the hook so the note family
+        // routes by the dig's own world.
         if (miningStartListener != null) {
-            miningStartListener.accept(target);
+            miningStartListener.accept(player, target);
         }
         java.util.function.BiConsumer<PlayerSession, BlockPosition> startReport = miningStartReport;
         if (startReport != null) {

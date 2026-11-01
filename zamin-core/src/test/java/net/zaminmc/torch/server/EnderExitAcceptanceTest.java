@@ -85,8 +85,23 @@ class EnderExitAcceptanceTest {
             // falling through the whole credits window, and the island
             // landing's fall debt eats a health point under a loaded
             // runner (run 562's 13.0 -> 12.0) — the carried-body pin
-            // reads the exit's own law, not the fall's.
-            vanquisher.applyDimensionArrival(1, new Position(0.5, 64.0, 0.5), 90.0f, 0.0f);
+            // reads the exit's own law, not the fall's. THE ARRIVAL ORDER
+            // (run 588's member, the same class through the OTHER
+            // window): the fountain is written BEFORE the body arrives —
+            // the reference's own order (the dragon's death walk writes
+            // the portal before anyone can stand in it); an arrival on
+            // the not-yet-written island cell falls for the whole submit
+            // window under a loaded runner, and the bedrock write then
+            // lands the debt as damage. THE OPEN COLUMN ABOVE (the
+            // probe-caught third window): the reference's fountain stands
+            // OPEN TO THE SKY — the generated island's randomized surface
+            // can block the (0, 65+) column at the standing body's eye
+            // (the eight-point in-wall survey at 64 + 1.62), and the
+            // vanilla suffocation walk then eats exactly one health point
+            // during the credits window (the probe's red-handed log:
+            // amount=1.0 cause=IN_WALL at the fountain cell); the seat
+            // clears the column the dragon's death blast clears in the
+            // reference.
             EngineWorld endWorld = server.worldFor(1);
             server.ticker().submit(() -> {
                 var endPortal = server.blockRegistry().require(
@@ -94,9 +109,22 @@ class EnderExitAcceptanceTest {
                 var bedrock = server.blockRegistry().require(
                         net.zaminmc.torch.util.Identifier.parse("minecraft:bedrock"));
                 endWorld.getOrGenerate(new net.zaminmc.torch.block.ChunkPosition(0, 0));
-                endWorld.setBlock(new net.zaminmc.torch.block.BlockPosition(0, 64, 0), endPortal);
                 endWorld.setBlock(new net.zaminmc.torch.block.BlockPosition(0, 63, 0), bedrock);
+                endWorld.setBlock(new net.zaminmc.torch.block.BlockPosition(0, 64, 0), endPortal);
+                for (int y = 65; y <= 76; y++) {
+                    endWorld.setBlock(new net.zaminmc.torch.block.BlockPosition(0, y, 0),
+                            endWorld.airType());
+                }
             });
+            await(() -> {
+                var feet = endWorld.getBlock(
+                        new net.zaminmc.torch.block.BlockPosition(0, 64, 0));
+                var below = endWorld.getBlock(
+                        new net.zaminmc.torch.block.BlockPosition(0, 63, 0));
+                return feet.identifier().value().equals("end_portal")
+                        && below.identifier().value().equals("bedrock");
+            }, "the fountain's portal and support written");
+            vanquisher.applyDimensionArrival(1, new Position(0.5, 64.0, 0.5), 90.0f, 0.0f);
 
             // The walk: standing on the exit cell arms the credits state and
             // sends the GameEvent-4 win screen (ServerPlayerEntity

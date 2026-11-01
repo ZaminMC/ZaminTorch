@@ -7791,9 +7791,10 @@ audit names as a TODAY defect) — the entanglement this wave's
 honest-tail form deliberately left for it.
 
 ## Wave FL4-GAP2 — the 2026-10-31 container/storage wave's TRACE and
-PLAN (the Section X audit's Gap 2, traced whole; SLICE A LANDED
-2026-11-01 — the chest family, exactly per row 1 below; Slices B/C/D
-remain, each per its own row, the FL4-F10 precedent)
+PLAN (the Section X audit's Gap 2, traced whole; SLICES A/B/C LANDED
+2026-11-01 — the chest family, the container remainder, and the tile
+families, each exactly per its own row below; Slice D remains, the
+FL4-F10 precedent)
 
 THE TRACE (the full ownership and call graph, read before any code
 change): EIGHTEEN families carry position-keyed state with NO
@@ -7898,13 +7899,11 @@ both test-seat defects — see the census doc) and the mob-integration
 status read (the body-filtered form): runs 578/579 green, builds
 155/156 published, the four-day stall over.
 
-NEXT WORK (in order): Slice C (the tile families — sign, jukebox,
-note block, banner, beacon, skull, command block — the store stamps
-family by family, the same v+1 law); Slice D (the transient families —
-the piston movingBlocks, the decorations, the leads); the PR wave's
-remainder (#111, #113, #114, the VT-006 trio #108-#110 — #106 and
-#115 already merged) reviews as time permits, the three-pass
-discipline each.
+NEXT WORK (in order): Slice D (the transient families — the piston
+movingBlocks, the decorations, the leads); the PR wave's remainder
+(#111, #113, #114, the VT-006 trio #108-#110, and the newer VT stack
+#116-#131 — #106, #115 already merged) reviews as time permits, the
+three-pass discipline each.
 
 SLICE B LANDED (2026-11-01, the container-remainder session): the
 four families whole, exactly per row 2 — the furnace/dispenser/brewing/
@@ -7950,6 +7949,136 @@ own population — the mob seat's own guard shape now sweeps it) and the
 stats seat's trivial-pass window (the dig's committed-await reads
 "air" — the same answer an unseeded cell gives; the seed's landed
 precondition now names it before the dig opens).
+
+SLICE C LANDED (2026-11-01, the tile-families session): the seven
+families whole, exactly per row 3 — the sign/jukebox/note-block/
+banner/beacon/skull/command-block families at the chestsFor form
+(signsFor/bannersFor/commandBlocksFor/noteBlocksFor/beaconsFor/
+jukeboxesFor/skullsFor, each dimension's instance holding its OWN
+world: the note family hearing its OWN redstone's power edges, the
+beacon family spreading through its OWN world's players, the skull
+family's summon host bound to its OWN world with the newborn wither
+stamped for that dimension), the stores' v+1 stamps (ZSD v3, ZJD v2,
+ZND v2, ZBD v2, ZBT v2, ZCB v3 — each row's dimension byte at the
+tail, v-1 files loading as overworld rows, the save UNION over every
+dimension's map, the restore routed per row; the spawner store needs
+NO pass — its row key already carries dimension(i32), the architecture's
+verify-do-not-assume note answered; the skull family carries no store
+— its tiles are placement-born world state), all consult sites routed
+by their traced source (the sign edit by the WRITER's own dimension;
+the sign/command-block orphan sweeps per world, each reading its OWN
+world's cells; the block-broken listener's five tile-family cleanups
+by the ACTING world; the banner place and the survival-mined tagged
+drop by the placer's/miner's dimension; the note use and attack by
+the user's own world — the mining-start hook gaining the digger, the
+BlockInteractionService listener's BiConsumer form; the jukebox use
+and disc insert by the user's dimension; the beacon window family by
+the session's openContainerDimension stamp — the beacon open now the
+4-arg openContainerWindow form, the quick-craft/click/viewer-tick/
+close/applySelection consults and both protocol window reads the same
+stamp; the beacon tile creation on the block-change path by the
+CHANGED world; the /stats position arm by the SENDER's source
+dimension; the command-block redstone run per dimension — each
+dimension's redstone arms its OWN family, the nether's blocks now run
+on nether power where before they never ran at all), the dimension
+gates inside the families themselves (the beacon's effect spread
+gates on the player's OWN dimension — the reference's per-WorldServer
+player list, a nether beacon never buffs an overworld player standing
+at the same coordinates), the per-world BlockEntityViews (each world's
+sign view over its own family), the per-dimension dispenser skull
+surfaces, the per-dimension block-update banner seams, the TileNbt
+seams at the IntFunction router form (every tile family's write/read
+landing in the world's own family), and the protocol's chunk replays
+gated by the observer's dimension (the sign and beacon replays'
+dimension==0 hard gates retired — a nether column now replays its
+nether tiles; the skull/banner/command replays' ungated cross-world
+leaks closed). Seats 4/0 (TileSliceCOwnershipAcceptanceTest: the
+six-family two-tile restart through a real reboot, the nether sign
+edit writing the NETHER family alone, the note use tuning the user's
+own world, the beacon window open through the acting dimension's
+family). The restart seat caught and retired a real engine defect:
+the command-block orphan sweep lacked the sign family's chunk-loaded
+guard — a restored tile on a not-yet-loaded chunk read as air and was
+discarded at boot (the same guard law now). The same session retired
+run 588's two publish blockers (both on the baseline, not the slice):
+the command-block member the same sweep class, and the ender-exit
+member the probe-caught suffocation (a damage-event hook on a
+replicating probe caught it red-handed: amount=1.0 cause=IN_WALL at
+the fountain cell — the seat's hand-written fountain never cleared
+the column above the portal, and the generated island's randomized
+surface blocks the standing body's eye cell (64 + 1.62) ~1 run in 12;
+the engine's own dragon-death fountain clears the whole disc's air
+(dy>0, 32 layers), the reference's createPortal law — the seat now
+clears the column too, with the fountain-before-arrival order kept
+from the first diagnosis). THE FOLLOW-UP RUN (589, the same day): the
+bed guard seat's sleep-walk await starved AGAIN despite the boot sweep
+— the probe caught it red-handed: the sleeping flag is a ~1-tick
+TRANSIENT on the single-player contract (the morning jump fires within
+ticks of the entry and wakes the body — the probe's failing rounds
+showed the complete cycle, dawn jump to time 59, landing INSIDE the 3s
+watch window, sleeping=false at every 25ms read; ~2 rounds in 8); the
+seat now observes the sleep's own PERSISTENT signature (the bed spawn,
+set at the entry and surviving every wake path) instead of the
+transient flag — the engine 1:1 throughout, the observation was the
+defect (the eighteenth seat member).
+
+SLICE D TRACE (2026-11-01, the same session's close — findings only,
+the implementation is the next session's first act, the CI-unblock
+precedent): the three transient families, every consult site's
+dimension source named.
+
+- THE PISTON FAMILY (13 sites): PistonSystem already holds its OWN
+  world + redstone in the constructor (the per-dimension instances
+  construct naturally, the chestsFor form) — the movingBlocks
+  animation map and the two block-event lists are per-instance state
+  with NO store (the collision window is the animation alone, the row's
+  own note). The wiring sites: the boot construct (EngineServer 1813),
+  the change listener (1955), the neighbor listener (2110), the tick
+  (3351), the public accessor (5204). THE NAMED LEAK: the push surface
+  (1827) scans ALL mobs and items with NO dimension gate — a nether
+  piston extending at coordinates where an overworld mob stands
+  displaces the OVERWORLD body (the cross-world push class); each
+  dimension's instance needs its own surface gating the scan on ITS
+  world's dimension, the item-entities' own dimension stamp and the
+  mobs' own the filter (the hopper's suck-gate precedent).
+- THE DECORATION FAMILY (19 sites): the frames + paintings maps are
+  position-keyed with NO dimension — the ZED store (v1) needs the v2
+  dimension stamp (the union save, the routed restore, v-1 files as
+  overworld rows). The DecorationSurface consults the overworld world
+  and the OVERWORLD redstone (wakeComparators) — each dimension's
+  instance needs its own surface. THE NAMED LEAK: the comparator's
+  through-the-wall frame reader (2052-2054) is wired on EVERY
+  dimension's redstone but reads the ONE shared registry — a nether
+  comparator reads an overworld frame at the same coordinates (the
+  FL4-F10 comment's own "honest tail" named it, Gap 2's row 4 pays
+  it). The consult sites by their traced source: the place paths
+  (12978/13002) by the PLACER's dimension; the attack/interact paths
+  (7431-7453, 16797-16805) by the player's dimension; the tick and the
+  survival poll (20778+) per world; the census view (DecorationViews
+  3196) per world (the overworld-only view today); the frame-marker
+  removal (the maps' own dimension row).
+- THE LEAD FAMILY: the knots map is position-keyed with NO dimension
+  and NO store (the knots ride the mob's leash NBT stash at save — the
+  stash's dimension row needs the same v+1 audit, verify at
+  implementation). THE NAMED LEAKS: the LeadSurface.mobsIn scan (20745)
+  has NO dimension gate — a nether fence ties an OVERWORLD mob at the
+  same coordinates (the cross-world tie class); the knots' survival
+  read (setSurvivalRead, 2815) consults the OVERWORLD world's fence
+  cells — a nether knot dies on the overworld's air; the leash
+  detacher's owner-context assert (2823) pins the overworld's mutation
+  context. The consult sites by their traced source: the fence use
+  (12510) by the PLAYER's dimension; the tick walk and the survival
+  poll per world; the knot stash per row.
+
+THE PLAN (row 4's own shape, the smallest coherent boundary): the
+piston and lead families need NO store pass (transient state, the
+animation/lifetime window alone) — the per-dimension instances, the
+dimension-gated surfaces, and the routed consults are the whole work;
+the decoration family adds the ZED v2 stamp (the six landed stores'
+own law). Seats: a nether piston displacing only the nether's bodies;
+a nether comparator reading only the nether's frames; a nether fence
+tying only the nether's mobs; the decorations' two-tile restart
+through a real reboot.
 
 ---
 
