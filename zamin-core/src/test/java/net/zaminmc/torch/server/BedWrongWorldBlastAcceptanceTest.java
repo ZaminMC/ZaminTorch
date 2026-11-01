@@ -229,8 +229,15 @@ class BedWrongWorldBlastAcceptanceTest {
     @Test
     void theOrphanFootConsumesTheUseWithNoArm() throws Exception {
         layNetherPlatformAndBed();
-        // The head leaves: the foot is an orphan.
-        server.ticker().submit(() -> nether.setBlock(HEAD, nether.airType()));
+        // The head leaves: the foot is an orphan. The departure rides the
+        // FLAG-4 SILENT write (World.setBlockState's (flags & 4) family —
+        // no neighbor updates): under the restored pair-integrity law
+        // (BedBlock.neighborChanged lines 109-121, PR #114's arm) an
+        // update-bearing removal pops the orphan foot the same tick —
+        // exactly vanilla — so the orphan-click scene stages itself the
+        // vanilla-faithful way: a plugin's update-free write is the one
+        // path that leaves an orphan standing to be clicked.
+        server.ticker().submit(() -> nether.setBlockStateSilently(HEAD, nether.airType()));
         EngineAwaits.awaitCondition(server.world(),
                 () -> nether.getBlock(HEAD).equals(nether.airType()),
                 40, "the head left");

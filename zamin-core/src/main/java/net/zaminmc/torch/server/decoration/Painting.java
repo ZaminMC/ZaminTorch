@@ -16,13 +16,17 @@ public final class Painting {
     private final net.zaminmc.torch.block.BlockPosition pos;
     /** The facing the painting points away from its wall (0-3, byIdHorizontal). */
     private final int facing;
+    /** The world the painting hangs in (FL4-GAP2 Slice D — the per-world family). */
+    private final int dimension;
     /** The art entry (never null — the read walk's own KEBAB fallback). */
     private final Motive motive;
 
-    Painting(int entityId, net.zaminmc.torch.block.BlockPosition pos, int facing, Motive motive) {
+    Painting(int entityId, net.zaminmc.torch.block.BlockPosition pos, int facing,
+             int dimension, Motive motive) {
         this.entityId = entityId;
         this.pos = pos;
         this.facing = facing & 3;
+        this.dimension = dimension;
         this.motive = motive == null ? Motive.KEBAB : motive;
     }
 
@@ -39,6 +43,11 @@ public final class Painting {
     /** The facing code the painting points away from its wall (0-3). */
     public int facing() {
         return facing;
+    }
+
+    /** The world the painting hangs in (the observer's own-world gate). */
+    public int dimension() {
+        return dimension;
     }
 
     /** The art entry. */
