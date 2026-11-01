@@ -1918,7 +1918,7 @@ per-dimension stores are the ledgered architectural pass).
 
 ---
 
-## VT-010 — the bed pair's sibling resolution is a positional scan, not the reference's facing-exact law: a foreign adjacent bed half hijacks the sleep redirect, the blast center, and the pair death (UNDER VERIFICATION — passes 1-2 complete, the third pass owed)
+## VT-010 — the bed pair's sibling resolution is a positional scan, not the reference's facing-exact law: a foreign adjacent bed half hijacks the sleep redirect, the blast center, and the pair death (RESOLVED — the correction is **PR #111 OPEN**; three passes complete)
 
 **Subsystem:** block use / the bed family / the pair model.
 **Affected version:** the current develop baseline (`7910a110`) — the
@@ -1975,28 +1975,302 @@ this run, `BedPairResolutionDiscoveryTest`):**
 - **Pass 2 (behavioral, this run, 2026-10-31):** the three seats
   above, RED on develop with EXACTLY the traced values (both the
   wrong-pair coordinates and the surviving/destroyed halves).
-- **Pass 3 (independent — OWED):** the remaining angle is the FIX
-  SAFETY one: the facing-suffix consistency of the WIRE and LEGACY
-  data paths (the metadata-to-id mapping for the anvil import, the
-  26/bed legacy ids, the /setblock surfaces) — if any writer can stamp
-  a suffix that disagrees with the pair geometry, the facing-exact
-  resolution could mis-resolve IMPORTED worlds where the scan happens
-  to work. That mapping must be read and verified before the
-  correction becomes eligible.
+- **Pass 3 (independent — the wire/legacy suffix-consistency walk, this
+  run, 2026-10-31, the twenty-ninth pass over develop `a23011fa`):**
+  the fix-safety question this pass owed — "can any writer stamp a
+  suffix that disagrees with the pair geometry?" — answered by a total
+  census of every bed-id writer, with the reference's metadata law read
+  fresh:
+  1. **THE ID FAMILY IS THE REFERENCE'S METADATA SPACE, TOTAL:** the
+     registry holds exactly eight bed ids — `bed`/`bed_west`/`bed_north`/
+     `bed_east` (feet, `BuiltinBlocks` 449-456) and `bed_head`/
+     `bed_head_west`/`bed_head_north`/`bed_head_east` (heads, 457-464) —
+     stamped with the SAME numeric metas the reference's
+     `getMetadataFromState` writes (facing bits 0-1 per
+     `Direction.getIdHorizontal` — the reference's enum lines 14-17 name
+     S=0, W=1, N=2, E=3 — plus the head bit 8). The suffix-less ids are
+     the SOUTH variants (metas 0 and 8). `AnvilBlockIds` rows 234-241
+     map `(26, 0..3) → bed..bed_east` and `(26, 8..11) → bed_head..bed_head_east`
+     — the identical numbers; `LegacyBlockIds.metadataOf` (rows
+     1558-1564, the wire-out table) agrees; the `/setblock` meta
+     validation (EngineServer 27322: `meta != type.legacyMetadata()` →
+     refuse) pins the meta to the id's own embed. The bijection means
+     **no layer can carry a suffix that disagrees with the vanilla state
+     it represents** — the "unrecognized id" fallback the pass-2 draft
+     reserved is unreachable: every writer resolves ids through this
+     registry family.
+  2. **THE WRITERS:** `placeBedOnTick` (EngineServer 14926-14931) stamps
+     both halves from the one lookBand — consistent by construction;
+     the anvil import writes the id whose embedded meta IS the region
+     nibble — faithful to whatever the region says, and the reference's
+     own walks are facing-exact over exactly those states (so a
+     hand-edited inconsistent region resolves under the fix EXACTLY as
+     vanilla resolves it — the scan, not the facing law, is the layer
+     that would diverge there); `/setblock`//`/fill`//`/clone` resolve
+     registry keys — the admin can stamp any half anywhere, and the
+     reference's own `/setblock` allows the same states with the same
+     facing-exact walks behind them.
+  3. **THE MEMBERSHIP LAW — a sub-divergence surfaced and pinned this
+     pass:** the reference's redirect accepts ANY bed half at the
+     facing-named cell (`use` lines 39-42: `state.getBlock() != this` —
+     block-class, not part-class), and the else arm then proceeds from
+     THAT cell's own state (`use` lines 71-76: the removal reads the
+     state at the anchor — `pos.offset(state.get(FACING).getOpposite())`
+     — whatever class it holds). The engine's scans search for the
+     opposite PART specifically (a head for the redirect, a foot for
+     the detonate removal), so a foreign FOOT standing at a clicked
+     foot's own head cell ABORTS the engine's whole use (the scan finds
+     no head → `bedHeadCellIn` null → the click consumed silently)
+     while the reference redirects onto it and detonates there. The
+     correction's membership is therefore CLASS-based at the
+     facing-named cell (the reference's own `!= this`), with the
+     detonate removal reading the anchor's own state — pinned by the
+     parity pin's fourth seat (`BedPairFacingResolutionParityTest`,
+     the foreign-foot corner: no blast at all on develop, the anchor
+     blast on the fix).
+  4. **THE COMPENSATING-BEHAVIOR HUNT:** the FL4-era comment ("the
+     adjacent opposite half class — the break walk's own convention")
+     names a stand-in, not a deliberate divergence — the `#102` record
+     itself carried the class scan as "the engine's bed model" while
+     citing the reference's facing lines beside it; no test, table, or
+     doc pins the scan as intentional. The neighboring systems that
+     touch bed cells (`bedSpawnCleanup` reads the anchor cell alone;
+     `monstersNearBed` reads the resolved head; the sleep wake and the
+     dawn walk read the session state) ride the RESOLVED cell, so they
+     inherit the correction without their own edits.
+  5. **THE LIMITATION SURFACED (a NEW finding — VT-011 below):** the
+     reference persists OCCUPIED bed heads at metas 12-15
+     (`getMetadataFromState` lines 220-231 — bit 2 written for heads
+     alone) and reads them back (`getStateFromMetadata` lines 200-205 —
+     the occupied bit read on the head arm; metas 4-7 load as feet with
+     bit 2 ignored). `AnvilBlockIds` maps only 0-3 and 8-11, so a
+     vanilla world saved mid-sleep imports its occupied head AS AIR
+     (the counted isolation) — a dangling foot where vanilla loads the
+     pair whole. This is an IMPORT-table gap, not a facing-law hazard:
+     every half the import DOES write carries the geometrically exact
+     suffix, so the facing-exact correction behaves exactly as the
+     reference over every state the engine's import produces. VT-011
+     records the import gap as its own finding (its passes 2-3 owed).
 
-**Proposed minimal correction (draft, pending pass 3):** resolve the
-sibling from the identifier's own suffix (head suffix → the foot cell
-at the facing-opposite; foot suffix → the head cell at the facing)
-with the scan as the fallback for unrecognized ids — the four walks
-share one helper. The foreign-adjacent-half cases then resolve to the
-reference's own cells in every arm.
+  **CONCLUSION: pass 3 CONFIRMS — three passes complete. The
+  correction is eligible: the facing-exact resolution (the id's own
+  suffix names the cell; class membership at that cell; the detonate
+  removal reads the anchor's own state), the three RED seats plus the
+  foreign-foot corner as the parity pin.**
+
+**Correction (now landed on the fix branch, three passes complete):**
+resolve the sibling from the identifier's own suffix through one shared
+helper — a foot's head cell at `pos.offset(suffix)` (the reference's
+`use` redirect), a head's foot cell at `pos.offset(suffix.opposite())`
+(the reference's else arm and creative break) — with the membership
+test at the named cell being BLOCK-CLASS (`isBedHalf`, the reference's
+own `getBlock() != this`), and the detonate removal reading the
+anchor's own state (the reference's `state.get(FACING).getOpposite()`
+at the redirected cell, class-agnostic backward). All four walks
+(`bedHeadCellIn`, `bedHeadCell`, `detonateBedOnTick`'s removal,
+`bedSiblingCleanup`'s selection) consult the helper; the scan and its
++x-first order disappear. The foreign-adjacent-half cases then resolve
+to the reference's own cells in every arm.
 
 **Regression risks:** the plain-pair seats (the #102 blast seats, the
 sleep seats, the new VT-009 seats — all built on plain pairs where
 scan and facing agree) must stay green; the orphan-foot early return
 (the #102 guard) must survive the new resolution shape unchanged.
 
-## Coverage ledger (updated by the twenty-eighth pass)
+---
+
+## VT-011 — the anvil import drops the reference's OCCUPIED bed states: metas 12-15 (an occupied head, persisted by the reference whenever a world saves mid-sleep) and 4-7 (bit-2-corrupted feet) import AS AIR, corrupting the pair (RESOLVED — the correction is **PR #115 OPEN**; three passes complete)
+
+**Subsystem:** world import / the anvil canvas / the 1.8.8 numeric
+state table.
+**Affected version:** every baseline that carries `AnvilBlockIds` —
+the table's rows predate the pass record (`a23011fa` inspected).
+
+**Affected engine files and methods:**
+- `zamin-core/.../world/anvil/AnvilBlockIds.java` — the legacy-26
+  rows (lines 234-241): only metas 0-3 (`bed`..`bed_east`) and 8-11
+  (`bed_head`..`bed_head_east`) resolve; the class javadoc (lines
+  8-15) names the fallback law: "a numeric state the table does not
+  know imports as air with a counted isolation."
+
+**Vanilla reference:** `BedBlock.getMetadataFromState` lines 220-231
+— the metadata write: facing bits 0-1, the head bit 8, and **bit 2
+written for an OCCUPIED HEAD alone** (`if (state.get(PART) == HEAD)
+{ i |= 8; if (state.get(OCCUPIED)) { i |= 4; } }`) — so a world that
+saves while a player sleeps (the auto-save or a mid-sleep shutdown)
+persists the head at metas 12-15. `BedBlock.getStateFromMetadata`
+lines 200-205 — the read: `(metadata & 8) > 0 ? ...set(OCCUPIED,
+(metadata & 4) > 0) : ...` — the occupied bit is read on the head arm
+alone, and metas 4-7 (bit 2 without bit 3) load as ordinary feet
+with bit 2 ignored. `BedBlock.use` lines 59-60 stamps OCCUPIED on
+successful sleep entry (the head cell, flag 4).
+
+**Expected behavior:** a 1.8.8 region containing a bed head at meta
+12-15 (or the editor-corrupted feet 4-7) loads the bed half whole —
+vanilla reads every one of the sixteen nibbles as a valid bed state.
+
+**Observed engine behavior (source, pass 1):** the anvil table maps
+only 0-3 and 8-11; metas 12-15 and 4-7 fall to the counted-isolation
+air path. An imported world saved mid-sleep therefore loses the
+occupied HEAD as air while its foot imports — a dangling foot where
+vanilla loads the pair whole. The corruption is persistent (the
+import is the world's new truth) and silent to the importer (the
+isolation is counted, not surfaced to the player).
+
+**Verification pass history:**
+- **Pass 1 (source, this run, 2026-10-31, the twenty-ninth pass):**
+  the metadata law read fresh from the reference (the write lines
+  220-231, the read lines 200-205, the sleep-entry stamp lines
+  59-60); the engine table's rows and the class's own fallback law
+  read against them; the divergence pinned to the sixteen-nibble
+  coverage. **The reachability named:** the reference's own save
+  path writes 12-15 whenever a chunk with an occupied head saves
+  (mid-sleep auto-save or shutdown); metas 4-7 are unwritable by the
+  reference's own save path (the foot never writes bit 2) — only
+  external editors produce them, and the reference loads them as
+  feet regardless.
+- **Pass 2 (behavioral, this run, 2026-10-31, the twenty-ninth
+  pass):** `BedOccupiedImportDiscoveryTest` (this audit branch), two
+  seats through the REAL import wire (the fixture's own
+  reference-ported region writer, the `anvilimport` command, the
+  awaited finish report), **RED on develop BY CONTRACT** —
+  2/2 failures with exactly the traced cells and the import's OWN
+  ledger counting them:
+  1. THE MID-SLEEP PAIR: the foot at (129,1,129) meta 0 imports (the
+     control, GREEN both trees); the occupied head at (129,1,130)
+     meta 12 — the vanilla mid-sleep save shape
+     (`0 | 8 | 4`) — imports as AIR: the report's own row
+     `unknown block states (imported as air): id 26 meta 12 x1`
+     (the failure message carries the whole report); the seat
+     asserts the reference's answer (a bed head, the pair whole).
+  2. THE EDITOR-CORRUPTED FOOT: the head at (132,1,133) meta 9
+     imports (the control); the corrupted foot at (133,1,133)
+     meta 5 (west | the stray bit 2 — the reference's foot arm
+     ignores bit 2, bits 0-1 alone the answer) imports as AIR:
+     `id 26 meta 5 x1` counted; the seat asserts the reference's
+     answer (a west-facing foot).
+- **Pass 3 (independent, this run, 2026-10-31, the twenty-ninth
+  pass):** three angles, all new evidence:
+  1. **THE LIFECYCLE WALK:** the reference's wake path clears the
+     flag (`PlayerEntity.wakeUp` line 1174:
+     `world.setBlockState(sleepingPos, state.set(BedBlock.OCCUPIED,
+     false), 4)`) — so the mid-sleep window (the sleep-entry stamp
+     `use` lines 59-60 → the wake clear) is exactly the window whose
+     save persists 12-15 (the auto-save's 6000-tick schedule and
+     the stop/crash paths both fall inside it); a crashed server
+     never runs the clear at all.
+  2. **THE SIXTEEN-NIBBLE CENSUS:** the reference's read law
+     covers every nibble (0-3 feet; 4-7 feet with bit 2 ignored —
+     the foot arm of `getStateFromMetadata` never consults it;
+     8-11 heads; 12-15 occupied heads, the head arm's
+     `(metadata & 4) > 0`); the engine table's residual set is
+     EXACTLY {4-7, 12-15} — both bands demonstrated RED by the
+     seats, with the controls (0 and 9) GREEN in the same scenes.
+     `resolveVirtualProperties` lines 208-217 (the foot's OCCUPIED
+     re-read from the head cell at runtime) pins the HEAD's nibble
+     as the load-bearing persistence — exactly the cell the engine
+     drops to air.
+  3. **THE COMPENSATION HUNT:** the nibble passes RAW to the table
+     (`AnvilChunkReader` line 316 — no masking, no remap); the table
+     is the single resolution point; the engine's OWN save/sync side
+     never writes 12-15 (the engine's sleep model carries no
+     occupied block state — the wire-out bed rows are 0-11 alone),
+     so the divergence is IMPORT-ONLY: a vanilla world → the
+     engine. No compensating layer exists.
+
+  **CONCLUSION: pass 3 CONFIRMS — three passes complete. The
+  correction is eligible: the eight missing rows (12-15 → the head
+  ids by facing bits; 4-7 → the foot ids by facing bits, bit 2
+  masked — the reference's own read law), the table's javadoc
+  gap-fills list, the integrity test's expected bands + the count
+  re-pin, the two seats as the parity pin.**
+
+**Correction (eligible — three passes complete):** the eight missing
+rows — `(26, 12..15) → bed_head/bed_head_west/bed_head_north/bed_head_east`
+(the occupied bit is above the engine's sleep model: the engine
+tracks occupancy by the sleeping session, not the block state — the
+plain head ids are the correct import answers) and `(26, 4..7) →
+bed/bed_west/bed_north/bed_east` (bit 2 masked, the reference's own
+foot-arm read — bits 0-1 alone). The table's javadoc gap-fills list
+gains the bed band; `AnvilBlockIdsIntegrityTest`'s expected map gains
+both bands with the count re-pinned (1321 → 1329).
+
+**Confidence and uncertainties:** the metadata law is pinned from
+the reference's own read/write pair; the remaining uncertainty is
+whether the engine's anvil canvas consults this table per-nibble
+(the import path's own call site — the behavioral pass's seat).
+
+**Regression risks:** none foreseen beyond the table's own integrity
+cross-check; the rows ADD coverage (air only narrows it).
+
+---
+
+## The twenty-ninth pass — VT-010's third pass landed (CONFIRMED, the correction opened as PR #111), VT-011 discovered AND confirmed whole (the correction opened as PR #115) — two corrections in one pass
+
+The baseline advance: `origin/develop` `a23011fa` (the FL4-F10
+redstone world-binding wave — the house stream's act; this pass lane
+merges it whole, no overlap with this stream's bed lanes). The pass's
+work, in the queue's order:
+
+1. **VT-010's pass 3 — the wire/legacy suffix-consistency walk**
+   (the pass-28 record's named gate before the fix became eligible):
+   the total census of every bed-id writer, with the reference's
+   metadata law read fresh (`getMetadataFromState` lines 220-231,
+   `getStateFromMetadata` lines 200-205, `Direction.getIdHorizontal`
+   enum lines 14-17). The verdict: the engine's eight bed ids ARE the
+   reference's metadata space — bijective and consistent across
+   `BuiltinBlocks` (the registered metas), `AnvilBlockIds` (the
+   anvil 26-rows), `LegacyBlockIds.metadataOf` (the wire-out table),
+   and `/setblock`'s own meta validation — so no writer can stamp a
+   suffix that disagrees with the pair geometry, and the
+   "unrecognized id" fallback the pass-2 draft reserved is
+   unreachable. **The class-membership sub-divergence pinned** (the
+   reference's redirect accepts ANY bed half at the facing-named cell
+   — `getBlock() != this`; the engine's scans search the opposite
+   part specifically, so a foreign foot at the redirect cell aborts
+   the whole use where the reference proceeds) — the parity pin's
+   fourth seat carries it. **VT-010 CONFIRMED — three passes
+   complete**; the Phase E correction follows (the facing-exact
+   helper for the four walks, the fix branch, the PR).
+   **The correction is now OPEN as PR #111**
+   (`fix/bed-pair-facing-resolution-parity-audit`, commit 8b1eefb0:
+   the shared `bedFacingBand`/`bedFacingPartner`/`bedFacingBackward`
+   helpers over the reference's own laws, the four walks rewritten,
+   `BedPairFacingResolutionParityTest` — 4/0 GREEN on the fix, 4/4
+   RED on the pre-fix tree verified THIS RUN by the stash
+   discrimination: the three discovery seats' exact wrong values plus
+   the corner seat's `Condition not met within 40 engine ticks`
+   — the silent no-blast abort; the regression lanes 104/0 whole:
+   the bed family + the use dispatch + the placement/dig/interaction
+   + the door family 48/0, the listener lanes — FurnaceHopperEvent,
+   NetherBlockUpdate, the chest family, the hopper family,
+   EnderChest, NetherRedstoneRouting — 52/0).
+2. **VT-011 confirmed whole in the same run** (the three passes
+   completed back-to-back — the source law, the behavioral seats
+   through the real import wire, the lifecycle walk + the
+   sixteen-nibble census + the compensation hunt): the anvil import
+   drops the reference's OCCUPIED bed states — metas 12-15 import
+   as AIR (a dangling foot where the reference loads the pair whole;
+   the import's own ledger counts `id 26 meta 12 x1`), the
+   editor-corrupted feet (4-7) the same. The correction is now OPEN
+   as **PR #115** (`fix/bed-occupied-anvil-import-parity-audit`,
+   commit 512b0c09: the eight rows, the javadoc band, the integrity
+   test's expected bands + the count re-pin 1321 → 1329; the parity
+   pin 2/0 GREEN, the anvil family 47/0, the drift guard 2/0, the
+   protocol block-id lanes 15/0; the full protocol suite cannot run
+   in this environment — SIGKILL 137 at the memory ceiling, verified
+   identical on the clean develop tree — the affected surfaces
+   covered lane-by-lane instead).
+3. **The items family's pass 3** (the crossing arms' head): the
+   independent walk over the current tree + the fresh reference read
+   + the negative compensation and design-choice challenges —
+   CONFIRMED; the fix (the item arm through the `DimensionCrossing`
+   seam, a real architectural slice) is deliberately deferred to the
+   next run rather than risked half-done at the environment's edge.
+   The orbs/boats/carts/arrows walks follow it.
+
+
+## Coverage ledger (updated by the twenty-ninth pass)
 
 | Area | Status |
 |---|---|
@@ -2010,13 +2284,14 @@ scan and facing agree) must stay green; the orphan-foot early return
 | Snow layer — placement support/melt/drops | drops landed (the mining-speed audit); melt + the 7-layer state surface recorded as VT-003's tail |
 | Packed ice — melt/break laws | inspected: the reference's PackedIceBlock carries no melt arm (the `setTicksRandomly` false, the silk-drop row landed); nothing owed |
 | Portal mechanics (flag1, forcer) | landed by FL4-F1; not re-audited — the stand clock's re-fire law is VT-004 (CONFIRMED, three passes; the correction **MERGED — PR #91**; the seat PortalRefireDiscoveryTest rides green on develop) |
-| Portal mechanics — the non-player crossing (the entity-level arm) | the MOBS family LANDED by **PR #98** (VT-006's correction: the entity-level crossing service + the mobs family — the gated collision, the threshold-0 clock, the 300 cooldown with the re-arm pin, the 8:1 walk, the forcer's placement, the stamp swap, the per-dimension wire; `PortalMobCrossingDiscoveryTest` 3/0 with the cooldown and riding-gate pins). The ITEMS, ORBS, and VEHICLES (boats + minecarts) carried by the HONEST CONVERGENCE: the parallel stream's **PR #109 OPEN** (the identical law + the cleaner removal fan) beside this stream's PR #112 CLOSED as superseded (the flake root-caused by both streams; this stream's strictly-deterministic `spawnThrown` seat construction + the 3-run stability record offered to #109's review). The ARROWS carried by **PR #113 OPEN** (stacked on #109; this stream's source assessment below the handoff) with **#110** the same stream's shared-holder variant. The End-origin arm is the named tail; the TNT and falling families excluded by the census |
+| Portal mechanics — the non-player crossing (the entity-level arm) | the MOBS family LANDED by **PR #98** (VT-006's correction: the entity-level crossing service + the mobs family — the gated collision, the threshold-0 clock, the 300 cooldown with the re-arm pin, the 8:1 walk, the forcer's placement, the stamp swap, the per-dimension wire; `PortalMobCrossingDiscoveryTest` 3/0 with the cooldown and riding-gate pins). The ITEMS family's pass 3 (the independent walk, the parallel stream's twenty-ninth pass): CONFIRMED — `ItemEntityManager.tick`'s walk re-walked on the `a23011fa` tree (expired → inVoid → the TF-9 dimension flip → the physics → the same-world pickup — zero portal consults, `portalFrameAt` called nowhere in the manager); the reference re-read fresh (`ItemEntity.tick` line 64's `super.tick()` → the Entity portal arm lines 282-313: `vehicle == null && portalTime++ >= getMaxNetherPortalTime()` — the base 0 — then `changeDimension`, the cooldown `getPortalCooldown()`); the compensation hunt NEGATIVE (the pickup's own same-world gate means no other mover exists for a stack standing in a portal cell); the design-choice challenge NEGATIVE (the engine's own `leaveEndOnTick` javadoc LEDGERS the gap — a planned gap, PR #98's own follow-up plan, never an intentional divergence). THE HONEST CONVERGENCE (the thirtieth pass's record): the pass-29 close-out deferred the items fix to "the next run's head" WITHOUT the #109 absorption — **PR #109 OPEN** (opened 10-31 12:39, the close-out 13:18 names only #105/#106/#111/#115) ALREADY CARRIES the items, orbs, and vehicles arms whole (the identical law + the cleaner removal fan), beside this stream's PR #112 CLOSED as superseded (the flake root-caused by both streams; this stream's strictly-deterministic `spawnThrown` seat construction + the 3-run stability record offered to #109's review). The ARROWS carried by **PR #113 OPEN** (stacked on #109) with **#110** the same stream's shared-holder variant. THE COVERAGE VERIFIED (the thirtieth pass): #109's and #113's arms GREEN through this stream's INDEPENDENT seat constructions on the union tree `0e3151fe` — the five family seats whole (item 1/0, orb 1/0, vehicle 2/0, arrow 1/0, mob 3/0 — the #98 regression) plus this stream's two NEW constructions (the ARC flight-path seat and the far-side SNOWBALL seat, both GREEN — the record below). The STUCK-ARROW edge the handoff named is VT-012 (the row below) — a NEW finding beyond #113's coverage, not a failure of its arm. The End-origin arm is the named tail; the TNT and falling families excluded by the census |
 | Bed use — the out-of-dimension blast arm | CONFIRMED over three passes (the twenty-sixth's census + source; the twenty-seventh's behavioral + independent); the correction **MERGED — PR #102 onto develop**, verified by BOTH streams independently: the twenty-seventh's `BedOutOfDimensionBlastDiscoveryTest` (the portal-walk anchoring, the clock pin, the End seat, the seated HELL-biome conjunct — RED pre-fix, GREEN on the fix) and the twenty-eighth's `BedWrongWorldBlastVerificationTest` on the MERGED tree (the End seat + the HEAD-half identity click, both GREEN — the second-construction confirmation) |
 | Portal mechanics — the riding gate (vehicle == null && rider == null) | VT-005 CONFIRMED (three passes — source, the pig-in-portal behavioral seat, the dismount-control independent pass; the correction **MERGED — PR #94**) |
 | Drops — the TF-9 dimension stamp | LANDED by PR #90 (the dig/place walks stamp `world.dimension()`; the tile-family spill sites remain the per-dimension tile tail) |
 | Tile families — per-dimension stores | NOT INSPECTED as its own pass (the PR #90 ledger: the furnace/chest/skull/banner spill + cleanup ride the single-instance managers — the FL4 fluids/fire precedent applies; the nether tile placement/cleanup is its own architectural pass) |
 | Break-path pair walks (door/bed sibling cleanups) — dimension routing | RESOLVED (the twenty-eighth pass): **VT-009** CONFIRMED three passes and corrected as **PR #106 OPEN** (`fix/pair-break-dimension-parity-audit`: the `BlockBrokenHook` three-arg listener, the parameterized walks; the parity pin 3/0 + the regression lanes 75/0; the discovery seats' RED record rides this audit branch) |
-| Bed pair — the sibling resolution model | AUDITED (the twenty-eighth pass): **VT-010 under verification** — the resolution is a positional scan, the reference's law is facing-exact (the ids carry the direction); passes 1-2 complete (three RED seats: the break selection, the sleep redirect's spawn, the nether blast's center — all exactly the traced values); the third pass (the wire/legacy suffix consistency) owed before the fix |
+| Bed pair — the sibling resolution model | CONFIRMED over three passes (the twenty-eighth's census + the three RED seats; the twenty-ninth's wire/legacy suffix-consistency walk — the id family IS the reference's metadata space, total across `BuiltinBlocks`/`AnvilBlockIds`/`LegacyBlockIds`/`/setblock`, no writer can stamp a geometry-inconsistent suffix; the class-membership sub-divergence pinned: the reference's redirect accepts ANY half at the facing cell, `!= this`); RESOLVED by **PR #111 OPEN** (`fix/bed-pair-facing-resolution-parity-audit`, commit 8b1eefb0 over develop `a23011fa`: the facing-exact helper shared by the four walks, the block-class membership, the anchor-state detonate removal; the parity pin `BedPairFacingResolutionParityTest` 4/0 GREEN on the fix, 4/4 RED on the pre-fix tree by the stash discrimination — the three discovery values + the corner's silent no-blast; the regression lanes 104/0) |
+| Anvil import — the bed's OCCUPIED nibbles (26: metas 12-15 the reference persists for occupied heads, 4-7 the editor-corrupted feet) | RESOLVED (the twenty-ninth pass, **VT-011**): confirmed over three passes (pass 1 the source law — the reference's write/read pair + the sleep-entry stamp; pass 2 the behavioral seats — `BedOccupiedImportDiscoveryTest` 2/2 RED on develop with the import's own ledger counting `id 26 meta 12 x1` and `id 26 meta 5 x1`, the controls green in the same scenes; pass 3 the lifecycle walk — the wake clear at `PlayerEntity` 1174, the mid-sleep save window — the sixteen-nibble census (the residual exactly {4-7, 12-15}), the compensation hunt (the raw nibble, the single resolution point, the import-only scope)); the correction is **PR #115 OPEN** (`fix/bed-occupied-anvil-import-parity-audit`, commit 512b0c09 over develop `a23011fa`: the eight rows + the javadoc band + the integrity test's expected bands with the count re-pinned 1321 → 1329; the parity pin `BedOccupiedImportParityTest` 2/0 GREEN, the anvil family 47/0, the drift guard 2/0, the protocol block-id lanes 15/0) |
 | Block-update wake (BlockUpdateSystem.runUpdate, RedstoneSystem.neighborChanged) — world binding | SURFACED as VT-009's pass-3 non-compensation evidence: BOTH reads consult the overworld field (the changed-world parameter ignored in the six-neighbor dispatch) — the house stream's FL4-F10 lane, NOT duplicated here; this stream's door/bed seats are the evidence cross-reference |
 | Mob spawns — the dimension stamp | NOT INSPECTED (the PR #90 ledger names `MobManager.spawnAt`; the infested burst is the surfaced site) |
 | FX broadcasts — the dimension awareness | NOT INSPECTED (the FxManager position-only API; the PR #90 ledger) |
@@ -2027,33 +2302,47 @@ scan and facing agree) must stay green; the orphan-foot early return
 
 ## The queue for the next pass
 
-1. ~~VT-009's fix branch~~ — **PR #106 OPEN** (the parallel stream's
-   this-pass record: `fix/pair-break-dimension-parity-audit` over
-   `7910a110`: the `BlockBrokenHook` three-arg form, the parameterized
-   walks, the parity pin 3/0, the regression lanes 75/0).
-2. **VT-010's pass 3** (the wire/legacy suffix-consistency walk: the
-   anvil import's metadata-to-id mapping for the bed ids, the legacy 26
-   rows, the /setblock surface) — then the facing-exact resolution fix
-   if the mapping is consistent (the three RED seats are the ready
-   discriminators).
-3. **The crossing families' arms** (the twenty-seventh pass's named
-   head): the ITEMS, the ORBS, and the VEHICLES (boats + minecarts)
-   carried by the HONEST CONVERGENCE — the parallel stream's **PR #109
-   OPEN** the surviving carrier (this stream's PR #112 CLOSED as
-   superseded; the `spawnThrown` seat hardening + the 3-run record
-   offered on its review). **THE ARROWS ride PR #113 OPEN** (the
-   parallel stream's, stacked on #109) with this stream's SOURCE
-   ASSESSMENT RECORDED (the section above: the census is WIDER than
-   the pass-24 name — every projectile family's tick chain carries the
-   arm, the fireballs' inherited conditional included; the integration
-   points map 1:1 onto the manager-loop shape, and the ShapeGround
-   override already carries the production wiring). THE NEXT RUN'S
-   verification work: #109's and #113's coverage through this stream's
-   independent seat constructions (the honest-convergence protocol
-   VT-008 exercised for #102 — the independent verification, not the
-   re-fix), plus the stuck-arrow edge (the inGround branch's
-   placement) as the discriminator. The End-origin arm stays the named
-   tail; the TNT and falling families stay EXCLUDED (the census's
+1. ~~VT-010's pass 3~~ — **DONE (the parallel stream's twenty-ninth
+   pass: the wire/legacy suffix-consistency walk)**, and with it
+   **VT-010 is CONFIRMED — three passes complete**. The correction is
+   **PR #111 OPEN** (their Phase E act: the facing-exact helper for
+   the four walks, the parity pin with the three seats + the
+   foreign-foot corner 4/0 — RED 4/4 on the pre-fix tree by the stash
+   discrimination, the regression lanes 104/0; the #106 interaction
+   documented in the PR body — one shared method, the selection law
+   ports to the three-arg form unchanged).
+2. ~~VT-011's passes 2-3~~ — **DONE (the parallel stream's twenty-ninth
+   pass, the same run)**: the behavioral seats RED on develop with the
+   ledger's own counted rows (`id 26 meta 12 x1`, `id 26 meta 5 x1`)
+   and the controls green; the independent pass's lifecycle walk +
+   census + compensation hunt. **VT-011 CONFIRMED — three passes
+   complete**; the correction is **PR #115 OPEN**
+   (`fix/bed-occupied-anvil-import-parity-audit`, commit 512b0c09:
+   the eight rows, the javadoc band, the integrity test's expected
+   bands + the count re-pinned 1321 → 1329; the parity pin 2/0 GREEN,
+   the anvil family 47/0, the drift guard 2/0, the protocol block-id
+   lanes 15/0 — the full protocol suite itself cannot run in this
+   environment, SIGKILL 137 at the memory ceiling, verified identical
+   on the clean develop tree).
+3. ~~The crossing families' arms — the coverage verification~~ —
+   **DONE (the thirtieth pass, this stream's lane)**: the pass-29
+   close-out's "items fix as the next run's head" is SUPERSEDED BY
+   THE CONVERGENCE — **PR #109 ALREADY CARRIES the items, orbs, and
+   vehicles arms** (opened 10-31 12:39, before the close-out's 13:18
+   watch list that names neither), and **PR #113 the arrows** (stacked
+   on #109). THE COVERAGE VERIFIED this pass through the independent
+   seats on the union tree `0e3151fe`: the five family seats whole
+   (item 1/0, orb 1/0, vehicle 2/0, arrow 1/0, mob 3/0 — the #98
+   regression) plus this stream's TWO NEW constructions — the ARC
+   flight-path seat (the crossing firing MID-FLIGHT with the vertical
+   motion the rotation never touches) and the far-side SNOWBALL seat
+   (the family-wide arm through a NON-ARROW kind) — both GREEN.
+   **THE STUCK-ARROW EDGE the handoff named is VT-012** (the record
+   below): the reference's box-scan collision + face+0.05 stick
+   placement against the engine's position-cell consult + endpoint
+   placement — RED on develop AND on the #113 tree; its passes 2-3
+   are the next run's head. The End-origin arm stays the named tail;
+   the TNT and falling families stay EXCLUDED (the census's
    accidental matches); the fishing bobber's own arm is the named tail
    beside them.
 4. ~~The standing lanes~~ — F-EC1 RESOLVED-BY-PR (the twenty-fourth
@@ -2066,18 +2355,19 @@ scan and facing agree) must stay green; the orphan-foot early return
    PR #90 ledger): the per-dimension tile families, the mob spawn's
    dimension stamp, the FX dimension awareness, the per-dimension world
    border, the zombie arm's world binding.
-6. The watch items: **#91/#94/#95/#98/#101/#102/#104 ALL MERGED**
-   (the crossing seam, the riding gate, the stand clock, the ender
-   chest consult, the dig re-verification, the bed's blast arm, the
-   blast wound lane — develop `a23011fa`); the OPEN set after the
-   parallel runs' wave: **#105** (the TNT cart blast slice), **#106**
-   (VT-009's pair-break correction), **#107** (the mob cooldown's
-   decay lane), **#108** (the crossing families' superseded first
-   iteration), **#109** (the crossing families' carrier), **#110**
-   (the shared-holder + arrows variant), **#111** (VT-010's
-   facing-exact resolution), **#113** (the arrows stacked on #109),
-   and **#114** (VT-009's bed neighbor-changed arm) — with this
-   stream's **#112 CLOSED as superseded by #109** (the convergence
-   recorded). The maintainer owns the pick among the convergent
-   carriers; the next runs verify rather than re-fix (the VT-008
-   protocol).
+6. The watch items (the thirtieth pass's fetch, the current truth):
+   **#91/#94/#95/#98/#101/#102/#104/#105/#107 ALL MERGED onto
+   develop** (`d26a1ebd` — the TNT-cart blast slice #105 and the mob
+   cooldown's decay lane #107 landed with the FL4-GAP2 chest wave and
+   the flake retirements); the OPEN set awaiting the maintainer's
+   review: **#106** (VT-009's pair-break correction), **#108** (the
+   crossing families' superseded first iteration), **#109** (the
+   crossing families' carrier — the coverage VERIFIED this pass), 
+   **#110** (the shared-holder + arrows variant), **#111** (VT-010's
+   facing-exact resolution), **#113** (the arrows stacked on #109 —
+   the coverage VERIFIED this pass), **#114** (VT-009's bed
+   neighbor-changed arm), and **#115** (VT-011's occupied-nibble
+   import) — with this stream's **#112 CLOSED as superseded by #109**
+   (the convergence recorded) and **#103 CLOSED as superseded by
+   #100**. The maintainer owns the pick among the convergent carriers;
+   the next runs verify rather than re-fix (the VT-008 protocol).
