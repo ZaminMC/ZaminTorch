@@ -1050,13 +1050,40 @@ public final class MobManager {
 
     /**
      * Spawns one mob of the kind at the exact position (validated by callers).
-     * Tick-thread context.
+     * Tick-thread context. The dimensionless arm keeps today's stamp — the
+     * MobEntity constructor's overworld 0 — so every existing caller's
+     * behavior is unchanged.
      *
      * @return the spawned mob, or null when the public
      *         {@link net.zaminmc.torch.event.entity.MobSpawnEvent} cancelled
      *         the spawn (no id consumed, no listeners notified)
      */
     public MobEntity spawnAt(MobType type, Position position) {
+        return spawnAtCore(type, position, 0);
+    }
+
+    /**
+     * Spawns one mob of the kind at the exact position IN THE GIVEN
+     * DIMENSION (VT-029 — the reference's construction law: Entity's
+     * constructor line 166 stamps {@code this.dimension =
+     * world.dimension.getId()} at BIRTH, before any listener can fire;
+     * the engine's spawn fan — the wire's own sendMobSpawn gate — reads
+     * the stamp at the event, so the body must carry its dimension BEFORE
+     * the fan, never stamped after the call returns). The wither's birth
+     * (SkullBlock.trySpawn line 185's {@code new WitherEntity(world)} —
+     * the boss born in the world the pattern was built in) rides this
+     * member. Tick-thread context.
+     *
+     * @return the spawned mob, or null when the public
+     *         {@link net.zaminmc.torch.event.entity.MobSpawnEvent} cancelled
+     *         the spawn (no id consumed, no listeners notified)
+     */
+    public MobEntity spawnAt(MobType type, Position position, int dimension) {
+        return spawnAtCore(type, position, dimension);
+    }
+
+    /** The construction + fan (the dimension stamped at birth, pre-fan). */
+    private MobEntity spawnAtCore(MobType type, Position position, int dimension) {
         Objects.requireNonNull(type, "type");
         Objects.requireNonNull(position, "position");
         var bus = eventBus;
@@ -1069,6 +1096,11 @@ public final class MobManager {
             }
         }
         MobEntity mob = new MobEntity(nextEntityId, type, position, random, world);
+        // VT-029 — the birth stamp (Entity's constructor line 166: the
+        // body is born in its acting world; the stamp lands BEFORE the
+        // spawn fan so the wire's dimension gate reads the born dimension
+        // at the event, never the Java-default 0).
+        mob.setDimension(dimension);
         if (type == MobType.ENDER_DRAGON) {
             // The wire's part-id convention (ClientPlayNetworkHandler lines
             // 701-708): the client re-aligns its locally-built parts to

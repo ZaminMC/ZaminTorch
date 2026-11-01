@@ -3773,12 +3773,18 @@ public final class EngineServer implements Server, EngineBridge {
                                     brokenType.identifier())) {
                         var skullTile = skullsFor(actingWorld.dimension()).remove(position);
                         if (skullTile != null) {
+                            // VT-029 — the typed drop lands in the break's
+                            // OWN world (the reference's dropItem on the
+                            // acting world, SkullBlock.onRemoved lines
+                            // 132-152): the dimension-stamped form, never
+                            // the dimensionless overload's overworld 0.
                             itemEntities.spawnDropAtBlock(new Position(
                                     position.x() + 0.5, position.y() + 0.5, position.z() + 0.5),
                                     new net.zaminmc.torch.item.ItemStack(
                                             BuiltinItems.SKULL, 1, skullTile.type(), null),
                                     net.zaminmc.torch.server.entity.ItemEntity
-                                            .PICKUP_DELAY_DROP_TICKS);
+                                            .PICKUP_DELAY_DROP_TICKS,
+                                    actingWorld.dimension());
                         }
                     }
                     // The banner tile dies with its block in EVERY mode
@@ -6023,21 +6029,31 @@ public final class EngineServer implements Server, EngineBridge {
                 // the spawn, the axis yaw, onSummoned's window + third
                 // health, and the snowball burst stand-in at the base (the
                 // reference's own 120-particle column rides the fx bus's
-                // Poof family).
+                // Poof family). VT-029 — every member carries the acting
+                // world's dimension: the birth rides the dimension-aware
+                // spawnAt (Entity's constructor line 166 stamps at BIRTH —
+                // the stamp lands BEFORE the spawn fan so the wire's
+                // sendMobSpawn gate reads the born dimension at the event,
+                // never a post-fan repair), the poof rides the dimensioned
+                // overload (World.addParticle 796-812 — the summoning
+                // world's listener list alone), and the achievement walk
+                // consults the acting world's players.
                 MobEntity wither = mobManager.spawnAt(
-                        net.zaminmc.torch.server.entity.MobType.WITHER, at);
+                        net.zaminmc.torch.server.entity.MobType.WITHER, at, dimension);
                 if (wither != null) {
-                    wither.setDimension(dimension); // the body's own world
                     wither.setBodyYaw(bodyYawDegrees);
                     wither.witherSummoned();
                 }
-                fxManager.poof(new Position(at.x(), at.y() - 1.5, at.z()));
+                fxManager.poof(new Position(at.x(), at.y() - 1.5, at.z()), dimension);
                 // The summon row (VIII6 — SkullBlock lines 197-199: every
                 // player whose body box intersects the newborn's own shape
                 // grown (50, 50, 50) earns the wither's summon — the
                 // builders around the pattern, whatever their distance to
-                // the last skull placed).
-                awardPlayersInBox(EngineAchievements.SUMMON_WITHER.key(),
+                // the last skull placed). The walk consults the ACTING
+                // world's player list (the reference's getEntitiesOfType
+                // on the parameter world — a same-coordinate player in
+                // another dimension is not in the list).
+                awardPlayersInBox(EngineAchievements.SUMMON_WITHER.key(), dimension,
                         at, 0.9, 3.5, 50.0, 50.0, 50.0);
             }
         };
@@ -9426,6 +9442,48 @@ public final class EngineServer implements Server, EngineBridge {
             Position at = online.position();
             // The player's box: the feet anchor + 0.6 wide + 1.8 tall; the
             // boxes intersect when they overlap on every axis.
+            boolean hit = at.x() + 0.6 > minX && at.x() < maxX
+                    && at.y() + 1.8 > minY && at.y() < maxY
+                    && at.z() + 0.6 > minZ && at.z() < maxZ;
+            if (hit) {
+                online.stats().increment(statKey, 1);
+            }
+        }
+    }
+
+    /**
+     * The dimensioned anchor form (VT-029 — the reference's per-world player
+     * list: {@code world.getEntitiesOfType(PlayerEntity.class, box)} walks
+     * the ACTING world's players alone — the same chunk coordinates exist in
+     * every dimension, and a player standing in another world is not in the
+     * acting world's list). The summon's achievement row rides this form:
+     * only the players in the world the pattern was built in earn the stat.
+     */
+    private void awardPlayersInBox(String statKey, int dimension, Position anchor,
+                                   double anchorWidth, double anchorHeight,
+                                   double growX, double growY, double growZ) {
+        double half = anchorWidth / 2.0;
+        awardPlayersInBox(statKey, dimension,
+                anchor.x() - half - growX, anchor.y() - growY, anchor.z() - half - growZ,
+                anchor.x() + half + growX, anchor.y() + anchorHeight + growY,
+                anchor.z() + half + growZ);
+    }
+
+    /**
+     * The dimensioned explicit-box form: every playing player IN THE GIVEN
+     * DIMENSION whose body box intersects the bounds earns the stat — the
+     * raw getEntitiesOfType(PlayerEntity.class, box) walk on the acting
+     * world's own player list.
+     */
+    private void awardPlayersInBox(String statKey, int dimension,
+                                   double minX, double minY, double minZ,
+                                   double maxX, double maxY, double maxZ) {
+        for (PlayerSession online : players.all()) {
+            if (online.state() != PlayerState.PLAYING
+                    || online.dimension() != dimension) {
+                continue;
+            }
+            Position at = online.position();
             boolean hit = at.x() + 0.6 > minX && at.x() < maxX
                     && at.y() + 1.8 > minY && at.y() < maxY
                     && at.z() + 0.6 > minZ && at.z() < maxZ;
