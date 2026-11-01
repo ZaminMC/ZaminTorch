@@ -95,6 +95,23 @@ class AnvilBlockIdsIntegrityTest {
             expected.put(key(81, meta), "minecraft:cactus");
             expected.put(key(83, meta), "minecraft:sugar_cane");
         }
+        // The bed's OCCUPIED nibbles (VT-011, BedBlock lines 200-231
+        // derived): the reference writes bit 2 for an occupied HEAD
+        // alone (12-15 — a world saved mid-sleep) and reads it on the
+        // head arm only; metas 4-7 (bit 2 on a foot — unwritable by the
+        // reference's own save path, the editor-corruption band) load
+        // as ordinary feet with the bit ignored. The occupied bit is
+        // above the engine's sleep model, so the facing bits alone are
+        // the answer — every one of the sixteen nibbles loads a bed
+        // state in the reference.
+        String[] bedFeet = {"minecraft:bed", "minecraft:bed_west",
+                "minecraft:bed_north", "minecraft:bed_east"};
+        String[] bedHeads = {"minecraft:bed_head", "minecraft:bed_head_west",
+                "minecraft:bed_head_north", "minecraft:bed_head_east"};
+        for (int band = 0; band <= 3; band++) {
+            expected.put(key(26, 4 + band), bedFeet[band]);
+            expected.put(key(26, 12 + band), bedHeads[band]);
+        }
         collisions.removeIf(collision -> collision.contains("@ id=175 meta=10"));
 
         // Every expected row must resolve to exactly that identifier.
@@ -116,7 +133,7 @@ class AnvilBlockIdsIntegrityTest {
                         + " AnvilBlockIds):\n" + String.join(",\n", missing)
                         + "\nWrong rows:\n" + String.join(";\n", wrong)
                         + "\nUndocumented collisions:\n" + String.join(";\n", collisions));
-        assertEquals(1336, expected.size(), // The vine wire repair's re-pin (1336 = 1321 + the vine family's fifteen face states — previously unwireable, silently skipped by this derivation's legacyId-emptiness arm; with the wire rows every state joins: 106|0 vine_none through 106|14 vine_west_north_east, the bare 106|15 vine already counted. The skip arm's emptiness is now PINNED by LegacyBlockIdsIntegrityTest's whole-registry net — this derivation can never swallow a gap silently again) // The farming growth pass's re-pin (1321 = 1291 + the thirty cane/cactus AGE rows over legacy 81/83 — the accumulators' nibbles flattened to the single types, the farmland moisture band's own precedent) // The rail-rotation pass's re-pin (1291 = 1283 + the plain rail's eight slope/curve rows over wire 66's nibble band 2-9) // The banner/sign rotation re-pin (1283 = 1251 + the banner family's twenty rows over 176/177 (Wave BN-A: the sixteen standing rotations + the wall pair's byId band) + the standing sign's twelve intermediate rotations (the twelfth verifier pass)) // The metadata slice's re-pin (1251 = 1245 + the pumpkin pair's six rotated states over legacy 86/91, the HORIZONTAL-id nibble band 1-3) // The VIII14 decorators slice's fern row (block 31's variant 2) + the surface slice's podzol/coarse_dirt pair (registered at 11577c52 without the pin moving)
+        assertEquals(1344, expected.size(), // The two independent re-pins unified (1344 = 1336 + 8: the vine wire repair's fifteen face states (106's whole nibble band — the wire rows' landing, the skip arm's emptiness now PINNED by LegacyBlockIdsIntegrityTest's whole-registry net) + the bed's OCCUPIED nibble rows (VT-011: 26's residual band 4-7/12-15, the reference's read law covering every one of the sixteen nibbles, the occupied bit above the engine's sleep model so the facing bits alone are the answer)) // The farming growth pass's re-pin (1321 = 1291 + the thirty cane/cactus AGE rows over legacy 81/83 — the accumulators' nibbles flattened to the single types, the farmland moisture band's own precedent) // The rail-rotation pass's re-pin (1291 = 1283 + the plain rail's eight slope/curve rows over wire 66's nibble band 2-9) // The banner/sign rotation re-pin (1283 = 1251 + the banner family's twenty rows over 176/177 (Wave BN-A: the sixteen standing rotations + the wall pair's byId band) + the standing sign's twelve intermediate rotations (the twelfth verifier pass)) // The metadata slice's re-pin (1251 = 1245 + the pumpkin pair's six rotated states over legacy 86/91, the HORIZONTAL-id nibble band 1-3) // The VIII14 decorators slice's fern row (block 31's variant 2) + the surface slice's podzol/coarse_dirt pair (registered at 11577c52 without the pin moving)
                 "the derived table's size (the class's own pinned count; a change means the"
                         + " registry grew — regenerate the class and re-pin this number)."
                         + " The Wave VI fluids band added the 46 still/flowing-0/falling-level"

@@ -77,6 +77,26 @@ class BedWrongWorldBlastAcceptanceTest {
         EngineAwaits.awaitCondition(server.world(),
                 () -> !server.gameRules().getBoolean("doMobSpawning"),
                 40, "the natural spawn cycle is off");
+        // THE BOOT-SEATED SWEEP (run 583's member — the same class the
+        // rule-off above retired going FORWARD): the rule lands only after
+        // start() returns, so whatever hostiles the boot window's own
+        // cycle already seated (the boot-time dawn light's randomized
+        // rule) are still standing — and a boot-seated zombie inside the
+        // sleep gate's ±8/±5 refusal box beside the bed makes the same
+        // 1:1 monster-proximity law refuse the use (the sleep-walk await
+        // starves, exactly run 571's member). The mob-integration seat's
+        // own guard sweeps them; this one now does too.
+        server.ticker().submit(() -> {
+            for (var mob : server.mobs().all()
+                    .toArray(new net.zaminmc.torch.server.entity.MobEntity[0])) {
+                if (mob.type().hostile) {
+                    server.mobs().remove(mob, "the boot-seated sweep");
+                }
+            }
+        });
+        EngineAwaits.awaitCondition(server.world(),
+                () -> server.mobs().all().stream().noneMatch(m -> m.type().hostile),
+                40, "the boot-seated hostiles swept");
     }
 
     @AfterEach
