@@ -364,12 +364,20 @@ class ProjectileManagerTest {
     }
     @Test
     void aBurningArrowPrimesTheTntItOverlaps() {
-        // The reference's per-block entity collision (Entity lines
-        // 665-689 walking the arrow's box, TntBlock.onEntityCollision
-        // lines 91-104 priming every TNT cell a burning arrow overlaps):
-        // a stuck burning arrow on the TNT face primes it; a plain arrow
-        // in the same place never does; a burning arrow away from the
-        // band never does.
+        // The reference's law (VT-019's correction carried): the burning
+        // arrow's TNT consult rides the FLIGHT branch alone — the ray's
+        // stick arm consults the single hit block at ArrowEntity lines
+        // 311-313 (the engine's cell-entered form in resolveCollisions)
+        // and the flight tail's box scan at line 382 (the engine's
+        // burningTntPass, the !inGround gate). A burning arrow that meets
+        // a TNT cell primes it and KEEPS ITS FLIGHT through the opened
+        // cell (the engine's own documented law); the plain arrow in the
+        // same place never does. The rig wires BOTH sinks — the flight
+        // consult's and the pass's — exactly as the real engine wires
+        // both to the one tntSystem; the old rig left the flight sink
+        // dead and pinned the prime on the STUCK arrow's pass, the shape
+        // the reference never produces (the reference's stuck arrow
+        // consults nothing beside its tracked cell).
         java.util.List<net.zaminmc.torch.block.BlockPosition> primed = new ArrayList<>();
         java.util.Set<net.zaminmc.torch.block.BlockPosition> tntCells = new java.util.HashSet<>(
                 java.util.Set.of(new net.zaminmc.torch.block.BlockPosition(10, 40, 10)));
@@ -390,6 +398,18 @@ class ProjectileManagerTest {
                 tntCells.remove(pos);
             }
         });
+        // VT-019's review correction: the flight consult's sink wired too
+        // (the real engine wires both arms to the one tntSystem — the old
+        // rig's dead flight sink is what pinned the prime on the stuck
+        // arrow's pass).
+        manager.setTntIgniteSink((pos, dimension) -> {
+            if (tntCells.contains(pos)) {
+                primed.add(pos);
+                tntCells.remove(pos);
+                return true;
+            }
+            return false;
+        });
 
         // The burning arrow drops onto the TNT cell and sticks on its
         // face (the solid query answers inside the cell alone).
@@ -407,7 +427,13 @@ class ProjectileManagerTest {
         for (int i = 0; i < 20; i++) {
             manager.tick(java.util.List.of());
         }
-        assertTrue(burning.inGround(), "the burning arrow stuck on the TNT face");
+        // The burning arrow NEVER sticks: the flight consult primes the
+        // cell it enters and the walk continues through the opened cell
+        // (the engine's own law at resolveCollisions' burning-TNT arm;
+        // the reference's own composition — the stuck arrow that primed
+        // at the stick un-sticks the next tick when the cell opens, so
+        // twenty ticks later it is flying/fallen in BOTH worlds).
+        assertTrue(burning.inGround() == false, "the burning arrow keeps its flight through the opened TNT cell");
         assertTrue(plain.inGround() == false, "the control keeps falling past its plain cell");
 
         assertTrue(primed.contains(new net.zaminmc.torch.block.BlockPosition(10, 40, 10)),

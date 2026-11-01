@@ -995,11 +995,23 @@ public final class ProjectileManager {
     /**
      * The burning arrows' per-block TNT walk (the reference's
      * checkBlockCollisions, Entity lines 665-689, over the TntBlock's
-     * onEntityCollision, lines 91-104): every burning arrow — in flight
-     * or stuck in the ground — walks the cells its 0.5 box overlaps (the
-     * faces shrunk by the reference's 0.001) and primes every TNT cell
-     * found. The engine's point-model walks the 0.25 band around the
-     * flight position (the box-center envelope).
+     * onEntityCollision, lines 91-104): every burning arrow IN FLIGHT
+     * walks the cells its 0.5 box overlaps (the faces shrunk by the
+     * reference's 0.001) and primes every TNT cell found. The engine's
+     * point-model walks the 0.25 band around the flight position (the
+     * box-center envelope).
+     *
+     * <p>VT-019 — the {@code !inGround} gate (ArrowEntity.tick line
+     * 382: the reference calls {@code checkBlockCollisions} from the
+     * FLIGHT branch alone, the {@code else} the inGround check opens at
+     * line 188; the stuck branch at 172-187 runs the stick clock and the
+     * tracked-cell identity consult only — a stuck burning arrow primes
+     * NOTHING beside the block it stuck into, the stick arm's own
+     * single-hit-block consult at lines 311-313). The gate also aligns
+     * the tracked-cell-to-TNT swap's timing with the reference: the
+     * un-stick tick ends the stuck branch (no scan that tick) and the
+     * flight scan runs from the NEXT tick — the ungated pass primed on
+     * the swap tick itself, one tick early.</p>
      */
     private void burningTntPass() {
         if (burningTnt == null) {
@@ -1007,7 +1019,9 @@ public final class ProjectileManager {
         }
         for (int i = projectiles.size() - 1; i >= 0; i--) {
             ProjectileEntity projectile = projectiles.get(i);
-            if (projectile.kind() != ProjectileEntity.Kind.ARROW || !projectile.burning()) {
+            if (projectile.kind() != ProjectileEntity.Kind.ARROW
+                    || !projectile.burning()
+                    || projectile.inGround()) {
                 continue;
             }
             Position at = projectile.position();
