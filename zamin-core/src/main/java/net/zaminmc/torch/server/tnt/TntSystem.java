@@ -203,6 +203,12 @@ public final class TntSystem implements WorldChangeListener {
     private final RedstoneSystem redstone;
     private final SolidityProbe solidAt;
     private final DetonationSink explode;
+    /**
+     * The routed signal consult (VT-036 — the solidAt/explode form): the
+     * acting dimension's OWN redstone answers the neighbor-signal walk,
+     * never the constructor world's system alone.
+     */
+    private final java.util.function.IntFunction<RedstoneSystem> redstoneFor;
     private final FxManager fx;
     private final Random random;
     private final List<Listener> listeners = new ArrayList<>();
@@ -214,15 +220,21 @@ public final class TntSystem implements WorldChangeListener {
      *                explosion center, the power) — the engine's own
      *                dimension-routed explosion walk (blocks, wounds, the
      *                Explosion packet).
+     * @param redstoneFor the dimension's redstone router (the acting
+     *                    world's signal consult — the reference's
+     *                    {@code world.hasNeighborSignal} on the ACTING
+     *                    world, TntBlock lines 38-43 + 51-56)
      */
     public TntSystem(EngineWorld world, RedstoneSystem redstone,
                       SolidityProbe solidAt,
                       DetonationSink explode,
+                      java.util.function.IntFunction<RedstoneSystem> redstoneFor,
                       FxManager fx, Random random, int firstEntityId) {
         this.world = world;
         this.redstone = redstone;
         this.solidAt = solidAt;
         this.explode = explode;
+        this.redstoneFor = redstoneFor;
         this.fx = fx;
         this.random = random;
         this.nextEntityId = firstEntityId;
@@ -329,24 +341,37 @@ public final class TntSystem implements WorldChangeListener {
      * The neighbor arm (TntBlock.neighborChanged lines 51-56): a position
      * heard a change — power at it primes the block. Registered on the
      * redstone system's cross-system neighbor bus. Tick-thread context.
+     * The position-only form serves the constructor world's bus (the
+     * overworld registration); the world-carrying form serves every
+     * dimension's bus (VT-036 — the reference's neighborChanged receives
+     * the ACTING world).
      */
     public void neighborHeard(BlockPosition pos) {
-        if (isTnt(world.getBlock(pos))) {
-            checkIgnite(world, pos);
+        neighborHeard(world, pos);
+    }
+
+    /** The dimension-carrying neighbor arm (each redstone bus's own world). */
+    public void neighborHeard(EngineWorld actingWorld, BlockPosition pos) {
+        if (isTnt(actingWorld.getBlock(pos))) {
+            checkIgnite(actingWorld, pos);
         }
     }
 
     /**
      * The signal check (TntBlock lines 36-43 + 51-56): power primes the
-     * block. The WRITE routes the acting world's own cells; the SIGNAL
-     * consult rides the redstone system's own binding (the system's
-     * constructor world — the overworld's bus — the redstone family's own
-     * per-dimension pass is the FL4 ledger's named tail), so a foreign
-     * dimension's arrival never consults the overworld's signal at the
-     * foreign coordinates.
+     * block. The WRITE routes the acting world's own cells (Wave FL4-F7)
+     * and the SIGNAL consult rides the ACTING dimension's redstone
+     * (VT-036 — the reference's {@code world.hasNeighborSignal(pos)} on
+     * the acting world; the pre-fix {@code actingWorld == world} gate was
+     * the FL4-F10 honest tail, the overworld bus refusing every nether/End
+     * prime outright).
      */
     private void checkIgnite(EngineWorld actingWorld, BlockPosition pos) {
-        if (actingWorld == world && redstone.neighborSignal(pos) > 0) {
+        RedstoneSystem actingRedstone = redstoneFor.apply(actingWorld.dimension());
+        if (actingRedstone == null) {
+            actingRedstone = redstone; // the boot window's defensive fallback
+        }
+        if (actingRedstone.neighborSignal(pos) > 0) {
             ignite(actingWorld, pos, FUSE_TICKS);
         }
     }
