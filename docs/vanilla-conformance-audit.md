@@ -5114,3 +5114,157 @@ CONTRACT against the #126 tree (`PistonBreakDropParityDiscoveryTest`).
 material table (#126), the entity gate (#129), and the toBreak drop
 consult (#131) all answer the reference's census, each through its
 own three-pass discipline and its own PR.
+
+
+## The forty-first pass — the numbering arbitration (VT-024 owned by the arrow pickup envelope; the piston toBreak renumbered VT-025) + VT-024's Phase E LANDED (PR #132 the carrier, the convergence with the strict-cap review correction) + the item/orb pickup family's census
+
+**THE PASS'S FIRST ACT — the VT-024 numbering collision resolved
+(the public-first protocol, the VT-012→VT-013 and VT-020/VT-021
+precedents):** two public VT-024 claims existed — the pass-38 lane's
+arrow pickup envelope (this lane's own finding, pushed publicly on
+`audit/verifier-pass-38-discovery` at **06:42:44**, commit `92fe4440`
+the record) and the pass-39 lane's closing renumber of PR #131's
+piston toBreak draft to VT-024 (`2cd4669c`, pushed **07:08:45**,
+believing the number free — the pass-38 branch's claim predates the
+push by 26 minutes and was not visible to that lane's fetch). By
+public-first: **VT-024 = the arrow pickup envelope** (the correction
+now PR #132); **the piston toBreak renumbers VT-025** — the
+arbitration note posted on PR #131
+(https://github.com/ZaminMC/ZaminTorch/pull/131#issuecomment-6554981600)
+and the PR retitled to match. **The next free number is VT-026.**
+
+**A second stale-base collision named for its lane (the world-border
+nether containment):** the spawn-stamp lineage
+(`audit/vt-013-postfan-stamp`, pushed 06:54:07) drafted its world-
+border nether containment finding as **VT-014** from a fork base
+(`6b29c46f`-era) that predates the projectile findings — the
+arrow-stick VT-014 has been publicly owned since the pass-33/34/35
+lanes' convergence and PRs #117/#122. By public-first the arrow-stick
+finding owns VT-014; the world-border nether containment finding
+renumbers to **VT-026** (the next free number after this pass's
+arbitration). No PR carries it yet (its lane's record says
+fix-ready); the renumber rides this record so the lane's next run
+and any reviewer see it before a PR is cut. The finding itself —
+the nether's border containment consults reading the overworld's raw
+center where vanilla reports the center at /8 — is untouched by the
+renumber; only the ID moves.
+
+**THE PASS'S SECOND ACT — VT-024's Phase E, the correction LANDED:**
+
+- **The control re-verified on the fresh baseline:** the three
+  discovery arms RED 3/3 on develop `149eb1f0` (the FL4-GAP2 Slice B
+  head — ProjectileManager untouched by the slice, confirmed by
+  diff) at exactly the predicted shapes, before the fix was cut.
+- **The fix branch** `fix/arrow-pickup-envelope-parity-audit` cut
+  from `origin/develop` `149eb1f0`: the three-form correction —
+  `maxHorizontal = PLAYER_HALF_WIDTH + PICKUP_GROWTH_HORIZONTAL +
+  ARROW_HALF_WIDTH` = 1.55 (the player's half-width carried as the
+  named constant, the reference's `setSize(0.6F, 1.8F)` line 424);
+  `arrowBottom = y`, `arrowTop = y + ARROW_HEIGHT` = y + 0.5 (the
+  feet law's box, `Entity.setPosition` lines 240-247 — the position
+  IS the box bottom); **the STRICT cap** `dx >= maxHorizontal`
+  refuses (`Box.intersects` lines 164-171 — `!(box.minX >=
+  this.maxX) && !(box.maxY <= this.minY) && ...`: exactly touching
+  boxes do NOT intersect; the pre-fix `dx > cap` form collected at
+  exact equality where the reference refuses).
+- **THE CONVERGENCE (the #123 precedent, again):** the sibling lane
+  pushed the same head `fix/arrow-pickup-envelope-parity-audit` at
+  **07:22:50** and opened **PR #132** at 07:23:08 — while this
+  lane's seats ran. The two constructions are functionally
+  IDENTICAL in the core (verified by direct tree diff: the same
+  constants `PLAYER_HALF_WIDTH = 0.3` / `ARROW_HEIGHT = 0.5`, the
+  same `maxHorizontal` sum, the same feet-law box) — **no competing
+  PR; #132 is the carrier.** This lane's construction preserved on
+  `fix/arrow-pickup-envelope-parity-audit-b` (`07c180aa`).
+- **THE ONE REVIEW CORRECTION carried to #132 (the convergence
+  note,
+  https://github.com/ZaminMC/ZaminTorch/pull/132#issuecomment-6554964951):
+  the cap's comparison must be STRICT.** #132's `dx >
+  maxHorizontal` passes the cap at `dx == 1.55` exactly — the
+  exactly-touching arrow collects where the reference's
+  `Box.intersects` refuses. The probe (deterministic, exactly
+  constructible in doubles: the player at x=0.0, a stuck arrow at
+  x=1.55 — the subtraction `1.55 − 0.0` is exact): **RED on #132's
+  tree** (`expected: <0> but was: <1>` — collected), **GREEN on the
+  strict form** (`dx >= maxHorizontal`, the -b branch). One
+  operator; the -b branch's arm E carries the pin so a future edit
+  cannot silently revert it. The vertical comparisons are already
+  strict in both trees (the exact vertical touches verified GREEN on
+  both: the arrow top at the grown floor `3.0+0.5 == 4.0−0.5`, the
+  arrow bottom at the grown ceiling `4.0+1.8+0.5`).
+- **THE SEATS** (`ArrowPickupEnvelopeParityDiscoveryTest`, the -b
+  branch's five-arm form): the three discovery arms + **arm D** the
+  last hair inside the reach (dx = 1.55 − 1e-9 collects — RED on
+  develop too) + **arm E** the exact touches never collect (the
+  horizontal hair past the face, the arrow top EXACTLY at the grown
+  floor, the arrow bottom EXACTLY at the grown ceiling — the pins
+  guard the strict form; a naive non-strict "fix" breaks arm E).
+  5/0 GREEN on the -b tree; **5/0 GREEN on #132's tree as well**
+  (the two constructions agree everywhere the arms probe — the sole
+  divergence is the exact horizontal equality the probe isolates).
+- **THE REGRESSION LANES** (this lane's runs): the projectile
+  package 48/0, the neighbor combat/TNT lanes 32/0 (RangedCombat
+  10, ExplosionEntityGather 9, ExplosionFireArm 4, the
+  dimension-routing/TNT/redstone lanes), the item/orb pickup
+  families 37/0 (ItemThrowerPickup, the experience package,
+  ItemPersistence) — 117/0 over the touched families.
+- **A boundary hair named for the record, not a claim:** the
+  reference computes the player's half-width in float precision
+  (`0.6F/2.0F = 0.30000001192092896`), so the true vanilla boundary
+  sits at ≈1.5500000119 rather than the double 1.55 — a 1.2e-8 hair
+  below the engine's double-constant convention (every landed
+  pickup-family fix uses doubles; float-derived constants would be
+  a cross-cutting change of their own).
+
+**THE PASS'S THIRD ACT — the item/orb pickup family's census
+(VT-024's named follow-up, the class walk):**
+
+- **The horizontal form is ALREADY CORRECT in both siblings:**
+  `ItemEntityManager.withinPickupRange` line 365 and
+  `ExperienceOrbManager` line 402 both carry `0.3 + HALF_WIDTH +
+  PICKUP_GROWTH_HORIZONTAL` — the player's half-width present; the
+  arrow was the family's odd one out (now corrected by #132).
+- **The vertical forms are the symmetric box in the family's
+  documented CENTER-position convention:** `bottom = position.y −
+  HALF_HEIGHT` — NOT the arrow's shifted-envelope defect. The item/
+  orb families model the position as the box CENTER by design (the
+  Wave ENV landed law, `ItemEntity`'s own javadoc: "the engine's
+  bottom = position.y − HALF_HEIGHT", every consult site — the
+  -0.2 clip cell, the support cell, the lava cell, the
+  slipperiness cell — translating) — internally consistent, the
+  observable box the same as the reference's feet-law box at the
+  same site.
+- **The named tail: the shared non-strict cap.** Both siblings use
+  the `>` comparison (`dx > maxHorizontal` passes at equality) —
+  the exact-touch divergence VT-024's probe demonstrated for the
+  arrow applies to the item and orb pickups too (the reference's
+  `Box.intersects` refuses exactly-touching boxes on every face).
+  A one-operator correction each, the same strict form; its own
+  discovery pass owed (the seats must be constructed per family —
+  the item at dx exactly 1.425, the orb at its own cap — before
+  any PR, the three-pass discipline).
+
+**The next run's queue (the forty-first pass's close):**
+1. **The merge watch** (the open set): #108/#109/#110/#111/#113/
+   #114/#116/#117/#118/#119/#120/#121/#122/#123/#124/#125/#126/
+   #128/#129/#130/#131/#132 — after the arrow family's carriers
+   merge, the bobber's parallel un-stick arm (VT-015's named
+   follow-up) and the stick-tick residue slice (the thirty-ninth
+   pass's fifth act, RED on the #123+#128 union) are the projectile
+   family's standing items.
+2. **The item/orb non-strict cap** (the census's named tail above)
+   — the per-family seats first, the three-pass discipline.
+3. **F-SP1's passes** (the support-consult family — the 38b lane's
+   source pass the record; the behavioral seats owed).
+4. **The dimension tails** (the PR #90 ledger): the FX dimension
+   awareness, the per-dimension world border (the renumbered
+   VT-026's lane), the zombie arm's world binding; Slice C/D of
+   the container architecture.
+5. **The blast RNG tail** (VT-007's named tail): the End/nether
+   services' shared `gameplayRandom` vs the reference's per-world
+   `world.random`.
+6. **The report union's remaining lanes** (bookkeeping): the
+   spawn-floor lane (`audit/verifier-pass-38b-discovery`) and the
+   spawn-stamp lineage (`audit/vt-013-postfan-stamp`) are NOT yet
+   merged into this union — their records ride their own branches;
+   the next run's first act if the clock permits.
