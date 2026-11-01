@@ -98,8 +98,9 @@ carve already carries).
 ## F-DS1 — the double slab's collision row (the twentieth pass's suspected finding, this pass's verification)
 
 **Subsystem:** block collision shapes / entity physics (every family).
-**Status:** CONFIRMED — all three verification passes complete this run
-(the history below); fix-ready.
+**Status:** RESOLVED-BY-PR — **PR #118 OPEN** (`fix/double-slab-collision-parity-audit`,
+`807cb0ec`, all three passes complete this run; the correction record
+below).
 
 **Affected engine files and methods:**
 - `server/block/CollisionShapes.java` — `boxesOf` ~lines 332-340: the
@@ -177,23 +178,64 @@ choice.
    blacksmith's `doubleStoneSlab`).
 2. **Behavioral verification (this run, pass 2):** the focused seat
    `DoubleSlabCollisionParityTest` — the stash discrimination: RED on
-   the baseline at exactly the predicted values (the rest surface 64.5
-   where vanilla answers 65.0; the upper-half point test false where
-   vanilla answers true; `isFullCube` false), GREEN with the one-row
-   correction. The seat's record rides the correction entry below.
+   the baseline at exactly the predicted values (the rest surface
+   **64.5** where vanilla answers **65.0** — both families, the exact
+   mid-line sink; the item's rest **4.625** where vanilla answers
+   **5.125** — the half-block sink through the real landing walk; the
+   vine support **false** where vanilla answers true), GREEN **5/5**
+   with the one-arm correction (the singles' half laws beside them
+   passing on BOTH trees — the in-seat regression guard).
 3. **Independent re-verification (this run, pass 3):** the compensating
    census — the engine's OWN `BlockSolidity.isCube` (lines 93-97)
    already carves the double forms into the cube set with the
    reference's own citation (`SlabBlock.isCube() = isDouble()`), so the
    placement/support consults answer cube while the physics table
-   answers half — the internal contradiction; no existing test pins the
-   double's half-height row (`CollisionShapeTest`'s slab seats pin the
-   SINGLES alone; `DoubleWoodenSlabTest` pins the registration band,
-   the drops, the light — never the collision row), so nothing needs
-   weakening; the regression lanes whole (the record below); and the
-   intentionality challenge — the engine's own `isCube` carve and the
-   `slab2`/`seamless` fall-through demonstrate the family's INTENT is
-   the full cube, the suffix arms an implementation accident.
+   answers half — the internal contradiction; **`FireBlocks`'s own
+   comment states "a double slab is a full cube"** with the
+   `!value.startsWith("double_")` carve (the fire family's
+   solid-top consult) — the house's established convention for this
+   exact accident class, the fix's own shape following it; no existing
+   test pins the double's half-height row (`CollisionShapeTest`'s slab
+   seats pin the SINGLES alone; `DoubleWoodenSlabTest` pins the
+   registration band, the drops, the light — never the collision row),
+   so nothing needs weakening; the whole-repository suffix census
+   (`endsWith("_slab")` across main: the ONE sibling site
+   `NaturalSpawnSystem.isPartialShape` — VT-012's own lane, NOT this
+   PR; `RedstoneSystem.trapdoorMountHolds` name-based with the
+   double's row already agreeing with vanilla's hasSolidTop=true; the
+   held-id dispatch `EngineServer` ~12210 and the dormant
+   `woodenSlabFamilyOf` unaffected); the regression lanes whole (the
+   record below); and the intentionality challenge — the engine's own
+   isCube carve and the `slab2`/`seamless` fall-through demonstrate the
+   family's INTENT is the full cube, the suffix arms an implementation
+   accident.
+
+**The correction (PR #118, branch `fix/double-slab-collision-parity-audit`,
+commit `807cb0ec`):** one arm in `boxesOf` BEFORE the singles' rows —
+the `double_` prefix over the four family suffix shapes (`_slab`,
+`_slab2`, `_slab_seamless`, `_slab2_seamless`), the same vocabulary the
+`BlockSolidity.isCube` carve carries; the ten half-row names corrected
+and the three already-correct fall-throughs pinned by the same row (the
+family whole under one row). The seat `DoubleSlabCollisionParityTest`
+5/0: the two families' full-cube rows (the ceiling rest surface, the
+solid upper half, `isFullCube`), the singles' half laws beside them
+(the in-seat guard), the item body seat over the real consults (the
+5.125 ceiling rest), the vine grow support.
+
+**The regression lanes (the fix branch, all green):** the block package
+whole (`CollisionShapeTest`, `StairsCollisionGeometryTest`,
+`DoubleWoodenSlabTest`, `WoodShapeBlocksTest`, the families); the chest
++ spawn lanes; the entity package whole (`InWallSuffocationTest`,
+`MobSolverWalkTest`, `ItemSolverPhysicsTest`, `FallingBlockEntityTest`,
+the vehicle/projectile/ai lanes); `ItemOrbLandingPhysicsParityTest`;
+`ItemBoxPhysicsAcceptanceTest`; the physics package; the world +
+interaction lanes; `zamin-bukkit` + `zamin-api` whole; the protocol
+module's wire lanes (`LegacyBlockIdsIntegrity`, `ChunkSerializer18`,
+`AnvilBlockIdsIntegrity`, `ChunkBulkWire`, `MultiBlockChangeWire`) —
+the module has NO cross-module consumer of the changed class
+(grep-verified). **The named tail:** the FULL protocol suite exceeded
+the run's time budget (the 10-minute timeout); the targeted wire lanes
+stand in for it — the next run's watch item.
 
 **Confidence and remaining uncertainties:** the law is pinned by the
 reference's own shape walk; the only named tail is the SURVIVAL
@@ -1810,7 +1852,7 @@ VERDICT: the crossing law and four of the five seats verified sound by
 independent execution; the item seat needs the corner form before
 merge (the review comment carries the one-line patch).
 
-## Coverage ledger (updated by the twenty-seventh pass)
+## Coverage ledger (updated by the twenty-eighth pass)
 
 | Area | Status |
 |---|---|
@@ -1836,6 +1878,10 @@ merge (the review comment carries the one-line patch).
 | Explosions — dimension routing | AUDITED this pass (the twenty-sixth): the call-site census whole — the primed TNT (FL4-F7) and the End crystal (Slice 62) correct; the ghast fireball and wither skull sinks pass the routed world with the OVERWORLD service, the creeper/wither-birth/TNT-cart wrappers bind the overworld outright, and the shared drop roll stamps dimension 0 (**VT-007: the CORE resolved by PR #100** — another stream's honest convergence with this census, the overlap recorded, PR #103 closed as superseded; **the CART slice PR #105 OPEN** — the BlastSink dimension carry, the stash-discriminated seat nether=0/overworld=18 unfixed; the fireball + creeper seats 2/0 green on post-#100 develop, the independent confirmation riding in #105). The blast WOUND walks are routed (the dimension gate + the blastWorld consult); the fire placement is routed (F-EX4/PR #92); the named tail: the End/nether services' shared `gameplayRandom` vs the reference's per-world `world.random` |
 | Item entities / pickup — dimension | the TF-9 stamped sites are the record; the pickup consult un-audited
 
+| Collision shapes — the double slabs' full-cube row | **RESOLVED-BY-PR #118** (F-DS1: the twenty-eighth pass's three-pass verification — the ten `_slab`-suffixed doubles carried the HALF box; the rest walks, the side-entry, the isFullCube family all poisoned; the one-arm carve, `DoubleSlabCollisionParityTest` 5/0) |
+| Natural spawn — the spawn floor's slab consult | VT-012 SUSPECTED (the twenty-eighth pass: `isPartialShape`'s suffix arm rejects the same ten doubles where vanilla's `hasSolidTop` first arm accepts them; its own passes owed) |
+| The slab-family suffix census | INSPECTED this pass (the whole-repository `endsWith("_slab")` census: `BlockSolidity.isCube` and `FireBlocks` already correct with the `double_` carve — the house convention; `CollisionShapes` corrected by PR #118; `NaturalSpawnSystem` VT-012's lane; `RedstoneSystem.trapdoorMountHolds` name-based, the double agreeing, the SINGLES' rows F-SP1's lane; the held-id dispatch and the dormant `woodenSlabFamilyOf` unaffected) |
+
 ## The queue for the next pass
 
 1. ~~The VT-003 fix branch~~ — LANDED (PR #89, `IceFamilyParityTest` 11/0,
@@ -1846,11 +1892,11 @@ merge (the review comment carries the one-line patch).
    family arms; PR #90 took the remaining dig/place GENERIC surface,
    `DigPathDimensionParityTest` 4/0).
 4. ~~VT-004's verification pass 3~~ — DONE (the twenty-third pass; the
-   correction is **PR #91** — its merge state to be confirmed by the
-   next run; the seat rides green on the fix branch).
+   correction **PR #91 MERGED** — confirmed by the twenty-eighth pass's
+   merge-state read).
 5. ~~VT-005's verification~~ — DONE (the twenty-fourth pass; the
-   correction is **PR #94** — the merge state to be confirmed by the
-   next run).
+   correction **PR #94 MERGED** — confirmed by the twenty-eighth pass's
+   merge-state read).
 6. ~~VT-006's correction~~ — the WHOLE family LANDED: the mobs by
    **PR #98 (MERGED)** and the remaining families (the items, the
    orbs, the boats, the carts, the arrows) converged — **PR #110 OPEN**
@@ -1872,18 +1918,25 @@ merge (the review comment carries the one-line patch).
    3/0 GREEN on the post-merge develop + the independent pass's five
    fresh angles — **PR #102 MERGED**, the coverage complete, no fix
    owed; VT-008 closed).
-8. The standing lanes — F-EC1 RESOLVED-BY-PR (**PR #95**, the merge
-   state to be confirmed by the next run); F-TC1 resolved by PR #87's
-   merge. The F-SP1 support-consult family and F-DS1 (the double
-   slab's collision row) remain suspected from the twentieth pass's
-   record — their passes owed.
+8. The standing lanes — F-EC1 RESOLVED-BY-PR (**PR #95 MERGED** —
+   confirmed by the twenty-eighth pass's merge-state read); F-TC1
+   resolved by PR #87's merge. ~~F-DS1 (the double slab's collision
+   row)~~ — **RESOLVED-BY-PR #118** (the twenty-eighth pass: all three
+   passes complete, the correction and the seat on
+   `fix/double-slab-collision-parity-audit`). The F-SP1
+   support-consult family remains suspected from the twentieth pass's
+   record — its passes owed (the trapdoor mount consult's single-slab
+   rows surfaced during this pass's suffix census join that lane).
 9. The newly-ledgered dimension tails (each its own discovery pass, the
    PR #90 ledger): the per-dimension tile families, the mob spawn's
    dimension stamp, the FX dimension awareness, the per-dimension world
    border, the zombie arm's world binding.
-10. The watch items: the open PRs #91 (VT-004's stand-clock
-   correction, the merge state to be confirmed) and #105 (VT-007's
-   TNT-cart slice); the concurrent streams' NEW open findings — #106
+10. The watch items: ~~#91~~ and ~~#105~~ MERGED (the twenty-eighth
+   pass's merge-state read — VT-007 whole); #89 closed superseded (the
+   corrections adopted as riders at `d6614da3`, the opacity-gate row
+   included) and #107 landed at `98ded357` — both dispositions
+   confirmed this pass; **PR #118 (F-DS1's correction) the new watch
+   item**; the concurrent streams' open findings — #106
    (VT-009 the break-path pair walks' own world), #107 (VT-009 the mob
    portal cooldown's one-per-tick decay — the PR #98 leftover row,
    ADJACENT to this stream's own boundary observation), #111 (VT-010
@@ -1897,3 +1950,11 @@ merge (the review comment carries the one-line patch).
    binding — the house stream's own claimed next act (its trace and
    six-point plan recorded at `99f1718b` on develop) — NOT to be
    duplicated by this stream.
+11. The twenty-eighth pass's own tails: **VT-012's** remaining passes
+   (the behavioral seat over the natural spawn floor — a spawn attempt
+   on a double-slab column; the independent pass's compensating
+   census) before its own fix branch; **F-SP1's** passes (the support
+   consult family — the torch/rail/wire/lever/button mounts and the
+   trapdoor consult's single-slab rows); and the FULL protocol suite
+   over the F-DS1 branch (the 10-minute timeout tail — the targeted
+   wire lanes already green).
