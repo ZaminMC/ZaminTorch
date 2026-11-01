@@ -1459,11 +1459,12 @@ effective law for the vanilla dimensions).
 | Portal mechanics — the riding gate (vehicle == null && rider == null) | VT-005 CONFIRMED (three passes — source, the pig-in-portal behavioral seat, the dismount-control independent pass) and **RESOLVED by PR #94 (MERGED)**; the seat's own hardening (the unlit-frame/same-submit-mount protocol, the PR-wave merge repair `3ca299e2`) survived the pass-27 carry-forward clobber only through the twenty-eighth pass's restoration — the seat 2/0 green on the #108 branch |
 | Drops — the TF-9 dimension stamp | LANDED by PR #90 (the dig/place walks stamp `world.dimension()`; the tile-family spill sites remain the per-dimension tile tail) |
 | Tile families — per-dimension stores | NOT INSPECTED as its own pass (the PR #90 ledger: the furnace/chest/skull/banner spill + cleanup ride the single-instance managers — the FL4 fluids/fire precedent applies; the nether tile placement/cleanup is its own architectural pass) |
-| Mob spawns — the dimension stamp | **VT-012 CONFIRMED — three passes complete (the twenty-ninth pass), the correction fix-ready**: the live spawn walks beyond the natural cycle never stamp the body's dimension — fourteen unstamped sites censused (eggs use+dispenser, the pearl's endermite, /summon mobs+stands+group, the wither, the spawner cart, the mooshroom shear, the infection, the cure, the slime split, breeding, the golems, the infested burst), seven correctly-stamped precedents beside, the pigman portal RETIRED (the reference's `isNatural()` gate); the seats RED on develop (`SpawnDimensionStampAcceptanceTest`), the pass-3 walk sharpens the damage — the wrong-stamped monster NEVER despawns (the roll requires a same-dimension player) — a permanent invisible ghost; the fix branch is the next run's head |
+| Mob spawns — the dimension stamp | **VT-012 RESOLVED IN FLIGHT — PR #125 OPEN** (the correction landed on `fix/spawn-dimension-stamp-parity-audit` off develop 777b7c86): the dimension-aware spawn core — `spawnAt(type, position, dimension)` stamps the body BEFORE the spawn fan (the reference's construction law, Entity line 166 — the wire's `sendMobSpawn` gate reads the stamp at the event, so a post-return stamp can never repair the publish), the dimensionless arm INHERITS the armed VIII14 context (the nether cycle's and reinforcement's dice preserved, their bodies now born stamped); all fourteen sites routed (eggs use+dispenser, the pearl's endermite, /summon mobs+stands+group, the wither, the spawner cart's three dimension-filtered gates, the mooshroom shear, the infection, the cure, the slime split, breeding, the golems, the infested burst), the silverfish wake scan routed through the waking body's own world; the seats green 3/3 on the fix, RED at exactly the two nether members on unfixed develop (the stash discrimination), the entity package whole 578/0, the family lanes + the bukkit module green. The one residual the fix surfaced: **VT-013 suspected** — the remaining post-stamp precedents (the block spawner, the dragon, the chicken egg) still stamp after the fan, their live spawn publishes reading 0 at the event |
 | Break-path pair walks (door/bed sibling cleanups) — dimension routing | RESOLVED (the twenty-eighth pass, the parallel stream): **VT-009** CONFIRMED three passes and corrected as **PR #106 OPEN** (`fix/pair-break-dimension-parity-audit`: the `BlockBrokenHook` three-arg listener, the parameterized walks; the parity pin 3/0 + the regression lanes 75/0) |
 | Bed pair — the sibling resolution model | RESOLVED by the parallel stream's **PR #111 OPEN** (`fix/bed-pair-facing-resolution-parity-audit`, commit 8b1eefb0: the facing-exact helper shared by the four walks, the block-class membership, the anchor-state detonate removal; the parity pin 4/0 GREEN on the fix, 4/4 RED pre-fix by the stash discrimination; the regression lanes 104/0) — three passes complete on its lineage (the census + the three RED seats + the wire/legacy suffix-consistency walk: the id family IS the reference's metadata space; the class-membership sub-divergence pinned) |
 | Anvil import — the bed's OCCUPIED nibbles (26: metas 12-15 the reference persists for occupied heads, 4-7 the editor-corrupted feet) | RESOLVED by the parallel stream's **PR #115 OPEN** (`fix/bed-occupied-anvil-import-parity-audit`, commit 512b0c09: the eight rows + the javadoc band + the integrity test's expected bands, the count re-pinned 1321 → 1329; the parity pin 2/0 GREEN, the anvil family 47/0, the drift guard 2/0, the protocol block-id lanes 15/0) — **VT-011**, three passes complete (the source law, the behavioral seats 2/2 RED with the import's own ledger rows in the failure messages, the lifecycle walk) |
 | Block-update wake (BlockUpdateSystem.runUpdate, RedstoneSystem.neighborChanged) — world binding | SURFACED as VT-009's pass-3 non-compensation evidence (the parallel stream): BOTH reads consult the overworld field (the changed-world parameter ignored in the six-neighbor dispatch) — the house stream's FL4-F10 lane LANDED on develop (`0328e92f`), NOT duplicated; the door/bed seats are the evidence cross-reference |
+| Spawn precedents — the post-fan stamp ordering | **VT-013 SUSPECTED** (surfaced by VT-012's fix work): the block spawner, the End dragon, and the chicken egg post-stamp after `spawnAt` returns, so their live `onMobSpawned` publishes (the wire's Slice 25d gate) read the un-stamped 0 at the event — a nether spawner's body invisible at its own spawn moment to the nether player beside it; three verification passes owed, the fix shape VT-012's own dimension-aware arm |
 | FX broadcasts — the dimension awareness | NOT INSPECTED (the FxManager position-only API; the PR #90 ledger) |
 | World border — per-dimension | NOT INSPECTED (the reference's per-World border vs the engine's shared one; surfaced by the dig-start gate review) |
 | Zombie/mob arms — world binding | NOT INSPECTED (the zombie door-break consults the overworld field; surfaced by PR #90's cleanup threading) |
@@ -1684,11 +1685,46 @@ landed this run.
 
 ## VT-012 — the live spawn walks beyond the natural cycle never stamp the body's dimension: every mob born through the non-natural entry points carries the overworld's 0, whatever dimension it is born in
 
-**Status: CONFIRMED — three passes complete (the correction is
-fix-ready; the fix branch is the next run's head).** Priority tier 2
+**Status: PR #125 OPEN — the correction landed** (`fix/spawn-dimension-stamp-parity-audit`,
+commit `bd82568d`, off develop `777b7c86`; three verification passes
+complete before the fix, the seats and the discrimination riding the fix
+branch). Priority tier 2
 (major gameplay and simulation mismatch — invisible permanent ghosts,
 phantom spawns, wrong-world physics reads, and a wrong persistence row,
 one root cause, many riders).
+
+**The fix's one law beyond the proposed per-site stamps** (discovered
+when the first per-site shape failed its own seat): the stamp must land
+BEFORE the spawn fan, not after `spawnAt` returns. The reference's
+construction law — **Entity's constructor line 166**
+(`this.dimension = world.dimension.getId()`) — means the dimension
+exists at birth, before any spawn event; the engine's `onMobSpawned`
+fan (the protocol server's `sendMobSpawn` reads the stamp AT the event,
+V18ProtocolServer's listener → the Slice 25d gate) only sees the born
+dimension if the stamp lands inside the spawn. A post-return stamp
+repairs the persistence row and the tick walk but NEVER the live
+publish — the nether player still never sees the body spawn. The fix
+therefore carries the dimension into the spawn itself:
+`spawnAt(type, position, dimension)` arms the VIII14 `spawnDimension`
+field (the zombie door-break/equipment/leader dice consult the ACTING
+dimension's local difficulty — the `spawnNaturalNether` precedent's own
+field law), constructs through `spawnAtCore`, and stamps the body
+before `mobs.add` + the listener fan. The dimensionless 2-arg arm
+INHERITS the armed context (the nether natural cycle and the zombie
+reinforcement arm the field around their calls, and the armed context
+IS their birth dimension — their dice preserved, their bodies now born
+stamped; unarmed callers keep the field's 0, today's behavior exactly).
+All fourteen sites route their acting dimension through the new arms,
+the spawner cart's three `SpawnHost` gates become dimension-filtered
+(reading `worldFor(dimension)` per the reference's `getWorld()`), the
+silverfish wake scan routes through the waking body's own world (the
+TF-9 convention), and the wither's dimension threads through
+`SkullManager.trySummonWither`'s signature. Evidence: the stash
+discrimination (the seat RED at exactly the two nether members on
+unfixed develop, `expected: <-1> but was: <0>`, the overworld control
+green; green 3/3 on the fix — through the real `useItemOnBlock` and
+`submitChat` entry points), the entity package whole 578/0, the family
+lanes + the bukkit module green.
 
 **Affected ZaminTorch files and sites** (the unstamped `spawnAt`
 family — every site confirmed to call `MobManager.spawnAt`/`spawnFromEgg`
@@ -1847,9 +1883,39 @@ correct side).
 
 **Branch:** `audit/vt-012-spawn-dimension-stamp` (the discovery record
 and the seats; renamed from the collided `audit/verifier-pass-29-discovery`
-name the parallel stream owns). The fix branch owed: the per-site
-stamps off the latest develop, the seats riding, the regression lanes
-(the egg/summon/spawner/cart families).
+name the parallel stream owns). The fix landed as **PR #125** off the
+latest develop (`777b7c86`): the dimension-aware spawn core, the
+fourteen sites routed, the seats riding the fix branch, the regression
+lanes green (the egg/summon/spawner/cart families, the entity package
+whole).
+
+## VT-013 — the remaining post-stamp precedents stamp AFTER the spawn fan: the block spawner's, the dragon's, and the chicken egg's live publishes read the un-stamped 0 at the event
+
+**Status: SUSPECTED** (surfaced by VT-012's fix work — the fix's
+before-the-fan law exposed that three of the seven "already-stamped
+precedents" stamp after `spawnAt` returns, so their live `onMobSpawned`
+fans — the protocol server's `sendMobSpawn` Slice 25d gate — evaluate
+the Java-default 0 before their post-stamp lands). **Affected sites**
+(each verified to post-stamp): the block spawner
+(`SpawnerManager` ~380's `spawner.dimension()` after the spawn), the
+End dragon (EngineServer ~20178's `1` after the spawn), and the chicken
+egg's hatch (its `dimension` parameter after the spawn). The natural
+nether cycle and the zombie reinforcement were the same shape but are
+now born stamped through VT-012's inheritance arm (the armed context
+stamps at birth). **The practical exposure varies**: the dragon spawns
+once at world load, before any player tracks (the `playerEnteredPlay`
+re-publish reads the stamped row — no live observer misses it); the
+block spawner and the chicken egg can fire with a player standing in
+view in a non-overworld dimension — the nether spawner's body is
+invisible at its own spawn moment (the standing nether player sees it
+only after a rejoin) while an overworld player at the same chunk
+coordinates receives the phantom spawn packet. **Verification owed**
+(passes 1-3): the source walk of each site's publish path, the
+behavioral seat (a nether block spawner / a nether thrown egg with the
+observer beside it), and the independent re-verification. The fix shape
+is VT-012's own arm — each site migrates to the dimension-aware
+`spawnAt`/`spawnFromEgg` call, its post-stamp collapsing into the
+birth stamp.
 
 ## The parallel stream's records (the report union — this pass's second act)
 
@@ -2526,20 +2592,21 @@ work, in the queue's order:
    fourteen unstamped sites, three passes complete in the one run:
    the source census, the seats RED on develop, and the independent
    walk that sharpened the damage — the permanent-ghost despawn law).
-   **The next run's head: VT-012's fix branch** (the per-site stamps
-   per the proposed correction — the egg/pearl/summon/wither/cart/
-   shear/infection/cure/split/breeding/golem/silverfish sites each
-   stamp their acting dimension; the spawner cart host's routed gates
-   the one site needing care; the seats ride, the regression lanes
-   the egg/summon/spawner/cart families). The remaining item-9 tails
-   after the spawn stamp: **the world border per-dimension** (the
-   engine's single shared border, the EngineServer line-280 comment
-   itself naming "the engine's one border, the reference's worlds[0]"
-   — the vanilla law needs its own census: which of the reference's
-   per-world borders the commands and the wire consult), **the FX
-   dimension awareness**, **the zombie/mob arms' world binding**, and
-   **the item pickup consult**. The F-SP1/F-DS1 passes and the
-   cooldown-order watch remain owed.
+   **The fix landed this run as PR #125** (the dimension-aware spawn
+   core + the fourteen sites; the fix work discovered the
+   before-the-fan law — Entity line 166's construction stamp — and the
+   one residual it left is ledgered as VT-013 suspected below). The
+   remaining item-9 tails after the spawn stamp: **the world border
+   per-dimension** (the engine's single shared border, the EngineServer
+   line-280 comment itself naming "the engine's one border, the
+   reference's worlds[0]" — the vanilla law needs its own census: which
+   of the reference's per-world borders the commands and the wire
+   consult), **the FX dimension awareness**, **the zombie/mob arms'
+   world binding**, and **the item pickup consult**. The F-SP1/F-DS1
+   passes and the cooldown-order watch remain owed. **VT-013's three
+   passes are the next run's head candidate** (the block spawner / the
+   dragon / the chicken egg's post-fan stamps — the seats ride VT-012's
+   own acceptance-test shape).
 
 13. **The parallel stream's watch items (the union's queue merge):**
     **#106** (VT-009's break-path pair walks), **#111** (VT-010's bed
