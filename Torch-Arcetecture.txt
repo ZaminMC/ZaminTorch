@@ -8010,7 +8010,17 @@ surface blocks the standing body's eye cell (64 + 1.62) ~1 run in 12;
 the engine's own dragon-death fountain clears the whole disc's air
 (dy>0, 32 layers), the reference's createPortal law — the seat now
 clears the column too, with the fountain-before-arrival order kept
-from the first diagnosis).
+from the first diagnosis). THE FOLLOW-UP RUN (589, the same day): the
+bed guard seat's sleep-walk await starved AGAIN despite the boot sweep
+— the probe caught it red-handed: the sleeping flag is a ~1-tick
+TRANSIENT on the single-player contract (the morning jump fires within
+ticks of the entry and wakes the body — the probe's failing rounds
+showed the complete cycle, dawn jump to time 59, landing INSIDE the 3s
+watch window, sleeping=false at every 25ms read; ~2 rounds in 8); the
+seat now observes the sleep's own PERSISTENT signature (the bed spawn,
+set at the entry and surviving every wake path) instead of the
+transient flag — the engine 1:1 throughout, the observation was the
+defect (the eighteenth seat member).
 
 SLICE D TRACE (2026-11-01, the same session's close — findings only,
 the implementation is the next session's first act, the CI-unblock
