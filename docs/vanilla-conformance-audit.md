@@ -4228,7 +4228,7 @@ the `double_` prefix).
 
 ---
 
-## F-SP1 — the support-consult family: the engine's mount consults answer one collision-solid question where vanilla answers material-aware, shape-aware, side-aware laws (SUSPECTED — the source pass complete this run; the behavioral + independent passes owed)
+## F-SP1 — the support-consult family: the engine's mount consults answer one collision-solid question where vanilla answers material-aware, shape-aware, side-aware laws (CONFIRMED — three passes complete, Phase E eligible; the passes 2-3 landed by the forty-second pass)
 
 **Subsystem:** block attachment / the mount-survival consults (the
 redstone family's torch/lever/button/trapdoor arms). **Status:**
@@ -6128,3 +6128,129 @@ the behavioral seats over the neighborChanged survival walks (each
 divergent row class seated RED on unfixed develop), then the
 independent pass (the placement-time gates' census, the compensating
 hunt, the intentionality challenge). The record rides below.
+
+## The forty-second pass's second act — F-SP1's passes 2 and 3 landed (the behavioral seats + the independent census): the finding CONFIRMED whole, Phase E eligible
+
+**The baseline:** this lane's union tree (develop `149eb1f0` merged in). The
+seats: `SupportConsultSurvivalParityDiscoveryTest` (the redstone test
+package, eleven seats — eight divergent rows + three controls).
+
+### F-SP1's pass 2 — the behavioral seats: EIGHT RED on unfixed develop at exactly the predicted points, THREE CONTROLS GREEN
+
+THE CONSTRUCTION (every seat): the mount built on stone (the agreeing
+support), the attached block placed beside/on it, then the mount REPLACED
+with the divergent support — the same `setBlock` commit that fires the
+engine's survival walk (the world change listener → the six-neighbor
+`neighborChanged` dispatch → the family's mount consult). Vanilla pops the
+attached block on that very walk; the engine's one-question consult keeps
+it. The seats assert the VANILLA answer (RED BY CONTRACT on unfixed
+develop, GREEN on the correction).
+
+- **Row 1 (the torch wall on a translucent):** `theWallTorchPopsWhenItsMountBecomesGlass`
+  — RED (the glass-mounted wall torch survives). Vanilla: `isSolidBlockingCube`
+  rejects GLASS (Material.java line 22, translucent).
+- **Row 2 (the torch wall on a non-cube):** `theWallTorchPopsWhenItsMountBecomesACobblestoneWall`
+  — RED. Vanilla: WallBlock.isCube line 52 returns false. The torch's wall
+  law carries NO fence/wall/slab exceptions (the instance arms belong to the
+  trapdoor's law alone).
+- **Row 3 (the torch floor beyond the explicit list):** `theStandingTorchPopsWhenItsFloorBecomesAGlassPane`
+  — RED. Vanilla: canSitOnTop (TorchBlock lines 49-55) — the pane is neither
+  hasSolidTop (its GLASS material is translucent) nor the explicit
+  FENCE/GLASS/COBBLESTONE_WALL/STAINED_GLASS list.
+- **Row 4 (the lever and the button on a translucent):** `theWallLeverPopsWhenItsMountBecomesGlass`
+  + `theWallButtonPopsWhenItsMountBecomesGlass` — both RED (the engine's
+  leverSupported and buttonSupported are two separate consult sites, each
+  seated). Vanilla: the non-DOWN arm reads `Block.isSolid()` — the
+  translucent material fails `isSolidBlocking`.
+- **Row 5 (the floor mount's half law):** `theFloorLeverPopsWhenItsFloorBecomesABottomSlab`
+  — RED. Vanilla: the DOWN arm reads `World.hasSolidTop` (World.java lines
+  1740-1752) — the slab answers HALF == TOP alone; the bottom half has no
+  solid top. The engine's isSolid accepts both halves.
+- **Row 6 (the trapdoor's final arm):** `theTrapdoorPopsWhenItsWallBecomesAGlassPane`
+  — RED. Vanilla: canBePlacedOn (TrapdoorBlock lines 188-190) — the pane is
+  not a solid-blocking cube and not GLOWSTONE/SlabBlock/StairsBlock.
+- **Row 6's extension (the dead-code row, this pass's census addition):**
+  `theTrapdoorPopsWhenItsWallBecomesAFence` — RED. Vanilla: FenceBlock.isCube
+  line 119 returns false. The engine's fence carve reads
+  `value.startsWith("minecraft:fence")` against an identifier VALUE that
+  never carries the namespace (Identifier.value() is the bare form,
+  zamin-api's record) — the exclusion is DEAD CODE at BOTH sites
+  (`trapdoorMountHolds` in RedstoneSystem and `isTrapdoorMount` in
+  EngineServer), so a fence-walled trapdoor HOLDS where vanilla pops it. The
+  pass-1 record's "the fence/gate/door/rail/chest rows agree" claim was
+  wrong for the fence row specifically — the gate/door/rail/chest carves are
+  live (bare-value checks) and do agree; the fence carve alone is dead.
+
+THE CONTROLS (all three GREEN on unfixed develop — the attribution and the
+regression pins): `controlTheWallTorchPopsWhenItsMountBecomesAir` (the pop
+path itself live — the engine's own consult fails on air and pops);
+`controlTheWallTorchStaysWhenItsMountBecomesCobblestone` (the agreeing
+opaque-cube row — a fix must keep it); `controlTheStandingTorchStaysWhenItsFloorBecomesGlass`
+(canSitOnTop's EXPLICIT glass row — the regression pin: a naive
+"no translucent floors" correction would break vanilla's own exception; the
+explicit list must survive).
+
+THE RUN: 11 tests completed, 8 failed / 3 passed — every failure at exactly
+the seat's await ("the vanilla pop never fired"), every control green. The
+fresh run's record on this lane's branch.
+
+### F-SP1's pass 3 — the independent re-verification: the placement-path census, the compensating hunt, the intentionality challenge
+
+1. **THE PLACEMENT-TIME GATES' CENSUS** (the record's named angle — the
+   divergence is BOTH gates, not the survival walk alone):
+   `placeRedstoneTorchOnTick` (EngineServer ~12878-12907) gates the wall
+   arms through `WorldSolidity.isSolid` — the SAME one-question law (a
+   torch PLACES on glass where vanilla's canAttach refuses);
+   `placeLeverOnTick` (~12918-12975) the same; **`placeButtonOnTick`
+   (~12998-13015) carries NO mount gate at all** — only the occupancy
+   check, so a button places on ANY non-air clicked block (a torch mount,
+   leaves, glass) where vanilla's canSurvive requires isSolid/hasSolidTop;
+   `placeTrapdoorOnTick` (~14920-14960) gates through `isTrapdoorMount` —
+   the same shape as the survival consult INCLUDING the dead
+   `minecraft:fence` check. The placement accepts what the survival walk
+   keeps: nothing in the engine prevents or later corrects the divergent
+   mounts.
+2. **THE COMPENSATING-BEHAVIOR HUNT (NEGATIVE — with the fix's foundation
+   found):** no other gate, walk, or listener consults these mounts. The
+   decisive fact the other direction: **the engine ALREADY PORTS the exact
+   law** — `BlockSolidity.isSolid` is the faithful `Block.isSolid()`
+   (`material.isSolidBlocking() && isCube() && !isSignalSource()`, the
+   signal model's own consult, javadoc-verified with the MaterialSolidity
+   translucent census and the isCube render-cube census) — used by the
+   wire's wake walk inside this very file. The lever/button non-DOWN arms'
+   law is EXACTLY this consult; the mount consults' reuse of the MOVEMENT
+   rule (WorldSolidity) is an implementation shortcut, not a compensating
+   mechanism. The architecture's own javadocs document the two models as
+   DISTINCT (BlockSolidity: "distinct from both the movement model
+   (WorldSolidity — what blocks a body) and the material model").
+3. **THE INTENTIONALITY CHALLENGE (NEGATIVE):** the consults' javadocs name
+   the vanilla methods as their contract — "TorchBlock.tryBreak",
+   "canSurvive's test", "canBePlacedOn over the wall cell" — with no
+   ledgered gap, no approximation note, no intentional-divergence record;
+   WorldSolidity's javadoc describes itself as the physics rule ("what
+   blocks a body"). The conflation of the movement model with the mount law
+   contradicts the engine's own documented three-model separation — the
+   VT-006/VT-019 precedent class (the javadoc states the vanilla law; the
+   implementation approximates it).
+4. **THE EDGE WALKS:** the trapdoor's slab/stairs suffix arms and the
+   glowstone arm AGREE with vanilla's instance arms (verified row by row —
+   the stone_slab2 bottom and the stairs' directional folds answer true
+   through the final arm where vanilla's instanceof answers true: same
+   outcome, different arm); the hopper row is a hidden agreeing-with-fix
+   row (the engine currently holds a trapdoor on a hopper — isSolid
+   accepts it — where vanilla's isCube rejects the hopper's thin cross);
+   the snow layer's LAYERS==7 row rides the engine's single-state snow
+   model (the VT-003 state-surface tail — the documented limitation).
+
+**CONCLUSION: F-SP1 CONFIRMED — three passes complete, Phase E eligible.**
+The correction's shape (the record's own proposal, now grounded): a shared
+`SupportConsult` carrying the reference's laws — `isSolidBlockingCube`
+(material.isSolidBlocking && isCube, over the engine's MaterialSolidity +
+BlockSolidity.isCube), `hasSolidTop` (the five arms over the engine's state
+vocabulary), the torch's `canSitOnTop` (hasSolidTop + the explicit
+fence/glass/wall/stained-glass list), the lever/button split (DOWN ->
+hasSolidTop, else BlockSolidity.isSolid), and the trapdoor's
+`canBePlacedOn` (isSolidBlockingCube || GLOWSTONE || the slab/stairs
+families) — the four survival consults and the four placement gates swapped
+to the law their vanilla counterpart reads, the same one-consult-per-site
+shape the F-EC1 and VT-020 corrections carried.
