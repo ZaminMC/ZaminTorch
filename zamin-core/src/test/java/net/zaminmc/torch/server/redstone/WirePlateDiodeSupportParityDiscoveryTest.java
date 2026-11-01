@@ -120,29 +120,30 @@ class WirePlateDiodeSupportParityDiscoveryTest {
         EngineServer server = boot();
         try {
             int x = 410, z = 410, y = 40;
-            // The wire on a BOTTOM slab (hasSolidTop false — the HALF is
-            // not TOP: the wire pops) with the TOP slab the control
+            // The wire placed legally on STONE floors first; each floor
+            // then swaps — one to the BOTTOM slab (hasSolidTop false — the
+            // HALF is not TOP: the wire pops), one to the TOP slab
             // (hasSolidTop's TOP-half arm: the wire stays).
             server.ticker().submit(() -> {
                 server.world().setBlock(new BlockPosition(x, y - 1, z),
-                        BuiltinBlocks.STONE_SLAB);
+                        BuiltinBlocks.STONE);
                 server.world().setBlock(new BlockPosition(x, y, z),
                         RedstoneBlocks.wireOfPower(0));
                 server.world().setBlock(new BlockPosition(x, y - 1, z + 5),
-                        BuiltinBlocks.STONE_SLAB_TOP);
+                        BuiltinBlocks.STONE);
                 server.world().setBlock(new BlockPosition(x, y, z + 5),
                         RedstoneBlocks.wireOfPower(0));
             });
             await(() -> RedstoneBlocks.isWire(typeAt(server, x, y, z)),
-                    "the bottom-slab wire placed");
+                    "the wire placed on its stone floor");
             await(() -> RedstoneBlocks.isWire(typeAt(server, x, y, z + 5)),
-                    "the top-slab wire placed");
+                    "the control wire placed on its stone floor");
 
             server.ticker().submit(() -> {
-                server.world().setBlock(new BlockPosition(x, y + 1, z),
-                        BuiltinBlocks.STONE);
-                server.world().setBlock(new BlockPosition(x, y + 1, z + 5),
-                        BuiltinBlocks.STONE);
+                server.world().setBlock(new BlockPosition(x, y - 1, z),
+                        BuiltinBlocks.STONE_SLAB);
+                server.world().setBlock(new BlockPosition(x, y - 1, z + 5),
+                        BuiltinBlocks.STONE_SLAB_TOP);
             });
             sleep(1500);
 
@@ -166,28 +167,29 @@ class WirePlateDiodeSupportParityDiscoveryTest {
         EngineServer server = boot();
         try {
             int x = 420, z = 420, y = 40;
-            // The wire on a FENCE (hasSolidTop false — non-cube; not
-            // glowstone: the wire pops) with DIRT the control.
+            // The wire placed legally on STONE floors first; each floor
+            // then swaps — one to a FENCE (hasSolidTop false — non-cube;
+            // not glowstone: the wire pops), one to DIRT (the control).
             server.ticker().submit(() -> {
                 server.world().setBlock(new BlockPosition(x, y - 1, z),
-                        BuiltinBlocks.FENCE);
+                        BuiltinBlocks.STONE);
                 server.world().setBlock(new BlockPosition(x, y, z),
                         RedstoneBlocks.wireOfPower(0));
                 server.world().setBlock(new BlockPosition(x, y - 1, z + 5),
-                        BuiltinBlocks.DIRT);
+                        BuiltinBlocks.STONE);
                 server.world().setBlock(new BlockPosition(x, y, z + 5),
                         RedstoneBlocks.wireOfPower(0));
             });
             await(() -> RedstoneBlocks.isWire(typeAt(server, x, y, z)),
-                    "the fence-hosted wire placed");
+                    "the wire placed on its stone floor");
             await(() -> RedstoneBlocks.isWire(typeAt(server, x, y, z + 5)),
-                    "the dirt-hosted wire placed");
+                    "the control wire placed on its stone floor");
 
             server.ticker().submit(() -> {
-                server.world().setBlock(new BlockPosition(x, y + 1, z),
-                        BuiltinBlocks.STONE);
-                server.world().setBlock(new BlockPosition(x, y + 1, z + 5),
-                        BuiltinBlocks.STONE);
+                server.world().setBlock(new BlockPosition(x, y - 1, z),
+                        BuiltinBlocks.FENCE);
+                server.world().setBlock(new BlockPosition(x, y - 1, z + 5),
+                        BuiltinBlocks.DIRT);
             });
             sleep(1500);
 
