@@ -779,10 +779,37 @@ public final class NaturalSpawnSystem {
                 && !isPartialShape(blockType);
     }
 
-    /** The partial shapes (slabs/stairs) never answer the spawn floor. */
+    /**
+     * The half-law shapes the reference's spawn floor refuses:
+     * {@code World.hasSolidTop}'s structured law (lines 1740-1752) — the
+     * FIRST arm ({@code material.isSolidBlocking() && isCube()}) accepts
+     * the DOUBLE slab forms whole ({@code SlabBlock.isCube() =
+     * isDouble()} — the same {@code double_} carve
+     * {@code BlockSolidity.isCube} carries), while the StairsBlock and
+     * SlabBlock arms want {@code HALF == TOP}: the BOTTOM halves refuse
+     * the floor (the singles' bare {@code _slab} forms, the red
+     * sandstone variant's {@code _slab2} bottom form, and the stairs'
+     * directional fold — {@code {material}_stairs_{facing}} the bottom
+     * row, {@code {material}_stairs_{facing}_top} the upside-down) and
+     * the TOP halves pass. The bare stair registration aliases carry
+     * the default (bottom) metadata row.
+     */
     private static boolean isPartialShape(net.zaminmc.torch.block.BlockType type) {
         String name = type.identifier().value();
-        return name.endsWith("_slab") || name.endsWith("_stairs");
+        if (name.startsWith("double_")) {
+            // The double forms are full cubes (SlabBlock.isCube() =
+            // isDouble()) — hasSolidTop's first arm accepts them.
+            return false;
+        }
+        if (name.endsWith("_slab") || name.endsWith("_slab2")) {
+            // The BOTTOM single (the HALF == TOP arm refuses it; the
+            // _top forms never match these suffixes and pass).
+            return true;
+        }
+        // The stairs' half law: the directional fold's bottom states
+        // (and the bare aliases' default metadata row) refuse; the _top
+        // forms pass.
+        return name.contains("_stairs") && !name.endsWith("_top");
     }
 
     private static net.zaminmc.torch.block.BlockType blockTypeOf(Object type) {
