@@ -105,7 +105,10 @@ class ExperienceOrbManagerTest {
         assertEquals(12, orb.amount(), "the saved point total lands whole");
         assertEquals(2400, orb.age(), "the saved age resumes the despawn clock");
         assertEquals(3.5, orb.position().x(), "the exact position");
-        assertEquals(70.0, orb.position().y());
+        // VT-037 — the reference's setPosition feet law: the LOADED orb's
+        // box BOTTOM seats at the saved y (the engine's center convention
+        // composing center = savedY + half).
+        assertEquals(70.0 + ExperienceOrbEntity.RESTORED_HALF_SIZE, orb.position().y());
         assertEquals(7.5, orb.position().z());
         assertEquals(0.0, orb.velocityX(), "no random scatter velocity");
         assertEquals(0.0, orb.velocityY());
@@ -127,7 +130,7 @@ class ExperienceOrbManagerTest {
         }
         ExperienceOrbEntity orb = manager.all().get(0);
         assertTrue(orb.onGround(), "the orb rests on the floor");
-        assertEquals(64.0 + ExperienceOrbEntity.HALF_HEIGHT, orb.position().y(), 0.01,
+        assertEquals(64.0 + orb.halfHeight(), orb.position().y(), 0.01,
                 "the orb's bottom sits on the block surface");
     }
 

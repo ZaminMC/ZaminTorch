@@ -145,6 +145,13 @@ public final class ExperienceOrbManager implements ExperienceOrbEntity.Players {
      * The dimension-stamped burst (Wave TF-10 — the reference's
      * Entity.world): the sites that know their world stamp it; the dying
      * mob's own dimension, the player's session, the projectile's carry.
+     * VT-037 — the box model: every gameplay-spawned orb carries the
+     * reference's xp-constructor 0.5 box (SPAWNED_HALF_SIZE) with the
+     * box BOTTOM seated at the passed y (the reference's setPosition
+     * feet law over the callers' own y forms — the engine's center
+     * convention composing {@code center = y + half}); the historical
+     * +0.2 center lift is RETIRED (it double-lifted against the callers'
+     * own reference-mimicking offsets).
      */
     public List<ExperienceOrbEntity> spawnBurst(Position position, int total, int maxOrbs,
                                                 int dimension) {
@@ -161,8 +168,10 @@ public final class ExperienceOrbManager implements ExperienceOrbEntity.Players {
             }
             remaining -= share;
             ExperienceOrbEntity orb = new ExperienceOrbEntity(nextEntityId++,
-                    new Position(position.x(), position.y() + 0.2, position.z()), share,
-                    ExperienceOrbEntity.PICKUP_DELAY_TICKS);
+                    new Position(position.x(),
+                            position.y() + ExperienceOrbEntity.SPAWNED_HALF_SIZE, position.z()),
+                    share, ExperienceOrbEntity.PICKUP_DELAY_TICKS,
+                    ExperienceOrbEntity.SPAWNED_HALF_SIZE);
             orb.setDimension(dimension);
             orb.setVelocity((random.nextDouble() - 0.5) * 0.2, 0.2,
                     (random.nextDouble() - 0.5) * 0.2);
@@ -204,14 +213,24 @@ public final class ExperienceOrbManager implements ExperienceOrbEntity.Players {
         return spawnRestored(at, amount, age, 0);
     }
 
-    /** The dimension-stamped restore (Wave TF-10 — the anvil import keeps
-     * the overworld 0; the row exists for the store-carrying future). */
+    /**
+     * The dimension-stamped restore (Wave TF-10 — the anvil import keeps
+     * the overworld 0; the row exists for the store-carrying future).
+     * VT-037 — the box model: the load path keeps the reference's 0.25
+     * default-constructor box (RESTORED_HALF_SIZE) and seats the box
+     * BOTTOM at the saved y (the reference's setPosition feet law over
+     * the {@code Entities.register} reflective instantiation — the
+     * engine's center convention composing {@code center = savedY +
+     * half}).
+     */
     public ExperienceOrbEntity spawnRestored(Position at, int amount, int age, int dimension) {
         Objects.requireNonNull(at, "at");
         if (amount <= 0) {
             return null;
         }
-        ExperienceOrbEntity orb = new ExperienceOrbEntity(nextEntityId++, at, amount, 0);
+        ExperienceOrbEntity orb = new ExperienceOrbEntity(nextEntityId++,
+                new Position(at.x(), at.y() + ExperienceOrbEntity.RESTORED_HALF_SIZE, at.z()),
+                amount, 0, ExperienceOrbEntity.RESTORED_HALF_SIZE);
         orb.setAge(age);
         orb.setDimension(dimension);
         orbs.add(orb);
@@ -243,8 +262,10 @@ public final class ExperienceOrbManager implements ExperienceOrbEntity.Players {
             int share = roundSize(remaining);
             remaining -= share;
             ExperienceOrbEntity orb = new ExperienceOrbEntity(nextEntityId++,
-                    new Position(position.x(), position.y() + 0.2, position.z()), share,
-                    ExperienceOrbEntity.PICKUP_DELAY_TICKS);
+                    new Position(position.x(),
+                            position.y() + ExperienceOrbEntity.SPAWNED_HALF_SIZE, position.z()),
+                    share, ExperienceOrbEntity.PICKUP_DELAY_TICKS,
+                    ExperienceOrbEntity.SPAWNED_HALF_SIZE);
             orb.setDimension(dimension);
             orb.setVelocity((random.nextDouble() - 0.5) * 0.2, 0.2,
                     (random.nextDouble() - 0.5) * 0.2);
@@ -399,12 +420,15 @@ public final class ExperienceOrbManager implements ExperienceOrbEntity.Players {
         Position orbPosition = orb.position();
         double dx = Math.abs(orbPosition.x() - playerPosition.x());
         double dz = Math.abs(orbPosition.z() - playerPosition.z());
-        double maxHorizontal = 0.3 + ExperienceOrbEntity.HALF_WIDTH + PICKUP_GROWTH_HORIZONTAL;
+        // VT-037 — the per-body half-size: a spawned orb's 0.25 half
+        // widens the envelope to the reference's grown-box reach (1.55)
+        // while a restored orb keeps the 0.25-box reach (1.425).
+        double maxHorizontal = 0.3 + orb.halfWidth() + PICKUP_GROWTH_HORIZONTAL;
         if (dx > maxHorizontal || dz > maxHorizontal) {
             return false;
         }
-        double orbBottom = orbPosition.y() - ExperienceOrbEntity.HALF_HEIGHT;
-        double orbTop = orbPosition.y() + ExperienceOrbEntity.HALF_HEIGHT;
+        double orbBottom = orbPosition.y() - orb.halfHeight();
+        double orbTop = orbPosition.y() + orb.halfHeight();
         double rangeBottom = playerPosition.y() - PICKUP_GROWTH_VERTICAL;
         double rangeTop = playerPosition.y() + 1.8 + PICKUP_GROWTH_VERTICAL;
         return orbTop > rangeBottom && orbBottom < rangeTop;
