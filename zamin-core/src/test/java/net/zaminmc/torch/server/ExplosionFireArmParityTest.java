@@ -79,39 +79,69 @@ class ExplosionFireArmParityTest {
     Path dataDir;
 
     /**
-     * SEAT 1 — the crater fire: three ghast fireballs into a grass plain
+     * SEAT 1 — the crater fire: ghast fireballs into a grass plain
      * (mobGriefing on) light more fires than the one-per-blast stand-in law
      * could ever answer, and every fire sits on an opaque floor.
+     *
+     * <p>THE TWO STACKED HAZARDS THIS RETIREMENT ADDRESSES (run 613's
+     * member — the Nov 1 publish blocker): (1) THE LOTTERY — the
+     * reference's own 1-in-3 per eligible cell makes a blast's fire count
+     * Binomial(eligible, 1/3); the old seat's {@code total >= 4} over
+     * THREE blasts rode that tail (the probe's empirical spread: per-blast
+     * 0-5, a single blast answering ZERO ~6% of the time). (2) THE
+     * EXTINCTION RACE — a bare-floor flame (no flammable neighbour on a
+     * grass plain) DIES once its age passes 3, the age bumping every
+     * 30-39 ticks (~6-15s of life), and the old seat censused AFTER ALL
+     * THREE blasts resolved, so the first blast's fires could burn out
+     * before the read. The hardened shape: SIX zones — all inside the
+     * view-2 pregen band (a blast beyond it falls through ungenerated air
+     * to bedrock and answers nothing) — each censused IMMEDIATELY after
+     * its OWN resolution, the discrimination the STAND-IN'S HARD CAP (the
+     * pre-fix stand-in can NEVER answer two fires in ONE blast; observed
+     * best-of-6 min 4 over six probe runs, the tail compounding past
+     * 1-in-10,000).</p>
      */
     @Test
     void theBlastLightsFireOverTheCrater() throws Exception {
         EngineServer server = boot();
         try {
-            // Three separate impact zones, ten blocks apart: the craters
-            // never overlap and each blast's fire candidates are its own.
-            int first = launchGhastShotDown(server, new Position(12.0, 8.0, 10.0));
-            int second = launchGhastShotDown(server, new Position(22.0, 8.0, 16.0));
-            int third = launchGhastShotDown(server, new Position(30.0, 8.0, 8.0));
-            await(server, () -> server.projectiles().all().stream()
-                            .noneMatch(p -> p.entityId() == first || p.entityId() == second
-                                    || p.entityId() == third),
-                    "all three fireballs resolved");
-            // The fire census over the whole test band. The pre-fix engine's
-            // stand-in answers AT MOST one fire per blast (the cleared center
-            // cell — the only cell the air-gated sink can ever accept on the
-            // ground path); three blasts can never reach four.
-            List<BlockPosition> fires = firesIn(server, 4, 0, 38, 12, 0, 22);
-            assertTrue(fires.size() >= 4,
-                    "the 1-in-3 roll over the craters' air cells lights several fires "
-                            + "(got " + fires.size() + " — the stand-in law caps at three)");
-            // The floor law: every fire sits on an opaque cube (the natural
-            // plain answers grass/dirt — both filter 15).
-            for (BlockPosition fire : fires) {
-                assertTrue(fire.y() > 0, "the fire cell has a below cell");
-                assertTrue(BlockLightTable.filter(server.world()
-                                .getBlock(fire.offset(0, -1, 0))) == 15,
-                        "the fire at " + fire + " sits on an opaque floor");
+            // Six sites inside the view-2 pregen band (chunks -2..2,
+            // roughly blocks -32..47), spread on a grid: the craters never
+            // overlap and each blast's fire candidates are its own.
+            int[][] sites = {
+                    {12, 10}, {32, 10}, {12, 32}, {32, 32}, {12, -12}, {32, -12}};
+            int bestSite = -1;
+            int bestFires = 0;
+            for (int site = 0; site < sites.length; site++) {
+                int shot = launchGhastShotDown(server,
+                        new Position(sites[site][0], 8.0, sites[site][1]));
+                final int shotId = shot;
+                await(server, () -> server.projectiles().all().stream()
+                                .noneMatch(p -> p.entityId() == shotId),
+                        "the fireball at site " + site + " resolved");
+                // The census runs IMMEDIATELY after this blast's own
+                // resolution — the flame is at age 0-1, the extinction
+                // race cannot reach it.
+                List<BlockPosition> fires = firesIn(server,
+                        sites[site][0] - 10, 0, sites[site][0] + 10,
+                        12, sites[site][1] - 10, sites[site][1] + 10);
+                if (fires.size() > bestFires) {
+                    bestFires = fires.size();
+                    bestSite = site;
+                }
+                // The floor law: every fire sits on an opaque cube (the
+                // natural plain answers grass/dirt — both filter 15).
+                for (BlockPosition fire : fires) {
+                    assertTrue(fire.y() > 0, "the fire cell has a below cell");
+                    assertTrue(BlockLightTable.filter(server.world()
+                                    .getBlock(fire.offset(0, -1, 0))) == 15,
+                            "the fire at " + fire + " sits on an opaque floor");
+                }
             }
+            assertTrue(bestFires >= 2,
+                    "some blast lights several fires over its crater (best site "
+                            + bestSite + " answered " + bestFires
+                            + " — the stand-in law answers at most one per blast)");
         } finally {
             server.shutdown(() -> { });
         }
@@ -127,11 +157,15 @@ class ExplosionFireArmParityTest {
      * 1-in-3 per eligible cell means a single blast's fire count is
      * Binomial(eligible, 1/3) — the old single-shot seat's {@code >= 2}
      * assertion rode that tail (one unlucky detonation answered exactly
-     * one). The seat now fires FOUR independent blasts, each its own site
+     * one). The seat fires FOUR independent blasts, each its own site
      * (own ghast, own wall, own census region), and requires ANY ONE blast
      * to answer several fires — the discrimination is unchanged (the
      * pre-fix stand-in can NEVER answer two in one blast) while the tail
-     * compounds to a practical zero.</p>
+     * compounds to a practical zero. Seat 1's retirement (run 613's
+     * member) adds the per-blast census here too: each site reads
+     * IMMEDIATELY after its own resolution, so the bare-floor extinction
+     * (a flame with no fuel dies at age &gt; 3, ~6-15s) can no longer eat
+     * a site's fires while the later blasts resolve.</p>
      */
     @Test
     void theStruckBodyBlastLightsTheCrater() throws Exception {
@@ -140,7 +174,8 @@ class ExplosionFireArmParityTest {
             placeDirtWall(server);
             // Four sites, twenty blocks apart — the craters and the census
             // regions never overlap.
-            int[] shots = new int[4];
+            int bestSite = -1;
+            int bestFires = 0;
             for (int site = 0; site < 4; site++) {
                 double ox = site * 20.0;
                 var ghast = server.mobs().spawnAt(MobType.GHAST,
@@ -151,25 +186,15 @@ class ExplosionFireArmParityTest {
                 // carry it past a 4-block box over 1.5 blocks of flight —
                 // and a rare miss resolves on the wall behind, whose own
                 // dirt crater lights just the same.
-                shots[site] = launchGhastShotAt(server,
+                int shot = launchGhastShotAt(server,
                         new Position(9.0 + ox, 6.5, 12.5), 1.0, 0.0, 0.0);
-            }
-            await(server, () -> {
-                for (int id : shots) {
-                    final int fid = id;
-                    if (server.projectiles().all().stream()
-                            .anyMatch(p -> p.entityId() == fid)) {
-                        return false;
-                    }
-                }
-                return true;
-            }, "all four fireballs resolved");
-            int bestSite = -1;
-            int bestFires = 0;
-            for (int site = 0; site < 4; site++) {
-                int ox = site * 20;
+                final int shotId = shot;
+                await(server, () -> server.projectiles().all().stream()
+                                .noneMatch(p -> p.entityId() == shotId),
+                        "the fireball at site " + site + " resolved");
+                int region = site * 20;
                 List<BlockPosition> fires = firesIn(server,
-                        4 + ox, 0, 24 + ox, 12, 4, 22);
+                        4 + region, 0, 24 + region, 12, 4, 22);
                 if (fires.size() > bestFires) {
                     bestFires = fires.size();
                     bestSite = site;

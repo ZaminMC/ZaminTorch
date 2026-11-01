@@ -52,6 +52,20 @@ import java.util.Map;
  *       static table carries the tall-grass upper as the canonical answer
  *       and {@link AnvilChunkReader} refines the species from the imported
  *       lower cell per column — the same walk the reference performs.</li>
+ *   <li>{@code (26, 4..7) -> bed/bed_west/bed_north/bed_east} and
+ *       {@code (26, 12..15) -> bed_head/bed_head_west/bed_head_north/bed_head_east}
+ *       — the bed's OCCUPIED nibbles (VT-011, derived from
+ *       {@code BedBlock.getStateFromMetadata} lines 200-205): the
+ *       reference writes bit 2 for an OCCUPIED HEAD alone
+ *       ({@code getMetadataFromState} lines 220-231 — a world saved
+ *       mid-sleep persists the head at 12-15) and reads it on the head
+ *       arm only; metas 4-7 (bit 2 on a foot — unwritable by the
+ *       reference's own save path, the editor-corruption band) load as
+ *       ordinary feet with the bit ignored. Every one of the sixteen
+ *       nibbles loads a bed state in the reference — the occupied bit
+ *       itself is above the engine's sleep model (occupancy is the
+ *       sleeping session, not the block state), so the facing bits
+ *       alone are the answer.</li>
  * </ul>
  *
  * <p><b>THE COVERAGE (the integrity test's own ledger):</b> every 1.8.8
@@ -235,10 +249,27 @@ public final class AnvilBlockIds {
             state(26, 1, "minecraft:bed_west"),
             state(26, 2, "minecraft:bed_north"),
             state(26, 3, "minecraft:bed_east"),
+            // The reference's OCCUPIED nibbles (VT-011, BedBlock
+            // lines 200-231): bit 2 (the occupied flag) is written by
+            // the reference for an OCCUPIED HEAD alone (12-15 — a world
+            // saved mid-sleep) and read on the head arm only; metas 4-7
+            // (bit 2 on a foot, unwritable by the reference's own save
+            // path — the editor-corruption band) load as ordinary feet
+            // with bit 2 ignored. The occupied bit is above the engine's
+            // sleep model (occupancy is the sleeping session, not the
+            // block state), so the facing bits alone are the answer.
+            state(26, 4, "minecraft:bed"),
+            state(26, 5, "minecraft:bed_west"),
+            state(26, 6, "minecraft:bed_north"),
+            state(26, 7, "minecraft:bed_east"),
             state(26, 8, "minecraft:bed_head"),
             state(26, 9, "minecraft:bed_head_west"),
             state(26, 10, "minecraft:bed_head_north"),
             state(26, 11, "minecraft:bed_head_east"),
+            state(26, 12, "minecraft:bed_head"),
+            state(26, 13, "minecraft:bed_head_west"),
+            state(26, 14, "minecraft:bed_head_north"),
+            state(26, 15, "minecraft:bed_head_east"),
             state(27, 0, "minecraft:golden_rail"),
             state(27, 1, "minecraft:golden_rail_east_west"),
             state(27, 2, "minecraft:golden_rail_ascending_east"),
