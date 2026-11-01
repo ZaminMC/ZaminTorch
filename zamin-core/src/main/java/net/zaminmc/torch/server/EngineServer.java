@@ -19163,12 +19163,18 @@ public final class EngineServer implements Server, EngineBridge {
             // The anvil's land sound (Slice 53 — the reference's
             // onTickFallingBlockEntity: world event 1022 at the landing
             // cell, fired only on the successful placement — the client
-            // answers random.anvil_land).
+            // answers random.anvil_land) — in the FALLING BODY'S OWN
+            // WORLD (AnvilBlock.onTickFallingBlockEntity line 90 over the
+            // entity's world doEvent, the per-world listener list alone —
+            // the same stamp the body's physics and landing already carry,
+            // Wave FL4-F9; VT-028: the pre-fix no-dimension overload
+            // stamped the overworld, a nether landing silent to the
+            // nether's players and a phantom in the overworld).
             if (becameBlock && net.zaminmc.torch.server.block.AnvilBlocks
                     .isAnvil(entity.blockType().identifier())) {
                 fxManager.sound(new Position(
                         entity.position().x(), entity.position().y(), entity.position().z()),
-                        "random.anvil_land", 1.0f, 1.0f);
+                        "random.anvil_land", 1.0f, 1.0f, entity.dimension());
             }
             for (FallingBlockEntityManager.Listener listener : fallingListeners) {
                 listener.onFallingEnded(entity, becameBlock);
