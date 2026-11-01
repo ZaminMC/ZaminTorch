@@ -829,16 +829,48 @@ public final class PistonSystem implements WorldChangeListener {
 
     /**
      * The engine's block-entity-backed blocks (the reference's
-     * {@code !(block instanceof BlockEntityProvider)} arm): the containers
-     * whose state lives beside the world blocks.
+     * {@code !(block instanceof BlockEntityProvider)} arm — canMoveBlock
+     * lines 273-284): EVERY BlockWithBlockEntity subclass is immovable,
+     * whatever its material — VT-022's correction, the full census (the
+     * chest family both flavors, the ender chest, the furnace pair and
+     * their facings, the dispenser and the dropper, the hopper, the
+     * brewing stand, the sign pair, the banner pair, the skulls, the
+     * beacon, the enchanting table, the jukebox pair, the note block,
+     * the spawner, the command block pair, the daylight detectors). The
+     * comparator and the flower pot are entity-backed in the reference
+     * too but their DECORATION destroy arm returns BEFORE this gate (the
+     * reference's own order — the comparator is destroyed with its drops,
+     * the pots likewise), the end portal and the moving carrier are
+     * refused by the earlier hardness/material arms, and the cauldron is
+     * a plain Block (PUSH) — none of them belong here.
      */
     private static boolean isBlockEntityBacked(BlockType type) {
         String value = type.identifier().value();
         return value.equals(BuiltinBlocks.CHEST.identifier().value())
+                || value.startsWith("chest_")
+                || value.equals("trapped_chest")
+                || value.startsWith("trapped_chest_")
+                || value.equals("ender_chest")
+                || value.startsWith("ender_chest_")
                 || value.equals(BuiltinBlocks.FURNACE.identifier().value())
                 || value.equals(BuiltinBlocks.FURNACE_LIT.identifier().value())
-                || value.equals("sign")
-                || value.startsWith("sign_");
+                || value.startsWith("furnace_")
+                || value.equals("dispenser") || value.startsWith("dispenser_")
+                || value.equals("dropper") || value.startsWith("dropper_")
+                || value.equals("hopper") || value.startsWith("hopper_")
+                || value.equals("brewing_stand") || value.startsWith("brewing_stand_")
+                || value.equals("sign") || value.startsWith("sign_")
+                || value.equals("wall_sign") || value.startsWith("wall_sign_")
+                || value.equals("standing_banner") || value.startsWith("standing_banner_")
+                || value.equals("wall_banner") || value.startsWith("wall_banner_")
+                || value.equals("skull") || value.startsWith("skull_")
+                || value.equals("beacon")
+                || value.equals("enchanting_table")
+                || value.equals("jukebox") || value.equals("jukebox_record")
+                || value.equals("noteblock")
+                || value.equals("mob_spawner")
+                || value.equals("command_block") || value.equals("command_block_triggered")
+                || value.startsWith("daylight_detector");
     }
 
     /** Whether the type is the engine's air. */
