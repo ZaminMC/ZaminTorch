@@ -15520,8 +15520,9 @@ public final class EngineServer implements Server, EngineBridge {
                 && !WorldSolidity.isReplaceable(above.identifier())) {
             return; // the upper half's headroom
         }
-        if (!WorldSolidity.isSolid(world.getBlock(target.offset(0, -1, 0)))) {
-            return; // World.hasSolidTop: no floor, no door
+        if (!net.zaminmc.torch.server.block.SupportConsult.hasSolidTop(
+                world.getBlock(target.offset(0, -1, 0)))) {
+            return; // World.hasSolidTop (DoorBlock.canBePlaced line 214): no floor, no door
         }
         if (intersectsPlayerBox(session.position(), target)) {
             return; // the vanilla body rule (the reference's own entity collision check)

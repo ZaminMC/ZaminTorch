@@ -1048,8 +1048,9 @@ public final class RedstoneSystem implements WorldChangeListener {
             popBlock(pos, doorItemOf(family)); // the lower's own dropItems arm
             removed = true;
         }
-        if (!WorldSolidity.isSolid(world.getBlock(pos.offset(0, -1, 0)))) {
-            // No solid top (World.hasSolidTop): the pair dies with one drop.
+        if (!doorFloorHolds(pos)) {
+            // No solid top (World.hasSolidTop — DoorBlock's survival walk,
+            // line 175): the pair dies with one drop.
             if (upperIsFamily) {
                 world.setBlock(above, world.airType());
             }
@@ -2383,6 +2384,19 @@ public final class RedstoneSystem implements WorldChangeListener {
         net.zaminmc.torch.block.BlockType below = world.getBlock(pos.offset(0, -1, 0));
         return net.zaminmc.torch.server.block.SupportConsult.hasSolidTop(below)
                 || WorldSolidity.isFence(below.identifier());
+    }
+
+    /**
+     * The DOOR's floor rule (F-SP2's door member — DoorBlock.canBePlaced
+     * lines 213-214 and the survival walk's floor consult, line 175):
+     * {@code World.hasSolidTop(below)} ALONE — no glowstone disjunct (the
+     * wire's own), no fence arm (the plates' own). The pair dies WHOLE
+     * when the floor refuses (the lower popped with its drop, the upper
+     * removed silently — the reference's own shape).
+     */
+    private boolean doorFloorHolds(BlockPosition pos) {
+        return net.zaminmc.torch.server.block.SupportConsult.hasSolidTop(
+                world.getBlock(pos.offset(0, -1, 0)));
     }
 
     /** The removal + drop (the reference's dropItems + removeBlock). */
