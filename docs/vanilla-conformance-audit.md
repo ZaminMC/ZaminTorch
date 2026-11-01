@@ -4189,10 +4189,10 @@ RangedCombat 10/0, TntSystem 2/0, AnvilImport 6/0, the parity seats
 
 ## VT-023 — the burning arrow's FLIGHT band shape: the engine's symmetric [y−0.25, y+0.25] against the reference's feet-law box [y, y+0.5] (CONFIRMED — three passes; RED on develop AND on the #123 tree)
 
-- **Status:** CONFIRMED (three passes complete; Phase E eligible — the
-  two-line band correction). VT-019's named tail (b), elevated to its
-  own finding; numbered after the pass-36 lane's VT-022 claim (the
-  stick-vs-prime ordering — a different root).
+- **Status:** CONFIRMED (three passes complete; **the correction OPEN
+  as PR #128** — the two-line band correction over develop `777b7c86`,
+  the union with #123's gate verified live: the gate + the band
+  together green on both lanes' seats + the corrected unit test).
 - **Subsystem:** projectile × block interactions — the burning arrow's
   FLIGHT TNT consult (the band's vertical shape).
 - **Affected engine files/methods:** `ProjectileManager
@@ -4263,4 +4263,8 @@ RangedCombat 10/0, TntSystem 2/0, AnvilImport 6/0, the parity seats
   `aBurningArrowPrimesTheTntItOverlaps` (the stick-arm consult path —
   unaffected); the horizontal bands untouched.
 - **Associated artifacts:** the seats + this record on
-  `audit/verifier-pass-38-discovery`.
+  `audit/verifier-pass-38-discovery`; **PR #128 OPEN** the carrier
+  (`fix/burning-arrow-flight-band-parity-audit`, `60bf1662`; the
+  #123-union verified live: the gate + the band together — this
+  lane's flight-band seats 2/0, #123's stuck-arrow seats 2/0, the
+  corrected ProjectileManagerTest 11/0).
