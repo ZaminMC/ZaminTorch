@@ -6755,3 +6755,234 @@ colliding with the TNT-hiss renumber's VT-030 — the arbitration note
 owed), #142 (the no-dimension FX residual, the border lane's
 continuation), #144 (VT-034 — the repeater's phantom click, a new
 finding), #146 (VT-033 — the wither-summon dimension family).
+
+## The forty-fourth pass — the recovery, the base reconciliation (#147 rebased onto the post-#139 develop), and the widened families confirmed whole (F-SP5 the pot, F-SP6 the bed — PRs #153/#154)
+
+**The recovery (develop `1139f2c3`, the merge watch):** the window's merges —
+**#118** (F-DS1, the double slab's collision-table full cube), **#139**
+(F-SP1 — THE CARRIER PICK over this lane's #137 and the sibling #138: the
+SupportConsult home landed on develop with the fullest reference
+citations), #114 (the bed family's neighbor-changed pair-integrity arm),
+#111 (the bed pair's facing-exact sibling resolution), #115 (the anvil
+import's OCCUPIED bed states), #124 (the arrow's bowhit sound at both
+impact arms), #106/#105/#104/#101/#100/#99/#98/#97 (the earlier
+window's explosion/bed/portal family), and FL4-GAP2 Slices B/D (the
+container remainder's + the leash knots' dimension ownership). The F-SP1
+convergence CLOSED: #137/#138 unmerged (their unique rows verified
+present in #139's seats per its merge review); the family's five carriers
+reduced to the core set (#141/#143/#145/#147/#148/#149 — all OPEN, none
+merged this window).
+
+### The pass's first act — PR #147 REBASED ONTO DEVELOP (the stack retired)
+
+The pre-announced carry-over executed: #139 merged the `SupportConsult`
+the fix consults, so `fix/floor-consult-parity-audit` now carries the ONE
+clean F-SP2 commit over develop `1139f2c3` — no stack, no superseded
+diff (the cherry-pick auto-merged; the one mechanical adaptation
+`BlockSolidity.isCube`'s two-argument #139 form at the closed fallthrough).
+**The rebased evidence:** RED BY CONTRACT re-proven on unfixed develop
+`1139f2c3` (the sixteen seats 10 FAILED / 6 PASSED at exactly the
+predicted rows); GREEN 16/0 on the fix tree; **the regression lanes the
+last window owed, now complete:** the redstone package whole 52/0
+(develop's own `SupportConsultParityDiscoveryTest` — #139's seat —
+unregressed by the fix), the block package whole 52 classes / 314 tests
+0 failures, the placement lanes 33/0, the protocol module 243/0, the
+transport module 21/0. The PR's title, body and comment brought current.
+
+### The pass's second act — the widened families confirmed whole (F-SP5 + F-SP6, the behavioral seats + the independent passes)
+
+F-SP2's pass-3 census had left the pot and the bed SUSPECTED
+(source-verified alone). This pass took both through the remaining two
+passes on the NEW baseline and corrected each (one PR per independently
+actionable issue).
+
+---
+
+## F-SP5 (W-POT in the seats' shorthand) — the flower pot's floor consult: the collision question at BOTH its sites against the reference's hasSolidTop
+
+**Subsystem:** the floor-consult family's pot member (the placement gate
++ the neighbor-update survival walk). **Status:** CONFIRMED, three
+passes complete — **CORRECTED (PR #153 OPEN,
+`fix/pot-floor-support-parity-audit`, based on develop `1139f2c3`)**.
+
+**Affected engine files and methods:**
+- `server/EngineServer.java` — `setPlacementSupportGate`'s `flower_pot`
+  row (~line 3656): the placement gate.
+- `server/block/FlowerPotBlocks.java` — `isSupported` (the survival
+  consult, read by `server/block/BlockUpdateSystem.java` line 817's
+  neighbor-update arm — the pop with the contents).
+
+**Vanilla reference:** `FlowerPotBlock.canBePlaced` (lines 136-137:
+`super.canBePlaced(world, pos) && World.hasSolidTop(world, pos.down())`)
+and `neighborChanged` (lines 141-143: `if (!World.hasSolidTop(world,
+pos.down())) → dropItems + removeBlock`) — ONE consult, TWO sites, the
+same law at both.
+
+**Expected:** the translucent materials (glass, glowstone, ice, TNT,
+the leaves, the cactus), the non-cubes (fences, panes, walls) and the
+bottom halves never hold a pot — vanilla refuses the placement outright
+and pops a standing pot at the same neighbor update. **Observed (the
+engine's prior shape):** both sites answered `WorldSolidity.isSolid`
+(the collision question) — a glass/fence/bottom-slab-bedded pot stood
+forever; the placement gate's row and the javadoc's "the engine's solid
+stand-in" phrase acknowledged the pre-#139 approximation.
+
+**The three passes:**
+1. **Source (pass 1, the 43rd census + the fresh line-verified read):**
+   the reference's lines 136-137/141-143 against both sites' `isSolid`.
+2. **Behavioral (pass 2, this pass):**
+   `PotFloorSurvivalParityDiscoveryTest` — **RED BY CONTRACT on unfixed
+   develop `1139f2c3`**: the glass/fence/bottom-slab survival rows + the
+   placement-on-glass row failing at exactly the predicted points (the
+   pop never firing; the pot landing on the glass; the item spent), the
+   3 controls GREEN (the AIR pop — the walk's liveness, the stone
+   survival, the stone placement path). **GREEN 7/0 on the fix.**
+3. **Independent (pass 3):** the compensation hunt NEGATIVE (the pot
+   consults its bed at exactly the two sites; the AIR control proves the
+   walk fires while the collision question holds the divergent rows);
+   the intentionality challenge NEGATIVE (the javadoc named the
+   reference's law while answering a different question — the stand-in
+   phrase an acknowledged approximation whose justification #139's merge
+   retired); no config flag disables the consult.
+
+**The correction:** both sites swapped to `SupportConsult.hasSolidTop`
+(the reference's five arms over develop's #139 home); the javadoc
+corrected. **Regression:** the block package whole + the placement lanes
+55 classes / 333 tests 0 failures.
+
+---
+
+## F-SP6 (W-BED in the seats' shorthand) — the bed placement path: BedItem.useOn's TWO missing gates (the UP-face law + the both-halves solid-top consult)
+
+**Subsystem:** the placement paths' bed item (the floor-consult family's
+placement-gate census member). **Status:** CONFIRMED, three passes
+complete — **CORRECTED (PR #154 OPEN,
+`fix/bed-placement-gates-parity-audit`, based on develop `1139f2c3`)**.
+
+**Affected engine files and methods:** `server/EngineServer.java` —
+`placeBedOnTick` (the historical ItemBed): the face forwarded raw, ZERO
+floor consults in the method body (the grep record: no
+`hasSolidTop|isSolid|offset(0,-1,0)` row in the placement walk).
+
+**Vanilla reference:** `BedItem.useOn` — lines 24-26 (`if (face !=
+Direction.UP) return false;` — the bed places ONLY on an up-click;
+every side/down click fails the use outright, no block, no item spent)
+and line 42 (`flag2 && flag3 && World.hasSolidTop(world, pos.down()) &&
+World.hasSolidTop(world, blockpos.down())` — the placement cell AND the
+head cell must EACH sit on a solid top; AIR never answers, GLASS never
+answers, a bottom half never answers).
+
+**Expected:** a bed clicked on a glass bed, a bottom slab, air, or any
+non-UP face refuses the use — nothing places, nothing consumes.
+**Observed (the engine's prior shape):** the bed PLACED on glass, on
+air (the pair floating), on a bottom slab, and SIDEWAYS on a side-face
+click — no floor consult, no face gate.
+
+**The three passes:**
+1. **Source (pass 1):** BedItem lines 24-26 and 42 against
+   placeBedOnTick's body (zero floor consults, the face forwarded raw);
+   the reference's `canUseItemOn` verified as the ADVENTURE-mode gate
+   (PlayerEntity lines 1509-1521 — `canModifyWorld` true in
+   survival/creative; NOT an entity-collision check; the engine's
+   `intersectsPlayerBox` is the engine's own documented extra).
+2. **Behavioral (pass 2, this pass):**
+   `BedPlacementFloorParityDiscoveryTest` — **RED BY CONTRACT on
+   unfixed develop `1139f2c3`**: the foot-glass, head-glass,
+   both-float, bottom-slab and side-face rows failing at exactly the
+   predicted points (the bed landing, the item spent), the 2 controls
+   GREEN (the double-stone agreeing row placing with the item spent;
+   the blocked-head-cell refusal — the engine's own existing headroom
+   gate proving the refusal semantics). **GREEN 7/0 on the fix.**
+3. **Independent (pass 3):** the compensation hunt NEGATIVE (zero floor
+   consults in the method; no config flag disables bed gates; the seats
+   prove no other gate fires on glass/air); the intentionality challenge
+   NEGATIVE (no design marker claims the gates; the javadoc documented
+   the contract WITHOUT them).
+
+**The correction:** the face gate at the method's entry (`face != 1` →
+return, the UP face per the engine's own `offsetByFace` mapping); the
+two-cell consult over `SupportConsult.hasSolidTop` after the head
+cell's computation, before the placement and the consumption.
+**Regression:** the bed family + the placement paths **46/47 GREEN**
+(BedWrongWorldBlast, BedPairFacingResolution, MultiplayerSleep,
+MultiPartPairIntegrity, SlabStairs, BuildingBlocks, TwoStageUseLaw,
+BlockInteraction) — the ONE failure is VT-035 below, PRE-EXISTING on
+pure develop (the isolation run identical on the unmodified baseline).
+
+**The named tails (each its own discovery pass):** the
+replaceable-CLICKED-cell target shift (vanilla places INTO the
+tall-grass cell — `flag` + `pos.up()` at BedItem lines 29-34; the
+engine places above it); the head cell's replaceable arm (vanilla's
+`flag3` accepts the tall-grass family, the engine's check is AIR
+alone); the entity-intersection arm's provenance.
+
+---
+
+## VT-035 — the nether bed pair's seeding await starves on develop: a lane defect in the merge window (suspected, the discovery pass owed)
+
+**Status:** SUSPECTED (a develop-side lane regression, discovered this
+pass during F-SP6's regression lanes). **The evidence:**
+`PairBreakDimensionParityTest.theNetherBedBreakKillsItsOwnPairInTheNether`
+fails on PURE develop `1139f2c3` (the isolation run: 3 tests, 1 failed —
+"the nether pair and the overworld probe landed" starves within 80
+ticks), identically on the F-SP6 fix tree (46/47 with this row the one
+failure). The test seeds the nether bed pair via raw `setBlock` (not
+the item path — F-SP6's gates cannot affect it), last touched by
+VT-009's fix (847387b6, merged as #106, green then). **The suspected
+window:** the recent merges (#111/#114/#115 the bed family's own
+arms, #118 the collision table, #139 the consult home, the FL4-GAP2
+slices) — the bisect owed. **The next pass's discovery lane:** run the
+test across the merge window's commits, isolate the breaking change,
+and ledger the fix or the seat correction with the root cause named.
+
+## The forty-fourth pass's close — the run's tally + the next run's queue
+
+**The landings:**
+1. **PR #147 REBASED ONTO DEVELOP** — the stack retired (#139 merged the
+   SupportConsult); the one clean F-SP2 commit over `1139f2c3`; RED BY
+   CONTRACT re-proven on the new baseline (10/6 at the predicted rows);
+   the regression lanes the last window owed now complete (the redstone
+   package 52/0, the block package 314/0, the placement lanes 33/0, the
+   protocol module 243/0, the transport 21/0).
+2. **F-SP5 (the pot) CONFIRMED and CORRECTED — PR #153 OPEN**: the two
+   sites (the placement gate + the survival pop walk) swapped to
+   `SupportConsult.hasSolidTop`; the seats 7/0 on the fix (RED BY
+   CONTRACT 4+3 on unfixed develop); the block package + the placement
+   lanes 333/0.
+3. **F-SP6 (the bed) CONFIRMED and CORRECTED — PR #154 OPEN**: the two
+   missing BedItem.useOn gates landed (the UP-face law + the both-halves
+   solid-top consult); the seats 7/0 on the fix (RED BY CONTRACT 5+2 on
+   unfixed develop); the bed family + the placement paths 46/47 (the one
+   failure VT-035, pre-existing on the unmodified baseline).
+4. **VT-035 LEDGERED (suspected)** — the nether bed pair's seeding await
+   starves on pure develop `1139f2c3`; the bisect across the merge
+   window owed.
+
+**The merge watch:** twenty-nine PRs OPEN (#108-#154 minus the merged
+and closed), none merged during this pass. The floor-consult family's
+carriers: #141/#143/#145/#147/#148/#149 all OPEN — the maintainer's
+picks and the cross-verifications remain the protocol acts; #147 is now
+the rebased core on develop with its evidence complete.
+
+**The next run's queue:**
+1. **VT-035's discovery lane** — the bisect across the merge window
+   (#111/#114/#115/#118/#139 + the FL4-GAP2 slices): isolate the
+   breaking change for the nether bed pair's seeding await, name the
+   root cause, and ledger the correction (a fix branch or a seat
+   correction with the engine verified 1:1).
+2. **The convergence protocol acts** — the maintainer's picks among the
+   floor-consult family's carriers (#141 vs #147 the core, #143 the
+   door, #145 the fire, #148 the tripwire, #149 the redstone floor);
+   the cross-verifications owed on #141/#143/#145/#148/#149's unique
+   rows vs #147's seats; the rebase notes when the picks merge.
+3. **The named tails' discovery passes** — the cake's REVERSE law
+   (`material.isSolid()` — CakeBlock 104-106; the engine pops flora
+   beds vanilla holds), the tripwire hook's wall mount
+   (`Block.isSolid()` — TripwireHookBlock 54-61, F-SP1's missed
+   member), the bed placement's replaceable-cell nuances (the
+   target shift + the head cell's replaceable arm).
+4. **The standing tails from the forty-second/third passes** — the
+   support-consult family's button default-state nuance; the dimension
+   tails' remainder (the zombie arm's world binding, the blast RNG
+   tail); the stick-tick residue's fix lane; VT-028/VT-029 in their own
+   lanes' hands.
