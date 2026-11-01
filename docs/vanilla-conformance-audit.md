@@ -7220,13 +7220,161 @@ box [y, y+0.5], and the strict intersection.
 
 ---
 
-*(The file's end — the forty-fourth pass's closing pointer: the LIVE queue
-is the forty-fourth pass's own, in its section above — the merge watch at
-develop `149eb1f0`, VT-028's Phase E (the fix stacked on #120), VT-029's
-seats, the stick-tick residue's fix slice, F-SP1's passes, the dimension
-tails, and the cross-lane notes. The sections below this line in the file
-order are the sibling lanes' records carried by the merges — the
-forty-first's entity-hit bowhit act, the postfan lineage's VT-012/VT-026/
-VT-027 records, and the forty-second's six-way union — all standing whole;
-nothing after the forty-fourth's queue supersedes it.)*
+## The forty-fifth pass — VT-030's Phase E LANDED (PR #140, the develop-base branch of the queue's instruction) + the numbering's final settlement with the dimension-tails lane
+
+**The provenance.** The environment reset with the forty-fourth lane's
+head pushed (`cad2f045`, 07:43:23); this pass recovered the state clean
+(working tree clean after the environment's 0644→0755 mode-churn was
+silenced with `core.fileMode false` — 879 files, zero content changes,
+nothing committed). The fetch found the develop baseline advanced
+**9 commits past `149eb1f0` to `efcd0c4f`** (PR #124's merge — VT-018's
+entity-hit bowhit arm, plus three CI-seat retirements: the give-command
+index race, the bed-guard transient, the ender-exit fountain column)
+and FOUR new sibling PRs from the dimension-tails lane plus THREE from
+the F-SP1 lanes.
+
+**THE NUMBERING'S FINAL SETTLEMENT (the public-first protocol, the
+timing facts).** The forty-fourth pass's assignments (VT-025 the
+toBreak / VT-026 the nether border / VT-027 the post-fan stamp /
+VT-028 the TNT-stick / VT-029 the orb's box) met the dimension-tails
+lane's PR titles, created minutes AFTER this lane's 07:41:16
+renumber commit and 07:43:23 branch push:
+
+- **#133** (07:42:28) claims VT-025 for the nether border — **#131's
+  title holds VT-025** (adopted 07:29:59, the earlier public claim;
+  the toBreak owns it). The nether border's lane renumbers its own
+  finding.
+- **#134** (07:43:50) claims VT-026 (the TNT prime hiss dimension);
+  **#135** (07:47:54) claims VT-027 (the dig/place feedback
+  dimension); **#136** (07:55:10) claims VT-028 (the anvil land
+  sound dimension). Per this lane's own VT-022 precedent — "a PR
+  title is the stronger public artifact" — **the TNT-stick finding
+  YIELDS VT-028 and renumbers VT-030** (VT-029 stays with the orb's
+  box model, this lane's assignment, unclaimed by any PR; the F-SP1
+  lanes' #137/#138/#139 ride F-numbers).
+- Every collision recorded; the final public landscape: VT-024 the
+  pickup envelope (#132), VT-025 the toBreak (#131), VT-026 the hiss
+  (#134), VT-027 the dig/place (#135), VT-028 the anvil (#136),
+  **VT-029 the orb's box (this lane, the seats owed), VT-030 the
+  TNT-stick (this lane, PR #140)**.
+
+**THE PASS'S HEAD — VT-030's Phase E (PR #140 OPEN).** The
+forty-fourth pass left the finding CONFIRMED whole (three passes:
+the source walk, the RED seats on develop `149eb1f0`, the
+execution-path census + the design-intent challenge + the composition
+edges). This pass's acts:
+
+- **The reference re-verified directly** (the fix's own shape depends
+  on the order): `ArrowEntity` 288-309 — the tracked cell (289-295),
+  `velocity := face−pos` (296-298), the 0.05 backoff (300-302), the
+  bowhit (303), `inGround = true` (**304**), and ONLY THEN the
+  consult (**307-309**); `TntBlock.onEntityCollision` 91-104 read
+  whole (the `isOnFire` gate at 94, the ignite, `removeBlock` at
+  101); the un-stick branch 172-186 read whole (the mismatch arm:
+  `inGround = false`, the per-axis `nextFloat()*0.2` re-arm, both
+  clocks reset).
+- **The base decision — DEVELOP (`efcd0c4f`), the queue's own "(or
+  opened after its merge)" branch.** The queue item said "STACKED ON
+  #120 (or opened after its merge)"; #120 is still open, and this
+  pass verified by `git merge-tree` that **#120 merges into develop
+  CLEAN (zero conflicts)** — so the ordering fix is independently
+  actionable on develop and composes at merge time. The stack-base
+  alternative was rejected this pass for the recorded reasons: (a)
+  #120's branch forks from the pre-#124 develop, so a #120-based fix
+  branch would MISS the VT-018 stick bowhit already merged into
+  develop — a stale-base hunk the maintainer would have to resolve;
+  (b) the PR would carry #120's whole 759-line diff — a duplicate
+  carrier for another lane's fix. The develop base gives the minimal
+  one-hunk diff, merge-anytime. **The honest scope stands as the
+  queue wrote it:** until #120 lands, the fixed arrow stays stuck at
+  the rest rather than hopping — the one-tick approximation,
+  documented in the PR and the commit.
+- **The repair** (`fix/tnt-stick-preemption-parity-audit` over
+  develop `efcd0c4f`, **PR #140 OPEN**): the arrow's block-hit arm
+  reordered — the stick ceremony whole FIRST (`landInGround()`, the
+  VT-018 bowhit, the `onProjectileLanded` fan), THEN the
+  burning-gated `tntIgniteSink.ignite(...)` consult (the isOnFire
+  gate is TntBlock's own, line 94), the walk ending stuck either way
+  (the old `return false` flight continuation retired). The stale
+  javadoc laws corrected at the three sites (the arm, EngineServer's
+  sink wiring, `TntSystem.igniteByArrow`).
+- **The seats** (`ArrowTntStickPreemptionDiscoveryTest` 3/0 GREEN on
+  the fix; **2 RED + the plain control green on the pre-fix tree**
+  by the stash discrimination — the seat carried from this lane's
+  pass-44 branch): THE STICK (inGround on the prime tick), THE REST
+  **re-scoped to the finding's own observable** (the flight retired:
+  the position FROZEN exactly across three further ticks — the
+  pre-fix arrow ~1.4 blocks/tick beyond the cell; the pass-44 form's
+  x-tolerance belonged to the VT-014 composition, not this finding's
+  slice), THE CONTROL (the plain arrow sticks, never primes).
+- **The regression, fresh runs: 86/0** — the projectile package whole
+  55/0 (the seat 3 + VT-018's stick 1 + entity-hit 3 riding develop
+  + the package's 48), TntSystem 2/0, NetherTntRouting 1/0, the
+  explosion neighbors 13/0 (EntityGather 9, TntRedstoneApi 2,
+  DimensionRouting 2), the combat lanes 15/0 (RangedCombat 10,
+  MobCombat 5). No other test on develop references the consult or
+  the old continuation shape (verified by search).
+- **The cross-PR notes** (in the PR body): #123's reworked
+  flight-continues stub re-pins when #140 lands (the pin IS the
+  pre-fix divergence); #117/#122's face rest and #120's hop compose
+  at merge (the merge-tree cleanliness recorded).
+
+**The pass's tally:** the baseline recovered and advanced
+(`efcd0c4f`); the numbering settled with the dimension-tails lane
+(VT-030 this lane's TNT-stick; VT-029 the orb's box, the seats owed);
+**VT-030's Phase E landed as PR #140** (the develop base, the
+reasoning recorded); the merge watch refreshed (28 open: the 21 of
+the forty-fourth record + #133-#139, minus none merged since — #124
+merged before this pass); the next queue below.
+
+## The queue for the forty-sixth pass
+
+1. **VT-029's passes 2-3** (the orb's box model — this lane's own
+   discovery, pass 1 done): the seats — the horizontal shortfall
+   (an orb at dx=1.45 beside the walker: the engine's 1.425 reach
+   vs the reference's 1.55), the vertical window at rest (the
+   player 0.75-1.0 above the orb's floor), the spawn-anchoring
+   question (the mid-flight collect window); then the independent
+   walk (the load-path quirk — the reference's LOADED orbs are
+   0.25×0.25, the census of which constructor each restore path
+   uses; the item family's toss anchoring).
+2. **The stick-tick residue's fix slice** (the thirty-ninth pass's
+   fifth act): the flight walk's landing arm consults the band at
+   the rest once (the feet-law window) before the stuck body exits
+   the walk — RED on develop AND on the #123+#128 union; its own
+   branch (composed with #123/#128 or stacked behind them).
+3. **The merge watch** (the open set, 28 PRs): #108-#111, #113,
+   #114, #116-#121, #122, #123, #125, #126, #128-#133, #134-#139,
+   **#140 (this pass)**. After the arrow family's carriers merge,
+   the bobber's parallel un-stick arm (VT-015's named follow-up) is
+   the projectile family's standing item. **#123's flight-continues
+   stub re-pins on #140's merge** (the PR body carries the note).
+4. **VT-012's own pass** (the pass-30 lane's discovery): the
+   `NetherBlastRoutingAcceptanceTest` flake's bounded fix — the
+   seat's read order (await the event reference, not the cell
+   alone); a test-infrastructure correction.
+5. **F-SP1's merge arbitration** (three convergent carriers open:
+   #137/#138/#139 — the maintainer owns the pick; the convergence
+   notes owed if the clock permits).
+6. **The dimension tails' remainder** (the PR #90 ledger, past
+   #133-#136): the FX dimension awareness, the per-dimension world
+   border, the zombie arm's world binding; the blast RNG tail
+   (VT-007's named tail: the End/nether services' shared
+   `gameplayRandom` vs the reference's per-world `world.random`).
+7. **The cross-lane notes owed:** the VT-025/#133 numbering note
+   (the nether border's renumber — its lane's act, this lane's
+   timing facts above the record); the F-SP1 convergence notes.
+
+---
+
+*(The file's end — the forty-fifth pass's closing pointer: the LIVE
+queue is the forty-sixth pass's, in the section above — VT-029's seats
+the head, the stick-tick residue's fix slice, the merge watch at
+develop `efcd0c4f` (28 open, #140 this lane's), VT-012's flake fix,
+the F-SP1 arbitration, the dimension tails' remainder, and the
+cross-lane notes. The sections below this line in the file order are
+the sibling lanes' records carried by the merges — the forty-first's
+entity-hit bowhit act, the postfan lineage's records, and the
+forty-second's six-way union — all standing whole; nothing after the
+forty-fifth's queue supersedes it.)*
 
