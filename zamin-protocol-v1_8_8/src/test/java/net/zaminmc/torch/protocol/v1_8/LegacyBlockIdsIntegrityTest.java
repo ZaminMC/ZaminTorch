@@ -273,4 +273,100 @@ class LegacyBlockIdsIntegrityTest {
                     row[0] + " must carry the horizontal id " + row[2]);
         }
     }
+
+    /**
+     * The vine family's sixteen face states on the wire (the Nov 1
+     * production crash's repair): Wave VN-A registered the engine states
+     * and the anvil import rows without the WIRE rows, and a jungle
+     * world's anvil import then threw {@code Block type has no legacy
+     * 1.8.8 representation: minecraft:vine_south} at the login bulk send
+     * — with {@code minecraft:vine_west_east} killing every relight
+     * resend after it (ChunkSerializer18.legacyStateId's §147 loud fail,
+     * the tick loop skipping). Legacy 106 carries every state, the four
+     * persisted face bits riding the nibble (VineBlock
+     * .getStateFromMetadata lines 328-331: SOUTH=1, WEST=2, NORTH=4,
+     * EAST=8); the bare all-faces form keeps its historical 15.
+     */
+    @Test
+    void theVineFamilySixteenStatesRideLegacy106WithTheirFaceNibbles() {
+        for (int bits = 0; bits <= 15; bits++) {
+            net.zaminmc.torch.server.block.EngineBlockType state =
+                    net.zaminmc.torch.server.block.VineBlocks.stateFor(bits);
+            String name = state.identifier().value();
+            assertEquals(Optional.of(106), LegacyBlockIds.legacyId(state.identifier()),
+                    name + " must ride legacy 106 (the vine's own id)");
+            assertEquals(bits, LegacyBlockIds.metadataOf(state.identifier()),
+                    name + " must carry its own face bits on the nibble");
+            assertEquals((106 << 4) | bits, ChunkSerializer18.packedStateId(state),
+                    name + "'s packed wire form");
+            // The anvil import pair agrees for every nibble (the two
+            // tables can never drift — the round trip both ways).
+            assertEquals(Optional.of(state.identifier()),
+                    net.zaminmc.torch.server.world.anvil.AnvilBlockIds.resolve(106, bits),
+                    "the import row for 106|" + bits);
+        }
+        // The two production crashers, named (the Nov 1 stack traces).
+        assertEquals(Optional.of(106), LegacyBlockIds.legacyId(
+                net.zaminmc.torch.util.Identifier.parse("minecraft:vine_south")));
+        assertEquals(1, LegacyBlockIds.metadataOf(
+                net.zaminmc.torch.util.Identifier.parse("minecraft:vine_south")));
+        assertEquals(Optional.of(106), LegacyBlockIds.legacyId(
+                net.zaminmc.torch.util.Identifier.parse("minecraft:vine_west_east")));
+        assertEquals(10, LegacyBlockIds.metadataOf(
+                net.zaminmc.torch.util.Identifier.parse("minecraft:vine_west_east")));
+        // The no-metadata reverse keeps the BARE form canonical on 106 —
+        // the vine item's own row (BuiltinItems.VINE shares the
+        // identifier); the fifteen face states are only ever reachable
+        // through the damage-aware reverse.
+        assertEquals(Optional.of(
+                net.zaminmc.torch.util.Identifier.parse("minecraft:vine")),
+                LegacyBlockIds.identifierOf(106));
+        for (int bits = 0; bits <= 15; bits++) {
+            assertEquals(Optional.of(
+                    net.zaminmc.torch.server.block.VineBlocks.stateFor(bits).identifier()),
+                    LegacyBlockIds.identifierOf(106, bits),
+                    "the damage-aware reverse for 106|" + bits);
+        }
+    }
+
+    /**
+     * The wire table's whole-registry net (the vine crash's CLASS guard):
+     * every block the production registry boots must resolve a legacy id.
+     * A registered-but-unwireable type is a live crash in waiting —
+     * ChunkSerializer18's §147 loud fail kills the login bulk send and
+     * every relight resend the moment a world holds one (the vine
+     * family's fifteen face states were exactly this on Nov 1; the placed
+     * oak sapling the same crash before its R-2 repair). The Anvil import
+     * integrity test SKIPS the unwireable when deriving its expectation —
+     * this seat is the opposite direction: the skip set must be EMPTY,
+     * so nothing may join it silently again.
+     */
+    @Test
+    void everyRegisteredBlockResolvesOnTheChunkWire() {
+        // The EngineServer.start() registration chain, replicated exactly.
+        var builder = new net.zaminmc.torch.server.block.BlockRegistryBuilder();
+        builder = net.zaminmc.torch.server.block.BuiltinBlocks.registerAll(builder);
+        builder = net.zaminmc.torch.server.block.FluidBlocks.registerAll(builder);
+        builder = net.zaminmc.torch.server.daylight.DaylightDetectorBlocks.registerAll(builder);
+        builder = net.zaminmc.torch.server.redstone.RedstoneBlocks.registerAll(builder);
+        builder = net.zaminmc.torch.server.redstone.TripwireBlocks.registerAll(builder);
+        builder = net.zaminmc.torch.server.piston.PistonSystem.registerBlocks(builder);
+        builder = net.zaminmc.torch.server.hopper.HopperSystem.registerBlocks(builder);
+        builder = net.zaminmc.torch.server.dispenser.DispenserSystem.registerBlocks(builder);
+        builder = net.zaminmc.torch.server.brewing.BrewingStandBlocks.registerAll(builder);
+        builder = net.zaminmc.torch.server.beacon.BeaconSystem.registerBlocks(builder);
+        builder = net.zaminmc.torch.server.chest.EnderChestBlocks.registerAll(builder);
+        builder = net.zaminmc.torch.server.cauldron.CauldronBlocks.registerAll(builder);
+        var registry = builder.freeze();
+        java.util.List<String> unwireable = new java.util.ArrayList<>();
+        for (var type : registry.all()) {
+            if (LegacyBlockIds.legacyId(type.identifier()).isEmpty()) {
+                unwireable.add(type.identifier().toString());
+            }
+        }
+        org.junit.jupiter.api.Assertions.assertTrue(unwireable.isEmpty(),
+                "registered-but-unwireable block types (each is a live §147 chunk-serialisation"
+                        + " crash the moment a world holds one — add the wire row or retire the"
+                        + " type):\n" + String.join("\n", unwireable));
+    }
 }
