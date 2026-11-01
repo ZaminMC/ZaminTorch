@@ -4460,3 +4460,30 @@ law and the feet-law note). The resolution is trivial (this act's
 scratch union carries it: the two notes compose in the one javadoc),
 but the claim is stale — the review notes on both PRs should carry
 the correction so the maintainer expects the one-hunk conflict.
+
+
+## The thirty-ninth pass, sixth act — PR #122 verified through the four independent placement seats (the maintainer's #117-vs-#122 construction pick, both carriers now equivalently seated)
+
+The b-lane's box-view construction (`fix/arrow-stick-placement-parity-audit-b`
+`237611d3`) was run through the four independent placement seats (the
+pass-33 lane's launch-based pair + the pass-34 lane's
+spawnRestored-deterministic pair, both RED on develop at their
+predicted geometries): **4/0 GREEN** — the identical set PR #117
+passed in the pass-38 lane's verification. The two VT-014 carriers
+are now equivalently seated; the pick between the rayTrace cell walk
+(#117) and the box-view construction (#122, additionally carrying
+VT-021's slab face) is a style/maintenance choice, not a coverage
+one. The three un-stick seats run RED on #122's tree — its documented
+scope boundary (the placement alone; VT-015's carriers #119/#120).
+The review note posted.
+
+**The pass's tally**: the VT-020 collision resolved (the public-first
+protocol, the renumber to VT-021 adopted by the b-lane's PR #122);
+VT-019 and VT-018 CONFIRMED whole (three passes each, the seats and
+the independent walks); VT-023 cross-verified (both grazing edges);
+the stick-tick residue seated (RED on develop and the #123+#128
+union, the uncarried slice); five PRs cross-tree verified with the
+review notes posted (#122, #123, #124, #128, and the union-conflict
+correction on #123/#128); seven new seats on this lane's branch (the
+VT-019 pair, the VT-018 full-boot pair — renamed per the
+file-resolution protocol, the VT-023 pair, the stick-tick seat).
