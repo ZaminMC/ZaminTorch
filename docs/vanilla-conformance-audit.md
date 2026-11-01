@@ -5131,3 +5131,125 @@ per-world law), the behavioral seats (pass 2), the independent walk
 (pass 3), and the Phase E correction if confirmed. The hasSupportBelow
 family (the pass-46 queue's standing head) stands behind it — an
 in-flight finding's completion takes precedence over a fresh discovery.
+
+## VT-029 — the no-dimension FX residual: sixteen per-dimension-context sites stamp the overworld 0 (pass 1 complete — the source census + the per-site walk)
+
+**Subsystem:** FX broadcasting / dimension ownership. **Baseline:** the
+newest `origin/develop` (`efcd0c4f`, this lane's merged tree). **Status:**
+SUSPECTED → pass 1 complete (the source pass widened from pass-45's
+three-site census to the whole-engine argument-counting census; the
+per-site walk below).
+
+**The law (the reference, 1:1):** every one of these sounds/events
+dispatches through the ACTING world's own listener list —
+`World.doEvent(type, pos, data)` (World.java 2609) → the block's handler
+→ `world.playSound(x, y, z, name, volume, pitch)` (World.java 781) →
+`this.eventListeners` — the WORLD'S OWN list — → PlayerManager.sendPacket
+(PlayerManager.java 626-640): `serverplayerentity.dimension == dimension`
+refuses every observer standing in another dimension. The dimension is
+the WORLD OBJECT'S own; no sound ever crosses a world boundary.
+
+**The engine's divergence:** the FxManager's no-dimension overloads
+stamp `OVERWORLD` unconditionally (FxManager.java 195-197, 234-236,
+302-304, 315-317 — the documented migration form). The census (an
+argument-counting scanner over every `zamin-core` main source, balanced
+against comments/strings — 33 raw sites) found the sites below whose
+acting context IS per-dimension (the routed world, the session's
+dimension, or the host's dimension field in scope) while the call stamps
+0: a nether observer hears NOTHING where vanilla answers, and an
+overworld observer at the same coordinates hears the PHANTOM.
+
+**The sixteen members (pass 1, each site read in context):**
+
+| # | Site | The sound | The acting dimension in scope |
+|---|------|-----------|-------------------------------|
+| 1 | `NoteBlockSystem.playNote` (403) | the note ("note." + instrument, 3.0F) | the system is constructed PER-DIMENSION (three instances over their own worlds, EngineServer 1980-1996) — the CLEANEST member |
+| 2 | `EngineServer` summonWither host (6034) | the birth poof | the host's own `dimension` field — the body is stamped with it at line 6030 ten lines above |
+| 3 | `EngineServer` setFireExtinguishFx (3937) | the extinguish fizz (World.java 1642's doEvent 1004) | the blockInteraction service routes the extinguish by the acting player (FL4-F5); NOT in PR #135's diff (the Commit closure alone) |
+| 4 | `EngineServer` trapdoor use (12430) | random.door_open/close 0.8F | the routed acting `world` — the lever/button arms in the SAME dispatch carry `session.dimension()` (12357-12365, the migration's own precedent) |
+| 5 | `EngineServer` ender-eye insertion (12672) | the 16 smoke puffs | `session.dimension()` in scope at 12666 (the comparator wake beside it) |
+| 6 | `EngineServer` flint ignite (14140) | fire.ignite 1.0F | the acting `world` (the fire is placed in it at 14134) |
+| 7 | `EngineServer` double-plant place (14598) | dig.grass 0.6F | `worldFor(session.dimension())` at 14571 |
+| 8 | `EngineServer` hoe till (14720) | step.grass 1.0F | the acting `world` |
+| 9 | `EngineServer` cocoa place (14817) | dig.grass 0.6F | the acting `world` |
+| 10-14 | `EngineServer` bone meal 2005 ×5 (14841/14869/14888/14909/14927) | the world event 2005 | the acting `world` (DyeItem.useOn line 45's `world.doEvent(2005, pos, 0)`) |
+| 15 | `EngineServer` toggleDoorOnTick (15136) | random.door_open/close 0.8F | the acting `EngineWorld world` PARAMETER |
+| 16 | `EngineServer` toggleFenceGateOnTick (15177) | random.door_open/close 0.8F | `worldFor(session.dimension())` at 15159 |
+
+**The exclusions (the honest census, each verified in context):**
+
+- **TripwireSystem 307-313/343** (pass-45's "cleanest member") — the
+  system is constructed ONCE over the OVERWORLD alone (EngineServer
+  2153-2154; no nether/end instance exists): the 0 stamp is never a
+  wrong stamp while the system only ever acts on the overworld. The REAL
+  defect is the missing per-dimension tripwire family (nether/end
+  tripwires are dead machinery) — the Slice-D-class architecture lane,
+  NAMED as this pass's discovery VT-030 (below).
+- **PistonSystem 883** — the same class: the system is overworld-only
+  (EngineServer 1813-1814); Slice D's per-dimension shape is the named
+  plan already ledgered.
+- **LightningSystem 1724/1726** — the family is overworld-bound BY
+  VANILLA (weather strikes the overworld alone; the listener's spawn fan
+  gates `player.dimension() == 0` at 1712): correct-by-construction.
+- **FluidSystem 823** — exonerated: the `sink.sound` receiver forwards
+  to the dimension-aware form with the sink's own dimension
+  (FluidSink.sound, EngineServer 24804-24806).
+- **EngineServer 3885/3886/3902** (dig/place commit feedback) — PR #135
+  (VT-031) carries them (the diff verified: the Commit closure's two
+  arms).
+- **EngineServer 387/415** (TNT prime hiss) — PR #134 (VT-030's public
+  number) carries them.
+- **EngineServer 18919** (falling anvil land) — PR #136 (VT-032) carries
+  it.
+- **EngineServer 10952** (the anvil window's doEvent sounds) — the SITE
+  is overworld-bound (`anvilSiteAt` reads the overworld field for every
+  consult): the fx stamp is a SYMPTOM of the site's world binding — its
+  own lane (VT-031 below).
+- **EngineServer 13126** (the repeater delay click) — the sound itself
+  is a PHANTOM (the reference's RepeaterBlock.use 38-45 is SILENT; only
+  the comparator clicks, ComparatorBlock.use 148-152 — and the engine's
+  comparator arm at 12350-12353 is correct, `session.dimension()` and
+  the mode-answer pitch): the member moves to VT-032 (below), the fix
+  the sound's removal, the stamp moot.
+- **The eat/burp/thorns family** (the vt-013 lane's census: ~6192/~6208/
+  ~7221/~7734/~7814/~8559/~8593/~8624 on the older tree) — RESOLVED on
+  the current develop: every site now carries `session.dimension()` /
+  `target.dimension()` (6651/6667/7680/8193 verified). The lane's census
+  tail closes.
+- **DispenserSystem 368/408/669** (pass-45's pass-2 question) — ANSWERED:
+  the sites are GONE from the current tree (the FL4-GAP2 Slice B/C
+  landings migrated them); the census finds no no-dimension dispenser
+  site. The members died; the Slice B record's claim holds on this tree.
+
+**Two adjacent rows named during the walk (their own findings):**
+
+1. **VT-031 (this lane's numbering) — the anvil window's block side is
+   overworld-bound:** `anvilSiteAt` (EngineServer 10912-10955) reads the
+   EngineServer's overworld `world` field for the anvil consults (the
+   stands check, the damage read/progress, the break, the 1020/1021
+   sounds) while the session carries `openContainerDimension` (the
+   furnace/beacon families' own stamp — Slice B/C). A nether anvil
+   repair reads and damages the OVERWORLD's anvil at the same
+   coordinates. SUSPECTED (pass 1: the source walk; the seats owed).
+2. **VT-032 (this lane's numbering) — the repeater's phantom click:**
+   `cycleRepeaterDelayOnTick` (EngineServer 13118-13129) plays
+   random.click 0.3F/0.6F at the delay step where the reference's
+   RepeaterBlock.use (lines 38-45) plays NOTHING — the comparator's
+   click (the 0.3F/0.55-or-0.5 mode-answer law) was correctly ported at
+   12347-12353 but the repeater borrowed a sound the reference never
+   plays. SUSPECTED (pass 1: the source walk; the seat owed — the fix
+   is the sound's removal).
+
+**An adjacent observation (named inside this row, not a finding of its
+own yet):** the flint ignite pitch band — the engine `0.9f +
+nextFloat()*0.2f` ([0.9, 1.1]) vs the reference
+`nextFloat()*0.4F + 0.8F` ([0.8, 1.2], FlintAndSteelItem line 25).
+
+**The proposed minimal correction (if confirmed):** the sixteen sites
+adopt the dimension-carrying overloads with their own in-scope dimension
+— `world.dimension()` / `session.dimension()` / the host's `dimension`
+field — the migration the overloads' own javadoc names. No architecture
+change; the excluded sites keep their lanes.
+
+**Confidence:** high on the source walk (every site read in context, the
+reference chain verified end-to-end). Passes 2 and 3 owed.
