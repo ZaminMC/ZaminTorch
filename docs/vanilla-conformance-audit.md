@@ -2006,3 +2006,345 @@ in the fix pass).
    pass); the FL4-F10 redstone world binding — the house stream's own
    claimed next act (its trace and six-point plan recorded at
    `99f1718b` on develop) — NOT to be duplicated by this stream.
++
++## The forty-sixth pass — VT-029's pass-2 census correction (the member fates settled) + TWO NEW FINDINGS: VT-030 (the per-dimension tile families' protocol relays never re-wired) and VT-031 (the tripwire family and the TNT's redstone prime have NO nether/End machinery — the Slice D plan's un-named members)
++
++The pass's baseline: develop MOVED `149eb1f0 → efcd0c4f` (sixteen commits:
++PR #106/#115/#124 MERGED, the FL4-GAP2 Slices B and C LANDED — the
++container and tile families at the `chestsFor` per-dimension form, the
++ZFD v3/ZDD v2/ZBD v2/ZHD v2 and ZSD v3/ZJD v2/ZND v2/ZBD v2/ZBT v2/ZCB v3
++stamps, the command-block redstone run per dimension; runs 588/589/590's
++seat defects retired). The audit lane's report and seats carried to
++`audit/verifier-pass-46-discovery` on `efcd0c4f` whole (the house's
++test-side hardenings kept, never reverted).
++
++### VT-029's pass 2 — the census correction (against efcd0c4f)
++
++The pass-45 census named two members; the pass-2 walk settles their fates
++and finds ONE live survivor:
++
++1. **The dispenser trio (368/408/669) — RESOLVED, the member DEAD.**
++   Slice B's landing stamped every DispenserSystem emit with
++   `world.dimension()` (lines 314/368/408/499/521/541/555/578/581/605/
++   607/631/636/639/661/667/671/701/727/765/811/881/897/939/945/990/1002/
++   1032 — the whole surface, the census's question answered: the
++   per-dimension families carry their own `world` and every call reads
++   it). The Slice B claim was current, not stale.
++2. **The tripwire shatter (TripwireSystem 343) — the member's CLAIM
++   WRONG IN SHAPE, the underlying gap real but different.** The pass-45
++   census asserted "the system holds its own per-dimension world" — it
++   does NOT: `tripwireSystem = new TripwireSystem(world, redstoneSystem,
++   fxManager)` (EngineServer 2153) binds THE OVERWORLD field, and BOTH
++   buses are overworld-only (`world.addChangeListener(tripwireSystem)`
++   2155; `redstoneSystem.addNeighborListener(tripwireSystem::
++   neighborHeard)` 2157; `redstoneSystem.setTripwireTicker(...)` 2156 —
++   the overworld redstone alone). A NETHER tripwire hook/wire NEVER
++   REACHES this system AT ALL — the shatter's stamp-0 is never wrong
++   because the shatter never fires for a foreign cell. The REAL
++   divergence is the missing machinery whole — recorded below as
++   **VT-031**, not as an FX-stamp member.
++3. **THE LIVE SURVIVOR — `NoteBlockSystem.playNote` line 403**: the
++   family went per-dimension in Slice C (`noteBlocksFor`, the nether/
++   end families with their OWN worlds — EngineServer 5947), but the
++   tune still reads the no-dimension overload —
++   `fx.sound(pos, "note." + instrumentName(instrument), 3.0f, pitch)`
++   — stamping OVERWORLD 0. The reference: the note's sound plays
++   through the ACTING world's listener (ServerWorld.doBlockEvents 847
++   → NoteBlock.doEvent 95-101 → World.playSound 781-784 →
++   ServerWorldEventListener.playSound 40-44: `sendPacket(x, y, z,
++   range, this.world.dimension.getId(), ...)` — the ACTING dimension).
++   A nether note block's tune reaches dimension-0 observers ONLY: the
++   nether players hear NOTHING, the overworld players at the same
++   coordinates hear a PHANTOM note. This member folds into VT-030's
++   root cause (the note family's wire-facing surfaces never re-wired)
++   and is VT-030's member 1.
++
++**VT-029's status: the FX-stamp class census CLOSED — the dispenser
++member resolved by Slice B, the tripwire member reframed (VT-031), the
++one live member (the note tune) carried into VT-030's record. The class
++itself (the no-dimension overloads) remains a standing hazard for any
++future per-dimension system — the TNT hiss pair (TntSystem 387/415,
++both no-dimension, the ignite arm holding `actingWorld` at 406-415) is
++ALREADY CLAIMED by VT-026/PR #134 and stays that lane's; the piston
++pistonSound (PistonSystem 883) and the tripwire family's calls stay
++"correct-by-binding" (overworld-bound systems) until their per-dimension
++slices land, at which point their stamps MUST move with them — named in
++VT-031's record as the follow-on requirement.**
++
++### THE NEW FINDING — VT-030 (SUSPECTED, pass 1 = the source census): the Slice A/C per-dimension tile families' PROTOCOL RELAYS were never re-wired
++
++**The root cause.** Slices A and C moved seven tile families to
++per-dimension instances (`chestsFor`/`noteBlocksFor`/`jukeboxesFor`/
++`beaconsFor`/`skullsFor`/`bannersFor`/`commandBlocksFor` — each holding
++its OWN world), and correctly re-wired the ENGINE-side consult sites
++(the window family, the break listener, the stores, even the
++engine-side `beaconAward` listener on all three beacon families,
++EngineServer 2557-2561). But the PROTOCOL ADAPTER's relays — the
++listener registrations in `V18ProtocolServer` — still read the
++SINGLE-FAMILY accessors (`server.noteBlocks()`, `server.jukeboxes()`,
++`server.beacons()`, `server.skulls()`, `server.banners()`,
++`server.commandBlocks()` — the OVERWORLD families) and (for the older
++three) still carry the TF-12-era overworld hard gates. The per-dimension
++families' listener lists are EMPTY: their events reach NO wire client.
++
++**The members (all on efcd0c4f):**
++
++1. **The note tune's dimension stamp** — `NoteBlockSystem.playNote`
++   403 (VT-029's survivor, above). RED observable: a nether note play
++   emits the tune stamped 0.
++2. **The note ACTION relay** — `V18ProtocolServer` 1637-1640 registers
++   `addNoteActionListener` on `server.noteBlocks()` ALONE (the
++   overworld family) and hard-gates `dimensionOfSession() != 0`. A
++   nether note block's Block Action 0x24 (the client's note PARTICLE —
++   the sound rides member 1's channel; the reference's client-side
++   doEvent renders the particle alone, `WorldRenderer.playSound` 1804-
++   1805 being EMPTY on the client) reaches NO client at all: the
++   nether family's listener list is empty. The reference:
++   `ServerWorld.doBlockEvents` 835-842 sends the block event within
++   64.0 blocks **`this.dimension.getId()`** — the acting dimension.
++3. **The jukebox RECORD relay** — `V18ProtocolServer` 1650-1656
++   registers `addRecordListener` on `server.jukeboxes()` ALONE. A disc
++   inserted into a NETHER jukebox fires the nether family's (empty)
++   listener list: the 1005 event reaches NO client — **the disc NEVER
++   plays for anyone** (the block flips to HAS_RECORD, the disc is
++   consumed and stored — a silent jukebox; the stop/eject arm equally
++   silent). The reference: `MusicDiscItem.useOn` 43-49 →
++   `world.doEvent(null, 1005, pos, Item.getId(this))` →
++   `ServerWorldEventListener.doEvent` 73-77 → `sendPacket(source, x,
++   y, z, 64.0, this.world.dimension.getId(), WorldEventS2CPacket)` —
++   the acting dimension.
++4. **The chest LID relay** — `V18ProtocolServer` 1626-1632 hard-gates
++   `dimensionOfSession() != 0` on the ENGINE-WIDE
++   `publishChestLid` fan (EngineServer 8737-8741 — the window family
++   IS dimension-routed and fires the fan for every dimension's open/
++   close). A nether chest's lid Block Action goes to dimension-0
++   observers ONLY: the nether players see no animation, the overworld
++   players at the same coordinates see a PHANTOM lid. The reference:
++   `ChestBlockEntity.onOpen/onClose` 308-327 →
++   `world.addBlockEvent(pos, block, 1, viewerCount)` → the acting
++   world's doBlockEvents (the same `this.dimension.getId()` law). NOTE
++   the interface itself (`ChestLidListener.onChestLid(position,
++   opener, open)`) carries NO dimension — the fix must thread it (the
++   Slice C `openContainerDimension`-stamp pattern).
++5. **The beacon tile relay** — `V18ProtocolServer` 1105-1116 on
++   `server.beacons()` ALONE, with NO dimension gate in the loop. A
++   nether beacon's state change (the levels/effects the client's beam
++   walk reads) re-publishes to NO client (the nether family's list
++   empty); an OVERWORLD beacon's tile leaks to EVERY connection
++   including nether/end clients (the cross-world phantom the Slice C
++   commit closed for the CHUNK replays but not for the live listener).
++6. **The skull tile relay** — 1119-1133, `server.skulls()` alone, no
++   gate. Same shape.
++7. **The banner tile relay** — 1134-1150, `server.banners()` alone, no
++   gate. Same shape.
++8. **The command-block tile relay** — 1151-1165, `server.commandBlocks()`
++   alone, no gate. Same shape.
++
++**The design-choice challenge (pre-emptive, pass 1):** the relays'
++own comments admit the stale binding — the record relay's "the jukebox
++system is overworld-bound today, so its records are overworld events —
++the family's ledged binding" (1653-1655) and the note relay's "the same
++per-world relay law" (1639) predate Slice C by hours; the same Slice C
++commit that made the families per-dimension REMEMBERED the engine-side
++`beaconAward` registration on all three (2557-2561) and forgot the
++protocol module's six — the omission class, not a choice (the VT-006
++precedent). The seat evidence below pins the behavioral shape.
++
++**STATUS: VT-030 SUSPECTED — pass 1 (the source census) complete this
++pass; the seats and the independent walk owed.** The fix shape: the
++six relay registrations move to the per-dimension families (the
++`for (family : noteBlocksFor each)` form or the engine-side aggregated
++listener carrying the dimension), the three hard gates retire in favor
++of the event's own dimension, and the note tune adopts the carrying
++form with `world.dimension()` — the `beaconAward` pattern EngineServer
++already demonstrates.
++
++### THE NEW FINDING — VT-031 (SUSPECTED, pass 1 = the source census): the tripwire family and the TNT's redstone prime have NO nether/End machinery — the FL4-GAP2 "downstream families" the Slice D plan does not name
++
++**The class.** The FL4-F10 landing's own comment (EngineServer ~1694-
++1701) names the downstream families that "stay on the overworld's bus
++for now": "the pistons, the hoppers, the dispensers, the tripwire, the
++command blocks, the beacons, the TNT". Slices B and C re-wired the
++hoppers/dispensers/command blocks/beacons; the house's traced Slice D
++plan (the README's dimension-ownership row) names "the transient
++families — the piston movingBlocks, the decorations, the leads". **The
++TRIPWIRE and the TNT's redstone arm are named by NEITHER — the gap's
++un-planned members.**
++
++**Member (a) — the tripwire family whole.** The construction census
++(above): the change listener, the neighbor listener and the scheduled-
++tick ticker all bind the OVERWORLD (`world.addChangeListener` 2155,
++`redstoneSystem.addNeighborListener` 2157, `setTripwireTicker` 2156);
++`netherRedstone`/`endRedstone` carry note/hopper/dispenser/beacon
++listeners but NO tripwire arm. A nether/End tripwire hook or wire:
++the PLACEMENT commits (the gate consults the acting world,
++`placeTripwireHookOnTick` 13509-13535), but the state machine NEVER
++RUNS — no `updateHookState` (the initial attachment walk), no
++`checkSupport` (the mount-gone break), no occupancy scan, no power, no
++click sounds, no shatter. The observable: **a nether hook FLOATS when
++its wall block is removed** (vanilla: `TripwireHookBlock.
++neighborChanged` 108-119 breaks the hook with its drop); a nether wire
++floats over a vanished floor; a nether tripwire never powers its hook.
++**The seat's control:** the identical construction in the OVERWORLD
++breaks correctly (the machinery exists — the binding alone is wrong).
++
++**Member (b) — the TNT's redstone prime.** `tntSystem`'s buses are
++overworld-only (`redstoneSystem.addNeighborListener(tntSystem::
++neighborHeard)` 2111, `world.addChangeListener(tntSystem)` ~1888), and
++`neighborHeard` itself reads `world.getBlock(pos)` — the OVERWORLD's
++cell (TntSystem 333-337; the checkIgnite javadoc 339-347 ADMITS the
++binding: "the SIGNAL consult rides the redstone system's own binding
++(the system's constructor world — the overworld's bus)"). A nether/End
++TNT block powered by redstone NEVER PRIMES (the flint/blast arms are
++routed — the FL4-F7 wave, `NetherTntRoutingAcceptanceTest` the record;
++the redstone arm has NO nether seat). The reference:
++`TntBlock.neighborChanged` runs through the ACTING world's dispatch
++(the per-world `neighborChanged` law every landed slice demonstrates).
++
++**STATUS: VT-031 SUSPECTED — pass 1 (the source census) complete;
++the seats and the independent walk owed.** The fix shape: the Slice D
++pattern per family — the per-dimension tripwire instances (each its
++own world + redstone, the `chestsFor` form) or the parameterized
++acting-world consult (the TNT's `neighborHeard` taking the acting
++world, both buses per-dimension); the fx stamps move with the binding
++(the VT-029 class requirement). The correction rides the house's Slice
++D lane if the maintainer prefers the architecture wave; the finding's
++job is the seats and the verification.
++
++### The pass's seats (pass 2 — the behavioral evidence, this pass's build)
++
++Three seats built this pass (the run results in the next section):
++
++1. `NoteTuneDimensionStampDiscoveryTest` (zamin-core) — the nether
++   note play through the REAL use wire (`useItemOnBlock` from a
++   nether-setDimension session, the Slice C seat's own construction),
++   the FxManager bus captured: the tune event MUST carry dimension -1.
++   The overworld control pins the 0 stamp's correctness for the
++   overworld family.
++2. `NetherDownstreamFamilyInertDiscoveryTest` (zamin-core) — VT-031's
++   two members: the nether hook FLOATS over the removed wall (the
++   overworld control breaks), the nether wire FLOATS over the removed
++   floor, and the nether TNT never primes on a redstone torch (the
++   flint-arm control primes).
++3. `TileRelayDimensionPhantomDiscoveryTest` (zamin-protocol-v1_8_8) —
++   VT-030's phantom observables through the REAL wire: the overworld
++   TestClient18 receives the nether note's tune (the fx phantom) and
++   the nether chest's lid swing (the relay phantom) — both WRONG in
++   vanilla (the acting dimension gates every packet). The overworld
++   controls (the overworld note/lid reaching the client) pin the
++   working halves so the fix cannot silence the channels.
++
++The nether-OBSERVER halves of VT-030's members 2-8 (the nether client
++hearing NOTHING where vanilla delivers) need a nether wire client —
++the dimension-change harness (the portal crossing) is its own piece of
++work, named as the follow-up seat; the source census + the phantom
++seats carry the pass-2 evidence for now.
+
+## The forty-seventh pass — the renumbering reconciliation + PASS 2 COMPLETE for both standing findings (VT-035's note member independently confirming PR #142 cross-tree; VT-036's seat RED at all three nether pins)
+
+Baseline: `origin/develop` at `1139f2c3` (PR #139 F-SP1 MERGED — the
+support-consult family, VT-028's convergence with #137/#138; PR #118
+F-DS1 MERGED; the FL4-GAP2 Slice D LANDED — the lead family, commit
+`5a53d2fd`; torch-1.8.8-158). The lane's carry: the pass-46 branch
+name COLLIDED on the remote (the F-SP1 lane's own forty-sixth-pass
+lineage owns `audit/verifier-pass-46-discovery` at `02414bb0` — never
+force-pushed over); this pass's records ride
+`audit/verifier-pass-47-discovery` from `1139f2c3`, the pass-46 section
+carried whole above.
+
+### The renumbering (the public-first protocol)
+
+The pass-46 numbering (VT-030/VT-031) is retired — both numbers taken
+publicly between the passes: **VT-029** owns PR #142 (the sixteen-site
+FX residual sweep), **VT-030** owns PR #140 (the burning arrow's stick
+preemption), **VT-031** owns PR #135 (the dig/place commit feedback
+dimension), **VT-032** owns PR #136 (the falling anvil's land sound),
+**VT-033** owns PR #146 (the wither-summon family's residues),
+**VT-034** owns PR #144 (the repeater's phantom click). This lane's
+two findings renumber to **VT-035** (the per-dimension tile families'
+protocol relays never re-wired) and **VT-036** (the tripwire family
+and the TNT's redstone prime have no nether/End machinery) — the
+next free numbers, the provenance recorded here.
+
+### PR #142's overlap with VT-035 — the audio/relay split
+
+PR #142's sweep fixes the note play's SOUND half (the `fx.sound`
+no-dimension overload at NoteBlockSystem 403, now stamped
+`world.dimension()`) and its body names the finding's own boundary:
+"the note family's BlockAction relay (the protocol module's
+overworld-bound wiring — this PR restores the audio half; the relay
+half is the named follow-up)". **VT-035 survives as the relay half
+plus the six ungated tile relays** (the note BlockAction, the jukebox
+record, the chest lid, the beacon/skull/banner/command 0x35
+re-publishes — V18ProtocolServer still reads the single-family
+accessors `server.noteBlocks()/jukeboxes()/beacons()/skulls()/
+banners()/commandBlocks()` at the 1105-1165 + 1653-1693 clusters, the
+three older relays still carrying the TF-12-era `!= 0` hard gates on
+develop `1139f2c3` — verified this pass, the sites read in context).
+
+The cross-tree verification (the honest-convergence protocol, no
+re-fix): this lane's independently-authored member-1 seat
+(`NoteTuneDimensionStampDiscoveryTest` — a different construction from
+#142's own: the REAL use wire `useItemOnBlock` from a
+nether-`setDimension` session over a full boot, the FxManager bus
+captured) ran BOTH trees:
+
+- **develop `1139f2c3`: RED** at exactly the predicted pin — the
+  nether note's tune observed stamped `0`, expected `-1` (the name
+  `note.bd`, the position/volume asserts green behind it); the
+  overworld control GREEN (the 0 stamp correct for the acting
+  dimension 0).
+- **PR #142's head `02c4acdf`: GREEN both members** — their fix lifts
+  this lane's independent construction. The audio member's correction
+  CONFIRMED from two independent seat lineages.
+
+The comment posts on #142 with the cross-tree evidence. VT-035's
+REMAINING members (the relay half) keep their pass-1 source census
+from the forty-sixth pass; their pass-2 seat is the owed next act.
+
+### VT-036's pass 2 — the behavioral seat (RED at all three nether pins, all three overworld controls GREEN)
+
+`NetherDownstreamFamilyInertDiscoveryTest` (six members, run twice —
+develop `1139f2c3` AND pr-142's tree, the independence check):
+
+- **The nether hook: RED** — the wall removed, the hook still standing
+  (`minecraft:tripwire_hook_east` observed where the reference's
+  `TripwireHookBlock.neighborChanged` lines 108-119 breaks it with its
+  drop). The overworld twin: GREEN (the same construction breaks).
+- **The nether wire: RED** — the floor removed, the wire still
+  standing (`minecraft:tripwire` observed where the reference's
+  `TripwireBlock.neighborChanged` lines 91-98 breaks it on the
+  suspended flip). The overworld twin: GREEN.
+- **The nether TNT: RED** — the neighbor lever powered through the
+  real `useLever` wire, the block still standing (`minecraft:tnt`
+  observed where the reference's `TntBlock.neighborChanged` lines
+  51-56 primes it on `hasNeighborSignal`). The overworld twin: GREEN
+  (the prime machinery exists — the binding alone is wrong).
+- **pr-142's tree: the same three RED** — the FX sweep does not touch
+  the tripwire buses or the TNT's signal consult; the findings are
+  independent.
+
+The discrimination holds: the machinery exists in every case (the
+overworld controls prove it) and the nether twins are inert — the
+binding, not the mechanic, is the defect. **VT-036 pass 2 COMPLETE.**
+
+### The ledger confirmation (the intentionality question pre-answered for pass 3)
+
+The architecture's own FL4-F10 record (Torch-Arcetecture.txt, the
+landed wave) names the downstream population verbatim: "the downstream
+families (the pistons, the hoppers, the dispensers, the tripwire, the
+command blocks, the beacons, the TNT) stay on the overworld's bus —
+Gap 2's named population, their own families' passes". The
+FL4-GAP2 slices then landed four of them (the hoppers/dispensers in
+Slice B, the command blocks/beacons in Slice C, the pistons in Slice
+D) — the TRIPWIRE and the TNT's SIGNAL arm are the two families no
+slice ever claimed, the plan's own row 4 naming only "the piston
+movingBlocks, the decorations, the leads". The gap is real, named by
+the house's own ledger, and never corrected. The pass-3 walk (the
+compensating hunt + the edge cases) is the owed next act; the fix
+shape follows the landed slices' `chestsFor`/`leadsFor` precedent.
+
+**Status after this pass: VT-035's audio member RESOLVED-BY-#142
+(the cross-tree confirmation recorded); VT-035's relay half at pass 1
++ the note seat's cross-tree evidence; VT-036 at passes 1-2, pass 3
+owed.**
