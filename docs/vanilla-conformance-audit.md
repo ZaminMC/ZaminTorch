@@ -7661,3 +7661,68 @@ propagate consistently, the pass-1 spot census says), and the
 design-intent challenge (the class documents the CENTER convention,
 never a bottom-anchoring rationale — the same challenge shape as
 the orb's, NEGATIVE there).
+
+## VT-038 — pass 3 (independent): the census, the compensating hunt, the intent challenge — CONFIRMED, Phase E eligible
+
+**THE CONSTRUCTOR CENSUS, ENGINE SIDE** (the execution-path walk):
+`ItemEntityManager`'s four constructions all pass the position as the
+CENTER — `spawnRestored` (line 169, the saved y), `spawnDropAtBlock`
+(line 210, `blockPos.y + 0.5`), `spawnThrown` (line 240, the callers'
+forms), `restoreAll` (line 814, `record.position()`). No construction
+or caller recomposes the frame. The reference's thirteen sites all
+pass BOTTOM-frame values the engine reads as centers — a uniform
+0.125 offset on every path, exactly the orb's double-lift class
+without the size slice.
+
+**THE COMPENSATING-BEHAVIOR HUNT — NEGATIVE.** Every external reader
+of the item's box propagates the center frame consistently, none
+compensates:
+- `HopperSystem` 560-565 (the hopper suck band): the box =
+  `at ± HALF` — the ENGINE's low box; the reference's hopper consults
+  the entity's own shape (`[y, y+0.25]`). The suck window rides 0.125
+  low with the box.
+- `EngineServer.woundItemsFromBlast` (25193-25216): the same
+  feet-from-center composition the orb's blast wound carried (and the
+  orb's fix corrected to the per-body read).
+- The pickup envelope (`withinPickupRange` 360-373): the box from the
+  center — the seats' own subject.
+- The 35 reads inside `ItemEntity` (the clip, the push faces, the
+  lava cell, the drag band): all center-frame, internally consistent.
+- The wire arms (`sendItemSpawn`, `sendItemTeleport`): the center as
+  the packet y — the client seats its box at it, so the rendering
+  offset is PERMANENT, not transient: an item AT REST (center =
+  floor + 0.125) renders a full eighth ABOVE vanilla's rest position
+  on every engine server. The most observable slice.
+
+**THE DESIGN-INTENT CHALLENGE — NEGATIVE.** The class documents the
+CENTER convention in its own ground-interface docs but no comment
+names the spawn anchoring as deliberate; the callers pass
+reference-copied y forms (`+0.5`, `+1.62`, the entity feet) that only
+parse as BOTTOM-frame values — the mirroring itself is the evidence
+of the miss (a center-frame caller would have composed the +0.125).
+
+**THE EDGE CASES:** the merge walk is frame-invariant (two items in
+the same frame carry the same relative offsets — the merge behavior
+cannot discriminate); the anvil import reads VANILLA's `Pos` rows
+(bottom-frame) as centers — the restored seat's own slice, the
+cross-frame interop path; the Q-drop caller's own form (`+1.62 +
+dy*0.4` against the reference's `y − 0.3 + eyeHeight`) stays the
+named adjacent tail; the engine's OWN store round-trips its center
+frame consistently (no internal divergence — the mismatch is against
+the reference's frame alone).
+
+**STATUS: VT-038 CONFIRMED — three passes complete, Phase E
+eligible.** The fix's shape (for the Phase E pass): the same
+composition VT-037 landed at the orb — every manager arm seats the
+box bottom at the passed y (`center = y + HALF_HEIGHT`:
+`spawnDropAtBlock`, `spawnRestored`, `restoreAll`, `spawnThrown`),
+the wire arms carry the FEET y (`sendItemSpawn`'s y and
+`sendItemTeleport`'s position, the same frame composition so the
+relative-move deltas stay consistent), the envelope formula unchanged
+(it already sums the half), the one-size law unchanged (0.25 both
+paths — no two-constructor quirk at the item). The seats
+(`ItemBoxModelDiscoveryTest`) become the fix's regression pins; the
+wire-y slice's pin rides the fix's own harness seat or the packet
+form's source pin (the pass-2 record's named choice). The adjacent
+tails stay OUT (the drop scatter's shape, the Q-drop's exact form —
+each its own candidate).
