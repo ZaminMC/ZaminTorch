@@ -1892,7 +1892,7 @@ whole).
 ## VT-013 — the remaining post-stamp precedents stamp AFTER the spawn fan: the block spawner's, the dragon's, and the chicken egg's live publishes read the un-stamped 0 at the event
 
 **Status: PR #130 OPEN — the correction landed** (`fix/post-fan-stamp-ordering-parity-audit`,
-commit `4866ec1e` stacked on PR #125's branch — the dependency
+commit `6e13ad5a` stacked on PR #125's branch — the dependency
 documented, #130 merges after #125; three verification passes complete
 before the fix). Priority tier 2 (the same damage class as VT-012:
 invisible bodies at their own spawn moment, phantom packets to
