@@ -3795,7 +3795,7 @@ it), the TNT's survival asserted against the engine's detonation.
 | Block identity — the legacy wire rows | the vine family's gap LANDED by `6b29c46f` (the house's own production-crash repair; `LegacyBlockIdsIntegrityTest`'s skip set now EMPTY and pinned) |
 | Mob spawns — the dimension stamp | **VT-012 CONFIRMED — three passes complete, fix-ready** (`audit/vt-012-spawn-dimension-stamp`: fourteen unstamped sites censused — the eggs, /summon, the wither, the spawner cart, the mooshroom shear, the infection/cure, the slime split, breeding, the golems, the infested burst; the wrong-stamped nether body invisible to the nether player, its physics reading the overworld's cells, a permanent ghost on the despawn walk) — the fix branch the next run's head |
 | Natural spawn — the floor consult (`hasSolidTop`) | **VT-020 CONFIRMED — three passes complete, fix-ready** (the spawn-floor lane's record, provenance `fix/spawn-floor-solid-top-parity-audit` `0f4bbfb4`, pushed 06:04:09 — the lane's report record owed): `NaturalSpawnSystem.isPartialShape`'s two suffix arms (`endsWith(_slab)` / `endsWith(_stairs)`) approximated `World.hasSolidTop`'s structured law (lines 1740-1752) and missed in BOTH directions — the ten double-slab floors REFUSED a spawn vanilla hosts (the first arm's `isCube()` accepts them), the stored bottom-stair and stone_slab2 floors HOSTED 1966 night spawns vanilla refuses (`HALF == TOP` alone passes), the same family refusing the spawn under ten names and hosting it under three; three RED seats at exactly the predicted values, 3/3 GREEN on the fix tree, the five-arm re-read + the 56-identifier census + the compensation hunt (negative) the independent pass; the spawn suite 16/0, the spawn-adjacent lanes 70/0, the block package 311/0 — the PR owed |
-| FX broadcasts — the dimension awareness | NOT INSPECTED (the FxManager position-only API; the PR #90 ledger) |
+| FX broadcasts — the dimension awareness | **STALE ROW RETIRED — TF-12 landed the dimension on every event** (the record types carry `int dimension()`, the wire's fan gates on it); **VT-029 SUSPECTED** (the forty-fifth pass's census): the no-dimension overloads stamp OVERWORLD 0 and the per-dimension systems' calls still read them — the tripwire hook's shatter (TripwireSystem 343) the cleanest member, the dispenser smoke trio (368/408/669) the pass-2 question against Slice B's own claim; one source pass, the seat owed |
 | World border — per-dimension | NOT INSPECTED (the reference's per-World border vs the engine's shared one) |
 | Zombie/mob arms — world binding | NOT INSPECTED (the zombie door-break consults the overworld field) |
 | Explosions — dimension routing | AUDITED (the twenty-sixth pass): the CORE resolved by PR #100; the CART slice RESOLVED — **PR #105 MERGED** (`278b139e`, the review rider at `32af09f3`). The named tail stands: the End/nether services' shared `gameplayRandom` vs the reference's per-world `world.random` |
@@ -4759,3 +4759,44 @@ construction owes) or adopt the helper when the VT-028 branch lands.
 
 The snow-layer-7 row stays the shared architectural tail (the
 layer-less id — the VT-003 state-surface tail named again).
+
+
+## The forty-fifth pass's coverage act — the FX ledger row brought current (TF-12 landed) + the no-dimension overload residual censused (VT-029 SUSPECTED, pass 1)
+
+The pass's closing coverage walk took the ledger's stale "FX broadcasts
+— the dimension awareness: NOT INSPECTED" row up. **The row was stale**:
+Wave TF-12 landed the dimension on every FxManager event (the record
+types carry `int dimension()`, the wire's fan gates on it — FxManager
+lines 29-57), and the live-context sites (the sessions, the mobs, the
+projectiles — ProjectileManager:1448 stamps the projectile's own
+dimension, the vehicles, the explosion's dimension row) use the carrying
+forms.
+
+**THE RESIDUAL (VT-029, SUSPECTED — pass 1, the source census alone)**:
+the no-dimension emit overloads stamp OVERWORLD 0 (FxManager lines
+164-171, the documented migration form), and the census found live
+callers with a per-dimension context that the overload flattens:
+
+1. **`TripwireSystem.checkSupport` (line 343)** — the hook's
+   `fx.blockShatter(...)` no-dimension call: the system holds its own
+   per-dimension `world` (the block reads are per-world), but the
+   shatter FX stamps 0 — a NETHER tripwire breaking plays its shatter
+   in the OVERWORLD. The reference: the break's `dropItems` plays
+   through the acting `World.playSound` (the system's own world).
+   The cleanest member.
+2. **`DispenserSystem` (lines 368, 408, 669)** — the dispense smoke's
+   `fx.worldEvent(...)` no-dimension calls. The FL4-GAP2 Slice B
+   landing's own record claims "the DISPENSER's every emit (fx,
+   launches, the default drop) stamps its OWN world" — but the calls
+   at these three sites still read the 4-arg no-dimension form against
+   the single engine-wide `fxManager` (EngineServer line 587). The
+   Slice B wiring (the per-dimension families' construction) needs the
+   pass-2 walk to resolve: if the per-dimension dispenser families
+   share this one system, the nether dispense smoke stamps 0 and the
+   claim is stale; if the families carry their own fx routing, the
+   member dies. **Recorded as the pass-2 question, not a conclusion.**
+
+**STATUS: VT-029 SUSPECTED — one source pass; the behavioral seat and
+the independent walk owed.** The fix shape (if confirmed): the
+per-dimension systems' fx calls adopt the carrying forms with their own
+`world.dimension()` — the migration the overload's own javadoc names.
