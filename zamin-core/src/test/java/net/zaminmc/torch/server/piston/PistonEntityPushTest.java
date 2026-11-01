@@ -51,6 +51,13 @@ class PistonEntityPushTest {
                         PistonBlocks.pistonOf(EAST, false, false));
                 server.world().setBlock(new BlockPosition(x + 1, y, z), BuiltinBlocks.STONE);
                 server.world().setBlock(new BlockPosition(x, y + 1, z),
+                        BuiltinBlocks.STONE);
+                // F-SP1's harness law: the lever never rides the piston
+                // itself (PistonBaseBlock.isCube() false — hasSolidTop
+                // refuses it, the reference's own consult); the stone
+                // above carries the lever, the flip's strong power
+                // entering the stone re-radiating to the piston below.
+                server.world().setBlock(new BlockPosition(x, y + 2, z),
                         RedstoneBlocks.leverOf(5, false));
                 mob.set(server.mobs().spawnAt(MobType.PIG,
                         new Position(x + 2.5, y, z + 0.5)));
@@ -58,7 +65,7 @@ class PistonEntityPushTest {
             await(() -> mob.get() != null, "the mob spawned");
             double before = mob.get().position().x();
             server.ticker().submit(() -> server.redstone().useLever(
-                    new BlockPosition(x, y + 1, z)));
+                    new BlockPosition(x, y + 2, z)));
             await(() -> PistonBlocks.pistonExtended(typeAt(server, x, y, z)),
                     "the piston flipped to its extended pair");
             await(() -> typeAt(server, x + 2, y, z).identifier().value().equals("stone"),
@@ -88,6 +95,13 @@ class PistonEntityPushTest {
                         PistonBlocks.pistonOf(EAST, false, false));
                 server.world().setBlock(new BlockPosition(x + 1, y, z), BuiltinBlocks.STONE);
                 server.world().setBlock(new BlockPosition(x, y + 1, z),
+                        BuiltinBlocks.STONE);
+                // F-SP1's harness law: the lever never rides the piston
+                // itself (PistonBaseBlock.isCube() false — hasSolidTop
+                // refuses it, the reference's own consult); the stone
+                // above carries the lever, the flip's strong power
+                // entering the stone re-radiating to the piston below.
+                server.world().setBlock(new BlockPosition(x, y + 2, z),
                         RedstoneBlocks.leverOf(5, false));
                 // The wall one cell past the landing: the pushed mob clamps
                 // against it (the solver's clip — the crush setup).
@@ -99,7 +113,7 @@ class PistonEntityPushTest {
             await(() -> mob.get() != null, "the mob spawned");
             double before = mob.get().position().x();
             server.ticker().submit(() -> server.redstone().useLever(
-                    new BlockPosition(x, y + 1, z)));
+                    new BlockPosition(x, y + 2, z)));
             await(() -> PistonBlocks.pistonExtended(typeAt(server, x, y, z)),
                     "the piston flipped to its extended pair");
             await(() -> typeAt(server, x + 2, y, z).identifier().value().equals("stone"),
@@ -127,6 +141,13 @@ class PistonEntityPushTest {
                         PistonBlocks.pistonOf(EAST, false, false));
                 server.world().setBlock(new BlockPosition(x + 1, y, z), BuiltinBlocks.STONE);
                 server.world().setBlock(new BlockPosition(x, y + 1, z),
+                        BuiltinBlocks.STONE);
+                // F-SP1's harness law: the lever never rides the piston
+                // itself (PistonBaseBlock.isCube() false — hasSolidTop
+                // refuses it, the reference's own consult); the stone
+                // above carries the lever, the flip's strong power
+                // entering the stone re-radiating to the piston below.
+                server.world().setBlock(new BlockPosition(x, y + 2, z),
                         RedstoneBlocks.leverOf(5, false));
                 item.set(server.itemEntities().spawnDropAtBlock(
                         new Position(x + 2, y, z),
@@ -137,7 +158,7 @@ class PistonEntityPushTest {
             await(() -> item.get() != null, "the item spawned");
             double before = item.get().position().x();
             server.ticker().submit(() -> server.redstone().useLever(
-                    new BlockPosition(x, y + 1, z)));
+                    new BlockPosition(x, y + 2, z)));
             await(() -> PistonBlocks.pistonExtended(typeAt(server, x, y, z)),
                     "the piston flipped to its extended pair");
             await(() -> typeAt(server, x + 2, y, z).identifier().value().equals("stone"),
@@ -164,6 +185,13 @@ class PistonEntityPushTest {
                 server.world().setBlock(new BlockPosition(x + 1, y, z),
                         BuiltinBlocks.SLIME_BLOCK);
                 server.world().setBlock(new BlockPosition(x, y + 1, z),
+                        BuiltinBlocks.STONE);
+                // F-SP1's harness law: the lever never rides the piston
+                // itself (PistonBaseBlock.isCube() false — hasSolidTop
+                // refuses it, the reference's own consult); the stone
+                // above carries the lever, the flip's strong power
+                // entering the stone re-radiating to the piston below.
+                server.world().setBlock(new BlockPosition(x, y + 2, z),
                         RedstoneBlocks.leverOf(5, false));
                 mob.set(server.mobs().spawnAt(MobType.PIG,
                         new Position(x + 2.5, y, z + 0.5)));
@@ -171,7 +199,7 @@ class PistonEntityPushTest {
             await(() -> mob.get() != null, "the mob spawned");
             double before = mob.get().position().x();
             server.ticker().submit(() -> server.redstone().useLever(
-                    new BlockPosition(x, y + 1, z)));
+                    new BlockPosition(x, y + 2, z)));
             await(() -> PistonBlocks.pistonExtended(typeAt(server, x, y, z)),
                     "the piston flipped to its extended pair");
             // The fling (MovingBlockEntity lines 94-107): the velocity SET
@@ -212,6 +240,13 @@ class PistonEntityPushTest {
                         PistonBlocks.pistonOf(EAST, false, false));
                 server.world().setBlock(new BlockPosition(x + 1, y, z), BuiltinBlocks.STONE);
                 server.world().setBlock(new BlockPosition(x, y + 1, z),
+                        BuiltinBlocks.STONE);
+                // F-SP1's harness law: the lever never rides the piston
+                // itself (PistonBaseBlock.isCube() false — hasSolidTop
+                // refuses it, the reference's own consult); the stone
+                // above carries the lever, the flip's strong power
+                // entering the stone re-radiating to the piston below.
+                server.world().setBlock(new BlockPosition(x, y + 2, z),
                         RedstoneBlocks.leverOf(5, false));
                 // The in-path orb (the exact-position restored form — no pop
                 // velocity) and a control two cells past the landing.
@@ -224,7 +259,7 @@ class PistonEntityPushTest {
             double before = orb.get().position().x();
             double farBefore = far.get().position().x();
             server.ticker().submit(() -> server.redstone().useLever(
-                    new BlockPosition(x, y + 1, z)));
+                    new BlockPosition(x, y + 2, z)));
             await(() -> PistonBlocks.pistonExtended(typeAt(server, x, y, z)),
                     "the piston flipped to its extended pair");
             await(() -> typeAt(server, x + 2, y, z).identifier().value().equals("stone"),
@@ -252,6 +287,13 @@ class PistonEntityPushTest {
                         PistonBlocks.pistonOf(EAST, false, false));
                 server.world().setBlock(new BlockPosition(x + 1, y, z), BuiltinBlocks.STONE);
                 server.world().setBlock(new BlockPosition(x, y + 1, z),
+                        BuiltinBlocks.STONE);
+                // F-SP1's harness law: the lever never rides the piston
+                // itself (PistonBaseBlock.isCube() false — hasSolidTop
+                // refuses it, the reference's own consult); the stone
+                // above carries the lever, the flip's strong power
+                // entering the stone re-radiating to the piston below.
+                server.world().setBlock(new BlockPosition(x, y + 2, z),
                         RedstoneBlocks.leverOf(5, false));
                 // The stands' own floors: the in-path feet cell and the
                 // control's (two past the landing).
@@ -271,7 +313,7 @@ class PistonEntityPushTest {
             await(() -> stand.get() != null, "the stands placed");
             double before = stand.get().x();
             server.ticker().submit(() -> server.redstone().useLever(
-                    new BlockPosition(x, y + 1, z)));
+                    new BlockPosition(x, y + 2, z)));
             await(() -> PistonBlocks.pistonExtended(typeAt(server, x, y, z)),
                     "the piston flipped to its extended pair");
             await(() -> typeAt(server, x + 2, y, z).identifier().value().equals("stone"),
@@ -306,6 +348,13 @@ class PistonEntityPushTest {
                         PistonBlocks.pistonOf(EAST, false, false));
                 server.world().setBlock(new BlockPosition(x + 1, y, z), BuiltinBlocks.STONE);
                 server.world().setBlock(new BlockPosition(x, y + 1, z),
+                        BuiltinBlocks.STONE);
+                // F-SP1's harness law: the lever never rides the piston
+                // itself (PistonBaseBlock.isCube() false — hasSolidTop
+                // refuses it, the reference's own consult); the stone
+                // above carries the lever, the flip's strong power
+                // entering the stone re-radiating to the piston below.
+                server.world().setBlock(new BlockPosition(x, y + 2, z),
                         RedstoneBlocks.leverOf(5, false));
                 server.tnt().spawnPrimedAt(server.world(), x + 2.5, y, z + 0.5);
                 server.tnt().spawnPrimedAt(server.world(), x + 4.5, y, z + 0.5);
@@ -322,7 +371,7 @@ class PistonEntityPushTest {
             double before = tnt.get().x();
             double farBefore = far.get().x();
             server.ticker().submit(() -> server.redstone().useLever(
-                    new BlockPosition(x, y + 1, z)));
+                    new BlockPosition(x, y + 2, z)));
             await(() -> PistonBlocks.pistonExtended(typeAt(server, x, y, z)),
                     "the piston flipped to its extended pair");
             await(() -> typeAt(server, x + 2, y, z).identifier().value().equals("stone"),
@@ -352,6 +401,13 @@ class PistonEntityPushTest {
                         PistonBlocks.pistonOf(EAST, false, false));
                 server.world().setBlock(new BlockPosition(x + 1, y, z), BuiltinBlocks.STONE);
                 server.world().setBlock(new BlockPosition(x, y + 1, z),
+                        BuiltinBlocks.STONE);
+                // F-SP1's harness law: the lever never rides the piston
+                // itself (PistonBaseBlock.isCube() false — hasSolidTop
+                // refuses it, the reference's own consult); the stone
+                // above carries the lever, the flip's strong power
+                // entering the stone re-radiating to the piston below.
+                server.world().setBlock(new BlockPosition(x, y + 2, z),
                         RedstoneBlocks.leverOf(5, false));
                 falling.set(server.fallingEntities().startFall(
                         server.world(), new BlockPosition(x + 2, y, z), BuiltinBlocks.SAND));
@@ -362,7 +418,7 @@ class PistonEntityPushTest {
             double before = falling.get().position().x();
             double farBefore = far.get().position().x();
             server.ticker().submit(() -> server.redstone().useLever(
-                    new BlockPosition(x, y + 1, z)));
+                    new BlockPosition(x, y + 2, z)));
             await(() -> PistonBlocks.pistonExtended(typeAt(server, x, y, z)),
                     "the piston flipped to its extended pair");
             await(() -> typeAt(server, x + 2, y, z).identifier().value().equals("stone"),
@@ -392,6 +448,13 @@ class PistonEntityPushTest {
                         PistonBlocks.pistonOf(EAST, false, false));
                 server.world().setBlock(new BlockPosition(x + 1, y, z), BuiltinBlocks.STONE);
                 server.world().setBlock(new BlockPosition(x, y + 1, z),
+                        BuiltinBlocks.STONE);
+                // F-SP1's harness law: the lever never rides the piston
+                // itself (PistonBaseBlock.isCube() false — hasSolidTop
+                // refuses it, the reference's own consult); the stone
+                // above carries the lever, the flip's strong power
+                // entering the stone re-radiating to the piston below.
+                server.world().setBlock(new BlockPosition(x, y + 2, z),
                         RedstoneBlocks.leverOf(5, false));
                 // The zero-force arrows hover (the family's own gravity
                 // pulls them through the band over the extension's ticks).
@@ -406,7 +469,7 @@ class PistonEntityPushTest {
             double before = arrow.get().position().x();
             double farBefore = far.get().position().x();
             server.ticker().submit(() -> server.redstone().useLever(
-                    new BlockPosition(x, y + 1, z)));
+                    new BlockPosition(x, y + 2, z)));
             await(() -> PistonBlocks.pistonExtended(typeAt(server, x, y, z)),
                     "the piston flipped to its extended pair");
             await(() -> typeAt(server, x + 2, y, z).identifier().value().equals("stone"),
@@ -441,6 +504,13 @@ class PistonEntityPushTest {
                 server.world().setBlock(new BlockPosition(x + 1, y, z),
                         BuiltinBlocks.SLIME_BLOCK);
                 server.world().setBlock(new BlockPosition(x, y + 1, z),
+                        BuiltinBlocks.STONE);
+                // F-SP1's harness law: the lever never rides the piston
+                // itself (PistonBaseBlock.isCube() false — hasSolidTop
+                // refuses it, the reference's own consult); the stone
+                // above carries the lever, the flip's strong power
+                // entering the stone re-radiating to the piston below.
+                server.world().setBlock(new BlockPosition(x, y + 2, z),
                         RedstoneBlocks.leverOf(5, false));
                 server.world().setBlock(new BlockPosition(x + 2, y - 1, z), BuiltinBlocks.STONE);
                 orb.set(server.experienceOrbs().spawnRestored(
@@ -467,7 +537,7 @@ class PistonEntityPushTest {
             double tntBefore = tnt.get().x();
             double arrowBefore = arrow.get().position().x();
             server.ticker().submit(() -> server.redstone().useLever(
-                    new BlockPosition(x, y + 1, z)));
+                    new BlockPosition(x, y + 2, z)));
             await(() -> PistonBlocks.pistonExtended(typeAt(server, x, y, z)),
                     "the piston flipped to its extended pair");
             // The fling (lines 94-107): each family's velocity SET along the

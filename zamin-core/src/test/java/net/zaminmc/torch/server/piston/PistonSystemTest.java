@@ -47,13 +47,20 @@ class PistonSystemTest {
                         PistonBlocks.pistonOf(EAST, false, false));
                 server.world().setBlock(new BlockPosition(x + 1, y, z), BuiltinBlocks.STONE);
                 server.world().setBlock(new BlockPosition(x, y + 1, z),
+                        BuiltinBlocks.STONE);
+                // F-SP1's harness law: the lever never rides the piston
+                // itself (PistonBaseBlock.isCube() false — hasSolidTop
+                // refuses it, the reference's own consult); the stone
+                // above carries the lever, the flip's strong power
+                // entering the stone re-radiating to the piston below.
+                server.world().setBlock(new BlockPosition(x, y + 2, z),
                         RedstoneBlocks.leverOf(5, false));
             });
             await(() -> PistonBlocks.isPiston(typeAt(server, x, y, z)), "the piston placed");
             // The power on: the extend event fires, the moving head and the
             // pushed stone fly their two ticks, then land.
             server.ticker().submit(() -> server.redstone().useLever(
-                    new BlockPosition(x, y + 1, z)));
+                    new BlockPosition(x, y + 2, z)));
             await(() -> PistonBlocks.pistonExtended(typeAt(server, x, y, z)),
                     "the piston flipped to its extended pair");
             await(() -> PistonBlocks.isPistonHead(typeAt(server, x + 1, y, z)),
@@ -77,17 +84,24 @@ class PistonSystemTest {
                         PistonBlocks.pistonOf(EAST, false, false));
                 server.world().setBlock(new BlockPosition(x + 1, y, z), BuiltinBlocks.STONE);
                 server.world().setBlock(new BlockPosition(x, y + 1, z),
+                        BuiltinBlocks.STONE);
+                // F-SP1's harness law: the lever never rides the piston
+                // itself (PistonBaseBlock.isCube() false — hasSolidTop
+                // refuses it, the reference's own consult); the stone
+                // above carries the lever, the flip's strong power
+                // entering the stone re-radiating to the piston below.
+                server.world().setBlock(new BlockPosition(x, y + 2, z),
                         RedstoneBlocks.leverOf(5, false));
             });
             await(() -> PistonBlocks.isPiston(typeAt(server, x, y, z)), "the piston placed");
             server.ticker().submit(() -> server.redstone().useLever(
-                    new BlockPosition(x, y + 1, z)));
+                    new BlockPosition(x, y + 2, z)));
             await(() -> PistonBlocks.pistonExtended(typeAt(server, x, y, z)),
                     "the piston extended");
             // The power off: the retract event fires, the head departs, the
             // pushed stone stays where it landed.
             server.ticker().submit(() -> server.redstone().useLever(
-                    new BlockPosition(x, y + 1, z)));
+                    new BlockPosition(x, y + 2, z)));
             await(() -> !PistonBlocks.pistonExtended(typeAt(server, x, y, z)),
                     "the piston flipped back to its retracted pair");
             await(() -> typeAt(server, x + 1, y, z).identifier().value().equals("air"),
@@ -109,18 +123,25 @@ class PistonSystemTest {
                         PistonBlocks.pistonOf(EAST, false, true));
                 server.world().setBlock(new BlockPosition(x + 1, y, z), BuiltinBlocks.STONE);
                 server.world().setBlock(new BlockPosition(x, y + 1, z),
+                        BuiltinBlocks.STONE);
+                // F-SP1's harness law: the lever never rides the piston
+                // itself (PistonBaseBlock.isCube() false — hasSolidTop
+                // refuses it, the reference's own consult); the stone
+                // above carries the lever, the flip's strong power
+                // entering the stone re-radiating to the piston below.
+                server.world().setBlock(new BlockPosition(x, y + 2, z),
                         RedstoneBlocks.leverOf(5, false));
             });
             await(() -> PistonBlocks.isPiston(typeAt(server, x, y, z)), "the sticky piston placed");
             server.ticker().submit(() -> server.redstone().useLever(
-                    new BlockPosition(x, y + 1, z)));
+                    new BlockPosition(x, y + 2, z)));
             await(() -> PistonBlocks.pistonExtended(typeAt(server, x, y, z)),
                     "the sticky piston extended");
             await(() -> typeAt(server, x + 2, y, z).identifier().value().equals("stone"),
                     "the stone pushed one cell along");
             // The power off: the sticky arm pulls the stone back adjacent.
             server.ticker().submit(() -> server.redstone().useLever(
-                    new BlockPosition(x, y + 1, z)));
+                    new BlockPosition(x, y + 2, z)));
             await(() -> !PistonBlocks.pistonExtended(typeAt(server, x, y, z)),
                     "the sticky piston retracted");
             await(() -> typeAt(server, x + 1, y, z).identifier().value().equals("stone"),
@@ -139,6 +160,13 @@ class PistonSystemTest {
                 server.world().setBlock(new BlockPosition(x, y, z),
                         PistonBlocks.pistonOf(EAST, false, false));
                 server.world().setBlock(new BlockPosition(x, y + 1, z),
+                        BuiltinBlocks.STONE);
+                // F-SP1's harness law: the lever never rides the piston
+                // itself (PistonBaseBlock.isCube() false — hasSolidTop
+                // refuses it, the reference's own consult); the stone
+                // above carries the lever, the flip's strong power
+                // entering the stone re-radiating to the piston below.
+                server.world().setBlock(new BlockPosition(x, y + 2, z),
                         RedstoneBlocks.leverOf(5, false));
                 // Thirteen blocks in the column: the resolver refuses.
                 for (int i = 1; i <= 13; i++) {
@@ -147,7 +175,7 @@ class PistonSystemTest {
             });
             await(() -> PistonBlocks.isPiston(typeAt(server, x, y, z)), "the piston placed");
             server.ticker().submit(() -> server.redstone().useLever(
-                    new BlockPosition(x, y + 1, z)));
+                    new BlockPosition(x, y + 2, z)));
             // Give the (wrongly armed) extend time to never happen: the
             // piston stays retracted, the column untouched.
             EngineAwaits.awaitTicks(server.world(), 8, "engine progress (a 400 wall settle)");
@@ -187,11 +215,18 @@ class PistonSystemTest {
                 server.world().setBlock(new BlockPosition(x + 1, y - 1, z), BuiltinBlocks.STONE);
                 server.world().setBlock(new BlockPosition(x + 1, y, z), BuiltinBlocks.TORCH);
                 server.world().setBlock(new BlockPosition(x, y + 1, z),
+                        BuiltinBlocks.STONE);
+                // F-SP1's harness law: the lever never rides the piston
+                // itself (PistonBaseBlock.isCube() false — hasSolidTop
+                // refuses it, the reference's own consult); the stone
+                // above carries the lever, the flip's strong power
+                // entering the stone re-radiating to the piston below.
+                server.world().setBlock(new BlockPosition(x, y + 2, z),
                         RedstoneBlocks.leverOf(5, false));
             });
             await(() -> PistonBlocks.isPiston(typeAt(server, x, y, z)), "the piston placed");
             server.ticker().submit(() -> server.redstone().useLever(
-                    new BlockPosition(x, y + 1, z)));
+                    new BlockPosition(x, y + 2, z)));
             await(() -> PistonBlocks.pistonExtended(typeAt(server, x, y, z)),
                     "the piston extended over the broken torch");
             await(() -> PistonBlocks.isPistonHead(typeAt(server, x + 1, y, z)),
