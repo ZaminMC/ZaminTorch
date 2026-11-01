@@ -2184,10 +2184,7 @@ public final class MobManager {
                 if (mob.hasRider()) {
                     dismountMob(mob, true); // the blast throws the rider
                 }
-                iterator.remove();
-                for (Listener listener : listeners) {
-                    listener.onMobRemoved(mob, "exploded");
-                }
+                remove(mob, "exploded"); // mid-walk removal is copy-on-write safe
                 for (Listener listener : listeners) {
                     listener.onMobExploded(mob);
                 }
@@ -2201,10 +2198,7 @@ public final class MobManager {
                 if (mob.hasRider()) {
                     dismountMob(mob, false);
                 }
-                iterator.remove();
-                for (Listener listener : listeners) {
-                    listener.onMobRemoved(mob, "expired");
-                }
+                remove(mob, "expired"); // mid-walk removal is copy-on-write safe
                 continue;
             }
             // The snow golem's volley (Slice 17d — ProjectileAttackGoal's
