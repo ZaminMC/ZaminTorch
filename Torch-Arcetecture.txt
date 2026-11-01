@@ -7899,14 +7899,65 @@ both test-seat defects — see the census doc) and the mob-integration
 status read (the body-filtered form): runs 578/579 green, builds
 155/156 published, the four-day stall over.
 
-NEXT WORK (in order): Slice D IS WHOLE (all three transient families
-landed — the piston, the decoration, the lead; row 4's ledgered tail
-above); the PR wave's remainder (the support-consult chain #137-#149,
-and the VT stack #116-#136 — this session merged #109/#111/#113/#114
-and closed #108/#110 with the three-pass discipline) reviews as time
-permits; the dimension-ownership ledger's next rows (the redstone
-world's remaining consults, the container/storage ownership) name
-their own acts.
+NEXT WORK (in order): the PR wave's remainder — 23 open: the arrow
+cluster (#117/#120/#122/#123/#128/#132/#140 — seven convergent lanes
+over ProjectileManager, the TNT-preemption pair #123/#140 the likely
+carrier pair), the dimension-stamp cluster (#125/#130 stacked, #133,
+#142, #146), the piston cluster (#126/#129/#131 stacked over
+PistonSystem), and the fresh wave #150-#157 — each on the three-pass
+discipline (the SOURCE pass against the reference first; the towers'
+lesson: verify GitHub's mergeable_state against a local merge-tree,
+the stale "clean" hid 43 conflict markers); the dimension-ownership
+ledger's remaining rows (the redstone world's remaining consults, the
+container/storage ownership) name their own acts; the CI census
+watches run 603's loaded-runner members (the Hunger/Pearl and the
+NetherBed one-offs — both pass locally, the environmental class
+again; the anvil seat's 60-tick await joined the class under parallel
+boot load).
+
+F-SP2/SP3/SP4 + VT-020 LANDED (2026-11-01, the floor-consult family
+session): the LAST floor-mounted family whole — every family's floor
+consult now reads the reference's OWN law, never the collision
+question the one shared hasSupportBelow answered (the same defect
+class F-SP1 retired for the mounts): the WIRE (hasSolidTop OR the
+GLOWSTONE disjunct), the REPEATER/COMPARATOR (hasSolidTop alone), the
+PLATES (hasSolidTop OR the seven-fence census), the RAILS (hasSolidTop
+for the floor AND every ascending headwall), the DOOR (hasSolidTop
+alone), the FIRE (the delegated five-arm home — the translucent
+fallout retired: glass/ice/TNT/leaves/glowstone never again a fire
+floor or a rail bed), the TRIPWIRE (the SUSPENDED flag over
+hasSolidTop at all three sites), the SPAWN FLOOR (NaturalSpawner
+lines 160-162 — World.hasSolidTop whole, the hand-rolled conjuncts
+retired: the doubles and TOP halves host, the bottoms and directional
+stair folds refuse, the translucent census never spawns), the
+plain-torch walk (torchCanSitOnTop — the #137/#138 lanes' named row),
+and the redstone torch's onAdded support-first arm. THE CARRIER: the
+six stale-based towers (#141/#143/#145/#147/#148/#149 — each 43
+conflict markers against the #139 home, rebased whole onto
+SupportConsult with their five seat files salvaged and their bench
+repairs carried) + #121's stronger form (its discovery rows kept, its
+suffix-approximation fix replaced by the one-home consult); the six
+towers + #121 CLOSED as superseded with the full three-pass review
+notes. THE PR WAVE'S VERIFIED MERGES (each the SOURCE pass against
+the reference, the seats green on the merged tree): #116 (VT-017 the
+grass-decay shade law — the two conjuncts, GrassBlock.tick 49-52),
+#144 (VT-034 the repeater's phantom click retired — the delay cycle
+silent, the click the comparator's alone), #134 (VT-030 the TNT
+prime's hiss stamped with the acting world), #135 (VT-031 the
+dig/place feedback sounds stamped with the acting world's dimension —
+the Commit record gaining the column), #136 (VT-032 the falling
+anvil's land sound stamped with the body's own dimension). THE BENCH
+REPAIR the #139 merge missed (develop's five standing failures, CI
+run 603 — the lever-on-piston benches in PistonPushApiAcceptanceTest,
+RegionBoundaryTest, PistonSliceDOwnershipAcceptanceTest, and
+BukkitEventBridgeGroupTwoTest): all moved to the vanilla-valid mount
+— the stone above the piston carries the lever (PistonBaseBlock
+.isCube() false, reference line 223), the flip's strong power entering
+the stone re-radiating to the piston below. LANES: the five family
+seats 16/0, the redstone + block packages 372/0, the piston lanes
+36/0, the falling family 109/0, the entity package 582/0,
+interaction/player/world 308/0, the spawn package 16/0, the bukkit
+module 52/0.
 
 SLICE B LANDED (2026-11-01, the container-remainder session): the
 four families whole, exactly per row 2 — the furnace/dispenser/brewing/
