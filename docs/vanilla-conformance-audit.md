@@ -3137,15 +3137,37 @@ design-choice challenge:*
   observable (the un-stick + the fall, the re-arm over the zeroed
   velocity).
 
-**The watch list (the thirty-fourth pass's fetch):** the OPEN set
-awaiting the maintainer's review: **#106** (VT-009's pair-break),
+**The watch list (the thirty-fourth pass's closing fetch):** the OPEN
+set awaiting the maintainer's review: **#106** (VT-009's pair-break),
 **#108/#109/#110/#113** (the crossing families — #113 carrying the
-posted `!inGround` review note), **#111** (VT-010's facing-exact
-resolution), **#114** (VT-009's bed neighbor arm), **#115** (VT-011's
-occupied-nibble import), **#117** (VT-014's stick placement), **#120**
-(VT-015's un-stick law); **#91/#94/#95/#98/#100/#101/#102/#104/#105/
-#107 merged onto develop** (`6b29c46f` — the vine wire repair the
-latest).
+posted `!inGround` review note, `#issuecomment-6554069018`),
+**#111** (VT-010's facing-exact resolution), **#114** (VT-009's bed
+neighbor arm), **#115** (VT-011's occupied-nibble import), **#116**
+(VT-017's grass-decay shade law — the thirty-second lane's carrier,
+opened mid-run), **#117** (VT-014's stick placement), **#118**
+(F-DS1's double-slab collision row — the twentieth pass's standing
+finding's carrier, opened mid-run), **#119** (VT-015's un-stick law —
+**THE CONVERGENCE with this lane's #120**, the note posted
+`#issuecomment-6554108598`: the same live law 1:1, the scope delta
+named honestly — #119 defers the import surface as a tail, #120 lands
+the xTile/inTile rows the reference's readCustomNbt 402-411 restores;
+the carrier pick the maintainer's, the unique coverage worth absorbing
+either way), and **#120** (this lane's VT-015 carrier); **#91/#94/#95/
+#98/#100/#101/#102/#104/#105/#107 merged onto develop** (`6b29c46f` —
+the vine wire repair the latest).
+
+**THE RUN'S TALLY (the thirty-fourth pass):** the two findings taken
+from the pass-31 handoff's head are CONFIRMED over three passes and
+corrected (two PRs opened, both lanes' seats green on the fix
+branches); one cross-PR interaction discovered and reviewed (#113's
+`!inGround` gate); one same-window convergence discovered and
+reviewed (#119, the note posted); one third-value sub-finding folded
+into VT-014's record (the wire's pre-step rest). The next run's
+heads: the four open PR reviews' follow-ups, the dead-velocity
+composition seat (owed when #117/#120 merge), the remaining standing
+lanes (F-SP1 — F-DS1 now carried by #118; the dimension tails; the
+blast RNG tail), and VT-016/VT-017's review follow-ups (the
+thirty-second lane's carriers).
 
 
 ## Coverage ledger (updated by the thirty-second pass)
