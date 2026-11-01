@@ -4043,6 +4043,81 @@ their own sides).
   seat included), the TNT neighbors (`NetherTntRouting`,
   `ExplosionTntRedstoneApi`, `ExplosionEntityGather`) green.
 
+## The thirty-sixth pass's review record — the five end-of-run-burst PRs independently reviewed (this lane's verification pass)
+
+This lane's head after the union was the independent review of the
+sibling lanes' corrections — the review notes posted on the PRs, the
+evidence fresh-run in this pass's worktrees:
+
+- **PR #123 (VT-019, the stuck burning arrow's TNT gate)** — VERIFIED:
+  the `!inGround` gate is exactly the minimal correction
+  (`checkBlockCollisions` rides `ArrowEntity.tick` line 382 inside the
+  flight branch alone; the `inGround` branch at 172-186 runs the stick
+  clock and the tracked-block check only). Fresh runs: the seat 2/0,
+  the projectile package 48/0, TntSystem 2/0, NetherTntRouting 1/0,
+  ExplosionTntRedstoneApi 2/0, HopperSuckBand 5/0 — all green. The
+  review's own product: **VT-022 discovered** (the block-hit arm's
+  stick preemption — the record above; the note on #123 posted).
+- **PR #116 (VT-017, the grass-decay shade law)** — VERIFIED FAITHFUL:
+  the two-conjunct law (`getRawBrightness(pos.up()) < 4 &&
+  getOpacity() > 2`, GrassBlock.tick lines 49-52) with the opacity
+  consult mapped through the vanilla-1:1-audited `BlockLightTable`
+  (full cubes 15, water/ice 3, leaves 1, glass/chest/snow-layer 0 —
+  the constructor default `isSolidRender() ? 255 : 0` at Block.java
+  line 216 behind them); both engine arms (the update walk + the
+  random tick) corrected; the one-arg `getRawBrightness` reads the
+  stored light (no darkness subtraction) — the engine's
+  `max(blockLight, skyLight)` at the cover cell matches. Fresh runs:
+  the seats 6/0 on the fix tree, **4/6 RED on the develop baseline**
+  (the seat file copied onto `777b7c86` — the four shade-law seats
+  failing, the two stone controls passing on both trees: the contract
+  holds), BlockUpdateSystemTest 6/0, RandomTickSystemTest 3/0. Two
+  narrow residues named in the note: (1) the water cover's
+  `usesNeighborLight` branch (World.java 449-481 — the reference reads
+  the four horizontal neighbors + up for a water cover; the engine
+  reads the cell's own stored light; a pool-edge cell with neighbor
+  light 4-6 against the cell's own < 4 diverges), and (2) the
+  update-walk arm's instant timing (vanilla's decay rides the random
+  tick alone — ~68 s average at the default rate; the engine's update
+  arm decays on the placement's own drain; a strict improvement over
+  the old allowlist arm, the timing shape an inherited residue).
+- **PR #118 (F-DS1, the double slab's full-cube collision row)** —
+  VERIFIED FAITHFUL: `SlabBlock.updateShape` lines 39-52
+  (`isDouble() → setShape(0,0,0,1,1,1)`) with `isCube() = isDouble()`
+  (line 71); the suffix carve placed after the stair states and before
+  the singles' half rows; all 13 registered double names covered by
+  the four suffix patterns (the non-slab `double_` plants correctly
+  falling through). Fresh runs: the seats 5/0 on the fix tree, **4/5
+  RED on the develop baseline** (the `_slab`-suffixed doubles failing;
+  the three fall-through names passing on both trees — the PR's own
+  story), and the whole `server.block` package green — 51 classes,
+  337 tests, 0 failures, the neighboring slab lanes
+  (CollisionShapeTest 19/0, DoubleStoneSlabFamily 2/0,
+  DoubleWoodenSlab 2/0) unregressed. One consistency note in the
+  review: the carve is name-based like the file's established style —
+  a future double-slab name without one of the four suffixes would
+  fall to the singles' half rows silently (no such name today).
+- **PRs #117/#119/#120** — reviewed earlier in the pass (before the
+  sibling session's carrier resolution landed): all three carriers'
+  seats + regressions verified green in this lane's worktrees
+  (#117's 5/0 + 48/0; #119's 2/0 + 48/0; #120's 3/0 + 48/0 + the
+  anvil family 47/0), the #117∪#120 union tree built and verified
+  green whole (53/0 + 47/0) with the one-region conflict resolved in
+  the reference's own arm order, and the velocity-composition gap
+  flagged in this lane's reconcile — closed by the sibling session's
+  rider `dd29ee01` the same pass (SEAT C stash-discriminated, the
+  rider-union 62/0). The carrier resolution itself (#119 closed,
+  #120 the keeper) was the sibling session's act, verified and kept
+  in the union.
+- **The VT-020/VT-021 numbering collision** — resolved and posted
+  cross-lane on PRs #121 (the pointer) and #122 (the disambiguation):
+  the spawn-floor claim is earlier on the public record (PR #121
+  created 06:04:43 vs the partial-shape record's push 06:05:09), so
+  the spawn floor keeps VT-020 and the partial-shape stick face
+  renumbers **VT-021** — the pass-38b lane's own resolution
+  (`1f62e71d`), carried to the PR level by this lane's notes so both
+  lanes and the maintainer see it.
+
 ## Coverage ledger (updated by the thirty-sixth pass — the five-lane union)
 
 | Area | Status |
@@ -4063,7 +4138,7 @@ their own sides).
 | Drops — the TF-9 dimension stamp | RESOLVED (PR #90's riders adopted; the tile-family spill sites remain the per-dimension tile tail) |
 | Tile families — per-dimension stores | the CHEST family LANDED by **Wave FL4-GAP2 Slice A** (`2d0f74af`: three ChestManager instances, the ZCD v3 dimension stamp, the consult sites routed — `ChestDimensionOwnershipAcceptanceTest` 4/0 the record); Slice B's honest tail: the hopper system, the ContainerViews, the furnace/dispenser/brewing families stay single-instance |
 | Block updates — the multi-part families' pair-integrity arms | THREE arms in flight: the BED family's neighborChanged self-removal arm (**VT-009 the bed-coverage lineage's claim — CONFIRMED, three passes, PR #114 OPEN**); the break-path pair walks' world binding (**VT-009 the pass-28 lane's claim — CONFIRMED, PR #106 OPEN**); the bed pair's sibling resolution (**VT-010 — CONFIRMED, PR #111 OPEN**). The DOOR family's neighborChanged arm EXISTS (`RedstoneSystem.doorNeighborChanged`, DoorBlock lines 157-198 — the door half REJECTED by its own green seat, now the regression guard) |
-| Grass decay — the shade consult | **VT-017 SUSPECTED** (the bed-coverage lane's twenty-seventh pass, renumbered): the engine's `isOpaque` 3-block allowlist (air/torch/glass) stands in for the reference's opacity law (`getOpacity() > 2` — every non-solid-render block answers 0) — the grass dies under beds, flowers, slabs, stairs where vanilla keeps it; one source pass + the OBSERVED dirt-under-bed evidence from the VT-009 trace; this pass takes the seats up |
+| Grass decay — the shade consult | **VT-017 SUSPECTED** (the bed-coverage lane's twenty-seventh pass, renumbered): the engine's `isOpaque` 3-block allowlist (air/torch/glass) stands in for the reference's opacity law (`getOpacity() > 2` — every non-solid-render block answers 0) — the grass dies under beds, flowers, slabs, stairs where vanilla keeps it; one source pass + the OBSERVED dirt-under-bed evidence from the VT-009 trace; **the correction is PR #116 OPEN — independently reviewed this pass: the two-conjunct law verified faithful against GrassBlock.tick 49-52 and the 1:1 light table, the seats 6/0 on the fix tree, 4/6 RED on the develop baseline, the two narrow residues named in the note (the water cover's usesNeighborLight read; the update arm's instant timing — both ledger material, not blockers)** |
 | Piston pushability — the behavior table's membership | **VT-016 SUSPECTED** (the bed-coverage lane's twenty-seventh pass, renumbered): the engine's `pistonMoveBehavior` DESTROY/BLOCK lists omit the bed family, the door family, the weighted plates, the cocoa (vanilla DESTROY) and the anvil (vanilla BLOCK) — a pushed bed MOVES where vanilla breaks it with its drop; one source pass done, the piston-push seat this pass's second head |
 | Arrow family — the stick placement + un-stick law | **VT-014 / VT-015 CONFIRMED** (the thirty-fifth pass's union — three lanes' seats + this lane's pass-3 walks; the two CONFIRMED rows below carry the whole record) |
 | Projectile family — the stick placement (the resting position's geometry) | **VT-014 CONFIRMED — TWO STREAMS INDEPENDENTLY** (three passes each: the thirty-first's source walk; the pass-33 lane's two launch-based seats — observed rests y=19.841 INSIDE the hit cell and x=51.480 hanging past the thin wall, both RED on develop `6b29c46f`; the pass-34 lane's two spawnRestored-deterministic seats — 0.786 INSIDE a 0.8/tick floor hit, 0.77 PAST a one-block wall in open air, RED at exactly the predicted values; the two lanes' pass-3 walks — the writer census (inGround set true at exactly two sites and cleared NOWHERE) + the call-order inversion + the compensation hunts + the design-choice challenges (the engine's own javadocs and import ledger name the gaps) + the edge walks). The correction OWED (Phase E): `resolveCollisions`' arrow arm rests the arrow at face − 0.05·û with the tracked cell recorded (the fix-scope mapping in the pass-33 record: the shape-aware partial shapes and the from-inside degenerate the two named edges). The seats ride the pass-33/34 audit branches |
@@ -4133,16 +4208,24 @@ their own sides).
    engine's today is the displaced half + the floating survivor.
    Then the independent pass over the remaining membership rows
    (doors, weighted plates, cocoa, anvil).
-4. **VT-017's watch**: PR #116 OPEN (the grass-decay shade law) —
-   the sibling lane's correction awaiting the maintainer; the
-   union-tree regression run owed on merge.
+4. ~~VT-017's watch~~ — **REVIEWED this pass** (the thirty-sixth
+   pass's review record): PR #116's two-conjunct law verified faithful,
+   the seats RED→GREEN independently reproduced (6/0 on the fix, 4/6 RED
+   on develop), the block-update/random-tick lanes green, two narrow
+   residues named in the PR note (the water cover's neighbor-light read;
+   the update arm's instant-vs-random-tick timing — a potential ledger
+   row of its own if the timing is ever pinned as observable). Awaiting
+   the maintainer's merge.
 5. **VT-012's own pass** (the pass-30 lane's discovery): the
    `NetherBlastRoutingAcceptanceTest` flake's bounded fix — the
    seat's read order (await the event reference, not the cell
    alone); a test-infrastructure correction.
 6. **F-SP1's owed passes** (the twentieth pass's record, still
    standing): the support-consult family — suspected, the three
-   passes not begun. (F-DS1's correction is **PR #118 OPEN**.)
+   passes not begun. (F-DS1's correction is **PR #118 OPEN — independently reviewed this pass**: the full-cube row verified
+   faithful against SlabBlock.updateShape 39-52, the seats 5/0 on
+   the fix tree / 4/5 RED on develop, the whole server.block
+   package 337/0 green.)
 7. The dimension tails (the PR #90 ledger): the mob spawn's
    dimension stamp (`MobManager.spawnAt`), the FX dimension
    awareness, the per-dimension world border, the zombie arm's
