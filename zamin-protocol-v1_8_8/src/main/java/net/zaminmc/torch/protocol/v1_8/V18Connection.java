@@ -2187,7 +2187,10 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             return;
         }
         var position = player.openContainerPosition();
-        var stand = position == null ? null : engine.brewingStands().peek(position);
+        // Wave FL4-GAP2 Slice B: the open's own dimension's family (the
+        // session's stamp — a nether open reads the nether's stands).
+        var stand = position == null ? null
+                : engine.brewingStandsFor(player.openContainerDimension()).peek(position);
         if (stand == null) {
             return; // stale open (state discarded): nothing to show
         }
@@ -4112,7 +4115,8 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         if (player.openContainerKind()
                 == net.zaminmc.torch.server.player.PlayerSession.ContainerKind.BREWING_STAND) {
             var position = player.openContainerPosition();
-            var stand = position == null ? null : engine.brewingStands().peek(position);
+            var stand = position == null ? null
+                    : engine.brewingStandsFor(player.openContainerDimension()).peek(position);
             if (stand != null) {
                 sendBrewingWindowItems(channel, windowId, stand, player);
             }

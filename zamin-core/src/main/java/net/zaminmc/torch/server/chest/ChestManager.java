@@ -110,9 +110,20 @@ public final class ChestManager {
     /**
      * A survival break committed on the chest block: spill every slot into the
      * world at the block (nothing is lost, the historical container drop) and
-     * forget the state.
+     * forget the state. The legacy form stamps the overworld — the
+     * per-dimension break path passes its own world's stamp.
      */
     public void onBlockBroken(BlockPosition position, ItemEntityManager items) {
+        onBlockBroken(position, items, 0);
+    }
+
+    /**
+     * The dimension-stamped break spill (Wave FL4-GAP2 Slice B, closing
+     * Slice A's own ledged tail): the drops land in the SAME world the
+     * chest stood in — a nether chest's spill never falls into the
+     * overworld.
+     */
+    public void onBlockBroken(BlockPosition position, ItemEntityManager items, int dimension) {
         ChestBlockEntity chest = chests.remove(position);
         if (chest == null || items == null) {
             return;
@@ -120,7 +131,8 @@ public final class ChestManager {
         Position origin = new Position(position.x(), position.y(), position.z());
         for (ItemStack stack : chest.snapshotSlots()) {
             if (!stack.isEmpty()) {
-                items.spawnDropAtBlock(origin, stack, ItemEntity.PICKUP_DELAY_DROP_TICKS);
+                items.spawnDropAtBlock(origin, stack, ItemEntity.PICKUP_DELAY_DROP_TICKS,
+                        dimension);
             }
         }
     }
