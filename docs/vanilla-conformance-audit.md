@@ -5328,3 +5328,63 @@ TNT hiss), VT-031/#135 (the dig/place feedback), VT-032/#136 (the
 falling anvil land) hold the public numbers; this lane's two new
 discoveries renumbered VT-033 (the anvil window's site binding) and
 VT-034 (the repeater's phantom click) — nothing public renamed.
+
+## The forty-seventh pass — the correction landed: VT-029's Phase E (PR #142 OPEN)
+
+**The carrier:** `fix/fx-dimension-residual-parity-audit` (from the newest
+`origin/develop` `efcd0c4f`), **PR #142** targeting `develop` — the
+maintainer owns the merge.
+
+**The repair:** the sixteen members adopt the dimension-carrying overloads
+with their own in-scope dimension — `world.dimension()` /
+`session.dimension()` / the skull host's `dimension` field. One seam: the
+fire-extinguish FX hook upgraded `Consumer<BlockPosition>` →
+`BiConsumer<BlockPosition, Integer>` gaining the dimension (the Slice B
+mining-hook precedent), the service's extinguish walk passing
+`world.dimension()`. Every site carries the reference citation comment.
+
+**The seats:** `FxDimensionResidualDiscoveryTest` — **RED on develop at
+exactly the predicted pins** (the four seats' observed stamp 0, expected
+−1; the trapdoor and flint controls proving the writes routed the nether
+while the audio alone misstamped) → **GREEN 4/0 on the fix branch**.
+
+**The regression:** **80/0 green** across the touched lanes — the note
+family (NoteBlockSystemTest, NoteDataStoreSplitTest), the two-stage use
+law, the trapdoor/door families, the interaction surface
+(BlockInteractionAcceptanceTest, DigHandlerGatesAcceptanceTest,
+NetherDigRoutingAcceptanceTest, InteractionEventAcceptanceTest,
+PlacementHandlerGatesAcceptanceTest), the fire families
+(FireAcceptanceTest, PerDimensionFireAcceptanceTest), the farming pair
+(FarmingGrowthCadenceParityTest, FarmlandStateParityTest), the wither
+birth + skull summon, the eye insertion + end portal family. The
+protocol module needs no re-run (no protocol file touched); the
+full-module run was time-boxed honestly — the focused lanes are the
+record's evidence.
+
+**The ledger row:** VT-029 CONFIRMED → CORRECTED (PR #142 OPEN). The
+FX-broadcasts row moves to "the engine-side stamps verified" with the
+named tails standing: the note family's BlockAction relay (the protocol
+module's overworld-bound wiring — V18ProtocolServer 1637-1645, the
+listener on the overworld family alone with the hardcoded `!= 0` gate),
+the anvil window's site binding (VT-033), the repeater's phantom click
+(VT-034), the tripwire/piston per-dimension families (the FL4-F10
+ledger's named tail), and the flint ignite's pitch band (the adjacent
+observation).
+
+**The lane's queue after this correction:**
+
+1. **The hasSupportBelow family** (the pass-46 queue's standing head):
+   the wire `hasSolidTop || GLOWSTONE`, the plates
+   `hasSolidTop || FenceBlock`, the repeater's own consult — each its
+   own discovery pass.
+2. **VT-033's passes** (the anvil window's block side): the seats owed
+   (a nether anvil repair reading/damaging the overworld's anvil — the
+   `openContainerDimension` stamp exists for the furnace/beacon
+   families; the anvil site ignores it).
+3. **VT-034's seat** (the repeater's phantom click): the removal fix —
+   a compact lane.
+4. **The note family's BlockAction relay** (VT-029's named follow-up):
+   the protocol module's per-family relay wiring.
+5. **The merge watch** (this pass's fetch): the twenty-eight-PR open set
+   (#108-#111, #113-#114, #116-#122, #125-#126, #128-#133, #137-#139,
+   #142) — the placement-gate absorption rides the #137/#138/#139 pick.
