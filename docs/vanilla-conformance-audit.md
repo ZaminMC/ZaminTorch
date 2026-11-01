@@ -7518,3 +7518,89 @@ lineage's whole body, then this lane's thirty-sixth-era and
 forty-fourth→forty-sixth sections re-appended by the union — all
 standing whole; nothing after the forty-sixth-first-act's queue
 supersedes it except this pass's own record.)*
+
+## VT-038 — the item family's box anchoring: the engine seats the CENTER at the spawn/restore/throw y where the reference seats the BOTTOM (SUSPECTED — pass 1, the source census; the orb fix's named sibling tail)
+
+The forty-sixth pass's record named "the item family's toss anchoring
+(the same center-vs-bottom question at the item's 0.25)" as VT-029's
+own adjacent tail, and the fifty-seventh pass's Phase E corrected the
+orb's slice (PR #156). This act opens the ITEM family's own finding —
+the same law at its own 0.125.
+
+**The reference law (pass 1, source — the census whole):**
+
+- `ItemEntity(World, x, double y, z, ItemStack)` (lines 36-45):
+  `setSize(0.25F, 0.25F)` then `setPosition(x, y, z)` — the box
+  BOTTOM at the passed y (`Entity.setPosition` line 240's feet law:
+  `[x−w/2, y, z−w/2] → [x+w/2, y+h, z+w/2]`). The no-arg LOAD
+  constructor (lines 57-61) is the SAME 0.25 size — unlike the orb,
+  the item family has NO two-constructor quirk; the anchoring alone
+  is the question.
+- The caller census — EVERY site passes the BOTTOM frame: `Block`
+  line 519 (the block drop: `pos + (d0, d1, d2)`, each di =
+  `rand*0.5 + 0.25` ∈ [0.25, 0.75] — the Y AXIS JITTERED TOO, a
+  separate scatter tail), `PlayerEntity` line 618 (the player drop:
+  `y − 0.3 + eyeHeight`), `Entity.dropItem` line 1254 (`y +
+  offsetY` — every mob-death drop at the entity's own feet),
+  `TradeWithVillagerGoal` 61, `JukeboxBlock` 66, `CauldronBlock`
+  105/140 (`pos + (0.5, 1.5, 0.5)`), `DispenseItemBehavior` 38,
+  `FishingBobberEntity` 466, `EnderEyeEntity` 162, `MooshroomEntity`
+  49 (`y + height`), `InventoryUtils` 43 (the container scatter).
+- The wire: `SpawnObjectS2CPacket` writes `entity.y * 32` — the
+  BOTTOM; the client's `handleSpawnObject` seats its own box at it;
+  the entity teleport/rel-move packets carry the same frame.
+
+**The engine's divergence (pass 1, source):**
+
+- `ItemEntity(int, Position, ItemStack, int)` stores the passed
+  position as the box CENTER (the class's own law: "the engine's
+  bottom = position.y − HALF_HEIGHT") — every spawn path passes
+  reference-mimicking y forms that the reference reads as the BOTTOM:
+  `spawnDropAtBlock` (`blockPos.y + 0.5`), `spawnRestored` /
+  `restoreAll` (the SAVED y — the NBT `Pos` row is the reference's
+  bottom), `spawnThrown`'s three callers (the bobber's position; the
+  `origin.y + 1.0` form; the player Q-drop's `eye.y + 1.62 +
+  dy*0.4`).
+- The consequence per slice: **(a) the restore's first-read box** —
+  the engine's [savedY − 0.125, savedY + 0.125] against the
+  reference's [savedY, savedY + 0.25], the same discriminator shape
+  as the orb's third seat (a 0.125 offset that persists through
+  flight until the landing clip re-seats the bottom on the floor —
+  the REST boxes converge, the `ItemOrbLandingPhysicsParityTest` 9/0
+  record); **(b) the mid-flight pickup band** — the box crosses the
+  player's grown band edges 0.125 earlier than vanilla (the vertical
+  discriminator: an item whose vanilla box top just clears the band's
+  bottom edge sits 0.125 below it in the engine — the engine misses
+  where vanilla collects, and the reverse at the band's top); **(c)
+  the wire y** — `sendItemSpawn` writes `entity.position().y()` (the
+  CENTER) as the Spawn Object y and `sendItemTeleport` passes
+  `entity.position()` whole, where the reference's packets carry the
+  BOTTOM: the client seats its box at the packet y, so every engine
+  item renders 0.125 blocks HIGH against vanilla (the most visible
+  slice — every dropped item, every mob drop, every container
+  scatter, client-observable on every server).
+
+**The adjacent tails (NOT this finding, each its own candidate):**
+the drop scatter's shape (the reference's three-axis [0.25, 0.75]
+band with the y jitter against the engine's fixed +0.5 y and ±0.1
+x/z — the same class as the orb's scatter-magnitude tail); the
+player Q-drop's exact form (the reference's `− 0.3 + eyeHeight`
+against the engine's `+ 1.62 + dy*0.4` look-offset form); the item's
+pickup envelope FORM (conformant — the pass-38/43 records verified
+the 0.3 half-width and the center-convention boxes).
+
+**Status: SUSPECTED — pass 1 (source) complete.** The seats owed
+(pass 2: the restored first-read box against the grown band, the
+mid-flight band discriminator, the wire-y form against the packet
+law) and the independent walk (pass 3: the constructor census both
+sides — the engine's ItemEntityManager callers vs the reference's
+thirteen sites; the compensating-behavior hunt; the design-intent
+challenge). The fix's expected shape (for the Phase E record, if the
+passes confirm): the same composition VT-037 landed at the orb —
+`center = y + HALF_HEIGHT` at every spawn arm and the wire arms'
+feet form — with the ITEM family's simpler one-size law.
+
+**The numbering:** drafted VT-038 — the next free public number
+after VT-037 (PR #156, this lane); the pass-52 lane's private VT-036
+draft (the lever/button placement gates) rides its own renumber at
+its PR's open.
