@@ -1466,7 +1466,7 @@ effective law for the vanilla dimensions).
 | Block-update wake (BlockUpdateSystem.runUpdate, RedstoneSystem.neighborChanged) — world binding | SURFACED as VT-009's pass-3 non-compensation evidence (the parallel stream): BOTH reads consult the overworld field (the changed-world parameter ignored in the six-neighbor dispatch) — the house stream's FL4-F10 lane LANDED on develop (`0328e92f`), NOT duplicated; the door/bed seats are the evidence cross-reference |
 | Spawn precedents — the post-fan stamp ordering | **VT-013 RESOLVED IN FLIGHT — PR #130 OPEN (stacked on #125)** — three passes complete: the block spawner, the End dragon, and the chicken egg post-stamp after `spawnAt` returns, so their live `onMobSpawned` publishes (the wire's Slice 25d gate) read the un-stamped 0 at the event — a nether spawner's body invisible at its own spawn moment to the nether player beside it; pass 3 CORRECTED the dragon's exposure (the End generates lazily — the chunk-(0,0) drain fires with the approaching player LIVE, so the first End visitor never sees the dragon spawn); both spawner seats RED on the #125 tree (`PostFanStampOrderingTest`, `expected: <-1> but was: <0>`), the fix is each site's migration to the dimension-aware arm |
 | FX broadcasts — the dimension awareness | NOT INSPECTED (the FxManager position-only API; the PR #90 ledger) |
-| World border — per-dimension | NOT INSPECTED (the reference's per-World border vs the engine's shared one; surfaced by the dig-start gate review) |
+| World border — per-dimension | **VT-014 SUSPECTED — pass 1 complete (this run)**: the command/wire lanes EXONERATED (the reference's own law is `worlds[0]` alone — WorldBorderCommand:171, PlayerManager:678 — the engine's single border matches; the line-280 comment's claim is the reference's own law for that surface); the NETHER containment lanes diverge — vanilla's nether border is the overworld's synced rows with the CENTER REPORTED AT /8 (ReadOnlyServerWorld's listener copy + NetherDimension.createWorldBorder's anonymous /8 override), and every engine containment site (the dig gate, the use gate, the damage walk, the two collision-wall hooks) reads the shared overworld-geometry border; observable with a configured non-zero center; passes 2-3 owed |
 | Zombie/mob arms — world binding | NOT INSPECTED (the zombie door-break consults the overworld field; surfaced by PR #90's cleanup threading) |
 | Explosions — dimension routing | AUDITED this pass (the twenty-sixth): the call-site census whole — the primed TNT (FL4-F7) and the End crystal (Slice 62) correct; the ghast fireball and wither skull sinks pass the routed world with the OVERWORLD service, the creeper/wither-birth/TNT-cart wrappers bind the overworld outright, and the shared drop roll stamps dimension 0 (**VT-007: the CORE resolved by PR #100** — another stream's honest convergence with this census, the overlap recorded, PR #103 closed as superseded; **the CART slice PR #105 OPEN** — the BlastSink dimension carry, the stash-discriminated seat nether=0/overworld=18 unfixed; the fireball + creeper seats 2/0 green on post-#100 develop, the independent confirmation riding in #105). The blast WOUND walks are routed (the dimension gate + the blastWorld consult); the fire placement is routed (F-EX4/PR #92); the named tail: the End/nether services' shared `gameplayRandom` vs the reference's per-world `world.random` |
 | Item entities / pickup — dimension | the TF-9 stamped sites are the record; the pickup consult un-audited
@@ -1888,6 +1888,87 @@ latest develop (`777b7c86`): the dimension-aware spawn core, the
 fourteen sites routed, the seats riding the fix branch, the regression
 lanes green (the egg/summon/spawner/cart families, the entity package
 whole).
+
+## VT-014 — the nether's border containment consults use the overworld's raw center: vanilla's nether border is the overworld's rows with the CENTER REPORTED AT /8
+
+**Status: SUSPECTED — pass 1 (the source census) complete; passes 2-3
+owed.** Priority tier 4 (a physics/containment divergence family — the
+border wall, the border damage, and the dig/use gates all mis-place in
+the nether when the border's center is configured; unobservable at the
+default center (0,0) where the /8 projection is the identity).
+
+**The vanilla law (1.8.8, the census whole):**
+- **Every world owns its border** (World.java:103-112,
+  `dimension.createWorldBorder()`), but the **command and the wire both
+  target `worlds[0]` ALONE**: `WorldBorderCommand.getWorldBorder()`
+  lines 171-172 (`MinecraftServer.getInstance().worlds[0]
+  .getWorldBorder()`), the join send `PlayerManager.sendWorldInfo`
+  lines 678-679 (`worlds[0]`'s border INITIALIZED to every player,
+  whatever their dimension), and the change broadcasts (the
+  `worlds[0]` listener at PlayerManager:189-213 fanning to ALL
+  players). The engine's single shared border MATCHES these lanes
+  exactly — the EngineServer line-280 comment's "the engine's one
+  border, the reference's worlds[0]" claim is the reference's own law
+  for the command/wire surface (the queue's original suspicion of the
+  design itself is RETIRED for those lanes).
+- **The nether's and End's own borders are SYNCED COPIES**:
+  MinecraftServer's init loop (lines 235-250) constructs both as
+  `ReadOnlyServerWorld` delegating to `worlds[0]`, whose constructor
+  (ReadOnlyServerWorld:17-37) wires the overworld's border listener to
+  COPY every change (size, lerp, center, warnings, damage) into its
+  own border. **The NetherDimension's border overrides the center
+  reporting** (NetherDimension.createWorldBorder lines 75-86:
+  `getCenterX()/getCenterZ()` return `super/8.0`); TheEndDimension has
+  no override (the raw copy).
+- **The containment lanes read the ACTING WORLD's border**: the damage
+  walk (LivingEntity.baseTick lines 197-201, `this.world
+  .getWorldBorder()` — the body's own world), the dig gate and the use
+  gate (`serverworld.getWorldBorder().contains(blockpos)`, the dig
+  consult ServerPlayNetworkHandler lines 437-445), the physics wall
+  (the border's collision stand-in outside the border), and the spawn
+  consult (World.java:2482, `this.getWorldBorder()`).
+
+**The engine's shape:** one `EngineWorldBorder` (EngineServer:281);
+the containment sites all read it regardless of the acting dimension —
+the dig-start gate (EngineServer ~3665), the use gate (~11643), the
+player border-damage walk (~5931, `containsBox` over the shared
+geometry), and the two collision-surface `borderContains` hooks
+(~19419 vehicles, ~23138 mobs) feeding `EntityCollisions`' wall (the
+outside-border cells become STONE, EntityCollisions ~98).
+
+**The precise divergence:** with the center configured non-zero
+(`/worldborder center 1600 1600`), vanilla's NETHER containment
+geometry is centered at (200, 200) (the synced rows + the /8 center
+reporting) while the engine's nether consults use (1600, 1600) — a
+nether player at (200, 200) stands at vanilla's nether-border center
+but ~1984 blocks outside the engine's geometry: the engine builds its
+STONE wall there and walks its IN_WALL damage while vanilla does
+nothing; the dig/use gates refuse at the wrong places. The END's
+containment matches (the raw copy — no divergence), and the
+size/damage/warning rows match everywhere (synced raw). The wire and
+the command are correct (both `worlds[0]`).
+
+**Verification owed (passes 2-3):** the behavioral seat (a configured
+non-zero center, a nether player at the /8-projected center — the
+damage walk and the dig gate's refusal shapes on the unfixed tree),
+and the independent re-verification (the compensating hunt — does any
+engine site already project the center per-dimension? none found in
+the census; the design-choice challenge — the line-280 comment claims
+worlds[0] for the COMMAND surface only, and the containment sites'
+own comments cite `serverworld.getWorldBorder()`, the acting-world
+law, so the intent matches vanilla and the shared object is the gap).
+
+**Proposed minimal correction (bounded):** the containment consults
+gain the acting dimension (the dig gate and the use gate already hold
+the session; the damage walk and the two collision hooks already hold
+the body), and a nether view (the same synced rows, the center
+reported at /8 — NetherDimension's own anonymous subclass shape)
+answers for dimension -1; the overworld and the End keep the shared
+object; the wire and the command stay on `worlds[0]` (vanilla's own
+law — NOT part of this correction).
+
+**Branch:** `audit/vt-013-postfan-stamp` (the record; the seats and
+the fix branch owed after passes 2-3).
 
 ## VT-013 — the remaining post-stamp precedents stamp AFTER the spawn fan: the block spawner's, the dragon's, and the chicken egg's live publishes read the un-stamped 0 at the event
 
@@ -2681,7 +2762,13 @@ work, in the queue's order:
    tree, the dragon exposure corrected (the End's lazy generation), the
    fix stacked on #125 landed as **PR #130** the same run (the three
    migrations, the seats riding GREEN 2/2, the stacked-tree regression
-   581/0).
+   581/0). **The world-border census ran this run too** — the queue's
+   suspicion of the single-border design RETIRED for the command/wire
+   surface (the reference itself targets `worlds[0]` there), the
+   nether-containment divergence opened as **VT-014 suspected** (pass
+   1 complete; the record above); the remaining item-9 tails: the FX
+   dimension awareness, the zombie/mob arms' world binding, and the
+   item pickup consult.
 
 13. **The parallel stream's watch items (the union's queue merge):**
     **#106** (VT-009's break-path pair walks), **#111** (VT-010's bed
