@@ -5350,3 +5350,76 @@ review note's class) against #138's green.
    spawn-floor lane (`audit/verifier-pass-38b-discovery`) and the
    spawn-stamp lineage (`audit/vt-013-postfan-stamp`) still ride their
    own branches.
+
+---
+
+## The forty-eighth pass — the merge watch's absorption event + the restack
+
+Baseline: `origin/develop` at `1139f2c3` (the pass-47 close left it at
+`efcd0c4f`; nineteen commits landed between — the F-SP1 carrier **#139
+MERGED** at `8752f721` with **#137/#138 closed superseded**, F-DS1
+**#118 MERGED**, the bed arms **#111/#114 MERGED**; #108/#109/#110/#113
+(the VT-006 convergent lanes) and #119 (the un-stick first cut) closed
+unmerged, superseded by their carriers). The lane merged
+`1139f2c3` whole (the audit doc resolved to this lane's fuller record —
+develop's copy the #114-era snapshot whose every status ours supersedes;
+the F-SP1 seat file resolved to develop's #139 carrier, the merged
+authority).
+
+**THE RESTACK (PR #149's pre-declared rebase path, taken this pass):**
+with #138 closed superseded, the VT-029 fix branch's stacked base was
+dead — the branch is restacked directly on `develop` @ `1139f2c3`
+(force-push, the pre-declared path; the restack comment
+https://github.com/ZaminMC/ZaminTorch/pull/149#issuecomment-6560849233
+and the PR body's banner carry the full record):
+
+- The stacked F-SP1 layer dropped (develop carries #139's own
+  245-line `SupportConsult` home).
+- **The dead-hopper-arm rider retired as MOOT**: #139's merged fourth
+  arm is the correct family form (`value.startsWith("hopper_")`,
+  answering every registered `hopper_<facing>` /
+  `hopper_<facing>_disabled` state). The rider existed only to repair
+  the dead `value.equals("hopper")` arm on the #138 tree.
+  `HopperFloorSupportCrossTreeDiscoveryTest` stays, retitled the hopper
+  family arm's regression pin (its cross-tree purpose served — the #138
+  review note's evidence).
+- The five consult swaps unchanged in substance (the VT-029 core).
+
+**THE RE-PIN FINDING (#139's merge owed three seats — verified this
+pass, the correction riding the restacked branch as its first commit):**
+clean `origin/develop` @ `1139f2c3` is RED on exactly three seats, all
+the lever-on-piston harness class:
+
+- `PistonSliceDOwnershipAcceptanceTest` 2/3 —
+  `theNetherPistonDisplacesOnlyTheNetherBodies` and
+  `theOverworldPistonNeverDisplacesTheNetherBody`, both timing out at
+  "the piston flipped to its extended pair" (verified on a clean
+  worktree, no local delta).
+- `RegionBoundaryTest` 1/8 — `thePistonPushesAndPullsTheColumnAcross-
+  TheRegionSeam`, timing out at "the piston extended across the seam".
+
+**Root cause:** #139's merged `leverSupported` law (the reference's own
+law — correct) fells every floor-lever-on-piston construction (the
+piston base is no solid top, `PistonBaseBlock.isCube()` false), and the
+three seats landed on develop OUTSIDE #139's base (the Slice D piston
+seats through `ac420ca2`), so its 21-seat re-pin list never saw them:
+the lever pops at its own placement, the `useLever` finds no lever, the
+piston never arms. The re-pin gives each construction the stone carrier
+one cell above the piston (the a75a429e law — the flip's strong power
+enters the stone, re-radiating to the piston below); the third Slice D
+seat's overworld lever (standing on AIR — passing for the wrong reason)
+gains its own overworld stone so the seat's cross-world law is proven
+through a real standing flip. Zero engine delta. Evidence: both classes
+GREEN on the restacked tree (3/0, 8/0), RED on clean develop (2/3, 7/8).
+
+**THE RESTACKED TREE'S RUNS:** the VT-029 seats 9/9 (8 wire/plate/diode
++ 1 hopper pin), the redstone package 45/0 whole, the wider lanes 368/0
+(block/piston/interaction/hopper/tnt/noteblock), Slice D 3/0 +
+RegionBoundary 8/0, the touched lanes 43/0 (chest/container/
+nether-routing/eye-insertion/blast-fallback).
+
+**The merge watch (this pass's fetch):** #111✓/#114✓/#118✓/#139✓
+merged; #108/#109/#110/#113/#119/#137/#138 closed superseded. The open
+set (24): #116/#117/#120/#121/#122/#123/#125/#126/#128/#129/#130/
+#131/#132/#133/#134/#135/#136/#140/#141/#142/#143/#144/#145/#146/
+#147/#148/#149.
