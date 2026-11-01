@@ -1757,8 +1757,16 @@ public final class V18ProtocolServer implements ProtocolAdapter {
 
             @Override
             public void onProjectileLanded(net.zaminmc.torch.server.entity.projectile.ProjectileEntity projectile) {
-                // A landed arrow just stops receiving teleport syncs; the
-                // clients hold the last position until the destroy arrives.
+                // VT-014's wire layer — the stick tick's final position
+                // reaches the clients (the reference's tracker carries the
+                // rest at the crossed face like any position change; the
+                // engine's stick arm used to publish nothing, leaving every
+                // client holding the last FLIGHT position a full step short
+                // of the block). The teleport form the moved publication
+                // already uses; the dimension gate rides the send itself.
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendProjectileMoved(projectile);
+                }
             }
 
             @Override

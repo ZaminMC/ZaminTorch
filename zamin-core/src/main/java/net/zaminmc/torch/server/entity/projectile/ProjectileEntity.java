@@ -124,6 +124,22 @@ public final class ProjectileEntity implements net.zaminmc.torch.entity.Projecti
      */
     private int pickup;
     /**
+     * The stuck arrow's TRACKED CELL — the block the flight ray hit,
+     * recorded at stick time (the reference's {@code blockX/Y/Z} +
+     * {@code block}/{@code blockData}, ArrowEntity lines 289-293). The
+     * stuck-tick consult reads this cell every tick (the un-stick law,
+     * lines 172-186); {@code hasTrackedCell} false marks a body with no
+     * recorded cell — the hand-stick form and the anvil import's
+     * restored rows (the import derives the reference's
+     * xTile/yTile/zTile/inTile rows away, its own ledger's named
+     * granularity) — for which no consult runs.
+     */
+    private boolean hasTrackedCell;
+    private int trackedCellX;
+    private int trackedCellY;
+    private int trackedCellZ;
+    private net.zaminmc.torch.block.BlockType trackedBlock;
+    /**
      * The body's dimension (Wave TF-9 — the reference's Entity.world, the
      * mob query's own Slice-25d shape generalized over the projectile
      * family): 0 the overworld, -1 the nether, 1 the end. The shared
@@ -256,6 +272,64 @@ public final class ProjectileEntity implements net.zaminmc.torch.entity.Projecti
         this.vx = 0;
         this.vy = 0;
         this.vz = 0;
+    }
+
+    /**
+     * The LIVE stick (VT-014 — the reference's block-stick arm,
+     * ArrowEntity lines 288-309): the body rests 0.05 OUTSIDE the
+     * crossed face along the approach ({@code facePos - 0.05*unit},
+     * the composition of the lines 300-302 backoff with the flight
+     * branch's closing advance at 327-329 — in the cell the arrow was
+     * flying through), the velocity KEEPS the face vector
+     * {@code facePos - from} (the reference's lines 296-298 — dead
+     * state on a stuck body, the un-stick's later
+     * {@code random*0.2} damping the only consumer), and the tracked
+     * cell + block are recorded for the stuck-tick consult (lines
+     * 289-293). The stick clock starts at zero (the reference's own
+     * line 144 reset). Package-private: the manager's stick arm is the
+     * only caller.
+     */
+    void stickIn(Position rest, net.zaminmc.torch.block.BlockType inBlock,
+                 int cellX, int cellY, int cellZ,
+                 double faceVectorX, double faceVectorY, double faceVectorZ) {
+        this.inGround = true;
+        this.position = Objects.requireNonNull(rest, "rest");
+        this.vx = faceVectorX;
+        this.vy = faceVectorY;
+        this.vz = faceVectorZ;
+        this.ticksInGround = 0;
+        this.hasTrackedCell = true;
+        this.trackedCellX = cellX;
+        this.trackedCellY = cellY;
+        this.trackedCellZ = cellZ;
+        this.trackedBlock = inBlock;
+    }
+
+    /** @return whether a live stick recorded the tracked cell (the
+     *  hand-stick and the import's restored form carry none). */
+    boolean hasTrackedCell() {
+        return hasTrackedCell;
+    }
+
+    /** The tracked cell's x row (valid when {@link #hasTrackedCell()}). */
+    int trackedCellX() {
+        return trackedCellX;
+    }
+
+    /** The tracked cell's y row (valid when {@link #hasTrackedCell()}). */
+    int trackedCellY() {
+        return trackedCellY;
+    }
+
+    /** The tracked cell's z row (valid when {@link #hasTrackedCell()}). */
+    int trackedCellZ() {
+        return trackedCellZ;
+    }
+
+    /** The block recorded at the tracked cell at stick time (the
+     *  reference's {@code this.block}), or null when none was recorded. */
+    net.zaminmc.torch.block.BlockType trackedBlock() {
+        return trackedBlock;
     }
 
     /**

@@ -84,6 +84,18 @@ public final class ProjectileManager {
         default boolean solidAt(double x, double y, double z) {
             return solid(x, y, z);
         }
+
+        /**
+         * The block type at a cell (VT-014/VT-015 — the reference's
+         * tracked-block rows, ArrowEntity lines 289-293 + 172-186: the
+         * stick records the hit cell's block and the stuck tick consults
+         * it for the identity comparison; the engine's state-carrier
+         * block types ARE the reference's id+metadata pair). The default
+         * answers null so stub queries carry no tracked-block law.
+         */
+        default net.zaminmc.torch.block.BlockType blockTypeAt(int x, int y, int z) {
+            return null;
+        }
     }
 
     /** Resolves the entity a projectile is inside of, if any (tick thread). */
@@ -1192,7 +1204,14 @@ public final class ProjectileManager {
                                 (int) Math.floor(point.z())), projectile.dimension())) {
                     return false; // the cell opened — the walk continues
                 }
-                projectile.landInGround();
+                // VT-014 — the reference's ray-stick placement (ArrowEntity
+                // lines 288-309 + the closing advance at 327-329): the body
+                // rests 0.05 OUTSIDE the first face the step's segment
+                // crosses into a solid cell, along the approach — in the
+                // cell the arrow was flying through, never at the raw
+                // sampled endpoint (which can sit a full step inside the
+                // block, or past a one-block wall entirely).
+                stickAtFace(projectile, from, point);
                 for (Listener listener : listeners) {
                     listener.onProjectileLanded(projectile);
                 }
@@ -1256,6 +1275,159 @@ public final class ProjectileManager {
             return true;
         }
         return false;
+    }
+
+    /**
+     * One crossed face on the sampled segment: the crossing point and
+     * the cell the segment entered (the reference's tracked cell).
+     */
+    private record FaceHit(Position at, int cellX, int cellY, int cellZ) {
+    }
+
+    /**
+     * VT-014's ray walk — the reference's {@code world.rayTrace} in
+     * miniature over the sampled step (ArrowEntity.tick lines 193-195,
+     * the ray from the tick's start toward the step's end): the
+     * Amanatides-Woo cell traversal from the step's start toward the
+     * sampled point, stopping at the FIRST boundary crossing whose
+     * entered cell reads solid at the crossing (the shape-aware point
+     * test just inside the face). The walk replaces the reference's
+     * full ray only in breadth — the engine's sampler hands it the
+     * already-suspect segment (midpoint or endpoint), so a handful of
+     * cells bound every walk.
+     *
+     * <p>Null when the segment crosses no solid boundary before the
+     * sample: the start cell's own shape holding the sample (a corner
+     * graze inside one cell) or a start already inside a solid cell —
+     * the caller keeps the endpoint rest for those (the reference's
+     * own ray answers nothing for a start inside a block; the
+     * pre-fix behavior stands as the bounded fallback).</p>
+     */
+    private FaceHit firstSolidFaceCrossing(Position from, Position sample) {
+        double sx = sample.x() - from.x();
+        double sy = sample.y() - from.y();
+        double sz = sample.z() - from.z();
+        int x = (int) Math.floor(from.x());
+        int y = (int) Math.floor(from.y());
+        int z = (int) Math.floor(from.z());
+        // The t (along the segment, 0..1) at which the next boundary on
+        // each axis is crossed; +inf on the stationary axes.
+        double tMaxX = boundaryT(from.x(), sx);
+        double tMaxY = boundaryT(from.y(), sy);
+        double tMaxZ = boundaryT(from.z(), sz);
+        // The per-cell t length on each axis (1 / |step|); +inf when
+        // stationary, so the axis never advances.
+        double tDeltaX = sx != 0.0 ? Math.abs(1.0 / sx) : Double.POSITIVE_INFINITY;
+        double tDeltaY = sy != 0.0 ? Math.abs(1.0 / sy) : Double.POSITIVE_INFINITY;
+        double tDeltaZ = sz != 0.0 ? Math.abs(1.0 / sz) : Double.POSITIVE_INFINITY;
+        int stepX = sx > 0 ? 1 : -1;
+        int stepY = sy > 0 ? 1 : -1;
+        int stepZ = sz > 0 ? 1 : -1;
+        // The walk is bounded by construction: every iteration consumes
+        // one axis's finite tDelta, and the segment spans at most a few
+        // cells per axis.
+        while (true) {
+            // The earliest boundary ahead; the consult point is the
+            // crossing NUDGED just past it along the segment, so the
+            // shape test reads the ENTERED cell (a boundary point's
+            // own floor lands in the departed cell on the crossed
+            // axis — the stone face at y=20 consulted as the air
+            // above it).
+            double t;
+            int axis;
+            if (tMaxX <= tMaxY && tMaxX <= tMaxZ) {
+                if (tMaxX > 1.0) {
+                    return null; // the segment ends inside the current cell
+                }
+                t = tMaxX;
+                axis = 0;
+            } else if (tMaxY <= tMaxZ) {
+                if (tMaxY > 1.0) {
+                    return null;
+                }
+                t = tMaxY;
+                axis = 1;
+            } else {
+                if (tMaxZ > 1.0) {
+                    return null;
+                }
+                t = tMaxZ;
+                axis = 2;
+            }
+            double nudge = 1.0E-9;
+            Position justPast = new Position(from.x() + sx * (t + nudge),
+                    from.y() + sy * (t + nudge), from.z() + sz * (t + nudge));
+            if (solid.solidAt(justPast.x(), justPast.y(), justPast.z())) {
+                int enteredX = x + (axis == 0 ? stepX : 0);
+                int enteredY = y + (axis == 1 ? stepY : 0);
+                int enteredZ = z + (axis == 2 ? stepZ : 0);
+                Position at = new Position(from.x() + sx * t,
+                        from.y() + sy * t, from.z() + sz * t);
+                return new FaceHit(at, enteredX, enteredY, enteredZ);
+            }
+            if (axis == 0) {
+                x += stepX;
+                tMaxX += tDeltaX;
+            } else if (axis == 1) {
+                y += stepY;
+                tMaxY += tDeltaY;
+            } else {
+                z += stepZ;
+                tMaxZ += tDeltaZ;
+            }
+        }
+    }
+
+    /**
+     * The t at which the segment from {@code origin} along
+     * {@code step} crosses the next cell boundary on the axis: the
+     * high edge when stepping up, the low edge when stepping down,
+     * +inf when stationary.
+     */
+    private static double boundaryT(double origin, double step) {
+        if (step > 0.0) {
+            return (Math.floor(origin) + 1.0 - origin) / step;
+        }
+        if (step < 0.0) {
+            return (Math.floor(origin) - origin) / step;
+        }
+        return Double.POSITIVE_INFINITY;
+    }
+
+    /**
+     * VT-014's stick — the reference's block-stick arm over the sampled
+     * segment (ArrowEntity lines 288-309 + the closing advance at
+     * 327-329): the rest lands at
+     * {@code facePos - 0.05 * unit(step)} — 0.05 OUTSIDE the first
+     * crossed solid face, in the cell the arrow was flying through —
+     * and the velocity KEEPS the face vector {@code facePos - from}
+     * (the reference's lines 296-298; dead state on a stuck body, the
+     * un-stick's later {@code random*0.2} damping the only consumer),
+     * with the hit cell + block recorded as the tracked state (lines
+     * 289-293). The no-crossing fallback keeps the endpoint rest.
+     */
+    private void stickAtFace(ProjectileEntity projectile, Position from, Position sample) {
+        FaceHit hit = firstSolidFaceCrossing(from, sample);
+        if (hit == null) {
+            projectile.landInGround(); // the shape-corner fallback
+            return;
+        }
+        double sx = sample.x() - from.x();
+        double sy = sample.y() - from.y();
+        double sz = sample.z() - from.z();
+        double length = Math.sqrt(sx * sx + sy * sy + sz * sz);
+        if (length < 1.0E-9) {
+            projectile.landInGround(); // a degenerate step has no approach
+            return;
+        }
+        double ux = sx / length;
+        double uy = sy / length;
+        double uz = sz / length;
+        Position rest = new Position(hit.at().x() - 0.05 * ux,
+                hit.at().y() - 0.05 * uy, hit.at().z() - 0.05 * uz);
+        projectile.stickIn(rest, solid.blockTypeAt(hit.cellX(), hit.cellY(), hit.cellZ()),
+                hit.cellX(), hit.cellY(), hit.cellZ(),
+                hit.at().x() - from.x(), hit.at().y() - from.y(), hit.at().z() - from.z());
     }
 
     /**

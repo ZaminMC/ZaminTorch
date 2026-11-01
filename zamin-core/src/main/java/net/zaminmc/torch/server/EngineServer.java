@@ -32368,6 +32368,24 @@ public final class EngineServer implements Server, EngineBridge {
                     x, y, z, groundProbe(ground, x, y, z));
         }
 
+        /**
+         * The tracked-cell block read (VT-014/VT-015 — the reference's
+         * {@code blockX/Y/Z} + {@code block} rows, ArrowEntity lines
+         * 289-293 and 172-186): the stick records the hit cell's block
+         * and the stuck tick consults the same cell for the identity
+         * comparison — the ACTIVE dimension's own row, the per-body
+         * flip the solidity consults already ride.
+         */
+        @Override
+        public net.zaminmc.torch.block.BlockType blockTypeAt(int x, int y, int z) {
+            if (y < net.zaminmc.torch.block.BlockPosition.MIN_Y
+                    || y > net.zaminmc.torch.block.BlockPosition.MAX_Y) {
+                return world.airType();
+            }
+            return activeGroundWorld().getBlock(
+                    new net.zaminmc.torch.block.BlockPosition(x, y, z));
+        }
+
         /** The shape's top surface over the ACTIVE dimension's blocks. */
         private double groundSupportYAt(double x, double y, double z) {
             if (y < net.zaminmc.torch.block.BlockPosition.MIN_Y
