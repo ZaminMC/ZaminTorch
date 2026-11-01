@@ -5435,3 +5435,68 @@ the site).
 hasSupportBelow family (the standing head), VT-033's seats (the anvil
 window's site binding), the note family's BlockAction relay (VT-029's
 named follow-up), the merge watch (now thirty PRs open).**
+
+## VT-035 — the wire/plate/diode support family answers one collision question where vanilla answers three structured laws (SUSPECTED — pass 1, the source census complete)
+
+**Subsystem:** the redstone floor laws (the F-SP1 class's named next lane,
+the pass-46 queue's standing head — this pass's opening walk). **Baseline:**
+develop `efcd0c4f`.
+
+**The reference's THREE distinct laws:**
+
+1. **The wire** (`RedstoneWireBlock.canBePlaced` 91-93):
+   `World.hasSolidTop(world, pos.down()) || the block below IS GLOWSTONE`.
+2. **The plates** — plain AND weighted (`AbstractPressurePlateBlock`
+   70-86: `canBePlaced` = `canSitOnTop(below)`, the SAME consult the
+   `neighborChanged` pop reads at 77-82):
+   `World.hasSolidTop(world, pos) || the block below instanceof FenceBlock`.
+3. **The diodes** — repeater AND comparator (`DiodeBlock.canBePlaced`
+   29-31 + `canSurvive` 33-35): `World.hasSolidTop(world, pos.down())`
+   ALONE — no glowstone, no fence.
+
+`World.hasSolidTop` itself (World.java 1740-1750) is the STRUCTURED
+top-face law: `material.isSolidBlocking() && isCube()`, else TOP-half
+stairs, else TOP-half slabs, else hoppers, else 7-layer snow — every
+other shape refused (bottom slabs, fences, walls, panes, non-cube
+solids, pistons — `PistonBaseBlock.isCube()` false, the F-SP1 harness
+law's own find).
+
+**The engine's ONE law:** `WorldSolidity.isSolid(below)` — the
+COLLISION question ("whether the block type blocks entity movement", an
+exclusion list over non-colliding blocks). The consult sites:
+
+- `RedstoneSystem.hasSupportBelow` (2296-2299) — the ONE shared consult
+  feeding FIVE pop arms: the wire (864), the repeater (888), the
+  comparator (898), the weighted plates (~960), the plain plates (974).
+- The placement gates: the wire (EngineServer 13105), the plate (13309),
+  the repeater (13391) + the comparator (the same shape).
+
+**The divergence set (the false-positive hosts — the engine HOSTS where
+vanilla refuses):** for ALL the families — bottom slabs, bottom stairs,
+cobble walls (vanilla's own quirk: a plate sits on a FENCE but never a
+WALL — `WallBlock` is not `FenceBlock`), glass panes/iron bars, thin
+snow (layers 1-6), closed fence gates, pistons, and every non-cube
+colliding solid (chests, enchanting tables, brewing stands, cauldrons,
+anvils); for the WIRE and the DIODES — FENCES too (the plates alone
+carry the allowance). **False negatives: none found** — glowstone,
+hoppers, top-half slabs/stairs, and 7-layer snow all pass `isSolid`, so
+the allowances' positive arms already match.
+
+**The structured helper ALREADY EXISTS on develop:** `FireBlocks
+.hasSolidTop(world, pos)` (FireBlocks.java 312 — "the reference's
+World.hasSolidTop, World.java lines 1740-1750, 1:1"), already serving
+the rail family (`RailConnections` 101-109) and the spawn system. The
+fix shape (if confirmed): the consults adopt `FireBlocks.hasSolidTop`
+with the family allowances (the wire's glowstone, the plates' fence —
+the engine's fence predicates; the diodes' bare law) — the F-SP1
+SupportConsult migration's own shape.
+
+**STATUS: SUSPECTED — pass 1 complete (the source census: every consult
+site read, the reference's three laws walked, the helper's existence
+verified). Passes 2 and 3 owed** — the seats: a wire on a bottom slab
+(vanilla pops, the engine keeps), a repeater on a fence (vanilla pops),
+the plate-on-fence CONTROL (vanilla KEEPS — the allowance's positive
+arm); the independent walk: the `isRedstoneComponent` exclusion's
+boundary, the glowstone positive's seat, the pop-vs-placement-refusal
+distinction (vanilla refuses the placement AND pops the orphan — both
+arms must be seated).
