@@ -1229,8 +1229,8 @@ public final class ProjectileManager {
                 // ~1.33]) — in the arrow's OWN world (the reference's
                 // playSound on the entity's world). The entity-hit arm
                 // plays the same name at line 276 (the same pitch law,
-                // a fresh draw) — that site's absence is the finding's
-                // named follow-up (its own seat owed).
+                // a fresh draw) — the entity arm rides the landed
+                // verdict through playEntityHitBowhit below.
                 fx.sound(projectile.position(), "random.bowhit", 1.0f,
                         (float) (1.2 / (random.nextFloat() * 0.2 + 0.9)),
                         projectile.dimension());
