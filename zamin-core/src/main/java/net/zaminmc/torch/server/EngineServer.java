@@ -329,14 +329,26 @@ public final class EngineServer implements Server, EngineBridge {
     private net.zaminmc.torch.server.hopper.HopperDataStore hopperStore;
     /** The beacon system (Slice 29b — the pyramid + the effect spread). */
     private net.zaminmc.torch.server.beacon.BeaconSystem beaconSystem;
+    /** The nether's own beacon family (Wave FL4-GAP2 Slice C — the per-world tile law). */
+    private net.zaminmc.torch.server.beacon.BeaconSystem netherBeacons;
+    /** The End's own beacon family (Wave FL4-GAP2 Slice C — the per-world tile law). */
+    private net.zaminmc.torch.server.beacon.BeaconSystem endBeacons;
     private net.zaminmc.torch.server.beacon.BeaconDataStore beaconStore;
     /** The mob spawner state (Slice 12g — the structure spawners). */
     private net.zaminmc.torch.server.spawner.SpawnerManager spawnerManager;
     private net.zaminmc.torch.server.spawner.SpawnerManager spawners;
     private SignManager signManager;
+    /** The nether's own sign family (Wave FL4-GAP2 Slice C — the per-world tile law). */
+    private SignManager netherSigns;
+    /** The End's own sign family (Wave FL4-GAP2 Slice C — the per-world tile law). */
+    private SignManager endSigns;
     private SignDataStore signStore;
     /** The banner tiles (the sign family's twin — the base + pattern store). */
     private net.zaminmc.torch.server.banner.BannerManager bannerManager;
+    /** The nether's own banner family (Wave FL4-GAP2 Slice C — the per-world tile law). */
+    private net.zaminmc.torch.server.banner.BannerManager netherBanners;
+    /** The End's own banner family (Wave FL4-GAP2 Slice C — the per-world tile law). */
+    private net.zaminmc.torch.server.banner.BannerManager endBanners;
     private net.zaminmc.torch.server.banner.BannerDataStore bannerStore;
     private volatile ItemEntityManager itemEntities;
     private volatile MobManager mobManager;
@@ -402,8 +414,16 @@ public final class EngineServer implements Server, EngineBridge {
     private net.zaminmc.torch.server.tnt.TntSystem tntSystem;
     /** The note block system (Slice 27a): the note tiles + the three play arms. */
     private net.zaminmc.torch.server.noteblock.NoteBlockSystem noteBlocks;
+    /** The nether's own note family (Wave FL4-GAP2 Slice C — the per-world tile law). */
+    private net.zaminmc.torch.server.noteblock.NoteBlockSystem netherNoteBlocks;
+    /** The End's own note family (Wave FL4-GAP2 Slice C — the per-world tile law). */
+    private net.zaminmc.torch.server.noteblock.NoteBlockSystem endNoteBlocks;
 
     private net.zaminmc.torch.server.jukebox.JukeboxBlockSystem jukeboxes;
+    /** The nether's own jukebox family (Wave FL4-GAP2 Slice C — the per-world tile law). */
+    private net.zaminmc.torch.server.jukebox.JukeboxBlockSystem netherJukeboxes;
+    /** The End's own jukebox family (Wave FL4-GAP2 Slice C — the per-world tile law). */
+    private net.zaminmc.torch.server.jukebox.JukeboxBlockSystem endJukeboxes;
 
     private net.zaminmc.torch.server.jukebox.JukeboxDataStore jukeboxStore;
 
@@ -609,9 +629,17 @@ public final class EngineServer implements Server, EngineBridge {
     private volatile DropService witherSweepDrops;
     /** The skull store (Slice 60 — the tiles + the wither's summon walk). */
     private volatile net.zaminmc.torch.server.skull.SkullManager skulls;
+    /** The nether's own skull family (Wave FL4-GAP2 Slice C — the per-world tile law). */
+    private volatile net.zaminmc.torch.server.skull.SkullManager netherSkulls;
+    /** The End's own skull family (Wave FL4-GAP2 Slice C — the per-world tile law). */
+    private volatile net.zaminmc.torch.server.skull.SkullManager endSkulls;
 
     /** The command-block tiles (Slice 72 — the executors + the redstone run). */
     private volatile net.zaminmc.torch.server.commandblock.CommandBlockManager commandBlocks;
+    /** The nether's own command-block family (Wave FL4-GAP2 Slice C — the per-world tile law). */
+    private volatile net.zaminmc.torch.server.commandblock.CommandBlockManager netherCommandBlocks;
+    /** The End's own command-block family (Wave FL4-GAP2 Slice C — the per-world tile law). */
+    private volatile net.zaminmc.torch.server.commandblock.CommandBlockManager endCommandBlocks;
 
     /** The command-block tile persistence (Slice 72 — the ZCB envelope). */
     private net.zaminmc.torch.server.commandblock.CommandBlockDataStore commandBlockStore;
@@ -1023,19 +1051,35 @@ public final class EngineServer implements Server, EngineBridge {
                     chestsFor(row.dimension()).restoreAll(
                             java.util.Map.of(row.position(), row.chest()));
                 }
-                // Sign block entities: world text state, ZSD persistence.
+                // Sign block entities: world text state, ZSD persistence
+                // (Wave FL4-GAP2 Slice C — the per-world tile law: each
+                // dimension owns its own family, a same-coordinate pair two
+                // tiles; the v3 row carries the dimension stamp, v1/v2
+                // files load as overworld rows).
                 signManager = new SignManager();
+                netherSigns = new SignManager();
+                endSigns = new SignManager();
                 signStore = new SignDataStore(config.worldDataDir().resolve("signs.bin"));
-                net.zaminmc.torch.server.sign.SignDataStore.Loaded signLoaded = signStore.load();
-                signManager.restoreAll(signLoaded.signs());
-                signManager.restoreStats(signLoaded.stats());
+                for (net.zaminmc.torch.server.sign.SignDataStore.Loaded signRow
+                        : signStore.load()) {
+                    signsFor(signRow.dimension()).restoreAll(signRow.signs());
+                    signsFor(signRow.dimension()).restoreStats(signRow.stats());
+                }
                 // Banner block entities: the base + pattern tiles, ZBD
                 // persistence (the crafted patterns are expensive player
-                // work — the tile survives the restart).
+                // work — the tile survives the restart). Wave FL4-GAP2
+                // Slice C: every dimension owns its own family, the v2 row
+                // carrying the dimension stamp.
                 bannerManager = new net.zaminmc.torch.server.banner.BannerManager();
+                netherBanners = new net.zaminmc.torch.server.banner.BannerManager();
+                endBanners = new net.zaminmc.torch.server.banner.BannerManager();
                 bannerStore = new net.zaminmc.torch.server.banner.BannerDataStore(
                         config.worldDataDir().resolve("banners.bin"));
-                bannerManager.restoreAll(bannerStore.load());
+                for (net.zaminmc.torch.server.banner.BannerDataStore.Loaded bannerRow
+                        : bannerStore.load()) {
+                    bannersFor(bannerRow.dimension()).restoreAll(
+                            java.util.Map.of(bannerRow.position(), bannerRow.tile()));
+                }
                 // Living mobs: simulation-owned population, loot flows into items.
                 MobManager mobs = new MobManager(
                         new MobWorldQuery(),
@@ -1296,10 +1340,11 @@ public final class EngineServer implements Server, EngineBridge {
                 endBlockUpdates.setScheduledTicks(endScheduledTicks);
                 // The banner support-drop arms read the tile for the tagged
                 // item (the seam keeps the block package off the manager's
-                // boot order).
+                // boot order). Wave FL4-GAP2 Slice C: each dimension's
+                // update system reads its OWN world's banner family.
                 blockUpdateSystem.setBanners(bannerManager);
-                netherBlockUpdates.setBanners(bannerManager);
-                endBlockUpdates.setBanners(bannerManager);
+                netherBlockUpdates.setBanners(netherBanners);
+                endBlockUpdates.setBanners(endBanners);
                 net.zaminmc.torch.server.block.GravityFalls.registerTicker(
                         scheduledTickSystem, world, falling);
                 // The gravity family's tickers on EVERY dimension's own queue
@@ -1936,21 +1981,51 @@ public final class EngineServer implements Server, EngineBridge {
                         world, redstoneSystem, fxManager);
                 world.addChangeListener(noteBlocks);
                 redstoneSystem.addNeighborListener(noteBlocks::neighborHeard);
+                // Wave FL4-GAP2 Slice C — the per-world tile law: each
+                // dimension's note family hears its OWN world's changes
+                // and its OWN redstone's power edges (the reference's
+                // per-WorldServer neighbor dispatch), the ZND v2 row
+                // carrying the dimension stamp.
+                netherNoteBlocks = new net.zaminmc.torch.server.noteblock.NoteBlockSystem(
+                        netherWorld, netherRedstone, fxManager);
+                netherWorld.addChangeListener(netherNoteBlocks);
+                netherRedstone.addNeighborListener(netherNoteBlocks::neighborHeard);
+                endNoteBlocks = new net.zaminmc.torch.server.noteblock.NoteBlockSystem(
+                        endWorld, endRedstone, fxManager);
+                endWorld.addChangeListener(endNoteBlocks);
+                endRedstone.addNeighborListener(endNoteBlocks::neighborHeard);
                 // The note tiles' own ZND persistence (the hopper store's
-                // own durability rules).
+                // own durability rules) — every dimension's family in one
+                // file, each row stamped with its own world.
                 noteStore = new net.zaminmc.torch.server.noteblock.NoteDataStore(
                         config.worldDataDir().resolve("noteblocks.bin"));
-                noteBlocks.restoreAll(noteStore.load());
+                for (net.zaminmc.torch.server.noteblock.NoteDataStore.Loaded noteRow
+                        : noteStore.load()) {
+                    noteBlocksFor(noteRow.dimension()).restoreAll(
+                            java.util.Map.of(noteRow.position(), noteRow.note()));
+                }
                 // The jukeboxes (Slice 27b): the record slots + the four
                 // reference arms (the disc's insert through the useOn gate,
                 // the HAS_RECORD eject, the break's own record drop, the
-                // comparator's disc-index read) + the ZJD persistence.
+                // comparator's disc-index read) + the ZJD persistence
+                // (Wave FL4-GAP2 Slice C — the per-world tile law, each
+                // dimension's family in one stamped file).
                 jukeboxes = new net.zaminmc.torch.server.jukebox.JukeboxBlockSystem(
                         world, itemEntities);
                 world.addChangeListener(jukeboxes);
+                netherJukeboxes = new net.zaminmc.torch.server.jukebox.JukeboxBlockSystem(
+                        netherWorld, itemEntities);
+                netherWorld.addChangeListener(netherJukeboxes);
+                endJukeboxes = new net.zaminmc.torch.server.jukebox.JukeboxBlockSystem(
+                        endWorld, itemEntities);
+                endWorld.addChangeListener(endJukeboxes);
                 jukeboxStore = new net.zaminmc.torch.server.jukebox.JukeboxDataStore(
                         config.worldDataDir().resolve("jukeboxes.bin"));
-                jukeboxes.restoreAll(jukeboxStore.load());
+                for (net.zaminmc.torch.server.jukebox.JukeboxDataStore.Loaded recordRow
+                        : jukeboxStore.load()) {
+                    jukeboxesFor(recordRow.dimension()).restoreRecord(
+                            recordRow.position(), recordRow.record());
+                }
                 // The daylight detectors (Slice 27c): the sky-light power
                 // band — the reference's own math chain (the time fraction,
                 // the ambient darkness, the sun-angle cosine) over the
@@ -2377,15 +2452,35 @@ public final class EngineServer implements Server, EngineBridge {
                 // The command-block family (Slice 72 — CommandBlock 1:1):
                 // the tile store + the redstone run's dispatch (the
                 // executor's own sender shape over the CommandService).
+                // Wave FL4-GAP2 Slice C — the per-world tile law: each
+                // dimension owns its own family (the ZCB v3 row carries
+                // the dimension stamp, v1/v2 files load as overworld
+                // rows), each dimension's redstone arms its OWN tiles.
                 commandBlocks = new net.zaminmc.torch.server.commandblock.CommandBlockManager(
+                        this::runCommandBlockExecutor);
+                netherCommandBlocks = new net.zaminmc.torch.server.commandblock.CommandBlockManager(
+                        this::runCommandBlockExecutor);
+                endCommandBlocks = new net.zaminmc.torch.server.commandblock.CommandBlockManager(
                         this::runCommandBlockExecutor);
                 commandBlockStore = new net.zaminmc.torch.server.commandblock.CommandBlockDataStore(
                         config.worldDataDir().resolve("command_blocks.bin"));
-                commandBlocks.restoreAll(commandBlockStore.load());
-                commandBlocks.setTrackDefault(
-                        () -> gameRules.getBoolean("sendCommandFeedback"));
+                for (net.zaminmc.torch.server.commandblock.CommandBlockDataStore.Loaded controlRow
+                        : commandBlockStore.load()) {
+                    commandBlocksFor(controlRow.dimension()).restoreAll(
+                            java.util.Map.of(controlRow.position(), controlRow.state()));
+                }
+                for (net.zaminmc.torch.server.commandblock.CommandBlockManager family
+                        : new net.zaminmc.torch.server.commandblock.CommandBlockManager[]{
+                                commandBlocks, netherCommandBlocks, endCommandBlocks}) {
+                    family.setTrackDefault(
+                            () -> gameRules.getBoolean("sendCommandFeedback"));
+                }
                 world.addChangeListener(commandBlocks); // the placement creates the tile
-                redstoneSystem.setCommandTicker(this::runCommandBlockAt);
+                netherWorld.addChangeListener(netherCommandBlocks);
+                endWorld.addChangeListener(endCommandBlocks);
+                redstoneSystem.setCommandTicker(position -> runCommandBlockAt(0, position));
+                netherRedstone.setCommandTicker(position -> runCommandBlockAt(-1, position));
+                endRedstone.setCommandTicker(position -> runCommandBlockAt(1, position));
                 // The brewing stands (Slice 11e): the per-tick brew walk;
                 // the state creation rides the open path + the hopper
                 // lookups (the placement never writes slots). Wave
@@ -2417,17 +2512,31 @@ public final class EngineServer implements Server, EngineBridge {
                 // BeaconBlock + BeaconBlockEntity): the 80-tick update walk
                 // (the pyramid recompute + the effect spread), the neighbor
                 // recompute, the payment GUI, and the ZBT persistence.
+                // Wave FL4-GAP2 Slice C — the per-world tile law: each
+                // dimension owns its own family, its OWN world's blocks and
+                // its OWN redstone's edges; the v2 row carries the
+                // dimension stamp.
                 beaconSystem = new net.zaminmc.torch.server.beacon.BeaconSystem(
                         world, itemEntities);
                 world.addChangeListener(beaconSystem);
                 redstoneSystem.addNeighborListener(beaconSystem::neighborHeard);
                 beaconSystem.setPlayers(() -> new java.util.ArrayList<>(players.all()));
+                netherBeacons = new net.zaminmc.torch.server.beacon.BeaconSystem(
+                        netherWorld, itemEntities);
+                netherWorld.addChangeListener(netherBeacons);
+                netherRedstone.addNeighborListener(netherBeacons::neighborHeard);
+                netherBeacons.setPlayers(() -> new java.util.ArrayList<>(players.all()));
+                endBeacons = new net.zaminmc.torch.server.beacon.BeaconSystem(
+                        endWorld, itemEntities);
+                endWorld.addChangeListener(endBeacons);
+                endRedstone.addNeighborListener(endBeacons::neighborHeard);
+                endBeacons.setPlayers(() -> new java.util.ArrayList<>(players.all()));
                 // The full-power award (VIII6 — BeaconBlockEntity.update
                 // lines 162-167: the pyramid's completion census over the
                 // beacon's own column grown(10, 5, 10) — the box
                 // Box(x, y-4, z, x, y, z).grown(10, 5, 10), the player
                 // boxes intersecting it).
-                beaconSystem.addListener(
+                net.zaminmc.torch.server.beacon.BeaconSystem.Listener beaconAward =
                         new net.zaminmc.torch.server.beacon.BeaconSystem.Listener() {
                             @Override
                             public void onBeaconUpdated(
@@ -2444,10 +2553,17 @@ public final class EngineServer implements Server, EngineBridge {
                                         position.x() + 10.0, position.y() + 5.0,
                                         position.z() + 10.0);
                             }
-                        });
+                        };
+                beaconSystem.addListener(beaconAward);
+                netherBeacons.addListener(beaconAward);
+                endBeacons.addListener(beaconAward);
                 beaconStore = new net.zaminmc.torch.server.beacon.BeaconDataStore(
                         config.worldDataDir().resolve("beacons.bin"));
-                beaconSystem.restoreAll(beaconStore.load());
+                for (net.zaminmc.torch.server.beacon.BeaconDataStore.Loaded beaconRow
+                        : beaconStore.load()) {
+                    beaconsFor(beaconRow.dimension()).restoreAll(
+                            java.util.Map.of(beaconRow.position(), beaconRow.beacon()));
+                }
                 // The cross-family pulls' remainder (Slice B's law): each
                 // dimension's hoppers consult the SAME dimension's brewing
                 // family; the mob consult and the rolling-container scan
@@ -3146,13 +3262,19 @@ public final class EngineServer implements Server, EngineBridge {
                         endBrewingStands, endWorld));
                 // The public §27.3 block-entity views beyond the containers:
                 // the spawner/sign reads — the spawners filtered to this
-                // world's own dimension (the manager is global).
+                // world's own dimension (the manager is global), the signs
+                // of the world's OWN family (Wave FL4-GAP2 Slice C — the
+                // per-world tile law: a nether view never answers the
+                // overworld's sign at the same coordinates).
                 world.attachBlockEntityView(
                         new net.zaminmc.torch.server.blockentity.BlockEntityViews(
                                 spawnerManager, 0, signManager));
                 netherWorld.attachBlockEntityView(
                         new net.zaminmc.torch.server.blockentity.BlockEntityViews(
-                                spawnerManager, -1, signManager));
+                                spawnerManager, -1, netherSigns));
+                endWorld.attachBlockEntityView(
+                        new net.zaminmc.torch.server.blockentity.BlockEntityViews(
+                                spawnerManager, 1, endSigns));
                 // The public §27.3 scheduled-update views: the neighbor-update
                 // queue + the gravity fuses — the queries copy, the mutation
                 // arms assert the world's own context.
@@ -3270,10 +3392,21 @@ public final class EngineServer implements Server, EngineBridge {
                     profiled("chests", () -> endChests.tick(endWorld));
                     profiled("furnaces", () -> netherFurnaces.tick(netherWorld, itemEntities));
                     profiled("furnaces", () -> endFurnaces.tick(endWorld, itemEntities));
+                    // Wave FL4-GAP2 Slice C: each dimension's sign and
+                    // command-block sweeps read their OWN world's cells
+                    // (the reference's per-WorldServer tile walk).
                     profiled("signs", () -> signManager.tick(world));
+                    profiled("signs", () -> netherSigns.tick(netherWorld));
+                    profiled("signs", () -> endSigns.tick(endWorld));
                     profiled("commandBlocks", () -> {
                         if (commandBlocks != null) {
                             commandBlocks.tick(world); // Slice 72: the orphan sweep
+                        }
+                        if (netherCommandBlocks != null) {
+                            netherCommandBlocks.tick(netherWorld);
+                        }
+                        if (endCommandBlocks != null) {
+                            endCommandBlocks.tick(endWorld);
                         }
                     });
                     profiled("spawners", () -> {
@@ -3377,7 +3510,13 @@ public final class EngineServer implements Server, EngineBridge {
                     profiled("brewingStands", () -> brewingStands.tick(world));
                     profiled("brewingStands", () -> netherBrewingStands.tick(netherWorld));
                     profiled("brewingStands", () -> endBrewingStands.tick(endWorld));
-                    profiled("beacons", () -> beaconSystem.tick(world.totalTicks())); // the brew cycles (Slice 11e)
+                    // Wave FL4-GAP2 Slice C: every dimension's beacon
+                    // family brews through its OWN world's tick.
+                    profiled("beacons", () -> {
+                        beaconSystem.tick(world.totalTicks()); // the brew cycles (Slice 11e)
+                        netherBeacons.tick(netherWorld.totalTicks());
+                        endBeacons.tick(endWorld.totalTicks());
+                    });
                     profiled("furnaceViewers", this::tickFurnaceViewers);
                     profiled("brewingViewers", this::tickBrewingViewers);
                     profiled("beaconViewers", this::tickBeaconViewers);
@@ -3425,76 +3564,43 @@ public final class EngineServer implements Server, EngineBridge {
                 witherSweepDrops = new DropService(new java.util.Random()); // Slice 59: the engine-side break walk's own table
                 // The skull store (Slice 60): the tiles + the summon
                 // walk's own world consults (the tick lane owns both).
+                // Wave FL4-GAP2 Slice C — the per-world tile law: each
+                // dimension's family consults its OWN world's blocks and
+                // stamps the newborn wither with that world (a nether
+                // summon never lands an overworld body).
                 skulls = new net.zaminmc.torch.server.skull.SkullManager(
-                        new net.zaminmc.torch.server.skull.SkullManager.Host() {
-                            @Override
-                            public net.zaminmc.torch.block.BlockType blockAt(
-                                    BlockPosition position) {
-                                return world.getBlock(position);
-                            }
-
-                            @Override
-                            public void setBlock(BlockPosition position,
-                                    net.zaminmc.torch.block.BlockType type) {
-                                world.setBlock(position, type);
-                            }
-
-                            @Override
-                            public net.zaminmc.torch.block.BlockType airType() {
-                                return world.airType();
-                            }
-
-                            @Override
-                            public int difficulty() {
-                                return EngineServer.this.difficulty;
-                            }
-
-                            @Override
-                            public void summonWither(Position at, float bodyYawDegrees) {
-                                // trySpawn lines 184-201: the birth at the
-                                // top-center cell — the spawn, the axis yaw,
-                                // onSummoned's window + third health, and
-                                // the snowball burst stand-in at the base
-                                // (the reference's own 120-particle column
-                                // rides the fx bus's Poof family).
-                                MobEntity wither = mobManager.spawnAt(
-                                        net.zaminmc.torch.server.entity.MobType.WITHER, at);
-                                if (wither != null) {
-                                    wither.setBodyYaw(bodyYawDegrees);
-                                    wither.witherSummoned();
-                                }
-                                fxManager.poof(new Position(at.x(), at.y() - 1.5, at.z()));
-                                // The summon row (VIII6 — SkullBlock lines
-                                // 197-199: every player whose body box
-                                // intersects the newborn's own shape grown
-                                // (50, 50, 50) earns the wither's summon —
-                                // the builders around the pattern, whatever
-                                // their distance to the last skull placed).
-                                awardPlayersInBox(EngineAchievements.SUMMON_WITHER.key(),
-                                        at, 0.9, 3.5, 50.0, 50.0, 50.0);
-                            }
-                        });
+                        skullHost(world, 0));
+                netherSkulls = new net.zaminmc.torch.server.skull.SkullManager(
+                        skullHost(netherWorld, -1));
+                endSkulls = new net.zaminmc.torch.server.skull.SkullManager(
+                        skullHost(endWorld, 1));
                 // The dispenser's later arms (the ledgered tails this wave
                 // lands): the spawn-egg/firework/boat/minecart/skull/
                 // pumpkin/armor families consult the engine's own stores.
                 // Wired here — the last of the five (the skull store) is
                 // the boot's own construction order, the setEventBus shape.
-                for (net.zaminmc.torch.server.dispenser.DispenserSystem family
-                        : new net.zaminmc.torch.server.dispenser.DispenserSystem[]{
-                                dispenserSystem, netherDispensers, endDispensers}) {
-                    family.setEngineSurfaces(
-                            mobManager, fireworks, vehicleManager, skulls, players);
-                }
+                // Wave FL4-GAP2 Slice C: each dimension's dispenser family
+                // arms its OWN world's skulls (a nether dispenser's skull
+                // arm never writes the overworld's family).
+                dispenserSystem.setEngineSurfaces(
+                        mobManager, fireworks, vehicleManager, skulls, players);
+                netherDispensers.setEngineSurfaces(
+                        mobManager, fireworks, vehicleManager, netherSkulls, players);
+                endDispensers.setEngineSurfaces(
+                        mobManager, fireworks, vehicleManager, endSkulls, players);
                 // The tile NBT projections (Slice 89 — the reference's
                 // BlockEntity.writeNbt/readNbt over the engine's tile
                 // families): the /blockdata and /testforblock dataTag
-                // arms ride this surface.
+                // arms ride this surface. Wave FL4-GAP2 Slice C: every
+                // tile family rides its per-dimension router (the
+                // container families' own form).
                 tileNbt = new net.zaminmc.torch.server.nbt.TileNbt(
                         new net.zaminmc.torch.server.nbt.TileNbt.Seams(
                                 this::chestsFor, this::furnacesFor, this::hoppersFor,
-                                this::dispensersFor, this::brewingStandsFor, beaconSystem,
-                                signManager, spawners, commandBlocks, noteBlocks,
-                                skulls, jukeboxes, bannerManager));
+                                this::dispensersFor, this::brewingStandsFor,
+                                this::beaconsFor, this::signsFor, spawners,
+                                this::commandBlocksFor, this::skullsFor,
+                                this::jukeboxesFor, this::bannersFor));
                 blockInteraction = new BlockInteractionService(world, ticker,
                         (resyncWorld, pos) -> resyncWorld.republish(pos), // the resync path (§441) — Wave FL4-F5: the acting world's own republish
                         session -> session.gamemode(), new DropService(new java.util.Random()), itemEntities,
@@ -3628,9 +3734,12 @@ public final class EngineServer implements Server, EngineBridge {
                 // The dig-start hook (Slice 27a — the reference's
                 // block.startMining arm, ServerPlayerInteractionManager
                 // line 133): the note block plays on the survival start.
-                blockInteraction.setMiningStartListener(position -> {
+                blockInteraction.setMiningStartListener((player, position) -> {
+                    // Wave FL4-GAP2 Slice C: the note play routes by the
+                    // digger's OWN world (the reference's block.startMining
+                    // in this.world).
                     if (noteBlocks != null) {
-                        noteBlocks.attackFromTick(position);
+                        noteBlocksFor(player.dimension()).attackFromTick(position);
                     }
                     // RedstoneOreBlock.startMining lines 33-37 -> interact:
                     // the mining start lights the plain ore too (the same
@@ -3656,11 +3765,13 @@ public final class EngineServer implements Server, EngineBridge {
                     // dropped stack's damage (the block itself carries no
                     // drop row — the reference's empty dropItems); the
                     // survival break pays it, the creative break never
-                    // reaches this listener (the NODROP law).
+                    // reaches this listener (the NODROP law). Wave
+                    // FL4-GAP2 Slice C: the tile dies in the break's OWN
+                    // world's family.
                     if (skulls != null
                             && net.zaminmc.torch.server.block.SkullBlocks.isSkull(
                                     brokenType.identifier())) {
-                        var skullTile = skulls.remove(position);
+                        var skullTile = skullsFor(actingWorld.dimension()).remove(position);
                         if (skullTile != null) {
                             itemEntities.spawnDropAtBlock(new Position(
                                     position.x() + 0.5, position.y() + 0.5, position.z() + 0.5),
@@ -3676,11 +3787,12 @@ public final class EngineServer implements Server, EngineBridge {
                     // reads the tile first in the afterMinedByPlayer hook
                     // (which fires before this listener), so this arm's
                     // second remove is the survival no-op and the creative
-                    // cleanup.
+                    // cleanup. Wave FL4-GAP2 Slice C: the break's OWN
+                    // world's family.
                     if (bannerManager != null
                             && net.zaminmc.torch.server.block.BannerBlocks.isBanner(
                                     brokenType.identifier())) {
-                        bannerManager.remove(position);
+                        bannersFor(actingWorld.dimension()).remove(position);
                     }
                     // Wave FL4-GAP2 Slice B: every container family
                     // consults the break's OWN dimension (the acting
@@ -3696,9 +3808,13 @@ public final class EngineServer implements Server, EngineBridge {
                     dispensersFor(actingWorld.dimension()).onBlockBroken(position);
                     brewingStandsFor(actingWorld.dimension()).onBlockBroken(
                             position, itemEntities, actingWorld.dimension());
-                    beaconSystem.onBlockBroken(position);
-                    noteBlocks.onBlockBroken(position);
-                    jukeboxes.onBlockBroken(position);
+                    // Wave FL4-GAP2 Slice C: the tile families' cleanups
+                    // read the break's OWN dimension (the acting world
+                    // rides the hook — the reference's per-world tile
+                    // entity removal).
+                    beaconsFor(actingWorld.dimension()).onBlockBroken(position);
+                    noteBlocksFor(actingWorld.dimension()).onBlockBroken(position);
+                    jukeboxesFor(actingWorld.dimension()).onBlockBroken(position);
                     daylightDetectors.onBlockBroken(position);
                     doorSiblingCleanup(position, actingWorld);
                     bedSiblingCleanup(position, brokenType, actingWorld);
@@ -3731,7 +3847,10 @@ public final class EngineServer implements Server, EngineBridge {
                                     brokenType.identifier())) {
                         return;
                     }
-                    var bannerTile = bannerManager.remove(at);
+                    // Wave FL4-GAP2 Slice C: the tagged drop reads the
+                    // miner's OWN world's family (the reference's
+                    // afterMinedByPlayer in this.world).
+                    var bannerTile = bannersFor(player.dimension()).remove(at);
                     net.zaminmc.torch.item.ItemStack bannerDrop =
                             bannerTile != null
                                     ? net.zaminmc.torch.server.banner.BannerManager
@@ -4580,9 +4699,12 @@ public final class EngineServer implements Server, EngineBridge {
             return; // the old text stands, no viewer replay
         }
         String[] applied = gate.lines();
-        signManager.set(position, applied);
+        // Wave FL4-GAP2 Slice C: the text lands in the WRITER's own
+        // world's family (the reference's player.world at the update).
+        SignManager writerFamily = signsFor(player.dimension());
+        writerFamily.set(position, applied);
         for (SignListener listener : signListeners) {
-            listener.onSignChanged(position, signManager.peek(position));
+            listener.onSignChanged(position, writerFamily.peek(position));
         }
         LOGGER.fine(() -> player.name() + " wrote a sign at " + position);
     }
@@ -4779,7 +4901,9 @@ public final class EngineServer implements Server, EngineBridge {
             session.inventory().consumeHeld(1);
             publishInventoryChanged(session);
         }
-        bannerManager.place(target, placing);
+        // Wave FL4-GAP2 Slice C: the banner tile lands in the placer's
+        // OWN world's family (the reference's this.world at the place).
+        bannersFor(session.dimension()).place(target, placing);
     }
 
     /**
@@ -4819,7 +4943,7 @@ public final class EngineServer implements Server, EngineBridge {
         // The player's own world (Wave FL4-F3 — the reference's
         // player.world: every use/place arm runs where the player is).
         EngineWorld world = worldFor(session.dimension());
-        net.zaminmc.torch.server.skull.SkullManager skullStore = skulls;
+        net.zaminmc.torch.server.skull.SkullManager skullStore = skullsFor(session.dimension());
         if (skullStore == null) {
             return; // the store is not wired (the test rig)
         }
@@ -5369,7 +5493,10 @@ public final class EngineServer implements Server, EngineBridge {
                 continue;
             }
             var position = session.openContainerPosition();
-            var beacon = position == null ? null : beaconSystem.peek(position);
+            // Wave FL4-GAP2 Slice C: the view reads the OPEN's own
+            // dimension's family (the session's open stamp).
+            var beacon = position == null ? null
+                    : beaconsFor(session.openContainerDimension()).peek(position);
             if (beacon == null) {
                 continue;
             }
@@ -5776,6 +5903,144 @@ public final class EngineServer implements Server, EngineBridge {
             return java.util.Objects.requireNonNull(endBrewingStands, "end brewing");
         }
         return brewingStands;
+    }
+
+    /**
+     * The dimension's own sign family (Wave FL4-GAP2 Slice C — the
+     * chestsFor form): a nether sign and an overworld sign at the same
+     * coordinates are TWO tiles, each in its own world's map.
+     */
+    public SignManager signsFor(int dimension) {
+        if (dimension == -1) {
+            return java.util.Objects.requireNonNull(netherSigns, "nether signs");
+        }
+        if (dimension == 1) {
+            return java.util.Objects.requireNonNull(endSigns, "end signs");
+        }
+        return signManager;
+    }
+
+    /** The dimension's own banner family (Wave FL4-GAP2 Slice C — the chestsFor form). */
+    public net.zaminmc.torch.server.banner.BannerManager bannersFor(int dimension) {
+        if (dimension == -1) {
+            return java.util.Objects.requireNonNull(netherBanners, "nether banners");
+        }
+        if (dimension == 1) {
+            return java.util.Objects.requireNonNull(endBanners, "end banners");
+        }
+        return bannerManager;
+    }
+
+    /** The dimension's own command-block family (Wave FL4-GAP2 Slice C — the chestsFor form). */
+    public net.zaminmc.torch.server.commandblock.CommandBlockManager commandBlocksFor(
+            int dimension) {
+        if (dimension == -1) {
+            return java.util.Objects.requireNonNull(netherCommandBlocks, "nether command blocks");
+        }
+        if (dimension == 1) {
+            return java.util.Objects.requireNonNull(endCommandBlocks, "end command blocks");
+        }
+        return commandBlocks;
+    }
+
+    /** The dimension's own note family (Wave FL4-GAP2 Slice C — the chestsFor form). */
+    public net.zaminmc.torch.server.noteblock.NoteBlockSystem noteBlocksFor(int dimension) {
+        if (dimension == -1) {
+            return java.util.Objects.requireNonNull(netherNoteBlocks, "nether note blocks");
+        }
+        if (dimension == 1) {
+            return java.util.Objects.requireNonNull(endNoteBlocks, "end note blocks");
+        }
+        return noteBlocks;
+    }
+
+    /** The dimension's own beacon family (Wave FL4-GAP2 Slice C — the chestsFor form). */
+    public net.zaminmc.torch.server.beacon.BeaconSystem beaconsFor(int dimension) {
+        if (dimension == -1) {
+            return java.util.Objects.requireNonNull(netherBeacons, "nether beacons");
+        }
+        if (dimension == 1) {
+            return java.util.Objects.requireNonNull(endBeacons, "end beacons");
+        }
+        return beaconSystem;
+    }
+
+    /** The dimension's own jukebox family (Wave FL4-GAP2 Slice C — the chestsFor form). */
+    public net.zaminmc.torch.server.jukebox.JukeboxBlockSystem jukeboxesFor(int dimension) {
+        if (dimension == -1) {
+            return java.util.Objects.requireNonNull(netherJukeboxes, "nether jukeboxes");
+        }
+        if (dimension == 1) {
+            return java.util.Objects.requireNonNull(endJukeboxes, "end jukeboxes");
+        }
+        return jukeboxes;
+    }
+
+    /** The dimension's own skull family (Wave FL4-GAP2 Slice C — the chestsFor form). */
+    public net.zaminmc.torch.server.skull.SkullManager skullsFor(int dimension) {
+        if (dimension == -1) {
+            return java.util.Objects.requireNonNull(netherSkulls, "nether skulls");
+        }
+        if (dimension == 1) {
+            return java.util.Objects.requireNonNull(endSkulls, "end skulls");
+        }
+        return skulls;
+    }
+
+    /**
+     * One dimension's skull host (Wave FL4-GAP2 Slice C): the summon walk's
+     * world consults bound to the family's OWN world, the newborn wither
+     * stamped with that world (SkullBlock's per-world trySpawn — the
+     * reference's this.world at every consult).
+     */
+    private net.zaminmc.torch.server.skull.SkullManager.Host skullHost(
+            EngineWorld hostWorld, int dimension) {
+        return new net.zaminmc.torch.server.skull.SkullManager.Host() {
+            @Override
+            public net.zaminmc.torch.block.BlockType blockAt(BlockPosition position) {
+                return hostWorld.getBlock(position);
+            }
+
+            @Override
+            public void setBlock(BlockPosition position,
+                    net.zaminmc.torch.block.BlockType type) {
+                hostWorld.setBlock(position, type);
+            }
+
+            @Override
+            public net.zaminmc.torch.block.BlockType airType() {
+                return hostWorld.airType();
+            }
+
+            @Override
+            public int difficulty() {
+                return EngineServer.this.difficulty;
+            }
+
+            @Override
+            public void summonWither(Position at, float bodyYawDegrees) {
+                // trySpawn lines 184-201: the birth at the top-center cell —
+                // the spawn, the axis yaw, onSummoned's window + third
+                // health, and the snowball burst stand-in at the base (the
+                // reference's own 120-particle column rides the fx bus's
+                // Poof family).
+                MobEntity wither = mobManager.spawnAt(
+                        net.zaminmc.torch.server.entity.MobType.WITHER, at);
+                if (wither != null) {
+                    wither.setDimension(dimension); // the body's own world
+                    wither.setBodyYaw(bodyYawDegrees);
+                    wither.witherSummoned();
+                }
+                fxManager.poof(new Position(at.x(), at.y() - 1.5, at.z()));
+                // The summon row (VIII6 — SkullBlock lines 197-199: every
+                // player whose body box intersects the newborn's own shape
+                // grown (50, 50, 50) earns the wither's summon — the
+                // builders around the pattern, whatever their distance to
+                // the last skull placed).
+                awardPlayersInBox(EngineAchievements.SUMMON_WITHER.key(),
+                        at, 0.9, 3.5, 50.0, 50.0, 50.0);
+            }
+        };
     }
 
     /**
@@ -9945,7 +10210,10 @@ public final class EngineServer implements Server, EngineBridge {
                 return playerTailSlot(inventory, brewingEngineSlotOf(wireSlot));
             }
             case BEACON -> {
-                var beacon = beaconSystem.peek(session.openContainerPosition());
+                // Wave FL4-GAP2 Slice C: the quick-craft reads the OPEN's
+                // own dimension's family (the session's open stamp).
+                var beacon = beaconsFor(session.openContainerDimension())
+                        .peek(session.openContainerPosition());
                 if (beacon == null) {
                     return null;
                 }
@@ -11082,7 +11350,10 @@ public final class EngineServer implements Server, EngineBridge {
         EngineWorld world = worldFor(session.dimension());
         var inventory = session.inventory();
         var position = session.openContainerPosition();
-        var beacon = position == null ? null : beaconSystem.peek(position);
+        // Wave FL4-GAP2 Slice C: the click reads the OPEN's own dimension's
+        // family (the session's open stamp).
+        var beacon = position == null ? null
+                : beaconsFor(session.openContainerDimension()).peek(position);
         if (beacon == null || !net.zaminmc.torch.server.beacon.BeaconSystem.isBeacon(
                 world.getBlock(position))) {
             return false; // stale window (state discarded): rejected, resync restores
@@ -12001,7 +12272,9 @@ public final class EngineServer implements Server, EngineBridge {
         if (net.zaminmc.torch.server.noteblock.NoteBlockSystem.isNoteBlock(current)) {
             // NoteBlock.use lines 41-56: the tune ((note + 1) % 25) then the
             // play — the use consumed, no placement proposal follows.
-            noteBlocks.useFromTick(clicked);
+            // Wave FL4-GAP2 Slice C: the user's OWN world's family (the
+            // reference's player.world at the use).
+            noteBlocksFor(session.dimension()).useFromTick(clicked);
             // The tune stat (NoteBlock.use's own incrementStat).
             session.stats().increment(
                     net.zaminmc.torch.server.stat.EngineStats.NOTE_BLOCKS_TUNED, 1);
@@ -12013,7 +12286,9 @@ public final class EngineServer implements Server, EngineBridge {
             // record-less one answers false — the click falls through to
             // the item arms (the disc's useOn insert) and the placement
             // proposal, the reference's own order.
-            if (jukeboxes.useFromTick(clicked)) {
+            // Wave FL4-GAP2 Slice C: the user's OWN world's family (the
+            // reference's player.world at the use).
+            if (jukeboxesFor(session.dimension()).useFromTick(clicked)) {
                 return true;
             }
         }
@@ -12213,7 +12488,7 @@ public final class EngineServer implements Server, EngineBridge {
         net.zaminmc.torch.item.ItemStack discHeld = session.inventory().held();
         if (!discHeld.isEmpty() && net.zaminmc.torch.server.jukebox.JukeboxBlocks.isMusicDisc(
                 discHeld.type().identifier())) {
-            if (jukeboxes.insertFromTick(clicked, discHeld)) {
+            if (jukeboxesFor(session.dimension()).insertFromTick(clicked, discHeld)) {
                 if (session.gamemode() != GameMode.CREATIVE) {
                     session.inventory().consumeHeld(1);
                 }
@@ -16208,7 +16483,9 @@ public final class EngineServer implements Server, EngineBridge {
                     world.getBlock(position))) {
                 return; // the reference's silent skip (no tile at the position)
             }
-            commandBlocks.edit(position, command, trackOutput);
+            // Wave FL4-GAP2 Slice C: the edit lands in the editor's OWN
+            // world's family (the reference's player.world at the update).
+            commandBlocksFor(player.dimension()).edit(position, command, trackOutput);
         });
     }
 
@@ -16267,9 +16544,15 @@ public final class EngineServer implements Server, EngineBridge {
         return commandBlocks;
     }
 
-    /** The redstone tick's dispatch (CommandBlock.tick — the run + the success count). */
-    private void runCommandBlockAt(BlockPosition position) {
-        net.zaminmc.torch.server.commandblock.CommandBlockManager blocks = commandBlocks;
+    /**
+     * The redstone tick's dispatch (CommandBlock.tick — the run + the
+     * success count). Wave FL4-GAP2 Slice C: each dimension's redstone
+     * arms its OWN family (the reference's per-WorldServer command-block
+     * set — a same-coordinate block in another world never runs).
+     */
+    private void runCommandBlockAt(int dimension, BlockPosition position) {
+        net.zaminmc.torch.server.commandblock.CommandBlockManager blocks =
+                commandBlocksFor(dimension);
         if (blocks != null) {
             blocks.run(position);
         }
@@ -17194,7 +17477,10 @@ public final class EngineServer implements Server, EngineBridge {
                     || session.openContainerPosition() == null) {
                 return;
             }
-            beaconSystem.applySelection(session.openContainerPosition(), primary, secondary);
+            // Wave FL4-GAP2 Slice C: the selection lands in the OPEN's own
+            // dimension's family (the session's open stamp).
+            beaconsFor(session.openContainerDimension()).applySelection(
+                    session.openContainerPosition(), primary, secondary);
             publishInventoryChanged(session);
         });
     }
@@ -18156,11 +18442,18 @@ public final class EngineServer implements Server, EngineBridge {
         session.stats().increment(
                 net.zaminmc.torch.server.stat.EngineStats.BEACON_INTERACTIONS, 1);
 
-        beaconSystem.getOrCreate(position);
+        // Wave FL4-GAP2 Slice C: the tile lands in the opener's OWN world's
+        // family, the open stamping that dimension (the furnace/chest open
+        // form — a nether beacon open reads the NETHER family).
+        beaconsFor(session.dimension()).getOrCreate(position);
         int windowId = nextContainerWindowId;
         nextContainerWindowId = nextContainerWindowId >= LAST_CONTAINER_WINDOW_ID
                 ? FIRST_CONTAINER_WINDOW_ID : nextContainerWindowId + 1;
-        session.openContainerWindow(windowId, PlayerSession.ContainerKind.BEACON, position);
+        // Wave FL4-GAP2 Slice C: the 4-arg open form stamps the opener's
+        // own dimension (the furnace/chest open law — the window family
+        // routes by the session's open stamp).
+        session.openContainerWindow(windowId, PlayerSession.ContainerKind.BEACON, position,
+                session.dimension());
         onTableOpened.accept(windowId);
     }
 
@@ -18371,7 +18664,10 @@ public final class EngineServer implements Server, EngineBridge {
                         && session.openContainerPosition() != null) {
                     // BeaconMenu.close lines 46-54: the payment drops into
                     // the WORLD at the player (never back into the slot).
-                    var beacon = beaconSystem.peek(session.openContainerPosition());
+                    // Wave FL4-GAP2 Slice C: the payment reads the OPEN's
+                    // own dimension's family (the session's open stamp).
+                    var beacon = beaconsFor(session.openContainerDimension())
+                            .peek(session.openContainerPosition());
                     if (beacon != null && !beacon.payment().isEmpty()) {
                         throwFromPlayer(session, beacon.payment());
                         beacon.setPayment(net.zaminmc.torch.item.ItemStack.EMPTY);
@@ -19925,9 +20221,9 @@ public final class EngineServer implements Server, EngineBridge {
                     brewingStandsFor(changed.dimension()).getOrCreate(position);
                 }
                 case "beacon" -> {
-                    if (beaconSystem != null) {
-                        beaconSystem.getOrCreate(position);
-                    }
+                    // Wave FL4-GAP2 Slice C: the tile lands in the CHANGED
+                    // world's own family (the FL4-F8 listener form).
+                    beaconsFor(changed.dimension()).getOrCreate(position);
                 }
                 case "mob_spawner" -> {
                     if (spawners != null) {
@@ -21443,9 +21739,11 @@ public final class EngineServer implements Server, EngineBridge {
         }
 
         @Override
-        public void playerHit(ProjectileEntity projectile, PlayerSession victim,
-                              float damage, double kbYaw) {
-            projectileHitPlayerOnTick(projectile, victim, damage, kbYaw,
+        public boolean playerHit(ProjectileEntity projectile, PlayerSession victim,
+                float damage, double kbYaw) {
+            // The landed verdict flows (VT-018's entity-hit bowhit gate —
+            // the reference's takeDamage boolean, ArrowEntity line 276).
+            return projectileHitPlayerOnTick(projectile, victim, damage, kbYaw,
                     projectile.throwerId());
         }
 
@@ -21495,11 +21793,17 @@ public final class EngineServer implements Server, EngineBridge {
      * The zero-reach projectile hit on a player: the projectile already
      * traveled, so no reach check — but the hurt window, knockback and death
      * path stay identical to melee PvP. Tick-thread context.
+     *
+     * @return the landed verdict (the reference's takeDamage boolean —
+     * VT-018's entity-hit bowhit gate: the failed-damage branches — pvp
+     * off, the dead/idle body, the cancelled event, the armor-eaten
+     * amount, the hurt-window absorption — are the reference's false
+     * rows, the landed path its true).
      */
-    private void projectileHitPlayerOnTick(ProjectileEntity projectile, PlayerSession victim,
+    private boolean projectileHitPlayerOnTick(ProjectileEntity projectile, PlayerSession victim,
                                             float damage, double kbYaw, int shooterId) {
         if (!config.pvp() || victim.dead() || victim.state() != PlayerState.PLAYING) {
-            return;
+            return false;
         }
         // The armor envelope eats its share of a physical hit before the
         // invulnerability bookkeeping (the historical order), then the
@@ -21515,14 +21819,14 @@ public final class EngineServer implements Server, EngineBridge {
                         victim, damage, net.zaminmc.torch.event.DamageCause.PROJECTILE);
         eventBus.fire(damageEvent);
         if (damageEvent.cancelled()) {
-            return;
+            return false;
         }
         damage = damageEvent.amount();
         if (damage <= 0) {
-            return;
+            return false;
         }
         if (victim.hurtInvulnerable() && damage <= victim.lastHurtDamage()) {
-            return; // absorbed by the hurt window (a bruise out-damages nothing)
+            return false; // absorbed by the hurt window (a bruise out-damages nothing)
         }
         float applied = victim.hurtInvulnerable() ? Math.max(0.0f, damage - victim.lastHurtDamage())
                 : damage;
@@ -21680,6 +21984,7 @@ public final class EngineServer implements Server, EngineBridge {
         } else {
             publishBodyChanged(victim);
         }
+        return true; // the hit landed — the hurt window bookkeeping accepted it
     }
 
     /**
@@ -28212,11 +28517,15 @@ public final class EngineServer implements Server, EngineBridge {
                 return "Value must be at most 256";
             }
             var pos = new net.zaminmc.torch.block.BlockPosition(bx, by, bz);
-            var tile = commandBlocks.at(pos);
+            // Wave FL4-GAP2 Slice C: the position arm consults the
+            // sender's OWN world's families (the reference's
+            // commandSender.getServerWorld() at the block lookup).
+            int senderDimension = sender.sourceDimension();
+            var tile = commandBlocksFor(senderDimension).at(pos);
             if (tile != null) {
                 results = tile.commandResults();
-            } else if (signs().peek(pos) != null) {
-                results = signs().statsAt(pos);
+            } else if (signsFor(senderDimension).peek(pos) != null) {
+                results = signsFor(senderDimension).statsAt(pos);
             } else {
                 return "There is no command block or sign at " + bx + ", " + by + ", " + bz;
             }
@@ -30640,13 +30949,21 @@ public final class EngineServer implements Server, EngineBridge {
                 if (noteStore != null && noteBlocks != null) {
                     // S4: the note tile rides the pipeline's named path —
                     // the deep capture on the tick lane, the rest off it.
+                    // Wave FL4-GAP2 Slice C: the union over every
+                    // dimension's family, each row stamped with its world.
+                    java.util.Map<Integer, java.util.Map<net.zaminmc.torch.block.BlockPosition,
+                            net.zaminmc.torch.server.noteblock.NoteBlockSystem.NoteTile>>
+                            noteUnion = java.util.Map.of(
+                            0, noteBlocks.snapshotTiles(),
+                            -1, netherNoteBlocks.snapshotTiles(),
+                            1, endNoteBlocks.snapshotTiles());
                     if (pipeline != null) {
                         publications.add(pipeline.submitSave("note",
-                                noteStore.capture(noteBlocks.snapshotTiles()),
+                                noteStore.capture(noteUnion),
                                 noteStore::serialize,
                                 noteStore::writeSerialized));
                     } else {
-                        noteStore.save(noteBlocks.snapshotTiles());
+                        noteStore.save(noteUnion);
                     }
                 }
                 // The spawners' typed rows (the ZSD store — the reference's
@@ -30754,14 +31071,21 @@ public final class EngineServer implements Server, EngineBridge {
                 }
                 if (jukeboxStore != null && jukeboxes != null) {
                     // S4: the ride through the pipeline's named path (the
-                    // stack map copy is the immutable input contract already).
+                    // stack map copy is the immutable input contract
+                    // already). Wave FL4-GAP2 Slice C: the union over every
+                    // dimension's family, each row stamped with its world.
+                    java.util.Map<Integer, java.util.Map<net.zaminmc.torch.block.BlockPosition,
+                            net.zaminmc.torch.item.ItemStack>> recordUnion = java.util.Map.of(
+                            0, jukeboxes.snapshotRecords(),
+                            -1, netherJukeboxes.snapshotRecords(),
+                            1, endJukeboxes.snapshotRecords());
                     if (pipeline != null) {
                         publications.add(pipeline.submitSave("jukebox",
-                                jukeboxes.snapshotRecords(),
+                                recordUnion,
                                 jukeboxStore::serialize,
                                 jukeboxStore::writeSerialized));
                     } else {
-                        jukeboxStore.save(jukeboxes.snapshotRecords());
+                        jukeboxStore.save(recordUnion);
                     }
                 }
                 if (decorationStore != null && decorations != null) {
@@ -30845,53 +31169,88 @@ public final class EngineServer implements Server, EngineBridge {
                     }
                 }
                 if (beaconStore != null && beaconSystem != null) {
-                    // S4: the pipeline's named path.
+                    // S4: the pipeline's named path. Wave FL4-GAP2 Slice C:
+                    // the union over every dimension's family, each row
+                    // stamped with its world.
+                    java.util.Map<Integer, java.util.Map<net.zaminmc.torch.block.BlockPosition,
+                            net.zaminmc.torch.server.beacon.BeaconBlockEntity>>
+                            beaconUnion = java.util.Map.of(
+                            0, beaconSystem.snapshot(),
+                            -1, netherBeacons.snapshot(),
+                            1, endBeacons.snapshot());
                     if (pipeline != null) {
                         publications.add(pipeline.submitSave("beacon",
-                                beaconStore.capture(beaconSystem.snapshot()),
+                                beaconStore.capture(beaconUnion),
                                 beaconStore::serialize,
                                 beaconStore::writeSerialized));
                     } else {
-                        beaconStore.save(beaconSystem.snapshot());
+                        beaconStore.save(beaconUnion);
                     }
                 }
                 if (signStore != null && signManager != null) {
                     // S4: the ride through the pipeline's named path (the
-                    // manager's snapshot copies are the immutable input
-                    // contract already).
+                    // managers' snapshot copies are the immutable input
+                    // contract already). Wave FL4-GAP2 Slice C: the union
+                    // over every dimension's family, each row stamped with
+                    // its world.
+                    net.zaminmc.torch.server.sign.SignDataStore.UnionInput signUnion =
+                            new net.zaminmc.torch.server.sign.SignDataStore.UnionInput(
+                                    java.util.Map.of(
+                                            0, signManager.snapshot(),
+                                            -1, netherSigns.snapshot(),
+                                            1, endSigns.snapshot()),
+                                    java.util.Map.of(
+                                            0, signManager.statsSnapshot(),
+                                            -1, netherSigns.statsSnapshot(),
+                                            1, endSigns.statsSnapshot()));
                     if (pipeline != null) {
                         publications.add(pipeline.submitSave("sign",
-                                new net.zaminmc.torch.server.sign.SignDataStore.SaveInput(
-                                        signManager.snapshot(), signManager.statsSnapshot()),
-                                input -> signStore.serialize(input.signs(), input.stats()),
+                                signUnion,
+                                signStore::serialize,
                                 signStore::writeSerialized));
                     } else {
-                        signStore.save(signManager.snapshot(), signManager.statsSnapshot());
+                        signStore.save(signUnion);
                     }
                 }
                 if (bannerStore != null && bannerManager != null) {
                     // S4: the same ride — the banner tiles (the typed row
-                    // lists are immutable, the snapshot a fresh map).
+                    // lists are immutable, the snapshot a fresh map). Wave
+                    // FL4-GAP2 Slice C: the union over every dimension's
+                    // family, each row stamped with its world.
+                    java.util.Map<Integer, java.util.Map<net.zaminmc.torch.block.BlockPosition,
+                            net.zaminmc.torch.server.banner.BannerManager.BannerTile>>
+                            bannerUnion = java.util.Map.of(
+                            0, bannerManager.snapshot(),
+                            -1, netherBanners.snapshot(),
+                            1, endBanners.snapshot());
                     if (pipeline != null) {
                         publications.add(pipeline.submitSave("banner",
-                                bannerManager.snapshot(),
+                                bannerUnion,
                                 bannerStore::serialize,
                                 bannerStore::writeSerialized));
                     } else {
-                        bannerStore.save(bannerManager.snapshot());
+                        bannerStore.save(bannerUnion);
                     }
                 }
                 if (commandBlockStore != null && commandBlocks != null) {
                     // S4: the ride through the pipeline's named path — the
                     // deep capture (the stats tail pre-flattened) on the
-                    // tick lane, the rest off it.
+                    // tick lane, the rest off it. Wave FL4-GAP2 Slice C:
+                    // the union over every dimension's family, each row
+                    // stamped with its world.
+                    java.util.Map<Integer, java.util.Map<net.zaminmc.torch.block.BlockPosition,
+                            net.zaminmc.torch.server.commandblock.CommandBlockManager.CommandState>>
+                            controlUnion = java.util.Map.of(
+                            0, commandBlocks.snapshot(),
+                            -1, netherCommandBlocks.snapshot(),
+                            1, endCommandBlocks.snapshot());
                     if (pipeline != null) {
                         publications.add(pipeline.submitSave("command-block",
-                                commandBlockStore.capture(commandBlocks.snapshot()),
+                                commandBlockStore.capture(controlUnion),
                                 commandBlockStore::serialize,
                                 commandBlockStore::writeSerialized));
                     } else {
-                        commandBlockStore.save(commandBlocks.snapshot());
+                        commandBlockStore.save(controlUnion);
                     }
                 }
                 if (weatherStore != null && weather != null) {

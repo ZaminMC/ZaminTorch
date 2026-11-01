@@ -1798,7 +1798,10 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             return;
         }
         var position = player.openContainerPosition();
-        var beacon = position == null ? null : engine.beacons().peek(position);
+        // Wave FL4-GAP2 Slice C: the window reads the OPEN's own dimension's
+        // family (the session's open stamp).
+        var beacon = position == null ? null
+                : engine.beaconsFor(player.openContainerDimension()).peek(position);
         if (beacon == null) {
             return; // stale open (state discarded): nothing to show
         }
@@ -4072,7 +4075,10 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         if (player.openContainerKind()
                 == net.zaminmc.torch.server.player.PlayerSession.ContainerKind.BEACON) {
             var position = player.openContainerPosition();
-            var beacon = position == null ? null : engine.beacons().peek(position);
+            // Wave FL4-GAP2 Slice C: the window items read the OPEN's own
+            // dimension's family (the session's open stamp).
+            var beacon = position == null ? null
+                    : engine.beaconsFor(player.openContainerDimension()).peek(position);
             if (beacon != null) {
                 sendBeaconWindowItems(channel, windowId, beacon, player);
             }
@@ -8404,13 +8410,13 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         private void replayChunkTiles(EngineChunk chunk) {
             // The sign text replay (protocol 47 chunk data carries no tile
             // entities): every sign in the freshly sent column re-sends its
-            // lines, the historical load order. The nether dimension holds
-            // no sign state (the sign manager rides the overworld) — the
-            // replay is the overworld's walk.
-            if (dimension == 0) {
-                for (var entry : engine.signs().inChunk(chunk.position())) {
-                    owner.enqueueOut(encodeSignUpdate(entry.getKey(), entry.getValue()));
-                }
+            // lines, the historical load order. Wave FL4-GAP2 Slice C: the
+            // replay reads the observer's OWN dimension's family (the
+            // reference's PlayerChunkMap sending THIS world's block
+            // entities with the chunk — a same-coordinate sign in another
+            // world never rides this column).
+            for (var entry : engine.signsFor(dimension).inChunk(chunk.position())) {
+                owner.enqueueOut(encodeSignUpdate(entry.getKey(), entry.getValue()));
             }
             // The spawner tile replay (Slice 18e — the same protocol 47
             // gap): every spawner in the freshly sent column re-sends its
@@ -8430,42 +8436,38 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             // every beacon in the freshly sent column re-sends its Update
             // Block Entity (the reference's PlayerChunkMap sending the BE's
             // createUpdatePacket with the chunk — the client's own beam walk
-            // reads the levels from it).
-            if (dimension == 0 && engine.beacons() != null) {
-                for (var entry : engine.beacons().inChunk(chunk.position())) {
-                    owner.enqueueOut(encodeBeaconTile(entry.getKey(), entry.getValue()));
-                }
+            // reads the levels from it). Wave FL4-GAP2 Slice C: the replay
+            // reads the observer's OWN dimension's family.
+            for (var entry : engine.beaconsFor(dimension).inChunk(chunk.position())) {
+                owner.enqueueOut(encodeBeaconTile(entry.getKey(), entry.getValue()));
             }
             // The skull tile replay (Slice 60 — the same protocol 47 gap):
             // every skull in the freshly sent column re-sends its Update
             // Block Entity (the TYPE + the rotation the client's renderer
             // reads — without it every placed skull renders as the default
-            // skeleton head).
-            if (engine.skulls() != null) {
-                for (var tile : engine.skulls().tilesIn(chunk.position().packed())) {
-                    owner.enqueueOut(encodeSkullTile(tile));
-                }
+            // skeleton head). Wave FL4-GAP2 Slice C: the observer's OWN
+            // dimension's family.
+            for (var tile : engine.skullsFor(dimension).tilesIn(chunk.position().packed())) {
+                owner.enqueueOut(encodeSkullTile(tile));
             }
             // The banner tile replay (the same protocol 47 gap): every
             // banner in the freshly sent column re-sends its Update Block
             // Entity action 6 (the Base + Patterns rows the client's own
             // renderer reads — without it every placed banner renders as
-            // the plain white default).
-            if (engine.banners() != null) {
-                for (var entry : engine.banners().tilesIn(chunk.position().packed())) {
-                    owner.enqueueOut(encodeBannerTile(entry.getKey(), entry.getValue()));
-                }
+            // the plain white default). Wave FL4-GAP2 Slice C: the
+            // observer's OWN dimension's family.
+            for (var entry : engine.bannersFor(dimension).tilesIn(chunk.position().packed())) {
+                owner.enqueueOut(encodeBannerTile(entry.getKey(), entry.getValue()));
             }
             // The command tile replay (Slice 73 — the same protocol 47 gap):
             // every command block in the freshly sent column re-sends its
             // Update Block Entity action 2 (CommandBlockBlockEntity
             // .createUpdatePacket line 75's own rows — the reference's
             // PlayerChunkMap sending the BE's packet with the chunk; the
-            // client's own edit GUI reads the live rows from it).
-            if (engine.commandBlocks() != null) {
-                for (var entry : engine.commandBlocks().inChunk(chunk.position())) {
-                    owner.enqueueOut(encodeCommandTile(entry.getKey(), entry.getValue()));
-                }
+            // client's own edit GUI reads the live rows from it). Wave
+            // FL4-GAP2 Slice C: the observer's OWN dimension's family.
+            for (var entry : engine.commandBlocksFor(dimension).inChunk(chunk.position())) {
+                owner.enqueueOut(encodeCommandTile(entry.getKey(), entry.getValue()));
             }
         }
 

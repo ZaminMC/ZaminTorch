@@ -21,7 +21,9 @@ import java.util.logging.Logger;
  * writeNbt Command/SuccessCount/TrackOutput/LastOutput) plus the v2
  * CommandStats tail (Slice 90 — the reference's CommandResultStats
  * writeNbt compound: the bound types' <Name>Name/<Name>Objective pairs,
- * absent in v1 files), the atomic temp-file swap, the
+ * absent in v1 files) plus the v3 dimension stamp (Wave FL4-GAP2 Slice C
+ * — the row's own world, the chest store's own v+1 law; v1/v2 files load
+ * as overworld rows), the atomic temp-file swap, the
  * corrupt-file-preserving load (a corrupt or missing file reads as
  * empty, the established store behavior).
  */
@@ -31,7 +33,7 @@ public final class CommandBlockDataStore {
     private static final int MAGIC_0 = 'Z';
     private static final int MAGIC_1 = 'C';
     private static final int MAGIC_2 = 'B';
-    private static final int FORMAT_VERSION = 2;
+    private static final int FORMAT_VERSION = 3;
 
     private final Path file;
 
@@ -40,14 +42,20 @@ public final class CommandBlockDataStore {
     }
 
     /**
-     * Saves the full tile map. Callers snapshot state on the tick thread
-     * before calling (the engine routes this through the ticker). The
-     * synchronous form composes the S4 pipeline's own three halves — the
-     * deep capture, the pure serialization, the file publication — so the
-     * sync save's bytes and the pipeline's bytes are identical by
-     * construction (one serializer, one file half).
+     * Saves every dimension's tile map (the FL4-GAP2 Slice C union: one
+     * file, each row stamped with its own world — a nether command block
+     * and an overworld command block at the same coordinates are TWO
+     * tiles). Callers snapshot state on the tick thread before calling
+     * (the engine routes this through the ticker). The synchronous form
+     * composes the S4 pipeline's own three halves — the deep capture, the
+     * pure serialization, the file publication — so the sync save's bytes
+     * and the pipeline's bytes are identical by construction (one
+     * serializer, one file half).
+     *
+     * @param blocks each dimension's live map (dimension id -> the map its
+     *               own CommandBlockManager owns)
      */
-    public void save(Map<BlockPosition, CommandBlockManager.CommandState> blocks) {
+    public void save(Map<Integer, Map<BlockPosition, CommandBlockManager.CommandState>> blocks) {
         writeSerialized(serialize(capture(blocks)));
     }
 
@@ -63,10 +71,10 @@ public final class CommandBlockDataStore {
      */
     public record Snapshot(java.util.List<Row> rows) {
 
-        /** One command block's persisted rows. */
+        /** One command block's persisted rows, the owning dimension stamped. */
         public record Row(int x, int y, int z, String command, int successCount,
                           boolean trackOutput, String lastOutput,
-                          java.util.List<StatsPair> statsPairs) {
+                          java.util.List<StatsPair> statsPairs, int dimension) {
         }
 
         /** One CommandStats binding pair (the flattened tail row). */
@@ -75,29 +83,36 @@ public final class CommandBlockDataStore {
     }
 
     /**
-     * The deep capture of the live tile map — called ON the owning tick
-     * lane. The CommandStats tail flattens here (the envelope walk the
-     * historical writeCommandStats ran — the compound's own pair order),
-     * so the serializer's input is fully immutable.
+     * The deep capture of every dimension's live tile maps — called ON the
+     * owning tick lane. The CommandStats tail flattens here (the envelope
+     * walk the historical writeCommandStats ran — the compound's own pair
+     * order), so the serializer's input is fully immutable.
+     *
+     * @param blocks each dimension's live map (the FL4-GAP2 Slice C union)
      */
-    public Snapshot capture(Map<BlockPosition, CommandBlockManager.CommandState> blocks) {
-        java.util.List<Snapshot.Row> rows = new java.util.ArrayList<>(blocks.size());
-        for (Map.Entry<BlockPosition, CommandBlockManager.CommandState> entry
+    public Snapshot capture(
+            Map<Integer, Map<BlockPosition, CommandBlockManager.CommandState>> blocks) {
+        java.util.List<Snapshot.Row> rows = new java.util.ArrayList<>();
+        for (Map.Entry<Integer, Map<BlockPosition, CommandBlockManager.CommandState>> byDimension
                 : blocks.entrySet()) {
-            BlockPosition position = entry.getKey();
-            CommandBlockManager.CommandState executor = entry.getValue();
-            java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> envelope = new LinkedHashMap<>();
-            executor.commandResults().writeNbt(envelope);
-            java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> stats =
-                    net.zaminmc.torch.server.nbt.NbtOps.getCompound(envelope, "CommandStats");
-            java.util.List<Snapshot.StatsPair> pairs = new java.util.ArrayList<>(stats.size());
-            for (Map.Entry<String, net.zaminmc.torch.server.nbt.Snbt.Tag> pair : stats.entrySet()) {
-                pairs.add(new Snapshot.StatsPair(pair.getKey(),
-                        net.zaminmc.torch.server.nbt.NbtOps.getString(stats, pair.getKey())));
+            int dimension = byDimension.getKey();
+            for (Map.Entry<BlockPosition, CommandBlockManager.CommandState> entry
+                    : byDimension.getValue().entrySet()) {
+                BlockPosition position = entry.getKey();
+                CommandBlockManager.CommandState executor = entry.getValue();
+                java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> envelope = new LinkedHashMap<>();
+                executor.commandResults().writeNbt(envelope);
+                java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> stats =
+                        net.zaminmc.torch.server.nbt.NbtOps.getCompound(envelope, "CommandStats");
+                java.util.List<Snapshot.StatsPair> pairs = new java.util.ArrayList<>(stats.size());
+                for (Map.Entry<String, net.zaminmc.torch.server.nbt.Snbt.Tag> pair : stats.entrySet()) {
+                    pairs.add(new Snapshot.StatsPair(pair.getKey(),
+                            net.zaminmc.torch.server.nbt.NbtOps.getString(stats, pair.getKey())));
+                }
+                rows.add(new Snapshot.Row(position.x(), position.y(), position.z(),
+                        executor.command(), executor.successCount(), executor.trackOutput(),
+                        executor.lastOutput(), java.util.List.copyOf(pairs), dimension));
             }
-            rows.add(new Snapshot.Row(position.x(), position.y(), position.z(),
-                    executor.command(), executor.successCount(), executor.trackOutput(),
-                    executor.lastOutput(), java.util.List.copyOf(pairs)));
         }
         return new Snapshot(java.util.List.copyOf(rows));
     }
@@ -133,6 +148,8 @@ public final class CommandBlockDataStore {
                     writeString(out, pair.key());
                     writeString(out, pair.value());
                 }
+                // The signed byte carries the dimension — -1 lands as u8 255.
+                out.writeByte(row.dimension());
             }
         } catch (java.io.IOException e) {
             // The sink is an in-memory buffer; an IOException here is a
@@ -165,14 +182,21 @@ public final class CommandBlockDataStore {
         }
     }
 
+    /** One loaded command-block row, stamped with the world it lives in. */
+    public record Loaded(BlockPosition position, int dimension,
+                         CommandBlockManager.CommandState state) {
+    }
+
     /**
-     * Loads the tile map; a corrupt or missing file reads as empty (a
-     * corrupt file is preserved beside the storage path for manual
-     * recovery, the established store behavior).
+     * Loads the tile rows, each stamped with its dimension; a corrupt or
+     * missing file reads as empty (a corrupt file is preserved beside the
+     * storage path for manual recovery, the established store behavior).
+     * A v1/v2 file's rows carry no dimension byte — they load as overworld
+     * rows (the migration law every FL4-GAP2 store carries).
      */
-    public Map<BlockPosition, CommandBlockManager.CommandState> load() {
+    public java.util.List<Loaded> load() {
         if (!Files.isRegularFile(file)) {
-            return new LinkedHashMap<>();
+            return new java.util.ArrayList<>();
         }
         try (DataInputStream in = new DataInputStream(new BufferedInputStream(
                 Files.newInputStream(file)))) {
@@ -181,11 +205,11 @@ public final class CommandBlockDataStore {
                 throw new IllegalArgumentException("bad header");
             }
             int version = in.readUnsignedByte();
-            if (version != 1 && version != 2) {
+            if (version < 1 || version > FORMAT_VERSION) {
                 throw new IllegalArgumentException("bad version: " + version);
             }
             int count = readVarInt(in);
-            Map<BlockPosition, CommandBlockManager.CommandState> loaded = new LinkedHashMap<>();
+            java.util.List<Loaded> loaded = new java.util.ArrayList<>(count);
             for (int i = 0; i < count; i++) {
                 int x = in.readInt();
                 int y = in.readInt();
@@ -200,14 +224,15 @@ public final class CommandBlockDataStore {
                 if (version >= 2) {
                     readCommandStats(in, state.commandResults());
                 }
-                loaded.put(new BlockPosition(x, y, z), state);
+                int dimension = version >= FORMAT_VERSION ? in.readByte() : 0;
+                loaded.add(new Loaded(new BlockPosition(x, y, z), dimension, state));
             }
             return loaded;
         } catch (Exception cause) {
             LOGGER.severe("Command block store corrupt, loading empty: "
                     + cause.getMessage());
             preserveCorrupt();
-            return new LinkedHashMap<>();
+            return new java.util.ArrayList<>();
         }
     }
 

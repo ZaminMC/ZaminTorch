@@ -31,21 +31,25 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * the historical interleaved walk's bytes (replicated here, the tail's
  * envelope walk included) are BYTE-IDENTICAL; the round-trip load
  * restores the four rows and the bindings; the named path through the
- * real lanes lands exactly the serializer's bytes.
+ * real lanes lands exactly the serializer's bytes. Wave FL4-GAP2 Slice
+ * C: the ZCB v3 row carries the dimension stamp (the chest store's own
+ * v+1 law) — the legacy walk below writes the v3 form, each row's own
+ * world at its tail.
  */
 class CommandBlockDataStoreSplitTest {
 
     @TempDir
     Path dir;
 
-    private static byte[] legacyBytes(Map<BlockPosition, CommandBlockManager.CommandState> blocks)
+    private static byte[] legacyBytes(int dimension,
+            Map<BlockPosition, CommandBlockManager.CommandState> blocks)
             throws Exception {
         ByteArrayOutputStream sink = new ByteArrayOutputStream();
         DataOutputStream out = new DataOutputStream(sink);
         out.writeByte('Z');
         out.writeByte('C');
         out.writeByte('B');
-        out.writeByte(2);
+        out.writeByte(3);
         writeVarInt(out, blocks.size());
         for (Map.Entry<BlockPosition, CommandBlockManager.CommandState> entry
                 : blocks.entrySet()) {
@@ -71,6 +75,7 @@ class CommandBlockDataStoreSplitTest {
                 writeString(out, net.zaminmc.torch.server.nbt.NbtOps
                         .getString(stats, pair.getKey()));
             }
+            out.writeByte(dimension);
         }
         out.flush();
         return sink.toByteArray();
@@ -104,15 +109,20 @@ class CommandBlockDataStoreSplitTest {
         live.put(new BlockPosition(-3, 5, 12), bound);
 
         CommandBlockDataStore store = new CommandBlockDataStore(dir.resolve("command.bin"));
-        byte[] split = store.serialize(store.capture(live));
-        assertArrayEquals(legacyBytes(live), split,
+        Map<Integer, Map<BlockPosition, CommandBlockManager.CommandState>> union = Map.of(0, live);
+        byte[] split = store.serialize(store.capture(union));
+        assertArrayEquals(legacyBytes(0, live), split,
                 "the off-tick serialization and the historical walk are byte-identical");
 
-        store.save(live);
+        store.save(union);
         assertArrayEquals(split, Files.readAllBytes(dir.resolve("command.bin")),
                 "the sync save's file carries the split path's bytes");
 
-        Map<BlockPosition, CommandBlockManager.CommandState> restored = store.load();
+        java.util.Map<BlockPosition, CommandBlockManager.CommandState> restored = new LinkedHashMap<>();
+        for (CommandBlockDataStore.Loaded row : store.load()) {
+            assertEquals(0, row.dimension(), "every row stamps the overworld");
+            restored.put(row.position(), row.state());
+        }
         assertEquals(2, restored.size());
         assertEquals("say hi", restored.get(new BlockPosition(2, 40, 6)).command());
         CommandBlockManager.CommandState restoredBound =
@@ -137,7 +147,7 @@ class CommandBlockDataStoreSplitTest {
             live.put(new BlockPosition(1, 1, 1), executor);
 
             CommandBlockDataStore store = new CommandBlockDataStore(dir.resolve("live-command.bin"));
-            CommandBlockDataStore.Snapshot snapshot = store.capture(live);
+            CommandBlockDataStore.Snapshot snapshot = store.capture(Map.of(0, live));
             byte[] pure = store.serialize(snapshot);
 
             CountDownLatch done = pipeline.submitSave("command-block", snapshot,
@@ -156,8 +166,8 @@ class CommandBlockDataStoreSplitTest {
             assertTrue(done.await(0, TimeUnit.MILLISECONDS), "the save landed");
             assertArrayEquals(pure, Files.readAllBytes(dir.resolve("live-command.bin")),
                     "the landed file carries exactly the pure serializer's bytes");
-            assertEquals("weather clear", store.load()
-                    .get(new BlockPosition(1, 1, 1)).command(), "the row round-trips");
+            assertEquals("weather clear", store.load().get(0).state().command(),
+                    "the row round-trips");
         } finally {
             compute.shutdown();
             io.shutdown();

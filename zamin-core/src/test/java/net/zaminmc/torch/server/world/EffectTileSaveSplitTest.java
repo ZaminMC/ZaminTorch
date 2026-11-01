@@ -149,12 +149,20 @@ class EffectTileSaveSplitTest {
 
         var store = new net.zaminmc.torch.server.beacon.BeaconDataStore(
                 dir.resolve("beacons.bin"));
-        byte[] pure = store.serialize(store.capture(live));
-        store.save(live);
+        // Wave FL4-GAP2 Slice C: the union save, each row stamped with its
+        // world (the ZBT v2 law).
+        var union = java.util.Map.of(0, live);
+        byte[] pure = store.serialize(store.capture(union));
+        store.save(union);
         assertArrayEquals(pure, Files.readAllBytes(dir.resolve("beacons.bin")),
                 "the sync save's file carries the serializer's bytes");
-        var restored = store.load();
-        BeaconBlockEntity first = restored.get(new BlockPosition(0, 90, 0));
+        BeaconBlockEntity first = null;
+        for (var row : store.load()) {
+            if (row.position().equals(new BlockPosition(0, 90, 0))) {
+                assertEquals(0, row.dimension(), "the row stamps the overworld");
+                first = row.beacon();
+            }
+        }
         assertEquals(3, first.levels());
         assertEquals(1, first.primary());
         assertEquals(5, first.secondary());

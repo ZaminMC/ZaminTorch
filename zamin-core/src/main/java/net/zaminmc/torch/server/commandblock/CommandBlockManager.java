@@ -227,9 +227,15 @@ public final class CommandBlockManager
      * path removes the block). Runs once per tick on the world owner.
      */
     public void tick(EngineWorld world) {
+        // The block-gone discard only decides on a LOADED chunk — an
+        // unloaded chunk reads as air, but the vanilla block entity
+        // freezes there (the restored executor survives the restart; the
+        // sign family's own guard law, missing here until Slice C's
+        // restart seat caught the boot-window discard).
         blocks.keySet().removeIf(position ->
-                !net.zaminmc.torch.server.block.BuiltinBlocks.isCommandBlock(
-                        world.getBlock(position)));
+                world.isChunkLoadedAt(position)
+                        && !net.zaminmc.torch.server.block.BuiltinBlocks.isCommandBlock(
+                                world.getBlock(position)));
     }
 
     // ------------------------------------------------------------------
