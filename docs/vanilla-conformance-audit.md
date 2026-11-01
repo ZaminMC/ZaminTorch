@@ -6496,3 +6496,127 @@ lane's record holds the full three-pass evidence either way. The
 concurrent lane's queue head — the tripwire HOOK's wall consults (the
 `Block.isSolid` lever/button class at TripwireSystem 350/373) — is
 THEIRS; this lane does not take it up while their chain stands.
+
+---
+
+## The fifty-second pass's second act — VT-036 discovered (the lever/button item-placement gates read the fallback arms, not the reference's clicked-face gate) + the family census bounded (the torch CONFORMANT, the plate claimed by #141)
+
+**THE HEAD (the coordinator lane's queue item 3, adopted this pass):** the
+button/lever placement fallback STRUCTURES — the reference's
+horizontal-walk-then-floor order vs the engine's floor-only fallback.
+The census found the deeper shape underneath: **the fallback arms are
+dead code in the reference's item path** — the gate that runs first
+consults the clicked face's mount alone, and the engine places the
+fallback forms where vanilla refuses outright.
+
+### VT-036 — the lever/button item-placement gates read the fallback arms, not the reference's clicked-face gate: phantom placements vanilla refuses
+
+**Subsystem:** block placement / the lever + button item gates (all
+dimensions). **Status: SUSPECTED — pass 1 (source) complete this run;
+the behavioral seats and the independent walk the next acts.**
+
+**Affected engine files and methods:**
+- `EngineServer.placeLeverOnTick` (~13389-13452): the floor-only
+  fallback arm (~13437-13446) — `hasSolidTop(below target)` placing
+  `leverOf(5, false)` (the up_z floor form, the axis hardcoded).
+- `EngineServer.placeButtonOnTick` (~13475-13513): the facing-0 (DOWN)
+  fallback placement (~13505-13511) — placed unconditionally when the
+  clicked face's mount fails.
+
+**Vanilla reference chain (four levels, read whole):**
+- `BlockItem.useOn` lines 28-63 — the gate at line 40:
+  `world.canPlace(this.block, pos, false, face, null, stack)` runs
+  BEFORE `getPlacementState` (line 45); `face` = the CLICKED face,
+  `pos` = the target cell (offset at lines 31-33).
+- `World.canPlace` lines 2274-2282 —
+  `blockx.getMaterial().isReplaceable() && block.canBePlaced(this,
+  pos, face, item)`.
+- `LeverBlock.canBePlaced(World, BlockPos, Direction)` lines 41-43 /
+  `ButtonBlock.canBePlaced` lines 52-54 — both:
+  `canSurvive(world, pos, face.getOpposite())` — THE CLICKED FACE'S
+  MOUNT ALONE.
+- `ButtonBlock.canSurvive` lines 70-73 (LeverBlock delegating, line
+  59-61): `facing == DOWN ? World.hasSolidTop(mount) :
+  mount.getBlock().isSolid()` — the F-SP1-corrected side law.
+- `Block.isSolid` lines 274-276: `material.isSolidBlocking() &&
+  isCube() && !isSignalSource()` — every signal source (torches,
+  levers, buttons, plates, wires, rails) FAILS the wall/ceiling mount.
+
+**The reference's law:** the item placement of a lever/button requires
+the clicked face's mount to hold — the gate consults
+`canSurvive(pos, clickedFace.getOpposite())` before any state is
+computed. `getPlacementState`'s fallback arms — LeverBlock lines 69-76
+(the Plane.HORIZONTAL walk, the floor form, the doomed default) and
+ButtonBlock lines 76-79 (the DOWN form) — are UNREACHABLE through the
+item path: the gate passes only when the first arm's consult (the SAME
+consult) passes. The engine's own javadoc on placeButtonOnTick cites
+the doomed fallback as "the reference's own" — the arm exists in the
+reference but no item path reaches it.
+
+**The precise divergence (engine places, vanilla refuses — no sound,
+no item consumption in vanilla):**
+1. **The lever's phantom floor form:** side/ceiling clicks on
+   non-`isSolid` mounts (any signal source — a torch, a lever, a rail,
+   a wire) with a solid-top floor below the target → the engine places
+   the floor lever (up_z hardcoded — the axis divergence secondary:
+   vanilla's floor form keys `byAttachmentAndFacing(UP,
+   entity.getHorizontalFacing())`).
+2. **The button's phantom DOWN form:** ANY mount-failing click — top
+   clicks on non-solid-top beds (glass, bottom slabs, chests, pistons,
+   the translucent materials) and side/ceiling clicks on non-solid
+   mounts → the engine places a DOWN-facing button, consumes the item,
+   plays the place sound; the button then floats (solid ceiling above)
+   or pops at the first neighbor change (dropping a button item).
+
+**Reachable repro rows (the next act's seats):**
+- THE LEVER ROW: a torch standing on dirt; click the torch's SIDE with
+  a lever held (the target beside the torch, above the dirt) → vanilla:
+  nothing; the engine: a floor-mounted lever appears.
+- THE BUTTON ROW: a glass block on dirt; click the glass TOP with a
+  button held → vanilla: nothing; the engine: a DOWN-facing button
+  above the glass, popping at the next neighbor change, the item
+  consumed.
+
+**The census's bounding rows (this pass):**
+- **The torch CONFORMANT:** its gate is the ANY-MOUNT 2-arg form
+  (`TorchBlock.canBePlaced(World, BlockPos)` lines 59-67 — the
+  six-direction canAttach walk), so the horizontal walk IS reachable;
+  `placeRedstoneTorchOnTick`'s arm union (the clicked face → the
+  N/S/W/E walk in Plane.HORIZONTAL order → the floor consult)
+  reproduces the gate exactly — every gate-passing configuration
+  places, every gate-failing configuration refuses. The walk order
+  verified arm-by-arm (offset(0,0,1)→north, (0,0,-1)→south, (1,0,0)→
+  west, (-1,0,0)→east — the attachment-direction order DOWN,UP,NORTH,
+  SOUTH,WEST,EAST's horizontal band).
+- **The plate's gate divergence CLAIMED:** the engine's
+  `placePlateOnTick` reads `WorldSolidity.isSolid(below)` where
+  vanilla's gate is `canSitOnTop` (hasSolidTop || FenceBlock,
+  AbstractPressurePlateBlock lines 72-74) — plates place on glass,
+  bottom slabs, chests, pistons where vanilla refuses; **#141's open
+  tree already carries the correct consult** (verified on
+  `origin/fix/has-support-below-family-parity-audit`:
+  `hasSolidTop || WorldSolidity.isFence` with the canBePlaced/canSitOnTop
+  citation) — not this lane's to duplicate; the row rides #141's
+  merge.
+- **The trapdoor's item-gate shape UNAUDITED** (the cursorY half-form
+  path) — the named tail.
+
+**Proposed minimal correction (the passes owed first):**
+`placeLeverOnTick`/`placeButtonOnTick` consult the clicked face's mount
+FIRST and refuse when it fails — retiring the floor fallback arm and
+the DOWN-fallback placement whole (the reference's own fallback arms
+being dead code in the item path). The up_x/up_z axis split rides the
+lever's surviving first arm (already correct).
+
+**THE RUN'S CLOSE (the fifty-second):** the restack whole (PR #149 on
+develop 1139f2c3, the re-pin riding, the moot rider retired), the
+merge watch reconciled across four concurrent lanes (48-51), the
+coordinator lane's records unioned, and VT-036's pass 1 landed. The
+next run's queue: (1) VT-036's behavioral seats (the torch-side lever
+row, the glass-top button row, the agreement controls — the
+torch-on-dirt wall form, the stone-top plate agreement), then the
+independent walk (the compensating hunt: does any other path — the
+structure placement, the anvil import — place levers/buttons through
+the fallback arms?); (2) the trapdoor's item-gate shape; (3) the merge
+watch (the open set, 27 PRs at this pass's fetch); (4) the standing
+verification lanes (the VT-008 protocol).
