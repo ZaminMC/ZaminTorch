@@ -225,6 +225,70 @@ class NaturalSpawnSystemTest {
     }
 
     // ------------------------------------------------------------------
+    // VT-012 — the spawn floor's double-slab row
+    // ------------------------------------------------------------------
+
+    /**
+     * VT-012's discovery seat: the reference's spawn floor consult is
+     * {@code World.hasSolidTop} (NaturalSpawner lines 159-166) whose FIRST
+     * arm ({@code material.isSolidBlocking() && isCube()}) accepts the
+     * double slab outright ({@code SlabBlock.isCube() = isDouble()} — the
+     * doubles are full cubes). The engine's {@code isPartialShape} suffix
+     * arm ({@code name.endsWith("_slab")}) rejects the ten
+     * {@code _slab}-suffixed double names — the floor refuses the spawn
+     * vanilla allows. The stone control and the single-slab control frame
+     * the discrimination: the stone floor spawns (both trees agree), the
+     * single bottom slab refuses (both trees agree — vanilla's
+     * {@code hasSolidTop} SlabBlock arm wants HALF == TOP), and the DOUBLE
+     * floor must spawn (vanilla) but refuses on the unfixed baseline —
+     * RED here, the parity pin riding the fix branch.
+     */
+    @Test
+    void theDoubleSlabFloorHostsTheNightMonsters() {
+        int stoneControl = 0;
+        int doubleFloor = 0;
+        int singleSlabControl = 0;
+        for (int seed = 0; seed < 40; seed++) {
+            stoneControl += nightSpawnsOnFloor(seed,
+                    net.zaminmc.torch.server.block.BuiltinBlocks.STONE);
+            doubleFloor += nightSpawnsOnFloor(seed,
+                    net.zaminmc.torch.server.block.BuiltinBlocks.DOUBLE_STONE_SLAB);
+            singleSlabControl += nightSpawnsOnFloor(seed,
+                    net.zaminmc.torch.server.block.BuiltinBlocks.STONE_SLAB);
+        }
+        assertTrue(stoneControl > 0,
+                "the stone floor hosts the night monsters (the harness control)");
+        assertEquals(0, singleSlabControl,
+                "the single bottom slab refuses in BOTH trees (hasSolidTop's "
+                        + "SlabBlock arm wants HALF == TOP)");
+        assertTrue(doubleFloor > 0,
+                "VT-012: the double-slab floor hosts the night monsters — "
+                        + "hasSolidTop's first arm (isSolidBlocking && isCube) "
+                        + "accepts the double; the engine's isPartialShape "
+                        + "suffix arm refuses it");
+    }
+
+    /** The night-spawn count over a uniform floor of the given type. */
+    private int nightSpawnsOnFloor(int seed,
+            net.zaminmc.torch.block.BlockType block) {
+        FakeWorld world = new FakeWorld(4);
+        Spawned spawned = new Spawned();
+        NaturalSpawnSystem system = new NaturalSpawnSystem(
+                spawnSink(spawned), world, new Random(seed));
+        for (int x = -20; x <= 20; x++) {
+            for (int z = -20; z <= 20; z++) {
+                world.ground(x, z, block);
+            }
+        }
+        PlayerSession walker = player("Walker", 30.5, 30.5);
+        int night = 0;
+        for (int cycle = 0; cycle < 20; cycle++) {
+            night += system.tick(List.of(walker), 18000L, false);
+        }
+        return night;
+    }
+
+    // ------------------------------------------------------------------
     // The monster light rule
     // ------------------------------------------------------------------
 
