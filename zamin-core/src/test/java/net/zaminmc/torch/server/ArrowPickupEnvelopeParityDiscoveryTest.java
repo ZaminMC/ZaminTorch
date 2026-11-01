@@ -48,6 +48,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * <p>These seats are EXPECTED RED on develop until VT-024's correction
  * lands. Do not re-pin them to the engine's current answer; the
  * finding record owns the mismatch.</p>
+ *
+ * <p>THE STRICT FORM (the rider adopted from the convergent -b carrier
+ * {@code fix/arrow-pickup-envelope-parity-audit-b} `07c180aa`, the
+ * honest-convergence protocol): the reference's {@code Box.intersects}
+ * (lines 164-171) refuses exactly touching boxes on every face — the
+ * cap's comparison is {@code >=} (a hair past the face never collects),
+ * and the vertical touches are exactly constructible in doubles. Arms
+ * D and E pin the boundaries.</p>
  */
 class ArrowPickupEnvelopeParityDiscoveryTest {
 
@@ -230,5 +238,80 @@ class ArrowPickupEnvelopeParityDiscoveryTest {
         assertEquals(0, arrowCount(walker),
                 "no arrow lands in the inventory — the arrow above the grown ceiling "
                         + "is not vanilla-reachable");
+    }
+    /**
+     * ARM D — THE LAST HAIR INSIDE THE REACH (Phase E, the
+     * correction's edge): an arrow stuck a hair (1e-9, seven orders
+     * above the double rounding floor) INSIDE the corrected cap
+     * |dx| &lt; 1.55 — the reference collects (the grown box's maxX
+     * px+1.3 strictly right of the arrow's minX ax−0.25), the
+     * unfixed engine's 1.25 cap refuses. The partner boundary arm
+     * below pins the refusal at and past the face.
+     */
+    @Test
+    void theLastHairInsideTheReachCollects() {
+        ProjectileManager manager = manager();
+        PlayerSession walker = player("walker");
+        // dx = 1.55 - 1e-9: strictly inside the reference's reach
+        // (the grown face px+1.3 vs the arrow's minX dx-0.25),
+        // strictly outside the unfixed engine's 1.25 cap.
+        ProjectileEntity arrow = stuckArrowAt(
+                manager, new Position(0.5 + 1.55 - 1e-9, 4.2, 0.5));
+
+        for (int i = 0; i < 5; i++) {
+            manager.tick(List.of(walker));
+        }
+
+        assertEquals(1, arrowCount(walker),
+                "the reference collects the arrow a hair inside the grown box's "
+                        + "face — |dx| < 0.3 + 1.0 + 0.25 = 1.55 strictly; the "
+                        + "unfixed engine's 1.25 cap left it");
+    }
+
+    /**
+     * ARM E — THE EXACT TOUCHES NEVER COLLECT (Phase E, the strict
+     * intersection's pins): the reference's Box.intersects refuses
+     * exactly touching boxes on every face — the arrow's minX AT the
+     * grown maxX, the arrow's top AT the grown floor, the arrow's
+     * bottom AT the grown ceiling. The vertical touches are exactly
+     * constructible in doubles (3.0+0.5 == 4.0−0.5 and the mirrored
+     * ceiling expression 4.0+1.8+0.5); the horizontal probe sits a
+     * hair OUTSIDE the cap (no double at player x=0.5 differences
+     * exactly to 1.55 — the rounding through 2.05 loses the bit, a
+     * named note in the finding record). All three must stay stuck.
+     */
+    @Test
+    void exactlyTouchingBoxesNeverCollect() {
+        ProjectileManager manager = manager();
+        PlayerSession walker = player("walker");
+        // The horizontal touch: dx = 1.55 + 1e-9 — the arrow's minX
+        // ax-0.25 at/ past the grown face px+1.3.
+        ProjectileEntity beside = stuckArrowAt(
+                manager, new Position(0.5 + 1.55 + 1e-9, 4.2, 0.5));
+        // The floor touch: the arrow's top y+0.5 EXACTLY at the
+        // grown floor py-0.5 (3.0+0.5 == 4.0-0.5 in doubles).
+        ProjectileEntity atFloor = stuckArrowAt(manager, new Position(0.6, 3.0, 0.5));
+        // The ceiling touch: the arrow's bottom EXACTLY at the grown
+        // ceiling py+2.3 (the mirrored expression the engine computes).
+        ProjectileEntity atCeiling = stuckArrowAt(
+                manager, new Position(0.6, 4.0 + 1.8 + 0.5, 0.5));
+
+        for (int i = 0; i < 5; i++) {
+            manager.tick(List.of(walker));
+        }
+
+        assertTrue(beside.inGround(),
+                "the arrow a hair past the grown face never collects — the "
+                        + "reference's intersection is strict on the horizontal");
+        assertTrue(atFloor.inGround(),
+                "the arrow whose top EXACTLY touches the grown floor never "
+                        + "collects — Box.intersects' !(box.maxY <= this.minY) "
+                        + "refuses the touching top");
+        assertTrue(atCeiling.inGround(),
+                "the arrow whose bottom EXACTLY touches the grown ceiling never "
+                        + "collects — Box.intersects' !(box.minY >= this.maxY) "
+                        + "refuses the touching bottom");
+        assertEquals(0, arrowCount(walker),
+                "no exactly-touching arrow lands in the inventory");
     }
 }

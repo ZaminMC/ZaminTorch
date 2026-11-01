@@ -992,7 +992,7 @@ public final class ProjectileManager {
         double dx = Math.abs(arrowPosition.x() - playerPosition.x());
         double dz = Math.abs(arrowPosition.z() - playerPosition.z());
         double maxHorizontal = PLAYER_HALF_WIDTH + PICKUP_GROWTH_HORIZONTAL + ARROW_HALF_WIDTH;
-        if (dx > maxHorizontal || dz > maxHorizontal) {
+        if (dx >= maxHorizontal || dz >= maxHorizontal) {
             return false;
         }
         double arrowBottom = arrowPosition.y();
