@@ -5345,3 +5345,65 @@ with the same three-pass discipline; the tripwire family's own
 `WorldSolidity.isSolid` consults (the SUSPENDED flag's floor law) the
 named tail beside it; the placement-gate absorption riding the
 #137/#138/#139/#141 picks.
+
+## The forty-eighth pass's second act — F-SP3 CONFIRMED through the three-pass discipline and CORRECTED (PR #145, stacked on the F-SP2 branch #141 — the chain #138 -> #141 -> #145): the fire family's floor consult delegated whole to the shared law
+
+**Pass 1 (source, the record above):** the four fire consult sites
+(`FireBlocks.canBePlaced` 402-405, `neighborChanged` 429-436, the tick
+burn-out 557, the block-change support gate 688-691) each the reference's
+own law over `World.hasSolidTop` — the engine's form carrying the
+translucent fallthrough (the common case at line 358 falling through to
+`WorldSolidity.isSolid`: glass, ice, TNT, every leaves, glowstone, the
+sea lantern, the cactus each answering TRUE).
+
+**Pass 2 (behavioral):** the seats RED 2/2 on unfixed develop at exactly
+the first divergence assert — the fire SURVIVING on the glass floor (the
+dirt control staying), the ice + glowstone pair the same. THE FIRST
+DRAFT'S OWN ERROR caught on the fix tree: the leaves row (and the TNT
+row the draft never carried) asserts a POP that vanilla never makes —
+the leaves (flammability 30) and the TNT (15) are TRANSLUCENT but
+FLAMMABLE, a fire on either FED by the floor through the fuel consult's
+six-neighbour walk, vanilla KEEPING it — the corrected seats carry only
+the NON-flammable translucents (glass, ice, glowstone), the nuance
+recorded in the javadoc. The corrected seats re-run RED 2/2 on the
+unfixed lane.
+
+**Pass 3 (independent):** the compensating hunt NEGATIVE (the rain
+extinguish reads the rain envelope alone; the tick burn-out rides the
+SAME imprecise form — no second consult pops the fire on glass; the
+age law kills an unfed flame only after i > 3, four tick cycles past the
+seat's one-tick observation); the intentionality challenge NEGATIVE (the
+form's javadoc claims "World.java lines 1740-1750, 1:1 over the engine's
+surfaces" while the common-case comment EXPLICITLY lists "leaves, tnt"
+as solid tops — each translucent in the reference — the honest-omission
+class, the citation present, the law wrong); the arms-equivalence walk
+(the delegation's blast radius bounded: the stairs/slab/hopper/
+never-solid-top arms answering identically through the shared law — the
+bottom slabs, fences, gates, walls, chests, 1-layer snow each false; the
+TOP halves, the doubles, the hopper band each true — the ONLY behavioral
+change the translucent rows, the demonstrated divergence); the consumer
+census (the four fire sites alone — the rail consult F-SP2 already
+re-routed).
+
+**THE CORRECTION (PR #145 OPEN, `fix/fire-floor-support-parity-audit`
+stacked on the F-SP2 branch — the chain #138 -> #141 -> #145, the merge
+order documented): `FireBlocks.hasSolidTop` delegated whole to
+`SupportConsult.hasSolidTop(world.getBlock(pos))` — the five arms 1:1,
+the F-SP2 hopper rider's band read riding along, the duplicated arms
+retired, the translucent fallthrough replaced by the material law. The
+seats GREEN 2/0 on the fix.**
+
+**REGRESSION:** 364/0 — the fire family lanes (45: FireBlocksTest, the
+per-dimension fire acceptance, the scheduled-tick lanes, the TNT and
+dispenser lanes) and the block package + the F-SP2 seats (319) on the
+stacked tree.
+
+**The queue for the next pass:** the tripwire family's own
+`WorldSolidity.isSolid` consults (TripwireSystem lines 88/229/338/350/373
+against the reference's `!World.hasSolidTop(pos.down())` SUSPENDED law —
+`TripwireBlock` lines 89/112, `TripwireHookBlock` lines 35/101) the NEW
+STANDING HEAD (the F-SP class's fourth member — the suspended flag's
+floor law, its own discovery pass); the snow layer's 7-layer band
+(VT-003's standing tail — hasSolidTop's fifth arm); the merge watch at
+the thirty-two-PR open set with #145 joining the #138 -> #141 -> #145
+chain; the placement-gate absorption riding the carrier picks.
