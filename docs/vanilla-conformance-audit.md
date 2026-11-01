@@ -2249,8 +2249,10 @@ F-DS1 MERGED; the FL4-GAP2 Slice D LANDED — the lead family, commit
 name COLLIDED on the remote (the F-SP1 lane's own forty-sixth-pass
 lineage owns `audit/verifier-pass-46-discovery` at `02414bb0` — never
 force-pushed over); this pass's records ride
-`audit/verifier-pass-47-discovery` from `1139f2c3`, the pass-46 section
-carried whole above.
+`audit/verifier-pass-47b-discovery` from `1139f2c3` (the -b suffix: the
+hasSupportBelow lane's own forty-seventh-pass lineage had taken the plain
+name at `7ed60a64` — the #122 precedent, nothing renamed), the pass-46
+section carried whole above.
 
 ### The renumbering (the public-first protocol)
 
