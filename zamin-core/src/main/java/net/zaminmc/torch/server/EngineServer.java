@@ -15656,13 +15656,22 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /**
-     * The bed placement (the historical ItemBed): the foot at the target and
-     * the head one cell along the placer's look (the head points where the
-     * player faces), both cells open, one item spent in survival.
+     * The bed placement (the historical ItemBed, BedItem.useOn): the
+     * up-click alone places (lines 24-26 — every other face fails the
+     * use outright), the foot at the target and the head one cell along
+     * the placer's look (the head points where the player faces), both
+     * cells open, BOTH halves on a solid top (line 42 — the reference's
+     * two-cell World.hasSolidTop consult), one item spent in survival.
      * Tick-thread context.
      */
     private void placeBedOnTick(PlayerSession session, BlockPosition clicked, int face,
                                 java.util.Optional<BlockType> creativeHeld) {
+        // BedItem.useOn lines 24-26 (W-BED): the bed places ONLY on an
+        // up-click — every other face fails the use outright (no block,
+        // no item spent; face 1 = UP, the offsetByFace mapping).
+        if (face != 1) {
+            return;
+        }
         // The player's own world (Wave FL4-F3 — the reference's
         // player.world: every use/place arm runs where the player is).
         EngineWorld world = worldFor(session.dimension());
@@ -15683,6 +15692,19 @@ public final class EngineServer implements Server, EngineBridge {
         BlockPosition head = target.offset(headOffset[0], headOffset[1], headOffset[2]);
         if (!world.getBlock(head).equals(world.airType())) {
             return; // no room for the head half
+        }
+        // BedItem.useOn line 42 (W-BED): BOTH halves must sit on a solid
+        // top — {@code World.hasSolidTop(pos.down()) &&
+        // World.hasSolidTop(blockpos.down())} 1:1 over SupportConsult
+        // (the reference's five arms; the translucent materials — glass,
+        // glowstone, ice, TNT, the leaves — the non-cubes and the bottom
+        // halves NEVER answer, and AIR never answers). Any refusal fails
+        // the use outright: no block, no item spent.
+        if (!net.zaminmc.torch.server.block.SupportConsult.hasSolidTop(
+                world.getBlock(target.offset(0, -1, 0)))
+                || !net.zaminmc.torch.server.block.SupportConsult.hasSolidTop(
+                        world.getBlock(head.offset(0, -1, 0)))) {
+            return;
         }
         if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE
                 && session.inventory().held().isEmpty()) {
