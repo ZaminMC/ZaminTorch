@@ -3070,7 +3070,7 @@ re-arm.
 
 
 
-## The thirty-fifth pass (this stream's lane, renamed a THIRD time — the fourth concurrent lane's pushed pass-34 branch owns the thirty-fourth name; the QUADRUPLE convergence on VT-014/VT-015 now spans four constructions) — VT-014 and VT-015 confirmed whole through THIS lane's independent seats and walks, VT-018 discovered (the stuck burning arrow's TNT re-prime; renumbered from this pass's first VT-016 draft — the pass-32 lane's VT-016/VT-017 piston/grass claims took the ids first, the VT-012->VT-013 precedent). THE PASS-34 LANE'S SECOND-CONSTRUCTION SEATS (merged in whole this pass: ArrowStickPlacementVerificationTest + ArrowUnstickVerificationTest, 97c82bde — every body through spawnRestored, the reference's rest pinned to the EXACT face±0.05 with 0.001 tolerance): a THIRD independent construction of the same laws, RED on the union tree (the vertical descent's observed rest y=19.4079402396 at velocity exactly -1.0, 0.592 below the face; the thin-wall seat's observed rest x=61.97 at velocity exactly 3.0, 0.97 past the far face in the open air — this lane's own spawnRestored seats read y=20.2143 / x=61.77 at their own velocities, the pass-33 lane's launch-based seats y=19.841 / x=51.480: three constructions, one law, all RED on develop 6b29c46f)
+## The thirty-fifth pass (this stream's lane, renamed a THIRD time — the fourth concurrent lane's pushed pass-34 branch owns the thirty-fourth name; the QUADRUPLE convergence on VT-014/VT-015 now spans four constructions) — VT-014 and VT-015 confirmed whole through THIS lane's independent seats and walks, VT-019 discovered (the stuck burning arrow's TNT re-prime; TWICE renumbered — this pass's first VT-016 draft lost 16/17 to the pass-32 lane's piston/grass claims, and the VT-018 draft lost 18 to the pass-35 lane's pushed bowhit-sound claim — the VT-012->VT-013 precedent twice over). THE PASS-34 LANE'S SECOND-CONSTRUCTION SEATS (merged in whole this pass: ArrowStickPlacementVerificationTest + ArrowUnstickVerificationTest, 97c82bde — every body through spawnRestored, the reference's rest pinned to the EXACT face±0.05 with 0.001 tolerance): a THIRD independent construction of the same laws, RED on the union tree (the vertical descent's observed rest y=19.4079402396 at velocity exactly -1.0, 0.592 below the face; the thin-wall seat's observed rest x=61.97 at velocity exactly 3.0, 0.97 past the far face in the open air — this lane's own spawnRestored seats read y=20.2143 / x=61.77 at their own velocities, the pass-33 lane's launch-based seats y=19.841 / x=51.480: three constructions, one law, all RED on develop 6b29c46f)
 
 The thirty-first pass's queue head taken in order (the same head the third stream's pass-33 lane took in the same window — the two lanes' seats are INDEPENDENT constructions: theirs launch-based with observed rests y=19.841 / x=51.480, this lane's spawnRestored-deterministic with observed rests y=20.2143 / x=61.77; both RED on develop at their own predicted values — the cross-stream confirmation of the same laws): the two honest
 residue findings' pass-2 seats and pass-3 independent walks, both over
@@ -3176,12 +3176,11 @@ design-choice walk). **VT-015 CONFIRMED — three passes complete**
 pass's reference re-read + compensation + family/import walk). Both
 eligible for correction (Phase E).
 
-**VT-018 DISCOVERED (suspected, pass 1 complete — the source walk;
-the seat owed; RENUMBERED from this pass's first VT-016 draft — the
-pass-32 lane's VT-016 (the piston push table) and VT-017 (the
-grass-decay shade consult) claims took the ids first, the
-VT-012->VT-013 renumber precedent):** the STUCK BURNING ARROW's TNT
-re-prime. The
+**VT-019 DISCOVERED (suspected, pass 1 complete — the source walk;
+the seat owed; TWICE renumbered — the VT-016 draft lost 16/17 to the
+pass-32 lane's piston/grass claims, the VT-018 draft lost 18 to the
+pass-35 lane's pushed bowhit-sound claim, the VT-012->VT-013
+precedent twice over):** the STUCK BURNING ARROW's TNT re-prime. The
 reference consults `onEntityCollision` for an arrow from exactly two
 sites: the FLIGHT branch's tail box scan (ArrowEntity line 382 —
 inside the `else` opened at line 188; the inGround branch at 172-187
@@ -3348,6 +3347,19 @@ it), the TNT's survival asserted against the engine's detonation.
 | Item entities / pickup — dimension | the TF-9 stamped sites are the record; the pickup consult un-audited |
 ## The queue for the next pass
 
+0a. **THE FIVE-LANE UNION first** (this run's close-out, the clock's
+   honest tail): the pass-35 lane's pushed branch (a8c79f5f — their
+   own seat set y=20.919 / z=41.486 / the pedestal break, their
+   pass-3 walks, THEIR VT-018 the bowhit sound, the pass-30 docs
+   union) must merge into this lane's thirty-fifth (the union
+   attempted this run and ABORTED on the clock — the conflict
+   resolution is bookkeeping-only, no engine files at stake; the
+   merge conflict map: their queue rewrite, their ledger rows, their
+   pass sections vs this lane's). After the union: the Phase E
+   corrections (item 0) with the maintainer's pick among the
+   convergent constructions' parity pins, and VT-019's seat beside
+   the pass-35 lane's own VT-018 (the bowhit sound) passes.
+
 0. **THE PHASE E CORRECTIONS — the new head** (the thirty-third
    pass's completion of the seats this item once owed: both VT-014
    and VT-015 CONFIRMED over three passes, the record above):
@@ -3374,7 +3386,7 @@ it), the TNT's survival asserted against the engine's detonation.
    floating survivor. Then the independent pass over the remaining
    membership rows (doors, weighted plates, cocoa, anvil).
 
-2a. **VT-018's seat** (the thirty-fourth pass's discovery, pass 1
+2a. **VT-019's seat** (the thirty-fourth pass's discovery, pass 1
    complete): a burning arrow stuck BESIDE (not in) a TNT block
    — the reference leaves the TNT standing (the flight-branch
    scan alone consults onEntityCollision), the engine's
