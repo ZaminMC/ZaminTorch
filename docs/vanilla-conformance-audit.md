@@ -2745,58 +2745,151 @@ this arm's sibling scan rides the engine's current class-adjacency
 convention and would follow #111's law in a small follow-up (the
 reference's neighborChanged reads the facing-named cell).
 
-## VT-017 — the grass-decay shade consult is the 3-block allowlist, not the reference's opacity law: grass dies under beds, flowers, slabs and every non-solid-render block where vanilla keeps it (SUSPECTED — one source pass + observed evidence)
+## VT-017 — the grass-decay shade law: the update-walk arm answers a 3-block allowlist with no light gate, the random-tick arm reads the light alone — grass dies under beds, flowers, snow layers and every non-solid-render block where vanilla keeps it (CONFIRMED — three passes; the correction is **PR #116 OPEN**)
 
-**Subsystem:** block updates / the grass family / the shade consult
-**Affected version:** the current develop baseline (a95e7ca6)
-**Status:** SUSPECTED — the source pass complete (the reference's
-opacity law + the engine's allowlist read) with OBSERVED behavioral
-evidence (the dirt-under-bed commit caught by the VT-009 fix run's
-trace); the behavioral seats owed; the independent pass owed.
+**Subsystem:** block updates / the grass family / the shade consult.
+**Affected version:** the develop baseline `6b29c46f` (re-verified this
+pass; first recorded at a95e7ca6). **Status:** CONFIRMED — three
+verification passes complete; the correction LANDED on
+`fix/grass-shade-parity-audit` (**PR #116 OPEN**, clean against
+develop).
 
 ### The reference's law (GrassBlock.tick lines 49-52)
 
 The grass dies to dirt only when
 `world.getRawBrightness(pos.up()) < 4 && world.getBlockState(pos.up())
-.getBlock().getOpacity() > 2` — the OPACITY consult: every
-non-solid-render block answers opacity 0 (Block's constructor line 216:
-`this.opacity = this.isSolidRender() ? 255 : 0` — the bed's
-`isSolidRender()` is FALSE, BedBlock lines 99-102; flowers, slabs,
-stairs, fences, torches, glass likewise) — the grass SURVIVES under
-them all. Only true solid-render blocks (opacity 255) shade the grass
-to death (plus the brightness arm).
+.getBlock().getOpacity() > 2` — TWO conjuncts. The OPACITY consult is
+the membership law: every non-solid-render block answers opacity 0
+(Block's constructor line 216: `this.opacity = this.isSolidRender() ?
+255 : 0`) — the bed (BedBlock lines 99-102, false), the flowers
+(PlantBlock line 67, false), the snow layer (the registration's
+`setOpacity(0)`, Block.java line 1175), the chests, the doors, the
+torches, the glass — the grass SURVIVES under them all wherever the
+light holds. Only true solid-render cubes (opacity 255 — including the
+SLABS, whose own registration carries `setOpacity(255)`, SlabBlock line
+30) and the explicit small rows above 2 (water and ice, opacity 3)
+shade the grass to death.
 
-### The engine's shape
+### The engine's shape — two stacked arms
 
-`BlockUpdateSystem.isOpaque` (line 1053): opaque unless the id is air,
-torch or glass — a 3-block allowlist standing in for the opacity law.
-The grass-decay arm (line 996-999) consults it: the grass under a BED,
-a FLOWER, a SAPLING, a CROP, a SLAB, STAIRS, a FENCE... dies to dirt
-where vanilla keeps it green. The observed evidence: the VT-009 fix
-run's trace caught the grass at (2,4,2) dying to DIRT under the bed
-foot within ~4 ticks of the placement (the commit that woke the orphan
-half). The scope is every non-solid-render block the allowlist misses.
+1. **The update-walk arm** (BlockUpdateSystem): `isOpaque` — a
+   3-block allowlist (air/torch/glass pass, everything else "opaque")
+   with NO light gate. The grass under a bed, a flower or a snow layer
+   dies ON THE PLACEMENT'S OWN DRAIN. The OBSERVED evidence: the VT-009
+   fix run's trace caught the grass at (2,4,2) dying to DIRT under the
+   bed foot within ~4 ticks of the placement.
+2. **The random-tick arm** (RandomTickSystem): `lightAt(pos.up()) < 4`
+   ALONE — the opacity conjunct missing. A transparent cover in the
+   dark kills too, PERMANENTLY (the spread arm cannot re-grow at light
+   < 4 in either world — the steady-state divergence; the bright-light
+   death is the transient one).
 
-### The proposed minimal correction
+The engine's own MYCELIUM arm (Slice 42, the same file, lines 455-458)
+carries the reference's exact two-conjunct law — the grass family
+predates that correction and never received it.
 
-The consult swaps to the engine's own light-opacity table
-(`BlockLightTable.filter(type) > 2` — the same table the light engine
-already rides, the vanilla `getOpacity` port) with the brightness arm
-consulted beside it; the allowlist retires.
+### The correction (PR #116)
+
+Both arms converge on the mycelium arm's form:
+`lightAt(pos.up()) < 4 && BlockLightTable.filter(cover) > 2`. The
+wrong-law `isOpaque` helper retires (its one caller); the `lightAt`
+helper lands beside the update-walk arm; `BlockUpdateSystemTest`
+attaches the LightEngine (the real wiring — RandomTickSystemTest's own
+rule; the seats' laws unchanged). The BlockLightTable filter IS the
+reference's `getOpacity` on the engine's 0..15 scale — the `> 2`
+threshold equivalent family-wide.
+
+### The seats (GrassDecayShadeParityDiscoveryTest, 6/0 on the branch)
+
+The bed / the flower / the snow layer on the update walk and the bed
+sealed in the dark on the random tick (the light-0 pinned in the
+message) — all four RED on develop `6b29c46f` at exactly the predicted
+asserts (`expected: grass_block … was: dirt`), GREEN on the branch. The
+two stone controls (the walk and the dark) GREEN on both trees — the
+law's true members, the correction keeps them whole.
 
 ### Verification pass history
 
-- **Pass 1 (source, the twenty-seventh pass, 2026-10-31):** the
-  reference's GrassBlock.tick read (the two-conjunct death gate); the
-  opacity derivation traced (Block's constructor: isSolidRender ? 255 :
-  0; BedBlock's isSolidRender false); the engine's isOpaque allowlist
-  read; the observed dirt-under-bed caught by the VT-009 trace.
-  CONCLUSION: the consult diverges at the source level with observed
-  behavior.
-- Pass 2 (behavioral): owed — the seats: grass under a bed/flower/slab
-  survives (vanilla) vs dies (engine today); the positive control (the
-  grass under a stone block still dies).
-- Pass 3 (independent): owed.
+- **Pass 1 (source, the twenty-seventh pass, 2026-10-31; re-verified
+  on `6b29c46f` this pass):** the reference's two-conjunct death gate;
+  the opacity derivation (the constructor's init, the family
+  declarations); the engine's allowlist and the light-alone gate; the
+  observed dirt-under-bed from the VT-009 trace. CONCLUSION: both arms
+  diverge at the source level.
+- **Pass 2 (behavioral, this pass, 2026-11-01):** the discovery seats
+  run on unmodified develop — 4 RED at exactly the predicted asserts,
+  the 2 stone controls GREEN; 6/0 GREEN on the fix branch. The seats
+  drive the REAL commit path (setBlock → listener → drain) and the real
+  `randomTick` dispatch.
+- **Pass 3 (independent, this pass, 2026-11-01):** (a) the
+  compensating hunt — the spread arm heals only the bright-light
+  transient (light ≥ 9 engine / ≥ 4 vanilla), the dark case is
+  permanently divergent; (b) the threshold-equivalence census — the
+  engine's filter set is {0, 1, 3, 15} against vanilla's {0, 1, 3,
+  255}, the only filter-1 rows are the leaves and the cobweb (both
+  vanilla opacity 1), no filter-2 rows exist — `> 2` equivalent
+  family-wide; (c) the mycelium precedent (Slice 42's exact law in the
+  same file); (d) the intentional-design check — the WORKLOG's slice
+  entry modeled the stone observable alone and the retired helper's
+  own javadoc called itself "the historical opaque set this slice
+  models", an acknowledged approximation; (e) the vanilla family
+  declarations read directly (BedBlock 99-102, PlantBlock 67,
+  SnowLayerBlock + Block.java 1175). CONCLUSION: CONFIRMED — a genuine
+  vanilla mismatch, not a design choice.
+
+### The scope note (documented, not corrected)
+
+The DELIVERY TIMING — the decay firing deterministically on the update
+drain against the reference's random-tick sampling — is the §466
+architecture's documented design, predating this finding; the bounded
+correction restores the vanilla MEMBERSHIP law on the existing
+delivery. The SPREAD gates (the missing outer ≥ 9 gate, the target
+threshold 9 against the reference's 4, the missing target-opacity
+gate) are VT-018 below — a separate finding, its own passes owed.
+
+### Regression
+
+The block package whole + IceMelt + ScheduledUpdatesApi (the
+real-server grass-under-stone seat 2/0) — 54 classes 328/0; the world
+package + Persistence + GrassMushroom — 38 classes 259/0.
+
+---
+
+## VT-018 — the grass SPREAD gates diverge: the outer ≥ 9 gate is missing, the target threshold reads 9 where the reference requires 4, and the target-opacity gate is absent (SUSPECTED — pass 1 complete, the seats owed)
+
+**Subsystem:** random ticks / the grass family / the spread walk.
+**Affected version:** the develop baseline `6b29c46f`. **Status:**
+SUSPECTED — the source pass complete (this pass, discovered inside
+VT-017's source walk); the behavioral seats and the independent pass
+owed.
+
+### The reference's law (GrassBlock.tick lines 53-67)
+
+The spread runs ONLY when the grass's own cell reads
+`getRawBrightness(pos.up()) >= 9` (the outer gate); each of the four
+attempts requires the TARGET's cell `getRawBrightness(blockpos.up())
+>= 4` AND `block.getOpacity() <= 2` (the target gate — grass never
+creeps under water, ice or any opaque lid).
+
+### The engine's shape (RandomTickSystem, the same walk)
+
+The outer gate is MISSING (a dim grass block at light 4-8 spreads);
+the target gate reads `lightAt(target.up()) >= 9` (the wrong threshold
+— the engine's own-block number applied to the TARGET; grass cannot
+creep into a light 4-8 pocket vanilla colonizes) and the
+target-opacity gate is ABSENT (grass spreads onto dirt under WATER —
+the water's filter 3 never consulted). The mycelium arm (Slice 42,
+lines 466-478) carries the reference's exact three gates — the same
+precedent as VT-017's decay.
+
+### The seats owed
+
+A dim-source seat (a grass block at light 4-8 with a lit dirt target:
+no spread in vanilla); a dim-target seat (a dirt cell at light 4-8:
+vanilla spreads, the engine refuses); an underwater seat (a dirt cell
+under one water block at surface light: vanilla refuses, the engine
+spreads). The independent pass: the mycelium arm's own spread seats as
+the engine-internal precedent, the compensating hunt.
 
 ## VT-016 — the piston push table's DESTROY/BLOCK membership diverges from the reference's material census: beds, doors, weighted plates, and cocoa are PUSHED where vanilla destroys them; anvils are PUSHED where vanilla refuses (SUSPECTED — one source pass)
 
@@ -2891,13 +2984,22 @@ to the next free ids: **VT-016 (the piston push table's DESTROY/BLOCK
 membership)** and **VT-017 (the grass-decay shade consult)** — VT-013
 (taken: the pass-31 lane's rejected stuck-arrow crossing), VT-014
 (taken: the stick placement residue), VT-015 (taken: the un-stick law
-residue) all stand in the pushed lane. **This pass's heads:
-VT-017's behavioral + independent passes** (the grass-decay seats —
-the observed dirt-under-bed evidence came from the VT-009 fix run's
-own trace; the reference's opacity law vs the engine's 3-block
-allowlist), **then VT-016's** (the piston-push bed seat — the pair
-gone + one bed item in vanilla, the displaced half + floating
-survivor today).
+residue) all stand in the pushed lane. **This pass's heads and outcome:** VT-017's three passes
+COMPLETED (the source walk re-verified on `6b29c46f`, the behavioral
+seats — 4 RED on develop at the predicted asserts / 2 stone controls
+green, the independent pass: the compensating hunt, the
+threshold-equivalence census, the mycelium precedent, the
+slice-javadoc's acknowledged approximation) — **VT-017 CONFIRMED and
+CORRECTED**: the two arms converged on the mycelium arm's own
+two-conjunct law on `fix/grass-shade-parity-audit`, **PR #116 OPEN**
+(the discovery seats 6/0, the block package + IceMelt +
+ScheduledUpdatesApi 328/0, the world package + Persistence +
+GrassMushroom 259/0). **VT-018 discovered inside the same source
+walk** (the spread gates: the outer ≥ 9 gate missing, the target
+threshold 9 against the reference's 4, the target-opacity gate absent
+— pass 1 complete, the seats owed). **VT-016's passes remain the next
+head** (the piston-push bed seat, then the independent membership
+walk).
 
 ## Coverage ledger (updated by the thirty-second pass)
 
@@ -2919,7 +3021,7 @@ survivor today).
 | Drops — the TF-9 dimension stamp | RESOLVED (PR #90's riders adopted; the tile-family spill sites remain the per-dimension tile tail) |
 | Tile families — per-dimension stores | the CHEST family LANDED by **Wave FL4-GAP2 Slice A** (`2d0f74af`: three ChestManager instances, the ZCD v3 dimension stamp, the consult sites routed — `ChestDimensionOwnershipAcceptanceTest` 4/0 the record); Slice B's honest tail: the hopper system, the ContainerViews, the furnace/dispenser/brewing families stay single-instance |
 | Block updates — the multi-part families' pair-integrity arms | THREE arms in flight: the BED family's neighborChanged self-removal arm (**VT-009 the bed-coverage lineage's claim — CONFIRMED, three passes, PR #114 OPEN**); the break-path pair walks' world binding (**VT-009 the pass-28 lane's claim — CONFIRMED, PR #106 OPEN**); the bed pair's sibling resolution (**VT-010 — CONFIRMED, PR #111 OPEN**). The DOOR family's neighborChanged arm EXISTS (`RedstoneSystem.doorNeighborChanged`, DoorBlock lines 157-198 — the door half REJECTED by its own green seat, now the regression guard) |
-| Grass decay — the shade consult | **VT-017 SUSPECTED** (the bed-coverage lane's twenty-seventh pass, renumbered): the engine's `isOpaque` 3-block allowlist (air/torch/glass) stands in for the reference's opacity law (`getOpacity() > 2` — every non-solid-render block answers 0) — the grass dies under beds, flowers, slabs, stairs where vanilla keeps it; one source pass + the OBSERVED dirt-under-bed evidence from the VT-009 trace; this pass takes the seats up |
+| Grass decay — the shade consult | **VT-017 CONFIRMED and CORRECTED** (this pass): the two arms (the update-walk allowlist with no light gate + the random-tick light-alone gate) converged on the reference's two-conjunct shade law (`lightAt < 4 && filter > 2`, the mycelium arm's own form) — **PR #116 OPEN**, `GrassDecayShadeParityDiscoveryTest` 6/0 the record (4 seats RED on develop by contract, the 2 stone controls green on both trees). The delivery-timing note (the update-drain vs the random-tick sampling) documented in the record |
 | Piston pushability — the behavior table's membership | **VT-016 SUSPECTED** (the bed-coverage lane's twenty-seventh pass, renumbered): the engine's `pistonMoveBehavior` DESTROY/BLOCK lists omit the bed family, the door family, the weighted plates, the cocoa (vanilla DESTROY) and the anvil (vanilla BLOCK) — a pushed bed MOVES where vanilla breaks it with its drop; one source pass done, the piston-push seat this pass's second head |
 | Arrow family — the stick placement + un-stick law | **VT-014 / VT-015 SUSPECTED** (the thirty-first pass's honest residue after VT-013's rejection): VT-014 the stick PLACEMENT (the reference's face+0.05 rest vs the engine's post-step ENDPOINT — the observed y=19.947 against the face at y=20; the thin-wall air-stick the second observable); VT-015 the tracked-block UN-STICK law (the reference's 173-186 walk: the tracked block changed → un-stick, the randomized velocity, the clocks reset; the engine's stick-clock arm carries no block-change consult). Both carry pass 1; the seats the next lane's head |
 | Block-update wake (BlockUpdateSystem.runUpdate, RedstoneSystem.neighborChanged) — world binding | SURFED as VT-009's pass-3 non-compensation evidence: BOTH reads consult the overworld field (the changed-world parameter ignored in the six-neighbor dispatch) — the house stream's FL4-F10 lane landed the redstone world binding (`0328e92f`); the block-update arm's coverage rides that wave's seats |
@@ -2930,19 +3032,21 @@ survivor today).
 | Zombie/mob arms — world binding | NOT INSPECTED (the zombie door-break consults the overworld field) |
 | Explosions — dimension routing | AUDITED (the twenty-sixth pass): the CORE resolved by PR #100; the CART slice RESOLVED — **PR #105 MERGED** (`278b139e`, the review rider at `32af09f3`). The named tail stands: the End/nether services' shared `gameplayRandom` vs the reference's per-world `world.random` |
 | Item entities / pickup — dimension | the TF-9 stamped sites are the record; the pickup consult un-audited |
+| Grass spread — the three gates | **VT-018 SUSPECTED** (this pass, discovered inside VT-017's walk): the outer ≥ 9 gate missing, the target threshold 9 against the reference's 4, the target-opacity gate absent (grass spreads under water) — pass 1 complete, the seats owed |
 ## The queue for the next pass
 
-1. **VT-017's passes** (this pass's head): the grass-decay behavioral
-   seats — grass under a BED (the observed case), under a FLOWER, under
-   a SLAB, with the stone positive control and the open-sky negative
-   control; then the independent pass (the `BlockLightTable.filter`
-   consult's equivalence to `getOpacity` verified, the compensating
-   behavior hunted).
-2. **VT-016's passes**: the piston-push behavioral seat — a piston
-   extending into a bed pair: vanilla's observable is the pair gone +
-   exactly one bed item; the engine's today is the displaced half + the
-   floating survivor. Then the independent pass over the remaining
-   membership rows (doors, weighted plates, cocoa, anvil).
+1. ~~VT-017's passes~~ — **DONE (this pass: CONFIRMED and CORRECTED,
+   PR #116 OPEN** — the two arms' convergence on the mycelium form, the
+   six seats, the two regression lanes).
+2. **VT-016's passes** (the next head): the piston-push behavioral
+   seat — a piston extending into a bed pair: vanilla's observable is
+   the pair gone + exactly one bed item; the engine's today is the
+   displaced half + the floating survivor. Then the independent pass
+   over the remaining membership rows (doors, weighted plates, cocoa,
+   anvil).
+2b. **VT-018's passes**: the spread-gate seats — the dim-source seat,
+   the dim-target seat, the underwater seat; then the independent pass
+   (the mycelium arm's spread seats as the engine-internal precedent).
 3. **VT-014's and VT-015's seats** (the thirty-first pass's head for
    its next run — this lane does not duplicate): the stuck-position
    seat (a known face height, the resting position's side of the face
