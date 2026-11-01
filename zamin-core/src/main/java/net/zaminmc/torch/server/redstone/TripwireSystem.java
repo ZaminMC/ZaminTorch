@@ -83,9 +83,12 @@ public final class TripwireSystem implements WorldChangeListener {
         }
         if (TripwireBlocks.isTripwire(now)) {
             wirePositions.add(position);
-            // TripwireBlock.onAdded lines 116-121: the suspended bit from
-            // the floor test, then the hook update.
-            boolean suspended = !WorldSolidity.isSolid(world.getBlock(position.offset(0, -1, 0)));
+            // TripwireBlock.onAdded lines 110-114: the suspended bit
+            // from the floor test (the hasSolidTop law — F-SP4, never
+            // the collision question: the translucent floors suspend
+            // the wire), then the hook update.
+            boolean suspended = !net.zaminmc.torch.server.block.SupportConsult
+                    .hasSolidTop(world.getBlock(position.offset(0, -1, 0)));
             BlockType state = TripwireBlocks.wireOf(
                     TripwireBlocks.wirePowered(now), suspended,
                     TripwireBlocks.wireAttached(now), TripwireBlocks.wireDisarmed(now));
@@ -226,7 +229,10 @@ public final class TripwireSystem implements WorldChangeListener {
         int facing = TripwireBlocks.hookFacing(state);
         boolean wasAttached = TripwireBlocks.hookAttached(state);
         boolean wasPowered = TripwireBlocks.hookPowered(state);
-        boolean suspended = !WorldSolidity.isSolid(world.getBlock(pos.offset(0, -1, 0)));
+        // TripwireHookBlock.updateState line 101 (F-SP4): the hook walk's
+        // own suspended computation over the hasSolidTop law.
+        boolean suspended = !net.zaminmc.torch.server.block.SupportConsult
+                .hasSolidTop(world.getBlock(pos.offset(0, -1, 0)));
         boolean attached = !removed;
         boolean powered = false;
         int farHook = 0;
@@ -335,7 +341,11 @@ public final class TripwireSystem implements WorldChangeListener {
     private void checkSupport(BlockPosition pos) {
         BlockType type = world.getBlock(pos);
         if (TripwireBlocks.isTripwire(type)) {
-            boolean suspended = !WorldSolidity.isSolid(world.getBlock(pos.offset(0, -1, 0)));
+            // TripwireBlock.neighborChanged lines 87-94 (F-SP4): the flag
+            // flip over the hasSolidTop law — the translucent floors
+            // suspend the wire, the flip popping it with the string drop.
+            boolean suspended = !net.zaminmc.torch.server.block.SupportConsult
+                    .hasSolidTop(world.getBlock(pos.offset(0, -1, 0)));
             if (suspended != TripwireBlocks.wireSuspended(type)) {
                 // The suspended flip breaks the wire with the string drop
                 // (dropItems + removeBlock).
