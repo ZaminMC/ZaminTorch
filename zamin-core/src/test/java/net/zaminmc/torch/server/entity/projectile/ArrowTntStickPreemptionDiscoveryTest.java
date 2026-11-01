@@ -19,10 +19,11 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * THE VERIFIER'S VT-025 SEATS — the burning arrow's TNT hit consult
+ * THE VERIFIER'S VT-028 SEATS — the burning arrow's TNT hit consult
  * preempts the stick (this lane's discovery, the PR #123 review's
- * product; FIRST NUMBERED VT-022, renumbered by the forty-first
- * pass's reconciliation).
+ * product; FIRST NUMBERED VT-022, then VT-025 by the forty-first
+ * reconciliation draft — VT-028 the final number, the toBreak's
+ * PR title edit having taken 25 at 07:29:59).
  *
  * <p>THE REFERENCE LAW (reference/1.8.8, ArrowEntity.tick's stick arm
  * lines 288-309): when a flight tick's rayTrace hits a block face, the
@@ -59,7 +60,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * stuck-walk arm ({@code setBurningTntArm}) is left unwired so the
  * prime can only ride the vanilla block-hit path.</p>
  *
- * <p>These seats are EXPECTED RED on develop until VT-025's correction
+ * <p>These seats are EXPECTED RED on develop until VT-028's correction
  * lands (the correction stacks on VT-014's face rest and VT-015's
  * un-stick law — PRs #117/#122 and #120). Do not re-pin them to the
  * engine's current answer; the finding record owns the mismatch.</p>

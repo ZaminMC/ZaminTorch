@@ -3928,10 +3928,14 @@ carriers, preserved whole at `archive/vt014-vt015-combined-draft`
 (`967cf1f4`); its three seat files are byte-identical to #117's
 branch.
 
-## VT-025 — the burning arrow's TNT hit never sticks the arrow: the engine primes and continues the flight; the reference sticks at the face−0.05 rest, primes, then un-sticks when the TNT's removal opens the tracked cell (CONFIRMED — three passes; FIRST NUMBERED VT-022 by this lane — renumbered by the forty-first pass's reconciliation: PR #129's piston entity gate took the number publicly first, and the number is yielded to the stronger public artifact per this lane's own twice-renumbered precedent)
+## VT-028 — the burning arrow's TNT hit never sticks the arrow: the engine primes and continues the flight; the reference sticks at the face−0.05 rest, primes, then un-sticks when the TNT's removal opens the tracked cell (CONFIRMED — three passes; FIRST NUMBERED VT-022 by this lane — renumbered by the forty-first pass's reconciliation: PR #129's piston entity gate took the number publicly first, and the number is yielded to the stronger public artifact per this lane's own twice-renumbered precedent)
 
-- **Status:** CONFIRMED (three passes complete; Phase E eligible WITH
-  THE DEPENDENCY RECORDED — the fix composes with VT-014's face rest
+- **Status:** CONFIRMED (three passes complete; FIRST NUMBERED VT-022 by
+  this lane, then VT-025 by the forty-first reconciliation draft — RENUMBERED
+  VT-028 by the forty-third's final reconciliation: the piston toBreak owns
+  VT-025 publicly (PR #131's title edit 07:29:59) and the nether border VT-026
+  / the post-fan stamp VT-027 (the forty-second lane's assignments); Phase E
+  eligible WITH THE DEPENDENCY RECORDED — the fix composes with VT-014's face rest
   (#117/#122) and VT-015's un-stick (#120): the fix branch stacks on
   #120 or waits for its merge; without #120 the fixed arrow stays
   stuck at the opened cell's face, a one-tick approximation of the
@@ -4239,14 +4243,14 @@ evidence fresh-run in this pass's worktrees:
 | Grass decay — the shade consult | **VT-017 CONFIRMED — the correction is PR #116 OPEN, independently reviewed by the thirty-sixth lane** (the bed-coverage lane's twenty-seventh pass, renumbered): the engine's `isOpaque` 3-block allowlist (air/torch/glass) stands in for the reference's opacity law (`getOpacity() > 2` — every non-solid-render block answers 0) — the grass dies under beds, flowers, slabs, stairs where vanilla keeps it; one source pass + the OBSERVED dirt-under-bed evidence from the VT-009 trace; **the correction is PR #116 OPEN — independently reviewed this pass: the two-conjunct law verified faithful against GrassBlock.tick 49-52 and the 1:1 light table, the seats 6/0 on the fix tree, 4/6 RED on the develop baseline, the two narrow residues named in the note (the water cover's usesNeighborLight read; the update arm's instant timing — both ledger material, not blockers)** |
 | Piston pushability — the behavior table's membership | **VT-016 CONFIRMED and CORRECTED** (the fortieth pass): the whole-registry census — 426 of 1302 ids diverged on unfixed develop (the five pass-1 families were a subset; the crops, the saplings' real ids, the six woods' leaves, the fluid state vocabulary, the vine faces, the double plants, the ladder, the tripwire family, the small mushrooms, the nether wart, the lily, the stems, the melon, the pumpkins' facing states, the cake bites, the potted forms, the fire ages, the dragon egg, and four dead ITEM-keyed/bare-prefix rows) — **PR #126 OPEN**, the seats 3/0 + the census pin 1/0 on the fix (the whole-registry drift guard: the unknown-id guard + the closed 26-id exemption set), the piston package 27/0, the regression lanes 54/0 |
 | Piston pushability — the block-entity gate | **VT-022 CONFIRMED and CORRECTED** (the fortieth pass): `isBlockEntityBacked`'s five-id membership vs the reference's whole `!(block instanceof BlockEntityProvider)` census — the pushed containers lost their contents (the data-loss class); **PR #129 OPEN**, the seats 2/0 on the fix, the piston package 25/0, the container lanes 43/0 |
-| Piston toBreak — the drop consult | **VT-023-first / VT-026 by the forty-first pass's reconciliation** (the fortieth pass's third act; PR #128's flight band owns VT-023 publicly first — opened 06:37:51 vs #131's 06:49:10 — and VT-024 the pickup envelope (the pass-38 push 06:42:44 + PR #132), so the piston toBreak consult takes VT-026): dropBlock's first-success break (a stale copy of the Drop record's pre-migration javadoc model) vs the DropService's every-entry rolls — routed through the shared no-tool walk; **PR #131 OPEN (stacked on #126)**, the seats 2/0 on the union, the piston package 29/0, the regression lanes 54/0 |
+| Piston toBreak — the drop consult | **VT-023-first / VT-025 by the final reconciliation** (the fortieth pass's third act; PR #128's flight band owns VT-023 publicly first — opened 06:37:51 vs #131's 06:49:10 — and VT-024 the pickup envelope (the pass-38 push 06:42:44 + PR #132), so the piston toBreak consult takes VT-025; #131's title edit at 07:29:59 adopted the resolution): dropBlock's first-success break (a stale copy of the Drop record's pre-migration javadoc model) vs the DropService's every-entry rolls — routed through the shared no-tool walk; **PR #131 OPEN (stacked on #126)**, the seats 2/0 on the union, the piston package 29/0, the regression lanes 54/0 |
 | Projectile family — the stick placement (the resting position's geometry) | **VT-014 CONFIRMED — FOUR INDEPENDENT CONSTRUCTIONS, FIVE LANES** (three passes each; the quadruple convergence the thirty-fifth/thirty-sixth passes recorded): pass 1 the thirty-first's source walk; pass 2 the seats — the pass-33 lane's launch-based pair (the observed rest y=19.841 INSIDE the hit cell, x=51.480 hanging past the thin wall), the pass-34 lane's spawnRestored-deterministic pair (y=19.4079402396 at velocity exactly -1.0, x=61.97 past the wall in open air — the exact face±0.05 pins at 0.001), the pass-35 lane's pair (y=20.919 below the face at 21.0, z=41.486 one full block past the wall), the pass-36 lane's own pair (y=20.2143 / x=61.77) — all RED on develop `6b29c46f` at exactly the placement asserts; pass 3 the walks (the writer census — `inGround` set true at exactly two sites and cleared NOWHERE; the design-choice challenges negative on both lanes; the consumers walk; the import-coherence edge). **THE CORRECTION OPEN: PR #117** (`fix/arrow-stick-placement-parity-audit` over develop `6b29c46f`: the reference's rayTrace face walk at the engine's cell granularity + the 0.05 backoff + the landed wire publish; both the pass-33 and pass-34 lanes' seats GREEN 4/0 on the fix tree, the projectile package 48/0, the neighbor lanes 34/0; **the #113 interaction reviewed** — the `!inGround` gate note posted, the union's lights-later regression named) — **but the construction leaves the PARTIAL-SHAPE face unfixed: VT-021 CONFIRMED against it — the thirty-eighth pass's record below** (the slab seat RED on the #117 tree, observed rest y=18.8268 THROUGH the slab's surface against the reference's 19.55; the record in the thirty-eighth pass's section below; the b-lane's box-view branch `237611d3` carries all three seats GREEN — the review note on #117 the channel, the construction pick the maintainer's) — **PR #122 OPEN** as the alternative carrier (the review note: https://github.com/ZaminMC/ZaminTorch/pull/117#issuecomment-6554234533) |
 | Projectile family — the tracked-block un-stick law (the arrow; the bobber beside it) | **VT-015 CONFIRMED — FOUR INDEPENDENT CONSTRUCTIONS, FIVE LANES** (three passes each): pass 1 the thirty-first's source walk; pass 2 the seats — the pass-33 lane's (the rest IDENTICAL through the broken cell), the pass-34 lane's (STILL inGround, FROZEN at the endpoint), the pass-35 lane's pedestal break, the pass-36 lane's own construction — all RED on develop; pass 3 the walks (the reference re-read — the per-component fresh `random*0.2` re-arm over the STORED face-relative vector, both clocks reset; the compensation hunts negative; the family walk — the bobber the same law's second member; the import walk — the xTile/inTile/inData rows the engine's own recorded gap; the javadoc citations — `flingVelocity` names the un-stick's 0.2 factor as reference-only). **THE CORRECTIONS OPEN — the convergence:** **PR #120** (`fix/arrow-unstick-parity-audit` over develop `6b29c46f`: the tracked cell + the per-tick identity consult + the exact damped re-arm + the import's xTile/inTile rows landing — the reference's readCustomNbt 402-411 restores them; both lanes' seats GREEN, the anvil family 47/0) and **PR #119** (`fix/arrow-unstick-tracked-block-parity-audit`: the same live law 1:1, the import surface deferred as its named tail — the convergence note posted, the carrier pick the maintainer's, the unique coverage worth absorbing either way); the bobber's parallel arm the named follow-up (the family-member protocol) |
 | Projectile family — the stuck burning arrow's TNT consult | **VT-019 CONFIRMED — three passes complete; the correction is PR #123 OPEN** (the #119-closed/#120-keeper convergence resolved by the thirty-seventh pass; pass 1 the thirty-sixth's source walk; pass 2 TWO independent seats — the thirty-eighth lane's (RED on develop `777b7c86` at exactly the predicted cell `[10, 39, 10]`, both controls green, the b2 lane's re-based construction `026e9135` seating the stone-face-above-TNT shape) and the thirty-ninth lane's (RED at the pre-computed geometry — the stuck arrow at `Position[60.147, 41.1, 51.5]`, the adjacent TNT at (60,40,51) primed on the stick tick itself; the control green — the landing-on-TNT ignition live; the placement-independent construction RED on PR #117's tree too); pass 3 the independent challenges (the timing probe — the prime fires ON THE STICK TICK, never during flight; the execution-path census — `Entity.move()`'s own scan never runs for arrows, `Entity.tick` is baseTick alone; the live-wiring verification — the real engine already wires the vanilla stick-arm consult `igniteByArrow`, the ungated pass purely additive; the fire-clock amplification — the engine's stuck fire FREEZES where the reference's baseTick decays it, the detonation eternal; the design-intent challenge negative)). The named tails: (a) the stick-tick's rest-box scan (SEATED by the thirty-ninth pass's fifth act — `ArrowStickTickTntScanDiscoveryTest`, RED on develop AND on the #123+#128 union — its own fix slice), (b) the flight band's vertical shift (**VT-023** below), (c) the existing seat `aBurningArrowPrimesTheTntItOverlaps`'s stub review correction (carried by the b2 lane's rework — the stub now wires the stick arm; its flight-continues pin is VT-025's named re-pin target, the record below) |
 | Projectile family — the burning arrow's FLIGHT band shape | **VT-023 CONFIRMED — three passes; the correction is PR #128 OPEN** (VT-019's named tail (b), elevated to its own finding; the number after the pass-36 lane's VT-022 claim — the stick-vs-prime ordering): the engine's `burningTntPass` flying walk consults the symmetric [y−0.25, y+0.25] band around the position; the reference's flight consult (`checkBlockCollisions` over the arrow's box) walks the feet-law box [y, y+0.5] — `Entity.setPosition` line 240-247: `setShape(new Box(x−w/2, y, z−w/2, x+w/2, y+height, z+w/2))`, the arrow's `setSize(0.5F, 0.5F)`. Two divergences, both seated RED on develop AND on the #123 tree (the VT-019 gate is orthogonal): (A) the extra reach below — a TNT cell under the flight path primes in the engine (the band dips 0.25 below the position), stands in the reference; (B) the missed reach above — the box's top quarter [y+0.25, y+0.5] primes in the reference, the engine's band misses it. Pass 2: the two seats (`BurningArrowFlightBandParityDiscoveryTest`) RED at exactly the predicted shapes — arm A observed primed `[10, 39, 10]` where vanilla stands; arm B observed standing where vanilla primes; the thirty-ninth lane's fourth act re-seated both grazing edges as full-boot deterministic constructions and ran them GREEN on the #128 tree. Pass 3: the premise walk (setPosition's feet law read directly; the engine's position = the reference's position pinned by VT-014's rest law across four constructions), the compensation hunt (negative — no consult covers the top quarter), the design-intent challenge (the javadoc's own 'box-center envelope' framing is the misreading — the position is the box BOTTOM; the same class as VT-019's 'or stuck in the ground' clause) |
 | Projectile family — the arrow pickup's envelope shape | **VT-024 CONFIRMED — three passes; the correction is PR #132 OPEN** (VT-023's named follow-up, the same class): `withinArrowPickupRange`'s horizontal center-distance cap 1.25 (ARROW_HALF_WIDTH + PICKUP_GROWTH_HORIZONTAL) MISSES the player's own half-width 0.3 — the reference's intersection reaches 1.55 (the player's box grown 1.0 horizontal over the arrow's box); the vertical envelope [y−0.25, y+0.25] is the same shifted-down 0.25 as VT-023's flight band (the feet law's box [y, y+0.5]) — missing [py−1.0, py−0.75] below and over-reaching [py+2.3, py+2.55) above. The reference (PlayerEntity 486-505): the player's own box (setSize(0.6F, 1.8F)) GROWN (1.0, 0.5, 1.0) intersected with the arrow's box; `onPlayerCollision` per entity. Pass 2: three seats RED on develop `777b7c86` at exactly the predicted shapes — arm A the horizontal shortfall (the arrow at dx=1.4 left standing, vanilla collects), arm B the vertical miss below (the arrow at py−0.9 left standing, vanilla collects), arm C the vertical over-reach above (the arrow at py+2.4 COLLECTED, vanilla leaves it above the grown ceiling). Pass 3: the premise carried from VT-023's verified feet law, the horizontal law read directly, the compensation hunt (negative — the engine's pickup pass is the only consult), the design-intent challenge (the javadoc claims 'the player box grown 1.0/0.5 against the arrow's own 0.5 box' — the code drops the player's half-width and shifts the arrow's envelope; the retired box-center framing again). **The forty-first pass's Phase E act**: independently re-verified whole (the reference's `Box.intersects` strictness read directly, the three seats re-run RED on unfixed develop `149eb1f0` by this lane's own run, the family convention confirmed — the orb/item walks already carry the 0.3) and corrected as **PR #132** (`fix/arrow-pickup-envelope-parity-audit`, the seats 3/0 GREEN, the projectile package 48/0, the orb/item family lanes 45/0, the combat lanes 15/0) |
-| Orb/item pickup — the box model (the size; the spawn anchoring) | **VT-027 SUSPECTED — pass 1 complete (the source walk, the forty-first pass)**: the engine's orb is a 0.25×0.25 box (HALF_WIDTH/HEIGHT 0.125) where the reference's SPAWNED orb is 0.5×0.5 (the xp constructor, line 22 — every gameplay spawn site; the 0.25 default ctor is the entity-LOAD path alone, a vanilla quirk) — the envelope's world-space reach 1.425 vs 1.55 (0.125 short horizontally) and the box's vertical extent 0.25 vs 0.5 (at rest the collect window tops at ground+0.25 vs ground+0.5); the ITEM's size matches (0.25×0.25 both sides); the envelope FORM is convention-correct for both families (the center-anchored position with the documented bottom = y−HALF_HEIGHT compensations — the pass-38 tail's 'family shares the shortfall' suspicion CORRECTED: the form is right, the SIZE is the divergence); the named tail: the spawn anchoring (the engine's spawnOrb centers the box at y+0.2 vs the reference's box-bottom at y — the mid-flight collect window the seat owed) |
-| Projectile family — the burning arrow's TNT hit consult preempts the stick | **VT-025 CONFIRMED — three passes, Phase E eligible (the fix stacked on #120); RENUMBERED from this lane's VT-022 draft by the forty-first pass's reconciliation (PR #129's piston entity gate took 22 publicly first, 06:38:58 vs this record's push 06:30:35 — the number yielded to the stronger public artifact, the lane's own twice-renumbered precedent honored; discovered in the #123 review)**: the reference sticks the arrow BEFORE the hit-block consult (`inGround = true` at ArrowEntity line 304 precedes `onEntityCollision` at 308; TntBlock's consult ignites AND `removeBlock`s — the tracked cell opens, and VT-015's un-stick law hops the arrow out beside the TNT on the next tick); the engine's block-hit arm ignites and returns false — the arrow NEVER STICKS, flying through the opened cell at speed (the javadoc's "the arrow KEEPS ITS FLIGHT" conflates not-removed with flying). The pass-37 lane's re-mechanized `ProjectileManagerTest` pins the flight-continues shape — the pin is the divergence, the named re-pin target. The seat (`ArrowTntStickPreemptionDiscoveryTest`, the forty-first pass) RED on develop `149eb1f0`: the prime fires but the arrow NEVER LANDS (observed rest x=11.258 beyond the face at flight speed), the plain-arrow control green; the pass-3 walk complete (the execution-path census, the javadoc's misread named, the composition edges) — the record below |
+| Orb/item pickup — the box model (the size; the spawn anchoring) | **VT-029 SUSPECTED — pass 1 complete (the source walk, this lane's forty-first-draft pass; RENUMBERED from its VT-027 draft — the forty-second lane assigned 27 to the post-fan stamp)**: the engine's orb is a 0.25×0.25 box (HALF_WIDTH/HEIGHT 0.125) where the reference's SPAWNED orb is 0.5×0.5 (the xp constructor, line 22 — every gameplay spawn site; the 0.25 default ctor is the entity-LOAD path alone, a vanilla quirk) — the envelope's world-space reach 1.425 vs 1.55 (0.125 short horizontally) and the box's vertical extent 0.25 vs 0.5 (at rest the collect window tops at ground+0.25 vs ground+0.5); the ITEM's size matches (0.25×0.25 both sides); the envelope FORM is convention-correct for both families (the center-anchored position with the documented bottom = y−HALF_HEIGHT compensations — the pass-38 tail's 'family shares the shortfall' suspicion CORRECTED: the form is right, the SIZE is the divergence); the named tail: the spawn anchoring (the engine's spawnOrb centers the box at y+0.2 vs the reference's box-bottom at y — the mid-flight collect window the seat owed) |
+| Projectile family — the burning arrow's TNT hit consult preempts the stick | **VT-028 CONFIRMED — three passes, Phase E eligible (the fix stacked on #120); RENUMBERED from this lane's VT-022 draft (then its VT-025 draft — the toBreak's PR title edit took 25 at 07:29:59, the nether border 26, the post-fan stamp 27) by the forty-first pass's reconciliation (PR #129's piston entity gate took 22 publicly first, 06:38:58 vs this record's push 06:30:35 — the number yielded to the stronger public artifact, the lane's own twice-renumbered precedent honored; discovered in the #123 review)**: the reference sticks the arrow BEFORE the hit-block consult (`inGround = true` at ArrowEntity line 304 precedes `onEntityCollision` at 308; TntBlock's consult ignites AND `removeBlock`s — the tracked cell opens, and VT-015's un-stick law hops the arrow out beside the TNT on the next tick); the engine's block-hit arm ignites and returns false — the arrow NEVER STICKS, flying through the opened cell at speed (the javadoc's "the arrow KEEPS ITS FLIGHT" conflates not-removed with flying). The pass-37 lane's re-mechanized `ProjectileManagerTest` pins the flight-continues shape — the pin is the divergence, the named re-pin target. The seat (`ArrowTntStickPreemptionDiscoveryTest`, the forty-first pass) RED on develop `149eb1f0`: the prime fires but the arrow NEVER LANDS (observed rest x=11.258 beyond the face at flight speed), the plain-arrow control green; the pass-3 walk complete (the execution-path census, the javadoc's misread named, the composition edges) — the record below |
 | Block-update wake (BlockUpdateSystem.runUpdate, RedstoneSystem.neighborChanged) — world binding | SURFED as VT-009's pass-3 non-compensation evidence: BOTH reads consult the overworld field (the changed-world parameter ignored in the six-neighbor dispatch) — the house stream's FL4-F10 lane landed the redstone world binding (`0328e92f`); the block-update arm's coverage rides that wave's seats |
 | Block identity — the legacy wire rows | the vine family's gap LANDED by `6b29c46f` (the house's own production-crash repair; `LegacyBlockIdsIntegrityTest`'s skip set now EMPTY and pinned) |
 | Mob spawns — the dimension stamp | **VT-012 CONFIRMED — three passes complete, fix-ready** (`audit/vt-012-spawn-dimension-stamp`: fourteen unstamped sites censused — the eggs, /summon, the wither, the spawner cart, the mooshroom shear, the infection/cure, the slime split, breeding, the golems, the infested burst; the wrong-stamped nether body invisible to the nether player, its physics reading the overworld's cells, a permanent ghost on the despawn walk) — the fix branch the next run's head |
@@ -5358,7 +5362,7 @@ the seats 2/0 on the fix; the piston package whole 25/0; the container
 lanes 43/0 (the chest package whole, HopperWindow, FurnaceHopperEvent,
 DispenseBehavior, BrewingStandApi, BeaconSystem).
 
-## VT-023 — the piston toBreak drop consult diverges for multi-entry and family-branch drop rows: a broken potted plant drops only the pot, the broken leaves drop nothing (CONFIRMED — three passes; the correction is **PR #131 OPEN, STACKED ON #126**; FIRST NUMBERED VT-020 by this lane's initial draft — renumbered by the fortieth pass's own reconciliation, the spawn-floor lane's hasSolidTop claim owns 20 publicly; RENUMBERED AGAIN to **VT-026** by the forty-first pass's reconciliation — PR #128's flight band owns VT-023 publicly first (opened 06:37:51 vs #131's 06:49:10) and VT-024 belongs to the pickup envelope (the pass-38 push 06:42:44 + PR #132); the cross-lane note owed on #131)
+## VT-023 — the piston toBreak drop consult diverges for multi-entry and family-branch drop rows: a broken potted plant drops only the pot, the broken leaves drop nothing (CONFIRMED — three passes; the correction is **PR #131 OPEN, STACKED ON #126**; FIRST NUMBERED VT-020 by this lane's initial draft — renumbered by the fortieth pass's own reconciliation, the spawn-floor lane's hasSolidTop claim owns 20 publicly; RENUMBERED AGAIN to **VT-025** by the final reconciliation — PR #128's flight band owns VT-023 publicly first (opened 06:37:51 vs #131's 06:49:10) and VT-024 belongs to the pickup envelope (the pass-38 push 06:42:44 + PR #132); #131's title edit at 07:29:59 adopted it)
 
 **Subsystem:** redstone / the piston families / the toBreak drop law.
 **Affected version:** develop `777b7c86` (independent of PR #126 —
@@ -5536,12 +5540,17 @@ own three-pass discipline and its own PR.
 
 
 
-## The forty-first pass — the four-lane union landed, the numbering collisions reconciled, VT-024 corrected (PR #132), VT-025 confirmed whole (this lane's own discovery), and the orb's box model discovered (VT-027)
+## The forty-third pass (FIRST DRAFTED the forty-first; RENUMBERED TWICE — the sibling session's forty-first pushed at 07:27:05 and the forty-second at 07:32:36, both minutes ahead of this lane's blocked push — the established protocol) — the four-lane union drafted, the numbering collisions reconciled to the FINAL state, VT-024 corrected (PR #132 + the strict-form rider), VT-028 confirmed whole (this lane's own discovery), and the orb's box model discovered (VT-029)
 
 **The provenance.** This lane is the pass-36 lineage's continuation
 (the five-lane union's own carrier, the #123/#127 reconciliation, the
 review record). The environment reset with the lane's head pushed
 (`798ace74`); the fetch found THREE sibling lanes advanced beyond it —
+(and while this lane's own forty-first draft was being written, TWO
+more sibling lanes pushed their own forty-first (07:27:05, the VT-018
+entity-hit lane) and forty-second (07:32:36, the six-way union lane);
+this lane's section renumbers to the forty-third, its records riding
+the merge of both)
 the thirty-eighth (the recovery reconciliation, VT-021/VT-023/VT-024),
 the thirty-ninth (the cross-tree verifications, the stick-tick
 residue), and the fortieth (the piston family whole: VT-016's census,
@@ -5552,25 +5561,38 @@ bookkeeping-only conflict resolutions; every record kept; the
 thirty-ninth pass's first-act header restored after the merge's
 context alignment ate it).
 
-**THE NUMBERING RECONCILIATION (the pass's own act).** The concurrent
-window produced three collisions, resolved by the public-first
-protocol with the timing facts recorded:
+**THE NUMBERING RECONCILIATION (the pass's own act, carried to the
+FINAL state by the closing fetch).** The concurrent window produced
+three collisions, resolved by the public-first protocol with the
+timing facts recorded:
 
 - **VT-022** — this lane's TNT-stick-preemption discovery (the
   pass-36 audit push 06:30:35) vs the fortieth lane's piston
   entity gate (PR #129, created 06:38:58). The number is YIELDED to
   the piston claim: a PR title is the stronger public artifact, and
   this lane's own twice-renumbered precedent (VT-016→VT-018→VT-019)
-  honors exactly that. **This lane's finding renumbers VT-025.**
+  honors exactly that. **This lane's finding renumbered VT-025 by
+  this pass's draft, then VT-028 by the final reconciliation below
+  (the toBreak's PR title edit took 25 at 07:29:59, the forty-second
+  lane's assignments took 26/27 for the nether border and the
+  post-fan stamp).**
 - **VT-023** — the flight band (PR #128, created 06:37:51) vs the
   piston toBreak consult (PR #131, created 06:49:10). **PR #128
   owns VT-023** (first public); the toBreak renumbers.
 - **VT-024** — the pass-39 note (07:08:45) assigned VT-024 to
   #131's renumber, but the pass-38 push (06:42:44) had already
   claimed VT-024 for the arrow pickup's envelope. **The pickup
-  envelope owns VT-024** (the earlier public claim, now carried by
-  PR #132); **the toBreak consult renumbers VT-026** (the next free
-  number). The cross-lane note is owed on #131.
+  envelope owns VT-024** (the earlier public claim, carried by
+  PR #132 at 07:23:08); **#131's own lane adopted the resolution in
+  its 07:29:59 title edit — the toBreak consult renumbers VT-025**
+  (the forty-first-draft lane's 07:27:05 intermediate resolution and
+  the forty-second lane's records agree after the adoption). **The
+  strict-form rider**: the -b lane's convergent carrier (`07c180aa`)
+  pinned the reference's strict `Box.intersects` boundary where this
+  lane's first cut kept the non-strict comparison — the rider
+  adopted onto PR #132 (`57bc04c9`, the boundary arms D/E riding,
+  the seats 5/0, the touched families 103/0; the convergence note
+  posted, `#issuecomment-6555071263`).
 
 **THE PASS'S HEAD — VT-024's Phase E act (the correction PR #132).**
 The pass-38 lane left the pickup envelope CONFIRMED and Phase E
@@ -5603,9 +5625,9 @@ independent-verification-first discipline:
   ItemDimensionReads), the combat lanes 15/0 (RangedCombatAcceptance
   10, MobCombatAcceptance 5).
 
-**THE SECOND ACT — VT-025 confirmed whole (this lane's own
+**THE SECOND ACT — VT-028 confirmed whole (this lane's own
 discovery, the #123 review's product; passes 2-3 completed this
-pass).** The reference's arm ordering re-verified directly (the
+pass; numbered VT-028 by the final reconciliation).** The reference's arm ordering re-verified directly (the
 `playSound` at 303, `inGround = true` at **304**, the consult at
 **308**; `TntBlock.onEntityCollision` 91-104 — the ignite AND
 `removeBlock`); the seat constructed
@@ -5635,7 +5657,7 @@ reworked `ProjectileManagerTest.aBurningArrowPrimesTheTntItOverlaps`
 pins the ENGINE's flight-continues shape ("the prime at the hit
 cell, the arrow flying THROUGH the opened cell, sticking in the
 floor below") — the pin IS the divergence, and it re-pins when
-VT-025's correction lands. **VT-025 CONFIRMED — three passes,
+VT-025's correction lands. **VT-028 CONFIRMED — three passes,
 Phase E eligible WITH THE DEPENDENCY RECORDED:** the fix (stick
 before the consult) composes with VT-014's face rest (#117/#122)
 and VT-015's un-stick (#120) — the fix branch stacks on #120 or
@@ -5643,7 +5665,7 @@ waits for its merge (without #120, the fixed arrow stays stuck at
 the opened cell's face rather than hopping; a one-tick approximation
 of the reference's law, documented as the honest scope).
 
-**THE THIRD ACT — the orb's box model discovered (VT-027, pass 1:
+**THE THIRD ACT — the orb's box model discovered (VT-029, pass 1:
 the source walk).** VT-024's walk read the orb/item family's
 envelopes beside the arrow's and found the family's named tail
 HALF-CONFIRMED, HALF-CORRECTED:
@@ -5688,7 +5710,7 @@ numbering collisions reconciled with the timing facts recorded;
 VT-024 independently re-verified whole and corrected (**PR #132
 OPEN**); VT-025 (this lane's discovery) confirmed whole through its
 own seat and walk (Phase E eligible, the dependency recorded);
-VT-027 discovered (pass 1); the item/orb family's envelope form
+VT-029 discovered (pass 1; the number renumbered from the VT-027 draft); the item/orb family's envelope form
 CORRECTED in the record (the pass-38 tail's suspicion half-refuted);
 the develop baseline advanced to `149eb1f0` (the FL4-GAP2 Slice B
 landing noted — the container families' dimension ownership).
@@ -5705,8 +5727,8 @@ landing noted — the container families' dimension ownership).
    convergent carriers), #121 (VT-020), #122 (VT-021+VT-014), #123
    (VT-019), #124 (VT-018), #125 (VT-012), #126 (VT-016), #128
    (VT-023), #129 (VT-022), #130 (VT-013-postfan), #131
-   (VT-026-the-toBreak), **#132 (VT-024, this pass)**.
-1. **VT-025's Phase E** (this lane's confirmed discovery): the fix
+   (VT-025-the-toBreak), **#132 (VT-024, this pass)**.
+1. **VT-028's Phase E** (this lane's confirmed discovery, the final number): the fix
    branch — the stick BEFORE the consult in the block-hit arm (the
    reference's own order: the rest placement, the sound, the
    tracked cell, `landInGround`, THEN `tntIgniteSink.ignite`) —
@@ -5714,7 +5736,7 @@ landing noted — the container families' dimension ownership).
    un-stick the fixed arrow stays stuck at the opened cell's face
    (a one-tick approximation, the honest scope documented). The
    b2 lane's flight-continues pin re-pins with it.
-2. **VT-027's passes 2-3** (the orb's box model): the seats — the
+2. **VT-029's passes 2-3** (the orb's box model, the final number): the seats — the
    horizontal shortfall (an orb at dx=1.45 beside the walker), the
    vertical window at rest (the player 0.75-1.0 above the orb's
    floor), the spawn-anchoring question (the mid-flight collect
@@ -5726,7 +5748,7 @@ landing noted — the container families' dimension ownership).
    fifth act): the flight walk's landing arm consults the band at
    the rest once (the feet-law window) before the stuck body exits
    the walk — RED on develop AND on the #123+#128 union; its own
-   branch (stacked behind #123/#128 or composed with VT-025's fix).
+   branch (stacked behind #123/#128 or composed with VT-028's fix).
 4. **VT-012's own pass** (the pass-30 lane's discovery): the
    `NetherBlastRoutingAcceptanceTest` flake's bounded fix — the
    seat's read order (await the event reference, not the cell
@@ -5738,6 +5760,8 @@ landing noted — the container families' dimension ownership).
    world binding. The blast RNG tail (VT-007's named tail): the
    End/nether services' shared `gameplayRandom` vs the reference's
    per-world `world.random`.
-7. **The cross-lane notes owed:** the VT-026 renumber note on #131
-   (this pass's reconciliation); the union note on the audit
-   branch's push.
+7. **The cross-lane notes owed:** the VT-025 convergence ack on #131
+   (its own lane already adopted the resolution in the 07:29:59 title
+   edit — this lane's note confirms and records the final numbers:
+   VT-025 the toBreak, VT-026 the nether border, VT-027 the post-fan
+   stamp, VT-028 this lane's TNT-stick, VT-029 the orb's box model).
