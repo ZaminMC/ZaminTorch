@@ -7367,14 +7367,138 @@ merged before this pass); the next queue below.
 
 ---
 
-*(The file's end — the forty-fifth pass's closing pointer: the LIVE
-queue is the forty-sixth pass's, in the section above — VT-029's seats
-the head, the stick-tick residue's fix slice, the merge watch at
-develop `efcd0c4f` (28 open, #140 this lane's), VT-012's flake fix,
-the F-SP1 arbitration, the dimension tails' remainder, and the
-cross-lane notes. The sections below this line in the file order are
-the sibling lanes' records carried by the merges — the forty-first's
-entity-hit bowhit act, the postfan lineage's records, and the
-forty-second's six-way union — all standing whole; nothing after the
-forty-fifth's queue supersedes it.)*
+## The forty-sixth pass, first act — VT-029 CONFIRMED WHOLE (the orb's box model: passes 2-3 completed, Phase E eligible)
+
+The forty-fifth pass's queue named VT-029's seats the head; this act
+completed the finding's remaining two passes.
+
+**PASS 2 — THE SEATS** (`OrbBoxModelDiscoveryTest`, four tests, run on
+this branch whose orb code matches develop `efcd0c4f` exactly — the
+family untouched between `149eb1f0` and `efcd0c4f`, verified by the
+empty diff): **3 RED at the predicted margins + the control GREEN on
+develop**, each failure carrying the divergence's own numbers:
+
+- **THE HORIZONTAL SHORTFALL** — an orb resting dx=1.45 beside the
+  walker: the reference's grown box [px−1.3, px+1.3] intersecting the
+  orb's [ox−0.25, ox+0.25] (1.45 &lt; 1.55 strictly, the orb's west
+  face 1.7 inside the grown east edge 1.8) COLLECTS; the engine's cap
+  0.3 + 0.125 + 1.0 = 1.425 leaves it STANDING. Margins: 0.025
+  beyond the engine's cap, 0.1 inside the reference's reach.
+- **THE VERTICAL WINDOW AT REST** — a player 0.8 above the orb's
+  floor: the reference's box [floor, floor+0.5] clears the grown
+  bottom edge (64.5 &gt; 64.3, margin 0.2) and COLLECTS; the engine's
+  0.25-tall box tops at floor+0.25 (64.25 &lt; 64.3, short 0.05) and
+  MISSES. The discriminator band: the player's feet 0.75-1.0 above
+  the orb's floor (inside it the engine misses where vanilla
+  collects).
+- **THE RESTORED ANCHORING** (the load path's box seat) — a restored
+  orb's first-read box: the reference's LOAD path seats the box BOTTOM
+  at the saved y (setPosition's feet law over the 0.25 default
+  constructor — [69.97, 70.22] one tick after the restore, clearing
+  the grown bottom edge 70.15 by 0.07) and COLLECTS; the engine's
+  center-anchored box [69.845, 70.095] misses the same edge by 0.055.
+- **THE CONTROL** — dx=1.3 (inside both caps): collects in both
+  worlds, GREEN on develop — the rig's sanity, isolating the size as
+  the sole divergence at 1.45.
+
+The construction discipline: the RESTORED form throughout (no scatter
+velocity, no pickup delay — the reference's own load shape), placed
+EXACTLY at the rest height so the orb neither drifts nor falls; the
+attraction never engages (the retarget window opens at tick ~21 for a
+first-entity-id of 1; every seat reads within five ticks).
+
+**PASS 3 — THE INDEPENDENT WALK** (the execution-path census, the
+compensating-behavior hunt, the design-intent challenge):
+
+- **The constructor census, reference side**: EVERY gameplay spawn
+  site goes through the xp constructor (`setSize(0.5F, 0.5F)`, line
+  22) — the ten direct sites (the LivingEntity death line 302, the
+  dragon's death rain 518/536, the villager trade 621, the bobber's
+  catch 478, the bottle's burst 46, the breeding, the player death)
+  PLUS `Block.dropExperience` line 530 (the ore/break xp:
+  `pos + 0.5` — the callers' own +0.5 offsets riding the feet law).
+  The LOAD path alone uses the 0.25 default constructor (line 35;
+  `Entities.register(ExperienceOrbEntity.class, "XPOrb", 2)` line 227
+  — the reflective no-arg instantiation) — a vanilla quirk, not a
+  size law.
+- **The constructor census, engine side**: ONE 0.25 model for both
+  paths (the single `HALF_WIDTH/HALF_HEIGHT = 0.125` pair, all 28
+  read sites); the eight EngineServer spawn callers (the mob deaths,
+  the player death scatter, the trade, the breeding, the break xp)
+  all through `spawnOrb`/`spawnBurst`; the single restore caller the
+  Anvil import (line 1357). The engine CANNOT currently distinguish
+  the load size from the spawn size — the fix needs the two-constructor
+  shape the reference itself carries.
+- **The double-lift discovery** (the anchoring slice's exact shape):
+  the engine's `spawnBurst` lifts the center +0.2 while the engine's
+  callers ALREADY pass the lifted y (EngineServer line 3718 passes
+  `at.y() + 0.5`, mimicking the reference's callers) — a DOUBLE lift
+  against the reference's single feet-law seating. The fix retires
+  the engine's +0.2 and seats the box bottom at the passed y (under
+  the center convention: center = y + half).
+- **The compensating-behavior hunt — NEGATIVE**: every site reading
+  the half-size (the physics clip consult, the rest, the lava feet
+  cell, the attraction's feet frame, the pickup envelope, the
+  explosion gather) reads the same constants — the size fix
+  propagates consistently with no site compensating for the small
+  box. The void-kill plane (the box bottom vs the reference's kill
+  law) is the one site to re-verify at fix time.
+- **The design-intent challenge — NEGATIVE**: no javadoc or comment
+  names the 0.25 orb size as deliberate; the engine's orb sits beside
+  the ITEM family's 0.25 (which MATCHES the reference's ItemEntity
+  line 30) — the copy of the item's size, missing the reference's
+  spawned-orb 0.5. The class documents the CENTER convention, never a
+  size rationale.
+- **The adjacent tails named** (each its own candidate, never
+  conflated with VT-029): (a) the scatter velocity magnitudes — the
+  engine's ±0.1 horizontal / fixed 0.2 vertical against the
+  reference's ±0.2 / 0-0.4 (the constructor's
+  `(rand*0.2−0.1)*2` forms); (b) the shared non-strict cap (the
+  pass-43 census's named tail: the engine collects at exact equality,
+  the reference's `Box.intersects` refuses — the same one-operator
+  correction VT-024's rider carried); (c) the item family's toss
+  anchoring (the same center-vs-bottom question at the item's 0.25).
+
+**VT-029 CONFIRMED — three passes, Phase E eligible.** The fix's
+shape (for the Phase E pass): the spawn path gains the 0.5 box (a
+per-orb size, the two-constructor law), both paths seat the box
+bottom at the passed y (the engine's center convention composing:
+center = bottom + half), the +0.2 burst lift retired, the load path
+keeping 0.25. The pickup envelope's `maxHorizontal` needs no change
+(it already sums the half-width — the size fix propagates); the
+strict-cap tail rides its own one-operator correction (the named
+tail, its own seat).
+
+## The queue for the forty-sixth pass (updated — the first act's close)
+
+1. ~~VT-029's passes 2-3~~ **DONE this act** (confirmed whole, Phase E
+   eligible — the fix's shape recorded above).
+2. **VT-029's Phase E** (the new head): the two-constructor size law
+   + the bottom anchoring + the +0.2 lift's retirement; the seats
+   already GREEN-pinned by this act's constructions (the three RED
+   arms become the fix's regression seats); the void-kill plane
+   re-verified at fix time; the adjacent tails stay OUT (their own
+   candidates).
+3. **The stick-tick residue's fix slice** (unchanged from the
+   forty-fifth queue): RED on develop AND on the #123+#128 union.
+4. **The merge watch** (unchanged: 28 open, #140 this lane's).
+5. **VT-012's own pass** (the NetherBlastRouting flake's bounded
+   fix); **F-SP1's arbitration**; **the dimension tails' remainder**
+   (unchanged).
+6. **The adjacent tails' own passes** (the scatter magnitudes; the
+   shared strict cap; the item toss anchoring) — candidates, their
+   own three-pass discipline owed.
+
+---
+
+*(The file's end — the forty-sixth pass's closing pointer: the LIVE
+queue is the forty-sixth pass's own, updated above — VT-029's Phase E
+the head (the fix's shape recorded), the stick-tick residue's fix
+slice, the merge watch at develop `efcd0c4f` (28 open, #140 this
+lane's), VT-012's flake fix, the F-SP1 arbitration, the dimension
+tails' remainder, and the adjacent tails' own passes. The sections
+below this line in the file order are the sibling lanes' records
+carried by the merges — the forty-first's entity-hit bowhit act, the
+postfan lineage's records, and the forty-second's six-way union — all
+standing whole; nothing after the forty-sixth's queue supersedes it.)*
 
