@@ -150,6 +150,10 @@ public final class PistonSystem implements WorldChangeListener {
     private final ItemEntityManager itemEntities;
     private final FxManager fx;
     private final Random random;
+    /** The toBreak drop walk (the reference's own `dropItems(world, pos,
+     *  state, 0)` — the same no-tool walk the wash-out and the dig path
+     *  carry, sharing the piston's random). */
+    private final net.zaminmc.torch.server.interaction.DropService breakDrops;
 
     /** The public §27.7 piston-move gate (the observe/cancel hook; null = unwired). */
     private volatile net.zaminmc.torch.server.event.EngineEventBus eventBus;
@@ -171,6 +175,7 @@ public final class PistonSystem implements WorldChangeListener {
         this.itemEntities = itemEntities;
         this.fx = fx;
         this.random = random;
+        this.breakDrops = new net.zaminmc.torch.server.interaction.DropService(random);
     }
 
     EngineWorld world() {
@@ -934,25 +939,26 @@ public final class PistonSystem implements WorldChangeListener {
     // Drops + sound
     // ------------------------------------------------------------------
 
-    /** The break drop (the reference's block.dropItems): the behavior table's rolls. */
+    /** The break drop (the reference's block.dropItems): the shared no-tool
+     *  drop walk — every entry rolls, the family arms run. */
     private void dropBlock(BlockPosition pos, BlockType type) {
-        var behavior = BlockBehaviorTable.of(type.identifier());
-        if (behavior.isEmpty()) {
-            return;
-        }
-        for (var drop : behavior.get().drops()) {
-            if (random.nextDouble() >= drop.chance()) {
-                continue; // the roll failed: the entry yields nothing
-            }
-            var item = net.zaminmc.torch.server.item.BuiltinItems.lookup(drop.item());
-            if (item.isEmpty()) {
-                continue;
-            }
+        // The reference's toBreak consumption (PistonBaseBlock.move lines
+        // 303-309): `block.dropItems(world, pos, state, 0)` — the standard
+        // NO-TOOL drop walk, the same law the fluid spread's displaced
+        // block carries (FlowingLiquidBlock.spreadTo lines 119-125) and
+        // the dig path rolls. The walk answers every entry independently
+        // (the multi-entry rows — the potted pair's pot AND plant, the
+        // mature crop's wheat AND seeds) and runs the family arms (the
+        // leaves' sapling chance) — VT-023's correction: the old local
+        // read stopped at the first successful roll, dropping the pot
+        // alone where vanilla drops the pot AND the contained plant, and
+        // nothing at all for the leaves (whose plain rows are empty, the
+        // sapling chance living in the family arm).
+        for (ItemStack stack : breakDrops.washedDrops(type)) {
             itemEntities.spawnDropAtBlock(
                     new Position(pos.x(), pos.y(), pos.z()),
-                    ItemStack.of(item.get(), drop.count()),
+                    stack,
                     ItemEntity.PICKUP_DELAY_DROP_TICKS);
-            break; // the first successful roll wins
         }
     }
 
