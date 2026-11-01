@@ -5183,8 +5183,10 @@ overworld observer at the same coordinates hears the PHANTOM.
   2153-2154; no nether/end instance exists): the 0 stamp is never a
   wrong stamp while the system only ever acts on the overworld. The REAL
   defect is the missing per-dimension tripwire family (nether/end
-  tripwires are dead machinery) — the Slice-D-class architecture lane,
-  NAMED as this pass's discovery VT-030 (below).
+  tripwires are dead machinery) — the FL4-F10 ledger's own named tail
+  ("the downstream families... stay on the overworld's bus for now"),
+  the same architecture lane Slices B/C walked for the hopper and tile
+  families. NOT renumbered here: the gap is already ledgered.
 - **PistonSystem 883** — the same class: the system is overworld-only
   (EngineServer 1813-1814); Slice D's per-dimension shape is the named
   plan already ledgered.
@@ -5204,12 +5206,12 @@ overworld observer at the same coordinates hears the PHANTOM.
 - **EngineServer 10952** (the anvil window's doEvent sounds) — the SITE
   is overworld-bound (`anvilSiteAt` reads the overworld field for every
   consult): the fx stamp is a SYMPTOM of the site's world binding — its
-  own lane (VT-031 below).
+  own lane (VT-033 below).
 - **EngineServer 13126** (the repeater delay click) — the sound itself
   is a PHANTOM (the reference's RepeaterBlock.use 38-45 is SILENT; only
   the comparator clicks, ComparatorBlock.use 148-152 — and the engine's
   comparator arm at 12350-12353 is correct, `session.dimension()` and
-  the mode-answer pitch): the member moves to VT-032 (below), the fix
+  the mode-answer pitch): the member moves to VT-034 (below), the fix
   the sound's removal, the stamp moot.
 - **The eat/burp/thorns family** (the vt-013 lane's census: ~6192/~6208/
   ~7221/~7734/~7814/~8559/~8593/~8624 on the older tree) — RESOLVED on
@@ -5223,7 +5225,7 @@ overworld observer at the same coordinates hears the PHANTOM.
 
 **Two adjacent rows named during the walk (their own findings):**
 
-1. **VT-031 (this lane's numbering) — the anvil window's block side is
+1. **VT-033 — the anvil window's block side is
    overworld-bound:** `anvilSiteAt` (EngineServer 10912-10955) reads the
    EngineServer's overworld `world` field for the anvil consults (the
    stands check, the damage read/progress, the break, the 1020/1021
@@ -5231,7 +5233,7 @@ overworld observer at the same coordinates hears the PHANTOM.
    furnace/beacon families' own stamp — Slice B/C). A nether anvil
    repair reads and damages the OVERWORLD's anvil at the same
    coordinates. SUSPECTED (pass 1: the source walk; the seats owed).
-2. **VT-032 (this lane's numbering) — the repeater's phantom click:**
+2. **VT-034 — the repeater's phantom click:**
    `cycleRepeaterDelayOnTick` (EngineServer 13118-13129) plays
    random.click 0.3F/0.6F at the delay step where the reference's
    RepeaterBlock.use (lines 38-45) plays NOTHING — the comparator's
@@ -5253,3 +5255,76 @@ change; the excluded sites keep their lanes.
 
 **Confidence:** high on the source walk (every site read in context, the
 reference chain verified end-to-end). Passes 2 and 3 owed.
+
+## VT-029 — pass 2 (behavioral): four seats RED on develop at exactly the predicted pins
+
+**The seat file:** `FxDimensionResidualDiscoveryTest` (4 tests, the
+full-boot construction over the #135 seat's own wire — the nether
+platform, the `setDimension(-1)` actor, the captured FX stream). Every
+seat drove the REAL public wires: `server.useItemOnBlock(...)` (the
+protocol adapter's own entry) for the trapdoor/bone-meal/flint seats,
+`server.noteBlocksFor(-1).useFromTick(...)` (the same method the
+block-use dispatch calls at 12277) for the note seat.
+
+| Seat | The observed failure (develop efcd0c4f) |
+|------|------------------------------------------|
+| theNetherNotePlaysInTheNetherDimension | `expected: <-1> but was: <0>` — the note fired, the family routed, the stamp 0 |
+| theNetherTrapdoorUseSoundsInTheNetherDimension | `expected: <-1> but was: <0>` — **the control held: "The flip wrote the NETHER cell"** (the trapdoor's open state landed in the nether) while the sound stamped 0 |
+| theNetherBoneMealBurstCarriesTheNetherDimension | `expected: <-1> but was: <0>` — the 2005 event fired, the stamp 0 |
+| theNetherFlintIgniteSoundsInTheNetherDimension | `expected: <-1> but was: <0>` — **the control held: "The fire landed in the NETHER"** while the sound stamped 0 |
+
+The trapdoor and flint controls isolate the divergence to the STAMP
+ALONE: the writes route the acting world correctly (the FL4-F3/F5
+migrations landed), the audio alone misroutes.
+
+## VT-029 — pass 3 (independent): the wire's gate, the compensating hunt, the intentionality challenge
+
+1. **The wire's gate walk (the observable confirmed at the protocol
+   layer):** `V18Connection.fxEligible` (lines 6822-6832) tests
+   `event.dimension() != dimensionOfSession()` FIRST — the reference's
+   own gate order (PlayerManager.sendPacket 634: the dimension test
+   inside the send loop, ahead of the squared distance). The event's
+   dimension field is the ONLY routing input; the wire never re-derives
+   a dimension from the position or any other source. The wrong stamp
+   is therefore observable end-to-end: the nether observer is REFUSED
+   (−1 ≠ 0), the overworld observer at the same coordinates is SERVED.
+2. **The compensating hunt NEGATIVE:** the Sound path has no re-stamping
+   downstream. The one candidate found — the note family's BlockAction
+   relay (`V18ProtocolServer` 1637-1645) — is registered on the OVERWORLD
+   family alone (`server.noteBlocks()`) AND hardcodes
+   `dimensionOfSession() != 0`: a nether note reaches NO client through
+   it either (both halves fail — no compensation exists), and the
+   relay's own overworld binding is NAMED as VT-029's follow-up tail
+   (the protocol module's wiring: register on all three families with
+   the per-world relay law — its own lane, the audio half restored by
+   this correction alone).
+3. **The intentionality challenge NEGATIVE:** the FxManager javadoc
+   names the no-dimension overloads' intended use — "the overworld-bound
+   block systems' own binding (the TF-9 dispenser convention)". Every
+   one of the sixteen members is a per-dimension context BY ITS OWN
+   DOCUMENTATION: the use-arms' FL4-F3 comments ("the player's own
+   world... every use/place arm runs where the player is"), Slice C's
+   per-world note family ("the note family hearing its OWN redstone's
+   power edges"), the dimension-aware skull host (the `dimension` field
+   the poof ignores ten lines below its use). The sites' own javadocs
+   contradict the 0 stamp; the migration to the carrying forms is the
+   overloads' own documented expectation (`@see #sound(Position,
+   String, float, float, int)`).
+4. **The End edge case:** the same code paths serve dimension 1
+   (`endNoteBlocks`, `worldFor(1)`) — the seats prove the nether; the
+   End rides identically by construction (the same call sites, the same
+   stamp, the same wire gate).
+5. **The repeater comparator contrast (the sibling evidence):** the
+   lever/button/comparator use-sounds in the SAME dispatch method carry
+   `session.dimension()` (EngineServer 12350-12365, 12357-12360) — the
+   migration's own precedent. The sixteen members are the arms the
+   migration missed.
+
+**STATUS: VT-029 CONFIRMED — three passes complete.** The finding is
+eligible for the Phase E correction.
+
+**The numbering reconciliation (this pass's fetch):** VT-030/#134 (the
+TNT hiss), VT-031/#135 (the dig/place feedback), VT-032/#136 (the
+falling anvil land) hold the public numbers; this lane's two new
+discoveries renumbered VT-033 (the anvil window's site binding) and
+VT-034 (the repeater's phantom click) — nothing public renamed.
