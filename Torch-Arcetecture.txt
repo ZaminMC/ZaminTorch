@@ -7791,9 +7791,9 @@ audit names as a TODAY defect) — the entanglement this wave's
 honest-tail form deliberately left for it.
 
 ## Wave FL4-GAP2 — the 2026-10-31 container/storage wave's TRACE and
-PLAN (the Section X audit's Gap 2, traced whole; findings only, no
-engine code changed this session — the implementation is the next
-session's first act, EXACTLY per this row, the FL4-F10 precedent)
+PLAN (the Section X audit's Gap 2, traced whole; SLICE A LANDED
+2026-11-01 — the chest family, exactly per row 1 below; Slices B/C/D
+remain, each per its own row, the FL4-F10 precedent)
 
 THE TRACE (the full ownership and call graph, read before any code
 change): EIGHTEEN families carry position-keyed state with NO
@@ -7880,6 +7880,31 @@ scheduler wall, the hash seat's invented 40-char law, the arrow
 seat's edge-riding geometry, the fire arm's binomial tail) + the PR
 #105 merge (the TNT cart's blast dimension, one review correction
 carried: the creeper seat's nether standing pocket) + this trace.
+
+SLICE A LANDED (2026-11-01, commit 2d0f74af): the chest family whole,
+exactly per row 1 — the three managers at the FL4-F8 form (chestsFor),
+the ZCD v3 stamp (v1/v2 files as overworld rows), the save union, the
+restore routing, all 21+9 consult sites routed by their traced source
+(the window family through the session's new openContainerDimension
+stamp — a 4-arg openContainerWindow beside the legacy form; the
+block-broken listener GAINING the acting world, its one implementer
+updated; the TileNbt seams through an IntFunction router), the
+per-family comparator wake. Seats 4/0 (the two-tile restart, the
+window open, the hopper pull, the comparator wake). The honest tail:
+the hopper system and the ContainerViews stay overworld-bound (Slice
+B), the furnace/dispenser/brewing families single-instance (Slice B).
+The same session retired the last publish blockers (runs 573/577,
+both test-seat defects — see the census doc) and the mob-integration
+status read (the body-filtered form): runs 578/579 green, builds
+155/156 published, the four-day stall over.
+
+NEXT WORK (in order): Slice B (the container remainder — furnace,
+dispenser, brewing, hopper + the cross-family pulls, each manager
+gaining the per-dimension form and its store the v+1 stamp); Slice C
+(the tile families — sign, jukebox, note block, banner, beacon,
+skull, command block); Slice D (the transient families — the piston
+movingBlocks, the decorations, the leads); the PR wave (#106, #108-
+#115) reviews as time permits, the three-pass discipline each.
 
 ---
 
