@@ -486,6 +486,10 @@ public final class EngineServer implements Server, EngineBridge {
     private net.zaminmc.torch.server.potion.PotionSystem potionSystem;
     /** The leash subsystem (Slice 11c): the knots + the leash physics. */
     private net.zaminmc.torch.server.leash.LeadSystem leadSystem;
+    /** The nether's own leash family (FL4-GAP2 Slice D). */
+    private net.zaminmc.torch.server.leash.LeadSystem netherLeads;
+    /** The End's own leash family (FL4-GAP2 Slice D). */
+    private net.zaminmc.torch.server.leash.LeadSystem endLeads;
     /** The natural spawn cycle (Slice 11d): the 1:1 NaturalSpawner port. */
     private net.zaminmc.torch.server.spawn.NaturalSpawnSystem naturalSpawns;
     /** The nether's own cycle (Slice 16d — the HellBiome rows). */
@@ -2743,17 +2747,38 @@ public final class EngineServer implements Server, EngineBridge {
                 // path — no double charge.
                 mobs.setRiderFall((engineId, distance, multiplier) ->
                         paySeatedRiderFall(engineId, distance, multiplier));
-                // The leashes (Slice 11c): the knots + the per-tick walk.
+                // The leashes (Slice 11c + FL4-GAP2 Slice D): the knots +
+                // the per-tick walk, each dimension's family over its OWN
+                // world (the reference's per-WorldServer knots — a nether
+                // knot survives on the NETHER's fences), the three sharing
+                // ONE id supplier so the Spawn Object 77 ids stay unique
+                // across the worlds.
+                java.util.function.IntSupplier knotIds =
+                        new java.util.function.IntSupplier() {
+                            private int next = KNOT_ID_BASE;
+                            @Override public int getAsInt() {
+                                return next++;
+                            }
+                        };
                 leadSystem = new net.zaminmc.torch.server.leash.LeadSystem(
-                        new LeadSurface(), KNOT_ID_BASE);
-                leadSystem.setSurvivalRead(world, BuiltinBlocks.FENCE.identifier());
+                        new LeadSurface(0), knotIds, world,
+                        BuiltinBlocks.FENCE.identifier(), 0);
+                netherLeads = new net.zaminmc.torch.server.leash.LeadSystem(
+                        new LeadSurface(-1), knotIds, netherWorld,
+                        BuiltinBlocks.FENCE.identifier(), -1);
+                endLeads = new net.zaminmc.torch.server.leash.LeadSystem(
+                        new LeadSurface(1), knotIds, endWorld,
+                        BuiltinBlocks.FENCE.identifier(), 1);
                 // The public §27.3 unleash path: the handle's verb routes
                 // the system's own detach walk (the clear + the wire + the
                 // drop) behind the §27.6 owner-context assert — the setter
                 // retro-wires the restored mobs too.
                 mobs.setLeashDetacher((mob, dropLead) -> {
-                    world.requireMutationContext("unleash");
-                    leadSystem.detachLeash(mob, dropLead);
+                    // FL4-GAP2 Slice D: the assert reads the MOB's own
+                    // world's mutation context (a nether-side unleash
+                    // never pins the overworld's context).
+                    worldForSafe(mob.dimension()).requireMutationContext("unleash");
+                    leadsFor(mob.dimension()).detachLeash(mob, dropLead);
                 });
                 // The public §27.3 equipment write path (the VIII4
                 // exposure): the handle's setEquipmentAt routes the SAME
@@ -5065,9 +5090,53 @@ public final class EngineServer implements Server, EngineBridge {
         return potionSystem;
     }
 
-    /** The leash system (exposed for the protocol adapter + tests). */
+    /** The leash system (exposed for the protocol adapter + tests — the
+     * overworld's family; the per-dimension form below). */
     public net.zaminmc.torch.server.leash.LeadSystem leads() {
         return leadSystem;
+    }
+
+    /**
+     * The per-dimension leash family (FL4-GAP2 Slice D — the chestsFor
+     * form): the world's own knots.
+     */
+    public net.zaminmc.torch.server.leash.LeadSystem leadsFor(int dimension) {
+        if (dimension == -1) {
+            return java.util.Objects.requireNonNull(netherLeads, "nether leads");
+        }
+        if (dimension == 1) {
+            return java.util.Objects.requireNonNull(endLeads, "end leads");
+        }
+        return leadSystem;
+    }
+
+    /**
+     * The knot by its wire id (FL4-GAP2 Slice D): the id band is ONE
+     * engine-wide space, so the lookup walks every family's knots.
+     */
+    private net.zaminmc.torch.server.leash.LeashKnot knotById(int entityId) {
+        if (leadSystem != null) {
+            for (net.zaminmc.torch.server.leash.LeashKnot knot : leadSystem.allKnots()) {
+                if (knot.entityId() == entityId) {
+                    return knot;
+                }
+            }
+        }
+        if (netherLeads != null) {
+            for (net.zaminmc.torch.server.leash.LeashKnot knot : netherLeads.allKnots()) {
+                if (knot.entityId() == entityId) {
+                    return knot;
+                }
+            }
+        }
+        if (endLeads != null) {
+            for (net.zaminmc.torch.server.leash.LeashKnot knot : endLeads.allKnots()) {
+                if (knot.entityId() == entityId) {
+                    return knot;
+                }
+            }
+        }
+        return null;
     }
 
     /** The random-tick system (exposed for deterministic growth probes). */
@@ -12610,9 +12679,14 @@ public final class EngineServer implements Server, EngineBridge {
         // consumed (the mob already paid it at the attach).
         net.zaminmc.torch.item.ItemStack leadHeld = session.inventory().held();
         if (!leadHeld.isEmpty() && leadHeld.type().equals(BuiltinItems.LEAD)
-                && world.getBlock(clicked).identifier()
+                && worldForSafe(session.dimension()).getBlock(clicked).identifier()
                         .equals(BuiltinBlocks.FENCE.identifier())) {
-            leadSystem.useLeadOnFence(session, clicked);
+            // FL4-GAP2 Slice D: the fence consult and the tie scan read the
+            // PLAYER's own world (the reference's per-WorldServer dispatch
+            // — a nether player ties the NETHER's mobs to the nether's
+            // fences; an overworld mob at the same coordinates is no
+            // candidate).
+            leadsFor(session.dimension()).useLeadOnFence(session, clicked);
             return; // the fence consumed the use (the reference's own true)
         }
         // The firework rocket (Slice 65 — FireworksItem.useOn lines 28-38):
@@ -16929,18 +17003,19 @@ public final class EngineServer implements Server, EngineBridge {
                 // falls through to nothing; the knot arm runs next.
                 // The leash knot (Slice 11c): its own interact — the tie with
                 // a lead in hand, the removal without one (creative releases
-                // the held without the drop).
-                var knot = leadSystem != null
-                        ? leadSystem.allKnots().stream()
-                                .filter(k -> k.entityId() == targetEntityId).findFirst().orElse(null)
-                        : null;
+                // the held without the drop). FL4-GAP2 Slice D: the lookup
+                // walks every family's knots (the wire id space is ONE
+                // engine-wide band), the interact serving on the KNOT's own
+                // family (the removal's creative-release scan gates on the
+                // family's own dimension).
+                var knot = knotById(targetEntityId);
                 if (knot != null) {
                     double kdx = knot.position().x() - player.position().x();
                     double kdy = knot.position().y() - player.position().y();
                     double kdz = knot.position().z() - player.position().z();
                     double kHorizontal = Math.sqrt(kdx * kdx + kdz * kdz);
                     if (kHorizontal <= MELEE_REACH + 1.0 && kdy > -2.0 && kdy < 4.0) {
-                        leadSystem.interactKnot(player, knot);
+                        leadsFor(knot.dimension()).interactKnot(player, knot);
                     }
                 }
                 return;
@@ -20852,19 +20927,42 @@ public final class EngineServer implements Server, EngineBridge {
         }
     }
 
-    /** The leash walk + the knots' survival poll (Slice 11c). */
+    /**
+     * The leash walk + the knots' survival poll (Slice 11c + FL4-GAP2
+     * Slice D): every family walks its OWN world's bodies and polls its
+     * OWN world's fences (the reference's per-WorldServer entity tick).
+     */
     private void tickLeashes() {
         leadSystem.tick(mobManager.all(), player -> player.position(),
                 uuid -> players.byUuid(uuid));
+        netherLeads.tick(mobManager.all(), player -> player.position(),
+                uuid -> players.byUuid(uuid));
+        endLeads.tick(mobManager.all(), player -> player.position(),
+                uuid -> players.byUuid(uuid));
     }
 
-    /** The leash system's mob surface (the tie scan + the lead drop). */
+    /**
+     * The leash system's mob surface (the tie scan + the lead drop) —
+     * FL4-GAP2 Slice D: one surface per family, the scan gating on the
+     * body's OWN dimension (the reference's per-WorldServer
+     * getEntitiesOfType — a same-coordinate mob in another world is no
+     * tie candidate), the drop stamped with the leashed body's world.
+     */
     private final class LeadSurface implements net.zaminmc.torch.server.leash.LeadSystem.Mobs {
+        private final int dimension;
+
+        LeadSurface(int dimension) {
+            this.dimension = dimension;
+        }
+
         @Override
         public java.util.List<MobEntity> mobsIn(double minX, double minY, double minZ,
                                                  double maxX, double maxY, double maxZ) {
             java.util.List<MobEntity> found = new java.util.ArrayList<>();
             for (MobEntity mob : mobManager.all()) {
+                if (mob.dimension() != dimension) {
+                    continue; // another world's body at the same coordinates
+                }
                 Position at = mob.position();
                 if (at.x() >= minX - mob.type().width
                         && at.x() <= maxX + mob.type().width
@@ -20878,9 +20976,9 @@ public final class EngineServer implements Server, EngineBridge {
         }
 
         @Override
-        public void dropLead(Position at) {
+        public void dropLead(Position at, int dimension) {
             itemEntities.spawnDropAtBlock(at, ItemStack.of(BuiltinItems.LEAD, 1),
-                    ItemEntity.PICKUP_DELAY_DROP_TICKS);
+                    ItemEntity.PICKUP_DELAY_DROP_TICKS, dimension);
         }
     }
 
@@ -31759,7 +31857,7 @@ public final class EngineServer implements Server, EngineBridge {
                                         this::commandCartHost),
                                 projectileManager, decorationsFor(target.dimension()),
                                 experienceOrbs,
-                                fireworks, eyes, leadSystem,
+                                fireworks, eyes, leadsFor(target.dimension()),
                                 this::seatImportedRiderOnGenericMount));
         try {
             io.submit(domain, "anvil-import-open", () -> {

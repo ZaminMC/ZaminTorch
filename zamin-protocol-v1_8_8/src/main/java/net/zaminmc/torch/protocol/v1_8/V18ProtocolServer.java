@@ -1200,13 +1200,19 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                 }
             }
         });
-        // The leashes (Slice 11c): the knot's Spawn Object 77 / Destroy, the
-        // mob's Attach Entity pair (the holder in each observer's own id
-        // space), all broadcast to every connection.
+        // The leashes (Slice 11c + FL4-GAP2 Slice D): the knot's Spawn
+        // Object 77 / Destroy, the mob's Attach Entity pair (the holder in
+        // each observer's own id space) — the knot arms gated on the
+        // OBSERVER's own dimension (the reference's per-world tracker; the
+        // mob arms carry their own TF-12 gate inside the send), all
+        // broadcast to every connection.
         server.addLeadListener(new net.zaminmc.torch.server.leash.LeadSystem.Listener() {
             @Override
             public void onKnotSpawned(net.zaminmc.torch.server.leash.LeashKnot knot) {
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    if (connection.dimensionOfSession() != knot.dimension()) {
+                        continue; // another world's knot
+                    }
                     connection.sendKnotSpawned(knot);
                 }
             }
@@ -1214,6 +1220,9 @@ public final class V18ProtocolServer implements ProtocolAdapter {
             @Override
             public void onKnotRemoved(net.zaminmc.torch.server.leash.LeashKnot knot) {
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    if (connection.dimensionOfSession() != knot.dimension()) {
+                        continue; // another world's knot
+                    }
                     connection.sendKnotRemoved(knot.entityId());
                 }
             }
@@ -2189,8 +2198,9 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                 }
             }
         }
-        // The leash knots already tied (Slice 11c): the same world snapshot.
-        var leads = engine.leads();
+        // The leash knots already tied (Slice 11c + FL4-GAP2 Slice D): the
+        // same world snapshot — the NEWCOMER's own world's family alone.
+        var leads = engine.leadsFor(newcomer.dimensionOfSession());
         if (leads != null) {
             for (net.zaminmc.torch.server.leash.LeashKnot knot : leads.allKnots()) {
                 newcomer.sendKnotSpawned(knot);
