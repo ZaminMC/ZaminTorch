@@ -5281,3 +5281,67 @@ named tail beside it; the merge watch refreshed (twenty-nine-PR open
 set, #141 joining; the VT-025 collision note standing; the F-SP1
 convergence #137/#138/#139 the maintainer's pick with #141 stacked on
 #138's tree).
+
+## The forty-eighth pass (renumbered from the forty-seventh — the concurrent lane's pushed branch took the name publicly first, the fetch at the push window finding their `audit/verifier-pass-47-discovery` with the same standing head taken; the established protocol, this lane's commits never pushed under the draft name, nothing public renamed) — the CONVERGENCE on the hasSupportBelow family recorded, the HOPPER RIDER absorbed (the concurrent lane's cross-tree review finding), the lane's record completed
+
+**THE CONVERGENCE (the honest record):** a concurrent lane completed the
+same standing head in the same window — their
+`audit/verifier-pass-47-discovery` (a88326d6) numbering the finding
+**VT-029** with eight seats RED 8/8
+(`WirePlateDiodeSupportParityDiscoveryTest` — the wire on glass with the
+glowstone agreement control, the wire on the bottom slab with the
+top-slab control, the wire on the fence, the plate on glass with the
+fence agreement control, the plates on the bottom slab, the weighted
+plate on glass, the diodes on glass AND glowstone, the diodes on the
+fence — this lane's six seats the same rows minus the slab/fence
+divergence rows, their pass-3 census the same compensating-hunt and
+placement-gate walks). THIS lane numbered the finding **F-SP2** (the
+F-SP1-tail class naming) and carried the CORRECTION first: **PR #141
+OPEN** (`fix/has-support-below-family-parity-audit`, stacked on the F-SP1
+carrier #138), the per-family consults + the placement gates + the
+second site (`RailConnections.survivesAt`) + the seats GREEN 6/0. The
+numbering divergence recorded for the next reconciliation (the VT-029
+number their lane's public claim; the F-SP2 number this lane's — the
+VT-025 collision precedent, the later public claim renumbering; nothing
+public renamed by this lane). Their lane's own named next act — the
+cross-tree review seat over the #138 hopper arm — is ABSORBED below.
+
+**THE HOPPER RIDER (the concurrent lane's #138 dead-arm discovery,
+absorbed into PR #141 as its second commit 8d2be866):**
+`SupportConsult.hasSolidTop`'s FOURTH arm read `value.equals("hopper")`
+— a DEAD ARM on the engine's flattened state model (NO bare
+`minecraft:hopper` registered, only the `hopper_<facing>[_disabled]`
+band — `HopperBlocks.buildStates`), so every registered hopper state
+answered FALSE where the reference's `instanceof HopperBlock` answers
+TRUE: the F-SP2 consults routing through the shared class would have
+inherited a REVERSE divergence — a wire, a diode, a plate or a rail
+standing on a hopper floor POPPING at the floor's own state change
+where vanilla keeps every one (World.hasSolidTop's fourth arm, World.java
+line 1750). The rider reads the band whole
+(`value.startsWith("hopper_")` — `FireBlocks.hasSolidTop`'s own correct
+form at its lines 346-348); the F-SP1 consults riding the same class
+gain the corrected arm with it. THE SEVENTH SEAT
+(`theFloorFamiliesStayOnTheHopperFloor`): a wire, a repeater, a plate
+AND a rail each staying when the stone floor becomes a hopper state —
+the dead bare-form read guarded. EVIDENCE: 13/0 across the three support
+seat files, 56/0 over the hopper+redstone lanes.
+
+**The merge watch (this pass's fetch):** the OPEN set at twenty-nine
+PRs — #141 joining (stacked on #138; the merge order documented: #138
+first, or rebase after it lands; whichever of #137/#138/#139 the
+maintainer picks, the SupportConsult class rebases the same way — the
+four laws identical across the carriers, the hopper rider owed into
+whichever tree lands). #140 (VT-030 — the burning arrow's stick-before-
+TNT preemption, another lane's finding) and #139 (the F-SP1 plain-name
+third carrier) both created this window. The VT numbering landscape:
+VT-029 the concurrent lane's claim on this same finding, VT-030 #140's,
+VT-032 #136's renumber — the next free number VT-033.
+
+**The queue for the next pass:** F-SP3 the STANDING HEAD (the
+`FireBlocks.hasSolidTop` translucent fallthrough serving the FIRE
+family's own four consults — fire on glass/ice/TNT/leaves/glowstone/
+sea-lantern surviving where vanilla pops it) — its own discovery pass
+with the same three-pass discipline; the tripwire family's own
+`WorldSolidity.isSolid` consults (the SUSPENDED flag's floor law) the
+named tail beside it; the placement-gate absorption riding the
+#137/#138/#139/#141 picks.
