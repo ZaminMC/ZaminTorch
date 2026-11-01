@@ -3841,6 +3841,495 @@ it), the TNT's survival asserted against the engine's detonation.
 
 
 ## Coverage ledger (updated by the thirty-sixth pass — the FIVE-LANE UNION: the pass-32 refresh + the pass-33/34/35/36 projectile rows, the Phase E corrections’ records unioned)
+Baseline for the twenty-eighth pass: `origin/develop` at `6b29c46f`
+(2026-11-01, the vine wire rows over FL4-GAP2 Slice A — the chest family's
+per-dimension ownership). The same reference.
+
+## The twenty-eighth pass (the F-DS1 stream) — the merge-state ledger, then the slab family's collision row (F-DS1's owed passes)
+
+The pass opened with the queue's watch items: the open PRs' merge states
+read from the GitHub API. **Merged:** #91 (VT-004's stand clock), #94
+(VT-005's riding gate), #95 (F-EC1's ender-chest solid-above), #105
+(VT-007's TNT-cart slice — VT-007 now whole). **Closed superseded, the
+content landed by other routes:** #89 (VT-003's ice family — the
+maintainer's review verdict adopted BOTH corrections as riders at
+`d6614da3`, including the opacity-gate correction the review itself
+contributed: the melt gate reads `> 11 - 3 = 8` over IceBlock's
+`setOpacity(3)` registration row, not `> 11`) and #107 (the mob portal
+cooldown's one-per-tick decay — merged to develop at `98ded357` with its
+own review record). **Still open:** #106/#111/#114/#115 (the concurrent
+streams' VT-009/VT-010/VT-011 rows) and the crossing-families duplicate
+set #108/#109/#110/#113 (the maintainer's consolidation pending; this
+stream's verification of #110 stands — the item seat's corner-form patch
+rides the #110 review comment).
+
+The pass's own work: the twentieth pass's two owed lanes. **F-DS1** (the
+double slab's collision row) taken up first — the narrower, the more
+mechanical, the physics-visible. Its record below, with the source pass
+complete and the behavioral and independent passes following in this
+run. **F-SP1** (the SUPPORT consult family) stays queued behind it (the
+wider family; the consult helper the twentieth pass named makes it
+mechanical once its own seats exist). A second, sibling finding surfaced
+during F-DS1's consumer census — **VT-020** (recorded as the draft
+VT-012; renumbered — see the finding's own header), the natural spawn floor's
+own suffix arm rejecting the double slabs (recorded below as suspected,
+its own passes owed).
+
+---
+
+## The thirty-eighth pass (renamed from the thirty-seventh mid-flight — the five-lane-union lane pushed their pass-37 first; the established protocol) — the baseline advanced, the VT-020 lanes whole (the three passes + the correction + PR #121), the numbering collision resolved
+
+The pass opened with the baseline recovery: the environment reset with
+the behavioral seat's draft uncommitted (preserved at `e95ddec4` on
+the pass-28 branch); `origin/develop` advanced `6b29c46f → 777b7c86`
+(PR #106 VT-009's pair-break walks and PR #115 VT-011's bed-occupied
+import merged — both parallel-stream carriers). The parallel streams'
+fetch revealed the pass-29..36 lanes (five lanes converging on the
+arrow family's VT-014/VT-015 — triple-confirmed with PRs #117/#119/#120
+open; VT-016 the piston push table, VT-017 the grass shade consult,
+VT-018 the bowhit sound, VT-019 the TNT re-prime — their lanes, not
+duplicated here).
+
+**The numbering collision resolved:** this stream's draft VT-012 (the
+spawn floor, claimed 2026-11-01 05:12) renumbers **VT-020** — the
+pass-30 lane's VT-012 (the NetherBlastRouting flake) was claimed
+2026-10-31 12:44, the day before; the renumber note rides the finding's
+own header (the established protocol).
+
+**This pass's work: VT-020 whole.** The behavioral pass's three seats
+RED on the fresh baseline at exactly the predicted values (Row A — the
+double floor `0` where vanilla hosts; Row B — the bottom-stair floor
+`1966` where vanilla refuses; Row C — the `stone_slab2` floor `1966`
+where vanilla refuses); the independent pass's fresh angles (the
+FIVE-arm re-read, the 56-identifier census — the directional stair
+states' escape is the census's own discovery, feeding Row B and Row C;
+the compensating hunt NEGATIVE; the intentionality challenge; the
+blast-radius census). The correction: `fix/spawn-floor-solid-top-parity-audit`
+(`0f4bbfb4`, over develop `777b7c86`) — the one-consult correction in
+the house's `double_`-carve vocabulary; the seats 3/3 GREEN (fresh
+`--rerun-tasks`); the regression lanes green (the spawn suite 16/0,
+the spawn-adjacent 70/0, the block package + profiler 311/0). **PR
+#121 OPEN**, targeting `develop`.
+
+**The pass's discovery debt:** F-SP1 (the support consult family) —
+the twentieth pass's owed lane, now the standing lane; its discovery
+pass rides the next run. The full protocol suite over the F-DS1 branch
+(the pass-28 timeout tail) remains named.
+
+---
+
+## VT-020 — the spawn floor consult is a suffix approximation, not the reference's hasSolidTop law: the doubles refused, the bottom stairs and the red sandstone bottom single hosted (RESOLVED-BY-PR — **PR #121 OPEN**; three passes complete)
+
+**Renumber note:** first recorded as the draft VT-012 on this stream's
+pass-28 (2026-11-01 05:12); renumbered VT-020 — the pass-30 lane's
+VT-012 is the NetherBlastRouting flake, claimed 2026-10-31 12:44
+before this stream's claim. The pass-33..36 lanes' numbering runs to
+VT-019.
+
+**The VT-020 collision (this pass, resolved by the earliest public
+claim):** the five-lane-union lane's pass-38 push (`df338459`,
+2026-11-01 06:05:09) also claims VT-020 for a DIFFERENT finding (the
+partial-shape stick face — an arrow-family extension of their VT-014).
+This stream's claim is anchored EARLIER on the public record: **PR
+#121 created 2026-11-01 06:04:43**, 26 seconds before their push, and
+the finding's PR title/body name VT-020 throughout. Per the protocol,
+THIS finding keeps VT-020; the union lane's partial-shape stick face
+renumbers VT-021 (their lane's own renumber act, the collision note
+owed in their header). The pass-38 NAME also collided: their branch
+pushed first (`13575c2e` 05:59:17) — this lane rides the **38b**
+suffix (the pass-27b precedent), the report union with their five-lane
+record the next run's bookkeeping act.
+
+**Subsystem:** mob spawning / the spawn floor consult. **Status:**
+RESOLVED-BY-PR — **PR #121 OPEN**
+(`fix/spawn-floor-solid-top-parity-audit`, `0f4bbfb4`, based on develop
+`777b7c86`; all three passes complete, the correction record below).
+
+**Affected engine files and methods:**
+- `server/spawn/NaturalSpawnSystem.java` — `isPartialShape` (the old
+  lines 783-785: `name.endsWith("_slab") || name.endsWith("_stairs")`)
+  over `isFullCubeGround` (lines 772-780: `WorldSolidity.isSolid &&
+  !isFence && !isPartialShape`) over `isValidSpawnCell`'s floor gate
+  (line 524).
+
+**Vanilla reference:** `reference/1.8.8/net/minecraft/world/World.java`
+— `hasSolidTop` lines 1740-1752, the FIVE arms: (1)
+`material.isSolidBlocking() && isCube()` — the doubles land here
+(`SlabBlock.isCube()` = `isDouble()`, Block.java line 282 + SlabBlock
+line 90); (2) StairsBlock `HALF == TOP`; (3) SlabBlock `HALF == TOP`;
+(4) HopperBlock true; (5) SnowLayer `LAYERS == 7`; else false.
+`NaturalSpawner.java` lines 159-166: the consult runs at `pos.down()`.
+
+**Expected behavior:** the doubles host the spawn (full cubes); the
+bottom stairs refuse (the StairsBlock arm wants HALF == TOP); the
+bottom singles refuse under BOTH variant families (`_slab` and
+`_slab2`); the top halves host; hoppers host.
+
+**Observed engine behavior (the three RED rows, the 40-seed seats):**
+- **Row A — the doubles refused:** the ten `_slab`-suffixed double
+  names (`double_stone_slab`, `double_sandstone_slab`,
+  `double_cobblestone_slab`, `double_stone_brick_slab`,
+  `double_wooden_slab` + the five woods via
+  `WoodShapeBlocks.doubleSlabState`'s `double_{wood}_slab`) all failed
+  `isFullCubeGround` through the suffix arm — the double floor hosted
+  **0** night spawns where vanilla hosts them; the family's
+  `double_stone_slab2` / `_seamless` / `_slab2_seamless` fall-throughs
+  passed — the same family refusing the spawn under ten names and
+  hosting it under three.
+- **Row B — the bottom stairs hosted:** the stored stair states are
+  the DIRECTIONAL fold (`{material}_stairs_{facing}` bottom /
+  `{material}_stairs_{facing}_top` upside-down — the engine's own
+  metadata `(HALF==TOP?4:0)|(5-FACING)` fold), so
+  `endsWith("_stairs")` NEVER caught a single stored stair state (dead
+  code — only the four bare registration aliases match it) and BOTH
+  halves passed: the bottom-stair floor hosted **1966** night spawns
+  where the `HALF == TOP` arm refuses every one.
+- **Row C — the red sandstone bottom single hosted:** `stone_slab2`
+  (legacy 182's bottom half, the HALF bit 8 family) ends in `2` — the
+  `_slab` arm never caught it: **1966** spawns where the SlabBlock arm
+  refuses the bottom half.
+
+**Verification pass history:**
+1. **Source (the pass-28 run):** the reference law, the engine arm,
+   the consumer census, the reachability census (the placement merge,
+   the anvil import, the worldgen).
+2. **Behavioral (this run, pass 37):** three RED seats at exactly the
+   predicted values on the unfixed baseline (develop `777b7c86`
+   merged), the controls green — the stone floor hosts, the TOP stair
+   hosts (both trees agree), the caught bottom singles refuse (both
+   trees agree), the top slabs pass; **3/3 GREEN** on the fix branch
+   (fresh `--rerun-tasks` execution).
+3. **Independent (this run, pass 37):** the FIVE-arm re-read of
+   `hasSolidTop`; the 56-identifier census classifying every
+   registered stairs/slab name against the suffix arms (24
+   directional stair states escape, 10 doubles caught, `stone_slab2`
+   escapes, the 3 double fall-throughs already correct-by-accident);
+   the wooden doubles' dynamic identifiers verified; the
+   compensating-behavior hunt NEGATIVE (`isValidSpawnCell`'s walk read
+   whole — `isFullCubeGround` is THE floor gate, no other consult
+   rejects the bottom halves); the intentionality challenge (the dead
+   `_stairs` arm for stored states and the intra-family asymmetries
+   demonstrate accident, not design; the old comment "the partial
+   shapes never answer the spawn floor" stated vanilla's bottom-half
+   intent but the implementation missed both directions); the
+   blast-radius census (`isPartialShape`/`isFullCubeGround` private to
+   `NaturalSpawnSystem`, no other engine or test consumer,
+   grep-verified); no existing seat pins the old rows.
+
+**The correction (PR #121):** the one consult corrected in the house's
+own vocabulary — the `double_` prefix carve first (the same carve
+`BlockSolidity.isCube` and `FireBlocks` carry, `SlabBlock.isCube() =
+isDouble()` the citation), the bottom singles' rows (`_slab` and
+`_slab2`; the `_top` forms never match either suffix and pass), the
+stairs' half law over the directional fold (`contains("_stairs") &&
+!endsWith("_top")`: the bottom states and the bare aliases' default
+metadata row refuse, the `_top` forms pass). The rows that already
+agree are untouched: the top halves still host, the caught bottom
+singles still refuse, hoppers still host, the three double
+fall-throughs unchanged.
+
+**The seats:** `NaturalSpawnSystemTest`'s three parity seats — the
+double floor hosts (the stone + single-slab controls framing the
+discrimination), the bottom stair floor refuses (the TOP-stair
+control), the red sandstone bottom slab refuses (the caught-name
+control).
+
+**Regression lanes (the fix branch, all green):** the spawn suite
+whole 16/0; the spawn-adjacent lanes 70/0 (`MobManagerTest`,
+`WitherExemptionArmsAcceptanceTest`, `WeatherSystemTest`,
+`EntitySpawnEventAcceptanceTest`, `SpawnProtectionAcceptanceTest`, the
+spawner family); the block package + profiler 311/0.
+
+**Confidence and remaining uncertainties:** the law is pinned by the
+reference's own structured walk; the named tails — the snow layer's
+`LAYERS == 7` row rides the engine's single-state snow model (the
+already-recorded snow state-surface tail, VT-003's); the hopper row
+already agrees. **PR #118 relationship:** F-DS1 corrects the SAME
+naming-accident class at the physics table (`CollisionShapes.boxesOf`)
+— this PR corrects its sibling site (the spawn floor consult, the site
+F-DS1's own record named as "VT-012's own lane [VT-020 after the renumber], NOT this PR"); the two
+PRs are independent and composable, each a one-arm consult correction
+with its own seats, neither touching the other's file.
+
+---
+
+## F-DS1 — the double slab's collision row (the twentieth pass's suspected finding, this pass's verification)
+
+**Subsystem:** block collision shapes / entity physics (every family).
+**Status:** RESOLVED-BY-PR — **PR #118 OPEN** (`fix/double-slab-collision-parity-audit`,
+`807cb0ec`, all three passes complete this run; the correction record
+below).
+
+**Affected engine files and methods:**
+- `server/block/CollisionShapes.java` — `boxesOf` ~lines 332-340: the
+  single-slab arms `value.endsWith("_slab_top")` → the top-half box and
+  `value.endsWith("_slab") || value.equals("stone_slab2")` → the
+  bottom-half box, catch the DOUBLE forms first.
+- The consumers (the whole physics surface): `CollisionShapes.contains`
+  / `CollisionShapes.top` (lines 103-150) → `WorldSolidity.isSolidAt` /
+  `WorldSolidity.supportY` → `MobEntity`'s ground walks (the rest snap,
+  ~lines 5567/5605/8509/8523/11742/11775), `ItemEntity`'s landing, and
+  `FallingBlockEntity`'s landing (~lines 201/401); plus the
+  `CollisionShapes.isFullCube` family — the player suffocation walk
+  (`EngineServer` ~line 7965, the reference `isInWall`'s own 8-point
+  scan), the mob-side `viewBlockingInDimension` (~line 23143), the
+  chest-open lock (`ChestPairs` ~line 132), the vine grow support
+  (`VineBlocks.isGrowableSupport` ~line 144), and the hopper/chest solid
+  consults through the same table.
+
+**Vanilla reference files and relevant methods:**
+- `reference/1.8.8/net/minecraft/block/SlabBlock.java` — `updateShape`
+  lines 39-52 (`isDouble()` → `setShape(0,0,0,1,1,1)` — the FULL cube;
+  the singles' half rows in the else arms); `addCollisions` lines 64-67
+  (the collision walk rides `updateShape`); `isCube()` lines 90-92 (=
+  `isDouble()`); the constructor lines 22-31 (`opaqueCube = true` when
+  double).
+- `reference/1.8.8/net/minecraft/block/DoubleStoneSlabBlock.java` /
+  `DoubleWoodenSlabBlock.java` / `DoubleRedSandstoneSlabBlock.java` —
+  `isDouble()` → true each.
+- `reference/1.8.8/net/minecraft/block/Block.java` — `isViewBlocking`
+  line 278 (`material.blocksMovement() && isCube()`), `isSolid` line 274
+  (`material.isSolidBlocking() && isCube() && !isSignalSource()`).
+- `reference/1.8.8/net/minecraft/entity/Entity.java` — `isInWall` lines
+  1267-1281 (the suffocation 8-point walk consulting `isViewBlocking`).
+- `reference/1.8.8/net/minecraft/block/ChestBlock.java` —
+  `isLockedByBlock` line 407 (`pos.up().getBlock().isSolid()`).
+
+**Expected behavior:** the double slab is a full cube everywhere the
+shape is consulted — the collision box (0,0,0,1,1,1), the rest surface
+at the cell's ceiling, the side-blocked upper half, `isViewBlocking`
+true (suffocation inside), `isSolid` true (the chest-open lock, the
+spawn floor through `hasSolidTop`'s first arm), the vine grow support
+true.
+
+**Observed engine behavior:** the ten registered double names —
+`double_stone_slab`, `double_sandstone_slab`, `double_cobblestone_slab`,
+`double_stone_brick_slab`, `double_wooden_slab`, `double_spruce_slab`,
+`double_birch_slab`, `double_jungle_slab`, `double_acacia_slab`,
+`double_dark_oak_slab` — ALL end in `_slab`, so the single-slab arm
+answers each the HALF box (0,0,0,1,0.5,1): a body landing on a double
+slab rests at the cell's MID-LINE (supportY = cell+0.5; vanilla
+cell+1.0); the upper half tests `contains` false (bodies enter it from
+the side); `isFullCube` false (no suffocation inside a double slab; a
+chest under a double slab stays open; vines refuse to grow on the
+double's faces). The family's `double_stone_slab2`,
+`double_stone_slab_seamless`, and `double_stone_slab2_seamless` fall
+through the suffix arms to the default full cube — the SAME family
+answers full cube under three names and half under ten, the asymmetry
+itself the signature of an accidental suffix catch rather than a design
+choice.
+
+**Verification pass history:**
+1. **Source verification (this run, pass 1):** the full chain read —
+   the reference's `updateShape`/`addCollisions`/`isCube` law and the
+   three concrete double classes' `isDouble()` rows; the engine's
+   `boxesOf` suffix arms and the ten registered double names enumerated
+   (`BuiltinBlocks` ~lines 555-570 and 132-137,
+   `WoodShapeBlocks.doubleSlabState` line 117-121); the consumer census
+   whole (the rest walks, the point test, the isFullCube family); the
+   reachability census: the placement merge (`EngineServer.
+   placeSlabOnTick` ~lines 15502-15531 — a use against the family's own
+   half calls `world.setBlock(clicked, family[2])`, the DOUBLE state),
+   the anvil import (`AnvilBlockIds` ~line 351: `state(43, 5,
+   "minecraft:double_stone_brick_slab")` and the family's other rows),
+   and the worldgen (`StructurePalette` line 111 — the village
+   blacksmith's `doubleStoneSlab`).
+2. **Behavioral verification (this run, pass 2):** the focused seat
+   `DoubleSlabCollisionParityTest` — the stash discrimination: RED on
+   the baseline at exactly the predicted values (the rest surface
+   **64.5** where vanilla answers **65.0** — both families, the exact
+   mid-line sink; the item's rest **4.625** where vanilla answers
+   **5.125** — the half-block sink through the real landing walk; the
+   vine support **false** where vanilla answers true), GREEN **5/5**
+   with the one-arm correction (the singles' half laws beside them
+   passing on BOTH trees — the in-seat regression guard).
+3. **Independent re-verification (this run, pass 3):** the compensating
+   census — the engine's OWN `BlockSolidity.isCube` (lines 93-97)
+   already carves the double forms into the cube set with the
+   reference's own citation (`SlabBlock.isCube() = isDouble()`), so the
+   placement/support consults answer cube while the physics table
+   answers half — the internal contradiction; **`FireBlocks`'s own
+   comment states "a double slab is a full cube"** with the
+   `!value.startsWith("double_")` carve (the fire family's
+   solid-top consult) — the house's established convention for this
+   exact accident class, the fix's own shape following it; no existing
+   test pins the double's half-height row (`CollisionShapeTest`'s slab
+   seats pin the SINGLES alone; `DoubleWoodenSlabTest` pins the
+   registration band, the drops, the light — never the collision row),
+   so nothing needs weakening; the whole-repository suffix census
+   (`endsWith("_slab")` across main: the ONE sibling site
+   `NaturalSpawnSystem.isPartialShape` — VT-020's own lane [the draft VT-012], NOT this
+   PR; `RedstoneSystem.trapdoorMountHolds` name-based with the
+   double's row already agreeing with vanilla's hasSolidTop=true; the
+   held-id dispatch `EngineServer` ~12210 and the dormant
+   `woodenSlabFamilyOf` unaffected); the regression lanes whole (the
+   record below); and the intentionality challenge — the engine's own
+   isCube carve and the `slab2`/`seamless` fall-through demonstrate the
+   family's INTENT is the full cube, the suffix arms an implementation
+   accident.
+
+**The correction (PR #118, branch `fix/double-slab-collision-parity-audit`,
+commit `807cb0ec`):** one arm in `boxesOf` BEFORE the singles' rows —
+the `double_` prefix over the four family suffix shapes (`_slab`,
+`_slab2`, `_slab_seamless`, `_slab2_seamless`), the same vocabulary the
+`BlockSolidity.isCube` carve carries; the ten half-row names corrected
+and the three already-correct fall-throughs pinned by the same row (the
+family whole under one row). The seat `DoubleSlabCollisionParityTest`
+5/0: the two families' full-cube rows (the ceiling rest surface, the
+solid upper half, `isFullCube`), the singles' half laws beside them
+(the in-seat guard), the item body seat over the real consults (the
+5.125 ceiling rest), the vine grow support.
+
+**The regression lanes (the fix branch, all green):** the block package
+whole (`CollisionShapeTest`, `StairsCollisionGeometryTest`,
+`DoubleWoodenSlabTest`, `WoodShapeBlocksTest`, the families); the chest
++ spawn lanes; the entity package whole (`InWallSuffocationTest`,
+`MobSolverWalkTest`, `ItemSolverPhysicsTest`, `FallingBlockEntityTest`,
+the vehicle/projectile/ai lanes); `ItemOrbLandingPhysicsParityTest`;
+`ItemBoxPhysicsAcceptanceTest`; the physics package; the world +
+interaction lanes; `zamin-bukkit` + `zamin-api` whole; the protocol
+module's wire lanes (`LegacyBlockIdsIntegrity`, `ChunkSerializer18`,
+`AnvilBlockIdsIntegrity`, `ChunkBulkWire`, `MultiBlockChangeWire`) —
+the module has NO cross-module consumer of the changed class
+(grep-verified). **The named tail:** the FULL protocol suite exceeded
+the run's time budget (the 10-minute timeout); the targeted wire lanes
+stand in for it — the next run's watch item.
+
+**Confidence and remaining uncertainties:** the law is pinned by the
+reference's own shape walk; the only named tail is the SURVIVAL
+placement consult `intersectsPlayerBox` — with the fix, a player
+standing on a single slab that merges into a double now stands INSIDE a
+solid (the vanilla shape: suffocation applies / the ground snap lifts
+the body to the ceiling) — the correct vanilla law, recorded here
+because the pre-fix engine silently allowed the stand-at-mid-line.
+
+**Proposed minimal correction:** in `CollisionShapes.boxesOf`, the
+double forms carved to the full cube BEFORE the single-slab arms — the
+same `double_` prefix vocabulary the `BlockSolidity.isCube` carve
+already carries (all four slab-family suffix shapes: `_slab`,
+`_slab2`, `_slab_seamless`, `_slab2_seamless`), the ten half-row names
+corrected and the three already-correct fall-throughs pinned by the
+same arm (the family whole under one row).
+
+**Potential regression risks:** every consumer of the half row for the
+ten names — the regression lanes named in the correction entry; the
+stairs' base-slab boxes are UNTOUCHED (the stair states parse before
+the slab arms); the singles' halves UNTOUCHED (their names never carry
+the `double_` prefix).
+
+---
+
+## F-SP1 — the support-consult family: the engine's mount consults answer one collision-solid question where vanilla answers material-aware, shape-aware, side-aware laws (SUSPECTED — the source pass complete this run; the behavioral + independent passes owed)
+
+**Subsystem:** block attachment / the mount-survival consults (the
+redstone family's torch/lever/button/trapdoor arms). **Status:**
+SUSPECTED — the source pass complete (this run, pass 38b); the
+behavioral seats and the independent pass owed. The twentieth pass's
+original F-SP1 record predates the surviving report copies; this pass's
+census re-establishes the finding from the code, richer than the
+queue's one-line description.
+
+**The family's vanilla law (the three consults, each different):**
+- `World.isSolidBlockingCube(pos, default)` (World.java lines
+  1753-1768) = `material.isSolidBlocking() && isCube()` — the
+  torch's WALL consult (`TorchBlock.canAttach` line 68, the horizontal
+  arm). `Material.isSolidBlocking()` (Material.java line 100) =
+  `!translucent && blocksMovement()`; `blocksMovement()` defaults true
+  (line 68), COBWEB/liquids/air override false. **The translucent
+  materials — LEAVES, GLASS, TNT, ICE, SNOW_LAYER, CACTUS (Material.java
+  lines 13/22/24/26/28/30) — NEVER answer a wall consult**, whatever
+  their shape.
+- `TorchBlock.canSitOnTop` (lines 49-55) — the torch's FLOOR consult:
+  `World.hasSolidTop(world, pos)` (the five-arm law) `|| instanceof
+  FenceBlock || == GLASS || == COBBLESTONE_WALL || == STAINED_GLASS`.
+- `ButtonBlock.canSurvive` (lines 70-73; `LeverBlock.canSurvive` line
+  60 delegates to it) — the lever/button consult:
+  `facing == DOWN ? World.hasSolidTop(blockpos) :
+  block.isSolid()` — the ceiling mount rides hasSolidTop's five arms,
+  every other side rides `Block.isSolid()` (Block.java line 274:
+  `material.isSolidBlocking() && isCube() && !isSignalSource()`).
+- `TrapdoorBlock.canBePlacedOn` (lines 188-190) — the trapdoor's
+  mount: `material.isSolidBlocking() && isCube() || == GLOWSTONE ||
+  instanceof SlabBlock || instanceof StairsBlock`.
+
+**The engine's consults (the one-question approximation):**
+- `RedstoneSystem.torchSupported` (lines 1685-1688):
+  `WorldSolidity.isSolid(attachment)` — for BOTH the wall and the
+  floor mounts.
+- `RedstoneSystem.leverSupported` (lines 2223-2226) and
+  `buttonSupported` (lines 2229-2231): `WorldSolidity.isSolid`
+  for every side.
+- `RedstoneSystem.trapdoorMountHolds` (lines 1349-1375): the suffix
+  arms over the slabs/stairs families, then the final arm
+  `WorldSolidity.isSolid && !fence && !gate && !door && !rail &&
+  !chest`.
+- `WorldSolidity.isSolid` (lines 29-53) is the COLLISION-solid
+  exclusion list (torch/fire/cobweb/portals/sign/banner/ladder/open
+  door/open gate/vine/flora/sapling/carpet/rail/redstone/piston/
+  tripwire/fluid) — it carries NO material awareness (the translucents
+  all pass) and NO cube awareness beyond the exclusion list (panes,
+  iron bars, cobblestone walls, fences all pass; `isFence` is a
+  separate consult the trapdoor arm re-adds but the torch/lever/button
+  arms never read).
+
+**The divergent rows (source-verified; the seats owed):**
+1. **The torch WALL on translucents** — glass, stained glass, ice,
+   TNT, leaves, cactus, snow layer: `isSolidBlockingCube` REJECTS each
+   (translucent material); the engine's `isSolid` ACCEPTS each — the
+   torch hangs where vanilla pops it (`tryBreak` lines 96-118).
+2. **The torch WALL on non-cubes** — fences, single slabs (any half),
+   stairs (any state), glass panes, iron bars: vanilla REJECTS
+   (isCube false; the slab/stairs instance arms belong to the TRAPDOOR
+   law alone); the engine's `isSolid` ACCEPTS each. The DOUBLE slabs
+   agree (isCube true, non-translucent material — vanilla accepts).
+3. **The torch FLOOR** — `canSitOnTop`'s explicit list beyond
+   hasSolidTop is FENCES/GLASS/COBBLESTONE_WALL/STAINED_GLASS alone:
+   glass panes, iron bars, TNT, ice, leaves, cactus REJECTED by
+   vanilla; the engine's `isSolid` ACCEPTS each. (The floor rows that
+   agree: fences, glass, stained glass, cobblestone walls, and the
+   hasSolidTop arms — the doubles, the top halves, hoppers.)
+4. **The lever/button on translucents** — `Block.isSolid()` REJECTS
+   glass/ice/TNT/leaves/cactus (translucent); the engine ACCEPTS.
+5. **The lever/button CEILING mount** — `hasSolidTop` beneath: the
+   bottom halves refuse (a lever under a single bottom slab pops in
+   vanilla); the engine's `isSolid` ACCEPTS the slab — the lever
+   hangs.
+6. **The trapdoor's final arm** — glass, stained glass, ice, TNT,
+   leaves, cactus (translucents), glass panes, iron bars, cobblestone
+   walls (non-cubes): vanilla's first arm REJECTS each; the engine's
+   final arm ACCEPTS each. (The trapdoor's SLAB/STAIRS rows AGREE —
+   the instance arms' engine counterparts answer true for the whole
+   families; the GLOWSTONE row agrees; the fence/gate/door/rail/chest
+   rows agree — the engine's explicit carves.)
+
+**Verification pass history:** pass 1 (source) complete this run —
+the four vanilla laws read at their lines, the engine's four consult
+sites read, `Material`'s translucent set enumerated from the source,
+the divergence rows derived per consult. The behavioral seats (the
+neighborChanged survival walks driven per row — the torch pops, the
+lever drops, the trapdoor pops) and the independent pass (the
+placement-time gates' census — whether the engine gates PLACEMENT or
+only the survival re-check; the compensating-behavior hunt; the
+intentionality challenge over `WorldSolidity.isSolid`'s stated
+contract) are the NEXT RUN'S FIRST ACT.
+
+**Proposed minimal correction (when the passes complete):** a shared
+`SupportConsult` carrying the reference's three laws
+(`isSolidBlockingCube` / `canSitOnTop` / the button-lever split), the
+consult sites swapped to the law their vanilla counterpart reads —
+the same one-consult-per-site shape the F-EC1 and VT-020 corrections
+carried. The trapdoor's suffix arms stay (their rows agree); its final
+arm swaps to `isSolidBlocking && isCube` + the instance rows.
+
+**Potential regression risks:** every consumer of the mount consults
+(the redstone family's neighborChanged walks, the placement paths if
+they consult the same helpers); the translucents' NEW pops (glass
+walls losing torches is the observable vanilla behavior — the seats
+must pin the pops, the pre-fix holds).
+
+---
+
+## Coverage ledger (updated by the thirty-eighth pass)
 
 | Area | Status |
 |---|---|
@@ -3878,6 +4367,11 @@ it), the TNT's survival asserted against the engine's detonation.
 | Item entities / pickup — dimension | the TF-9 stamped sites are the record; the pickup consult un-audited |
 | Projectile family — the stuck arrow's crossing (the portal-lights-later construction) | **VT-013 REJECTED** (the thirty-first pass's pass-3 challenge): the original hypothesis — a portal lighting around an already-stuck arrow crosses it — is disproven by the reference's own tick chain (`ArrowEntity.tick` line 381 calls the box scan from the FLIGHT branch alone; the `inGround` branch at 172-186 runs the stick clock and the tracked-block check only). The corrected seat (`PortalStuckArrowCrossingDiscoveryTest.theStuckArrowStaysWhenThePortalLightsAroundIt`) pins the true law — NO crossing — GREEN on develop AND on the #113 tree. No fix owed. The honest residue re-recorded as VT-014 (the stick placement) and VT-015 (the un-stick law), both below |
 | Projectile family — the stick's bowhit sound | **VT-018 SUSPECTED** (the thirty-second pass, pass 1 complete): the reference plays `random.bowhit` at the stick (ArrowEntity line 303); the engine's landed fan plays nothing (the sound exists in the engine at the tripwire alone). The FX-assert seat owed (pass 2) |
+
+| Collision shapes — the double slabs' full-cube row | **RESOLVED-BY-PR #118** (F-DS1: the F-DS1 stream's three-pass verification — the ten `_slab`-suffixed doubles carried the HALF box; the rest walks, the side-entry, the isFullCube family all poisoned; the one-arm carve, `DoubleSlabCollisionParityTest` 5/0) |
+| Natural spawn — the spawn floor's consult | **RESOLVED-BY-PR #121** (VT-020: the suffix approximation missed in BOTH directions — the ten doubles refused where `hasSolidTop`'s first arm hosts them, the bottom stairs and the red sandstone bottom single hosted where the HALF==TOP arms refuse them; the one-consult correction with the `double_` carve + the half laws, three seats) |
+| The support-consult family (torch/lever/button/trapdoor mounts) | F-SP1 SUSPECTED (the pass-38b source census: the engine's four mount consults answer one collision-solid question — `WorldSolidity.isSolid` — where vanilla answers three material-aware/shape-aware/side-aware laws; the translucent materials (GLASS/LEAVES/TNT/ICE/SNOW_LAYER/CACTUS) and the non-cube solids (panes/iron bars/walls/fences) all diverge; the behavioral seats the next run's first act) |
+| The slab-family suffix census | INSPECTED (the whole-repository `endsWith("_slab")` census: `BlockSolidity.isCube` and `FireBlocks` already correct with the `double_` carve — the house convention; `CollisionShapes` corrected by PR #118; `NaturalSpawnSystem` corrected by PR #121 (VT-020 — the spawn consult, the directional stair states and the `_slab2` row joining the census); `RedstoneSystem.trapdoorMountHolds` name-based, the double agreeing, the SINGLES' rows F-SP1's lane; the held-id dispatch and the dormant `woodenSlabFamilyOf` unaffected) |
 
 ## The queue for the next pass
 
