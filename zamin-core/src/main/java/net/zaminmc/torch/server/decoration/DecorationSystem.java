@@ -97,26 +97,57 @@ public final class DecorationSystem {
     private final Map<BlockPosition, ItemFrame> frames = new LinkedHashMap<>();
     /** The live paintings keyed by their wall cell. */
     private final Map<BlockPosition, Painting> paintings = new LinkedHashMap<>();
-    private final int firstId;
-    private int nextId;
+    /**
+     * The world this family hangs in (FL4-GAP2 Slice D — the per-world
+     * law): every body the system creates carries it, the wire's
+     * observer gate reads it, and the store's rows stamp it.
+     */
+    private final int dimension;
+    /**
+     * The shared id source (the engine hands the SAME allocator to every
+     * dimension's family, so the Spawn Object ids stay unique across the
+     * worlds — the wire id space is one engine-wide row, not per-world).
+     */
+    private final java.util.function.IntSupplier ids;
+    /** The first id this family allocated (-1 until the first body lands). */
+    private int firstAllocatedId = -1;
     /** The per-body validation clocks (the reference's own ticksSinceValidation). */
     private final Map<Integer, Integer> validationTicks = new LinkedHashMap<>();
     private final Random random;
 
-    public DecorationSystem(Surface surface, int firstId, Random random) {
+    public DecorationSystem(Surface surface, java.util.function.IntSupplier ids,
+                            Random random, int dimension) {
         this.surface = Objects.requireNonNull(surface, "surface");
-        this.firstId = firstId;
-        this.nextId = firstId;
+        this.ids = Objects.requireNonNull(ids, "ids");
         this.random = Objects.requireNonNull(random, "random");
+        this.dimension = dimension;
+    }
+
+    /** The world this family hangs in. */
+    public int dimension() {
+        return dimension;
     }
 
     public void addListener(Listener listener) {
         listeners.add(listener);
     }
 
-    /** The id band the decorations live in. */
+    /**
+     * The first id this family allocated (the id band's informational
+     * row — the three families share ONE engine-wide allocator, so each
+     * records its own first body's id).
+     */
     public int firstId() {
-        return firstId;
+        return firstAllocatedId;
+    }
+
+    /** One id off the shared allocator, recording the family's first. */
+    private int nextEntityId() {
+        int id = ids.getAsInt();
+        if (firstAllocatedId < 0) {
+            firstAllocatedId = id;
+        }
+        return id;
     }
 
     /** Every live frame (the join view's walk). */
@@ -179,11 +210,10 @@ public final class DecorationSystem {
         }
         int[] off = ItemFrame.FACING_OFFSETS[facingCode & 3];
         BlockPosition cell = clicked.offset(off[0], 0, off[1]);
-        ItemFrame frame = new ItemFrame(nextId, cell, facingCode & 3);
+        ItemFrame frame = new ItemFrame(nextEntityId(), cell, facingCode & 3, dimension);
         if (!canSurviveFrame(frame)) {
             return false; // refused: the stack intact
         }
-        nextId++;
         frames.put(cell, frame);
         validationTicks.put(frame.entityId(), 0);
         for (Listener listener : listeners) {
@@ -219,8 +249,7 @@ public final class DecorationSystem {
             return false; // nothing fits: the stack intact
         }
         Painting.Motive rolled = fits.get(random.nextInt(fits.size()));
-        Painting painting = new Painting(nextId, cell, facingCode & 3, rolled);
-        nextId++;
+        Painting painting = new Painting(nextEntityId(), cell, facingCode & 3, dimension, rolled);
         paintings.put(cell, painting);
         validationTicks.put(painting.entityId(), 0);
         for (Listener listener : listeners) {
@@ -260,12 +289,11 @@ public final class DecorationSystem {
         if (frames.containsKey(cell)) {
             return null; // the occupied-anchor refusal, never a silent evict
         }
-        ItemFrame frame = new ItemFrame(nextId, cell, facing);
+        ItemFrame frame = new ItemFrame(nextEntityId(), cell, facing, dimension);
         if (display != null && !display.isEmpty()) {
             frame.setDisplay(display);
         }
         frame.setRotation(rotation); // the setter's own % 8 wrap
-        nextId++;
         frames.put(cell, frame);
         validationTicks.put(frame.entityId(), 0);
         for (Listener listener : listeners) {
@@ -293,8 +321,7 @@ public final class DecorationSystem {
         if (paintings.containsKey(cell)) {
             return null; // the occupied-anchor refusal, never a silent evict
         }
-        Painting painting = new Painting(nextId, cell, facing & 3, motive);
-        nextId++;
+        Painting painting = new Painting(nextEntityId(), cell, facing & 3, dimension, motive);
         paintings.put(cell, painting);
         validationTicks.put(painting.entityId(), 0);
         for (Listener listener : listeners) {
@@ -657,11 +684,12 @@ public final class DecorationSystem {
     // The persistence (the ZED snapshot form)
     // ------------------------------------------------------------------
 
-    /** One frame's persistable view (writeCustomNbt's own fields). */
-    public record FrameRecord(BlockPosition pos, int facing, ItemStack item, int rotation) { }
+    /** One frame's persistable view (writeCustomNbt's own fields, the owning world stamped — FL4-GAP2 Slice D). */
+    public record FrameRecord(BlockPosition pos, int facing, ItemStack item, int rotation,
+                              int dimension) { }
 
-    /** One painting's persistable view (writeCustomNbt's own fields). */
-    public record PaintingRecord(BlockPosition pos, int facing, String motive) { }
+    /** One painting's persistable view (writeCustomNbt's own fields, the owning world stamped). */
+    public record PaintingRecord(BlockPosition pos, int facing, String motive, int dimension) { }
 
     /** The full persistable snapshot (saved at saveAllNow). */
     public record Snapshot(List<FrameRecord> frames, List<PaintingRecord> paintings) { }
@@ -671,12 +699,12 @@ public final class DecorationSystem {
         List<FrameRecord> frameRecords = new ArrayList<>();
         for (ItemFrame frame : frames.values()) {
             frameRecords.add(new FrameRecord(frame.pos(), frame.facing(),
-                    frame.display(), frame.rotation()));
+                    frame.display(), frame.rotation(), dimension));
         }
         List<PaintingRecord> paintingRecords = new ArrayList<>();
         for (Painting painting : paintings.values()) {
             paintingRecords.add(new PaintingRecord(painting.pos(), painting.facing(),
-                    painting.motive().name));
+                    painting.motive().name, dimension));
         }
         return new Snapshot(frameRecords, paintingRecords);
     }
@@ -693,7 +721,7 @@ public final class DecorationSystem {
             if (frames.containsKey(record.pos())) {
                 continue;
             }
-            ItemFrame frame = new ItemFrame(nextId++, record.pos(), record.facing());
+            ItemFrame frame = new ItemFrame(nextEntityId(), record.pos(), record.facing(), dimension);
             frame.setDisplay(record.item());
             frame.setRotation(record.rotation());
             frames.put(record.pos(), frame);
@@ -710,7 +738,8 @@ public final class DecorationSystem {
             if (motive == null) {
                 motive = Painting.Motive.KEBAB; // readCustomNbt's own fallback
             }
-            Painting painting = new Painting(nextId++, record.pos(), record.facing(), motive);
+            Painting painting = new Painting(nextEntityId(), record.pos(), record.facing(),
+                    dimension, motive);
             paintings.put(record.pos(), painting);
             validationTicks.put(painting.entityId(), 0);
             for (Listener listener : listeners) {

@@ -1238,7 +1238,12 @@ public final class V18ProtocolServer implements ProtocolAdapter {
         server.addDecorationListener(new net.zaminmc.torch.server.decoration.DecorationSystem.Listener() {
             @Override
             public void onFrameSpawned(net.zaminmc.torch.server.decoration.ItemFrame frame) {
+                // FL4-GAP2 Slice D — the frame's own-world gate (the
+                // reference's per-world tracker, the Wave AS shape).
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    if (connection.dimensionOfSession() != frame.dimension()) {
+                        continue; // another world's frame
+                    }
                     connection.sendFrameSpawned(frame);
                 }
             }
@@ -1246,6 +1251,9 @@ public final class V18ProtocolServer implements ProtocolAdapter {
             @Override
             public void onFrameRemoved(net.zaminmc.torch.server.decoration.ItemFrame frame) {
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    if (connection.dimensionOfSession() != frame.dimension()) {
+                        continue; // another world's frame
+                    }
                     connection.sendFrameRemoved(frame.entityId());
                 }
             }
@@ -1253,6 +1261,9 @@ public final class V18ProtocolServer implements ProtocolAdapter {
             @Override
             public void onFrameItemChanged(net.zaminmc.torch.server.decoration.ItemFrame frame) {
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    if (connection.dimensionOfSession() != frame.dimension()) {
+                        continue; // another world's frame
+                    }
                     connection.sendFrameItemChanged(frame);
                 }
             }
@@ -1261,6 +1272,9 @@ public final class V18ProtocolServer implements ProtocolAdapter {
             public void onFrameRotationChanged(
                     net.zaminmc.torch.server.decoration.ItemFrame frame) {
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    if (connection.dimensionOfSession() != frame.dimension()) {
+                        continue; // another world's frame
+                    }
                     connection.sendFrameRotationChanged(frame);
                 }
             }
@@ -1269,6 +1283,9 @@ public final class V18ProtocolServer implements ProtocolAdapter {
             public void onPaintingSpawned(
                     net.zaminmc.torch.server.decoration.Painting painting) {
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    if (connection.dimensionOfSession() != painting.dimension()) {
+                        continue; // another world's painting
+                    }
                     connection.sendPaintingSpawned(painting);
                 }
             }
@@ -1277,6 +1294,9 @@ public final class V18ProtocolServer implements ProtocolAdapter {
             public void onPaintingRemoved(
                     net.zaminmc.torch.server.decoration.Painting painting) {
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    if (connection.dimensionOfSession() != painting.dimension()) {
+                        continue; // another world's painting
+                    }
                     connection.sendPaintingRemoved(painting.entityId());
                 }
             }

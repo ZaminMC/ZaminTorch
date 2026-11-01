@@ -21,15 +21,21 @@ import java.util.Optional;
 import java.util.logging.Logger;
 
 /**
- * File-backed decoration state ("ZED" format, version 1), one file per
- * world — the jukebox store's own durability rules.
+ * File-backed decoration state ("ZED" format, version 2), ONE file for
+ * every world's families (the FL4-GAP2 Slice D union — the jukebox
+ * store's own durability rules, the v+1 stamp law every GAP2 store
+ * carries).
  *
- * <p>Layout: magic 'Z','E','D',1 - frames(varint count; each: x(i32)
+ * <p>Layout: magic 'Z','E','D',2 - frames(varint count; each: x(i32)
  * y(i32) z(i32) facing(u8) then the displayed stack in the ZCD item
- * form + rotation(u8)) - paintings(varint count; each: x(i32) y(i32)
- * z(i32) facing(u8) motive(string)) — the reference's writeCustomNbt
- * fields (the frame's "Item"/"ItemRotation"/"Facing"/"Tile" and the
- * painting's "Motive"/"Facing"/"Tile").</p>
+ * form + rotation(u8) + dimension(i8 — the signed byte at the row's
+ * tail, -1 landing as u8 255)) - paintings(varint count; each: x(i32)
+ * y(i32) z(i32) facing(u8) motive(string) + dimension(i8)) — the
+ * reference's writeCustomNbt fields (the frame's
+ * "Item"/"ItemRotation"/"Facing"/"Tile" and the painting's
+ * "Motive"/"Facing"/"Tile") plus the owning world's row. A version 1
+ * file's rows carry no dimension byte — they load as overworld rows
+ * (the migration law).</p>
  *
  * <p>Writes are atomic (temp file then atomic move), corrupt files load
  * as absent and are preserved beside the storage path instead of being
@@ -42,7 +48,7 @@ public final class DecorationDataStore {
     private static final int MAGIC_0 = 'Z';
     private static final int MAGIC_1 = 'E';
     private static final int MAGIC_2 = 'D';
-    private static final int FORMAT_VERSION = 1;
+    private static final int FORMAT_VERSION = 2;
 
     private final Path file;
 
@@ -73,7 +79,7 @@ public final class DecorationDataStore {
      * fresh values the system's own snapshot walk builds — the engine's
      * ItemStack is the immutable model), the ZED bytes OUT — no world
      * read, no I/O. The byte walk is the historical save walk's own
-     * (version 1, byte-identical).
+     * with the v2 dimension byte at each row's tail.
      */
     public byte[] serialize(List<DecorationSystem.FrameRecord> frames,
                             List<DecorationSystem.PaintingRecord> paintings) {
@@ -94,6 +100,8 @@ public final class DecorationDataStore {
                 out.writeByte(record.facing());
                 writeStack(out, record.item());
                 out.writeByte(record.rotation());
+                // The signed byte carries the owning world — -1 lands as u8 255.
+                out.writeByte(record.dimension());
             }
             writeVarInt(out, paintings.size());
             for (DecorationSystem.PaintingRecord record : paintings) {
@@ -102,6 +110,7 @@ public final class DecorationDataStore {
                 out.writeInt(record.pos().z());
                 out.writeByte(record.facing());
                 writeString(out, record.motive());
+                out.writeByte(record.dimension());
             }
         } catch (IOException e) {
             // The sink is an in-memory buffer; an IOException here is a
@@ -140,11 +149,14 @@ public final class DecorationDataStore {
     }
 
     /**
-     * Loads the decoration records; an absent or corrupt file loads empty
-     * (corrupt files are preserved, not destroyed). A stored stack the
-     * registry cannot resolve drops with a warning; a stored motive that
-     * no longer exists keeps its record (the system's own KEBAB
-     * fallback covers it, the readCustomNbt walk's own rule).
+     * Loads the decoration records, each stamped with the world it lives
+     * in. A version 1 file's rows carry no dimension byte — they load as
+     * overworld rows (the migration law every FL4-GAP2 store carries).
+     * An absent or corrupt file loads empty (corrupt files are preserved,
+     * not destroyed). A stored stack the registry cannot resolve drops
+     * with a warning; a stored motive that no longer exists keeps its
+     * record (the system's own KEBAB fallback covers it, the
+     * readCustomNbt walk's own rule).
      */
     public DecorationSnapshot load() {
         if (!Files.exists(file)) {
@@ -160,7 +172,7 @@ public final class DecorationDataStore {
                 return new DecorationSnapshot(new ArrayList<>(), new ArrayList<>());
             }
             int version = in.readByte() & 0xFF;
-            if (version != FORMAT_VERSION) {
+            if (version != 1 && version != 2) {
                 LOGGER.warning("Decoration state " + file + " version " + version
                         + " unsupported; loading empty");
                 return new DecorationSnapshot(new ArrayList<>(), new ArrayList<>());
@@ -175,7 +187,10 @@ public final class DecorationDataStore {
                 int facing = in.readUnsignedByte() & 3;
                 ItemStack item = readStack(in);
                 int rotation = in.readUnsignedByte() & 7;
-                frames.add(new DecorationSystem.FrameRecord(pos, facing, item, rotation));
+                // The v1 rows carry no dimension byte — they load as
+                // overworld rows (the migration law).
+                int dimension = version >= 2 ? in.readByte() : 0;
+                frames.add(new DecorationSystem.FrameRecord(pos, facing, item, rotation, dimension));
             }
             int paintingCount = readVarInt(in);
             if (paintingCount < 0 || paintingCount > 100_000) {
@@ -186,7 +201,8 @@ public final class DecorationDataStore {
                 BlockPosition pos = new BlockPosition(in.readInt(), in.readInt(), in.readInt());
                 int facing = in.readUnsignedByte() & 3;
                 String motive = readString(in);
-                paintings.add(new DecorationSystem.PaintingRecord(pos, facing, motive));
+                int dimension = version >= 2 ? in.readByte() : 0;
+                paintings.add(new DecorationSystem.PaintingRecord(pos, facing, motive, dimension));
             }
             return new DecorationSnapshot(frames, paintings);
         } catch (IOException | RuntimeException corrupt) {

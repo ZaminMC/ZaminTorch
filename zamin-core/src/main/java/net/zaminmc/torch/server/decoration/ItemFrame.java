@@ -22,15 +22,18 @@ public final class ItemFrame {
     private final net.zaminmc.torch.block.BlockPosition pos;
     /** The facing the frame points away from its wall (0-3, byIdHorizontal). */
     private final int facing;
+    /** The world the frame hangs in (FL4-GAP2 Slice D — the per-world family). */
+    private final int dimension;
     /** The displayed stack (EMPTY when bare). */
     private ItemStack display;
     /** The rotation step 0-7 (ItemFrameEntity's synced slot 9). */
     private int rotation;
 
-    ItemFrame(int entityId, net.zaminmc.torch.block.BlockPosition pos, int facing) {
+    ItemFrame(int entityId, net.zaminmc.torch.block.BlockPosition pos, int facing, int dimension) {
         this.entityId = entityId;
         this.pos = pos;
         this.facing = facing & 3;
+        this.dimension = dimension;
         this.display = ItemStack.EMPTY;
     }
 
@@ -47,6 +50,11 @@ public final class ItemFrame {
     /** The facing code the frame points away from its wall (0-3). */
     public int facing() {
         return facing;
+    }
+
+    /** The world the frame hangs in (the observer's own-world gate). */
+    public int dimension() {
+        return dimension;
     }
 
     /** The displayed stack (EMPTY when bare). */

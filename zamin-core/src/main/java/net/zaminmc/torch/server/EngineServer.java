@@ -409,6 +409,10 @@ public final class EngineServer implements Server, EngineBridge {
 
     /** The piston subsystem (Slice 9e): the block events + the moving carriers. */
     private net.zaminmc.torch.server.piston.PistonSystem pistonSystem;
+    /** The nether's own piston family (FL4-GAP2 Slice D — the per-world law). */
+    private net.zaminmc.torch.server.piston.PistonSystem netherPistons;
+    /** The End's own piston family (FL4-GAP2 Slice D — the per-world law). */
+    private net.zaminmc.torch.server.piston.PistonSystem endPistons;
 
     /** The TNT subsystem (Slice 9f): the ignition arms + the primed bodies. */
     private net.zaminmc.torch.server.tnt.TntSystem tntSystem;
@@ -430,6 +434,10 @@ public final class EngineServer implements Server, EngineBridge {
     private net.zaminmc.torch.server.daylight.DaylightDetectorSystem daylightDetectors;
     /** The decoration family (Slice 28a/28b): the item frames + the paintings. */
     private net.zaminmc.torch.server.decoration.DecorationSystem decorations;
+    /** The nether's own decoration family (FL4-GAP2 Slice D — the per-world law). */
+    private net.zaminmc.torch.server.decoration.DecorationSystem netherDecorations;
+    /** The End's own decoration family (FL4-GAP2 Slice D — the per-world law). */
+    private net.zaminmc.torch.server.decoration.DecorationSystem endDecorations;
     /** The decorations' ZED persistence. */
     private net.zaminmc.torch.server.decoration.DecorationDataStore decorationStore;
     /** The armor stands (Slice 28c). */
@@ -1810,9 +1818,19 @@ public final class EngineServer implements Server, EngineBridge {
                 // The pistons (Slice 9e): the block-event state machine + the
                 // two-tick moving carriers, hearing every committed change
                 // like the redstone system does (the reference's flag-1 walk).
+                // FL4-GAP2 Slice D — the per-world law: each dimension owns
+                // its own family (the reference's per-WorldServer
+                // ServerBlockEventList), so a nether piston runs on nether
+                // power and nether changes where before it never ran at all.
                 pistonSystem = new net.zaminmc.torch.server.piston.PistonSystem(
                         world, redstoneSystem, itemEntities, fxManager, gameplayRandom);
                 pistonSystem.setEventBus(eventBus); // §27.7: the public piston-move gate
+                netherPistons = new net.zaminmc.torch.server.piston.PistonSystem(
+                        netherWorld, netherRedstone, itemEntities, fxManager, gameplayRandom);
+                netherPistons.setEventBus(eventBus);
+                endPistons = new net.zaminmc.torch.server.piston.PistonSystem(
+                        endWorld, endRedstone, itemEntities, fxManager, gameplayRandom);
+                endPistons.setEventBus(eventBus);
                 // The entity displacement (the VIII13 slice — the reference's
                 // MovingBlockEntity.moveEntities): the push surface over the
                 // engine's body families. The three solver families carry the
@@ -1824,135 +1842,12 @@ public final class EngineServer implements Server, EngineBridge {
                 // the orbs, the stands, the primed TNT, the falling blocks,
                 // the projectiles) each ride the family's own box and shift
                 // law through their managers' push arms.
-                pistonSystem.setPushSurface((minX, minY, minZ, maxX, maxY, maxZ) -> {
-                    java.util.List<net.zaminmc.torch.server.piston.PistonSystem.Pushable> bodies =
-                            new java.util.ArrayList<>();
-                    // The mobs (the crush case): the solver walk with the
-                    // body's own step height.
-                    for (net.zaminmc.torch.server.entity.MobEntity mob : mobManager.all()) {
-                        net.zaminmc.torch.util.Position at = mob.position();
-                        if (at.x() + mob.type().width / 2.0 < minX
-                                || at.x() - mob.type().width / 2.0 > maxX
-                                || at.y() + mob.type().height < minY || at.y() > maxY
-                                || at.z() + mob.type().width / 2.0 < minZ
-                                || at.z() - mob.type().width / 2.0 > maxZ) {
-                            continue; // the box's own overlap test
-                        }
-                        bodies.add(new PistonMobPush(mob));
-                    }
-                    // The items: the leading-face clamped shift over the
-                    // manager's own ground consult.
-                    for (net.zaminmc.torch.server.entity.ItemEntity item : itemEntities.all()) {
-                        net.zaminmc.torch.util.Position at = item.position();
-                        if (at.x() + 0.125 < minX || at.x() - 0.125 > maxX
-                                || at.y() + 0.125 < minY || at.y() - 0.125 > maxY
-                                || at.z() + 0.125 < minZ || at.z() - 0.125 > maxZ) {
-                            continue;
-                        }
-                        // Wave TF-9 — the piston family's own overworld
-                        // binding: the walk never collects a cross-dimension
-                        // body (a nether item at the same coordinates is not
-                        // this piston's to push).
-                        if (item.dimension() != 0) {
-                            continue;
-                        }
-                        bodies.add(new PistonItemPush(item, itemEntities));
-                    }
-                    // The vehicles (the carts, the boats): the kind's own
-                    // solver walk with the kind's box.
-                    for (net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle
-                            : vehicleManager.all()) {
-                        net.zaminmc.torch.util.Position at = vehicle.position();
-                        if (at.x() + 0.75 < minX || at.x() - 0.75 > maxX
-                                || at.y() + 0.35 < minY || at.y() - 0.35 > maxY
-                                || at.z() + 0.75 < minZ || at.z() - 0.75 > maxZ) {
-                            continue;
-                        }
-                        bodies.add(new PistonVehiclePush(vehicle));
-                    }
-                    // The XP orbs (the additive families): the item-model
-                    // small body — the 0.25 box around the center, the
-                    // manager's own ground consult behind the clamped shift.
-                    for (net.zaminmc.torch.server.experience.ExperienceOrbEntity orb
-                            : experienceOrbs.all()) {
-                        net.zaminmc.torch.util.Position at = orb.position();
-                        if (at.x() + 0.125 < minX || at.x() - 0.125 > maxX
-                                || at.y() + 0.125 < minY || at.y() - 0.125 > maxY
-                                || at.z() + 0.125 < minZ || at.z() - 0.125 > maxZ) {
-                            continue;
-                        }
-                        // Wave TF-10 — the piston family's own overworld
-                        // binding: the walk never collects a cross-dimension
-                        // body (the TF-9 item gate's own shape).
-                        if (orb.dimension() != 0) {
-                            continue;
-                        }
-                        bodies.add(new PistonOrbPush(orb, experienceOrbs));
-                    }
-                    // The armor stands: the family's own box rows (the
-                    // normal 0.5 × 1.975, the small 0.25 × 0.9875 — the
-                    // marker's zero box never intersects a carrier).
-                    for (net.zaminmc.torch.server.armorstand.ArmorStand stand
-                            : armorStands.allStands()) {
-                        if (stand.marker()) {
-                            continue; // updateSize(0, 0): no box to intersect
-                        }
-                        // Wave AS — the piston family's own overworld
-                        // binding: the walk never collects a cross-dimension
-                        // body (the TF-9 item gate's own shape).
-                        if (stand.dimension() != 0) {
-                            continue;
-                        }
-                        double standHalf = stand.small() ? 0.125 : 0.25;
-                        double standHeight = stand.small() ? 0.9875 : 1.975;
-                        if (stand.x() + standHalf < minX || stand.x() - standHalf > maxX
-                                || stand.y() + standHeight < minY || stand.y() > maxY
-                                || stand.z() + standHalf < minZ || stand.z() - standHalf > maxZ) {
-                            continue;
-                        }
-                        bodies.add(new PistonStandPush(stand, armorStands));
-                    }
-                    // The primed TNT: the 0.98 box over the bottom-center
-                    // position (the family's own feet convention).
-                    for (net.zaminmc.torch.server.tnt.TntSystem.PrimedTnt tnt
-                            : tntSystem.allPrimed()) {
-                        if (tnt.x() + 0.49 < minX || tnt.x() - 0.49 > maxX
-                                || tnt.y() + 0.98 < minY || tnt.y() > maxY
-                                || tnt.z() + 0.49 < minZ || tnt.z() - 0.49 > maxZ) {
-                            continue;
-                        }
-                        bodies.add(new PistonTntPush(tnt, tntSystem));
-                    }
-                    // The falling blocks: the 0.98 box over the
-                    // bottom-center position (the family's own convention).
-                    for (net.zaminmc.torch.server.entity.FallingBlockEntity fallingBody
-                            : fallingEntities.all()) {
-                        net.zaminmc.torch.util.Position at = fallingBody.position();
-                        if (at.x() + 0.49 < minX || at.x() - 0.49 > maxX
-                                || at.y() + 0.98 < minY || at.y() > maxY
-                                || at.z() + 0.49 < minZ || at.z() - 0.49 > maxZ) {
-                            continue;
-                        }
-                        bodies.add(new PistonFallingPush(fallingBody, fallingEntities));
-                    }
-                    // The projectiles: the kind's own box (the reference's
-                    // per-kind setSize rows), the manager's push arm behind
-                    // the clamped shift.
-                    for (net.zaminmc.torch.server.entity.projectile.ProjectileEntity projectile
-                            : projectileManager.all()) {
-                        double half = net.zaminmc.torch.server.entity.projectile
-                                .ProjectileManager.pushHalfSize(projectile.kind());
-                        net.zaminmc.torch.util.Position at = projectile.position();
-                        if (at.x() + half < minX || at.x() - half > maxX
-                                || at.y() + half < minY || at.y() - half > maxY
-                                || at.z() + half < minZ || at.z() - half > maxZ) {
-                            continue;
-                        }
-                        bodies.add(new PistonProjectilePush(projectile, projectileManager));
-                    }
-                    return bodies;
-                });
+                pistonSystem.setPushSurface(pistonPushSurface(0));
+                netherPistons.setPushSurface(pistonPushSurface(-1));
+                endPistons.setPushSurface(pistonPushSurface(1));
                 world.addChangeListener(pistonSystem);
+                netherWorld.addChangeListener(netherPistons);
+                endWorld.addChangeListener(endPistons);
                 // The TNT (Slice 9f): the ignition system (the redstone arm,
                 // the flint-and-steel use, the blast chain-reaction) + the
                 // primed bodies' fuse and physics, riding the generalized
@@ -2037,23 +1932,59 @@ public final class EngineServer implements Server, EngineBridge {
                 // The decorations (Slice 28a/28b): the item frames + the
                 // paintings — the shared survival poll, the placement/
                 // interact/attack ladders, the through-the-wall comparator
-                // consult, and the ZED persistence.
+                // consult, and the ZED persistence. FL4-GAP2 Slice D — the
+                // per-world law: each dimension's family hangs in its own
+                // world (the reference's per-WorldServer hanging bodies),
+                // the three systems sharing ONE id allocator so the wire's
+                // Spawn Object ids stay unique across the worlds, and the
+                // ZED store's v2 rows carrying the owning dimension.
+                java.util.function.IntSupplier decorationIds =
+                        new java.util.function.IntSupplier() {
+                            private int next = DECORATION_ID_BASE;
+                            @Override public int getAsInt() {
+                                return next++;
+                            }
+                        };
                 decorations = new net.zaminmc.torch.server.decoration.DecorationSystem(
-                        new DecorationSurface(), DECORATION_ID_BASE, gameplayRandom);
+                        new DecorationSurface(world, redstoneSystem, 0),
+                        decorationIds, gameplayRandom, 0);
+                netherDecorations = new net.zaminmc.torch.server.decoration.DecorationSystem(
+                        new DecorationSurface(netherWorld, netherRedstone, -1),
+                        decorationIds, gameplayRandom, -1);
+                endDecorations = new net.zaminmc.torch.server.decoration.DecorationSystem(
+                        new DecorationSurface(endWorld, endRedstone, 1),
+                        decorationIds, gameplayRandom, 1);
                 decorationStore = new net.zaminmc.torch.server.decoration.DecorationDataStore(
                         config.worldDataDir().resolve("decorations.bin"));
                 net.zaminmc.torch.server.decoration.DecorationDataStore.DecorationSnapshot
                         decorationSnapshot = decorationStore.load();
-                decorations.restore(decorationSnapshot.frames(), decorationSnapshot.paintings());
+                // The restore routes each row to its owning world's family
+                // (the v2 dimension stamp; v1 files load as overworld rows).
+                decorations.restore(
+                        decorationSnapshot.frames().stream()
+                                .filter(row -> row.dimension() == 0).toList(),
+                        decorationSnapshot.paintings().stream()
+                                .filter(row -> row.dimension() == 0).toList());
+                netherDecorations.restore(
+                        decorationSnapshot.frames().stream()
+                                .filter(row -> row.dimension() == -1).toList(),
+                        decorationSnapshot.paintings().stream()
+                                .filter(row -> row.dimension() == -1).toList());
+                endDecorations.restore(
+                        decorationSnapshot.frames().stream()
+                                .filter(row -> row.dimension() == 1).toList(),
+                        decorationSnapshot.paintings().stream()
+                                .filter(row -> row.dimension() == 1).toList());
                 // The comparator's through-the-wall frame read (Slice 28a
                 // — ComparatorBlock.getInputSignal lines 118-126): the
                 // reader consults the frame registry at the air cell one
-                // beyond the input block — wired on EVERY dimension's
-                // system (Wave FL4-F10; the registry itself is the shared
-                // position-keyed store, Gap 2's honest tail).
+                // beyond the input block — each dimension's system reads
+                // its OWN world's family (Wave FL4-F10's wiring kept the
+                // overworld's shared registry on every system; Slice D
+                // pays that honest tail).
                 redstoneSystem.setFrameReader(decorations::frameComparatorRead);
-                netherRedstone.setFrameReader(decorations::frameComparatorRead);
-                endRedstone.setFrameReader(decorations::frameComparatorRead);
+                netherRedstone.setFrameReader(netherDecorations::frameComparatorRead);
+                endRedstone.setFrameReader(endDecorations::frameComparatorRead);
                 // The armor stands (Slice 28c): the placement/swap/break
                 // ladders + the ZAD persistence.
                 armorStands = new net.zaminmc.torch.server.armorstand.ArmorStandSystem(
@@ -2108,6 +2039,8 @@ public final class EngineServer implements Server, EngineBridge {
                 // the TNT ride the redstone family's neighbor dispatch —
                 // the reference's world-level neighborChanged.
                 redstoneSystem.addNeighborListener(pistonSystem::neighborHeard);
+                netherRedstone.addNeighborListener(netherPistons::neighborHeard);
+                endRedstone.addNeighborListener(endPistons::neighborHeard);
                 redstoneSystem.addNeighborListener(tntSystem::neighborHeard);
                 // The hoppers (Slice 10b): the transfer system (the 8-tick
                 // cooldown, the push toward the FACING container, the pull
@@ -3311,13 +3244,20 @@ public final class EngineServer implements Server, EngineBridge {
                 // The public §27.3 decoration-census view (the README
                 // TODO's row 15): the hanging bodies + the stands'
                 // family rows — each enumeration a monitor snapshot over
-                // its own system (the VillageViews shape). The nether
-                // and the End keep the default empty view (the two
-                // systems live on the overworld's store — the engine's
-                // own dimension gate).
+                // its own system (the VillageViews shape). FL4-GAP2
+                // Slice D: every world dresses its OWN families (a
+                // nether decorations() read never sees the overworld's
+                // frames at the same coordinates, and the stands filter
+                // to the view's own world).
                 world.attachDecorationsView(
                         new net.zaminmc.torch.server.decoration.DecorationViews(
-                                decorations, armorStands));
+                                decorations, armorStands, 0));
+                netherWorld.attachDecorationsView(
+                        new net.zaminmc.torch.server.decoration.DecorationViews(
+                                netherDecorations, armorStands, -1));
+                endWorld.attachDecorationsView(
+                        new net.zaminmc.torch.server.decoration.DecorationViews(
+                                endDecorations, armorStands, 1));
                 ticker.setTickHandler(() -> {
                     // The /debug profiler's head (MinecraftServer.tick lines
                     // 489-494 + 497): the delayed activation — a profiling
@@ -3349,6 +3289,8 @@ public final class EngineServer implements Server, EngineBridge {
                     profiled("redstone", netherRedstone::tick); // the nether's own queue (Wave FL4-F10)
                     profiled("redstone", endRedstone::tick); // the End's own queue (Wave FL4-F10)
                     profiled("pistons", pistonSystem::tick); // the piston block events + the moving carriers
+                    profiled("pistons", netherPistons::tick); // the nether's own family (Slice D)
+                    profiled("pistons", endPistons::tick); // the End's own family (Slice D)
                     profiled("hoppers", hopperSystem::tick); // the hoppers' 8-tick transfer cadence
                     profiled("hoppers", netherHoppers::tick); // the nether's own family (Slice B)
                     profiled("hoppers", endHoppers::tick); // the End's own family (Slice B)
@@ -5203,6 +5145,165 @@ public final class EngineServer implements Server, EngineBridge {
     /** The piston subsystem (exposed for behavioral tests). */
     public net.zaminmc.torch.server.piston.PistonSystem pistons() {
         return pistonSystem;
+    }
+
+    /**
+     * The per-dimension piston family (FL4-GAP2 Slice D — the chestsFor
+     * form): the dimension's own block-event list, moving carriers, and
+     * power edges.
+     */
+    public net.zaminmc.torch.server.piston.PistonSystem pistonsFor(int dimension) {
+        if (dimension == -1) {
+            return java.util.Objects.requireNonNull(netherPistons, "nether pistons");
+        }
+        if (dimension == 1) {
+            return java.util.Objects.requireNonNull(endPistons, "end pistons");
+        }
+        return pistonSystem;
+    }
+
+    /**
+     * The piston push surface for one dimension (FL4-GAP2 Slice D — the
+     * hopper suck-gate's own law): the moving carrier's entity scan gates
+     * on the BODY's own dimension, so a nether piston extending at
+     * coordinates where an overworld body stands displaces nothing across
+     * the worlds (the reference's per-WorldServer getEntities — a body in
+     * another world is not in the carrier's sweep at all).
+     */
+    private net.zaminmc.torch.server.piston.PistonSystem.PushSurface pistonPushSurface(int dimension) {
+        return (minX, minY, minZ, maxX, maxY, maxZ) -> {
+            java.util.List<net.zaminmc.torch.server.piston.PistonSystem.Pushable> bodies =
+                    new java.util.ArrayList<>();
+            // The mobs (the crush case): the solver walk with the body's own
+            // step height.
+            for (net.zaminmc.torch.server.entity.MobEntity mob : mobManager.all()) {
+                if (mob.dimension() != dimension) {
+                    continue; // another world's body is not in this carrier's sweep
+                }
+                net.zaminmc.torch.util.Position at = mob.position();
+                if (at.x() + mob.type().width / 2.0 < minX
+                        || at.x() - mob.type().width / 2.0 > maxX
+                        || at.y() + mob.type().height < minY || at.y() > maxY
+                        || at.z() + mob.type().width / 2.0 < minZ
+                        || at.z() - mob.type().width / 2.0 > maxZ) {
+                    continue; // the box's own overlap test
+                }
+                bodies.add(new PistonMobPush(mob));
+            }
+            // The items: the leading-face clamped shift over the manager's
+            // own ground consult.
+            for (net.zaminmc.torch.server.entity.ItemEntity item : itemEntities.all()) {
+                if (item.dimension() != dimension) {
+                    continue; // Wave TF-9's cross-dimension gate, generalized
+                }
+                net.zaminmc.torch.util.Position at = item.position();
+                if (at.x() + 0.125 < minX || at.x() - 0.125 > maxX
+                        || at.y() + 0.125 < minY || at.y() - 0.125 > maxY
+                        || at.z() + 0.125 < minZ || at.z() - 0.125 > maxZ) {
+                    continue;
+                }
+                bodies.add(new PistonItemPush(item, itemEntities));
+            }
+            // The vehicles (the carts, the boats): the kind's own solver
+            // walk with the kind's box.
+            for (net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle
+                    : vehicleManager.all()) {
+                if (vehicle.dimension() != dimension) {
+                    continue; // another world's body is not in this carrier's sweep
+                }
+                net.zaminmc.torch.util.Position at = vehicle.position();
+                if (at.x() + 0.75 < minX || at.x() - 0.75 > maxX
+                        || at.y() + 0.35 < minY || at.y() - 0.35 > maxY
+                        || at.z() + 0.75 < minZ || at.z() - 0.75 > maxZ) {
+                    continue;
+                }
+                bodies.add(new PistonVehiclePush(vehicle));
+            }
+            // The XP orbs (the additive families): the item-model small
+            // body — the 0.25 box around the center, the manager's own
+            // ground consult behind the clamped shift.
+            for (net.zaminmc.torch.server.experience.ExperienceOrbEntity orb
+                    : experienceOrbs.all()) {
+                if (orb.dimension() != dimension) {
+                    continue; // Wave TF-10's cross-dimension gate, generalized
+                }
+                net.zaminmc.torch.util.Position at = orb.position();
+                if (at.x() + 0.125 < minX || at.x() - 0.125 > maxX
+                        || at.y() + 0.125 < minY || at.y() - 0.125 > maxY
+                        || at.z() + 0.125 < minZ || at.z() - 0.125 > maxZ) {
+                    continue;
+                }
+                bodies.add(new PistonOrbPush(orb, experienceOrbs));
+            }
+            // The armor stands: the family's own box rows (the normal
+            // 0.5 × 1.975, the small 0.25 × 0.9875 — the marker's zero box
+            // never intersects a carrier).
+            for (net.zaminmc.torch.server.armorstand.ArmorStand stand
+                    : armorStands.allStands()) {
+                if (stand.marker()) {
+                    continue; // updateSize(0, 0): no box to intersect
+                }
+                if (stand.dimension() != dimension) {
+                    continue; // Wave AS's cross-dimension gate, generalized
+                }
+                double standHalf = stand.small() ? 0.125 : 0.25;
+                double standHeight = stand.small() ? 0.9875 : 1.975;
+                if (stand.x() + standHalf < minX || stand.x() - standHalf > maxX
+                        || stand.y() + standHeight < minY || stand.y() > maxY
+                        || stand.z() + standHalf < minZ || stand.z() - standHalf > maxZ) {
+                    continue;
+                }
+                bodies.add(new PistonStandPush(stand, armorStands));
+            }
+            // The primed TNT: the 0.98 box over the bottom-center position
+            // (the family's own feet convention).
+            for (net.zaminmc.torch.server.tnt.TntSystem.PrimedTnt tnt
+                    : tntSystem.allPrimed()) {
+                if (tnt.dimension() != dimension) {
+                    continue; // another world's body is not in this carrier's sweep
+                }
+                if (tnt.x() + 0.49 < minX || tnt.x() - 0.49 > maxX
+                        || tnt.y() + 0.98 < minY || tnt.y() > maxY
+                        || tnt.z() + 0.49 < minZ || tnt.z() - 0.49 > maxZ) {
+                    continue;
+                }
+                bodies.add(new PistonTntPush(tnt, tntSystem));
+            }
+            // The falling blocks: the 0.98 box over the bottom-center
+            // position (the family's own convention).
+            for (net.zaminmc.torch.server.entity.FallingBlockEntity fallingBody
+                    : fallingEntities.all()) {
+                if (fallingBody.dimension() != dimension) {
+                    continue; // another world's body is not in this carrier's sweep
+                }
+                net.zaminmc.torch.util.Position at = fallingBody.position();
+                if (at.x() + 0.49 < minX || at.x() - 0.49 > maxX
+                        || at.y() + 0.98 < minY || at.y() > maxY
+                        || at.z() + 0.49 < minZ || at.z() - 0.49 > maxZ) {
+                    continue;
+                }
+                bodies.add(new PistonFallingPush(fallingBody, fallingEntities));
+            }
+            // The projectiles: the kind's own box (the reference's per-kind
+            // setSize rows), the manager's push arm behind the clamped
+            // shift.
+            for (net.zaminmc.torch.server.entity.projectile.ProjectileEntity projectile
+                    : projectileManager.all()) {
+                if (projectile.dimension() != dimension) {
+                    continue; // Wave TF-9's cross-dimension gate, generalized
+                }
+                double half = net.zaminmc.torch.server.entity.projectile
+                        .ProjectileManager.pushHalfSize(projectile.kind());
+                net.zaminmc.torch.util.Position at = projectile.position();
+                if (at.x() + half < minX || at.x() - half > maxX
+                        || at.y() + half < minY || at.y() - half > maxY
+                        || at.z() + half < minZ || at.z() - half > maxZ) {
+                    continue;
+                }
+                bodies.add(new PistonProjectilePush(projectile, projectileManager));
+            }
+            return bodies;
+        };
     }
 
     /** The TNT subsystem (exposed for behavioral tests). */
@@ -7425,17 +7526,21 @@ public final class EngineServer implements Server, EngineBridge {
             if (mob == null || mob.dead()) {
                 // The decoration family (Slice 28a/28b): the frame's
                 // attack ladder (the item eject on a loaded frame, the
-                // break otherwise) and the painting's break drop.
-                if (decorations != null) {
+                // break otherwise) and the painting's break drop —
+                // FL4-GAP2 Slice D: the attacker's OWN world's family
+                // (the reference's per-WorldServer interact dispatch).
+                net.zaminmc.torch.server.decoration.DecorationSystem actingDecorations =
+                        decorationsFor(attacker.dimension());
+                if (actingDecorations != null) {
                     net.zaminmc.torch.server.decoration.ItemFrame frame =
-                            decorations.frameById(targetEntityId);
+                            actingDecorations.frameById(targetEntityId);
                     if (frame != null) {
                         double ddx = frame.hangingPosition().x() - attacker.position().x();
                         double ddy = frame.hangingPosition().y() - attacker.position().y();
                         double ddz = frame.hangingPosition().z() - attacker.position().z();
                         double dHorizontal = Math.sqrt(ddx * ddx + ddz * ddz);
                         if (dHorizontal <= MELEE_REACH + 1.0 && ddy > -2.0 && ddy < 4.0) {
-                            decorations.attackFrame(frame,
+                            actingDecorations.attackFrame(frame,
                                     attacker.gamemode() == net.zaminmc.torch.GameMode.CREATIVE,
                                     false);
                             attacker.addExhaustion(ATTACK_EXHAUSTION);
@@ -7443,14 +7548,14 @@ public final class EngineServer implements Server, EngineBridge {
                         return;
                     }
                     net.zaminmc.torch.server.decoration.Painting painting =
-                            decorations.paintingById(targetEntityId);
+                            actingDecorations.paintingById(targetEntityId);
                     if (painting != null) {
                         double pdx = painting.pos().x() + 0.5 - attacker.position().x();
                         double pdy = painting.pos().y() + 0.5 - attacker.position().y();
                         double pdz = painting.pos().z() + 0.5 - attacker.position().z();
                         double pHorizontal = Math.sqrt(pdx * pdx + pdz * pdz);
                         if (pHorizontal <= MELEE_REACH + 1.0 && pdy > -2.0 && pdy < 4.0) {
-                            decorations.attackPainting(painting,
+                            actingDecorations.attackPainting(painting,
                                     attacker.gamemode() == net.zaminmc.torch.GameMode.CREATIVE);
                             attacker.addExhaustion(ATTACK_EXHAUSTION);
                         }
@@ -12975,7 +13080,9 @@ public final class EngineServer implements Server, EngineBridge {
         if (facing < 0) {
             return; // the vertical faces: the reference's own refusal
         }
-        if (decorations.placeFrame(clicked, face, facing)) {
+        // FL4-GAP2 Slice D: the PLACER's OWN world's family (the
+        // reference's per-WorldServer placement).
+        if (decorationsFor(session.dimension()).placeFrame(clicked, face, facing)) {
             consumePlaced(session, creativeHeld); // stack.size--: the body survived
         }
     }
@@ -12999,7 +13106,8 @@ public final class EngineServer implements Server, EngineBridge {
         if (facing < 0) {
             return;
         }
-        if (decorations.placePainting(clicked, face, facing)) {
+        // FL4-GAP2 Slice D: the PLACER's OWN world's family.
+        if (decorationsFor(session.dimension()).placePainting(clicked, face, facing)) {
             consumePlaced(session, creativeHeld); // a landed painting consumes one unit
         }
     }
@@ -16792,16 +16900,19 @@ public final class EngineServer implements Server, EngineBridge {
             if (mob == null || mob.dead()) {
                 // The item frame's interact (Slice 28a — ItemFrameEntity.
                 // interact lines 180-194): the insert (a copy of the held
-                // stack, one unit off the hand) or the rotation turn.
-                net.zaminmc.torch.server.decoration.ItemFrame frame = decorations != null
-                        ? decorations.frameById(targetEntityId) : null;
+                // stack, one unit off the hand) or the rotation turn —
+                // FL4-GAP2 Slice D: the player's OWN world's family.
+                net.zaminmc.torch.server.decoration.DecorationSystem actingDecorations =
+                        decorationsFor(player.dimension());
+                net.zaminmc.torch.server.decoration.ItemFrame frame = actingDecorations != null
+                        ? actingDecorations.frameById(targetEntityId) : null;
                 if (frame != null) {
                     double fdx = frame.hangingPosition().x() - player.position().x();
                     double fdy = frame.hangingPosition().y() - player.position().y();
                     double fdz = frame.hangingPosition().z() - player.position().z();
                     double fHorizontal = Math.sqrt(fdx * fdx + fdz * fdz);
                     if (fHorizontal <= MELEE_REACH + 1.0 && fdy > -2.0 && fdy < 4.0) {
-                        if (decorations.interactFrame(frame, player.inventory().held())
+                        if (actingDecorations.interactFrame(frame, player.inventory().held())
                                 == net.zaminmc.torch.server.decoration.DecorationSystem
                                         .FrameInteract.INSERTED
                                 && player.gamemode() != GameMode.CREATIVE) {
@@ -20775,7 +20886,11 @@ public final class EngineServer implements Server, EngineBridge {
 
     /** The decorations' survival poll (Slice 28a/28b — the 100-tick walk). */
     private void tickDecorations() {
+        // FL4-GAP2 Slice D: every world's own family polls its own
+        // bodies (the reference's per-WorldServer entity tick).
         decorations.tick();
+        netherDecorations.tick();
+        endDecorations.tick();
         armorStands.tick(); // the stands' fire burn-down (Slice 28c)
         if (enderCrystals != null) {
             enderCrystals.tick(); // the crystals' spin + the feet fire (Slice 62)
@@ -20788,21 +20903,37 @@ public final class EngineServer implements Server, EngineBridge {
         }
         // The framed maps' audience walk (the map item family — TrackedEntity
         // lines 134-151: the ten-tick cadence over every frame displaying a
-        // filled map, the holder walk + the 0x34 per player). The frames hang
-        // in the overworld (the decoration system's own world).
+        // filled map, the holder walk + the 0x34 per player) — every
+        // world's frames (Slice D: a nether frame's map renders for the
+        // nether's holders).
         if (maps != null && world.totalTicks() % 10 == 0) {
             java.util.List<net.zaminmc.torch.server.map.MapSystem.FrameInfo> framedMaps =
                     new java.util.ArrayList<>();
             for (net.zaminmc.torch.server.decoration.ItemFrame frame : decorations.allFrames()) {
-                ItemStack displayed = frame.display();
-                if (!displayed.isEmpty()
-                        && displayed.type().equals(BuiltinItems.FILLED_MAP)) {
-                    framedMaps.add(new FramedMap(frame, displayed));
-                }
+                collectFramedMap(framedMaps, frame);
+            }
+            for (net.zaminmc.torch.server.decoration.ItemFrame frame
+                    : netherDecorations.allFrames()) {
+                collectFramedMap(framedMaps, frame);
+            }
+            for (net.zaminmc.torch.server.decoration.ItemFrame frame
+                    : endDecorations.allFrames()) {
+                collectFramedMap(framedMaps, frame);
             }
             if (!framedMaps.isEmpty()) {
                 maps.frameTick(players.all(), framedMaps);
             }
+        }
+    }
+
+    /** One frame's audience-walk contribution (a filled map on the wall). */
+    private void collectFramedMap(
+            java.util.List<net.zaminmc.torch.server.map.MapSystem.FrameInfo> into,
+            net.zaminmc.torch.server.decoration.ItemFrame frame) {
+        ItemStack displayed = frame.display();
+        if (!displayed.isEmpty()
+                && displayed.type().equals(BuiltinItems.FILLED_MAP)) {
+            into.add(new FramedMap(frame, displayed));
         }
     }
 
@@ -20833,7 +20964,7 @@ public final class EngineServer implements Server, EngineBridge {
 
         @Override
         public int dimension() {
-            return 0; // the decoration system's own world (the overworld)
+            return frame.dimension(); // the frame's own world (Slice D)
         }
 
         @Override
@@ -21079,18 +21210,39 @@ public final class EngineServer implements Server, EngineBridge {
         }
     }
 
-    /** The decoration system's engine surface (the world + the drops). */
+    /**
+     * The decoration system's engine surface (the world + the drops) —
+     * FL4-GAP2 Slice D: one surface per world, each consulting its OWN
+     * world, its OWN redstone's comparator wake, and its OWN map-marker
+     * dimension row (the reference's per-WorldServer hanging bodies).
+     */
     private final class DecorationSurface
             implements net.zaminmc.torch.server.decoration.DecorationSystem.Surface {
+        private final EngineWorld surfaceWorld;
+        private final net.zaminmc.torch.server.redstone.RedstoneSystem surfaceRedstone;
+        private final int surfaceDimension;
+
+        DecorationSurface(EngineWorld surfaceWorld,
+                          net.zaminmc.torch.server.redstone.RedstoneSystem surfaceRedstone,
+                          int surfaceDimension) {
+            this.surfaceWorld = surfaceWorld;
+            this.surfaceRedstone = surfaceRedstone;
+            this.surfaceDimension = surfaceDimension;
+        }
+
         @Override
         public World world() {
-            return world;
+            return surfaceWorld;
         }
 
         @Override
         public void dropItem(Position at, ItemStack stack) {
             if (!stack.isEmpty()) {
-                itemEntities.spawnDropAtBlock(at, stack, ItemEntity.PICKUP_DELAY_DROP_TICKS);
+                // The dimension-stamped drop (Slice D): a nether frame's
+                // break drops a NETHER item, never an overworld one at
+                // the same coordinates.
+                itemEntities.spawnDropAtBlock(at, stack,
+                        ItemEntity.PICKUP_DELAY_DROP_TICKS, surfaceDimension);
             }
         }
 
@@ -21101,15 +21253,13 @@ public final class EngineServer implements Server, EngineBridge {
 
         @Override
         public void wakeComparators(net.zaminmc.torch.block.BlockPosition cell) {
-            redstoneSystem.wakeComparators(cell);
+            surfaceRedstone.wakeComparators(cell);
         }
 
         @Override
         public void removeFrameMarker(int frameEntityId, ItemStack display) {
             if (maps != null) {
-                // The frames hang in the overworld (the decoration
-                // system's own world) — the marker's data lives there.
-                maps.removeFrameMarker(0, frameEntityId, display);
+                maps.removeFrameMarker(surfaceDimension, frameEntityId, display);
             }
         }
     }
@@ -21397,18 +21547,36 @@ public final class EngineServer implements Server, EngineBridge {
     /**
      * Registers the decoration observer (the protocol adapter's Spawn
      * Object 71 + the Spawn Painting + the Set Entity Metadata pair +
-     * the Destroy Entities fan-out).
+     * the Destroy Entities fan-out) — on EVERY world's family (Slice D:
+     * the three systems share the listener, the adapter gates each body
+     * on the observer's own world).
      */
     public void addDecorationListener(
             net.zaminmc.torch.server.decoration.DecorationSystem.Listener listener) {
-        if (decorations == null) {
+        if (decorations == null || netherDecorations == null || endDecorations == null) {
             throw new IllegalStateException("the decoration system boots with the world");
         }
         decorations.addListener(listener);
+        netherDecorations.addListener(listener);
+        endDecorations.addListener(listener);
     }
 
     /** The decoration system (§27.3's surface — the frames + the paintings). */
     public net.zaminmc.torch.server.decoration.DecorationSystem decorations() {
+        return decorations;
+    }
+
+    /**
+     * The per-dimension decoration family (FL4-GAP2 Slice D — the
+     * chestsFor form): the world's own hanging bodies.
+     */
+    public net.zaminmc.torch.server.decoration.DecorationSystem decorationsFor(int dimension) {
+        if (dimension == -1) {
+            return java.util.Objects.requireNonNull(netherDecorations, "nether decorations");
+        }
+        if (dimension == 1) {
+            return java.util.Objects.requireNonNull(endDecorations, "end decorations");
+        }
         return decorations;
     }
 
@@ -25447,10 +25615,12 @@ public final class EngineServer implements Server, EngineBridge {
      */
     private void woundDecorationsFromBlast(int dimension, double cx, double cy,
                                            double cz, float f3) {
-        if (dimension != 0 || decorations == null) {
-            return;
-        }
-        for (net.zaminmc.torch.server.decoration.ItemFrame frame : decorations.allFrames()) {
+        // FL4-GAP2 Slice D: the blast's OWN world's family (the
+        // reference's damageEntities walks the acting World's hanging
+        // bodies — the old dimension != 0 gate retired with it).
+        net.zaminmc.torch.server.decoration.DecorationSystem acting =
+                decorationsFor(dimension);
+        for (net.zaminmc.torch.server.decoration.ItemFrame frame : acting.allFrames()) {
             Position p = frame.hangingPosition();
             double dx = p.x() - cx;
             double dy = p.y() - cy;
@@ -25458,9 +25628,9 @@ public final class EngineServer implements Server, EngineBridge {
             if (dx * dx + dy * dy + dz * dz > f3 * f3) {
                 continue;
             }
-            decorations.attackFrame(frame, false, true);
+            acting.attackFrame(frame, false, true);
         }
-        for (net.zaminmc.torch.server.decoration.Painting painting : decorations.allPaintings()) {
+        for (net.zaminmc.torch.server.decoration.Painting painting : acting.allPaintings()) {
             net.zaminmc.torch.block.BlockPosition p = painting.pos();
             double dx = p.x() - cx;
             double dy = p.y() - cy;
@@ -25468,7 +25638,7 @@ public final class EngineServer implements Server, EngineBridge {
             if (dx * dx + dy * dy + dz * dz > f3 * f3) {
                 continue;
             }
-            decorations.attackPainting(painting, false);
+            acting.attackPainting(painting, false);
         }
     }
 
@@ -31092,17 +31262,28 @@ public final class EngineServer implements Server, EngineBridge {
                     // S5: the frame/painting snapshot rides the pipeline's
                     // named path (the system's snapshot record is the
                     // immutable input contract already — fresh records on
-                    // this lane).
-                    net.zaminmc.torch.server.decoration.DecorationSystem.Snapshot decorationSaved =
-                            decorations.snapshot();
+                    // this lane). FL4-GAP2 Slice D: the save UNIONs every
+                    // world's family, each row stamped with its owning
+                    // dimension (the v2 ZED form).
+                    java.util.List<net.zaminmc.torch.server.decoration.DecorationSystem.FrameRecord>
+                            decorationFrames = new java.util.ArrayList<>();
+                    java.util.List<net.zaminmc.torch.server.decoration.DecorationSystem.PaintingRecord>
+                            decorationPaintings = new java.util.ArrayList<>();
+                    for (net.zaminmc.torch.server.decoration.DecorationSystem family :
+                            java.util.List.of(decorations, netherDecorations, endDecorations)) {
+                        net.zaminmc.torch.server.decoration.DecorationSystem.Snapshot familySaved =
+                                family.snapshot();
+                        decorationFrames.addAll(familySaved.frames());
+                        decorationPaintings.addAll(familySaved.paintings());
+                    }
                     if (pipeline != null) {
                         publications.add(pipeline.submitSave("decoration",
                                 new net.zaminmc.torch.server.decoration.DecorationDataStore.SaveInput(
-                                        decorationSaved.frames(), decorationSaved.paintings()),
+                                        decorationFrames, decorationPaintings),
                                 input -> decorationStore.serialize(input.frames(), input.paintings()),
                                 decorationStore::writeSerialized));
                     } else {
-                        decorationStore.save(decorationSaved.frames(), decorationSaved.paintings());
+                        decorationStore.save(decorationFrames, decorationPaintings);
                     }
                 }
                 if (armorStandStore != null && armorStands != null) {
@@ -31576,7 +31757,8 @@ public final class EngineServer implements Server, EngineBridge {
                                                 .hopperCartTransfer(cart),
                                         this::spawnerCartHost,
                                         this::commandCartHost),
-                                projectileManager, decorations, experienceOrbs,
+                                projectileManager, decorationsFor(target.dimension()),
+                                experienceOrbs,
                                 fireworks, eyes, leadSystem,
                                 this::seatImportedRiderOnGenericMount));
         try {
