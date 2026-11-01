@@ -3795,7 +3795,7 @@ it), the TNT's survival asserted against the engine's detonation.
 | Block identity — the legacy wire rows | the vine family's gap LANDED by `6b29c46f` (the house's own production-crash repair; `LegacyBlockIdsIntegrityTest`'s skip set now EMPTY and pinned) |
 | Mob spawns — the dimension stamp | **VT-012 CONFIRMED — three passes complete, fix-ready** (`audit/vt-012-spawn-dimension-stamp`: fourteen unstamped sites censused — the eggs, /summon, the wither, the spawner cart, the mooshroom shear, the infection/cure, the slime split, breeding, the golems, the infested burst; the wrong-stamped nether body invisible to the nether player, its physics reading the overworld's cells, a permanent ghost on the despawn walk) — the fix branch the next run's head |
 | Natural spawn — the floor consult (`hasSolidTop`) | **VT-020 CONFIRMED — three passes complete, fix-ready** (the spawn-floor lane's record, provenance `fix/spawn-floor-solid-top-parity-audit` `0f4bbfb4`, pushed 06:04:09 — the lane's report record owed): `NaturalSpawnSystem.isPartialShape`'s two suffix arms (`endsWith(_slab)` / `endsWith(_stairs)`) approximated `World.hasSolidTop`'s structured law (lines 1740-1752) and missed in BOTH directions — the ten double-slab floors REFUSED a spawn vanilla hosts (the first arm's `isCube()` accepts them), the stored bottom-stair and stone_slab2 floors HOSTED 1966 night spawns vanilla refuses (`HALF == TOP` alone passes), the same family refusing the spawn under ten names and hosting it under three; three RED seats at exactly the predicted values, 3/3 GREEN on the fix tree, the five-arm re-read + the 56-identifier census + the compensation hunt (negative) the independent pass; the spawn suite 16/0, the spawn-adjacent lanes 70/0, the block package 311/0 — the PR owed |
-| FX broadcasts — the dimension awareness | **CENSUSED (the forty-first pass) + TWO FAMILIES CORRECTED**: the bus itself carries the dimension on every event (Wave TF-12 — the javadoc's own law, `FxDimensionReadsTest` the forms' record) and the wire's fan refuses cross-dimension observers (`V18Connection.fxEligible`, verified in the walk) — the UNCOVERED surface was the CALLERS' overload choice: **32 no-dimension emit sites** (the overworld-0 stamp), censused engine-wide. **VT-026 CONFIRMED AND CORRECTED — PR #134 OPEN** (the TNT prime hiss: `TntSystem.ignite` + `spawnPrimedAt` — the body carried the acting dimension since FL4-F7 while its own hiss stamped the overworld; the nether prime silent to the players beside it, the phantom hiss in the overworld; the seat RED on develop at both arms, the fix the acting dimension at both sites). **VT-027 CONFIRMED AND CORRECTED — PR #135 OPEN** (the dig/place commit feedback: the `Commit` record carried NO dimension — the nether dig's break sound stamped 0, the digger breaking blocks in COMPLETE SILENCE while the overworld heard the phantom; the fix the record's dimension field + the closure's three stamps). The remaining census: the redstone-family sites (noteblock/piston/tripwire) ride the FL4 per-dimension redstone tail (their systems are overworld-bound today, the stamp consistent with the binding); the thunder pair CORRECT-BY-BINDING (the lightning strikes over the overworld's chunks alone — vanilla's no-nether-weather law, the bolt fan already gated 0); **~20 same-class candidate sites ledgered as the census tail** (the wither-summon poof — **TAKEN, VT-029/PR #146, the forty-second pass: the poof's dimension corrected with the whole summon family's residues**, the anvil use/land events, the iron door/trapdoor, the eye-of-ender frame smoke, the fire placement's portal arm, the double-plant/farmland/cocoa place sounds, the door world-events, the falling-block land 1022) — each needing its own three-pass verification of the acting flow's dimension |
+| FX broadcasts — the dimension awareness | **CENSUSED (the forty-first pass) + TWO FAMILIES CORRECTED**: the bus itself carries the dimension on every event (Wave TF-12 — the javadoc's own law, `FxDimensionReadsTest` the forms' record) and the wire's fan refuses cross-dimension observers (`V18Connection.fxEligible`, verified in the walk) — the UNCOVERED surface was the CALLERS' overload choice: **32 no-dimension emit sites** (the overworld-0 stamp), censused engine-wide. **VT-026 CONFIRMED AND CORRECTED — PR #134 OPEN** (the TNT prime hiss: `TntSystem.ignite` + `spawnPrimedAt` — the body carried the acting dimension since FL4-F7 while its own hiss stamped the overworld; the nether prime silent to the players beside it, the phantom hiss in the overworld; the seat RED on develop at both arms, the fix the acting dimension at both sites). **VT-027 CONFIRMED AND CORRECTED — PR #135 OPEN** (the dig/place commit feedback: the `Commit` record carried NO dimension — the nether dig's break sound stamped 0, the digger breaking blocks in COMPLETE SILENCE while the overworld heard the phantom; the fix the record's dimension field + the closure's three stamps). The remaining census: the redstone-family sites (noteblock/piston/tripwire) ride the FL4 per-dimension redstone tail (their systems are overworld-bound today, the stamp consistent with the binding); the thunder pair CORRECT-BY-BINDING (the lightning strikes over the overworld's chunks alone — vanilla's no-nether-weather law, the bolt fan already gated 0); **~20 same-class candidate sites ledgered as the census tail** (the wither-summon poof — **TAKEN, VT-033/PR #146, the fiftieth pass: the poof's dimension corrected with the whole summon family's residues**, the anvil use/land events, the iron door/trapdoor, the eye-of-ender frame smoke, the fire placement's portal arm, the double-plant/farmland/cocoa place sounds, the door world-events, the falling-block land 1022) — each needing its own three-pass verification of the acting flow's dimension |
 | World border — per-dimension | NOT INSPECTED (the reference's per-World border vs the engine's shared one) |
 | Zombie/mob arms — world binding | NOT INSPECTED (the zombie door-break consults the overworld field) |
 | Explosions — dimension routing | AUDITED (the twenty-sixth pass): the CORE resolved by PR #100; the CART slice RESOLVED — **PR #105 MERGED** (`278b139e`, the review rider at `32af09f3`). The named tail stands: the End/nether services' shared `gameplayRandom` vs the reference's per-world `world.random` |
@@ -3925,8 +3925,8 @@ it), the TNT's survival asserted against the engine's detonation.
 
 8. **THE NO-DIMENSION FX CENSUS TAIL** (the forty-first pass's wide act): ~16
    remaining same-class candidate sites after VT-028 took the falling-block
-   head (PR #136 — the anvil's land sound) and **VT-029 took the wither head
-   (PR #146, the forty-second pass — the wither-summon poof corrected WITH the
+   head (PR #136 — the anvil's land sound) and **VT-033 took the wither head
+   (PR #146, the fiftieth pass — the wither-summon poof corrected WITH the
    whole summon family's five residues: the poof's dimension, the birth
    stamp's fan timing, the achievement's world, the break drop's world, the
    per-dimension tile fan; the seat doubling as the independent cross-tree
@@ -3937,9 +3937,9 @@ it), the TNT's survival asserted against the engine's detonation.
    eye-of-ender frame smoke, the door world-events. Each needs its own
    three-pass verification (the acting flow's dimension availability the
    per-site question); the redstone-family sites (noteblock/piston/tripwire)
-   stay behind the FL4 per-dimension redstone tail. **VT-026 through VT-029
-   corrected whole (PRs #134/#135/#136/#146)** — the four verified families
-   the pattern's proof. **The banner family's tile fan the same ungated shape
+   stay behind the FL4 per-dimension redstone tail. **VT-026 through VT-028
+   and VT-033 corrected whole (PRs #134/#135/#136/#146)** — the four verified
+   families the pattern's proof. **The banner family's tile fan the same ungated shape
    (the forty-second pass's named adjacent tail)**.
 
 
@@ -4763,7 +4763,7 @@ standing merge watch (the maintainer's pick among the convergent carriers:
 #117/#122 the placement, #120 the un-stick, #123/#128/#131 the TNT/piston
 family).
 
-## The fiftieth pass (this lane — the work done in the forty-second window; the branch renumbered mid-flight, the pass-42 through pass-49 names all taken by the concurrent streams' lanes — the established renumbering protocol, the VT-012->VT-013 precedent's lane form) — VT-029: the wither-summon family's dimension ownership (the census tail's second head, the wither poof, widened; the pre-Slice-C core discovered independently, the post-Slice-C residues confirmed and corrected — PR #146)
+## The fiftieth pass (this lane — the work done in the forty-second window; the branch renumbered mid-flight, the pass-42 through pass-49 names all taken by the concurrent streams' lanes — the established renumbering protocol, the VT-012->VT-013 precedent's lane form) — VT-033 (first numbered VT-029, RENUMBERED by the public-first protocol: PR #142's sixteen-site FX sweep owns VT-029 publicly first, opened before this lane's #146; the VT-012->VT-013 precedent twice over): the wither-summon family's dimension ownership (the census tail's second head, the wither poof, widened; the pre-Slice-C core discovered independently, the post-Slice-C residues confirmed and corrected — PR #146)
 
 The forty-first pass's close named the census tail's remaining ~17 sites the
 head, the wither poof the likeliest. The concurrent streams took F-SP1
@@ -4850,7 +4850,7 @@ public APIs — `useItemOnBlock`, `getBlock`, `mobs().all()`, `fx()`
 listeners — the RED the engine's real observable behavior).
 
 **THE CORRECTION — PR #146 OPEN**
-(`fix/wither-summon-dimension-parity-audit` over develop `efcd0c4f`):
+(`fix/wither-summon-dimension-parity-audit` over develop `efcd0c4f`, the finding VT-033 after the public-first renumbering):
 the smallest members — `MobManager.spawnAt(type, position, dimension)`
 + the `spawnAtCore` extraction (the birth stamp pre-fan; the
 dimensionless arm keeps its explicit 0, every existing caller's behavior
