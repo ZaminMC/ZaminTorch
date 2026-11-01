@@ -2350,3 +2350,42 @@ shape follows the landed slices' `chestsFor`/`leadsFor` precedent.
 (the cross-tree confirmation recorded); VT-035's relay half at pass 1
 + the note seat's cross-tree evidence; VT-036 at passes 1-2, pass 3
 owed.**
+
+## The forty-seventh pass's Phase E — VT-036 CORRECTED (PR #151 OPEN on `fix/tripwire-tnt-downstream-dimension-parity-audit`)
+
+The three passes complete (the record above), the correction landed on
+an isolated branch from `origin/develop` `1139f2c3`:
+
+- **The tripwire family** at the note family's Slice C form: three
+  `TripwireSystem` instances (the `tripwireFor(dim)` router beside the
+  legacy field), each constructed with its OWN world + its OWN redstone
+  and registered on its OWN change bus, its OWN redstone's neighbor bus
+  and its OWN tripwire ticker; the occupancy probes dimension-gated at
+  the plate probe's FL4-F10 form (the new `wireTripwireProbes(system,
+  dimension)` helper — the mobs/players/items walks each filtered on
+  the body's own dimension); the per-tick scan lanes per dimension.
+- **The TNT** at the solidAt/explode form: the signal consult routed
+  through the new `IntFunction<RedstoneSystem> redstoneFor` constructor
+  arm (the acting dimension's OWN redstone answering `neighborSignal`),
+  the `actingWorld == world` gate RETIRED (the FL4-F7 deferral's own
+  gate), the arrival arm (`onBlockChanged` — the reference's onAdded)
+  registered on all three worlds' change buses, and the neighbor arm on
+  every dimension's redstone bus with its own world closed over (the
+  new world-carrying `neighborHeard` overload, the position-only form
+  delegating for the overworld registration).
+- **SEATS 8/0** — the discovery seat lifted whole on the fix tree (RED
+  4/4 members on develop at the member pins, every control green on
+  both trees).
+- **REGRESSION 79/0** — the redstone package whole (9 classes), the tnt
+  package (4), the nether routing quartet, DimensionWalk 1,
+  BlockInteraction (the full-boot lanes catching the constructor
+  change's boot order).
+- **PR #151 OPEN** targeting `develop`. The honest scope documented in
+  the PR body: the tripwire fx stamps ride #142's follow-up (the
+  systems now hold per-dimension worlds), and VT-035's protocol relays
+  are the separate standing finding (pass 1 + the note seat's
+  cross-tree evidence; the relay seat the owed next act).
+
+**The queue after this pass: VT-035's relay half (the pass-2 seat +
+pass 3), the merge watch (25 PRs open), the placement-gate tails the
+sibling lane names.**
