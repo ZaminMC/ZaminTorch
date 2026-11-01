@@ -4378,20 +4378,21 @@ must pin the pops, the pre-fix holds).
 | The slab-family suffix census | INSPECTED (the whole-repository `endsWith("_slab")` census: `BlockSolidity.isCube` and `FireBlocks` already correct with the `double_` carve — the house convention; `CollisionShapes` corrected by PR #118; `NaturalSpawnSystem` corrected by PR #121 (VT-020 — the spawn consult, the directional stair states and the `_slab2` row joining the census); `RedstoneSystem.trapdoorMountHolds` name-based, the double agreeing, the SINGLES' rows F-SP1's lane; the held-id dispatch and the dormant `woodenSlabFamilyOf` unaffected) |
 | The anvil window's block side (the damage roll, the walk-away gate, the 1020/1021 audio) | **VT-040 CONFIRMED and CORRECTED** (the fifty-sixth pass, this lane): every consult answered the overworld field while the reference menu reads its constructor-carried world (AnvilMenu 44-47/81-93/308-311) — the nether window dying on the first viewer tick, the mirrored-overworld corruption (`anvil`→`anvil_chipped` observed through the real wire), the mis-stamped audio; three passes (the source census + the three seats RED on `1139f2c3` + the independent walk), the correction CARRIED BY **PR #152** (the concurrent lane's superset carrier — the honest convergence, this lane's independent seats 3/0 GREEN on their tree, the verification comment `6561227043` posted, this lane's local construction retired) |
 | The enchanting window's block side (the bookshelf scan, the walk-away gate) | **VT-041 RESOLVED-BY-PR #152** (the fifty-sixth pass's adjacent discovery, pass 1 source complete): `menu.attach(world::getBlock)` binding the overworld field into the bookshelf scan + the 3-arg open stamp + the overworld viewer gate — the reference `EnchantingTableMenu` ctor 40-45/scan 128-150/gate 269 reading the constructor-carried world; the correction rides PR #152's enchanting arm (the carrier's own seat `theNetherEnchantingWindowStaysOpen` GREEN, the source record this lane's pass 3); the XP-ORB/stat surfaces of the table unaudited (a later census) |
+| The protocol module's block-family relays (the live-change 0x24/0x35/1005 fans) | **VT-042 SUSPECTED** (the fifty-sixth pass, pass 1 complete): six relays registered on the overworld legacy accessors while the FL4-GAP2 waves made the systems per-dimension — the note 0x24 (a nether play's Block Action never sent, the gate hardcoded `!= 0`), the jukebox 1005 (the same), the chest lid's gate (the event fires per-dimension, dropped at `!= 0`), and the beacon/skull/banner/command 0x35 fans (overworld-bound AND ungated — the nether live change lost, the overworld change spamming every dimension); the chunk replay correctly per-dimension (the contrast); the seats and the independent walk the next run's head |
 
 ## The queue for the next pass
 
 0f. **THE FIFTY-SIXTH PASS'S OWN CLOSE (this lane's standing items):**
-   the note family's BlockAction relay (VT-029's named follow-up — the
-   protocol module's per-family relay wiring, V18ProtocolServer
-   1637-1645, the listener on the overworld family alone with the
-   hardcoded `!= 0` gate) stays the standing head; the enchanting
-   table's XP-ORB/stat surfaces the named adjacent tail (their own
-   census); the merge watch now thirty-three PRs open (#152 the new —
-   this lane's verification comment posted, the maintainer owns the
-   pick); the flint ignite's pitch band (the adjacent observation:
-   `[0.9, 1.1]` vs the reference `[0.8, 1.2]`, FlintAndSteelItem line
-   25) still unclaimed.
+   **VT-042's seats the NEW STANDING HEAD** (the protocol relay family
+   discovered this pass — the note 0x24, the jukebox 1005, the chest
+   lid's gate, the beacon/skull/banner/command 0x35 fans; the nether
+   note play's Block Action seat the cleanest first member); the
+   enchanting table's XP-ORB/stat surfaces the named adjacent tail
+   (their own census); the merge watch now thirty-three PRs open
+   (#152 the new — this lane's verification comment posted, the
+   maintainer owns the pick); the flint ignite's pitch band (the
+   adjacent observation: `[0.9, 1.1]` vs the reference `[0.8, 1.2]`,
+   FlintAndSteelItem line 25) still unclaimed.
 0a. ~~THE FIVE-LANE UNION~~ — **DONE (this merge, the thirty-seventh pass's
    first act)**: the pass-35 lane's branch (a8c79f5f) unioned into the
    pass-36 lane — their seat set (y=20.919 / z=41.486 / the pedestal
@@ -5741,3 +5742,82 @@ its source record this lane's pass 3, its seat the carrier's own
 enchanting row. The named tails standing: the falling anvil's landing
 row rides PR #136's own lane; the enchanting table's XP-ORB / stat
 surfaces unaudited (their own census, a later pass).
+
+## VT-042 — the protocol module's block-family relays never followed the per-dimension migration: six live-change relays bind the overworld legacy instances (SUSPECTED — pass 1, the source census complete)
+
+**Subsystem:** the protocol module's block-family listener wiring (the
+FL4-GAP2 waves' protocol-side tail). **Baseline:** develop `1139f2c3`.
+
+**THE ROOT:** the FL4-GAP2 waves (Slices A/B/C/D) made the tile and
+block families per-dimension — `chestsFor/furnacesFor/hoppersFor/
+dispensersFor/brewingStandsFor/skullsFor/noteBlocksFor/jukeboxesFor/
+beaconsFor/bannersFor/commandBlocksFor` (EngineServer 6020-6160) — and
+the CHUNK REPLAY followed (V18Connection 8441-8469 walks the
+per-dimension families for the chunk-send tile payloads). But the
+LIVE-CHANGE relays in V18ProtocolServer still register on the LEGACY
+OVERWORLD accessors — a nether/end family's changes fire the nether
+family's own (empty) listener list and never reach the wire:
+
+1. **THE NOTE 0x24** (V18ProtocolServer 1666, `server.noteBlocks()
+   .addNoteActionListener` — the overworld family): the plays fire on
+   `noteBlocksFor(session.dimension())` (EngineServer 12451, the use
+   arm; 3709 the attack arm; 3783 the break arm; 1903 the restore
+   walk) — **a nether note play's Block Action never reaches ANY
+   client**, not even the players standing beside the block. The
+   audio arrives (PR #142's stamp fix — the fx sound is
+   dimension-correct) but the 0x24 is lost. THE GATE TOO: the
+   listener's own guard (1669) hardcodes `connection
+   .dimensionOfSession() != 0`.
+2. **THE JUKEBOX 1005** (1679, `server.jukeboxes().addRecordListener`
+   — the overworld family): the plays fire on `jukeboxesFor(dim)`;
+   the gate (1685) hardcodes `!= 0`. A nether jukebox's record event
+   never sent.
+3. **THE CHEST LID 0x24** (1652, `server.addChestLidListener`): the
+   ENGINE-LEVEL fan fires for every dimension (the open/close paths
+   route per-dimension through `chestsFor(openContainerDimension)`),
+   but the protocol gate (1657) hardcodes `!= 0` — a nether chest's
+   lid event dropped at the gate (the listener binding correct; the
+   GATE alone the defect).
+4. **THE BEACON 0x35** (1106, `server.beacons().addListener` — the
+   overworld family): changes fire on `beaconsFor(dim)`; the fan
+   carries NO dimension gate (sends to EVERY connection). BOTH
+   directions: a nether beacon's level change never re-publishes (the
+   client holds the stale tile until relog — the chunk replay showed
+   the placement, the live change is lost) AND the overworld beacon's
+   tile spams every dimension's clients.
+5. **THE SKULL 0x35** (1120, `server.skulls().addListener` — the
+   overworld family): placements fire on `skullsFor(dim)`; ungated.
+   A nether skull placement renders the DEFAULT head client-side
+   (the 0x35 TYPE + rotation never re-publishes — PR #146's record
+   described the same symptom for the wither's own tile fan).
+6. **THE BANNER 0x35** (1133, `server.banners().addListener` — the
+   overworld family) and **THE COMMAND BLOCK 0x35** (1152, `server
+   .commandBlocks().addListener` — the overworld family): the same
+   shape, both ungated. (The banner member CONVERGES with PR #146's
+   named tail "the banner family's tile fan the same ungated shape".)
+
+**THE REFERENCE LAWS:** the note — `ServerWorld.doBlockEvents` 820-842:
+the `sendPacket(x, y, z, 64.0, this.dimension.getId(), packet)` gate —
+the ACTING dimension's observers within 64 blocks; the beacon/skull/
+banner/command tiles — the PlayerChunkMap law (PR #146's record: "each
+family's listener gated to its own dimension's connections"); the
+jukebox — the doEvent 1005 dimension gate (PlayerManager 626-640); the
+chest lid — the same doEvent law (ChestBlock's lid event rides the
+acting world's listener list).
+
+**THE EXISTING SEATS:** every note-action seat registers on the
+overworld family (NoteBlockSystemTest 104/168/252/290 — the overworld
+relay alone, no nether row); the chest-lid and record relays the same.
+No test covers a nether family's live change.
+
+**STATUS: SUSPECTED — pass 1 complete (the source census: all six
+relays read, the per-dimension fire sites verified, the chunk replay's
+correct routing confirmed as the contrast, the existing seats
+censused). Passes 2 and 3 owed** — the seats: a nether note play's
+0x24 (the cleanest member — the Block Action captured on a nether
+connection through the REAL use wire), a nether chest lid's 0x24, a
+nether jukebox's 1005, a nether skull placement's 0x35; the
+independent walk: the ungated fans' cross-dimension spam observable
+(the overworld beacon tile reaching a nether client), the join-replay
+contrast (the chunk replay serving the nether tile while the live
+change is lost), the FL4-GAP2 waves' own migration notes.
