@@ -3854,6 +3854,36 @@ carriers, preserved whole at `archive/vt014-vt015-combined-draft`
 (`967cf1f4`); its three seat files are byte-identical to #117's
 branch.
 
+**The kept-face-vector rider LANDED on #117** (`dd29ee01`, the
+sibling lane's named gap closed the same pass): the reference's stuck
+velocity is the face-relative vector (ArrowEntity lines 296-298 —
+`(float)(facePos - pos)`, the remaining step of the crossing tick; the
+tail advance at 328-330 consumes it for the position while leaving it
+standing; the `inGround` branch never touches it, the engine's
+`integrate` gate its own 1:1), and its ONLY consumer anywhere is the
+un-stick arm's `random*0.2` damping (lines 179-186) — the un-stuck
+arrow hops up to a fifth of its remaining step along the flight
+direction instead of falling straight down. The engine's
+`landInGround()` zeroed it, so the hop composed over zero on every
+tree (develop, #117, #119, #120 alike). THE REPAIR: the face walk
+widened into the `StickSite` record (the rest + the vector, the walk's
+own `remain` — no second derivation); the stick arm's
+`landInGround(double, double, double)` overload keeps the vector, the
+bare zeroing form staying for the same-cell residue; the wire
+UNTOUCHED (`sendProjectileMoved` is the position-only teleport; the
+reference's tracker never marks a stuck arrow `velocityChanged`).
+THE SEAT (SEAT C, stash-discriminated): a `spawnRestored` arrow
+exactly one block above the face at velocity −1.0 — the crossing tick
+starts at `from = face+1.0`, so the remaining step is EXACTLY −1.0
+independent of the drag chain — pinning the stuck velocity at
+(0, −1, 0); **RED on the pre-rider tree** (`Observed: vy=0.0`),
+**GREEN on the rider**. REGRESSION: the stick family 5/0, the VT-013
+guard 1/0, the projectile package 48/0, the portal neighbors — 61/0.
+THE RIDER-UNION RE-RUN (#117+rider ∪ #120, local-only): **62/0 whole**
+— the composition now carries the reference's un-stick hop (the kept
+vector × `random*0.2`, the arithmetic composition both seats pin from
+their own sides).
+
 ## Coverage ledger (updated by the thirty-sixth pass — the five-lane union)
 
 | Area | Status |
