@@ -5008,6 +5008,12 @@ this PR takes the two BLOCK-consult WINDOW members left outside that
 sweep — no site overlap; PR #136 (VT-032, the anvil LAND sound) is the
 falling-block family's own member; the beacon window's store
 (`beaconSystem`) remains the VT-033 record's named adjacent tail.
+**THE COMPOSE CHECK (this lane, an independent verification)**: the
+#152+#142 scratch union merges CLEAN (the sixteen FX sites and the five
+window sites disjoint) and BOTH seats GREEN on the union tree —
+`AnvilWindowDimensionDiscoveryTest` 3/0, `FxDimensionResidualDiscoveryTest`
+4/0 — the note posted on #152 (`#issuecomment-6561024232`); whichever
+merges first, the other rebases clean.
 
 **THE LEDGER**: the new VT-035 row; the census-tail row refreshed (the
 anvil-use pair TAKEN, the #142 sweep's sixteen sites TAKEN WHOLE).
