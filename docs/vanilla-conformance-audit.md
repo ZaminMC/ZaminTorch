@@ -4337,3 +4337,51 @@ entity-hit verdicts each play
 `fx.sound(at, "random.bowhit", 1.0f, 1.2f / (random.nextFloat() * 0.2f + 0.9f), dimension)`
 (the arrow kind alone — the other kinds' impact sounds are their own
 families' laws); the seat's pitch-band assert the parity pin.
+
+
+## The thirty-ninth pass, third act — the cross-tree verifications (the honest-convergence protocol): VT-019's and VT-018's fix PRs independently verified GREEN through this lane's constructions
+
+The fix lanes moved on this lane's confirmations within minutes — the
+reviewer's duty followed (the pass-38 precedent: "independently
+verify the landed construction — the verifier's duty to an open PR,
+not just to develop"):
+
+- **PR #123 (VT-019's gate, `fix/stuck-burning-arrow-tnt-parity-audit`
+  `1a5e2059`)**: this lane's full-boot seat
+  (`ArrowStuckBurningTntDiscoveryTest`) run on the fix tree —
+  **2/0 GREEN** (the main seat's TNT stands, the control's
+  flight-path ignition survives), against its RED on develop at the
+  pre-computed geometry. Two independent constructions, one law. The
+  review note posted with the two residues named: the flight band's
+  feet law carried by **PR #128** (VT-023), the **stick-tick scan
+  residue uncarried** (the reference's stick tick IS a flight tick —
+  its line-382 scan covers the REST box; the post-hoc gate skips the
+  stick tick entirely — the window narrow, the seat's TNT sitting in
+  the band under both windows, a follow-up slice owed). Two
+  convergent carrier branches exist beside the PR
+  (`fix/stuck-burning-arrow-tnt-parity-audit-b2` `026e9135`,
+  `fix/burning-arrow-tnt-gate-parity-audit` `1bc62cb7`) — the
+  maintainer's pick, the #119/#120 protocol.
+- **PR #124 (VT-018's bowhit, `fix/arrow-stick-bowhit-sound-parity-audit`
+  `6a4811b4`)**: this lane's full-boot seat (renamed
+  `ArrowStickBowhitSoundFullBootDiscoveryTest` — the fix lane's PR
+  owns the canonical name, the file-resolution protocol) run on the
+  fix tree — **1/0 GREEN** (the bowhit present, the pitch inside the
+  reference's band, the seat's second assert the pin). The review
+  note posted with the entity-hit site's requirements (the arrow
+  kind alone, the sound at the hit verdict before the removal, its
+  own seat) — the PR's named follow-up, now doubly confirmed.
+- **The window's PR landscape** (this pass's fetch, 06:41): nineteen
+  PRs open — the new since the thirty-ninth's first act: **#121**
+  (VT-020, the spawn floor — the lane's own PR, the number this
+  pass's resolution awarded), **#122** (the b-lane's VT-021+VT-014
+  carrier, the renumber adopted), **#123** (VT-019), **#124**
+  (VT-018), **#125** (VT-012, the dimension stamp), **#126** (VT-016,
+  the piston pushability), **#128** (VT-023, the flight band's feet
+  law — built on this lane's pass-3 grazing-edge quantification),
+  **#129** (VT-022, the piston entity gate), **#130** (VT-013's
+  post-fan stamp ordering). #106/#115 merged; #108-#111/#113/#114/
+  #116-#120 unchanged. The VT-022/VT-023 numbers belong to the fix
+  lanes' own discoveries this window (the piston entity gate, the
+  flight band) — their records ride their branches; the next union
+  folds them in.
