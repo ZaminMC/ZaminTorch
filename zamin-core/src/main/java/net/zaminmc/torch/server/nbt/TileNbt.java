@@ -65,10 +65,10 @@ public final class TileNbt {
      */
     public record Seams(
             java.util.function.IntFunction<ChestManager> chestsFor,
-            FurnaceManager furnaces,
-            HopperSystem hoppers,
-            DispenserSystem dispensers,
-            BrewingStandSystem brewing,
+            java.util.function.IntFunction<FurnaceManager> furnacesFor,
+            java.util.function.IntFunction<HopperSystem> hoppersFor,
+            java.util.function.IntFunction<DispenserSystem> dispensersFor,
+            java.util.function.IntFunction<BrewingStandSystem> brewingStandsFor,
             BeaconSystem beacons,
             SignManager signs,
             SpawnerManager spawners,
@@ -183,7 +183,7 @@ public final class TileNbt {
                 writeNameLockRows(rows, chest.customName(), chest.lockKey());
             }
             case "Furnace" -> {
-                var furnace = seams.furnaces().getOrCreate(pos);
+                var furnace = seams.furnacesFor().apply(dimension).getOrCreate(pos);
                 NbtOps.putShort(rows, "BurnTime", (short) furnace.burnTimeRemaining());
                 NbtOps.putShort(rows, "CookTime", (short) furnace.cookTime());
                 NbtOps.putShort(rows, "CookTimeTotal", (short) furnace.burnTimeTotal());
@@ -192,7 +192,7 @@ public final class TileNbt {
                 writeNameLockRows(rows, furnace.customName(), furnace.lockKey());
             }
             case "Hopper" -> {
-                var hopper = seams.hoppers().getOrCreate(pos);
+                var hopper = seams.hoppersFor().apply(dimension).getOrCreate(pos);
                 ItemStack[] slots = new ItemStack[5];
                 for (int i = 0; i < 5; i++) {
                     slots[i] = hopper.getItem(i);
@@ -202,7 +202,7 @@ public final class TileNbt {
                 writeNameLockRows(rows, hopper.customName(), hopper.lockKey());
             }
             case "Trap", "Dropper" -> {
-                var dispenser = seams.dispensers().getOrCreate(pos);
+                var dispenser = seams.dispensersFor().apply(dimension).getOrCreate(pos);
                 ItemStack[] slots = new ItemStack[9];
                 for (int i = 0; i < 9; i++) {
                     slots[i] = dispenser.getItem(i);
@@ -211,7 +211,7 @@ public final class TileNbt {
                 writeNameLockRows(rows, dispenser.customName(), dispenser.lockKey());
             }
             case "Cauldron" -> {
-                var brewing = seams.brewing().getOrCreate(pos);
+                var brewing = seams.brewingStandsFor().apply(dimension).getOrCreate(pos);
                 ItemStack[] slots = new ItemStack[4];
                 for (int i = 0; i < 4; i++) {
                     slots[i] = brewing.getItem(i);
@@ -333,7 +333,7 @@ public final class TileNbt {
                 readNameLockRows(rows, chest::setCustomName, chest::setLockKey);
             }
             case "Furnace" -> {
-                var furnace = seams.furnaces().getOrCreate(pos);
+                var furnace = seams.furnacesFor().apply(dimension).getOrCreate(pos);
                 readItems(rows, (slot, stack) ->
                         furnace.setSlot(slot, stack == null ? ItemStack.EMPTY : stack), 3);
                 furnace.restore(
@@ -343,20 +343,20 @@ public final class TileNbt {
                 readNameLockRows(rows, furnace::setCustomName, furnace::setLockKey);
             }
             case "Hopper" -> {
-                var hopper = seams.hoppers().getOrCreate(pos);
+                var hopper = seams.hoppersFor().apply(dimension).getOrCreate(pos);
                 readItems(rows, (slot, stack) ->
                         hopper.setItem(slot, stack), 5);
                 hopper.setCooldown(NbtOps.getInt(rows, "TransferCooldown"));
                 readNameLockRows(rows, hopper::setCustomName, hopper::setLockKey);
             }
             case "Trap", "Dropper" -> {
-                var dispenser = seams.dispensers().getOrCreate(pos);
+                var dispenser = seams.dispensersFor().apply(dimension).getOrCreate(pos);
                 readItems(rows, (slot, stack) ->
                         dispenser.setItem(slot, stack), 9);
                 readNameLockRows(rows, dispenser::setCustomName, dispenser::setLockKey);
             }
             case "Cauldron" -> {
-                var brewing = seams.brewing().getOrCreate(pos);
+                var brewing = seams.brewingStandsFor().apply(dimension).getOrCreate(pos);
                 readItems(rows, (slot, stack) ->
                         brewing.setItem(slot, stack), 4);
                 brewing.restoreState(brewing.snapshotSlots(),

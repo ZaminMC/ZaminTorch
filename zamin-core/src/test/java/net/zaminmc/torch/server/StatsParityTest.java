@@ -608,6 +608,20 @@ class StatsParityTest {
     private void seedBlock(EngineServer server, PlayerSession player, BlockPosition at,
                            net.zaminmc.torch.block.BlockType type) {
         server.blockInteraction().submitPlace(player, at.offset(0, -1, 0), 1, type);
+        // THE SEED'S LANDED PRECONDITION (run 586's member — the seat's own
+        // trivial-pass window): the dig's committed-await reads "air" — the
+        // SAME answer an empty cell gives when the seed's place never
+        // landed, and the use-row assert then fails with a confusing 0.
+        // The named await makes the precondition explicit: the dig only
+        // opens against a cell the seed verifiably holds.
+        try {
+            EngineAwaits.awaitCondition(server.world(),
+                    () -> type.equals(server.world().getBlock(at)),
+                    40, "the seed block landed at " + at);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new AssertionError("Interrupted awaiting the seed at " + at, e);
+        }
     }
 
     private MobEntity awaitMob(EngineServer server, MobType type) throws InterruptedException {

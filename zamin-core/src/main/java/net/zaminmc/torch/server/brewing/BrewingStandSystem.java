@@ -160,9 +160,19 @@ public final class BrewingStandSystem {
     /**
      * A survival break committed on the stand block: spill every slot into
      * the world at the block (nothing is lost, the historical container
-     * drop through InventoryUtils.dropItems) and forget the state.
+     * drop through InventoryUtils.dropItems) and forget the state. The
+     * legacy form stamps the overworld — the per-dimension break path
+     * passes its own world's stamp.
      */
     public void onBlockBroken(BlockPosition position, ItemEntityManager items) {
+        onBlockBroken(position, items, 0);
+    }
+
+    /**
+     * The dimension-stamped break spill (Wave FL4-GAP2 Slice B): the drops
+     * land in the SAME world the stand stood in.
+     */
+    public void onBlockBroken(BlockPosition position, ItemEntityManager items, int dimension) {
         BrewingStandBlockEntity stand = stands.remove(position);
         if (stand == null || items == null) {
             return;
@@ -170,7 +180,8 @@ public final class BrewingStandSystem {
         Position origin = new Position(position.x(), position.y(), position.z());
         for (ItemStack stack : stand.snapshotSlots()) {
             if (!stack.isEmpty()) {
-                items.spawnDropAtBlock(origin, stack, ItemEntity.PICKUP_DELAY_DROP_TICKS);
+                items.spawnDropAtBlock(origin, stack, ItemEntity.PICKUP_DELAY_DROP_TICKS,
+                        dimension);
             }
         }
     }

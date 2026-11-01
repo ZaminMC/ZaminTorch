@@ -7898,13 +7898,58 @@ both test-seat defects — see the census doc) and the mob-integration
 status read (the body-filtered form): runs 578/579 green, builds
 155/156 published, the four-day stall over.
 
-NEXT WORK (in order): Slice B (the container remainder — furnace,
-dispenser, brewing, hopper + the cross-family pulls, each manager
-gaining the per-dimension form and its store the v+1 stamp); Slice C
-(the tile families — sign, jukebox, note block, banner, beacon,
-skull, command block); Slice D (the transient families — the piston
-movingBlocks, the decorations, the leads); the PR wave (#106, #108-
-#115) reviews as time permits, the three-pass discipline each.
+NEXT WORK (in order): Slice C (the tile families — sign, jukebox,
+note block, banner, beacon, skull, command block — the store stamps
+family by family, the same v+1 law); Slice D (the transient families —
+the piston movingBlocks, the decorations, the leads); the PR wave's
+remainder (#111, #113, #114, the VT-006 trio #108-#110 — #106 and
+#115 already merged) reviews as time permits, the three-pass
+discipline each.
+
+SLICE B LANDED (2026-11-01, the container-remainder session): the
+four families whole, exactly per row 2 — the furnace/dispenser/brewing/
+hopper managers at the chestsFor form (furnacesFor/hoppersFor/
+dispensersFor/brewingStandsFor, each dimension's instance holding its
+OWN world, its OWN redstone, and the SAME dimension's chest/furnace
+families in the hopper's constructor), the stores' v+1 stamps (ZFD v3,
+ZDD v2, ZBD v2, ZHD v2 — each row's dimension byte at the tail, v-1
+files loading as overworld rows, the save UNION over every dimension's
+map, the restore routed per row), all consult sites routed by their
+traced source (the window family by the session's openContainerDimension
+stamp — the four opens now use the 4-arg openContainerWindow form
+stamping the player's own dimension; the clicks and quick-craft slots
+by the same stamp; the viewer ticks by the same; the block-broken
+listener by the acting world — and every family's break SPILL now
+stamps that world, closing Slice A's own honest chest tail with it;
+the block-change listener by the changed world; the generation drain by
+the chunk's world; the comparator probe by the probe world; the
+structure placement by the sender's source dimension; the hopper-cart
+placements and the restore/anvil hosts by the CART's own dimension),
+the cross-family pulls (each dimension's hoppers consult the SAME
+dimension's dispenser and brewing lookups, and the cart scan gates on
+the system's own world — a same-coordinate cart in another world is no
+container), the dimension gates inside the hopper itself (the item
+suck and both cart-transfer arms read the actor's own dimension — a
+nether item at the overworld hopper's coordinates is invisible, the
+reference's per-world getEntitiesOfType), the ocelot lock's dimension
+gate (an ocelot sitting at the same coordinates in another world never
+locks the chest's view), the dispenser's own emits (every fx sound and
+world event, every projectile/firework/boat/cart launch, and the
+default item drop stamp the system's OWN world — the fireworks arm's
+own "never a silent wrong stamp" ledger note now answered), and the
+per-world ContainerViews (every world dresses its OWN families — a
+nether containers() read never sees the overworld's tiles). Seats 5/0
+(ContainerSliceBOwnershipAcceptanceTest: the four-family two-tile
+restart through a real reboot, the cross-family pull with BOTH
+directions' discriminations, the suck gate with the same-world control,
+the per-dimension comparator wake, the nether furnace window open
+through the click path). The same session retired the publish's two
+new one-off members (runs 583/586): the bed seat's boot-seated hostile
+(the rule-off stopped future spawns but never swept the boot window's
+own population — the mob seat's own guard shape now sweeps it) and the
+stats seat's trivial-pass window (the dig's committed-await reads
+"air" — the same answer an unseeded cell gives; the seed's landed
+precondition now names it before the dig opens).
 
 ---
 
