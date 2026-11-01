@@ -3932,10 +3932,14 @@ public final class EngineServer implements Server, EngineBridge {
                 // 0.5F, pitch 2.6F ± (rand-rand)*0.8F} — the engine's FxManager
                 // plays the sound directly, the established engine pattern
                 // (the wet extinguish's own fizz at 0.7F/1.6F beside it).
-                blockInteraction.setFireExtinguishFx(pos -> {
+                blockInteraction.setFireExtinguishFx((pos, dimension) -> {
                     Position center = new Position(pos.x() + 0.5, pos.y() + 0.5, pos.z() + 0.5);
+                    // VT-029 — the fizz rides the ACTING world (World.java
+                    // 1642's doEvent(player, 1004, pos, 0): the per-world
+                    // listener list, PlayerManager 626-640's dimension gate).
                     fxManager.sound(center, "random.fizz", 0.5f,
-                            2.6f + (fxRandom.nextFloat() - fxRandom.nextFloat()) * 0.8f);
+                            2.6f + (fxRandom.nextFloat() - fxRandom.nextFloat()) * 0.8f,
+                            dimension);
                 });
                 CommandService dispatcher = new CommandService();
                 registerBuiltinCommands(dispatcher);
@@ -6031,7 +6035,11 @@ public final class EngineServer implements Server, EngineBridge {
                     wither.setBodyYaw(bodyYawDegrees);
                     wither.witherSummoned();
                 }
-                fxManager.poof(new Position(at.x(), at.y() - 1.5, at.z()));
+                // VT-029 — the birth burst rides the summon's OWN world
+                // (the reference's burst at the wither's spawn plays in the
+                // world the pattern stands in; the host's dimension is the
+                // body's own — the same field the body is stamped with).
+                fxManager.poof(new Position(at.x(), at.y() - 1.5, at.z()), dimension);
                 // The summon row (VIII6 — SkullBlock lines 197-199: every
                 // player whose body box intersects the newborn's own shape
                 // grown (50, 50, 50) earns the wither's summon — the
@@ -12427,8 +12435,12 @@ public final class EngineServer implements Server, EngineBridge {
                 boolean opening = !net.zaminmc.torch.server.block.TrapdoorBlocks.isOpen(current);
                 world.setBlock(clicked, net.zaminmc.torch.server.block.TrapdoorBlocks
                         .flipOpen(current));
+                // VT-029 — the creak rides the ACTING world (TrapdoorBlock.use
+                // lines 107-116: world.doEvent over the per-world listener
+                // list — PlayerManager 626-640's dimension gate).
                 fxManager.sound(new Position(clicked.x() + 0.5, clicked.y() + 0.5, clicked.z() + 0.5),
-                        opening ? "random.door_open" : "random.door_close", 0.8f, 1.0f);
+                        opening ? "random.door_open" : "random.door_close", 0.8f, 1.0f,
+                        world.dimension());
             }
             return true; // the swing consumed the right-click (either family)
         }
@@ -12669,8 +12681,12 @@ public final class EngineServer implements Server, EngineBridge {
                     for (int i = 0; i < 16; i++) {
                         double ox = (5.0 + gameplayRandom.nextFloat() * 6.0) / 16.0;
                         double oz = (5.0 + gameplayRandom.nextFloat() * 6.0) / 16.0;
+                        // VT-029 — the eye's burst rides the ACTING world
+                        // (EnderEyeItem line 43's world.addParticle — the
+                        // per-world listener list).
                         fxManager.smoke(new Position(
-                                clicked.x() + ox, clicked.y() + 0.8125, clicked.z() + oz));
+                                clicked.x() + ox, clicked.y() + 0.8125, clicked.z() + oz),
+                                session.dimension());
                     }
                     // The frame-complete walk (the reference's own
                     // geometry over the just-eyed frame).
@@ -14137,8 +14153,11 @@ public final class EngineServer implements Server, EngineBridge {
         // portal build — a valid obsidian frame replaces the fire cell with
         // the portal interior; the failed scan leaves the ordinary fire.
         net.zaminmc.torch.server.world.PortalFrameBuilder.createAt(world, target);
+        // VT-029 — the ignite rides the ACTING world (FlintAndSteelItem
+        // line 25: world.playSound over the per-world listener list).
         fxManager.sound(new Position(target.x() + 0.5, target.y() + 0.5, target.z() + 0.5),
-                "fire.ignite", 1.0f, 0.9f + fxRandom.nextFloat() * 0.2f);
+                "fire.ignite", 1.0f, 0.9f + fxRandom.nextFloat() * 0.2f,
+                world.dimension());
         if (session.gamemode() == GameMode.SURVIVAL
                 || session.gamemode() == GameMode.ADVENTURE) {
             session.inventory().damageHeld(1, gameplayRandom, session.stats());
@@ -14595,8 +14614,10 @@ public final class EngineServer implements Server, EngineBridge {
         if (session.gamemode() != GameMode.CREATIVE) {
             session.inventory().consumeHeld(1);
         }
+        // VT-029 — the placement sound rides the ACTING world (the
+        // placement family's own law — the per-world listener list).
         fxManager.sound(new Position(target.x() + 0.5, target.y() + 0.5, target.z() + 0.5),
-                "dig.grass", 0.6f, 1.0f);
+                "dig.grass", 0.6f, 1.0f, world.dimension());
         publishInventoryChanged(session);
         return true;
     }
@@ -14717,8 +14738,10 @@ public final class EngineServer implements Server, EngineBridge {
             // grass family's 1.0 volume and 1.0 pitch give 1.0f / 0.8f
             // (the dig.grass name the pre-fix engine carried is the
             // breaking sound, a different 1.8.8 event than step.grass).
+            // VT-029 — the till's sound rides the ACTING world (HoeItem
+            // lines 51-58: the world the farmland landed in).
             fxManager.sound(new Position(clicked.x() + 0.5, clicked.y() + 0.5, clicked.z() + 0.5),
-                    "step.grass", 1.0f, 0.8f);
+                    "step.grass", 1.0f, 0.8f, world.dimension());
             if (net.zaminmc.torch.server.item.Tools.specOf(heldType).isPresent()) {
                 session.inventory().damageHeld(1, gameplayRandom, session.stats());
                 publishInventoryChanged(session);
@@ -14814,8 +14837,10 @@ public final class EngineServer implements Server, EngineBridge {
                     world.setBlock(pod, net.zaminmc.torch.server.block.CocoaBlocks
                             .placementState(face));
                     session.inventory().consumeHeld(1);
+                    // VT-029 — the pod's placement sound rides the ACTING
+                    // world (the placement family's own law).
                     fxManager.sound(new Position(pod.x() + 0.5, pod.y() + 0.5, pod.z() + 0.5),
-                            "dig.grass", 0.6f, 1.0f);
+                            "dig.grass", 0.6f, 1.0f, world.dimension());
                     publishInventoryChanged(session);
                 }
                 return true; // the brown dye's use consumed the click either way
@@ -14839,7 +14864,7 @@ public final class EngineServer implements Server, EngineBridge {
                 // happy-villager sparks (the itemShatter stand-in the
                 // census row retired).
                 fxManager.worldEvent(new Position(clicked.x() + 0.5, clicked.y() + 0.5,
-                        clicked.z() + 0.5), 2005, 0);
+                        clicked.z() + 0.5), 2005, 0, world.dimension()); // VT-029: DyeItem.useOn line 45 — the ACTING world's doEvent
                 publishInventoryChanged(session);
                 return true;
             }
@@ -14867,7 +14892,7 @@ public final class EngineServer implements Server, EngineBridge {
                 // happy-villager sparks (the itemShatter stand-in the
                 // census row retired).
                 fxManager.worldEvent(new Position(clicked.x() + 0.5, clicked.y() + 0.5,
-                        clicked.z() + 0.5), 2005, 0);
+                        clicked.z() + 0.5), 2005, 0, world.dimension()); // VT-029: DyeItem.useOn line 45 — the ACTING world's doEvent
                 publishInventoryChanged(session);
                 return true; // a growing canGrow target consumed the use
             }
@@ -14886,7 +14911,7 @@ public final class EngineServer implements Server, EngineBridge {
                 // happy-villager sparks (the itemShatter stand-in the
                 // census row retired).
                 fxManager.worldEvent(new Position(clicked.x() + 0.5, clicked.y() + 0.5,
-                        clicked.z() + 0.5), 2005, 0);
+                        clicked.z() + 0.5), 2005, 0, world.dimension()); // VT-029: DyeItem.useOn line 45 — the ACTING world's doEvent
                 publishInventoryChanged(session);
                 return true;
             }
@@ -14907,7 +14932,7 @@ public final class EngineServer implements Server, EngineBridge {
                 // happy-villager sparks (the itemShatter stand-in the
                 // census row retired).
                 fxManager.worldEvent(new Position(clicked.x() + 0.5, clicked.y() + 0.5,
-                        clicked.z() + 0.5), 2005, 0);
+                        clicked.z() + 0.5), 2005, 0, world.dimension()); // VT-029: DyeItem.useOn line 45 — the ACTING world's doEvent
                 publishInventoryChanged(session);
                 return true;
             }
@@ -14925,7 +14950,7 @@ public final class EngineServer implements Server, EngineBridge {
                     // The same 2005 burst (the cocoa IS a Fertilizable —
                     // DyeItem.useOn's one law covers the whole family).
                     fxManager.worldEvent(new Position(clicked.x() + 0.5, clicked.y() + 0.5,
-                            clicked.z() + 0.5), 2005, 0);
+                            clicked.z() + 0.5), 2005, 0, world.dimension()); // VT-029: the same ACTING-world law
                     publishInventoryChanged(session);
                     return true;
                 }
@@ -15133,8 +15158,11 @@ public final class EngineServer implements Server, EngineBridge {
         boolean powered = WoodDoorFamily.isPowered(upperType);
         world.setBlock(lower, WoodDoorFamily.flipLower(type));
         world.setBlock(upper, WoodDoorFamily.upper(family, rightHinge, opening, powered));
+        // VT-029 — the swing's sound rides the ACTING world (DoorBlock.use
+        // lines 124-141: world.doEvent over the per-world listener list).
         fxManager.sound(new Position(lower.x() + 0.5, lower.y() + 0.5, lower.z() + 0.5),
-                opening ? "random.door_open" : "random.door_close", 0.8f, 1.0f);
+                opening ? "random.door_open" : "random.door_close", 0.8f, 1.0f,
+                world.dimension());
     }
 
     /** Whether the block type is any door half (either family, either half). */
@@ -15174,8 +15202,11 @@ public final class EngineServer implements Server, EngineBridge {
         boolean opening = !open;
         world.setBlock(pos, net.zaminmc.torch.server.block.FenceGateBlocks.with(
                 gate, lookBand, opening));
+        // VT-029 — the gate's creak rides the ACTING world (FenceGateBlock.use
+        // lines 94-110: world.doEvent over the per-world listener list).
         fxManager.sound(new Position(pos.x() + 0.5, pos.y() + 0.5, pos.z() + 0.5),
-                opening ? "random.door_open" : "random.door_close", 0.8f, 1.0f);
+                opening ? "random.door_open" : "random.door_close", 0.8f, 1.0f,
+                world.dimension());
     }
 
     /** The horizontal band's opposite (0<->2 south/north, 1<->3 west/east). */

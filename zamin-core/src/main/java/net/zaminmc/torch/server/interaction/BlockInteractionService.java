@@ -179,9 +179,11 @@ public final class BlockInteractionService {
     /**
      * The fire-extinguish FX hook (Slice N6 — World.extinguishFire line
      * 1642's {@code doEvent(player, 1004, pos, 0)}): the fizz broadcast
-     * at the removed fire cell. Null keeps the removal silent.
+     * at the removed fire cell, in the ACTING world's dimension (VT-029 —
+     * the reference's per-world listener list). Null keeps the removal
+     * silent.
      */
-    private volatile java.util.function.Consumer<BlockPosition> fireExtinguishFx;
+    private volatile java.util.function.BiConsumer<BlockPosition, Integer> fireExtinguishFx;
 
     /**
      * The consult's own signature (the engine-side seam: the world, the
@@ -221,9 +223,11 @@ public final class BlockInteractionService {
 
     /**
      * Wires the fire-extinguish FX (the reference's doEvent 1004 — the
-     * fizz at the removed fire cell).
+     * fizz at the removed fire cell). The dimension is the ACTING
+     * world's (VT-029 — the per-world listener law).
      */
-    public void setFireExtinguishFx(java.util.function.Consumer<BlockPosition> fx) {
+    public void setFireExtinguishFx(
+            java.util.function.BiConsumer<BlockPosition, Integer> fx) {
         this.fireExtinguishFx = java.util.Objects.requireNonNull(fx, "fx");
     }
 
@@ -743,9 +747,12 @@ public final class BlockInteractionService {
         if (!world.getBlock(offset).identifier().value().equals("fire")) {
             return false; // not fire: nothing to extinguish
         }
-        java.util.function.Consumer<BlockPosition> fx = fireExtinguishFx;
+        java.util.function.BiConsumer<BlockPosition, Integer> fx = fireExtinguishFx;
         if (fx != null) {
-            fx.accept(offset); // the doEvent 1004: the fizz at the fire cell
+            // VT-029 — the doEvent 1004 rides the ACTING world (the
+            // reference's per-world listener list — PlayerManager
+            // 626-640's dimension gate).
+            fx.accept(offset, world.dimension()); // the fizz at the fire cell
         }
         commit(offset, world.airType(), world);
         return true;
