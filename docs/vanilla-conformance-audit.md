@@ -3970,7 +3970,7 @@ THE RIDER-UNION RE-RUN (#117+rider ∪ #120, local-only): **62/0 whole**
 vector × `random*0.2`, the arithmetic composition both seats pin from
 their own sides).
 
-## VT-019 — the stuck burning arrow's TNT re-prime (CONFIRMED — three passes complete; the correction is PR #127 OPEN)
+## VT-019 — the stuck burning arrow's TNT re-prime (CONFIRMED — three passes complete; the correction is PR #123 OPEN — the first carrier; this session's #127 CLOSED as the same-window duplicate)
 
 - **Status:** CONFIRMED (pass 1 the thirty-fifth lane's source walk,
   re-verified this pass; pass 2 the behavioral seat below; pass 3 the
