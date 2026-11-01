@@ -15193,26 +15193,24 @@ public final class EngineServer implements Server, EngineBridge {
      * The bed pair break (the vanilla unit rule, in the dig's OWN world —
      * BedBlock.neighborChanged's per-world dispatch): breaking one half
      * removes the other — a foot takes its head, a head takes its foot.
-     * The sibling is the horizontal neighbor of the opposite half class
-     * IN THE ACTING WORLD (two adjacent beds never share a class across
-     * the pair line). Tick-thread context.
+     * The sibling is the cell the broken half's OWN id names, read IN THE
+     * ACTING WORLD (BedBlock's FACING law — `beforeMinedByPlayer` lines
+     * 190-197 for the head, `neighborChanged` lines 109-121 the same cell
+     * for either half: a head's foot sits at the facing-OPPOSITE, a foot's
+     * head at the facing), with the reference's own block-CLASS test at
+     * that cell (`getBlock() != this` — any half passes, never a
+     * part-specific scan). Tick-thread context.
      */
     private void bedSiblingCleanup(BlockPosition broken, BlockType brokenType, EngineWorld world) {
         if (!isBedHalf(brokenType)) {
             return;
         }
-        boolean brokeHead = brokenType.identifier().value().startsWith("bed_head");
-        for (int[] direction : new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
-            BlockPosition neighbor = broken.offset(direction[0], 0, direction[1]);
-            BlockType at = world.getBlock(neighbor);
-            if (!isBedHalf(at)) {
-                continue;
-            }
-            boolean neighborIsHead = at.identifier().value().startsWith("bed_head");
-            if (neighborIsHead != brokeHead) {
-                world.setBlock(neighbor, world.airType()); // the pair dies as a unit
-                return;
-            }
+        BlockPosition sibling = bedFacingPartner(broken, brokenType);
+        if (sibling == null) {
+            return; // an id outside the family: nothing to consult
+        }
+        if (isBedHalf(world.getBlock(sibling))) {
+            world.setBlock(sibling, world.airType()); // the pair dies as a unit
         }
     }
 
@@ -15560,6 +15558,85 @@ public final class EngineServer implements Server, EngineBridge {
                 && (id.equals("bed") || id.startsWith("bed_"));
     }
 
+    /** The four look bands' horizontal offsets (the placement's own
+     * S/W/N/E law, `Direction` SOUTH/WEST/NORTH/EAST's normal vectors:
+     * S=+z, W=-x, N=-z, E=+x). */
+    private static final int[][] BED_BAND_OFFSETS = {{0, 1}, {-1, 0}, {0, -1}, {1, 0}};
+
+    /**
+     * The facing band a bed half's OWN identifier names (S=0, W=1, N=2,
+     * E=3 — `Direction.getIdHorizontal`'s law, the reference's enum lines
+     * 14-17). The engine's eight bed ids ARE the reference's metadata
+     * space: `BuiltinBlocks` registers the feet at metas 0-3 and the
+     * heads at 8-11 with the facing in the suffix (`bed`/`bed_west`/
+     * `bed_north`/`bed_east`, `bed_head`/`bed_head_west`/
+     * `bed_head_north`/`bed_head_east` — the suffix-less ids are the
+     * SOUTH variants, vanilla metas 0 and 8), the anvil import's
+     * 26-rows and the wire's `metadataOf` carry the same numbers — so
+     * every registered bed half answers a band, and the suffix always
+     * names the pair's own geometry. Answers -1 for any id outside the
+     * eight (unreachable through placement, import, or /setblock — the
+     * family is total).
+     */
+    private static int bedFacingBand(net.zaminmc.torch.block.BlockType type) {
+        String id = type.identifier().value();
+        if (!type.identifier().namespace().equals("minecraft")) {
+            return -1;
+        }
+        if (id.equals("bed") || id.equals("bed_head")) {
+            return 0; // south — the suffix-less variants (vanilla metas 0 and 8)
+        }
+        if (id.equals("bed_west") || id.equals("bed_head_west")) {
+            return 1; // west
+        }
+        if (id.equals("bed_north") || id.equals("bed_head_north")) {
+            return 2; // north
+        }
+        if (id.equals("bed_east") || id.equals("bed_head_east")) {
+            return 3; // east
+        }
+        return -1;
+    }
+
+    /**
+     * The cell the reference's FACING law names for a bed half: a
+     * foot's HEAD cell (`BedBlock.use` lines 38-41 — the redirect:
+     * {@code pos.offset(state.get(FACING))}), a head's FOOT cell (the
+     * `use` else arm lines 71-75 and `beforeMinedByPlayer` lines
+     * 190-197 — {@code pos.offset(state.get(FACING).getOpposite())}).
+     * Answers null for an id outside the family.
+     */
+    private static BlockPosition bedFacingPartner(BlockPosition pos,
+                                                   net.zaminmc.torch.block.BlockType type) {
+        int band = bedFacingBand(type);
+        if (band < 0) {
+            return null;
+        }
+        int[] offset = BED_BAND_OFFSETS[band];
+        // The head's partner sits at the facing-OPPOSITE cell; the
+        // foot's at the facing cell.
+        return type.identifier().value().startsWith("bed_head")
+                ? pos.offset(-offset[0], 0, -offset[1])
+                : pos.offset(offset[0], 0, offset[1]);
+    }
+
+    /**
+     * The cell BEHIND a bed half — the facing-OPPOSITE cell whatever
+     * the half's class: the `use` else arm's own removal law (lines
+     * 72-76 read the ANCHOR's state — {@code pos.offset(state.get(
+     * FACING).getOpposite())} — from whatever half the redirect landed
+     * on). Answers null for an id outside the family.
+     */
+    private static BlockPosition bedFacingBackward(BlockPosition pos,
+                                                    net.zaminmc.torch.block.BlockType type) {
+        int band = bedFacingBand(type);
+        if (band < 0) {
+            return null;
+        }
+        int[] offset = BED_BAND_OFFSETS[band];
+        return pos.offset(-offset[0], 0, -offset[1]);
+    }
+
     /**
      * The bed placement (the historical ItemBed): the foot at the target and
      * the head one cell along the placer's look (the head points where the
@@ -15616,18 +15693,17 @@ public final class EngineServer implements Server, EngineBridge {
      * dispatch's foot redirect, use lines 38-43). Tick-thread context.
      */
     private void detonateBedOnTick(EngineWorld world, BlockPosition head) {
-        // use lines 70-75: the pair dies as a unit — the head first, then
-        // the sibling foot the head faces (the engine's bed model carries
-        // the pair in the head/foot ids, the sibling the adjacent opposite
-        // class — the break walk's own convention).
+        // use lines 70-75: the pair dies as a unit — the anchor first, then
+        // the cell the ANCHOR's own state names BEHIND it
+        // (`pos.offset(state.get(FACING).getOpposite())` read from the
+        // anchor's state, whatever half the redirect landed on), with the
+        // reference's own block-CLASS test at that cell — the anchor's
+        // state read BEFORE its removal.
+        BlockType anchorType = world.getBlock(head);
         world.setBlock(head, world.airType());
-        for (int[] direction : new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
-            BlockPosition neighbor = head.offset(direction[0], 0, direction[1]);
-            BlockType at = world.getBlock(neighbor);
-            if (isBedHalf(at) && !at.identifier().value().startsWith("bed_head")) {
-                world.setBlock(neighbor, world.airType());
-                break;
-            }
+        BlockPosition sibling = bedFacingBackward(head, anchorType);
+        if (sibling != null && isBedHalf(world.getBlock(sibling))) {
+            world.setBlock(sibling, world.airType());
         }
         // use line 78: the blast at the head's center — power 5, fire
         // always, destructive always, no source body.
@@ -15641,23 +15717,27 @@ public final class EngineServer implements Server, EngineBridge {
     /**
      * The bed pair's head cell in the given world (BedBlock.use lines
      * 38-43's foot redirect over the ACTING world): the clicked head stays;
-     * a foot click resolves to its adjacent head; an orphan foot with no
-     * head answers NULL (the reference's early return — the use is
-     * consumed with neither arm). Tick-thread context.
+     * a foot click redirects to the cell its OWN id names (the reference's
+     * `pos.offset(state.get(FACING))`), where the block-CLASS test passes
+     * for ANY bed half (`state.getBlock() != this` — not a head-specific
+     * scan: a foreign foot standing there proceeds as the anchor); an
+     * orphan foot whose named cell holds no half answers NULL (the
+     * reference's early return — the use is consumed with neither arm).
+     * Tick-thread context.
      */
     private BlockPosition bedHeadCellIn(EngineWorld world, BlockPosition clicked) {
         BlockType type = world.getBlock(clicked);
+        if (!isBedHalf(type)) {
+            return null; // the dispatch never routes a non-bed here (defensive)
+        }
         if (type.identifier().value().startsWith("bed_head")) {
             return clicked;
         }
-        for (int[] direction : new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
-            BlockPosition neighbor = clicked.offset(direction[0], 0, direction[1]);
-            BlockType at = world.getBlock(neighbor);
-            if (isBedHalf(at) && at.identifier().value().startsWith("bed_head")) {
-                return neighbor;
-            }
+        BlockPosition redirect = bedFacingPartner(clicked, type);
+        if (redirect == null || !isBedHalf(world.getBlock(redirect))) {
+            return null; // the orphan foot: consumed, neither arm
         }
-        return null;
+        return redirect;
     }
 
     /**
@@ -15710,10 +15790,13 @@ public final class EngineServer implements Server, EngineBridge {
 
     /**
      * The bed pair's head cell (BedBlock.use lines 37-43): a clicked foot
-     * resolves to its sibling head — the horizontal neighbor of the opposite
-     * half class (the placement's own pair law); a clicked head is itself.
-     * A half whose pair is gone answers itself (the placement never makes
-     * one, the break removes both — the defensive row). Tick-thread context.
+     * resolves to the cell its OWN id names (the same facing law as the
+     * dispatch's redirect — the reference's `pos.offset(state.get(
+     * FACING))`, the block-class test at that cell); a clicked head is
+     * itself. The defensive rows answer the clicked cell itself (the
+     * dispatch's own walk aborts the orphan foot before the sleep walk
+     * ever runs — the rows hold the contract for any other caller).
+     * Tick-thread context.
      */
     private BlockPosition bedHeadCell(BlockPosition clicked) {
         BlockType type = world.getBlock(clicked);
@@ -15723,14 +15806,11 @@ public final class EngineServer implements Server, EngineBridge {
         if (type.identifier().value().startsWith("bed_head")) {
             return clicked;
         }
-        for (int[] direction : new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
-            BlockPosition neighbor = clicked.offset(direction[0], 0, direction[1]);
-            BlockType at = world.getBlock(neighbor);
-            if (isBedHalf(at) && at.identifier().value().startsWith("bed_head")) {
-                return neighbor;
-            }
+        BlockPosition redirect = bedFacingPartner(clicked, type);
+        if (redirect == null || !isBedHalf(world.getBlock(redirect))) {
+            return clicked; // the defensive row (the dispatch aborted the orphan first)
         }
-        return clicked;
+        return redirect;
     }
 
     /**
