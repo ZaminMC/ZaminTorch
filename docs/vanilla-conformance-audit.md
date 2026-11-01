@@ -5105,7 +5105,7 @@ pick; the merge watch refreshed to the eighteen-PR open set; the VT-025
 collision note standing.
 
 
-## The forty-seventh pass — the lane opens: the baseline advanced + the vt-013 lane's census unioned (the docs-only act)
+## The forty-ninth pass (first numbered the forty-seventh at the lane's opening, then renumbered TWICE at the push windows — the concurrent lanes took 47 (10:22:05Z) and 48 (10:33:20Z) while this lane's correction was in its seats-and-regression window; the established concurrent-stream protocol, the forty-sixth pass's own precedent — this lane's commits never pushed under any draft name, nothing public renamed) — the lane opens: the baseline advanced + the vt-013 lane's census unioned (the docs-only act)
 
 **The baseline:** the newest `origin/develop` (`efcd0c4f` — the FL4-GAP2
 Slice C landing, the VT-018 bowhit merges (#124), the three CI seat
@@ -5329,7 +5329,7 @@ falling anvil land) hold the public numbers; this lane's two new
 discoveries renumbered VT-033 (the anvil window's site binding) and
 VT-034 (the repeater's phantom click) — nothing public renamed.
 
-## The forty-seventh pass — the correction landed: VT-029's Phase E (PR #142 OPEN)
+## The forty-ninth pass — the correction landed: VT-029's Phase E (PR #142 OPEN)
 
 **The carrier:** `fix/fx-dimension-residual-parity-audit` (from the newest
 `origin/develop` `efcd0c4f`), **PR #142** targeting `develop` — the
