@@ -15,20 +15,25 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.logging.Logger;
 
 /**
- * File-backed dispenser/dropper state ("ZDD" format, version 1), one file
+ * File-backed dispenser/dropper state ("ZDD" format, version 2), one file
  * per world (Slice 11f — the ledgered slot persistence of the family the
  * 11a slice deferred).
  *
- * <p>Layout: magic 'Z','D','D',1 - containers(varint count; each: x(i32)
+ * <p>Layout: magic 'Z','D','D',2 - containers(varint count; each: x(i32)
  * y(i32) z(i32) - slots(9 entries; each: present(u8) then item
  * identifier(string) + count(varint) + damage(varint) + displayName
- * (varint-length UTF-8, 0 = none))).</p>
+ * (varint-length UTF-8, 0 = none)) - dimension(i8, Wave FL4-GAP2 Slice B:
+ * the row's own world, the chest store's own stamp law — -1 lands as u8
+ * 255)). Version 1 files load every row as an overworld row (the
+ * migration law — the pre-Slice-B store was the overworld's single map).</p>
  *
  * <p>The same durability rules as the world, player, furnace and chest
  * stores: writes are atomic (temp file then atomic move), corrupt files
@@ -42,7 +47,7 @@ public final class DispenserDataStore {
     private static final int MAGIC_0 = 'Z';
     private static final int MAGIC_1 = 'D';
     private static final int MAGIC_2 = 'D';
-    private static final int FORMAT_VERSION = 1;
+    private static final int FORMAT_VERSION = 2;
 
     private final Path file;
 
@@ -51,10 +56,15 @@ public final class DispenserDataStore {
     }
 
     /**
-     * Saves the full container map. Callers snapshot state on the tick
-     * thread before calling (the engine routes this through the ticker).
+     * Saves every dimension's container map (the FL4-GAP2 Slice B union:
+     * one file, each row stamped with its own world — the chest store's
+     * own law). Callers snapshot state on the tick thread before calling
+     * (the engine routes this through the ticker).
+     *
+     * @param containers each dimension's live map (dimension id -> the map
+     *                   its DispenserSystem owns)
      */
-    public void save(Map<BlockPosition, DispenserBlockEntity> containers) {
+    public void save(Map<Integer, Map<BlockPosition, DispenserBlockEntity>> containers) {
         writeSerialized(serialize(capture(containers)));
     }
 
@@ -81,28 +91,38 @@ public final class DispenserDataStore {
      */
     public record Snapshot(java.util.List<Row> rows) {
 
-        /** One dispenser's persisted rows. */
-        public record Row(int x, int y, int z, java.util.List<Slot> slots) {
+        /** One dispenser's persisted rows, stamped with its own world. */
+        public record Row(int x, int y, int z, int dimension, java.util.List<Slot> slots) {
         }
     }
 
     /**
-     * The deep capture of the live map — called ON the owning tick lane
-     * (the system's snapshot() is the map copy; this walks it into the
-     * immutable rows). The caller's map is not retained.
+     * The deep capture of every dimension's live maps — called ON the
+     * owning tick lane (each system's snapshot() is the map copy; this
+     * walks them into the immutable rows). The caller's maps are not
+     * retained.
      */
-    public Snapshot capture(Map<BlockPosition, DispenserBlockEntity> containers) {
-        java.util.List<Snapshot.Row> rows = new java.util.ArrayList<>(containers.size());
-        for (Map.Entry<BlockPosition, DispenserBlockEntity> entry : containers.entrySet()) {
-            BlockPosition position = entry.getKey();
-            DispenserBlockEntity container = entry.getValue();
-            net.zaminmc.torch.item.ItemStack[] liveSlots = container.snapshotSlots();
-            java.util.List<Slot> slots = new java.util.ArrayList<>(liveSlots.length);
-            for (net.zaminmc.torch.item.ItemStack stack : liveSlots) {
-                slots.add(Slot.of(stack));
+    public Snapshot capture(Map<Integer, Map<BlockPosition, DispenserBlockEntity>> containers) {
+        int total = 0;
+        for (Map<BlockPosition, DispenserBlockEntity> map : containers.values()) {
+            total += map.size();
+        }
+        java.util.List<Snapshot.Row> rows = new java.util.ArrayList<>(total);
+        for (Map.Entry<Integer, Map<BlockPosition, DispenserBlockEntity>> byDimension
+                : containers.entrySet()) {
+            int dimension = byDimension.getKey();
+            for (Map.Entry<BlockPosition, DispenserBlockEntity> entry
+                    : byDimension.getValue().entrySet()) {
+                BlockPosition position = entry.getKey();
+                DispenserBlockEntity container = entry.getValue();
+                net.zaminmc.torch.item.ItemStack[] liveSlots = container.snapshotSlots();
+                java.util.List<Slot> slots = new java.util.ArrayList<>(liveSlots.length);
+                for (net.zaminmc.torch.item.ItemStack stack : liveSlots) {
+                    slots.add(Slot.of(stack));
+                }
+                rows.add(new Snapshot.Row(position.x(), position.y(), position.z(), dimension,
+                        java.util.Collections.unmodifiableList(slots)));
             }
-            rows.add(new Snapshot.Row(position.x(), position.y(), position.z(),
-                    java.util.Collections.unmodifiableList(slots)));
         }
         return new Snapshot(java.util.List.copyOf(rows));
     }
@@ -136,6 +156,9 @@ public final class DispenserDataStore {
                         writeOptionalString(out, slot.displayName());
                     }
                 }
+                // The FL4-GAP2 Slice B stamp (the chest store's own form):
+                // the signed byte carries the dimension — -1 lands as u8 255.
+                out.writeByte(row.dimension());
             }
         } catch (IOException e) {
             // The sink is an in-memory buffer; an IOException here is a
@@ -166,14 +189,20 @@ public final class DispenserDataStore {
         }
     }
 
+    /** One loaded container's row, stamped with its own world. */
+    public record Loaded(BlockPosition position, int dimension, DispenserBlockEntity container) {
+    }
+
     /**
-     * Loads the container map. Saved items the current registry cannot
-     * resolve are dropped with a warning — the registry moved on,
-     * everything else survives.
+     * Loads the container rows, each stamped with its dimension. A v1
+     * file's rows are overworld rows (the pre-Slice-B store was the
+     * overworld's single map — the migration law). Saved items the current
+     * registry cannot resolve are dropped with a warning — the registry
+     * moved on, everything else survives.
      */
-    public Map<BlockPosition, DispenserBlockEntity> load() {
+    public List<Loaded> load() {
         if (!Files.exists(file)) {
-            return Map.of();
+            return List.of();
         }
         try (DataInputStream in = new DataInputStream(new BufferedInputStream(
                 Files.newInputStream(file)))) {
@@ -185,7 +214,7 @@ public final class DispenserDataStore {
                 throw new IOException("Unsupported ZDD version: " + version);
             }
             int count = readVarInt(in);
-            Map<BlockPosition, DispenserBlockEntity> loaded = new LinkedHashMap<>();
+            List<Loaded> loaded = new ArrayList<>(count);
             for (int i = 0; i < count; i++) {
                 int x = in.readInt();
                 int y = in.readInt();
@@ -210,7 +239,8 @@ public final class DispenserDataStore {
                     }
                 }
                 container.restoreSlots(slots);
-                loaded.put(new BlockPosition(x, y, z), container);
+                int dimension = version >= FORMAT_VERSION ? in.readByte() : 0;
+                loaded.add(new Loaded(new BlockPosition(x, y, z), dimension, container));
             }
             return loaded;
         } catch (IOException | RuntimeException corrupt) {
@@ -225,7 +255,7 @@ public final class DispenserDataStore {
                 LOGGER.warning("Dispenser data file was unreadable and could not be preserved: "
                         + moveFailure);
             }
-            return Map.of();
+            return List.of();
         }
     }
 

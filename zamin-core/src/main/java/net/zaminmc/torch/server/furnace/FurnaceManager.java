@@ -212,9 +212,19 @@ public final class FurnaceManager {
     /**
      * A survival break committed on the furnace block: spill every slot into
      * the world at the block (nothing is lost, the historical container drop)
-     * and forget the state.
+     * and forget the state. The legacy form stamps the overworld — the
+     * per-dimension break path passes its own world's stamp.
      */
     public void onBlockBroken(BlockPosition position, ItemEntityManager items) {
+        onBlockBroken(position, items, 0);
+    }
+
+    /**
+     * The dimension-stamped break spill (Wave FL4-GAP2 Slice B): the drops
+     * land in the SAME world the furnace stood in — a nether furnace's
+     * spill never falls into the overworld.
+     */
+    public void onBlockBroken(BlockPosition position, ItemEntityManager items, int dimension) {
         FurnaceBlockEntity furnace = furnaces.remove(position);
         if (furnace == null || items == null) {
             return;
@@ -222,7 +232,8 @@ public final class FurnaceManager {
         Position origin = new Position(position.x(), position.y(), position.z());
         for (ItemStack stack : furnace.snapshotSlots()) {
             if (!stack.isEmpty()) {
-                items.spawnDropAtBlock(origin, stack, ItemEntity.PICKUP_DELAY_DROP_TICKS);
+                items.spawnDropAtBlock(origin, stack, ItemEntity.PICKUP_DELAY_DROP_TICKS,
+                        dimension);
             }
         }
     }
