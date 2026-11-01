@@ -102,8 +102,16 @@ public final class SupportConsult {
         if (value.endsWith("_slab_top") || value.endsWith("_slab2_top")) {
             return true;
         }
-        // HopperBlock — the fourth arm.
-        return value.equals("hopper");
+        // HopperBlock — the fourth arm. The engine registers NO bare
+        // minecraft:hopper block: the flattened state model holds the
+        // hopper_<facing>[_disabled] band alone (HopperBlocks), so the
+        // arm reads the band whole — the reference's instanceof
+        // HopperBlock covers every state the family carries (the F-SP2
+        // rider correcting the dead bare-form read: a wire, a diode, a
+        // plate or a rail on a hopper floor stays, hasSolidTop's fourth
+        // arm; the pre-rider arm answered every registered hopper
+        // false).
+        return value.startsWith("hopper_");
     }
 
     /**

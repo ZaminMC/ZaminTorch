@@ -419,6 +419,80 @@ class HasSupportBelowParityDiscoveryTest {
         }
     }
 
+    @Test
+    void theFloorFamiliesStayOnTheHopperFloor() throws Exception {
+        EngineServer server = boot();
+        try {
+            int x = 520, z = 520, y = 40;
+            // The hopper agreement row (hasSolidTop's FOURTH arm —
+            // World.java line 1750's instanceof HopperBlock): a wire, a
+            // repeater, a plate and a rail each placed legally on a
+            // STONE floor whose floor becomes a HOPPER state STAY — the
+            // engine's flattened state model registers only the
+            // hopper_<facing> band (no bare minecraft:hopper), so the
+            // arm must read the band whole. The rider guards the dead
+            // bare-form read (the cross-tree review finding: every
+            // registered hopper answered false before it).
+            server.ticker().submit(() -> {
+                server.world().setBlock(new BlockPosition(x, y - 1, z),
+                        BuiltinBlocks.STONE);
+                server.world().setBlock(new BlockPosition(x, y, z),
+                        RedstoneBlocks.wireOfPower(0));
+                server.world().setBlock(new BlockPosition(x, y - 1, z + 5),
+                        BuiltinBlocks.STONE);
+                server.world().setBlock(new BlockPosition(x, y, z + 5),
+                        RedstoneBlocks.repeaterOf(RedstoneBlocks.FACING_EAST, 1, false));
+                server.world().setBlock(new BlockPosition(x, y - 1, z + 10),
+                        BuiltinBlocks.STONE);
+                server.world().setBlock(new BlockPosition(x, y, z + 10),
+                        RedstoneBlocks.plateOf(false, true));
+                server.world().setBlock(new BlockPosition(x, y - 1, z + 15),
+                        BuiltinBlocks.STONE);
+                server.world().setBlock(new BlockPosition(x, y, z + 15),
+                        RailBlocks.defaultState("rail"));
+            });
+            await(() -> RedstoneBlocks.isWire(typeAt(server, x, y, z)),
+                    "the wire placed on its stone floor");
+            await(() -> RedstoneBlocks.isRepeater(typeAt(server, x, y, z + 5)),
+                    "the repeater placed on its stone floor");
+            await(() -> RedstoneBlocks.isPlate(typeAt(server, x, y, z + 10)),
+                    "the plate placed on its stone floor");
+            await(() -> RailBlocks.isRailFamily(typeAt(server, x, y, z + 15)),
+                    "the rail placed on its stone floor");
+
+            // The floors become hopper states (the facing form the
+            // flattened model registers).
+            server.ticker().submit(() -> {
+                server.world().setBlock(new BlockPosition(x, y - 1, z),
+                        net.zaminmc.torch.server.hopper.HopperBlocks.hopperOf(2, true));
+                server.world().setBlock(new BlockPosition(x, y - 1, z + 5),
+                        net.zaminmc.torch.server.hopper.HopperBlocks.hopperOf(2, true));
+                server.world().setBlock(new BlockPosition(x, y - 1, z + 10),
+                        net.zaminmc.torch.server.hopper.HopperBlocks.hopperOf(2, true));
+                server.world().setBlock(new BlockPosition(x, y - 1, z + 15),
+                        net.zaminmc.torch.server.hopper.HopperBlocks.hopperOf(2, true));
+            });
+            sleep(1500);
+
+            // Vanilla (hasSolidTop's fourth arm — the hopper IS a solid
+            // top in every state): every family STAYS.
+            assertTrue(RedstoneBlocks.isWire(typeAt(server, x, y, z)),
+                    "F-SP2: the wire stays when its floor becomes a hopper "
+                            + "(hasSolidTop's fourth arm — the band read whole)");
+            assertTrue(RedstoneBlocks.isRepeater(typeAt(server, x, y, z + 5)),
+                    "F-SP2: the repeater stays when its floor becomes a hopper "
+                            + "(the fourth arm's agreement row)");
+            assertTrue(RedstoneBlocks.isPlate(typeAt(server, x, y, z + 10)),
+                    "F-SP2: the plate stays when its floor becomes a hopper "
+                            + "(the fourth arm's agreement row)");
+            assertTrue(RailBlocks.isRailFamily(typeAt(server, x, y, z + 15)),
+                    "F-SP2: the rail stays when its floor becomes a hopper "
+                            + "(the fourth arm's agreement row)");
+        } finally {
+            server.shutdown(() -> { });
+        }
+    }
+
     private static BlockType typeAt(EngineServer server, int x, int y, int z) {
         AtomicReference<BlockType> result = new AtomicReference<>();
         server.ticker().submit(() -> result.set(
