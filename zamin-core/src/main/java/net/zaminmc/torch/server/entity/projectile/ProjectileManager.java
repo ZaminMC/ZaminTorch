@@ -998,8 +998,14 @@ public final class ProjectileManager {
      * onEntityCollision, lines 91-104): every burning arrow — in flight
      * or stuck in the ground — walks the cells its 0.5 box overlaps (the
      * faces shrunk by the reference's 0.001) and primes every TNT cell
-     * found. The engine's point-model walks the 0.25 band around the
-     * flight position (the box-center envelope).
+     * found. VT-023 — the box is the FEET LAW's [y, y+0.5] (Entity
+     * .setPosition lines 240-247: the shape spans y..y+height, the
+     * position the BOTTOM; the arrow's own setSize(0.5F, 0.5F)): the
+     * vertical band walks y+0.001 to y+0.5-0.001 exactly as the
+     * reference's per-block scan does, never the symmetric ±0.25 around
+     * the position (the retired "box-center envelope" — the position is
+     * the box bottom, pinned by VT-014's rest law). The horizontal bands
+     * are ±width/2 — the reference's own.
      */
     private void burningTntPass() {
         if (burningTnt == null) {
@@ -1013,8 +1019,13 @@ public final class ProjectileManager {
             Position at = projectile.position();
             int minX = (int) Math.floor(at.x() - 0.25 + 0.001);
             int maxX = (int) Math.floor(at.x() + 0.25 - 0.001);
-            int minY = (int) Math.floor(at.y() - 0.25 + 0.001);
-            int maxY = (int) Math.floor(at.y() + 0.25 - 0.001);
+            // VT-023 — the feet law's vertical band: the box spans
+            // [y, y+0.5] (the position the BOTTOM), the reference's own
+            // 0.001 insets — never the symmetric ±0.25 (the retired
+            // box-center framing). The engine's position IS the
+            // reference's position (VT-014's rest law pins it).
+            int minY = (int) Math.floor(at.y() + 0.001);
+            int maxY = (int) Math.floor(at.y() + 0.5 - 0.001);
             int minZ = (int) Math.floor(at.z() - 0.25 + 0.001);
             int maxZ = (int) Math.floor(at.z() + 0.25 - 0.001);
             int dimension = projectile.dimension();
