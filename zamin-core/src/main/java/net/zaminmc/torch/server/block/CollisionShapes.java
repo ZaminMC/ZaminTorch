@@ -329,6 +329,20 @@ public final class CollisionShapes {
         if (StairsBlocks.isStairState(value)) {
             return stairBoxes(value, probe);
         }
+        // The DOUBLE slabs (SlabBlock.updateShape lines 39-52:
+        // isDouble() -> setShape(0, 0, 0, 1, 1, 1) — the FULL cube, the
+        // collision walk riding updateShape; the three concrete double
+        // classes each answer isDouble() true): the four family suffix
+        // shapes the isCube consult carve already carries
+        // (BlockSolidity.isCube — SlabBlock.isCube() = isDouble()). The
+        // doubles' names end in _slab and must NOT fall to the singles'
+        // half rows below; the _slab2/_seamless forms already fell to
+        // the default full cube — now the family is whole under one row.
+        if (value.startsWith("double_") && (value.endsWith("_slab")
+                || value.endsWith("_slab2") || value.endsWith("_slab_seamless")
+                || value.endsWith("_slab2_seamless"))) {
+            return List.of(FULL_CUBE);
+        }
         // The slab halves (the stair states parse above now): the bottom
         // slab fills its cell's lower half, the top slab the upper. The
         // stone_slab2 pair joins through its own names (the '2' family

@@ -52,7 +52,15 @@ class PistonFluidEventAcceptanceTest {
                 server.world().setBlock(new BlockPosition(x, y, z),
                         PistonBlocks.pistonOf(EAST, false, false));
                 server.world().setBlock(new BlockPosition(x + 1, y, z), BuiltinBlocks.STONE);
-                server.world().setBlock(new BlockPosition(x, y + 1, z),
+                // The VANILLA-VALID power arrangement (F-SP1's correction exposed the
+                // old bench: a floor lever never stands on a piston base —
+                // PistonBaseBlock.isCube() false (reference line 223),
+                // hasSolidTop refuses): the stone above the piston carries
+                // the lever; the flip strongly powers the stone (the
+                // lever's attachment arm), the stone re-radiates the weak
+                // 15 down to the piston.
+                server.world().setBlock(new BlockPosition(x, y + 1, z), BuiltinBlocks.STONE);
+                server.world().setBlock(new BlockPosition(x, y + 2, z),
                         RedstoneBlocks.leverOf(5, false));
             });
             await(() -> PistonBlocks.isPiston(typeAt(server, x, y, z)), "the piston placed");
@@ -65,7 +73,7 @@ class PistonFluidEventAcceptanceTest {
             });
 
             server.ticker().submit(() -> server.redstone().useLever(
-                    new BlockPosition(x, y + 1, z)));
+                    new BlockPosition(x, y + 2, z)));
             EngineAwaits.awaitTicks(server.world(), 8, "let the cancelled event land");
 
             assertTrue(PistonBlocks.isPiston(typeAt(server, x, y, z))
@@ -79,10 +87,10 @@ class PistonFluidEventAcceptanceTest {
             // still ON from the first flip, so walk it OFF then ON — the
             // re-armed extend goes through.
             server.ticker().submit(() -> server.redstone().useLever(
-                    new BlockPosition(x, y + 1, z)));
+                    new BlockPosition(x, y + 2, z)));
             EngineAwaits.awaitTicks(server.world(), 4, "the OFF flip settles");
             server.ticker().submit(() -> server.redstone().useLever(
-                    new BlockPosition(x, y + 1, z)));
+                    new BlockPosition(x, y + 2, z)));
             await(() -> PistonBlocks.pistonExtended(typeAt(server, x, y, z)),
                     "the extend goes through after unsubscribe");
         } finally {
@@ -99,7 +107,15 @@ class PistonFluidEventAcceptanceTest {
                 server.world().setBlock(new BlockPosition(x, y, z),
                         PistonBlocks.pistonOf(EAST, false, false));
                 server.world().setBlock(new BlockPosition(x + 1, y, z), BuiltinBlocks.STONE);
-                server.world().setBlock(new BlockPosition(x, y + 1, z),
+                // The VANILLA-VALID power arrangement (F-SP1's correction exposed the
+                // old bench: a floor lever never stands on a piston base —
+                // PistonBaseBlock.isCube() false (reference line 223),
+                // hasSolidTop refuses): the stone above the piston carries
+                // the lever; the flip strongly powers the stone (the
+                // lever's attachment arm), the stone re-radiates the weak
+                // 15 down to the piston.
+                server.world().setBlock(new BlockPosition(x, y + 1, z), BuiltinBlocks.STONE);
+                server.world().setBlock(new BlockPosition(x, y + 2, z),
                         RedstoneBlocks.leverOf(5, false));
             });
             await(() -> PistonBlocks.isPiston(typeAt(server, x, y, z)), "the piston placed");
@@ -108,7 +124,7 @@ class PistonFluidEventAcceptanceTest {
             EventSubscription sub = server.events().on(PistonMoveEvent.class, seen::add);
 
             server.ticker().submit(() -> server.redstone().useLever(
-                    new BlockPosition(x, y + 1, z)));
+                    new BlockPosition(x, y + 2, z)));
             await(() -> seen.stream().anyMatch(PistonMoveEvent::extending),
                     "the extend observation arrived");
 
@@ -138,12 +154,20 @@ class PistonFluidEventAcceptanceTest {
             server.ticker().submit(() -> {
                 server.world().setBlock(new BlockPosition(x, y, z),
                         PistonBlocks.pistonOf(EAST, false, true));
-                server.world().setBlock(new BlockPosition(x, y + 1, z),
+                // The VANILLA-VALID power arrangement (F-SP1's correction exposed the
+                // old bench: a floor lever never stands on a piston base —
+                // PistonBaseBlock.isCube() false (reference line 223),
+                // hasSolidTop refuses): the stone above the piston carries
+                // the lever; the flip strongly powers the stone (the
+                // lever's attachment arm), the stone re-radiates the weak
+                // 15 down to the piston.
+                server.world().setBlock(new BlockPosition(x, y + 1, z), BuiltinBlocks.STONE);
+                server.world().setBlock(new BlockPosition(x, y + 2, z),
                         RedstoneBlocks.leverOf(5, false));
             });
             await(() -> PistonBlocks.isPiston(typeAt(server, x, y, z)), "the sticky piston placed");
             server.ticker().submit(() -> server.redstone().useLever(
-                    new BlockPosition(x, y + 1, z)));
+                    new BlockPosition(x, y + 2, z)));
             await(() -> PistonBlocks.pistonExtended(typeAt(server, x, y, z)),
                     "the sticky piston extended (against air)");
             await(() -> PistonBlocks.isPistonHead(typeAt(server, x + 1, y, z)),
@@ -157,7 +181,7 @@ class PistonFluidEventAcceptanceTest {
             EventSubscription sub = server.events().on(PistonMoveEvent.class, seen::add);
 
             server.ticker().submit(() -> server.redstone().useLever(
-                    new BlockPosition(x, y + 1, z)));
+                    new BlockPosition(x, y + 2, z)));
             await(() -> seen.stream().anyMatch(e -> !e.extending()),
                     "the retract observation arrived");
 
@@ -184,13 +208,21 @@ class PistonFluidEventAcceptanceTest {
             server.ticker().submit(() -> {
                 server.world().setBlock(new BlockPosition(px, y, pz),
                         PistonBlocks.pistonOf(EAST, false, false));
-                server.world().setBlock(new BlockPosition(px, y + 1, pz),
+                // The VANILLA-VALID power arrangement (F-SP1's correction exposed the
+                // old bench: a floor lever never stands on a piston base —
+                // PistonBaseBlock.isCube() false (reference line 223),
+                // hasSolidTop refuses): the stone above the piston carries
+                // the lever; the flip strongly powers the stone (the
+                // lever's attachment arm), the stone re-radiates the weak
+                // 15 down to the piston.
+                server.world().setBlock(new BlockPosition(px, y + 1, pz), BuiltinBlocks.STONE);
+                server.world().setBlock(new BlockPosition(px, y + 2, pz),
                         RedstoneBlocks.leverOf(5, false));
             });
             await(() -> PistonBlocks.isPiston(typeAt(server, px, y, pz)),
                     "the plain piston placed");
             server.ticker().submit(() -> server.redstone().useLever(
-                    new BlockPosition(px, y + 1, pz)));
+                    new BlockPosition(px, y + 2, pz)));
             await(() -> PistonBlocks.pistonExtended(typeAt(server, px, y, pz)),
                     "the plain piston extended (against air)");
             await(() -> PistonBlocks.isPistonHead(typeAt(server, px + 1, y, pz)),
@@ -203,7 +235,7 @@ class PistonFluidEventAcceptanceTest {
             CopyOnWriteArrayList<PistonMoveEvent> plainSeen = new CopyOnWriteArrayList<>();
             EventSubscription plainSub = server.events().on(PistonMoveEvent.class, plainSeen::add);
             server.ticker().submit(() -> server.redstone().useLever(
-                    new BlockPosition(px, y + 1, pz)));
+                    new BlockPosition(px, y + 2, pz)));
             await(() -> plainSeen.stream().anyMatch(e -> !e.extending()),
                     "the plain retract observation arrived");
             PistonMoveEvent plainRetract = plainSeen.stream()
@@ -229,12 +261,20 @@ class PistonFluidEventAcceptanceTest {
             server.ticker().submit(() -> {
                 server.world().setBlock(new BlockPosition(x, y, z),
                         PistonBlocks.pistonOf(EAST, false, true));
-                server.world().setBlock(new BlockPosition(x, y + 1, z),
+                // The VANILLA-VALID power arrangement (F-SP1's correction exposed the
+                // old bench: a floor lever never stands on a piston base —
+                // PistonBaseBlock.isCube() false (reference line 223),
+                // hasSolidTop refuses): the stone above the piston carries
+                // the lever; the flip strongly powers the stone (the
+                // lever's attachment arm), the stone re-radiates the weak
+                // 15 down to the piston.
+                server.world().setBlock(new BlockPosition(x, y + 1, z), BuiltinBlocks.STONE);
+                server.world().setBlock(new BlockPosition(x, y + 2, z),
                         RedstoneBlocks.leverOf(5, false));
             });
             await(() -> PistonBlocks.isPiston(typeAt(server, x, y, z)), "the sticky piston placed");
             server.ticker().submit(() -> server.redstone().useLever(
-                    new BlockPosition(x, y + 1, z)));
+                    new BlockPosition(x, y + 2, z)));
             await(() -> PistonBlocks.pistonExtended(typeAt(server, x, y, z)),
                     "the piston extended");
             await(() -> PistonBlocks.isPistonHead(typeAt(server, x + 1, y, z)),
@@ -257,7 +297,7 @@ class PistonFluidEventAcceptanceTest {
             });
 
             server.ticker().submit(() -> server.redstone().useLever(
-                    new BlockPosition(x, y + 1, z)));
+                    new BlockPosition(x, y + 2, z)));
             EngineAwaits.awaitTicks(server.world(), 8, "engine progress (a 400 wall settle)");
 
             assertTrue(PistonBlocks.isPistonHead(typeAt(server, x + 1, y, z)),

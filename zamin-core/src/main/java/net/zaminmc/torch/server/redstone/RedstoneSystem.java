@@ -1345,32 +1345,18 @@ public final class RedstoneSystem implements WorldChangeListener {
         }
     }
 
-    /** The mount read (canBePlacedOn over the wall cell). */
+    /**
+     * The mount read (TrapdoorBlock.canBePlacedOn lines 188-190,
+     * 1:1 through {@link SupportConsult}): the solid-blocking cube OR the
+     * glowstone OR any slab half OR any stair state — the trapdoor's own
+     * law, looser than hasSolidTop (no HALF condition) and narrower than
+     * the collision table (no hopper arm). The suffix arms and the final
+     * arm's carves — including the DEAD fence carve
+     * ({@code value.startsWith("minecraft:fence")} tested against the BARE
+     * name, which never fired) — retire with the structured consult.
+     */
     private boolean trapdoorMountHolds(BlockType mount) {
-        String value = mount.identifier().value();
-        if (mount.identifier().equals(BuiltinBlocks.GLOWSTONE.identifier())) {
-            return true;
-        }
-        if (net.zaminmc.torch.server.block.TrapdoorBlocks.isTrapdoor(mount)) {
-            return false; // the partial panel never holds another
-        }
-        if (value.endsWith("_slab") || value.endsWith("_slab_top")) {
-            return true;
-        }
-        if (net.zaminmc.torch.server.block.WoodShapeBlocks.isStairsState(value)
-                || net.zaminmc.torch.server.block.WoodShapeBlocks.isStairsItem(value)
-                || value.startsWith("oak_stairs") || value.startsWith("cobblestone_stairs")
-                || value.startsWith("sandstone_stairs")
-                || value.startsWith("nether_brick_stairs")) {
-            return true;
-        }
-        return WorldSolidity.isSolid(mount)
-                && !value.startsWith("minecraft:fence")
-                && !net.zaminmc.torch.server.block.FenceGateBlocks.isGateItem(value)
-                && !value.contains("_door")
-                && !WorldSolidity.isRail(mount.identifier())
-                && !net.zaminmc.torch.server.block.RailBlocks.isRailItem(value)
-                && !value.equals("chest") && !value.startsWith("chest_");
+        return net.zaminmc.torch.server.block.SupportConsult.trapdoorCanBePlacedOn(mount);
     }
 
     /** The door item of a family for the pop arm's drop. */
@@ -1681,10 +1667,24 @@ public final class RedstoneSystem implements WorldChangeListener {
         return signal(attachment, dir) > 0;
     }
 
-    /** Whether the torch still hangs on its attachment (TorchBlock.tryBreak). */
+    /**
+     * Whether the torch still hangs on its attachment (TorchBlock.tryBreak
+     * lines 96-118, the law per side): the WALL mounts (the horizontal
+     * facings) read {@code World.isSolidBlockingCube} — the translucent
+     * materials and the non-cubes never answer; the FLOOR mount (the
+     * standing torch, FACING UP) reads {@code TorchBlock.canSitOnTop}'s
+     * own law — hasSolidTop's five arms extended with the explicit
+     * FENCES/GLASS/COBBLESTONE_WALL/STAINED_GLASS list. The one-question
+     * collision consult (WorldSolidity.isSolid) never distinguished the
+     * sides — F-SP1's correction, {@link SupportConsult} the shared law.
+     */
     private boolean torchSupported(BlockType type, BlockPosition pos) {
-        int[] step = torchAttachmentStep(RedstoneBlocks.torchFacing(type));
-        return WorldSolidity.isSolid(world.getBlock(pos.offset(step[0], step[1], step[2])));
+        int facing = RedstoneBlocks.torchFacing(type);
+        int[] step = torchAttachmentStep(facing);
+        BlockType mount = world.getBlock(pos.offset(step[0], step[1], step[2]));
+        return facing == 1
+                ? net.zaminmc.torch.server.block.SupportConsult.torchCanSitOnTop(mount)
+                : net.zaminmc.torch.server.block.SupportConsult.isSolidBlockingCube(mount);
     }
 
     // ------------------------------------------------------------------
@@ -2219,16 +2219,42 @@ public final class RedstoneSystem implements WorldChangeListener {
         return probe.test(pos, RedstoneBlocks.plateWooden(world.getBlock(pos))) ? 15 : 0;
     }
 
-    /** Whether the lever still hangs on its attachment (canSurvive's test). */
+    /**
+     * Whether the lever still hangs on its attachment
+     * (LeverBlock.neighborChanged lines 101-106 →
+     * {@code ButtonBlock.canSurvive} lines 70-73, the law per side): the
+     * consult direction is the attachment's opposite (toward the mount);
+     * the FLOOR mount (the lever points UP, consult DOWN) reads
+     * {@code World.hasSolidTop} — the five arms alone, NO fence/glass
+     * exception (the torch floor's explicit list is the TORCH's alone);
+     * every other side — the walls AND the ceiling — reads
+     * {@code Block.isSolid()} (BlockSolidity's landed form). F-SP1's
+     * correction, {@link SupportConsult} the shared law.
+     */
     private boolean leverSupported(BlockType type, BlockPosition pos) {
-        int[] away = attachmentOppositeOffset(RedstoneBlocks.leverAttachment(type));
-        return WorldSolidity.isSolid(world.getBlock(pos.offset(away[0], away[1], away[2])));
+        int attachment = RedstoneBlocks.leverAttachment(type);
+        int[] away = attachmentOppositeOffset(attachment);
+        BlockType mount = world.getBlock(pos.offset(away[0], away[1], away[2]));
+        return net.zaminmc.torch.server.block.SupportConsult.leverButtonMountHolds(
+                mount, attachment == 1);
     }
 
-    /** Whether the button still hangs on its mount (canSurvive: the block at FACING.opposite). */
+    /**
+     * Whether the button still hangs on its mount
+     * (ButtonBlock.neighborChanged lines 89-95 →
+     * {@code ButtonBlock.canSurvive} lines 70-73, the law per side): the
+     * consult direction is the facing's opposite (toward the mount); the
+     * FLOOR mount (FACING UP, consult DOWN) reads {@code World.hasSolidTop};
+     * every other side — the walls AND the ceiling (FACING DOWN, consult
+     * UP onto the block above) — reads {@code Block.isSolid()}. F-SP1's
+     * correction, {@link SupportConsult} the shared law.
+     */
     private boolean buttonSupported(BlockType type, BlockPosition pos) {
-        int[] away = OFFSETS[RedstoneBlocks.buttonFacing(type)];
-        return WorldSolidity.isSolid(world.getBlock(pos.offset(-away[0], -away[1], -away[2])));
+        int facing = RedstoneBlocks.buttonFacing(type);
+        int[] away = OFFSETS[facing];
+        BlockType mount = world.getBlock(pos.offset(-away[0], -away[1], -away[2]));
+        return net.zaminmc.torch.server.block.SupportConsult.leverButtonMountHolds(
+                mount, facing == 1);
     }
 
     /** The offset of a direction's opposite (the reference's getOpposite). */

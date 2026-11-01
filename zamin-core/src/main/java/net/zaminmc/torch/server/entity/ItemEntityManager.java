@@ -45,7 +45,18 @@ public final class ItemEntityManager {
      * fizz-free pre-wave walk.
      */
     private final ItemEntity.Sounds sounds;
-    private final List<ItemEntity> entities = new ArrayList<>();
+    /**
+     * The live bodies. Copy-on-write because {@link #all()} is the test
+     * suite's off-thread polling surface (the protocol seats' settle
+     * awaits poll it while this thread expires, merges, and collects):
+     * {@code List.copyOf} over a plain ArrayList can read the size and the
+     * array on opposite sides of a concurrent removal and hand
+     * {@code List.of} the nulled tail — the same window run 591's
+     * attribution harness caught on the mobs list. Every snapshot is a
+     * consistent view by construction; mutation stays tick-thread-only.
+     */
+    private final List<ItemEntity> entities =
+            new java.util.concurrent.CopyOnWriteArrayList<>();
     private final List<Listener> listeners = new ArrayList<>();
     private int nextEntityId;
 
@@ -247,7 +258,12 @@ public final class ItemEntityManager {
         return entity;
     }
 
-    /** @return an unmodifiable view of live entities (diagnostics/tests). */
+    /**
+     * @return an unmodifiable snapshot of the live entities — consistent
+     * by construction even while the tick thread mutates (the settle
+     * awaits poll this off-thread; the copy-on-write list guarantees the
+     * view).
+     */
     public List<ItemEntity> all() {
         return List.copyOf(entities);
     }
@@ -275,20 +291,14 @@ public final class ItemEntityManager {
             ItemEntity entity = iterator.next();
 
             if (entity.expired()) {
-                iterator.remove();
-                for (Listener listener : listeners) {
-                    listener.onItemRemoved(entity, "despawned");
-                }
+                remove(entity, "despawned"); // mid-walk removal is copy-on-write safe
                 continue;
             }
 
             if (entity.inVoid()) {
                 // The vanilla void: fell past the kill plane, gone silently
                 // (no drop-back — the stack is out of the world).
-                iterator.remove();
-                for (Listener listener : listeners) {
-                    listener.onItemRemoved(entity, "fell out of world");
-                }
+                remove(entity, "fell out of world"); // copy-on-write safe
                 continue;
             }
 
@@ -342,7 +352,7 @@ public final class ItemEntityManager {
                     listener.onItemPickupEffects(entity, player, collected);
                 }
                 if (remainder.isEmpty()) {
-                    iterator.remove();
+                    entities.remove(entity); // mid-walk removal is copy-on-write safe
                     for (Listener listener : listeners) {
                         listener.onItemCollected(entity, player, collected);
                     }

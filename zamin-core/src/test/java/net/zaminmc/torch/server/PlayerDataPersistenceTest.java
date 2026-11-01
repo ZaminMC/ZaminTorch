@@ -105,11 +105,21 @@ class PlayerDataPersistenceTest {
         PlayerSession sleeper = join(first, "Sleeper");
         await(() -> !sleeper.position().equals(net.zaminmc.torch.util.Position.ZERO),
                 "sleeper positioned");
-        first.blockInteraction().submitPlace(sleeper, new BlockPosition(2, 4, 2), 1,
-                BuiltinBlocks.BED_FOOT_SOUTH);
+        // The bed as a WHOLE PAIR (the vanilla model): an orphan half pops
+        // on the first neighbor change under BedBlock.neighborChanged's
+        // pair-integrity law (restored by the VT-009 arm) — a single
+        // foot-only cell was never a vanilla-stable bed, so the anchor
+        // scene lays both halves (the MultiplayerSleepAcceptanceTest
+        // convention).
+        first.ticker().submit(() -> {
+            first.world().setBlock(new BlockPosition(2, 5, 2), BuiltinBlocks.BED_FOOT_SOUTH);
+            first.world().setBlock(new BlockPosition(2, 5, 3), BuiltinBlocks.BED_HEAD_SOUTH);
+        });
         await(() -> first.world().getBlock(new BlockPosition(2, 5, 2))
-                        .equals(BuiltinBlocks.BED_FOOT_SOUTH),
-                "bed placed");
+                        .equals(BuiltinBlocks.BED_FOOT_SOUTH)
+                        && first.world().getBlock(new BlockPosition(2, 5, 3))
+                        .equals(BuiltinBlocks.BED_HEAD_SOUTH),
+                "bed pair placed");
         // The anchor rides one above the bed block (the sleep rule's cell).
         sleeper.setBedSpawn(new Position(2.5, 6.0, 2.5));
         first.clientDisconnected(sleeper, "test leave");
