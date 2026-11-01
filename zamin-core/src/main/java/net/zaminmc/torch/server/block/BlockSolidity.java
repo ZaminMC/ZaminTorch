@@ -112,4 +112,14 @@ public final class BlockSolidity {
     private static boolean isGlassFamily(String value) {
         return value.equals("glass") || value.startsWith("stained_glass");
     }
+
+    /**
+     * The reference's {@code isCube()} consult (the render cube), public for
+     * the mount laws ({@link SupportConsult} — F-SP1): the torch's
+     * {@code isSolidBlockingCube}, {@code hasSolidTop}'s first arm and the
+     * trapdoor's {@code canBePlacedOn} all carry the cube conjunct.
+     */
+    public static boolean isCube(BlockType type) {
+        return type != null && isCube(type, type.identifier());
+    }
 }

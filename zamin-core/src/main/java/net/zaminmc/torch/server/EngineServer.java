@@ -12876,28 +12876,40 @@ public final class EngineServer implements Server, EngineBridge {
             return;
         }
         // The clicked face's attachment (canAttach lines 69-73): a horizontal
-        // face needs the solid wall behind it; the top face needs the solid
-        // bed below. The FACING ids ride the face codes 1..5.
+        // face needs the solid-blocking CUBE behind it (the translucent
+        // materials and the non-cube solids never answer); the top face
+        // needs canSitOnTop's floor law (hasSolidTop + the explicit
+        // fence/glass/wall/stained-glass list) — the SupportConsult laws
+        // (F-SP1). The FACING ids ride the face codes 1..5.
         int facing = switch (face) {
-            case 1 -> world.getBlock(target.offset(0, -1, 0)) != null
-                    && WorldSolidity.isSolid(world.getBlock(target.offset(0, -1, 0))) ? 1 : -1;
-            case 2 -> WorldSolidity.isSolid(world.getBlock(target.offset(0, 0, 1))) ? 2 : -1;
-            case 3 -> WorldSolidity.isSolid(world.getBlock(target.offset(0, 0, -1))) ? 3 : -1;
-            case 4 -> WorldSolidity.isSolid(world.getBlock(target.offset(1, 0, 0))) ? 4 : -1;
-            case 5 -> WorldSolidity.isSolid(world.getBlock(target.offset(-1, 0, 0))) ? 5 : -1;
+            case 1 -> net.zaminmc.torch.server.block.SupportConsult
+                    .torchCanSitOnTop(world.getBlock(target.offset(0, -1, 0))) ? 1 : -1;
+            case 2 -> net.zaminmc.torch.server.block.SupportConsult
+                    .isSolidBlockingCube(world.getBlock(target.offset(0, 0, 1))) ? 2 : -1;
+            case 3 -> net.zaminmc.torch.server.block.SupportConsult
+                    .isSolidBlockingCube(world.getBlock(target.offset(0, 0, -1))) ? 3 : -1;
+            case 4 -> net.zaminmc.torch.server.block.SupportConsult
+                    .isSolidBlockingCube(world.getBlock(target.offset(1, 0, 0))) ? 4 : -1;
+            case 5 -> net.zaminmc.torch.server.block.SupportConsult
+                    .isSolidBlockingCube(world.getBlock(target.offset(-1, 0, 0))) ? 5 : -1;
             default -> -1; // the ceiling arm never attaches
         };
         if (facing < 0) {
             // The fallback walk (lines 81-85): the first horizontal wall.
-            if (WorldSolidity.isSolid(world.getBlock(target.offset(0, 0, 1)))) {
+            if (net.zaminmc.torch.server.block.SupportConsult
+                    .isSolidBlockingCube(world.getBlock(target.offset(0, 0, 1)))) {
                 facing = 2;
-            } else if (WorldSolidity.isSolid(world.getBlock(target.offset(0, 0, -1)))) {
+            } else if (net.zaminmc.torch.server.block.SupportConsult
+                    .isSolidBlockingCube(world.getBlock(target.offset(0, 0, -1)))) {
                 facing = 3;
-            } else if (WorldSolidity.isSolid(world.getBlock(target.offset(1, 0, 0)))) {
+            } else if (net.zaminmc.torch.server.block.SupportConsult
+                    .isSolidBlockingCube(world.getBlock(target.offset(1, 0, 0)))) {
                 facing = 4;
-            } else if (WorldSolidity.isSolid(world.getBlock(target.offset(-1, 0, 0)))) {
+            } else if (net.zaminmc.torch.server.block.SupportConsult
+                    .isSolidBlockingCube(world.getBlock(target.offset(-1, 0, 0)))) {
                 facing = 5;
-            } else if (WorldSolidity.isSolid(world.getBlock(target.offset(0, -1, 0)))) {
+            } else if (net.zaminmc.torch.server.block.SupportConsult
+                    .torchCanSitOnTop(world.getBlock(target.offset(0, -1, 0)))) {
                 facing = 1;
             } else {
                 return; // no attachment anywhere: the placement refuses
@@ -12945,7 +12957,10 @@ public final class EngineServer implements Server, EngineBridge {
         if (key == null) {
             return;
         }
-        // The clicked face's mount must be solid (canSurvive).
+        // The clicked face's mount must hold (canSurvive lines 70-73 — the
+        // SupportConsult split, F-SP1): the FLOOR mount (face 1) rides
+        // World.hasSolidTop; every other face rides Block.isSolid() (the
+        // signal consult BlockSolidity ports).
         int[] mountOffset = switch (face) {
             case 0 -> new int[]{0, 1, 0};  // ceiling: the block above
             case 1 -> new int[]{0, -1, 0}; // floor: the block below
@@ -12956,11 +12971,15 @@ public final class EngineServer implements Server, EngineBridge {
             default -> null;
         };
         if (mountOffset == null
-                || !WorldSolidity.isSolid(world.getBlock(target.offset(
-                        mountOffset[0], mountOffset[1], mountOffset[2])))) {
-            // The fallback walk: the first solid mount around the target.
+                || !net.zaminmc.torch.server.block.SupportConsult.leverButtonMountHolds(
+                        world.getBlock(target.offset(
+                                mountOffset[0], mountOffset[1], mountOffset[2])),
+                        face == 1)) {
+            // The fallback walk: the first holding mount around the target
+            // (the floor's own law — canSurvive's DOWN arm).
             boolean placed = false;
-            if (WorldSolidity.isSolid(world.getBlock(target.offset(0, -1, 0)))) {
+            if (net.zaminmc.torch.server.block.SupportConsult.leverButtonMountHolds(
+                    world.getBlock(target.offset(0, -1, 0)), true)) {
                 world.setBlock(target, net.zaminmc.torch.server.redstone.RedstoneBlocks.leverOf(5, false));
                 placed = true;
             }
@@ -13008,6 +13027,30 @@ public final class EngineServer implements Server, EngineBridge {
         if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE
                 && session.inventory().held().isEmpty()) {
             return;
+        }
+        // The clicked face's mount must hold (getPlacementState lines 76-80
+        // → canSurvive lines 70-73 — the SupportConsult split, F-SP1): the
+        // FLOOR mount (face 1, the top face) rides World.hasSolidTop; every
+        // other face rides Block.isSolid(). The placement refuses a mount
+        // the survival walk would pop on its first neighbor change (the
+        // bounded correction — the reference's default-state-then-pop
+        // nuance rides the full getPlacementState machinery, the named
+        // tail).
+        int[] mountOffset = switch (face) {
+            case 0 -> new int[]{0, 1, 0};  // ceiling: the block above
+            case 1 -> new int[]{0, -1, 0}; // floor: the block below
+            case 2 -> new int[]{0, 0, 1};  // north face: the block south of the target
+            case 3 -> new int[]{0, 0, -1};
+            case 4 -> new int[]{1, 0, 0};
+            case 5 -> new int[]{-1, 0, 0};
+            default -> null;
+        };
+        if (mountOffset == null
+                || !net.zaminmc.torch.server.block.SupportConsult.leverButtonMountHolds(
+                        world.getBlock(target.offset(
+                                mountOffset[0], mountOffset[1], mountOffset[2])),
+                        face == 1)) {
+            return; // the mount does not hold: the placement refuses
         }
         world.setBlock(target, net.zaminmc.torch.server.redstone.RedstoneBlocks.buttonOf(face, false, wooden));
         consumePlaced(session, creativeHeld);
@@ -14963,25 +15006,17 @@ public final class EngineServer implements Server, EngineBridge {
         consumePlaced(session, creativeHeld);
     }
 
-    /** canBePlacedOn's own set (TrapdoorBlock lines 188-190): a solid
-     *  full cube (the engine's isSolid minus the known partial shapes —
-     *  the fences, the gates, the doors, the rails, the chest's 15/16
-     *  box), the glowstone, the slabs, and the stairs. */
+    /**
+     * canBePlacedOn's own set (TrapdoorBlock lines 188-190): a solid
+     * full cube, the glowstone, a slab, or a stairs family member — the
+     * SupportConsult law (F-SP1). The old final arm's explicit carves
+     * (the fences — the dead {@code minecraft:fence} prefix check that
+     * never fired — the gates, the doors, the trapdoors, the rails, the
+     * chests) are subsumed by the cube conjunct: every one of those
+     * families is a non-cube in the reference's own census.
+     */
     private boolean isTrapdoorMount(BlockType block) {
-        if (block.identifier().equals(BuiltinBlocks.GLOWSTONE.identifier())) {
-            return true;
-        }
-        String value = block.identifier().value();
-        if (isSlabIdentifier(value) || isStairsIdentifier(value)) {
-            return true; // the slab and stairs families (instanceof rows)
-        }
-        return WorldSolidity.isSolid(block)
-                && !value.startsWith("minecraft:fence")
-                && !net.zaminmc.torch.server.block.FenceGateBlocks.isGateItem(value)
-                && !value.contains("_door") && !value.contains("trapdoor")
-                && !WorldSolidity.isRail(block.identifier())
-                && !net.zaminmc.torch.server.block.RailBlocks.isRailItem(value)
-                && !value.equals("chest") && !value.startsWith("chest_");
+        return net.zaminmc.torch.server.block.SupportConsult.trapdoorCanBePlacedOn(block);
     }
 
     /**
