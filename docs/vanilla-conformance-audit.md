@@ -1459,7 +1459,7 @@ effective law for the vanilla dimensions).
 | Portal mechanics — the riding gate (vehicle == null && rider == null) | VT-005 CONFIRMED (three passes — source, the pig-in-portal behavioral seat, the dismount-control independent pass) and **RESOLVED by PR #94 (MERGED)**; the seat's own hardening (the unlit-frame/same-submit-mount protocol, the PR-wave merge repair `3ca299e2`) survived the pass-27 carry-forward clobber only through the twenty-eighth pass's restoration — the seat 2/0 green on the #108 branch |
 | Drops — the TF-9 dimension stamp | LANDED by PR #90 (the dig/place walks stamp `world.dimension()`; the tile-family spill sites remain the per-dimension tile tail) |
 | Tile families — per-dimension stores | NOT INSPECTED as its own pass (the PR #90 ledger: the furnace/chest/skull/banner spill + cleanup ride the single-instance managers — the FL4 fluids/fire precedent applies; the nether tile placement/cleanup is its own architectural pass) |
-| Mob spawns — the dimension stamp | **UNDER INVESTIGATION — VT-012 discovered (the twenty-ninth pass): the live spawn walks beyond the natural cycle never stamp the body's dimension — fourteen unstamped sites censused (eggs use+dispenser, the pearl's endermite, /summon mobs+stands+group, the wither, the spawner cart, the mooshroom shear, the infection, the cure, the slime split, breeding, the golems, the infested burst), seven correctly-stamped precedents beside, the pigman portal RETIRED (the reference's `isNatural()` gate); passes 1+2 landed (source census + seats RED on develop), pass 3 owed** |
+| Mob spawns — the dimension stamp | **VT-012 CONFIRMED — three passes complete (the twenty-ninth pass), the correction fix-ready**: the live spawn walks beyond the natural cycle never stamp the body's dimension — fourteen unstamped sites censused (eggs use+dispenser, the pearl's endermite, /summon mobs+stands+group, the wither, the spawner cart, the mooshroom shear, the infection, the cure, the slime split, breeding, the golems, the infested burst), seven correctly-stamped precedents beside, the pigman portal RETIRED (the reference's `isNatural()` gate); the seats RED on develop (`SpawnDimensionStampAcceptanceTest`), the pass-3 walk sharpens the damage — the wrong-stamped monster NEVER despawns (the roll requires a same-dimension player) — a permanent invisible ghost; the fix branch is the next run's head |
 | Break-path pair walks (door/bed sibling cleanups) — dimension routing | RESOLVED (the twenty-eighth pass, the parallel stream): **VT-009** CONFIRMED three passes and corrected as **PR #106 OPEN** (`fix/pair-break-dimension-parity-audit`: the `BlockBrokenHook` three-arg listener, the parameterized walks; the parity pin 3/0 + the regression lanes 75/0) |
 | Bed pair — the sibling resolution model | RESOLVED by the parallel stream's **PR #111 OPEN** (`fix/bed-pair-facing-resolution-parity-audit`, commit 8b1eefb0: the facing-exact helper shared by the four walks, the block-class membership, the anchor-state detonate removal; the parity pin 4/0 GREEN on the fix, 4/4 RED pre-fix by the stash discrimination; the regression lanes 104/0) — three passes complete on its lineage (the census + the three RED seats + the wire/legacy suffix-consistency walk: the id family IS the reference's metadata space; the class-membership sub-divergence pinned) |
 | Anvil import — the bed's OCCUPIED nibbles (26: metas 12-15 the reference persists for occupied heads, 4-7 the editor-corrupted feet) | RESOLVED by the parallel stream's **PR #115 OPEN** (`fix/bed-occupied-anvil-import-parity-audit`, commit 512b0c09: the eight rows + the javadoc band + the integrity test's expected bands, the count re-pinned 1321 → 1329; the parity pin 2/0 GREEN, the anvil family 47/0, the drift guard 2/0, the protocol block-id lanes 15/0) — **VT-011**, three passes complete (the source law, the behavioral seats 2/2 RED with the import's own ledger rows in the failure messages, the lifecycle walk) |
@@ -1684,11 +1684,11 @@ landed this run.
 
 ## VT-012 — the live spawn walks beyond the natural cycle never stamp the body's dimension: every mob born through the non-natural entry points carries the overworld's 0, whatever dimension it is born in
 
-**Status: under verification (passes 1 and 2 landed; the independent
-re-verification pass owed).** Priority tier 2 (major gameplay and
-simulation mismatch — invisible mobs, phantom spawns, wrong-world
-physics reads, and a wrong persistence row, one root cause, many
-riders).
+**Status: CONFIRMED — three passes complete (the correction is
+fix-ready; the fix branch is the next run's head).** Priority tier 2
+(major gameplay and simulation mismatch — invisible permanent ghosts,
+phantom spawns, wrong-world physics reads, and a wrong persistence row,
+one root cause, many riders).
 
 **Affected ZaminTorch files and sites** (the unstamped `spawnAt`
 family — every site confirmed to call `MobManager.spawnAt`/`spawnFromEgg`
@@ -1765,7 +1765,11 @@ the OVERWORLD's cells at the nether's coordinates; (3) the persistence
 store (`stateExtrasOf` saves `mob.dimension()`) — the wrong row is
 saved whole and restored identically. The despawn walk's
 `nearestPlayingPlayer` gates on `player.dimension() != mob.dimension()`
-too — a wrong-stamped body finds no players and despawns as a ghost.
+too — a wrong-stamped body finds no players and **never despawns: the
+roll requires a same-dimension player** (`if (despawnNearest != null
+&& shouldDespawn(...))`, MobManager ~1677), and `tickDespawnWindow`'s
+null arm never resets `farFromPlayerTicks` — the wrong-stamped monster
+is a PERMANENT invisible ghost, one per spawn event, accumulating.
 
 **Reproduction evidence:** `SpawnDimensionStampAcceptanceTest`
 (zamin-core, this branch) — two nether members RED on develop
@@ -1784,11 +1788,32 @@ too — a wrong-stamped body finds no players and despawns as a ghost.
   nether members), the overworld control GREEN — the discrepancy
   demonstrated through the real use wire (`useItemOnBlock`) and the
   real command route (`submitChat`), not a direct manager call.
-- **Pass 3 — independent re-verification: OWED** (challenge the
-  hypothesis from the execution path; hunt compensating behavior —
-  the `spawnDimension` field was already checked and only feeds the
-  local-difficulty dice, never the body's field; the deeper hunt and
-  the intentional-design ruling remain).
+- **Pass 3 — independent re-verification (this run, 2026-11-01):**
+  CONFIRMS the finding, and SHARPENS it. The execution-path challenge
+  (the egg member's full chain): `useSpawnEggOnBlock` derives
+  `useWorld = worldFor(session.dimension())` for every block consult
+  (FL4-F3's routing — the gates are dimension-CORRECT), then hands the
+  spawn to `spawnFromEgg` with a position alone — the gap is precisely
+  bounded to the body's stamp. The compensating hunt deepened: no
+  write anywhere downstream (the tick walk reads, the publish gate
+  reads, the persistence save reads), and the despawn law is WORSE
+  than the original record claimed — the roll requires a
+  same-dimension player, so the wrong-stamped monster never despawns
+  at all (a permanent ghost, not a transient one; the record's wording
+  corrected above). The design-choice challenge: five stamped
+  precedents, the armor-stand system's own dimension-aware placement
+  (`ArmorStandDimensionReadsTest` pins -1/1/0 through `system.place`)
+  versus the `/summon` route's hardcoded 0 with a stale console-era
+  comment, and `MobStateExtras`'s own javadoc ("a nether pigman never
+  wakes in the overworld") — the engine's intent is unambiguous
+  per-body dimensions; the unstamped sites are gaps. No test pins the
+  wrong value (the armor-stand dimension seats drive the system API,
+  not the command route). The End edge case: the whole family shares
+  dimension 1's sites (a player in the End summoning/breeding/egging
+  — the same wrong 0), and the End carries no natural spawn cycle in
+  either the reference or the engine (two `SpawnSurface`s constructed,
+  `SpawnSurface(mobs, false)` and `SpawnSurface(mobs, true)` — no
+  third; nothing extra owed there).
 
 **Confidence and uncertainties:** high on the family root cause and
 both demonstrated members; the other twelve members are
@@ -1820,8 +1845,11 @@ change the overworld cart's behavior) and in any test that pinned the
 unstamped value (none known; the overworld control seat pins the
 correct side).
 
-**Branch:** `audit/verifier-pass-29-discovery` (the discovery record
-and the seats); the fix branch owed after pass 3.
+**Branch:** `audit/vt-012-spawn-dimension-stamp` (the discovery record
+and the seats; renamed from the collided `audit/verifier-pass-29-discovery`
+name the parallel stream owns). The fix branch owed: the per-site
+stamps off the latest develop, the seats riding, the regression lanes
+(the egg/summon/spawner/cart families).
 
 ## The parallel stream's records (the report union — this pass's second act)
 
@@ -2493,18 +2521,21 @@ work, in the queue's order:
    reference) common to all five families; the #98-reviewed shape, a
    candidate for its own narrow verification pass, never folded into
    #108.
-12. **The twenty-ninth pass's record: VT-012 discovered** (the
-   mob-spawn dimension stamp family — item 9's head, fourteen unstamped
-   sites, passes 1+2 landed). **The next run's head: VT-012's pass 3**
-   (the independent re-verification — challenge the hypothesis from
-   the execution path, hunt compensating behavior beyond the
-   `spawnDimension` dice check, rule out intentional design), then the
-   fix branch per the per-site stamping shape (the spawner cart host's
-   routed gates the one site needing care). The remaining item-9 tails
+12. **The twenty-ninth pass's record: VT-012 discovered AND confirmed
+   whole** (the mob-spawn dimension stamp family — item 9's head,
+   fourteen unstamped sites, three passes complete in the one run:
+   the source census, the seats RED on develop, and the independent
+   walk that sharpened the damage — the permanent-ghost despawn law).
+   **The next run's head: VT-012's fix branch** (the per-site stamps
+   per the proposed correction — the egg/pearl/summon/wither/cart/
+   shear/infection/cure/split/breeding/golem/silverfish sites each
+   stamp their acting dimension; the spawner cart host's routed gates
+   the one site needing care; the seats ride, the regression lanes
+   the egg/summon/spawner/cart families). The remaining item-9 tails
    after the spawn stamp: **the world border per-dimension** (the
    engine's single shared border, the EngineServer line-280 comment
-   itself naming "the engine's one border, the reference's worlds[0]" —
-   the vanilla law needs its own census: which of the reference's
+   itself naming "the engine's one border, the reference's worlds[0]"
+   — the vanilla law needs its own census: which of the reference's
    per-world borders the commands and the wire consult), **the FX
    dimension awareness**, **the zombie/mob arms' world binding**, and
    **the item pickup consult**. The F-SP1/F-DS1 passes and the
