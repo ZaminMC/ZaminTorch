@@ -239,4 +239,71 @@ class ArrowStickPlacementVerificationTest {
                         + "approach: x = " + (nearFaceX - FACE_BACKOFF) + "). Observed: "
                         + "x=" + stuckAt.x());
     }
+
+    /**
+     * SEAT C — the KEPT FACE VECTOR (the rider the sibling lane's
+     * review named, verified against the reference this pass): the
+     * reference's stuck arrow KEEPS its velocity as the face-relative
+     * vector — {@code velocity = (float)(facePos - pos)}, ArrowEntity
+     * lines 296-298 — DEAD STATE through the stick (the flight branch
+     * never integrates it) whose ONLY consumer is the un-stick arm's
+     * {@code random * 0.2} damping (lines 179-186): the reference's
+     * un-stuck arrow hops up to a fifth of its remaining step along the
+     * flight direction instead of falling straight down. The engine's
+     * pre-rider {@code landInGround()} ZEROED the vector, so the
+     * un-stick hop composed over zero on every tree.
+     *
+     * <p>THE CONSTRUCTION (fully deterministic): an arrow spawned
+     * EXACTLY one block above the face with velocity exactly -1.0 —
+     * the crossing tick starts at {@code from = face + 1.0}, so the
+     * remaining-step vector is EXACTLY {@code face - from = -1.0},
+     * independent of the drag chain (the reference's stuck velocity
+     * keys on the POSITIONS, never the pre-move velocity).</p>
+     */
+    @Test
+    void theStuckArrowKeepsTheFaceRelativeVectorAsItsVelocity() throws Exception {
+        EngineWorld world = server.world();
+        int cx = 80;
+        int cz = 80;
+        int stoneY = 19;      // the stone row's cell
+        double faceY = 20.0;  // the face the arrow crosses
+
+        server.ticker().submit(() -> buildPlatform(world, cx, stoneY, cz));
+        await(() -> BuiltinBlocks.STONE.equals(world.getBlock(new BlockPosition(cx, stoneY, cz))),
+                "the stone platform stands with its top face at y=" + faceY);
+
+        // The exact body: spawned EXACTLY one block above the face, so
+        // the crossing tick's remaining step is exactly -1.0 (the face
+        // minus the tick-start position — the reference's stuck
+        // velocity, independent of the drag the engine applies first).
+        AtomicReference<ProjectileEntity> launched = new AtomicReference<>();
+        server.ticker().submit(() -> launched.set(server.projectiles().spawnRestored(
+                ProjectileEntity.Kind.ARROW,
+                new Position(cx + 0.5, faceY + 1.0, cz + 0.5),
+                0.0, -1.0, 0.0)));
+        await(() -> launched.get() != null, "the arrow spawned one block above the face");
+        ProjectileEntity arrow = launched.get();
+        await(() -> arrow.inGround(), "the arrow sticks in the platform");
+
+        // THE PIN — the kept face vector: the stuck velocity is the
+        // remaining step of the crossing tick, exactly (0, -1, 0) for
+        // this construction — NOT the pre-fix zero.
+        assertEquals(0.0, arrow.velocityX(), EXACT_TOLERANCE,
+                "VT-014 (the kept face vector): the stuck arrow's X velocity is 0 "
+                        + "for the vertical descent (the face-relative vector is "
+                        + "purely vertical). Observed: vx=" + arrow.velocityX());
+        assertEquals(0.0, arrow.velocityZ(), EXACT_TOLERANCE,
+                "VT-014 (the kept face vector): the stuck arrow's Z velocity is 0 "
+                        + "for the vertical descent. Observed: vz=" + arrow.velocityZ());
+        assertEquals(-1.0, arrow.velocityY(), EXACT_TOLERANCE,
+                "VT-014 (the kept face vector): the stuck arrow's Y velocity is the "
+                        + "face-relative vector — the remaining step of the crossing "
+                        + "tick, face - from = " + (faceY - (faceY + 1.0)) + " exactly "
+                        + "for the one-block spawn (ArrowEntity lines 296-298: the "
+                        + "velocity KEEPS (float)(facePos - pos) through the stick, "
+                        + "dead state whose only consumer is the un-stick arm's "
+                        + "random*0.2 damping, lines 179-186 — the un-stuck arrow "
+                        + "hops along the flight direction instead of dropping "
+                        + "straight). Observed: vy=" + arrow.velocityY());
+    }
 }

@@ -259,6 +259,30 @@ public final class ProjectileEntity implements net.zaminmc.torch.entity.Projecti
     }
 
     /**
+     * Marks the arrow as stuck KEEPING the face-relative vector — the
+     * reference's own stuck velocity (ArrowEntity lines 296-298:
+     * {@code velocityX = (float)(facePos.x - this.x)}, the remaining
+     * step of the crossing tick). The vector is DEAD STATE on a stuck
+     * body — the flight branch never integrates it, and its only
+     * consumer in the whole reference is the un-stick arm's
+     * {@code random * 0.2} damping (lines 179-186): the reference's
+     * un-stuck arrow hops up to a fifth of its remaining step along
+     * the flight direction instead of falling straight down. The
+     * bare {@link #landInGround()} form stays for the same-cell
+     * residue (a start cell that itself holds the sample — no face
+     * crossing exists, and the reference's own ray from inside the
+     * block anchors to the inner face; the engine's residue keeps
+     * the endpoint rest, its recorded cell-granularity limitation).
+     * Package-private: the manager's stick arm is the only caller.
+     */
+    void landInGround(double faceVectorX, double faceVectorY, double faceVectorZ) {
+        this.inGround = true;
+        this.vx = faceVectorX;
+        this.vy = faceVectorY;
+        this.vz = faceVectorZ;
+    }
+
+    /**
      * The restored stuck form (the Anvil import's {@code inGround} +
      * {@code life} rows — the reference's readCustomNbt): the stick clock
      * resumes at the saved life. The saved velocity stays as loaded

@@ -1201,11 +1201,17 @@ public final class ProjectileManager {
                 // the 0.05 backoff lands the rest exactly where the
                 // reference's composition does:
                 // (pos - 0.05*unit) + (face - pos) = face - 0.05*unit.
-                Position stickRest = stickRestPosition(from, point);
-                if (stickRest != null) {
-                    projectile.teleport(stickRest);
+                // The stuck velocity KEEPS the face-relative vector (lines
+                // 296-298 — the remaining step, dead state on a stuck body;
+                // the un-stick arm's random*0.2 damping its only consumer).
+                StickSite site = stickSite(from, point);
+                if (site != null) {
+                    projectile.teleport(site.rest());
+                    projectile.landInGround(
+                            site.faceVectorX(), site.faceVectorY(), site.faceVectorZ());
+                } else {
+                    projectile.landInGround();
                 }
-                projectile.landInGround();
                 for (Listener listener : listeners) {
                     listener.onProjectileLanded(projectile);
                 }
@@ -1290,7 +1296,7 @@ public final class ProjectileManager {
      * engine's cell-granularity limitation named in the finding's
      * record).</p>
      */
-    private Position stickRestPosition(Position from, Position point) {
+    private StickSite stickSite(Position from, Position point) {
         int targetX = (int) Math.floor(point.x());
         int targetY = (int) Math.floor(point.y());
         int targetZ = (int) Math.floor(point.z());
@@ -1405,12 +1411,24 @@ public final class ProjectileManager {
                 if (length < 1.0E-7) {
                     return null; // the degenerate zero-step residue
                 }
-                return new Position(faceX - remainX / length * 0.05,
-                        faceY - remainY / length * 0.05,
-                        faceZ - remainZ / length * 0.05);
+                return new StickSite(
+                        new Position(faceX - remainX / length * 0.05,
+                                faceY - remainY / length * 0.05,
+                                faceZ - remainZ / length * 0.05),
+                        remainX, remainY, remainZ);
             }
         }
         return null;
+    }
+
+    /**
+     * The stick walk's answer: the rest position (the crossed face backed
+     * off 0.05 along the approach) together with the FACE-RELATIVE VECTOR
+     * (the reference's stuck velocity, ArrowEntity lines 296-298 — the
+     * remaining step {@code face - from}, dead state whose only consumer
+     * is the un-stick arm's {@code random * 0.2} damping, lines 179-186).
+     */
+    private record StickSite(Position rest, double faceVectorX, double faceVectorY, double faceVectorZ) {
     }
 
     /**
