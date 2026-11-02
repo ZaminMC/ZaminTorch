@@ -1042,13 +1042,23 @@ public final class ProjectileManager {
     }
 
     /**
-     * The burning arrows' per-block TNT walk (the reference's
-     * checkBlockCollisions, Entity lines 665-689, over the TntBlock's
-     * onEntityCollision, lines 91-104): every burning arrow — in flight
-     * or stuck in the ground — walks the cells its 0.5 box overlaps (the
-     * faces shrunk by the reference's 0.001) and primes every TNT cell
-     * found. The engine's point-model walks the 0.25 band around the
-     * flight position (the box-center envelope).
+     * The FLYING burning arrows' per-block TNT walk (the reference's
+     * {@code checkBlockCollisions}, Entity lines 665-689, over the
+     * TntBlock's {@code onEntityCollision}, lines 91-104): a FLYING
+     * burning arrow walks the cells its 0.5 box overlaps (the faces
+     * shrunk by the reference's 0.001) and primes every TNT cell
+     * found. VT-019 — the STUCK arrow never walks: the reference's
+     * scan is called from {@code ArrowEntity.tick} line 382 INSIDE THE
+     * FLIGHT BRANCH ALONE (the {@code inGround} branch at 172-186 runs
+     * the stick clock and the tracked-block check only), and the stick
+     * arm consults the HIT BLOCK alone (lines 307-309) — a burning
+     * arrow stuck beside TNT consults it zero times. The engine's
+     * point-model walks the 0.25 band around the flight position (the
+     * box-center envelope). The named tails (the audit's record): the
+     * stick tick's own resting-box scan (the reference's stick tick is
+     * a flight tick — its line-382 scan covers the resting box) and
+     * the in-flight band's shape (the engine's symmetric
+     * [y−0.25, y+0.25] against the reference's feet-law [y, y+0.5]).
      */
     private void burningTntPass() {
         if (burningTnt == null) {
@@ -1056,7 +1066,18 @@ public final class ProjectileManager {
         }
         for (int i = projectiles.size() - 1; i >= 0; i--) {
             ProjectileEntity projectile = projectiles.get(i);
-            if (projectile.kind() != ProjectileEntity.Kind.ARROW || !projectile.burning()) {
+            // VT-019 — the stuck arrow's gate (the reference's own law):
+            // the box scan (`checkBlockCollisions`) is called from
+            // ArrowEntity.tick line 382 INSIDE THE FLIGHT BRANCH ALONE —
+            // the inGround branch (lines 172-186) runs the stick clock
+            // and the tracked-block check only, never a scan. A burning
+            // arrow stuck beside TNT therefore consults it ZERO times in
+            // the reference; the ungated pass detonated the neighbor on
+            // the stick tick. The flight consults (this pass's flying
+            // walk + the block-hit arm's ignite at the entered cell)
+            // carry the whole reference law.
+            if (projectile.kind() != ProjectileEntity.Kind.ARROW || !projectile.burning()
+                    || projectile.inGround()) {
                 continue;
             }
             Position at = projectile.position();
