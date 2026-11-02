@@ -481,11 +481,33 @@ public final class ProjectileManager {
         void ignite(net.zaminmc.torch.block.BlockPosition pos, int dimension);
     }
 
+    /**
+     * VT-015 — the tracked-cell consult (the reference's
+     * {@code world.getBlockState} at the stuck cell, ArrowEntity.tick
+     * lines 157-186): the block identifier at the cell in the body's own
+     * dimension, or null when the consult surface is absent (the unwired
+     * boot keeps the no-un-stick shape). Wired by the engine; tick thread.
+     */
+    public interface StickCellConsult {
+        /** @return the cell's block identifier in the given dimension
+         *  (the engine's {@code minecraft:stone} string space), or null
+         *  when the cell reads nothing. */
+        String blockIdAt(net.zaminmc.torch.block.BlockPosition pos, int dimension);
+    }
+
     private BurningTntArm burningTnt;
 
     /** Wires the burning arrow's TNT arm (the per-block entity collision). */
     public void setBurningTntArm(BurningTntArm arm) {
         this.burningTnt = arm;
+    }
+
+    /** VT-015 — the tracked-cell consult (the stuck arrow's block read). */
+    private StickCellConsult stickCellConsult;
+
+    /** Wires the tracked-cell consult (the reference's world read at the stuck cell). */
+    public void setStickCellConsult(StickCellConsult consult) {
+        this.stickCellConsult = consult;
     }
 
     /**
@@ -855,6 +877,29 @@ public final class ProjectileManager {
         for (int i = projectiles.size() - 1; i >= 0; i--) {
             ProjectileEntity projectile = projectiles.get(i);
             if (projectile.inGround()) {
+                // VT-015 — the reference's tracked-cell consult (ArrowEntity
+                // .tick lines 172-186): the stuck arrow reads its stamped
+                // cell every tick; a block that no longer matches the
+                // stamped identifier (a break, a blast, a piston) UN-STICKS
+                // it — inGround flips false, the per-axis nextFloat()*0.2
+                // damped re-arm, both clocks reset, and the arrow falls out
+                // of the opened cell. The reference's un-stick tick ends the
+                // branch (the flight resumes the NEXT tick); the continue
+                // below is the same shape. A cell-less stuck body (the
+                // import's restore without the tracked rows) never consults.
+                String trackedBlockId = projectile.stickBlockId();
+                if (trackedBlockId != null && stickCellConsult != null) {
+                    String cellBlockId = stickCellConsult.blockIdAt(
+                            new net.zaminmc.torch.block.BlockPosition(
+                                    projectile.stickCellX(),
+                                    projectile.stickCellY(),
+                                    projectile.stickCellZ()),
+                            projectile.dimension());
+                    if (!trackedBlockId.equals(cellBlockId)) {
+                        projectile.unstickGrounded(random);
+                        continue;
+                    }
+                }
                 projectile.integrate(DRAG, ARROW_GRAVITY); // only the stick clock runs
                 if (projectile.ticksInGround() >= ARROW_GROUND_TICKS) {
                     remove(projectile, "expired");
@@ -1225,7 +1270,20 @@ public final class ProjectileManager {
                 // ignited and returned false, so landInGround never ran:
                 // the arrow flew through the opened cell at full flight
                 // speed — never stuck, never rested.
-                projectile.landInGround();
+                // VT-015 — the tracked cell's stamp rides the same
+                // ceremony (the reference's lines 289-295: the cell whose
+                // block the stick arm stamps is the cell the stick clock
+                // reads every tick until its block changes).
+                int stickCellX = (int) Math.floor(point.x());
+                int stickCellY = (int) Math.floor(point.y());
+                int stickCellZ = (int) Math.floor(point.z());
+                String stickBlockId = stickCellConsult != null
+                        ? stickCellConsult.blockIdAt(
+                                new net.zaminmc.torch.block.BlockPosition(
+                                        stickCellX, stickCellY, stickCellZ),
+                                projectile.dimension())
+                        : null;
+                projectile.landInGround(stickCellX, stickCellY, stickCellZ, stickBlockId);
                 // VT-018 — the stick's bowhit (ArrowEntity line 303):
                 // the reference plays random.bowhit at the rest — the
                 // volume 1.0, the pitch the reference's own random draw

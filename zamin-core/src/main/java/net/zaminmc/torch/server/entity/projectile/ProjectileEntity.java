@@ -81,8 +81,28 @@ public final class ProjectileEntity implements net.zaminmc.torch.entity.Projecti
     private int age;
     /** Ticks a landed arrow has been stuck (its removal clock). */
     private int ticksInGround;
-    /** True once the arrow struck a block and is waiting out its stick time. */
+    /**
+     * True once the arrow struck a block and is waiting out its stick time.
+     */
     private boolean inGround;
+    /**
+     * VT-015 — the tracked cell (the reference's {@code blockX/blockY/
+     * blockZ}, ArrowEntity lines 29-31, stamped at the stick lines
+     * 290-292): the cell whose block the arrow stuck IN, consulted every
+     * stuck tick. {@code Integer.MIN_VALUE} marks a cell-less stuck body
+     * (the import's restore without the tracked rows — the consult never
+     * fires for it).
+     */
+    private int stickCellX = Integer.MIN_VALUE;
+    private int stickCellY = Integer.MIN_VALUE;
+    private int stickCellZ = Integer.MIN_VALUE;
+    /**
+     * VT-015 — the tracked block's identifier (the reference's
+     * {@code block} + {@code blockData} pair, lines 32-33): the consult's
+     * mismatch arm keys on it — a cell whose block no longer matches
+     * un-sticks the arrow. {@code null} marks the cell-less form.
+     */
+    private String stickBlockId;
     /** The full-draw flag: the hit damage takes the reference's crit roll. */
     private boolean critical;
     /** The Punch level carried from the release (0 = none). */
@@ -250,12 +270,60 @@ public final class ProjectileEntity implements net.zaminmc.torch.entity.Projecti
         this.pickup = pickup;
     }
 
-    /** Marks the arrow as stuck (it stops moving and starts its removal clock). */
-    public void landInGround() {
+    /**
+     * Marks the arrow as stuck (it stops moving and starts its removal
+     * clock). VT-015 — the caller stamps the tracked cell and its block
+     * identifier (the reference's stick arm, ArrowEntity lines 289-295:
+     * {@code blockX/blockY/blockZ} + the {@code block/blockData} pair),
+     * which the stick clock consults every tick.
+     */
+    public void landInGround(int cellX, int cellY, int cellZ, String blockId) {
         this.inGround = true;
         this.vx = 0;
         this.vy = 0;
         this.vz = 0;
+        this.stickCellX = cellX;
+        this.stickCellY = cellY;
+        this.stickCellZ = cellZ;
+        this.stickBlockId = blockId;
+    }
+
+    /** @return the tracked cell's X ({@code Integer.MIN_VALUE} when cell-less). */
+    public int stickCellX() {
+        return stickCellX;
+    }
+
+    /** @return the tracked cell's Y ({@code Integer.MIN_VALUE} when cell-less). */
+    public int stickCellY() {
+        return stickCellY;
+    }
+
+    /** @return the tracked cell's Z ({@code Integer.MIN_VALUE} when cell-less). */
+    public int stickCellZ() {
+        return stickCellZ;
+    }
+
+    /** @return the tracked block's identifier, or null (the cell-less form). */
+    public String stickBlockId() {
+        return stickBlockId;
+    }
+
+    /**
+     * VT-015 — the tracked-cell mismatch arm (the reference's else arm,
+     * ArrowEntity lines 179-186): {@code inGround} flips false, each
+     * velocity component is re-armed with its own
+     * {@code random.nextFloat() * 0.2} damped multiple (a fresh draw per
+     * axis, over whatever the stick left as dead state), and both clocks
+     * reset — the arrow falls out of the opened cell and flies again.
+     * Package-private: the manager's per-tick consult is the only caller.
+     */
+    void unstickGrounded(java.util.Random random) {
+        this.inGround = false;
+        this.vx = this.vx * (random.nextFloat() * 0.2);
+        this.vy = this.vy * (random.nextFloat() * 0.2);
+        this.vz = this.vz * (random.nextFloat() * 0.2);
+        this.ticksInGround = 0;
+        this.age = 0; // the reference's inAirTicks reset
     }
 
     /**
@@ -263,13 +331,29 @@ public final class ProjectileEntity implements net.zaminmc.torch.entity.Projecti
      * {@code life} rows — the reference's readCustomNbt): the stick clock
      * resumes at the saved life. The saved velocity stays as loaded
      * (the reference's own shape — the stuck arm never integrates it, and
-     * {@link #landInGround()}'s zeroing belongs to the live hit alone).
-     * Public like its live twin {@link #landInGround()} (the import walk
-     * in another package is the caller).
+     * {@link #landInGround(int, int, int, String)}'s zeroing belongs to
+     * the live hit alone).
+     * Public like its live twin {@link #landInGround(int, int, int, String)}
+     * (the import walk in another package is the caller).
      */
     public void restoreGrounded(int life) {
         this.inGround = true;
         this.ticksInGround = life;
+    }
+
+    /**
+     * VT-015 — the restored stuck form WITH the tracked rows (the
+     * reference's readCustomNbt lines 402-413: {@code xTile/yTile/zTile}
+     * + {@code inTile} restore the consult — an imported stuck arrow
+     * un-sticks when its saved block changes, exactly like a live one).
+     */
+    public void restoreGrounded(int life, int cellX, int cellY, int cellZ, String blockId) {
+        this.inGround = true;
+        this.ticksInGround = life;
+        this.stickCellX = cellX;
+        this.stickCellY = cellY;
+        this.stickCellZ = cellZ;
+        this.stickBlockId = blockId;
     }
 
     /** @return whether the full-draw flag rides (the hit's crit roll). */

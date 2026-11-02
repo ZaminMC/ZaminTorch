@@ -2324,6 +2324,15 @@ public final class EngineServer implements Server, EngineBridge {
                                 }
                             }
                         });
+                // VT-015 — the stuck arrow's tracked-cell consult (the
+                // reference's world.getBlockState at the stamped cell,
+                // ArrowEntity.tick lines 157-186): the per-tick read that
+                // un-sticks an arrow whose block changed (a break, a blast,
+                // a piston). The consult flips to the body's own dimension
+                // exactly like the solid query's own per-body flip.
+                projectiles.setStickCellConsult(
+                        (pos, dimension) -> worldForSafe(dimension).getBlock(pos)
+                                .identifier().toString());
                 projectiles.addListener(new ProjectileEventDispatch());
                 // The fireball's landing arm (SmallFireballEntity.onHit): the
                 // fire block at the air cell the fireball crossed before the
