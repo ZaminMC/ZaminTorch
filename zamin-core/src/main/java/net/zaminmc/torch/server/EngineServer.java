@@ -1720,8 +1720,16 @@ public final class EngineServer implements Server, EngineBridge {
                                         int level = net.zaminmc.torch.server.cauldron
                                                 .CauldronBlocks.levelOf(block);
                                         if (level < 3) {
-                                            setCauldronLevel(new BlockPosition(x, y, z),
-                                                    level + 1);
+                                            // randomPrecipitationTick's OWN
+                                            // write (lines 168-175): the bare
+                                            // flag-2 state swap alone — NO
+                                            // comparator wake (the rain arm
+                                            // never calls setLevel, the
+                                            // strict 1:1 split; a comparator
+                                            // re-reads on its next wake).
+                                            world.setBlock(new BlockPosition(x, y, z),
+                                                    net.zaminmc.torch.server.cauldron
+                                                            .CauldronBlocks.of(level + 1));
                                         }
                                     }
                                 }
@@ -7184,7 +7192,7 @@ public final class EngineServer implements Server, EngineBridge {
             if (level > 0 && session.position().y() <= waterSurface) {
                 session.extinguish();
                 session.resetFireDamageTimer();
-                setCauldronLevel(new BlockPosition(
+                setCauldronLevel(session.dimension(), new BlockPosition(
                         (int) Math.floor(session.position().x()),
                         (int) Math.floor(session.position().y()),
                         (int) Math.floor(session.position().z())), level - 1);
@@ -14496,7 +14504,7 @@ public final class EngineServer implements Server, EngineBridge {
                 }
                 session.stats().increment(
                         net.zaminmc.torch.server.stat.EngineStats.CAULDRONS_FILLED, 1);
-                setCauldronLevel(clicked, 3);
+                setCauldronLevel(session.dimension(), clicked, 3);
                 publishInventoryChanged(session);
             }
             return true;
@@ -14532,7 +14540,7 @@ public final class EngineServer implements Server, EngineBridge {
                             net.zaminmc.torch.server.stat.EngineStats.CAULDRONS_USED, 1);
                     session.inventory().consumeHeld(1);
                 }
-                setCauldronLevel(clicked, level - 1);
+                setCauldronLevel(session.dimension(), clicked, level - 1);
                 publishInventoryChanged(session);
             }
             return true;
@@ -14551,7 +14559,7 @@ public final class EngineServer implements Server, EngineBridge {
                         || held.type().equals(BuiltinItems.LEATHER_BOOTS))) {
             session.inventory().setSlot(session.inventory().heldSlot(),
                     held.withDisplayColor(null));
-            setCauldronLevel(clicked, level - 1);
+            setCauldronLevel(session.dimension(), clicked, level - 1);
             session.stats().increment(
                     net.zaminmc.torch.server.stat.EngineStats.ARMOR_CLEANED, 1);
             publishInventoryChanged(session);
@@ -14594,7 +14602,7 @@ public final class EngineServer implements Server, EngineBridge {
                 }
             }
             if (session.gamemode() != GameMode.CREATIVE) {
-                setCauldronLevel(clicked, level - 1);
+                setCauldronLevel(session.dimension(), clicked, level - 1);
             }
             publishInventoryChanged(session);
             return true;
@@ -14604,13 +14612,17 @@ public final class EngineServer implements Server, EngineBridge {
 
     /**
      * The cauldron's level write (setLevel lines 162-165): the state swap
-     * with the flag-2 shape (no neighbor re-light, the comparators woken).
-     * Tick-thread context.
+     * with the flag-2 shape (no neighbor re-light, the comparators woken)
+     * — every consult on the CAULDRON'S OWN WORLD (Wave RW-1: the
+     * reference's {@code world} parameter is the world the cauldron
+     * stands in, never the overworld field; a nether fill wrote the
+     * overworld's cell at the same coordinates and armed the overworld's
+     * comparators pre-fix). Tick-thread context.
      */
-    private void setCauldronLevel(BlockPosition position, int level) {
-        world.setBlock(position,
+    private void setCauldronLevel(int dimension, BlockPosition position, int level) {
+        worldFor(dimension).setBlock(position,
                 net.zaminmc.torch.server.cauldron.CauldronBlocks.of(level));
-        redstoneSystem.wakeComparators(position);
+        redstoneFor(dimension).wakeComparators(position);
     }
 
     /**
@@ -18858,11 +18870,15 @@ public final class EngineServer implements Server, EngineBridge {
      * AND the cell below it hear the change — the strong arm's consumer
      * (the block under the chest, ChestBlock.getDirectSignal lines 397-400)
      * sits one further out than the weak arm's, so its own wire needs the
-     * second wake to observe the count. Tick-thread context.
+     * second wake to observe the count. Wave RW-1: the reference's
+     * {@code this.world} is the world the CHEST stands in — the wakes ride
+     * the acting dimension's OWN redstone (a nether trapped chest armed
+     * the OVERWORLD's wires pre-fix, the nether wire never re-evaluating).
+     * Tick-thread context.
      */
-    private void trappedChestViewersChangedOnTick(BlockPosition position) {
-        redstoneSystem.updateNeighbors(position);
-        redstoneSystem.updateNeighbors(position.offset(0, -1, 0));
+    private void trappedChestViewersChangedOnTick(int dimension, BlockPosition position) {
+        redstoneFor(dimension).updateNeighbors(position);
+        redstoneFor(dimension).updateNeighbors(position.offset(0, -1, 0));
     }
 
     /**
@@ -18949,11 +18965,11 @@ public final class EngineServer implements Server, EngineBridge {
             // own pair (ChestBlockEntity.onOpen lines 312-314: the
             // chest's cell AND the cell below it — the strong arm's
             // consumer sits one further out).
-            trappedChestViewersChangedOnTick(position);
+            trappedChestViewersChangedOnTick(world.dimension(), position);
             if (second != null) {
                 BlockPosition twin = position.equals(view.firstPos())
                         ? view.secondPos() : view.firstPos();
-                trappedChestViewersChangedOnTick(twin);
+                trappedChestViewersChangedOnTick(world.dimension(), twin);
             }
             // Stats.java's own pair: the trapped chest counts its own row
             // (ChestBlock(1).use's incrementStat), never CHESTS_OPENED.
@@ -19165,15 +19181,21 @@ public final class EngineServer implements Server, EngineBridge {
                     ? session.openContainerPairFirst() : null;
             var closedPairSecond = closingChestAt != null
                     ? session.openContainerPairSecond() : null;
+            // The open's own dimension stamp (Wave RW-1): the close wake's
+            // world is the world the CHEST stands in — the reference's
+            // ChestBlockEntity.onClose consults its own world, never the
+            // overworld field.
+            int closingChestDimension = closingChestAt != null
+                    ? session.openContainerDimension() : 0;
             session.closeContainerWindow();
             if (closingChestAt != null) {
-                trappedChestCloseWakeOnTick(closingChestAt);
+                trappedChestCloseWakeOnTick(closingChestDimension, closingChestAt);
                 if (closedPairFirst != null && closedPairSecond != null) {
                     if (!closedPairFirst.equals(closingChestAt)) {
-                        trappedChestCloseWakeOnTick(closedPairFirst);
+                        trappedChestCloseWakeOnTick(closingChestDimension, closedPairFirst);
                     }
                     if (!closedPairSecond.equals(closingChestAt)) {
-                        trappedChestCloseWakeOnTick(closedPairSecond);
+                        trappedChestCloseWakeOnTick(closingChestDimension, closedPairSecond);
                     }
                 }
             }
@@ -19185,14 +19207,17 @@ public final class EngineServer implements Server, EngineBridge {
      * family (the reference's own {@code this.getBlock() instanceof
      * ChestBlock} gate, ChestBlockEntity.onClose line 320 — a broken
      * chest's stale window never notifies) before the viewer-count pair.
-     * Tick-thread context.
+     * Wave RW-1: the gate reads the CHEST'S OWN world (the open's
+     * dimension stamp) — a nether trapped chest consulted the overworld
+     * cell at the same coordinates pre-fix, the wake withheld outright
+     * when the overworld cell was not a chest. Tick-thread context.
      */
-    private void trappedChestCloseWakeOnTick(BlockPosition position) {
-        BlockType block = world.getBlock(position);
+    private void trappedChestCloseWakeOnTick(int dimension, BlockPosition position) {
+        BlockType block = worldFor(dimension).getBlock(position);
         if (block.identifier().equals(
                 net.zaminmc.torch.server.block.BuiltinBlocks.TRAPPED_CHEST.identifier())
                 || ChestFacingBlocks.isTrappedFamily(block)) {
-            trappedChestViewersChangedOnTick(position);
+            trappedChestViewersChangedOnTick(dimension, position);
         }
     }
 
@@ -19224,6 +19249,11 @@ public final class EngineServer implements Server, EngineBridge {
                         ? session.openContainerPairFirst() : null;
                 var closedPairSecond = closingChestAt != null
                         ? session.openContainerPairSecond() : null;
+                // The open's own dimension stamp (Wave RW-1 — the beacon
+                // close's Slice C convention): the trapped wake rides the
+                // CHEST'S OWN world's redstone.
+                int closingChestDimension = closingChestAt != null
+                        ? session.openContainerDimension() : 0;
                 if (closingChestAt != null) {
                     publishChestLid(closingChestAt, session, false);
                     // The merged pair's close walks BOTH halves (the
@@ -19267,13 +19297,13 @@ public final class EngineServer implements Server, EngineBridge {
                     // state now cleared, the probe reading zero) wakes each
                     // half's own cell AND the cell below it — the strong
                     // arm's consumer sits one further out.
-                    trappedChestCloseWakeOnTick(closingChestAt);
+                    trappedChestCloseWakeOnTick(closingChestDimension, closingChestAt);
                     if (closedPairFirst != null && closedPairSecond != null) {
                         if (!closedPairFirst.equals(closingChestAt)) {
-                            trappedChestCloseWakeOnTick(closedPairFirst);
+                            trappedChestCloseWakeOnTick(closingChestDimension, closedPairFirst);
                         }
                         if (!closedPairSecond.equals(closingChestAt)) {
-                            trappedChestCloseWakeOnTick(closedPairSecond);
+                            trappedChestCloseWakeOnTick(closingChestDimension, closedPairSecond);
                         }
                     }
                 }
