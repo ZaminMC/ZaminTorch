@@ -3682,6 +3682,20 @@ public final class EngineServer implements Server, EngineBridge {
                         return net.zaminmc.torch.server.block.MushroomBlocks
                                 .canPlantSurviveAt(world, target);
                     }
+                    if (name.startsWith("light_weighted_pressure_plate")
+                            || name.startsWith("heavy_weighted_pressure_plate")) {
+                        // The weighted pair's floor law (F-SP2 — the
+                        // inherited canSitOnTop, AbstractPressurePlateBlock
+                        // lines 72-74 over 84-86): hasSolidTop OR the
+                        // FenceBlock census — the pair rides the generic
+                        // placement path, the same law the special plate
+                        // site carries.
+                        net.zaminmc.torch.block.BlockType floor =
+                                world.getBlock(target.offset(0, -1, 0));
+                        return net.zaminmc.torch.server.block.SupportConsult.hasSolidTop(floor)
+                                || net.zaminmc.torch.server.block.WorldSolidity.isFence(
+                                        floor.identifier());
+                    }
                     return true;
                 });
                 // The double-plant pair arm (Slice 45 —
@@ -3862,11 +3876,20 @@ public final class EngineServer implements Server, EngineBridge {
                         // rendering, the volume/pitch its own convention.)
                         Position center = new Position(commit.position().x() + 0.5,
                                 commit.position().y() + 0.5, commit.position().z() + 0.5);
-                        fxManager.blockShatter(center, commit.previous());
+                        // VT-027 — the feedback plays in the ACTING world
+                        // (the reference's break event rides the dig wire's
+                        // own world: tryMineBlock line 211's
+                        // this.world.doEvent(2001), the per-world listener
+                        // list alone). The commit carries the acting
+                        // dimension; the pre-fix no-dimension overloads
+                        // stamped the overworld for every dimension's dig.
+                        fxManager.blockShatter(center, commit.previous(),
+                                commit.dimension());
                         fxManager.sound(center,
                                 BlockSoundMap.digSound(commit.previous().identifier())
                                         .orElse("dig.stone"), 1.0f,
-                                0.75f + fxRandom.nextFloat() * 0.2f);
+                                0.75f + fxRandom.nextFloat() * 0.2f,
+                                commit.dimension());
                     } else if (!commit.previous().equals(commit.now())) {
                         // A place (or replace): the reference's own law
                         // (BlockItem.place lines 53-60) — the family's
@@ -3879,9 +3902,11 @@ public final class EngineServer implements Server, EngineBridge {
                         BlockSoundMap.SoundFamily family = BlockSoundMap
                                 .familyOf(commit.now().identifier())
                                 .orElse(BlockSoundMap.SoundFamily.STONE);
+                        // VT-027 — the place arm the same law (BlockItem.place
+                        // lines 53-60: the placing sound in the ACTING world).
                         fxManager.sound(center, family.placing(),
                                 (family.volume() + 1.0f) / 2.0f,
-                                family.pitch() * 0.8f);
+                                family.pitch() * 0.8f, commit.dimension());
                     }
                 });
                 // The dig-start consult (Slice N6 — handlePlayerDig lines
@@ -13297,8 +13322,15 @@ public final class EngineServer implements Server, EngineBridge {
                 && session.inventory().held().isEmpty()) {
             return;
         }
-        if (!WorldSolidity.isSolid(world.getBlock(target.offset(0, -1, 0)))) {
-            return; // the wire needs its solid bed (the vanilla gate)
+        if (!net.zaminmc.torch.server.block.SupportConsult.hasSolidTop(
+                world.getBlock(target.offset(0, -1, 0)))
+                && !world.getBlock(target.offset(0, -1, 0)).identifier()
+                        .equals(BuiltinBlocks.GLOWSTONE.identifier())) {
+            return; // the wire's floor law (RedstoneWireBlock.canBePlaced
+                    // lines 91-93, F-SP2): hasSolidTop OR the glowstone
+                    // disjunct — the translucent beds (glass, ice, the
+                    // leaves) and the non-cube beds (the fences, the
+                    // bottom slabs) never host the dust
         }
         world.setBlock(target, net.zaminmc.torch.server.redstone.RedstoneBlocks.wireOfPower(0));
         consumePlaced(session, creativeHeld);
@@ -13307,8 +13339,12 @@ public final class EngineServer implements Server, EngineBridge {
     /**
      * The repeater's use (RepeaterBlock.use lines 38-45): the right-click
      * steps the DELAY property through 1..4 and back to 1 — the state swap
-     * preserves the facing and the powered pair. Returns whether the use
-     * was consumed. Tick-thread context.
+     * preserves the facing and the powered pair. SILENT: no playSound and
+     * no doEvent anywhere in the reference's repeater family (RepeaterBlock
+     * + the DiodeBlock parent, swept whole) — the CLICK belongs to the
+     * comparator alone (ComparatorBlock.use lines 148-152, the pitch
+     * answering the new mode; VT-034 retired the phantom this arm played).
+     * Returns whether the use was consumed. Tick-thread context.
      */
     private boolean cycleRepeaterDelayOnTick(BlockPosition clicked, EngineWorld world) {
         BlockType current = world.getBlock(clicked);
@@ -13318,8 +13354,6 @@ public final class EngineServer implements Server, EngineBridge {
         int delay = net.zaminmc.torch.server.redstone.RedstoneBlocks.repeaterDelay(current);
         int next = delay >= 4 ? 1 : delay + 1;
         world.setBlock(clicked, net.zaminmc.torch.server.redstone.RedstoneBlocks.repeaterWithDelay(current, next));
-        fxManager.sound(new Position(clicked.x() + 0.5, clicked.y() + 0.5, clicked.z() + 0.5),
-                "random.click", 0.3f, 0.6f);
         return true;
     }
 
@@ -13543,8 +13577,15 @@ public final class EngineServer implements Server, EngineBridge {
                 && session.inventory().held().isEmpty()) {
             return;
         }
-        if (!WorldSolidity.isSolid(world.getBlock(target.offset(0, -1, 0)))) {
-            return; // the plate needs its solid bed
+        if (!net.zaminmc.torch.server.block.SupportConsult.hasSolidTop(
+                world.getBlock(target.offset(0, -1, 0)))
+                && !WorldSolidity.isFence(
+                        world.getBlock(target.offset(0, -1, 0)).identifier())) {
+            return; // the plate's floor law (AbstractPressurePlateBlock
+                    // .canBePlaced lines 72-74 over canSitOnTop 84-86,
+                    // F-SP2): hasSolidTop OR the FenceBlock census — the
+                    // translucent beds and the non-cube beds outside the
+                    // seven fence families never host a plate
         }
         world.setBlock(target, net.zaminmc.torch.server.redstone.RedstoneBlocks.plateOf(false, wooden));
         consumePlaced(session, creativeHeld);
@@ -13625,8 +13666,11 @@ public final class EngineServer implements Server, EngineBridge {
                 && session.inventory().held().isEmpty()) {
             return;
         }
-        if (!WorldSolidity.isSolid(world.getBlock(target.offset(0, -1, 0)))) {
-            return; // the diode needs its solid bed
+        if (!net.zaminmc.torch.server.block.SupportConsult.hasSolidTop(
+                world.getBlock(target.offset(0, -1, 0)))) {
+            return; // the diode's floor law (DiodeBlock.canBePlaced lines
+                    // 29-31, F-SP2): hasSolidTop ALONE — no glowstone
+                    // disjunct, no fence arm
         }
         double yaw = ((session.rotation().yaw() % 360.0) + 360.0 + 45.0) % 360.0;
         int lookBand = (int) (yaw / 90.0) % 4; // 0=S,1=W,2=N,3=E of the look
@@ -13658,8 +13702,11 @@ public final class EngineServer implements Server, EngineBridge {
                 && session.inventory().held().isEmpty()) {
             return;
         }
-        if (!WorldSolidity.isSolid(world.getBlock(target.offset(0, -1, 0)))) {
-            return; // the diode needs its solid bed
+        if (!net.zaminmc.torch.server.block.SupportConsult.hasSolidTop(
+                world.getBlock(target.offset(0, -1, 0)))) {
+            return; // the diode's floor law (DiodeBlock.canBePlaced lines
+                    // 29-31, F-SP2): hasSolidTop ALONE — no glowstone
+                    // disjunct, no fence arm
         }
         double yaw = ((session.rotation().yaw() % 360.0) + 360.0 + 45.0) % 360.0;
         int lookBand = (int) (yaw / 90.0) % 4; // 0=S,1=W,2=N,3=E of the look
@@ -15980,8 +16027,10 @@ public final class EngineServer implements Server, EngineBridge {
                 && !WorldSolidity.isReplaceable(above.identifier())) {
             return; // the upper half's headroom
         }
-        if (!WorldSolidity.isSolid(world.getBlock(target.offset(0, -1, 0)))) {
-            return; // World.hasSolidTop: no floor, no door
+        if (!net.zaminmc.torch.server.block.SupportConsult.hasSolidTop(
+                world.getBlock(target.offset(0, -1, 0)))) {
+            return; // World.hasSolidTop (DoorBlock.canBePlaced line 214,
+                    // F-SP2's door member): no floor, no door
         }
         if (intersectsPlayerBox(session.position(), target)) {
             return; // the vanilla body rule (the reference's own entity collision check)
@@ -16345,11 +16394,13 @@ public final class EngineServer implements Server, EngineBridge {
                 && session.inventory().held().isEmpty()) {
             return;
         }
-        if (!net.zaminmc.torch.server.block.FireBlocks
-                .hasSolidTop(world, target.offset(0, -1, 0))) {
-            return; // canBePlaced (lines 71-73): the has-solid-top family,
-                    // not the collision model — a bottom slab, a fence, a
-                    // wall or the thin snow is not a rail bed
+        if (!net.zaminmc.torch.server.block.SupportConsult.hasSolidTop(
+                world.getBlock(target.offset(0, -1, 0)))) {
+            return; // canBePlaced (lines 71-73): the has-solid-top law
+                    // (SupportConsult's five arms, F-SP2) — a bottom slab,
+                    // a fence, a wall, the thin snow AND the translucent
+                    // beds (glass, ice, TNT, the leaves, the glowstone)
+                    // are not rail beds
         }
         // The DEFAULT state lands (RailBlock line 15 / PoweredRailBlock
         // line 29: NORTH_SOUTH — the look is never consulted anywhere in
@@ -19136,12 +19187,18 @@ public final class EngineServer implements Server, EngineBridge {
             // The anvil's land sound (Slice 53 — the reference's
             // onTickFallingBlockEntity: world event 1022 at the landing
             // cell, fired only on the successful placement — the client
-            // answers random.anvil_land).
+            // answers random.anvil_land) — in the FALLING BODY'S OWN
+            // WORLD (AnvilBlock.onTickFallingBlockEntity line 90 over the
+            // entity's world doEvent, the per-world listener list alone —
+            // the same stamp the body's physics and landing already carry,
+            // Wave FL4-F9; VT-028: the pre-fix no-dimension overload
+            // stamped the overworld, a nether landing silent to the
+            // nether's players and a phantom in the overworld).
             if (becameBlock && net.zaminmc.torch.server.block.AnvilBlocks
                     .isAnvil(entity.blockType().identifier())) {
                 fxManager.sound(new Position(
                         entity.position().x(), entity.position().y(), entity.position().z()),
-                        "random.anvil_land", 1.0f, 1.0f);
+                        "random.anvil_land", 1.0f, 1.0f, entity.dimension());
             }
             for (FallingBlockEntityManager.Listener listener : fallingListeners) {
                 listener.onFallingEnded(entity, becameBlock);

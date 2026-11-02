@@ -386,8 +386,13 @@ public final class TntSystem implements WorldChangeListener {
         }
         // The priming hiss at the body's own position (the reference's
         // playSoundAtEntity(primedtntentity, ...) — the entity's own x/y/z,
-        // no rise).
-        fx.sound(new Position(x, y, z), "game.tnt.primed", 1.0f, 1.0f);
+        // no rise) — in the DISPENSING world (Bootstrap line 335:
+        // source.getWorld().playSound — the body's own dimension, the same
+        // stamp the PrimedTnt carries; VT-026: the pre-fix no-dimension
+        // overload stamped the overworld for every dimension's dispensed
+        // prime, the nether dispenser silent to its own players).
+        fx.sound(new Position(x, y, z), "game.tnt.primed", 1.0f, 1.0f,
+                actingWorld.dimension());
     }
 
     // ------------------------------------------------------------------
@@ -414,8 +419,14 @@ public final class TntSystem implements WorldChangeListener {
             listener.onTntPrimed(tnt);
         }
         // The hiss at the primed body itself (playSoundAtEntity — the
-        // body's own x/y/z).
-        fx.sound(new Position(tnt.x(), tnt.y(), tnt.z()), "game.tnt.primed", 1.0f, 1.0f);
+        // body's own x/y/z) — in the IGNITING world (TntBlock.ignite line
+        // 65: the IGNITING world's playSound, World.playSound 769-773 over
+        // that world's listener list alone; the same stamp the PrimedTnt
+        // carries — VT-026: the pre-fix no-dimension overload stamped the
+        // overworld, a nether prime silent to the players standing beside
+        // it and a phantom hiss for the overworld's same coordinates).
+        fx.sound(new Position(tnt.x(), tnt.y(), tnt.z()), "game.tnt.primed", 1.0f, 1.0f,
+                actingWorld.dimension());
     }
 
     /**

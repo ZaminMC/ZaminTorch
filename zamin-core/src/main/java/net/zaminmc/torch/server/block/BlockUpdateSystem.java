@@ -33,7 +33,9 @@ import java.util.logging.Logger;
  *       for two ticks and a collapsing column staggers one level per two
  *       ticks, exactly the historical rhythm.</li>
  *   <li><b>Torch support</b>: a floor torch over air pops as an item.</li>
- *   <li><b>Grass decay</b>: grass with an opaque block above dies to dirt.</li>
+ *   <li><b>Grass decay</b>: grass dies to dirt when the cell above is
+ *       darker than 4 AND its cover is opacity-above-2 (the reference's
+ *       two-conjunct shade law — see the grass arm's note).</li>
  * </ul>
  *
  * <p>Positions are scheduled on commit (the engine registers this system as a
@@ -443,7 +445,18 @@ public final class BlockUpdateSystem implements WorldChangeListener {
             return;
         }
         if (identifier.equals(TORCH)) {
-            if (!world.getBlock(position.offset(0, -1, 0)).equals(world.airType())) {
+            // TorchBlock.canSurviveOrBreak over canAttach (lines 91-93 +
+            // 124-135): the FLOOR arm alone — the engine's single standing
+            // state (the wall states ride the redstone family's own
+            // vocabulary). canSitOnTop (TorchBlock lines 49-56): hasSolidTop's
+            // five arms OR the explicit FENCES/GLASS/COBBLESTONE_WALL/
+            // STAINED_GLASS list — the translucent floors, the flora, the
+            // rails and every other non-hosting floor pop the torch, the
+            // stone through hasSolidTop and the glass through the list
+            // hosting it exactly as the reference does (F-SP2's plain-torch
+            // walk, the #137/#138 lanes' named row).
+            if (net.zaminmc.torch.server.block.SupportConsult
+                    .torchCanSitOnTop(world.getBlock(position.offset(0, -1, 0)))) {
                 return; // supported
             }
             world.setBlock(position, world.airType());
@@ -969,10 +982,33 @@ public final class BlockUpdateSystem implements WorldChangeListener {
             }
             return;
         }
-        if (identifier.equals(GRASS)
-                && isOpaque(world.getBlock(position.offset(0, 1, 0)))) {
-            world.setBlock(position, BuiltinBlocks.DIRT);
+        // The grass's shade law (VT-017's correction — GrassBlock.tick
+        // lines 49-52, the mycelium arm's own Slice-42 form): the decay
+        // needs BOTH conjuncts — the light at the covering cell under 4
+        // AND the cover's opacity above 2. The opacity consult is the
+        // LIGHT TABLE's filter (the reference's Block.getOpacity — Block's
+        // constructor line 216: every non-solid-render block answers 0),
+        // so a bed, a flower, a snow layer, a chest or a torch above never
+        // shades the grass: only true solid-render cubes (filter 15) and
+        // the small-opacity rows above 2 (water and ice, filter 3) do. The
+        // engine's old arm answered a 3-block allowlist (air/torch/glass)
+        // with no light gate — the grass died under every transparent
+        // family the moment the cover landed.
+        if (identifier.equals(GRASS)) {
+            BlockType cover = world.getBlock(position.offset(0, 1, 0));
+            if (lightAt(position.offset(0, 1, 0)) < 4
+                    && BlockLightTable.filter(cover) > 2) {
+                world.setBlock(position, BuiltinBlocks.DIRT);
+            }
         }
+    }
+
+    /**
+     * The historical grass light: the brighter of block light and skylight
+     * at the cell (the mycelium arm's own helper form).
+     */
+    private int lightAt(BlockPosition position) {
+        return Math.max(world.blockLightAt(position), world.skyLightAt(position));
     }
 
     /**
@@ -1023,14 +1059,6 @@ public final class BlockUpdateSystem implements WorldChangeListener {
                 new Position(at.x(), at.y(), at.z()),
                 ItemStack.of(net.zaminmc.torch.server.item.BuiltinItems.CACTUS, 1),
                 ItemEntity.PICKUP_DELAY_DROP_TICKS, world.dimension());
-    }
-
-    /** The historical opaque set this slice models (glass and torch are not). */
-    public static boolean isOpaque(BlockType type) {
-        String name = type.identifier().toString();
-        return !name.equals("minecraft:air")
-                && !name.equals("minecraft:torch")
-                && !name.equals("minecraft:glass");
     }
 
     /** Packs a position into one dedup key (the 1.8 coordinate space). */

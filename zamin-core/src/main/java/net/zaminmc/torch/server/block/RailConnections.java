@@ -95,18 +95,25 @@ public final class RailConnections {
      * own onAdded consult (the explicit neighborChanged at line 81)
      * read the same law.
      *
+     * <p>F-SP2: the consult reads {@link SupportConsult#hasSolidTop}'s
+     * five arms — the reference's {@code World.hasSolidTop} 1:1 — never
+     * the translucent fallthrough the fire family's own form carried:
+     * GLASS, ICE, TNT, the leaves and the glowstone are NOT rail beds
+     * (each translucent, each outside the five arms), the hopper and
+     * the TOP-half slabs and stairs ARE.</p>
+     *
      * @return whether the rail survives at the cell
      */
     public static boolean survivesAt(EngineWorld world, BlockPosition pos) {
-        if (!FireBlocks.hasSolidTop(world, pos.offset(0, -1, 0))) {
+        if (!SupportConsult.hasSolidTop(world.getBlock(pos.offset(0, -1, 0)))) {
             return false;
         }
         int shape = RailBlocks.familyShapeOf(world.getBlock(pos));
         return switch (shape) {
-            case ASCENDING_EAST -> FireBlocks.hasSolidTop(world, pos.offset(1, 0, 0));
-            case ASCENDING_WEST -> FireBlocks.hasSolidTop(world, pos.offset(-1, 0, 0));
-            case ASCENDING_NORTH -> FireBlocks.hasSolidTop(world, pos.offset(0, 0, -1));
-            case ASCENDING_SOUTH -> FireBlocks.hasSolidTop(world, pos.offset(0, 0, 1));
+            case ASCENDING_EAST -> SupportConsult.hasSolidTop(world.getBlock(pos.offset(1, 0, 0)));
+            case ASCENDING_WEST -> SupportConsult.hasSolidTop(world.getBlock(pos.offset(-1, 0, 0)));
+            case ASCENDING_NORTH -> SupportConsult.hasSolidTop(world.getBlock(pos.offset(0, 0, -1)));
+            case ASCENDING_SOUTH -> SupportConsult.hasSolidTop(world.getBlock(pos.offset(0, 0, 1)));
             default -> true;
         };
     }
