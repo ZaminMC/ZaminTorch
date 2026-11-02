@@ -400,8 +400,14 @@ public final class NoteBlockSystem implements WorldChangeListener {
         // The reference's doEvent (NoteBlock lines 82-88): the server-side
         // playSound — "note." + instrument, volume 3.0F, pitch 2^((note-12)/12).
         float pitch = (float) Math.pow(2.0, (note - 12) / 12.0);
+        // VT-029 — the note rides the note block's OWN world (NoteBlock
+        // lines 83-85: world.playSound over the per-world listener list —
+        // PlayerManager 626-640's dimension gate). The system is
+        // constructed per-dimension; the pre-fix no-dimension overload
+        // stamped the overworld for every family's play.
         fx.sound(new Position(pos.x() + 0.5, pos.y() + 0.5, pos.z() + 0.5),
-                "note." + instrumentName(instrument), 3.0f, pitch);
+                "note." + instrumentName(instrument), 3.0f, pitch,
+                world.dimension());
         // The block event relay (ServerWorld.doBlockEvents lines 820-842):
         // the Block Action to the observers after the server doEvent.
         for (NoteActionListener listener : noteActionListeners) {
