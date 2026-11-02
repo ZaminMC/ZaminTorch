@@ -2503,27 +2503,33 @@ public final class EngineServer implements Server, EngineBridge {
                 // beacon's own column grown(10, 5, 10) — the box
                 // Box(x, y-4, z, x, y, z).grown(10, 5, 10), the player
                 // boxes intersecting it).
-                net.zaminmc.torch.server.beacon.BeaconSystem.Listener beaconAward =
-                        new net.zaminmc.torch.server.beacon.BeaconSystem.Listener() {
-                            @Override
-                            public void onBeaconUpdated(
-                                    BlockPosition position,
-                                    net.zaminmc.torch.server.beacon.BeaconBlockEntity beacon) {
-                            }
+                // VT-033's adjacent tail — the per-family award form: each
+                // dimension's listener carries its OWN dimension (the
+                // reference's update on the beacon's own world — the
+                // grown-box census over that world's player list alone; a
+                // same-coordinate player in another dimension never earns
+                // the nether pyramid's stat).
+                for (int beaconDimension : new int[]{0, -1, 1}) {
+                    net.zaminmc.torch.server.beacon.BeaconSystem family =
+                            beaconsFor(beaconDimension);
+                    family.addListener(new net.zaminmc.torch.server.beacon.BeaconSystem.Listener() {
+                        @Override
+                        public void onBeaconUpdated(
+                                BlockPosition position,
+                                net.zaminmc.torch.server.beacon.BeaconBlockEntity beacon) {
+                        }
 
-                            @Override
-                            public void onBeaconFullyPowered(BlockPosition position) {
-                                awardPlayersInBox(
-                                        EngineAchievements.ACTIVATE_MAX_BEACON.key(),
-                                        position.x() - 10.0, position.y() - 9.0,
-                                        position.z() - 10.0,
-                                        position.x() + 10.0, position.y() + 5.0,
-                                        position.z() + 10.0);
-                            }
-                        };
-                beaconSystem.addListener(beaconAward);
-                netherBeacons.addListener(beaconAward);
-                endBeacons.addListener(beaconAward);
+                        @Override
+                        public void onBeaconFullyPowered(BlockPosition position) {
+                            awardPlayersInBox(
+                                    EngineAchievements.ACTIVATE_MAX_BEACON.key(), beaconDimension,
+                                    position.x() - 10.0, position.y() - 9.0,
+                                    position.z() - 10.0,
+                                    position.x() + 10.0, position.y() + 5.0,
+                                    position.z() + 10.0);
+                        }
+                    });
+                }
                 beaconStore = new net.zaminmc.torch.server.beacon.BeaconDataStore(
                         config.worldDataDir().resolve("beacons.bin"));
                 for (net.zaminmc.torch.server.beacon.BeaconDataStore.Loaded beaconRow
@@ -22750,7 +22756,11 @@ public final class EngineServer implements Server, EngineBridge {
             // own shape grown(50, 100, 50) earns the nether-star kill —
             // not the killer alone, everyone watching the fall).
             if (mob.type() == net.zaminmc.torch.server.entity.MobType.WITHER) {
-                awardPlayersInBox(EngineAchievements.KILL_WITHER.key(),
+                // VT-033's adjacent tail — the fall's award walks the ACTING
+                // world's player list (the reference's dropItems on the
+                // wither's own world — a same-coordinate player in another
+                // dimension never earns the nether fall's stat).
+                awardPlayersInBox(EngineAchievements.KILL_WITHER.key(), mob.dimension(),
                         mob.position(), 0.9, 3.5, 50.0, 100.0, 50.0);
             }
             // §27.7: the public death observation — the health reached zero
