@@ -357,7 +357,14 @@ public final class TripwireSystem implements WorldChangeListener {
         } else if (TripwireBlocks.isHook(type)) {
             int facing = TripwireBlocks.hookFacing(type);
             int[] o = OFFSETS[facing];
-            if (!WorldSolidity.isSolid(world.getBlock(pos.offset(-o[0], 0, -o[2])))) {
+            // The mount re-check (TripwireHookBlock.neighborChanged lines
+            // 85-96): the same Block.isSolid() consult as the placement
+            // (lines 274-276 — solid-blocking && isCube && !isSignalSource);
+            // the mount gone (or never a legal one — the translucent cubes,
+            // the non-cubes, the signal sources) breaks the hook with its
+            // drop.
+            if (!net.zaminmc.torch.server.block.BlockSolidity.isSolid(
+                    world.getBlock(pos.offset(-o[0], 0, -o[2])))) {
                 world.setBlock(pos, world.airType());
             }
         }
@@ -374,13 +381,19 @@ public final class TripwireSystem implements WorldChangeListener {
      */
     public static boolean hookPlacementSupported(EngineWorld world, BlockPosition target,
                                                  int clickedFace) {
-        // TripwireHookBlock.canBePlaced: a horizontal face with a solid
-        // block behind it.
+        // TripwireHookBlock.canBePlaced lines 54-56: a horizontal face
+        // with a block behind it that answers Block.isSolid() — NOT the
+        // bare material solidity: the reference's own consult (Block.java
+        // lines 274-276) is {@code material.isSolidBlocking() && isCube()
+        // && !isSignalSource()} — the translucent cubes (glass, the
+        // stained glass, the glowstone), the non-cubes (the fences, the
+        // walls, the panes, the piston bases) and the signal sources
+        // (the redstone block, the TNT's armed forms) never host a hook.
         if (clickedFace < 2 || clickedFace > 5) {
             return false;
         }
         int[] o = OFFSETS[clickedFace];
-        return WorldSolidity.isSolid(world.getBlock(
+        return net.zaminmc.torch.server.block.BlockSolidity.isSolid(world.getBlock(
                 target.offset(-o[0], -o[1], -o[2])));
     }
 
