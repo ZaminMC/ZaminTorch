@@ -366,12 +366,13 @@ class ProjectileManagerTest {
     void aBurningArrowPrimesTheTntItOverlaps() {
         // The reference's stick arm's HIT-BLOCK consult (ArrowEntity
         // lines 307-309 over TntBlock.onEntityCollision lines 91-104):
-        // a burning arrow whose flight enters the TNT cell primes it —
-        // the engine's block-hit arm carries the same consult (the
-        // ignite before the stick, the walk continuing through the
-        // opened cell — the engine's stand-in for the reference's
-        // stick + prime + un-stick composition, VT-015's law landing
-        // the exact form). A plain arrow in the same place never does.
+        // a burning arrow whose flight enters the TNT cell STICKS at
+        // its face first (VT-030's order — line 304 precedes the
+        // consult at 308) and the consult primes it. The rig wires no
+        // StickCellConsult, so the un-stick arm (VT-015) never fires —
+        // the arrow rests stuck at the face, the reference's own hop
+        // riding the wired consult alone. A plain arrow in the same
+        // place never primes.
         // VT-019 — the STUCK arrow consults NOTHING: the reference's
         // per-tick scan rides the FLIGHT branch alone (line 382), so a
         // burning arrow stuck BESIDE TNT never primes it (the engine's
@@ -401,14 +402,14 @@ class ProjectileManagerTest {
                 throw new AssertionError("the flying band must not double-prime: " + pos);
             }
         });
-        // VT-019 — the block-hit arm's ignite (the reference's stick
-        // arm's hit-block consult): the sole prime path for a flight
-        // entering the TNT cell.
+        // VT-030 — the block-hit arm's ignite (the reference's stick
+        // arm's hit-block consult, AFTER the stick): the sole prime
+        // path for a flight entering the TNT cell.
         manager.setTntIgniteSink(igniter::test);
 
         // The burning arrow drops onto the TNT cell — its flight sample
-        // enters the cell and the block-hit arm primes it, the walk
-        // continuing through the opened cell.
+        // enters the cell and the block-hit arm sticks it at the face
+        // and primes it (VT-030's order).
         ProjectileEntity burning = manager.launchVector(
                 ProjectileEntity.Kind.ARROW, -1,
                 new Position(10.5, 44.0, 10.5), 0.0, -1.0, 0.0, 1.0, 0.4, 0);
@@ -423,11 +424,11 @@ class ProjectileManagerTest {
         for (int i = 0; i < 20; i++) {
             manager.tick(java.util.List.of());
         }
-        assertFalse(burning.inGround(),
-                "the burning arrow keeps its flight through the opened cell (the block-hit "
-                        + "arm's ignite returns false to the walk — the engine's documented "
-                        + "stand-in for the reference's stick + prime + next-tick un-stick "
-                        + "composition)");
+        assertTrue(burning.inGround(),
+                "the burning arrow STUCK at the TNT face on the prime tick (VT-030's order — "
+                        + "the stick ceremony precedes the consult; the rig's unwired "
+                        + "StickCellConsult keeps the un-stick arm silent, and VT-019's "
+                        + "gate keeps the stuck band from re-priming)");
         assertTrue(plain.inGround() == false, "the control keeps falling past its plain cell");
 
         assertTrue(primed.contains(new net.zaminmc.torch.block.BlockPosition(10, 40, 10)),

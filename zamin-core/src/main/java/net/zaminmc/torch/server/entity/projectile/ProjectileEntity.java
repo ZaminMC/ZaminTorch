@@ -288,6 +288,34 @@ public final class ProjectileEntity implements net.zaminmc.torch.entity.Projecti
         this.stickBlockId = blockId;
     }
 
+    /**
+     * VT-014 — the stick's full ceremony (the reference's stick arm,
+     * ArrowEntity lines 288-304): the tracked cell + identifier stamped
+     * (289-295) AND the velocity REPLACED by the face-relative vector
+     * ({@code velocity := face − pos}, lines 296-298 — the remaining
+     * step of the crossing tick). The replaced velocity is DEAD STATE on
+     * a stuck body — the flight branch never integrates it, and its only
+     * consumer in the whole reference is the un-stick arm's
+     * {@code random * 0.2} per-axis damping (lines 179-186): the
+     * reference's un-stuck arrow hops up to a fifth of its remaining
+     * step ALONG THE FLIGHT DIRECTION instead of falling straight down.
+     * The caller places the body at the rest first (the 0.05 backoff,
+     * lines 300-302 + the flight tail's advance 328-330 —
+     * {@code face − 0.05·unit(approach)}). Package-private: the
+     * manager's stick arm is the only caller.
+     */
+    void landInGround(int cellX, int cellY, int cellZ, String blockId,
+            double faceVectorX, double faceVectorY, double faceVectorZ) {
+        this.inGround = true;
+        this.vx = faceVectorX;
+        this.vy = faceVectorY;
+        this.vz = faceVectorZ;
+        this.stickCellX = cellX;
+        this.stickCellY = cellY;
+        this.stickCellZ = cellZ;
+        this.stickBlockId = blockId;
+    }
+
     /** @return the tracked cell's X ({@code Integer.MIN_VALUE} when cell-less). */
     public int stickCellX() {
         return stickCellX;

@@ -84,6 +84,20 @@ public final class ProjectileManager {
         default boolean solidAt(double x, double y, double z) {
             return solid(x, y, z);
         }
+
+        /**
+         * The collision boxes of the block whose cell the point sits in
+         * (VT-014 — the stick placement's face computation, the reference's
+         * {@code rayTrace} against the block's collision shape,
+         * ArrowEntity.tick line 191): cell-fraction boxes, or {@code null}
+         * when the query carries no box view — the stub queries keep their
+         * point-test semantics and the stick walk falls back to the
+         * cell-granularity unit cube.
+         */
+        default java.util.List<net.zaminmc.torch.server.block.CollisionShapes.Box> solidBoxesAt(
+                double x, double y, double z) {
+            return null;
+        }
     }
 
     /** Resolves the entity a projectile is inside of, if any (tick thread). */
@@ -1291,20 +1305,60 @@ public final class ProjectileManager {
                 // ignited and returned false, so landInGround never ran:
                 // the arrow flew through the opened cell at full flight
                 // speed — never stuck, never rested.
+                // VT-014 — the stick placement (the reference's rayTrace,
+                // ArrowEntity.tick line 191 + the stick arm's composition):
+                // the rest lands EXACTLY 0.05 OUTSIDE the hit face, on the
+                // approach side, in the cell the arrow flew through — never
+                // at the post-step endpoint buried inside the hit block, and
+                // never hanging in the air past a thin wall. The walk below
+                // reconstructs the reference's ray at the engine's
+                // granularity: the cells the segment crosses, each cell's
+                // collision boxes, the FIRST box entry the hit face. The
+                // stuck velocity KEEPS the face-relative vector (lines
+                // 296-298 — the un-stick arm's random*0.2 damping its only
+                // consumer), and the tracked cell stamps the box's OWN cell
+                // (the reference's hitresult cell, lines 289-295).
+                StickSite site = stickSite(from, point);
+                int stickCellX;
+                int stickCellY;
+                int stickCellZ;
+                double faceVectorX;
+                double faceVectorY;
+                double faceVectorZ;
+                if (site != null) {
+                    projectile.teleport(site.rest());
+                    stickCellX = site.cellX();
+                    stickCellY = site.cellY();
+                    stickCellZ = site.cellZ();
+                    faceVectorX = site.faceVectorX();
+                    faceVectorY = site.faceVectorY();
+                    faceVectorZ = site.faceVectorZ();
+                } else {
+                    // The endpoint residue (the engine's own edge: the
+                    // origin inside every box of the sample's cell — the
+                    // spawned-inside-block shape, where the reference's own
+                    // box-containment stick at lines 160-166 stands, or a
+                    // degenerate zero-step): the rest stays at the walk's
+                    // endpoint, the dead velocity zeroed.
+                    stickCellX = (int) Math.floor(point.x());
+                    stickCellY = (int) Math.floor(point.y());
+                    stickCellZ = (int) Math.floor(point.z());
+                    faceVectorX = 0;
+                    faceVectorY = 0;
+                    faceVectorZ = 0;
+                }
                 // VT-015 — the tracked cell's stamp rides the same
                 // ceremony (the reference's lines 289-295: the cell whose
                 // block the stick arm stamps is the cell the stick clock
                 // reads every tick until its block changes).
-                int stickCellX = (int) Math.floor(point.x());
-                int stickCellY = (int) Math.floor(point.y());
-                int stickCellZ = (int) Math.floor(point.z());
                 String stickBlockId = stickCellConsult != null
                         ? stickCellConsult.blockIdAt(
                                 new net.zaminmc.torch.block.BlockPosition(
                                         stickCellX, stickCellY, stickCellZ),
                                 projectile.dimension())
                         : null;
-                projectile.landInGround(stickCellX, stickCellY, stickCellZ, stickBlockId);
+                projectile.landInGround(stickCellX, stickCellY, stickCellZ, stickBlockId,
+                        faceVectorX, faceVectorY, faceVectorZ);
                 // VT-018 — the stick's bowhit (ArrowEntity line 303):
                 // the reference plays random.bowhit at the rest — the
                 // volume 1.0, the pitch the reference's own random draw
@@ -1397,6 +1451,287 @@ public final class ProjectileManager {
             return true;
         }
         return false;
+    }
+
+    /**
+     * VT-014 — the stick placement's ray reconstruction (the reference's
+     * {@code World.rayTrace} lines 639-760 at the engine's granularity):
+     * walks the segment from the step's START toward the solid sample,
+     * crossing one cell boundary at a time (the parametric face math and
+     * the axis ordering the reference itself uses, the negative-zero
+     * guards included), and per crossed cell consults the block's
+     * COLLISION BOXES (the reference's rayTrace tests the shape, never
+     * the bare cell): the first box entry along the segment is the hit
+     * face, and the rest composes exactly as the reference's stick arm
+     * does — {@code (pos − 0.05·unit) + (face − pos) = face − 0.05·unit}
+     * (the backoff at 300-302, the flight tail's advance at 328-330).
+     * A solid cell whose boxes the segment misses never sticks (a fence
+     * post's cell edge — the reference's own ray-passes law); a partial
+     * shape answers its OWN face (a slab's half-height surface, never
+     * the cell boundary). Queries without a box view (the stub rigs)
+     * fall back to the cell-granularity unit cube over the solidity
+     * consult.
+     *
+     * <p>Null when the walk finds no crossed box entry: the origin
+     * already inside every box of every crossed cell (the
+     * spawned-inside-block shape — the reference's own
+     * box-containment edge at lines 160-166, the endpoint rest stands),
+     * or a degenerate zero-step. The face-relative vector rides the
+     * answer (the reference's stuck velocity, lines 296-298 — the
+     * remaining step, dead state whose only consumer is the un-stick
+     * arm's {@code random * 0.2} damping, lines 179-186) together with
+     * the box's OWN cell (the reference's hitresult cell — the tracked
+     * cell the stick clock reads).</p>
+     */
+    private StickSite stickSite(Position from, Position point) {
+        double stepX = point.x() - from.x();
+        double stepY = point.y() - from.y();
+        double stepZ = point.z() - from.z();
+        int targetX = (int) Math.floor(point.x());
+        int targetY = (int) Math.floor(point.y());
+        int targetZ = (int) Math.floor(point.z());
+        int cellX = (int) Math.floor(from.x());
+        int cellY = (int) Math.floor(from.y());
+        int cellZ = (int) Math.floor(from.z());
+        // The origin cell's own boxes first (the reference's ray starts
+        // there): an origin beside a cell's box whose segment enters it
+        // sticks at the box's face — the same-cell sample case included.
+        StickSite originSite = cellEntry(from, stepX, stepY, stepZ,
+                cellX, cellY, cellZ);
+        if (originSite != null) {
+            return originSite;
+        }
+        int guard = 200; // the reference's own iteration cap
+        while (guard-- >= 0) {
+            if (cellX == targetX && cellY == targetY && cellZ == targetZ) {
+                return null; // the walk exhausted without a box entry
+            }
+            // The next boundary plane per axis (the reference's own
+            // 999-sentinel shape: an axis the segment does not advance
+            // along never wins the min).
+            double boundaryX = 999.0;
+            double boundaryY = 999.0;
+            double boundaryZ = 999.0;
+            boolean advancesX = false;
+            boolean advancesY = false;
+            boolean advancesZ = false;
+            if (targetX > cellX) {
+                boundaryX = cellX + 1.0;
+                advancesX = true;
+            } else if (targetX < cellX) {
+                boundaryX = cellX + 0.0;
+                advancesX = true;
+            }
+            if (targetY > cellY) {
+                boundaryY = cellY + 1.0;
+                advancesY = true;
+            } else if (targetY < cellY) {
+                boundaryY = cellY + 0.0;
+                advancesY = true;
+            }
+            if (targetZ > cellZ) {
+                boundaryZ = cellZ + 1.0;
+                advancesZ = true;
+            } else if (targetZ < cellZ) {
+                boundaryZ = cellZ + 0.0;
+                advancesZ = true;
+            }
+            double paramX = 999.0;
+            double paramY = 999.0;
+            double paramZ = 999.0;
+            if (advancesX) {
+                paramX = (boundaryX - from.x()) / stepX;
+            }
+            if (advancesY) {
+                paramY = (boundaryY - from.y()) / stepY;
+            }
+            if (advancesZ) {
+                paramZ = (boundaryZ - from.z()) / stepZ;
+            }
+            // The reference's negative-zero guard (World line 724): a
+            // boundary coincident with the start must not win the min.
+            if (paramX == -0.0) {
+                paramX = -1.0E-4;
+            }
+            if (paramY == -0.0) {
+                paramY = -1.0E-4;
+            }
+            if (paramZ == -0.0) {
+                paramZ = -1.0E-4;
+            }
+            double faceX;
+            double faceY;
+            double faceZ;
+            if (paramX < paramY && paramX < paramZ) {
+                faceX = boundaryX;
+                faceY = from.y() + stepY * paramX;
+                faceZ = from.z() + stepZ * paramX;
+                // The reference recomputes ALL THREE cell coordinates from
+                // the advanced crossing point each iteration (World lines
+                // 758-760): the crossed axis carries the direction
+                // correction, the parametrically-advanced others land on
+                // their own floors — a same-iteration boundary crossing on
+                // another axis is picked up here, never missed.
+                cellX = (int) Math.floor(faceX) - (targetX < cellX ? 1 : 0);
+                cellY = (int) Math.floor(faceY);
+                cellZ = (int) Math.floor(faceZ);
+            } else if (paramY < paramZ) {
+                faceX = from.x() + stepX * paramY;
+                faceY = boundaryY;
+                faceZ = from.z() + stepZ * paramY;
+                cellX = (int) Math.floor(faceX);
+                cellY = (int) Math.floor(faceY) - (targetY < cellY ? 1 : 0);
+                cellZ = (int) Math.floor(faceZ);
+            } else {
+                faceX = from.x() + stepX * paramZ;
+                faceY = from.y() + stepY * paramZ;
+                faceZ = boundaryZ;
+                cellX = (int) Math.floor(faceX);
+                cellY = (int) Math.floor(faceY);
+                cellZ = (int) Math.floor(faceZ) - (targetZ < cellZ ? 1 : 0);
+            }
+            // The entered cell's box consult (the reference's rayTrace
+            // against the collision shape): the first box entry along the
+            // segment is the hit face — a solid cell whose boxes the
+            // segment misses never sticks (the walk continues).
+            StickSite entered = cellEntry(from, stepX, stepY, stepZ,
+                    cellX, cellY, cellZ);
+            if (entered != null) {
+                return entered;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * One cell's box consult of the stick walk: the segment
+     * [{@code from}, {@code from + step}]'s entry into the cell's
+     * collision boxes (the unit-cube fallback when the query carries no
+     * box view or the cell reads solid without one), answered as the
+     * stick site — the rest 0.05 outside the entry face along the
+     * approach, the face-relative vector, the box's own cell. Null when
+     * the cell holds no boxes the segment enters (air, a shape the ray
+     * passes, or the origin already inside every box).
+     */
+    private StickSite cellEntry(Position from, double stepX, double stepY, double stepZ,
+            int cellX, int cellY, int cellZ) {
+        java.util.List<net.zaminmc.torch.server.block.CollisionShapes.Box> boxes =
+                solid.solidBoxesAt(cellX + 0.5, cellY + 0.5, cellZ + 0.5);
+        if (boxes == null) {
+            // The stub fallback (no box view): the solidity consult over
+            // the cell's unit cube — the engine's cell granularity.
+            if (!solid.solidAt(cellX + 0.5, cellY + 0.5, cellZ + 0.5)) {
+                return null;
+            }
+            boxes = java.util.List.of(
+                    new net.zaminmc.torch.server.block.CollisionShapes.Box(0, 0, 0, 1, 1, 1));
+        }
+        if (boxes.isEmpty()) {
+            return null; // the cell holds no collision boxes (air)
+        }
+        double bestT = Double.POSITIVE_INFINITY;
+        for (net.zaminmc.torch.server.block.CollisionShapes.Box box : boxes) {
+            Double entry = segmentEntry(from, stepX, stepY, stepZ,
+                    cellX + box.minX(), cellY + box.minY(), cellZ + box.minZ(),
+                    cellX + box.maxX(), cellY + box.maxY(), cellZ + box.maxZ());
+            if (entry != null && entry < bestT) {
+                bestT = entry;
+            }
+        }
+        if (bestT == Double.POSITIVE_INFINITY) {
+            return null; // the segment never enters the cell's boxes
+        }
+        double faceX = from.x() + stepX * bestT;
+        double faceY = from.y() + stepY * bestT;
+        double faceZ = from.z() + stepZ * bestT;
+        double remainX = faceX - from.x();
+        double remainY = faceY - from.y();
+        double remainZ = faceZ - from.z();
+        double length = Math.sqrt(remainX * remainX + remainY * remainY
+                + remainZ * remainZ);
+        if (length < 1.0E-9) {
+            return null; // the degenerate zero-step residue
+        }
+        return new StickSite(
+                new Position(faceX - remainX / length * 0.05,
+                        faceY - remainY / length * 0.05,
+                        faceZ - remainZ / length * 0.05),
+                remainX, remainY, remainZ, cellX, cellY, cellZ);
+    }
+
+    /**
+     * The segment [{@code from}, {@code from + (dx, dy, dz)}]'s entry
+     * parameter into the world-space box, or {@code null} when the segment
+     * never enters it in front of the origin: the slab method per axis,
+     * the parallel-outside reject, and the behind-entry reject (the origin
+     * starting inside THIS box — that box's face is not the hit face).
+     */
+    private static Double segmentEntry(Position from, double dx, double dy, double dz,
+            double minX, double minY, double minZ, double maxX, double maxY, double maxZ) {
+        double tLo = Double.NEGATIVE_INFINITY;
+        double tHi = Double.POSITIVE_INFINITY;
+        if (dx == 0.0) {
+            if (from.x() < minX || from.x() >= maxX) {
+                return null;
+            }
+        } else {
+            double t1 = (minX - from.x()) / dx;
+            double t2 = (maxX - from.x()) / dx;
+            if (t1 > t2) {
+                double swap = t1;
+                t1 = t2;
+                t2 = swap;
+            }
+            tLo = Math.max(tLo, t1);
+            tHi = Math.min(tHi, t2);
+        }
+        if (dy == 0.0) {
+            if (from.y() < minY || from.y() >= maxY) {
+                return null;
+            }
+        } else {
+            double t1 = (minY - from.y()) / dy;
+            double t2 = (maxY - from.y()) / dy;
+            if (t1 > t2) {
+                double swap = t1;
+                t1 = t2;
+                t2 = swap;
+            }
+            tLo = Math.max(tLo, t1);
+            tHi = Math.min(tHi, t2);
+        }
+        if (dz == 0.0) {
+            if (from.z() < minZ || from.z() >= maxZ) {
+                return null;
+            }
+        } else {
+            double t1 = (minZ - from.z()) / dz;
+            double t2 = (maxZ - from.z()) / dz;
+            if (t1 > t2) {
+                double swap = t1;
+                t1 = t2;
+                t2 = swap;
+            }
+            tLo = Math.max(tLo, t1);
+            tHi = Math.min(tHi, t2);
+        }
+        if (tLo > tHi || tLo < 0.0 || tLo > 1.0) {
+            return null; // no overlap, the origin inside, or the entry beyond the sample
+        }
+        return tLo;
+    }
+
+    /**
+     * The stick walk's answer: the rest position (the crossed box face
+     * backed off 0.05 along the approach) together with the FACE-RELATIVE
+     * VECTOR (the reference's stuck velocity, ArrowEntity lines 296-298 —
+     * the remaining step {@code face − from}, dead state whose only
+     * consumer is the un-stick arm's {@code random * 0.2} damping, lines
+     * 179-186) and the box's OWN cell (the reference's hitresult cell —
+     * the tracked cell the stick clock reads).
+     */
+    private record StickSite(Position rest, double faceVectorX, double faceVectorY,
+            double faceVectorZ, int cellX, int cellY, int cellZ) {
     }
 
     /**
