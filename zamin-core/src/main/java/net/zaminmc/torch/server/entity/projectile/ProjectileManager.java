@@ -1066,13 +1066,20 @@ public final class ProjectileManager {
      * FLIGHT BRANCH ALONE (the {@code inGround} branch at 172-186 runs
      * the stick clock and the tracked-block check only), and the stick
      * arm consults the HIT BLOCK alone (lines 307-309) — a burning
-     * arrow stuck beside TNT consults it zero times. The engine's
-     * point-model walks the 0.25 band around the flight position (the
-     * box-center envelope). The named tails (the audit's record): the
-     * stick tick's own resting-box scan (the reference's stick tick is
-     * a flight tick — its line-382 scan covers the resting box) and
-     * the in-flight band's shape (the engine's symmetric
-     * [y−0.25, y+0.25] against the reference's feet-law [y, y+0.5]).
+     * arrow stuck beside TNT consults it zero times. VT-023 — the box
+     * is the FEET LAW's [y, y+0.5] (Entity.setPosition lines 240-247:
+     * the shape spans y..y+height, the position the BOTTOM; the
+     * arrow's own setSize(0.5F, 0.5F)): the vertical band walks
+     * y+0.001 to y+0.5−0.001 exactly as the reference's per-block scan
+     * does, never the symmetric ±0.25 around the position (the retired
+     * "box-center envelope" — the engine's position IS the reference's
+     * position, the anvil import restoring the vanilla Pos row whole,
+     * VT-014's rest law pinning it). The horizontal bands are
+     * ±width/2 — the reference's own. The named tail (the audit's
+     * record): the stick tick's own resting-box scan (the reference's
+     * stick tick is a flight tick — its line-382 scan covers the
+     * resting box; the engine's gated pass misses a TNT overlapping
+     * the rest box on that one tick).
      */
     private void burningTntPass() {
         if (burningTnt == null) {
@@ -1097,8 +1104,13 @@ public final class ProjectileManager {
             Position at = projectile.position();
             int minX = (int) Math.floor(at.x() - 0.25 + 0.001);
             int maxX = (int) Math.floor(at.x() + 0.25 - 0.001);
-            int minY = (int) Math.floor(at.y() - 0.25 + 0.001);
-            int maxY = (int) Math.floor(at.y() + 0.25 - 0.001);
+            // VT-023 — the feet law's vertical band: the box spans
+            // [y, y+0.5] (the position the BOTTOM), the reference's own
+            // 0.001 insets — never the symmetric ±0.25 (the retired
+            // box-center framing). The engine's position IS the
+            // reference's position (VT-014's rest law pins it).
+            int minY = (int) Math.floor(at.y() + 0.001);
+            int maxY = (int) Math.floor(at.y() + 0.5 - 0.001);
             int minZ = (int) Math.floor(at.z() - 0.25 + 0.001);
             int maxZ = (int) Math.floor(at.z() + 0.25 - 0.001);
             int dimension = projectile.dimension();
