@@ -21016,11 +21016,18 @@ public final class EngineServer implements Server, EngineBridge {
                     // would not).
                     chunk.clearPendingEnderDragon();
                     if (!dragonDefeated && !dragonAliveInEnd()) {
+                        // The dragon is born in the END (VT-013 — the
+                        // reference's construction law, Entity line 166:
+                        // the stamp lands at birth through the
+                        // dimension-aware spawnAt, so the End player
+                        // standing in view when the lazy chunk-(0,0)
+                        // drain fires receives the spawn packet at the
+                        // event; the post-return stamp never reached
+                        // the live publish).
                         MobEntity dragon = mobManager.spawnAt(
                                 net.zaminmc.torch.server.entity.MobType.ENDER_DRAGON,
-                                new Position(0.0, 128.0, 0.0));
+                                new Position(0.0, 128.0, 0.0), 1);
                         if (dragon != null) {
-                            dragon.setDimension(1);
                             dragon.setBodyYaw(pendingDragon.yaw());
                         }
                     }
@@ -22149,12 +22156,12 @@ public final class EngineServer implements Server, EngineBridge {
 
         @Override
         public void chickenHatch(Position position, int dimension) {
-            MobEntity chick = mobManager.spawnAt(MobType.CHICKEN, position);
-            if (chick != null) {
-                // The chick's own world rides the egg (Wave TF-12 — the
-                // reference spawns the EntityChicken in the egg's World).
-                chick.setDimension(dimension);
-            }
+            // The chick's own world rides the egg (Wave TF-12 — the
+            // reference spawns the EntityChicken in the egg's World),
+            // stamped AT BIRTH through the dimension-aware spawnAt
+            // (VT-013 — Entity line 166's construction law: the wire's
+            // spawn gate reads the stamp at the event).
+            mobManager.spawnAt(MobType.CHICKEN, position, dimension);
             fxManager.sound(position, "mob.chicken.say", 0.5f, 1.0f, dimension);
             LOGGER.fine(() -> "An egg hatched a chick at " + position);
         }
