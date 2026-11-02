@@ -280,6 +280,15 @@ public final class EngineServer implements Server, EngineBridge {
     /** The world border (Slice 86 — the engine's one border, the reference's worlds[0]). */
     private final net.zaminmc.torch.server.border.EngineWorldBorder worldBorder =
             new net.zaminmc.torch.server.border.EngineWorldBorder(players);
+    /**
+     * The nether's border view (NetherDimension.createWorldBorder lines
+     * 75-86, 1:1): the shared border's rows with the CENTER REPORTED AT
+     * /8 — the containment lanes' nether geometry. The command and the
+     * wire stay on the shared border (the reference's own worlds[0] law);
+     * the End carries no projection (TheEndDimension has no override).
+     */
+    private final net.zaminmc.torch.server.border.EngineWorldBorder netherBorderView =
+            new net.zaminmc.torch.server.border.NetherWorldBorderView(worldBorder, players);
     /** The scoreboard's persistence (world/scoreboard.json — Slice 85). */
     private net.zaminmc.torch.server.scoreboard.ScoreboardDataStore scoreboardStore;
 
@@ -3923,13 +3932,18 @@ public final class EngineServer implements Server, EngineBridge {
                 // this.player) && serverworld.getWorldBorder().contains(
                 // blockpos)} — a refused consult answers the BlockUpdate echo
                 // and NO dig opens. The isSpawnProtected walk is the N4 law
-                // (the op store's chebyshev band); the border consult is the
-                // shared dynamic border the /worldborder commands move (the
-                // default 6.0E7 size is the reference's own unconfigured
-                // infinity, so the gate changes nothing until configured).
+                // (the op store's chebyshev band); the border consult reads
+                // the ACTING world's border (the per-dimension router — the
+                // nether's view reports the center at /8,
+                // NetherDimension.createWorldBorder lines 75-86; the shared
+                // dynamic border the /worldborder commands move is the
+                // reference's worlds[0] alone, and the default 6.0E7 size is
+                // the reference's own unconfigured infinity, so the gate
+                // changes nothing until configured).
                 blockInteraction.setDigStartGate((session, pos) ->
                         !isSpawnProtected(session, pos)
-                                && worldBorder.contains(pos.x(), pos.z()));
+                                && borderFor(session.dimension())
+                                        .contains(pos.x(), pos.z()));
                 // The per-dimension world router (Wave FL4-F5 — the dig/place
                 // generic surface): the service's every dig, place, extinguish,
                 // resync and drop consults and writes the ACTING player's own
@@ -5043,6 +5057,22 @@ public final class EngineServer implements Server, EngineBridge {
      */
     public net.zaminmc.torch.server.border.EngineWorldBorder worldBorder() {
         return worldBorder;
+    }
+
+    /**
+     * The ACTING world's border — the containment consults' router (the
+     * reference's per-world law): the nether reads its own view (the
+     * overworld's synced rows with the CENTER REPORTED AT /8 —
+     * NetherDimension.createWorldBorder lines 75-86; the ReadOnlyServerWorld
+     * listener copy lines 17-37 stands in as the live delegation), the
+     * overworld and the End read the shared border (TheEndDimension has no
+     * override — the raw synced copy). The command and the wire surfaces
+     * stay on {@link #worldBorder()} alone (WorldBorderCommand lines
+     * 171-172, PlayerManager.sendWorldInfo lines 678-679 — the reference's
+     * own worlds[0] law).
+     */
+    private net.zaminmc.torch.server.border.EngineWorldBorder borderFor(int dimension) {
+        return dimension == -1 ? netherBorderView : worldBorder;
     }
 
     /** The simulation-owned item entity manager (present once the world is up). */
@@ -6609,19 +6639,24 @@ public final class EngineServer implements Server, EngineBridge {
                             0.0f, "suffocated in a wall", DamageKind.IN_WALL);
                     session.beginHurtInvulnerability(1.0f);
                 }
-            } else if (!worldBorder.containsBox(
+            } else if (!borderFor(session.dimension()).containsBox(
                     session.position().x() - 0.3, session.position().z() - 0.3,
                     session.position().x() + 0.3, session.position().z() + 0.3)) {
                 // The world-border damage walk (LivingEntity.baseTick lines
                 // 196-202): a player whose box left the border takes
                 // max(1, floor(-depth * rate)) per tick — IN_WALL (bypasses
-                // armor, exhaustion 0.3, the reference's own source).
-                double depth = worldBorder.getDistanceFrom(
+                // armor, exhaustion 0.3, the reference's own source). The
+                // consult reads the ACTING world's border (the body's own
+                // world — the per-dimension router; the nether's view
+                // reports the center at /8, NetherDimension's own law).
+                net.zaminmc.torch.server.border.EngineWorldBorder actingBorder =
+                        borderFor(session.dimension());
+                double depth = actingBorder.getDistanceFrom(
                                 session.position().x(), session.position().z())
-                        + worldBorder.getSafeZone();
+                        + actingBorder.getSafeZone();
                 if (depth < 0.0) {
                     damageOnTick(session,
-                            Math.max(1, (int) Math.floor(-depth * worldBorder.getDamagePerBlock())),
+                            Math.max(1, (int) Math.floor(-depth * actingBorder.getDamagePerBlock())),
                             0.0f, "suffocated in a wall", DamageKind.IN_WALL);
                 }
             }
@@ -12336,10 +12371,12 @@ public final class EngineServer implements Server, EngineBridge {
         }
         // the world-border consult — {@code serverworld.getWorldBorder()
         // .contains(blockpos)} — a use outside the border refuses (the
-        // engine's shared dynamic border the /worldborder commands move;
-        // the default 6.0E7 size is the reference's own unconfigured
+        // ACTING world's border through the per-dimension router — the
+        // nether's view reports the center at /8; the shared dynamic border
+        // the /worldborder commands move is the reference's worlds[0] alone,
+        // and the default 6.0E7 size is the reference's own unconfigured
         // infinity, so the gate changes nothing until configured).
-        if (!worldBorder.contains(clicked.x(), clicked.z())) {
+        if (!borderFor(session.dimension()).contains(clicked.x(), clicked.z())) {
             return; // the outside-border use
         }
         // the spawn-protection consult (DedicatedServer.isSpawnProtected
@@ -20211,9 +20248,12 @@ public final class EngineServer implements Server, EngineBridge {
                                 new net.zaminmc.torch.block.BlockPosition(x, 64, z));
                     }
 
+                    // The ACTING dimension's border (the reference's
+                    // per-world consult — the nether's view reports the
+                    // center at /8, NetherDimension's own law).
                     @Override
                     public boolean borderContains(int x, int z) {
-                        return worldBorder.contains(x, z);
+                        return borderFor(activeDimension).contains(x, z);
                     }
                 };
 
@@ -24018,9 +24058,12 @@ public final class EngineServer implements Server, EngineBridge {
                                 new net.zaminmc.torch.block.BlockPosition(x, 64, z));
                     }
 
+                    // The ACTING dimension's border (the reference's
+                    // per-world consult — the nether's view reports the
+                    // center at /8, NetherDimension's own law).
                     @Override
                     public boolean borderContains(int x, int z) {
-                        return worldBorder.contains(x, z);
+                        return borderFor(activeDimension).contains(x, z);
                     }
                 };
 
@@ -33281,9 +33324,12 @@ public final class EngineServer implements Server, EngineBridge {
                                 new net.zaminmc.torch.block.BlockPosition(x, 64, z));
                     }
 
+                    // The ACTING dimension's border (the reference's
+                    // per-world consult — the nether's view reports the
+                    // center at /8, NetherDimension's own law).
                     @Override
                     public boolean borderContains(int x, int z) {
-                        return worldBorder.contains(x, z);
+                        return borderFor(activeDimension).contains(x, z);
                     }
                 };
 
