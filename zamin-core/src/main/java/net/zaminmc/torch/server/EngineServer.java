@@ -2561,30 +2561,56 @@ public final class EngineServer implements Server, EngineBridge {
                                 hopperSystem, netherHoppers, endHoppers}) {
                     family.setMobLookup(mobManager);
                     // The rolling containers' scan (Slice 25e —
-                    // getInventoryAt's entity fallback): the chest minecarts
-                    // inside the cell's 1x1x1 box, the hopper's cart arm —
-                    // gated to THIS system's own world (a cart parked at
-                    // the same coordinates in another world is no container
-                    // here, the reference's per-world entity list).
-                    family.setCartLookup(cell -> {
-                        java.util.List<net.zaminmc.torch.server.entity.vehicle.ChestMinecartEntity>
+                    // getInventoryAt's entity fallback): the Inventory
+                    // carts (the chest minecart AND the hopper minecart)
+                    // inside the QUERY BOX by the strict box law, the
+                    // hopper's cart arm — gated to THIS system's own
+                    // world (a cart parked at the same coordinates in
+                    // another world is no container here, the reference's
+                    // per-world entity list).
+                    family.setCartLookup(box -> {
+                        // Wave PE-1 — the reference's getInventoryAt entity
+                        // fallback (lines 466-472): the query BOX gathers
+                        // the INVENTORY entities — the chest minecart AND
+                        // the hopper minecart (both Inventory families) —
+                        // each cart's own 0.98x0.7 box intersecting the
+                        // query box STRICTLY on every face (Box.intersects
+                        // lines 164-171: exactly touching is NOT
+                        // intersecting). The old center-in-cell band missed
+                        // a cart whose box overlaps the cell by a hair
+                        // while its center sits outside, and never saw the
+                        // hopper cart at all.
+                        double minX = box[0], minY = box[1], minZ = box[2];
+                        double maxX = box[3], maxY = box[4], maxZ = box[5];
+                        java.util.List<net.zaminmc.torch.server.entity.vehicle.VehicleEntity>
                                 found = new java.util.ArrayList<>();
-                        double cx = cell.x() + 0.5;
-                        double cy = cell.y() + 0.5;
-                        double cz = cell.z() + 0.5;
                         for (net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle
                                 : vehicleManager.all()) {
                             if (!(vehicle
-                                    instanceof net.zaminmc.torch.server.entity.vehicle.ChestMinecartEntity cart)) {
-                                continue;
+                                    instanceof net.zaminmc.torch.server.entity.vehicle.ChestMinecartEntity)
+                                    && !(vehicle
+                                    instanceof net.zaminmc.torch.server.entity.vehicle.HopperMinecartEntity)) {
+                                continue; // not an Inventory family
                             }
-                            if (cart.dimension() != family.dimension()) {
+                            if (vehicle.dimension() != family.dimension()) {
                                 continue; // another world's cart
                             }
-                            Position at = vehicle.position();
-                            if (Math.abs(at.x() - cx) <= 0.5 && Math.abs(at.y() - cy) <= 0.5
-                                    && Math.abs(at.z() - cz) <= 0.5) {
-                                found.add(cart);
+                            // The cart's own box (the engine's center
+                            // anchor: [position.y - 0.35, +0.35], the
+                            // 0.98-wide hull) — the strict intersection.
+                            double cartBottom = vehicle.position().y()
+                                    - net.zaminmc.torch.server.entity.vehicle.MinecartEntity.HALF_HEIGHT;
+                            double cartTop = vehicle.position().y()
+                                    + net.zaminmc.torch.server.entity.vehicle.MinecartEntity.HALF_HEIGHT;
+                            double halfHull = net.zaminmc.torch.server.entity.vehicle
+                                    .MinecartEntity.CART_WIDTH / 2.0;
+                            if (vehicle.position().x() + halfHull > minX
+                                    && vehicle.position().x() - halfHull < maxX
+                                    && cartTop > minY
+                                    && cartBottom < maxY
+                                    && vehicle.position().z() + halfHull > minZ
+                                    && vehicle.position().z() - halfHull < maxZ) {
+                                found.add(vehicle);
                             }
                         }
                         return found;
