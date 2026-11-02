@@ -770,6 +770,27 @@ public final class ItemEntityManager {
         return false;
     }
 
+    /**
+     * The falling block's item wound (the reference's ItemEntity.takeDamage
+     * lines 202-218 over the ANVIL/falling source — FallingBlockEntity
+     * lines 149-151): the plain health-5 walk with NO source refusal — the
+     * nether star's gate is {@code source.isExplosive()} ALONE (lines
+     * 207-209), and the anvil source is neither explosive nor invulnerable
+     * — vanilla's own census: a falling anvil DESTROYS a dropped nether
+     * star. The body dies at zero, removed whole, no drop.
+     *
+     * @return whether the body died.
+     */
+    public boolean hurtFromFallingBlock(ItemEntity entity, float damage) {
+        Objects.requireNonNull(entity, "entity");
+        entity.takeExplosionDamage(damage);
+        if (entity.health() <= 0) {
+            remove(entity, "falling_block");
+            return true;
+        }
+        return false;
+    }
+
     // ------------------------------------------------------------------
     // The persistence surface (Slice 93/E1 — the reference's own
     // writeCustomNbt/readCustomNbt rows over the engine's Z-family store:

@@ -108,9 +108,15 @@ class PlateActivationBoundsParityDiscoveryTest {
         placeStonePlateRig(x, y, z);
         AtomicReference<net.zaminmc.torch.server.entity.MobEntity> mob =
                 new AtomicReference<>();
-        server.ticker().submit(() -> mob.set(server.mobs().spawnAt(
-                net.zaminmc.torch.server.entity.MobType.ZOMBIE,
-                new Position(x + 1.1, y, z + 0.5), 0)));
+        server.ticker().submit(() -> {
+            net.zaminmc.torch.server.entity.MobEntity spawned = server.mobs().spawnAt(
+                    net.zaminmc.torch.server.entity.MobType.ZOMBIE,
+                    new Position(x + 1.1, y, z + 0.5), 0);
+            spawned.setNoAi(true); // the seat's own determinism pin — a
+            // wandering mind would walk the box back into the inset
+            // (the PE-3 wave's seat-discipline find)
+            mob.set(spawned);
+        });
         await(() -> mob.get() != null, "the zombie spawned at the edge");
         await(() -> RedstoneBlocks.platePowered(typeAt(x, y, z)),
                 "the zombie's edge-stand presses the plate (the type's own "
@@ -193,7 +199,9 @@ class PlateActivationBoundsParityDiscoveryTest {
     // helpers
     // ------------------------------------------------------------------
 
-    /** The stone plate on its stone mount + the re-radiation dust rig. */
+    /** The stone plate on its stone mount + the sky-blocking roof (the
+     *  undead burn consult reads sky access — a burning zombie's health
+     *  walk must never confound the seats). */
     private void placeStonePlateRig(int x, int y, int z) throws InterruptedException {
         server.ticker().submit(() -> {
             server.world().setBlock(new BlockPosition(x, y - 1, z), BuiltinBlocks.STONE);
@@ -202,6 +210,10 @@ class PlateActivationBoundsParityDiscoveryTest {
             server.world().setBlock(new BlockPosition(x + 1, y - 2, z), BuiltinBlocks.STONE);
             server.world().setBlock(new BlockPosition(x + 1, y - 1, z),
                     RedstoneBlocks.wireOfPower(0));
+            // The roof covers BOTH the plate's cell and the edge-stand
+            // band east of it (the zombie's own cell).
+            server.world().setBlock(new BlockPosition(x, y + 7, z), BuiltinBlocks.STONE);
+            server.world().setBlock(new BlockPosition(x + 1, y + 7, z), BuiltinBlocks.STONE);
         });
         await(() -> RedstoneBlocks.isPlate(typeAt(x, y, z)), "the stone plate placed");
     }

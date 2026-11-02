@@ -94,10 +94,18 @@ class FallingAnvilLandDimensionDiscoveryTest {
         EngineWorld nether = server.worldFor(-1);
         assertEquals(-1, nether.dimension(), "the nether world carries its dimension row");
 
-        // The nether platform at y=100 with three cells of air above; the
-        // anvil at y=103 falls to y=101 on the real gravity chain.
+        // The nether platform at y=100 with one cell of air above; the
+        // anvil at y=102 falls to y=101 on the real gravity chain. THE
+        // SEAT'S OWN FLAKE REPAIR (Wave PE-3's find): the ONE-block
+        // fall keeps i = ceil(1 - 1) = 0 — the callback's progression
+        // roll (the reference's own 0.05 + i * 0.05 band,
+        // FallingBlockEntity lines 153-158) never runs, so the landing
+        // is DETERMINISTIC — the two-block fall the seat was built on
+        // carried a 10% brokeAnvil branch that flaked the seat at
+        // random (observed twice in one session, then 9/9 green — the
+        // roll's own odds).
         int fy = 100;
-        BlockPosition anvilAt = new BlockPosition(64, fy + 3, 64);
+        BlockPosition anvilAt = new BlockPosition(64, fy + 2, 64);
         BlockPosition landingAt = new BlockPosition(64, fy + 1, 64);
         server.ticker().submit(() -> {
             for (int dx = -2; dx <= 2; dx++) {

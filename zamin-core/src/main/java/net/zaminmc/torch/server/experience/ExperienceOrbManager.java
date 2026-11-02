@@ -466,4 +466,23 @@ public final class ExperienceOrbManager implements ExperienceOrbEntity.Players {
         }
         return false;
     }
+
+    /**
+     * The falling block's orb wound (the reference's
+     * ExperienceOrbEntity.takeDamage lines 141-151 over the ANVIL/falling
+     * source — FallingBlockEntity lines 149-151): the same plain health-5
+     * walk, no source gate at all (the orb carries no refusal), the body
+     * dying at zero — removed whole, no payout.
+     *
+     * @return whether the body died.
+     */
+    public boolean hurtFromFallingBlock(ExperienceOrbEntity orb, float damage) {
+        Objects.requireNonNull(orb, "orb");
+        orb.takeExplosionDamage(damage);
+        if (orb.health() <= 0) {
+            remove(orb, "falling_block");
+            return true;
+        }
+        return false;
+    }
 }

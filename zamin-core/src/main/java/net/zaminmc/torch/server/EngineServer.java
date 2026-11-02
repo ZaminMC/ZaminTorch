@@ -1223,21 +1223,39 @@ public final class EngineServer implements Server, EngineBridge {
                     int damage = net.zaminmc.torch.server.block.AnvilBlocks
                             .damageOf(entity.blockType().identifier());
                     if (i > 0) {
-                        // Every body in the 0.98 box at the landing cell:
-                        // mobs, players (the playing non-spectators). The
-                        // reference's box is 0.98 centered; the position is
-                        // the box bottom, so the band is the cell's own.
+                        // Every body whose OWN box strictly intersects the
+                        // falling body's own 0.98 box (FallingBlockEntity
+                        // .takeFallDamage lines 145-151: `world.getEntities(
+                        // this, this.getShape())` — the reference's box
+                        // gather, Box.intersects strict on all six faces,
+                        // EXACTLY TOUCHING never intersecting; the falling
+                        // body's position IS the box bottom at the landing
+                        // cell, so the band is [cell+0.01, cell+0.99] x
+                        // [y, y+0.98]): mobs, players (the playing
+                        // non-spectators) — the ARMOR STANDS REFUSE the
+                        // source whole (ArmorStandEntity.takeDamage lines
+                        // 395-400: neither arrow nor player → false, the
+                        // anvil never breaks a stand) — and the ITEM and
+                        // ORB families' health-5 bodies (ItemEntity
+                        // .takeDamage 202-218 / ExperienceOrbEntity 141-151:
+                        // a 3-block fall's 6 wound destroys either — Wave
+                        // PE-3, the Phase E boundary arms: the pre-fix
+                        // center-in-band consult missed the edge-stand, and
+                        // the item/orb walks were absent whole).
                         double minX = landing.x() + 0.01, maxX = landing.x() + 1 - 0.01;
                         double minY = landing.y(), maxY = landing.y() + 0.98;
                         double minZ = landing.z() + 0.01, maxZ = landing.z() + 1 - 0.01;
+                        int wound = Math.min(i * 2, 40);
                         for (net.zaminmc.torch.server.entity.MobEntity mob : mobs.all()) {
                             if (mob.dimension() != entity.dimension()) {
                                 continue; // the body's own world's mobs alone (Wave FL4-F9)
                             }
                             net.zaminmc.torch.util.Position at = mob.position();
-                            if (at.x() >= minX && at.x() <= maxX && at.y() >= minY
-                                    && at.y() <= maxY && at.z() >= minZ && at.z() <= maxZ) {
-                                mob.hurt(Math.min(i * 2, 40));
+                            double halfWidth = mob.type().width / 2.0;
+                            if (at.x() + halfWidth > minX && at.x() - halfWidth < maxX
+                                    && at.y() + mob.type().height > minY && at.y() < maxY
+                                    && at.z() + halfWidth > minZ && at.z() - halfWidth < maxZ) {
+                                mob.hurt(wound);
                             }
                         }
                         for (PlayerSession body : players.all()) {
@@ -1249,9 +1267,12 @@ public final class EngineServer implements Server, EngineBridge {
                                 continue; // the body's own world's players alone (Wave FL4-F9)
                             }
                             net.zaminmc.torch.util.Position at = body.position();
-                            if (at.x() >= minX && at.x() <= maxX && at.y() >= minY
-                                    && at.y() <= maxY && at.z() >= minZ && at.z() <= maxZ) {
-                                body.hurt(Math.min(i * 2, 40));
+                            if (at.x() + PLAYER_HALF_WIDTH > minX
+                                    && at.x() - PLAYER_HALF_WIDTH < maxX
+                                    && at.y() + PLAYER_HEIGHT > minY && at.y() < maxY
+                                    && at.z() + PLAYER_HALF_WIDTH > minZ
+                                    && at.z() - PLAYER_HALF_WIDTH < maxZ) {
+                                body.hurt(wound);
                                 // The crush's damage-taken exhaustion
                                 // (reference PlayerEntity line 856): the
                                 // anvil source's constructor (DamageSource
@@ -1260,6 +1281,32 @@ public final class EngineServer implements Server, EngineBridge {
                                 // wrapper's own gate refuses the
                                 // invulnerable bodies.
                                 body.addExhaustion(0.3f);
+                            }
+                        }
+                        for (net.zaminmc.torch.server.entity.ItemEntity item : itemEntities.all()) {
+                            if (item.dimension() != entity.dimension()) {
+                                continue; // the body's own world's items alone
+                            }
+                            net.zaminmc.torch.util.Position at = item.position();
+                            if (at.x() + net.zaminmc.torch.server.entity.ItemEntity.HALF_WIDTH > minX
+                                    && at.x() - net.zaminmc.torch.server.entity.ItemEntity.HALF_WIDTH < maxX
+                                    && at.y() + net.zaminmc.torch.server.entity.ItemEntity.HALF_HEIGHT > minY
+                                    && at.y() - net.zaminmc.torch.server.entity.ItemEntity.HALF_HEIGHT < maxY
+                                    && at.z() + net.zaminmc.torch.server.entity.ItemEntity.HALF_WIDTH > minZ
+                                    && at.z() - net.zaminmc.torch.server.entity.ItemEntity.HALF_WIDTH < maxZ) {
+                                itemEntities.hurtFromFallingBlock(item, wound);
+                            }
+                        }
+                        for (net.zaminmc.torch.server.experience.ExperienceOrbEntity orb : experienceOrbs.all()) {
+                            if (orb.dimension() != entity.dimension()) {
+                                continue; // the body's own world's orbs alone
+                            }
+                            net.zaminmc.torch.util.Position at = orb.position();
+                            double half = orb.halfWidth();
+                            if (at.x() + half > minX && at.x() - half < maxX
+                                    && at.y() + half > minY && at.y() - half < maxY
+                                    && at.z() + half > minZ && at.z() - half < maxZ) {
+                                experienceOrbs.hurtFromFallingBlock(orb, wound);
                             }
                         }
                         // The progression roll (the reference's own band:
@@ -6296,6 +6343,18 @@ public final class EngineServer implements Server, EngineBridge {
     private void wireTripwireProbes(net.zaminmc.torch.server.redstone.TripwireSystem system,
                                     int dimension) {
         system.setOccupancyProbe(wire -> {
+            // The occupancy box (TripwireBlock's own shape, the attached
+            // form — setShape line 44: [0, 0.15625] over the cell) and the
+            // gather's law (TripwireBlock.updateOutputState lines 176-181:
+            // `world.getEntities(null, Box(...))` — the reference's box
+            // gather over EACH BODY'S OWN box, Box.intersects strict on
+            // all six faces, EXACTLY TOUCHING never intersecting; the
+            // walk's only filter is canAvoidTraps — the spectator players
+            // alone — so EVERY entity family in the cell triggers the
+            // wire: mobs, players, items, orbs, armor stands, vehicles,
+            // projectiles. Wave PE-3, the Phase E boundary arms: the
+            // pre-fix center-in-box consult missed the edge-stand, and
+            // the orb/stand/vehicle/projectile walks were absent).
             double minX = wire.x(), maxX = wire.x() + 1;
             double minY = wire.y(), maxY = wire.y() + 0.15625;
             double minZ = wire.z(), maxZ = wire.z() + 1;
@@ -6304,8 +6363,10 @@ public final class EngineServer implements Server, EngineBridge {
                     continue; // another world's body is absent from this walk
                 }
                 net.zaminmc.torch.util.Position at = mob.position();
-                if (at.x() >= minX && at.x() <= maxX && at.y() >= minY && at.y() <= maxY
-                        && at.z() >= minZ && at.z() <= maxZ) {
+                double halfWidth = mob.type().width / 2.0;
+                if (at.x() + halfWidth > minX && at.x() - halfWidth < maxX
+                        && at.y() + mob.type().height > minY && at.y() < maxY
+                        && at.z() + halfWidth > minZ && at.z() - halfWidth < maxZ) {
                     return true;
                 }
             }
@@ -6316,8 +6377,11 @@ public final class EngineServer implements Server, EngineBridge {
                     continue; // canAvoidTraps
                 }
                 net.zaminmc.torch.util.Position at = body.position();
-                if (at.x() >= minX && at.x() <= maxX && at.y() >= minY && at.y() <= maxY
-                        && at.z() >= minZ && at.z() <= maxZ) {
+                if (at.x() + PLAYER_HALF_WIDTH > minX
+                        && at.x() - PLAYER_HALF_WIDTH < maxX
+                        && at.y() + PLAYER_HEIGHT > minY && at.y() < maxY
+                        && at.z() + PLAYER_HALF_WIDTH > minZ
+                        && at.z() - PLAYER_HALF_WIDTH < maxZ) {
                     return true;
                 }
             }
@@ -6326,8 +6390,64 @@ public final class EngineServer implements Server, EngineBridge {
                     continue; // another world's body is absent from this walk
                 }
                 net.zaminmc.torch.util.Position at = item.position();
-                if (at.x() >= minX && at.x() <= maxX && at.y() >= minY && at.y() <= maxY
-                        && at.z() >= minZ && at.z() <= maxZ) {
+                if (at.x() + ItemEntity.HALF_WIDTH > minX
+                        && at.x() - ItemEntity.HALF_WIDTH < maxX
+                        && at.y() + ItemEntity.HALF_HEIGHT > minY
+                        && at.y() - ItemEntity.HALF_HEIGHT < maxY
+                        && at.z() + ItemEntity.HALF_WIDTH > minZ
+                        && at.z() - ItemEntity.HALF_WIDTH < maxZ) {
+                    return true;
+                }
+            }
+            for (net.zaminmc.torch.server.experience.ExperienceOrbEntity orb : experienceOrbs.all()) {
+                if (orb.dimension() != dimension) {
+                    continue; // another world's body is absent from this walk
+                }
+                net.zaminmc.torch.util.Position at = orb.position();
+                double half = orb.halfWidth();
+                if (at.x() + half > minX && at.x() - half < maxX
+                        && at.y() + half > minY && at.y() - half < maxY
+                        && at.z() + half > minZ && at.z() - half < maxZ) {
+                    return true;
+                }
+            }
+            for (net.zaminmc.torch.server.armorstand.ArmorStand stand : armorStands.allStands()) {
+                if (stand.dimension() != dimension) {
+                    continue; // another world's stand is absent from this walk
+                }
+                // The stand's own box (ArmorStandEntity's setSize(0.5F,
+                // 1.975F), feet-anchored).
+                if (stand.x() + 0.25 > minX && stand.x() - 0.25 < maxX
+                        && stand.y() + 1.975 > minY && stand.y() < maxY
+                        && stand.z() + 0.25 > minZ && stand.z() - 0.25 < maxZ) {
+                    return true;
+                }
+            }
+            if (vehicleManager != null) {
+                for (net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle : vehicleManager.all()) {
+                    if (vehicle.dimension() != dimension) {
+                        continue; // another world's cart is absent from this walk
+                    }
+                    // The cart's own hull (0.98 x 0.7, center-anchored —
+                    // the PE-1 anchored form).
+                    net.zaminmc.torch.util.Position at = vehicle.position();
+                    if (at.x() + 0.49 > minX && at.x() - 0.49 < maxX
+                            && at.y() + 0.35 > minY && at.y() - 0.35 < maxY
+                            && at.z() + 0.49 > minZ && at.z() - 0.49 < maxZ) {
+                        return true;
+                    }
+                }
+            }
+            for (net.zaminmc.torch.server.entity.projectile.ProjectileEntity projectile : projectileManager.all()) {
+                if (projectile.dimension() != dimension) {
+                    continue; // another world's body is absent from this walk
+                }
+                // The projectile's own 0.5 box (ArrowEntity's setSize(0.5F,
+                // 0.5F), center-anchored).
+                net.zaminmc.torch.util.Position at = projectile.position();
+                if (at.x() + 0.25 > minX && at.x() - 0.25 < maxX
+                        && at.y() + 0.25 > minY && at.y() - 0.25 < maxY
+                        && at.z() + 0.25 > minZ && at.z() - 0.25 < maxZ) {
                     return true;
                 }
             }
@@ -27245,7 +27365,12 @@ public final class EngineServer implements Server, EngineBridge {
         // size, feet-anchored), the PLAYER [pos ± 0.3] x [pos.y,
         // pos.y + 1.8] (PlayerEntity line 424's setSize(0.6F, 1.8F),
         // feet-anchored), the ITEM [pos ± 0.125] both axes
-        // (center-anchored, the 0.25 box).
+        // (center-anchored, the 0.25 box). Wave PE-3's census widening:
+        // the class filters themselves — the MOBS rule gathers
+        // LivingEntity.class (PressurePlateBlock.calculateOutputSignal
+        // lines 42-43: the mobs, the players AND the armor stands —
+        // ArmorStandEntity IS a living body), the EVERYTHING rule
+        // Entity.class (the items, the orbs, the carts beside them).
         system.setPlateProbe((plate, includeItems) -> {
             double minX = plate.x() + 0.125, maxX = plate.x() + 1 - 0.125;
             double minY = plate.y(), maxY = plate.y() + 0.25;
@@ -27276,6 +27401,19 @@ public final class EngineServer implements Server, EngineBridge {
                     return true;
                 }
             }
+            // The LIVING census's third family: the armor stand (the
+            // MOBS rule's LivingEntity.class — a stone plate fires
+            // under a stand, exactly vanilla).
+            for (net.zaminmc.torch.server.armorstand.ArmorStand stand : armorStands.allStands()) {
+                if (stand.dimension() != dimension) {
+                    continue; // another world's stand is absent from this walk
+                }
+                if (stand.x() + 0.25 > minX && stand.x() - 0.25 < maxX
+                        && stand.y() + 1.975 > minY && stand.y() < maxY
+                        && stand.z() + 0.25 > minZ && stand.z() - 0.25 < maxZ) {
+                    return true;
+                }
+            }
             if (includeItems) {
                 for (ItemEntity item : itemEntities.all()) {
                     if (item.dimension() != dimension) {
@@ -27291,6 +27429,20 @@ public final class EngineServer implements Server, EngineBridge {
                         return true;
                     }
                 }
+                // The EVERYTHING census's orb family (Entity.class — a
+                // wooden plate fires under an orb).
+                for (net.zaminmc.torch.server.experience.ExperienceOrbEntity orb : experienceOrbs.all()) {
+                    if (orb.dimension() != dimension) {
+                        continue; // another world's body is absent from this walk
+                    }
+                    net.zaminmc.torch.util.Position at = orb.position();
+                    double half = orb.halfWidth();
+                    if (at.x() + half > minX && at.x() - half < maxX
+                            && at.y() + half > minY && at.y() - half < maxY
+                            && at.z() + half > minZ && at.z() - half < maxZ) {
+                        return true;
+                    }
+                }
             }
             return false;
         });
@@ -27300,7 +27452,9 @@ public final class EngineServer implements Server, EngineBridge {
         // 0.125-inset box counts — mobs, players and dropped items
         // alike — the SAME strict box law as the occupancy probe (Wave
         // PE-2: the body's OWN box against the activation box, never a
-        // center test — an edge-standing body counts whole).
+        // center test — an edge-standing body counts whole; Wave PE-3's
+        // census widening: the armor stand and the orb families count —
+        // Entity.class gathers every family).
         system.setPlateCountProbe(plate -> {
             double minX = plate.x() + 0.125, maxX = plate.x() + 1 - 0.125;
             double minY = plate.y(), maxY = plate.y() + 0.25;
@@ -27343,6 +27497,31 @@ public final class EngineServer implements Server, EngineBridge {
                         && at.y() - ItemEntity.HALF_HEIGHT < maxY
                         && at.z() + ItemEntity.HALF_WIDTH > minZ
                         && at.z() - ItemEntity.HALF_WIDTH < maxZ) {
+                    count++;
+                }
+            }
+            // The Entity census's stand and orb families (Wave PE-3 —
+            // the count walks EVERY family, exactly the reference's
+            // getEntitiesOfType(Entity.class)).
+            for (net.zaminmc.torch.server.armorstand.ArmorStand stand : armorStands.allStands()) {
+                if (stand.dimension() != dimension) {
+                    continue; // another world's stand is absent from this walk
+                }
+                if (stand.x() + 0.25 > minX && stand.x() - 0.25 < maxX
+                        && stand.y() + 1.975 > minY && stand.y() < maxY
+                        && stand.z() + 0.25 > minZ && stand.z() - 0.25 < maxZ) {
+                    count++;
+                }
+            }
+            for (net.zaminmc.torch.server.experience.ExperienceOrbEntity orb : experienceOrbs.all()) {
+                if (orb.dimension() != dimension) {
+                    continue; // another world's body is absent from this walk
+                }
+                net.zaminmc.torch.util.Position at = orb.position();
+                double half = orb.halfWidth();
+                if (at.x() + half > minX && at.x() - half < maxX
+                        && at.y() + half > minY && at.y() - half < maxY
+                        && at.z() + half > minZ && at.z() - half < maxZ) {
                     count++;
                 }
             }
