@@ -7899,22 +7899,38 @@ both test-seat defects — see the census doc) and the mob-integration
 status read (the body-filtered form): runs 578/579 green, builds
 155/156 published, the four-day stall over.
 
-NEXT WORK (in order): the PR stack is EMPTY (0 open — the 23-wave
-whole landed 2026-11-02, the record below); the dimension-ownership
-ledger's remaining rows now own the board — the redstone world's
-remaining consults (the FL4-GAP2 ledger's own named tails: the
-per-family comparator wake, the redstone wire's cross-dimension
-consults) and the container/storage ownership's own tail rows (the
-anvil import's per-dimension host consults, the hopper cart scan's
-cross-family pulls); the vanilla-conformance census's Phase E
-boundary arms (the strict-form rider's ARM D/E class — the exact-
-touch constructs); the CI census watches run 603's loaded-runner
-members (the Hunger/Pearl and the NetherBed one-offs — both pass
-locally, the environmental class again; the anvil seat's 60-tick
-await joined the class under parallel boot load; the ScoreboardHealth
-publish the same class — isolated runs 3/0 green, the full-module
-load the flake's trigger, bisect-verified NOT a regression at every
-merge point).
+NEXT WORK (in order): the dimension-ownership ledger's remaining
+rows — the redstone world's remaining consults (the redstone wire's
+cross-dimension consults) and the container/storage ownership's own
+tail rows (the anvil import's per-dimension host consults, the hopper
+cart scan's cross-family pulls); the vanilla-conformance census's
+Phase E boundary arms (the strict-form rider's ARM D/E class — the
+exact-touch constructs); the CI census watches run 603's
+loaded-runner members (the Hunger/Pearl and the NetherBed one-offs —
+both pass locally, the environmental class again; the full-module
+one-offs rotate members each run — DonkeyChest/ChestLid/Scoreboard-
+Health, each green isolated — the loaded-runner class, not
+regressions).
+
+VT-033'S ADJACENT TAILS LANDED (2026-11-02, commit d96f4a2a — #146's
+review-note ledger retired): the WITHER FALL's kill row and the BEACON
+full-power row walk the ACTING world's players (the un-dimensioned
+awardPlayersInBox retired at both sites — WitherEntity.dropItems
+452-458 + BeaconBlockEntity.update 162-167, the per-family listener
+form carrying each dimension's own); the BANNER/BEACON/COMMAND-BLOCK
+tile fans the skull fan's own per-world form (#146's landed pattern —
+every dimension's store re-publishing through its OWN listener gated
+to that dimension's observers; the three were the overworld-only
+ungated shape). SEATS: AwardWalkDimensionDiscoveryTest 2/0 (the beam
+column's netherrack shaft cleared first — the seat's own
+vanilla-validity repair, updateLevels 95-106's opacity-15 kill); the
+stat/beacon/tile families 44/0. THE SCOREBOARDHEALTH FLAKE ROOT-
+CAUSED AND RETIRED (the test-seat class): the health walk is CHANGE-
+GATED (ServerPlayerEntity.tick 312-318, the completeHealth law 1:1)
+and the player's first tick may precede the objective's creation —
+no publish ever landing (vanilla's own answer for a mid-game
+objective); the seat resets the mark for the deterministic first
+publish, 4/4 green solo.
 
 THE PR WAVE LANDED WHOLE (2026-11-02, the stacked-PR session): all
 23 open PRs reviewed on the three-pass discipline, 19 MERGED with
