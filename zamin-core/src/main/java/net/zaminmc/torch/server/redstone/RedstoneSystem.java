@@ -180,6 +180,23 @@ public final class RedstoneSystem implements WorldChangeListener {
 
     /** The plates' re-compute debounce (AbstractPressurePlateBlock.getTickRate). */
     static final int PLATE_TICK_RATE = 20;
+    /**
+     * The weighted pair's own tick rate (WeightedPressurePlateBlock
+     * .getTickRate lines 71-73: 10 — the reference's own answer, HALF
+     * the boolean plate's 20; the re-check rides it).
+     */
+    static final int WEIGHTED_PLATE_TICK_RATE = 10;
+
+    /**
+     * The plate family's tick rate for the given state (the weighted
+     * pair's own 10 over the boolean plates' 20 — the reference's two
+     * getTickRate answers).
+     */
+    private static int plateTickRate(BlockType type) {
+        return net.zaminmc.torch.server.redstone.WeightedPlateBlocks
+                .isWeightedPlate(type.identifier())
+                ? WEIGHTED_PLATE_TICK_RATE : PLATE_TICK_RATE;
+    }
     /** The detector rail's re-check (DetectorRailBlock.getTickRate: 20). */
     static final int DETECTOR_RAIL_TICK_RATE = 20;
     /** The stone button's release (ButtonBlock.getTickRate: 20 stone / 30 wood). */
@@ -1473,7 +1490,7 @@ public final class RedstoneSystem implements WorldChangeListener {
                         .powerOf(type.identifier()) > 0) {
                     updateNeighbors(pos);
                     updateNeighbors(pos.offset(0, -1, 0));
-                    scheduleTick(pos, FAMILY_PLATE, PLATE_TICK_RATE, 0);
+                    scheduleTick(pos, FAMILY_PLATE, WEIGHTED_PLATE_TICK_RATE, 0);
                 }
                 return;
             }
@@ -1536,7 +1553,7 @@ public final class RedstoneSystem implements WorldChangeListener {
                 }
                 updateNeighbors(plate);
                 updateNeighbors(plate.offset(0, -1, 0));
-                scheduleTick(plate, FAMILY_PLATE, PLATE_TICK_RATE, 0);
+                scheduleTick(plate, FAMILY_PLATE, plateTickRate(type), 0);
             }
         }
         // The detector rail's cart scan (Slice 38 — DetectorRailBlock
@@ -1597,7 +1614,9 @@ public final class RedstoneSystem implements WorldChangeListener {
                 comparatorTick(entry.position(), type);
             } else if (RedstoneBlocks.isButton(type)) {
                 buttonTick(entry.position(), type);
-            } else if (RedstoneBlocks.isPlate(type)) {
+            } else if (RedstoneBlocks.isPlate(type)
+                    || net.zaminmc.torch.server.redstone.WeightedPlateBlocks
+                            .isWeightedPlate(type.identifier())) {
                 plateTick(entry.position(), type);
             } else if (net.zaminmc.torch.server.block.RailBlocks.familyOf(type) != null
                     && net.zaminmc.torch.server.block.RailBlocks.familyOf(type)
@@ -2187,7 +2206,7 @@ public final class RedstoneSystem implements WorldChangeListener {
                     updateNeighbors(pos.offset(0, -1, 0));
                 }
             }
-            scheduleTick(pos, FAMILY_PLATE, PLATE_TICK_RATE, 0); // re-arm
+            scheduleTick(pos, FAMILY_PLATE, plateTickRate(type), 0); // re-arm
             return;
         }
         if (net.zaminmc.torch.server.redstone.WeightedPlateBlocks.isWeightedPlate(type.identifier())) {
@@ -2465,6 +2484,13 @@ public final class RedstoneSystem implements WorldChangeListener {
             return FAMILY_BUTTON;
         }
         if (RedstoneBlocks.isPlate(type)) {
+            return FAMILY_PLATE;
+        }
+        if (net.zaminmc.torch.server.redstone.WeightedPlateBlocks
+                .isWeightedPlate(type.identifier())) {
+            // The weighted pair rides the SAME scheduled-tick family
+            // (AbstractPressurePlateBlock's own tick/updateOutputState —
+            // the stale-gate must recognize the held plate's re-check).
             return FAMILY_PLATE;
         }
         if (net.zaminmc.torch.server.block.RailBlocks.familyOf(type) != null

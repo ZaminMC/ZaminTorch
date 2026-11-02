@@ -9165,6 +9165,15 @@ public final class EngineServer implements Server, EngineBridge {
     static final double SHARD_SPEED = 1.5;
     /** The potion's throw power (PotionEntity.getPower line 46-48: 0.5). */
     private static final double POTION_THROW_POWER = 0.5;
+
+    /**
+     * The player's own body box (PlayerEntity line 424's
+     * {@code setSize(0.6F, 1.8F)} — the reference's own size, the
+     * plate family's occupancy consult and every body-box walk reading
+     * it; Wave PE-2).
+     */
+    private static final double PLAYER_HALF_WIDTH = 0.3;
+    private static final double PLAYER_HEIGHT = 1.8;
     /** The Flame bow's arrow burn (the reference's setOnFireFor(100) = 100 s). */
     static final int FLAME_ARROW_TICKS = 2_000;
     /** The burning arrow's hit ignite (the reference's setOnFireFor(5) = 5 s). */
@@ -27223,11 +27232,20 @@ public final class EngineServer implements Server, EngineBridge {
         system.setDoorSoundCallback((at, opening) -> fxManager.sound(
                 new Position(at.x() + 0.5, at.y() + 0.5, at.z() + 0.5),
                 opening ? "random.door_open" : "random.door_close", 0.8f, 1.0f, dimension));
-        // The plate's occupancy probe (the engine's bodies): any mob
-        // or playing body inside the 0.125-inset, 0.25-tall box, the
-        // wooden plates adding the item entities (the reference's
-        // MOBS vs EVERYTHING activation rules) — the walks carry the
-        // dimension gate (the per-world entity-list law).
+        // The plate's occupancy probe (AbstractPressurePlateBlock
+        // .getActivationBounds lines 137-140: the 0.125-inset, 0.25-tall
+        // box; WorldChunk.getEntities lines 739-760:
+        // entity.getShape().intersects(bounds) — each body's OWN box
+        // against the activation box, STRICT both sides; Wave PE-2, the
+        // Phase E boundary arms: the pre-fix center-in-band consult
+        // missed the edge-stand — a body whose box overlaps the plate by
+        // a hair while its center sits outside never fired, vanilla's
+        // own edge-stand behavior; the body boxes: the MOB
+        // [pos ± width/2] x [pos.y, pos.y + height] (the type's own
+        // size, feet-anchored), the PLAYER [pos ± 0.3] x [pos.y,
+        // pos.y + 1.8] (PlayerEntity line 424's setSize(0.6F, 1.8F),
+        // feet-anchored), the ITEM [pos ± 0.125] both axes
+        // (center-anchored, the 0.25 box).
         system.setPlateProbe((plate, includeItems) -> {
             double minX = plate.x() + 0.125, maxX = plate.x() + 1 - 0.125;
             double minY = plate.y(), maxY = plate.y() + 0.25;
@@ -27237,8 +27255,10 @@ public final class EngineServer implements Server, EngineBridge {
                     continue; // another world's body is absent from this walk
                 }
                 net.zaminmc.torch.util.Position at = mob.position();
-                if (at.x() >= minX && at.x() <= maxX && at.y() >= minY && at.y() <= maxY
-                        && at.z() >= minZ && at.z() <= maxZ) {
+                double halfWidth = mob.type().width / 2.0;
+                if (at.x() + halfWidth > minX && at.x() - halfWidth < maxX
+                        && at.y() + mob.type().height > minY && at.y() < maxY
+                        && at.z() + halfWidth > minZ && at.z() - halfWidth < maxZ) {
                     return true;
                 }
             }
@@ -27249,8 +27269,10 @@ public final class EngineServer implements Server, EngineBridge {
                     continue; // canAvoidTraps
                 }
                 net.zaminmc.torch.util.Position at = body.position();
-                if (at.x() >= minX && at.x() <= maxX && at.y() >= minY && at.y() <= maxY
-                        && at.z() >= minZ && at.z() <= maxZ) {
+                if (at.x() + PLAYER_HALF_WIDTH > minX && at.x() - PLAYER_HALF_WIDTH < maxX
+                        && at.y() + PLAYER_HEIGHT > minY && at.y() < maxY
+                        && at.z() + PLAYER_HALF_WIDTH > minZ
+                        && at.z() - PLAYER_HALF_WIDTH < maxZ) {
                     return true;
                 }
             }
@@ -27260,8 +27282,12 @@ public final class EngineServer implements Server, EngineBridge {
                         continue; // another world's body is absent from this walk
                     }
                     net.zaminmc.torch.util.Position at = item.position();
-                    if (at.x() >= minX && at.x() <= maxX && at.y() >= minY
-                            && at.y() <= maxY && at.z() >= minZ && at.z() <= maxZ) {
+                    if (at.x() + ItemEntity.HALF_WIDTH > minX
+                            && at.x() - ItemEntity.HALF_WIDTH < maxX
+                            && at.y() + ItemEntity.HALF_HEIGHT > minY
+                            && at.y() - ItemEntity.HALF_HEIGHT < maxY
+                            && at.z() + ItemEntity.HALF_WIDTH > minZ
+                            && at.z() - ItemEntity.HALF_WIDTH < maxZ) {
                         return true;
                     }
                 }
@@ -27272,7 +27298,9 @@ public final class EngineServer implements Server, EngineBridge {
         // WeightedPressurePlateBlock.calculateOutputSignal's
         // getEntitiesOfType(Entity.class): EVERY entity in the
         // 0.125-inset box counts — mobs, players and dropped items
-        // alike), the walks carrying the same dimension gate.
+        // alike — the SAME strict box law as the occupancy probe (Wave
+        // PE-2: the body's OWN box against the activation box, never a
+        // center test — an edge-standing body counts whole).
         system.setPlateCountProbe(plate -> {
             double minX = plate.x() + 0.125, maxX = plate.x() + 1 - 0.125;
             double minY = plate.y(), maxY = plate.y() + 0.25;
@@ -27283,8 +27311,10 @@ public final class EngineServer implements Server, EngineBridge {
                     continue;
                 }
                 net.zaminmc.torch.util.Position at = mob.position();
-                if (at.x() >= minX && at.x() <= maxX && at.y() >= minY && at.y() <= maxY
-                        && at.z() >= minZ && at.z() <= maxZ) {
+                double halfWidth = mob.type().width / 2.0;
+                if (at.x() + halfWidth > minX && at.x() - halfWidth < maxX
+                        && at.y() + mob.type().height > minY && at.y() < maxY
+                        && at.z() + halfWidth > minZ && at.z() - halfWidth < maxZ) {
                     count++;
                 }
             }
@@ -27295,8 +27325,10 @@ public final class EngineServer implements Server, EngineBridge {
                     continue; // canAvoidTraps
                 }
                 net.zaminmc.torch.util.Position at = body.position();
-                if (at.x() >= minX && at.x() <= maxX && at.y() >= minY && at.y() <= maxY
-                        && at.z() >= minZ && at.z() <= maxZ) {
+                if (at.x() + PLAYER_HALF_WIDTH > minX && at.x() - PLAYER_HALF_WIDTH < maxX
+                        && at.y() + PLAYER_HEIGHT > minY && at.y() < maxY
+                        && at.z() + PLAYER_HALF_WIDTH > minZ
+                        && at.z() - PLAYER_HALF_WIDTH < maxZ) {
                     count++;
                 }
             }
@@ -27305,8 +27337,12 @@ public final class EngineServer implements Server, EngineBridge {
                     continue;
                 }
                 net.zaminmc.torch.util.Position at = item.position();
-                if (at.x() >= minX && at.x() <= maxX && at.y() >= minY
-                        && at.y() <= maxY && at.z() >= minZ && at.z() <= maxZ) {
+                if (at.x() + ItemEntity.HALF_WIDTH > minX
+                        && at.x() - ItemEntity.HALF_WIDTH < maxX
+                        && at.y() + ItemEntity.HALF_HEIGHT > minY
+                        && at.y() - ItemEntity.HALF_HEIGHT < maxY
+                        && at.z() + ItemEntity.HALF_WIDTH > minZ
+                        && at.z() - ItemEntity.HALF_WIDTH < maxZ) {
                     count++;
                 }
             }
