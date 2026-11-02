@@ -7899,21 +7899,70 @@ both test-seat defects — see the census doc) and the mob-integration
 status read (the body-filtered form): runs 578/579 green, builds
 155/156 published, the four-day stall over.
 
-NEXT WORK (in order): the PR wave's remainder — 23 open: the arrow
-cluster (#117/#120/#122/#123/#128/#132/#140 — seven convergent lanes
-over ProjectileManager, the TNT-preemption pair #123/#140 the likely
-carrier pair), the dimension-stamp cluster (#125/#130 stacked, #133,
-#142, #146), the piston cluster (#126/#129/#131 stacked over
-PistonSystem), and the fresh wave #150-#157 — each on the three-pass
-discipline (the SOURCE pass against the reference first; the towers'
-lesson: verify GitHub's mergeable_state against a local merge-tree,
-the stale "clean" hid 43 conflict markers); the dimension-ownership
-ledger's remaining rows (the redstone world's remaining consults, the
-container/storage ownership) name their own acts; the CI census
-watches run 603's loaded-runner members (the Hunger/Pearl and the
-NetherBed one-offs — both pass locally, the environmental class
-again; the anvil seat's 60-tick await joined the class under parallel
-boot load).
+NEXT WORK (in order): the PR stack is EMPTY (0 open — the 23-wave
+whole landed 2026-11-02, the record below); the dimension-ownership
+ledger's remaining rows now own the board — the redstone world's
+remaining consults (the FL4-GAP2 ledger's own named tails: the
+per-family comparator wake, the redstone wire's cross-dimension
+consults) and the container/storage ownership's own tail rows (the
+anvil import's per-dimension host consults, the hopper cart scan's
+cross-family pulls); the vanilla-conformance census's Phase E
+boundary arms (the strict-form rider's ARM D/E class — the exact-
+touch constructs); the CI census watches run 603's loaded-runner
+members (the Hunger/Pearl and the NetherBed one-offs — both pass
+locally, the environmental class again; the anvil seat's 60-tick
+await joined the class under parallel boot load; the ScoreboardHealth
+publish the same class — isolated runs 3/0 green, the full-module
+load the flake's trigger, bisect-verified NOT a regression at every
+merge point).
+
+THE PR WAVE LANDED WHOLE (2026-11-02, the stacked-PR session): all
+23 open PRs reviewed on the three-pass discipline, 19 MERGED with
+real merge commits, 4 CLOSED as superseded with the salvage carried —
+the arrow family: #140 (VT-030 the stick precedes the TNT consult,
+ArrowEntity 304-before-308), #120 (VT-015 the un-stick law — the
+tracked cell + identifier, the per-axis random*0.2 damping, the
+anvil import's xTile/yTile/zTile/inTile rows), #123 (VT-019 the
+stuck arrow's inGround gate — the flight branch alone, line 382),
+#128 (VT-023 the feet-law band [y, y+0.5]), #132 (VT-024 the pickup
+envelope's box intersection — 0.3+1.0+0.25 horizontal, the grown
+vertical band), #117/#122 CLOSED (their convergent pair composed into
+the VT-014 carrier, commit 84140361: the reference's rayTrace at the
+engine's granularity — the boundary-crossing cell walk with the
+per-cell COLLISION-BOX entry test, the rest face-0.05, the
+face-relative stuck velocity, the box's own cell the tracked cell);
+the dimension-stamp family: #125 (VT-012 the fourteen live spawn
+sites stamp the birth dimension BEFORE the fan, Entity line 166's
+construction law — spawnAt's dimension-aware arm + the VIII14 dice
+context), #130 (VT-013 the three post-fan precedents — the block
+spawner, the End dragon, the chicken egg), #133 (VT-026 the nether
+border's /8 center projection, NetherDimension.createWorldBorder
+75-86, the borderFor router at the containment lanes), #142 (VT-029
+the sixteen no-dimension FX residual sites — the note play, the
+trapdoor/door/gate creaks, the bone-meal bursts, the flint ignite,
+the hoe till, the cocoa/double-plant places, the ender-eye burst,
+the fire fizz), #146 (VT-033 the wither-summon family's five
+residues — the poof's stamp, the birth's fan timing, the
+achievement's world, the break drop's world, the per-dimension tile
+fan); the piston family: #126 (VT-016 the full material census —
+426 divergent ids corrected, the DESTROY/BLOCK membership over
+Material.java 10-43 + the block-level overrides), #131 (VT-025 the
+toBreak drop walk), #129 (VT-022 the block-entity gate widened to
+the full BlockEntityProvider census); the fresh wave: #153 (W-POT
+the pot's floor consult at both sites), #154 (W-BED the BedItem
+gates — the UP-face law + both-halves solid top), #156 (VT-037 the
+orb's two-constructor box law), #151 (VT-036 the tripwire + TNT
+signal arm's per-dimension machinery — the chestsFor form + the
+redstoneFor router), #152 (VT-035 the anvil/enchanting windows' own
+dimension — the 4-arg open + the viewer ticks + the damage walk),
+#155 (VT-035 the nether bed seat's whole-pair probe — test-only),
+#150/#157 CLOSED (their stale bases re-implemented the landed
+F-SP2/SP3/SP4 family; #150's unique F-SP5 hook-wall law salvaged —
+the Block.isSolid consult at both wall sites, commit 964a681a;
+#157's 669-line seat carried as the independent verification). THE
+BENCH REPAIRS: the six new piston seats' lever-on-piston-base mounts
+moved to the vanilla-valid stone-above form (the F-SP1 correction's
+own class, PistonBaseBlock.isCube() false, reference line 223).
 
 F-SP2/SP3/SP4 + VT-020 LANDED (2026-11-01, the floor-consult family
 session): the LAST floor-mounted family whole — every family's floor
