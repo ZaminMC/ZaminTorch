@@ -1065,7 +1065,9 @@ public final class MobManager {
 
     /**
      * Spawns one mob of the kind at the exact position (validated by callers).
-     * Tick-thread context.
+     * Tick-thread context. The dimensionless arm keeps today's stamp — the
+     * MobEntity constructor's overworld 0 — so every existing caller's
+     * behavior is unchanged.
      *
      * <p>VT-012 — the dimensionless arm INHERITS the armed spawn context
      * ({@code spawnDimension}, the VIII14 field): the nether natural cycle
@@ -1092,8 +1094,10 @@ public final class MobManager {
      * reads the stamp at the event — therefore stamps the body BEFORE
      * the listener fan, not after the call returns). The dimension also
      * rides the VIII14 dice context (the zombie door-break / equipment /
-     * leader rolls consult the ACTING dimension's local difficulty).
-     * Tick-thread context.
+     * leader rolls consult the ACTING dimension's local difficulty), and
+     * the wither's birth rides the same member (VT-033 — SkullBlock
+     * .trySpawn line 185's {@code new WitherEntity(world)}, the boss
+     * born in the world the pattern was built in). Tick-thread context.
      *
      * @return the spawned mob, or null when the public
      *         {@link net.zaminmc.torch.event.entity.MobSpawnEvent} cancelled
@@ -1129,6 +1133,11 @@ public final class MobManager {
     /** The construction + fan (the dimension already armed). */
     private MobEntity spawnAtCore(MobType type, Position position, int dimension) {
         MobEntity mob = new MobEntity(nextEntityId, type, position, random, world);
+        // VT-033 — the birth stamp (Entity's constructor line 166: the
+        // body is born in its acting world; the stamp lands BEFORE the
+        // spawn fan so the wire's dimension gate reads the born dimension
+        // at the event, never the Java-default 0).
+        mob.setDimension(dimension);
         if (type == MobType.ENDER_DRAGON) {
             // The wire's part-id convention (ClientPlayNetworkHandler lines
             // 701-708): the client re-aligns its locally-built parts to

@@ -1115,17 +1115,30 @@ public final class V18ProtocolServer implements ProtocolAdapter {
         // The skull tiles (Slice 60 — the same PlayerChunkMap law): every
         // placement re-publishes the 0x35 tile (the TYPE + rotation the
         // client's renderer reads); the removal arm needs no packet (the
-        // block's own update carries the vanish).
+        // block's own update carries the vanish). VT-033 — the per-world
+        // PlayerChunkMap law over the FL4-GAP2 Slice C families: every
+        // DIMENSION's store re-publishes through its OWN listener, gated to
+        // that dimension's observers (a nether placement's tile never
+        // reaches an overworld client, exactly as the reference's per-world
+        // chunk map never carries another world's block entities).
         if (server.skulls() != null) {
-            server.skulls().addListener(new net.zaminmc.torch.server.skull.SkullManager.Listener() {
-                @Override
-                public void onSkullTileChanged(net.zaminmc.torch.block.BlockPosition position,
-                        net.zaminmc.torch.server.skull.SkullManager.SkullTile tile) {
-                    for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
-                        connection.sendSkullTile(tile);
+            for (int skullDimension : new int[]{0, -1, 1}) {
+                net.zaminmc.torch.server.skull.SkullManager family =
+                        server.skullsFor(skullDimension);
+                family.addListener(new net.zaminmc.torch.server.skull.SkullManager.Listener() {
+                    @Override
+                    public void onSkullTileChanged(
+                            net.zaminmc.torch.block.BlockPosition position,
+                            net.zaminmc.torch.server.skull.SkullManager.SkullTile tile) {
+                        for (V18Connection connection
+                                : connections.keySet().toArray(new V18Connection[0])) {
+                            if (connection.dimensionOfSession() == skullDimension) {
+                                connection.sendSkullTile(tile);
+                            }
+                        }
                     }
-                }
-            });
+                });
+            }
         }
         // The banner tiles (the same PlayerChunkMap law): every placement
         // re-publishes the 0x35 action-6 tile (the Base + Patterns rows
