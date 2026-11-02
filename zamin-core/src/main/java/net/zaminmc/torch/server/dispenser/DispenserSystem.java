@@ -693,7 +693,14 @@ public final class DispenserSystem implements WorldChangeListener {
         double z = pos.z() + 0.5 + OFFSETS[facing][2];
         MobType kind = SpawnEggs.typeOf(stack.damage());
         if (kind != null) {
-            MobEntity spawned = engine.mobs().spawnFromEgg(kind, new Position(x, y, z));
+            // The body lives in the system's own bound world
+            // (SpawnEggItem.spawnEntity's {@code world} parameter —
+            // the dispenser's world; the TF-9 convention, ledged: the
+            // engine's dispensers live in the overworld, so the stamp
+            // rides the bound world's own row — never a silent wrong
+            // stamp when the family grows its own dimensioned reads).
+            MobEntity spawned = engine.mobs().spawnFromEgg(kind,
+                    new Position(x, y, z), world.dimension());
             if (spawned != null && stack.displayName() != null) {
                 spawned.setCustomName(stack.displayName()); // lines 134-137
             }
@@ -941,7 +948,11 @@ public final class DispenserSystem implements WorldChangeListener {
         }
         world.setBlock(target, SkullBlocks.forState(1)); // line 352: the floor mount
         engine.skulls().place(target, type, skullRotationOf(facing), null);
-        engine.skulls().trySummonWither(target); // line 375: the summon consult
+        // The wither's dimension is the system's own bound world (the
+        // TF-9 convention, the egg arm's own shape — the dispenser's
+        // world is the summon's world; the store's host stamps the birth
+        // dimension BEFORE the spawn fan, VT-012's law).
+        engine.skulls().trySummonWither(target, world.dimension()); // line 375: the summon consult
         fx.sound(centerOf(pos), "random.click", 1.0f, 1.0f, world.dimension()); // the success click
         return consumeOne(stack);
     }

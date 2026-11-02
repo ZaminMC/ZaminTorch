@@ -38,18 +38,20 @@ class VariantStateApiAcceptanceTest {
 
     /** The recording spawn host (the spawner cart's engine surface). */
     private static final class RecordingHost implements SpawnerMinecartEntity.SpawnHost {
-        @Override public boolean playerNearby(double x, double y, double z, double range) {
+        @Override public boolean playerNearby(int dimension, double x, double y, double z,
+                double range) {
             return true;
         }
 
         @Override public int nearbyOfKind(
-                net.zaminmc.torch.server.entity.MobType type, int cellX, int cellY,
-                int cellZ, int range) {
+                int dimension, net.zaminmc.torch.server.entity.MobType type, int cellX,
+                int cellY, int cellZ, int range) {
             return 0;
         }
 
         @Override public boolean spawnAt(
-                net.zaminmc.torch.server.entity.MobType type, double x, double y, double z) {
+                int dimension, net.zaminmc.torch.server.entity.MobType type,
+                double x, double y, double z) {
             return false;
         }
     }

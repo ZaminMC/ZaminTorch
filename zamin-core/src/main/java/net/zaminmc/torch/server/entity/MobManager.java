@@ -1067,11 +1067,39 @@ public final class MobManager {
      * Spawns one mob of the kind at the exact position (validated by callers).
      * Tick-thread context.
      *
+     * <p>VT-012 — the dimensionless arm INHERITS the armed spawn context
+     * ({@code spawnDimension}, the VIII14 field): the nether natural cycle
+     * and the zombie reinforcement both arm the field around their calls
+     * (their dice consult the acting dimension), and their bodies are born
+     * in that same armed dimension — the reference's construction law
+     * (Entity line 166) stamps at birth, so the armed context is the birth
+     * dimension. Unarmed callers keep the field's 0 (today's behavior).</p>
+     *
      * @return the spawned mob, or null when the public
      *         {@link net.zaminmc.torch.event.entity.MobSpawnEvent} cancelled
      *         the spawn (no id consumed, no listeners notified)
      */
     public MobEntity spawnAt(MobType type, Position position) {
+        return spawnAt(type, position, spawnDimension);
+    }
+
+    /**
+     * Spawns one mob of the kind at the exact position IN THE GIVEN
+     * DIMENSION (VT-012 — the reference's construction law: Entity's
+     * constructor line 166 stamps {@code this.dimension =
+     * world.dimension.getId()} at BIRTH, before any spawn event can
+     * fire; the engine's spawn fan — the wire's own sendMobSpawn gate
+     * reads the stamp at the event — therefore stamps the body BEFORE
+     * the listener fan, not after the call returns). The dimension also
+     * rides the VIII14 dice context (the zombie door-break / equipment /
+     * leader rolls consult the ACTING dimension's local difficulty).
+     * Tick-thread context.
+     *
+     * @return the spawned mob, or null when the public
+     *         {@link net.zaminmc.torch.event.entity.MobSpawnEvent} cancelled
+     *         the spawn (no id consumed, no listeners notified)
+     */
+    public MobEntity spawnAt(MobType type, Position position, int dimension) {
         Objects.requireNonNull(type, "type");
         Objects.requireNonNull(position, "position");
         var bus = eventBus;
@@ -1083,6 +1111,23 @@ public final class MobManager {
                 return null;
             }
         }
+        // VIII14 + VT-012 — the spawn's dimension context: the dice below
+        // consult the ACTING dimension's local difficulty (the nether egg's
+        // zombie rolls at the nether's own reads, the spawnNaturalNether
+        // precedent's own field law).
+        int priorDimension = spawnDimension;
+        spawnDimension = dimension;
+        MobEntity mob;
+        try {
+            mob = spawnAtCore(type, position, dimension);
+        } finally {
+            spawnDimension = priorDimension;
+        }
+        return mob;
+    }
+
+    /** The construction + fan (the dimension already armed). */
+    private MobEntity spawnAtCore(MobType type, Position position, int dimension) {
         MobEntity mob = new MobEntity(nextEntityId, type, position, random, world);
         if (type == MobType.ENDER_DRAGON) {
             // The wire's part-id convention (ClientPlayNetworkHandler lines
@@ -1093,6 +1138,11 @@ public final class MobManager {
         } else {
             nextEntityId++;
         }
+        // VT-012 — the birth stamp (Entity's constructor line 166: the
+        // body is born in its acting world; the stamp lands BEFORE the
+        // spawn fan so the wire's own dimension gate reads the born
+        // dimension at the event, never the Java-default 0).
+        mob.setDimension(dimension);
         mob.setBreedFinder(this::scanForMate);
         mob.setRemovalHook(() -> remove(mob, "api")); // the public despawn path
         // The public equipment write path (the VIII4 exposure): fresh
@@ -1246,7 +1296,17 @@ public final class MobManager {
      * @return the spawned mob, or null when the spawn event cancelled it
      */
     public MobEntity spawnFromEgg(MobType type, Position position) {
-        MobEntity spawned = spawnAt(type, position);
+        return spawnFromEgg(type, position, 0);
+    }
+
+    /**
+     * The egg's spawn in the acting dimension (VT-012 —
+     * SpawnEggItem.spawnEntity's own {@code world} parameter: the body
+     * is born in the world the egg was used in; the stamp lands before
+     * the spawn fan through the dimension-aware {@link #spawnAt}).
+     */
+    public MobEntity spawnFromEgg(MobType type, Position position, int dimension) {
+        MobEntity spawned = spawnAt(type, position, dimension);
         if (spawned != null) {
             // MathHelper.wrapDegrees(world.random.nextFloat() * 360.0F):
             // the random facing [0, 360) wrapped to [-180, 180).
@@ -1284,7 +1344,18 @@ public final class MobManager {
      * surface (the command path). Tick-thread context.
      */
     public List<MobEntity> spawnGroup(MobType type, Position center, int count) {
-        return spawnGroupAt(type, center, count, 0, 3);
+        return spawnGroupAt(type, center, count, 0, 3, 0);
+    }
+
+    /**
+     * The group spawn in the acting dimension (VT-012 — the command
+     * source's {@code getCommandSourceWorld()}: every member is born in
+     * the sender's world; the stamp lands before each member's own spawn
+     * fan through the dimension-aware {@link #spawnAt}).
+     */
+    public List<MobEntity> spawnGroup(MobType type, Position center, int count,
+            int dimension) {
+        return spawnGroupAt(type, center, count, 0, 3, dimension);
     }
 
     /**
@@ -1296,6 +1367,16 @@ public final class MobManager {
      */
     public List<MobEntity> spawnGroupAt(MobType type, Position center, int count,
                                         int minOffset, int maxOffset) {
+        return spawnGroupAt(type, center, count, minOffset, maxOffset, 0);
+    }
+
+    /**
+     * The group spawn's dimension-aware arm (VT-012 — every member born
+     * in the acting dimension through the dimension-aware
+     * {@link #spawnAt(MobType, Position, int)}).
+     */
+    public List<MobEntity> spawnGroupAt(MobType type, Position center, int count,
+                                        int minOffset, int maxOffset, int dimension) {
         List<MobEntity> spawned = new ArrayList<>();
         for (int i = 0; i < count; i++) {
             // Ring spawn: a random bearing at a distance inside the band —
@@ -1308,7 +1389,8 @@ public final class MobManager {
             if (y < 0) {
                 continue; // no surface in that column (unloaded chunk etc.)
             }
-            MobEntity mob = spawnAt(type, new Position(x + 0.5, y + 1.0, z + 0.5));
+            MobEntity mob = spawnAt(type, new Position(x + 0.5, y + 1.0, z + 0.5),
+                    dimension);
             if (mob != null) {
                 spawned.add(mob); // a cancelled member simply never joins the pack
             }
@@ -3075,8 +3157,13 @@ public final class MobManager {
         float yaw = victim.bodyYawLive();
         boolean baby = victim.isBaby();
         remove(victim, "infected");
-        MobEntity zombie = spawnAt(MobType.ZOMBIE, at);
+        MobEntity zombie = spawnAt(MobType.ZOMBIE, at, victim.dimension());
         if (zombie != null) {
+            // The birth dimension rides the spawn (ZombieEntity.onKill
+            // line 360's {@code new ZombieEntity(this.world)} — the
+            // attacking zombie's own world; the staged kill that arms
+            // this walk is a same-dimension melee, so the victim's row is
+            // the zombie's row).
             zombie.setZombieVillager(true);
             zombie.setBodyYaw(yaw);
             if (baby) {
@@ -3105,8 +3192,11 @@ public final class MobManager {
         float yaw = zombie.bodyYawLive();
         boolean baby = zombie.isBaby();
         remove(zombie, "converted");
-        MobEntity villager = spawnAt(MobType.VILLAGER, at);
+        MobEntity villager = spawnAt(MobType.VILLAGER, at, zombie.dimension());
         if (villager != null) {
+            // The birth dimension rides the spawn
+            // (ZombieEntity.convertToVillager line 520's
+            // {@code new VillagerEntity(this.world)}).
             villager.setBodyYaw(yaw);
             if (baby) {
                 villager.setBreedingAge(-24_000);
@@ -4146,10 +4236,15 @@ public final class MobManager {
             float offsetX = (k % 2 - 0.5F) * parentSize / 4.0F;
             float offsetZ = (k / 2 - 0.5F) * parentSize / 4.0F;
             MobEntity child = spawnAt(parent.type(), new Position(
-                    at.x() + offsetX, at.y() + 0.5, at.z() + offsetZ));
+                    at.x() + offsetX, at.y() + 0.5, at.z() + offsetZ),
+                    parent.dimension());
             if (child == null) {
                 continue; // the spawn event refused the child
             }
+            // The split children live where the parent lived
+            // (SlimeEntity.getInstance line 138's
+            // {@code new SlimeEntity(this.world)}) — the dimension rides
+            // the spawn.
             child.setSlimeSize(parentSize / 2);
             if (parent.persistent()) {
                 child.setPersistent(true);
@@ -4556,7 +4651,11 @@ public final class MobManager {
         if (causePlayerId <= 0) {
             causePlayerId = mate.lovePlayerId();
         }
-        MobEntity baby = spawnAt(childTypeOf(parent, mate), parent.position());
+        // The calf lives where the parents live (CowEntity.createChild
+        // line 110's {@code new CowEntity(this.world)}) — the dimension
+        // rides the spawn.
+        MobEntity baby = spawnAt(childTypeOf(parent, mate), parent.position(),
+                parent.dimension());
         baby.setHorseSubtype(childSubtypeOf(parent, mate));
         if (baby.type() == MobType.RABBIT) {
             // RabbitEntity.makeChild (lines 302-309): the coat comes from

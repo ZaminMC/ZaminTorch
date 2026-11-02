@@ -2630,10 +2630,16 @@ public final class EngineServer implements Server, EngineBridge {
                         MobEntity endermite = mobManager.spawnAt(
                                 net.zaminmc.torch.server.entity.MobType.ENDERMITE,
                                 new Position(thrower.position().x(), thrower.position().y(),
-                                        thrower.position().z()));
+                                        thrower.position().z()),
+                                thrower.dimension());
                         // setPlayerSpawned(true) + the lifetime clock — the
                         // engine's endermite despawns at its own 2400 wall.
                         if (endermite != null) {
+                            // The endermite lives in the pearl's own world
+                            // (EnderPearlEntity.onCollision line 52's
+                            // {@code new EndermiteEntity(this.world)} —
+                            // the thrower's dimension, the pearl's home);
+                            // the dimension rides the spawn below.
                             endermite.setBodyYaw(thrower.rotation().yaw());
                         }
                     }
@@ -3861,10 +3867,12 @@ public final class EngineServer implements Server, EngineBridge {
                 // InfestedBlock.dropItems lines 79-88): the survival break
                 // spawns the silverfish at the block's own center (the
                 // reference's setPositionAndAngles at pos + 0.5 on x/z, yaw
-                // 0 — the pre-tick engine spawn).
-                blockInteraction.setInfestedBurstHook(position ->
+                // 0 — the pre-tick engine spawn). The dimension rides the
+                // hook's own acting world (the dig's world — the silverfish
+                // lives where the egg broke).
+                blockInteraction.setInfestedBurstHook((position, dimension) ->
                         spawnSilverfishAt(new Position(position.x() + 0.5,
-                                position.y(), position.z() + 0.5)));
+                                position.y(), position.z() + 0.5), dimension));
                 blockInteraction.setCommitFeedbackListener(commit -> {
                     if (commit.now().equals(world.airType())) {
                         // A break: the shatter burst plus the dig family sound.
@@ -4990,10 +4998,13 @@ public final class EngineServer implements Server, EngineBridge {
         if (type == 3 && !creativeHeld.isPresent() && !held.isEmpty()) {
             profile = held.skullOwner();
         }
-        // The tile write + the summon consult (lines 60-81).
+        // The tile write + the summon consult (lines 60-81). The wither's
+        // dimension is the placing walk's own world (SkullBlock
+        // .checkWitherSpawn line 185's {@code new WitherEntity(world)} —
+        // the skull's world, the session's own dimension here).
         skullStore.place(target, type, rotation, profile);
         if (type == 1) {
-            skullStore.trySummonWither(target);
+            skullStore.trySummonWither(target, session.dimension());
         }
         if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE) {
             session.inventory().consumeHeld(1);
@@ -6226,16 +6237,19 @@ public final class EngineServer implements Server, EngineBridge {
             }
 
             @Override
-            public void summonWither(Position at, float bodyYawDegrees) {
+            public void summonWither(Position at, float bodyYawDegrees, int dimension) {
                 // trySpawn lines 184-201: the birth at the top-center cell —
                 // the spawn, the axis yaw, onSummoned's window + third
                 // health, and the snowball burst stand-in at the base (the
                 // reference's own 120-particle column rides the fx bus's
-                // Poof family).
+                // Poof family). VT-012 — the dimension-aware arm: the body
+                // is born stamped in its own world (Entity line 166's
+                // construction law, the stamp landing BEFORE the spawn fan
+                // so the wire's Slice 25d gate reads the born dimension at
+                // the event — the post-fan setDimension never republishes).
                 MobEntity wither = mobManager.spawnAt(
-                        net.zaminmc.torch.server.entity.MobType.WITHER, at);
+                        net.zaminmc.torch.server.entity.MobType.WITHER, at, dimension);
                 if (wither != null) {
-                    wither.setDimension(dimension); // the body's own world
                     wither.setBodyYaw(bodyYawDegrees);
                     wither.witherSummoned();
                 }
@@ -14475,7 +14489,12 @@ public final class EngineServer implements Server, EngineBridge {
             lift = 0.5;
         }
         net.zaminmc.torch.server.entity.MobEntity spawned = mobManager.spawnFromEgg(kind,
-                new Position(target.x() + 0.5, target.y() + lift, target.z() + 0.5));
+                new Position(target.x() + 0.5, target.y() + lift, target.z() + 0.5),
+                session.dimension());
+        // The body lives where the egg was used (SpawnEggItem.useOn's
+        // own {@code world} — the use wire's acting world; the spawn
+        // egg's every reference construction rides the use world; the
+        // dimension rides the spawn, before the spawn fan).
         // The hover-name carry (SpawnEggItem.useOn lines 83-87): a renamed
         // stack names the body it spawns.
         if (spawned != null && held.displayName() != null) {
@@ -14510,7 +14529,11 @@ public final class EngineServer implements Server, EngineBridge {
             return; // the unknown id: no body, no payment
         }
         net.zaminmc.torch.server.entity.MobEntity spawned = mobManager.spawnFromEgg(kind,
-                new Position(liquidCell.x() + 0.5, liquidCell.y() + 0.5, liquidCell.z() + 0.5));
+                new Position(liquidCell.x() + 0.5, liquidCell.y() + 0.5, liquidCell.z() + 0.5),
+                session.dimension());
+        // The body lives where the egg was used (the in-air arm's own
+        // acting world — the same use-wire law as the block arm; the
+        // dimension rides the spawn, before the spawn fan).
         // The hover-name carry (SpawnEggItem.startUsing lines 119-123):
         // the in-air arm names the body the same way.
         if (spawned != null && session.inventory().held().displayName() != null) {
@@ -16559,11 +16582,14 @@ public final class EngineServer implements Server, EngineBridge {
     private net.zaminmc.torch.server.entity.vehicle.SpawnerMinecartEntity.SpawnHost
             spawnerCartHost() {
         return new net.zaminmc.torch.server.entity.vehicle.SpawnerMinecartEntity.SpawnHost() {
-            /** The player gate (isNearPlayer's own range — the cart's RequiredPlayerRange row). */
-            @Override public boolean playerNearby(double x, double y, double z, double range) {
+            /** The player gate (isNearPlayer's own range — the cart's RequiredPlayerRange row).
+             * The dimension gate is the cart's own world (MobSpawnerBaseLogic's
+             * getWorld()): only the cart's dimension's players hold the gate. */
+            @Override public boolean playerNearby(int dimension, double x, double y, double z, double range) {
                 double squared = range * range;
                 for (PlayerSession player : players.all()) {
-                    if (player.state() != net.zaminmc.torch.entity.PlayerState.PLAYING) {
+                    if (player.state() != net.zaminmc.torch.entity.PlayerState.PLAYING
+                            || player.dimension() != dimension) {
                         continue;
                     }
                     double dx = player.position().x() - x;
@@ -16576,13 +16602,16 @@ public final class EngineServer implements Server, EngineBridge {
                 return false;
             }
 
-            /** The nearby cap's same-kind count over the given range's box. */
+            /** The nearby cap's same-kind count over the given range's box —
+             * the cart's own dimension's bodies alone (the reference's
+             * per-world entity map). */
             @Override public int nearbyOfKind(
+                    int dimension,
                     net.zaminmc.torch.server.entity.MobType type,
                     int cellX, int cellY, int cellZ, int range) {
                 int nearby = 0;
                 for (var mob : mobManager.all()) {
-                    if (mob.type() != type) {
+                    if (mob.type() != type || mob.dimension() != dimension) {
                         continue;
                     }
                     net.zaminmc.torch.util.Position at = mob.position();
@@ -16598,18 +16627,25 @@ public final class EngineServer implements Server, EngineBridge {
             /** The unobstructed spawn (the engine's cell gate + the
              * entity-level canSpawn consult — the same pair the block
              * spawner's own walk reads, the cart riding the same
-             * MobSpawner tick code). */
+             * MobSpawner tick code). The gates read the CART'S OWN WORLD
+             * (the reference's {@code getWorld()}) and the body stamps
+             * the cart's dimension. */
             @Override public boolean spawnAt(
+                    int dimension,
                     net.zaminmc.torch.server.entity.MobType type,
                     double x, double y, double z) {
+                EngineWorld spawnWorld = worldFor(dimension);
                 if (!net.zaminmc.torch.server.spawner.SpawnerManager
-                        .canSpawnAt(world, type, x, y, z)
-                        || !spawnerManager.canSpawnEntity(type, world, x, y, z)) {
+                        .canSpawnAt(spawnWorld, type, x, y, z)
+                        || !spawnerManager.canSpawnEntity(type, spawnWorld, x, y, z)) {
                     return false;
                 }
-                var spawned = mobManager.spawnAt(type,
-                        new net.zaminmc.torch.util.Position(x, y, z));
-                return spawned != null;
+                // The body lives in the cart's own world
+                // (SpawnerMinecartEntity.getWorld() line 19 — the
+                // reference constructs every spawn in the cart's world);
+                // the dimension rides the spawn, before the spawn fan.
+                return mobManager.spawnAt(type,
+                        new net.zaminmc.torch.util.Position(x, y, z), dimension) != null;
             }
         };
     }
@@ -17261,7 +17297,11 @@ public final class EngineServer implements Server, EngineBridge {
             float yaw = mob.bodyYawLive();
             String carriedName = mob.customName();
             mobManager.remove(mob, "sheared");
-            MobEntity cow = mobManager.spawnAt(MobType.COW, at);
+            // The replacement cow lives where the mooshroom lived
+            // (MooshroomEntity line 38's
+            // {@code new CowEntity(this.world)}) — the dimension rides
+            // the spawn.
+            MobEntity cow = mobManager.spawnAt(MobType.COW, at, mob.dimension());
             if (cow != null) {
                 cow.setBodyYaw(yaw);
                 cow.setHealthCarried(health);
@@ -23287,10 +23327,15 @@ public final class EngineServer implements Server, EngineBridge {
          * interleaved box walk (the vertical ±5 pair, the horizontal ±10
          * pair — the (0,0,0) center first) breaking every monster egg it
          * finds; each break spawns its egg's silverfish, and the walk
-         * stops early on the reference's own 1-in-2 roll per egg.
+         * stops early on the reference's own 1-in-2 roll per egg. The
+         * scan reads and writes the WAKING BODY'S OWN WORLD (the goal
+         * runs in the mob's world — a nether silverfish never consults
+         * the overworld's cells at the same coordinates, the TF-9
+         * convention).
          */
         @Override
         public void onSilverfishWake(net.zaminmc.torch.server.entity.MobEntity mob) {
+            EngineWorld scanWorld = worldFor(mob.dimension());
             int cx = (int) Math.floor(mob.position().x());
             int cy = (int) Math.floor(mob.position().y());
             int cz = (int) Math.floor(mob.position().z());
@@ -23298,7 +23343,7 @@ public final class EngineServer implements Server, EngineBridge {
                 for (int dx = 0; dx <= 10 && dx >= -10; dx = dx <= 0 ? 1 - dx : -dx) {
                     for (int dz = 0; dz <= 10 && dz >= -10; dz = dz <= 0 ? 1 - dz : -dz) {
                         BlockPosition at = new BlockPosition(cx + dx, cy + dy, cz + dz);
-                        var type = world.getBlock(at);
+                        var type = scanWorld.getBlock(at);
                         if (net.zaminmc.torch.server.block.InfestedBlocks.isInfested(
                                 type.identifier())) {
                             // mobGriefing (Slice 24a — WakeUpFriendsGoal.tick
@@ -23311,7 +23356,7 @@ public final class EngineServer implements Server, EngineBridge {
                                 var host = net.zaminmc.torch.server.block.InfestedBlocks
                                         .hostOf(type.identifier());
                                 if (host != null) {
-                                    world.setBlock(at, blockRegistry.require(host));
+                                    scanWorld.setBlock(at, blockRegistry.require(host));
                                 }
                                 if (gameplayRandom.nextBoolean()) {
                                     return; // the reference's early stop
@@ -23322,8 +23367,9 @@ public final class EngineServer implements Server, EngineBridge {
                             // silverfish bursts with it), the walk may stop.
                             // The world's own commit path carries the wire
                             // resync and the dig feedback.
-                            world.setBlock(at, world.airType());
-                            spawnSilverfishAt(new Position(at.x() + 0.5, at.y(), at.z() + 0.5));
+                            scanWorld.setBlock(at, scanWorld.airType());
+                            spawnSilverfishAt(new Position(at.x() + 0.5, at.y(), at.z() + 0.5),
+                                    mob.dimension());
                             if (gameplayRandom.nextBoolean()) {
                                 return; // the reference's early stop
                             }
@@ -26369,9 +26415,14 @@ public final class EngineServer implements Server, EngineBridge {
      * center with the reference's own zero yaw. Tick-thread context (the
      * break path's own lane).
      */
-    private void spawnSilverfishAt(Position at) {
+    private void spawnSilverfishAt(Position at, int dimension) {
         if (mobManager != null) {
-            mobManager.spawnAt(net.zaminmc.torch.server.entity.MobType.SILVERFISH, at);
+            // The silverfish lives in the world the egg broke in
+            // (InfestedBlock.dropItems' own {@code world} parameter —
+            // the breaking world; the dimension rides the spawn, before
+            // the spawn fan).
+            mobManager.spawnAt(net.zaminmc.torch.server.entity.MobType.SILVERFISH, at,
+                    dimension);
         }
     }
 
@@ -30959,9 +31010,11 @@ public final class EngineServer implements Server, EngineBridge {
         // default pose, no random roll) with the whole NBT read before
         // the spawn publish (the factory's own order).
         if ("ArmorStand".equals(name)) {
-            // Wave AS — the summon's source world: the console source is
-            // overworld-anchored, the explicit 0 (never a silent stamp).
-            armorStands.summonAt(x, y, z, 0, nbt);
+            // The summon's source world: the reference's
+            // getCommandSourceWorld() — the player sender's own dimension
+            // (the console source is overworld-anchored; this route's
+            // sender is always the player).
+            armorStands.summonAt(x, y, z, sender.dimension(), nbt);
             return "Object successfully summoned";
         }
         MobType type = MobType.byVanillaName(name);
@@ -30971,7 +31024,13 @@ public final class EngineServer implements Server, EngineBridge {
         if (type == null) {
             return "Unable to summon object";
         }
-        MobEntity spawned = mobManager.spawnAt(type, new Position(x, y, z));
+        // The body lives in the command source's world
+        // (SummonCommand line 54's getCommandSourceWorld() — the sender's
+        // own dimension; the stamp rides the spawn BEFORE the NBT read so
+        // the reference's own Dimension row may still override it, the
+        // readNbt order).
+        MobEntity spawned = mobManager.spawnAt(type, new Position(x, y, z),
+                sender.dimension());
         if (spawned == null) {
             return "Unable to summon object";
         }
@@ -31024,7 +31083,11 @@ public final class EngineServer implements Server, EngineBridge {
                 return "Count must be 1..10";
             }
         }
-        int spawned = mobManager.spawnGroup(type, sender.position(), count).size();
+        // The bodies live in the command source's world (the same
+        // getCommandSourceWorld() law as the single summon) — the
+        // dimension rides every member's own spawn.
+        int spawned = mobManager.spawnGroup(type, sender.position(), count,
+                sender.dimension()).size();
         return "Spawned " + spawned + " x " + type.name().toLowerCase(java.util.Locale.ROOT);
     }
 

@@ -50,19 +50,22 @@ class SpawnerMinecartTest {
         volatile boolean playerNearby = true;
         volatile int nearbyCount;
         volatile boolean allowSpawn = true;
+        volatile int askedDimension = Integer.MIN_VALUE;
 
         @Override
-        public boolean playerNearby(double x, double y, double z, double range) {
+        public boolean playerNearby(int dimension, double x, double y, double z, double range) {
             return playerNearby;
         }
 
         @Override
-        public int nearbyOfKind(MobType type, int cellX, int cellY, int cellZ, int range) {
+        public int nearbyOfKind(int dimension, MobType type, int cellX, int cellY,
+                int cellZ, int range) {
             return nearbyCount;
         }
 
         @Override
-        public boolean spawnAt(MobType type, double x, double y, double z) {
+        public boolean spawnAt(int dimension, MobType type, double x, double y, double z) {
+            askedDimension = dimension;
             spawns.incrementAndGet();
             return allowSpawn;
         }
@@ -243,15 +246,16 @@ class SpawnerMinecartTest {
                 server.vehicles().spawnSpawnerMinecart(
                         new Position(Math.floor(at.x()) + 2.5, 40.06, 10.5),
                         new SpawnerMinecartEntity.SpawnHost() {
-                            @Override public boolean playerNearby(double x, double y, double z, double range) {
+                            @Override public boolean playerNearby(int dimension,
+                                    double x, double y, double z, double range) {
                                 return true; // the session stands beside the cart
                             }
 
-                            @Override public int nearbyOfKind(MobType type, int cellX,
-                                    int cellY, int cellZ, int range) {
+                            @Override public int nearbyOfKind(int dimension, MobType type,
+                                    int cellX, int cellY, int cellZ, int range) {
                                 int nearby = 0;
                                 for (var mob : server.mobs().all()) {
-                                    if (mob.type() == type) {
+                                    if (mob.type() == type && mob.dimension() == dimension) {
                                         Position mobAt = mob.position();
                                         if (Math.abs(mobAt.x() - (cellX + 0.5)) <= 4.0
                                                 && Math.abs(mobAt.y() - (cellY + 0.5)) <= 4.0
@@ -263,13 +267,17 @@ class SpawnerMinecartTest {
                                 return nearby;
                             }
 
-                            @Override public boolean spawnAt(MobType type, double x,
-                                    double y, double z) {
+                            @Override public boolean spawnAt(int dimension, MobType type,
+                                    double x, double y, double z) {
                                 if (!net.zaminmc.torch.server.spawner.SpawnerManager
-                                        .canSpawnAt(server.world(), type, x, y, z)) {
+                                        .canSpawnAt(server.worldFor(dimension), type, x, y, z)) {
                                     return false;
                                 }
-                                return server.mobs().spawnAt(type, new Position(x, y, z)) != null;
+                                var body = server.mobs().spawnAt(type, new Position(x, y, z));
+                                if (body != null) {
+                                    body.setDimension(dimension);
+                                }
+                                return body != null;
                             }
                         }, 0);
             });
