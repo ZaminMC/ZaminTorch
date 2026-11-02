@@ -49,8 +49,11 @@ import java.util.Random;
  *       the int-truncated quadratic wound form — the retired
  *       creeper-walk parameterization is gone.</li>
  *   <li>The burning-arrow collision arm (TntBlock.onEntityCollision) rides
- *       the projectile manager's block-hit consult — the arrow enters the
- *       TNT's cell, the block primes, the arrow keeps its flight. The
+ *       the projectile manager's stick-arm consult — the arrow STICKS into
+ *       the TNT's cell first, the block primes, and the stuck arrow
+ *       un-sticks a tick later when the consult's removal opens the cell
+ *       (VT-030's order: ArrowEntity line 304 precedes the consult at
+ *       308). The
  *       reference's igniter attribution (the arrow's shooter) is the
  *       engine's own standing simplification: the primed bodies carry no
  *       igniter.</li>
@@ -452,16 +455,18 @@ public final class TntSystem implements WorldChangeListener {
     }
 
     /**
-     * The burning-arrow arm (TntBlock.onEntityCollision lines 96-113): an
-     * on-fire arrow crossing the TNT's cell primes the block — the full
-     * 80-tick fuse, the block leaves the world, and the arrow keeps its
-     * flight through the now-open cell. (The reference's igniter is the
-     * arrow's shooter when living — the engine's primed bodies carry no
-     * igniter attribution, the engine's own standing simplification.)
+     * The burning-arrow arm (TntBlock.onEntityCollision lines 91-104): an
+     * on-fire arrow STICKING into the TNT's cell primes the block — the full
+     * 80-tick fuse, the block leaves the world, and the stuck arrow's
+     * tracked-cell consult un-sticks it a tick later (VT-030's order: the
+     * stick at ArrowEntity line 304 precedes the consult at 308 — the arrow
+     * never carries its flight through the now-open cell). (The reference's
+     * igniter is the arrow's shooter when living — the engine's primed
+     * bodies carry no igniter attribution, the engine's own standing
+     * simplification.)
      * Tick-thread context.
      *
-     * @return whether the cell held TNT and the prime happened (the
-     *         caller's arrow continues its walk through the opened cell).
+     * @return whether the cell held TNT and the prime happened.
      */
     public boolean igniteByArrow(EngineWorld actingWorld, BlockPosition pos) {
         if (!isTnt(actingWorld.getBlock(pos))) {

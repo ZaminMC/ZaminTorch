@@ -1209,18 +1209,22 @@ public final class ProjectileManager {
         // --- block hit --------------------------------------------------------
         if (solid.solidAt(point.x(), point.y(), point.z())) {
             if (projectile.kind() == ProjectileEntity.Kind.ARROW) {
-                // The burning arrow's TNT arm (TntBlock.onEntityCollision
-                // lines 96-113): an on-fire arrow entering the TNT's cell
-                // primes the block — the cell opens and the arrow KEEPS ITS
-                // FLIGHT through it (the reference's collision consult
-                // removes the block, never the arrow).
-                if (projectile.burning() && tntIgniteSink.ignite(
-                        new net.zaminmc.torch.block.BlockPosition(
-                                (int) Math.floor(point.x()),
-                                (int) Math.floor(point.y()),
-                                (int) Math.floor(point.z())), projectile.dimension())) {
-                    return false; // the cell opened — the walk continues
-                }
+                // VT-030 — the stick comes FIRST, the hit-block consult
+                // LAST (the reference's own order, ArrowEntity.tick's
+                // block arm lines 288-309): the tracked cell is stamped
+                // (289-295), the velocity := face−pos (296-298), the 0.05
+                // backoff (300-302), random.bowhit (303), inGround = true
+                // (304) — and ONLY THEN, still inside the same stick arm,
+                // {@code block.onEntityCollision(...)} (307-309). The old
+                // arm's "the arrow KEEPS ITS FLIGHT through the opened
+                // cell" misread the reference: true, the consult never
+                // removes the arrow — but it sticks it first (line 304
+                // precedes the consult at 308), and the opened cell is
+                // what UN-STICKS it a tick later (the tracked-cell
+                // consult, ArrowEntity lines 172-186). The pre-fix arm
+                // ignited and returned false, so landInGround never ran:
+                // the arrow flew through the opened cell at full flight
+                // speed — never stuck, never rested.
                 projectile.landInGround();
                 // VT-018 — the stick's bowhit (ArrowEntity line 303):
                 // the reference plays random.bowhit at the rest — the
@@ -1236,6 +1240,23 @@ public final class ProjectileManager {
                         projectile.dimension());
                 for (Listener listener : listeners) {
                     listener.onProjectileLanded(projectile);
+                }
+                // VT-030 — the burning arrow's TNT consult, AFTER the
+                // stick (the reference's lines 307-309 order:
+                // TntBlock.onEntityCollision lines 91-104 — the isOnFire
+                // gate is the TNT block's own, the ignite removes the
+                // block). The walk ends here stuck either way; the
+                // opened cell's un-stick is the tracked-cell consult's
+                // own law (VT-015, PR #120 — the arrow hops out beside
+                // the primed TNT a tick later, never carrying its flight
+                // through the cell).
+                if (projectile.burning()) {
+                    tntIgniteSink.ignite(
+                            new net.zaminmc.torch.block.BlockPosition(
+                                    (int) Math.floor(point.x()),
+                                    (int) Math.floor(point.y()),
+                                    (int) Math.floor(point.z())),
+                            projectile.dimension());
                 }
                 return true;
             }
