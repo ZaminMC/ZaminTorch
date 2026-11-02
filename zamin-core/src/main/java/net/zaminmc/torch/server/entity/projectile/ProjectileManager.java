@@ -969,9 +969,15 @@ public final class ProjectileManager {
      *  pickup carries: grown 1.0 horizontal / 0.5 vertical). */
     static final double PICKUP_GROWTH_HORIZONTAL = 1.0;
     static final double PICKUP_GROWTH_VERTICAL = 0.5;
-    /** The arrow's own half-size (setSize(0.5F, 0.5F), ArrowEntity line 45). */
+    /** The player's own half-width (setSize(0.6F, 1.8F), PlayerEntity
+     *  line 424 — the same 0.3 the orb/item pickup walks carry). */
+    static final double PLAYER_HALF_WIDTH = 0.3;
+    /** The arrow's own half-width (setSize(0.5F, 0.5F), ArrowEntity line 45). */
     static final double ARROW_HALF_WIDTH = 0.25;
-    static final double ARROW_HALF_HEIGHT = 0.25;
+    /** The arrow's own height (setSize(0.5F, 0.5F) — the feet law's box
+     *  [y, y+0.5]; Entity.setPosition lines 240-247 anchors the box
+     *  bottom at the position, never the center). */
+    static final double ARROW_HEIGHT = 0.5;
 
     /**
      * The grounded arrows' player pickup (ArrowEntity.onPlayerCollision
@@ -1036,20 +1042,24 @@ public final class ProjectileManager {
         }
     }
 
-    /** The player box grown 1.0/0.5 against the arrow's own 0.5 box (the
-     *  orb pickup's exact shape over the arrow's half-size). */
+    /** The player's own box grown 1.0/0.5 intersected with the arrow's own
+     *  0.5 box (PlayerEntity.playerTick lines 486-505: the player's box
+     *  [px-0.3, py, pz-0.3]..[px+0.3, py+1.8, pz+0.3] grown (1.0, 0.5,
+     *  1.0) — the horizontal intersection out to 0.3 + 1.0 + 0.25 = 1.55 —
+     *  over the arrow's feet-law box [y, y+0.5]; world.getEntities walks
+     *  the box intersection, never a bare center distance). */
     private boolean withinArrowPickupRange(
             net.zaminmc.torch.server.player.PlayerSession player, ProjectileEntity projectile) {
         Position playerPosition = player.position();
         Position arrowPosition = projectile.position();
         double dx = Math.abs(arrowPosition.x() - playerPosition.x());
         double dz = Math.abs(arrowPosition.z() - playerPosition.z());
-        double maxHorizontal = ARROW_HALF_WIDTH + PICKUP_GROWTH_HORIZONTAL;
-        if (dx > maxHorizontal || dz > maxHorizontal) {
+        double maxHorizontal = PLAYER_HALF_WIDTH + PICKUP_GROWTH_HORIZONTAL + ARROW_HALF_WIDTH;
+        if (dx >= maxHorizontal || dz >= maxHorizontal) {
             return false;
         }
-        double arrowBottom = arrowPosition.y() - ARROW_HALF_HEIGHT;
-        double arrowTop = arrowPosition.y() + ARROW_HALF_HEIGHT;
+        double arrowBottom = arrowPosition.y();
+        double arrowTop = arrowPosition.y() + ARROW_HEIGHT;
         double rangeBottom = playerPosition.y() - PICKUP_GROWTH_VERTICAL;
         double rangeTop = playerPosition.y() + 1.8 + PICKUP_GROWTH_VERTICAL;
         return arrowTop > rangeBottom && arrowBottom < rangeTop;
