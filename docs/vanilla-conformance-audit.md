@@ -3375,7 +3375,9 @@ match exactly], and the reverse-row check [T-WALL the sole
 engine-refuses-where-vanilla-places row]) — F-SP6 CONFIRMED, fix-ready,
 the Phase E decomposition recorded (three independently actionable
 members); (4) the F-SP2 rig's wrap-safe z-shift applied on this branch
-(test-only, the one-line form).
+(test-only, the one-line form) and VERIFIED GREEN post-change
+(`FloorConsultParityDiscoveryTest` 4/4, 0 failures, 39.7s — the
+batteries' rows unchanged, the cursor hazard retired).
 
 ## F-SP6 — the attachment family's placement-path gate structure: the engine implements the reference's getPlacementState fallback layers as LIVE placement behavior where the reference's use path gates on World.canPlace's side consult first — the lever's floor fallback and the button's doomed-DOWN commit PLACE blocks vanilla refuses outright; the redstone torch's fallback walk runs its mounts in the wrong order; the plain torch carries no wall states and no placement consult at all (CONFIRMED — three passes complete this run: the source census + the behavioral seats (6/6 divergent rows RED, 2/2 controls GREEN, `AttachmentPlacementPathParityDiscoveryTest`) + the independent pass (the compensating hunt, the call-site census, the citation-mismatch intentionality evidence, the reverse-row check); fix-ready — the Phase E decomposition recorded below)
 
