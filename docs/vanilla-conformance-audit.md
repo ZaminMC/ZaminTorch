@@ -3808,6 +3808,8 @@ it), the TNT's survival asserted against the engine's detonation.
 | Falling family — the anvil's land sound's dimension | **VT-028 CONFIRMED AND CORRECTED — PR #136 OPEN** (the forty-first pass, three passes — the census tail's first head): the reference's landing places the block SILENTLY (setBlockState flag 3) and calls the block's OWN hook — the BASE FallingBlock's hook is EMPTY (76-77: the ordinary sand/gravel landing fires NOTHING), the ANVIL's override alone firing `world.doEvent(1022, pos, 0)` on the falling body's OWN WORLD (AnvilBlock 89-91 — the per-world listener list; the client answers random.anvil_land). The engine's falling body carried its dimension since FL4-F9 while the land sound rode the no-dimension overload — the overworld 0 stamp. Pass 2 THE SEAT (`FallingAnvilLandDimensionDiscoveryTest`, the full-boot construction over the REAL gravity chain): RED on develop at the traced pin (the land sound stamped 0, expected -1); THE SCOPE GUARD green (the ordinary SAND landing plays NOTHING — the base hook's empty law); pass 3 the walk (the body-stamp contrast, the onFallingEnded census, the wire's fan gate). **PR #136** (`fix/anvil-land-dimension-parity-audit` over develop `149eb1f0`): one line — `entity.dimension()` rides the sound; the seat 2/0 GREEN, the falling/anvil/gravity families 109/0 |
 | The anvil window family — the block-consult windows' dimension ownership | **VT-035 CONFIRMED AND CORRECTED — PR #152 OPEN** (the fifty-second pass, three passes — the census tail's window head): the reference's anvil menu is CONSTRUCTED over the world the right-click happened in (AnvilMenu lines 44-46) and every later consult reads THAT world — the walk-away gate (isValid 309), the take's damage walk (the 0.12 roll's anvil read, the DAMAGE write, the remove — lines 81-89) and the 1020/1021 events (world.doEvent 86/89/92 over the per-world listener list); the enchanting menu the same (EnchantingTableMenu 44-46: the bookshelf power scan AND the gate). The engine left the two BLOCK-consult windows on Slice B's 3-arg 0-stamp open form with the viewer ticks' validity consults and the take's site consults (`anvilSiteAt`) reading the OVERWORLD FIELD — a nether anvil's window SLAMMED SHUT on the first viewer tick (the GUI unusable, the inputs dropped), a mirrored overworld anvil at the same coordinates kept it alive AND TOOK THE DAMAGE WRITES (the cross-dimension corruption, the VT-033 class), the 1020/1021 sounds stamped 0, and the nether enchanting table's bookshelf scan counted the OVERWORLD's shelves (the offers shaped by a mirrored geometry). Pass 2 THE SEAT (`AnvilWindowDimensionDiscoveryTest`, the full-boot construction, every step through the REAL wires — the use wire opens, the window-click wire carries the inputs and the take, the player random SEEDED for the deterministic 0.12 roll): RED on develop at every traced pin (the anvil slam-shut `expected ANVIL, observed NONE`; the corruption — the nether anvil's damage 0 where 1 expected, the overworld mirror advanced; the enchanting twin's slam-shut); pass 3 the walk (the compensation hunt NEGATIVE — the engine's own use wire opens the nether window then its own viewer tick kills it one tick later, an internal inconsistency not a design; the engine's own-law contrasts — Slice B's stamped opens, the chestsFor stamp convention, throwFromPlayer's session-dimension stamp; the stillValid consumer census; the overworld path byte-identical under worldFor(0)). **PR #152** (`fix/anvil-window-dimension-parity-audit` over develop `1139f2c3`): five sites, one law — the anvil open stamps the player's dimension (the 4-arg form), the enchanting open the same plus the bookshelf attach over the OPENING world, the two viewer ticks route by the OPEN'S DIMENSION STAMP, and `anvilSiteAt` gains the dimension (every site consult + the dimensioned sound overload); the seat 3/0 GREEN, the anvil/enchanting families 35/0, the container family 19/0, the protocol window lanes 8/0, the dimension/FX lanes 9/0 — 74 beside the seat |
 
+| The fishing family — the bobber's stuck law (the VT-015 record's named follow-up tail, never claimed — the family's first audit) | **VT-038 CONFIRMED AND CORRECTED — PR #160 OPEN** (the fifty-eighth pass, three passes): the reference's stuck branch (FishingBobberEntity.tick 214-232) consults the stamped cell every tick, and the live stamp is NEVER written (the fields' only other touch the NBT rows) — so the live bobber un-sticks EVERY tick (the per-axis nextFloat()*0.2 damping, both clock resets, the fall-through into the raytrace/move/water survey — settling in decaying steps, falling whole when the block breaks, the 1200 removal belonging to the NBT-restored stamp alone). The engine's stuck branch was the clock arm alone — a landed bobber FROZEN until the unconditional 1200, the broken-block bobber hanging in mid-air (the lily-pad technique impossible), the retrieve answering 2 for a nonexistent block. The seat RED on develop at both arms (the fall pin: frozen at rest 6.18 with the lid gone; the timeout pin: despawned at exactly 1200); PR #160 restores the 1:1 cycle (the stamp fields, the WorldQuery.blockIdAt consult with the below-world AIR guard, the mismatch arm's damping + resets + fall-through); the seat 2/0 GREEN, the fishing family 21/0 unregressed; five adjacent tails ledgered (the rain consult, the hook gate, the persistence, the catch-cycle draws, the shake) |
+
 ## The queue for the next pass
 
 0a. ~~THE FIVE-LANE UNION~~ — **DONE (this merge, the thirty-seventh pass's
@@ -5063,10 +5065,11 @@ no defect owed. **The fishing family — NEVER AUDITED** (the ledger's
 only row: the VT-015 record's named follow-up "the bobber the same
 law's second member", never claimed): the walk below.
 
-## VT-038 — the fishing bobber's STUCK law is missing the reference's un-stick cycle: no stamped-cell consult, no per-axis `nextFloat()*0.2` damping, no clock resets, no fall-through — a landed bobber FREEZES until a 1200-tick timeout the reference's live bobber never reaches, and a bobber whose block breaks NEVER falls (SUSPECTED → pass 1 complete; the seat pass 2's act)
+## VT-038 — the fishing bobber's STUCK law is missing the reference's un-stick cycle: no stamped-cell consult, no per-axis `nextFloat()*0.2` damping, no clock resets, no fall-through — a landed bobber FREEZES until a 1200-tick timeout the reference's live bobber never reaches, and a bobber whose block breaks NEVER falls (CONFIRMED — three passes; the correction PR #160)
 
-**Status**: SUSPECTED (one source pass complete; the behavioral seat the
-next act)
+**Status**: CONFIRMED (three passes complete — the source walk, the
+behavioral seat RED on develop at both arms, the independent challenge;
+the correction **PR #160 OPEN**, `fix/bobber-unstick-parity-audit`)
 
 **Subsystem**: the fishing family (`FishingSystem`/`FishingSystem.tickOne`,
 the bobber's stuck branch) — vanilla 1.8.8 `FishingBobberEntity.tick`
@@ -5225,3 +5228,94 @@ catchTimer branch's f1 escalation rolls and the approach/splash
 particle fans (the engine skips the per-tick draws — an internal
 RNG-sequence divergence, the system's own Random, no cross-system
 impact); (5) the `shake` field (wire-level, the bobber's splash sync).
+
+**THE PASS-2 SEAT (the behavioral verification, this pass)**:
+`BobberUnstickDiscoveryTest` (the full-boot construction through the real
+wires, the FishingApiAcceptance idiom). **ARM A — the broken-block fall
+(the lily-pad technique)**: a pool built ahead, its surface cell carrying
+a DIRT lid (solid for the raytrace, soft for the dig wire), the cast
+stuck on the lid through the real use wire, the angler teleported
+adjacent (the dig wire's 4.5-block reach), and the 3×3 lid neighborhood
+broken through the REAL dig wire — **RED on develop `662094d5` at the
+fall pin**: the bobber FROZEN at its rest y=6.18 with the lid gone below
+(the await `y < rest − 0.5` expiring at every poll; the reference's
+un-stick cycle falls it into the opened water). **ARM B — the live
+1200-tick timeout**: the dry-cast bobber grounded, then 1300 ticks with
+the rod held and the angler still — **RED on develop at the census pin**:
+the bobber DESPAWNED at exactly 1200 (`bobberOf` empty, the reference's
+live clock never reaching the timeout). The staging's own finds, repaired
+in the seat: the teleported angler declares the ground state through
+`applyMovement` (the client-authoritative body carries no server-side
+physics; the dig's per-tick progress consult reads the live posture, an
+airborne digger paying the ÷5 penalty — the first run's 16-tick dig
+window starved at 0.0133/tick); the catch pin keys on the BAND'S STAT
+ROW (band-agnostic, pickup-proof — the fish-item probe would flake on
+the 15% junk/treasure roll) with the down-cast retry for the
+loaded-runner window miss (the run-#375/#376 lesson; the descent clears
+the angler's own grown box before the 5-tick self-hook gate opens).
+
+**PASS 3 (the independent challenge, this pass)**: the compensation hunt
+NEGATIVE — the block-change listener census finds SIXTEEN systems
+registered (fire, leaves, block updates, redstone, pistons, TNT,
+noteblocks, jukeboxes, daylight, hoppers, tripwire, fluids, dispensers,
+command blocks, beacons) and the fishing system among them NEVER — no
+path notifies a bobber of a block change, the frozen stick the complete
+behavior; the consumer census safe (the wire's per-tick `onBobberMoved`
+publish — a moving landed bobber publishes real movement, the intended
+vanilla observable; the api view; the retrieve); the design-intent
+challenge NEGATIVE — the engine's own javadoc claims "the server arm,
+1:1" citing tick lines 174-430 (the loot tables, the bite bands, the
+retrieve law, the leash, the wear all 1:1 verbatim — the missing consult
+an omission against the port's own stated standard, the existing
+acceptance seat's "the 1200-tick timeout's arm" comment the misreading:
+the timeout was carried as the stuck state's purpose where the reference
+gives it to the NBT-restored stamp alone); the edge walk — the
+water-stick (a bobber stuck on a solid floor under water: the same
+un-stick cycle, the buoyancy then lifting it off the floor in the
+reference, the engine freezing it), the rest-cycle wobble (the pins key
+on the FALL and the BITE, never the transient flag — the run-589 lesson
+applied), the RNG streams (the reference's damping draws from the
+entity's own random, the roll from `world.random`; the engine's single
+fishing Random folds both — a pre-existing internal approximation, no
+cross-system impact).
+
+**VT-038 CONFIRMED WHOLE — three passes (source / behavioral RED on
+develop at both arms' predicted pins / the independent challenge), Phase
+E eligible.**
+
+**THE CORRECTION — PR #160 OPEN** (`fix/bobber-unstick-parity-audit`
+over develop `662094d5`): `tickOne`'s stuck branch restructured to the
+reference's 1:1 shape — the stamp fields on `Bobber` (the reference's
+own declarations, the NBT rows the persistence tail's own act), the
+consult through a new `WorldQuery.blockIdAt` (the block identity at a
+cell), the matching arm (the clock ++, the 1200, the return), and the
+mismatch arm (the per-axis `*= nextFloat()*0.2` damping, both clock
+resets) FALLING THROUGH into the existing raytrace/flight arms — the
+structure composing unchanged (both arms already gate on `!inGround`).
+**The wiring's below-world guard** (the seat's first red-green cycle's
+own catch): the raw `getBlock` at y<0 hits the chunk section array's
+negative index — the per-tick crash froze the walk entirely and briefly
+passed ARM B for the wrong reason; the guard answers AIR exactly like
+the reference's own out-of-world read (`World.getBlockState`'s y<0
+guard → the AIR state, never null — the live consult's mismatch). **The
+seat 2/0 GREEN on the fix tree** (ARM A: the fall 6.18 → the float
+~4.90 at the one-deep water's surface equilibrium, the bite within the
+l-scaled budget, the catch's roll landed; ARM B: the bobber still
+sitting at tick 1300, the retrieve still answering); **the regression
+GREEN whole**: the fishing family (FishingApiAcceptanceTest 7/0 — the
+dry-cast grounded await and the water-float bite/catch unregressed
+under the cycle, FishingSystemTest 8/0 — the grounded-answer unit
+seat's poll catching the cycle's re-stick tick, FishingOverrideTest
+6/0), the stats + item lanes.
+
+**THE LEDGER**: the fishing family's first audit — the row added below;
+the five adjacent tails ledgered in the finding's record (the rain
+consult, the hook gate, the persistence, the catch-cycle draws, the
+shake field), each its own finding, none yet claimed.
+
+**THE NEXT HEADS** (the wide work continues): the fishing family's
+adjacent tails (the rain consult's sky/precipitation gates the
+likeliest), the enchanting-offers RNG (the table math — never audited),
+the brewing recipes, the weather cycle, the XP leveling curve — each
+needing its own three-pass verification; the merge watch (PR #160 open,
+the maintainer's pick).
