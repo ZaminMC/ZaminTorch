@@ -8007,6 +8007,47 @@ consults — the breeding/mating proximity, the follow-owner walk,
 the fishing bobber's gather); the CI census watches (the
 environmental class, unchanged).
 
+WAVES PE-8/PE-9 LANDED (2026-11-03, commit 7425faec — the second
+batch of the three-wave session): THE ANVIL IMPORT ROW VERIFIED
+LANDED (the scheduled-tick loads and the container restores already
+per-dimension — each dimension's store loading into its own system,
+no gap found); THE DETECTOR RAIL'S COMPARATOR READ landed (PE-7's
+ledgered find retired — DetectorRailBlock.getAnalogSignal lines
+133-147: the command-cart tier's success count first, then the
+INVENTORY carts' fullness, over the same 0.2-inset box, the
+unpowered rail and the empty box answering 0; the pre-fix reader
+never recognized the family); THE FISHING HOOK'S EXACT CLIP LAW
+landed (FishingBobberEntity lines 244-265 — the segment clipped
+against every hookable body's OWN box grown 0.3, the closest hit
+winning, the exact slab-method port; the census widened to
+hasCollision's own law: the mobs, the players, THE ARMOR STANDS,
+THE VEHICLES, THE PROJECTILES — the items and orbs excluded; the
+hookedAlive/hookedAnchor/pullToward arms for every new family; the
+bobber's own dimension riding the consult). SEATS:
+DetectorRailComparator 3/0 (RED 3/3 pre-fix), FishingHookBounds
+5/0 (RED 3/5 pre-fix — the graze, the stand, the cart; the outside
+and item controls green by design), 5/0 three consecutive runs.
+THE SEAT DISCIPLINE'S OWN FINDS: the stale-XML red-check trap (a
+compileTestJava failure leaves the previous run's XML — the red
+-check must run with the interface signatures consistent); the
+corridor floor built BEFORE the angler teleports (the angler never
+falls through unbuilt air); the flight's own schedule pinning the
+targets (the pitch-0 lob's descent through y 40.9 at z+8.5). LANES:
+the fishing + vehicle + armorstand lanes 119/0, the interaction +
+projectile + redstone lanes 126/0; the protocol module 243/0 and
+the launcher 53/0 (the earlier one-off the loaded-runner
+environmental class).
+
+NEXT WORK (re-pinned, in order): the mob AI walks' boundary arms
+(the breeding/mating proximity consult, the follow-owner walk, the
+panic/flee target selection); the remaining hook census tail (the
+primed TNT, the item frames/paintings, the ender crystals — the
+reference's hasCollision arms the engine's fishing surface does
+not yet carry); the detector rail's comparator ANOTHER tier (the
+CommandBlockMinecart's own run path over a powered activator rail
+— the success count's own source); the CI census watches (the
+environmental class, unchanged).
+
 VT-033'S ADJACENT TAILS LANDED (2026-11-02, commit d96f4a2a — #146's
 review-note ledger retired): the WITHER FALL's kill row and the BEACON
 full-power row walk the ACTING world's players (the un-dimensioned
