@@ -1100,11 +1100,13 @@ public final class HopperSystem implements WorldChangeListener {
         if (hopper == null) {
             return;
         }
-        Position origin = new Position(position.x(), position.y(), position.z());
+        // THE SPILL FORM'S OWN LAW (Wave PE-6 — InventoryUtils.dropItem
+        // lines 31-50): the [0.1, 0.9] band, the 10-30 chunk splits,
+        // the gaussian * 0.05 velocity, NO pickup delay.
         for (ItemStack stack : hopper.snapshotSlots()) {
             if (!stack.isEmpty()) {
-                itemEntities.spawnDropAtBlock(origin, stack,
-                        ItemEntity.PICKUP_DELAY_DROP_TICKS, world.dimension());
+                itemEntities.spawnContentsSpill(position.x(), position.y(), position.z(),
+                        stack, world.dimension());
             }
         }
         redstone.wakeComparators(position);

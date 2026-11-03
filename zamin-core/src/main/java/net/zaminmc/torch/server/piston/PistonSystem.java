@@ -987,10 +987,16 @@ public final class PistonSystem implements WorldChangeListener {
         // nothing at all for the leaves (whose plain rows are empty, the
         // sapling chance living in the family arm).
         for (ItemStack stack : breakDrops.washedDrops(type)) {
+            // THE TO-BREAK DROP'S OWN WORLD (Wave PE-6 — the drop-stamp
+            // census): the reference's `block.dropItems(world, pos,
+            // state, 0)` rides the PISTON'S OWN world — a nether piston
+            // pushing a wire pops its drop into the NETHER, never the
+            // dimensionless overload's overworld 0.
             itemEntities.spawnDropAtBlock(
                     new Position(pos.x(), pos.y(), pos.z()),
                     stack,
-                    ItemEntity.PICKUP_DELAY_DROP_TICKS);
+                    ItemEntity.PICKUP_DELAY_DROP_TICKS,
+                    world.dimension());
         }
     }
 

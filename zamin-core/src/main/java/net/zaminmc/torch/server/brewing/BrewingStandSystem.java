@@ -177,11 +177,13 @@ public final class BrewingStandSystem {
         if (stand == null || items == null) {
             return;
         }
-        Position origin = new Position(position.x(), position.y(), position.z());
+        // THE SPILL FORM'S OWN LAW (Wave PE-6 — InventoryUtils.dropItem
+        // lines 31-50): the [0.1, 0.9] band, the 10-30 chunk splits,
+        // the gaussian * 0.05 velocity, NO pickup delay.
         for (ItemStack stack : stand.snapshotSlots()) {
             if (!stack.isEmpty()) {
-                items.spawnDropAtBlock(origin, stack, ItemEntity.PICKUP_DELAY_DROP_TICKS,
-                        dimension);
+                items.spawnContentsSpill(position.x(), position.y(), position.z(),
+                        stack, dimension);
             }
         }
     }

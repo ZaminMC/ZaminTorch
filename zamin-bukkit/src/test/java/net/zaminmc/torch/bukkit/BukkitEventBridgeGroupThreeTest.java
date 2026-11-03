@@ -173,9 +173,13 @@ class BukkitEventBridgeGroupThreeTest {
         // The loud-refusal probe: no body exists to mutate.
         harness.await(() -> harness.probeLogContains("view:item-pending-delay-refused"),
                 "the pending item view refused the body mutation loudly");
-        // The drop lands through the engine's own surface (the position band
-        // of the pop offset — the uncancelled twin).
-        harness.await(() -> itemsNear(harness, 77.5, 40.5, 77.5) > 0,
+        // The drop lands through the engine's own surface (the position
+        // band of Block.dropItem's own inset — the uncancelled twin;
+        // Wave PE-6's band: the UNIFORM [0.25, 0.75] spawn inset over
+        // every axis, the landing asserted at the CELL the inset
+        // guarantees — never the old ±0.3 window around the exact
+        // center the tight pre-fix band happened to honor).
+        harness.await(() -> itemsInCellColumn(harness, 77, 40, 77) > 0,
                 "the uncancelled stone drop landed at the cell");
         // The cancellable-both-ways arm: the withheld diamond — the drop
         // returns null through the engine's own gate and no body lands.
@@ -290,6 +294,23 @@ class BukkitEventBridgeGroupThreeTest {
     // ------------------------------------------------------------------ helpers
 
     /** The live item bodies within the position band (the pop offset's own spread). */
+    /**
+     * The drop's landing column (Wave PE-6's band law): the item inside
+     * the dropped cell's column — the spawn inset never leaves the cell,
+     * the fall at most one block to the ground below.
+     */
+    private static int itemsInCellColumn(BukkitTestHarness harness, int x, int y, int z) {
+        int count = 0;
+        for (var item : harness.server.itemEntities().all()) {
+            Position at = item.position();
+            if ((int) Math.floor(at.x()) == x && (int) Math.floor(at.z()) == z
+                    && at.y() > y - 1.2 && at.y() < y + 2.0) {
+                count++;
+            }
+        }
+        return count;
+    }
+
     private static int itemsNear(BukkitTestHarness harness, double x, double y, double z) {
         int count = 0;
         for (var item : harness.server.itemEntities().all()) {

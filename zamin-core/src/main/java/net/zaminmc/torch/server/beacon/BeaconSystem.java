@@ -369,9 +369,15 @@ public final class BeaconSystem implements WorldChangeListener {
         }
         ItemStack payment = beacon.payment();
         if (!payment.isEmpty()) {
+            // THE PAYMENT SPILL'S OWN WORLD (Wave PE-6 — the drop-stamp
+            // census): the reference's InventoryUtils.dropItems(this.world,
+            // this.pos, this) — the beacon's OWN world, never the
+            // dimensionless overload's overworld 0 (a nether beacon's
+            // payment falls in the nether).
             itemEntities.spawnDropAtBlock(
                     new Position(position.x(), position.y(), position.z()),
-                    payment, net.zaminmc.torch.server.entity.ItemEntity.PICKUP_DELAY_DROP_TICKS);
+                    payment, net.zaminmc.torch.server.entity.ItemEntity.PICKUP_DELAY_DROP_TICKS,
+                    world.dimension());
         }
     }
 }

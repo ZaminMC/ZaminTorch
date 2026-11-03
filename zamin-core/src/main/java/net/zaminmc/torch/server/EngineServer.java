@@ -3196,27 +3196,38 @@ public final class EngineServer implements Server, EngineBridge {
                             // (MinecartEntity.dropItems), then the chest
                             // variant's extras (the contents spill, then a
                             // CHEST block — never the chest-minecart item).
-                            itemEntities.spawnDropAtBlock(
-                                    new Position(vehicle.position().x(), vehicle.position().y() + 0.3,
-                                            vehicle.position().z()),
-                                    vehicleDropStack(vehicle),
-                                    ItemEntity.PICKUP_DELAY_DROP_TICKS);
+                            // THE DROP FORMS' OWN LAWS (Wave PE-6 — the
+                            // reference's Entity.dropItem(ItemStack, 0.0F)
+                            // lines 1252-1261: every plain drop spawns at
+                            // the body's EXACT feet anchor — this.x, this.y,
+                            // this.z, the engine's centre convention
+                            // translated as position.y - the box half —
+                            // NEVER the +0.3 cell-inset band the pre-fix
+                            // path fed the block-corner API; the contents
+                            // ride InventoryUtils.dropItem's own spill form
+                            // (the [0.1, 0.9] band, the 10-30 chunk splits,
+                            // the gaussian * 0.05 velocity, NO pickup
+                            // delay); and EVERY drop stamped with the
+                            // BODY'S OWN dimension (a nether cart's death
+                            // never spills into the overworld).
+                            double dropFeetY = vehicle.position().y()
+                                    - (vehicle instanceof net.zaminmc.torch.server.entity.vehicle.BoatEntity
+                                            ? net.zaminmc.torch.server.entity.vehicle.BoatEntity.HALF_HEIGHT
+                                            : net.zaminmc.torch.server.entity.vehicle.MinecartEntity.HALF_HEIGHT);
+                            Position dropAt = new Position(vehicle.position().x(), dropFeetY,
+                                    vehicle.position().z());
+                            itemEntities.spawnDropAtEntity(dropAt,
+                                    vehicleDropStack(vehicle), vehicle.dimension());
                             if (vehicle instanceof net.zaminmc.torch.server.entity.vehicle.ChestMinecartEntity cart) {
                                 for (ItemStack stack : cart.chest().snapshotSlots()) {
                                     if (stack == null || stack.isEmpty()) {
                                         continue;
                                     }
-                                    itemEntities.spawnDropAtBlock(
-                                            new Position(vehicle.position().x(),
-                                                    vehicle.position().y() + 0.3,
-                                                    vehicle.position().z()),
-                                            stack, ItemEntity.PICKUP_DELAY_DROP_TICKS);
+                                    itemEntities.spawnContentsSpill(vehicle.position().x(), dropFeetY,
+                                            vehicle.position().z(), stack, vehicle.dimension());
                                 }
-                                itemEntities.spawnDropAtBlock(
-                                        new Position(vehicle.position().x(), vehicle.position().y() + 0.3,
-                                                vehicle.position().z()),
-                                        ItemStack.of(BuiltinItems.CHEST, 1),
-                                        ItemEntity.PICKUP_DELAY_DROP_TICKS);
+                                itemEntities.spawnDropAtEntity(dropAt,
+                                        ItemStack.of(BuiltinItems.CHEST, 1), vehicle.dimension());
                             }
                             // The TNT variant's own extra (Slice 66 +
                             // Slice 74 — TntMinecartEntity.dropItems lines
@@ -3232,11 +3243,8 @@ public final class EngineServer implements Server, EngineBridge {
                                 boolean explosiveDeath = vehicle.lastDamageSource()
                                         == net.zaminmc.torch.server.entity.vehicle.VehicleEntity.DamageSource.EXPLOSIVE;
                                 if (!explosiveDeath) {
-                                    itemEntities.spawnDropAtBlock(
-                                            new Position(vehicle.position().x(), vehicle.position().y() + 0.3,
-                                                    vehicle.position().z()),
-                                            ItemStack.of(BuiltinItems.TNT, 1),
-                                            ItemEntity.PICKUP_DELAY_DROP_TICKS);
+                                    itemEntities.spawnDropAtEntity(dropAt,
+                                            ItemStack.of(BuiltinItems.TNT, 1), vehicle.dimension());
                                 }
                                 // The death detonation (the method's own
                                 // three-gate refusal — fire/explosive/fast).
@@ -3253,11 +3261,8 @@ public final class EngineServer implements Server, EngineBridge {
                             if (vehicle instanceof net.zaminmc.torch.server.entity.vehicle.FurnaceMinecartEntity
                                     && vehicle.lastDamageSource()
                                             != net.zaminmc.torch.server.entity.vehicle.VehicleEntity.DamageSource.EXPLOSIVE) {
-                                itemEntities.spawnDropAtBlock(
-                                        new Position(vehicle.position().x(), vehicle.position().y() + 0.3,
-                                                vehicle.position().z()),
-                                        ItemStack.of(BuiltinItems.FURNACE, 1),
-                                        ItemEntity.PICKUP_DELAY_DROP_TICKS);
+                                itemEntities.spawnDropAtEntity(dropAt,
+                                        ItemStack.of(BuiltinItems.FURNACE, 1), vehicle.dimension());
                             }
                             // The hopper variant's own extras (Slice 66 —
                             // HopperMinecartEntity.dropItems lines 132-138:
@@ -3269,17 +3274,11 @@ public final class EngineServer implements Server, EngineBridge {
                                     if (stack == null || stack.isEmpty()) {
                                         continue;
                                     }
-                                    itemEntities.spawnDropAtBlock(
-                                            new Position(vehicle.position().x(),
-                                                    vehicle.position().y() + 0.3,
-                                                    vehicle.position().z()),
-                                            stack, ItemEntity.PICKUP_DELAY_DROP_TICKS);
+                                    itemEntities.spawnContentsSpill(vehicle.position().x(), dropFeetY,
+                                            vehicle.position().z(), stack, vehicle.dimension());
                                 }
-                                itemEntities.spawnDropAtBlock(
-                                        new Position(vehicle.position().x(), vehicle.position().y() + 0.3,
-                                                vehicle.position().z()),
-                                        ItemStack.of(BuiltinItems.HOPPER, 1),
-                                        ItemEntity.PICKUP_DELAY_DROP_TICKS);
+                                itemEntities.spawnDropAtEntity(dropAt,
+                                        ItemStack.of(BuiltinItems.HOPPER, 1), vehicle.dimension());
                             }
                         },
                         new java.util.Random(),
@@ -4195,7 +4194,8 @@ public final class EngineServer implements Server, EngineBridge {
                             at.x() + 0.5, at.y() + 0.5, at.z() + 0.5),
                             bannerDrop,
                             net.zaminmc.torch.server.entity.ItemEntity
-                                    .PICKUP_DELAY_DROP_TICKS);
+                                    .PICKUP_DELAY_DROP_TICKS,
+                            player.dimension());
                 });
                 // The infested egg's burst (Slice 18c —
                 // InfestedBlock.dropItems lines 79-88): the survival break
@@ -15565,9 +15565,14 @@ public final class EngineServer implements Server, EngineBridge {
                     below, gameplayRandom);
         }
         if (drop != null) {
+            // THE PLANT DROP'S OWN WORLD (Wave PE-6 — the drop-stamp
+            // census): the reference's drops ride the player's own
+            // world (the dig path's this.world) — the session's own
+            // dimension, never the dimensionless overload's overworld 0.
             itemEntities.spawnDropAtBlock(
                     new Position(belowCell.x(), belowCell.y(), belowCell.z()),
-                    drop, net.zaminmc.torch.server.entity.ItemEntity.PICKUP_DELAY_DROP_TICKS);
+                    drop, net.zaminmc.torch.server.entity.ItemEntity.PICKUP_DELAY_DROP_TICKS,
+                    session.dimension());
         }
     }
 
@@ -17088,12 +17093,17 @@ public final class EngineServer implements Server, EngineBridge {
             BlockType placed = world.getBlock(target);
             if (!net.zaminmc.torch.server.block.RailConnections.survivesAt(world, target)) {
                 world.setBlock(target, world.airType());
+                // THE POP DROP'S OWN WORLD (Wave PE-6 — the drop-stamp
+                // census): the reference's dropItems + removeBlock ride
+                // the placer's own world — the session's dimension,
+                // never the dimensionless overload's overworld 0.
                 itemEntities.spawnDropAtBlock(
                         new Position(target.x(), target.y(), target.z()),
                         ItemStack.of(BuiltinItems.lookup(
                                 net.zaminmc.torch.server.block.RailBlocks.familyItemOf(placed))
                                 .orElseThrow(), 1),
-                        ItemEntity.PICKUP_DELAY_DROP_TICKS);
+                        ItemEntity.PICKUP_DELAY_DROP_TICKS,
+                        world.dimension());
             }
         }
         consumePlaced(session, creativeHeld);
@@ -20286,6 +20296,18 @@ public final class EngineServer implements Server, EngineBridge {
     /** The break drop of a vehicle (the vanilla item forms). */
     private net.zaminmc.torch.item.ItemStack vehicleDropStack(
             net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle) {
+        // THE NAMED CART'S OWN DROP (MinecartEntity.dropItems lines
+        // 161-165): `if (this.customName != null)
+        // itemstack.setHoverName(this.customName)` — a named cart's
+        // item carries the name (Wave PE-6's verbatim pin).
+        String customName = vehicle.customName();
+        if (customName != null) {
+            return new net.zaminmc.torch.item.ItemStack(
+                    vehicle.kind() == net.zaminmc.torch.server.entity.vehicle.VehicleEntity.Kind.BOAT
+                            ? BuiltinItems.BOAT
+                            : BuiltinItems.MINECART,
+                    1, 0, customName);
+        }
         return net.zaminmc.torch.item.ItemStack.of(
                 vehicle.kind() == net.zaminmc.torch.server.entity.vehicle.VehicleEntity.Kind.BOAT
                         ? BuiltinItems.BOAT

@@ -523,10 +523,16 @@ class PistonEntityPushTest {
                 server.world().setBlock(new BlockPosition(x, y + 2, z),
                         RedstoneBlocks.leverOf(5, false));
                 server.world().setBlock(new BlockPosition(x + 2, y - 1, z), BuiltinBlocks.STONE);
-                orb.set(server.experienceOrbs().spawnRestored(
-                        new Position(x + 2.5, y + 0.125, z + 0.4), 5, 0));
+                // THE BENCH REPAIR (Wave PE-6's sweep — the PE-4 occupancy
+                // gate is vanilla's own law): ArmorStandItem.useOn's box
+                // refuses the placement when ANY body stands in the cell —
+                // the stand places FIRST (the orb spawns after it; the
+                // orb's own spawn consults no occupancy gate, the
+                // reference's own order shape).
                 server.armorStands().place(new BlockPosition(x + 2, y - 1, z), 0, 1, 0.0f,
                         new java.util.Random(1));
+                orb.set(server.experienceOrbs().spawnRestored(
+                        new Position(x + 2.5, y + 0.125, z + 0.4), 5, 0));
                 server.tnt().spawnPrimedAt(server.world(), x + 2.5, y, z + 0.6);
                 arrow.set(server.projectiles().launchVector(
                         net.zaminmc.torch.server.entity.projectile.ProjectileEntity.Kind.ARROW,

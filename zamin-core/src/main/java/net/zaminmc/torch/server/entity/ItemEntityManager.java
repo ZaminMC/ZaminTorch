@@ -266,6 +266,93 @@ public final class ItemEntityManager {
     }
 
     /**
+     * THE ENTITY DROP FORM (Wave PE-6 — Entity.dropItem(ItemStack,
+     * float) lines 1252-1261, the vehicle family's own death drops):
+     * {@code new ItemEntity(world, this.x, this.y + offsetY, this.z,
+     * item)} then {@code setDefaultPickUpDelay()} — the body's EXACT
+     * position (feet-anchored y, never a cell inset), the ItemEntity
+     * 3-arg ctor's own velocity (uniform ±0.1 horizontal, +0.2
+     * vertical), the default 10-tick pickup delay. The reference's
+     * SECOND drop form beside Block.dropItem's cell inset — a dying
+     * cart's item spawns AT the body, never displaced into the cell
+     * roll.
+     *
+     * @return the new entity, or null when the §27.7 gate cancelled the
+     *         drop (no id is consumed)
+     */
+    public ItemEntity spawnDropAtEntity(Position at, ItemStack stack, int dimension) {
+        if (!admitSpawn(stack, at)) {
+            return null; // the §27.7 gate withheld the drop
+        }
+        ItemEntity entity = new ItemEntity(nextEntityId++, at, stack,
+                ItemEntity.PICKUP_DELAY_DROP_TICKS);
+        entity.setDimension(dimension);
+        entity.setVelocity(random.nextDouble() * 0.2 - 0.1, 0.2,
+                random.nextDouble() * 0.2 - 0.1);
+        entities.add(entity);
+        for (Listener listener : listeners) {
+            listener.onItemSpawned(entity);
+        }
+        return entity;
+    }
+
+    /**
+     * THE CONTENTS SPILL FORM (Wave PE-6 — InventoryUtils.dropItem
+     * lines 31-50, every container's break spill): the [0.1, 0.9]
+     * uniform band rolled ONCE per stack around the anchor, the stack
+     * SPLIT into chunks of {@code nextInt(21) + 10} (10-30 each, the
+     * tail chunk the remainder), every chunk its own body at the SAME
+     * band point carrying the stack's own rows, the velocity GAUSSIAN
+     * * 0.05 with the +0.2 vertical — and NO pickup delay (the
+     * reference never calls setDefaultPickUpDelay on this path; a
+     * spilled stack is collectable the same tick it lands).
+     *
+     * @return the spawned bodies (empty when the §27.7 gate cancelled
+     *         every chunk; a cancelled chunk consumes no id)
+     */
+    public List<ItemEntity> spawnContentsSpill(double x, double y, double z,
+                                               ItemStack stack, int dimension) {
+        Objects.requireNonNull(stack, "stack");
+        List<ItemEntity> spawned = new ArrayList<>();
+        if (stack.isEmpty()) {
+            return spawned;
+        }
+        // The band offsets (lines 32-34): ONE roll per spill call —
+        // every chunk of the stack lands at the same point.
+        float f = random.nextFloat() * 0.8F + 0.1F;
+        float f1 = random.nextFloat() * 0.8F + 0.1F;
+        float f2 = random.nextFloat() * 0.8F + 0.1F;
+        int remaining = stack.count();
+        while (remaining > 0) {
+            int chunk = random.nextInt(21) + 10;
+            if (chunk > remaining) {
+                chunk = remaining;
+            }
+            remaining -= chunk;
+            ItemStack chunkStack = stack.withCount(chunk);
+            Position at = new Position(x + f, y + f1, z + f2);
+            if (!admitSpawn(chunkStack, at)) {
+                continue; // the §27.7 gate withheld this chunk
+            }
+            ItemEntity entity = new ItemEntity(nextEntityId++, at, chunkStack, 0);
+            entity.setDimension(dimension);
+            // The gaussian spread (lines 44-46): 0.05 sigma, +0.2 mean
+            // vertical — the reference's own container-spill velocity,
+            // never the plain drop's uniform band.
+            float f3 = 0.05F;
+            entity.setVelocity(random.nextGaussian() * f3,
+                    random.nextGaussian() * f3 + 0.2,
+                    random.nextGaussian() * f3);
+            entities.add(entity);
+            for (Listener listener : listeners) {
+                listener.onItemSpawned(entity);
+            }
+            spawned.add(entity);
+        }
+        return spawned;
+    }
+
+    /**
      * @return an unmodifiable snapshot of the live entities — consistent
      * by construction even while the tick thread mutates (the settle
      * awaits poll this off-thread; the copy-on-write list guarantees the

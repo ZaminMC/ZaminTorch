@@ -128,11 +128,16 @@ public final class ChestManager {
         if (chest == null || items == null) {
             return;
         }
-        Position origin = new Position(position.x(), position.y(), position.z());
+        // THE SPILL FORM'S OWN LAW (Wave PE-6 — the reference's
+        // InventoryUtils.dropItems(world, pos, this) lines 14-29 over
+        // dropItem lines 31-50): every slot rides the CONTENTS SPILL
+        // form at the cell's own corner — the [0.1, 0.9] band, the
+        // 10-30 chunk splits, the gaussian * 0.05 velocity, NO pickup
+        // delay — never the block-drop's cell inset and 10-tick delay.
         for (ItemStack stack : chest.snapshotSlots()) {
             if (!stack.isEmpty()) {
-                items.spawnDropAtBlock(origin, stack, ItemEntity.PICKUP_DELAY_DROP_TICKS,
-                        dimension);
+                items.spawnContentsSpill(position.x(), position.y(), position.z(),
+                        stack, dimension);
             }
         }
     }

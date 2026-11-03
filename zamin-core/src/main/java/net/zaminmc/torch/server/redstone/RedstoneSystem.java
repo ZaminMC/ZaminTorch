@@ -2409,10 +2409,16 @@ public final class RedstoneSystem implements WorldChangeListener {
     /** The removal + drop (the reference's dropItems + removeBlock). */
     private void popBlock(BlockPosition pos, net.zaminmc.torch.item.ItemType drop) {
         world.setBlock(pos, world.airType());
+        // THE POP DROP'S OWN WORLD (Wave PE-6 — the wire's cross-dimension
+        // consult row): the reference's Block.dropItem(this.world, ...) —
+        // the SYSTEM'S OWN world, never the dimensionless overload's
+        // overworld 0. A nether wire losing its floor pops its drop into
+        // the NETHER (a pop in the End into the End).
         itemEntities.spawnDropAtBlock(
                 new Position(pos.x(), pos.y(), pos.z()),
                 ItemStack.of(drop, 1),
-                ItemEntity.PICKUP_DELAY_DROP_TICKS);
+                ItemEntity.PICKUP_DELAY_DROP_TICKS,
+                world.dimension());
     }
 
     // ------------------------------------------------------------------

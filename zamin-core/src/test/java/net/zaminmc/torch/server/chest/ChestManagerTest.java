@@ -99,13 +99,54 @@ class ChestManagerTest {
             }
         });
         manager.onBlockBroken(POS, items);
-        assertEquals(2, spawned.size(), "both filled slots spilled");
-        assertEquals(12, spawned.get(0).stack().count());
-        assertEquals(1, spawned.get(1).stack().damage(), "the charcoal variant rides the spill");
+        // THE SPILL'S CHUNK-SPLIT WALK (Wave PE-6 — InventoryUtils.dropItem
+        // lines 31-50): a 12-stack spills as {@code nextInt(21) + 10}
+        // chunks capped at the remainder — one chunk when the roll pays
+        // 12 whole, two when it splits — every chunk 1-30 with the TOTAL
+        // preserved and the charcoal variant riding every chunk.
+        int dirtTotal = 0;
+        for (net.zaminmc.torch.server.entity.ItemEntity entity : spawned) {
+            int count = entity.stack().count();
+            assertTrue(count >= 1 && count <= 30,
+                    "every spill chunk rides the 10-30 split band capped at the stack "
+                            + "(observed " + count + ")");
+            if (entity.stack().type().equals(BuiltinItems.DIRT)) {
+                dirtTotal += count;
+            } else {
+                assertEquals(1, entity.stack().damage(),
+                        "the charcoal variant rides every spill chunk");
+            }
+            assertTrue(entity.pickupDelayTicks() == 0,
+                    "the spill form carries NO pickup delay (InventoryUtils never "
+                            + "calls setDefaultPickUpDelay on this path)");
+            assertTrue(entity.position().x() >= POS.x() + 0.1
+                    && entity.position().x() <= POS.x() + 0.9,
+                    "the spill band's x rides [cell+0.1, cell+0.9]");
+        }
+        assertEquals(12, dirtTotal, "the dirt stack's total preserved across the chunks");
+        int coalChunks = countOf(spawned, BuiltinItems.COAL);
+        assertEquals(1, coalChunks, "the 2-stack spills one chunk (the cap)");
+        for (net.zaminmc.torch.server.entity.ItemEntity entity : spawned) {
+            if (entity.stack().type().equals(BuiltinItems.COAL)) {
+                assertEquals(2, entity.stack().count(), "the capped chunk carries the whole 2");
+            }
+        }
         assertNull(manager.peek(POS), "the broken chest's state is gone");
 
         // Breaking an untracked position stays calm.
+        int before = spawned.size();
         manager.onBlockBroken(new BlockPosition(9, 9, 9), items);
-        assertEquals(2, spawned.size());
+        assertEquals(before, spawned.size());
+    }
+
+    private static int countOf(java.util.List<net.zaminmc.torch.server.entity.ItemEntity> spawned,
+                               net.zaminmc.torch.item.ItemType type) {
+        int n = 0;
+        for (net.zaminmc.torch.server.entity.ItemEntity entity : spawned) {
+            if (entity.stack().type().equals(type)) {
+                n++;
+            }
+        }
+        return n;
     }
 }

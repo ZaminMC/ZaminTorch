@@ -261,6 +261,11 @@ public final class JukeboxBlockSystem implements WorldChangeListener {
      */
     private void dropRecord(BlockPosition position, ItemStack record) {
         Position origin = new Position(position.x(), position.y(), position.z());
-        items.spawnDropAtBlock(origin, record, ItemEntity.PICKUP_DELAY_DROP_TICKS);
+        // THE DISC DROP'S OWN WORLD (Wave PE-6 — the drop-stamp
+        // census): the reference's Block.dropItem(this.world, ...) —
+        // the system's own world, never the dimensionless overload's
+        // overworld 0 (a nether jukebox's disc falls in the nether).
+        items.spawnDropAtBlock(origin, record, ItemEntity.PICKUP_DELAY_DROP_TICKS,
+                world.dimension());
     }
 }
