@@ -16159,7 +16159,7 @@ public final class EngineServer implements Server, EngineBridge {
                 world.getBlock(clicked))) {
             return;
         }
-        boolean top = cursorY >= 0.5f; // dy > 0.5F (the cursor fraction, Slice 65's unified form)
+        boolean top = cursorY > 0.5f; // dy > 0.5F — the STRICT form (TrapdoorBlock.getPlacementState lines 156-160: the exact mid-face click, cursor byte 8 = exactly 0.5, lays the BOTTOM half; the sibling slab/stairs gates read the same strict law)
         world.setBlock(target, net.zaminmc.torch.server.block.TrapdoorBlocks
                 .state(family, facing, false, top));
         consumePlaced(session, creativeHeld);
