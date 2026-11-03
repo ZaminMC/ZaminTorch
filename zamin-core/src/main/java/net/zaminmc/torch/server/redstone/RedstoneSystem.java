@@ -180,6 +180,23 @@ public final class RedstoneSystem implements WorldChangeListener {
 
     /** The plates' re-compute debounce (AbstractPressurePlateBlock.getTickRate). */
     static final int PLATE_TICK_RATE = 20;
+    /**
+     * The weighted pair's own tick rate (WeightedPressurePlateBlock
+     * .getTickRate lines 71-73: 10 — the reference's own answer, HALF
+     * the boolean plate's 20; the re-check rides it).
+     */
+    static final int WEIGHTED_PLATE_TICK_RATE = 10;
+
+    /**
+     * The plate family's tick rate for the given state (the weighted
+     * pair's own 10 over the boolean plates' 20 — the reference's two
+     * getTickRate answers).
+     */
+    private static int plateTickRate(BlockType type) {
+        return net.zaminmc.torch.server.redstone.WeightedPlateBlocks
+                .isWeightedPlate(type.identifier())
+                ? WEIGHTED_PLATE_TICK_RATE : PLATE_TICK_RATE;
+    }
     /** The detector rail's re-check (DetectorRailBlock.getTickRate: 20). */
     static final int DETECTOR_RAIL_TICK_RATE = 20;
     /** The stone button's release (ButtonBlock.getTickRate: 20 stone / 30 wood). */
@@ -859,9 +876,10 @@ public final class RedstoneSystem implements WorldChangeListener {
         BlockType type = world.getBlock(pos);
         if (RedstoneBlocks.isWire(type)) {
             // RedstoneWireBlock lines 235-244: recompute (the support gate
-            // is the placement rule — the wire pops when its floor vanishes,
-            // handled by the support check here).
-            if (!hasSupportBelow(pos)) {
+            // is the placement rule — the wire pops when its floor stops
+            // hosting, the hasSolidTop-or-glowstone law at wireFloorHolds,
+            // F-SP2).
+            if (!wireFloorHolds(pos)) {
                 popBlock(pos, BuiltinItems.REDSTONE);
                 return;
             }
@@ -884,8 +902,9 @@ public final class RedstoneSystem implements WorldChangeListener {
         }
         if (RedstoneBlocks.isRepeater(type)) {
             // DiodeBlock lines 80-91: the support break first, then the
-            // output-state check (the delayed reaction).
-            if (!hasSupportBelow(pos)) {
+            // output-state check (the delayed reaction) — the hasSolidTop
+            // law alone at diodeFloorHolds (F-SP2).
+            if (!diodeFloorHolds(pos)) {
                 popBlock(pos, BuiltinItems.REPEATER);
                 for (int[] offset : OFFSETS) {
                     neighborChanged(pos.offset(offset[0], offset[1], offset[2]));
@@ -899,8 +918,9 @@ public final class RedstoneSystem implements WorldChangeListener {
             // DiodeBlock lines 80-91 + ComparatorBlock lines 157-170: the
             // support break first, then the output-state check — the
             // comparator never locks (its isLocked stays false), so the
-            // neighborChanged arm goes straight to the value check.
-            if (!hasSupportBelow(pos)) {
+            // neighborChanged arm goes straight to the value check — the
+            // hasSolidTop law alone at diodeFloorHolds (F-SP2).
+            if (!diodeFloorHolds(pos)) {
                 popBlock(pos, BuiltinItems.COMPARATOR);
                 for (int[] offset : OFFSETS) {
                     neighborChanged(pos.offset(offset[0], offset[1], offset[2]));
@@ -959,8 +979,9 @@ public final class RedstoneSystem implements WorldChangeListener {
         }
         if (net.zaminmc.torch.server.redstone.WeightedPlateBlocks.isWeightedPlate(type.identifier())) {
             // The weighted pair's floor rule (the same neighborChanged
-            // lines 92-97): the floor break pops the plate with its item.
-            if (!hasSupportBelow(pos)) {
+            // lines 92-97, the inherited canSitOnTop law at plateFloorHolds,
+            // F-SP2): the floor break pops the plate with its item.
+            if (!plateFloorHolds(pos)) {
                 popBlock(pos, net.zaminmc.torch.server.redstone.WeightedPlateBlocks
                         .familyOf(type.identifier()) == 0
                         ? BuiltinItems.LIGHT_WEIGHTED_PRESSURE_PLATE
@@ -970,8 +991,9 @@ public final class RedstoneSystem implements WorldChangeListener {
         }
         if (RedstoneBlocks.isPlate(type)) {
             // AbstractPressurePlateBlock.neighborChanged (lines 92-97): the
-            // floor break pops the plate.
-            if (!hasSupportBelow(pos)) {
+            // floor break pops the plate — the hasSolidTop-or-fence law at
+            // plateFloorHolds (F-SP2).
+            if (!plateFloorHolds(pos)) {
                 popBlock(pos, RedstoneBlocks.plateWooden(type)
                         ? BuiltinItems.WOODEN_PRESSURE_PLATE : BuiltinItems.STONE_PRESSURE_PLATE);
             }
@@ -1044,8 +1066,9 @@ public final class RedstoneSystem implements WorldChangeListener {
             popBlock(pos, doorItemOf(family)); // the lower's own dropItems arm
             removed = true;
         }
-        if (!WorldSolidity.isSolid(world.getBlock(pos.offset(0, -1, 0)))) {
-            // No solid top (World.hasSolidTop): the pair dies with one drop.
+        if (!doorFloorHolds(pos)) {
+            // No solid top (World.hasSolidTop — DoorBlock's survival walk,
+            // F-SP2's door member): the pair dies with one drop.
             if (upperIsFamily) {
                 world.setBlock(above, world.airType());
             }
@@ -1151,14 +1174,17 @@ public final class RedstoneSystem implements WorldChangeListener {
     private void railNeighborChanged(BlockPosition pos, BlockType type) {
         String family = net.zaminmc.torch.server.block.RailBlocks.familyOf(type);
         int shape = net.zaminmc.torch.server.block.RailBlocks.shapeOf(type);
-        // The support walk (AbstractRailBlock.neighborChanged lines 90-102).
-        boolean unsupported = !hasSupportBelow(pos);
+        // The support walk (AbstractRailBlock.neighborChanged lines
+        // 90-102): the hasSolidTop law for the floor AND the ascending
+        // headwall (the rail family rides the same five-arm consult as
+        // every other floor-mounted family — F-SP2).
+        boolean unsupported = !diodeFloorHolds(pos);
         if (!unsupported && net.zaminmc.torch.server.block.RailBlocks.isAscending(shape)) {
             // The ascending shape's headwall: the cell the ramp climbs
             // into must hold a solid top (lines 94-102).
             int[] step = ascendingStep(shape);
-            unsupported = !WorldSolidity.isSolid(world.getBlock(
-                    pos.offset(step[0], 0, step[1])));
+            unsupported = !net.zaminmc.torch.server.block.SupportConsult.hasSolidTop(
+                    world.getBlock(pos.offset(step[0], 0, step[1])));
         }
         if (unsupported) {
             popBlock(pos, railItemOf(family));
@@ -1411,9 +1437,16 @@ public final class RedstoneSystem implements WorldChangeListener {
             return;
         }
         if (RedstoneBlocks.isTorch(type)) {
+            // TorchBlock.onAdded (lines 91-93, inherited whole by the
+            // redstone family — canSurviveOrBreak): the support consult
+            // FIRST — an unsupported torch pops at its own commit — then
             // RedstoneTorchBlock lines 56-62: a LIT torch announces itself
             // to all six neighbors on arrival (the two-hop ring — its
             // neighbors' neighbors hear it through updateNeighbors).
+            if (!torchSupported(type, pos)) {
+                popBlock(pos, BuiltinItems.REDSTONE_TORCH);
+                return;
+            }
             if (RedstoneBlocks.torchLit(type)) {
                 for (int[] offset : OFFSETS) {
                     updateNeighbors(pos.offset(offset[0], offset[1], offset[2]));
@@ -1457,7 +1490,7 @@ public final class RedstoneSystem implements WorldChangeListener {
                         .powerOf(type.identifier()) > 0) {
                     updateNeighbors(pos);
                     updateNeighbors(pos.offset(0, -1, 0));
-                    scheduleTick(pos, FAMILY_PLATE, PLATE_TICK_RATE, 0);
+                    scheduleTick(pos, FAMILY_PLATE, WEIGHTED_PLATE_TICK_RATE, 0);
                 }
                 return;
             }
@@ -1520,7 +1553,7 @@ public final class RedstoneSystem implements WorldChangeListener {
                 }
                 updateNeighbors(plate);
                 updateNeighbors(plate.offset(0, -1, 0));
-                scheduleTick(plate, FAMILY_PLATE, PLATE_TICK_RATE, 0);
+                scheduleTick(plate, FAMILY_PLATE, plateTickRate(type), 0);
             }
         }
         // The detector rail's cart scan (Slice 38 — DetectorRailBlock
@@ -1581,7 +1614,9 @@ public final class RedstoneSystem implements WorldChangeListener {
                 comparatorTick(entry.position(), type);
             } else if (RedstoneBlocks.isButton(type)) {
                 buttonTick(entry.position(), type);
-            } else if (RedstoneBlocks.isPlate(type)) {
+            } else if (RedstoneBlocks.isPlate(type)
+                    || net.zaminmc.torch.server.redstone.WeightedPlateBlocks
+                            .isWeightedPlate(type.identifier())) {
                 plateTick(entry.position(), type);
             } else if (net.zaminmc.torch.server.block.RailBlocks.familyOf(type) != null
                     && net.zaminmc.torch.server.block.RailBlocks.familyOf(type)
@@ -2171,7 +2206,7 @@ public final class RedstoneSystem implements WorldChangeListener {
                     updateNeighbors(pos.offset(0, -1, 0));
                 }
             }
-            scheduleTick(pos, FAMILY_PLATE, PLATE_TICK_RATE, 0); // re-arm
+            scheduleTick(pos, FAMILY_PLATE, plateTickRate(type), 0); // re-arm
             return;
         }
         if (net.zaminmc.torch.server.redstone.WeightedPlateBlocks.isWeightedPlate(type.identifier())) {
@@ -2319,9 +2354,56 @@ public final class RedstoneSystem implements WorldChangeListener {
     // Support and drops
     // ------------------------------------------------------------------
 
-    /** The wire's floor rule (RedstoneWireBlock.canBePlaced lines 92-94). */
-    private boolean hasSupportBelow(BlockPosition pos) {
-        return WorldSolidity.isSolid(world.getBlock(pos.offset(0, -1, 0)));
+    /**
+     * The WIRE's floor rule (RedstoneWireBlock.canBePlaced lines 91-93
+     * and the survival arm lines 235-244, F-SP2): {@code
+     * World.hasSolidTop(below) || below == GLOWSTONE} — the glowstone
+     * disjunct the wire's own (every other floor-mounted family refuses
+     * it). The translucent floors (glass, ice, the leaves) and the
+     * non-cube beds (the fences, the bottom slabs) never host the dust.
+     */
+    private boolean wireFloorHolds(BlockPosition pos) {
+        BlockType below = world.getBlock(pos.offset(0, -1, 0));
+        return net.zaminmc.torch.server.block.SupportConsult.hasSolidTop(below)
+                || below.identifier().equals(BuiltinBlocks.GLOWSTONE.identifier());
+    }
+
+    /**
+     * The DIODE's floor rule (DiodeBlock.canBePlaced lines 29-31 and
+     * canSurvive lines 33-35, F-SP2): {@code World.hasSolidTop(below)}
+     * ALONE — no glowstone disjunct (a repeater on glowstone POPS in
+     * vanilla), no fence arm. The comparator inherits the diode's
+     * single arm (ComparatorBlock rides DiodeBlock's consults whole).
+     */
+    private boolean diodeFloorHolds(BlockPosition pos) {
+        return net.zaminmc.torch.server.block.SupportConsult.hasSolidTop(
+                world.getBlock(pos.offset(0, -1, 0)));
+    }
+
+    /**
+     * The PLATE's floor rule (AbstractPressurePlateBlock.canBePlaced
+     * lines 72-74 over canSitOnTop lines 84-86, F-SP2): {@code
+     * World.hasSolidTop(below) || below instanceof FenceBlock} — the
+     * census EXACTLY the seven fence families (the nether brick a
+     * member; the cobblestone wall NOT — a wall is no FenceBlock).
+     */
+    private boolean plateFloorHolds(BlockPosition pos) {
+        BlockType below = world.getBlock(pos.offset(0, -1, 0));
+        return net.zaminmc.torch.server.block.SupportConsult.hasSolidTop(below)
+                || WorldSolidity.isFence(below.identifier());
+    }
+
+    /**
+     * The DOOR's floor rule (DoorBlock.canBePlaced lines 213-214 and
+     * the survival walk's floor consult, F-SP2's door member):
+     * {@code World.hasSolidTop(below)} ALONE — no glowstone disjunct
+     * (the wire's own), no fence arm (the plates' own). The pair dies
+     * WHOLE when the floor refuses (the lower popped with its drop,
+     * the upper removed silently — the reference's own shape).
+     */
+    private boolean doorFloorHolds(BlockPosition pos) {
+        return net.zaminmc.torch.server.block.SupportConsult.hasSolidTop(
+                world.getBlock(pos.offset(0, -1, 0)));
     }
 
     /** The removal + drop (the reference's dropItems + removeBlock). */
@@ -2402,6 +2484,13 @@ public final class RedstoneSystem implements WorldChangeListener {
             return FAMILY_BUTTON;
         }
         if (RedstoneBlocks.isPlate(type)) {
+            return FAMILY_PLATE;
+        }
+        if (net.zaminmc.torch.server.redstone.WeightedPlateBlocks
+                .isWeightedPlate(type.identifier())) {
+            // The weighted pair rides the SAME scheduled-tick family
+            // (AbstractPressurePlateBlock's own tick/updateOutputState —
+            // the stale-gate must recognize the held plate's re-check).
             return FAMILY_PLATE;
         }
         if (net.zaminmc.torch.server.block.RailBlocks.familyOf(type) != null

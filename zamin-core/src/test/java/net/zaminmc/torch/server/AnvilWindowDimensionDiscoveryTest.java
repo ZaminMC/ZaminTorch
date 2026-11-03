@@ -1,6 +1,7 @@
 package net.zaminmc.torch.server;
 
 import net.zaminmc.torch.GameMode;
+import net.zaminmc.torch.block.BlockPosition;
 import net.zaminmc.torch.server.block.AnvilBlocks;
 import net.zaminmc.torch.server.block.BuiltinBlocks;
 import net.zaminmc.torch.server.config.EngineConfig;
@@ -10,10 +11,9 @@ import net.zaminmc.torch.server.net.ClientLink;
 import net.zaminmc.torch.server.net.EngineBridge;
 import net.zaminmc.torch.server.player.PlayerSession;
 import net.zaminmc.torch.server.world.EngineWorld;
-import net.zaminmc.torch.block.BlockPosition;
-import net.zaminmc.torch.item.ItemStack;
 import net.zaminmc.torch.testing.EngineAwaits;
 import net.zaminmc.torch.util.Position;
+import net.zaminmc.torch.util.Rotation;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -22,76 +22,80 @@ import org.junit.jupiter.api.io.TempDir;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * THE VERIFIER'S VT-040 PASS-2 SEAT — the anvil window's block side is
- * overworld-bound (docs/vanilla-conformance-audit.md, the forty-ninth
- * pass's discovery, this pass's seats; renumbered twice from the lane's
- * draft VT-033 — the wither-summon lane's PR #146 owns 33 publicly
- * first, the pass-52 lane's lever/button gates own 36, the pass-53
- * lane's tripwire surface owns 37/38/39).
+ * THE VERIFIER'S VT-035 PASS-2 SEAT — the anvil window family's dimension
+ * ownership (docs/vanilla-conformance-audit.md, the fifty-second pass —
+ * the block-consult window tail Slice B left on the 0-stamp open form).
  *
- * <p>THE REFERENCE LAW (the dispatch chain, 1:1): the anvil menu is
- * constructed over the ACTING world and consults it alone —
- * {@code AnvilBlock.use} lines 53-59 passes the acting {@code world} into
- * {@code new AnvilBlock.MenuProvider(world, pos)}; {@code createMenu}
- * forwards it into {@code new AnvilMenu(playerInventory, this.world,
- * this.pos, player)} (the ctor's lines 44-47 stamping
- * {@code this.world = world}); the damage roll then reads and writes THAT
- * world — {@code onItemRemoved} lines 81-93:
- * {@code world.getBlockState(pos)}, {@code world.removeBlock(pos)} /
- * {@code world.setBlockState(pos, ..., 2)}, {@code world.doEvent(1020/
- * 1021, pos, 0)} — and the walk-away gate reads it too ({@code isValid}
- * lines 308-311: {@code this.world.getBlockState(this.pos)}).</p>
+ * <p>THE REFERENCE LAW (AnvilMenu lines 40-46 + 81-93 + 308-311,
+ * re-walked for this seat): the anvil menu is CONSTRUCTED over the world
+ * the right-click happened in ({@code new AnvilMenu(playerInventory,
+ * world, pos, player)} — the acting world rides in at the open), and every
+ * later consult reads THAT world: the walk-away gate's
+ * {@code world.getBlockState(this.pos).getBlock() == Blocks.ANVIL}
+ * (isValid line 309), the take's damage walk
+ * ({@code world.getBlockState(pos)} line 81 — the 0.12 roll's anvil read,
+ * the DAMAGE progression write, the remove) and the 1020/1021 events
+ * ({@code world.doEvent} lines 86/89/92 — that world's listener list
+ * alone, World.doEvent 2613-2626). A nether anvil's window stays open over
+ * the NETHER's cell, its repairs damage the NETHER's anvil, and its use
+ * sound plays IN THE NETHER.</p>
  *
- * <p>THE ENGINE'S ROW: every one of those consults answers the
- * EngineServer's OVERWORLD {@code world} field —
- * {@code anvilSiteAt} (anvilStands/damageState/progressDamage/breakAnvil
- * all reading {@code world.getBlock/setBlock}), {@code tickAnvilViewers}
- * passing {@code world::getBlock} into {@code stillValid}, the 1020/1021
- * sounds through the no-dimension {@code fxManager.sound} overload, and
- * {@code openAnvilOnTick} stamping dimension 0 through the 3-arg
- * {@code openContainerWindow} — while the furnace/beacon/chest opens
- * already stamp {@code session.dimension()} (the Slice B precedent).</p>
+ * <p>THE ENGINE'S ROW (the pre-fix tree): the anvil open rides the 3-arg
+ * {@code openContainerWindow} (the 0 dimension stamp — the four tile
+ * families got the 4-arg form in Slice B, the block-consult windows did
+ * not), the viewer tick's validity consult reads the OVERWORLD FIELD
+ * ({@code menu.stillValid(world::getBlock, ...)} — EngineServer's
+ * tickAnvilViewers), and the take's site consults ride the same field
+ * (anvilSiteAt — anvilStands/damageState/progressDamage/breakAnvil) with
+ * the 1020/1021 sounds on the no-dimension fx overload. A nether anvil:
+ * the window SLAMS SHUT on the first viewer tick (the overworld cell is
+ * not an anvil), a mirrored overworld anvil at the same coordinates keeps
+ * it alive and the repair take CORRUPTS THE OVERWORLD'S ANVIL
+ * (cross-dimension block writes), and the sounds stamp the overworld 0.</p>
  *
- * <p>RED on develop: a nether anvil's window DIES on the first viewer
- * tick (the overworld's air cell answering the gate), and where the
- * overworld holds a mirrored anvil at the same coordinates the nether
- * repair's damage roll advances the OVERWORLD's anvil — cross-dimension
- * block damage — with the 1020/1021 audio stamped 0.</p>
+ * <p>THE SEAT: the full-boot construction — every step through the REAL
+ * wires (the use wire opens the window, the window-click wire carries the
+ * inputs and the take, the player random SEEDED for the deterministic
+ * 0.12 roll — seed 1's first nextFloat is 0.1005 &lt; 0.12, the roll
+ * HITS). ARM A pins the nether window's life and its take walking the
+ * NETHER's anvil. ARM B pins the mirrored corruption (an overworld anvil
+ * at the SAME coordinates must stay untouched by a nether repair). The
+ * enchanting twin (the same 3-arg open + the overworld validity consult)
+ * rides the third test.</p>
  */
 class AnvilWindowDimensionDiscoveryTest {
+
+    /** setSeed(8491153766255516575L) then nextFloat() == 0.098667204 < 0.12 — the roll HITS. */
+    private static final long ROLL_HIT_SEED = 8491153766255516575L;
 
     @TempDir
     Path dataDir;
 
     private EngineServer server;
-    private final List<FxManager.Sound> capturedSounds =
-            java.util.Collections.synchronizedList(new ArrayList<>());
-
-    /** The shared construction's coordinates (both worlds, same cell). */
-    private static final BlockPosition ANVIL_AT = new BlockPosition(64, 101, 64);
-    private static final BlockPosition SUPPORT_AT = new BlockPosition(64, 100, 64);
+    private final List<FxManager.Sound> captured = java.util.Collections.synchronizedList(
+            new ArrayList<>());
 
     @BeforeEach
     void boot() throws Exception {
         EngineConfig config = new EngineConfig("127.0.0.1", 0,
-                "anvildim" + Math.abs(new java.util.Random().nextInt(100000)),
+                "anvilwin" + Math.abs(new java.util.Random().nextInt(100000)),
                 "it", 20, 4, 20, dataDir.toString(),
                 GameMode.SURVIVAL, true, "flat", false, EngineConfig.WHOLE_WORLD_REGION_SIZE);
         server = new EngineServer(config);
         server.start();
         server.fx().addListener(event -> {
             if (event instanceof FxManager.Sound sound) {
-                capturedSounds.add(sound);
+                captured.add(sound);
             }
         });
     }
@@ -107,281 +111,239 @@ class AnvilWindowDimensionDiscoveryTest {
             @Override public void kick(String reason) { }
         };
         var result = server.joinRequest(link, name, UUID.nameUUIDFromBytes(name.getBytes()));
-        return ((EngineBridge.Accepted) result).session();
+        PlayerSession session = ((EngineBridge.Accepted) result).session();
+        server.ticker().submit(session::markPlaying);
+        return session;
     }
 
-    /** The nether platform: a 5x5 stone floor at fy=100 with four open
-     * air layers above it (the FX seat's own shape). */
-    private void netherPlatform(EngineWorld nether) throws InterruptedException {
+    /** A stone shelf with cleared air, one anvil on top, at (64, fy+1, 64). */
+    private void seedAnvilPlatform(EngineWorld world, int fy, BlockPosition anvilAt) throws Exception {
         server.ticker().submit(() -> {
             for (int dx = -2; dx <= 2; dx++) {
                 for (int dz = -2; dz <= 2; dz++) {
-                    nether.setBlock(new BlockPosition(64 + dx, 100, 64 + dz),
+                    world.setBlock(new BlockPosition(64 + dx, fy, 64 + dz),
                             BuiltinBlocks.STONE);
-                    for (int y = 101; y <= 104; y++) {
+                    for (int y = fy + 1; y <= fy + 5; y++) {
+                        world.setBlock(new BlockPosition(64 + dx, y, 64 + dz),
+                                world.airType());
+                    }
+                }
+            }
+            world.setBlock(anvilAt, BuiltinBlocks.ANVIL);
+        });
+        EngineAwaits.awaitCondition(server.world(),
+                () -> BuiltinBlocks.ANVIL.equals(world.getBlock(anvilAt)),
+                40, "the anvil landed in its cell");
+    }
+
+    /** The smith's kit: XP for the repair cost, a damaged sword, an ingot. */
+    private void armSmith(PlayerSession smith) {
+        smith.addXpLevels(10);
+        smith.inventory().setSlot(0, new net.zaminmc.torch.item.ItemStack(
+                BuiltinItems.IRON_SWORD, 1, 100, null, null));
+        smith.inventory().selectHotbarSlot(0);
+        smith.inventory().setSlot(1, new net.zaminmc.torch.item.ItemStack(
+                BuiltinItems.IRON_INGOT, 1, 0, null, null));
+    }
+
+    /** Opens the anvil window through the REAL use wire; returns the window id.
+     * The await takes the OPEN CONSUMER alone — on the pre-fix tree the window
+     * opens and then slams shut on the very first viewer tick, so the open
+     * kind is a transient the poll must not require. */
+    private int openAnvilWindow(PlayerSession smith, BlockPosition anvilAt) throws Exception {
+        AtomicInteger windowId = new AtomicInteger();
+        server.useItemOnBlock(smith, anvilAt, 1, Optional.empty(), windowId::set);
+        EngineAwaits.awaitCondition(server.world(),
+                () -> windowId.get() > 0,
+                40, "the anvil window opened through the use wire");
+        return windowId.get();
+    }
+
+    /** The input dance through the REAL window-click wire: hotbar -> cursor -> menu slots. */
+    private void feedInputs(PlayerSession smith, int windowId) throws Exception {
+        server.windowClick(smith, windowId, 30, 0, 0, ok -> { }); // cursor takes the sword
+        EngineAwaits.awaitCondition(server.world(),
+                () -> !smith.inventory().cursor().isEmpty(), 40, "the sword rides the cursor");
+        server.windowClick(smith, windowId, 0, 0, 0, ok -> { }); // into input 0
+        EngineAwaits.awaitCondition(server.world(),
+                () -> smith.anvilMenu() != null
+                        && !smith.anvilMenu().input().isEmpty(),
+                40, "the sword sits in input 0");
+        server.windowClick(smith, windowId, 31, 0, 0, ok -> { }); // cursor takes the ingot
+        EngineAwaits.awaitCondition(server.world(),
+                () -> !smith.inventory().cursor().isEmpty(), 40, "the ingot rides the cursor");
+        server.windowClick(smith, windowId, 1, 0, 0, ok -> { }); // into input 1
+        EngineAwaits.awaitCondition(server.world(),
+                () -> smith.anvilMenu() != null
+                        && !smith.anvilMenu().ingredient().isEmpty()
+                        && !smith.anvilMenu().output().isEmpty(),
+                60, "the repair projection formed (the output is ready)");
+    }
+
+    /** The seeded take through the REAL click wire: the 0.12 roll HITS (seed 1). */
+    private void takeSeededOutput(PlayerSession smith, int windowId) throws Exception {
+        // The roll's draw is the FIRST on the player random after the seed
+        // (the only consumer on the take path — verified: no per-tick draws).
+        server.ticker().submit(() -> smith.playerRandom().setSeed(ROLL_HIT_SEED));
+        server.windowClick(smith, windowId, 2, 0, 0, ok -> { }); // the take
+    }
+
+    @Test
+    void theNetherAnvilWindowStaysOpenAndItsTakeWalksTheNetherAnvil() throws Exception {
+        EngineWorld nether = server.worldFor(-1);
+        assertEquals(-1, nether.dimension(), "the nether world carries its dimension row");
+        PlayerSession smith = join("NetherSmith");
+        smith.setDimension(-1);
+
+        int fy = 100;
+        BlockPosition anvilAt = new BlockPosition(64, fy + 1, 64);
+        seedAnvilPlatform(nether, fy, anvilAt);
+
+        smith.applyMovement(new Position(64.5, fy + 1, 65.5), new Rotation(0, 0), true);
+        EngineAwaits.awaitTicks(server.world(), 2, "the smith settles");
+        armSmith(smith);
+
+        int windowId = openAnvilWindow(smith, anvilAt);
+
+        // THE SLAM-SHUT PIN — the reference's walk-away gate reads the menu's
+        // OWN world (AnvilMenu.isValid line 309 — the world the right-click
+        // happened in). The pre-fix viewer tick read the OVERWORLD FIELD's
+        // cell: the overworld at (64, 101, 64) is flat-world dirt — not an
+        // anvil — and the nether's window closed on the very first viewer
+        // tick (a nether anvil UNUSABLE, the GUI slamming shut on open).
+        EngineAwaits.awaitTicks(server.world(), 3, "the viewer tick's walk-away gate runs");
+        assertEquals(PlayerSession.ContainerKind.ANVIL, smith.openContainerKind(),
+                "VT-035: the nether anvil's window must STAY OPEN (the reference's "
+                        + "isValid reads the menu's own world — the NETHER's cell at "
+                        + "the anvil, AnvilMenu line 309). Observed: the window closed "
+                        + "(the validity consult read the overworld's cell instead).");
+
+        // The take walks the NETHER's anvil — the damage roll (seeded to HIT)
+        // must progress the NETHER block's damage, and the 1021 use sound
+        // must carry the NETHER's dimension.
+        feedInputs(smith, windowId);
+        takeSeededOutput(smith, windowId);
+        EngineAwaits.awaitCondition(server.world(),
+                () -> AnvilBlocks.damageOf(nether.getBlock(anvilAt).identifier()) == 1,
+                60, "the nether anvil's damage progressed under the seeded take");
+
+        assertEquals(1, AnvilBlocks.damageOf(nether.getBlock(anvilAt).identifier()),
+                "VT-035: the nether repair take must progress the NETHER anvil's "
+                        + "damage (the reference's damage walk reads and writes the "
+                        + "menu's own world — AnvilMenu lines 81-89). Observed damage: "
+                        + AnvilBlocks.damageOf(nether.getBlock(anvilAt).identifier()));
+        FxManager.Sound use = captured.stream()
+                .filter(sound -> sound.name().equals("random.anvil_use"))
+                .findFirst().orElse(null);
+        assertNotNull(use, "the 1021 use sound fired on the take");
+        assertEquals(-1, use.dimension(),
+                "VT-035: the nether repair's 1021 use sound must carry the NETHER's "
+                        + "dimension (world.doEvent line 89 over the menu's own world — "
+                        + "the per-world listener list alone). Observed stamp: "
+                        + use.dimension());
+    }
+
+    @Test
+    void theNetherTakeNeverTouchesTheOverworldMirror() throws Exception {
+        EngineWorld nether = server.worldFor(-1);
+        EngineWorld overworld = server.world();
+        PlayerSession smith = join("MirrorSmith");
+        smith.setDimension(-1);
+
+        int fy = 100;
+        BlockPosition anvilAt = new BlockPosition(64, fy + 1, 64);
+        seedAnvilPlatform(nether, fy, anvilAt);
+        // THE MIRROR — an overworld anvil at the SAME coordinates. On the
+        // pre-fix tree this keeps the nether's window alive (the validity
+        // consult reads the overworld's cell) and receives the corruption
+        // writes (the take's site consults the overworld field).
+        seedAnvilPlatform(overworld, fy, anvilAt);
+
+        smith.applyMovement(new Position(64.5, fy + 1, 65.5), new Rotation(0, 0), true);
+        EngineAwaits.awaitTicks(server.world(), 2, "the smith settles");
+        armSmith(smith);
+
+        int windowId = openAnvilWindow(smith, anvilAt);
+        EngineAwaits.awaitTicks(server.world(), 3, "the viewer tick's walk-away gate runs");
+        assertEquals(PlayerSession.ContainerKind.ANVIL, smith.openContainerKind(),
+                "VT-035: the nether anvil's window stays open (the nether's own cell "
+                        + "is an anvil — the gate must read THAT cell).");
+
+        feedInputs(smith, windowId);
+        takeSeededOutput(smith, windowId);
+        EngineAwaits.awaitCondition(server.world(),
+                () -> AnvilBlocks.damageOf(nether.getBlock(anvilAt).identifier()) == 1
+                        || AnvilBlocks.damageOf(overworld.getBlock(anvilAt).identifier()) == 1,
+                60, "the seeded take landed (some anvil's damage progressed)");
+
+        // THE CORRUPTION PINS — the nether take must advance the NETHER's
+        // anvil alone. On the pre-fix tree the overworld MIRROR advanced
+        // instead (the cross-dimension write) and the nether's own block
+        // never aged.
+        assertEquals(1, AnvilBlocks.damageOf(nether.getBlock(anvilAt).identifier()),
+                "VT-035: the nether repair must progress the NETHER anvil (the "
+                        + "reference's site consults read the menu's own world). "
+                        + "Observed nether damage: "
+                        + AnvilBlocks.damageOf(nether.getBlock(anvilAt).identifier()));
+        assertEquals(0, AnvilBlocks.damageOf(overworld.getBlock(anvilAt).identifier()),
+                "VT-035: the overworld mirror must stay UNTOUCHED by a nether "
+                        + "repair (a same-coordinate block in another world is a "
+                        + "DIFFERENT world's cell — the cross-dimension write). "
+                        + "Observed overworld damage: "
+                        + AnvilBlocks.damageOf(overworld.getBlock(anvilAt).identifier()));
+        FxManager.Sound use = captured.stream()
+                .filter(sound -> sound.name().equals("random.anvil_use"))
+                .findFirst().orElse(null);
+        assertNotNull(use, "the 1021 use sound fired on the take");
+        assertEquals(-1, use.dimension(),
+                "VT-035: the nether repair's 1021 sound must carry the NETHER's "
+                        + "dimension. Observed stamp: " + use.dimension());
+    }
+
+    @Test
+    void theNetherEnchantingWindowStaysOpen() throws Exception {
+        EngineWorld nether = server.worldFor(-1);
+        PlayerSession reader = join("NetherReader");
+        reader.setDimension(-1);
+
+        int fy = 100;
+        BlockPosition tableAt = new BlockPosition(64, fy + 1, 64);
+        server.ticker().submit(() -> {
+            for (int dx = -2; dx <= 2; dx++) {
+                for (int dz = -2; dz <= 2; dz++) {
+                    nether.setBlock(new BlockPosition(64 + dx, fy, 64 + dz),
+                            BuiltinBlocks.STONE);
+                    for (int y = fy + 1; y <= fy + 5; y++) {
                         nether.setBlock(new BlockPosition(64 + dx, y, 64 + dz),
                                 nether.airType());
                     }
                 }
             }
+            nether.setBlock(tableAt, BuiltinBlocks.ENCHANTING_TABLE);
         });
         EngineAwaits.awaitCondition(server.world(),
-                () -> BuiltinBlocks.STONE.equals(nether.getBlock(SUPPORT_AT)),
-                40, "the nether platform landed");
-    }
+                () -> BuiltinBlocks.ENCHANTING_TABLE.equals(nether.getBlock(tableAt)),
+                40, "the nether enchanting table landed");
 
-    private void placeAnvil(EngineWorld world, BlockPosition at) throws InterruptedException {
-        server.ticker().submit(() -> world.setBlock(at, AnvilBlocks.state(0, 0)));
+        reader.applyMovement(new Position(64.5, fy + 1, 65.5), new Rotation(0, 0), true);
+        EngineAwaits.awaitTicks(server.world(), 2, "the reader settles");
+
+        AtomicInteger windowId = new AtomicInteger();
+        server.useItemOnBlock(reader, tableAt, 1, Optional.empty(), windowId::set);
         EngineAwaits.awaitCondition(server.world(),
-                () -> AnvilBlocks.isAnvil(world.getBlock(at).identifier()),
-                40, "the anvil landed at " + at);
-    }
+                () -> windowId.get() > 0,
+                40, "the enchanting window opened through the use wire");
 
-    private void placeStone(EngineWorld world, BlockPosition at) throws InterruptedException {
-        server.ticker().submit(() -> world.setBlock(at, BuiltinBlocks.STONE));
-        EngineAwaits.awaitCondition(server.world(),
-                () -> BuiltinBlocks.STONE.equals(world.getBlock(at)),
-                40, "the support landed at " + at);
-    }
-
-    private void settlePlayerInNether(PlayerSession player) throws InterruptedException {
-        player.setDimension(-1);
-        player.applyMovement(new Position(64.5, 102.5, 65.5),
-                new net.zaminmc.torch.util.Rotation(0, 0), true);
-        EngineAwaits.awaitTicks(server.world(), 3, "the player settles in the nether");
-    }
-
-    // ------------------------------------------------------------------
-    // Seat 1 — the window-usability direction: the nether anvil's window
-    // must survive the viewer tick (isValid reads the menu's OWN world)
-    // ------------------------------------------------------------------
-
-    @Test
-    void theNetherAnvilWindowSurvivesTheViewerTick() throws Exception {
-        EngineWorld nether = server.worldFor(-1);
-        EngineWorld overworld = server.world();
-        netherPlatform(nether);
-        placeAnvil(nether, ANVIL_AT);
-
-        // The precondition — the overworld's same-coordinate cell holds NO
-        // anvil (the common case: the two worlds rarely mirror).
-        assertFalse(AnvilBlocks.isAnvil(overworld.getBlock(ANVIL_AT).identifier()),
-                "the precondition: the overworld cell at the same coordinates is no anvil");
-
-        PlayerSession smith = join("NetherSmith");
-        settlePlayerInNether(smith);
-
-        // The REAL use wire: the right-click on the nether anvil opens the
-        // repair window (AnvilBlock.use 53-59 over the acting world).
-        AtomicInteger opened = new AtomicInteger(-1);
-        server.useItemOnBlock(smith, ANVIL_AT, 1, java.util.Optional.empty(), opened::set);
-        EngineAwaits.awaitCondition(server.world(),
-                () -> opened.get() > 0, 40, "the nether anvil window opened");
-
-        // Fifteen viewer ticks pass: the reference's isValid gate reads the
-        // MENU'S OWN WORLD — the nether anvil stands and the player stands
-        // beside it, so the window must survive every one of them.
-        EngineAwaits.awaitTicks(server.world(), 15, "the viewer ticks pass");
-
-        // THE PIN — the reference: AnvilMenu.isValid lines 308-311 consults
-        // this.world (the ACTING world — the nether). The engine's
-        // tickAnvilViewers passes the OVERWORLD's block reader instead
-        // (EngineServer: stillValid(world::getBlock, ...)), so on develop the
-        // overworld's air cell answers the gate and the window dies on the
-        // first viewer tick — the nether anvil is non-interactive.
-        assertNotNull(smith.anvilMenu(),
-                "VT-040: the nether anvil's window must survive the viewer tick "
-                        + "(AnvilMenu.isValid 308-311 reads the menu's OWN world — the acting "
-                        + "world's cell, AnvilBlock.use 53-59's MenuProvider(world, pos)). "
-                        + "Observed: the window closed (the overworld's cell answered the gate)");
-        assertEquals(PlayerSession.ContainerKind.ANVIL, smith.openContainerKind(),
-                "VT-040: the window kind must still be ANVIL after the viewer ticks");
-    }
-
-    // ------------------------------------------------------------------
-    // Seat 2 — the corruption direction: the nether repair's damage roll
-    // must land on the NETHER anvil, never the overworld's mirror
-    // ------------------------------------------------------------------
-
-    @Test
-    void theNetherRepairDamagesTheNetherAnvilNeverTheOverworlds() throws Exception {
-        EngineWorld nether = server.worldFor(-1);
-        EngineWorld overworld = server.world();
-        netherPlatform(nether);
-        placeAnvil(nether, ANVIL_AT);
-
-        // The mirrored geometry: the overworld holds a damage-0 anvil at the
-        // SAME coordinates (stone-supported so the gravity arm never fells
-        // it) — the corruption construction's own precondition.
-        placeStone(overworld, SUPPORT_AT);
-        placeAnvil(overworld, ANVIL_AT);
-        assertTrue(AnvilBlocks.isAnvil(overworld.getBlock(ANVIL_AT).identifier()),
-                "the precondition: the overworld mirror stands");
-
-        PlayerSession smith = join("NetherSmith");
-        settlePlayerInNether(smith);
-        smith.addXpLevels(300); // every take costs one level (the material repair's law)
-
-        // The REAL use wire opens the window.
-        AtomicInteger opened = new AtomicInteger(-1);
-        server.useItemOnBlock(smith, ANVIL_AT, 1, java.util.Optional.empty(), opened::set);
-        EngineAwaits.awaitCondition(server.world(),
-                () -> opened.get() > 0 && smith.anvilMenu() != null,
-                40, "the nether anvil window opened and survived");
-        int windowId = opened.get();
-
-        // One full repair through the window's own clicks: a damaged iron
-        // sword (damage 5) + one iron ingot (the material repair — the tier
-        // table's iron row), the output take rolling the 0.12 damage die.
-        // The take repeats until SOME anvil's state changes (the roll is
-        // 0.12 per take; 120 takes bound the miss odds below 1e-7).
-        for (int take = 0; take < 120; take++) {
-            driveOneRepairTake(smith, windowId, take);
-
-            // The roll landed somewhere — stop once an anvil's state changed
-            // (or the window itself died: the mirror's break fells the gate
-            // that the overworld cell was answering — corruption observed).
-            boolean netherChanged = anvilChanged(nether, ANVIL_AT);
-            boolean overworldChanged = anvilChanged(overworld, ANVIL_AT);
-            if (netherChanged || overworldChanged || smith.anvilMenu() == null) {
-                break;
-            }
-        }
-
-        // THE PIN (the roll's target) — the reference: onItemRemoved lines
-        // 81-93 reads and writes the MENU'S OWN WORLD — the nether anvil
-        // takes the damage (or breaks past 2), exactly as an overworld
-        // repair damages its own anvil.
-        assertTrue(anvilChanged(nether, ANVIL_AT),
-                "VT-040: the nether repair's 0.12 roll must land on the NETHER anvil "
-                        + "(AnvilMenu.onItemRemoved 81-93 over the menu's OWN world — "
-                        + "AnvilBlock.use 53-59's MenuProvider(world, pos)). Observed: "
-                        + "the nether cell=" + nether.getBlock(ANVIL_AT).identifier().value()
-                        + " (untouched) while the overworld cell="
-                        + overworld.getBlock(ANVIL_AT).identifier().value()
-                        + " — the roll consulted another world's cell");
-
-        // THE PIN (the corruption) — the overworld's mirrored anvil must
-        // never hear the nether take: no damage, no break, no phantom write
-        // into a world the player never touched.
-        assertFalse(anvilChanged(overworld, ANVIL_AT),
-                "VT-040: the overworld's mirrored anvil must stay damage 0 — the nether "
-                        + "take's progressDamage/breakAnvil wrote the OVERWORLD's cell "
-                        + "(EngineServer.anvilSiteAt reads the overworld world field), "
-                        + "cross-dimension block corruption. Observed overworld cell: "
-                        + overworld.getBlock(ANVIL_AT).identifier().value());
-    }
-
-    // ------------------------------------------------------------------
-    // Seat 3 — the audio stamp: the take's 1020/1021 sound must carry the
-    // acting world's dimension (the VT-029 family's own shape)
-    // ------------------------------------------------------------------
-
-    @Test
-    void theNetherTakeSoundsInTheNetherDimension() throws Exception {
-        EngineWorld nether = server.worldFor(-1);
-        EngineWorld overworld = server.world();
-        netherPlatform(nether);
-        placeAnvil(nether, ANVIL_AT);
-        placeStone(overworld, SUPPORT_AT);
-        placeAnvil(overworld, ANVIL_AT); // the mirror keeps the window alive on the unfixed tree
-
-        PlayerSession smith = join("NetherSmith");
-        settlePlayerInNether(smith);
-        smith.addXpLevels(10);
-
-        AtomicInteger opened = new AtomicInteger(-1);
-        server.useItemOnBlock(smith, ANVIL_AT, 1, java.util.Optional.empty(), opened::set);
-        EngineAwaits.awaitCondition(server.world(),
-                () -> opened.get() > 0 && smith.anvilMenu() != null,
-                40, "the nether anvil window opened and survived");
-        int windowId = opened.get();
-
-        // ONE take: every take answers exactly one 1020/1021 sound — the
-        // roll branch (progressDamage/breakAnvil) or the else arm's
-        // useSound — so the first take pins the stamp deterministically.
-        final int baseline = countAnvilSounds();
-        driveOneRepairTake(smith, windowId, 0);
-        assertTrue(countAnvilSounds() > baseline,
-                "the take answered its 1020/1021 sound");
-
-        FxManager.Sound take = latestAnvilSound();
-        assertNotNull(take, "the take's 1020/1021 sound fired on the fx bus");
-        // THE PIN — the reference: onItemRemoved lines 89/92 —
-        // world.doEvent(1021/1020, pos, 0) over the ACTING world's own
-        // listener list (World.doEvent -> world.playSound ->
-        // PlayerManager 626-640's dimension gate). The engine's soundAt
-        // calls the NO-DIMENSION fxManager.sound overload — the
-        // unconditional overworld 0.
-        assertEquals(-1, take.dimension(),
-                "VT-040: the nether take's anvil sound must carry the NETHER's dimension "
-                        + "(AnvilMenu.onItemRemoved 89/92: world.doEvent over the ACTING "
-                        + "world's listener list — PlayerManager 626-640's dimension gate). "
-                        + "Observed stamp: " + take.dimension());
-    }
-
-    /**
-     * Drives one full repair take through the window's own clicks: the
-     * cursor clear (the -999 outside click), the damaged sword onto input
-     * 0, the iron ingot onto input 1, and the output take. Every hotbar
-     * write rides the ticker — the same queue as the clicks, so the pickup
-     * always reads the sword, never the ingot that overwrites the slot a
-     * moment later.
-     */
-    private void driveOneRepairTake(PlayerSession smith, int windowId, int take)
-            throws InterruptedException {
-        // The previous take's output rides the cursor: the outside click
-        // (wire slot -999, the reference InventoryMenu lines 178-192) throws
-        // the whole stack into the world — the wire's own way to clear the
-        // cursor between takes.
-        if (!smith.inventory().cursor().isEmpty()) {
-            server.windowClick(smith, windowId, -999, 0, 0, ok -> { });
-            EngineAwaits.awaitCondition(server.world(),
-                    () -> smith.inventory().cursor().isEmpty(),
-                    40, "the cursor cleared (take " + take + ")");
-        }
-        // The damaged sword onto input 0: hotbar -> cursor -> the input.
-        server.ticker().submit(() -> smith.inventory().setSlot(0,
-                ItemStack.of(BuiltinItems.IRON_SWORD, 1).withDamage(5)));
-        server.windowClick(smith, windowId, 30, 0, 0, ok -> { });
-        server.windowClick(smith, windowId, 0, 0, 0, ok -> { });
-        // The ingot onto input 1.
-        server.ticker().submit(() -> smith.inventory().setSlot(0,
-                ItemStack.of(BuiltinItems.IRON_INGOT, 1)));
-        server.windowClick(smith, windowId, 30, 0, 0, ok -> { });
-        server.windowClick(smith, windowId, 1, 0, 0, ok -> { });
-        // The projection must exist before the take (the repair's own
-        // output over the two inputs — updateResult rides the input click
-        // itself, so this anchor proves both inputs landed).
-        EngineAwaits.awaitCondition(server.world(),
-                () -> smith.anvilMenu() != null && !smith.anvilMenu().output().isEmpty(),
-                40, "the repair projection computed (take " + take + ")");
-
-        final int baseline = countAnvilSounds();
-        server.windowClick(smith, windowId, 2, 0, 0, ok -> { });
-        boolean took = EngineAwaits.awaitConditionWithin(server.world(),
-                () -> countAnvilSounds() > baseline,
-                40, "the take answered its 1020/1021 sound (take " + take + ")");
-        assertTrue(took, "the take consumed the repair (take " + take + ")");
-    }
-
-    /** Whether the cell at {@code at} left the damage-0 anvil state. */
-    private static boolean anvilChanged(EngineWorld world, BlockPosition at) {
-        var block = world.getBlock(at);
-        return !AnvilBlocks.stateId(0, 0).equals(block.identifier());
-    }
-
-    private int countAnvilSounds() {
-        return (int) capturedSounds.stream()
-                .filter(sound -> sound.name().equals("random.anvil_use")
-                        || sound.name().equals("random.anvil_break"))
-                .count();
-    }
-
-    private FxManager.Sound latestAnvilSound() {
-        return capturedSounds.stream()
-                .filter(sound -> sound.name().equals("random.anvil_use")
-                        || sound.name().equals("random.anvil_break"))
-                .reduce((first, second) -> second).orElse(null);
+        // THE SLAM-SHUT PIN — the twin's own member (EnchantingTableMenu
+        // line 33: the menu's OWN world at construction; the pre-fix viewer
+        // tick read the overworld field's cell). A nether enchanting table
+        // must keep its window open over the NETHER's cell.
+        EngineAwaits.awaitTicks(server.world(), 3, "the viewer tick's walk-away gate runs");
+        assertEquals(PlayerSession.ContainerKind.ENCHANTING_TABLE, reader.openContainerKind(),
+                "VT-035 (the twin): the nether enchanting table's window must STAY "
+                        + "OPEN (the reference's menu carries its own world — the "
+                        + "bookshelf scan AND the walk-away gate read the NETHER's "
+                        + "cells). Observed: the window closed (the validity consult "
+                        + "read the overworld's cell instead).");
     }
 }

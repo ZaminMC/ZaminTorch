@@ -354,7 +354,13 @@ public final class ArmorStand {
         return fireTicks;
     }
 
-    void setFireTicks(int ticks) {
+    /**
+     * The struck-by-lightning fire stamp (Entity.struckByLightning
+     * lines 1548-1551: {@code onFireTimer++ + setOnFireFor(8)} — the
+     * stand's wound REFUSED but the fire arm rides the base body
+     * whole; public for the weather surface's strike arm, Wave PE-4).
+     */
+    public void setFireTicks(int ticks) {
         fireTicks = ticks;
     }
 

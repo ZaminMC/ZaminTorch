@@ -280,6 +280,15 @@ public final class EngineServer implements Server, EngineBridge {
     /** The world border (Slice 86 — the engine's one border, the reference's worlds[0]). */
     private final net.zaminmc.torch.server.border.EngineWorldBorder worldBorder =
             new net.zaminmc.torch.server.border.EngineWorldBorder(players);
+    /**
+     * The nether's border view (NetherDimension.createWorldBorder lines
+     * 75-86, 1:1): the shared border's rows with the CENTER REPORTED AT
+     * /8 — the containment lanes' nether geometry. The command and the
+     * wire stay on the shared border (the reference's own worlds[0] law);
+     * the End carries no projection (TheEndDimension has no override).
+     */
+    private final net.zaminmc.torch.server.border.EngineWorldBorder netherBorderView =
+            new net.zaminmc.torch.server.border.NetherWorldBorderView(worldBorder, players);
     /** The scoreboard's persistence (world/scoreboard.json — Slice 85). */
     private net.zaminmc.torch.server.scoreboard.ScoreboardDataStore scoreboardStore;
 
@@ -502,6 +511,10 @@ public final class EngineServer implements Server, EngineBridge {
     private net.zaminmc.torch.server.brewing.BrewingStandSystem endBrewingStands;
     /** The tripwire subsystem (Slice 10c): the occupancy scan + the hook walk. */
     private net.zaminmc.torch.server.redstone.TripwireSystem tripwireSystem;
+    /** The nether's own tripwire family (VT-036 — the chestsFor form). */
+    private net.zaminmc.torch.server.redstone.TripwireSystem netherTripwire;
+    /** The End's own tripwire family (VT-036 — the chestsFor form). */
+    private net.zaminmc.torch.server.redstone.TripwireSystem endTripwire;
     /** The observers of the TNT system (the protocol adapter's wire sync). */
     private final java.util.List<net.zaminmc.torch.server.tnt.TntSystem.Listener> tntListeners =
             new java.util.ArrayList<>();
@@ -575,6 +588,16 @@ public final class EngineServer implements Server, EngineBridge {
     private net.zaminmc.torch.server.gamerule.GameRuleDataStore gameRuleStore;
     /** The lightning family (Slice 20c — the strike roll + the bolt life). */
     private volatile net.zaminmc.torch.server.weather.LightningSystem lightning;
+
+    /**
+     * The lightning family's own surface (the full-boot parity seats'
+     * bolt trigger — the deterministic strike the storm roll gates
+     * behind its 1/100000 cadence; package-private, the test surface).
+     */
+    net.zaminmc.torch.server.weather.LightningSystem lightningSurface() {
+        return java.util.Objects.requireNonNull(lightning, "lightning");
+    }
+
     /** The ice/snow precipitation arm (Slice 21c — tickChunks lines 325-341). */
     private volatile net.zaminmc.torch.server.weather.PrecipitationSystem precipitation;
     private final java.util.List<ChatListener> chatListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
@@ -1210,21 +1233,39 @@ public final class EngineServer implements Server, EngineBridge {
                     int damage = net.zaminmc.torch.server.block.AnvilBlocks
                             .damageOf(entity.blockType().identifier());
                     if (i > 0) {
-                        // Every body in the 0.98 box at the landing cell:
-                        // mobs, players (the playing non-spectators). The
-                        // reference's box is 0.98 centered; the position is
-                        // the box bottom, so the band is the cell's own.
+                        // Every body whose OWN box strictly intersects the
+                        // falling body's own 0.98 box (FallingBlockEntity
+                        // .takeFallDamage lines 145-151: `world.getEntities(
+                        // this, this.getShape())` — the reference's box
+                        // gather, Box.intersects strict on all six faces,
+                        // EXACTLY TOUCHING never intersecting; the falling
+                        // body's position IS the box bottom at the landing
+                        // cell, so the band is [cell+0.01, cell+0.99] x
+                        // [y, y+0.98]): mobs, players (the playing
+                        // non-spectators) — the ARMOR STANDS REFUSE the
+                        // source whole (ArmorStandEntity.takeDamage lines
+                        // 395-400: neither arrow nor player → false, the
+                        // anvil never breaks a stand) — and the ITEM and
+                        // ORB families' health-5 bodies (ItemEntity
+                        // .takeDamage 202-218 / ExperienceOrbEntity 141-151:
+                        // a 3-block fall's 6 wound destroys either — Wave
+                        // PE-3, the Phase E boundary arms: the pre-fix
+                        // center-in-band consult missed the edge-stand, and
+                        // the item/orb walks were absent whole).
                         double minX = landing.x() + 0.01, maxX = landing.x() + 1 - 0.01;
                         double minY = landing.y(), maxY = landing.y() + 0.98;
                         double minZ = landing.z() + 0.01, maxZ = landing.z() + 1 - 0.01;
+                        int wound = Math.min(i * 2, 40);
                         for (net.zaminmc.torch.server.entity.MobEntity mob : mobs.all()) {
                             if (mob.dimension() != entity.dimension()) {
                                 continue; // the body's own world's mobs alone (Wave FL4-F9)
                             }
                             net.zaminmc.torch.util.Position at = mob.position();
-                            if (at.x() >= minX && at.x() <= maxX && at.y() >= minY
-                                    && at.y() <= maxY && at.z() >= minZ && at.z() <= maxZ) {
-                                mob.hurt(Math.min(i * 2, 40));
+                            double halfWidth = mob.type().width / 2.0;
+                            if (at.x() + halfWidth > minX && at.x() - halfWidth < maxX
+                                    && at.y() + mob.type().height > minY && at.y() < maxY
+                                    && at.z() + halfWidth > minZ && at.z() - halfWidth < maxZ) {
+                                mob.hurt(wound);
                             }
                         }
                         for (PlayerSession body : players.all()) {
@@ -1236,9 +1277,12 @@ public final class EngineServer implements Server, EngineBridge {
                                 continue; // the body's own world's players alone (Wave FL4-F9)
                             }
                             net.zaminmc.torch.util.Position at = body.position();
-                            if (at.x() >= minX && at.x() <= maxX && at.y() >= minY
-                                    && at.y() <= maxY && at.z() >= minZ && at.z() <= maxZ) {
-                                body.hurt(Math.min(i * 2, 40));
+                            if (at.x() + PLAYER_HALF_WIDTH > minX
+                                    && at.x() - PLAYER_HALF_WIDTH < maxX
+                                    && at.y() + PLAYER_HEIGHT > minY && at.y() < maxY
+                                    && at.z() + PLAYER_HALF_WIDTH > minZ
+                                    && at.z() - PLAYER_HALF_WIDTH < maxZ) {
+                                body.hurt(wound);
                                 // The crush's damage-taken exhaustion
                                 // (reference PlayerEntity line 856): the
                                 // anvil source's constructor (DamageSource
@@ -1247,6 +1291,32 @@ public final class EngineServer implements Server, EngineBridge {
                                 // wrapper's own gate refuses the
                                 // invulnerable bodies.
                                 body.addExhaustion(0.3f);
+                            }
+                        }
+                        for (net.zaminmc.torch.server.entity.ItemEntity item : itemEntities.all()) {
+                            if (item.dimension() != entity.dimension()) {
+                                continue; // the body's own world's items alone
+                            }
+                            net.zaminmc.torch.util.Position at = item.position();
+                            if (at.x() + net.zaminmc.torch.server.entity.ItemEntity.HALF_WIDTH > minX
+                                    && at.x() - net.zaminmc.torch.server.entity.ItemEntity.HALF_WIDTH < maxX
+                                    && at.y() + net.zaminmc.torch.server.entity.ItemEntity.HALF_HEIGHT > minY
+                                    && at.y() - net.zaminmc.torch.server.entity.ItemEntity.HALF_HEIGHT < maxY
+                                    && at.z() + net.zaminmc.torch.server.entity.ItemEntity.HALF_WIDTH > minZ
+                                    && at.z() - net.zaminmc.torch.server.entity.ItemEntity.HALF_WIDTH < maxZ) {
+                                itemEntities.hurtFromFallingBlock(item, wound);
+                            }
+                        }
+                        for (net.zaminmc.torch.server.experience.ExperienceOrbEntity orb : experienceOrbs.all()) {
+                            if (orb.dimension() != entity.dimension()) {
+                                continue; // the body's own world's orbs alone
+                            }
+                            net.zaminmc.torch.util.Position at = orb.position();
+                            double half = orb.halfWidth();
+                            if (at.x() + half > minX && at.x() - half < maxX
+                                    && at.y() + half > minY && at.y() - half < maxY
+                                    && at.z() + half > minZ && at.z() - half < maxZ) {
+                                experienceOrbs.hurtFromFallingBlock(orb, wound);
                             }
                         }
                         // The progression roll (the reference's own band:
@@ -1515,6 +1585,14 @@ public final class EngineServer implements Server, EngineBridge {
                             }
 
                             @Override
+                            public int worldHeight() {
+                                // World.getHeight(): the 1.8 build band
+                                // (16 sections x 16) — the target box's own
+                                // ceiling + 3 (Wave PE-4's re-pin).
+                                return net.zaminmc.torch.server.world.EngineChunk.SECTION_COUNT * 16;
+                            }
+
+                            @Override
                             public boolean isAirAt(int x, int y, int z) {
                                 return world.getBlock(new BlockPosition(x, y, z))
                                         .equals(world.airType());
@@ -1536,6 +1614,21 @@ public final class EngineServer implements Server, EngineBridge {
                             public java.util.List<net.zaminmc.torch.server.weather.LightningSystem.StruckBody> skyVisibleBodies(
                                     double minX, double minY, double minZ,
                                     double maxX, double maxY, double maxZ) {
+                                // The TARGET-SELECTION walk (findLightningTarget
+                                // lines 370-381: getEntitiesOfType(
+                                // LivingEntity.class, box, isAlive &&
+                                // hasSkyAccess)) — Wave PE-4, the Phase E
+                                // boundary arms: each body's OWN box against
+                                // the query box, STRICT both sides (exactly
+                                // touching never intersecting — the pre-fix
+                                // center-in-box consult missed the edge-stand,
+                                // a body whose box grazes the grown box while
+                                // its center sits outside); the LIVING census
+                                // — the mobs, the players AND the armor stands
+                                // (ArmorStandEntity IS a living body, the
+                                // pre-fix walk never consulted the family);
+                                // the sky gate (hasSkyAccess's own stand-in:
+                                // the body above its column's surface).
                                 java.util.List<net.zaminmc.torch.server.weather.LightningSystem.StruckBody> bodies =
                                         new java.util.ArrayList<>();
                                 for (PlayerSession player : players.all()) {
@@ -1544,9 +1637,11 @@ public final class EngineServer implements Server, EngineBridge {
                                         continue;
                                     }
                                     Position at = player.position();
-                                    if (at.x() >= minX && at.x() <= maxX
-                                            && at.y() >= minY && at.y() <= maxY
-                                            && at.z() >= minZ && at.z() <= maxZ
+                                    if (at.x() + PLAYER_HALF_WIDTH > minX
+                                            && at.x() - PLAYER_HALF_WIDTH < maxX
+                                            && at.y() + PLAYER_HEIGHT > minY && at.y() < maxY
+                                            && at.z() + PLAYER_HALF_WIDTH > minZ
+                                            && at.z() - PLAYER_HALF_WIDTH < maxZ
                                             && at.y() >= surfaceY(
                                                     (int) Math.floor(at.x()), (int) Math.floor(at.z()))) {
                                         bodies.add(new net.zaminmc.torch.server.weather.LightningSystem.StruckBody() {
@@ -1573,10 +1668,14 @@ public final class EngineServer implements Server, EngineBridge {
                                     }
                                 }
                                 for (net.zaminmc.torch.server.entity.MobEntity mob : mobs.all()) {
+                                    if (mob.dimension() != 0) {
+                                        continue; // another world's body is absent from this walk
+                                    }
                                     Position at = mob.position();
-                                    if (at.x() >= minX && at.x() <= maxX
-                                            && at.y() >= minY && at.y() <= maxY
-                                            && at.z() >= minZ && at.z() <= maxZ
+                                    double halfWidth = mob.type().width / 2.0;
+                                    if (at.x() + halfWidth > minX && at.x() - halfWidth < maxX
+                                            && at.y() + mob.type().height > minY && at.y() < maxY
+                                            && at.z() + halfWidth > minZ && at.z() - halfWidth < maxZ
                                             && at.y() >= surfaceY(
                                                     (int) Math.floor(at.x()), (int) Math.floor(at.z()))) {
                                         bodies.add(new net.zaminmc.torch.server.weather.LightningSystem.StruckBody() {
@@ -1592,6 +1691,182 @@ public final class EngineServer implements Server, EngineBridge {
                                                 mobs.hurt(mob, 5.0f, 0.0,
                                                         net.zaminmc.torch.event.DamageCause.LIGHTNING);
                                                 mob.ignite(160);
+                                            }
+                                        });
+                                    }
+                                }
+                                // The LIVING census's third family: the armor
+                                // stand (0.5 x 1.975, feet-anchored).
+                                for (net.zaminmc.torch.server.armorstand.ArmorStand stand : armorStands.allStands()) {
+                                    if (stand.dimension() != 0) {
+                                        continue; // another world's stand is absent from this walk
+                                    }
+                                    if (stand.x() + 0.25 > minX && stand.x() - 0.25 < maxX
+                                            && stand.y() + 1.975 > minY && stand.y() < maxY
+                                            && stand.z() + 0.25 > minZ && stand.z() - 0.25 < maxZ
+                                            && stand.y() >= surfaceY(
+                                                    (int) Math.floor(stand.x()), (int) Math.floor(stand.z()))) {
+                                        bodies.add(new net.zaminmc.torch.server.weather.LightningSystem.StruckBody() {
+                                            @Override
+                                            public Position position() {
+                                                return new Position(stand.x(), stand.y(), stand.z());
+                                            }
+
+                                            @Override
+                                            public void strike() {
+                                                // The stand's own law: the wound
+                                                // REFUSED (ArmorStandEntity
+                                                // .takeDamage 395-400 — neither
+                                                // arrow nor player) but the fire
+                                                // arm rides the BASE body whole
+                                                // (struckByLightning 1548-1551:
+                                                // onFireTimer++ + setOnFireFor(8)).
+                                                stand.setFireTicks(160);
+                                            }
+                                        });
+                                    }
+                                }
+                                return bodies;
+                            }
+
+                            @Override
+                            public java.util.List<net.zaminmc.torch.server.weather.LightningSystem.StruckBody> bodiesInBox(
+                                    double minX, double minY, double minZ,
+                                    double maxX, double maxY, double maxZ) {
+                                // The STRIKE walk (LightningBoltEntity.tick
+                                // lines 84-90: world.getEntities(this, Box(
+                                // x-3, y-3, z-3, x+3, y+6+3, z+3)) — NO class
+                                // filter, NO sky gate: whatever stands in the
+                                // bolt's box takes the base body's 5.0 + the
+                                // 8-second fire (Entity.struckByLightning
+                                // 1546-1552), the covered body included; each
+                                // body's OWN box, STRICT both sides (Wave PE-4:
+                                // the pre-fix walk shared the target-selection
+                                // consult — its sky gate withheld strikes from
+                                // covered bodies and its center test missed
+                                // the edge-stand). The ITEM and ORB families'
+                                // health-5 bodies DIE to the 5.0 wound whole
+                                // (ItemEntity.takeDamage 202-218 / orb 141-151:
+                                // no source refusal — vanilla lightning
+                                // destroys a dropped item).
+                                java.util.List<net.zaminmc.torch.server.weather.LightningSystem.StruckBody> bodies =
+                                        new java.util.ArrayList<>();
+                                for (PlayerSession player : players.all()) {
+                                    if (player.state() != PlayerState.PLAYING
+                                            || player.dead() || player.dimension() != 0) {
+                                        continue;
+                                    }
+                                    Position at = player.position();
+                                    if (at.x() + PLAYER_HALF_WIDTH > minX
+                                            && at.x() - PLAYER_HALF_WIDTH < maxX
+                                            && at.y() + PLAYER_HEIGHT > minY && at.y() < maxY
+                                            && at.z() + PLAYER_HALF_WIDTH > minZ
+                                            && at.z() - PLAYER_HALF_WIDTH < maxZ) {
+                                        bodies.add(new net.zaminmc.torch.server.weather.LightningSystem.StruckBody() {
+                                            @Override
+                                            public Position position() {
+                                                return at;
+                                            }
+
+                                            @Override
+                                            public void strike() {
+                                                damageOnTick(player, 5.0f, 0.3f,
+                                                        "was struck by lightning",
+                                                        DamageKind.LIGHTNING);
+                                                igniteWithFireProtection(player, 8);
+                                            }
+                                        });
+                                    }
+                                }
+                                for (net.zaminmc.torch.server.entity.MobEntity mob : mobs.all()) {
+                                    if (mob.dimension() != 0) {
+                                        continue;
+                                    }
+                                    Position at = mob.position();
+                                    double halfWidth = mob.type().width / 2.0;
+                                    if (at.x() + halfWidth > minX && at.x() - halfWidth < maxX
+                                            && at.y() + mob.type().height > minY && at.y() < maxY
+                                            && at.z() + halfWidth > minZ && at.z() - halfWidth < maxZ) {
+                                        bodies.add(new net.zaminmc.torch.server.weather.LightningSystem.StruckBody() {
+                                            @Override
+                                            public Position position() {
+                                                return at;
+                                            }
+
+                                            @Override
+                                            public void strike() {
+                                                mobs.hurt(mob, 5.0f, 0.0,
+                                                        net.zaminmc.torch.event.DamageCause.LIGHTNING);
+                                                mob.ignite(160);
+                                            }
+                                        });
+                                    }
+                                }
+                                for (net.zaminmc.torch.server.armorstand.ArmorStand stand : armorStands.allStands()) {
+                                    if (stand.dimension() != 0) {
+                                        continue;
+                                    }
+                                    if (stand.x() + 0.25 > minX && stand.x() - 0.25 < maxX
+                                            && stand.y() + 1.975 > minY && stand.y() < maxY
+                                            && stand.z() + 0.25 > minZ && stand.z() - 0.25 < maxZ) {
+                                        bodies.add(new net.zaminmc.torch.server.weather.LightningSystem.StruckBody() {
+                                            @Override
+                                            public Position position() {
+                                                return new Position(stand.x(), stand.y(), stand.z());
+                                            }
+
+                                            @Override
+                                            public void strike() {
+                                                // The wound refused, the fire
+                                                // stamp whole (the stand's own
+                                                // law — the sky walk's note).
+                                                stand.setFireTicks(160);
+                                            }
+                                        });
+                                    }
+                                }
+                                for (net.zaminmc.torch.server.entity.ItemEntity item : itemEntities.all()) {
+                                    if (item.dimension() != 0) {
+                                        continue;
+                                    }
+                                    Position at = item.position();
+                                    if (at.x() + net.zaminmc.torch.server.entity.ItemEntity.HALF_WIDTH > minX
+                                            && at.x() - net.zaminmc.torch.server.entity.ItemEntity.HALF_WIDTH < maxX
+                                            && at.y() + net.zaminmc.torch.server.entity.ItemEntity.HALF_HEIGHT > minY
+                                            && at.y() - net.zaminmc.torch.server.entity.ItemEntity.HALF_HEIGHT < maxY
+                                            && at.z() + net.zaminmc.torch.server.entity.ItemEntity.HALF_WIDTH > minZ
+                                            && at.z() - net.zaminmc.torch.server.entity.ItemEntity.HALF_WIDTH < maxZ) {
+                                        bodies.add(new net.zaminmc.torch.server.weather.LightningSystem.StruckBody() {
+                                            @Override
+                                            public Position position() {
+                                                return at;
+                                            }
+
+                                            @Override
+                                            public void strike() {
+                                                itemEntities.hurtFromLightning(item, 5.0f);
+                                            }
+                                        });
+                                    }
+                                }
+                                for (net.zaminmc.torch.server.experience.ExperienceOrbEntity orb : experienceOrbs.all()) {
+                                    if (orb.dimension() != 0) {
+                                        continue;
+                                    }
+                                    Position at = orb.position();
+                                    double half = orb.halfWidth();
+                                    if (at.x() + half > minX && at.x() - half < maxX
+                                            && at.y() + half > minY && at.y() - half < maxY
+                                            && at.z() + half > minZ && at.z() - half < maxZ) {
+                                        bodies.add(new net.zaminmc.torch.server.weather.LightningSystem.StruckBody() {
+                                            @Override
+                                            public Position position() {
+                                                return at;
+                                            }
+
+                                            @Override
+                                            public void strike() {
+                                                experienceOrbs.hurtFromLightning(orb, 5.0f);
                                             }
                                         });
                                     }
@@ -1707,8 +1982,16 @@ public final class EngineServer implements Server, EngineBridge {
                                         int level = net.zaminmc.torch.server.cauldron
                                                 .CauldronBlocks.levelOf(block);
                                         if (level < 3) {
-                                            setCauldronLevel(new BlockPosition(x, y, z),
-                                                    level + 1);
+                                            // randomPrecipitationTick's OWN
+                                            // write (lines 168-175): the bare
+                                            // flag-2 state swap alone — NO
+                                            // comparator wake (the rain arm
+                                            // never calls setLevel, the
+                                            // strict 1:1 split; a comparator
+                                            // re-reads on its next wake).
+                                            world.setBlock(new BlockPosition(x, y, z),
+                                                    net.zaminmc.torch.server.cauldron
+                                                            .CauldronBlocks.of(level + 1));
                                         }
                                     }
                                 }
@@ -1868,8 +2151,15 @@ public final class EngineServer implements Server, EngineBridge {
                                 x, y, z, power, true, false,
                                 net.zaminmc.torch.server.block.ExplosionService.BlastSource.PLAIN,
                                 null),
+                        this::redstoneFor, // VT-036 — the acting dimension's signal consult
                         fxManager, gameplayRandom, TNT_ID_BASE);
                 world.addChangeListener(tntSystem);
+                // VT-036 — the arrival arm (TntBlock.onAdded lines 38-43:
+                // a placement into power primes instantly) hears EVERY
+                // world's commits, the change-listener form the fire and
+                // leaf families already carry.
+                netherWorld.addChangeListener(tntSystem);
+                endWorld.addChangeListener(tntSystem);
                 tntSystem.addListener(new TntEventDispatch());
                 // The note blocks (Slice 27a): the note tiles + the three play
                 // arms (the use's tune-and-play, the survival attack's play,
@@ -2046,6 +2336,15 @@ public final class EngineServer implements Server, EngineBridge {
                 netherRedstone.addNeighborListener(netherPistons::neighborHeard);
                 endRedstone.addNeighborListener(endPistons::neighborHeard);
                 redstoneSystem.addNeighborListener(tntSystem::neighborHeard);
+                // VT-036 — the neighbor arm (TntBlock.neighborChanged lines
+                // 51-56) on EVERY dimension's bus: each bus closes over its
+                // own world, the signal consult routing through the acting
+                // dimension's redstone (the reference's per-WorldServer
+                // dispatch — a nether lever's flip primes a nether TNT).
+                netherRedstone.addNeighborListener(
+                        pos -> tntSystem.neighborHeard(netherWorld, pos));
+                endRedstone.addNeighborListener(
+                        pos -> tntSystem.neighborHeard(endWorld, pos));
                 // The hoppers (Slice 10b): the transfer system (the 8-tick
                 // cooldown, the push toward the FACING container, the pull
                 // from above + the item-entity suck, the powered disable
@@ -2086,46 +2385,38 @@ public final class EngineServer implements Server, EngineBridge {
                 }
                 // The tripwire (Slice 10c): the occupancy scan + the hook's
                 // chain walk, riding the redstone family's scheduled-tick
-                // queue + the cross-system neighbor bus.
+                // queue + the cross-system neighbor bus. VT-036 — the
+                // per-world law (the reference's per-WorldServer dispatch):
+                // EVERY dimension owns its own family, each instance hearing
+                // its OWN world's commits and its OWN redstone's power edges
+                // (the note family's Slice C form; the pre-fix single
+                // overworld system left a nether hook FLOATING over its
+                // removed wall and a nether wire over its removed floor).
                 tripwireSystem = new net.zaminmc.torch.server.redstone.TripwireSystem(
                         world, redstoneSystem, fxManager);
                 world.addChangeListener(tripwireSystem);
                 redstoneSystem.setTripwireTicker(tripwireSystem::scheduledTripwireTick);
                 redstoneSystem.addNeighborListener(tripwireSystem::neighborHeard);
-                // The occupancy probe (the engine's per-tick box test —
+                netherTripwire = new net.zaminmc.torch.server.redstone.TripwireSystem(
+                        netherWorld, netherRedstone, fxManager);
+                netherWorld.addChangeListener(netherTripwire);
+                netherRedstone.setTripwireTicker(netherTripwire::scheduledTripwireTick);
+                netherRedstone.addNeighborListener(netherTripwire::neighborHeard);
+                endTripwire = new net.zaminmc.torch.server.redstone.TripwireSystem(
+                        endWorld, endRedstone, fxManager);
+                endWorld.addChangeListener(endTripwire);
+                endRedstone.setTripwireTicker(endTripwire::scheduledTripwireTick);
+                endRedstone.addNeighborListener(endTripwire::neighborHeard);
+                // The occupancy probes (the engine's per-tick box test —
                 // the wire's slim shape, any body, items included like the
-                // reference's getEntities walk).
-                tripwireSystem.setOccupancyProbe(wire -> {
-                    double minX = wire.x(), maxX = wire.x() + 1;
-                    double minY = wire.y(), maxY = wire.y() + 0.15625;
-                    double minZ = wire.z(), maxZ = wire.z() + 1;
-                    for (net.zaminmc.torch.server.entity.MobEntity mob : mobs.all()) {
-                        net.zaminmc.torch.util.Position at = mob.position();
-                        if (at.x() >= minX && at.x() <= maxX && at.y() >= minY && at.y() <= maxY
-                                && at.z() >= minZ && at.z() <= maxZ) {
-                            return true;
-                        }
-                    }
-                    for (PlayerSession body : players.all()) {
-                        if (body.state() != net.zaminmc.torch.entity.PlayerState.PLAYING
-                                || body.gamemode() == GameMode.SPECTATOR) {
-                            continue; // canAvoidTraps
-                        }
-                        net.zaminmc.torch.util.Position at = body.position();
-                        if (at.x() >= minX && at.x() <= maxX && at.y() >= minY && at.y() <= maxY
-                                && at.z() >= minZ && at.z() <= maxZ) {
-                            return true;
-                        }
-                    }
-                    for (ItemEntity item : itemEntities.all()) {
-                        net.zaminmc.torch.util.Position at = item.position();
-                        if (at.x() >= minX && at.x() <= maxX && at.y() >= minY && at.y() <= maxY
-                                && at.z() >= minZ && at.z() <= maxZ) {
-                            return true;
-                        }
-                    }
-                    return false;
-                });
+                // reference's getEntities walk). VT-036 — the walks carry
+                // the dimension gate (the plate probe's FL4-F10 form, the
+                // per-world entity-list law: another dimension's body at
+                // the same coordinates is absent from the reference's
+                // getEntities walk, never a phantom trip).
+                wireTripwireProbes(tripwireSystem, 0);
+                wireTripwireProbes(netherTripwire, -1);
+                wireTripwireProbes(endTripwire, 1);
                 // Fluids (the Wave VI migration — the reference's liquid
                 // family 1:1: FlowingLiquidBlock/LiquidSourceBlock/
                 // LiquidBlock whole): the neighbor-bus wake path (onAdded +
@@ -2324,6 +2615,15 @@ public final class EngineServer implements Server, EngineBridge {
                                 }
                             }
                         });
+                // VT-015 — the stuck arrow's tracked-cell consult (the
+                // reference's world.getBlockState at the stamped cell,
+                // ArrowEntity.tick lines 157-186): the per-tick read that
+                // un-sticks an arrow whose block changed (a break, a blast,
+                // a piston). The consult flips to the body's own dimension
+                // exactly like the solid query's own per-body flip.
+                projectiles.setStickCellConsult(
+                        (pos, dimension) -> worldForSafe(dimension).getBlock(pos)
+                                .identifier().toString());
                 projectiles.addListener(new ProjectileEventDispatch());
                 // The fireball's landing arm (SmallFireballEntity.onHit): the
                 // fire block at the air cell the fireball crossed before the
@@ -2473,27 +2773,33 @@ public final class EngineServer implements Server, EngineBridge {
                 // beacon's own column grown(10, 5, 10) — the box
                 // Box(x, y-4, z, x, y, z).grown(10, 5, 10), the player
                 // boxes intersecting it).
-                net.zaminmc.torch.server.beacon.BeaconSystem.Listener beaconAward =
-                        new net.zaminmc.torch.server.beacon.BeaconSystem.Listener() {
-                            @Override
-                            public void onBeaconUpdated(
-                                    BlockPosition position,
-                                    net.zaminmc.torch.server.beacon.BeaconBlockEntity beacon) {
-                            }
+                // VT-033's adjacent tail — the per-family award form: each
+                // dimension's listener carries its OWN dimension (the
+                // reference's update on the beacon's own world — the
+                // grown-box census over that world's player list alone; a
+                // same-coordinate player in another dimension never earns
+                // the nether pyramid's stat).
+                for (int beaconDimension : new int[]{0, -1, 1}) {
+                    net.zaminmc.torch.server.beacon.BeaconSystem family =
+                            beaconsFor(beaconDimension);
+                    family.addListener(new net.zaminmc.torch.server.beacon.BeaconSystem.Listener() {
+                        @Override
+                        public void onBeaconUpdated(
+                                BlockPosition position,
+                                net.zaminmc.torch.server.beacon.BeaconBlockEntity beacon) {
+                        }
 
-                            @Override
-                            public void onBeaconFullyPowered(BlockPosition position) {
-                                awardPlayersInBox(
-                                        EngineAchievements.ACTIVATE_MAX_BEACON.key(),
-                                        position.x() - 10.0, position.y() - 9.0,
-                                        position.z() - 10.0,
-                                        position.x() + 10.0, position.y() + 5.0,
-                                        position.z() + 10.0);
-                            }
-                        };
-                beaconSystem.addListener(beaconAward);
-                netherBeacons.addListener(beaconAward);
-                endBeacons.addListener(beaconAward);
+                        @Override
+                        public void onBeaconFullyPowered(BlockPosition position) {
+                            awardPlayersInBox(
+                                    EngineAchievements.ACTIVATE_MAX_BEACON.key(), beaconDimension,
+                                    position.x() - 10.0, position.y() - 9.0,
+                                    position.z() - 10.0,
+                                    position.x() + 10.0, position.y() + 5.0,
+                                    position.z() + 10.0);
+                        }
+                    });
+                }
                 beaconStore = new net.zaminmc.torch.server.beacon.BeaconDataStore(
                         config.worldDataDir().resolve("beacons.bin"));
                 for (net.zaminmc.torch.server.beacon.BeaconDataStore.Loaded beaconRow
@@ -2517,30 +2823,56 @@ public final class EngineServer implements Server, EngineBridge {
                                 hopperSystem, netherHoppers, endHoppers}) {
                     family.setMobLookup(mobManager);
                     // The rolling containers' scan (Slice 25e —
-                    // getInventoryAt's entity fallback): the chest minecarts
-                    // inside the cell's 1x1x1 box, the hopper's cart arm —
-                    // gated to THIS system's own world (a cart parked at
-                    // the same coordinates in another world is no container
-                    // here, the reference's per-world entity list).
-                    family.setCartLookup(cell -> {
-                        java.util.List<net.zaminmc.torch.server.entity.vehicle.ChestMinecartEntity>
+                    // getInventoryAt's entity fallback): the Inventory
+                    // carts (the chest minecart AND the hopper minecart)
+                    // inside the QUERY BOX by the strict box law, the
+                    // hopper's cart arm — gated to THIS system's own
+                    // world (a cart parked at the same coordinates in
+                    // another world is no container here, the reference's
+                    // per-world entity list).
+                    family.setCartLookup(box -> {
+                        // Wave PE-1 — the reference's getInventoryAt entity
+                        // fallback (lines 466-472): the query BOX gathers
+                        // the INVENTORY entities — the chest minecart AND
+                        // the hopper minecart (both Inventory families) —
+                        // each cart's own 0.98x0.7 box intersecting the
+                        // query box STRICTLY on every face (Box.intersects
+                        // lines 164-171: exactly touching is NOT
+                        // intersecting). The old center-in-cell band missed
+                        // a cart whose box overlaps the cell by a hair
+                        // while its center sits outside, and never saw the
+                        // hopper cart at all.
+                        double minX = box[0], minY = box[1], minZ = box[2];
+                        double maxX = box[3], maxY = box[4], maxZ = box[5];
+                        java.util.List<net.zaminmc.torch.server.entity.vehicle.VehicleEntity>
                                 found = new java.util.ArrayList<>();
-                        double cx = cell.x() + 0.5;
-                        double cy = cell.y() + 0.5;
-                        double cz = cell.z() + 0.5;
                         for (net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle
                                 : vehicleManager.all()) {
                             if (!(vehicle
-                                    instanceof net.zaminmc.torch.server.entity.vehicle.ChestMinecartEntity cart)) {
-                                continue;
+                                    instanceof net.zaminmc.torch.server.entity.vehicle.ChestMinecartEntity)
+                                    && !(vehicle
+                                    instanceof net.zaminmc.torch.server.entity.vehicle.HopperMinecartEntity)) {
+                                continue; // not an Inventory family
                             }
-                            if (cart.dimension() != family.dimension()) {
+                            if (vehicle.dimension() != family.dimension()) {
                                 continue; // another world's cart
                             }
-                            Position at = vehicle.position();
-                            if (Math.abs(at.x() - cx) <= 0.5 && Math.abs(at.y() - cy) <= 0.5
-                                    && Math.abs(at.z() - cz) <= 0.5) {
-                                found.add(cart);
+                            // The cart's own box (the engine's center
+                            // anchor: [position.y - 0.35, +0.35], the
+                            // 0.98-wide hull) — the strict intersection.
+                            double cartBottom = vehicle.position().y()
+                                    - net.zaminmc.torch.server.entity.vehicle.MinecartEntity.HALF_HEIGHT;
+                            double cartTop = vehicle.position().y()
+                                    + net.zaminmc.torch.server.entity.vehicle.MinecartEntity.HALF_HEIGHT;
+                            double halfHull = net.zaminmc.torch.server.entity.vehicle
+                                    .MinecartEntity.CART_WIDTH / 2.0;
+                            if (vehicle.position().x() + halfHull > minX
+                                    && vehicle.position().x() - halfHull < maxX
+                                    && cartTop > minY
+                                    && cartBottom < maxY
+                                    && vehicle.position().z() + halfHull > minZ
+                                    && vehicle.position().z() - halfHull < maxZ) {
+                                found.add(vehicle);
                             }
                         }
                         return found;
@@ -2592,8 +2924,12 @@ public final class EngineServer implements Server, EngineBridge {
                         gameRules.getBoolean("mobGriefing"), false,
                         charged ? net.zaminmc.torch.server.block.BlastSources.CHARGED_SKULL : net.zaminmc.torch.server.block.ExplosionService.BlastSource.PLAIN, null));
                 // The burning arrow's TNT arm (TntBlock.onEntityCollision
-                // lines 96-113): a burning arrow entering the TNT cell
-                // primes it — the block leaves, the arrow keeps its flight.
+                // lines 91-104): a burning arrow STICKING into the TNT cell
+                // primes it — the block leaves, and the stuck arrow's
+                // tracked-cell consult un-sticks it a tick later (VT-030's
+                // order: the stick at ArrowEntity line 304 precedes the
+                // consult at 308; the arrow never carries its flight
+                // through the opened cell).
                 projectiles.setTntIgniteSink((cell, dimension) -> tntSystem != null
                         && tntSystem.igniteByArrow(worldForSafe(dimension), cell));
                 // The ender pearl's teleport arm (Slice 17c —
@@ -2617,10 +2953,16 @@ public final class EngineServer implements Server, EngineBridge {
                         MobEntity endermite = mobManager.spawnAt(
                                 net.zaminmc.torch.server.entity.MobType.ENDERMITE,
                                 new Position(thrower.position().x(), thrower.position().y(),
-                                        thrower.position().z()));
+                                        thrower.position().z()),
+                                thrower.dimension());
                         // setPlayerSpawned(true) + the lifetime clock — the
                         // engine's endermite despawns at its own 2400 wall.
                         if (endermite != null) {
+                            // The endermite lives in the pearl's own world
+                            // (EnderPearlEntity.onCollision line 52's
+                            // {@code new EndermiteEntity(this.world)} —
+                            // the thrower's dimension, the pearl's home);
+                            // the dimension rides the spawn below.
                             endermite.setBodyYaw(thrower.rotation().yaw());
                         }
                     }
@@ -3324,6 +3666,8 @@ public final class EngineServer implements Server, EngineBridge {
                     profiled("dispensers", netherDispensers::tick); // the nether's own family (Slice B)
                     profiled("dispensers", endDispensers::tick); // the End's own family (Slice B)
                     profiled("tripwire", tripwireSystem::tick); // the tripwire occupancy scan
+                    profiled("tripwire", netherTripwire::tick); // the nether's own family (VT-036)
+                    profiled("tripwire", endTripwire::tick); // the End's own family (VT-036)
                     profiled("tnt", tntSystem::tick); // the primed TNT fuses + physics
                     profiled("mining", blockInteraction::tickMining); // the vanilla dig accumulator + 0x28 stages
                     // (The fluids' own section retired with the Wave VI
@@ -3654,9 +3998,12 @@ public final class EngineServer implements Server, EngineBridge {
                                 world.getBlock(target.offset(0, -1, 0)));
                     }
                     if (name.equals("flower_pot")) {
-                        // FlowerPotBlock.canBePlaced lines 118-120: the
-                        // block below must have a SOLID TOP.
-                        return net.zaminmc.torch.server.block.WorldSolidity.isSolid(
+                        // FlowerPotBlock.canBePlaced lines 136-137: the
+                        // block below must have a SOLID TOP — the
+                        // reference's World.hasSolidTop over
+                        // SupportConsult (the translucent materials and
+                        // the non-cubes never answer).
+                        return net.zaminmc.torch.server.block.SupportConsult.hasSolidTop(
                                 world.getBlock(target.offset(0, -1, 0)));
                     }
                     if (name.equals("brown_mushroom") || name.equals("red_mushroom")) {
@@ -3668,6 +4015,20 @@ public final class EngineServer implements Server, EngineBridge {
                         // island's daylight shrooms pass on mycelium.
                         return net.zaminmc.torch.server.block.MushroomBlocks
                                 .canPlantSurviveAt(world, target);
+                    }
+                    if (name.startsWith("light_weighted_pressure_plate")
+                            || name.startsWith("heavy_weighted_pressure_plate")) {
+                        // The weighted pair's floor law (F-SP2 — the
+                        // inherited canSitOnTop, AbstractPressurePlateBlock
+                        // lines 72-74 over 84-86): hasSolidTop OR the
+                        // FenceBlock census — the pair rides the generic
+                        // placement path, the same law the special plate
+                        // site carries.
+                        net.zaminmc.torch.block.BlockType floor =
+                                world.getBlock(target.offset(0, -1, 0));
+                        return net.zaminmc.torch.server.block.SupportConsult.hasSolidTop(floor)
+                                || net.zaminmc.torch.server.block.WorldSolidity.isFence(
+                                        floor.identifier());
                     }
                     return true;
                 });
@@ -3740,12 +4101,18 @@ public final class EngineServer implements Server, EngineBridge {
                                     brokenType.identifier())) {
                         var skullTile = skullsFor(actingWorld.dimension()).remove(position);
                         if (skullTile != null) {
+                            // VT-033 — the typed drop lands in the break's
+                            // OWN world (the reference's dropItem on the
+                            // acting world, SkullBlock.onRemoved lines
+                            // 132-152): the dimension-stamped form, never
+                            // the dimensionless overload's overworld 0.
                             itemEntities.spawnDropAtBlock(new Position(
                                     position.x() + 0.5, position.y() + 0.5, position.z() + 0.5),
                                     new net.zaminmc.torch.item.ItemStack(
                                             BuiltinItems.SKULL, 1, skullTile.type(), null),
                                     net.zaminmc.torch.server.entity.ItemEntity
-                                            .PICKUP_DELAY_DROP_TICKS);
+                                            .PICKUP_DELAY_DROP_TICKS,
+                                    actingWorld.dimension());
                         }
                     }
                     // The banner tile dies with its block in EVERY mode
@@ -3834,10 +4201,12 @@ public final class EngineServer implements Server, EngineBridge {
                 // InfestedBlock.dropItems lines 79-88): the survival break
                 // spawns the silverfish at the block's own center (the
                 // reference's setPositionAndAngles at pos + 0.5 on x/z, yaw
-                // 0 — the pre-tick engine spawn).
-                blockInteraction.setInfestedBurstHook(position ->
+                // 0 — the pre-tick engine spawn). The dimension rides the
+                // hook's own acting world (the dig's world — the silverfish
+                // lives where the egg broke).
+                blockInteraction.setInfestedBurstHook((position, dimension) ->
                         spawnSilverfishAt(new Position(position.x() + 0.5,
-                                position.y(), position.z() + 0.5)));
+                                position.y(), position.z() + 0.5), dimension));
                 blockInteraction.setCommitFeedbackListener(commit -> {
                     if (commit.now().equals(world.airType())) {
                         // A break: the shatter burst plus the dig family sound.
@@ -3849,11 +4218,20 @@ public final class EngineServer implements Server, EngineBridge {
                         // rendering, the volume/pitch its own convention.)
                         Position center = new Position(commit.position().x() + 0.5,
                                 commit.position().y() + 0.5, commit.position().z() + 0.5);
-                        fxManager.blockShatter(center, commit.previous());
+                        // VT-027 — the feedback plays in the ACTING world
+                        // (the reference's break event rides the dig wire's
+                        // own world: tryMineBlock line 211's
+                        // this.world.doEvent(2001), the per-world listener
+                        // list alone). The commit carries the acting
+                        // dimension; the pre-fix no-dimension overloads
+                        // stamped the overworld for every dimension's dig.
+                        fxManager.blockShatter(center, commit.previous(),
+                                commit.dimension());
                         fxManager.sound(center,
                                 BlockSoundMap.digSound(commit.previous().identifier())
                                         .orElse("dig.stone"), 1.0f,
-                                0.75f + fxRandom.nextFloat() * 0.2f);
+                                0.75f + fxRandom.nextFloat() * 0.2f,
+                                commit.dimension());
                     } else if (!commit.previous().equals(commit.now())) {
                         // A place (or replace): the reference's own law
                         // (BlockItem.place lines 53-60) — the family's
@@ -3866,9 +4244,11 @@ public final class EngineServer implements Server, EngineBridge {
                         BlockSoundMap.SoundFamily family = BlockSoundMap
                                 .familyOf(commit.now().identifier())
                                 .orElse(BlockSoundMap.SoundFamily.STONE);
+                        // VT-027 — the place arm the same law (BlockItem.place
+                        // lines 53-60: the placing sound in the ACTING world).
                         fxManager.sound(center, family.placing(),
                                 (family.volume() + 1.0f) / 2.0f,
-                                family.pitch() * 0.8f);
+                                family.pitch() * 0.8f, commit.dimension());
                     }
                 });
                 // The dig-start consult (Slice N6 — handlePlayerDig lines
@@ -3877,13 +4257,18 @@ public final class EngineServer implements Server, EngineBridge {
                 // this.player) && serverworld.getWorldBorder().contains(
                 // blockpos)} — a refused consult answers the BlockUpdate echo
                 // and NO dig opens. The isSpawnProtected walk is the N4 law
-                // (the op store's chebyshev band); the border consult is the
-                // shared dynamic border the /worldborder commands move (the
-                // default 6.0E7 size is the reference's own unconfigured
-                // infinity, so the gate changes nothing until configured).
+                // (the op store's chebyshev band); the border consult reads
+                // the ACTING world's border (the per-dimension router — the
+                // nether's view reports the center at /8,
+                // NetherDimension.createWorldBorder lines 75-86; the shared
+                // dynamic border the /worldborder commands move is the
+                // reference's worlds[0] alone, and the default 6.0E7 size is
+                // the reference's own unconfigured infinity, so the gate
+                // changes nothing until configured).
                 blockInteraction.setDigStartGate((session, pos) ->
                         !isSpawnProtected(session, pos)
-                                && worldBorder.contains(pos.x(), pos.z()));
+                                && borderFor(session.dimension())
+                                        .contains(pos.x(), pos.z()));
                 // The per-dimension world router (Wave FL4-F5 — the dig/place
                 // generic surface): the service's every dig, place, extinguish,
                 // resync and drop consults and writes the ACTING player's own
@@ -3899,10 +4284,14 @@ public final class EngineServer implements Server, EngineBridge {
                 // 0.5F, pitch 2.6F ± (rand-rand)*0.8F} — the engine's FxManager
                 // plays the sound directly, the established engine pattern
                 // (the wet extinguish's own fizz at 0.7F/1.6F beside it).
-                blockInteraction.setFireExtinguishFx(pos -> {
+                blockInteraction.setFireExtinguishFx((pos, dimension) -> {
                     Position center = new Position(pos.x() + 0.5, pos.y() + 0.5, pos.z() + 0.5);
+                    // VT-029 — the fizz rides the ACTING world (World.java
+                    // 1642's doEvent(player, 1004, pos, 0): the per-world
+                    // listener list, PlayerManager 626-640's dimension gate).
                     fxManager.sound(center, "random.fizz", 0.5f,
-                            2.6f + (fxRandom.nextFloat() - fxRandom.nextFloat()) * 0.8f);
+                            2.6f + (fxRandom.nextFloat() - fxRandom.nextFloat()) * 0.8f,
+                            dimension);
                 });
                 CommandService dispatcher = new CommandService();
                 registerBuiltinCommands(dispatcher);
@@ -4952,10 +5341,13 @@ public final class EngineServer implements Server, EngineBridge {
         if (type == 3 && !creativeHeld.isPresent() && !held.isEmpty()) {
             profile = held.skullOwner();
         }
-        // The tile write + the summon consult (lines 60-81).
+        // The tile write + the summon consult (lines 60-81). The wither's
+        // dimension is the placing walk's own world (SkullBlock
+        // .checkWitherSpawn line 185's {@code new WitherEntity(world)} —
+        // the skull's world, the session's own dimension here).
         skullStore.place(target, type, rotation, profile);
         if (type == 1) {
-            skullStore.trySummonWither(target);
+            skullStore.trySummonWither(target, session.dimension());
         }
         if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE) {
             session.inventory().consumeHeld(1);
@@ -4994,6 +5386,22 @@ public final class EngineServer implements Server, EngineBridge {
      */
     public net.zaminmc.torch.server.border.EngineWorldBorder worldBorder() {
         return worldBorder;
+    }
+
+    /**
+     * The ACTING world's border — the containment consults' router (the
+     * reference's per-world law): the nether reads its own view (the
+     * overworld's synced rows with the CENTER REPORTED AT /8 —
+     * NetherDimension.createWorldBorder lines 75-86; the ReadOnlyServerWorld
+     * listener copy lines 17-37 stands in as the live delegation), the
+     * overworld and the End read the shared border (TheEndDimension has no
+     * override — the raw synced copy). The command and the wire surfaces
+     * stay on {@link #worldBorder()} alone (WorldBorderCommand lines
+     * 171-172, PlayerManager.sendWorldInfo lines 678-679 — the reference's
+     * own worlds[0] law).
+     */
+    private net.zaminmc.torch.server.border.EngineWorldBorder borderFor(int dimension) {
+        return dimension == -1 ? netherBorderView : worldBorder;
     }
 
     /** The simulation-owned item entity manager (present once the world is up). */
@@ -5919,7 +6327,13 @@ public final class EngineServer implements Server, EngineBridge {
                 continue;
             }
             var position = session.position();
-            if (!menu.stillValid(world::getBlock, position.x(), position.y(), position.z())) {
+            // VT-035 — the walk-away gate reads the OPENING world's cell (the
+            // reference EnchantingTableMenu line 33: the menu's own world,
+            // constructed over the world the right-click happened in — the
+            // pre-fix consult read the overworld field and a nether table's
+            // window slammed shut on the first viewer tick).
+            EngineWorld actingWorld = worldFor(session.openContainerDimension());
+            if (!menu.stillValid(actingWorld::getBlock, position.x(), position.y(), position.z())) {
                 closeEnchantingMenuOnTick(session);
                 publishInventoryChanged(session);
                 continue;
@@ -5948,7 +6362,13 @@ public final class EngineServer implements Server, EngineBridge {
                 continue;
             }
             var position = session.position();
-            if (!menu.stillValid(world::getBlock, position.x(), position.y(), position.z())) {
+            // VT-035 — the walk-away gate reads the OPENING world's cell (the
+            // reference AnvilMenu.isValid line 309: the menu's own world,
+            // constructed over the world the right-click happened in — the
+            // pre-fix consult read the overworld field and a nether anvil's
+            // window slammed shut on the first viewer tick).
+            EngineWorld actingWorld = worldFor(session.openContainerDimension());
+            if (!menu.stillValid(actingWorld::getBlock, position.x(), position.y(), position.z())) {
                 closeAnvilMenuOnTick(session);
                 publishInventoryChanged(session);
                 continue;
@@ -6113,6 +6533,143 @@ public final class EngineServer implements Server, EngineBridge {
         return commandBlocks;
     }
 
+    /**
+     * The dimension's own tripwire family (VT-036 — the chestsFor form):
+     * each world's hooks and wires answer their OWN family, the reference's
+     * per-WorldServer dispatch.
+     */
+    public net.zaminmc.torch.server.redstone.TripwireSystem tripwireFor(int dimension) {
+        if (dimension == -1) {
+            return java.util.Objects.requireNonNull(netherTripwire, "nether tripwire");
+        }
+        if (dimension == 1) {
+            return java.util.Objects.requireNonNull(endTripwire, "end tripwire");
+        }
+        return tripwireSystem;
+    }
+
+    /**
+     * Wires one dimension's tripwire occupancy probe (VT-036 — the plate
+     * probe's FL4-F10 form): the engine's bodies walked with the dimension
+     * gate — another world's body at the same coordinates is absent from
+     * the reference's per-world getEntities walk (TripwireBlock
+     * lines 163-168), never a phantom trip.
+     */
+    private void wireTripwireProbes(net.zaminmc.torch.server.redstone.TripwireSystem system,
+                                    int dimension) {
+        system.setOccupancyProbe(wire -> {
+            // The occupancy box (TripwireBlock's own shape, the attached
+            // form — setShape line 44: [0, 0.15625] over the cell) and the
+            // gather's law (TripwireBlock.updateOutputState lines 176-181:
+            // `world.getEntities(null, Box(...))` — the reference's box
+            // gather over EACH BODY'S OWN box, Box.intersects strict on
+            // all six faces, EXACTLY TOUCHING never intersecting; the
+            // walk's only filter is canAvoidTraps — the spectator players
+            // alone — so EVERY entity family in the cell triggers the
+            // wire: mobs, players, items, orbs, armor stands, vehicles,
+            // projectiles. Wave PE-3, the Phase E boundary arms: the
+            // pre-fix center-in-box consult missed the edge-stand, and
+            // the orb/stand/vehicle/projectile walks were absent).
+            double minX = wire.x(), maxX = wire.x() + 1;
+            double minY = wire.y(), maxY = wire.y() + 0.15625;
+            double minZ = wire.z(), maxZ = wire.z() + 1;
+            for (net.zaminmc.torch.server.entity.MobEntity mob : mobManager.all()) {
+                if (mob.dimension() != dimension) {
+                    continue; // another world's body is absent from this walk
+                }
+                net.zaminmc.torch.util.Position at = mob.position();
+                double halfWidth = mob.type().width / 2.0;
+                if (at.x() + halfWidth > minX && at.x() - halfWidth < maxX
+                        && at.y() + mob.type().height > minY && at.y() < maxY
+                        && at.z() + halfWidth > minZ && at.z() - halfWidth < maxZ) {
+                    return true;
+                }
+            }
+            for (PlayerSession body : players.all()) {
+                if (body.dimension() != dimension
+                        || body.state() != net.zaminmc.torch.entity.PlayerState.PLAYING
+                        || body.gamemode() == GameMode.SPECTATOR) {
+                    continue; // canAvoidTraps
+                }
+                net.zaminmc.torch.util.Position at = body.position();
+                if (at.x() + PLAYER_HALF_WIDTH > minX
+                        && at.x() - PLAYER_HALF_WIDTH < maxX
+                        && at.y() + PLAYER_HEIGHT > minY && at.y() < maxY
+                        && at.z() + PLAYER_HALF_WIDTH > minZ
+                        && at.z() - PLAYER_HALF_WIDTH < maxZ) {
+                    return true;
+                }
+            }
+            for (ItemEntity item : itemEntities.all()) {
+                if (item.dimension() != dimension) {
+                    continue; // another world's body is absent from this walk
+                }
+                net.zaminmc.torch.util.Position at = item.position();
+                if (at.x() + ItemEntity.HALF_WIDTH > minX
+                        && at.x() - ItemEntity.HALF_WIDTH < maxX
+                        && at.y() + ItemEntity.HALF_HEIGHT > minY
+                        && at.y() - ItemEntity.HALF_HEIGHT < maxY
+                        && at.z() + ItemEntity.HALF_WIDTH > minZ
+                        && at.z() - ItemEntity.HALF_WIDTH < maxZ) {
+                    return true;
+                }
+            }
+            for (net.zaminmc.torch.server.experience.ExperienceOrbEntity orb : experienceOrbs.all()) {
+                if (orb.dimension() != dimension) {
+                    continue; // another world's body is absent from this walk
+                }
+                net.zaminmc.torch.util.Position at = orb.position();
+                double half = orb.halfWidth();
+                if (at.x() + half > minX && at.x() - half < maxX
+                        && at.y() + half > minY && at.y() - half < maxY
+                        && at.z() + half > minZ && at.z() - half < maxZ) {
+                    return true;
+                }
+            }
+            for (net.zaminmc.torch.server.armorstand.ArmorStand stand : armorStands.allStands()) {
+                if (stand.dimension() != dimension) {
+                    continue; // another world's stand is absent from this walk
+                }
+                // The stand's own box (ArmorStandEntity's setSize(0.5F,
+                // 1.975F), feet-anchored).
+                if (stand.x() + 0.25 > minX && stand.x() - 0.25 < maxX
+                        && stand.y() + 1.975 > minY && stand.y() < maxY
+                        && stand.z() + 0.25 > minZ && stand.z() - 0.25 < maxZ) {
+                    return true;
+                }
+            }
+            if (vehicleManager != null) {
+                for (net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle : vehicleManager.all()) {
+                    if (vehicle.dimension() != dimension) {
+                        continue; // another world's cart is absent from this walk
+                    }
+                    // The cart's own hull (0.98 x 0.7, center-anchored —
+                    // the PE-1 anchored form).
+                    net.zaminmc.torch.util.Position at = vehicle.position();
+                    if (at.x() + 0.49 > minX && at.x() - 0.49 < maxX
+                            && at.y() + 0.35 > minY && at.y() - 0.35 < maxY
+                            && at.z() + 0.49 > minZ && at.z() - 0.49 < maxZ) {
+                        return true;
+                    }
+                }
+            }
+            for (net.zaminmc.torch.server.entity.projectile.ProjectileEntity projectile : projectileManager.all()) {
+                if (projectile.dimension() != dimension) {
+                    continue; // another world's body is absent from this walk
+                }
+                // The projectile's own 0.5 box (ArrowEntity's setSize(0.5F,
+                // 0.5F), center-anchored).
+                net.zaminmc.torch.util.Position at = projectile.position();
+                if (at.x() + 0.25 > minX && at.x() - 0.25 < maxX
+                        && at.y() + 0.25 > minY && at.y() - 0.25 < maxY
+                        && at.z() + 0.25 > minZ && at.z() - 0.25 < maxZ) {
+                    return true;
+                }
+            }
+            return false;
+        });
+    }
+
     /** The dimension's own note family (Wave FL4-GAP2 Slice C — the chestsFor form). */
     public net.zaminmc.torch.server.noteblock.NoteBlockSystem noteBlocksFor(int dimension) {
         if (dimension == -1) {
@@ -6188,26 +6745,40 @@ public final class EngineServer implements Server, EngineBridge {
             }
 
             @Override
-            public void summonWither(Position at, float bodyYawDegrees) {
+            public void summonWither(Position at, float bodyYawDegrees, int dimension) {
                 // trySpawn lines 184-201: the birth at the top-center cell —
                 // the spawn, the axis yaw, onSummoned's window + third
                 // health, and the snowball burst stand-in at the base (the
                 // reference's own 120-particle column rides the fx bus's
-                // Poof family).
+                // Poof family). VT-012/VT-033 — the dimension-aware arm:
+                // the body is born stamped in its own world (Entity line
+                // 166's construction law, the stamp landing BEFORE the
+                // spawn fan so the wire's Slice 25d gate reads the born
+                // dimension at the event — the post-fan setDimension never
+                // republishes); the poof rides the dimensioned overload
+                // (World.addParticle 796-812 — the summoning world's
+                // listener list alone), and the achievement walk consults
+                // the acting world's players.
                 MobEntity wither = mobManager.spawnAt(
-                        net.zaminmc.torch.server.entity.MobType.WITHER, at);
+                        net.zaminmc.torch.server.entity.MobType.WITHER, at, dimension);
                 if (wither != null) {
-                    wither.setDimension(dimension); // the body's own world
                     wither.setBodyYaw(bodyYawDegrees);
                     wither.witherSummoned();
                 }
-                fxManager.poof(new Position(at.x(), at.y() - 1.5, at.z()));
+                // VT-029 — the birth burst rides the summon's OWN world
+                // (the reference's burst at the wither's spawn plays in the
+                // world the pattern stands in; the host's dimension is the
+                // body's own — the same field the body is stamped with).
+                fxManager.poof(new Position(at.x(), at.y() - 1.5, at.z()), dimension);
                 // The summon row (VIII6 — SkullBlock lines 197-199: every
                 // player whose body box intersects the newborn's own shape
                 // grown (50, 50, 50) earns the wither's summon — the
                 // builders around the pattern, whatever their distance to
-                // the last skull placed).
-                awardPlayersInBox(EngineAchievements.SUMMON_WITHER.key(),
+                // the last skull placed). The walk consults the ACTING
+                // world's player list (the reference's getEntitiesOfType
+                // on the parameter world — a same-coordinate player in
+                // another dimension is not in the list).
+                awardPlayersInBox(EngineAchievements.SUMMON_WITHER.key(), dimension,
                         at, 0.9, 3.5, 50.0, 50.0, 50.0);
             }
         };
@@ -6557,19 +7128,24 @@ public final class EngineServer implements Server, EngineBridge {
                             0.0f, "suffocated in a wall", DamageKind.IN_WALL);
                     session.beginHurtInvulnerability(1.0f);
                 }
-            } else if (!worldBorder.containsBox(
+            } else if (!borderFor(session.dimension()).containsBox(
                     session.position().x() - 0.3, session.position().z() - 0.3,
                     session.position().x() + 0.3, session.position().z() + 0.3)) {
                 // The world-border damage walk (LivingEntity.baseTick lines
                 // 196-202): a player whose box left the border takes
                 // max(1, floor(-depth * rate)) per tick — IN_WALL (bypasses
-                // armor, exhaustion 0.3, the reference's own source).
-                double depth = worldBorder.getDistanceFrom(
+                // armor, exhaustion 0.3, the reference's own source). The
+                // consult reads the ACTING world's border (the body's own
+                // world — the per-dimension router; the nether's view
+                // reports the center at /8, NetherDimension's own law).
+                net.zaminmc.torch.server.border.EngineWorldBorder actingBorder =
+                        borderFor(session.dimension());
+                double depth = actingBorder.getDistanceFrom(
                                 session.position().x(), session.position().z())
-                        + worldBorder.getSafeZone();
+                        + actingBorder.getSafeZone();
                 if (depth < 0.0) {
                     damageOnTick(session,
-                            Math.max(1, (int) Math.floor(-depth * worldBorder.getDamagePerBlock())),
+                            Math.max(1, (int) Math.floor(-depth * actingBorder.getDamagePerBlock())),
                             0.0f, "suffocated in a wall", DamageKind.IN_WALL);
                 }
             }
@@ -6977,7 +7553,7 @@ public final class EngineServer implements Server, EngineBridge {
             if (level > 0 && session.position().y() <= waterSurface) {
                 session.extinguish();
                 session.resetFireDamageTimer();
-                setCauldronLevel(new BlockPosition(
+                setCauldronLevel(session.dimension(), new BlockPosition(
                         (int) Math.floor(session.position().x()),
                         (int) Math.floor(session.position().y()),
                         (int) Math.floor(session.position().z())), level - 1);
@@ -8924,6 +9500,15 @@ public final class EngineServer implements Server, EngineBridge {
     static final double SHARD_SPEED = 1.5;
     /** The potion's throw power (PotionEntity.getPower line 46-48: 0.5). */
     private static final double POTION_THROW_POWER = 0.5;
+
+    /**
+     * The player's own body box (PlayerEntity line 424's
+     * {@code setSize(0.6F, 1.8F)} — the reference's own size, the
+     * plate family's occupancy consult and every body-box walk reading
+     * it; Wave PE-2).
+     */
+    private static final double PLAYER_HALF_WIDTH = 0.3;
+    private static final double PLAYER_HEIGHT = 1.8;
     /** The Flame bow's arrow burn (the reference's setOnFireFor(100) = 100 s). */
     static final int FLAME_ARROW_TICKS = 2_000;
     /** The burning arrow's hit ignite (the reference's setOnFireFor(5) = 5 s). */
@@ -9600,6 +10185,48 @@ public final class EngineServer implements Server, EngineBridge {
             Position at = online.position();
             // The player's box: the feet anchor + 0.6 wide + 1.8 tall; the
             // boxes intersect when they overlap on every axis.
+            boolean hit = at.x() + 0.6 > minX && at.x() < maxX
+                    && at.y() + 1.8 > minY && at.y() < maxY
+                    && at.z() + 0.6 > minZ && at.z() < maxZ;
+            if (hit) {
+                online.stats().increment(statKey, 1);
+            }
+        }
+    }
+
+    /**
+     * The dimensioned anchor form (VT-033 — the reference's per-world player
+     * list: {@code world.getEntitiesOfType(PlayerEntity.class, box)} walks
+     * the ACTING world's players alone — the same chunk coordinates exist in
+     * every dimension, and a player standing in another world is not in the
+     * acting world's list). The summon's achievement row rides this form:
+     * only the players in the world the pattern was built in earn the stat.
+     */
+    private void awardPlayersInBox(String statKey, int dimension, Position anchor,
+                                   double anchorWidth, double anchorHeight,
+                                   double growX, double growY, double growZ) {
+        double half = anchorWidth / 2.0;
+        awardPlayersInBox(statKey, dimension,
+                anchor.x() - half - growX, anchor.y() - growY, anchor.z() - half - growZ,
+                anchor.x() + half + growX, anchor.y() + anchorHeight + growY,
+                anchor.z() + half + growZ);
+    }
+
+    /**
+     * The dimensioned explicit-box form: every playing player IN THE GIVEN
+     * DIMENSION whose body box intersects the bounds earns the stat — the
+     * raw getEntitiesOfType(PlayerEntity.class, box) walk on the acting
+     * world's own player list.
+     */
+    private void awardPlayersInBox(String statKey, int dimension,
+                                   double minX, double minY, double minZ,
+                                   double maxX, double maxY, double maxZ) {
+        for (PlayerSession online : players.all()) {
+            if (online.state() != PlayerState.PLAYING
+                    || online.dimension() != dimension) {
+                continue;
+            }
+            Position at = online.position();
             boolean hit = at.x() + 0.6 > minX && at.x() < maxX
                     && at.y() + 1.8 > minY && at.y() < maxY
                     && at.z() + 0.6 > minZ && at.z() < maxZ;
@@ -11081,39 +11708,51 @@ public final class EngineServer implements Server, EngineBridge {
      * the 0.12 roll's anvil read and the DAMAGE-band walk over the world's
      * own twelve-state family, the 1020/1021 world events answered through
      * the FxManager's sound fan (the landing's own 1022 convention).
+     *
+     * <p><b>THE DIMENSION ROUTING (VT-035 — the reference's menu-world law):</b>
+     * every consult reads the OPENING world — the world the anvil GUI was
+     * opened in (the reference AnvilMenu lines 44-46: the constructor's own
+     * {@code world} parameter, every later read riding it — isValid 309, the
+     * damage walk 81-89, the doEvent fan 86/89/92 over that world's listener
+     * list). The pre-fix site read the overworld field whatever the player's
+     * dimension: a nether repair never aged the nether anvil, a mirrored
+     * overworld anvil at the same coordinates took the damage writes, and the
+     * 1020/1021 events stamped the overworld 0.</p>
+     *
      * Tick-thread context.
      */
     private net.zaminmc.torch.server.enchantment.AnvilMenu.AnvilSite anvilSiteAt(
-            net.zaminmc.torch.block.BlockPosition position) {
+            net.zaminmc.torch.block.BlockPosition position, int dimension) {
+        EngineWorld siteWorld = worldFor(dimension);
         return new net.zaminmc.torch.server.enchantment.AnvilMenu.AnvilSite() {
             @Override
             public boolean anvilStands() {
                 return net.zaminmc.torch.server.block.AnvilBlocks
-                        .isAnvil(world.getBlock(position).identifier());
+                        .isAnvil(siteWorld.getBlock(position).identifier());
             }
 
             @Override
             public int damageState() {
                 return net.zaminmc.torch.server.block.AnvilBlocks
-                        .damageOf(world.getBlock(position).identifier());
+                        .damageOf(siteWorld.getBlock(position).identifier());
             }
 
             @Override
             public void progressDamage() {
-                var current = world.getBlock(position);
+                var current = siteWorld.getBlock(position);
                 int facing = net.zaminmc.torch.server.block.AnvilBlocks
                         .facingOf(current.identifier());
                 int next = net.zaminmc.torch.server.block.AnvilBlocks
                         .progressedDamage(net.zaminmc.torch.server.block.AnvilBlocks
                                 .damageOf(current.identifier()));
-                world.setBlock(position, net.zaminmc.torch.server.block.AnvilBlocks
+                siteWorld.setBlock(position, net.zaminmc.torch.server.block.AnvilBlocks
                         .state(facing, next));
                 soundAt(position, "random.anvil_use"); // doEvent 1021
             }
 
             @Override
             public void breakAnvil() {
-                world.setBlock(position, net.zaminmc.torch.server.block.BuiltinBlocks.AIR);
+                siteWorld.setBlock(position, net.zaminmc.torch.server.block.BuiltinBlocks.AIR);
                 soundAt(position, "random.anvil_break"); // doEvent 1020
             }
 
@@ -11123,8 +11762,11 @@ public final class EngineServer implements Server, EngineBridge {
             }
 
             private void soundAt(net.zaminmc.torch.block.BlockPosition at, String name) {
+                // VT-035 — the 1020/1021 events ride the anvil's OWN world
+                // (the reference's world.doEvent over the per-world listener
+                // list — World.doEvent lines 2613-2626).
                 fxManager.sound(new Position(at.x() + 0.5, at.y() + 0.5, at.z() + 0.5),
-                        name, 1.0f, 1.0f);
+                        name, 1.0f, 1.0f, siteWorld.dimension());
             }
         };
     }
@@ -11220,7 +11862,7 @@ public final class EngineServer implements Server, EngineBridge {
             return false; // a mismatched cursor: the take refuses
         }
         menu.takeOutput(repairer, session.playerRandom(),
-                anvilSiteAt(session.openContainerPosition()));
+                anvilSiteAt(session.openContainerPosition(), session.openContainerDimension()));
         publishExperienceChanged(session); // the payment moved the level bar
         return true;
     }
@@ -11245,7 +11887,7 @@ public final class EngineServer implements Server, EngineBridge {
             return false; // nothing moved: the reference's moveItem refusal
         }
         menu.takeOutput(repairer, session.playerRandom(),
-                anvilSiteAt(session.openContainerPosition()));
+                anvilSiteAt(session.openContainerPosition(), session.openContainerDimension()));
         publishExperienceChanged(session);
         return true;
     }
@@ -12284,10 +12926,12 @@ public final class EngineServer implements Server, EngineBridge {
         }
         // the world-border consult — {@code serverworld.getWorldBorder()
         // .contains(blockpos)} — a use outside the border refuses (the
-        // engine's shared dynamic border the /worldborder commands move;
-        // the default 6.0E7 size is the reference's own unconfigured
+        // ACTING world's border through the per-dimension router — the
+        // nether's view reports the center at /8; the shared dynamic border
+        // the /worldborder commands move is the reference's worlds[0] alone,
+        // and the default 6.0E7 size is the reference's own unconfigured
         // infinity, so the gate changes nothing until configured).
-        if (!worldBorder.contains(clicked.x(), clicked.z())) {
+        if (!borderFor(session.dimension()).contains(clicked.x(), clicked.z())) {
             return; // the outside-border use
         }
         // the spawn-protection consult (DedicatedServer.isSpawnProtected
@@ -12601,8 +13245,12 @@ public final class EngineServer implements Server, EngineBridge {
                 boolean opening = !net.zaminmc.torch.server.block.TrapdoorBlocks.isOpen(current);
                 world.setBlock(clicked, net.zaminmc.torch.server.block.TrapdoorBlocks
                         .flipOpen(current));
+                // VT-029 — the creak rides the ACTING world (TrapdoorBlock.use
+                // lines 107-116: world.doEvent over the per-world listener
+                // list — PlayerManager 626-640's dimension gate).
                 fxManager.sound(new Position(clicked.x() + 0.5, clicked.y() + 0.5, clicked.z() + 0.5),
-                        opening ? "random.door_open" : "random.door_close", 0.8f, 1.0f);
+                        opening ? "random.door_open" : "random.door_close", 0.8f, 1.0f,
+                        world.dimension());
             }
             return true; // the swing consumed the right-click (either family)
         }
@@ -12848,8 +13496,12 @@ public final class EngineServer implements Server, EngineBridge {
                     for (int i = 0; i < 16; i++) {
                         double ox = (5.0 + gameplayRandom.nextFloat() * 6.0) / 16.0;
                         double oz = (5.0 + gameplayRandom.nextFloat() * 6.0) / 16.0;
+                        // VT-029 — the eye's burst rides the ACTING world
+                        // (EnderEyeItem line 43's world.addParticle — the
+                        // per-world listener list).
                         fxManager.smoke(new Position(
-                                clicked.x() + ox, clicked.y() + 0.8125, clicked.z() + oz));
+                                clicked.x() + ox, clicked.y() + 0.8125, clicked.z() + oz),
+                                session.dimension());
                     }
                     // The frame-complete walk (the reference's own
                     // geometry over the just-eyed frame).
@@ -13284,8 +13936,15 @@ public final class EngineServer implements Server, EngineBridge {
                 && session.inventory().held().isEmpty()) {
             return;
         }
-        if (!WorldSolidity.isSolid(world.getBlock(target.offset(0, -1, 0)))) {
-            return; // the wire needs its solid bed (the vanilla gate)
+        if (!net.zaminmc.torch.server.block.SupportConsult.hasSolidTop(
+                world.getBlock(target.offset(0, -1, 0)))
+                && !world.getBlock(target.offset(0, -1, 0)).identifier()
+                        .equals(BuiltinBlocks.GLOWSTONE.identifier())) {
+            return; // the wire's floor law (RedstoneWireBlock.canBePlaced
+                    // lines 91-93, F-SP2): hasSolidTop OR the glowstone
+                    // disjunct — the translucent beds (glass, ice, the
+                    // leaves) and the non-cube beds (the fences, the
+                    // bottom slabs) never host the dust
         }
         world.setBlock(target, net.zaminmc.torch.server.redstone.RedstoneBlocks.wireOfPower(0));
         consumePlaced(session, creativeHeld);
@@ -13294,8 +13953,12 @@ public final class EngineServer implements Server, EngineBridge {
     /**
      * The repeater's use (RepeaterBlock.use lines 38-45): the right-click
      * steps the DELAY property through 1..4 and back to 1 — the state swap
-     * preserves the facing and the powered pair. Returns whether the use
-     * was consumed. Tick-thread context.
+     * preserves the facing and the powered pair. SILENT: no playSound and
+     * no doEvent anywhere in the reference's repeater family (RepeaterBlock
+     * + the DiodeBlock parent, swept whole) — the CLICK belongs to the
+     * comparator alone (ComparatorBlock.use lines 148-152, the pitch
+     * answering the new mode; VT-034 retired the phantom this arm played).
+     * Returns whether the use was consumed. Tick-thread context.
      */
     private boolean cycleRepeaterDelayOnTick(BlockPosition clicked, EngineWorld world) {
         BlockType current = world.getBlock(clicked);
@@ -13305,8 +13968,6 @@ public final class EngineServer implements Server, EngineBridge {
         int delay = net.zaminmc.torch.server.redstone.RedstoneBlocks.repeaterDelay(current);
         int next = delay >= 4 ? 1 : delay + 1;
         world.setBlock(clicked, net.zaminmc.torch.server.redstone.RedstoneBlocks.repeaterWithDelay(current, next));
-        fxManager.sound(new Position(clicked.x() + 0.5, clicked.y() + 0.5, clicked.z() + 0.5),
-                "random.click", 0.3f, 0.6f);
         return true;
     }
 
@@ -13530,8 +14191,15 @@ public final class EngineServer implements Server, EngineBridge {
                 && session.inventory().held().isEmpty()) {
             return;
         }
-        if (!WorldSolidity.isSolid(world.getBlock(target.offset(0, -1, 0)))) {
-            return; // the plate needs its solid bed
+        if (!net.zaminmc.torch.server.block.SupportConsult.hasSolidTop(
+                world.getBlock(target.offset(0, -1, 0)))
+                && !WorldSolidity.isFence(
+                        world.getBlock(target.offset(0, -1, 0)).identifier())) {
+            return; // the plate's floor law (AbstractPressurePlateBlock
+                    // .canBePlaced lines 72-74 over canSitOnTop 84-86,
+                    // F-SP2): hasSolidTop OR the FenceBlock census — the
+                    // translucent beds and the non-cube beds outside the
+                    // seven fence families never host a plate
         }
         world.setBlock(target, net.zaminmc.torch.server.redstone.RedstoneBlocks.plateOf(false, wooden));
         consumePlaced(session, creativeHeld);
@@ -13612,8 +14280,11 @@ public final class EngineServer implements Server, EngineBridge {
                 && session.inventory().held().isEmpty()) {
             return;
         }
-        if (!WorldSolidity.isSolid(world.getBlock(target.offset(0, -1, 0)))) {
-            return; // the diode needs its solid bed
+        if (!net.zaminmc.torch.server.block.SupportConsult.hasSolidTop(
+                world.getBlock(target.offset(0, -1, 0)))) {
+            return; // the diode's floor law (DiodeBlock.canBePlaced lines
+                    // 29-31, F-SP2): hasSolidTop ALONE — no glowstone
+                    // disjunct, no fence arm
         }
         double yaw = ((session.rotation().yaw() % 360.0) + 360.0 + 45.0) % 360.0;
         int lookBand = (int) (yaw / 90.0) % 4; // 0=S,1=W,2=N,3=E of the look
@@ -13645,8 +14316,11 @@ public final class EngineServer implements Server, EngineBridge {
                 && session.inventory().held().isEmpty()) {
             return;
         }
-        if (!WorldSolidity.isSolid(world.getBlock(target.offset(0, -1, 0)))) {
-            return; // the diode needs its solid bed
+        if (!net.zaminmc.torch.server.block.SupportConsult.hasSolidTop(
+                world.getBlock(target.offset(0, -1, 0)))) {
+            return; // the diode's floor law (DiodeBlock.canBePlaced lines
+                    // 29-31, F-SP2): hasSolidTop ALONE — no glowstone
+                    // disjunct, no fence arm
         }
         double yaw = ((session.rotation().yaw() % 360.0) + 360.0 + 45.0) % 360.0;
         int lookBand = (int) (yaw / 90.0) % 4; // 0=S,1=W,2=N,3=E of the look
@@ -14200,7 +14874,7 @@ public final class EngineServer implements Server, EngineBridge {
                 }
                 session.stats().increment(
                         net.zaminmc.torch.server.stat.EngineStats.CAULDRONS_FILLED, 1);
-                setCauldronLevel(clicked, 3);
+                setCauldronLevel(session.dimension(), clicked, 3);
                 publishInventoryChanged(session);
             }
             return true;
@@ -14236,7 +14910,7 @@ public final class EngineServer implements Server, EngineBridge {
                             net.zaminmc.torch.server.stat.EngineStats.CAULDRONS_USED, 1);
                     session.inventory().consumeHeld(1);
                 }
-                setCauldronLevel(clicked, level - 1);
+                setCauldronLevel(session.dimension(), clicked, level - 1);
                 publishInventoryChanged(session);
             }
             return true;
@@ -14255,7 +14929,7 @@ public final class EngineServer implements Server, EngineBridge {
                         || held.type().equals(BuiltinItems.LEATHER_BOOTS))) {
             session.inventory().setSlot(session.inventory().heldSlot(),
                     held.withDisplayColor(null));
-            setCauldronLevel(clicked, level - 1);
+            setCauldronLevel(session.dimension(), clicked, level - 1);
             session.stats().increment(
                     net.zaminmc.torch.server.stat.EngineStats.ARMOR_CLEANED, 1);
             publishInventoryChanged(session);
@@ -14298,7 +14972,7 @@ public final class EngineServer implements Server, EngineBridge {
                 }
             }
             if (session.gamemode() != GameMode.CREATIVE) {
-                setCauldronLevel(clicked, level - 1);
+                setCauldronLevel(session.dimension(), clicked, level - 1);
             }
             publishInventoryChanged(session);
             return true;
@@ -14308,13 +14982,17 @@ public final class EngineServer implements Server, EngineBridge {
 
     /**
      * The cauldron's level write (setLevel lines 162-165): the state swap
-     * with the flag-2 shape (no neighbor re-light, the comparators woken).
-     * Tick-thread context.
+     * with the flag-2 shape (no neighbor re-light, the comparators woken)
+     * — every consult on the CAULDRON'S OWN WORLD (Wave RW-1: the
+     * reference's {@code world} parameter is the world the cauldron
+     * stands in, never the overworld field; a nether fill wrote the
+     * overworld's cell at the same coordinates and armed the overworld's
+     * comparators pre-fix). Tick-thread context.
      */
-    private void setCauldronLevel(BlockPosition position, int level) {
-        world.setBlock(position,
+    private void setCauldronLevel(int dimension, BlockPosition position, int level) {
+        worldFor(dimension).setBlock(position,
                 net.zaminmc.torch.server.cauldron.CauldronBlocks.of(level));
-        redstoneSystem.wakeComparators(position);
+        redstoneFor(dimension).wakeComparators(position);
     }
 
     /**
@@ -14361,8 +15039,11 @@ public final class EngineServer implements Server, EngineBridge {
         // portal build — a valid obsidian frame replaces the fire cell with
         // the portal interior; the failed scan leaves the ordinary fire.
         net.zaminmc.torch.server.world.PortalFrameBuilder.createAt(world, target);
+        // VT-029 — the ignite rides the ACTING world (FlintAndSteelItem
+        // line 25: world.playSound over the per-world listener list).
         fxManager.sound(new Position(target.x() + 0.5, target.y() + 0.5, target.z() + 0.5),
-                "fire.ignite", 1.0f, 0.9f + fxRandom.nextFloat() * 0.2f);
+                "fire.ignite", 1.0f, 0.9f + fxRandom.nextFloat() * 0.2f,
+                world.dimension());
         if (session.gamemode() == GameMode.SURVIVAL
                 || session.gamemode() == GameMode.ADVENTURE) {
             session.inventory().damageHeld(1, gameplayRandom, session.stats());
@@ -14415,7 +15096,12 @@ public final class EngineServer implements Server, EngineBridge {
             lift = 0.5;
         }
         net.zaminmc.torch.server.entity.MobEntity spawned = mobManager.spawnFromEgg(kind,
-                new Position(target.x() + 0.5, target.y() + lift, target.z() + 0.5));
+                new Position(target.x() + 0.5, target.y() + lift, target.z() + 0.5),
+                session.dimension());
+        // The body lives where the egg was used (SpawnEggItem.useOn's
+        // own {@code world} — the use wire's acting world; the spawn
+        // egg's every reference construction rides the use world; the
+        // dimension rides the spawn, before the spawn fan).
         // The hover-name carry (SpawnEggItem.useOn lines 83-87): a renamed
         // stack names the body it spawns.
         if (spawned != null && held.displayName() != null) {
@@ -14450,7 +15136,11 @@ public final class EngineServer implements Server, EngineBridge {
             return; // the unknown id: no body, no payment
         }
         net.zaminmc.torch.server.entity.MobEntity spawned = mobManager.spawnFromEgg(kind,
-                new Position(liquidCell.x() + 0.5, liquidCell.y() + 0.5, liquidCell.z() + 0.5));
+                new Position(liquidCell.x() + 0.5, liquidCell.y() + 0.5, liquidCell.z() + 0.5),
+                session.dimension());
+        // The body lives where the egg was used (the in-air arm's own
+        // acting world — the same use-wire law as the block arm; the
+        // dimension rides the spawn, before the spawn fan).
         // The hover-name carry (SpawnEggItem.startUsing lines 119-123):
         // the in-air arm names the body the same way.
         if (spawned != null && session.inventory().held().displayName() != null) {
@@ -14819,8 +15509,10 @@ public final class EngineServer implements Server, EngineBridge {
         if (session.gamemode() != GameMode.CREATIVE) {
             session.inventory().consumeHeld(1);
         }
+        // VT-029 — the placement sound rides the ACTING world (the
+        // placement family's own law — the per-world listener list).
         fxManager.sound(new Position(target.x() + 0.5, target.y() + 0.5, target.z() + 0.5),
-                "dig.grass", 0.6f, 1.0f);
+                "dig.grass", 0.6f, 1.0f, world.dimension());
         publishInventoryChanged(session);
         return true;
     }
@@ -14941,8 +15633,10 @@ public final class EngineServer implements Server, EngineBridge {
             // grass family's 1.0 volume and 1.0 pitch give 1.0f / 0.8f
             // (the dig.grass name the pre-fix engine carried is the
             // breaking sound, a different 1.8.8 event than step.grass).
+            // VT-029 — the till's sound rides the ACTING world (HoeItem
+            // lines 51-58: the world the farmland landed in).
             fxManager.sound(new Position(clicked.x() + 0.5, clicked.y() + 0.5, clicked.z() + 0.5),
-                    "step.grass", 1.0f, 0.8f);
+                    "step.grass", 1.0f, 0.8f, world.dimension());
             if (net.zaminmc.torch.server.item.Tools.specOf(heldType).isPresent()) {
                 session.inventory().damageHeld(1, gameplayRandom, session.stats());
                 publishInventoryChanged(session);
@@ -15038,8 +15732,10 @@ public final class EngineServer implements Server, EngineBridge {
                     world.setBlock(pod, net.zaminmc.torch.server.block.CocoaBlocks
                             .placementState(face));
                     session.inventory().consumeHeld(1);
+                    // VT-029 — the pod's placement sound rides the ACTING
+                    // world (the placement family's own law).
                     fxManager.sound(new Position(pod.x() + 0.5, pod.y() + 0.5, pod.z() + 0.5),
-                            "dig.grass", 0.6f, 1.0f);
+                            "dig.grass", 0.6f, 1.0f, world.dimension());
                     publishInventoryChanged(session);
                 }
                 return true; // the brown dye's use consumed the click either way
@@ -15063,7 +15759,7 @@ public final class EngineServer implements Server, EngineBridge {
                 // happy-villager sparks (the itemShatter stand-in the
                 // census row retired).
                 fxManager.worldEvent(new Position(clicked.x() + 0.5, clicked.y() + 0.5,
-                        clicked.z() + 0.5), 2005, 0);
+                        clicked.z() + 0.5), 2005, 0, world.dimension()); // VT-029: DyeItem.useOn line 45 — the ACTING world's doEvent
                 publishInventoryChanged(session);
                 return true;
             }
@@ -15091,7 +15787,7 @@ public final class EngineServer implements Server, EngineBridge {
                 // happy-villager sparks (the itemShatter stand-in the
                 // census row retired).
                 fxManager.worldEvent(new Position(clicked.x() + 0.5, clicked.y() + 0.5,
-                        clicked.z() + 0.5), 2005, 0);
+                        clicked.z() + 0.5), 2005, 0, world.dimension()); // VT-029: DyeItem.useOn line 45 — the ACTING world's doEvent
                 publishInventoryChanged(session);
                 return true; // a growing canGrow target consumed the use
             }
@@ -15110,7 +15806,7 @@ public final class EngineServer implements Server, EngineBridge {
                 // happy-villager sparks (the itemShatter stand-in the
                 // census row retired).
                 fxManager.worldEvent(new Position(clicked.x() + 0.5, clicked.y() + 0.5,
-                        clicked.z() + 0.5), 2005, 0);
+                        clicked.z() + 0.5), 2005, 0, world.dimension()); // VT-029: DyeItem.useOn line 45 — the ACTING world's doEvent
                 publishInventoryChanged(session);
                 return true;
             }
@@ -15131,7 +15827,7 @@ public final class EngineServer implements Server, EngineBridge {
                 // happy-villager sparks (the itemShatter stand-in the
                 // census row retired).
                 fxManager.worldEvent(new Position(clicked.x() + 0.5, clicked.y() + 0.5,
-                        clicked.z() + 0.5), 2005, 0);
+                        clicked.z() + 0.5), 2005, 0, world.dimension()); // VT-029: DyeItem.useOn line 45 — the ACTING world's doEvent
                 publishInventoryChanged(session);
                 return true;
             }
@@ -15149,7 +15845,7 @@ public final class EngineServer implements Server, EngineBridge {
                     // The same 2005 burst (the cocoa IS a Fertilizable —
                     // DyeItem.useOn's one law covers the whole family).
                     fxManager.worldEvent(new Position(clicked.x() + 0.5, clicked.y() + 0.5,
-                            clicked.z() + 0.5), 2005, 0);
+                            clicked.z() + 0.5), 2005, 0, world.dimension()); // VT-029: the same ACTING-world law
                     publishInventoryChanged(session);
                     return true;
                 }
@@ -15355,8 +16051,11 @@ public final class EngineServer implements Server, EngineBridge {
         boolean powered = WoodDoorFamily.isPowered(upperType);
         world.setBlock(lower, WoodDoorFamily.flipLower(type));
         world.setBlock(upper, WoodDoorFamily.upper(family, rightHinge, opening, powered));
+        // VT-029 — the swing's sound rides the ACTING world (DoorBlock.use
+        // lines 124-141: world.doEvent over the per-world listener list).
         fxManager.sound(new Position(lower.x() + 0.5, lower.y() + 0.5, lower.z() + 0.5),
-                opening ? "random.door_open" : "random.door_close", 0.8f, 1.0f);
+                opening ? "random.door_open" : "random.door_close", 0.8f, 1.0f,
+                world.dimension());
     }
 
     /** Whether the block type is any door half (either family, either half). */
@@ -15396,8 +16095,11 @@ public final class EngineServer implements Server, EngineBridge {
         boolean opening = !open;
         world.setBlock(pos, net.zaminmc.torch.server.block.FenceGateBlocks.with(
                 gate, lookBand, opening));
+        // VT-029 — the gate's creak rides the ACTING world (FenceGateBlock.use
+        // lines 94-110: world.doEvent over the per-world listener list).
         fxManager.sound(new Position(pos.x() + 0.5, pos.y() + 0.5, pos.z() + 0.5),
-                opening ? "random.door_open" : "random.door_close", 0.8f, 1.0f);
+                opening ? "random.door_open" : "random.door_close", 0.8f, 1.0f,
+                world.dimension());
     }
 
     /** The horizontal band's opposite (0<->2 south/north, 1<->3 west/east). */
@@ -15656,13 +16358,22 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /**
-     * The bed placement (the historical ItemBed): the foot at the target and
-     * the head one cell along the placer's look (the head points where the
-     * player faces), both cells open, one item spent in survival.
+     * The bed placement (the historical ItemBed, BedItem.useOn): the
+     * up-click alone places (lines 24-26 — every other face fails the
+     * use outright), the foot at the target and the head one cell along
+     * the placer's look (the head points where the player faces), both
+     * cells open, BOTH halves on a solid top (line 42 — the reference's
+     * two-cell World.hasSolidTop consult), one item spent in survival.
      * Tick-thread context.
      */
     private void placeBedOnTick(PlayerSession session, BlockPosition clicked, int face,
                                 java.util.Optional<BlockType> creativeHeld) {
+        // BedItem.useOn lines 24-26 (W-BED): the bed places ONLY on an
+        // up-click — every other face fails the use outright (no block,
+        // no item spent; face 1 = UP, the offsetByFace mapping).
+        if (face != 1) {
+            return;
+        }
         // The player's own world (Wave FL4-F3 — the reference's
         // player.world: every use/place arm runs where the player is).
         EngineWorld world = worldFor(session.dimension());
@@ -15683,6 +16394,19 @@ public final class EngineServer implements Server, EngineBridge {
         BlockPosition head = target.offset(headOffset[0], headOffset[1], headOffset[2]);
         if (!world.getBlock(head).equals(world.airType())) {
             return; // no room for the head half
+        }
+        // BedItem.useOn line 42 (W-BED): BOTH halves must sit on a solid
+        // top — {@code World.hasSolidTop(pos.down()) &&
+        // World.hasSolidTop(blockpos.down())} 1:1 over SupportConsult
+        // (the reference's five arms; the translucent materials — glass,
+        // glowstone, ice, TNT, the leaves — the non-cubes and the bottom
+        // halves NEVER answer, and AIR never answers). Any refusal fails
+        // the use outright: no block, no item spent.
+        if (!net.zaminmc.torch.server.block.SupportConsult.hasSolidTop(
+                world.getBlock(target.offset(0, -1, 0)))
+                || !net.zaminmc.torch.server.block.SupportConsult.hasSolidTop(
+                        world.getBlock(head.offset(0, -1, 0)))) {
+            return;
         }
         if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE
                 && session.inventory().held().isEmpty()) {
@@ -15967,8 +16691,10 @@ public final class EngineServer implements Server, EngineBridge {
                 && !WorldSolidity.isReplaceable(above.identifier())) {
             return; // the upper half's headroom
         }
-        if (!WorldSolidity.isSolid(world.getBlock(target.offset(0, -1, 0)))) {
-            return; // World.hasSolidTop: no floor, no door
+        if (!net.zaminmc.torch.server.block.SupportConsult.hasSolidTop(
+                world.getBlock(target.offset(0, -1, 0)))) {
+            return; // World.hasSolidTop (DoorBlock.canBePlaced line 214,
+                    // F-SP2's door member): no floor, no door
         }
         if (intersectsPlayerBox(session.position(), target)) {
             return; // the vanilla body rule (the reference's own entity collision check)
@@ -16332,11 +17058,13 @@ public final class EngineServer implements Server, EngineBridge {
                 && session.inventory().held().isEmpty()) {
             return;
         }
-        if (!net.zaminmc.torch.server.block.FireBlocks
-                .hasSolidTop(world, target.offset(0, -1, 0))) {
-            return; // canBePlaced (lines 71-73): the has-solid-top family,
-                    // not the collision model — a bottom slab, a fence, a
-                    // wall or the thin snow is not a rail bed
+        if (!net.zaminmc.torch.server.block.SupportConsult.hasSolidTop(
+                world.getBlock(target.offset(0, -1, 0)))) {
+            return; // canBePlaced (lines 71-73): the has-solid-top law
+                    // (SupportConsult's five arms, F-SP2) — a bottom slab,
+                    // a fence, a wall, the thin snow AND the translucent
+                    // beds (glass, ice, TNT, the leaves, the glowstone)
+                    // are not rail beds
         }
         // The DEFAULT state lands (RailBlock line 15 / PoweredRailBlock
         // line 29: NORTH_SOUTH — the look is never consulted anywhere in
@@ -16495,11 +17223,14 @@ public final class EngineServer implements Server, EngineBridge {
     private net.zaminmc.torch.server.entity.vehicle.SpawnerMinecartEntity.SpawnHost
             spawnerCartHost() {
         return new net.zaminmc.torch.server.entity.vehicle.SpawnerMinecartEntity.SpawnHost() {
-            /** The player gate (isNearPlayer's own range — the cart's RequiredPlayerRange row). */
-            @Override public boolean playerNearby(double x, double y, double z, double range) {
+            /** The player gate (isNearPlayer's own range — the cart's RequiredPlayerRange row).
+             * The dimension gate is the cart's own world (MobSpawnerBaseLogic's
+             * getWorld()): only the cart's dimension's players hold the gate. */
+            @Override public boolean playerNearby(int dimension, double x, double y, double z, double range) {
                 double squared = range * range;
                 for (PlayerSession player : players.all()) {
-                    if (player.state() != net.zaminmc.torch.entity.PlayerState.PLAYING) {
+                    if (player.state() != net.zaminmc.torch.entity.PlayerState.PLAYING
+                            || player.dimension() != dimension) {
                         continue;
                     }
                     double dx = player.position().x() - x;
@@ -16512,13 +17243,16 @@ public final class EngineServer implements Server, EngineBridge {
                 return false;
             }
 
-            /** The nearby cap's same-kind count over the given range's box. */
+            /** The nearby cap's same-kind count over the given range's box —
+             * the cart's own dimension's bodies alone (the reference's
+             * per-world entity map). */
             @Override public int nearbyOfKind(
+                    int dimension,
                     net.zaminmc.torch.server.entity.MobType type,
                     int cellX, int cellY, int cellZ, int range) {
                 int nearby = 0;
                 for (var mob : mobManager.all()) {
-                    if (mob.type() != type) {
+                    if (mob.type() != type || mob.dimension() != dimension) {
                         continue;
                     }
                     net.zaminmc.torch.util.Position at = mob.position();
@@ -16534,18 +17268,25 @@ public final class EngineServer implements Server, EngineBridge {
             /** The unobstructed spawn (the engine's cell gate + the
              * entity-level canSpawn consult — the same pair the block
              * spawner's own walk reads, the cart riding the same
-             * MobSpawner tick code). */
+             * MobSpawner tick code). The gates read the CART'S OWN WORLD
+             * (the reference's {@code getWorld()}) and the body stamps
+             * the cart's dimension. */
             @Override public boolean spawnAt(
+                    int dimension,
                     net.zaminmc.torch.server.entity.MobType type,
                     double x, double y, double z) {
+                EngineWorld spawnWorld = worldFor(dimension);
                 if (!net.zaminmc.torch.server.spawner.SpawnerManager
-                        .canSpawnAt(world, type, x, y, z)
-                        || !spawnerManager.canSpawnEntity(type, world, x, y, z)) {
+                        .canSpawnAt(spawnWorld, type, x, y, z)
+                        || !spawnerManager.canSpawnEntity(type, spawnWorld, x, y, z)) {
                     return false;
                 }
-                var spawned = mobManager.spawnAt(type,
-                        new net.zaminmc.torch.util.Position(x, y, z));
-                return spawned != null;
+                // The body lives in the cart's own world
+                // (SpawnerMinecartEntity.getWorld() line 19 — the
+                // reference constructs every spawn in the cart's world);
+                // the dimension rides the spawn, before the spawn fan.
+                return mobManager.spawnAt(type,
+                        new net.zaminmc.torch.util.Position(x, y, z), dimension) != null;
             }
         };
     }
@@ -17197,7 +17938,11 @@ public final class EngineServer implements Server, EngineBridge {
             float yaw = mob.bodyYawLive();
             String carriedName = mob.customName();
             mobManager.remove(mob, "sheared");
-            MobEntity cow = mobManager.spawnAt(MobType.COW, at);
+            // The replacement cow lives where the mooshroom lived
+            // (MooshroomEntity line 38's
+            // {@code new CowEntity(this.world)}) — the dimension rides
+            // the spawn.
+            MobEntity cow = mobManager.spawnAt(MobType.COW, at, mob.dimension());
             if (cow != null) {
                 cow.setBodyYaw(yaw);
                 cow.setHealthCarried(health);
@@ -18372,13 +19117,20 @@ public final class EngineServer implements Server, EngineBridge {
 
         var menu = new net.zaminmc.torch.server.enchantment.EnchantingMenu(
                 session.enchantingSeed(), position);
-        menu.attach(world::getBlock); // the scan reads the real neighborhood from here on
+        // VT-035 — the bookshelf scan reads the OPENING world's cells (the
+        // reference EnchantingTableMenu lines 44-46: the menu's own world,
+        // every shelf consult riding it — the pre-fix attach read the
+        // overworld field, so a nether table's offers counted the overworld's
+        // shelves at the same coordinates).
+        EngineWorld actingWorld = worldFor(session.dimension());
+        menu.attach(actingWorld::getBlock); // the scan reads the real neighborhood from here on
         menu.onContentsChanged(null); // the open-time recompute (the reference markDirty on load)
         session.setEnchantingMenu(menu);
         int windowId = nextContainerWindowId;
         nextContainerWindowId = nextContainerWindowId >= LAST_CONTAINER_WINDOW_ID
                 ? FIRST_CONTAINER_WINDOW_ID : nextContainerWindowId + 1;
-        session.openContainerWindow(windowId, PlayerSession.ContainerKind.ENCHANTING_TABLE, position);
+        session.openContainerWindow(windowId, PlayerSession.ContainerKind.ENCHANTING_TABLE,
+                position, actingWorld.dimension());
         onTableOpened.accept(windowId);
     }
 
@@ -18406,7 +19158,12 @@ public final class EngineServer implements Server, EngineBridge {
         int windowId = nextContainerWindowId;
         nextContainerWindowId = nextContainerWindowId >= LAST_CONTAINER_WINDOW_ID
                 ? FIRST_CONTAINER_WINDOW_ID : nextContainerWindowId + 1;
-        session.openContainerWindow(windowId, PlayerSession.ContainerKind.ANVIL, position);
+        // VT-035 — the open stamps the player's own dimension (Slice B's
+        // 4-arg form): every later window path (the walk-away gate, the
+        // take's site consults) routes through the OPENING world, the
+        // reference's menu-world law (AnvilMenu lines 44-46).
+        session.openContainerWindow(windowId, PlayerSession.ContainerKind.ANVIL,
+                position, session.dimension());
         onTableOpened.accept(windowId);
     }
 
@@ -18483,11 +19240,15 @@ public final class EngineServer implements Server, EngineBridge {
      * AND the cell below it hear the change — the strong arm's consumer
      * (the block under the chest, ChestBlock.getDirectSignal lines 397-400)
      * sits one further out than the weak arm's, so its own wire needs the
-     * second wake to observe the count. Tick-thread context.
+     * second wake to observe the count. Wave RW-1: the reference's
+     * {@code this.world} is the world the CHEST stands in — the wakes ride
+     * the acting dimension's OWN redstone (a nether trapped chest armed
+     * the OVERWORLD's wires pre-fix, the nether wire never re-evaluating).
+     * Tick-thread context.
      */
-    private void trappedChestViewersChangedOnTick(BlockPosition position) {
-        redstoneSystem.updateNeighbors(position);
-        redstoneSystem.updateNeighbors(position.offset(0, -1, 0));
+    private void trappedChestViewersChangedOnTick(int dimension, BlockPosition position) {
+        redstoneFor(dimension).updateNeighbors(position);
+        redstoneFor(dimension).updateNeighbors(position.offset(0, -1, 0));
     }
 
     /**
@@ -18574,11 +19335,11 @@ public final class EngineServer implements Server, EngineBridge {
             // own pair (ChestBlockEntity.onOpen lines 312-314: the
             // chest's cell AND the cell below it — the strong arm's
             // consumer sits one further out).
-            trappedChestViewersChangedOnTick(position);
+            trappedChestViewersChangedOnTick(world.dimension(), position);
             if (second != null) {
                 BlockPosition twin = position.equals(view.firstPos())
                         ? view.secondPos() : view.firstPos();
-                trappedChestViewersChangedOnTick(twin);
+                trappedChestViewersChangedOnTick(world.dimension(), twin);
             }
             // Stats.java's own pair: the trapped chest counts its own row
             // (ChestBlock(1).use's incrementStat), never CHESTS_OPENED.
@@ -18790,15 +19551,21 @@ public final class EngineServer implements Server, EngineBridge {
                     ? session.openContainerPairFirst() : null;
             var closedPairSecond = closingChestAt != null
                     ? session.openContainerPairSecond() : null;
+            // The open's own dimension stamp (Wave RW-1): the close wake's
+            // world is the world the CHEST stands in — the reference's
+            // ChestBlockEntity.onClose consults its own world, never the
+            // overworld field.
+            int closingChestDimension = closingChestAt != null
+                    ? session.openContainerDimension() : 0;
             session.closeContainerWindow();
             if (closingChestAt != null) {
-                trappedChestCloseWakeOnTick(closingChestAt);
+                trappedChestCloseWakeOnTick(closingChestDimension, closingChestAt);
                 if (closedPairFirst != null && closedPairSecond != null) {
                     if (!closedPairFirst.equals(closingChestAt)) {
-                        trappedChestCloseWakeOnTick(closedPairFirst);
+                        trappedChestCloseWakeOnTick(closingChestDimension, closedPairFirst);
                     }
                     if (!closedPairSecond.equals(closingChestAt)) {
-                        trappedChestCloseWakeOnTick(closedPairSecond);
+                        trappedChestCloseWakeOnTick(closingChestDimension, closedPairSecond);
                     }
                 }
             }
@@ -18810,14 +19577,17 @@ public final class EngineServer implements Server, EngineBridge {
      * family (the reference's own {@code this.getBlock() instanceof
      * ChestBlock} gate, ChestBlockEntity.onClose line 320 — a broken
      * chest's stale window never notifies) before the viewer-count pair.
-     * Tick-thread context.
+     * Wave RW-1: the gate reads the CHEST'S OWN world (the open's
+     * dimension stamp) — a nether trapped chest consulted the overworld
+     * cell at the same coordinates pre-fix, the wake withheld outright
+     * when the overworld cell was not a chest. Tick-thread context.
      */
-    private void trappedChestCloseWakeOnTick(BlockPosition position) {
-        BlockType block = world.getBlock(position);
+    private void trappedChestCloseWakeOnTick(int dimension, BlockPosition position) {
+        BlockType block = worldFor(dimension).getBlock(position);
         if (block.identifier().equals(
                 net.zaminmc.torch.server.block.BuiltinBlocks.TRAPPED_CHEST.identifier())
                 || ChestFacingBlocks.isTrappedFamily(block)) {
-            trappedChestViewersChangedOnTick(position);
+            trappedChestViewersChangedOnTick(dimension, position);
         }
     }
 
@@ -18849,6 +19619,11 @@ public final class EngineServer implements Server, EngineBridge {
                         ? session.openContainerPairFirst() : null;
                 var closedPairSecond = closingChestAt != null
                         ? session.openContainerPairSecond() : null;
+                // The open's own dimension stamp (Wave RW-1 — the beacon
+                // close's Slice C convention): the trapped wake rides the
+                // CHEST'S OWN world's redstone.
+                int closingChestDimension = closingChestAt != null
+                        ? session.openContainerDimension() : 0;
                 if (closingChestAt != null) {
                     publishChestLid(closingChestAt, session, false);
                     // The merged pair's close walks BOTH halves (the
@@ -18892,13 +19667,13 @@ public final class EngineServer implements Server, EngineBridge {
                     // state now cleared, the probe reading zero) wakes each
                     // half's own cell AND the cell below it — the strong
                     // arm's consumer sits one further out.
-                    trappedChestCloseWakeOnTick(closingChestAt);
+                    trappedChestCloseWakeOnTick(closingChestDimension, closingChestAt);
                     if (closedPairFirst != null && closedPairSecond != null) {
                         if (!closedPairFirst.equals(closingChestAt)) {
-                            trappedChestCloseWakeOnTick(closedPairFirst);
+                            trappedChestCloseWakeOnTick(closingChestDimension, closedPairFirst);
                         }
                         if (!closedPairSecond.equals(closingChestAt)) {
-                            trappedChestCloseWakeOnTick(closedPairSecond);
+                            trappedChestCloseWakeOnTick(closingChestDimension, closedPairSecond);
                         }
                     }
                 }
@@ -19123,12 +19898,18 @@ public final class EngineServer implements Server, EngineBridge {
             // The anvil's land sound (Slice 53 — the reference's
             // onTickFallingBlockEntity: world event 1022 at the landing
             // cell, fired only on the successful placement — the client
-            // answers random.anvil_land).
+            // answers random.anvil_land) — in the FALLING BODY'S OWN
+            // WORLD (AnvilBlock.onTickFallingBlockEntity line 90 over the
+            // entity's world doEvent, the per-world listener list alone —
+            // the same stamp the body's physics and landing already carry,
+            // Wave FL4-F9; VT-028: the pre-fix no-dimension overload
+            // stamped the overworld, a nether landing silent to the
+            // nether's players and a phantom in the overworld).
             if (becameBlock && net.zaminmc.torch.server.block.AnvilBlocks
                     .isAnvil(entity.blockType().identifier())) {
                 fxManager.sound(new Position(
                         entity.position().x(), entity.position().y(), entity.position().z()),
-                        "random.anvil_land", 1.0f, 1.0f);
+                        "random.anvil_land", 1.0f, 1.0f, entity.dimension());
             }
             for (FallingBlockEntityManager.Listener listener : fallingListeners) {
                 listener.onFallingEnded(entity, becameBlock);
@@ -20101,9 +20882,12 @@ public final class EngineServer implements Server, EngineBridge {
                                 new net.zaminmc.torch.block.BlockPosition(x, 64, z));
                     }
 
+                    // The ACTING dimension's border (the reference's
+                    // per-world consult — the nether's view reports the
+                    // center at /8, NetherDimension's own law).
                     @Override
                     public boolean borderContains(int x, int z) {
-                        return worldBorder.contains(x, z);
+                        return borderFor(activeDimension).contains(x, z);
                     }
                 };
 
@@ -20906,11 +21690,18 @@ public final class EngineServer implements Server, EngineBridge {
                     // would not).
                     chunk.clearPendingEnderDragon();
                     if (!dragonDefeated && !dragonAliveInEnd()) {
+                        // The dragon is born in the END (VT-013 — the
+                        // reference's construction law, Entity line 166:
+                        // the stamp lands at birth through the
+                        // dimension-aware spawnAt, so the End player
+                        // standing in view when the lazy chunk-(0,0)
+                        // drain fires receives the spawn packet at the
+                        // event; the post-return stamp never reached
+                        // the live publish).
                         MobEntity dragon = mobManager.spawnAt(
                                 net.zaminmc.torch.server.entity.MobType.ENDER_DRAGON,
-                                new Position(0.0, 128.0, 0.0));
+                                new Position(0.0, 128.0, 0.0), 1);
                         if (dragon != null) {
-                            dragon.setDimension(1);
                             dragon.setBodyYaw(pendingDragon.yaw());
                         }
                     }
@@ -21286,14 +22077,28 @@ public final class EngineServer implements Server, EngineBridge {
         @Override
         public boolean entityOccupies(double minX, double minY, double minZ,
                                       double maxX, double maxY, double maxZ, int dimension) {
+            // The placement's occupancy gate (ArmorStandItem.useOn lines
+            // 40-46: `world.getEntities(null, Box.of(d0, d1, d2, d0 + 1.0,
+            // d1 + 2.0, d2 + 1.0))` — list.size() > 0 refuses the stand):
+            // EVERY entity family's OWN box against the placement box,
+            // STRICT both sides (exactly touching never intersecting);
+            // Wave PE-4, the Phase E boundary arms: the pre-fix consult
+            // grew the box around each family's CENTER with inclusive
+            // edges and never walked the item/orb/vehicle/projectile
+            // families — a body EDGE-STANDING beside the placement cell
+            // (its box grazing the cell's face while its center sits
+            // outside) refused nothing in vanilla and must refuse
+            // nothing here, while an item lying in the cell refuses the
+            // stand exactly like vanilla's own census.
             for (PlayerSession player : players.all()) {
                 if (player.dimension() != dimension) {
                     continue; // another world's body never blocks the box
                 }
                 Position p = player.position();
-                if (p.x() >= minX - 0.3 && p.x() <= maxX + 0.3
-                        && p.y() >= minY && p.y() <= maxY
-                        && p.z() >= minZ - 0.3 && p.z() <= maxZ + 0.3) {
+                if (p.x() + PLAYER_HALF_WIDTH > minX && p.x() - PLAYER_HALF_WIDTH < maxX
+                        && p.y() + PLAYER_HEIGHT > minY && p.y() < maxY
+                        && p.z() + PLAYER_HALF_WIDTH > minZ
+                        && p.z() - PLAYER_HALF_WIDTH < maxZ) {
                     return true;
                 }
             }
@@ -21302,11 +22107,10 @@ public final class EngineServer implements Server, EngineBridge {
                     continue; // another world's body never blocks the box
                 }
                 Position p = mob.position();
-                if (p.x() >= minX - mob.type().width * 0.5
-                        && p.x() <= maxX + mob.type().width * 0.5
-                        && p.y() >= minY && p.y() <= maxY + mob.type().height
-                        && p.z() >= minZ - mob.type().width * 0.5
-                        && p.z() <= maxZ + mob.type().width * 0.5) {
+                double halfWidth = mob.type().width * 0.5;
+                if (p.x() + halfWidth > minX && p.x() - halfWidth < maxX
+                        && p.y() + mob.type().height > minY && p.y() < maxY
+                        && p.z() + halfWidth > minZ && p.z() - halfWidth < maxZ) {
                     return true;
                 }
             }
@@ -21314,9 +22118,61 @@ public final class EngineServer implements Server, EngineBridge {
                 if (other.dimension() != dimension) {
                     continue; // another world's stand never blocks the box
                 }
-                if (other.x() >= minX && other.x() <= maxX
-                        && other.z() >= minZ && other.z() <= maxZ
-                        && other.y() >= minY - 1.975 && other.y() <= maxY) {
+                // The stand's own box (setSize(0.5F, 1.975F),
+                // feet-anchored).
+                if (other.x() + 0.25 > minX && other.x() - 0.25 < maxX
+                        && other.y() + 1.975 > minY && other.y() < maxY
+                        && other.z() + 0.25 > minZ && other.z() - 0.25 < maxZ) {
+                    return true;
+                }
+            }
+            for (ItemEntity item : itemEntities.all()) {
+                if (item.dimension() != dimension) {
+                    continue; // another world's body never blocks the box
+                }
+                Position p = item.position();
+                if (p.x() + ItemEntity.HALF_WIDTH > minX
+                        && p.x() - ItemEntity.HALF_WIDTH < maxX
+                        && p.y() + ItemEntity.HALF_HEIGHT > minY
+                        && p.y() - ItemEntity.HALF_HEIGHT < maxY
+                        && p.z() + ItemEntity.HALF_WIDTH > minZ
+                        && p.z() - ItemEntity.HALF_WIDTH < maxZ) {
+                    return true;
+                }
+            }
+            for (net.zaminmc.torch.server.experience.ExperienceOrbEntity orb : experienceOrbs.all()) {
+                if (orb.dimension() != dimension) {
+                    continue; // another world's body never blocks the box
+                }
+                Position p = orb.position();
+                double half = orb.halfWidth();
+                if (p.x() + half > minX && p.x() - half < maxX
+                        && p.y() + half > minY && p.y() - half < maxY
+                        && p.z() + half > minZ && p.z() - half < maxZ) {
+                    return true;
+                }
+            }
+            if (vehicleManager != null) {
+                for (net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle : vehicleManager.all()) {
+                    if (vehicle.dimension() != dimension) {
+                        continue; // another world's cart never blocks the box
+                    }
+                    Position p = vehicle.position();
+                    if (p.x() + 0.49 > minX && p.x() - 0.49 < maxX
+                            && p.y() + 0.35 > minY && p.y() - 0.35 < maxY
+                            && p.z() + 0.49 > minZ && p.z() - 0.49 < maxZ) {
+                        return true;
+                    }
+                }
+            }
+            for (net.zaminmc.torch.server.entity.projectile.ProjectileEntity projectile : projectileManager.all()) {
+                if (projectile.dimension() != dimension) {
+                    continue; // another world's body never blocks the box
+                }
+                Position p = projectile.position();
+                if (p.x() + 0.25 > minX && p.x() - 0.25 < maxX
+                        && p.y() + 0.25 > minY && p.y() - 0.25 < maxY
+                        && p.z() + 0.25 > minZ && p.z() - 0.25 < maxZ) {
                     return true;
                 }
             }
@@ -22039,12 +22895,12 @@ public final class EngineServer implements Server, EngineBridge {
 
         @Override
         public void chickenHatch(Position position, int dimension) {
-            MobEntity chick = mobManager.spawnAt(MobType.CHICKEN, position);
-            if (chick != null) {
-                // The chick's own world rides the egg (Wave TF-12 — the
-                // reference spawns the EntityChicken in the egg's World).
-                chick.setDimension(dimension);
-            }
+            // The chick's own world rides the egg (Wave TF-12 — the
+            // reference spawns the EntityChicken in the egg's World),
+            // stamped AT BIRTH through the dimension-aware spawnAt
+            // (VT-013 — Entity line 166's construction law: the wire's
+            // spawn gate reads the stamp at the event).
+            mobManager.spawnAt(MobType.CHICKEN, position, dimension);
             fxManager.sound(position, "mob.chicken.say", 0.5f, 1.0f, dimension);
             LOGGER.fine(() -> "An egg hatched a chick at " + position);
         }
@@ -22365,7 +23221,11 @@ public final class EngineServer implements Server, EngineBridge {
             // own shape grown(50, 100, 50) earns the nether-star kill —
             // not the killer alone, everyone watching the fall).
             if (mob.type() == net.zaminmc.torch.server.entity.MobType.WITHER) {
-                awardPlayersInBox(EngineAchievements.KILL_WITHER.key(),
+                // VT-033's adjacent tail — the fall's award walks the ACTING
+                // world's player list (the reference's dropItems on the
+                // wither's own world — a same-coordinate player in another
+                // dimension never earns the nether fall's stat).
+                awardPlayersInBox(EngineAchievements.KILL_WITHER.key(), mob.dimension(),
                         mob.position(), 0.9, 3.5, 50.0, 100.0, 50.0);
             }
             // §27.7: the public death observation — the health reached zero
@@ -23217,10 +24077,15 @@ public final class EngineServer implements Server, EngineBridge {
          * interleaved box walk (the vertical ±5 pair, the horizontal ±10
          * pair — the (0,0,0) center first) breaking every monster egg it
          * finds; each break spawns its egg's silverfish, and the walk
-         * stops early on the reference's own 1-in-2 roll per egg.
+         * stops early on the reference's own 1-in-2 roll per egg. The
+         * scan reads and writes the WAKING BODY'S OWN WORLD (the goal
+         * runs in the mob's world — a nether silverfish never consults
+         * the overworld's cells at the same coordinates, the TF-9
+         * convention).
          */
         @Override
         public void onSilverfishWake(net.zaminmc.torch.server.entity.MobEntity mob) {
+            EngineWorld scanWorld = worldFor(mob.dimension());
             int cx = (int) Math.floor(mob.position().x());
             int cy = (int) Math.floor(mob.position().y());
             int cz = (int) Math.floor(mob.position().z());
@@ -23228,7 +24093,7 @@ public final class EngineServer implements Server, EngineBridge {
                 for (int dx = 0; dx <= 10 && dx >= -10; dx = dx <= 0 ? 1 - dx : -dx) {
                     for (int dz = 0; dz <= 10 && dz >= -10; dz = dz <= 0 ? 1 - dz : -dz) {
                         BlockPosition at = new BlockPosition(cx + dx, cy + dy, cz + dz);
-                        var type = world.getBlock(at);
+                        var type = scanWorld.getBlock(at);
                         if (net.zaminmc.torch.server.block.InfestedBlocks.isInfested(
                                 type.identifier())) {
                             // mobGriefing (Slice 24a — WakeUpFriendsGoal.tick
@@ -23241,7 +24106,7 @@ public final class EngineServer implements Server, EngineBridge {
                                 var host = net.zaminmc.torch.server.block.InfestedBlocks
                                         .hostOf(type.identifier());
                                 if (host != null) {
-                                    world.setBlock(at, blockRegistry.require(host));
+                                    scanWorld.setBlock(at, blockRegistry.require(host));
                                 }
                                 if (gameplayRandom.nextBoolean()) {
                                     return; // the reference's early stop
@@ -23252,8 +24117,9 @@ public final class EngineServer implements Server, EngineBridge {
                             // silverfish bursts with it), the walk may stop.
                             // The world's own commit path carries the wire
                             // resync and the dig feedback.
-                            world.setBlock(at, world.airType());
-                            spawnSilverfishAt(new Position(at.x() + 0.5, at.y(), at.z() + 0.5));
+                            scanWorld.setBlock(at, scanWorld.airType());
+                            spawnSilverfishAt(new Position(at.x() + 0.5, at.y(), at.z() + 0.5),
+                                    mob.dimension());
                             if (gameplayRandom.nextBoolean()) {
                                 return; // the reference's early stop
                             }
@@ -23895,9 +24761,12 @@ public final class EngineServer implements Server, EngineBridge {
                                 new net.zaminmc.torch.block.BlockPosition(x, 64, z));
                     }
 
+                    // The ACTING dimension's border (the reference's
+                    // per-world consult — the nether's view reports the
+                    // center at /8, NetherDimension's own law).
                     @Override
                     public boolean borderContains(int x, int z) {
-                        return worldBorder.contains(x, z);
+                        return borderFor(activeDimension).contains(x, z);
                     }
                 };
 
@@ -24915,15 +25784,24 @@ public final class EngineServer implements Server, EngineBridge {
         private int countMobsOfKindIn(MobType kind,
                                       double minX, double minY, double minZ,
                                       double maxX, double maxY, double maxZ) {
+            // The census's own box law (Village.updateIronGolemCount /
+            // updatePopulationSize lines 110-138:
+            // getEntitiesOfType(<kind>.class, Box(...)) — each body's
+            // OWN box against the census box, STRICT both sides;
+            // Wave PE-4, the Phase E boundary arms: the pre-fix
+            // center-in-box consult missed the edge-stand — a villager
+            // whose box grazes the census band while its center sits
+            // outside never counted, vanilla's own edge census).
             int count = 0;
             for (MobEntity mob : mobManager.all()) {
                 if (mob.dead() || mob.type() != kind || mob.dimension() != 0) {
                     continue; // the overworld's own census (the villages' world)
                 }
                 Position at = mob.position();
-                if (at.x() >= minX && at.x() <= maxX
-                        && at.y() >= minY && at.y() <= maxY
-                        && at.z() >= minZ && at.z() <= maxZ) {
+                double halfWidth = mob.type().width / 2.0;
+                if (at.x() + halfWidth > minX && at.x() - halfWidth < maxX
+                        && at.y() + mob.type().height > minY && at.y() < maxY
+                        && at.z() + halfWidth > minZ && at.z() - halfWidth < maxZ) {
                     count++;
                 }
             }
@@ -25826,10 +26704,11 @@ public final class EngineServer implements Server, EngineBridge {
     /**
      * THE ORB WOUNDS (the reference's damageEntities walk over the
      * experience family — ExperienceOrbEntity.takeDamage lines 141-151):
-     * the same shape over the engine's own 0.25 orb body (the family's
-     * established convention; vanilla's spawned orb carries a 0.5 box) —
-     * the health-5 wound through the manager's verb, the death-at-zero
-     * removal with no payout, and the unconditional scatter.
+     * the same shape over the body's OWN box (VT-037 — the per-body
+     * half-size: a spawned orb's 0.5 box, a restored one's 0.25, the
+     * reference's two-constructor law) — the health-5 wound through
+     * the manager's verb, the death-at-zero removal with no payout,
+     * and the unconditional scatter.
      */
     private void woundOrbsFromBlast(EngineWorld blastWorld, int dimension,
                                     double cx, double cy, double cz, float f3,
@@ -25839,7 +26718,7 @@ public final class EngineServer implements Server, EngineBridge {
                 continue;
             }
             Position p = orb.position();
-            double half = net.zaminmc.torch.server.experience.ExperienceOrbEntity.HALF_HEIGHT;
+            double half = orb.halfHeight();
             double feetY = p.y() - half;
             double feetDx = p.x() - cx;
             double feetDy = feetY - cy;
@@ -25860,12 +26739,12 @@ public final class EngineServer implements Server, EngineBridge {
             d7 /= d13;
             d9 /= d13;
             double d14 = blockDensity(blastWorld, cx, cy, cz,
-                    p.x() - net.zaminmc.torch.server.experience.ExperienceOrbEntity.HALF_WIDTH,
+                    p.x() - orb.halfWidth(),
                     feetY,
-                    p.z() - net.zaminmc.torch.server.experience.ExperienceOrbEntity.HALF_WIDTH,
-                    p.x() + net.zaminmc.torch.server.experience.ExperienceOrbEntity.HALF_WIDTH,
+                    p.z() - orb.halfWidth(),
+                    p.x() + orb.halfWidth(),
                     feetY + half * 2.0,
-                    p.z() + net.zaminmc.torch.server.experience.ExperienceOrbEntity.HALF_WIDTH);
+                    p.z() + orb.halfWidth());
             double d10 = (1.0 - d12) * d14;
             float damage = (int) ((d10 * d10 + d10) / 2.0 * 8.0 * f3 + 1.0);
             experienceOrbs.hurtFromExplosion(orb, damage);
@@ -26299,9 +27178,14 @@ public final class EngineServer implements Server, EngineBridge {
      * center with the reference's own zero yaw. Tick-thread context (the
      * break path's own lane).
      */
-    private void spawnSilverfishAt(Position at) {
+    private void spawnSilverfishAt(Position at, int dimension) {
         if (mobManager != null) {
-            mobManager.spawnAt(net.zaminmc.torch.server.entity.MobType.SILVERFISH, at);
+            // The silverfish lives in the world the egg broke in
+            // (InfestedBlock.dropItems' own {@code world} parameter —
+            // the breaking world; the dimension rides the spawn, before
+            // the spawn fan).
+            mobManager.spawnAt(net.zaminmc.torch.server.entity.MobType.SILVERFISH, at,
+                    dimension);
         }
     }
 
@@ -26757,11 +27641,25 @@ public final class EngineServer implements Server, EngineBridge {
         system.setDoorSoundCallback((at, opening) -> fxManager.sound(
                 new Position(at.x() + 0.5, at.y() + 0.5, at.z() + 0.5),
                 opening ? "random.door_open" : "random.door_close", 0.8f, 1.0f, dimension));
-        // The plate's occupancy probe (the engine's bodies): any mob
-        // or playing body inside the 0.125-inset, 0.25-tall box, the
-        // wooden plates adding the item entities (the reference's
-        // MOBS vs EVERYTHING activation rules) — the walks carry the
-        // dimension gate (the per-world entity-list law).
+        // The plate's occupancy probe (AbstractPressurePlateBlock
+        // .getActivationBounds lines 137-140: the 0.125-inset, 0.25-tall
+        // box; WorldChunk.getEntities lines 739-760:
+        // entity.getShape().intersects(bounds) — each body's OWN box
+        // against the activation box, STRICT both sides; Wave PE-2, the
+        // Phase E boundary arms: the pre-fix center-in-band consult
+        // missed the edge-stand — a body whose box overlaps the plate by
+        // a hair while its center sits outside never fired, vanilla's
+        // own edge-stand behavior; the body boxes: the MOB
+        // [pos ± width/2] x [pos.y, pos.y + height] (the type's own
+        // size, feet-anchored), the PLAYER [pos ± 0.3] x [pos.y,
+        // pos.y + 1.8] (PlayerEntity line 424's setSize(0.6F, 1.8F),
+        // feet-anchored), the ITEM [pos ± 0.125] both axes
+        // (center-anchored, the 0.25 box). Wave PE-3's census widening:
+        // the class filters themselves — the MOBS rule gathers
+        // LivingEntity.class (PressurePlateBlock.calculateOutputSignal
+        // lines 42-43: the mobs, the players AND the armor stands —
+        // ArmorStandEntity IS a living body), the EVERYTHING rule
+        // Entity.class (the items, the orbs, the carts beside them).
         system.setPlateProbe((plate, includeItems) -> {
             double minX = plate.x() + 0.125, maxX = plate.x() + 1 - 0.125;
             double minY = plate.y(), maxY = plate.y() + 0.25;
@@ -26771,8 +27669,10 @@ public final class EngineServer implements Server, EngineBridge {
                     continue; // another world's body is absent from this walk
                 }
                 net.zaminmc.torch.util.Position at = mob.position();
-                if (at.x() >= minX && at.x() <= maxX && at.y() >= minY && at.y() <= maxY
-                        && at.z() >= minZ && at.z() <= maxZ) {
+                double halfWidth = mob.type().width / 2.0;
+                if (at.x() + halfWidth > minX && at.x() - halfWidth < maxX
+                        && at.y() + mob.type().height > minY && at.y() < maxY
+                        && at.z() + halfWidth > minZ && at.z() - halfWidth < maxZ) {
                     return true;
                 }
             }
@@ -26783,8 +27683,23 @@ public final class EngineServer implements Server, EngineBridge {
                     continue; // canAvoidTraps
                 }
                 net.zaminmc.torch.util.Position at = body.position();
-                if (at.x() >= minX && at.x() <= maxX && at.y() >= minY && at.y() <= maxY
-                        && at.z() >= minZ && at.z() <= maxZ) {
+                if (at.x() + PLAYER_HALF_WIDTH > minX && at.x() - PLAYER_HALF_WIDTH < maxX
+                        && at.y() + PLAYER_HEIGHT > minY && at.y() < maxY
+                        && at.z() + PLAYER_HALF_WIDTH > minZ
+                        && at.z() - PLAYER_HALF_WIDTH < maxZ) {
+                    return true;
+                }
+            }
+            // The LIVING census's third family: the armor stand (the
+            // MOBS rule's LivingEntity.class — a stone plate fires
+            // under a stand, exactly vanilla).
+            for (net.zaminmc.torch.server.armorstand.ArmorStand stand : armorStands.allStands()) {
+                if (stand.dimension() != dimension) {
+                    continue; // another world's stand is absent from this walk
+                }
+                if (stand.x() + 0.25 > minX && stand.x() - 0.25 < maxX
+                        && stand.y() + 1.975 > minY && stand.y() < maxY
+                        && stand.z() + 0.25 > minZ && stand.z() - 0.25 < maxZ) {
                     return true;
                 }
             }
@@ -26794,8 +27709,26 @@ public final class EngineServer implements Server, EngineBridge {
                         continue; // another world's body is absent from this walk
                     }
                     net.zaminmc.torch.util.Position at = item.position();
-                    if (at.x() >= minX && at.x() <= maxX && at.y() >= minY
-                            && at.y() <= maxY && at.z() >= minZ && at.z() <= maxZ) {
+                    if (at.x() + ItemEntity.HALF_WIDTH > minX
+                            && at.x() - ItemEntity.HALF_WIDTH < maxX
+                            && at.y() + ItemEntity.HALF_HEIGHT > minY
+                            && at.y() - ItemEntity.HALF_HEIGHT < maxY
+                            && at.z() + ItemEntity.HALF_WIDTH > minZ
+                            && at.z() - ItemEntity.HALF_WIDTH < maxZ) {
+                        return true;
+                    }
+                }
+                // The EVERYTHING census's orb family (Entity.class — a
+                // wooden plate fires under an orb).
+                for (net.zaminmc.torch.server.experience.ExperienceOrbEntity orb : experienceOrbs.all()) {
+                    if (orb.dimension() != dimension) {
+                        continue; // another world's body is absent from this walk
+                    }
+                    net.zaminmc.torch.util.Position at = orb.position();
+                    double half = orb.halfWidth();
+                    if (at.x() + half > minX && at.x() - half < maxX
+                            && at.y() + half > minY && at.y() - half < maxY
+                            && at.z() + half > minZ && at.z() - half < maxZ) {
                         return true;
                     }
                 }
@@ -26806,7 +27739,11 @@ public final class EngineServer implements Server, EngineBridge {
         // WeightedPressurePlateBlock.calculateOutputSignal's
         // getEntitiesOfType(Entity.class): EVERY entity in the
         // 0.125-inset box counts — mobs, players and dropped items
-        // alike), the walks carrying the same dimension gate.
+        // alike — the SAME strict box law as the occupancy probe (Wave
+        // PE-2: the body's OWN box against the activation box, never a
+        // center test — an edge-standing body counts whole; Wave PE-3's
+        // census widening: the armor stand and the orb families count —
+        // Entity.class gathers every family).
         system.setPlateCountProbe(plate -> {
             double minX = plate.x() + 0.125, maxX = plate.x() + 1 - 0.125;
             double minY = plate.y(), maxY = plate.y() + 0.25;
@@ -26817,8 +27754,10 @@ public final class EngineServer implements Server, EngineBridge {
                     continue;
                 }
                 net.zaminmc.torch.util.Position at = mob.position();
-                if (at.x() >= minX && at.x() <= maxX && at.y() >= minY && at.y() <= maxY
-                        && at.z() >= minZ && at.z() <= maxZ) {
+                double halfWidth = mob.type().width / 2.0;
+                if (at.x() + halfWidth > minX && at.x() - halfWidth < maxX
+                        && at.y() + mob.type().height > minY && at.y() < maxY
+                        && at.z() + halfWidth > minZ && at.z() - halfWidth < maxZ) {
                     count++;
                 }
             }
@@ -26829,8 +27768,10 @@ public final class EngineServer implements Server, EngineBridge {
                     continue; // canAvoidTraps
                 }
                 net.zaminmc.torch.util.Position at = body.position();
-                if (at.x() >= minX && at.x() <= maxX && at.y() >= minY && at.y() <= maxY
-                        && at.z() >= minZ && at.z() <= maxZ) {
+                if (at.x() + PLAYER_HALF_WIDTH > minX && at.x() - PLAYER_HALF_WIDTH < maxX
+                        && at.y() + PLAYER_HEIGHT > minY && at.y() < maxY
+                        && at.z() + PLAYER_HALF_WIDTH > minZ
+                        && at.z() - PLAYER_HALF_WIDTH < maxZ) {
                     count++;
                 }
             }
@@ -26839,8 +27780,37 @@ public final class EngineServer implements Server, EngineBridge {
                     continue;
                 }
                 net.zaminmc.torch.util.Position at = item.position();
-                if (at.x() >= minX && at.x() <= maxX && at.y() >= minY
-                        && at.y() <= maxY && at.z() >= minZ && at.z() <= maxZ) {
+                if (at.x() + ItemEntity.HALF_WIDTH > minX
+                        && at.x() - ItemEntity.HALF_WIDTH < maxX
+                        && at.y() + ItemEntity.HALF_HEIGHT > minY
+                        && at.y() - ItemEntity.HALF_HEIGHT < maxY
+                        && at.z() + ItemEntity.HALF_WIDTH > minZ
+                        && at.z() - ItemEntity.HALF_WIDTH < maxZ) {
+                    count++;
+                }
+            }
+            // The Entity census's stand and orb families (Wave PE-3 —
+            // the count walks EVERY family, exactly the reference's
+            // getEntitiesOfType(Entity.class)).
+            for (net.zaminmc.torch.server.armorstand.ArmorStand stand : armorStands.allStands()) {
+                if (stand.dimension() != dimension) {
+                    continue; // another world's stand is absent from this walk
+                }
+                if (stand.x() + 0.25 > minX && stand.x() - 0.25 < maxX
+                        && stand.y() + 1.975 > minY && stand.y() < maxY
+                        && stand.z() + 0.25 > minZ && stand.z() - 0.25 < maxZ) {
+                    count++;
+                }
+            }
+            for (net.zaminmc.torch.server.experience.ExperienceOrbEntity orb : experienceOrbs.all()) {
+                if (orb.dimension() != dimension) {
+                    continue; // another world's body is absent from this walk
+                }
+                net.zaminmc.torch.util.Position at = orb.position();
+                double half = orb.halfWidth();
+                if (at.x() + half > minX && at.x() - half < maxX
+                        && at.y() + half > minY && at.y() - half < maxY
+                        && at.z() + half > minZ && at.z() - half < maxZ) {
                     count++;
                 }
             }
@@ -30889,9 +31859,11 @@ public final class EngineServer implements Server, EngineBridge {
         // default pose, no random roll) with the whole NBT read before
         // the spawn publish (the factory's own order).
         if ("ArmorStand".equals(name)) {
-            // Wave AS — the summon's source world: the console source is
-            // overworld-anchored, the explicit 0 (never a silent stamp).
-            armorStands.summonAt(x, y, z, 0, nbt);
+            // The summon's source world: the reference's
+            // getCommandSourceWorld() — the player sender's own dimension
+            // (the console source is overworld-anchored; this route's
+            // sender is always the player).
+            armorStands.summonAt(x, y, z, sender.dimension(), nbt);
             return "Object successfully summoned";
         }
         MobType type = MobType.byVanillaName(name);
@@ -30901,7 +31873,13 @@ public final class EngineServer implements Server, EngineBridge {
         if (type == null) {
             return "Unable to summon object";
         }
-        MobEntity spawned = mobManager.spawnAt(type, new Position(x, y, z));
+        // The body lives in the command source's world
+        // (SummonCommand line 54's getCommandSourceWorld() — the sender's
+        // own dimension; the stamp rides the spawn BEFORE the NBT read so
+        // the reference's own Dimension row may still override it, the
+        // readNbt order).
+        MobEntity spawned = mobManager.spawnAt(type, new Position(x, y, z),
+                sender.dimension());
         if (spawned == null) {
             return "Unable to summon object";
         }
@@ -30954,7 +31932,11 @@ public final class EngineServer implements Server, EngineBridge {
                 return "Count must be 1..10";
             }
         }
-        int spawned = mobManager.spawnGroup(type, sender.position(), count).size();
+        // The bodies live in the command source's world (the same
+        // getCommandSourceWorld() law as the single summon) — the
+        // dimension rides every member's own spawn.
+        int spawned = mobManager.spawnGroup(type, sender.position(), count,
+                sender.dimension()).size();
         return "Spawned " + spawned + " x " + type.name().toLowerCase(java.util.Locale.ROOT);
     }
 
@@ -33141,9 +34123,12 @@ public final class EngineServer implements Server, EngineBridge {
                                 new net.zaminmc.torch.block.BlockPosition(x, 64, z));
                     }
 
+                    // The ACTING dimension's border (the reference's
+                    // per-world consult — the nether's view reports the
+                    // center at /8, NetherDimension's own law).
                     @Override
                     public boolean borderContains(int x, int z) {
-                        return worldBorder.contains(x, z);
+                        return borderFor(activeDimension).contains(x, z);
                     }
                 };
 
@@ -33171,6 +34156,28 @@ public final class EngineServer implements Server, EngineBridge {
         @Override
         public boolean solidAt(double x, double y, double z) {
             return groundSolidAtPoint(x, y, z);
+        }
+
+        /**
+         * VT-014 — the stick placement's box view (the reference's
+         * rayTrace against the block's collision shape,
+         * ArrowEntity.tick line 191): the ACTIVE dimension's collision
+         * boxes for the block whose cell the point sits in — the same
+         * per-body dimension flip that drives every other read below
+         * (the projectile walk flips to its own body before the stick
+         * arm, so a nether arrow sticks at the nether's shapes). The
+         * out-of-bounds answer is empty (no boxes — the walk passes).
+         */
+        @Override
+        public java.util.List<net.zaminmc.torch.server.block.CollisionShapes.Box> solidBoxesAt(
+                double x, double y, double z) {
+            if (y < net.zaminmc.torch.block.BlockPosition.MIN_Y
+                    || y > net.zaminmc.torch.block.BlockPosition.MAX_Y) {
+                return java.util.List.of();
+            }
+            EngineWorld ground = activeGroundWorld();
+            return net.zaminmc.torch.server.block.CollisionShapes.cellBoxes(
+                    ground.getBlock(blockAt(x, y, z)), groundProbe(ground, x, y, z));
         }
 
         @Override

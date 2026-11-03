@@ -82,12 +82,13 @@ class ArrowPickupTest {
     }
 
     /** A grounded arrow at the walker's feet: launched beside them, stuck
-     *  by hand (the manager's own landed state), the pickup band the
-     *  caller's. */
+     *  by hand (the manager's own landed state — VT-015's stamp carried
+     *  with a cell-less consult, the pre-VT-015 stub's exact shape), the
+     *  pickup band the caller's. */
     private ProjectileEntity stuckArrow(ProjectileManager manager, int pickup) {
         ProjectileEntity arrow = manager.launch(ProjectileEntity.Kind.ARROW, -1,
                 new Position(0.6, 4.2, 0.5), 0, 0, 0.0, 0);
-        arrow.landInGround();
+        arrow.landInGround(0, 4, 0, null);
         arrow.setPickupStatus(pickup);
         return arrow;
     }

@@ -67,7 +67,14 @@ class PistonBreakDropParityDiscoveryTest {
                     server.world().setBlock(new BlockPosition(x + i, y - 1, z),
                             BuiltinBlocks.STONE);
                 }
+                // The VANILLA-VALID power arrangement (the F-SP1 correction's
+                // own law: a floor lever never stands on a piston base —
+                // PistonBaseBlock.isCube() false, reference line 223): the
+                // stone above the piston carries the lever, the flip's
+                // strong power re-radiating down to the piston.
                 server.world().setBlock(new BlockPosition(x, y + 1, z),
+                        BuiltinBlocks.STONE);
+                server.world().setBlock(new BlockPosition(x, y + 2, z),
                         RedstoneBlocks.leverOf(5, false));
             });
             await(() -> PistonBlocks.isPiston(typeAt(server, x, y, z)), "the piston placed");
@@ -75,7 +82,7 @@ class PistonBreakDropParityDiscoveryTest {
                             .equals("potted_dandelion"),
                     "the potted dandelion placed");
             server.ticker().submit(() -> server.redstone().useLever(
-                    new BlockPosition(x, y + 1, z)));
+                    new BlockPosition(x, y + 2, z)));
 
             // Vanilla: the destroy arm breaks the pot with its drops — the
             // flower_pot AND the contained dandelion (dropItems + onRemoved).
@@ -109,7 +116,14 @@ class PistonBreakDropParityDiscoveryTest {
                         BuiltinBlocks.WHEAT_STAGE7);
                 server.world().setBlock(new BlockPosition(x + 1, y - 1, z),
                         BuiltinBlocks.FARMLAND);
+                // The VANILLA-VALID power arrangement (the F-SP1 correction's
+                // own law: a floor lever never stands on a piston base —
+                // PistonBaseBlock.isCube() false, reference line 223): the
+                // stone above the piston carries the lever, the flip's
+                // strong power re-radiating down to the piston.
                 server.world().setBlock(new BlockPosition(x, y + 1, z),
+                        BuiltinBlocks.STONE);
+                server.world().setBlock(new BlockPosition(x, y + 2, z),
                         RedstoneBlocks.leverOf(5, false));
             });
             await(() -> PistonBlocks.isPiston(typeAt(server, x, y, z)), "the piston placed");
@@ -117,7 +131,7 @@ class PistonBreakDropParityDiscoveryTest {
                             .equals("wheat_stage7"),
                     "the mature crop placed");
             server.ticker().submit(() -> server.redstone().useLever(
-                    new BlockPosition(x, y + 1, z)));
+                    new BlockPosition(x, y + 2, z)));
 
             // Vanilla: the destroy arm breaks the crop with its drops — the
             // wheat AND the seeds (the row's two entries, each rolling).

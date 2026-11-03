@@ -79,13 +79,20 @@ class PistonPushApiAcceptanceTest {
                 server.world().setBlock(new BlockPosition(x, y, z),
                         net.zaminmc.torch.server.piston.PistonBlocks.pistonOf(EAST, false, false));
                 server.world().setBlock(new BlockPosition(x + 1, y, z), BuiltinBlocks.STONE);
+                // F-SP1's harness law: the lever never rides the piston
+                // itself (PistonBaseBlock.isCube() false — hasSolidTop
+                // refuses it, the reference's own consult); the stone
+                // above carries the lever, the flip's strong power
+                // entering the stone re-radiating to the piston below.
                 server.world().setBlock(new BlockPosition(x, y + 1, z),
+                        BuiltinBlocks.STONE);
+                server.world().setBlock(new BlockPosition(x, y + 2, z),
                         RedstoneBlocks.leverOf(5, false));
                 server.mobs().spawnAt(MobType.PIG, new Position(x + 2.5, y, z + 0.5));
             });
             await(() -> !server.mobs().all().isEmpty(), "the pig spawned");
             server.ticker().submit(() -> server.redstone().useLever(
-                    new BlockPosition(x, y + 1, z)));
+                    new BlockPosition(x, y + 2, z)));
             await(() -> server.world().getBlock(new BlockPosition(x + 2, y, z))
                             .identifier().value().equals("stone"),
                     "the pushed stone landed one cell along");
@@ -143,13 +150,20 @@ class PistonPushApiAcceptanceTest {
                         net.zaminmc.torch.server.piston.PistonBlocks.pistonOf(EAST, false, false));
                 server.world().setBlock(new BlockPosition(x + 1, y, z),
                         BuiltinBlocks.SLIME_BLOCK);
+                // F-SP1's harness law: the lever never rides the piston
+                // itself (PistonBaseBlock.isCube() false — hasSolidTop
+                // refuses it, the reference's own consult); the stone
+                // above carries the lever, the flip's strong power
+                // entering the stone re-radiating to the piston below.
                 server.world().setBlock(new BlockPosition(x, y + 1, z),
+                        BuiltinBlocks.STONE);
+                server.world().setBlock(new BlockPosition(x, y + 2, z),
                         RedstoneBlocks.leverOf(5, false));
                 server.mobs().spawnAt(MobType.PIG, new Position(x + 2.5, y, z + 0.5));
             });
             await(() -> !server.mobs().all().isEmpty(), "the pig spawned");
             server.ticker().submit(() -> server.redstone().useLever(
-                    new BlockPosition(x, y + 1, z)));
+                    new BlockPosition(x, y + 2, z)));
             await(() -> !observed.isEmpty()
                             && observed.stream().anyMatch(PistonPushEvent::flung),
                     "a fling event landed through the public bus");

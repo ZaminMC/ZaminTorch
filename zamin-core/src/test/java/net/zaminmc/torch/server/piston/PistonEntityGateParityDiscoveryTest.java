@@ -67,7 +67,14 @@ class PistonEntityGateParityDiscoveryTest {
                     server.world().setBlock(new BlockPosition(x + i, y - 1, z),
                             BuiltinBlocks.STONE);
                 }
+                // The VANILLA-VALID power arrangement (the F-SP1 correction's
+                // own law: a floor lever never stands on a piston base —
+                // PistonBaseBlock.isCube() false, reference line 223): the
+                // stone above the piston carries the lever, the flip's
+                // strong power re-radiating down to the piston.
                 server.world().setBlock(new BlockPosition(x, y + 1, z),
+                        BuiltinBlocks.STONE);
+                server.world().setBlock(new BlockPosition(x, y + 2, z),
                         RedstoneBlocks.leverOf(5, false));
             });
             await(() -> PistonBlocks.isPiston(typeAt(server, x, y, z)), "the piston placed");
@@ -80,7 +87,7 @@ class PistonEntityGateParityDiscoveryTest {
                 return entity != null && entity.snapshotSlots()[0].count() == 5;
             }, "the trapped chest holds its emeralds");
             server.ticker().submit(() -> server.redstone().useLever(
-                    new BlockPosition(x, y + 1, z)));
+                    new BlockPosition(x, y + 2, z)));
 
             // Vanilla (BlockWithBlockEntity → canMoveBlock's final arm):
             // the push REFUSES — the piston NEVER EXTENDS while the lever
@@ -89,7 +96,7 @@ class PistonEntityGateParityDiscoveryTest {
             // the chest rides as a moving block, the relocation carries no
             // container state — the emeralds unreachable through the moved
             // chest's own cell: the contents are LOST).
-            await(() -> RedstoneBlocks.leverPowered(typeAt(server, x, y + 1, z)),
+            await(() -> RedstoneBlocks.leverPowered(typeAt(server, x, y + 2, z)),
                     "the lever flipped on");
             sleep(1500);
             assertFalse(PistonBlocks.pistonExtended(typeAt(server, x, y, z)),
@@ -121,18 +128,25 @@ class PistonEntityGateParityDiscoveryTest {
                         BuiltinBlocks.SKULL);
                 server.world().setBlock(new BlockPosition(x + 1, y - 1, z),
                         BuiltinBlocks.STONE);
+                // The VANILLA-VALID power arrangement (the F-SP1 correction's
+                // own law: a floor lever never stands on a piston base —
+                // PistonBaseBlock.isCube() false, reference line 223): the
+                // stone above the piston carries the lever, the flip's
+                // strong power re-radiating down to the piston.
                 server.world().setBlock(new BlockPosition(x, y + 1, z),
+                        BuiltinBlocks.STONE);
+                server.world().setBlock(new BlockPosition(x, y + 2, z),
                         RedstoneBlocks.leverOf(5, false));
             });
             await(() -> PistonBlocks.isPiston(typeAt(server, x, y, z)), "the piston placed");
             await(() -> BuiltinBlocks.SKULL.equals(typeAt(server, x + 1, y, z)),
                     "the skull placed");
             server.ticker().submit(() -> server.redstone().useLever(
-                    new BlockPosition(x, y + 1, z)));
+                    new BlockPosition(x, y + 2, z)));
 
             // Vanilla (BlockContainer → the entity arm): the push REFUSES
             // outright. The engine today moves the skull a cell along.
-            await(() -> RedstoneBlocks.leverPowered(typeAt(server, x, y + 1, z)),
+            await(() -> RedstoneBlocks.leverPowered(typeAt(server, x, y + 2, z)),
                     "the lever flipped on");
             sleep(1500);
             assertFalse(PistonBlocks.pistonExtended(typeAt(server, x, y, z)),

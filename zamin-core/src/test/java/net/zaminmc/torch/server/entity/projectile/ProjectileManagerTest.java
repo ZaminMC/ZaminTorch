@@ -364,12 +364,19 @@ class ProjectileManagerTest {
     }
     @Test
     void aBurningArrowPrimesTheTntItOverlaps() {
-        // The reference's per-block entity collision (Entity lines
-        // 665-689 walking the arrow's box, TntBlock.onEntityCollision
-        // lines 91-104 priming every TNT cell a burning arrow overlaps):
-        // a stuck burning arrow on the TNT face primes it; a plain arrow
-        // in the same place never does; a burning arrow away from the
-        // band never does.
+        // The reference's stick arm's HIT-BLOCK consult (ArrowEntity
+        // lines 307-309 over TntBlock.onEntityCollision lines 91-104):
+        // a burning arrow whose flight enters the TNT cell STICKS at
+        // its face first (VT-030's order — line 304 precedes the
+        // consult at 308) and the consult primes it. The rig wires no
+        // StickCellConsult, so the un-stick arm (VT-015) never fires —
+        // the arrow rests stuck at the face, the reference's own hop
+        // riding the wired consult alone. A plain arrow in the same
+        // place never primes.
+        // VT-019 — the STUCK arrow consults NOTHING: the reference's
+        // per-tick scan rides the FLIGHT branch alone (line 382), so a
+        // burning arrow stuck BESIDE TNT never primes it (the engine's
+        // seat record: StuckBurningArrowTntDiscoveryTest).
         java.util.List<net.zaminmc.torch.block.BlockPosition> primed = new ArrayList<>();
         java.util.Set<net.zaminmc.torch.block.BlockPosition> tntCells = new java.util.HashSet<>(
                 java.util.Set.of(new net.zaminmc.torch.block.BlockPosition(10, 40, 10)));
@@ -378,21 +385,31 @@ class ProjectileManagerTest {
                         (int) Math.floor(x), (int) Math.floor(y), (int) Math.floor(z))),
                 new RiggedHits(), new RecordingCombat(), FX,
                 new Random(3), 3_000);
+        java.util.function.BiPredicate<net.zaminmc.torch.block.BlockPosition, Integer> igniter =
+                (pos, dimension) -> {
+                    if (!tntCells.remove(pos)) {
+                        return false; // the cell held no TNT
+                    }
+                    primed.add(pos);
+                    return true;
+                };
         manager.setBurningTntArm(new ProjectileManager.BurningTntArm() {
             @Override public boolean isTnt(net.zaminmc.torch.block.BlockPosition pos, int dimension) {
                 return tntCells.contains(pos);
             }
 
             @Override public void ignite(net.zaminmc.torch.block.BlockPosition pos, int dimension) {
-                primed.add(pos);
-                // The reference's world.removeBlock(pos): the primed cell
-                // leaves the world, so the next pass finds no TNT there.
-                tntCells.remove(pos);
+                throw new AssertionError("the flying band must not double-prime: " + pos);
             }
         });
+        // VT-030 — the block-hit arm's ignite (the reference's stick
+        // arm's hit-block consult, AFTER the stick): the sole prime
+        // path for a flight entering the TNT cell.
+        manager.setTntIgniteSink(igniter::test);
 
-        // The burning arrow drops onto the TNT cell and sticks on its
-        // face (the solid query answers inside the cell alone).
+        // The burning arrow drops onto the TNT cell — its flight sample
+        // enters the cell and the block-hit arm sticks it at the face
+        // and primes it (VT-030's order).
         ProjectileEntity burning = manager.launchVector(
                 ProjectileEntity.Kind.ARROW, -1,
                 new Position(10.5, 44.0, 10.5), 0.0, -1.0, 0.0, 1.0, 0.4, 0);
@@ -407,11 +424,16 @@ class ProjectileManagerTest {
         for (int i = 0; i < 20; i++) {
             manager.tick(java.util.List.of());
         }
-        assertTrue(burning.inGround(), "the burning arrow stuck on the TNT face");
+        assertTrue(burning.inGround(),
+                "the burning arrow STUCK at the TNT face on the prime tick (VT-030's order — "
+                        + "the stick ceremony precedes the consult; the rig's unwired "
+                        + "StickCellConsult keeps the un-stick arm silent, and VT-019's "
+                        + "gate keeps the stuck band from re-priming)");
         assertTrue(plain.inGround() == false, "the control keeps falling past its plain cell");
 
         assertTrue(primed.contains(new net.zaminmc.torch.block.BlockPosition(10, 40, 10)),
-                "the TNT cell the burning arrow overlaps was primed");
+                "the TNT cell the burning arrow's flight entered was primed "
+                        + "(the stick arm's hit-block consult, ArrowEntity 307-309)");
         assertEquals(1, primed.size(), "one cell, one prime");
     }
 }

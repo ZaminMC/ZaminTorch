@@ -61,6 +61,11 @@ class LightningSystemTest {
         }
 
         @Override
+        public int worldHeight() {
+            return 256; // the 1.8 build band (the scripted world's own)
+        }
+
+        @Override
         public void placeFireAt(int x, int y, int z) {
             fires.add(x + "," + y + "," + z);
         }
@@ -69,6 +74,25 @@ class LightningSystemTest {
         public List<LightningSystem.StruckBody> skyVisibleBodies(
                 double minX, double minY, double minZ,
                 double maxX, double maxY, double maxZ) {
+            List<LightningSystem.StruckBody> in = new ArrayList<>();
+            for (TestBody body : bodies) {
+                double x = body.at.x(), y = body.at.y(), z = body.at.z();
+                if (x >= minX && x <= maxX && y >= minY && y <= maxY
+                        && z >= minZ && z <= maxZ) {
+                    in.add(body);
+                }
+            }
+            return in;
+        }
+
+        @Override
+        public List<LightningSystem.StruckBody> bodiesInBox(
+                double minX, double minY, double minZ,
+                double maxX, double maxY, double maxZ) {
+            // The scripted strike walk — the same center-band form as the
+            // scripted target walk (the scripted bodies carry no boxes;
+            // the ENGINE's own surface is where the strict own-box law
+            // lives, exercised by the full-boot parity seats).
             List<LightningSystem.StruckBody> in = new ArrayList<>();
             for (TestBody body : bodies) {
                 double x = body.at.x(), y = body.at.y(), z = body.at.z();

@@ -73,12 +73,21 @@ class PistonPushabilityParityDiscoveryTest {
                     server.world().setBlock(new BlockPosition(x + i, y - 1, z),
                             BuiltinBlocks.STONE);
                 }
+                // The VANILLA-VALID power arrangement (the F-SP1 correction's
+                // own law: a floor lever never stands on a piston base —
+                // PistonBaseBlock.isCube() false, reference line 223,
+                // hasSolidTop refuses): the stone above the piston carries
+                // the lever; the flip strongly powers the stone (the lever's
+                // attachment arm), the stone re-radiating the weak 15 down
+                // to the piston.
                 server.world().setBlock(new BlockPosition(x, y + 1, z),
+                        BuiltinBlocks.STONE);
+                server.world().setBlock(new BlockPosition(x, y + 2, z),
                         RedstoneBlocks.leverOf(5, false));
             });
             await(() -> PistonBlocks.isPiston(typeAt(server, x, y, z)), "the piston placed");
             server.ticker().submit(() -> server.redstone().useLever(
-                    new BlockPosition(x, y + 1, z)));
+                    new BlockPosition(x, y + 2, z)));
 
             // Vanilla (BedBlock.getPistonMoveBehavior() == 1, DESTROY): the
             // resolver's walk stops AT the destroy block (the reference's
@@ -118,18 +127,27 @@ class PistonPushabilityParityDiscoveryTest {
                         BuiltinBlocks.ANVIL);
                 server.world().setBlock(new BlockPosition(x + 1, y - 1, z),
                         BuiltinBlocks.STONE);
+                // The VANILLA-VALID power arrangement (the F-SP1 correction's
+                // own law: a floor lever never stands on a piston base —
+                // PistonBaseBlock.isCube() false, reference line 223,
+                // hasSolidTop refuses): the stone above the piston carries
+                // the lever; the flip strongly powers the stone (the lever's
+                // attachment arm), the stone re-radiating the weak 15 down
+                // to the piston.
                 server.world().setBlock(new BlockPosition(x, y + 1, z),
+                        BuiltinBlocks.STONE);
+                server.world().setBlock(new BlockPosition(x, y + 2, z),
                         RedstoneBlocks.leverOf(5, false));
             });
             await(() -> PistonBlocks.isPiston(typeAt(server, x, y, z)), "the piston placed");
             server.ticker().submit(() -> server.redstone().useLever(
-                    new BlockPosition(x, y + 1, z)));
+                    new BlockPosition(x, y + 2, z)));
 
             // Vanilla (Material.ANVIL.setBlocksPistonMove(), BLOCK): the
             // canMove gate refuses the anvil outright — the piston NEVER
             // EXTENDS while the lever stays on. The engine today pushes the
             // anvil (the extension fires, the anvil lands a cell along).
-            await(() -> RedstoneBlocks.leverPowered(typeAt(server, x, y + 1, z)),
+            await(() -> RedstoneBlocks.leverPowered(typeAt(server, x, y + 2, z)),
                     "the lever flipped on");
             sleep(1500);
             assertFalse(PistonBlocks.pistonExtended(typeAt(server, x, y, z)),
@@ -152,12 +170,21 @@ class PistonPushabilityParityDiscoveryTest {
                         PistonBlocks.pistonOf(EAST, false, false));
                 server.world().setBlock(new BlockPosition(x + 1, y, z),
                         BuiltinBlocks.GRASS_BLOCK);
+                // The VANILLA-VALID power arrangement (the F-SP1 correction's
+                // own law: a floor lever never stands on a piston base —
+                // PistonBaseBlock.isCube() false, reference line 223,
+                // hasSolidTop refuses): the stone above the piston carries
+                // the lever; the flip strongly powers the stone (the lever's
+                // attachment arm), the stone re-radiating the weak 15 down
+                // to the piston.
                 server.world().setBlock(new BlockPosition(x, y + 1, z),
+                        BuiltinBlocks.STONE);
+                server.world().setBlock(new BlockPosition(x, y + 2, z),
                         RedstoneBlocks.leverOf(5, false));
             });
             await(() -> PistonBlocks.isPiston(typeAt(server, x, y, z)), "the piston placed");
             server.ticker().submit(() -> server.redstone().useLever(
-                    new BlockPosition(x, y + 1, z)));
+                    new BlockPosition(x, y + 2, z)));
 
             // Vanilla (Material.GRASS — a plain material, no piston setter:
             // PUSH): the grass block MOVES with the push, landing one cell

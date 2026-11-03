@@ -87,11 +87,16 @@ class PistonSliceDOwnershipAcceptanceTest {
 
         BlockPosition piston = new BlockPosition(cx, fy + 1, cz);
         BlockPosition pushed = new BlockPosition(cx + 1, fy + 1, cz);
-        BlockPosition lever = new BlockPosition(cx, fy + 2, cz);
+        BlockPosition lever = new BlockPosition(cx, fy + 3, cz);
         BlockPosition landing = new BlockPosition(cx + 2, fy + 1, cz);
         server.ticker().submit(() -> {
             nether.setBlock(piston, PistonBlocks.pistonOf(EAST, false, false));
             nether.setBlock(pushed, BuiltinBlocks.STONE);
+            // The vanilla-valid mount (PistonBaseBlock.isCube() false — a
+            // lever never rides the piston base): the stone above carries
+            // the lever, the flip's strong power entering the stone
+            // re-radiating to the piston below.
+            nether.setBlock(new BlockPosition(cx, fy + 2, cz), BuiltinBlocks.STONE);
             nether.setBlock(lever, RedstoneBlocks.leverOf(5, false));
         });
         await(() -> PistonBlocks.isPiston(typeAt(nether, piston)), "the nether piston placed");
@@ -152,11 +157,16 @@ class PistonSliceDOwnershipAcceptanceTest {
 
         BlockPosition piston = new BlockPosition(cx, fy + 1, cz);
         BlockPosition pushed = new BlockPosition(cx + 1, fy + 1, cz);
-        BlockPosition lever = new BlockPosition(cx, fy + 2, cz);
+        BlockPosition lever = new BlockPosition(cx, fy + 3, cz);
         BlockPosition landing = new BlockPosition(cx + 2, fy + 1, cz);
         server.ticker().submit(() -> {
             server.world().setBlock(piston, PistonBlocks.pistonOf(EAST, false, false));
             server.world().setBlock(pushed, BuiltinBlocks.STONE);
+            // The vanilla-valid mount (PistonBaseBlock.isCube() false — a
+            // lever never rides the piston base): the stone above carries
+            // the lever, the flip's strong power entering the stone
+            // re-radiating to the piston below.
+            server.world().setBlock(new BlockPosition(cx, fy + 2, cz), BuiltinBlocks.STONE);
             server.world().setBlock(lever, RedstoneBlocks.leverOf(5, false));
         });
         await(() -> PistonBlocks.isPiston(typeAt(server.world(), piston)),
@@ -203,11 +213,15 @@ class PistonSliceDOwnershipAcceptanceTest {
 
         BlockPosition piston = new BlockPosition(cx, fy + 1, cz);
         BlockPosition pushed = new BlockPosition(cx + 1, fy + 1, cz);
-        BlockPosition overworldLever = new BlockPosition(cx, fy + 2, cz);
+        BlockPosition overworldLever = new BlockPosition(cx, fy + 3, cz);
         server.ticker().submit(() -> {
             nether.setBlock(piston, PistonBlocks.pistonOf(EAST, false, false));
             nether.setBlock(pushed, BuiltinBlocks.STONE);
             server.world().setBlock(pushed, BuiltinBlocks.STONE);
+            // The overworld lever's own vanilla-valid mount (the stone
+            // above the same coordinates' air — the floating stone never
+            // falls): the flip radiates OVERWORLD power only.
+            server.world().setBlock(new BlockPosition(cx, fy + 2, cz), BuiltinBlocks.STONE);
             server.world().setBlock(overworldLever, RedstoneBlocks.leverOf(5, false));
         });
         await(() -> PistonBlocks.isPiston(typeAt(nether, piston)),
