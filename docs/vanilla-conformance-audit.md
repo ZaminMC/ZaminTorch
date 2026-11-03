@@ -3341,7 +3341,7 @@ flames on stone and bedrock — unregressed by the change.
 
 ---
 
-## The fifty-ninth pass (the lane renumbered from the fifty-sixth at the push — the concurrent lanes took the fifty-sixth AND fifty-seventh AND fifty-eighth names publicly inside this lane's set-up window; the established push-order protocol, nothing public renamed) — the baseline advanced (develop `662094d5`: the PR wave LANDED WHOLE — 23 open PRs reviewed, 19 merged / 4 closed superseded-with-salvage, the F-SP1..F-SP5 seats carried to develop; Waves VT-033-tails + RW-1 + PE-1..PE-4 landed), the queue re-read against the landed tree, the standing head (c) TAKEN WHOLE IN ONE RUN: F-SP6's source census (pass 1) AND behavioral seats (pass 2 — 6/6 divergent rows RED, 2/2 controls GREEN) — and the census REVERSED the queue's framing
+## The fifty-ninth pass (the lane renumbered from the fifty-sixth at the push — the concurrent lanes took the fifty-sixth AND fifty-seventh AND fifty-eighth names publicly inside this lane's set-up window; the established push-order protocol, nothing public renamed) — the baseline advanced (develop `662094d5`: the PR wave LANDED WHOLE — 23 open PRs reviewed, 19 merged / 4 closed superseded-with-salvage, the F-SP1..F-SP5 seats carried to develop; Waves VT-033-tails + RW-1 + PE-1..PE-4 landed), the queue re-read against the landed tree, the standing head (c) TAKEN WHOLE IN ONE RUN: F-SP6 discovered AND confirmed over all three passes (the source census, the behavioral seats 6/6 RED + 2/2 controls GREEN, the independent pass — the compensating hunt, the call-site census, the citation-mismatch intentionality evidence, the reverse-row check) — and the census REVERSED the queue's framing
 
 The lane's acts: (1) the baseline merge `4907c3ae` over the pass-55 lane
 (report carried whole; develop's own copy still the stale
@@ -3357,14 +3357,27 @@ salvage, so the fix needs a carrier — folded into the next fix PR or its
 own one-line rider), F-SP4's tripwire floor law verified LANDED (the
 three `SupportConsult.hasSolidTop` consults in `TripwireSystem`), the
 open-PR set EMPTY (all watch items resolved); (3) the standing head (c)
-— the button/lever placement fallback STRUCTURES — taken as a full
-source census, and the census found the queue's own framing backwards
-(the walk-vs-floor-order question was never the right question: the
+— the button/lever placement fallback STRUCTURES — taken WHOLE: the
+source census (pass 1) found the queue's own framing backwards (the
+walk-vs-floor-order question was never the right question: the
 reference's use path NEVER RUNS the fallback layers for the lever and
-the button at all — see F-SP6); (4) the F-SP2 rig's wrap-safe z-shift
-applied on this branch (test-only, the one-line form).
+the button at all — see F-SP6); the behavioral seats (pass 2 —
+`AttachmentPlacementPathParityDiscoveryTest`, 6/6 divergent rows RED
+for exactly the predicted reasons + 2/2 controls GREEN); the
+independent pass (pass 3 — the compensating hunt negative, the
+`leverOf`/`buttonOf`/`torchOfFacing` call-site census proving the fix
+surface is the four placement sites alone [the redstone family's own
+toggles and the Stronghold/Temple structure placements unaffected],
+the citation-line mismatch table resolving the intentionality to
+misreading [the lever/button javadoc contracts cite line ranges that
+are not getPlacementState in the reference while the torch citations
+match exactly], and the reverse-row check [T-WALL the sole
+engine-refuses-where-vanilla-places row]) — F-SP6 CONFIRMED, fix-ready,
+the Phase E decomposition recorded (three independently actionable
+members); (4) the F-SP2 rig's wrap-safe z-shift applied on this branch
+(test-only, the one-line form).
 
-## F-SP6 — the attachment family's placement-path gate structure: the engine implements the reference's getPlacementState fallback layers as LIVE placement behavior where the reference's use path gates on World.canPlace's side consult first — the lever's floor fallback and the button's doomed-DOWN commit PLACE blocks vanilla refuses outright; the redstone torch's fallback walk runs its mounts in the wrong order; the plain torch carries no wall states and no placement consult at all (UNDER VERIFICATION — passes 1-2 complete: the source census + the behavioral seats (6/6 divergent rows RED, 2/2 controls GREEN, `AttachmentPlacementPathParityDiscoveryTest`); the independent pass owed)
+## F-SP6 — the attachment family's placement-path gate structure: the engine implements the reference's getPlacementState fallback layers as LIVE placement behavior where the reference's use path gates on World.canPlace's side consult first — the lever's floor fallback and the button's doomed-DOWN commit PLACE blocks vanilla refuses outright; the redstone torch's fallback walk runs its mounts in the wrong order; the plain torch carries no wall states and no placement consult at all (CONFIRMED — three passes complete this run: the source census + the behavioral seats (6/6 divergent rows RED, 2/2 controls GREEN, `AttachmentPlacementPathParityDiscoveryTest`) + the independent pass (the compensating hunt, the call-site census, the citation-mismatch intentionality evidence, the reverse-row check); fix-ready — the Phase E decomposition recorded below)
 
 **Subsystem:** the attachment family's player placement path (the use
 dispatch's lever/button/torch arms + the generic placement path).
@@ -3372,9 +3385,9 @@ dispatch's lever/button/torch arms + the generic placement path).
 correction; F-SP1 fixed the MOUNT LAWS but left the PATH STRUCTURE as
 it stood).
 
-**Status:** under verification — passes 1-2 complete (the source
-census + the behavioral seats, this run); pass 3 (the independent
-re-verification) owed. NOT fix-ready until it lands.
+**Status:** CONFIRMED — three passes complete in this run (the
+fifty-ninth); fix-ready. The Phase E decomposition: three
+independently actionable members (below).
 
 **Affected ZaminTorch files and methods:**
 
@@ -3602,18 +3615,47 @@ engine: consumed + drop.
   rate-limiting blocked the first two runs' dependency resolution (the
   environment's Gradle cache was reset); `--refresh-dependencies`
   resolved it and the seats ran green-to-pattern.
-- **Pass 3 (independent)** — OWED: the compensating hunt (no pre-gate
-  hides elsewhere on the use path — the dispatch arms were read this
-  pass and carry none, but the independent pass owes its own
-  re-derivation from the execution path), the intentionality challenge
-  (the F-SP1-era code's own javadoc cites `getPlacementState`'s line
-  numbers as its contract — a misreading, not a design choice; the
-  plain torch's "single standing state" comment IS an acknowledged
-  simplification — that member may be intentional, the independent
-  pass owes the challenge), and the fix-shape check against the
-  existing pins (the F-SP1 seats drive the SURVIVAL walks, not the
-  placement path — no pin covers the fallback arms; the
-  `BedPlacementFloorParityDiscoveryTest` rig is the drive precedent).
+- **Pass 3 (independent) — COMPLETE (this pass, the same run):** four
+  independent angles, each contributing new evidence:
+  - **The compensating hunt, re-derived from the execution path**: the
+    two-stage use law's BLOCK stage never consumes a glass click (the
+    seats prove it empirically — the placements happened, so the item
+    stage ran); the 600ms settle windows prove no LATER correction (the
+    persistent lever/button survived every scheduled pass — the
+    survival walks read the placed states' own facings, and those
+    facings' mounts hold); no other engine path rewrites the wrongly
+    placed states. No compensation exists.
+  - **The call-site census (NEW evidence)**: `leverOf(`/`buttonOf(`
+    /`torchOfFacing(` across the whole engine — the ONLY use-path
+    placements are the four `EngineServer` sites F-SP6 names;
+    `RedstoneSystem`'s three uses are the family's own state toggles
+    (the lever's flip arm, the torch pair's lit/unlit swap), and
+    `StrongholdPieces`' `buttonOf` + `TemplePieces`' three `leverOf`
+    uses are STRUCTURE GENERATION (programmatic placements with
+    explicit facings — the jungle temple's lever puzzle, the
+    stronghold's buttons). The placement-path fix touches the four
+    sites alone: the fix shape is confirmed narrow.
+  - **The intentionality challenge (NEW evidence — the citation-line
+    mismatch table)**: the torch family's javadoc contracts match the
+    reference exactly (`canAttach lines 69-73` ✓, `TorchBlock lines
+    49-56` ✓) while the lever/button contracts cite line ranges that
+    are NOT `getPlacementState` in the reference (`LeverBlock
+    .getPlacementState lines 104-117` vs the actual 64-79 — the cited
+    range lands in the Facing enum; `ButtonBlock.getPlacementState
+    lines 85-88` vs the actual 76-80 — the cited range lands inside
+    `neighborChanged`) — the unverified-snapshot signature, the F-SP3
+    precedent's own "intentionality resolved to approximation" class.
+    L1/B1/RT-WALK/T-REFUSE are MISREADINGS, not design choices. The
+    plain torch's "single standing state" comment is the ONE
+    acknowledged simplification — T-WALL's disposition (the wall-state
+    vocabulary vs a documented limitation) is a Phase E assessment, not
+    an evidence gap.
+  - **The reverse-row check**: T-WALL is the SOLE row where the engine
+    refuses what vanilla places (the wall torch pops); the arm-1 paths
+    are identical in both trees; the walk coverage sets are identical
+    modulo order. No other reverse rows exist.
+  **Conclusion: F-SP6 CONFIRMED over three passes** — the path-structure
+  divergence is real, demonstrated, and un-compensated.
 
 **Confidence and remaining uncertainties:** high on L1/B1/RT-WALK (the
 reference chain is short and read three ways); high on T-REFUSE (the
@@ -3686,24 +3728,26 @@ seats add the row).
 | The floor-consult family (wire/repeater/comparator/plate/weighted-plate/door survival walks + the five placement gates) | **F-SP2 RESOLVED (the honest convergence — the PR wave's landing: the #141 carrier's laws, the #143 door rider, the #147/#149 lanes all reviewed; the surviving form carried to develop through the wave's salvage, `FloorConsultParityDiscoveryTest` + `SupportConsultParityDiscoveryTest` green on develop)**. The F-SP2 rig's wrap-collision hazard retired on THIS lane's branch (the fifty-ninth pass — the wrap-safe z-shift); the one-line form still owed to develop itself (the rig lives there through the salvage). |
 | The hasSolidTop structured port (`FireBlocks.hasSolidTop`) | **F-SP3 RESOLVED (the PR wave's landing — #157 closed superseded, the #145/#147 lanes' salvage carrying the delegation to `SupportConsult.hasSolidTop` to develop; `FireSolidTopParityDiscoveryTest` green on develop)**: three passes whole (the pass-41 source census; the pass-55 behavioral seats — 24 divergent row-observations RED on the baseline, ~40 agreement controls green, zero reverse rows; the pass-55 independent pass). The translucents/carve-misses/stone_slab2 rows all retired. |
 | The slab-family suffix census | INSPECTED (the whole-repository `endsWith("_slab")` census: `BlockSolidity.isCube` and `FireBlocks` already correct with the `double_` carve — the house convention; `CollisionShapes` corrected by PR #118; `NaturalSpawnSystem` corrected by PR #121 (VT-020 — the spawn consult, the directional stair states and the `_slab2` row joining the census); `RedstoneSystem.trapdoorMountHolds` name-based, the double agreeing, the SINGLES' rows F-SP1's lane; the held-id dispatch and the dormant `woodenSlabFamilyOf` unaffected) |
-| The attachment family's PLACEMENT PATH (lever/button/torch placement gates + the fallback layers) | **F-SP6 UNDER VERIFICATION (the fifty-ninth pass)** — pass 1 (the source census) complete: the reference's use path gates on `World.canPlace`'s side consult BEFORE `getPlacementState` (the lever/button fallback layers are dead code in vanilla; the torches' walk is live but ordered differently); the engine's four placement sites diverge (L1 the lever's floor fallback, B1 the button's doomed-DOWN commit, RT-WALK the redstone torch's mount order, T-WALL/T-REFUSE the plain torch's missing wall states + no-consult placement). Passes 1-2 COMPLETE (the source census + `AttachmentPlacementPathParityDiscoveryTest` — 6/6 divergent rows RED, 2/2 controls GREEN); the independent pass owed. The F-SP1 mount LAWS re-verified 1:1 this pass (the consults — not the path — are F-SP1's landed work). |
+| The attachment family's PLACEMENT PATH (lever/button/torch placement gates + the fallback layers) | **F-SP6 UNDER VERIFICATION (the fifty-ninth pass)** — pass 1 (the source census) complete: the reference's use path gates on `World.canPlace`'s side consult BEFORE `getPlacementState` (the lever/button fallback layers are dead code in vanilla; the torches' walk is live but ordered differently); the engine's four placement sites diverge (L1 the lever's floor fallback, B1 the button's doomed-DOWN commit, RT-WALK the redstone torch's mount order, T-WALL/T-REFUSE the plain torch's missing wall states + no-consult placement). **F-SP6 CONFIRMED — three passes complete (the fifty-ninth run: the source census, the behavioral seats 6/6 RED + 2/2 controls GREEN, the independent pass — the compensating hunt, the call-site census, the citation-mismatch intentionality evidence, the reverse-row check)**. Fix-ready: the Phase E decomposition — the lever/button pre-gate refusal (L1+B1), the redstone torch's walk order (RT-WALK), the plain torch's placement gate (T-REFUSE) + the architectural T-WALL member (the wall-state vocabulary vs a documented limitation — the disposition assessment). The F-SP1 mount LAWS re-verified 1:1 this pass (the consults — not the path — are F-SP1's landed work). |
 
 ## The queue for the next pass
 
-1. **F-SP6's independent pass (pass 3)** — the standing head: the
-   compensating hunt re-derived from the execution path (no pre-gate
-   hides elsewhere on the use path — the two-stage use law's BLOCK
-   stage, the anti-fastplace guard, the occupancy consult — each checked
-   against the reference's own `ServerPlayerInteractionManager.useBlock`
-   ordering), the intentionality challenge (the plain torch's "single
-   standing state" comment the one acknowledged simplification — the
-   T-WALL member may be a documented limitation rather than a fix), the
-   fix-shape assessment (the plain torch's wall-state vocabulary may be
-   too broad for a focused PR), then the Phase E decomposition (the
-   lever/button pre-gate one PR, the walk order a second, the plain
-   torch its own lane or a limitation record). Passes 1-2 COMPLETE
-   (`AttachmentPlacementPathParityDiscoveryTest` — 6/6 divergent rows
-   RED, 2/2 controls GREEN).
+1. **F-SP6's Phase E** — the standing head (the finding CONFIRMED
+   over three passes this run): three independently actionable members,
+   each its own focused PR over the latest develop — (a) the
+   lever/button pre-gate refusal (delete `placeLeverOnTick`'s floor
+   fallback + `placeButtonOnTick`'s doomed-DOWN commit — the arm-1
+   failure returns without placing; the pass-2 seats flip to GREEN as
+   the parity pins, the two controls the regression pins); (b) the
+   redstone torch's walk re-order ([S, W, N, E] — the
+   `Plane.HORIZONTAL` mount order; the RT-WALK seat flips); (c) the
+   plain torch's placement gate (the `placementSupportGate` torch arm —
+   the five-direction walk `canSitOnTop(UP) || isSolidBlockingCube(any
+   horizontal)`; the T-REFUSE seat flips) + the T-WALL disposition
+   assessment (the wall-state vocabulary — the architectural member
+   [the registry rows, the AnvilBlockIds legacy-50 band, the protocol
+   meta encoding, the survival walk's side consults] vs the documented
+   limitation record; the assessment owed BEFORE any broad PR).
 2. **The F-SP2 rig's wrap-collision hazard's develop carrier**: the
    one-line wrap-safe z-shift (`nextZ()`, the FireSolidTop rig's form)
    is APPLIED on this lane's branch (the fifty-ninth pass) — the rig
