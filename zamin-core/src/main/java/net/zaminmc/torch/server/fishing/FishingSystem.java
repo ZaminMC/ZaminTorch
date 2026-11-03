@@ -15,8 +15,14 @@ import java.util.Random;
  *
  * <p><b>The flight (tick lines 174-314, the server arm, 1:1):</b> the
  * 0.4-power lob scaled 1.5 with the gaussian 0.0075 scatter (thrown lines
- * 134-155); the block raytrace grounds the bobber (the 1200-tick stuck
- * timeout); the entity clip hooks the first collidable body along the
+ * 134-155); the block raytrace grounds the bobber — and the stuck state
+ * itself is the reference's UN-STICK CYCLE (VT-038 — lines 214-232: the
+ * stamped-cell consult whose live stamp is never written, so the live
+ * bobber un-sticks EVERY tick, the per-axis nextFloat()*0.2 damping, both
+ * clocks reset, the same tick falling through into the raytrace/move/
+ * water survey — settling in decaying steps, falling whole when the block
+ * breaks, the 1200-tick removal belonging to the NBT-restored stamp
+ * alone); the entity clip hooks the first collidable body along the
  * flight segment (the 0.3-grown box, the angler's own body legal after 5
  * air ticks) with zero damage; the drag 0.92 (0.5 grounded); the 5-band
  * water fraction drives the buoyancy {@code vy += 0.04 * (d10 * 2 - 1)}
@@ -68,7 +74,9 @@ public final class FishingSystem {
     public static final int CATCH_ARM_MAX = 900;
     /** The Lure cut per level (getLureLevel * 20 * 5). */
     public static final int LURE_CUT_PER_LEVEL = 100;
-    /** The stuck-in-ground timeout (inBlockTicks == 1200). */
+    /** The stuck-in-ground timeout (inBlockTicks == 1200 — the MATCHING-stamp
+     * arm alone; the live un-stick cycle resets the clock every tick, so a
+     * live bobber never reaches it — the NBT-restored bobber's own law). */
     public static final int STUCK_TIMEOUT = 1200;
     /** The angler's leash (squaredDistanceTo > 1024 removes). */
     public static final double LEASH_SQUARED = 1024.0;
@@ -89,6 +97,14 @@ public final class FishingSystem {
     public interface WorldQuery {
         /** The block-collision read along the flight (the raytrace's ground). */
         Position blockHit(Position from, Position to);
+
+        /**
+         * The block identity at a cell (the stuck consult's stamped read —
+         * FishingBobberEntity.tick line 215's
+         * {@code world.getBlockState(new BlockPos(blockX, blockY, blockZ))
+         * .getBlock() == inBlock}).
+         */
+        net.zaminmc.torch.util.Identifier blockIdAt(int x, int y, int z);
 
         /** The 5-band water fraction of a box (the tick's own d10 walk). */
         double waterFraction(double minX, double minY, double minZ,
@@ -237,6 +253,12 @@ public final class FishingSystem {
         boolean inGround;
         int inGroundTicks;
         int inAirTicks;
+        /** The stuck consult's stamped cell (xTile/yTile/zTile, lines 56-58) — -1 live. */
+        int stampX = -1;
+        int stampY = -1;
+        int stampZ = -1;
+        /** The stuck consult's stamped block (inTile, line 59) — null live. */
+        net.zaminmc.torch.util.Identifier stampBlock;
         int catchTimer;
         int fishTravelTimer;
         float fishAngle;
@@ -662,13 +684,38 @@ public final class FishingSystem {
             }
             bobber.hooked = null;
         }
-        // The stuck clock (lines 216-232): 1200 grounded ticks remove.
+        // The stuck consult (lines 214-232, 1:1): the stamped cell reads
+        // EVERY tick — and the live stamp is never written (the reference's
+        // own live law: the fields' only other touch is the NBT rows at
+        // 424-447, the stick at 272-274 setting inGround alone), so a LIVE
+        // bobber's consult always mismatches and it UN-STICKS EVERY TICK:
+        // the per-axis nextFloat()*0.2 damping (three fresh draws), both
+        // clocks reset, and the SAME tick falls through into the raytrace,
+        // the move and the 5-band water survey below — landing back on the
+        // face and re-sticking (the raytrace's own hit), settling in
+        // decaying steps, and FALLING WHOLE when the block is broken (the
+        // un-stick's own reach into the water's catchable cycle — the
+        // lily-pad technique). The 1200-tick removal fires only on a
+        // MATCHING consult — a bobber restored from the NBT rows whose
+        // stamped block still lives; the live clock resets to 0 every tick
+        // and never reaches it (the live bobber's life governed by the rod
+        // gate and the 32-block leash alone).
         if (bobber.inGround) {
-            bobber.inGroundTicks++;
-            if (bobber.inGroundTicks == STUCK_TIMEOUT) {
-                remove(bobber);
+            if (java.util.Objects.equals(
+                    world.blockIdAt(bobber.stampX, bobber.stampY, bobber.stampZ),
+                    bobber.stampBlock)) {
+                bobber.inGroundTicks++;
+                if (bobber.inGroundTicks == STUCK_TIMEOUT) {
+                    remove(bobber);
+                }
                 return;
             }
+            bobber.inGround = false;
+            bobber.vx *= random.nextFloat() * 0.2;
+            bobber.vy *= random.nextFloat() * 0.2;
+            bobber.vz *= random.nextFloat() * 0.2;
+            bobber.inGroundTicks = 0;
+            bobber.inAirTicks = 0;
         } else {
             bobber.inAirTicks++;
         }

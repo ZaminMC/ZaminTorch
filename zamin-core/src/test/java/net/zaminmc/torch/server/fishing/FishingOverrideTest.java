@@ -26,6 +26,11 @@ class FishingOverrideTest {
             return null;
         }
 
+        @Override public net.zaminmc.torch.util.Identifier blockIdAt(int x, int y, int z) {
+            // Never null: the live consult always mismatches (the live law).
+            return net.zaminmc.torch.util.Identifier.parse("minecraft:stone");
+        }
+
         @Override public double waterFraction(double minX, double minY, double minZ,
                                               double maxX, double maxY, double maxZ) {
             return 1.0;

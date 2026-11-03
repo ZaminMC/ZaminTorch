@@ -3358,6 +3358,24 @@ public final class EngineServer implements Server, EngineBridge {
                                         return null;
                                     }
 
+                                    /**
+                                     * The stuck consult's stamped read (VT-038 — the
+                                     * reference's line 215): the block identity at
+                                     * the (never-live-written) stamped cell. The
+                                     * below-world cell consults answer AIR exactly
+                                     * like the reference's own out-of-world read —
+                                     * never null, so the live consult ALWAYS
+                                     * mismatches (the live law: the stamp is never
+                                     * written, and AIR != null).
+                                     */
+                                    @Override public net.zaminmc.torch.util.Identifier blockIdAt(
+                                            int x, int y, int z) {
+                                        if (y < 0 || y > BlockPosition.MAX_Y) {
+                                            return world.airType().identifier();
+                                        }
+                                        return world.getBlock(new BlockPosition(x, y, z)).identifier();
+                                    }
+
                                     /** The 5-band water fraction (containsLiquid's own walk). */
                                     @Override public double waterFraction(
                                             double minX, double minY, double minZ,
