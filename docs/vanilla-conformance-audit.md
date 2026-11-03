@@ -6499,7 +6499,7 @@ THEIRS; this lane does not take it up while their chain stands.
 
 ---
 
-## The fifty-second pass's second act — VT-036 discovered (the lever/button item-placement gates read the fallback arms, not the reference's clicked-face gate) + the family census bounded (the torch CONFORMANT, the plate claimed by #141)
+## The fifty-second pass's second act — VT-038 discovered (the lever/button item-placement gates read the fallback arms, not the reference's clicked-face gate) + the family census bounded (the torch CONFORMANT, the plate claimed by #141)
 
 **THE HEAD (the coordinator lane's queue item 3, adopted this pass):** the
 button/lever placement fallback STRUCTURES — the reference's
@@ -6509,7 +6509,7 @@ dead code in the reference's item path** — the gate that runs first
 consults the clicked face's mount alone, and the engine places the
 fallback forms where vanilla refuses outright.
 
-### VT-036 — the lever/button item-placement gates read the fallback arms, not the reference's clicked-face gate: phantom placements vanilla refuses
+### VT-038 — the lever/button item-placement gates read the fallback arms, not the reference's clicked-face gate: phantom placements vanilla refuses
 
 **Subsystem:** block placement / the lever + button item gates (all
 dimensions). **Status: CONFIRMED — three passes complete (pass 1 the
@@ -6617,8 +6617,8 @@ lever's surviving first arm (already correct).
 **THE RUN'S CLOSE (the fifty-second):** the restack whole (PR #149 on
 develop 1139f2c3, the re-pin riding, the moot rider retired), the
 merge watch reconciled across four concurrent lanes (48-51), the
-coordinator lane's records unioned, and VT-036's pass 1 landed. The
-next run's queue: (1) VT-036's behavioral seats (the torch-side lever
+coordinator lane's records unioned, and VT-038's pass 1 landed. The
+next run's queue: (1) VT-038's behavioral seats (the torch-side lever
 row, the glass-top button row, the agreement controls — the
 torch-on-dirt wall form, the stone-top plate agreement), then the
 independent walk (the compensating hunt: does any other path — the
@@ -6627,7 +6627,7 @@ the fallback arms?); (2) the trapdoor's item-gate shape; (3) the merge
 watch (the open set, 27 PRs at this pass's fetch); (4) the standing
 verification lanes (the VT-008 protocol).
 
-## The fifty-third pass — the baseline advanced (develop 662094d5, Wave PE-2/PE-3/PE-4 merged into the lane), VT-036 CONFIRMED whole (the behavioral seats + the independent walk), the trapdoor's item gate audited CONFORMANT whole except its cursor boundary (VT-037 discovered)
+## The fifty-third pass — the baseline advanced (develop 662094d5, Wave PE-2/PE-3/PE-4 merged into the lane), VT-038 CONFIRMED whole (the behavioral seats + the independent walk), the trapdoor's item gate audited CONFORMANT whole except its cursor boundary (VT-039 discovered)
 
 **THE BASELINE:** develop advanced 1139f2c3 -> 662094d5 (Wave PE-2:
 the plate family's activation/count/release laws; PE-3: the anvil
@@ -6636,7 +6636,7 @@ lightning family's boundary arms) — the lane's merge resolved six
 seat-file conflicts to develop's merged authorities (the piston
 pushability seats' F-SP1-corrected lever-on-stone arrangement, the
 spawn census's VT-020 renumbered record, the arrow stick/unstick
-pair's fall-observable pins, the piston break/entity gates). VT-036's
+pair's fall-observable pins, the piston break/entity gates). VT-038's
 two fallback arms stand UNTOUCHED on the advanced baseline — the
 re-verification of pass 1's line readings complete (placeLeverOnTick
 14050-14113, the fallback 14098-14107; placeButtonOnTick 14136-14174,
@@ -6703,7 +6703,7 @@ face's mount fails (no floor fallback), `placeButtonOnTick` refuses
 (`leverOf(5)`'s up_z-always vs vanilla's look-keyed floor form) retires
 with the arm.
 
-### VT-037 — the trapdoor's cursorY HALF boundary reads `>= 0.5f` where the reference reads `dy > 0.5F`: the exact mid-face click (cursor byte 8) places the TOP half where vanilla places the BOTTOM
+### VT-039 — the trapdoor's cursorY HALF boundary reads `>= 0.5f` where the reference reads `dy > 0.5F`: the exact mid-face click (cursor byte 8) places the TOP half where vanilla places the BOTTOM
 
 **Subsystem:** block placement / the trapdoor's cursor half-split. **Status:
 SUSPECTED — pass 1 (source) complete this run; the seats and the
@@ -6739,9 +6739,76 @@ wire's byte domain — `readByte()` vs the reference's unsigned read —
 checking the boundary row's reachability from a real client), then
 the one-character correction (`>=` -> `>`).
 
-**THE RUN'S CLOSE (the fifty-third):** VT-036 confirmed whole (three
-passes, the seats RED with the exact phantom forms observed), VT-037
-discovered (pass 1). The next run's queue: (1) VT-036's Phase E
+**THE RUN'S CLOSE (the fifty-third):** VT-038 confirmed whole (three
+passes, the seats RED with the exact phantom forms observed), VT-039
+discovered (pass 1). The next run's queue: (1) VT-038's Phase E
 correction (the branch, the seats as the regression, the PR); (2)
-VT-037's passes 2-3; (3) the merge watch (the open set at this pass's
+VT-039's passes 2-3; (3) the merge watch (the open set at this pass's
 fetch); (4) the standing verification lanes (the VT-008 protocol).
+
+## The fifty-third pass's second act — the RENUMBERING + VT-038 CORRECTED (Phase E complete, **PR #158 OPEN**) + the merge watch's absorption event recorded
+
+**THE NUMBERING COLLISION (resolved at the PR window, the VT-012->VT-013
+precedent):** the fetch before the PR found PR #151 MERGED under
+"VT-036: the tripwire family and the TNT's redstone prime gain their
+per-dimension machinery" (a concurrent lane's claim) and PR #156 MERGED
+under "VT-037: the orb's box model" — both numbers taken publicly while
+this lane's seats ran. This lane's findings RENUMBERED: the lever/button
+item-gate finding VT-036 -> **VT-038**, the trapdoor cursor-boundary
+finding VT-037 -> **VT-039** (this lane's records renumbered; nothing
+public renamed; the highest publicly-claimed number VT-037, the next
+free pair 038/039).
+
+**THE PHASE E CORRECTION (VT-038 — PR #158 OPEN,
+`fix/lever-button-item-gate-parity-audit` rebased on develop ea8fb2fe):**
+- THE REPAIR: both gates refuse when the clicked face's mount fails —
+  the same `SupportConsult.leverButtonMountHolds` consult the first arm
+  already reads (F-SP1's corrected law, now the gate's WHOLE answer);
+  the lever's floor-only fallback arm and the button's unconditional
+  DOWN placement retired whole; the secondary axis-hardcoding divergence
+  (`leverOf(5)`'s up_z-always vs vanilla's look-keyed floor form)
+  retiring with the arm. The javadocs re-cited to the real law
+  (BlockItem.useOn's gate — the comment/code-mismatch signature
+  corrected).
+- THE SEATS AS THE REGRESSION: `LeverButtonPlacementGateParityDiscoveryTest`
+  8/0 on the fix tree (rebased on ea8fb2fe and re-run whole).
+- THE RUNS: the redstone package whole 72/0; the placement/interaction
+  lanes 23/0 (BlockInteraction 5, BuildingBlocks 2, DigHandlerGates 8,
+  InteractionEvent 4, SlabStairs 3, NetherDigRouting 1); the piston
+  package 32/34 with BOTH failures attributed OUTSIDE the fix through
+  the two-tree evidence — `PistonBreakDropParityDiscoveryTest`'s
+  wheat-seeds row the random-roll flake (2/2 on the re-run on BOTH
+  trees), and `PistonEntityPushTest.theSlimeBlockFlingsTheOrbTheStandThe-
+  TntAndTheArrow` RED ON CLEAN DEVELOP TOO (verified on a clean
+  worktree at 662094d5) — a PRE-EXISTING develop failure named for the
+  merge watch below.
+
+**THE MERGE WATCH (the absorption event):** the open set went from 27
+PRs (the fifty-second pass's fetch) to ZERO — the maintainer processed
+the whole window. Merged among them: #118 (F-DS1), #139 (F-SP1),
+#111/#114 (the bed arms), #121-era claims, #125-#133 (the dimension
+stamp family), #142 (VT-029's FX residual), #144 (VT-034), #146
+(VT-033), #149 superseded by #139's merge, #151 (VT-036 — the
+tripwire/TNT per-dimension machinery), #152/#155 (VT-035's anvil
+window + bed seat rows), #153 (W-POT), #154 (W-BED — the bed placement
+gains BedItem.useOn's two missing gates), #156 (VT-037 — the orb's box
+model). CLOSED UNMERGED: #157 (F-SP3's hasSolidTop delegation — the
+maintainer's own construction preferred or superseded) and #150 (F-SP5's
+tripwire hook wall consults — the same class). develop advanced
+1139f2c3 -> 662094d5 -> ea8fb2fe (Wave PE-2/PE-3/PE-4 whole — the plate
+activation/count/release laws, the anvil crush, the tripwire occupancy,
+the plate class census, the lightning family's boundary arms and their
+seats). THE PRE-EXISTING FAILURE on clean develop named for the next
+watch: `PistonEntityPushTest.theSlimeBlockFlingsTheOrbTheStandTheTntAnd-
+TheArrow` ("the four bodies in place" — the setup await never met; RED
+on 662094d5 AND on ea8fb2fe-based runs through this lane's tree; not
+this lane's to fix blind — the owning lane should re-verify).
+
+**THE QUEUE for the next run:** (1) VT-039's passes 2-3 (the
+cursor-byte-8 seat against the byte-7/byte-9 controls; the wire's byte
+domain walk; the one-character correction `>=` -> `>` then Phase E if
+confirmed); (2) the merge watch (PR #158's review; the closed-unmerged
+#157/#150 constructions — whether the maintainer's own arms landed the
+same laws, re-verified before any re-submission); (3) the pre-existing
+piston slime-seat failure on develop (the owning-lane question); (4)
+the standing verification lanes (the VT-008 protocol).
