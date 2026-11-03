@@ -3560,6 +3560,112 @@ public final class EngineServer implements Server, EngineBridge {
                                                 bestD2 = d2;
                                             }
                                         }
+                                        // THE CENSUS TAIL (Wave PE-13 — the
+                                        // reference's remaining hasCollision
+                                        // arms): the PRIMED TNT (PrimedTntEntity
+                                        // line 42's !removed — the live body's
+                                        // own 0.98x0.98 hull, setSize lines
+                                        // 15-16), the ENDER CRYSTALS
+                                        // (EnderCrystalEntity line 62's true —
+                                        // the 2x2 hull, line 18), and the
+                                        // DECORATIONS whole (DecorationEntity
+                                        // line 123's true — the ITEM FRAMES
+                                        // and the PAINTINGS, the hanging box
+                                        // updateShape built at 12x12 pixels
+                                        // for the frame and the motive's own
+                                        // span for the painting). The pre-fix
+                                        // census never carried the four
+                                        // families — a bobber passing through
+                                        // a primed TNT, a crystal, a frame or
+                                        // a painting hooked nothing at all.
+                                        if (tntSystem != null) {
+                                            for (net.zaminmc.torch.server.tnt.TntSystem
+                                                            .PrimedTnt tnt
+                                                    : tntSystem.allPrimed()) {
+                                                if (tnt.dimension() != dimension) {
+                                                    continue; // another world's body
+                                                }
+                                                double d2 = segmentBoxEntrySquared(from, to,
+                                                        tnt.x() - 0.49 - 0.3,
+                                                        tnt.y() - 0.3,
+                                                        tnt.z() - 0.49 - 0.3,
+                                                        tnt.x() + 0.49 + 0.3,
+                                                        tnt.y() + 0.98 + 0.3,
+                                                        tnt.z() + 0.49 + 0.3);
+                                                if (d2 >= 0.0
+                                                        && (bestD2 == 0.0 || d2 < bestD2)) {
+                                                    best = tnt;
+                                                    bestD2 = d2;
+                                                }
+                                            }
+                                        }
+                                        if (enderCrystals != null) {
+                                            for (net.zaminmc.torch.server.endcrystal
+                                                            .EnderCrystal crystal
+                                                    : enderCrystals.all()) {
+                                                if (dimension != 1) {
+                                                    continue; // the crystals live in the End
+                                                }
+                                                double d2 = segmentBoxEntrySquared(from, to,
+                                                        crystal.x() - 1.0 - 0.3,
+                                                        crystal.y() - 0.3,
+                                                        crystal.z() - 1.0 - 0.3,
+                                                        crystal.x() + 1.0 + 0.3,
+                                                        crystal.y() + 2.0 + 0.3,
+                                                        crystal.z() + 1.0 + 0.3);
+                                                if (d2 >= 0.0
+                                                        && (bestD2 == 0.0 || d2 < bestD2)) {
+                                                    best = crystal;
+                                                    bestD2 = d2;
+                                                }
+                                            }
+                                        }
+                                        for (net.zaminmc.torch.server.decoration
+                                                        .DecorationSystem system
+                                                : decorationSystems()) {
+                                            for (net.zaminmc.torch.server.decoration.ItemFrame
+                                                    frame : system.allFrames()) {
+                                                if (frame.dimension() != dimension) {
+                                                    continue; // another world's frame
+                                                }
+                                                double[] box = net.zaminmc.torch.server
+                                                        .decoration.DecorationSystem
+                                                        .hangingBox(frame.pos(),
+                                                                frame.facing(), 12, 12);
+                                                double d2 = segmentBoxEntrySquared(from, to,
+                                                        box[0] - 0.3, box[1] - 0.3,
+                                                        box[2] - 0.3,
+                                                        box[3] + 0.3, box[4] + 0.3,
+                                                        box[5] + 0.3);
+                                                if (d2 >= 0.0
+                                                        && (bestD2 == 0.0 || d2 < bestD2)) {
+                                                    best = frame;
+                                                    bestD2 = d2;
+                                                }
+                                            }
+                                            for (net.zaminmc.torch.server.decoration.Painting
+                                                    painting : system.allPaintings()) {
+                                                if (painting.dimension() != dimension) {
+                                                    continue; // another world's painting
+                                                }
+                                                double[] box = net.zaminmc.torch.server
+                                                        .decoration.DecorationSystem
+                                                        .hangingBox(painting.pos(),
+                                                                painting.facing(),
+                                                                painting.motive().width,
+                                                                painting.motive().height);
+                                                double d2 = segmentBoxEntrySquared(from, to,
+                                                        box[0] - 0.3, box[1] - 0.3,
+                                                        box[2] - 0.3,
+                                                        box[3] + 0.3, box[4] + 0.3,
+                                                        box[5] + 0.3);
+                                                if (d2 >= 0.0
+                                                        && (bestD2 == 0.0 || d2 < bestD2)) {
+                                                    best = painting;
+                                                    bestD2 = d2;
+                                                }
+                                            }
+                                        }
                                         return best;
                                     }
 
@@ -3582,6 +3688,41 @@ public final class EngineServer implements Server, EngineBridge {
                                         if (hooked instanceof net.zaminmc.torch.server.entity
                                                 .projectile.ProjectileEntity projectile) {
                                             return projectileManager.all().contains(projectile);
+                                        }
+                                        // THE CENSUS TAIL'S OWN ALIVE ARMS (PE-13):
+                                        // the primed TNT lives while the fuse
+                                        // does (!removed), the crystal while
+                                        // the system holds it, the frame and
+                                        // the painting while their systems
+                                        // hold them.
+                                        if (hooked instanceof net.zaminmc.torch.server.tnt
+                                                .TntSystem.PrimedTnt tnt) {
+                                            return tntSystem != null
+                                                    && tntSystem.allPrimed().contains(tnt);
+                                        }
+                                        if (hooked instanceof net.zaminmc.torch.server
+                                                .endcrystal.EnderCrystal crystal) {
+                                            return enderCrystals != null
+                                                    && enderCrystals.all().contains(crystal);
+                                        }
+                                        if (hooked instanceof net.zaminmc.torch.server
+                                                .decoration.ItemFrame frame) {
+                                            for (var system : decorationSystems()) {
+                                                if (system.allFrames().contains(frame)) {
+                                                    return true;
+                                                }
+                                            }
+                                            return false;
+                                        }
+                                        if (hooked instanceof net.zaminmc.torch.server
+                                                .decoration.Painting painting) {
+                                            for (var system : decorationSystems()) {
+                                                if (system.allPaintings()
+                                                        .contains(painting)) {
+                                                    return true;
+                                                }
+                                            }
+                                            return false;
                                         }
                                         return false;
                                     }
@@ -3629,6 +3770,48 @@ public final class EngineServer implements Server, EngineBridge {
                                                             + 0.5 * 0.8,
                                                     projectile.position().z());
                                         }
+                                        // THE CENSUS TAIL'S OWN ANCHORS (PE-13):
+                                        // the same law — the box's minY + the
+                                        // body's height field * 0.8 (the
+                                        // setSize values: the TNT's
+                                        // 0.98x0.98, the crystal's 2x2, the
+                                        // decorations' 0.5x0.5 over the
+                                        // hanging box's own minY).
+                                        if (hooked instanceof net.zaminmc.torch.server.tnt
+                                                .TntSystem.PrimedTnt tnt) {
+                                            return new Position(tnt.x(),
+                                                    tnt.y() + 0.98 * 0.8, tnt.z());
+                                        }
+                                        if (hooked instanceof net.zaminmc.torch.server
+                                                .endcrystal.EnderCrystal crystal) {
+                                            return new Position(crystal.x(),
+                                                    crystal.y() + 2.0 * 0.8,
+                                                    crystal.z());
+                                        }
+                                        if (hooked instanceof net.zaminmc.torch.server
+                                                .decoration.ItemFrame frame) {
+                                            double[] box = net.zaminmc.torch.server
+                                                    .decoration.DecorationSystem
+                                                    .hangingBox(frame.pos(),
+                                                            frame.facing(), 12, 12);
+                                            return new Position(
+                                                    (box[0] + box[3]) / 2.0,
+                                                    box[1] + 0.5 * 0.8,
+                                                    (box[2] + box[5]) / 2.0);
+                                        }
+                                        if (hooked instanceof net.zaminmc.torch.server
+                                                .decoration.Painting painting) {
+                                            double[] box = net.zaminmc.torch.server
+                                                    .decoration.DecorationSystem
+                                                    .hangingBox(painting.pos(),
+                                                            painting.facing(),
+                                                            painting.motive().width,
+                                                            painting.motive().height);
+                                            return new Position(
+                                                    (box[0] + box[3]) / 2.0,
+                                                    box[1] + 0.5 * 0.8,
+                                                    (box[2] + box[5]) / 2.0);
+                                        }
                                         return null;
                                     }
 
@@ -3664,7 +3847,23 @@ public final class EngineServer implements Server, EngineBridge {
                                         } else if (hooked instanceof net.zaminmc.torch.server
                                                 .entity.projectile.ProjectileEntity projectile) {
                                             projectileManager.addVelocity(projectile, dx, dy, dz);
+                                        } else if (hooked instanceof net.zaminmc.torch.server.tnt
+                                                .TntSystem.PrimedTnt tnt) {
+                                            // The TNT's own velocity verb (PE-13):
+                                            // the reference's writes land on the
+                                            // body's fields and its tick
+                                            // integrates them — the fuse rides
+                                            // the pull whole.
+                                            tntSystem.addVelocity(tnt, dx, dy, dz);
                                         }
+                                        // The crystal, the frame and the painting
+                                        // never move (PE-13): the reference's
+                                        // velocity writes are DEAD on them — the
+                                        // crystal's tick and the decoration's
+                                        // tick never integrate velocity, so the
+                                        // pull's observable is nothing at all
+                                        // (the engine's bodies are
+                                        // position-final the same way).
                                     }
                                 },
                                 new net.zaminmc.torch.server.fishing.FishingSystem.CatchSink() {
@@ -5986,6 +6185,27 @@ public final class EngineServer implements Server, EngineBridge {
     /** The TNT subsystem (exposed for behavioral tests). */
     public net.zaminmc.torch.server.tnt.TntSystem tnt() {
         return tntSystem;
+    }
+
+    /**
+     * The per-dimension decoration systems (Wave PE-13 — the hook census
+     * tail walks every world's frames and paintings): the live trio in
+     * dimension order, the nulls of a partial boot simply absent.
+     */
+    private java.util.List<net.zaminmc.torch.server.decoration.DecorationSystem>
+            decorationSystems() {
+        java.util.ArrayList<net.zaminmc.torch.server.decoration.DecorationSystem> systems =
+                new java.util.ArrayList<>(3);
+        if (decorations != null) {
+            systems.add(decorations);
+        }
+        if (netherDecorations != null) {
+            systems.add(netherDecorations);
+        }
+        if (endDecorations != null) {
+            systems.add(endDecorations);
+        }
+        return systems;
     }
 
     /** The note block subsystem (Slice 27a — exposed for behavioral tests

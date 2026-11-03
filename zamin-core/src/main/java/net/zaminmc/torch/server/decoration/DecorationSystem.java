@@ -438,7 +438,7 @@ public final class DecorationSystem {
      * along the wall (a 16-pixel span covers one block) and
      * {@code 1/32} into the room.
      */
-    static double[] hangingBox(BlockPosition pos, int facing, int widthPx, int heightPx) {
+    public static double[] hangingBox(BlockPosition pos, int facing, int widthPx, int heightPx) {
         int[] off = ItemFrame.FACING_OFFSETS[facing];
         int[] cc = ItemFrame.FACING_OFFSETS[(facing + 3) & 3];
         double centerAlong = centerOffset(widthPx);
