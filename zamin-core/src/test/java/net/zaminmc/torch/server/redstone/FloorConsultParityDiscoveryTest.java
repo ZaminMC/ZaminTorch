@@ -104,12 +104,22 @@ class FloorConsultParityDiscoveryTest {
     @TempDir
     Path dataDir;
 
-    /** The row cursor: every row takes fresh coordinates inside one server. */
+    /** The row cursor: every row takes fresh coordinates inside one server.
+     * The wrap-safe scheme (the F-SP3 lane's own rig form — the x-cycle
+     * holds 25 rows and this family's batteries sit ONE ROW under the
+     * collision; a battery that grows by one would reuse row 1's cell
+     * and its stale mount would answer the new row's read): when x
+     * cycles, z shifts by 8 — the first coordinate collision needs 125
+     * rows. */
     private int cursor = 0;
 
     private int nextX() {
         cursor += 4;
         return -50 + (cursor % 100);
+    }
+
+    private int nextZ() {
+        return 60 + ((cursor / 100) * 8 + cursor % 20) % 20;
     }
 
     // ------------------------------------------------------------------
@@ -433,7 +443,7 @@ class FloorConsultParityDiscoveryTest {
             boolean vanillaHolds, String law) throws Exception {
         int x = nextX();
         int y = 41;
-        int z = 60 + (cursor % 20);
+        int z = nextZ();
         rows.add(new RowOutcome(mount.identifier().value(), vanillaHolds,
                 driveSurvivalWalk(server, new BlockPosition(x, y - 1, z),
                         new BlockPosition(x, y, z), RedstoneBlocks.wireOfPower(0), mount), law));
@@ -448,7 +458,7 @@ class FloorConsultParityDiscoveryTest {
             boolean vanillaHolds, String law) throws Exception {
         int x = nextX();
         int y = 41;
-        int z = 60 + (cursor % 20);
+        int z = nextZ();
         boolean repeaterHolds = driveSurvivalWalk(server, new BlockPosition(x, y - 1, z),
                 new BlockPosition(x, y, z), RedstoneBlocks.repeaterOf(0, 1, false), mount);
         boolean comparatorHolds = driveSurvivalWalk(server, new BlockPosition(x + 1, y - 1, z),
@@ -468,7 +478,7 @@ class FloorConsultParityDiscoveryTest {
             boolean vanillaHolds, String law) throws Exception {
         int x = nextX();
         int y = 41;
-        int z = 60 + (cursor % 20);
+        int z = nextZ();
         boolean stonePlateHolds = driveSurvivalWalk(server, new BlockPosition(x, y - 1, z),
                 new BlockPosition(x, y, z), RedstoneBlocks.plateOf(false, false), mount);
         boolean weightedPlateHolds = driveSurvivalWalk(server, new BlockPosition(x + 1, y - 1, z),
@@ -488,7 +498,7 @@ class FloorConsultParityDiscoveryTest {
             boolean vanillaHolds, String law) throws Exception {
         int x = nextX();
         int y = 40;
-        int z = 60 + (cursor % 20);
+        int z = nextZ();
         BlockPosition floorCell = new BlockPosition(x, y - 1, z);
         BlockPosition lowerCell = new BlockPosition(x, y, z);
         BlockPosition upperCell = new BlockPosition(x, y + 1, z);
