@@ -375,12 +375,16 @@ public final class SpawnerManager {
                 // gates, the whole family riding the same walk.
                 if (canSpawnAt(world, spawner.type(), x, y, z)
                         && canSpawnEntity(spawner.type(), world, x, y, z)) {
-                    MobEntity spawned = mobs.spawnAt(spawner.type(), new Position(x, y, z));
-                    if (spawned != null) {
-                        // The body lives in the spawner's own dimension
-                        // (Slice 25d — the 18e dimension model's spawn arm).
-                        spawned.setDimension(spawner.dimension());
-                    }
+                    // The body lives in the spawner's own dimension
+                    // (Slice 25d — the 18e dimension model's spawn arm),
+                    // stamped AT BIRTH through the dimension-aware spawnAt
+                    // (VT-013 — the reference's construction law, Entity
+                    // line 166: the dimension exists before any spawn
+                    // event fires, so the wire's own spawn gate reads it
+                    // at the event; the post-return stamp never reached
+                    // the live publish).
+                    mobs.spawnAt(spawner.type(), new Position(x, y, z),
+                            spawner.dimension());
                     anySpawned = true;
                 }
             }

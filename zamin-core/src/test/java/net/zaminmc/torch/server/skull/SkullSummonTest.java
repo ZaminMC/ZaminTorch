@@ -30,6 +30,7 @@ class SkullSummonTest {
         final Map<BlockPosition, BlockType> blocks = new HashMap<>();
         Position spawnedAt;
         float spawnedYaw = Float.MIN_VALUE;
+        int spawnedDimension = Integer.MIN_VALUE;
         int difficulty = 2;
 
         void set(BlockPosition at, BlockType type) {
@@ -57,9 +58,10 @@ class SkullSummonTest {
         }
 
         @Override
-        public void summonWither(Position at, float bodyYawDegrees) {
+        public void summonWither(Position at, float bodyYawDegrees, int dimension) {
             spawnedAt = at;
             spawnedYaw = bodyYawDegrees;
+            spawnedDimension = dimension;
         }
     }
 
@@ -89,12 +91,15 @@ class SkullSummonTest {
         // skulls at y 10, the sand at y 9, the base at y 8.
         buildPattern(world, skulls, 10, 8, 5, 1, 0);
         BlockPosition placed = new BlockPosition(10, 10, 5); // the center skull
-        assertTrue(skulls.trySummonWither(placed), "the summon fired");
+        assertTrue(skulls.trySummonWither(placed, 0), "the summon fired");
         // The birth: the top-center cell +0.5/+0.55/+0.5.
         assertEquals(new Position(10.5, 10.55, 5.5), world.spawnedAt,
                 "the wither births at the top-center cell");
         assertEquals(0.0f, world.spawnedYaw, 1e-6f,
                 "the X-run plane's forward axis reads yaw 0 (line 191)");
+        assertEquals(0, world.spawnedDimension,
+                "the wither stamps the acting dimension (SkullBlock line 185's "
+                        + "new WitherEntity(world) — the skull's own world)");
         // The clear walk: all nine cells left.
         for (int i = -1; i <= 1; i++) {
             assertEquals(BuiltinBlocks.AIR, world.blockAt(
@@ -117,7 +122,7 @@ class SkullSummonTest {
         SkullManager skulls = new SkullManager(world);
         buildPattern(world, skulls, 20, 8, 20, 0, 1);
         BlockPosition placed = new BlockPosition(20, 10, 21); // the +Z end skull
-        assertTrue(skulls.trySummonWither(placed), "the far-end placement summons");
+        assertTrue(skulls.trySummonWither(placed, 0), "the far-end placement summons");
         assertEquals(new Position(20.5, 10.55, 20.5), world.spawnedAt,
                 "the center is the base's center column");
         assertEquals(90.0f, world.spawnedYaw, 1e-6f,
@@ -134,7 +139,7 @@ class SkullSummonTest {
         BlockPosition skeletonSkull = new BlockPosition(0, 10, 0);
         world.set(skeletonSkull, BuiltinBlocks.SKULL);
         skulls.place(skeletonSkull, 0, 0);
-        assertFalse(skulls.trySummonWither(skeletonSkull), "the skeleton head never summons");
+        assertFalse(skulls.trySummonWither(skeletonSkull, 0), "the skeleton head never summons");
         assertNull(world.spawnedAt, "nothing spawned");
         // The y gate: a wither skull at y 1 (the pattern would need the
         // base at y -1 — below the world's floor band anyway).
@@ -143,14 +148,14 @@ class SkullSummonTest {
         BlockPosition shallowSkull = new BlockPosition(5, 1, 5);
         shallow.set(shallowSkull, BuiltinBlocks.SKULL);
         shallowSkulls.place(shallowSkull, 1, 0);
-        assertFalse(shallowSkulls.trySummonWither(shallowSkull),
+        assertFalse(shallowSkulls.trySummonWither(shallowSkull, 0),
                 "the shallow floor never summons");
         // The peaceful gate.
         FlatWorld peaceful = new FlatWorld();
         peaceful.difficulty = 0;
         SkullManager peacefulSkulls = new SkullManager(peaceful);
         buildPattern(peaceful, peacefulSkulls, 30, 8, 30, 1, 0);
-        assertFalse(peacefulSkulls.trySummonWither(new BlockPosition(30, 10, 30)),
+        assertFalse(peacefulSkulls.trySummonWither(new BlockPosition(30, 10, 30), 0),
                 "the peaceful world never summons");
         assertNull(peaceful.spawnedAt, "nothing spawned");
     }
@@ -162,21 +167,21 @@ class SkullSummonTest {
         buildPattern(world, skulls, 40, 8, 40, 1, 0);
         // A flank skull replaced by air: no match.
         world.set(new BlockPosition(41, 10, 40), BuiltinBlocks.AIR);
-        assertFalse(skulls.trySummonWither(new BlockPosition(40, 10, 40)),
+        assertFalse(skulls.trySummonWither(new BlockPosition(40, 10, 40), 0),
                 "the missing flank skull breaks the pattern");
         // A base flank filled with stone: the air gate fails.
         FlatWorld filled = new FlatWorld();
         SkullManager filledSkulls = new SkullManager(filled);
         buildPattern(filled, filledSkulls, 50, 8, 50, 1, 0);
         filled.set(new BlockPosition(51, 8, 50), BuiltinBlocks.STONE);
-        assertFalse(filledSkulls.trySummonWither(new BlockPosition(50, 10, 50)),
+        assertFalse(filledSkulls.trySummonWither(new BlockPosition(50, 10, 50), 0),
                 "the blocked base flank breaks the pattern");
         // A sand row with a netherrack hole: no match.
         FlatWorld holed = new FlatWorld();
         SkullManager holedSkulls = new SkullManager(holed);
         buildPattern(holed, holedSkulls, 60, 8, 60, 1, 0);
         holed.set(new BlockPosition(59, 9, 60), BuiltinBlocks.NETHERRACK);
-        assertFalse(holedSkulls.trySummonWither(new BlockPosition(60, 10, 60)),
+        assertFalse(holedSkulls.trySummonWither(new BlockPosition(60, 10, 60), 0),
                 "the wrong sand breaks the pattern");
         // A wither-skull BLOCK with a skeleton tile: the predicate reads
         // the TILE, not the block.
@@ -184,7 +189,7 @@ class SkullSummonTest {
         SkullManager typedSkulls = new SkullManager(typed);
         buildPattern(typed, typedSkulls, 70, 8, 70, 1, 0);
         typedSkulls.place(new BlockPosition(71, 10, 70), 0, 0);
-        assertFalse(typedSkulls.trySummonWither(new BlockPosition(70, 10, 70)),
+        assertFalse(typedSkulls.trySummonWither(new BlockPosition(70, 10, 70), 0),
                 "the mistyped flank tile breaks the pattern");
     }
 

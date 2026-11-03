@@ -1103,53 +1103,95 @@ public final class V18ProtocolServer implements ProtocolAdapter {
         // observer holding the beacon's chunk re-receives the 0x35 tile
         // (the levels/effects the client's own beam walk reads).
         if (server.beacons() != null) {
-            server.beacons().addListener((position, beacon) -> {
-                if (position == null || beacon == null) {
-                    return; // the removal arm: no tile to refresh
-                }
-                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
-                    connection.sendBeaconTile(position, beacon);
-                }
-            });
+            // VT-033's adjacent tail — the per-world PlayerChunkMap law over
+            // the FL4-GAP2 Slice C families: every DIMENSION's store
+            // re-publishes through its OWN listener, gated to that
+            // dimension's observers.
+            for (int beaconDimension : new int[]{0, -1, 1}) {
+                net.zaminmc.torch.server.beacon.BeaconSystem family =
+                        server.beaconsFor(beaconDimension);
+                family.addListener((position, beacon) -> {
+                    if (position == null || beacon == null) {
+                        return; // the removal arm: no tile to refresh
+                    }
+                    for (V18Connection connection
+                            : connections.keySet().toArray(new V18Connection[0])) {
+                        if (connection.dimensionOfSession() == beaconDimension) {
+                            connection.sendBeaconTile(position, beacon);
+                        }
+                    }
+                });
+            }
         }
         // The skull tiles (Slice 60 — the same PlayerChunkMap law): every
         // placement re-publishes the 0x35 tile (the TYPE + rotation the
         // client's renderer reads); the removal arm needs no packet (the
-        // block's own update carries the vanish).
+        // block's own update carries the vanish). VT-033 — the per-world
+        // PlayerChunkMap law over the FL4-GAP2 Slice C families: every
+        // DIMENSION's store re-publishes through its OWN listener, gated to
+        // that dimension's observers (a nether placement's tile never
+        // reaches an overworld client, exactly as the reference's per-world
+        // chunk map never carries another world's block entities).
         if (server.skulls() != null) {
-            server.skulls().addListener(new net.zaminmc.torch.server.skull.SkullManager.Listener() {
-                @Override
-                public void onSkullTileChanged(net.zaminmc.torch.block.BlockPosition position,
-                        net.zaminmc.torch.server.skull.SkullManager.SkullTile tile) {
-                    for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
-                        connection.sendSkullTile(tile);
+            for (int skullDimension : new int[]{0, -1, 1}) {
+                net.zaminmc.torch.server.skull.SkullManager family =
+                        server.skullsFor(skullDimension);
+                family.addListener(new net.zaminmc.torch.server.skull.SkullManager.Listener() {
+                    @Override
+                    public void onSkullTileChanged(
+                            net.zaminmc.torch.block.BlockPosition position,
+                            net.zaminmc.torch.server.skull.SkullManager.SkullTile tile) {
+                        for (V18Connection connection
+                                : connections.keySet().toArray(new V18Connection[0])) {
+                            if (connection.dimensionOfSession() == skullDimension) {
+                                connection.sendSkullTile(tile);
+                            }
+                        }
                     }
-                }
-            });
+                });
+            }
         }
         // The banner tiles (the same PlayerChunkMap law): every placement
         // re-publishes the 0x35 action-6 tile (the Base + Patterns rows
         // the client's renderer reads); the removal arm needs no packet
-        // (the block's own update carries the vanish).
+        // (the block's own update carries the vanish). VT-033's adjacent
+        // tail — the per-world PlayerChunkMap law over the FL4-GAP2 Slice C
+        // families: every DIMENSION's store re-publishes through its OWN
+        // listener, gated to that dimension's observers (a nether banner's
+        // tile never reaches an overworld client, exactly as the reference's
+        // per-world chunk map never carries another world's block entities).
         if (server.banners() != null) {
-            server.banners().addListener(
-                    new net.zaminmc.torch.server.banner.BannerManager.Listener() {
-                        @Override
-                        public void onBannerTileChanged(
-                                net.zaminmc.torch.block.BlockPosition position,
-                                net.zaminmc.torch.server.banner.BannerManager.BannerTile tile) {
-                            for (V18Connection connection
-                                    : connections.keySet().toArray(new V18Connection[0])) {
-                                connection.sendBannerTile(position, tile);
+            for (int bannerDimension : new int[]{0, -1, 1}) {
+                net.zaminmc.torch.server.banner.BannerManager family =
+                        server.bannersFor(bannerDimension);
+                family.addListener(
+                        new net.zaminmc.torch.server.banner.BannerManager.Listener() {
+                            @Override
+                            public void onBannerTileChanged(
+                                    net.zaminmc.torch.block.BlockPosition position,
+                                    net.zaminmc.torch.server.banner.BannerManager.BannerTile tile) {
+                                for (V18Connection connection
+                                        : connections.keySet().toArray(new V18Connection[0])) {
+                                    if (connection.dimensionOfSession() == bannerDimension) {
+                                        connection.sendBannerTile(position, tile);
+                                    }
+                                }
                             }
-                        }
-                    });
+                        });
+            }
         }
         // The command-block tile re-publish (Slice 72 — the edit/run rows'
         // 0x35 action 2 fan); the chunk-send replay rides the chunk packet's
         // own tile walk (writeCommandTile's static form).
         if (server.commandBlocks() != null) {
-            server.commandBlocks().addListener(
+            // VT-033's adjacent tail — the per-world PlayerChunkMap law over
+            // the FL4-GAP2 Slice C families: every DIMENSION's store
+            // re-publishes through its OWN listener, gated to that
+            // dimension's observers.
+            for (int cmdDimension : new int[]{0, -1, 1}) {
+                net.zaminmc.torch.server.commandblock.CommandBlockManager family =
+                        server.commandBlocksFor(cmdDimension);
+                family.addListener(
                     new net.zaminmc.torch.server.commandblock.CommandBlockManager.Listener() {
                         @Override
                         public void onCommandTileChanged(
@@ -1157,10 +1199,13 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                                 net.zaminmc.torch.server.commandblock.CommandBlockManager.CommandState tile) {
                             for (V18Connection connection
                                     : connections.keySet().toArray(new V18Connection[0])) {
-                                connection.sendCommandTile(position, tile);
+                                if (connection.dimensionOfSession() == cmdDimension) {
+                                    connection.sendCommandTile(position, tile);
+                                }
                             }
                         }
                     });
+            }
         }
         // The beacon GUI's per-tick view (Slice 29b): the three properties'
         // moves + the payment resync, diffed per connection.

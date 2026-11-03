@@ -94,18 +94,25 @@ public final class HopperSystem implements WorldChangeListener {
     /**
      * The rolling containers' scan (Slice 25e — the reference's entity
      * fallback in getInventoryAt lines 466-472: when no block container
-     * sits at the cell, the 1x1x1 box around the cell's center picks a
-     * random INVENTORY entity — the chest minecart). Wired after
-     * construction (the vehicle manager's boot order).
+     * sits at the cell, the query BOX gathers the INVENTORY entities —
+     * the chest minecart AND the hopper minecart, both Inventory
+     * families — by BOX INTERSECTION over each cart's own 0.98x0.7
+     * shape, STRICT on every face (Box.intersects lines 164-171 —
+     * exactly touching is NOT intersecting; Wave PE-1, the Phase E
+     * boundary arms: the old center-in-cell band missed a cart whose
+     * box overlaps the cell by a hair while its center sits outside,
+     * and never saw the hopper cart at all). The lookup receives the
+     * query box as {@code {minX, minY, minZ, maxX, maxY, maxZ}}.
+     * Wired after construction (the vehicle manager's boot order).
      */
-    private java.util.function.Function<BlockPosition,
-            java.util.List<net.zaminmc.torch.server.entity.vehicle.ChestMinecartEntity>>
-            cartLookup = position -> java.util.List.of();
+    private java.util.function.Function<double[],
+            java.util.List<net.zaminmc.torch.server.entity.vehicle.VehicleEntity>>
+            cartLookup = box -> java.util.List.of();
 
     /** Wires the rolling containers' scan (the cart arm). */
     public void setCartLookup(
-            java.util.function.Function<BlockPosition,
-                    java.util.List<net.zaminmc.torch.server.entity.vehicle.ChestMinecartEntity>>
+            java.util.function.Function<double[],
+                    java.util.List<net.zaminmc.torch.server.entity.vehicle.VehicleEntity>>
                     lookup) {
         this.cartLookup = Objects.requireNonNull(lookup, "lookup");
     }
@@ -239,33 +246,54 @@ public final class HopperSystem implements WorldChangeListener {
 
     /**
      * The rolling hopper's one transfer attempt, 1:1: the mouth sits at
-     * the cart's center height ({@code getY = y + 0.5}), so the
-     * container-above lookup lands at the cell holding {@code y + 1.5}.
+     * the cart's box-bottom-plus-half ({@code getY = y + 0.5}, the
+     * reference's own anchor — the engine's center-anchored cart box
+     * translates to {@code position.y - 0.35 + 0.5}, Wave PE-1's anchor
+     * repair), so the container-above lookup lands at the cell holding
+     * the point {@code (x, mouthY + 1, z)}.
      *
      * <p>The arms, in the reference's own order: (1) a container above
      * (through the same container adapter the block hopper reads — the
      * chest, the hopper, the furnace, the dispenser family, the brewing
-     * stand, or a chest cart parked there) gives up one item per attempt;
-     * a fit arms the 4-tick cooldown. (2) With no container above, the
-     * item entities inside the 1-box centered on the mouth-plus-one — a
-     * FULL suck (the whole stack landing) arms the cooldown too; a
-     * partial suck keeps trying the next item in the box. (3) The
-     * fallback: the first item entity inside the cart's own shape grown
-     * 0.25 horizontally — its whole stack pushes in, and the arm NEVER
-     * arms the cooldown (the reference's own {@code return false}, the
-     * every-tick suck the cart is known for).</p>
+     * stand, or a chest/hopper cart parked there — the query BOX
+     * [x±0.5] x [mouthY+0.5, mouthY+1.5] x [z±0.5] gathering the
+     * Inventory entities by the strict box law) gives up one item per
+     * attempt; a fit arms the 4-tick cooldown. (2) With no container
+     * above, the item entities whose own 0.25 boxes INTERSECT the same
+     * query box (getItem's Box ±0.5 around the point, strict — Wave
+     * PE-1: the old center-in-band test missed an item whose box grazed
+     * the box's edge while its center sat outside) — a FULL suck (the
+     * whole stack landing) arms the cooldown too; a partial suck keeps
+     * trying the next item in the box. (3) The fallback: the first item
+     * entity whose 0.25 box INTERSECTS the cart's own shape grown 0.25
+     * horizontally ([x±0.74] x [boxBottom, boxTop] x [z±0.74], strict)
+     * — its whole stack pushes in, and the arm NEVER arms the cooldown
+     * (the reference's own {@code return false}, the every-tick suck
+     * the cart is known for).</p>
      *
      * @return whether the cooldown-arming arm succeeded.
      */
     public boolean hopperCartTransfer(
             net.zaminmc.torch.server.entity.vehicle.HopperMinecartEntity cart) {
-        double mouthY = cart.position().y() + 0.5; // the reference's getY()
-        // getInventoryAbove (line 442): getInventoryAt(x, getY + 1.0, z).
+        // The reference's HopperMinecart.getY (lines 89-91): this.y + 0.5
+        // over the FEET-anchored this.y — the engine's cart position is
+        // CENTER-anchored (the solver's own law, position.y - 0.35 the
+        // box bottom), so the mouth = the box bottom + 0.5.
+        double mouthY = cart.position().y()
+                - net.zaminmc.torch.server.entity.vehicle.MinecartEntity.HALF_HEIGHT + 0.5;
+        // getInventoryAbove (line 442): getInventoryAt(x, getY + 1.0, z)
+        // — the BLOCK consult at the point's floor cell, the entity
+        // fallback over the point's ±0.5 box.
+        double pointX = cart.position().x();
+        double pointZ = cart.position().z();
+        double pointY = mouthY + 1.0;
         BlockPosition above = new BlockPosition(
-                (int) Math.floor(cart.position().x()),
-                (int) Math.floor(mouthY + 1.0),
-                (int) Math.floor(cart.position().z()));
-        List<ContainerSlot> slots = containerSlotsAt(above, 0 /* the container's DOWN face */);
+                (int) Math.floor(pointX),
+                (int) Math.floor(pointY),
+                (int) Math.floor(pointZ));
+        List<ContainerSlot> slots = containerSlotsAt(above, 0 /* the container's DOWN face */,
+                pointX - 0.5, pointY - 0.5, pointZ - 0.5,
+                pointX + 0.5, pointY + 0.5, pointZ + 0.5);
         if (!slots.isEmpty()) {
             if (!isEmptyInventory(slots)) {
                 for (ContainerSlot source : slots) {
@@ -297,40 +325,62 @@ public final class HopperSystem implements WorldChangeListener {
             // false — the walk falls through to the own-shape arm, the
             // box-above suck is NOT consulted (1:1).
         } else {
-            // No container above: the item-entity suck from the box
-            // centered on the mouth-plus-one (getItem(world, x, getY +
-            // 1.0, z) — the 1-box, one half block out) — the CART's OWN
-            // world's bodies alone (Slice B's dimension gate: the cart is
-            // the actor, its dimension rules the scan).
+            // No container above: the item-entity suck over the same
+            // query box (getItem(world, x, getY + 1.0, z) — the Box ±0.5
+            // around the point, each ITEM's own 0.25 box intersecting it
+            // STRICTLY, Box.intersects lines 164-171 — Wave PE-1's box
+            // law) — the CART's OWN world's bodies alone (Slice B's
+            // dimension gate: the cart is the actor, its dimension rules
+            // the scan).
+            double boxMinX = pointX - 0.5;
+            double boxMaxX = pointX + 0.5;
+            double boxMinY = pointY - 0.5;
+            double boxMaxY = pointY + 0.5;
+            double boxMinZ = pointZ - 0.5;
+            double boxMaxZ = pointZ + 0.5;
             for (ItemEntity item : itemEntities.all()) {
                 if (item.dimension() != cart.dimension()) {
                     continue; // another world's body
                 }
                 Position at = item.position();
-                if (Math.abs(at.x() - cart.position().x()) <= 0.5
-                        && Math.abs(at.z() - cart.position().z()) <= 0.5
-                        && Math.abs(at.y() - (mouthY + 1.0)) <= 0.5
+                if (at.x() + ItemEntity.HALF_WIDTH > boxMinX
+                        && at.x() - ItemEntity.HALF_WIDTH < boxMaxX
+                        && at.y() + ItemEntity.HALF_HEIGHT > boxMinY
+                        && at.y() - ItemEntity.HALF_HEIGHT < boxMaxY
+                        && at.z() + ItemEntity.HALF_WIDTH > boxMinZ
+                        && at.z() - ItemEntity.HALF_WIDTH < boxMaxZ
                         && pickUpInto(item, cart.hopper())) {
                     return true; // a full suck arms the cooldown
                 }
             }
         }
         // The fallback (transferItems lines 124-128): the FIRST item
-        // entity inside the cart's shape grown 0.25 horizontally (the
-        // 0.98-wide hull ± 0.49 + 0.25 = ± 0.74, the 0.7-high y band,
-        // the item's own ± 0.125 box intersecting) pushes its whole
-        // stack — and the arm never arms the cooldown.
+        // entity whose 0.25 box intersects the cart's own shape grown
+        // 0.25 horizontally — the 0.98-wide hull ± 0.49 + 0.25 = ± 0.74,
+        // the 0.7-high box [boxBottom, boxTop] = [position.y - 0.35,
+        // position.y + 0.35] (the engine's center anchor, Wave PE-1's
+        // band repair — the old form treated the position as the box
+        // bottom), the item's own ± 0.125 box intersecting STRICTLY on
+        // every face (the old form's inclusive edges took exact touches
+        // the reference's Box.intersects refuses) — pushes its whole
+        // stack, and the arm never arms the cooldown.
         double centerX = cart.position().x();
-        double centerY = cart.position().y();
+        double bandBottom = cart.position().y()
+                - net.zaminmc.torch.server.entity.vehicle.MinecartEntity.HALF_HEIGHT;
+        double bandTop = cart.position().y()
+                + net.zaminmc.torch.server.entity.vehicle.MinecartEntity.HALF_HEIGHT;
         double centerZ = cart.position().z();
         for (ItemEntity item : itemEntities.all()) {
             if (item.dimension() != cart.dimension()) {
                 continue; // another world's body (the cart's own gate)
             }
             Position at = item.position();
-            if (Math.abs(at.x() - centerX) <= 0.74 + 0.125
-                    && Math.abs(at.z() - centerZ) <= 0.74 + 0.125
-                    && at.y() + 0.25 >= centerY && at.y() <= centerY + 0.7) {
+            if (at.x() + ItemEntity.HALF_WIDTH > centerX - 0.74
+                    && at.x() - ItemEntity.HALF_WIDTH < centerX + 0.74
+                    && at.y() + ItemEntity.HALF_HEIGHT > bandBottom
+                    && at.y() - ItemEntity.HALF_HEIGHT < bandTop
+                    && at.z() + ItemEntity.HALF_WIDTH > centerZ - 0.74
+                    && at.z() - ItemEntity.HALF_WIDTH < centerZ + 0.74) {
                 pickUpInto(item, cart.hopper());
                 break; // list.get(0): one item, no loop
             }
@@ -693,6 +743,22 @@ public final class HopperSystem implements WorldChangeListener {
      * three).
      */
     private List<ContainerSlot> containerSlotsAt(BlockPosition at, int face) {
+        // The cell's OWN box (the reference's point consult: the hopper's
+        // accessors pass the cell's center, the dropper's dispense point
+        // the same — the query box spans the cell whole).
+        return containerSlotsAt(at, face,
+                at.x(), at.y(), at.z(), at.x() + 1, at.y() + 1, at.z() + 1);
+    }
+
+    /**
+     * The point consult with the entity fallback's own query box (Wave
+     * PE-1): the BLOCK consults read the cell {@code at}; when no block
+     * container sits there, the passed box — the hopper cart's own
+     * fractional-y band — gathers the rolling containers.
+     */
+    private List<ContainerSlot> containerSlotsAt(BlockPosition at, int face,
+                                                 double boxMinX, double boxMinY, double boxMinZ,
+                                                 double boxMaxX, double boxMaxY, double boxMaxZ) {
         BlockType type = world.getBlock(at);
         if (type.identifier().equals(BuiltinBlocks.CHEST.identifier())
                 || net.zaminmc.torch.server.chest.ChestFacingBlocks.isPlainFamily(type)
@@ -775,21 +841,38 @@ public final class HopperSystem implements WorldChangeListener {
             return slots;
         }
         // The entity fallback (Slice 25e — getInventoryAt lines 466-472):
-        // no block container at the cell, so the 1x1x1 box around the
-        // cell's center scans the INVENTORY entities — the chest minecart
-        // parked above a hopper (or at its facing side) IS the container,
-        // a random one picked when several share the cell.
-        java.util.List<net.zaminmc.torch.server.entity.vehicle.ChestMinecartEntity> carts =
-                cartLookup.apply(at);
+        // no block container at the cell, so the query BOX gathers the
+        // INVENTORY entities — the chest minecart parked above a hopper
+        // (or at its facing side) IS the container, and so is the HOPPER
+        // minecart (both Inventory families, MinecartHopper implements
+        // Hopper + Inventory) — a random one picked when several share
+        // the box (getInventoryAt line 470's world.random.nextInt over
+        // the MERGED list). Wave PE-1: the gather is the BOX law (each
+        // cart's own 0.98x0.7 shape intersecting the query box, strict
+        // — Box.intersects lines 164-171), the lookup's own dimension
+        // gate already inside.
+        java.util.List<net.zaminmc.torch.server.entity.vehicle.VehicleEntity> carts =
+                cartLookup.apply(new double[]{boxMinX, boxMinY, boxMinZ,
+                        boxMaxX, boxMaxY, boxMaxZ});
         if (!carts.isEmpty()) {
-            net.zaminmc.torch.server.entity.vehicle.ChestMinecartEntity cart =
+            net.zaminmc.torch.server.entity.vehicle.VehicleEntity cart =
                     carts.get(random.nextInt(carts.size()));
-            ChestBlockEntity chest = cart.chest();
-            List<ContainerSlot> slots = new ArrayList<>(ChestBlockEntity.SLOT_COUNT);
-            for (int i = 0; i < ChestBlockEntity.SLOT_COUNT; i++) {
-                slots.add(chestSlot(chest, i));
+            if (cart instanceof net.zaminmc.torch.server.entity.vehicle.ChestMinecartEntity chestCart) {
+                ChestBlockEntity chest = chestCart.chest();
+                List<ContainerSlot> slots = new ArrayList<>(ChestBlockEntity.SLOT_COUNT);
+                for (int i = 0; i < ChestBlockEntity.SLOT_COUNT; i++) {
+                    slots.add(chestSlot(chest, i));
+                }
+                return slots;
             }
-            return slots;
+            if (cart instanceof net.zaminmc.torch.server.entity.vehicle.HopperMinecartEntity hopperCart) {
+                HopperBlockEntity hopper = hopperCart.hopper();
+                List<ContainerSlot> slots = new ArrayList<>(HopperBlockEntity.SLOT_COUNT);
+                for (int i = 0; i < HopperBlockEntity.SLOT_COUNT; i++) {
+                    slots.add(hopperSlot(hopper, i));
+                }
+                return slots;
+            }
         }
         return List.of();
     }

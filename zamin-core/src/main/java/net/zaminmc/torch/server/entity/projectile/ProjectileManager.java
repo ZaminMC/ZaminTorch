@@ -84,6 +84,20 @@ public final class ProjectileManager {
         default boolean solidAt(double x, double y, double z) {
             return solid(x, y, z);
         }
+
+        /**
+         * The collision boxes of the block whose cell the point sits in
+         * (VT-014 — the stick placement's face computation, the reference's
+         * {@code rayTrace} against the block's collision shape,
+         * ArrowEntity.tick line 191): cell-fraction boxes, or {@code null}
+         * when the query carries no box view — the stub queries keep their
+         * point-test semantics and the stick walk falls back to the
+         * cell-granularity unit cube.
+         */
+        default java.util.List<net.zaminmc.torch.server.block.CollisionShapes.Box> solidBoxesAt(
+                double x, double y, double z) {
+            return null;
+        }
     }
 
     /** Resolves the entity a projectile is inside of, if any (tick thread). */
@@ -481,11 +495,33 @@ public final class ProjectileManager {
         void ignite(net.zaminmc.torch.block.BlockPosition pos, int dimension);
     }
 
+    /**
+     * VT-015 — the tracked-cell consult (the reference's
+     * {@code world.getBlockState} at the stuck cell, ArrowEntity.tick
+     * lines 157-186): the block identifier at the cell in the body's own
+     * dimension, or null when the consult surface is absent (the unwired
+     * boot keeps the no-un-stick shape). Wired by the engine; tick thread.
+     */
+    public interface StickCellConsult {
+        /** @return the cell's block identifier in the given dimension
+         *  (the engine's {@code minecraft:stone} string space), or null
+         *  when the cell reads nothing. */
+        String blockIdAt(net.zaminmc.torch.block.BlockPosition pos, int dimension);
+    }
+
     private BurningTntArm burningTnt;
 
     /** Wires the burning arrow's TNT arm (the per-block entity collision). */
     public void setBurningTntArm(BurningTntArm arm) {
         this.burningTnt = arm;
+    }
+
+    /** VT-015 — the tracked-cell consult (the stuck arrow's block read). */
+    private StickCellConsult stickCellConsult;
+
+    /** Wires the tracked-cell consult (the reference's world read at the stuck cell). */
+    public void setStickCellConsult(StickCellConsult consult) {
+        this.stickCellConsult = consult;
     }
 
     /**
@@ -855,6 +891,29 @@ public final class ProjectileManager {
         for (int i = projectiles.size() - 1; i >= 0; i--) {
             ProjectileEntity projectile = projectiles.get(i);
             if (projectile.inGround()) {
+                // VT-015 — the reference's tracked-cell consult (ArrowEntity
+                // .tick lines 172-186): the stuck arrow reads its stamped
+                // cell every tick; a block that no longer matches the
+                // stamped identifier (a break, a blast, a piston) UN-STICKS
+                // it — inGround flips false, the per-axis nextFloat()*0.2
+                // damped re-arm, both clocks reset, and the arrow falls out
+                // of the opened cell. The reference's un-stick tick ends the
+                // branch (the flight resumes the NEXT tick); the continue
+                // below is the same shape. A cell-less stuck body (the
+                // import's restore without the tracked rows) never consults.
+                String trackedBlockId = projectile.stickBlockId();
+                if (trackedBlockId != null && stickCellConsult != null) {
+                    String cellBlockId = stickCellConsult.blockIdAt(
+                            new net.zaminmc.torch.block.BlockPosition(
+                                    projectile.stickCellX(),
+                                    projectile.stickCellY(),
+                                    projectile.stickCellZ()),
+                            projectile.dimension());
+                    if (!trackedBlockId.equals(cellBlockId)) {
+                        projectile.unstickGrounded(random);
+                        continue;
+                    }
+                }
                 projectile.integrate(DRAG, ARROW_GRAVITY); // only the stick clock runs
                 if (projectile.ticksInGround() >= ARROW_GROUND_TICKS) {
                     remove(projectile, "expired");
@@ -910,9 +969,15 @@ public final class ProjectileManager {
      *  pickup carries: grown 1.0 horizontal / 0.5 vertical). */
     static final double PICKUP_GROWTH_HORIZONTAL = 1.0;
     static final double PICKUP_GROWTH_VERTICAL = 0.5;
-    /** The arrow's own half-size (setSize(0.5F, 0.5F), ArrowEntity line 45). */
+    /** The player's own half-width (setSize(0.6F, 1.8F), PlayerEntity
+     *  line 424 — the same 0.3 the orb/item pickup walks carry). */
+    static final double PLAYER_HALF_WIDTH = 0.3;
+    /** The arrow's own half-width (setSize(0.5F, 0.5F), ArrowEntity line 45). */
     static final double ARROW_HALF_WIDTH = 0.25;
-    static final double ARROW_HALF_HEIGHT = 0.25;
+    /** The arrow's own height (setSize(0.5F, 0.5F) — the feet law's box
+     *  [y, y+0.5]; Entity.setPosition lines 240-247 anchors the box
+     *  bottom at the position, never the center). */
+    static final double ARROW_HEIGHT = 0.5;
 
     /**
      * The grounded arrows' player pickup (ArrowEntity.onPlayerCollision
@@ -977,33 +1042,54 @@ public final class ProjectileManager {
         }
     }
 
-    /** The player box grown 1.0/0.5 against the arrow's own 0.5 box (the
-     *  orb pickup's exact shape over the arrow's half-size). */
+    /** The player's own box grown 1.0/0.5 intersected with the arrow's own
+     *  0.5 box (PlayerEntity.playerTick lines 486-505: the player's box
+     *  [px-0.3, py, pz-0.3]..[px+0.3, py+1.8, pz+0.3] grown (1.0, 0.5,
+     *  1.0) — the horizontal intersection out to 0.3 + 1.0 + 0.25 = 1.55 —
+     *  over the arrow's feet-law box [y, y+0.5]; world.getEntities walks
+     *  the box intersection, never a bare center distance). */
     private boolean withinArrowPickupRange(
             net.zaminmc.torch.server.player.PlayerSession player, ProjectileEntity projectile) {
         Position playerPosition = player.position();
         Position arrowPosition = projectile.position();
         double dx = Math.abs(arrowPosition.x() - playerPosition.x());
         double dz = Math.abs(arrowPosition.z() - playerPosition.z());
-        double maxHorizontal = ARROW_HALF_WIDTH + PICKUP_GROWTH_HORIZONTAL;
-        if (dx > maxHorizontal || dz > maxHorizontal) {
+        double maxHorizontal = PLAYER_HALF_WIDTH + PICKUP_GROWTH_HORIZONTAL + ARROW_HALF_WIDTH;
+        if (dx >= maxHorizontal || dz >= maxHorizontal) {
             return false;
         }
-        double arrowBottom = arrowPosition.y() - ARROW_HALF_HEIGHT;
-        double arrowTop = arrowPosition.y() + ARROW_HALF_HEIGHT;
+        double arrowBottom = arrowPosition.y();
+        double arrowTop = arrowPosition.y() + ARROW_HEIGHT;
         double rangeBottom = playerPosition.y() - PICKUP_GROWTH_VERTICAL;
         double rangeTop = playerPosition.y() + 1.8 + PICKUP_GROWTH_VERTICAL;
         return arrowTop > rangeBottom && arrowBottom < rangeTop;
     }
 
     /**
-     * The burning arrows' per-block TNT walk (the reference's
-     * checkBlockCollisions, Entity lines 665-689, over the TntBlock's
-     * onEntityCollision, lines 91-104): every burning arrow — in flight
-     * or stuck in the ground — walks the cells its 0.5 box overlaps (the
-     * faces shrunk by the reference's 0.001) and primes every TNT cell
-     * found. The engine's point-model walks the 0.25 band around the
-     * flight position (the box-center envelope).
+     * The FLYING burning arrows' per-block TNT walk (the reference's
+     * {@code checkBlockCollisions}, Entity lines 665-689, over the
+     * TntBlock's {@code onEntityCollision}, lines 91-104): a FLYING
+     * burning arrow walks the cells its 0.5 box overlaps (the faces
+     * shrunk by the reference's 0.001) and primes every TNT cell
+     * found. VT-019 — the STUCK arrow never walks: the reference's
+     * scan is called from {@code ArrowEntity.tick} line 382 INSIDE THE
+     * FLIGHT BRANCH ALONE (the {@code inGround} branch at 172-186 runs
+     * the stick clock and the tracked-block check only), and the stick
+     * arm consults the HIT BLOCK alone (lines 307-309) — a burning
+     * arrow stuck beside TNT consults it zero times. VT-023 — the box
+     * is the FEET LAW's [y, y+0.5] (Entity.setPosition lines 240-247:
+     * the shape spans y..y+height, the position the BOTTOM; the
+     * arrow's own setSize(0.5F, 0.5F)): the vertical band walks
+     * y+0.001 to y+0.5−0.001 exactly as the reference's per-block scan
+     * does, never the symmetric ±0.25 around the position (the retired
+     * "box-center envelope" — the engine's position IS the reference's
+     * position, the anvil import restoring the vanilla Pos row whole,
+     * VT-014's rest law pinning it). The horizontal bands are
+     * ±width/2 — the reference's own. The named tail (the audit's
+     * record): the stick tick's own resting-box scan (the reference's
+     * stick tick is a flight tick — its line-382 scan covers the
+     * resting box; the engine's gated pass misses a TNT overlapping
+     * the rest box on that one tick).
      */
     private void burningTntPass() {
         if (burningTnt == null) {
@@ -1011,14 +1097,30 @@ public final class ProjectileManager {
         }
         for (int i = projectiles.size() - 1; i >= 0; i--) {
             ProjectileEntity projectile = projectiles.get(i);
-            if (projectile.kind() != ProjectileEntity.Kind.ARROW || !projectile.burning()) {
+            // VT-019 — the stuck arrow's gate (the reference's own law):
+            // the box scan (`checkBlockCollisions`) is called from
+            // ArrowEntity.tick line 382 INSIDE THE FLIGHT BRANCH ALONE —
+            // the inGround branch (lines 172-186) runs the stick clock
+            // and the tracked-block check only, never a scan. A burning
+            // arrow stuck beside TNT therefore consults it ZERO times in
+            // the reference; the ungated pass detonated the neighbor on
+            // the stick tick. The flight consults (this pass's flying
+            // walk + the block-hit arm's ignite at the entered cell)
+            // carry the whole reference law.
+            if (projectile.kind() != ProjectileEntity.Kind.ARROW || !projectile.burning()
+                    || projectile.inGround()) {
                 continue;
             }
             Position at = projectile.position();
             int minX = (int) Math.floor(at.x() - 0.25 + 0.001);
             int maxX = (int) Math.floor(at.x() + 0.25 - 0.001);
-            int minY = (int) Math.floor(at.y() - 0.25 + 0.001);
-            int maxY = (int) Math.floor(at.y() + 0.25 - 0.001);
+            // VT-023 — the feet law's vertical band: the box spans
+            // [y, y+0.5] (the position the BOTTOM), the reference's own
+            // 0.001 insets — never the symmetric ±0.25 (the retired
+            // box-center framing). The engine's position IS the
+            // reference's position (VT-014's rest law pins it).
+            int minY = (int) Math.floor(at.y() + 0.001);
+            int maxY = (int) Math.floor(at.y() + 0.5 - 0.001);
             int minZ = (int) Math.floor(at.z() - 0.25 + 0.001);
             int maxZ = (int) Math.floor(at.z() + 0.25 - 0.001);
             int dimension = projectile.dimension();
@@ -1209,19 +1311,76 @@ public final class ProjectileManager {
         // --- block hit --------------------------------------------------------
         if (solid.solidAt(point.x(), point.y(), point.z())) {
             if (projectile.kind() == ProjectileEntity.Kind.ARROW) {
-                // The burning arrow's TNT arm (TntBlock.onEntityCollision
-                // lines 96-113): an on-fire arrow entering the TNT's cell
-                // primes the block — the cell opens and the arrow KEEPS ITS
-                // FLIGHT through it (the reference's collision consult
-                // removes the block, never the arrow).
-                if (projectile.burning() && tntIgniteSink.ignite(
-                        new net.zaminmc.torch.block.BlockPosition(
-                                (int) Math.floor(point.x()),
-                                (int) Math.floor(point.y()),
-                                (int) Math.floor(point.z())), projectile.dimension())) {
-                    return false; // the cell opened — the walk continues
+                // VT-030 — the stick comes FIRST, the hit-block consult
+                // LAST (the reference's own order, ArrowEntity.tick's
+                // block arm lines 288-309): the tracked cell is stamped
+                // (289-295), the velocity := face−pos (296-298), the 0.05
+                // backoff (300-302), random.bowhit (303), inGround = true
+                // (304) — and ONLY THEN, still inside the same stick arm,
+                // {@code block.onEntityCollision(...)} (307-309). The old
+                // arm's "the arrow KEEPS ITS FLIGHT through the opened
+                // cell" misread the reference: true, the consult never
+                // removes the arrow — but it sticks it first (line 304
+                // precedes the consult at 308), and the opened cell is
+                // what UN-STICKS it a tick later (the tracked-cell
+                // consult, ArrowEntity lines 172-186). The pre-fix arm
+                // ignited and returned false, so landInGround never ran:
+                // the arrow flew through the opened cell at full flight
+                // speed — never stuck, never rested.
+                // VT-014 — the stick placement (the reference's rayTrace,
+                // ArrowEntity.tick line 191 + the stick arm's composition):
+                // the rest lands EXACTLY 0.05 OUTSIDE the hit face, on the
+                // approach side, in the cell the arrow flew through — never
+                // at the post-step endpoint buried inside the hit block, and
+                // never hanging in the air past a thin wall. The walk below
+                // reconstructs the reference's ray at the engine's
+                // granularity: the cells the segment crosses, each cell's
+                // collision boxes, the FIRST box entry the hit face. The
+                // stuck velocity KEEPS the face-relative vector (lines
+                // 296-298 — the un-stick arm's random*0.2 damping its only
+                // consumer), and the tracked cell stamps the box's OWN cell
+                // (the reference's hitresult cell, lines 289-295).
+                StickSite site = stickSite(from, point);
+                int stickCellX;
+                int stickCellY;
+                int stickCellZ;
+                double faceVectorX;
+                double faceVectorY;
+                double faceVectorZ;
+                if (site != null) {
+                    projectile.teleport(site.rest());
+                    stickCellX = site.cellX();
+                    stickCellY = site.cellY();
+                    stickCellZ = site.cellZ();
+                    faceVectorX = site.faceVectorX();
+                    faceVectorY = site.faceVectorY();
+                    faceVectorZ = site.faceVectorZ();
+                } else {
+                    // The endpoint residue (the engine's own edge: the
+                    // origin inside every box of the sample's cell — the
+                    // spawned-inside-block shape, where the reference's own
+                    // box-containment stick at lines 160-166 stands, or a
+                    // degenerate zero-step): the rest stays at the walk's
+                    // endpoint, the dead velocity zeroed.
+                    stickCellX = (int) Math.floor(point.x());
+                    stickCellY = (int) Math.floor(point.y());
+                    stickCellZ = (int) Math.floor(point.z());
+                    faceVectorX = 0;
+                    faceVectorY = 0;
+                    faceVectorZ = 0;
                 }
-                projectile.landInGround();
+                // VT-015 — the tracked cell's stamp rides the same
+                // ceremony (the reference's lines 289-295: the cell whose
+                // block the stick arm stamps is the cell the stick clock
+                // reads every tick until its block changes).
+                String stickBlockId = stickCellConsult != null
+                        ? stickCellConsult.blockIdAt(
+                                new net.zaminmc.torch.block.BlockPosition(
+                                        stickCellX, stickCellY, stickCellZ),
+                                projectile.dimension())
+                        : null;
+                projectile.landInGround(stickCellX, stickCellY, stickCellZ, stickBlockId,
+                        faceVectorX, faceVectorY, faceVectorZ);
                 // VT-018 — the stick's bowhit (ArrowEntity line 303):
                 // the reference plays random.bowhit at the rest — the
                 // volume 1.0, the pitch the reference's own random draw
@@ -1236,6 +1395,23 @@ public final class ProjectileManager {
                         projectile.dimension());
                 for (Listener listener : listeners) {
                     listener.onProjectileLanded(projectile);
+                }
+                // VT-030 — the burning arrow's TNT consult, AFTER the
+                // stick (the reference's lines 307-309 order:
+                // TntBlock.onEntityCollision lines 91-104 — the isOnFire
+                // gate is the TNT block's own, the ignite removes the
+                // block). The walk ends here stuck either way; the
+                // opened cell's un-stick is the tracked-cell consult's
+                // own law (VT-015, PR #120 — the arrow hops out beside
+                // the primed TNT a tick later, never carrying its flight
+                // through the cell).
+                if (projectile.burning()) {
+                    tntIgniteSink.ignite(
+                            new net.zaminmc.torch.block.BlockPosition(
+                                    (int) Math.floor(point.x()),
+                                    (int) Math.floor(point.y()),
+                                    (int) Math.floor(point.z())),
+                            projectile.dimension());
                 }
                 return true;
             }
@@ -1297,6 +1473,287 @@ public final class ProjectileManager {
             return true;
         }
         return false;
+    }
+
+    /**
+     * VT-014 — the stick placement's ray reconstruction (the reference's
+     * {@code World.rayTrace} lines 639-760 at the engine's granularity):
+     * walks the segment from the step's START toward the solid sample,
+     * crossing one cell boundary at a time (the parametric face math and
+     * the axis ordering the reference itself uses, the negative-zero
+     * guards included), and per crossed cell consults the block's
+     * COLLISION BOXES (the reference's rayTrace tests the shape, never
+     * the bare cell): the first box entry along the segment is the hit
+     * face, and the rest composes exactly as the reference's stick arm
+     * does — {@code (pos − 0.05·unit) + (face − pos) = face − 0.05·unit}
+     * (the backoff at 300-302, the flight tail's advance at 328-330).
+     * A solid cell whose boxes the segment misses never sticks (a fence
+     * post's cell edge — the reference's own ray-passes law); a partial
+     * shape answers its OWN face (a slab's half-height surface, never
+     * the cell boundary). Queries without a box view (the stub rigs)
+     * fall back to the cell-granularity unit cube over the solidity
+     * consult.
+     *
+     * <p>Null when the walk finds no crossed box entry: the origin
+     * already inside every box of every crossed cell (the
+     * spawned-inside-block shape — the reference's own
+     * box-containment edge at lines 160-166, the endpoint rest stands),
+     * or a degenerate zero-step. The face-relative vector rides the
+     * answer (the reference's stuck velocity, lines 296-298 — the
+     * remaining step, dead state whose only consumer is the un-stick
+     * arm's {@code random * 0.2} damping, lines 179-186) together with
+     * the box's OWN cell (the reference's hitresult cell — the tracked
+     * cell the stick clock reads).</p>
+     */
+    private StickSite stickSite(Position from, Position point) {
+        double stepX = point.x() - from.x();
+        double stepY = point.y() - from.y();
+        double stepZ = point.z() - from.z();
+        int targetX = (int) Math.floor(point.x());
+        int targetY = (int) Math.floor(point.y());
+        int targetZ = (int) Math.floor(point.z());
+        int cellX = (int) Math.floor(from.x());
+        int cellY = (int) Math.floor(from.y());
+        int cellZ = (int) Math.floor(from.z());
+        // The origin cell's own boxes first (the reference's ray starts
+        // there): an origin beside a cell's box whose segment enters it
+        // sticks at the box's face — the same-cell sample case included.
+        StickSite originSite = cellEntry(from, stepX, stepY, stepZ,
+                cellX, cellY, cellZ);
+        if (originSite != null) {
+            return originSite;
+        }
+        int guard = 200; // the reference's own iteration cap
+        while (guard-- >= 0) {
+            if (cellX == targetX && cellY == targetY && cellZ == targetZ) {
+                return null; // the walk exhausted without a box entry
+            }
+            // The next boundary plane per axis (the reference's own
+            // 999-sentinel shape: an axis the segment does not advance
+            // along never wins the min).
+            double boundaryX = 999.0;
+            double boundaryY = 999.0;
+            double boundaryZ = 999.0;
+            boolean advancesX = false;
+            boolean advancesY = false;
+            boolean advancesZ = false;
+            if (targetX > cellX) {
+                boundaryX = cellX + 1.0;
+                advancesX = true;
+            } else if (targetX < cellX) {
+                boundaryX = cellX + 0.0;
+                advancesX = true;
+            }
+            if (targetY > cellY) {
+                boundaryY = cellY + 1.0;
+                advancesY = true;
+            } else if (targetY < cellY) {
+                boundaryY = cellY + 0.0;
+                advancesY = true;
+            }
+            if (targetZ > cellZ) {
+                boundaryZ = cellZ + 1.0;
+                advancesZ = true;
+            } else if (targetZ < cellZ) {
+                boundaryZ = cellZ + 0.0;
+                advancesZ = true;
+            }
+            double paramX = 999.0;
+            double paramY = 999.0;
+            double paramZ = 999.0;
+            if (advancesX) {
+                paramX = (boundaryX - from.x()) / stepX;
+            }
+            if (advancesY) {
+                paramY = (boundaryY - from.y()) / stepY;
+            }
+            if (advancesZ) {
+                paramZ = (boundaryZ - from.z()) / stepZ;
+            }
+            // The reference's negative-zero guard (World line 724): a
+            // boundary coincident with the start must not win the min.
+            if (paramX == -0.0) {
+                paramX = -1.0E-4;
+            }
+            if (paramY == -0.0) {
+                paramY = -1.0E-4;
+            }
+            if (paramZ == -0.0) {
+                paramZ = -1.0E-4;
+            }
+            double faceX;
+            double faceY;
+            double faceZ;
+            if (paramX < paramY && paramX < paramZ) {
+                faceX = boundaryX;
+                faceY = from.y() + stepY * paramX;
+                faceZ = from.z() + stepZ * paramX;
+                // The reference recomputes ALL THREE cell coordinates from
+                // the advanced crossing point each iteration (World lines
+                // 758-760): the crossed axis carries the direction
+                // correction, the parametrically-advanced others land on
+                // their own floors — a same-iteration boundary crossing on
+                // another axis is picked up here, never missed.
+                cellX = (int) Math.floor(faceX) - (targetX < cellX ? 1 : 0);
+                cellY = (int) Math.floor(faceY);
+                cellZ = (int) Math.floor(faceZ);
+            } else if (paramY < paramZ) {
+                faceX = from.x() + stepX * paramY;
+                faceY = boundaryY;
+                faceZ = from.z() + stepZ * paramY;
+                cellX = (int) Math.floor(faceX);
+                cellY = (int) Math.floor(faceY) - (targetY < cellY ? 1 : 0);
+                cellZ = (int) Math.floor(faceZ);
+            } else {
+                faceX = from.x() + stepX * paramZ;
+                faceY = from.y() + stepY * paramZ;
+                faceZ = boundaryZ;
+                cellX = (int) Math.floor(faceX);
+                cellY = (int) Math.floor(faceY);
+                cellZ = (int) Math.floor(faceZ) - (targetZ < cellZ ? 1 : 0);
+            }
+            // The entered cell's box consult (the reference's rayTrace
+            // against the collision shape): the first box entry along the
+            // segment is the hit face — a solid cell whose boxes the
+            // segment misses never sticks (the walk continues).
+            StickSite entered = cellEntry(from, stepX, stepY, stepZ,
+                    cellX, cellY, cellZ);
+            if (entered != null) {
+                return entered;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * One cell's box consult of the stick walk: the segment
+     * [{@code from}, {@code from + step}]'s entry into the cell's
+     * collision boxes (the unit-cube fallback when the query carries no
+     * box view or the cell reads solid without one), answered as the
+     * stick site — the rest 0.05 outside the entry face along the
+     * approach, the face-relative vector, the box's own cell. Null when
+     * the cell holds no boxes the segment enters (air, a shape the ray
+     * passes, or the origin already inside every box).
+     */
+    private StickSite cellEntry(Position from, double stepX, double stepY, double stepZ,
+            int cellX, int cellY, int cellZ) {
+        java.util.List<net.zaminmc.torch.server.block.CollisionShapes.Box> boxes =
+                solid.solidBoxesAt(cellX + 0.5, cellY + 0.5, cellZ + 0.5);
+        if (boxes == null) {
+            // The stub fallback (no box view): the solidity consult over
+            // the cell's unit cube — the engine's cell granularity.
+            if (!solid.solidAt(cellX + 0.5, cellY + 0.5, cellZ + 0.5)) {
+                return null;
+            }
+            boxes = java.util.List.of(
+                    new net.zaminmc.torch.server.block.CollisionShapes.Box(0, 0, 0, 1, 1, 1));
+        }
+        if (boxes.isEmpty()) {
+            return null; // the cell holds no collision boxes (air)
+        }
+        double bestT = Double.POSITIVE_INFINITY;
+        for (net.zaminmc.torch.server.block.CollisionShapes.Box box : boxes) {
+            Double entry = segmentEntry(from, stepX, stepY, stepZ,
+                    cellX + box.minX(), cellY + box.minY(), cellZ + box.minZ(),
+                    cellX + box.maxX(), cellY + box.maxY(), cellZ + box.maxZ());
+            if (entry != null && entry < bestT) {
+                bestT = entry;
+            }
+        }
+        if (bestT == Double.POSITIVE_INFINITY) {
+            return null; // the segment never enters the cell's boxes
+        }
+        double faceX = from.x() + stepX * bestT;
+        double faceY = from.y() + stepY * bestT;
+        double faceZ = from.z() + stepZ * bestT;
+        double remainX = faceX - from.x();
+        double remainY = faceY - from.y();
+        double remainZ = faceZ - from.z();
+        double length = Math.sqrt(remainX * remainX + remainY * remainY
+                + remainZ * remainZ);
+        if (length < 1.0E-9) {
+            return null; // the degenerate zero-step residue
+        }
+        return new StickSite(
+                new Position(faceX - remainX / length * 0.05,
+                        faceY - remainY / length * 0.05,
+                        faceZ - remainZ / length * 0.05),
+                remainX, remainY, remainZ, cellX, cellY, cellZ);
+    }
+
+    /**
+     * The segment [{@code from}, {@code from + (dx, dy, dz)}]'s entry
+     * parameter into the world-space box, or {@code null} when the segment
+     * never enters it in front of the origin: the slab method per axis,
+     * the parallel-outside reject, and the behind-entry reject (the origin
+     * starting inside THIS box — that box's face is not the hit face).
+     */
+    private static Double segmentEntry(Position from, double dx, double dy, double dz,
+            double minX, double minY, double minZ, double maxX, double maxY, double maxZ) {
+        double tLo = Double.NEGATIVE_INFINITY;
+        double tHi = Double.POSITIVE_INFINITY;
+        if (dx == 0.0) {
+            if (from.x() < minX || from.x() >= maxX) {
+                return null;
+            }
+        } else {
+            double t1 = (minX - from.x()) / dx;
+            double t2 = (maxX - from.x()) / dx;
+            if (t1 > t2) {
+                double swap = t1;
+                t1 = t2;
+                t2 = swap;
+            }
+            tLo = Math.max(tLo, t1);
+            tHi = Math.min(tHi, t2);
+        }
+        if (dy == 0.0) {
+            if (from.y() < minY || from.y() >= maxY) {
+                return null;
+            }
+        } else {
+            double t1 = (minY - from.y()) / dy;
+            double t2 = (maxY - from.y()) / dy;
+            if (t1 > t2) {
+                double swap = t1;
+                t1 = t2;
+                t2 = swap;
+            }
+            tLo = Math.max(tLo, t1);
+            tHi = Math.min(tHi, t2);
+        }
+        if (dz == 0.0) {
+            if (from.z() < minZ || from.z() >= maxZ) {
+                return null;
+            }
+        } else {
+            double t1 = (minZ - from.z()) / dz;
+            double t2 = (maxZ - from.z()) / dz;
+            if (t1 > t2) {
+                double swap = t1;
+                t1 = t2;
+                t2 = swap;
+            }
+            tLo = Math.max(tLo, t1);
+            tHi = Math.min(tHi, t2);
+        }
+        if (tLo > tHi || tLo < 0.0 || tLo > 1.0) {
+            return null; // no overlap, the origin inside, or the entry beyond the sample
+        }
+        return tLo;
+    }
+
+    /**
+     * The stick walk's answer: the rest position (the crossed box face
+     * backed off 0.05 along the approach) together with the FACE-RELATIVE
+     * VECTOR (the reference's stuck velocity, ArrowEntity lines 296-298 —
+     * the remaining step {@code face − from}, dead state whose only
+     * consumer is the un-stick arm's {@code random * 0.2} damping, lines
+     * 179-186) and the box's OWN cell (the reference's hitresult cell —
+     * the tracked cell the stick clock reads).
+     */
+    private record StickSite(Position rest, double faceVectorX, double faceVectorY,
+            double faceVectorZ, int cellX, int cellY, int cellZ) {
     }
 
     /**
