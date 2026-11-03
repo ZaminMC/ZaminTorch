@@ -6512,16 +6512,22 @@ fallback forms where vanilla refuses outright.
 ### VT-036 — the lever/button item-placement gates read the fallback arms, not the reference's clicked-face gate: phantom placements vanilla refuses
 
 **Subsystem:** block placement / the lever + button item gates (all
-dimensions). **Status: SUSPECTED — pass 1 (source) complete this run;
-the behavioral seats and the independent walk the next acts.**
+dimensions). **Status: CONFIRMED — three passes complete (pass 1 the
+fifty-second run, re-verified on the advanced baseline 662094d5; passes
+2-3 the fifty-third run); the correction the next act (Phase E).**
 
 **Affected engine files and methods:**
-- `EngineServer.placeLeverOnTick` (~13389-13452): the floor-only
-  fallback arm (~13437-13446) — `hasSolidTop(below target)` placing
-  `leverOf(5, false)` (the up_z floor form, the axis hardcoded).
-- `EngineServer.placeButtonOnTick` (~13475-13513): the facing-0 (DOWN)
-  fallback placement (~13505-13511) — placed unconditionally when the
-  clicked face's mount fails.
+- `EngineServer.placeLeverOnTick` (develop 662094d5: lines 14050-14113):
+  the floor-only fallback arm (lines 14098-14107) — `hasSolidTop(below
+  target)` placing `leverOf(5, false)` (the up_z floor form, the axis
+  hardcoded).
+- `EngineServer.placeButtonOnTick` (develop 662094d5: lines 14136-14174):
+  the facing-0 (DOWN) fallback placement (lines 14166-14172) — placed
+  unconditionally when the clicked face's mount fails.
+- **The line numbers re-verified on the ADVANCED baseline** (the
+  fifty-third lane's merge of develop 662094d5 — Wave PE-2/3/4's
+  +1290 EngineServer lines; the two fallback arms UNTOUCHED by the
+  wave, the divergence standing whole).
 
 **Vanilla reference chain (four levels, read whole):**
 - `BlockItem.useOn` lines 28-63 — the gate at line 40:
@@ -6620,3 +6626,122 @@ structure placement, the anvil import — place levers/buttons through
 the fallback arms?); (2) the trapdoor's item-gate shape; (3) the merge
 watch (the open set, 27 PRs at this pass's fetch); (4) the standing
 verification lanes (the VT-008 protocol).
+
+## The fifty-third pass — the baseline advanced (develop 662094d5, Wave PE-2/PE-3/PE-4 merged into the lane), VT-036 CONFIRMED whole (the behavioral seats + the independent walk), the trapdoor's item gate audited CONFORMANT whole except its cursor boundary (VT-037 discovered)
+
+**THE BASELINE:** develop advanced 1139f2c3 -> 662094d5 (Wave PE-2:
+the plate family's activation/count/release laws; PE-3: the anvil
+crush, the tripwire occupancy, the plate class census; PE-4: the
+lightning family's boundary arms) — the lane's merge resolved six
+seat-file conflicts to develop's merged authorities (the piston
+pushability seats' F-SP1-corrected lever-on-stone arrangement, the
+spawn census's VT-020 renumbered record, the arrow stick/unstick
+pair's fall-observable pins, the piston break/entity gates). VT-036's
+two fallback arms stand UNTOUCHED on the advanced baseline — the
+re-verification of pass 1's line readings complete (placeLeverOnTick
+14050-14113, the fallback 14098-14107; placeButtonOnTick 14136-14174,
+the DOWN placement 14166-14172).
+
+**PASS 2 (behavioral — LeverButtonPlacementGateParityDiscoveryTest,
+8 seats, RED BY CONTRACT on develop 662094d5):**
+- THE LEVER ROW (the torch's east side clicked with a lever held, the
+  stone floor below the target): RED — observed `minecraft:lever_up_z`
+  at the target (the phantom floor lever, exactly the predicted
+  `leverOf(5, false)` form), the held stack consumed to 0 where vanilla
+  keeps it (BlockItem.useOn line 61's `stack.size--` rides the
+  placement arm alone).
+- THE BUTTON ROW (the glass top clicked with a stone button held):
+  RED — observed `minecraft:stone_button_down` at the target, the item
+  consumed.
+- THE WOODEN BUTTON ROW (the torch's east side clicked with a wooden
+  button held): RED — observed `minecraft:wooden_button_down` at the
+  target, the item consumed.
+- THE ATTRIBUTION CONTROL (the same torch-side lever click with GLASS
+  below the target — the engine's own fallback consult fails too):
+  GREEN — BOTH trees refuse; the engine's refusal machinery works, the
+  divergence the fallback ARM alone.
+- THE PLACEMENT CONTROLS (the wall lever on stone's side, the floor
+  lever on stone's top, the UP stone button, the UP wooden button):
+  4x GREEN — the first-arm consults place exactly as both trees agree
+  (the fix's regression pins: the mount-passing placements never
+  regress).
+
+**PASS 3 (independent re-verification — four new angles):**
+1. **The second item path:** `PlaceableItem.useOn` (lines 24-58) — the
+   OTHER vanilla item-path caller of `getPlacementState` — gates
+   identically (`world.canPlace` at line 36 BEFORE the state at line
+   38). `DyeItem.useOn` line 64 places cocoa only. NO vanilla item
+   path reaches the fallback arms with a failing mount.
+2. **The compensating hunt (engine):** the only other `leverOf`/
+   `buttonOf` placement sites are the STRUCTURE generators
+   (`TemplePieces` 556-558 — the jungle temple's lever puzzle;
+   `StrongholdPieces` 333 — the silverfish button) placing explicit
+   metadata states exactly as vanilla structure gen does — not
+   compensating paths. No dispenser/command/implementation arm places
+   levers or buttons.
+3. **The persistence observation:** the phantom placements SURVIVE the
+   seats' 600ms settle windows (no self-pop from the engine's own
+   update systems — the lever's floor consult holds on stone; the
+   DOWN buttons' survival consult reads the ceiling above, so they
+   float until a real neighbor change, then pop and DROP a button
+   item — a second-order divergence: vanilla keeps the item in hand,
+   the engine consumes it and re-drops it as a world item).
+4. **The intentionality challenge:** the button's fallback is
+   UNCONDITIONAL (no consult at all — broader than the lever's
+   hasSolidTop fallback); the javadoc's claim that the DOWN form is
+   "the reference's own fallback" is true of the ARM but misses the
+   gate that makes it unreachable — the comment/code-mismatch
+   signature (an incomplete port of the four-level chain, not a design
+   choice). The F-SP1 correction (PR #139) moved the mount consult
+   INTO the first arm but kept the fallback arms the gate structure
+   cannot reach.
+
+**CONCLUSION: CONFIRMED.** The correction (Phase E): retire the two
+fallback arms whole — `placeLeverOnTick` refuses when the clicked
+face's mount fails (no floor fallback), `placeButtonOnTick` refuses
+(no DOWN fallback); the secondary axis-hardcoding divergence
+(`leverOf(5)`'s up_z-always vs vanilla's look-keyed floor form) retires
+with the arm.
+
+### VT-037 — the trapdoor's cursorY HALF boundary reads `>= 0.5f` where the reference reads `dy > 0.5F`: the exact mid-face click (cursor byte 8) places the TOP half where vanilla places the BOTTOM
+
+**Subsystem:** block placement / the trapdoor's cursor half-split. **Status:
+SUSPECTED — pass 1 (source) complete this run; the seats and the
+independent walk owed.**
+
+**The finding (the fifty-second pass's named tail, audited this run):**
+the trapdoor's item gate is otherwise CONFORMANT whole on develop
+662094d5 — `placeTrapdoorOnTick` (lines 16119-16166) refuses the
+vertical faces (line 16124: `face < 2 || face > 5` — the reference's
+`!face.getAxis().isVertical()`, TrapdoorBlock.canBePlaced lines
+182-184), consults the clicked block through the F-SP1-corrected
+`SupportConsult.trapdoorCanBePlacedOn` (lines 188-190: the
+solid-blocking cube, the glowstone, ANY slab half, ANY stair state),
+and keys the facing band by the clicked face — but the HALF split at
+line 16162 reads `cursorY >= 0.5f` where the reference's arm reads
+`dy > 0.5F` (TrapdoorBlock.getPlacementState lines 156-160). At the
+EXACT mid-face click — the wire's `readByte() / 16.0f` carrying byte
+8, exactly 0.5 — the engine places the TOP half where vanilla places
+the BOTTOM.
+
+**The contrast evidence (pass 1's bounding):** the sibling sites are
+conformant — `placeSlabOnTick` (line 16983) and `placeStairsOnTick`
+(line 17024) both read the STRICT `cursorY > 0.5f` with the reference's
+own citation ("the exact-middle click lays the bottom exactly like the
+reference's own dy > 0.5f gate"), and the reference's slab/stairs arms
+(SlabBlock lines 76-79, StairsBlock lines 492-497) read the same
+strict `dy > 0.5`. The trapdoor's `>=` is the SOLE divergent site of
+the three cursor-splitting families — the one-character class.
+
+**The next acts:** the behavioral seat (the cursor-byte-8 side click
+against the byte-7 and byte-9 controls) and the independent walk (the
+wire's byte domain — `readByte()` vs the reference's unsigned read —
+checking the boundary row's reachability from a real client), then
+the one-character correction (`>=` -> `>`).
+
+**THE RUN'S CLOSE (the fifty-third):** VT-036 confirmed whole (three
+passes, the seats RED with the exact phantom forms observed), VT-037
+discovered (pass 1). The next run's queue: (1) VT-036's Phase E
+correction (the branch, the seats as the regression, the PR); (2)
+VT-037's passes 2-3; (3) the merge watch (the open set at this pass's
+fetch); (4) the standing verification lanes (the VT-008 protocol).
