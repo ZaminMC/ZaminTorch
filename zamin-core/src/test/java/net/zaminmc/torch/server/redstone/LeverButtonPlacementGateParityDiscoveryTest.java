@@ -24,7 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * VT-038's behavioral seats — the lever/button ITEM-PLACEMENT GATES read
+ * VT-043's behavioral seats — the lever/button ITEM-PLACEMENT GATES read
  * the fallback arms, not the reference's clicked-face gate (reference/
  * 1.8.8, the four-level chain read whole on the pass-1 source walk):
  *
@@ -193,7 +193,7 @@ class LeverButtonPlacementGateParityDiscoveryTest {
                     windowId -> { });
             Thread.sleep(600); // the settle window past, the vanilla verdict stands
             assertFalse(RedstoneBlocks.isLever(typeAt(target)),
-                    "VT-038: no lever beside the torch — the clicked face's mount (the "
+                    "VT-043: no lever beside the torch — the clicked face's mount (the "
                             + "torch, a signal source) fails Block.isSolid and the "
                             + "reference's item gate refuses BEFORE any fallback arm "
                             + "runs (BlockItem.useOn line 43 over LeverBlock."
@@ -202,7 +202,7 @@ class LeverButtonPlacementGateParityDiscoveryTest {
                             + "engine's phantom floor lever (placeLeverOnTick's "
                             + "fallback arm).");
             assertEquals(1, builder.inventory().held().count(),
-                    "VT-038: the lever item unspent — the refused use never consumes "
+                    "VT-043: the lever item unspent — the refused use never consumes "
                             + "(the reference's stack.size-- rides the placement arm "
                             + "alone, BlockItem.useOn line 61)");
         } finally {
@@ -238,7 +238,7 @@ class LeverButtonPlacementGateParityDiscoveryTest {
                     windowId -> { });
             Thread.sleep(600);
             assertFalse(RedstoneBlocks.isButton(typeAt(target)),
-                    "VT-038: no button above the glass — the clicked face's mount "
+                    "VT-043: no button above the glass — the clicked face's mount "
                             + "(GLASS, translucent) fails World.hasSolidTop and the "
                             + "reference's item gate refuses BEFORE the DOWN fallback "
                             + "runs (BlockItem.useOn line 43 over ButtonBlock."
@@ -247,7 +247,7 @@ class LeverButtonPlacementGateParityDiscoveryTest {
                             + "target — the engine's phantom DOWN button "
                             + "(placeButtonOnTick's unconditional fallback).");
             assertEquals(1, builder.inventory().held().count(),
-                    "VT-038: the button item unspent — the refused use never consumes");
+                    "VT-043: the button item unspent — the refused use never consumes");
         } finally {
             server.shutdown(() -> { });
         }
@@ -281,13 +281,13 @@ class LeverButtonPlacementGateParityDiscoveryTest {
                     windowId -> { });
             Thread.sleep(600);
             assertFalse(RedstoneBlocks.isButton(typeAt(target)),
-                    "VT-038: no wooden button beside the torch — the clicked face's "
+                    "VT-043: no wooden button beside the torch — the clicked face's "
                             + "mount (the torch, a signal source) fails Block.isSolid "
                             + "and the reference's item gate refuses BEFORE the DOWN "
                             + "fallback runs. Observed: " + typeAt(target).identifier()
                             + " at the target — the engine's phantom DOWN button.");
             assertEquals(1, builder.inventory().held().count(),
-                    "VT-038: the button item unspent — the refused use never consumes");
+                    "VT-043: the button item unspent — the refused use never consumes");
         } finally {
             server.shutdown(() -> { });
         }
