@@ -21274,15 +21274,26 @@ public final class EngineServer implements Server, EngineBridge {
         public java.util.List<Object> bodiesIn(double minX, double minY, double minZ,
                                                double maxX, double maxY, double maxZ,
                                                int dimension) {
+            // THE SPLASH SCAN'S BOX LAW (PotionEntity.onCollision lines
+            // 74-77: getEntitiesOfType(LivingEntity.class, this.getShape()
+            // .grown(4.0, 2.0, 4.0)) — the standard gather, each body's
+            // OWN box against the query box, STRICT both sides; Wave
+            // PE-5, the Phase E boundary arms: the pre-fix consult grew
+            // the query box around each family's CENTER with inclusive
+            // edges and a hardcoded 0.6x1.8 mob hull — the tall body's
+            // own box never read, the exact-touch body always gathered.
+            // The y band is the body's OWN [pos.y, pos.y + height]
+            // against [minY, maxY] strict — never a feet-position band.
             java.util.List<Object> found = new java.util.ArrayList<>();
             for (MobEntity mob : mobManager.all()) {
                 if (mob.dimension() != dimension) {
                     continue; // Wave TF-9 — the splash's own-world walk
                 }
                 Position at = mob.position();
-                if (at.x() >= minX - 0.6 && at.x() <= maxX + 0.6
-                        && at.z() >= minZ - 0.6 && at.z() <= maxZ + 0.6
-                        && at.y() >= minY && at.y() <= maxY + 1.8) {
+                double halfWidth = mob.type().width / 2.0;
+                if (at.x() + halfWidth > minX && at.x() - halfWidth < maxX
+                        && at.z() + halfWidth > minZ && at.z() - halfWidth < maxZ
+                        && at.y() + mob.type().height > minY && at.y() < maxY) {
                     found.add(mob);
                 }
             }
@@ -21295,9 +21306,11 @@ public final class EngineServer implements Server, EngineBridge {
                     continue; // Wave TF-9 — the splash's own-world walk
                 }
                 Position at = player.position();
-                if (at.x() >= minX - 0.3 && at.x() <= maxX + 0.3
-                        && at.z() >= minZ - 0.3 && at.z() <= maxZ + 0.3
-                        && at.y() >= minY - 0.2 && at.y() <= maxY + 1.8) {
+                if (at.x() + PLAYER_HALF_WIDTH > minX
+                        && at.x() - PLAYER_HALF_WIDTH < maxX
+                        && at.z() + PLAYER_HALF_WIDTH > minZ
+                        && at.z() - PLAYER_HALF_WIDTH < maxZ
+                        && at.y() + PLAYER_HEIGHT > minY && at.y() < maxY) {
                     found.add(player);
                 }
             }
@@ -21773,17 +21786,29 @@ public final class EngineServer implements Server, EngineBridge {
         @Override
         public java.util.List<MobEntity> mobsIn(double minX, double minY, double minZ,
                                                  double maxX, double maxY, double maxZ) {
+            // THE TIE SCAN'S BOX LAW (LeadItem.attachLead lines 36-41:
+            // getEntitiesOfType(MobEntity.class, new Box(i - 7, j - 7,
+            // k - 7, i + 7, j + 7, k + 7)) — the standard gather, each
+            // mob's OWN type box against the ±7 query box, STRICT both
+            // sides; Wave PE-5, the Phase E boundary arms: the pre-fix
+            // consult grew the query box by the type's FULL width
+            // around the mob's center with inclusive edges — the
+            // effective band a half-width beyond vanilla's own, the
+            // exact-touch mob always tied — and the y band read the
+            // feet position against [minY, maxY + height], never the
+            // mob's OWN [pos.y, pos.y + height] against [minY, maxY]
+            // (a tall mob standing below the band whose head reaches
+            // in was never a tie candidate).
             java.util.List<MobEntity> found = new java.util.ArrayList<>();
             for (MobEntity mob : mobManager.all()) {
                 if (mob.dimension() != dimension) {
                     continue; // another world's body at the same coordinates
                 }
                 Position at = mob.position();
-                if (at.x() >= minX - mob.type().width
-                        && at.x() <= maxX + mob.type().width
-                        && at.z() >= minZ - mob.type().width
-                        && at.z() <= maxZ + mob.type().width
-                        && at.y() >= minY && at.y() <= maxY + mob.type().height) {
+                double halfWidth = mob.type().width / 2.0;
+                if (at.x() + halfWidth > minX && at.x() - halfWidth < maxX
+                        && at.z() + halfWidth > minZ && at.z() - halfWidth < maxZ
+                        && at.y() + mob.type().height > minY && at.y() < maxY) {
                     found.add(mob);
                 }
             }
@@ -23828,6 +23853,20 @@ public final class EngineServer implements Server, EngineBridge {
                 return;
             }
             int dimension = mob.dimension();
+            // THE CONTACT HULLS' BOX LAW (EnderDragonEntity lines
+            // 269-272: getEntities(this, rightWing.getShape().grown(4.0,
+            // 2.0, 4.0).moved(0.0, -2.0, 0.0)) — the standard gather,
+            // each gathered body's OWN box against the part's grown
+            // hull, STRICT both sides; Wave PE-5, the Phase E boundary
+            // arms: the pre-fix consult tested the body's POSITION
+            // POINT inside the hull with inclusive edges — the
+            // edge-stand beside a wing (its box grazing the grown hull
+            // while its center sits outside) was never flung, and the
+            // ARMOR STAND (a LivingEntity in flingMobs' own filter,
+            // lines 355-366) was absent from the walk whole.
+            double[] rightHull = grownHull(rightWing, 4.0, 2.0, 4.0, -2.0);
+            double[] leftHull = grownHull(leftWing, 4.0, 2.0, 4.0, -2.0);
+            double[] headHull = grownHull(head, 1.0, 1.0, 1.0, 0.0);
             // flingMobs: the body-center radial (the reference's own
             // minX+maxX/2 anchor), the d2²+d3²-scaled push.
             double centerX = body.x();
@@ -23838,7 +23877,14 @@ public final class EngineServer implements Server, EngineBridge {
                     continue;
                 }
                 Position p = player.position();
-                if (wingHullContains(rightWing, p) || wingHullContains(leftWing, p)) {
+                if (bodyOverlapsHull(p.x() - PLAYER_HALF_WIDTH, p.y(),
+                        p.z() - PLAYER_HALF_WIDTH,
+                        p.x() + PLAYER_HALF_WIDTH, p.y() + PLAYER_HEIGHT,
+                        p.z() + PLAYER_HALF_WIDTH, rightHull)
+                        || bodyOverlapsHull(p.x() - PLAYER_HALF_WIDTH, p.y(),
+                        p.z() - PLAYER_HALF_WIDTH,
+                        p.x() + PLAYER_HALF_WIDTH, p.y() + PLAYER_HEIGHT,
+                        p.z() + PLAYER_HALF_WIDTH, leftHull)) {
                     double dx = p.x() - centerX;
                     double dz = p.z() - centerZ;
                     double d4 = dx * dx + dz * dz;
@@ -23846,7 +23892,10 @@ public final class EngineServer implements Server, EngineBridge {
                         publishKnockback(player, dx / d4 * 4.0, 0.2, dz / d4 * 4.0);
                     }
                 }
-                if (partHullContains(head, p, 1.0)) {
+                if (bodyOverlapsHull(p.x() - PLAYER_HALF_WIDTH, p.y(),
+                        p.z() - PLAYER_HALF_WIDTH,
+                        p.x() + PLAYER_HALF_WIDTH, p.y() + PLAYER_HEIGHT,
+                        p.z() + PLAYER_HALF_WIDTH, headHull)) {
                     damageOnTick(player, 10.0f, "was slain by Ender Dragon",
                             DamageKind.MELEE);
                 }
@@ -23856,7 +23905,13 @@ public final class EngineServer implements Server, EngineBridge {
                     continue;
                 }
                 Position p = other.position();
-                if (wingHullContains(rightWing, p) || wingHullContains(leftWing, p)) {
+                double halfWidth = other.type().width / 2.0;
+                if (bodyOverlapsHull(p.x() - halfWidth, p.y(), p.z() - halfWidth,
+                        p.x() + halfWidth, p.y() + other.type().height,
+                        p.z() + halfWidth, rightHull)
+                        || bodyOverlapsHull(p.x() - halfWidth, p.y(), p.z() - halfWidth,
+                        p.x() + halfWidth, p.y() + other.type().height,
+                        p.z() + halfWidth, leftHull)) {
                     double dx = p.x() - centerX;
                     double dz = p.z() - centerZ;
                     double d4 = dx * dx + dz * dz;
@@ -23864,35 +23919,62 @@ public final class EngineServer implements Server, EngineBridge {
                         other.addVelocity(dx / d4 * 4.0, 0.2, dz / d4 * 4.0);
                     }
                 }
-                if (partHullContains(head, p, 1.0)) {
+                if (bodyOverlapsHull(p.x() - halfWidth, p.y(), p.z() - halfWidth,
+                        p.x() + halfWidth, p.y() + other.type().height,
+                        p.z() + halfWidth, headHull)) {
                     mobManager.hurt(other, 10.0f, mob.rotation().yaw(),
                             net.zaminmc.torch.event.DamageCause.MELEE);
                 }
             }
+            // THE LIVING CENSUS'S THIRD FAMILY — the armor stand
+            // (flingMobs' own filter, lines 360-365: instanceof
+            // LivingEntity): flung whole over its own 0.5x1.975 hull;
+            // the head's wound REFUSED (ArmorStandEntity.takeDamage
+            // 395-400 — neither arrow nor player, the mob source never
+            // lands).
+            for (net.zaminmc.torch.server.armorstand.ArmorStand stand : armorStands.allStands()) {
+                if (stand.dimension() != dimension) {
+                    continue; // another world's stand is absent from this walk
+                }
+                if (bodyOverlapsHull(stand.x() - 0.25, stand.y(), stand.z() - 0.25,
+                        stand.x() + 0.25, stand.y() + 1.975, stand.z() + 0.25, rightHull)
+                        || bodyOverlapsHull(stand.x() - 0.25, stand.y(), stand.z() - 0.25,
+                        stand.x() + 0.25, stand.y() + 1.975, stand.z() + 0.25, leftHull)) {
+                    double dx = stand.x() - centerX;
+                    double dz = stand.z() - centerZ;
+                    double d4 = dx * dx + dz * dz;
+                    if (d4 > 0.0001) {
+                        stand.addVelocity(dx / d4 * 4.0, 0.2, dz / d4 * 4.0);
+                    }
+                }
+            }
         }
 
-        /** The wing hull (grown 4/2/4, moved -2y — lines 265-266). */
-        private boolean wingHullContains(
-                net.zaminmc.torch.server.entity.MobEntity.DragonPart wing, Position p) {
-            return partHullContains(wing, p, 4.0, 2.0, 4.0, -2.0);
-        }
-
-        /** The plain part hull with the uniform grow. */
-        private boolean partHullContains(
-                net.zaminmc.torch.server.entity.MobEntity.DragonPart part, Position p,
-                double grow) {
-            return partHullContains(part, p, grow, grow, grow, 0.0);
-        }
-
-        /** The grown/moved hull containment (Box.grown + moved). */
-        private boolean partHullContains(
-                net.zaminmc.torch.server.entity.MobEntity.DragonPart part, Position p,
-                double growX, double growY, double growZ, double moveY) {
+        /**
+         * The part's grown hull ({@code getShape().grown(gx, gy,
+         * gz).moved(0, my, 0)}): {minX, minY, minZ, maxX, maxY, maxZ}
+         * over the part's own box grown and moved.
+         */
+        private double[] grownHull(net.zaminmc.torch.server.entity.MobEntity.DragonPart part,
+                                   double growX, double growY, double growZ, double moveY) {
             double half = part.width / 2.0;
-            return p.x() >= part.x() - half - growX && p.x() <= part.x() + half + growX
-                    && p.y() >= part.y() - growY + moveY
-                    && p.y() <= part.y() + part.height + growY + moveY
-                    && p.z() >= part.z() - half - growZ && p.z() <= part.z() + half + growZ;
+            return new double[] {
+                    part.x() - half - growX, part.y() - growY + moveY,
+                    part.z() - half - growZ,
+                    part.x() + half + growX, part.y() + part.height + growY + moveY,
+                    part.z() + half + growZ};
+        }
+
+        /**
+         * The strict box-vs-hull test (Box.intersects 164-171: overlap
+         * on every axis, EXACTLY TOUCHING never intersecting).
+         */
+        private boolean bodyOverlapsHull(double minX, double minY, double minZ,
+                                         double maxX, double maxY, double maxZ,
+                                         double[] hull) {
+            return minX < hull[3] && maxX > hull[0]
+                    && minY < hull[4] && maxY > hull[1]
+                    && minZ < hull[5] && maxZ > hull[2];
         }
 
         /**

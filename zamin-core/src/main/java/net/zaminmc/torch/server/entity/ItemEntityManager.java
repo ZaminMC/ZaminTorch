@@ -210,11 +210,18 @@ public final class ItemEntityManager {
                                        int pickupDelayTicks, int dimension) {
         Objects.requireNonNull(blockPosition, "blockPosition");
         Objects.requireNonNull(stack, "stack");
-        // Center of the block plus the historical small random pop offset.
-        double x = blockPosition.x() + 0.5 + (random.nextDouble() * 0.2 - 0.1);
-        double y = blockPosition.y() + 0.5;
-        double z = blockPosition.z() + 0.5 + (random.nextDouble() * 0.2 - 0.1);
-        Position at = new Position(x, y, z);
+        // THE SPAWN INSET (Block.dropItem lines 513-523, Wave PE-5's
+        // pin): each axis's offset is `random.nextFloat() * 0.5F +
+        // (1.0F - 0.5F) * 0.5` — a UNIFORM [0.25, 0.75] inset inside
+        // the cell, never the pre-fix ±0.1 band around the center
+        // (the wider vanilla roll decides where in the cell the body
+        // rests, still never leaving the cell — the inset's own law).
+        float f = 0.5F;
+        double d0 = random.nextFloat() * f + (1.0F - f) * 0.5;
+        double d1 = random.nextFloat() * f + (1.0F - f) * 0.5;
+        double d2 = random.nextFloat() * f + (1.0F - f) * 0.5;
+        Position at = new Position(blockPosition.x() + d0, blockPosition.y() + d1,
+                blockPosition.z() + d2);
         if (!admitSpawn(stack, at)) {
             return null; // the §27.7 gate withheld the drop
         }

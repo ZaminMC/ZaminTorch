@@ -133,7 +133,12 @@ public final class LeadSystem {
         Objects.requireNonNull(player, "player");
         Objects.requireNonNull(fence, "fence");
         boolean tied = false;
-        for (MobEntity mob : mobsNear(fence.x() + 0.5, fence.y() + 0.5, fence.z() + 0.5)) {
+        // The tie box's anchor (LeadItem.attachLead lines 37-41:
+        // new Box(i - 7, j - 7, k - 7, i + 7, j + 7, k + 7) over
+        // pos.getX()/getY()/getZ() — the fence block's MIN CORNER,
+        // never the center; Wave PE-5: the pre-fix center anchor
+        // shifted the whole ±7 band half a block east/south/up).
+        for (MobEntity mob : mobsNear(fence.x(), fence.y(), fence.z())) {
             if (mob.isLeashed() && mob.leashHolderPlayer() == player) {
                 attachToKnot(mob, fence);
                 tied = true;
@@ -156,6 +161,12 @@ public final class LeadSystem {
         boolean tied = false;
         var held = player.inventory().held();
         if (!held.isEmpty() && held.type().equals(BuiltinItems.LEAD)) {
+            // The tie box's anchor (LeadKnotEntity.interact lines 80-88:
+            // new Box(this.x - 7, ...) over the KNOT ENTITY's position —
+            // the fence block's CENTER, the entity's own anchor;
+            // Wave PE-5's pin: NOT the use-on-fence arm's min-corner
+            // anchor — the two arms anchor differently in the
+            // reference itself).
             for (MobEntity mob : mobsNear(knot.position().x(), knot.position().y(),
                     knot.position().z())) {
                 if (mob.isLeashed() && mob.leashHolderPlayer() == player) {

@@ -510,7 +510,16 @@ public final class ArmorStandSystem {
         // at the head cell (onBroken's own up() offset).
         surface.standBreakingBurst(breakingBurstAt(stand), stand.dimension());
         remove(stand);
-        surface.dropItem(new Position(stand.x(), stand.y(), stand.z()), stand.dimension(),
+        // THE DROP ANCHOR'S OWN CELL (Wave PE-5's seat find — the flake
+        // root-caused): the reference drops at `new BlockPos(this)` —
+        // the entity position FLOORED to its cell, NEVER the raw entity
+        // position. The stand's x/z are the cell's CENTER (cell + 0.5)
+        // and the drop API adds its own +0.5 centering — feeding the
+        // raw position displaced every break drop a HALF-BLOCK
+        // east/south into the NEXT cell (the reference's own inset
+        // [0.25, 0.75] never leaves the stand's cell).
+        surface.dropItem(new Position(Math.floor(stand.x()), Math.floor(stand.y()),
+                Math.floor(stand.z())), stand.dimension(),
                 ItemStack.of(BuiltinItems.ARMOR_STAND, 1));
         dropEquipment(stand);
         return true;
@@ -532,7 +541,11 @@ public final class ArmorStandSystem {
      *  detonation already broke the stand) finds every slot empty and drops
      *  nothing, exactly the reference's chain-overlap shape. */
     private void dropEquipment(ArmorStand stand) {
-        Position at = new Position(stand.x(), stand.y() + 1.0, stand.z());
+        // THE EQUIPMENT ANCHOR (Wave PE-5's seat find — the same floor
+        // law): `new BlockPos(this).up()` — the stand's cell FLOORED and
+        // raised one, the head cell; never the raw center + 1.
+        Position at = new Position(Math.floor(stand.x()), Math.floor(stand.y()) + 1.0,
+                Math.floor(stand.z()));
         for (int slot = 0; slot < 5; slot++) {
             ItemStack piece = stand.equipment(slot);
             if (!piece.isEmpty()) {

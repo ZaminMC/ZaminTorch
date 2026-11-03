@@ -242,6 +242,43 @@ class ArmorStandSystemTest {
             await(server, () -> server.itemEntities().all().size() >= base + 2,
                     "the stand item and the helmet dropped");
 
+            // THE DROPPED ITEMS' OWN OCCUPANCY (Wave PE-4's law — the
+            // entity box gate walks every family; the anchors repaired
+            // Wave PE-5 — the drops at the stand's own CELL, the
+            // reference's new BlockPos(this) floor): the break's stand
+            // item and helmet both lie in the cell — the re-placement
+            // REFUSES exactly like vanilla until they leave.
+            AtomicReference<Boolean> refusedOverDrops = new AtomicReference<>();
+            server.ticker().submit(() -> refusedOverDrops.set(server.armorStands().place(
+                    new BlockPosition(10, 39, 10), 0, 1, 0.0f, new java.util.Random(4))));
+            await(server, () -> refusedOverDrops.get() != null,
+                    "the placement over the drops answered");
+            assertFalse(refusedOverDrops.get(),
+                    "the placement over the dropped items refuses (the entity "
+                            + "box gate walks every family)");
+
+            // The drops cleared (the pickup's stand-in through the test
+            // surface), the placement succeeds.
+            server.ticker().submit(() -> {
+                for (net.zaminmc.torch.server.entity.ItemEntity dropped
+                        : server.itemEntities().all()) {
+                    if ((int) Math.floor(dropped.position().x()) == 10
+                            && (int) Math.floor(dropped.position().z()) == 10) {
+                        server.itemEntities().remove(dropped, "test-clear");
+                    }
+                }
+            });
+            await(server, () -> {
+                for (net.zaminmc.torch.server.entity.ItemEntity dropped
+                        : server.itemEntities().all()) {
+                    if ((int) Math.floor(dropped.position().x()) == 10
+                            && (int) Math.floor(dropped.position().z()) == 10) {
+                        return false;
+                    }
+                }
+                return true;
+            }, "the dropped items cleared");
+
             // The creative hand removes without any drop.
             server.ticker().submit(() -> server.armorStands().place(
                     new BlockPosition(10, 39, 10), 0, 1, 0.0f, new java.util.Random(4)));
@@ -700,6 +737,50 @@ class ArmorStandSystemTest {
             assertEquals(11.5, bursts.get(0).position().z(), 1e-9);
             assertNull(standAt(server, 11, 40, 11), "the stand is gone");
 
+            // THE DROPPED ITEM'S OWN OCCUPANCY (Wave PE-4's law —
+            // ArmorStandItem.useOn lines 40-46: getEntities(null, Box)
+            // counts EVERY family, the dropped stand item included;
+            // the anchor repaired Wave PE-5 — the drop at the stand's
+            // own CELL, the reference's new BlockPos(this) floor):
+            // the break dropped the stand item inside the feet cell —
+            // its own 0.25 box over the [0.25, 0.75] spawn inset
+            // [cell+0.125, cell+0.875] horizontally and the resting
+            // [surface, surface+0.25] vertically, overlapping the
+            // placement box [11, 12] x [40, 42] x [11, 12] by at least
+            // 0.125 on every face — the re-placement REFUSES exactly
+            // like vanilla (the item must leave the cell first).
+            AtomicReference<Boolean> refusedWhileDropped = new AtomicReference<>();
+            server.ticker().submit(() -> refusedWhileDropped.set(server.armorStands().place(
+                    new BlockPosition(11, 39, 11), 0, 1, 0.0f, new java.util.Random(7))));
+            await(server, () -> refusedWhileDropped.get() != null,
+                    "the placement over the dropped item answered");
+            assertFalse(refusedWhileDropped.get(),
+                    "the placement over the dropped stand item refuses "
+                            + "(the entity box gate walks every family — the "
+                            + "item's own box overlapping by 0.125)");
+
+            // The item cleared (the pickup's stand-in through the test
+            // surface), the placement succeeds.
+            server.ticker().submit(() -> {
+                for (net.zaminmc.torch.server.entity.ItemEntity dropped
+                        : server.itemEntities().all()) {
+                    if ((int) Math.floor(dropped.position().x()) == 11
+                            && (int) Math.floor(dropped.position().z()) == 11) {
+                        server.itemEntities().remove(dropped, "test-clear");
+                    }
+                }
+            });
+            await(server, () -> {
+                for (net.zaminmc.torch.server.entity.ItemEntity dropped
+                        : server.itemEntities().all()) {
+                    if ((int) Math.floor(dropped.position().x()) == 11
+                            && (int) Math.floor(dropped.position().z()) == 11) {
+                        return false;
+                    }
+                }
+                return true;
+            }, "the dropped stand item cleared");
+
             // The creative arm bursts too (the reference's lines 416-419):
             // the same floor at 39 carries a second stand at 40 (the first
             // broke there; its cell is free again).
@@ -707,6 +788,7 @@ class ArmorStandSystemTest {
             server.ticker().submit(() -> creativeLanded.set(server.armorStands().place(
                     new BlockPosition(11, 39, 11), 0, 1, 0.0f, new java.util.Random(7))));
             await(server, () -> creativeLanded.get() != null, "the creative stand placed");
+            assertTrue(creativeLanded.get(), "the cleared cell takes the stand");
             ArmorStand creative = standAt(server, 11, 40, 11);
             assertNotNull(creative, "the second stand stands at 40");
             AtomicReference<Boolean> creativeBroke = new AtomicReference<>();
