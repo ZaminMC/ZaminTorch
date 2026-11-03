@@ -156,7 +156,8 @@ public final class DispenserSystem implements WorldChangeListener {
      */
     private record EngineSurfaces(MobManager mobs, FireworksSystem fireworks,
                                   VehicleManager vehicles, SkullManager skulls,
-                                  PlayerRegistry players) {
+                                  PlayerRegistry players,
+                                  net.zaminmc.torch.server.armorstand.ArmorStandSystem armorStands) {
     }
 
     private EngineSurfaces surfaces;
@@ -164,16 +165,20 @@ public final class DispenserSystem implements WorldChangeListener {
     /**
      * Wires the later arms' engine surfaces (the server's boot, after the
      * skull store exists — the same late-wiring the event bus rides).
+     * Wave PE-7: the armor stand system joins (the armor arm's
+     * LivingEntity census — the reference's own ArmorStandEntity arm).
      */
     public void setEngineSurfaces(MobManager mobs, FireworksSystem fireworks,
                                   VehicleManager vehicles, SkullManager skulls,
-                                  PlayerRegistry players) {
+                                  PlayerRegistry players,
+                                  net.zaminmc.torch.server.armorstand.ArmorStandSystem armorStands) {
         this.surfaces = new EngineSurfaces(
                 Objects.requireNonNull(mobs, "mobs"),
                 Objects.requireNonNull(fireworks, "fireworks"),
                 Objects.requireNonNull(vehicles, "vehicles"),
                 Objects.requireNonNull(skulls, "skulls"),
-                Objects.requireNonNull(players, "players"));
+                Objects.requireNonNull(players, "players"),
+                Objects.requireNonNull(armorStands, "armorStands"));
     }
 
     /**
@@ -872,14 +877,34 @@ public final class DispenserSystem implements WorldChangeListener {
             case LEGS -> 2;
             case FEET -> 1;
         };
-        ItemStack one = stack.withCount(1); // the copy().size = 1 (line 47)
-        // The scan (lines 36-40): the cell's full cube — the mobs first,
-        // then the players (the engine's own bodiesIn convention; the
-        // reference's chunk-scan order is its own).
+        ItemStack one = stack.withCount(1); // the copy().size = 1 (line 41)
+        // THE SCAN'S OWN-BOX LAW (Wave PE-7, the Phase E boundary arms
+        // — ArmorItem lines 33-35: `new Box(i, j, k, i + 1, j + 1,
+        // k + 1)` + getEntitiesOfType(LivingEntity.class, box, ...)):
+        // every body's OWN box against the facing cell's full cube,
+        // STRICT both sides (exactly touching never intersecting). The
+        // pre-fix consult grew the cell around each body's CENTER with
+        // inclusive edges and a HARDCODED hull — the mob's 0.6x1.8 stand-in
+        // never read the type's own size (a tall mob's head reaching
+        // into the cell while its feet band sat below was never
+        // equipped), and the exact-touch straddle at the cell's face
+        // always equipped. The reference's LivingEntity census walks
+        // the mobs, the players AND THE ARMOR STANDS (EntityFilter's
+        // CanPickUpItemsFilter line 52: `livingentity instanceof
+        // ArmorStandEntity || livingentity instanceof PlayerEntity` —
+        // the stand's explicit qualify arm); the engine's census order
+        // is its own (the reference's chunk-scan order differs).
         for (MobEntity mob : engine.mobs().all()) {
             if (mob.dead() || !mob.canPickUpLoot()
-                    || mob.equipment(i1) != null
-                    || !bodyIntersectsCell(mob.position(), target, 0.6)) {
+                    || mob.equipment(i1) != null) {
+                continue;
+            }
+            net.zaminmc.torch.util.Position at = mob.position();
+            double mobHalf = mob.type().width / 2.0;
+            if (!(at.x() + mobHalf > target.x() && at.x() - mobHalf < target.x() + 1
+                    && at.y() + mob.type().height > target.y()
+                    && at.y() < target.y() + 1
+                    && at.z() + mobHalf > target.z() && at.z() - mobHalf < target.z() + 1)) {
                 continue;
             }
             mob.setEquipment(i1, one);
@@ -893,7 +918,10 @@ public final class DispenserSystem implements WorldChangeListener {
                     || player.gamemode() == GameMode.SPECTATOR) {
                 continue; // NOT_SPECTATOR (EntityFilter lines 27-31)
             }
-            if (!bodyIntersectsCell(player.position(), target, 0.3)) {
+            net.zaminmc.torch.util.Position at = player.position();
+            if (!(at.x() + 0.3 > target.x() && at.x() - 0.3 < target.x() + 1
+                    && at.y() + 1.8 > target.y() && at.y() < target.y() + 1
+                    && at.z() + 0.3 > target.z() && at.z() - 0.3 < target.z() + 1)) {
                 continue;
             }
             int armorSlot = i1 - 1; // setEquipment(i1 - l) — the player's armor row
@@ -904,22 +932,39 @@ public final class DispenserSystem implements WorldChangeListener {
             fx.sound(centerOf(pos), "random.click", 1.0f, 1.0f, world.dimension());
             return consumeOne(stack);
         }
+        // THE ARMOR STAND WALK (Wave PE-7 — the reference's explicit
+        // ArmorStandEntity arm in CanPickUpItemsFilter line 52): the
+        // stand's own 0.5x1.975 hull against the cell's cube, STRICT
+        // both sides; the equip through the stand's own rows (the
+        // setEquipment(i1 - 0) form — the stand is no PlayerEntity,
+        // l = 0) with the equipment-changed publish; the MobEntity
+        // drop-chance marker correctly ABSENT (the stand is no
+        // MobEntity); the stand's own world alone (the dispenser's
+        // dimension gate).
+        for (net.zaminmc.torch.server.armorstand.ArmorStand stand
+                : engine.armorStands().allStands()) {
+            if (stand.dimension() != world.dimension()) {
+                continue; // another world's stand is absent from this walk
+            }
+            if (!stand.equipment(i1).isEmpty()) {
+                continue; // CanPickUpItemsFilter: the occupied slot refuses
+            }
+            if (!(stand.x() + 0.25 > target.x() && stand.x() - 0.25 < target.x() + 1
+                    && stand.y() + 1.975 > target.y() && stand.y() < target.y() + 1
+                    && stand.z() + 0.25 > target.z() && stand.z() - 0.25 < target.z() + 1)) {
+                continue;
+            }
+            engine.armorStands().equipDispensed(stand, i1, one);
+            fx.sound(centerOf(pos), "random.click", 1.0f, 1.0f, world.dimension());
+            return consumeOne(stack);
+        }
         return defaultItemDrop(pos, facing, stack); // line 62: super.dispenseItem
     }
 
-    /**
-     * The body-box intersection with the facing cell's full cube (the
-     * reference's {@code Box(i, j, k, i+1, j+1, k+1)} over the body's
-     * own shape): the engine's PotionBodies convention — the body's
-     * half-width around the feet-anchored center, the 1.8 hull for the
-     * height band.
-     */
-    private static boolean bodyIntersectsCell(Position at, BlockPosition cell,
-                                              double halfWidth) {
-        return at.x() >= cell.x() - halfWidth && at.x() <= cell.x() + 1 + halfWidth
-                && at.z() >= cell.z() - halfWidth && at.z() <= cell.z() + 1 + halfWidth
-                && at.y() <= cell.y() + 1 && at.y() + 1.8 >= cell.y();
-    }
+    // (Wave PE-7 retired bodyIntersectsCell whole — the armor arm's
+    // consult now the own-box strict law, every walk reading the body's
+    // own hull: the mob's type box, the player's 0.6x1.8, the stand's
+    // 0.5x1.975.)
 
     /**
      * The skull (Bootstrap lines 340-392): ONLY the wither's head on a

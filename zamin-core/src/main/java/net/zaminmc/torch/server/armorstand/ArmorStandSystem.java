@@ -469,6 +469,23 @@ public final class ArmorStandSystem {
         return true;
     }
 
+    /**
+     * THE DISPENSER'S ARMOR ARM (Wave PE-7 — ArmorItem lines 42-45 over
+     * the LivingEntity census: {@code livingentity.setEquipment(i1 - l,
+     * itemstack)} with {@code l = 0} for the stand — no PlayerEntity):
+     * the stand wears the piece in its own equipment band, the
+     * equipment-changed publish riding the same listener walk the use
+     * path carries; the MobEntity drop-chance marker correctly ABSENT
+     * (the reference's {@code instanceof MobEntity} gate — the stand is
+     * no MobEntity).
+     */
+    public void equipDispensed(ArmorStand stand, int slot, ItemStack piece) {
+        stand.setEquipment(slot, piece);
+        for (Listener listener : listeners) {
+            listener.onStandEquipmentChanged(stand, slot);
+        }
+    }
+
     // ------------------------------------------------------------------
     // The melee break ladder (takeDamage lines 368-433)
     // ------------------------------------------------------------------

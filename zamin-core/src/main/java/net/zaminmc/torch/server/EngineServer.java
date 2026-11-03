@@ -3893,11 +3893,14 @@ public final class EngineServer implements Server, EngineBridge {
                 // arms its OWN world's skulls (a nether dispenser's skull
                 // arm never writes the overworld's family).
                 dispenserSystem.setEngineSurfaces(
-                        mobManager, fireworks, vehicleManager, skulls, players);
+                        mobManager, fireworks, vehicleManager, skulls, players,
+                        armorStands);
                 netherDispensers.setEngineSurfaces(
-                        mobManager, fireworks, vehicleManager, netherSkulls, players);
+                        mobManager, fireworks, vehicleManager, netherSkulls, players,
+                        armorStands);
                 endDispensers.setEngineSurfaces(
-                        mobManager, fireworks, vehicleManager, endSkulls, players);
+                        mobManager, fireworks, vehicleManager, endSkulls, players,
+                        armorStands);
                 // The tile NBT projections (Slice 89 — the reference's
                 // BlockEntity.writeNbt/readNbt over the engine's tile
                 // families): the /blockdata and /testforblock dataTag
@@ -27952,22 +27955,36 @@ public final class EngineServer implements Server, EngineBridge {
             return viewers;
         });
         // The detector rail's cart probe (Slice 38 —
-        // DetectorRailBlock.updateOutputState's getMinecarts over
-        // the rail's own cell: any minecart body inside the box, the
-        // vehicle walk carrying the dimension gate).
+        // DetectorRailBlock.updateOutputState's getMinecarts over the
+        // rail's own census).
         system.setCartProbe(rail -> {
+            // THE DETECTOR RAIL'S OWN BOX LAW (Wave PE-7, the Phase E
+            // boundary arms — DetectorRailBlock.getBoundsForMinecarts
+            // lines 155-158: `new Box(pos.getX() + 0.2F, pos.getY(),
+            // pos.getZ() + 0.2F, pos.getX() + 1 - 0.2F, pos.getY() + 1
+            // - 0.2F, pos.getZ() + 1 - 0.2F)` — the 0.2-INSET box
+            // [cell+0.2, cell+0.8] x [y, y+0.8] x [cell+0.2, cell+0.8],
+            // each cart's OWN 0.98x0.7 hull against it, STRICT both
+            // sides (exactly touching never intersecting). The pre-fix
+            // probe tested the cart's CENTER inside the FULL cell with
+            // inclusive edges — a cart standing in the cell's outer rim
+            // fired where vanilla's inset refuses, an edge-grazing cart
+            // (hull over the inset while the center sits outside) never
+            // fired — and the census walked only the plain and chest
+            // kinds where the reference's MinecartEntity.class gathers
+            // EVERY cart kind (the furnace, TNT, hopper and spawner
+            // carts included).
             for (var vehicle : vehicleManager.all()) {
-                if (vehicle.kind() != net.zaminmc.torch.server.entity.vehicle.VehicleEntity.Kind.MINECART
-                        && vehicle.kind() != net.zaminmc.torch.server.entity.vehicle.VehicleEntity.Kind.CHEST_MINECART) {
-                    continue;
+                if (vehicle.kind() == net.zaminmc.torch.server.entity.vehicle.VehicleEntity.Kind.BOAT) {
+                    continue; // a boat is no MinecartEntity (the class census)
                 }
                 if (vehicle.dimension() != dimension) {
                     continue; // another world's cart is absent from this walk
                 }
                 net.zaminmc.torch.util.Position at = vehicle.position();
-                if (at.x() >= rail.x() && at.x() <= rail.x() + 1
-                        && at.y() >= rail.y() && at.y() <= rail.y() + 1
-                        && at.z() >= rail.z() && at.z() <= rail.z() + 1) {
+                if (at.x() + 0.49 > rail.x() + 0.2 && at.x() - 0.49 < rail.x() + 0.8
+                        && at.y() + 0.35 > rail.y() && at.y() - 0.35 < rail.y() + 0.8
+                        && at.z() + 0.49 > rail.z() + 0.2 && at.z() - 0.49 < rail.z() + 0.8) {
                     return true;
                 }
             }
