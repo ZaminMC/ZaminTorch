@@ -225,6 +225,153 @@ class NaturalSpawnSystemTest {
     }
 
     // ------------------------------------------------------------------
+    // VT-020 (renumbered from the draft VT-012 — the pass-30 lane's
+    // VT-012 is the NetherBlastRouting flake, claimed 2026-10-31 before
+    // this stream's 2026-11-01 claim) — the spawn floor's consult
+    // ------------------------------------------------------------------
+
+    /**
+     * VT-020's discovery seat: the reference's spawn floor consult is
+     * {@code World.hasSolidTop} (NaturalSpawner lines 159-166) whose FIRST
+     * arm ({@code material.isSolidBlocking() && isCube()}) accepts the
+     * double slab outright ({@code SlabBlock.isCube() = isDouble()} — the
+     * doubles are full cubes). The engine's {@code isPartialShape} suffix
+     * arm ({@code name.endsWith("_slab")}) rejects the ten
+     * {@code _slab}-suffixed double names — the floor refuses the spawn
+     * vanilla allows. The stone control and the single-slab control frame
+     * the discrimination: the stone floor spawns (both trees agree), the
+     * single bottom slab refuses (both trees agree — vanilla's
+     * {@code hasSolidTop} SlabBlock arm wants HALF == TOP), and the DOUBLE
+     * floor must spawn (vanilla) but refuses on the unfixed baseline —
+     * RED here, the parity pin riding the fix branch.
+     */
+    @Test
+    void theDoubleSlabFloorHostsTheNightMonsters() {
+        int stoneControl = 0;
+        int doubleFloor = 0;
+        int singleSlabControl = 0;
+        for (int seed = 0; seed < 40; seed++) {
+            stoneControl += nightSpawnsOnFloor(seed,
+                    net.zaminmc.torch.server.block.BuiltinBlocks.STONE);
+            doubleFloor += nightSpawnsOnFloor(seed,
+                    net.zaminmc.torch.server.block.BuiltinBlocks.DOUBLE_STONE_SLAB);
+            singleSlabControl += nightSpawnsOnFloor(seed,
+                    net.zaminmc.torch.server.block.BuiltinBlocks.STONE_SLAB);
+        }
+        assertTrue(stoneControl > 0,
+                "the stone floor hosts the night monsters (the harness control)");
+        assertEquals(0, singleSlabControl,
+                "the single bottom slab refuses in BOTH trees (hasSolidTop's "
+                        + "SlabBlock arm wants HALF == TOP)");
+        assertTrue(doubleFloor > 0,
+                "VT-020: the double-slab floor hosts the night monsters — "
+                        + "hasSolidTop's first arm (isSolidBlocking && isCube) "
+                        + "accepts the double; the engine's isPartialShape "
+                        + "suffix arm refuses it");
+    }
+
+    /**
+     * VT-020's second row (the pass-3 widening census): the reference's
+     * {@code hasSolidTop} SECOND arm rejects the BOTTOM stair — the
+     * StairsBlock arm wants {@code HALF == TOP} (World.java lines
+     * 1745-1747), so no vanilla spawn ever lands on a bottom-stair
+     * floor. The engine's directional stair states
+     * ({@code oak_stairs_east} — the metadata fold's stored forms) end
+     * in a FACING suffix, never {@code "_stairs"}, so the suffix arm
+     * never catches them and the floor consult ACCEPTS the bottom
+     * stair — the engine spawns the night monsters where vanilla
+     * refuses. The stone and TOP-stair controls frame the
+     * discrimination: the stone floor spawns (both trees agree), the
+     * TOP stair spawns (both trees agree — the reference's arm wants
+     * HALF == TOP), and the BOTTOM stair must refuse (vanilla) but
+     * hosts on the unfixed baseline — RED here, the parity pin riding
+     * the fix branch.
+     */
+    @Test
+    void theBottomStairFloorRefusesTheNightMonsters() {
+        int stoneControl = 0;
+        int bottomStairFloor = 0;
+        int topStairControl = 0;
+        for (int seed = 0; seed < 40; seed++) {
+            stoneControl += nightSpawnsOnFloor(seed,
+                    net.zaminmc.torch.server.block.BuiltinBlocks.STONE);
+            bottomStairFloor += nightSpawnsOnFloor(seed,
+                    net.zaminmc.torch.server.block.BuiltinBlocks.OAK_STAIRS_EAST);
+            topStairControl += nightSpawnsOnFloor(seed,
+                    net.zaminmc.torch.server.block.BuiltinBlocks.OAK_STAIRS_EAST_TOP);
+        }
+        assertTrue(stoneControl > 0,
+                "the stone floor hosts the night monsters (the harness control)");
+        assertTrue(topStairControl > 0,
+                "the TOP stair hosts the night monsters in BOTH trees "
+                        + "(hasSolidTop's StairsBlock arm wants HALF == TOP)");
+        assertEquals(0, bottomStairFloor,
+                "VT-020: the BOTTOM stair floor refuses the night monsters — "
+                        + "hasSolidTop's StairsBlock arm wants HALF == TOP; "
+                        + "the engine's directional stair states end in a "
+                        + "FACING suffix, so the isPartialShape arm never "
+                        + "catches them and the floor consult accepts the "
+                        + "bottom stair");
+    }
+
+    /**
+     * VT-020's third row (the pass-3 census): the red sandstone slab
+     * pair over legacy 182 — the engine's {@code stone_slab2} (the
+     * BOTTOM single, the HALF bit 8 family) ends in {@code "2"}, so the
+     * {@code endsWith("_slab")} arm never catches it and the floor
+     * consult ACCEPTS the bottom half where the reference's SlabBlock
+     * arm ({@code HALF == TOP}) refuses it. The {@code stone_slab}
+     * control (the SAME bottom-half law under a caught name) frames the
+     * discrimination: both are bottom singles, vanilla refuses both,
+     * the engine refuses the caught name but hosts the escaped one —
+     * the same suffix-approximation accident as the doubles' row.
+     */
+    @Test
+    void theRedSandstoneBottomSlabFloorRefusesTheNightMonsters() {
+        int stoneControl = 0;
+        int redSandstoneBottom = 0;
+        int stoneSlabControl = 0;
+        for (int seed = 0; seed < 40; seed++) {
+            stoneControl += nightSpawnsOnFloor(seed,
+                    net.zaminmc.torch.server.block.BuiltinBlocks.STONE);
+            redSandstoneBottom += nightSpawnsOnFloor(seed,
+                    net.zaminmc.torch.server.block.BuiltinBlocks.STONE_SLAB2);
+            stoneSlabControl += nightSpawnsOnFloor(seed,
+                    net.zaminmc.torch.server.block.BuiltinBlocks.STONE_SLAB);
+        }
+        assertTrue(stoneControl > 0,
+                "the stone floor hosts the night monsters (the harness control)");
+        assertEquals(0, stoneSlabControl,
+                "the stone bottom slab refuses in BOTH trees (the caught "
+                        + "name — hasSolidTop's SlabBlock arm wants HALF == TOP)");
+        assertEquals(0, redSandstoneBottom,
+                "VT-020: the red sandstone bottom slab floor refuses the "
+                        + "night monsters — hasSolidTop's SlabBlock arm wants "
+                        + "HALF == TOP; the engine's stone_slab2 ends in "
+                        + "\"2\" so the isPartialShape arm never catches it");
+    }
+
+    /** The night-spawn count over a uniform floor of the given type. */
+    private int nightSpawnsOnFloor(int seed,
+            net.zaminmc.torch.block.BlockType block) {
+        FakeWorld world = new FakeWorld(4);
+        Spawned spawned = new Spawned();
+        NaturalSpawnSystem system = new NaturalSpawnSystem(
+                spawnSink(spawned), world, new Random(seed));
+        for (int x = -20; x <= 20; x++) {
+            for (int z = -20; z <= 20; z++) {
+                world.ground(x, z, block);
+            }
+        }
+        PlayerSession walker = player("Walker", 30.5, 30.5);
+        int night = 0;
+        for (int cycle = 0; cycle < 20; cycle++) {
+            night += system.tick(List.of(walker), 18000L, false);
+        }
+        return night;
+    }
+
+    // ------------------------------------------------------------------
     // The monster light rule
     // ------------------------------------------------------------------
 

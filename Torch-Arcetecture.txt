@@ -7899,14 +7899,130 @@ both test-seat defects — see the census doc) and the mob-integration
 status read (the body-filtered form): runs 578/579 green, builds
 155/156 published, the four-day stall over.
 
-NEXT WORK (in order): Slice D IS WHOLE (all three transient families
-landed — the piston, the decoration, the lead; row 4's ledgered tail
-above); the PR wave's remainder (the support-consult chain #137-#149,
-and the VT stack #116-#136 — this session merged #109/#111/#113/#114
-and closed #108/#110 with the three-pass discipline) reviews as time
-permits; the dimension-ownership ledger's next rows (the redstone
-world's remaining consults, the container/storage ownership) name
-their own acts.
+NEXT WORK (in order): the dimension-ownership ledger's remaining
+rows — the redstone world's remaining consults (the redstone wire's
+cross-dimension consults) and the container/storage ownership's own
+tail rows (the anvil import's per-dimension host consults, the hopper
+cart scan's cross-family pulls); the vanilla-conformance census's
+Phase E boundary arms (the strict-form rider's ARM D/E class — the
+exact-touch constructs); the CI census watches run 603's
+loaded-runner members (the Hunger/Pearl and the NetherBed one-offs —
+both pass locally, the environmental class again; the full-module
+one-offs rotate members each run — DonkeyChest/ChestLid/Scoreboard-
+Health, each green isolated — the loaded-runner class, not
+regressions).
+
+VT-033'S ADJACENT TAILS LANDED (2026-11-02, commit d96f4a2a — #146's
+review-note ledger retired): the WITHER FALL's kill row and the BEACON
+full-power row walk the ACTING world's players (the un-dimensioned
+awardPlayersInBox retired at both sites — WitherEntity.dropItems
+452-458 + BeaconBlockEntity.update 162-167, the per-family listener
+form carrying each dimension's own); the BANNER/BEACON/COMMAND-BLOCK
+tile fans the skull fan's own per-world form (#146's landed pattern —
+every dimension's store re-publishing through its OWN listener gated
+to that dimension's observers; the three were the overworld-only
+ungated shape). SEATS: AwardWalkDimensionDiscoveryTest 2/0 (the beam
+column's netherrack shaft cleared first — the seat's own
+vanilla-validity repair, updateLevels 95-106's opacity-15 kill); the
+stat/beacon/tile families 44/0. THE SCOREBOARDHEALTH FLAKE ROOT-
+CAUSED AND RETIRED (the test-seat class): the health walk is CHANGE-
+GATED (ServerPlayerEntity.tick 312-318, the completeHealth law 1:1)
+and the player's first tick may precede the objective's creation —
+no publish ever landing (vanilla's own answer for a mid-game
+objective); the seat resets the mark for the deterministic first
+publish, 4/4 green solo.
+
+THE PR WAVE LANDED WHOLE (2026-11-02, the stacked-PR session): all
+23 open PRs reviewed on the three-pass discipline, 19 MERGED with
+real merge commits, 4 CLOSED as superseded with the salvage carried —
+the arrow family: #140 (VT-030 the stick precedes the TNT consult,
+ArrowEntity 304-before-308), #120 (VT-015 the un-stick law — the
+tracked cell + identifier, the per-axis random*0.2 damping, the
+anvil import's xTile/yTile/zTile/inTile rows), #123 (VT-019 the
+stuck arrow's inGround gate — the flight branch alone, line 382),
+#128 (VT-023 the feet-law band [y, y+0.5]), #132 (VT-024 the pickup
+envelope's box intersection — 0.3+1.0+0.25 horizontal, the grown
+vertical band), #117/#122 CLOSED (their convergent pair composed into
+the VT-014 carrier, commit 84140361: the reference's rayTrace at the
+engine's granularity — the boundary-crossing cell walk with the
+per-cell COLLISION-BOX entry test, the rest face-0.05, the
+face-relative stuck velocity, the box's own cell the tracked cell);
+the dimension-stamp family: #125 (VT-012 the fourteen live spawn
+sites stamp the birth dimension BEFORE the fan, Entity line 166's
+construction law — spawnAt's dimension-aware arm + the VIII14 dice
+context), #130 (VT-013 the three post-fan precedents — the block
+spawner, the End dragon, the chicken egg), #133 (VT-026 the nether
+border's /8 center projection, NetherDimension.createWorldBorder
+75-86, the borderFor router at the containment lanes), #142 (VT-029
+the sixteen no-dimension FX residual sites — the note play, the
+trapdoor/door/gate creaks, the bone-meal bursts, the flint ignite,
+the hoe till, the cocoa/double-plant places, the ender-eye burst,
+the fire fizz), #146 (VT-033 the wither-summon family's five
+residues — the poof's stamp, the birth's fan timing, the
+achievement's world, the break drop's world, the per-dimension tile
+fan); the piston family: #126 (VT-016 the full material census —
+426 divergent ids corrected, the DESTROY/BLOCK membership over
+Material.java 10-43 + the block-level overrides), #131 (VT-025 the
+toBreak drop walk), #129 (VT-022 the block-entity gate widened to
+the full BlockEntityProvider census); the fresh wave: #153 (W-POT
+the pot's floor consult at both sites), #154 (W-BED the BedItem
+gates — the UP-face law + both-halves solid top), #156 (VT-037 the
+orb's two-constructor box law), #151 (VT-036 the tripwire + TNT
+signal arm's per-dimension machinery — the chestsFor form + the
+redstoneFor router), #152 (VT-035 the anvil/enchanting windows' own
+dimension — the 4-arg open + the viewer ticks + the damage walk),
+#155 (VT-035 the nether bed seat's whole-pair probe — test-only),
+#150/#157 CLOSED (their stale bases re-implemented the landed
+F-SP2/SP3/SP4 family; #150's unique F-SP5 hook-wall law salvaged —
+the Block.isSolid consult at both wall sites, commit 964a681a;
+#157's 669-line seat carried as the independent verification). THE
+BENCH REPAIRS: the six new piston seats' lever-on-piston-base mounts
+moved to the vanilla-valid stone-above form (the F-SP1 correction's
+own class, PistonBaseBlock.isCube() false, reference line 223).
+
+F-SP2/SP3/SP4 + VT-020 LANDED (2026-11-01, the floor-consult family
+session): the LAST floor-mounted family whole — every family's floor
+consult now reads the reference's OWN law, never the collision
+question the one shared hasSupportBelow answered (the same defect
+class F-SP1 retired for the mounts): the WIRE (hasSolidTop OR the
+GLOWSTONE disjunct), the REPEATER/COMPARATOR (hasSolidTop alone), the
+PLATES (hasSolidTop OR the seven-fence census), the RAILS (hasSolidTop
+for the floor AND every ascending headwall), the DOOR (hasSolidTop
+alone), the FIRE (the delegated five-arm home — the translucent
+fallout retired: glass/ice/TNT/leaves/glowstone never again a fire
+floor or a rail bed), the TRIPWIRE (the SUSPENDED flag over
+hasSolidTop at all three sites), the SPAWN FLOOR (NaturalSpawner
+lines 160-162 — World.hasSolidTop whole, the hand-rolled conjuncts
+retired: the doubles and TOP halves host, the bottoms and directional
+stair folds refuse, the translucent census never spawns), the
+plain-torch walk (torchCanSitOnTop — the #137/#138 lanes' named row),
+and the redstone torch's onAdded support-first arm. THE CARRIER: the
+six stale-based towers (#141/#143/#145/#147/#148/#149 — each 43
+conflict markers against the #139 home, rebased whole onto
+SupportConsult with their five seat files salvaged and their bench
+repairs carried) + #121's stronger form (its discovery rows kept, its
+suffix-approximation fix replaced by the one-home consult); the six
+towers + #121 CLOSED as superseded with the full three-pass review
+notes. THE PR WAVE'S VERIFIED MERGES (each the SOURCE pass against
+the reference, the seats green on the merged tree): #116 (VT-017 the
+grass-decay shade law — the two conjuncts, GrassBlock.tick 49-52),
+#144 (VT-034 the repeater's phantom click retired — the delay cycle
+silent, the click the comparator's alone), #134 (VT-030 the TNT
+prime's hiss stamped with the acting world), #135 (VT-031 the
+dig/place feedback sounds stamped with the acting world's dimension —
+the Commit record gaining the column), #136 (VT-032 the falling
+anvil's land sound stamped with the body's own dimension). THE BENCH
+REPAIR the #139 merge missed (develop's five standing failures, CI
+run 603 — the lever-on-piston benches in PistonPushApiAcceptanceTest,
+RegionBoundaryTest, PistonSliceDOwnershipAcceptanceTest, and
+BukkitEventBridgeGroupTwoTest): all moved to the vanilla-valid mount
+— the stone above the piston carries the lever (PistonBaseBlock
+.isCube() false, reference line 223), the flip's strong power entering
+the stone re-radiating to the piston below. LANES: the five family
+seats 16/0, the redstone + block packages 372/0, the piston lanes
+36/0, the falling family 109/0, the entity package 582/0,
+interaction/player/world 308/0, the spawn package 16/0, the bukkit
+module 52/0.
 
 SLICE B LANDED (2026-11-01, the container-remainder session): the
 four families whole, exactly per row 2 — the furnace/dispenser/brewing/

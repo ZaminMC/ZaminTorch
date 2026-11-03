@@ -89,8 +89,13 @@ public final class GolemSpawns {
             world.setBlock(head.offset(0, -1, 0), world.airType());
             world.setBlock(head.offset(0, -2, 0), world.airType());
             BlockPosition at = head.offset(0, -2, 0);
+            // The golem lives in the world the pattern was built in
+            // (PumpkinBlock.trySpawnGolem line 57's
+            // {@code new SnowGolemEntity(world)} — the placing world);
+            // the dimension rides the spawn, before the spawn fan.
             mobs.spawnAt(net.zaminmc.torch.server.entity.MobType.SNOW_GOLEM,
-                    new Position(at.x() + 0.5, at.y() + 0.05, at.z() + 0.5));
+                    new Position(at.x() + 0.5, at.y() + 0.05, at.z() + 0.5),
+                    world.dimension());
             return;
         }
         // The iron pattern (getIronGolemPattern): "~^~" / "###" / "~#~" — the
@@ -117,9 +122,14 @@ public final class GolemSpawns {
             world.setBlock(chest.offset(dx, 0, dz), world.airType());
             world.setBlock(chest.offset(-dx, 0, -dz), world.airType());
             world.setBlock(base, world.airType());
+            // The golem lives in the world the pattern was built in
+            // (PumpkinBlock.trySpawnGolem line 86's
+            // {@code new IronGolemEntity(world)} — the placing world);
+            // the dimension rides the spawn, before the spawn fan.
             MobEntity golem = mobs.spawnAt(
                     net.zaminmc.torch.server.entity.MobType.IRON_GOLEM,
-                    new Position(base.x() + 0.5, base.y() + 0.05, base.z() + 0.5));
+                    new Position(base.x() + 0.5, base.y() + 0.05, base.z() + 0.5),
+                    world.dimension());
             if (golem != null) {
                 // setPlayerCreated (IronGolemEntity lines 229-236): the
                 // pattern-built golem never despawns AND never turns on

@@ -4829,6 +4829,12 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
      * Spawn Experience Orb (0x11, community-verified layout: varint id,
      * i32 xyz in 1/32 fixed point, short count = the orb's XP bundle).
      * Chunk-gated like every engine-global entity spawn. Any thread.
+     * VT-037 — the wire y is the entity's FEET y (the reference's
+     * AddExperienceOrbS2CPacket carries {@code entity.y * 32}, the
+     * box-bottom frame; the client's handler seats its own 0.5 box
+     * bottom at it). The engine's center convention composes
+     * {@code feet = position.y - halfHeight} — the per-body half rides
+     * the two-constructor size law.
      */
     void sendOrbSpawn(net.zaminmc.torch.server.experience.ExperienceOrbEntity orb) {
         Channel channel = adapter.channelOf(this);
@@ -4848,20 +4854,28 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeVarInt(out, Protocol18.S2C_SPAWN_XP_ORB);
         ByteBufOps.writeVarInt(out, orb.entityId());
         out.writeInt((int) Math.floor(orb.position().x() * 32.0));
-        out.writeInt((int) Math.floor(orb.position().y() * 32.0));
+        out.writeInt((int) Math.floor((orb.position().y() - orb.halfHeight()) * 32.0));
         out.writeInt((int) Math.floor(orb.position().z() * 32.0));
         out.writeShort(Math.min(Short.MAX_VALUE, orb.amount()));
         enqueueOut(out);
     }
 
-    /** Absolute-position sync for a moving orb. Any thread. */
+    /**
+     * Absolute-position sync for a moving orb. Any thread. VT-037 — the
+     * wire position is the FEET frame (the reference's entity
+     * teleport packets carry the entity's x/y/z, y the box bottom),
+     * the same frame the spawn arm writes so the relative deltas stay
+     * consistent.
+     */
     void sendOrbTeleport(net.zaminmc.torch.server.experience.ExperienceOrbEntity orb) {
         // Wave TF-10 — the observer in another dimension never tracks this
         // body (its spawn never reached them).
         if (dimensionOfSession() != orb.dimension()) {
             return;
         }
-        sendEntityTeleport(orb.entityId(), orb.position(), orb.onGround());
+        net.zaminmc.torch.util.Position feet = new net.zaminmc.torch.util.Position(
+                orb.position().x(), orb.position().y() - orb.halfHeight(), orb.position().z());
+        sendEntityTeleport(orb.entityId(), feet, orb.onGround());
     }
 
     /**

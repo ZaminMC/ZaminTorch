@@ -39,6 +39,9 @@ public final class LightningSystem {
         /** The precipitation height ({@code getPrecipitationHeight}). */
         int precipitationHeight(int x, int z);
 
+        /** The world's build height ({@code World.getHeight()}). */
+        int worldHeight();
+
         /** Whether the cell is air (the fire gate's first half). */
         boolean isAirAt(int x, int y, int z);
 
@@ -48,9 +51,27 @@ public final class LightningSystem {
         /** Writes the fire block (the caller already passed the gate). */
         void placeFireAt(int x, int y, int z);
 
-        /** The sky-visible living bodies inside the grown box. */
+        /**
+         * The sky-visible living bodies inside the grown box (the
+         * TARGET-SELECTION walk — ServerWorld.findLightningTarget's
+         * {@code getEntitiesOfType(LivingEntity.class, box, isAlive &&
+         * hasSkyAccess)}: each body's OWN box against the query box,
+         * strict both sides).
+         */
         List<StruckBody> skyVisibleBodies(double minX, double minY, double minZ,
                                           double maxX, double maxY, double maxZ);
+
+        /**
+         * EVERY body inside the box (the STRIKE walk —
+         * LightningBoltEntity.tick lines 84-90:
+         * {@code world.getEntities(this, Box(x-3, y-3, z-3, x+3, y+6+3,
+         * z+3))} — NO class filter, NO sky gate: the bolt wounds
+         * whatever stands in its box, the cave body under the overhang
+         * included; each body's OWN box against the query box, strict
+         * both sides).
+         */
+        List<StruckBody> bodiesInBox(double minX, double minY, double minZ,
+                                     double maxX, double maxY, double maxZ);
     }
 
     /** The wire observers: the bolt's spawn + the thunder sound pair. */
@@ -147,11 +168,19 @@ public final class LightningSystem {
         int x = chunkX * 16 + (pick & 15);
         int z = chunkZ * 16 + (pick >> 8 & 15);
         int height = surface.precipitationHeight(x, z);
-        // findLightningTarget lines 370-381: the ±3-grown box up to the
-        // world's height, the sky-visible bodies, one at random — else the
-        // precipitation cell itself.
+        // findLightningTarget lines 370-381: the box — Box(blockpos,
+        // BlockPos(x, getHeight(), z)).grown(3.0, 3.0, 3.0), the
+        // degenerate column line grown ±3 on every axis (Wave PE-4's
+        // re-pin: the pre-fix east/south face rode the CELL's +1 — a
+        // half-block phantom east of vanilla's own box; the Y band
+        // rides the WORLD'S OWN HEIGHT + 3, never the surface + 10 —
+        // a body on a tall tower beside the strike cell stays a
+        // candidate exactly as long as vanilla keeps it) — the
+        // sky-visible LIVING bodies (each body's own box, strict), one
+        // at random — else the precipitation cell itself.
         List<StruckBody> candidates = surface.skyVisibleBodies(
-                x - 3.0, height - 3.0, z - 3.0, x + 4.0, height + 10.0, z + 4.0);
+                x - 3.0, height - 3.0, z - 3.0,
+                x + 3.0, surface.worldHeight() + 3.0, z + 3.0);
         double strikeY = height;
         double strikeX = x;
         double strikeZ = z;
@@ -233,8 +262,13 @@ public final class LightningSystem {
             }
             if (bolt.stage >= 0) {
                 // Lines 114-129: the damage box — every body within
-                // (x±3, y-3..y+9, z±3) takes the strike.
-                for (StruckBody body : surface.skyVisibleBodies(
+                // (x±3, y-3..y+6+3, z±3) takes the strike (Wave PE-4's
+                // split: the STRIKE walk is its own surface consult —
+                // LightningBoltEntity.tick lines 84-90's
+                // getEntities(this, box), NO class filter and NO sky
+                // gate — the target-selection walk's sky gate never
+                // withheld a strike from a covered body).
+                for (StruckBody body : surface.bodiesInBox(
                         bolt.x - 3.0, bolt.y - 3.0, bolt.z - 3.0,
                         bolt.x + 3.0, bolt.y + 6.0 + 3.0, bolt.z + 3.0)) {
                     body.strike();

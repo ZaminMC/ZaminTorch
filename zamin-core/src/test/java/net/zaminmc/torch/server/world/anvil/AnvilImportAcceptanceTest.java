@@ -511,14 +511,19 @@ class AnvilImportAcceptanceTest {
         }
 
         // The stuck arrow: inGround + life resume the stick clock; the
-        // arrow-only family rows (xTile/inTile/shake/pickup/damage)
+        // tracked rows (VT-015 — xTile/yTile/zTile + inTile) restore the
+        // un-stick consult, so the scene is vanilla-consistent: the rest
+        // sits at the stone face +0.05 (y=1.05 over the floor's y=0
+        // cells, the reference's own stick geometry) and the tracked
+        // cell (133, 0, 133) actually holds the stone — a real vanilla
+        // save's shape. The remaining arrow-only rows (shake/damage)
         // carry the counted unlanded-rows note.
-        Map<String, Object> stuckArrow = AnvilFixture.entityRow("Arrow", 133.5, 2.05, 133.5);
+        Map<String, Object> stuckArrow = AnvilFixture.entityRow("Arrow", 133.5, 1.05, 133.5);
         stuckArrow.put("Motion", List.of(0.0, 0.0, 0.0));
         stuckArrow.put("inGround", (byte) 1);
         stuckArrow.put("life", (short) 400);
         stuckArrow.put("xTile", (short) 133);
-        stuckArrow.put("yTile", (short) 1);
+        stuckArrow.put("yTile", (short) 0);
         stuckArrow.put("zTile", (short) 133);
         stuckArrow.put("inTile", "minecraft:stone");
         stuckArrow.put("shake", (byte) 4);
@@ -738,7 +743,9 @@ class AnvilImportAcceptanceTest {
             assertFalse(report.contains("riding chain not imported"),
                     "the chain landed, never isolated: " + report);
 
-            // The counted notes: the arrow's unlanded family rows, the
+            // The counted notes: the arrow's unlanded family rows (the
+            // shake/damage pair — the tracked rows LANDED through VT-015's
+            // consult restore), the
             // frame's ItemDropChance, the orb's Health, and the eye's
             // transient rows (the reference's load quirk — the eye family
             // LANDED with the import-families slice; the no-surface

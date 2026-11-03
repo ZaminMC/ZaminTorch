@@ -58,8 +58,11 @@ public final class SkullManager {
         /**
          * Spawns the wither at the pattern's top-center cell (the engine
          * routes the spawn; the caller arms the window + the body yaw).
+         * The dimension is the placing walk's own world
+         * (SkullBlock.checkWitherSpawn line 185's
+         * {@code new WitherEntity(world)} — the skull's world).
          */
-        void summonWither(Position at, float bodyYawDegrees);
+        void summonWither(Position at, float bodyYawDegrees, int dimension);
     }
 
     /** Events the protocol adapter translates into the 0x35 tile packet. */
@@ -200,7 +203,7 @@ public final class SkullManager {
      *
      * @return true when the summon fired.
      */
-    public boolean trySummonWither(BlockPosition placed) {
+    public boolean trySummonWither(BlockPosition placed, int dimension) {
         SkullTile tile = tiles.get(placed);
         if (tile == null || tile.type() != 1 || placed.y() < 2
                 || host.difficulty() == 0) {
@@ -215,7 +218,7 @@ public final class SkullManager {
                 int cx = placed.x() - slot * dir[0];
                 int cz = placed.z() - slot * dir[1];
                 if (matchesPattern(cx, placed.y(), cz, dir[0], dir[1])) {
-                    clearAndSummon(cx, placed.y(), cz, dir[0], dir[1]);
+                    clearAndSummon(cx, placed.y(), cz, dir[0], dir[1], dimension);
                     return true;
                 }
             }
@@ -276,7 +279,8 @@ public final class SkullManager {
      * top-center cell +0.5/+0.55/+0.5 with the axis yaw (forward along
      * X — the z-directed run — line 191's 0, else 90).
      */
-    private void clearAndSummon(int centerX, int topY, int centerZ, int dx, int dz) {
+    private void clearAndSummon(int centerX, int topY, int centerZ, int dx, int dz,
+            int dimension) {
         for (int i = -1; i <= 1; i++) {
             for (int dy = 0; dy >= -2; dy--) {
                 BlockPosition at = new BlockPosition(
@@ -291,6 +295,7 @@ public final class SkullManager {
         // Line 191's axis law: the width run along X reads forward axis X
         // (yaw 0); the Z run reads 90.
         float yaw = dx != 0 ? 0.0f : 90.0f;
-        host.summonWither(new Position(centerX + 0.5, topY + 0.55, centerZ + 0.5), yaw);
+        host.summonWither(new Position(centerX + 0.5, topY + 0.55, centerZ + 0.5),
+                yaw, dimension);
     }
 }

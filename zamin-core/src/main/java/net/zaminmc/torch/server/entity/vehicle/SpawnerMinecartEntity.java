@@ -60,17 +60,22 @@ public class SpawnerMinecartEntity extends MinecartEntity
      * the hopper cart's transfer host.
      */
     public interface SpawnHost {
-        /** The player gate (isPlayerWithinRange at the point — the cart's own range row). */
-        boolean playerNearby(double x, double y, double z, double range);
+        /** The player gate (isPlayerWithinRange at the point — the cart's
+         * own range row). The dimension is the cart's own world
+         * (MobSpawnerBaseLogic's {@code getWorld()} — the gate measures
+         * the cart's dimension's players alone). */
+        boolean playerNearby(int dimension, double x, double y, double z, double range);
 
-        /** The same-kind count inside the given range's box at the cell (the cart's own SpawnRange row). */
-        int nearbyOfKind(MobType type, int cellX, int cellY, int cellZ, int range);
+        /** The same-kind count inside the given range's box at the cell (the cart's
+         * own SpawnRange row) — the cart's own dimension's bodies alone. */
+        int nearbyOfKind(int dimension, MobType type, int cellX, int cellY, int cellZ, int range);
 
         /**
          * The spawn (the canSpawn + isUnobstructed stand-in: the engine's
-         * body-cell + head-cell gate).
+         * body-cell + head-cell gate) — the gates read the cart's own
+         * world and the body stamps the cart's dimension.
          */
-        boolean spawnAt(MobType type, double x, double y, double z);
+        boolean spawnAt(int dimension, MobType type, double x, double y, double z);
     }
 
     /** The reference's own field default: "Pig" (line 19). */
@@ -254,7 +259,7 @@ public class SpawnerMinecartEntity extends MinecartEntity
         // isNearPlayer (lines 51-54): the player gate at the cell's center —
         // the cart's OWN RequiredPlayerRange row.
         double gate = requiredPlayerRange;
-        if (!host.playerNearby(cellX + 0.5, cellY + 0.5, cellZ + 0.5, gate)) {
+        if (!host.playerNearby(dimension(), cellX + 0.5, cellY + 0.5, cellZ + 0.5, gate)) {
             return;
         }
         if (delay == -1) {
@@ -269,7 +274,7 @@ public class SpawnerMinecartEntity extends MinecartEntity
             // The nearby cap (lines 77-85): the cart's OWN MaxNearbyEntities
             // row — the abort re-arms the delay and ends the WHOLE cycle
             // (the reference's return).
-            if (host.nearbyOfKind(type, cellX, cellY, cellZ, spawnRange)
+            if (host.nearbyOfKind(dimension(), type, cellX, cellY, cellZ, spawnRange)
                     >= maxNearbyEntities) {
                 rerollDelay();
                 return;
@@ -280,7 +285,7 @@ public class SpawnerMinecartEntity extends MinecartEntity
             double sy = cellY + random().nextInt(3) - 1;
             double sz = cellZ + (random().nextDouble() - random().nextDouble())
                     * spawnRange + 0.5;
-            if (host.spawnAt(type, sx, sy, sz)) {
+            if (host.spawnAt(dimension(), type, sx, sy, sz)) {
                 // Lines 106-108: the 2004 flame burst fires PER SPAWN
                 // (inside the loop — the block spawner's engine port fires
                 // once per cycle; the cart keeps the reference's own shape).

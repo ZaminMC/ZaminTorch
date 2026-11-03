@@ -415,7 +415,7 @@ class AchievementFamilyTest {
                 server.world().setBlock(new BlockPosition(baseX, baseY, baseZ),
                         BuiltinBlocks.SOUL_SAND);
                 summoned.set(server.skulls().trySummonWither(
-                        new BlockPosition(baseX, baseY + 2, baseZ)));
+                        new BlockPosition(baseX, baseY + 2, baseZ), 0));
             });
             await(summoned::get, "the summon fired");
             assertTrue(builder.stats().hasAchievement(

@@ -134,11 +134,16 @@ class TntPrimeHissDimensionDiscoveryTest {
         // THE CONTROL — the prime landed and the body carries the NETHER's
         // dimension (the FL4-F7 law, green on develop: the body's stamp is
         // the very contrast the hiss's stamp breaks).
+        // The hiss's landing is awaited with the body's (the body's add
+        // precedes the sound by a hair on the same tick — the sound's
+        // landing is the pin's own precondition, no same-tick race).
         EngineAwaits.awaitCondition(server.world(),
                 () -> nether.getBlock(tnt).equals(nether.airType())
                         && server.tnt().primedBodies().stream()
-                                .anyMatch(body -> body.dimension() == -1),
-                40, "the nether TNT primed with the nether body stamp");
+                                .anyMatch(body -> body.dimension() == -1)
+                        && captured.stream()
+                                .anyMatch(sound -> sound.name().equals("game.tnt.primed")),
+                40, "the nether TNT primed with the nether body stamp and its hiss fired");
 
         // THE PIN — the reference plays the hiss in the IGNITING world
         // (TntBlock.ignite line 65: the IGNITING world's playSound; World

@@ -32,7 +32,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * THE VERIFIER'S VT-029 PASS-2 SEAT — the wither-summon family's dimension
+ * THE VERIFIER'S VT-033 PASS-2 SEAT — the wither-summon family's dimension
  * ownership (docs/vanilla-conformance-audit.md, the forty-second pass — the
  * census tail's second head, widened from the wither-poof member; the
  * pre-Slice-C core discovered independently, the post-Slice-C residues
@@ -301,7 +301,7 @@ class WitherSummonDimensionDiscoveryTest {
         // vanilla mechanic is missing in the nether.
         EngineAwaits.awaitCondition(server.world(),
                 () -> wither() != null,
-                40, "VT-029 arm A: the nether summon birthed the wither "
+                40, "VT-033 arm A: the nether summon birthed the wither "
                         + "(SkullBlock.trySpawn lines 167-223: every consult on the ACTING "
                         + "world — the block writes, the clear walk, addEntity, the "
                         + "120-particle column over World.addParticle 796-812, that "
@@ -316,7 +316,7 @@ class WitherSummonDimensionDiscoveryTest {
         // — the no-dimension overload's unconditional 0), and the builder
         // earns the achievement (the acting world's player list).
         assertEquals(-1, wither().dimension(),
-                "VT-029 arm A: the nether summon's wither must carry the NETHER's "
+                "VT-033 arm A: the nether summon's wither must carry the NETHER's "
                         + "dimension (the reference's world.addEntity — the acting "
                         + "world's entity list). Observed: " + wither().dimension());
         EngineAwaits.awaitCondition(server.world(),
@@ -325,12 +325,12 @@ class WitherSummonDimensionDiscoveryTest {
         FxManager.Poof poof = capturedPoofs.isEmpty() ? null : capturedPoofs.get(0);
         assertNotNull(poof, "the poof fired (the reference's 120-particle column)");
         assertEquals(-1, poof.dimension(),
-                "VT-029: the nether summon's poof must carry the NETHER's dimension "
+                "VT-033: the nether summon's poof must carry the NETHER's dimension "
                         + "(the reference's world.addParticle — the summoning world's "
                         + "listener list alone). Observed stamp: " + poof.dimension());
         assertTrue(builder.stats().hasAchievement(
                         net.zaminmc.torch.server.stat.EngineAchievements.SUMMON_WITHER.key()),
-                "VT-029 arm A: the nether builder earns the summon achievement "
+                "VT-033 arm A: the nether builder earns the summon achievement "
                         + "(SkullBlock lines 197-199: the ACTING world's players — "
                         + "world.getEntitiesOfType walks the summoning world's list)");
 
@@ -358,7 +358,7 @@ class WitherSummonDimensionDiscoveryTest {
                                 && Math.abs(item.position().z() - 64.5) < 1.5
                                 && item.stack().type().identifier().toString()
                                         .equals("minecraft:skull")),
-                "VT-029 arm A: the nether skull break's typed drop must land IN THE "
+                "VT-033 arm A: the nether skull break's typed drop must land IN THE "
                         + "NETHER (the reference's dropItem on the acting world — "
                         + "SkullBlock.onRemoved lines 132-152). Observed drops: "
                         + server.itemEntities().all().stream()
@@ -418,16 +418,16 @@ class WitherSummonDimensionDiscoveryTest {
         // instead (the law pins below catch the corruption whole).
         EngineAwaits.awaitCondition(server.world(),
                 () -> wither() != null,
-                40, "VT-029 arm B: the nether completion birthed a wither");
+                40, "VT-033 arm B: the nether completion birthed a wither");
 
         // THE LAW PINS — each RED on develop with the corruption observed:
         assertEquals(-1, wither().dimension(),
-                "VT-029 arm B: the nether completion's wither must carry the "
+                "VT-033 arm B: the nether completion's wither must carry the "
                         + "NETHER's dimension (the reference's addEntity on the acting "
                         + "world). Observed: " + wither().dimension()
                         + " — the OVERWORLD's mirrored geometry answered the consult");
         assertTrue(isStandingT(overworld),
-                "VT-029 arm B: the overworld's complete T must stand — the nether "
+                "VT-033 arm B: the overworld's complete T must stand — the nether "
                         + "placement's clear walk consults the ACTING world alone "
                         + "(trySpawn's setBlockState on the parameter world). Observed: "
                         + "the overworld build was cleared by a nether placement — "
@@ -437,11 +437,11 @@ class WitherSummonDimensionDiscoveryTest {
         FxManager.Poof poof = capturedPoofs.isEmpty() ? null : capturedPoofs.get(0);
         assertNotNull(poof, "the poof fired (the reference's 120-particle column)");
         assertEquals(-1, poof.dimension(),
-                "VT-029: the nether summon's poof must carry the NETHER's dimension. "
+                "VT-033: the nether summon's poof must carry the NETHER's dimension. "
                         + "Observed stamp: " + poof.dimension());
         assertFalse(overworldBuilder.stats().hasAchievement(
                         net.zaminmc.torch.server.stat.EngineAchievements.SUMMON_WITHER.key()),
-                "VT-029 arm B: the overworld player at the mirrored coordinates must "
+                "VT-033 arm B: the overworld player at the mirrored coordinates must "
                         + "NOT earn the nether summon's achievement (SkullBlock lines "
                         + "197-199: world.getEntitiesOfType walks the ACTING world's "
                         + "player list — the overworld's players are not in the nether's "
