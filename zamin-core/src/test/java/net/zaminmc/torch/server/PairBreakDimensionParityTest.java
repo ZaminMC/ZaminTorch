@@ -100,7 +100,17 @@ class PairBreakDimensionParityTest {
             }
             nether.setBlock(new BlockPosition(64, 101, 64), BuiltinBlocks.BED_FOOT_SOUTH);
             nether.setBlock(new BlockPosition(64, 101, 65), BuiltinBlocks.BED_HEAD_SOUTH);
+            // The overworld probe: a WHOLE north-facing pair (the head at
+            // (64,101,65), the foot at its facing-opposite (64,101,66)) —
+            // the door seat's own COMPLETE-pair convention. A lone bed
+            // half was never vanilla-stable: BedBlock.neighborChanged's
+            // pair-integrity arm (PR #114's restoration, BedBlock lines
+            // 109-121) removes a half whose facing-named partner is not a
+            // bed — the GLASS control's placement fires the six-neighbor
+            // dispatch that pops a LONE probe head the same tick it seeds
+            // (the seeding await starving — VT-035's root cause).
             over.setBlock(new BlockPosition(64, 101, 65), BuiltinBlocks.BED_HEAD_NORTH);
+            over.setBlock(new BlockPosition(64, 101, 66), BuiltinBlocks.BED_FOOT_NORTH);
             over.setBlock(new BlockPosition(64, 101, 64), BuiltinBlocks.GLASS);
         });
         BlockPosition foot = new BlockPosition(64, 101, 64);

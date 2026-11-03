@@ -1151,10 +1151,30 @@ public final class AnvilWorldImport {
         // ArrowEntity-only life clock — the stick clock resumes where
         // the save left it).
         boolean inGround = NbtOps.getByte(rows, "inGround") == 1;
+        // VT-015 — the tracked rows (the reference's readCustomNbt
+        // lines 402-411: xTile/yTile/zTile + inTile restore the
+        // consult): an imported stuck arrow un-sticks when its saved
+        // block changes, exactly like a live one. A row without the
+        // tracked pair stays cell-less (the consult never fires —
+        // the pre-VT-015 shape).
+        boolean hasTileRows = NbtOps.containsNumeric(rows, "xTile")
+                && NbtOps.containsNumeric(rows, "yTile")
+                && NbtOps.containsNumeric(rows, "zTile")
+                && !NbtOps.getString(rows, "inTile").isEmpty();
+        boolean trackedRowsLanded = false;
         if (inGround) {
             int life = NbtOps.containsNumeric(rows, "life")
                     ? NbtOps.getShort(rows, "life") : 0;
-            spawned.restoreGrounded(life);
+            if (hasTileRows && kind == ProjectileEntity.Kind.ARROW) {
+                spawned.restoreGrounded(life,
+                        (int) NbtOps.getShort(rows, "xTile"),
+                        (int) NbtOps.getShort(rows, "yTile"),
+                        (int) NbtOps.getShort(rows, "zTile"),
+                        NbtOps.getString(rows, "inTile"));
+                trackedRowsLanded = true;
+            } else {
+                spawned.restoreGrounded(life);
+            }
         }
         // The pickup band (readCustomNbt lines 420-424, the Arrow family
         // alone): the modern numeric row lands whole (0/1/2), else the
@@ -1169,16 +1189,22 @@ public final class AnvilWorldImport {
         }
         // The per-family rows the engine's point model derives
         // differently (the reference's own rows, the §31.6 envelope):
-        // the arrow's stuck cell/block (derived from the position at
-        // rest), the shake visual, the damage override
-        // (the engine derives it from the speed, the Power bonus rides
-        // the launch walk), and the explicit Rotation (the wire derives
-        // the angles from the motion, the reference's own ctor walk);
-        // the large fireball's ExplosionPower (the engine's fixed 1).
+        // the shake visual, the damage override (the engine derives it
+        // from the speed, the Power bonus rides the launch walk), and
+        // the explicit Rotation (the wire derives the angles from the
+        // motion, the reference's own ctor walk); the large fireball's
+        // ExplosionPower (the engine's fixed 1). The arrow's tracked
+        // cell/block rows LANDED above for the stuck form (VT-015 — the
+        // xTile/yTile/zTile + inTile pair restores the un-stick consult);
+        // the metadata sub-row (inData) stays below the engine's
+        // identifier granularity, and the airborne form's rows carry
+        // nothing to restore (the -1/empty writer's values).
         // (The pickup row LANDED above — the sub-row retired.)
         boolean hasUnlandedFamilyRows =
-                NbtOps.containsNumeric(rows, "xTile") || NbtOps.containsNumeric(rows, "yTile")
-                || NbtOps.containsNumeric(rows, "zTile") || !NbtOps.getString(rows, "inTile").isEmpty()
+                (!trackedRowsLanded && (NbtOps.containsNumeric(rows, "xTile")
+                || NbtOps.containsNumeric(rows, "yTile")
+                || NbtOps.containsNumeric(rows, "zTile")
+                || !NbtOps.getString(rows, "inTile").isEmpty()))
                 || NbtOps.containsNumeric(rows, "inData") || NbtOps.containsNumeric(rows, "shake")
                 || NbtOps.containsNumeric(rows, "damage")
                 || !NbtOps.getList(rows, "Rotation", Snbt.Tag.Type.FLOAT).isEmpty()

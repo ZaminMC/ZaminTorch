@@ -179,9 +179,11 @@ public final class BlockInteractionService {
     /**
      * The fire-extinguish FX hook (Slice N6 — World.extinguishFire line
      * 1642's {@code doEvent(player, 1004, pos, 0)}): the fizz broadcast
-     * at the removed fire cell. Null keeps the removal silent.
+     * at the removed fire cell, in the ACTING world's dimension (VT-029 —
+     * the reference's per-world listener list). Null keeps the removal
+     * silent.
      */
-    private volatile java.util.function.Consumer<BlockPosition> fireExtinguishFx;
+    private volatile java.util.function.BiConsumer<BlockPosition, Integer> fireExtinguishFx;
 
     /**
      * The consult's own signature (the engine-side seam: the world, the
@@ -221,9 +223,11 @@ public final class BlockInteractionService {
 
     /**
      * Wires the fire-extinguish FX (the reference's doEvent 1004 — the
-     * fizz at the removed fire cell).
+     * fizz at the removed fire cell). The dimension is the ACTING
+     * world's (VT-029 — the per-world listener law).
      */
-    public void setFireExtinguishFx(java.util.function.Consumer<BlockPosition> fx) {
+    public void setFireExtinguishFx(
+            java.util.function.BiConsumer<BlockPosition, Integer> fx) {
         this.fireExtinguishFx = java.util.Objects.requireNonNull(fx, "fx");
     }
 
@@ -743,9 +747,12 @@ public final class BlockInteractionService {
         if (!world.getBlock(offset).identifier().value().equals("fire")) {
             return false; // not fire: nothing to extinguish
         }
-        java.util.function.Consumer<BlockPosition> fx = fireExtinguishFx;
+        java.util.function.BiConsumer<BlockPosition, Integer> fx = fireExtinguishFx;
         if (fx != null) {
-            fx.accept(offset); // the doEvent 1004: the fizz at the fire cell
+            // VT-029 — the doEvent 1004 rides the ACTING world (the
+            // reference's per-world listener list — PlayerManager
+            // 626-640's dimension gate).
+            fx.accept(offset, world.dimension()); // the fizz at the fire cell
         }
         commit(offset, world.airType(), world);
         return true;
@@ -908,7 +915,7 @@ public final class BlockInteractionService {
         if (net.zaminmc.torch.server.block.InfestedBlocks.isInfested(current.identifier())) {
             InfestedBurstHook burst = infestedBurstHook;
             if (burst != null) {
-                burst.onEggBroken(target);
+                burst.onEggBroken(target, world.dimension());
             }
         }
         // The ice's own water law (Wave FL4-F6 — IceBlock.afterMinedByPlayer
@@ -1132,10 +1139,13 @@ public final class BlockInteractionService {
      * The infested-egg burst (Slice 18c — InfestedBlock.dropItems lines
      * 79-88): a SURVIVAL break of an egg spawns the silverfish at the
      * block's own position (the creative break skips the reference's
-     * afterMinedByPlayer arm entirely, so no burst). Tick-thread context.
+     * afterMinedByPlayer arm entirely, so no burst). The dimension is
+     * the dig's own acting world (the reference's {@code world}
+     * parameter — the silverfish lives where the egg broke).
+     * Tick-thread context.
      */
     public interface InfestedBurstHook {
-        void onEggBroken(BlockPosition position);
+        void onEggBroken(BlockPosition position, int dimension);
     }
 
     /** The egg burst sink (the engine's mob-spawn wiring). */
@@ -1491,12 +1501,21 @@ public final class BlockInteractionService {
         world.setBlock(position, type);
         java.util.function.Consumer<Commit> feedback = commitFeedbackListener;
         if (feedback != null && !previous.equals(type)) {
-            feedback.accept(new Commit(position, previous, type));
+            // The acting world's dimension rides the commit (VT-027 — the
+            // reference's break/place feedback plays in the DIG WIRE'S OWN
+            // WORLD: tryMineBlock line 211's this.world.doEvent(2001),
+            // BlockItem.place's world — the per-world listener list alone;
+            // the pre-fix record carried no dimension and the boot's
+            // closure stamped the overworld for every dimension's dig).
+            feedback.accept(new Commit(position, previous, type, world.dimension()));
         }
     }
 
-    /** One world mutation with its before/after block states. */
-    public record Commit(BlockPosition position, BlockType previous, BlockType now) {
+    /** One world mutation with its before/after block states and the
+     *  ACTING world's dimension (VT-027 — the feedback's sounds and
+     *  particles play in that world alone). */
+    public record Commit(BlockPosition position, BlockType previous, BlockType now,
+                         int dimension) {
     }
 
     /**

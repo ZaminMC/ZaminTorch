@@ -92,6 +92,18 @@ class ScoreboardIntegrationTest extends ProtocolTestBase {
             }, "session present");
             server.ticker().submit(() -> {
                 var board = server.scoreboard();
+                // THE SEAT'S OWN RACE RETIRED (the flake's root cause, the
+                // test-seat class): the health walk is CHANGE-GATED
+                // (ServerPlayerEntity.tick lines 312-318 — the reference's
+                // own completeHealth law, 1:1 in the engine), and the
+                // player's first tick may have run BEFORE this submit —
+                // the mark already at the login's 20 with the objective
+                // absent, so no publish would ever land (vanilla's own
+                // answer for a mid-game objective: the score appears on
+                // the next health CHANGE alone). The seat resets the mark
+                // so the objective's own first tick publishes
+                // deterministically — the engine's publish path unchanged.
+                session.get().setScoreboardHealthMark(0.0f);
                 board.createObjective("hearts", ScoreboardCriterion.HEALTH);
                 board.setDisplayObjective(2, board.getObjective("hearts"));
             });

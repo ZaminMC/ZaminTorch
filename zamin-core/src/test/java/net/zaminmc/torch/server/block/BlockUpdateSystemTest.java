@@ -34,6 +34,14 @@ class BlockUpdateSystemTest {
         registry = BuiltinBlocks.registerAll(new BlockRegistryBuilder()).freeze();
         world = new EngineWorld("test", registry, new FlatWorldGenerator(registry, 4),
                 Thread.currentThread());
+        // The grass decay's light gate reads the world's real light storage
+        // (§475): attach the light engine like the server wiring does, BEFORE
+        // any chunk generates, so covered cells are dark instead of implicitly
+        // lit (the VT-017 correction's rig — RandomTickSystemTest's own rule).
+        net.zaminmc.torch.server.world.light.LightEngine light =
+                new net.zaminmc.torch.server.world.light.LightEngine(world);
+        world.addChangeListener(light);
+        world.addChunkLoadListener(light);
     }
 
     /** Mirrors the engine's wiring: commit → listener → tick → rules. */

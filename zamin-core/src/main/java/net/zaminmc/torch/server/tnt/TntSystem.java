@@ -49,8 +49,11 @@ import java.util.Random;
  *       the int-truncated quadratic wound form — the retired
  *       creeper-walk parameterization is gone.</li>
  *   <li>The burning-arrow collision arm (TntBlock.onEntityCollision) rides
- *       the projectile manager's block-hit consult — the arrow enters the
- *       TNT's cell, the block primes, the arrow keeps its flight. The
+ *       the projectile manager's stick-arm consult — the arrow STICKS into
+ *       the TNT's cell first, the block primes, and the stuck arrow
+ *       un-sticks a tick later when the consult's removal opens the cell
+ *       (VT-030's order: ArrowEntity line 304 precedes the consult at
+ *       308). The
  *       reference's igniter attribution (the arrow's shooter) is the
  *       engine's own standing simplification: the primed bodies carry no
  *       igniter.</li>
@@ -203,6 +206,12 @@ public final class TntSystem implements WorldChangeListener {
     private final RedstoneSystem redstone;
     private final SolidityProbe solidAt;
     private final DetonationSink explode;
+    /**
+     * The routed signal consult (VT-036 — the solidAt/explode form): the
+     * acting dimension's OWN redstone answers the neighbor-signal walk,
+     * never the constructor world's system alone.
+     */
+    private final java.util.function.IntFunction<RedstoneSystem> redstoneFor;
     private final FxManager fx;
     private final Random random;
     private final List<Listener> listeners = new ArrayList<>();
@@ -214,15 +223,21 @@ public final class TntSystem implements WorldChangeListener {
      *                explosion center, the power) — the engine's own
      *                dimension-routed explosion walk (blocks, wounds, the
      *                Explosion packet).
+     * @param redstoneFor the dimension's redstone router (the acting
+     *                    world's signal consult — the reference's
+     *                    {@code world.hasNeighborSignal} on the ACTING
+     *                    world, TntBlock lines 38-43 + 51-56)
      */
     public TntSystem(EngineWorld world, RedstoneSystem redstone,
                       SolidityProbe solidAt,
                       DetonationSink explode,
+                      java.util.function.IntFunction<RedstoneSystem> redstoneFor,
                       FxManager fx, Random random, int firstEntityId) {
         this.world = world;
         this.redstone = redstone;
         this.solidAt = solidAt;
         this.explode = explode;
+        this.redstoneFor = redstoneFor;
         this.fx = fx;
         this.random = random;
         this.nextEntityId = firstEntityId;
@@ -329,24 +344,37 @@ public final class TntSystem implements WorldChangeListener {
      * The neighbor arm (TntBlock.neighborChanged lines 51-56): a position
      * heard a change — power at it primes the block. Registered on the
      * redstone system's cross-system neighbor bus. Tick-thread context.
+     * The position-only form serves the constructor world's bus (the
+     * overworld registration); the world-carrying form serves every
+     * dimension's bus (VT-036 — the reference's neighborChanged receives
+     * the ACTING world).
      */
     public void neighborHeard(BlockPosition pos) {
-        if (isTnt(world.getBlock(pos))) {
-            checkIgnite(world, pos);
+        neighborHeard(world, pos);
+    }
+
+    /** The dimension-carrying neighbor arm (each redstone bus's own world). */
+    public void neighborHeard(EngineWorld actingWorld, BlockPosition pos) {
+        if (isTnt(actingWorld.getBlock(pos))) {
+            checkIgnite(actingWorld, pos);
         }
     }
 
     /**
      * The signal check (TntBlock lines 36-43 + 51-56): power primes the
-     * block. The WRITE routes the acting world's own cells; the SIGNAL
-     * consult rides the redstone system's own binding (the system's
-     * constructor world — the overworld's bus — the redstone family's own
-     * per-dimension pass is the FL4 ledger's named tail), so a foreign
-     * dimension's arrival never consults the overworld's signal at the
-     * foreign coordinates.
+     * block. The WRITE routes the acting world's own cells (Wave FL4-F7)
+     * and the SIGNAL consult rides the ACTING dimension's redstone
+     * (VT-036 — the reference's {@code world.hasNeighborSignal(pos)} on
+     * the acting world; the pre-fix {@code actingWorld == world} gate was
+     * the FL4-F10 honest tail, the overworld bus refusing every nether/End
+     * prime outright).
      */
     private void checkIgnite(EngineWorld actingWorld, BlockPosition pos) {
-        if (actingWorld == world && redstone.neighborSignal(pos) > 0) {
+        RedstoneSystem actingRedstone = redstoneFor.apply(actingWorld.dimension());
+        if (actingRedstone == null) {
+            actingRedstone = redstone; // the boot window's defensive fallback
+        }
+        if (actingRedstone.neighborSignal(pos) > 0) {
             ignite(actingWorld, pos, FUSE_TICKS);
         }
     }
@@ -383,8 +411,13 @@ public final class TntSystem implements WorldChangeListener {
         }
         // The priming hiss at the body's own position (the reference's
         // playSoundAtEntity(primedtntentity, ...) — the entity's own x/y/z,
-        // no rise).
-        fx.sound(new Position(x, y, z), "game.tnt.primed", 1.0f, 1.0f);
+        // no rise) — in the DISPENSING world (Bootstrap line 335:
+        // source.getWorld().playSound — the body's own dimension, the same
+        // stamp the PrimedTnt carries; VT-026: the pre-fix no-dimension
+        // overload stamped the overworld for every dimension's dispensed
+        // prime, the nether dispenser silent to its own players).
+        fx.sound(new Position(x, y, z), "game.tnt.primed", 1.0f, 1.0f,
+                actingWorld.dimension());
     }
 
     // ------------------------------------------------------------------
@@ -411,8 +444,14 @@ public final class TntSystem implements WorldChangeListener {
             listener.onTntPrimed(tnt);
         }
         // The hiss at the primed body itself (playSoundAtEntity — the
-        // body's own x/y/z).
-        fx.sound(new Position(tnt.x(), tnt.y(), tnt.z()), "game.tnt.primed", 1.0f, 1.0f);
+        // body's own x/y/z) — in the IGNITING world (TntBlock.ignite line
+        // 65: the IGNITING world's playSound, World.playSound 769-773 over
+        // that world's listener list alone; the same stamp the PrimedTnt
+        // carries — VT-026: the pre-fix no-dimension overload stamped the
+        // overworld, a nether prime silent to the players standing beside
+        // it and a phantom hiss for the overworld's same coordinates).
+        fx.sound(new Position(tnt.x(), tnt.y(), tnt.z()), "game.tnt.primed", 1.0f, 1.0f,
+                actingWorld.dimension());
     }
 
     /**
@@ -452,16 +491,18 @@ public final class TntSystem implements WorldChangeListener {
     }
 
     /**
-     * The burning-arrow arm (TntBlock.onEntityCollision lines 96-113): an
-     * on-fire arrow crossing the TNT's cell primes the block — the full
-     * 80-tick fuse, the block leaves the world, and the arrow keeps its
-     * flight through the now-open cell. (The reference's igniter is the
-     * arrow's shooter when living — the engine's primed bodies carry no
-     * igniter attribution, the engine's own standing simplification.)
+     * The burning-arrow arm (TntBlock.onEntityCollision lines 91-104): an
+     * on-fire arrow STICKING into the TNT's cell primes the block — the full
+     * 80-tick fuse, the block leaves the world, and the stuck arrow's
+     * tracked-cell consult un-sticks it a tick later (VT-030's order: the
+     * stick at ArrowEntity line 304 precedes the consult at 308 — the arrow
+     * never carries its flight through the now-open cell). (The reference's
+     * igniter is the arrow's shooter when living — the engine's primed
+     * bodies carry no igniter attribution, the engine's own standing
+     * simplification.)
      * Tick-thread context.
      *
-     * @return whether the cell held TNT and the prime happened (the
-     *         caller's arrow continues its walk through the opened cell).
+     * @return whether the cell held TNT and the prime happened.
      */
     public boolean igniteByArrow(EngineWorld actingWorld, BlockPosition pos) {
         if (!isTnt(actingWorld.getBlock(pos))) {

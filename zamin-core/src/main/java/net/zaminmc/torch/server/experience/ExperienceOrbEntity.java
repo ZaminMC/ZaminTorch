@@ -24,8 +24,20 @@ public final class ExperienceOrbEntity implements net.zaminmc.torch.entity.Exper
     /** Shared with items (the physics slice will unify the small-body model). */
     /** The reference's own orb gravity (Wave IO-F — ExperienceOrbEntity line 70: velocityY -= 0.03F, NOT the item family's 0.04). */
     public static final double GRAVITY_PER_TICK = 0.03;
-    public static final double HALF_HEIGHT = 0.125;
-    public static final double HALF_WIDTH = 0.125;
+    /**
+     * The reference's TWO-constructor size law (VT-037 — the box model):
+     * the xp constructor seats a <b>0.5×0.5</b> box (line 22,
+     * {@code setSize(0.5F, 0.5F)} — EVERY gameplay spawn site), while the
+     * no-arg LOAD constructor alone seats the <b>0.25×0.25</b> box
+     * (line 38, the {@code Entities.register} reflective path — a vanilla
+     * quirk, not a size law). The engine's per-body half-size carries
+     * the same two-form law: the spawn arms pass
+     * {@link #SPAWNED_HALF_SIZE}, the restore arm
+     * {@link #RESTORED_HALF_SIZE}.
+     */
+    public static final double SPAWNED_HALF_SIZE = 0.25;
+    /** The load path's half-size (the 0.25×0.25 default constructor). */
+    public static final double RESTORED_HALF_SIZE = 0.125;
     /** Historical orb lifespan: 5 minutes, then it fades (the item rule). */
     public static final int DESPAWN_TICKS = 6_000;
     /** Position epsilon so a pushed bottom queries the block *below* the surface (the item arm's own form). */
@@ -54,7 +66,7 @@ public final class ExperienceOrbEntity implements net.zaminmc.torch.entity.Exper
          * The block id at the body's -0.2 feet cell (Wave IO-F — the
          * reference's Entity.move line 572 consult cell
          * {@code floor(x), floor(y - 0.2), floor(z)} with y the box
-         * bottom; the engine's bottom = {@code position.y - HALF_HEIGHT}).
+         * bottom; the engine's bottom = {@code position.y - halfHeight}).
          * The vertical-clip consult (line 599's {@code beforeCollision})
          * reads it — the slime block's own override flips a falling
          * body's velocityY at full speed while the default zeroes it.
@@ -71,7 +83,7 @@ public final class ExperienceOrbEntity implements net.zaminmc.torch.entity.Exper
          * Block.slipperiness: the drag band reads
          * {@code floor(x), floor(minY) - 1, floor(z)} — the cell BELOW
          * the feet cell, the engine's bottom =
-         * {@code position.y - HALF_HEIGHT}). The default answers the
+         * {@code position.y - halfHeight}). The default answers the
          * common case 0.6 (Block.java line 117) so stub grounds keep the
          * pre-wave drag.
          */
@@ -84,7 +96,7 @@ public final class ExperienceOrbEntity implements net.zaminmc.torch.entity.Exper
          * reference's ExperienceOrbEntity.tick line 71 over
          * {@code new BlockPos(this)} / {@code getMaterial() == LAVA}):
          * the cell CONTAINING the body position, the engine's feet =
-         * {@code position.y - HALF_HEIGHT} (the reference's Entity.y IS
+         * {@code position.y - halfHeight} (the reference's Entity.y IS
          * the feet). The orb's fizz is UNCONDITIONAL — every tick, no
          * gate — so the default false keeps the stub walks dry.
          */
@@ -137,6 +149,16 @@ public final class ExperienceOrbEntity implements net.zaminmc.torch.entity.Exper
 
     private final int entityId;
     private final int amount;
+    /**
+     * The body's own half-width (VT-037 — the two-constructor law): a
+     * gameplay-spawned orb carries the reference's 0.5 box, a restored
+     * one the 0.25 load box. Every box consult below reads THIS field,
+     * never a class constant — the size propagates to the physics, the
+     * envelope and the wire whole.
+     */
+    private final double halfWidth;
+    /** The body's own half-height (the same two-constructor law). */
+    private final double halfHeight;
     private Position position;
     private double velocityX;
     private double velocityY;
@@ -198,7 +220,28 @@ public final class ExperienceOrbEntity implements net.zaminmc.torch.entity.Exper
         this.dimension = dimension;
     }
 
+    /**
+     * The load-path form (VT-037): the 0.25 box of the reference's
+     * no-arg constructor, the position the box CENTER (the engine's
+     * documented convention — the manager's restore arm composes
+     * {@code center = savedY + RESTORED_HALF_SIZE} so the box BOTTOM
+     * seats at the saved y, the reference's setPosition feet law).
+     */
     public ExperienceOrbEntity(int entityId, Position position, int amount, int pickupDelayTicks) {
+        this(entityId, position, amount, pickupDelayTicks, RESTORED_HALF_SIZE);
+    }
+
+    /**
+     * The full form (VT-037 — the two-constructor size law): the
+     * {@code halfSize} carries the body's own box —
+     * {@link #SPAWNED_HALF_SIZE} for the gameplay spawn path (the
+     * reference's xp constructor, 0.5×0.5), {@link #RESTORED_HALF_SIZE}
+     * for the load path (the 0.25 default constructor). The position
+     * stays the box CENTER under the engine's convention; every physics
+     * consult below reads the per-body size.
+     */
+    public ExperienceOrbEntity(int entityId, Position position, int amount, int pickupDelayTicks,
+                               double halfSize) {
         if (amount <= 0) {
             throw new IllegalArgumentException("Orbs carry a positive amount: " + amount);
         }
@@ -206,6 +249,18 @@ public final class ExperienceOrbEntity implements net.zaminmc.torch.entity.Exper
         this.amount = amount;
         this.position = Objects.requireNonNull(position, "position");
         this.pickupDelay = pickupDelayTicks;
+        this.halfWidth = halfSize;
+        this.halfHeight = halfSize;
+    }
+
+    /** The body's own half-width (the two-constructor box law, VT-037). */
+    public double halfWidth() {
+        return halfWidth;
+    }
+
+    /** The body's own half-height (the two-constructor box law, VT-037). */
+    public double halfHeight() {
+        return halfHeight;
     }
 
     public int entityId() {
@@ -272,9 +327,14 @@ public final class ExperienceOrbEntity implements net.zaminmc.torch.entity.Exper
         return age >= DESPAWN_TICKS;
     }
 
-    /** @return true when the orb fell out of the world (silent removal due). */
+    /**
+     * @return true when the orb fell out of the world (silent removal due).
+     * The plane reads the box BOTTOM (VT-037 — the reference's own kill
+     * law, Entity.baseTick line 342 {@code this.y < -64.0} over the
+     * FEET y; the engine's bottom = {@code position.y - halfHeight}).
+     */
     public boolean inVoid() {
-        return position.y() < VOID_KILL_Y;
+        return position.y() - halfHeight < VOID_KILL_Y;
     }
 
     public void setVelocity(double vx, double vy, double vz) {
@@ -299,21 +359,21 @@ public final class ExperienceOrbEntity implements net.zaminmc.torch.entity.Exper
         double newY = position.y();
         double newZ = position.z();
         if (dx != 0.0) {
-            double leadX = position.x() + dx + Math.signum(dx) * HALF_WIDTH;
-            if (!faceBlockedX(ground, leadX, position.y(), position.z())) {
+            double leadX = position.x() + dx + Math.signum(dx) * halfWidth;
+            if (!faceBlockedX(ground, leadX, position.y(), position.z(), halfWidth, halfHeight)) {
                 newX = position.x() + dx;
             }
         }
         if (dz != 0.0) {
-            double leadZ = position.z() + dz + Math.signum(dz) * HALF_WIDTH;
-            if (!faceBlockedZ(ground, newX, position.y(), leadZ)) {
+            double leadZ = position.z() + dz + Math.signum(dz) * halfWidth;
+            if (!faceBlockedZ(ground, newX, position.y(), leadZ, halfWidth, halfHeight)) {
                 newZ = position.z() + dz;
             }
         }
         if (dy != 0.0) {
             double probeY = dy > 0
-                    ? position.y() + dy + HALF_HEIGHT - PUSH_GROUND_EPSILON
-                    : position.y() + dy - HALF_HEIGHT + PUSH_GROUND_EPSILON;
+                    ? position.y() + dy + halfHeight - PUSH_GROUND_EPSILON
+                    : position.y() + dy - halfHeight + PUSH_GROUND_EPSILON;
             if (!ground.isSolid(newX, probeY, newZ)) {
                 newY = position.y() + dy;
             }
@@ -328,13 +388,13 @@ public final class ExperienceOrbEntity implements net.zaminmc.torch.entity.Exper
      * slides on never blocks its own slide.
      */
     private static boolean faceBlockedX(Ground ground, double leadX,
-                                        double centerY, double centerZ) {
-        double bottom = centerY - HALF_HEIGHT + PUSH_GROUND_EPSILON;
-        double top = centerY + HALF_HEIGHT - PUSH_GROUND_EPSILON;
+                                        double centerY, double centerZ, double halfWidth, double halfHeight) {
+        double bottom = centerY - halfHeight + PUSH_GROUND_EPSILON;
+        double top = centerY + halfHeight - PUSH_GROUND_EPSILON;
         for (double y : new double[]{bottom, centerY, top}) {
-            if (ground.isSolid(leadX, y, centerZ - HALF_WIDTH)
+            if (ground.isSolid(leadX, y, centerZ - halfWidth)
                     || ground.isSolid(leadX, y, centerZ)
-                    || ground.isSolid(leadX, y, centerZ + HALF_WIDTH)) {
+                    || ground.isSolid(leadX, y, centerZ + halfWidth)) {
                 return true;
             }
         }
@@ -343,13 +403,13 @@ public final class ExperienceOrbEntity implements net.zaminmc.torch.entity.Exper
 
     /** The Z-leading-face test: the face at {@code leadZ} over the x-width. */
     private static boolean faceBlockedZ(Ground ground, double centerX,
-                                        double centerY, double leadZ) {
-        double bottom = centerY - HALF_HEIGHT + PUSH_GROUND_EPSILON;
-        double top = centerY + HALF_HEIGHT - PUSH_GROUND_EPSILON;
+                                        double centerY, double leadZ, double halfWidth, double halfHeight) {
+        double bottom = centerY - halfHeight + PUSH_GROUND_EPSILON;
+        double top = centerY + halfHeight - PUSH_GROUND_EPSILON;
         for (double y : new double[]{bottom, centerY, top}) {
-            if (ground.isSolid(centerX - HALF_WIDTH, y, leadZ)
+            if (ground.isSolid(centerX - halfWidth, y, leadZ)
                     || ground.isSolid(centerX, y, leadZ)
-                    || ground.isSolid(centerX + HALF_WIDTH, y, leadZ)) {
+                    || ground.isSolid(centerX + halfWidth, y, leadZ)) {
                 return true;
             }
         }
@@ -406,13 +466,13 @@ public final class ExperienceOrbEntity implements net.zaminmc.torch.entity.Exper
         // THIS tick's rise (the orb in lava climbs 0.2/tick, dragging
         // to 0.196 after the move).
         if (random != null && sounds != null
-                && ground.lavaAtCell(position.x(), position.y() - HALF_HEIGHT, position.z())) {
+                && ground.lavaAtCell(position.x(), position.y() - halfHeight, position.z())) {
             velocityY = 0.2;
             velocityX = (random.nextFloat() - random.nextFloat()) * 0.2;
             velocityZ = (random.nextFloat() - random.nextFloat()) * 0.2;
             // The reference's playSound at the entity: x/z the box center,
             // y the box BOTTOM (the engine's feet frame).
-            sounds.sound(new Position(position.x(), position.y() - HALF_HEIGHT, position.z()),
+            sounds.sound(new Position(position.x(), position.y() - halfHeight, position.z()),
                     "random.fizz", 0.4f,
                     2.0f + random.nextFloat() * 0.4f, dimension);
         }
@@ -425,11 +485,11 @@ public final class ExperienceOrbEntity implements net.zaminmc.torch.entity.Exper
 
         double groundEpsilon = 1.0E-7;
         double clipConsultY = Double.NaN;
-        if (velocityY <= 0 && ground.isSolid(newX, newY - HALF_HEIGHT - groundEpsilon, newZ)) {
-            newY = Math.floor(newY - HALF_HEIGHT - groundEpsilon) + 1.0 + HALF_HEIGHT;
+        if (velocityY <= 0 && ground.isSolid(newX, newY - halfHeight - groundEpsilon, newZ)) {
+            newY = Math.floor(newY - halfHeight - groundEpsilon) + 1.0 + halfHeight;
             onGround = true;
             clipConsultY = newY; // the landing clip (the vertical consult below)
-        } else if (velocityY > 0 && ground.isSolid(newX, newY + HALF_HEIGHT + groundEpsilon, newZ)) {
+        } else if (velocityY > 0 && ground.isSolid(newX, newY + halfHeight + groundEpsilon, newZ)) {
             newY = position.y();
             onGround = false;
             clipConsultY = newY; // bumped a ceiling (the same consult below)
@@ -463,7 +523,7 @@ public final class ExperienceOrbEntity implements net.zaminmc.torch.entity.Exper
      */
     private void beforeCollisionAt(Ground ground) {
         net.zaminmc.torch.util.Identifier underfoot = ground.blockIdAt(
-                position.x(), position.y() - HALF_HEIGHT, position.z());
+                position.x(), position.y() - halfHeight, position.z());
         if (underfoot != null && underfoot.value().equals("slime_block")) {
             if (velocityY < 0.0) {
                 velocityY = -velocityY;
@@ -488,7 +548,7 @@ public final class ExperienceOrbEntity implements net.zaminmc.torch.entity.Exper
     private void applyPostMoveDrag(Ground ground) {
         double f = 0.98;
         if (onGround) {
-            f = ground.slipperinessBelow(position.x(), position.y() - HALF_HEIGHT, position.z()) * 0.98;
+            f = ground.slipperinessBelow(position.x(), position.y() - halfHeight, position.z()) * 0.98;
         }
         velocityX *= f;
         velocityY *= 0.98;
@@ -514,7 +574,7 @@ public final class ExperienceOrbEntity implements net.zaminmc.torch.entity.Exper
      * |d|}, {@code d5 = (1 - d4)²} — the velocity gains
      * {@code d/d4 * d5 * 0.1}, nothing beyond the radius (d4 >= 1
      * leaves d5 <= 0). The orb's own position reads the FEET frame
-     * (position.y - HALF_HEIGHT — the reference's Entity.y), the
+     * (position.y - halfHeight — the reference's Entity.y), the
      * player's the EYE (y + 1.62 standing).
      */
     private void applyIgniterAttraction(Players players) {
@@ -529,7 +589,7 @@ public final class ExperienceOrbEntity implements net.zaminmc.torch.entity.Exper
         // the first-acquire window wherever the age was seeded.
         if (lastTargetUpdateTick < renderTicks - 20 + entityId % 100) {
             Players.Target held = igniterId == 0 ? null : players.byId(igniterId, dimension);
-            double feetY = position.y() - HALF_HEIGHT;
+            double feetY = position.y() - halfHeight;
             boolean lost = held == null
                     || squaredDistance(held.x(), held.feetY(), held.z()) > 8.0 * 8.0;
             if (lost) {
@@ -549,7 +609,7 @@ public final class ExperienceOrbEntity implements net.zaminmc.torch.entity.Exper
             return;
         }
         double d1 = (igniter.x() - position.x()) / 8.0;
-        double d2 = (igniter.eyeY() - (position.y() - HALF_HEIGHT)) / 8.0;
+        double d2 = (igniter.eyeY() - (position.y() - halfHeight)) / 8.0;
         double d3 = (igniter.z() - position.z()) / 8.0;
         double d4 = Math.sqrt(d1 * d1 + d2 * d2 + d3 * d3);
         double d5 = 1.0 - d4;
@@ -564,7 +624,7 @@ public final class ExperienceOrbEntity implements net.zaminmc.torch.entity.Exper
     /** The squared distance to a world point from the orb's position. */
     private double squaredDistance(double x, double y, double z) {
         double dx = x - position.x();
-        double dy = y - (position.y() - HALF_HEIGHT);
+        double dy = y - (position.y() - halfHeight);
         double dz = z - position.z();
         return dx * dx + dy * dy + dz * dz;
     }

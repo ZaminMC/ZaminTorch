@@ -768,21 +768,34 @@ public final class NaturalSpawnSystem {
                 && net.zaminmc.torch.server.block.FluidBlocks.isFluid(blockType.identifier());
     }
 
-    /** The full-cube ground (World.hasSolidTop: solid + the full shape). */
+    /**
+     * The spawn floor (NaturalSpawner lines 160-162, VT-020): the
+     * reference's own consult — {@code World.hasSolidTop(world,
+     * pos.down())}, the five arms whole through the shared home
+     * ({@link net.zaminmc.torch.server.block.SupportConsult#hasSolidTop}).
+     *
+     * <p>The pre-fix form hand-rolled the law from three conjuncts
+     * (collision-solid, not-a-fence, not-a-partial-suffix) and missed
+     * both half-laws: the DOUBLE slabs (full cubes — hasSolidTop's first
+     * arm accepts them) and the TOP halves of the stairs and slabs were
+     * refused wholesale by the suffix arm, while the BOTTOM stair states
+     * ({@code oak_stairs_east} — a FACING suffix, never {@code
+     * _stairs}) and the red sandstone {@code stone_slab2} single
+     * escaped it and hosted the night monsters; and the TRANSLUCENT
+     * census (the glass, the ice, the leaves, the TNT, the glowstone —
+     * each collision-solid) answered the collision conjunct where the
+     * reference's {@code material.isSolidBlocking() && isCube()} answers
+     * FALSE for each. The one-home consult carries every row: the
+     * doubles and the TOP halves host, the BOTTOM halves and the
+     * directional stair folds refuse, the hoppers host (the fourth
+     * arm), and the translucent floors never spawn a mob.</p>
+     */
     private boolean isFullCubeGround(Object type) {
         if (type == null) {
             return false;
         }
-        var blockType = blockTypeOf(type);
-        return WorldSolidity.isSolid(blockType)
-                && !net.zaminmc.torch.server.block.WorldSolidity.isFence(blockType.identifier())
-                && !isPartialShape(blockType);
-    }
-
-    /** The partial shapes (slabs/stairs) never answer the spawn floor. */
-    private static boolean isPartialShape(net.zaminmc.torch.block.BlockType type) {
-        String name = type.identifier().value();
-        return name.endsWith("_slab") || name.endsWith("_stairs");
+        return net.zaminmc.torch.server.block.SupportConsult
+                .hasSolidTop(blockTypeOf(type));
     }
 
     private static net.zaminmc.torch.block.BlockType blockTypeOf(Object type) {
