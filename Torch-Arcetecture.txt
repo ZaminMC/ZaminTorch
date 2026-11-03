@@ -7912,6 +7912,101 @@ one-offs rotate members each run — DonkeyChest/ChestLid/Scoreboard-
 Health, each green isolated — the loaded-runner class, not
 regressions).
 
+WAVES PE-5/PE-6/PE-7 LANDED (2026-11-03, the three-wave session —
+the wire's cross-dimension row CLOSED + the drop-stamp census + two
+more boundary arms):
+
+WAVE PE-5 (commit daf68a67): the dragon's contact hulls (EnderDragon
+Entity lines 269-272 — each gathered body's OWN box against the
+part's grown hull, STRICT; the armor stand census landed beside the
+mobs/players — flung whole over its own 0.5x1.975 hull, the head's
+wound REFUSED per ArmorStandEntity.takeDamage 395-400), the lead tie
+box (LeadItem.attachLead lines 36-41 — each mob's OWN type box
+against the ±7 query box STRICT; the use-on-fence arm's MIN-CORNER
+anchor vs the knot-interact arm's ENTITY anchor — the two arms anchor
+differently in the reference itself), and the splash scan's own-box
+law (PotionEntity.onCollision lines 74-77). THE BREAK DROP ANCHOR
+REPAIR (the ArmorStand placement-occupancy seat's 1-in-3 flake root-
+caused — a GENUINE parity gap the seat exposed): the reference drops
+the stand item at new BlockPos(this) — the entity position FLOORED
+to its cell (onBrokenByPlayer line 476) and the equipment at
+new BlockPos(this).up() — the head cell (onBroken line 484); the
+pre-fix path fed the stand's raw CENTER position into the block-
+corner drop API — every break drop displaced a HALF-BLOCK east/south
+into the NEXT cell (the razor-thin edge overlap the seat's own
+flake); the spawn inset re-pinned to Block.dropItem lines 513-523
+verbatim (random.nextFloat() * 0.5F + 0.25 per axis — the UNIFORM
+[0.25, 0.75] inset, never the ±0.1 band around the center). SEATS:
+DragonContactBounds 2/0, LeadTieBounds 2/0, SplashBounds 3/0; the
+armorstand family 24/0 FOUR consecutive runs (the flake dead — the
+drops inside the stand's own cell with >= 0.125 margin on every
+face); the adjacent lanes green (entity + falling + hopper +
+explosion + anvil-crush + hopper-cart 617/0, leash + potion 36/0).
+
+WAVE PE-6 (commit 11ce37d4) — THE DEATH-DROP CENSUS, the wire's
+cross-dimension row + the reference's THREE drop forms: (1) THE
+DIMENSION STAMPS (eleven sites, every one the reference's own world
+law): the WIRE POP (RedstoneSystem.popBlock — THIS row's own find: a
+nether wire losing its floor popped its redstone drop into the
+OVERWORLD at the same coordinates), the piston's to-break walk, the
+jukebox disc, the beacon payment spill, the seven vehicle death-drop
+sites, the banner break drop, the double-plant lower drop, the rail
+pop — every one retired from the dimensionless overload's overworld
+0; (2) THE ENTITY DROP FORM (Entity.dropItem lines 1252-1261, the
+new spawnDropAtEntity): the body's EXACT feet anchor (position.y -
+the box half — the cart 0.35, the boat 0.2), NEVER the pre-fix +0.3
+cell-inset band; (3) THE CONTENTS SPILL FORM (InventoryUtils.dropItem
+lines 31-50, the new spawnContentsSpill): the [0.1, 0.9] band rolled
+ONCE per stack, the 10-30 chunk splits capped at the remainder, the
+GAUSSIAN * 0.05 + 0.2 velocity, NO pickup delay — the vehicle
+contents (chest + hopper carts) and ALL FIVE container block spills
+(chest/furnace/dispenser/brewing/hopper) migrated; THE NAMED CART'S
+DROP (MinecartEntity.dropItems 161-165): the custom name rides the
+item. SEATS: DropStampDimensionDiscoveryTest 2/0 — RED 2/2 on the
+pre-fix engine (the wire pop stamped 0; the cart drops stamped 0 and
+the nether await timed out), green whole on the fix; the coal cargo's
+TOTAL 64 whole over the merge's splatter-then-recombine (the
+reference's own mergeWithNearbyItems law — the transient split
+pinned at the unit seat, ChestManagerTest's updated spill walk).
+BENCH REPAIRS: the piston slime rig re-ordered (the PE-4 all-family
+occupancy gate is vanilla's law — the stand places BEFORE the orb
+spawns), the bukkit item-bridge seat's landing window widened to the
+CELL column. LANES: container + vehicle 190/0, redstone/piston/
+jukebox/beacon/rail 104/0, interaction/world/entity/armorstand/chest
+889/0, block/banner/stats/player 394/0, bukkit 52/0, tnt/experience/
+fireworks/weather/falling 45/0.
+
+WAVE PE-7 (commit 01b7bea8): the DETECTOR RAIL'S CART PROBE over
+getBoundsForMinecarts lines 155-158 — the 0.2-INSET box [cell+0.2,
+cell+0.8] x [y, y+0.8] x [cell+0.2, cell+0.8], each cart's OWN
+0.98x0.7 hull STRICT, the census MinecartEntity.class — EVERY cart
+kind (the pre-fix probe tested the CENTER inside the FULL cell with
+inclusive edges and walked only the plain and chest kinds: the
+HOPPER CART never powered the rail, an edge-grazing cart never
+powered it); and THE DISPENSER'S ARMOR ARM over ArmorItem lines
+26-53 — every body's OWN box against the facing cell's full cube
+STRICT (the mob walk reads the type's own size, never the 0.6x1.8
+stand-in), and THE ARMOR STAND WALK LANDED (EntityFilter's
+CanPickUpItemsFilter line 52 — the stand's explicit qualify arm: a
+dispenser DRESSES a stand, the equip through the stand's own rows
+with the equipment-changed publish, the MobEntity drop-chance marker
+correctly absent). SEATS: DetectorRailBounds 4/0 + DispenserArmor
+Bounds 3/0 — RED 6/7 on the pre-fix engine (the boat control green
+by design). LANES: dispenser/redstone/armorstand/vehicle/rail
+179/0, hopper/piston/tnt 54/0. THE HONEST FIND LEDGERED: the
+detector rail's COMPARATOR read (DetectorRailBlock.getAnalogSignal
+lines 136-144 — the CommandBlockMinecart's success count, the
+INVENTORY cart's fullness) is absent from the engine's analog
+reader whole — its own next-work row.
+
+NEXT WORK (re-pinned, in order): the anvil import's per-dimension
+host consults (the container tail); the detector rail's comparator
+read (the cart inventory analog arm, PE-7's ledgered find); the
+remaining Phase E boundary arms (the mob AI walks' center-based
+consults — the breeding/mating proximity, the follow-owner walk,
+the fishing bobber's gather); the CI census watches (the
+environmental class, unchanged).
+
 VT-033'S ADJACENT TAILS LANDED (2026-11-02, commit d96f4a2a — #146's
 review-note ledger retired): the WITHER FALL's kill row and the BEACON
 full-power row walk the ACTING world's players (the un-dimensioned
