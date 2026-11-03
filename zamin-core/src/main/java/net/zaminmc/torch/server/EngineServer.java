@@ -588,6 +588,16 @@ public final class EngineServer implements Server, EngineBridge {
     private net.zaminmc.torch.server.gamerule.GameRuleDataStore gameRuleStore;
     /** The lightning family (Slice 20c — the strike roll + the bolt life). */
     private volatile net.zaminmc.torch.server.weather.LightningSystem lightning;
+
+    /**
+     * The lightning family's own surface (the full-boot parity seats'
+     * bolt trigger — the deterministic strike the storm roll gates
+     * behind its 1/100000 cadence; package-private, the test surface).
+     */
+    net.zaminmc.torch.server.weather.LightningSystem lightningSurface() {
+        return java.util.Objects.requireNonNull(lightning, "lightning");
+    }
+
     /** The ice/snow precipitation arm (Slice 21c — tickChunks lines 325-341). */
     private volatile net.zaminmc.torch.server.weather.PrecipitationSystem precipitation;
     private final java.util.List<ChatListener> chatListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
@@ -1575,6 +1585,14 @@ public final class EngineServer implements Server, EngineBridge {
                             }
 
                             @Override
+                            public int worldHeight() {
+                                // World.getHeight(): the 1.8 build band
+                                // (16 sections x 16) — the target box's own
+                                // ceiling + 3 (Wave PE-4's re-pin).
+                                return net.zaminmc.torch.server.world.EngineChunk.SECTION_COUNT * 16;
+                            }
+
+                            @Override
                             public boolean isAirAt(int x, int y, int z) {
                                 return world.getBlock(new BlockPosition(x, y, z))
                                         .equals(world.airType());
@@ -1596,6 +1614,21 @@ public final class EngineServer implements Server, EngineBridge {
                             public java.util.List<net.zaminmc.torch.server.weather.LightningSystem.StruckBody> skyVisibleBodies(
                                     double minX, double minY, double minZ,
                                     double maxX, double maxY, double maxZ) {
+                                // The TARGET-SELECTION walk (findLightningTarget
+                                // lines 370-381: getEntitiesOfType(
+                                // LivingEntity.class, box, isAlive &&
+                                // hasSkyAccess)) — Wave PE-4, the Phase E
+                                // boundary arms: each body's OWN box against
+                                // the query box, STRICT both sides (exactly
+                                // touching never intersecting — the pre-fix
+                                // center-in-box consult missed the edge-stand,
+                                // a body whose box grazes the grown box while
+                                // its center sits outside); the LIVING census
+                                // — the mobs, the players AND the armor stands
+                                // (ArmorStandEntity IS a living body, the
+                                // pre-fix walk never consulted the family);
+                                // the sky gate (hasSkyAccess's own stand-in:
+                                // the body above its column's surface).
                                 java.util.List<net.zaminmc.torch.server.weather.LightningSystem.StruckBody> bodies =
                                         new java.util.ArrayList<>();
                                 for (PlayerSession player : players.all()) {
@@ -1604,9 +1637,11 @@ public final class EngineServer implements Server, EngineBridge {
                                         continue;
                                     }
                                     Position at = player.position();
-                                    if (at.x() >= minX && at.x() <= maxX
-                                            && at.y() >= minY && at.y() <= maxY
-                                            && at.z() >= minZ && at.z() <= maxZ
+                                    if (at.x() + PLAYER_HALF_WIDTH > minX
+                                            && at.x() - PLAYER_HALF_WIDTH < maxX
+                                            && at.y() + PLAYER_HEIGHT > minY && at.y() < maxY
+                                            && at.z() + PLAYER_HALF_WIDTH > minZ
+                                            && at.z() - PLAYER_HALF_WIDTH < maxZ
                                             && at.y() >= surfaceY(
                                                     (int) Math.floor(at.x()), (int) Math.floor(at.z()))) {
                                         bodies.add(new net.zaminmc.torch.server.weather.LightningSystem.StruckBody() {
@@ -1633,10 +1668,14 @@ public final class EngineServer implements Server, EngineBridge {
                                     }
                                 }
                                 for (net.zaminmc.torch.server.entity.MobEntity mob : mobs.all()) {
+                                    if (mob.dimension() != 0) {
+                                        continue; // another world's body is absent from this walk
+                                    }
                                     Position at = mob.position();
-                                    if (at.x() >= minX && at.x() <= maxX
-                                            && at.y() >= minY && at.y() <= maxY
-                                            && at.z() >= minZ && at.z() <= maxZ
+                                    double halfWidth = mob.type().width / 2.0;
+                                    if (at.x() + halfWidth > minX && at.x() - halfWidth < maxX
+                                            && at.y() + mob.type().height > minY && at.y() < maxY
+                                            && at.z() + halfWidth > minZ && at.z() - halfWidth < maxZ
                                             && at.y() >= surfaceY(
                                                     (int) Math.floor(at.x()), (int) Math.floor(at.z()))) {
                                         bodies.add(new net.zaminmc.torch.server.weather.LightningSystem.StruckBody() {
@@ -1652,6 +1691,182 @@ public final class EngineServer implements Server, EngineBridge {
                                                 mobs.hurt(mob, 5.0f, 0.0,
                                                         net.zaminmc.torch.event.DamageCause.LIGHTNING);
                                                 mob.ignite(160);
+                                            }
+                                        });
+                                    }
+                                }
+                                // The LIVING census's third family: the armor
+                                // stand (0.5 x 1.975, feet-anchored).
+                                for (net.zaminmc.torch.server.armorstand.ArmorStand stand : armorStands.allStands()) {
+                                    if (stand.dimension() != 0) {
+                                        continue; // another world's stand is absent from this walk
+                                    }
+                                    if (stand.x() + 0.25 > minX && stand.x() - 0.25 < maxX
+                                            && stand.y() + 1.975 > minY && stand.y() < maxY
+                                            && stand.z() + 0.25 > minZ && stand.z() - 0.25 < maxZ
+                                            && stand.y() >= surfaceY(
+                                                    (int) Math.floor(stand.x()), (int) Math.floor(stand.z()))) {
+                                        bodies.add(new net.zaminmc.torch.server.weather.LightningSystem.StruckBody() {
+                                            @Override
+                                            public Position position() {
+                                                return new Position(stand.x(), stand.y(), stand.z());
+                                            }
+
+                                            @Override
+                                            public void strike() {
+                                                // The stand's own law: the wound
+                                                // REFUSED (ArmorStandEntity
+                                                // .takeDamage 395-400 — neither
+                                                // arrow nor player) but the fire
+                                                // arm rides the BASE body whole
+                                                // (struckByLightning 1548-1551:
+                                                // onFireTimer++ + setOnFireFor(8)).
+                                                stand.setFireTicks(160);
+                                            }
+                                        });
+                                    }
+                                }
+                                return bodies;
+                            }
+
+                            @Override
+                            public java.util.List<net.zaminmc.torch.server.weather.LightningSystem.StruckBody> bodiesInBox(
+                                    double minX, double minY, double minZ,
+                                    double maxX, double maxY, double maxZ) {
+                                // The STRIKE walk (LightningBoltEntity.tick
+                                // lines 84-90: world.getEntities(this, Box(
+                                // x-3, y-3, z-3, x+3, y+6+3, z+3)) — NO class
+                                // filter, NO sky gate: whatever stands in the
+                                // bolt's box takes the base body's 5.0 + the
+                                // 8-second fire (Entity.struckByLightning
+                                // 1546-1552), the covered body included; each
+                                // body's OWN box, STRICT both sides (Wave PE-4:
+                                // the pre-fix walk shared the target-selection
+                                // consult — its sky gate withheld strikes from
+                                // covered bodies and its center test missed
+                                // the edge-stand). The ITEM and ORB families'
+                                // health-5 bodies DIE to the 5.0 wound whole
+                                // (ItemEntity.takeDamage 202-218 / orb 141-151:
+                                // no source refusal — vanilla lightning
+                                // destroys a dropped item).
+                                java.util.List<net.zaminmc.torch.server.weather.LightningSystem.StruckBody> bodies =
+                                        new java.util.ArrayList<>();
+                                for (PlayerSession player : players.all()) {
+                                    if (player.state() != PlayerState.PLAYING
+                                            || player.dead() || player.dimension() != 0) {
+                                        continue;
+                                    }
+                                    Position at = player.position();
+                                    if (at.x() + PLAYER_HALF_WIDTH > minX
+                                            && at.x() - PLAYER_HALF_WIDTH < maxX
+                                            && at.y() + PLAYER_HEIGHT > minY && at.y() < maxY
+                                            && at.z() + PLAYER_HALF_WIDTH > minZ
+                                            && at.z() - PLAYER_HALF_WIDTH < maxZ) {
+                                        bodies.add(new net.zaminmc.torch.server.weather.LightningSystem.StruckBody() {
+                                            @Override
+                                            public Position position() {
+                                                return at;
+                                            }
+
+                                            @Override
+                                            public void strike() {
+                                                damageOnTick(player, 5.0f, 0.3f,
+                                                        "was struck by lightning",
+                                                        DamageKind.LIGHTNING);
+                                                igniteWithFireProtection(player, 8);
+                                            }
+                                        });
+                                    }
+                                }
+                                for (net.zaminmc.torch.server.entity.MobEntity mob : mobs.all()) {
+                                    if (mob.dimension() != 0) {
+                                        continue;
+                                    }
+                                    Position at = mob.position();
+                                    double halfWidth = mob.type().width / 2.0;
+                                    if (at.x() + halfWidth > minX && at.x() - halfWidth < maxX
+                                            && at.y() + mob.type().height > minY && at.y() < maxY
+                                            && at.z() + halfWidth > minZ && at.z() - halfWidth < maxZ) {
+                                        bodies.add(new net.zaminmc.torch.server.weather.LightningSystem.StruckBody() {
+                                            @Override
+                                            public Position position() {
+                                                return at;
+                                            }
+
+                                            @Override
+                                            public void strike() {
+                                                mobs.hurt(mob, 5.0f, 0.0,
+                                                        net.zaminmc.torch.event.DamageCause.LIGHTNING);
+                                                mob.ignite(160);
+                                            }
+                                        });
+                                    }
+                                }
+                                for (net.zaminmc.torch.server.armorstand.ArmorStand stand : armorStands.allStands()) {
+                                    if (stand.dimension() != 0) {
+                                        continue;
+                                    }
+                                    if (stand.x() + 0.25 > minX && stand.x() - 0.25 < maxX
+                                            && stand.y() + 1.975 > minY && stand.y() < maxY
+                                            && stand.z() + 0.25 > minZ && stand.z() - 0.25 < maxZ) {
+                                        bodies.add(new net.zaminmc.torch.server.weather.LightningSystem.StruckBody() {
+                                            @Override
+                                            public Position position() {
+                                                return new Position(stand.x(), stand.y(), stand.z());
+                                            }
+
+                                            @Override
+                                            public void strike() {
+                                                // The wound refused, the fire
+                                                // stamp whole (the stand's own
+                                                // law — the sky walk's note).
+                                                stand.setFireTicks(160);
+                                            }
+                                        });
+                                    }
+                                }
+                                for (net.zaminmc.torch.server.entity.ItemEntity item : itemEntities.all()) {
+                                    if (item.dimension() != 0) {
+                                        continue;
+                                    }
+                                    Position at = item.position();
+                                    if (at.x() + net.zaminmc.torch.server.entity.ItemEntity.HALF_WIDTH > minX
+                                            && at.x() - net.zaminmc.torch.server.entity.ItemEntity.HALF_WIDTH < maxX
+                                            && at.y() + net.zaminmc.torch.server.entity.ItemEntity.HALF_HEIGHT > minY
+                                            && at.y() - net.zaminmc.torch.server.entity.ItemEntity.HALF_HEIGHT < maxY
+                                            && at.z() + net.zaminmc.torch.server.entity.ItemEntity.HALF_WIDTH > minZ
+                                            && at.z() - net.zaminmc.torch.server.entity.ItemEntity.HALF_WIDTH < maxZ) {
+                                        bodies.add(new net.zaminmc.torch.server.weather.LightningSystem.StruckBody() {
+                                            @Override
+                                            public Position position() {
+                                                return at;
+                                            }
+
+                                            @Override
+                                            public void strike() {
+                                                itemEntities.hurtFromLightning(item, 5.0f);
+                                            }
+                                        });
+                                    }
+                                }
+                                for (net.zaminmc.torch.server.experience.ExperienceOrbEntity orb : experienceOrbs.all()) {
+                                    if (orb.dimension() != 0) {
+                                        continue;
+                                    }
+                                    Position at = orb.position();
+                                    double half = orb.halfWidth();
+                                    if (at.x() + half > minX && at.x() - half < maxX
+                                            && at.y() + half > minY && at.y() - half < maxY
+                                            && at.z() + half > minZ && at.z() - half < maxZ) {
+                                        bodies.add(new net.zaminmc.torch.server.weather.LightningSystem.StruckBody() {
+                                            @Override
+                                            public Position position() {
+                                                return at;
+                                            }
+
+                                            @Override
+                                            public void strike() {
+                                                experienceOrbs.hurtFromLightning(orb, 5.0f);
                                             }
                                         });
                                     }
@@ -21862,14 +22077,28 @@ public final class EngineServer implements Server, EngineBridge {
         @Override
         public boolean entityOccupies(double minX, double minY, double minZ,
                                       double maxX, double maxY, double maxZ, int dimension) {
+            // The placement's occupancy gate (ArmorStandItem.useOn lines
+            // 40-46: `world.getEntities(null, Box.of(d0, d1, d2, d0 + 1.0,
+            // d1 + 2.0, d2 + 1.0))` — list.size() > 0 refuses the stand):
+            // EVERY entity family's OWN box against the placement box,
+            // STRICT both sides (exactly touching never intersecting);
+            // Wave PE-4, the Phase E boundary arms: the pre-fix consult
+            // grew the box around each family's CENTER with inclusive
+            // edges and never walked the item/orb/vehicle/projectile
+            // families — a body EDGE-STANDING beside the placement cell
+            // (its box grazing the cell's face while its center sits
+            // outside) refused nothing in vanilla and must refuse
+            // nothing here, while an item lying in the cell refuses the
+            // stand exactly like vanilla's own census.
             for (PlayerSession player : players.all()) {
                 if (player.dimension() != dimension) {
                     continue; // another world's body never blocks the box
                 }
                 Position p = player.position();
-                if (p.x() >= minX - 0.3 && p.x() <= maxX + 0.3
-                        && p.y() >= minY && p.y() <= maxY
-                        && p.z() >= minZ - 0.3 && p.z() <= maxZ + 0.3) {
+                if (p.x() + PLAYER_HALF_WIDTH > minX && p.x() - PLAYER_HALF_WIDTH < maxX
+                        && p.y() + PLAYER_HEIGHT > minY && p.y() < maxY
+                        && p.z() + PLAYER_HALF_WIDTH > minZ
+                        && p.z() - PLAYER_HALF_WIDTH < maxZ) {
                     return true;
                 }
             }
@@ -21878,11 +22107,10 @@ public final class EngineServer implements Server, EngineBridge {
                     continue; // another world's body never blocks the box
                 }
                 Position p = mob.position();
-                if (p.x() >= minX - mob.type().width * 0.5
-                        && p.x() <= maxX + mob.type().width * 0.5
-                        && p.y() >= minY && p.y() <= maxY + mob.type().height
-                        && p.z() >= minZ - mob.type().width * 0.5
-                        && p.z() <= maxZ + mob.type().width * 0.5) {
+                double halfWidth = mob.type().width * 0.5;
+                if (p.x() + halfWidth > minX && p.x() - halfWidth < maxX
+                        && p.y() + mob.type().height > minY && p.y() < maxY
+                        && p.z() + halfWidth > minZ && p.z() - halfWidth < maxZ) {
                     return true;
                 }
             }
@@ -21890,9 +22118,61 @@ public final class EngineServer implements Server, EngineBridge {
                 if (other.dimension() != dimension) {
                     continue; // another world's stand never blocks the box
                 }
-                if (other.x() >= minX && other.x() <= maxX
-                        && other.z() >= minZ && other.z() <= maxZ
-                        && other.y() >= minY - 1.975 && other.y() <= maxY) {
+                // The stand's own box (setSize(0.5F, 1.975F),
+                // feet-anchored).
+                if (other.x() + 0.25 > minX && other.x() - 0.25 < maxX
+                        && other.y() + 1.975 > minY && other.y() < maxY
+                        && other.z() + 0.25 > minZ && other.z() - 0.25 < maxZ) {
+                    return true;
+                }
+            }
+            for (ItemEntity item : itemEntities.all()) {
+                if (item.dimension() != dimension) {
+                    continue; // another world's body never blocks the box
+                }
+                Position p = item.position();
+                if (p.x() + ItemEntity.HALF_WIDTH > minX
+                        && p.x() - ItemEntity.HALF_WIDTH < maxX
+                        && p.y() + ItemEntity.HALF_HEIGHT > minY
+                        && p.y() - ItemEntity.HALF_HEIGHT < maxY
+                        && p.z() + ItemEntity.HALF_WIDTH > minZ
+                        && p.z() - ItemEntity.HALF_WIDTH < maxZ) {
+                    return true;
+                }
+            }
+            for (net.zaminmc.torch.server.experience.ExperienceOrbEntity orb : experienceOrbs.all()) {
+                if (orb.dimension() != dimension) {
+                    continue; // another world's body never blocks the box
+                }
+                Position p = orb.position();
+                double half = orb.halfWidth();
+                if (p.x() + half > minX && p.x() - half < maxX
+                        && p.y() + half > minY && p.y() - half < maxY
+                        && p.z() + half > minZ && p.z() - half < maxZ) {
+                    return true;
+                }
+            }
+            if (vehicleManager != null) {
+                for (net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle : vehicleManager.all()) {
+                    if (vehicle.dimension() != dimension) {
+                        continue; // another world's cart never blocks the box
+                    }
+                    Position p = vehicle.position();
+                    if (p.x() + 0.49 > minX && p.x() - 0.49 < maxX
+                            && p.y() + 0.35 > minY && p.y() - 0.35 < maxY
+                            && p.z() + 0.49 > minZ && p.z() - 0.49 < maxZ) {
+                        return true;
+                    }
+                }
+            }
+            for (net.zaminmc.torch.server.entity.projectile.ProjectileEntity projectile : projectileManager.all()) {
+                if (projectile.dimension() != dimension) {
+                    continue; // another world's body never blocks the box
+                }
+                Position p = projectile.position();
+                if (p.x() + 0.25 > minX && p.x() - 0.25 < maxX
+                        && p.y() + 0.25 > minY && p.y() - 0.25 < maxY
+                        && p.z() + 0.25 > minZ && p.z() - 0.25 < maxZ) {
                     return true;
                 }
             }
@@ -25504,15 +25784,24 @@ public final class EngineServer implements Server, EngineBridge {
         private int countMobsOfKindIn(MobType kind,
                                       double minX, double minY, double minZ,
                                       double maxX, double maxY, double maxZ) {
+            // The census's own box law (Village.updateIronGolemCount /
+            // updatePopulationSize lines 110-138:
+            // getEntitiesOfType(<kind>.class, Box(...)) — each body's
+            // OWN box against the census box, STRICT both sides;
+            // Wave PE-4, the Phase E boundary arms: the pre-fix
+            // center-in-box consult missed the edge-stand — a villager
+            // whose box grazes the census band while its center sits
+            // outside never counted, vanilla's own edge census).
             int count = 0;
             for (MobEntity mob : mobManager.all()) {
                 if (mob.dead() || mob.type() != kind || mob.dimension() != 0) {
                     continue; // the overworld's own census (the villages' world)
                 }
                 Position at = mob.position();
-                if (at.x() >= minX && at.x() <= maxX
-                        && at.y() >= minY && at.y() <= maxY
-                        && at.z() >= minZ && at.z() <= maxZ) {
+                double halfWidth = mob.type().width / 2.0;
+                if (at.x() + halfWidth > minX && at.x() - halfWidth < maxX
+                        && at.y() + mob.type().height > minY && at.y() < maxY
+                        && at.z() + halfWidth > minZ && at.z() - halfWidth < maxZ) {
                     count++;
                 }
             }

@@ -791,6 +791,27 @@ public final class ItemEntityManager {
         return false;
     }
 
+    /**
+     * The lightning bolt's item wound (the reference's
+     * ItemEntity.takeDamage lines 202-218 over the LIGHTNING_BOLT source
+     * — Entity.struckByLightning lines 1546-1552): the plain health-5
+     * walk with NO source refusal (the star's gate is explosive alone) —
+     * vanilla lightning DESTROYS a dropped item, the nether star
+     * included. The 8-second fire stamp has no engine item model (the
+     * fire family's own tail — the wound alone suffices at 5.0).
+     *
+     * @return whether the body died.
+     */
+    public boolean hurtFromLightning(ItemEntity entity, float damage) {
+        Objects.requireNonNull(entity, "entity");
+        entity.takeExplosionDamage(damage);
+        if (entity.health() <= 0) {
+            remove(entity, "lightning");
+            return true;
+        }
+        return false;
+    }
+
     // ------------------------------------------------------------------
     // The persistence surface (Slice 93/E1 — the reference's own
     // writeCustomNbt/readCustomNbt rows over the engine's Z-family store:

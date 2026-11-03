@@ -485,4 +485,21 @@ public final class ExperienceOrbManager implements ExperienceOrbEntity.Players {
         }
         return false;
     }
+
+    /**
+     * The lightning bolt's orb wound (Entity.struckByLightning lines
+     * 1546-1552 over ExperienceOrbEntity.takeDamage 141-151): the plain
+     * health-5 walk — the 5.0 wound destroys the body whole, no payout.
+     *
+     * @return whether the body died.
+     */
+    public boolean hurtFromLightning(ExperienceOrbEntity orb, float damage) {
+        Objects.requireNonNull(orb, "orb");
+        orb.takeExplosionDamage(damage);
+        if (orb.health() <= 0) {
+            remove(orb, "lightning");
+            return true;
+        }
+        return false;
+    }
 }
