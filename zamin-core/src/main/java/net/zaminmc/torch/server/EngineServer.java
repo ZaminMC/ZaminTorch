@@ -3394,54 +3394,240 @@ public final class EngineServer implements Server, EngineBridge {
                                     }
                                 },
                                 new net.zaminmc.torch.server.fishing.FishingSystem.HookResolver() {
-                                    /** The segment clip stand-in: the first body along the samples. */
+                                    /**
+                                     * THE HOOK'S EXACT CLIP LAW (Wave PE-9,
+                                     * the Phase E boundary arms — FishingBobber
+                                     * Entity lines 244-265): the reference
+                                     * gathers {@code getEntities(this, this
+                                     * .getShape().expanded(vx, vy, vz).grown
+                                     * (1.0, 1.0, 1.0))} then, for every body
+                                     * with {@code hasCollision()} (the angler's
+                                     * own refused while airTicks < 5), clips
+                                     * the flight segment against the body's
+                                     * OWN box grown 0.3 ({@code Box.clip}) and
+                                     * keeps the CLOSEST hit along the segment
+                                     * ({@code d2 < d0 || d0 == 0.0}). The
+                                     * census: LivingEntity's !removed (the
+                                     * mobs, the players, the armor stands —
+                                     * Entity lines 1058-1060 + LivingEntity
+                                     * 1594-1595 + ArmorStandEntity 727-728's
+                                     * !marker, the engine carrying no marker
+                                     * stands), the vehicles (MinecartEntity/
+                                     * BoatEntity true), the projectiles (true)
+                                     * — the ITEMS and ORBS correctly ABSENT
+                                     * (no override, the base false).
+                                     *
+                                     * <p>The pre-fix consult sampled the
+                                     * segment at 0.1 granularity against
+                                     * CENTER-band stand-ins (the raw type box
+                                     * with a -0.1 feet slack, the player's
+                                     * ±0.3 with -0.2) — the 0.3 growth wholly
+                                     * absent (a bobber passing 0.2 from a
+                                     * mob's side hooks in vanilla, never in
+                                     * the engine), a graze shorter than the
+                                     * sample step missed whole, and the stand/
+                                     * vehicle/projectile families never
+                                     * hookable at all.</p>
+                                     */
                                     @Override public Object hookAlong(Position from, Position to,
-                                            int throwerId, int airTicks) {
-                                        double dx = to.x() - from.x();
-                                        double dy = to.y() - from.y();
-                                        double dz = to.z() - from.z();
-                                        int steps = Math.max(1,
-                                                (int) Math.ceil(Math.max(Math.abs(dx),
-                                                        Math.max(Math.abs(dy), Math.abs(dz))) / 0.1));
-                                        for (int i = 1; i <= steps; i++) {
-                                            double t = (double) i / steps;
-                                            Position at = new Position(from.x() + dx * t,
-                                                    from.y() + dy * t, from.z() + dz * t);
-                                            MobEntity mob = mobManager.mobAt(at);
-                                            if (mob != null && !mob.dead()) {
-                                                return mob;
+                                            int throwerId, int airTicks, int dimension) {
+                                        Object best = null;
+                                        double bestD2 = 0.0;
+                                        // The mobs (LivingEntity's own census).
+                                        for (MobEntity mob : mobManager.all()) {
+                                            if (mob.dead()) {
+                                                continue; // !removed
                                             }
-                                            PlayerSession player = playerBodyAt(at);
-                                            if (player != null) {
-                                                if (player.engineEntityId() == throwerId
-                                                        && airTicks < 5) {
-                                                    continue; // the angler's own body: 5-tick gate
-                                                }
-                                                return player;
+                                            if (mob.dimension() != dimension) {
+                                                continue; // another world's body
+                                            }
+                                            double d2 = segmentBoxEntrySquared(from, to,
+                                                    mob.position().x()
+                                                            - mob.type().width / 2.0 - 0.3,
+                                                    mob.position().y() - 0.3,
+                                                    mob.position().z()
+                                                            - mob.type().width / 2.0 - 0.3,
+                                                    mob.position().x()
+                                                            + mob.type().width / 2.0 + 0.3,
+                                                    mob.position().y()
+                                                            + mob.type().height + 0.3,
+                                                    mob.position().z()
+                                                            + mob.type().width / 2.0 + 0.3);
+                                            if (d2 >= 0.0 && (bestD2 == 0.0 || d2 < bestD2)) {
+                                                best = mob;
+                                                bestD2 = d2;
                                             }
                                         }
-                                        return null;
+                                        // The players (the angler's own gate:
+                                        // refused while airTicks < 5).
+                                        for (PlayerSession player : players.all()) {
+                                            if (player.state() != PlayerState.PLAYING
+                                                    || player.dead()) {
+                                                continue; // !removed
+                                            }
+                                            if (player.dimension() != dimension) {
+                                                continue; // another world's body
+                                            }
+                                            if (player.engineEntityId() == throwerId
+                                                    && airTicks < 5) {
+                                                continue; // the angler's own 5-tick gate
+                                            }
+                                            double d2 = segmentBoxEntrySquared(from, to,
+                                                    player.position().x() - 0.6,
+                                                    player.position().y() - 0.3,
+                                                    player.position().z() - 0.6,
+                                                    player.position().x() + 0.6,
+                                                    player.position().y() + 2.1,
+                                                    player.position().z() + 0.6);
+                                            if (d2 >= 0.0 && (bestD2 == 0.0 || d2 < bestD2)) {
+                                                best = player;
+                                                bestD2 = d2;
+                                            }
+                                        }
+                                        // The armor stands (the LivingEntity
+                                        // census's own member — ArmorStandEntity
+                                        // 727-728, the engine's no-marker form).
+                                        for (net.zaminmc.torch.server.armorstand.ArmorStand stand
+                                                : armorStands.allStands()) {
+                                            if (stand.dimension() != dimension) {
+                                                continue; // another world's stand
+                                            }
+                                            double d2 = segmentBoxEntrySquared(from, to,
+                                                    stand.x() - 0.55, stand.y() - 0.3,
+                                                    stand.z() - 0.55,
+                                                    stand.x() + 0.55, stand.y() + 2.275,
+                                                    stand.z() + 0.55);
+                                            if (d2 >= 0.0 && (bestD2 == 0.0 || d2 < bestD2)) {
+                                                best = stand;
+                                                bestD2 = d2;
+                                            }
+                                        }
+                                        // The vehicles (MinecartEntity +
+                                        // BoatEntity's own hasCollision true —
+                                        // each cart's own 0.98x0.7 hull, the
+                                        // boat's 1.5x0.4, grown 0.3).
+                                        for (net.zaminmc.torch.server.entity.vehicle.VehicleEntity
+                                                vehicle : vehicleManager.all()) {
+                                            if (vehicle.dead()) {
+                                                continue; // !removed
+                                            }
+                                            if (vehicle.dimension() != dimension) {
+                                                continue; // another world's body
+                                            }
+                                            boolean boat = vehicle.kind()
+                                                    == net.zaminmc.torch.server.entity.vehicle
+                                                            .VehicleEntity.Kind.BOAT;
+                                            double halfWidth = boat
+                                                    ? net.zaminmc.torch.server.entity.vehicle
+                                                            .BoatEntity.HULL_WIDTH / 2.0
+                                                    : net.zaminmc.torch.server.entity.vehicle
+                                                            .MinecartEntity.CART_WIDTH / 2.0;
+                                            double halfHeight = boat
+                                                    ? net.zaminmc.torch.server.entity.vehicle
+                                                            .BoatEntity.HALF_HEIGHT
+                                                    : net.zaminmc.torch.server.entity.vehicle
+                                                            .MinecartEntity.HALF_HEIGHT;
+                                            double d2 = segmentBoxEntrySquared(from, to,
+                                                    vehicle.position().x() - halfWidth - 0.3,
+                                                    vehicle.position().y() - halfHeight - 0.3,
+                                                    vehicle.position().z() - halfWidth - 0.3,
+                                                    vehicle.position().x() + halfWidth + 0.3,
+                                                    vehicle.position().y() + halfHeight + 0.3,
+                                                    vehicle.position().z() + halfWidth + 0.3);
+                                            if (d2 >= 0.0 && (bestD2 == 0.0 || d2 < bestD2)) {
+                                                best = vehicle;
+                                                bestD2 = d2;
+                                            }
+                                        }
+                                        // The projectiles (ProjectileEntity's
+                                        // own hasCollision true — the arrow's
+                                        // 0.5 box, grown 0.3).
+                                        for (net.zaminmc.torch.server.entity.projectile
+                                                        .ProjectileEntity projectile
+                                                : projectileManager.all()) {
+                                            if (projectile.dimension() != dimension) {
+                                                continue; // another world's body
+                                            }
+                                            double d2 = segmentBoxEntrySquared(from, to,
+                                                    projectile.position().x() - 0.55,
+                                                    projectile.position().y() - 0.55,
+                                                    projectile.position().z() - 0.55,
+                                                    projectile.position().x() + 0.55,
+                                                    projectile.position().y() + 0.55,
+                                                    projectile.position().z() + 0.55);
+                                            if (d2 >= 0.0 && (bestD2 == 0.0 || d2 < bestD2)) {
+                                                best = projectile;
+                                                bestD2 = d2;
+                                            }
+                                        }
+                                        return best;
                                     }
 
                                     @Override public boolean hookedAlive(Object hooked) {
                                         if (hooked instanceof MobEntity mob) {
                                             return !mob.dead();
                                         }
-                                        return hooked instanceof PlayerSession player
-                                                && player.state() == PlayerState.PLAYING
-                                                && !player.dead();
+                                        if (hooked instanceof PlayerSession player) {
+                                            return player.state() == PlayerState.PLAYING
+                                                    && !player.dead();
+                                        }
+                                        if (hooked instanceof net.zaminmc.torch.server
+                                                .armorstand.ArmorStand stand) {
+                                            return armorStands.byId(stand.entityId()) != null;
+                                        }
+                                        if (hooked instanceof net.zaminmc.torch.server.entity
+                                                .vehicle.VehicleEntity vehicle) {
+                                            return !vehicle.dead();
+                                        }
+                                        if (hooked instanceof net.zaminmc.torch.server.entity
+                                                .projectile.ProjectileEntity projectile) {
+                                            return projectileManager.all().contains(projectile);
+                                        }
+                                        return false;
                                     }
 
                                     @Override public Position hookedAnchor(Object hooked) {
+                                        // The reference's follow anchor (lines
+                                        // 199-203): x, the box's minY + the
+                                        // body's height * 0.8, z.
                                         if (hooked instanceof MobEntity mob) {
                                             return new Position(mob.position().x(),
-                                                    mob.position().y() + mob.type().height * 0.8,
+                                                    mob.position().y()
+                                                            + mob.type().height * 0.8,
                                                     mob.position().z());
                                         }
                                         if (hooked instanceof PlayerSession player) {
                                             return new Position(player.position().x(),
                                                     player.position().y() + 1.8 * 0.8,
                                                     player.position().z());
+                                        }
+                                        if (hooked instanceof net.zaminmc.torch.server
+                                                .armorstand.ArmorStand stand) {
+                                            return new Position(stand.x(),
+                                                    stand.y() + 1.975 * 0.8, stand.z());
+                                        }
+                                        if (hooked instanceof net.zaminmc.torch.server.entity
+                                                .vehicle.VehicleEntity vehicle) {
+                                            boolean boat = vehicle.kind()
+                                                    == net.zaminmc.torch.server.entity.vehicle
+                                                            .VehicleEntity.Kind.BOAT;
+                                            double halfHeight = boat
+                                                    ? net.zaminmc.torch.server.entity.vehicle
+                                                            .BoatEntity.HALF_HEIGHT
+                                                    : net.zaminmc.torch.server.entity.vehicle
+                                                            .MinecartEntity.HALF_HEIGHT;
+                                            double height = halfHeight * 2.0;
+                                            return new Position(vehicle.position().x(),
+                                                    vehicle.position().y() - halfHeight
+                                                            + height * 0.8,
+                                                    vehicle.position().z());
+                                        }
+                                        if (hooked instanceof net.zaminmc.torch.server.entity
+                                                .projectile.ProjectileEntity projectile) {
+                                            return new Position(projectile.position().x(),
+                                                    projectile.position().y() - 0.25
+                                                            + 0.5 * 0.8,
+                                                    projectile.position().z());
                                         }
                                         return null;
                                     }
@@ -3467,6 +3653,17 @@ public final class EngineServer implements Server, EngineBridge {
                                             double nvz = player.motionZ() + dz;
                                             player.setMotion(nvx, nvy, nvz);
                                             publishKnockback(player, nvx, nvy, nvz);
+                                        } else if (hooked instanceof net.zaminmc.torch.server
+                                                .armorstand.ArmorStand stand) {
+                                            stand.addVelocity(dx, dy, dz);
+                                        } else if (hooked instanceof net.zaminmc.torch.server
+                                                .entity.vehicle.VehicleEntity vehicle) {
+                                            vehicle.setVelocity(vehicle.velocityX() + dx,
+                                                    vehicle.velocityY() + dy,
+                                                    vehicle.velocityZ() + dz);
+                                        } else if (hooked instanceof net.zaminmc.torch.server
+                                                .entity.projectile.ProjectileEntity projectile) {
+                                            projectileManager.addVelocity(projectile, dx, dy, dz);
                                         }
                                     }
                                 },
@@ -21058,23 +21255,6 @@ public final class EngineServer implements Server, EngineBridge {
      * Resolves what a projectile is inside of: the same boxes the melee
      * checks use (mob type width/height; the 0.6 × 1.8 player box). Tick-thread.
      */
-    /** The player body at a point (the projectile hull's own 0.3x1.8 band). */
-    private PlayerSession playerBodyAt(Position point) {
-        for (PlayerSession player : players.all()) {
-            if (player.state() != PlayerState.PLAYING || player.dead()) {
-                continue;
-            }
-            Position p = player.position();
-            double dx = point.x() - p.x();
-            double dy = point.y() - p.y();
-            double dz = point.z() - p.z();
-            if (Math.abs(dx) <= 0.3 && Math.abs(dz) <= 0.3 && dy >= -0.2 && dy <= 1.8) {
-                return player;
-            }
-        }
-        return null;
-    }
-
     /** The angler's held-rod enchant level (the fishing tables' own reads). */
     private int heldRodLevel(int throwerId, int enchantId) {
         PlayerSession angler = sessionByEngineId(throwerId);
@@ -21086,6 +21266,89 @@ public final class EngineServer implements Server, EngineBridge {
             return 0;
         }
         return EnchantmentHelper.level(held, enchantId);
+    }
+
+    /**
+     * THE SEGMENT-BOX ENTRY CLIP (Wave PE-9 — the reference's {@code
+     * Box.clip(vec3d1, vec3d)} over {@code vec3d1.squaredDistanceTo
+     * (hitresult.facePos)}, FishingBobberEntity lines 251-261): the
+     * squared distance from the segment's start to the point the
+     * segment ENTERS the box, or -1 when the segment never enters.
+     *
+     * <p>The slab law: per axis the entry/exit parameters of the two
+     * faces; the box is entered iff the latest entry precedes the
+     * earliest exit ({@code tEnter <= tExit}) and the overlap meets
+     * the segment ({@code tEnter <= 1 && tExit >= 0}). The hit
+     * parameter is {@code max(tEnter, 0)} — a start already inside
+     * clips at the start itself, exactly the reference's own
+     * inside-start answer; the squared distance rides the hit
+     * parameter against the segment's full length (the axis-aligned
+     * distance, no square root needed for the comparison).</p>
+     */
+    private static double segmentBoxEntrySquared(Position from, Position to,
+                                                 double minX, double minY, double minZ,
+                                                 double maxX, double maxY, double maxZ) {
+        double dx = to.x() - from.x();
+        double dy = to.y() - from.y();
+        double dz = to.z() - from.z();
+        double tEnter = 0.0;
+        double tExit = 1.0;
+        // The x slab.
+        if (dx == 0.0) {
+            if (from.x() <= minX || from.x() >= maxX) {
+                return -1.0;
+            }
+        } else {
+            double t1 = (minX - from.x()) / dx;
+            double t2 = (maxX - from.x()) / dx;
+            if (t1 > t2) {
+                double swap = t1;
+                t1 = t2;
+                t2 = swap;
+            }
+            tEnter = Math.max(tEnter, t1);
+            tExit = Math.min(tExit, t2);
+        }
+        // The y slab.
+        if (dy == 0.0) {
+            if (from.y() <= minY || from.y() >= maxY) {
+                return -1.0;
+            }
+        } else {
+            double t1 = (minY - from.y()) / dy;
+            double t2 = (maxY - from.y()) / dy;
+            if (t1 > t2) {
+                double swap = t1;
+                t1 = t2;
+                t2 = swap;
+            }
+            tEnter = Math.max(tEnter, t1);
+            tExit = Math.min(tExit, t2);
+        }
+        // The z slab.
+        if (dz == 0.0) {
+            if (from.z() <= minZ || from.z() >= maxZ) {
+                return -1.0;
+            }
+        } else {
+            double t1 = (minZ - from.z()) / dz;
+            double t2 = (maxZ - from.z()) / dz;
+            if (t1 > t2) {
+                double swap = t1;
+                t1 = t2;
+                t2 = swap;
+            }
+            tEnter = Math.max(tEnter, t1);
+            tExit = Math.min(tExit, t2);
+        }
+        if (tEnter > tExit || tEnter > 1.0 || tExit < 0.0) {
+            return -1.0; // the segment never enters the box
+        }
+        double t = Math.max(tEnter, 0.0);
+        double hx = dx * t;
+        double hy = dy * t;
+        double hz = dz * t;
+        return hx * hx + hy * hy + hz * hz;
     }
 
     /**
@@ -28087,6 +28350,77 @@ public final class EngineServer implements Server, EngineBridge {
                 // read-through cell consults the same family).
                 return net.zaminmc.torch.server.block.EndPortalBlocks
                         .isEyedFrame(block.identifier()) ? 15 : 0;
+            }
+            // THE DETECTOR RAIL'S CART READ (Wave PE-8 —
+            // DetectorRailBlock.getAnalogSignal lines 133-147, PE-7's
+            // ledgered find): a POWERED rail reads its carts over the
+            // SAME 0.2-inset box the probe walks (getBoundsForMinecarts
+            // lines 155-158, each cart's own hull STRICT): the
+            // COMMAND-BLOCK cart first (list.get(0)'s
+            // getCommandExecutor().getSuccessCount() — the last run's
+            // count verbatim), then the INVENTORY carts
+            // (EntityFilter.INVENTORY line 22-26: {@code entity
+            // instanceof Inventory && entity.isAlive()} — the chest
+            // minecart AND the hopper minecart, the first one's
+            // InventoryMenu.getAnalogSignal fullness); an unpowered
+            // rail and an empty box answer 0. The pre-fix reader never
+            // recognized the family — a comparator beside a powered
+            // detector rail read nothing whole.
+            if ("detector_rail".equals(
+                    net.zaminmc.torch.server.block.RailBlocks.familyOf(block))) {
+                if (!net.zaminmc.torch.server.block.RailBlocks.isPowered(block)) {
+                    return 0; // the unpowered rail's own zero
+                }
+                // The inset box's own gather (PE-7's landed law).
+                double minX = position.x() + 0.2, maxX = position.x() + 0.8;
+                double minY = position.y(), maxY = position.y() + 0.8;
+                double minZ = position.z() + 0.2, maxZ = position.z() + 0.8;
+                // The command-block cart tier first: the reference's own
+                // precedence (lines 136-140 — the CommandBlockMinecart
+                // consult precedes the INVENTORY walk).
+                net.zaminmc.torch.server.entity.vehicle.CommandBlockMinecartEntity commandCart =
+                        null;
+                net.zaminmc.torch.server.entity.vehicle.VehicleEntity inventoryCart = null;
+                for (net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle
+                        : vehicleManager.all()) {
+                    if (vehicle.kind()
+                            == net.zaminmc.torch.server.entity.vehicle.VehicleEntity.Kind.BOAT) {
+                        continue; // a boat is no MinecartEntity (the class census)
+                    }
+                    if (vehicle.dimension() != probeWorld.dimension()) {
+                        continue; // another world's cart is absent from this walk
+                    }
+                    net.zaminmc.torch.util.Position at = vehicle.position();
+                    if (!(at.x() + 0.49 > minX && at.x() - 0.49 < maxX
+                            && at.y() + 0.35 > minY && at.y() - 0.35 < maxY
+                            && at.z() + 0.49 > minZ && at.z() - 0.49 < maxZ)) {
+                        continue; // the cart's own hull outside the inset box
+                    }
+                    if (vehicle instanceof net.zaminmc.torch.server.entity.vehicle.CommandBlockMinecartEntity
+                            command) {
+                        if (commandCart == null) {
+                            commandCart = command; // the first command cart
+                        }
+                        continue;
+                    }
+                    if ((vehicle instanceof net.zaminmc.torch.server.entity.vehicle.ChestMinecartEntity
+                            || vehicle instanceof net.zaminmc.torch.server.entity.vehicle.HopperMinecartEntity)
+                            && inventoryCart == null) {
+                        inventoryCart = vehicle; // the first INVENTORY cart
+                    }
+                }
+                if (commandCart != null) {
+                    return commandCart.successCount();
+                }
+                if (inventoryCart instanceof net.zaminmc.torch.server.entity.vehicle.ChestMinecartEntity chest) {
+                    return net.zaminmc.torch.server.redstone.RedstoneSystem.containerFullness(
+                            chest.chest().snapshotSlots(), 64);
+                }
+                if (inventoryCart instanceof net.zaminmc.torch.server.entity.vehicle.HopperMinecartEntity hopper) {
+                    return net.zaminmc.torch.server.redstone.RedstoneSystem.containerFullness(
+                            hopper.hopper().snapshotSlots(), 64);
+                }
+                return 0; // the empty box's own zero
             }
             return -1;
         });

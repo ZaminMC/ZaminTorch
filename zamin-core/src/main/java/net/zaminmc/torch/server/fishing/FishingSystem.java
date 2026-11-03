@@ -108,9 +108,14 @@ public final class FishingSystem {
     public interface HookResolver {
         /**
          * The first collidable body along the segment (the angler's own
-         * body legal once airTicks >= 5), or null.
+         * body legal once airTicks >= 5), or null. Wave PE-9: the
+         * consult carries the bobber's OWN dimension (the reference's
+         * same-world gather — another world's body at the same
+         * coordinates is never hooked) and answers the CLOSEST body
+         * along the segment (the reference's d2 walk, lines 253-261).
          */
-        Object hookAlong(Position from, Position to, int throwerId, int airTicks);
+        Object hookAlong(Position from, Position to, int throwerId, int airTicks,
+                         int dimension);
 
         /** Whether the hooked body still lives (the follow's own gate). */
         boolean hookedAlive(Object hooked);
@@ -681,7 +686,8 @@ public final class FishingSystem {
             // The entity clip (lines 259-292): the first collidable body
             // (the 0.0F damage hook).
             Object hooked = hooks.hookAlong(from,
-                    blockHit != null ? blockHit : to, bobber.throwerId, bobber.inAirTicks);
+                    blockHit != null ? blockHit : to, bobber.throwerId, bobber.inAirTicks,
+                    bobber.dimension());
             if (hooked != null) {
                 bobber.hooked = hooked;
             } else if (blockHit != null) {

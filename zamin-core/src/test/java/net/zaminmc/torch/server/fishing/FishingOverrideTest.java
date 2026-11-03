@@ -47,7 +47,7 @@ class FishingOverrideTest {
         final List<Integer> xps = new ArrayList<>();
 
         @Override public Object hookAlong(Position from, Position to, int throwerId,
-                                          int airTicks) {
+                                          int airTicks, int dimension) {
             return null;
         }
 

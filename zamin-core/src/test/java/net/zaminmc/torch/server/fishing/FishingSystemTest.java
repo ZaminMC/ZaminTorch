@@ -75,7 +75,7 @@ class FishingSystemTest {
         boolean hookAlive = true;
 
         @Override public Object hookAlong(Position from, Position to, int throwerId,
-                                          int airTicks) {
+                                          int airTicks, int dimension) {
             return hookBody;
         }
 
@@ -334,7 +334,7 @@ class FishingSystemTest {
         };
         FishingSystem.HookResolver noHooks = new FishingSystem.HookResolver() {
             @Override public Object hookAlong(Position from, Position to,
-                    int throwerId, int airTicks) {
+                    int throwerId, int airTicks, int dimension) {
                 return null;
             }
 
