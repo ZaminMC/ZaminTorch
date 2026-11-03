@@ -349,8 +349,12 @@ public final class ArmorStand {
         this.disabledSlots = disabledSlots;
     }
 
-    /** The burn clock's remaining ticks. */
-    int fireTicks() {
+    /**
+     * The burn clock's remaining ticks — public for the parity seat's
+     * read arm (Wave PE-4: the struck-by-lightning stamp's own
+     * observable, the write arm's public twin).
+     */
+    public int fireTicks() {
         return fireTicks;
     }
 
