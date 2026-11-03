@@ -97,6 +97,22 @@ class TameableFollowTest {
             return Identifier.parse(y >= 8 ? "minecraft:air" : "minecraft:stone");
         }
 
+        /**
+         * Wave PE-11 — the teleport ring's shape consults read the block
+         * TYPE: the stub's solid plane answers stone (the solid-blocking
+         * cube — a floor that holds, a cell that refuses), everything
+         * else air. The pillar subclass inherits the same mapping.
+         */
+        @Override
+        public net.zaminmc.torch.block.BlockType blockTypeAt(int x, int y, int z) {
+            String id = blocks.get(x + "," + y + "," + z);
+            if (id != null) {
+                return null; // the stub's explicit blocks are the perch family — air to the ring
+            }
+            return isSolid(x + 0.5, y + 0.5, z + 0.5)
+                    ? net.zaminmc.torch.server.block.BuiltinBlocks.STONE : null;
+        }
+
         @Override
         public int containerViewersAt(int x, int y, int z) {
             return viewers.getOrDefault(x + "," + y + "," + z, 0);

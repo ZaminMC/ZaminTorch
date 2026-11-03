@@ -728,36 +728,39 @@ public final class VehicleManager {
             boolean wasLit = vehicle instanceof FurnaceMinecartEntity furnace && furnace.lit();
             // The TNT cart's activator-rail consult (Slice 66 — the
             // reference's moveAlongTrack fires onActivatorRail per rail
-            // cell): the powered cell primes the fuse.
+            // cell, the ACTIVATOR family alone — Wave PE-14's family
+            // gate): the powered activator cell primes the fuse.
             if (vehicle instanceof TntMinecartEntity tntCart) {
-                tntCart.onActivatorRail(world.railPowerAt(
+                tntCart.onActivatorRail(world.activatorRailPoweredAt(
                         vehicle.position().x(),
                         vehicle.position().y() + 0.4,
-                        vehicle.position().z()) > 0);
+                        vehicle.position().z()));
             }
             // The hopper cart's own consult (Slice 66 —
             // HopperMinecartEntity.onActivatorRail lines 63-68): a POWERED
             // activator rail disables the transfer walk, an unpowered one
-            // re-enables it (the inverse sense of the TNT prime).
+            // re-enables it (the inverse sense of the TNT prime — the
+            // ACTIVATOR family alone, PE-14's gate).
             if (vehicle instanceof HopperMinecartEntity hopperCart) {
-                hopperCart.onActivatorRail(world.railPowerAt(
+                hopperCart.onActivatorRail(world.activatorRailPoweredAt(
                         vehicle.position().x(),
                         vehicle.position().y() + 0.4,
-                        vehicle.position().z()) > 0);
+                        vehicle.position().z()));
             }
             // The command cart's own consult (Slice 66 —
             // CommandBlockMinecartEntity.onActivatorRail lines 99-104): a
-            // powered activator rail fires the command, at most once every
-            // 4 ticks.
+            // powered ACTIVATOR rail fires the command, at most once every
+            // 4 ticks — the ACTIVATOR family alone (PE-14's gate: a powered
+            // GOLDEN rail never fires it, whatever it boosts).
             String commandBefore = vehicle instanceof CommandBlockMinecartEntity commandCart
                     ? commandCart.command() : null;
             String outputBefore = vehicle instanceof CommandBlockMinecartEntity commandCart
                     ? commandCart.lastOutput() : null;
             if (vehicle instanceof CommandBlockMinecartEntity commandCart) {
-                commandCart.onActivatorRail(world.railPowerAt(
+                commandCart.onActivatorRail(world.activatorRailPoweredAt(
                         vehicle.position().x(),
                         vehicle.position().y() + 0.4,
-                        vehicle.position().z()) > 0);
+                        vehicle.position().z()));
             }
             boolean wasGrounded = vehicle.onGround();
             double beforeTickY = vehicle.position().y();

@@ -21230,7 +21230,7 @@ public final class EngineServer implements Server, EngineBridge {
                     && (value.startsWith("golden_rail") || value.startsWith("detector_rail")
                     || value.startsWith("activator_rail"))) {
                 int shape = net.zaminmc.torch.server.block.RailBlocks.shapeOf(
-                        world.getBlock(blockAt(x, y, z)));
+                        activeVehicleWorld().getBlock(vehicleCellAt(x, y, z)));
                 return net.zaminmc.torch.server.block.RailBlocks.axisIsX(shape) ? 1 : 0;
             }
             return -1;
@@ -21242,12 +21242,34 @@ public final class EngineServer implements Server, EngineBridge {
                     || y > net.zaminmc.torch.block.BlockPosition.MAX_Y) {
                 return 0;
             }
-            BlockType rail = world.getBlock(blockAt(x, y, z));
+            // The ACTIVE dimension's own cell (the TF-11 convention — the
+            // pre-fix raw overworld read left a nether cart consulting
+            // the overworld's same-coordinate rails).
+            BlockType rail = activeVehicleWorld().getBlock(vehicleCellAt(x, y, z));
             String family = net.zaminmc.torch.server.block.RailBlocks.familyOf(rail);
             if (family == null || family.equals("detector_rail")) {
                 return 0; // the detector family emits, it never boosts
             }
             return net.zaminmc.torch.server.block.RailBlocks.isPowered(rail) ? 1 : -1;
+        }
+
+        /**
+         * The ACTIVATOR family's gate (Wave PE-14 — the reference's
+         * onActivatorRail call site reads the block's OWN family before
+         * the powered bit): a powered ACTIVATOR rail cell alone answers
+         * true — the golden rail's powered states never do, whatever
+         * the boost walk says about them.
+         */
+        @Override
+        public boolean activatorRailPoweredAt(double x, double y, double z) {
+            if (y < net.zaminmc.torch.block.BlockPosition.MIN_Y
+                    || y > net.zaminmc.torch.block.BlockPosition.MAX_Y) {
+                return false;
+            }
+            BlockType rail = activeVehicleWorld().getBlock(vehicleCellAt(x, y, z));
+            return "activator_rail".equals(
+                            net.zaminmc.torch.server.block.RailBlocks.familyOf(rail))
+                    && net.zaminmc.torch.server.block.RailBlocks.isPowered(rail);
         }
     }
 
@@ -25382,6 +25404,16 @@ public final class EngineServer implements Server, EngineBridge {
         @Override
         public net.zaminmc.torch.util.Identifier blockIdAt(int x, int y, int z) {
             return blockInDimensionBoundsSafe(x + 0.5, y + 0.5, z + 0.5).identifier();
+        }
+
+        /**
+         * The cell's block TYPE (Wave PE-11 — the follow-owner teleport's
+         * shape consults): the active dimension's own cell, bounds-safe
+         * (out-of-bounds reads the air type, the null-equivalent).
+         */
+        @Override
+        public net.zaminmc.torch.block.BlockType blockTypeAt(int x, int y, int z) {
+            return blockInDimensionBoundsSafe(x + 0.5, y + 0.5, z + 0.5);
         }
 
         @Override

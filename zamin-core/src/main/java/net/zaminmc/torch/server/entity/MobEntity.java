@@ -274,6 +274,18 @@ public final class MobEntity implements LivingEntity {
         }
 
         /**
+         * The cell's block type for the SHAPE consults (Wave PE-11 — the
+         * follow-owner teleport's own laws read the reference's block
+         * predicates, never the collision question): the live query maps
+         * the active dimension's cell; the stub worlds answer null (the
+         * air-equivalent — a null floor never holds, a null cell always
+         * teleportable, the boolean plane's own semantics).
+         */
+        default net.zaminmc.torch.block.BlockType blockTypeAt(int x, int y, int z) {
+            return null;
+        }
+
+        /**
          * The cell's sky access (World.hasSkyAccess line 413 over
          * WorldChunk line 652's heightmap read: {@code y >= heightMap[x |
          * z << 4]}): whether the open sky stands above the cell. The
@@ -10084,9 +10096,12 @@ public final class MobEntity implements LivingEntity {
      * FollowOwnerGoal's tick (lines 87-117): the eyes on the owner every
      * tick, the re-path on the 10-tick clock, and — when the path fails
      * and the owner stands 12+ blocks away — the teleport's 5x5 RING scan
-     * (the center 3x3 refused, the solid-top floor required, two clear
-     * cells for the body), landing at the ring cell's center through the
-     * plain position write ({@code setPositionAndAngles}, the yaw kept).
+     * (the center 3x3 refused), the floor read through
+     * {@code World.hasSolidTop}'s five arms (the support-consult law,
+     * never the collision question) and the two body cells through
+     * {@code canTeleportTo}'s AIR-or-not-cube law, landing at the ring
+     * cell's center through the plain position write
+     * ({@code setPositionAndAngles}, the yaw kept).
      */
     void goalFollowOwnerTick() {
         PlayerView owner = world.ownerPlayerView(ownerName, ownerUuid);
@@ -10122,9 +10137,9 @@ public final class MobEntity implements LivingEntity {
                 for (int l = 0; l <= 4; l++) {
                     for (int i1 = 0; i1 <= 4; i1++) {
                         if ((l < 1 || i1 < 1 || l > 3 || i1 > 3) // the ring, never the center
-                                && world.isSolid(baseX + l + 0.5, baseY - 0.5, baseZ + i1 + 0.5)
-                                && !world.isSolid(baseX + l + 0.5, baseY + 0.5, baseZ + i1 + 0.5)
-                                && !world.isSolid(baseX + l + 0.5, baseY + 1.5, baseZ + i1 + 0.5)) {
+                                && ownerTeleportFloorHolds(baseX + l, baseY - 1, baseZ + i1)
+                                && canTeleportTo(baseX + l, baseY, baseZ + i1)
+                                && canTeleportTo(baseX + l, baseY + 1, baseZ + i1)) {
                             // setPositionAndAngles: the plain write — the
                             // feet land at the cell center, the body's own
                             // yaw/pitch kept, the path dropped.
@@ -10137,6 +10152,47 @@ public final class MobEntity implements LivingEntity {
             }
         }
         tickNavigationHeading();
+    }
+
+    /**
+     * The teleport ring's FLOOR test (Wave PE-11 — the reference's own
+     * consult, FollowOwnerGoal.tick line 103: {@code World.hasSolidTop
+     * (this.world, new BlockPos(i + l, k - 1, j + i1))} — the five-arm
+     * support law, NEVER the collision question): the solid-blocking
+     * cubes (the doubles among them), the TOP halves of the stairs and
+     * slabs, the hoppers, the 7-layer snow. The pre-fix consult sampled
+     * the cell's center point for solidity — a FENCE floor wrongly
+     * held (its 1.5-tall box contains the point) while vanilla's
+     * hasSolidTop refuses the non-cube whole, and a CHEST floor or a
+     * PANE floor the same.
+     */
+    private boolean ownerTeleportFloorHolds(int x, int y, int z) {
+        return net.zaminmc.torch.server.block.SupportConsult.hasSolidTop(
+                world.blockTypeAt(x, y, z));
+    }
+
+    /**
+     * The teleport ring's CELL test (FollowOwnerGoal.canTeleportTo lines
+     * 81-85: {@code block == Blocks.AIR || !block.isCube()} — the
+     * NOT-CUBE law, never the not-solid question): the pet blinks into
+     * any cell whose block is not a full render cube — a torch cell, a
+     * flower, a rail, a CHEST, a PANE, a FENCE (the reference's own
+     * quirk: the body overlaps the pane's collision and the physics
+     * resolves it). A null type (the stub worlds' air-equivalent, or
+     * the out-of-bounds read) answers true — air. The pre-fix consult
+     * refused every cell with collision at its center point, so a pane
+     * or chest cell never accepted the teleport vanilla lands.
+     */
+    private boolean canTeleportTo(int x, int y, int z) {
+        net.zaminmc.torch.block.BlockType block = world.blockTypeAt(x, y, z);
+        if (block == null) {
+            return true; // air (the stub worlds' own semantics)
+        }
+        net.zaminmc.torch.util.Identifier id = block.identifier();
+        if (id.value().equals("air")) {
+            return true;
+        }
+        return !net.zaminmc.torch.server.block.BlockSolidity.isCube(block, id);
     }
 
     /**

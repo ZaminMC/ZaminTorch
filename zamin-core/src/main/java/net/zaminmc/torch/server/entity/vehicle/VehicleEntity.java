@@ -141,6 +141,23 @@ public abstract class VehicleEntity implements net.zaminmc.torch.entity.Vehicle 
         default int railPowerAt(double x, double y, double z) {
             return 0;
         }
+
+        /**
+         * The ACTIVATOR family's own gate (Wave PE-14 — MinecartEntity.tick
+         * lines 269-271: {@code if (blockstate.getBlock() ==
+         * Blocks.ACTIVATOR_RAIL) { this.onActivatorRail(k, l, i1,
+         * blockstate.get(PoweredRailBlock.POWERED)) }} — the onActivatorRail
+         * consult fires ONLY over an activator rail's cell, never a golden
+         * one, however powered): the command cart's run, the TNT cart's
+         * prime, and the hopper cart's disable all read THIS consult, not
+         * the boost walk. The pre-fix engine fed all three the golden-
+         * inclusive {@code railPowerAt > 0} — a powered GOLDEN rail fired
+         * the command, primed the TNT, and silenced the hopper in the
+         * engine, never in vanilla.
+         */
+        default boolean activatorRailPoweredAt(double x, double y, double z) {
+            return false;
+        }
     }
 
     /** The steering input the mounted passenger reports (Steer Vehicle 0x0C). */
