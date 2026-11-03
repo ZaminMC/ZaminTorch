@@ -5026,3 +5026,202 @@ merge watch (27 PRs open, the maintainer's pick among the convergent
 carriers — #117/#122, #134/#140's VT-030 collision noted for the
 maintainers' numbering review), and whatever the pass-42 through
 pass-51 lanes' records union in.
+
+## The fifty-eighth pass (this lane — the pass-55/56/57 names taken publicly by the concurrent streams, the push-order protocol; the baseline `origin/develop` `662094d5` merged, the twenty-two merged PRs unioned, the five convergent seats resolved to develop's forms) — the queue's named heads cleared by verification, and the WIDE work's first head: VT-038, the fishing bobber's stuck law (the VT-015 record's named follow-up tail, never claimed — the fishing family's first audit)
+
+**THE HEAD CLEARANCE (the fifty-fourth pass's next heads, verified this
+pass over the merged tree)**: the banner tile fan is TAKEN — commit
+`d96f4a2a` (develop) retired VT-033's adjacent tails whole (the
+wither-fall award walk, the beacon full-power row, the
+banner/beacon/command-block tile fans, #146's review-note ledger); the
+beacon window's store is FULLY ROUTED — `openBeaconOnTick`'s
+`beaconsFor(session.dimension())` open stamp, `clickBeaconWindowOnTick`'s
+and `tickBeaconViewers`' `beaconsFor(session.openContainerDimension())`
+consults, `beaconSelect`'s stamped application, the persistence union
+over the three families, and `playersInRange`'s own-world gate (Slice C +
+`d96f4a2a`) — the whole window family verified 1:1, NO defect, the queue
+row retired by verification; the merge watch is CLEAR (zero PRs open —
+the twenty-two carriers all merged). The zombie door-break row's "NOT
+INSPECTED" mark is STALE: `MobEntity.zombieBreakableDoorAt` reads the
+body's own `world.blockIdAt` — VT-012's stamped body world answers.
+
+**THE WIDE TURN (the standing directive — the audit beyond the
+dimension-ownership lane)**: the coverage ledger's never-inspected
+subsystems surveyed. The hunger/exhaustion family (PlayerSession +
+EngineServer's `tickHunger`-class walk) re-walked against
+`HungerManager.tick` + `PlayerEntity.mobTick` 443-450 +
+`tickNonRidingMovementRelatedStats` + the `addFatigue` census: the
+exhaustion arms (mining 0.025, damage-taken `source.getExhaustion()` —
+the bypass family zeroed at `setBypassesArmor`/`setUnblockable` lines
+121-127, the engine's IN_WALL/drown/onFire arms carrying the zero), the
+movement ledger (dive/swim 0.015/m, sprint 0.099999994/m, walk 0.01/m,
+jump 0.2/0.8, the centimeter-round quantization), the 80-tick
+regen/starve cadences, the starvation floors (easy 10 / normal 1 / hard
+never), the peaceful pair (20/10-tick, naturalRegeneration-gated) — all
+previously audited (the cited corrections in the engine's own comments),
+no defect owed. **The fishing family — NEVER AUDITED** (the ledger's
+only row: the VT-015 record's named follow-up "the bobber the same
+law's second member", never claimed): the walk below.
+
+## VT-038 — the fishing bobber's STUCK law is missing the reference's un-stick cycle: no stamped-cell consult, no per-axis `nextFloat()*0.2` damping, no clock resets, no fall-through — a landed bobber FREEZES until a 1200-tick timeout the reference's live bobber never reaches, and a bobber whose block breaks NEVER falls (SUSPECTED → pass 1 complete; the seat pass 2's act)
+
+**Status**: SUSPECTED (one source pass complete; the behavioral seat the
+next act)
+
+**Subsystem**: the fishing family (`FishingSystem`/`FishingSystem.tickOne`,
+the bobber's stuck branch) — vanilla 1.8.8 `FishingBobberEntity.tick`
+lines 214-232.
+
+**Affected ZaminTorch files and methods**:
+`zamin-core/src/main/java/net/zaminmc/torch/server/fishing/FishingSystem.java`
+— `tickOne`'s stuck branch (the `if (bobber.inGround)` clock arm).
+
+**Vanilla reference files and relevant methods**:
+`reference/1.8.8/net/minecraft/entity/FishingBobberEntity.java` — the
+stuck branch at lines 214-232, the fields at 56-63, the NBT rows at
+424-447, the flight/fall-through at 234-419.
+
+**Expected behavior (the reference, read verbatim this pass)**: the
+stuck bobber consults its stamped cell EVERY TICK —
+`world.getBlockState(new BlockPos(blockX, blockY, blockZ)).getBlock() == inBlock`.
+The stamp fields (`blockX/blockY/blockZ` = -1, `inBlock` = null at the
+declarations, lines 56-59) are **NEVER WRITTEN by the live tick** — the
+engine-wide grep of the reference file finds the fields' only other
+touch at the NBT read/write (lines 424-447); the live stick at line
+272-274 sets `inGround = true` alone. So for a LIVE bobber the consult
+reads `getBlockState(new BlockPos(-1, -1, -1)).getBlock() == null` —
+`getBlockState` below the world answers the AIR state (a non-null
+Block), the `== null` is always FALSE, and **the live bobber UN-STICKS
+EVERY TICK**: `inGround = false`, per-axis
+`velocity *= random.nextFloat() * 0.2F` (three fresh draws), the
+`inBlockTicks = 0` AND `inAirTicks = 0` resets, then the SAME tick
+falls through into the rayTrace (234-241), the entity clip (243-265),
+the move + the drag + the 5-band water survey + the buoyancy
+`vy += 0.04 * (d10*2 - 1)` (277-418) — landing back on the face and
+re-sticking (the rayTrace's own hit, 267-275), settling in decaying
+steps. The 1200-tick removal (line 217-219) fires ONLY on a consult
+that MATCHES — a bobber restored from the NBT rows (xTile/yTile/zTile/
+inTile, the write at 424-431) whose stamped block still lives; **the
+live bobber's `inBlockTicks` resets to 0 every tick and never reaches
+1200**.
+
+**Observed ZaminTorch behavior (the engine, read verbatim this pass)**:
+`tickOne`'s stuck branch is
+
+```java
+if (bobber.inGround) {
+    bobber.inGroundTicks++;
+    if (bobber.inGroundTicks == STUCK_TIMEOUT) { remove(bobber); return; }
+} else {
+    bobber.inAirTicks++;
+}
+if (!bobber.inGround) { /* the raytrace */ }
+if (!bobber.inGround && bobber.hooked == null) { /* the flight */ }
+```
+
+— NO consult, NO un-stick, NO damping, NO clock resets: a grounded
+bobber is FROZEN at its stick position (the raytrace and flight arms
+both gated on `!inGround`), the clock accumulates to 1200 unconditionally.
+
+**The exact divergence and its consequences**:
+(a) **THE BROKEN-BLOCK FREEZE**: a bobber stuck on/against a block whose
+block is then broken (mined, blasted, burned) stays FROZEN IN MID-AIR in
+the engine — the reference's un-stick cycle falls it with the damped
+velocity + the −0.04 gravity term into whatever is below. The gameplay
+case: the vanilla LILY-PAD TECHNIQUE — cast onto a block above water,
+break the block, the bobber drops into the water and the catchable
+cycle arms (the reference's fall-through reaches the 5-band water
+survey and the `d10 > 0` cycle at 320-406) — the fish bites and the
+retrieve lands the catch. The engine: the bobber hangs frozen above the
+water, the cycle NEVER arms, no bite ever opens, and the retrieve
+answers the grounded 2 for a block that no longer exists.
+(b) **THE LIVE 1200-TICK DESPAWN**: the engine's grounded bobber
+despawns at `inGroundTicks == 1200` (60 seconds); the reference's live
+bobber NEVER reaches the timeout (the un-stick cycle resets the clock
+every tick) — the live bobber's life is governed by the rod gate and
+the 32-block leash alone (`tick` lines 185-208: the un-held rod, the
+dead/removed angler, the `squaredDistanceTo > 1024` leash).
+(c) **THE SETTLE**: the reference's landing is decaying hops (the
+damped re-fall each tick); the engine's is a dead freeze on first
+touch.
+
+**Reproduction plan (pass 2, the seat `BobberUnstickDiscoveryTest` —
+the full-boot construction through the real wires, the
+FishingApiAcceptance idiom)**: ARM A — a pool built ahead, its surface
+cell covered by a DIRT lid (solid for the raytrace, soft for the dig
+wire), the angler's cast grounds the bobber on the lid, the angler
+teleports adjacent (the dig wire's 4.5 reach), the 3×3 lid neighborhood
+broken through `submitMiningStart/Finished`, then the pins: the bobber
+must FALL (its y below the rest − 0.5 within 40 ticks), the bite window
+must open within the l-scaled 2400-tick budget, and the retrieve inside
+the window must land the catch in the inventory. ARM B — the dry cast
+onto the natural terrain, grounded, then 1300 ticks with the rod held:
+the bobber must STILL be in the census (the reference's live clock
+never reaches 1200). The controls: the grounded retrieve's census-empty
+(the existing dry-cast seat's law), the water float's never-grounding.
+
+**Verification pass history**:
+- **Pass 1 (source, this pass, 2026-11-03, over `662094d5`)**: the
+  reference's stuck branch read verbatim (lines 214-232) with the
+  field-write census (the declarations at 56-63, the NBT rows at
+  424-447, the live stick at 267-275 stamping NOTHING) — the live
+  consult's always-mismatch established from the reference's own shape;
+  the fall-through's reach into the water survey and the catch cycle
+  (234-419) traced to the buoyancy + `d10 > 0` arming; the engine's
+  `tickOne` read verbatim — the consult, the damping, the resets, and
+  the fall-through ALL absent, the 1200 clock unconditional. The
+  existing seats re-read (`FishingApiAcceptanceTest.theDryCastRegisters
+  InTheCensusAndGrounds` — its 1200 comment names the timeout's arm as
+  the state's purpose, the un-stick law never tested; the water-float
+  seat proves the float path — the raytrace passes water, `solidAt`
+  non-solid on water — so the fixed fall-through lands in the FLOAT,
+  not a re-grounding).
+
+**Confidence and remaining uncertainties**: the source pass is
+high-confidence (both sides read verbatim, the live-always-mismatch
+derived from the reference's own field-write census — no behavioral
+assumption involved). The uncertainty to retire at the seat: the
+fixed tree's rest-cycle details (the settle wobble's `grounded()`
+flips near the face — the pin must key on the FALL and the BITE, never
+the transient flag; the same lesson as run 589's bed transient).
+
+**Proposed minimal correction (Phase E, after the passes)**: the
+reference's stuck branch 1:1 in `tickOne` — the stamp fields on `Bobber`
+(`stampX/Y/Z` = -1, `stampBlock` = null, the reference's own
+declarations), the consult through a new `WorldQuery.blockAt(x, y, z)`
+read (the block identity), the matching arm (the clock ++, the 1200,
+the return), the mismatch arm (`inGround = false`, the per-axis
+`*= random.nextFloat() * 0.2F`, `inGroundTicks = 0`, `inAirTicks = 0`)
+falling through into the existing raytrace/flight arms — the structure
+composes unchanged (both arms already gate on `!inGround`). The stamp
+stays unwritten live exactly as the reference's own live law; the NBT
+rows are the persistence tail's own act (the engine does not persist
+bobbers today — `FishingSystem` holds no save surface; the tail
+ledgered).
+
+**Potential regression risks**: the `FishingApiAcceptanceTest` dry-cast
+seat's grounded await (the wobble near the face could flip `grounded()`
+— the seat's awaitCondition polls until true, and the rest cycle HOLDS
+`inGround` true at the tick end whenever the raytrace re-sticks; the
+re-run on the fix tree is the guard); the water-float seat (unaffected
+— the float never grounds); the census reads (the monitor protocol
+unaffected — the walk's structure unchanged); the wire's per-tick
+`onBobberMoved` publish (the moving landed bobber now publishes real
+movement — the client's Entity Teleport stream, the intended vanilla
+observable).
+
+**The adjacent tails ledgered (this pass's walk, each its own finding)**:
+(1) the rain consult — the reference's `isRaining(blockpos)` (global
+rain AND sky access AND the precipitation height, `World.isRaining
+(BlockPos)` 2565+) against the engine's global `weather.raining()`
+(the covered bobber's l=2 phantom, the l=0/l=1 law diverging under
+cover); (2) the hook gate — the reference hooks through
+`takeDamage(thrown, 0.0F)`'s true answer (the invulnerable/creative
+refusal), the engine's `hookAlong` hooks any live body (a creative
+player hookable); (3) the bobber's persistence (the engine holds no
+bobber save surface — a restart drops the cast; the reference saves
+the entity with xTile/yTile/zTile/inTile/inGround/shake); (4) the
+catchTimer branch's f1 escalation rolls and the approach/splash
+particle fans (the engine skips the per-tick draws — an internal
+RNG-sequence divergence, the system's own Random, no cross-system
+impact); (5) the `shake` field (wire-level, the bobber's splash sync).
