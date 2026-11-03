@@ -1264,27 +1264,58 @@ public final class MobManager {
     }
 
     /**
-     * The breed goal's mate scan ({@code World.getEntitiesOfType} + the
-     * nearest-{@code canBreedWith} walk): the closest legal partner inside
-     * the grown-8 box, distance measured in the vanilla 3D squared form.
+     * The breed goal's mate scan ({@code AnimalBreedGoal.findMate} lines
+     * 68-82): {@code world.getEntitiesOfType(this.animal.getClass(),
+     * this.animal.getShape().grown(8.0F, 8.0F, 8.0F))} then the nearest-
+     * {@code canBreedWith} walk — the closest legal partner whose OWN
+     * box intersects the SEEKER'S OWN SHAPE grown 8 (the standard
+     * gather's own-box law, STRICT both sides), distance measured in
+     * the vanilla 3D squared form between the body anchors.
+     *
+     * <p>Wave PE-10, the Phase E boundary arms: the pre-fix scan tested
+     * the candidate's CENTER inside a ±8 Chebyshev band — a mate whose
+     * own box grazes the grown box while its center sits outside (a cow
+     * at 8.2, its box overlapping the grown face at 8.45) was never
+     * found, and the y band read the symmetric center distance where
+     * the reference's grown box is FEET-ANCHORED ASYMMETRIC ([y - 8, y
+     * + height + 8] — a mate on a ledge 8.2 below, its head reaching
+     * into the band, is vanilla's own find); and the walk carried no
+     * dimension gate — a nether cow and an overworld cow standing at
+     * the same coordinates mated where the reference's per-world gather
+     * never crosses.</p>
      */
     private MobEntity scanForMate(MobEntity seeker) {
         MobEntity best = null;
         double bestDistance = Double.MAX_VALUE;
         double r = MobEntity.BREED_MATE_SCAN_RADIUS;
+        // The grown box: the seeker's OWN shape grown 8 — [±width/2 + 8]
+        // x [y - 8, y + height + 8], the feet-anchored asymmetric y band.
+        double halfWidth = seeker.type().width / 2.0;
+        double minX = seeker.position().x() - halfWidth - r;
+        double maxX = seeker.position().x() + halfWidth + r;
+        double minY = seeker.position().y() - r;
+        double maxY = seeker.position().y() + seeker.type().height + r;
+        double minZ = seeker.position().z() - halfWidth - r;
+        double maxZ = seeker.position().z() + halfWidth + r;
         for (MobEntity other : mobs) {
             if (other == seeker || !seeker.canBreedWith(other)) {
                 continue;
             }
-            Position a = seeker.position();
-            Position b = other.position();
-            if (Math.abs(a.x() - b.x()) > r || Math.abs(a.y() - b.y()) > r
-                    || Math.abs(a.z() - b.z()) > r) {
-                continue; // outside the grown box (the vanilla shape gate)
+            if (other.dimension() != seeker.dimension()) {
+                continue; // another world's body is absent from this gather
             }
-            double dx = a.x() - b.x();
-            double dy = a.y() - b.y();
-            double dz = a.z() - b.z();
+            // The candidate's OWN box against the grown box, STRICT both
+            // sides (exactly touching never intersecting).
+            double oHalf = other.type().width / 2.0;
+            Position b = other.position();
+            if (!(b.x() + oHalf > minX && b.x() - oHalf < maxX
+                    && b.y() + other.type().height > minY && b.y() < maxY
+                    && b.z() + oHalf > minZ && b.z() - oHalf < maxZ)) {
+                continue;
+            }
+            double dx = seeker.position().x() - b.x();
+            double dy = seeker.position().y() - b.y();
+            double dz = seeker.position().z() - b.z();
             double distance = dx * dx + dy * dy + dz * dz;
             if (distance < bestDistance) {
                 bestDistance = distance;
