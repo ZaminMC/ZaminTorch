@@ -6706,8 +6706,10 @@ with the arm.
 ### VT-044 — the trapdoor's cursorY HALF boundary reads `>= 0.5f` where the reference reads `dy > 0.5F`: the exact mid-face click (cursor byte 8) places the TOP half where vanilla places the BOTTOM
 
 **Subsystem:** block placement / the trapdoor's cursor half-split. **Status:
-SUSPECTED — pass 1 (source) complete this run; the seats and the
-independent walk owed.**
+CONFIRMED — three passes complete (pass 1 this run's source walk; passes
+2-3 the same run's seat + independent walk); CORRECTED — Phase E complete
+this run: PR #159 OPEN (`fix/trapdoor-cursor-boundary-parity-audit` on
+develop ea8fb2fe), the one-character correction `>=` -> `>`.**
 
 **The finding (the fifty-second pass's named tail, audited this run):**
 the trapdoor's item gate is otherwise CONFORMANT whole on develop
@@ -6733,11 +6735,34 @@ reference's own dy > 0.5f gate"), and the reference's slab/stairs arms
 strict `dy > 0.5`. The trapdoor's `>=` is the SOLE divergent site of
 the three cursor-splitting families — the one-character class.
 
-**The next acts:** the behavioral seat (the cursor-byte-8 side click
-against the byte-7 and byte-9 controls) and the independent walk (the
-wire's byte domain — `readByte()` vs the reference's unsigned read —
-checking the boundary row's reachability from a real client), then
-the one-character correction (`>=` -> `>`).
+**PASS 2 (behavioral — TrapdoorCursorBoundaryParityDiscoveryTest):** the
+boundary row RED on clean develop ea8fb2fe with the exact observed form
+(`minecraft:trapdoor_top` at the byte-8 click — the engine's `>=`
+boundary placing the TOP half), the byte-7 (0.4375, BOTTOM) control
+GREEN before it; on the fix tree the seat GREEN whole (the boundary row
+laying the BOTTOM half, the byte-9 (0.5625, TOP) control bracketing,
+the three placements consuming the held stack whole). The two-tree
+evidence with the FINAL seat form (the first seat draft's third mount
+sat outside the use reach's 64.0 squared band — the geometry corrected
+to two-block spacing and the run repeated on BOTH trees).
+
+**PASS 3 (independent re-verification):** the float-exactness walk
+(8/16.0f = 0.5f exactly representable in IEEE-754 — the divergence
+exact, never float noise); the wire's byte domain (the vanilla 1.8
+client sends the cursor bytes 0-15/16 — byte 8 the mid-face, reachable
+from a real client; the engine's signed `readByte` and the reference's
+unsigned read identical over the 0-15 band); the arm's reachability
+consistency (both trees gate the vertical faces out — the cursor split
+running only for horizontal clicks); no compensating path (the HALF bit
+is set at placement time through this gate alone — the anvil import
+reads persisted states, structure gen places explicit states).
+
+**THE PHASE E CORRECTION (PR #159 OPEN):** the one-character fix
+(`cursorY >= 0.5f` -> `cursorY > 0.5f`, the comment now carrying the
+strict law verbatim); the seat as the regression (1/0 on the fix tree);
+the block package whole + the sibling families 331/0 (TrapdoorBlocks 3,
+SlabStairs 3, StairsHalfBit 3, CollisionShape 19, the consult families
+among them).
 
 **THE RUN'S CLOSE (the sixtieth, first numbered the fifty-third):** VT-043 confirmed whole (three
 passes, the seats RED with the exact phantom forms observed), VT-044
@@ -6812,11 +6837,30 @@ TheArrow` ("the four bodies in place" — the setup await never met; RED
 on 662094d5 AND on ea8fb2fe-based runs through this lane's tree; not
 this lane's to fix blind — the owning lane should re-verify).
 
-**THE QUEUE for the next run:** (1) VT-044's passes 2-3 (the
-cursor-byte-8 seat against the byte-7/byte-9 controls; the wire's byte
-domain walk; the one-character correction `>=` -> `>` then Phase E if
-confirmed); (2) the merge watch (PR #158's review; the closed-unmerged
+**THE QUEUE for the next run:** (1) the merge watch (PR #158 VT-043 and
+PR #159 VT-044 — this lane's two open corrections; the closed-unmerged
 #157/#150 constructions — whether the maintainer's own arms landed the
-same laws, re-verified before any re-submission); (3) the pre-existing
-piston slime-seat failure on develop (the owning-lane question); (4)
-the standing verification lanes (the VT-008 protocol).
+same laws, re-verified before any re-submission); (2) the pre-existing
+piston slime-seat failure on develop (`PistonEntityPushTest.
+theSlimeBlockFlingsTheOrbTheStandTheTntAndTheArrow` — RED on clean
+develop 662094d5/ea8fb2fe, the owning-lane question); (3) the six
+concurrent lanes' open findings re-read (the pass-53 lane's tripwire
+disarm family VT-037/038/039-drafts, the pass-56 lane's VT-042 protocol
+relay family, the pass-58 lane's fishing bobber — duplication avoided
+before any new claim); (4) the wide work continues (the unaudited
+placement families beyond the cursor splits — the sign/banner/skull
+gates' cursor arms, the item-frame and painting mounts); (5) the
+standing verification lanes (the VT-008 protocol).
+
+**THE RUN'S CLOSE (the sixtieth, complete):** two findings carried the
+WHOLE discipline in one run — VT-043 (the lever/button item gates,
+first drafted VT-036) and VT-044 (the trapdoor cursor boundary, first
+drafted VT-037), both CONFIRMED through three passes and CORRECTED
+(PR #158 and PR #159, both OPEN against develop ea8fb2fe). The lane
+renumbered to the sixtieth pass (53-59 taken publicly); the findings
+renumbered twice (the numbering landscape: VT-036 PR #151, VT-037
+PR #156, VT-038-042 the concurrent lanes' pushed claims). The merge
+watch recorded the absorption event (the open set 27 -> 0). The lane's
+own history rewritten once before its first push (the accidental
+`.gradle-init/` mirror helper committed by a conflict-resolution
+`git add -A` — removed from the merge commit, the file never pushed).
