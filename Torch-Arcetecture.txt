@@ -8038,14 +8038,29 @@ projectile + redstone lanes 126/0; the protocol module 243/0 and
 the launcher 53/0 (the earlier one-off the loaded-runner
 environmental class).
 
-NEXT WORK (re-pinned, in order): the mob AI walks' boundary arms
-(the breeding/mating proximity consult, the follow-owner walk, the
-panic/flee target selection); the remaining hook census tail (the
-primed TNT, the item frames/paintings, the ender crystals — the
-reference's hasCollision arms the engine's fishing surface does
-not yet carry); the detector rail's comparator ANOTHER tier (the
-CommandBlockMinecart's own run path over a powered activator rail
-— the success count's own source); the CI census watches (the
+WAVE PE-10 LANDED (2026-11-03, commit c20b9905): THE BREED GOAL'S
+MATE SCAN over AnimalBreedGoal.findMate lines 68-82 — the closest
+legal partner whose OWN box intersects the SEEKER'S OWN SHAPE
+grown 8 (the standard gather's own-box law, STRICT, the
+FEET-ANCHORED ASYMMETRIC y band [y - 8, y + height + 8]), the
+per-world gather's DIMENSION GATE (a nether cow and an overworld
+cow at the same coordinates never mate); the villager arm rides
+the same scan (VillagerMatingGoal's own grown-8 form — the fix
+covers both). The pre-fix scan: the CENTER inside a ±8 Chebyshev
+band, no dimension gate — the graze (8.2 out, the own box inside
+the grown box) never found, the ledge (8.2 below, the head in the
+asymmetric band) never found, the cross-dimension pair COULD
+mate. SEATS: BreedScanBounds 4/0 (RED 3/4 pre-fix, the far
+control green by design). LANES: the entity lanes 589/0, the
+interaction + world lanes 252/0.
+
+NEXT WORK (re-pinned, in order): the mob AI walks' remaining
+boundary arms (the follow-owner walk's consult, the panic/flee
+target selection); the remaining hook census tail (the primed TNT,
+the item frames/paintings, the ender crystals — the reference's
+hasCollision arms the engine's fishing surface does not yet
+carry); the command cart's own run path over a powered activator
+rail (the success count's own source); the CI census watches (the
 environmental class, unchanged).
 
 VT-033'S ADJACENT TAILS LANDED (2026-11-02, commit d96f4a2a — #146's
