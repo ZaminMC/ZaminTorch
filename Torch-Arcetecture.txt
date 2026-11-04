@@ -8174,10 +8174,34 @@ law). LANES: the entity families 609/0, the goal/bridge lanes
 green (the one thorns batch miss the loaded-runner environmental
 class, green solo).
 
-NEXT WORK (re-pinned, in order): the Phase E ledger's own tail
-(the standing boundary arms the waves have not yet walked — the
-fishing hook's remaining gather sites if any, the mob target
-walks' own-box forms over the hunt scans); the CI census watches
+WAVE PE-16 LANDED (2026-11-04, commit af15c2ea): THE HUNT SCANS'
+OWN-BOX FORM — ActiveTargetGoal.canStart lines 101-107:
+world.getEntitiesOfType(targetType, mob.getShape().grown
+(followRange, 4.0, followRange), filters) then the distance
+comparator's sort taking the NEAREST member. Every hunt site in
+the mob target walk migrated off the center-range consult onto
+nearestHuntedMobOfKind (the gather box = the hunter's OWN shape
+grown 32 horizontal and 4 vertical — the feet-anchored asymmetric
+y band [y - 4, y + height + 4]: a villager on a seventh ledge is
+OUTSIDE vanilla's hunt box however near the column; the
+candidate's OWN box intersecting STRICT — a grazing center 32.2
+out with its box overlapping the grown face by 0.4 IS vanilla's
+own find; the same-team refusal riding the filter): the wolf's
+skeleton/sheep/rabbit hunts, the killer bunny's wolf hunt, the
+untamed ocelot's chicken hunt, the spider's and the skeleton's
+iron-golem feuds, and the zombie's villager hunt. The pre-fix
+scans read the plain 3D center distance <= 32 — the graze never
+found, the high ledge wrongly hunted. SEATS: HuntScanBox 3/0 —
+RED 2/3 pre-fix (the near control green by design); the stub
+worlds gained the box census (TargetWorld, TameableWorld's
+single-mob form). LANES: the entity families 599/0 whole.
+
+NEXT WORK (re-pinned, in order): the PLAYER hunt's own box form
+(the nearestPlayer consult the hostile minds read — the same
+ActiveTargetGoal gather over the players, the sneaking 0.8x and
+the invisibility 0.7x-armor folds already carried); the golem's
+hostile census (nearestHostileMob's center form over
+TrackIronGolemTargetGoal's box gather); the CI census watches
 (the environmental class, unchanged); the owner's Section X
 version-fidelity gate named in the FL4 ledger's own row.
 
