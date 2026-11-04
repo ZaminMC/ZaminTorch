@@ -10025,24 +10025,17 @@ public final class MobEntity implements LivingEntity {
                 || (type == MobType.RABBIT && rabbitKiller()))
                 && random.nextInt(HUNT_SCAN_CHANCE) == 0) {
             MobEntity found = null;
-            double best = MOB_TARGET_FOLLOW_RANGE * MOB_TARGET_FOLLOW_RANGE;
             String team = teamName();
             if (type == MobType.WOLF) {
                 // targetSelector 5 (ActiveTargetGoal SkeletonEntity): any
                 // taming state; 4 (UntamedActiveTargetGoal AnimalEntity):
                 // sheep or rabbit, the untamed arm only.
-                MobEntity skeleton = world.nearestMobOfKind(
-                        position.x(), position.y(), position.z(),
-                        MOB_TARGET_FOLLOW_RANGE, MobType.SKELETON, team);
+                MobEntity skeleton = nearestHuntedMobOfKind(MobType.SKELETON, team);
                 if (skeleton != null) {
                     found = skeleton;
                 } else if (!wolfTamed()) {
-                    MobEntity sheep = world.nearestMobOfKind(
-                            position.x(), position.y(), position.z(),
-                            MOB_TARGET_FOLLOW_RANGE, MobType.SHEEP, team);
-                    MobEntity rabbit = world.nearestMobOfKind(
-                            position.x(), position.y(), position.z(),
-                            MOB_TARGET_FOLLOW_RANGE, MobType.RABBIT, team);
+                    MobEntity sheep = nearestHuntedMobOfKind(MobType.SHEEP, team);
+                    MobEntity rabbit = nearestHuntedMobOfKind(MobType.RABBIT, team);
                     if (sheep != null && rabbit != null) {
                         found = distanceSquaredTo(sheep) <= distanceSquaredTo(rabbit) ? sheep : rabbit;
                     } else {
@@ -10054,16 +10047,14 @@ public final class MobEntity implements LivingEntity {
                 // 325-326: ActiveTargetGoal over the wolf — the player half
                 // rides the engine's player hunt above): any wolf within the
                 // follow range.
-                found = world.nearestMobOfKind(position.x(), position.y(), position.z(),
-                        MOB_TARGET_FOLLOW_RANGE, MobType.WOLF, team);
+                found = nearestHuntedMobOfKind(MobType.WOLF, team);
             } else if (type == MobType.OCELOT) {
                 // The untamed cat's own hunt (OcelotEntity line 53,
                 // targetSelector 1: UntamedActiveTargetGoal over the
                 // chicken): the 1-in-10 cadence, the follow range, the
                 // same-team refusal — the tamed cat never hunts.
                 if (!wolfTamed()) {
-                    found = world.nearestMobOfKind(position.x(), position.y(), position.z(),
-                            MOB_TARGET_FOLLOW_RANGE, MobType.CHICKEN, team);
+                    found = nearestHuntedMobOfKind(MobType.CHICKEN, team);
                 }
             } else if (type == MobType.SPIDER) {
                 // targetSelector 3 (SpiderEntity.TargetGoal over the iron
@@ -10072,8 +10063,7 @@ public final class MobEntity implements LivingEntity {
                 // checkVisibility (the canSee line the ActiveTargetGoal's
                 // canTarget consult carries).
                 if (dayNeutralDark) {
-                    found = world.nearestMobOfKind(position.x(), position.y(), position.z(),
-                            MOB_TARGET_FOLLOW_RANGE, MobType.IRON_GOLEM, team);
+                    found = nearestHuntedMobOfKind(MobType.IRON_GOLEM, team);
                     if (found != null && !world.clearLine(eyePosition(), found.position())) {
                         found = null; // canTarget's visibility consult
                     }
@@ -10082,14 +10072,12 @@ public final class MobEntity implements LivingEntity {
                 // targetSelector 3 (ActiveTargetGoal over the iron golem —
                 // line 57, always-on): the bow carrier's own feud with the
                 // defender, the same visibility consult.
-                found = world.nearestMobOfKind(position.x(), position.y(), position.z(),
-                        MOB_TARGET_FOLLOW_RANGE, MobType.IRON_GOLEM, team);
+                found = nearestHuntedMobOfKind(MobType.IRON_GOLEM, team);
                 if (found != null && !world.clearLine(eyePosition(), found.position())) {
                     found = null; // canTarget's visibility consult
                 }
             } else { // the zombie: targetSelector 2's villager hunt
-                found = world.nearestMobOfKind(position.x(), position.y(), position.z(),
-                        MOB_TARGET_FOLLOW_RANGE, MobType.VILLAGER, team);
+                found = nearestHuntedMobOfKind(MobType.VILLAGER, team);
             }
             if (found != null && !found.dead()) {
                 setMobAttackTarget(found);
@@ -10099,6 +10087,43 @@ public final class MobEntity implements LivingEntity {
     }
 
     /** @return the squared distance to the other mob's position. */
+    /**
+     * Wave PE-16 — ActiveTargetGoal.canStart's own gather (lines 101-107):
+     * {@code world.getEntitiesOfType(targetType, mob.getShape().grown
+     * (followRange, 4.0, followRange), filters)} then the distance
+     * comparator's sort taking the NEAREST member — the hunt's box law,
+     * never the center-range consult: the gather box is the hunter's OWN
+     * shape grown 32 horizontally and 4 vertically (the feet-anchored
+     * asymmetric y band [y - 4, y + height + 4] — a villager on a sixth-
+     * -floor ledge is OUTSIDE vanilla's hunt box however near the column),
+     * the candidate's OWN box intersecting STRICT, the same-team refusal
+     * riding the filter.
+     */
+    MobEntity nearestHuntedMobOfKind(MobType kind, String excludeTeam) {
+        double range = MOB_TARGET_FOLLOW_RANGE;
+        double half = type.width / 2.0;
+        MobEntity best = null;
+        double bestDistance = Double.MAX_VALUE;
+        for (MobEntity candidate : world.mobsOfKindInBox(kind,
+                position.x() - half - range, position.y() - 4.0,
+                position.z() - half - range,
+                position.x() + half + range, position.y() + type.height + 4.0,
+                position.z() + half + range)) {
+            if (candidate.dead()) {
+                continue;
+            }
+            if (excludeTeam != null && excludeTeam.equals(candidate.teamName())) {
+                continue; // isTarget's same-team refusal
+            }
+            double d = distanceSquaredTo(candidate); // the comparator's form
+            if (d < bestDistance) {
+                bestDistance = d;
+                best = candidate;
+            }
+        }
+        return best;
+    }
+
     private double distanceSquaredTo(MobEntity other) {
         double dx = other.position().x() - position.x();
         double dy = other.position().y() - position.y();

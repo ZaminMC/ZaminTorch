@@ -77,6 +77,25 @@ class TameableFollowTest {
         }
 
         @Override
+        public java.util.List<MobEntity> mobsOfKindInBox(MobType kind,
+                double minX, double minY, double minZ,
+                double maxX, double maxY, double maxZ) {
+            // The stub's single nearby mob answers the box census when it
+            // is the kind and its own box intersects.
+            if (nearbyMob == null || nearbyMob.dead() || nearbyMobKind != kind) {
+                return java.util.List.of();
+            }
+            Position p = nearbyMob.position();
+            double half = nearbyMob.type().width / 2.0;
+            if (p.x() + half > minX && p.x() - half < maxX
+                    && p.y() + nearbyMob.type().height > minY && p.y() < maxY
+                    && p.z() + half > minZ && p.z() - half < maxZ) {
+                return java.util.List.of(nearbyMob);
+            }
+            return java.util.List.of();
+        }
+
+        @Override
         public Position nearestPlayer(double x, double y, double z, double range) {
             return null;
         }
