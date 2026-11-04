@@ -341,6 +341,67 @@ public final class MobEntity implements LivingEntity {
         }
 
         /**
+         * Wave PE-17 — THE PLAYER HUNT'S OWN BOX FORM ({@code
+         * ActiveTargetGoal.canStart} lines 86-96 over the players + the
+         * targetFilter's own folds, lines 54-70): the gather box is the
+         * seeker's OWN shape — the caller's position, half-width and
+         * height — grown by the kind's FOLLOW RANGE horizontally and 4.0
+         * vertically (the feet-anchored asymmetric y band [y - 4, y +
+         * height + 4]); each candidate player's OWN 0.6x1.8 box
+         * intersects STRICT both sides ({@code Box.intersects} over
+         * {@code getEntitiesOfType}'s own census — a grazing center at
+         * the grown face IS vanilla's find); the spectator state and the
+         * creative INVULNERABLE refused ({@code EntityFilter
+         * .NOT_SPECTATOR} line 52 + {@code isTarget}'s invulnerable arm,
+         * lines 110-113); the checkVisibility arm PER CANDIDATE
+         * ({@code isTarget} lines 118-120 — the eye-to-eye ray, LivingEntity
+         * line 1554's {@code rayTrace} the engine's clearLine — a walled
+         * player is filtered OUT of the gather, never a blanket stop: a
+         * visible player further on still owns the hunt); the
+         * targetFilter's posture folds shrinking the band PER CANDIDATE
+         * — {@code isSneaking() x0.8} (line 58) then {@code isInvisible()
+         * x0.7 x getArmorEquippedRatio()} (lines 59-69, the ratio the
+         * occupied armor slots over the four, floored at 0.1 — a naked
+         * invisible player's band 35 x 0.07 = 2.45) with the CENTER
+         * {@code distanceTo > d0} rejection (line 70); the same-team
+         * refusal riding the filter; the NEAREST passing player by the
+         * comparator ({@code squaredDistanceTo} the seeker). The default
+         * folds to the team-aware center read so stub worlds keep their
+         * semantics.
+         */
+        default Position nearestHuntablePlayer(Position eye,
+                                               double x, double y, double z,
+                                               double halfWidth, double height,
+                                               double range, String excludeTeam,
+                                               boolean checkVisibility) {
+            return nearestPlayer(x, y, z, range, excludeTeam);
+        }
+
+        /**
+         * Wave PE-17 — THE GOLEM'S HOSTILE CENSUS BOX FORM ({@code
+         * ActiveTargetGoal.canStart}'s gather over the hostile kinds,
+         * the shape the iron golem's {@code TrackIronGolemTargetGoal}
+         * and the snow golem's plain {@code ActiveTargetGoal(
+         * MobEntity.class, 10, true, false, Monster.FILTER)} —
+         * SnowGolemEntity line 33 — both ride): every live hostile mob
+         * of the ACTIVE dimension whose OWN box intersects the given
+         * grown box STRICT both sides, the given kind and team refused
+         * (the iron golem's own creeper exclusion,
+         * IronGolemEntity lines 256-258 + canAttack line 137), the
+         * NEAREST by the comparator's {@code squaredDistanceTo} the
+         * seeker's position. The default folds to the legacy center
+         * read (the box's own center, feet y, and horizontal half-span)
+         * so stub worlds keep the pre-wave census.
+         */
+        default MobEntity nearestHostileMobInBox(double minX, double minY, double minZ,
+                                                 double maxX, double maxY, double maxZ,
+                                                 MobType excludeKind, String excludeTeam) {
+            return nearestHostileMob((minX + maxX) / 2.0, minY + 4.0,
+                    (minZ + maxZ) / 2.0, Math.max(maxX - minX, maxZ - minZ) / 2.0,
+                    excludeKind, excludeTeam);
+        }
+
+        /**
          * The iron golem's own hostile scan (the reference's golem-side
          * {@code ActiveTargetGoal} override, IronGolemEntity lines 247-283:
          * the creeper exclusion the override's own predicate carries, line
@@ -3678,10 +3739,28 @@ public final class MobEntity implements LivingEntity {
      * lines 256-258, and the canAttack line 137's {@code type !=
      * CreeperEntity.class} — and the same-team refusal every target goal
      * reads.
+     *
+     * <p>WAVE PE-17 — THE CENSUS'S OWN BOX FORM: the scan reads the
+     * ActiveTargetGoal gather's shape over the engine's established
+     * 32-block census band — the golem's OWN 1.4x2.9 shape grown 32
+     * horizontally and 4 vertically (the feet-anchored asymmetric y band
+     * [y - 4, y + 6.9]), each candidate's OWN box intersecting STRICT
+     * both sides: a straddling zombie whose own box grazes the grown
+     * face IS vanilla's find (the pre-fix center scan refused it whole),
+     * a ledge zombie beyond the y band never — and NO visibility consult
+     * (TrackIronGolemTargetGoal's super(golem, false, true) —
+     * checkVisibility FALSE, the village defender charges through
+     * walls).</p>
      */
     private void tickIronGolemMind(boolean night) {
-        golemTarget = world.nearestHostileMob(position.x(), position.y(), position.z(),
-                GOLEM_HUNT_RANGE, MobType.CREEPER, teamName());
+        double golemHalf = type.width / 2.0;
+        golemTarget = world.nearestHostileMobInBox(
+                position.x() - golemHalf - GOLEM_HUNT_RANGE, position.y() - 4.0,
+                position.z() - golemHalf - GOLEM_HUNT_RANGE,
+                position.x() + golemHalf + GOLEM_HUNT_RANGE,
+                position.y() + type.height + 4.0,
+                position.z() + golemHalf + GOLEM_HUNT_RANGE,
+                MobType.CREEPER, teamName());
         if (golemTarget != null && golemTarget.dead()) {
             golemTarget = null;
         }
@@ -3726,19 +3805,48 @@ public final class MobEntity implements LivingEntity {
 
     /**
      * The snow golem's mind (ProjectileAttackGoal 1.25/20/10 + the
-     * target selector's Monster filter): the nearest hostile within 10
-     * takes the 20-tick snowball volley — the walk holds the distance
-     * (the goal's 1.25 chase closes only past the range). The scan keeps
+     * target selector's Monster filter): the 20-tick snowball volley
+     * against the nearest hostile — the walk holds the distance (the
+     * goal's 1.25 chase closes only past the range). The scan keeps
      * the creeper IN (SnowGolemEntity line 33's plain Monster.FILTER —
      * the iron golem's exclusion is its own) and reads the shared
      * same-team refusal every target goal carries.
+     *
+     * <p>WAVE PE-17 — THE CENSUS'S OWN BOX FORM (the ActiveTargetGoal
+     * registration whole, SnowGolemEntity line 33: {@code
+     * ActiveTargetGoal(MobEntity.class, 10, true, false,
+     * Monster.FILTER)}): the gather box is the golem's OWN 0.7x1.9
+     * shape grown by the kind's FOLLOW RANGE — the attribute's own 16
+     * base (MobEntity line 90), NEVER the volley's 10 — horizontally
+     * and 4 vertically, each candidate's OWN box intersecting STRICT
+     * both sides; the 1-in-10 cadence gate on the fresh consult (a live
+     * target is kept until it dies, the goal's own shouldContinue); the
+     * checkVisibility TRUE consult — the eye-to-eye ray, a walled
+     * hostile never arms the volley; the VOLLEY'S OWN BAND stays the
+     * ProjectileAttackGoal's 10 (the scan and the shot are separate
+     * laws — the pre-fix engine conflated them and never saw a hostile
+     * past 10 whole).</p>
      */
     private void tickSnowGolemMind() {
         if (snowGolemShotCooldown > 0) {
             snowGolemShotCooldown--;
         }
-        golemTarget = world.nearestHostileMob(position.x(), position.y(), position.z(),
-                SNOW_GOLEM_RANGE, null, teamName());
+        if (golemTarget == null || golemTarget.dead()) {
+            golemTarget = null;
+            if (random.nextInt(HUNT_SCAN_CHANCE) == 0) {
+                double half = type.width / 2.0;
+                double range = followRange(); // the attribute's 16 base
+                MobEntity found = world.nearestHostileMobInBox(
+                        position.x() - half - range, position.y() - 4.0,
+                        position.z() - half - range,
+                        position.x() + half + range, position.y() + type.height + 4.0,
+                        position.z() + half + range, null, teamName());
+                if (found != null
+                        && world.clearLine(eyePosition(), found.eyePosition())) {
+                    golemTarget = found; // checkVisibility true — the ray consult
+                }
+            }
+        }
         if (golemTarget == null || golemTarget.dead()) {
             golemTarget = null;
             return; // the plain stroll
@@ -3747,7 +3855,13 @@ public final class MobEntity implements LivingEntity {
         double dz = golemTarget.position().z() - position.z();
         yaw = angleTo(dx, dz);
         headYaw = yaw;
-        if (snowGolemShotCooldown == 0) {
+        // The volley's own band (ProjectileAttackGoal's attack() gate,
+        // squaredDistanceTo < range^2): the shot arms only within 10 —
+        // the census's 16-box finds and FACES the farther body whole.
+        double dy = golemTarget.position().y() - position.y();
+        double squared = dx * dx + dy * dy + dz * dz;
+        if (snowGolemShotCooldown == 0
+                && squared <= SNOW_GOLEM_RANGE * SNOW_GOLEM_RANGE) {
             snowGolemShotCooldown = SNOW_GOLEM_SHOT_INTERVAL;
             pendingSnowGolemShot = true;
         }
@@ -8777,6 +8891,42 @@ public final class MobEntity implements LivingEntity {
     /** Set when a sheep's coat regrew; consumed by the manager. */
     private boolean regrownThisTick;
 
+    /**
+     * The player-hunting census (Wave PE-17 — the reference's own
+     * registrations: the hostile kinds' ActiveTargetGoal /
+     * MobEntityPlayerTargetGoal / SpiderEntity.TargetGoal families plus
+     * the killer rabbit's setVariant registration, RabbitEntity line
+     * 325): the kinds whose scan reads the hunt's own box gather with
+     * the posture folds. Every other body reads the plain 8-block
+     * glance anchor (LookAtEntityGoal's own consult).
+     */
+    private boolean huntsPlayers() {
+        return type.hostile || (type == MobType.RABBIT && rabbitKiller());
+    }
+
+    /**
+     * The visibility-gated census (Wave PE-17 — the checkVisibility
+     * family over TrackTargetGoal.isTarget lines 85-120's {@code
+     * !checkVisibility || canSee} arm): the zombie (ZombieEntity 76),
+     * the skeleton (56), the witch (47), the silverfish (35), the blaze
+     * (36), the creeper (40), the endermite (34), the killer rabbit
+     * (325), the ANGRY pigman's own TargetPlayerGoal (ZombiePigmanEntity
+     * line 222 — checkVisibility true, the isAngry gate riding canStart
+     * before it), the slime family and the ghast
+     * (MobEntityPlayerTargetGoal's own hardcoded true, line 58) and the
+     * spider pair (its TargetGoal's own arm) — the kinds that never
+     * START a hunt through a wall. The enderman (the stare), the
+     * guardian (its own mind carries the ray consult) and the bosses
+     * carry their own gates.
+     */
+    private boolean huntsWithVisibility() {
+        return switch (type) {
+            case ZOMBIE, ZOMBIE_PIGMAN, SKELETON, WITCH, SILVERFISH, BLAZE, CREEPER,
+                    ENDERMITE, RABBIT, SPIDER, CAVE_SPIDER, GHAST -> true;
+            default -> type.slimeFamily();
+        };
+    }
+
     private void tickMind(boolean night) {
         modeTicks++;
 
@@ -8800,8 +8950,23 @@ public final class MobEntity implements LivingEntity {
         // target, so the scan and the dead-target clear must land first.
         MobEntity mobTarget = tickMobTargeting();
 
-        Position target = world.nearestPlayer(position.x(), position.y(), position.z(),
-                type.hostile ? followRange() : 8.0);
+        // THE HUNT'S OWN SCAN (Wave PE-17 — the ActiveTargetGoal family
+        // over the players: ZombieEntity line 76, SkeletonEntity 56,
+        // WitchEntity 47, SilverfishEntity 35, BlazeEntity 36,
+        // CreeperEntity 40, EndermiteEntity 34, the killer RabbitEntity
+        // 325, the MobEntityPlayerTargetGoal slime/ghast pair, the
+        // spider's own TargetGoal — every player-hunting kind reads the
+        // OWN-BOX gather with the posture folds, the per-candidate
+        // visibility consult, the spectator and the creative
+        // INVULNERABLE refused, the same-team refusal riding the
+        // filter; the passive kinds keep the plain glance read —
+        // LookAtEntityGoal's own consult carries no posture).
+        Position target = huntsPlayers()
+                ? world.nearestHuntablePlayer(eyePosition(),
+                        position.x(), position.y(), position.z(),
+                        type.width / 2.0, type.height, followRange(), teamName(),
+                        huntsWithVisibility())
+                : world.nearestPlayer(position.x(), position.y(), position.z(), 8.0);
         // VIII9 — the forced player hunt (the reinforcement callee's own
         // setAttackTarget, takeDamage line 218): a body with a forced
         // target chases it wherever it stands, past the nearest-player
@@ -9912,8 +10077,6 @@ public final class MobEntity implements LivingEntity {
 
     // ------------------------------------- the mob-vs-mob targets (Slice 16b)
 
-    /** ActiveTargetGoal's follow range: the generic attribute base 32. */
-    private static final double MOB_TARGET_FOLLOW_RANGE = 32.0;
     /** ActiveTargetGoal's canStart cadence gate: a 1-in-10 scan. */
     private static final int HUNT_SCAN_CHANCE = 10;
     /** The melee reach against a mob target (the same band as the player). */
@@ -10021,7 +10184,7 @@ public final class MobEntity implements LivingEntity {
         boolean dayNeutralDark = !type.traits.neutralByDay() || dayNeutralHuntGate();
         if (mobAttackTarget == null && (type == MobType.WOLF || type == MobType.ZOMBIE
                 || type == MobType.SPIDER || type == MobType.SKELETON
-                || type == MobType.OCELOT
+                || type == MobType.OCELOT || type == MobType.ENDERMAN
                 || (type == MobType.RABBIT && rabbitKiller()))
                 && random.nextInt(HUNT_SCAN_CHANCE) == 0) {
             MobEntity found = null;
@@ -10076,8 +10239,52 @@ public final class MobEntity implements LivingEntity {
                 if (found != null && !world.clearLine(eyePosition(), found.position())) {
                     found = null; // canTarget's visibility consult
                 }
+            } else if (type == MobType.ENDERMAN) {
+                // WAVE PE-17 — THE FEUD TAIL: targetSelector 3
+                // (EndermanEntity line 61: ActiveTargetGoal over the
+                // ENDERMITE, chance 10, checkVisibility TRUE, the
+                // isPlayerSpawned predicate — line 63): the enderman
+                // hunts the endermite whole — the engine's endermites
+                // are ALL pearl-spawned (the ender pearl's 5% passenger,
+                // the only organic endermite family the engine carries —
+                // isPlayerSpawned true for every one), the enderman's
+                // own 64 follow range carrying the gather, the
+                // eye-to-target ray the visibility consult.
+                found = nearestHuntedMobOfKind(MobType.ENDERMITE, team);
+                if (found != null && !world.clearLine(eyePosition(), found.position())) {
+                    found = null; // canTarget's visibility consult
+                }
             } else { // the zombie: targetSelector 2's villager hunt
+                // (ZombieEntity line 77 — checkVisibility FALSE, no ray
+                // consult on the villager arm) THEN the golem feud
+                // (line 78 — checkVisibility TRUE, the ray consult): the
+                // same priority 2 in registration order, the villager
+                // first — a village body wins over a nearer golem.
                 found = nearestHuntedMobOfKind(MobType.VILLAGER, team);
+                if (found == null) {
+                    found = nearestHuntedMobOfKind(MobType.IRON_GOLEM, team);
+                    if (found != null
+                            && !world.clearLine(eyePosition(), found.position())) {
+                        found = null; // the golem feud's visibility consult
+                    }
+                }
+            }
+            if (found != null && !found.dead()) {
+                setMobAttackTarget(found);
+            }
+        }
+        // WAVE PE-17 — THE FEUD TAIL, the slime family's own arm
+        // (SlimeEntity line 42: MobEntityActiveTargetGoal over the iron
+        // golem — the non-pathfinder variant, NO cadence gate on its
+        // canStart, the checkVisibility TRUE riding isTarget's fourth
+        // arg): the hop family feuds the defender at its own 16 follow
+        // range, the eye-to-target ray the consult — the magma cube
+        // rides the same registration (MagmaCubeEntity inherits
+        // SlimeEntity's own goal set whole).
+        if (mobAttackTarget == null && type.slimeFamily()) {
+            MobEntity found = nearestHuntedMobOfKind(MobType.IRON_GOLEM, teamName());
+            if (found != null && !world.clearLine(eyePosition(), found.position())) {
+                found = null; // isTarget's visibility consult (true)
             }
             if (found != null && !found.dead()) {
                 setMobAttackTarget(found);
@@ -10093,14 +10300,29 @@ public final class MobEntity implements LivingEntity {
      * (followRange, 4.0, followRange), filters)} then the distance
      * comparator's sort taking the NEAREST member — the hunt's box law,
      * never the center-range consult: the gather box is the hunter's OWN
-     * shape grown 32 horizontally and 4 vertically (the feet-anchored
-     * asymmetric y band [y - 4, y + height + 4] — a villager on a sixth-
-     * -floor ledge is OUTSIDE vanilla's hunt box however near the column),
-     * the candidate's OWN box intersecting STRICT, the same-team refusal
-     * riding the filter.
+     * shape grown by the kind's FOLLOW RANGE attribute horizontally and
+     * 4 vertically (the feet-anchored asymmetric y band [y - 4, y +
+     * height + 4] — a villager on a sixth-floor ledge is OUTSIDE
+     * vanilla's hunt box however near the column), the candidate's OWN
+     * box intersecting STRICT, the same-team refusal riding the filter.
+     *
+     * <p>WAVE PE-17'S BAND REPAIR: the growth is the PER-KIND attribute
+     * read, never a flat 32 — the reference's own registration rows
+     * (MobEntity.initAttributes line 90 sets the attribute's base 16.0
+     * for every mob — EntityAttributes line 15's 32.0 default is the
+     * ATTRIBUTE'S own construction default, retired by the mob's own
+     * registration; the per-kind overrides: ZombieEntity line 84's 35
+     * with the pigman's inheritance, BlazeEntity 44's 48, EndermanEntity
+     * 74's 64, GhastEntity 81's 100, WitherEntity 484's 40). The wolf,
+     * the ocelot, the spider, the skeleton and the rabbit all hunt
+     * through their own 16 — a sheep 25 blocks from a wolf is beyond
+     * vanilla's gather whole; the zombie's villager hunt reaches 35.
+     * The pre-fix engine grew every gather by the flat 32 (PE-16's own
+     * misread of the attribute's base) — the wolf hunted sheep it never
+     * should have seen.</p>
      */
     MobEntity nearestHuntedMobOfKind(MobType kind, String excludeTeam) {
-        double range = MOB_TARGET_FOLLOW_RANGE;
+        double range = followRange();
         double half = type.width / 2.0;
         MobEntity best = null;
         double bestDistance = Double.MAX_VALUE;

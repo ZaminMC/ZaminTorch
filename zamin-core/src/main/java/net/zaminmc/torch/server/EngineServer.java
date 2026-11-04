@@ -25720,6 +25720,159 @@ public final class EngineServer implements Server, EngineBridge {
         }
 
         /**
+         * Wave PE-17 — THE PLAYER HUNT'S OWN BOX FORM ({@code
+         * ActiveTargetGoal.canStart} lines 86-96 + the targetFilter,
+         * lines 54-70, + {@code MobEntityPlayerTargetGoal} lines 55-68
+         * the same shape): the gather box is the SEEKER'S OWN SHAPE
+         * (the caller's position, half-width and height) grown by the
+         * kind's follow range horizontally and 4.0 vertically — the
+         * feet-anchored asymmetric y band [y - 4, y + height + 4]: a
+         * player on a sixth-floor ledge is OUTSIDE vanilla's hunt box
+         * however near the column, a grazing center at the grown face
+         * (its own 0.6-wide box overlapping the face) IS vanilla's own
+         * find. Each candidate passes the filter's own folds: the
+         * spectator state refused ({@code NOT_SPECTATOR}), the creative
+         * INVULNERABLE refused ({@code isTarget} lines 110-113), the
+         * checkVisibility arm PER CANDIDATE (the eye-to-eye ray — a
+         * walled player is filtered out of the gather, a visible one
+         * further on still owns the hunt), the posture shrinks —
+         * {@code isSneaking x0.8} then {@code isInvisible x0.7 x
+         * armorEquippedRatio} (the ratio the occupied armor slots over
+         * the four, floored 0.1) — with the CENTER distanceTo rejection
+         * against the SHRUNK band, the same-team refusal, the NEAREST
+         * by the comparator's squaredDistanceTo the seeker.
+         */
+        @Override
+        public Position nearestHuntablePlayer(Position eye,
+                                              double x, double y, double z,
+                                              double halfWidth, double height,
+                                              double range, String excludeTeam,
+                                              boolean checkVisibility) {
+            double minX = x - halfWidth - range;
+            double minY = y - 4.0;
+            double minZ = z - halfWidth - range;
+            double maxX = x + halfWidth + range;
+            double maxY = y + height + 4.0;
+            double maxZ = z + halfWidth + range;
+            PlayerSession best = null;
+            double bestDistance = Double.MAX_VALUE;
+            for (PlayerSession player : players.all()) {
+                if (player.state() != PlayerState.PLAYING || player.dead()
+                        || player.dimension() != activeDimension) {
+                    continue;
+                }
+                if (player.gamemode() == GameMode.SPECTATOR) {
+                    continue; // EntityFilter.NOT_SPECTATOR
+                }
+                if (player.gamemode() == GameMode.CREATIVE) {
+                    continue; // isTarget's invulnerable refusal (creative)
+                }
+                if (excludeTeam != null
+                        && excludeTeam.equals(teamNameOf(player.name()))) {
+                    continue; // isTarget's same-team refusal
+                }
+                Position p = player.position();
+                // The candidate's OWN 0.6x1.8 box against the grown box,
+                // STRICT both sides (the gather's own census).
+                if (p.x() + 0.3 <= minX || p.x() - 0.3 >= maxX
+                        || p.y() + 1.8 <= minY || p.y() >= maxY
+                        || p.z() + 0.3 <= minZ || p.z() - 0.3 >= maxZ) {
+                    continue; // no intersection — never a candidate
+                }
+                // The checkVisibility arm per candidate (isTarget lines
+                // 118-120 — the eye-to-eye ray, never a blanket stop).
+                if (checkVisibility && eye != null && !clearLine(eye,
+                        new Position(p.x(), p.y() + 1.62, p.z()))) {
+                    continue; // the walled player is filtered out whole
+                }
+                // The targetFilter's posture folds, lines 54-70: the band
+                // shrinks PER CANDIDATE, the sneak fold first.
+                double band = range;
+                if (player.sneaking()) {
+                    band *= 0.8F; // the sneak fold, line 58
+                }
+                if (potionSystem != null && potionSystem.hasEffect(player,
+                        net.zaminmc.torch.server.potion.StatusEffects.INVISIBILITY)) {
+                    float armorRatio = 0.0F;
+                    for (int slot = 0; slot < 4; slot++) {
+                        if (!player.inventory().armorAt(slot).isEmpty()) {
+                            armorRatio += 0.25F; // one occupied slot of four
+                        }
+                    }
+                    if (armorRatio < 0.1F) {
+                        armorRatio = 0.1F; // the floor, lines 62-64
+                    }
+                    band *= 0.7F * armorRatio; // the invisible fold, line 65
+                }
+                double dx = p.x() - x;
+                double dy = p.y() - y;
+                double dz = p.z() - z;
+                double distance = dx * dx + dy * dy + dz * dz;
+                if (distance > band * band) {
+                    continue; // distanceTo > d0 — the filter's own rejection
+                }
+                if (distance < bestDistance) { // the comparator's nearest
+                    bestDistance = distance;
+                    best = player;
+                }
+            }
+            return best == null ? null : best.position();
+        }
+
+        /**
+         * Wave PE-17 — THE GOLEM'S HOSTILE CENSUS BOX FORM ({@code
+         * ActiveTargetGoal.canStart}'s gather over the hostile kinds —
+         * the snow golem's plain registration, SnowGolemEntity line 33,
+         * and the shape the iron golem's own TrackIronGolemTargetGoal
+         * census rides): every live hostile mob of the ACTIVE dimension
+         * whose OWN TYPE BOX intersects the given grown box STRICT both
+         * sides (the standard gather's law — exactly touching never
+         * intersects; a grazing center at the grown face with its own
+         * box overlapping IS the find, a ledge body beyond the y band
+         * never), the given kind refused (the iron golem's creeper
+         * exclusion) and the same-team refusal riding the candidates,
+         * the NEAREST by the comparator's squaredDistanceTo the box's
+         * own center point (the seeker's feet — the caller's law).
+         */
+        @Override
+        public MobEntity nearestHostileMobInBox(double minX, double minY, double minZ,
+                                                double maxX, double maxY, double maxZ,
+                                                net.zaminmc.torch.server.entity.MobType excludeKind,
+                                                String excludeTeam) {
+            MobEntity best = null;
+            double bestDistance = Double.MAX_VALUE;
+            for (MobEntity mob : mobManager.all()) {
+                if (mob.dead() || !mob.type().hostile
+                        || mob.dimension() != activeDimension
+                        || (excludeKind != null && mob.type() == excludeKind)) {
+                    continue;
+                }
+                if (excludeTeam != null
+                        && excludeTeam.equals(teamNameOf(mob.getUuid().toString()))) {
+                    continue; // isTarget's same-team refusal
+                }
+                Position p = mob.position();
+                // The candidate's OWN type box against the grown box,
+                // STRICT both sides (Box.intersects' own law).
+                double half = mob.type().width / 2.0;
+                if (p.x() + half <= minX || p.x() - half >= maxX
+                        || p.y() + mob.type().height <= minY || p.y() >= maxY
+                        || p.z() + half <= minZ || p.z() - half >= maxZ) {
+                    continue; // no intersection — never a candidate
+                }
+                double dx = p.x() - (minX + maxX) / 2.0;
+                double dy = p.y() - (minY + maxY) / 2.0;
+                double dz = p.z() - (minZ + maxZ) / 2.0;
+                double distance = dx * dx + dy * dy + dz * dz;
+                if (distance < bestDistance) {
+                    bestDistance = distance;
+                    best = mob;
+                }
+            }
+            return best;
+        }
+
+        /**
          * The scoreboard team the member rides — the engine's own
          * {@code getTeamOfMember} over the reference's key law (players by
          * NAME, every other living body by its UUID STRING). The team's
