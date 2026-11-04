@@ -14460,12 +14460,15 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /**
-     * The lever placement (LeverBlock.getPlacementState lines 104-117): the
-     * clicked face holds the mount when its block is solid, else the first
-     * horizontal wall, else the floor. The facing rides the player's look
-     * axis on the up/down mounts (UP_X / DOWN_X vs UP_Z / DOWN_Z — the
-     * engine keeps the Z variants, the look split's rendering nicety).
-     * Tick-thread context.
+     * The lever placement: the reference's ITEM GATE — BlockItem.useOn
+     * line 43's {@code world.canPlace(...)} over LeverBlock.canBePlaced
+     * lines 41-43 ({@code canSurvive(pos, face.getOpposite())}, the
+     * clicked face's mount ALONE) — refuses the mount-failing click
+     * BEFORE any state is computed; getPlacementState's fallback arms
+     * (the horizontal walk, the floor form) are unreachable through the
+     * item path. The facing rides the player's look axis on the up/down
+     * mounts (UP_X / DOWN_X vs UP_Z / DOWN_Z — the engine keeps the Z
+     * variants, the look split's rendering nicety). Tick-thread context.
      */
     private void placeLeverOnTick(PlayerSession session, BlockPosition clicked, int face,
                                   java.util.Optional<BlockType> creativeHeld) {
@@ -14515,20 +14518,19 @@ public final class EngineServer implements Server, EngineBridge {
                         world.getBlock(target.offset(
                                 mountOffset[0], mountOffset[1], mountOffset[2])),
                         face == 1)) {
-            // The fallback walk: the floor's own law (hasSolidTop).
-            boolean placed = false;
-            if (net.zaminmc.torch.server.block.SupportConsult.hasSolidTop(
-                    world.getBlock(target.offset(0, -1, 0)))) {
-                world.setBlock(target, net.zaminmc.torch.server.redstone.RedstoneBlocks.leverOf(5, false));
-                placed = true;
-            }
-            if (!placed) {
-                return; // no mount anywhere: the placement refuses
-            }
-        } else {
-            world.setBlock(target, net.zaminmc.torch.server.redstone.RedstoneBlocks.leverOf(
-                    leverFacingIdOf(key), false));
+            // The item gate refuses: BlockItem.useOn's canPlace (line 43)
+            // consults LeverBlock.canBePlaced (lines 41-43) —
+            // canSurvive(pos, face.getOpposite()), the clicked face's
+            // mount ALONE — BEFORE getPlacementState ever runs, so the
+            // reference's own fallback arms (the Plane.HORIZONTAL walk
+            // and the floor form, LeverBlock.getPlacementState lines
+            // 69-76) are DEAD CODE in the item path: a mount-failing
+            // click places NOTHING, plays NO sound and consumes NO
+            // item (the stack decrement rides the placement arm alone).
+            return;
         }
+        world.setBlock(target, net.zaminmc.torch.server.redstone.RedstoneBlocks.leverOf(
+                leverFacingIdOf(key), false));
         consumePlaced(session, creativeHeld);
     }
 
@@ -14548,10 +14550,13 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /**
-     * The button placement (ButtonBlock.getPlacementState lines 85-88): the
-     * FACING is the clicked face when the mount holds, else DOWN (the
-     * reference's fallback — a button facing down with no mount pops on
-     * the first neighbor check). Tick-thread context.
+     * The button placement: the reference's ITEM GATE — BlockItem.useOn
+     * line 43's {@code world.canPlace(...)} over ButtonBlock.canBePlaced
+     * lines 52-54 ({@code canSurvive(pos, face.getOpposite())}, the
+     * clicked face's mount ALONE) — refuses the mount-failing click
+     * BEFORE any state is computed; getPlacementState's DOWN fallback
+     * (lines 85-88) is unreachable through the item path. The FACING is
+     * the clicked face when the mount holds. Tick-thread context.
      */
     private void placeButtonOnTick(PlayerSession session, BlockPosition clicked, int face,
                                    java.util.Optional<BlockType> creativeHeld, boolean wooden) {
@@ -14567,13 +14572,15 @@ public final class EngineServer implements Server, EngineBridge {
                 && session.inventory().held().isEmpty()) {
             return;
         }
-        // ButtonBlock.getPlacementState lines 85-88 (F-SP1's correction —
-        // the placement gate the pre-fix engine never carried): the clicked
+        // ButtonBlock.canBePlaced lines 52-54 over canSurvive lines
+        // 70-73 (F-SP1's correction — the placement gate): the clicked
         // face holds when canSurvive answers for its OPPOSITE (the floor
         // face — UP, consult DOWN — reads hasSolidTop; every other side
-        // reads Block.isSolid()); else the button faces DOWN — the
-        // reference's own doomed fallback, which the survival walk pops on
-        // the first neighbor check when the ceiling above refuses too.
+        // reads Block.isSolid()). The item gate refuses the mount-failing
+        // click BEFORE any state is computed (BlockItem.useOn line 43) —
+        // the DOWN fallback of ButtonBlock.getPlacementState lines 85-88
+        // is UNREACHABLE through the item path, so the engine refuses
+        // outright: no placement, no sound, no item consumption.
         int[] mountOffset = switch (face) {
             case 0 -> new int[]{0, 1, 0};  // ceiling: the block above
             case 1 -> new int[]{0, -1, 0}; // floor: the block below
@@ -14583,13 +14590,16 @@ public final class EngineServer implements Server, EngineBridge {
             case 5 -> new int[]{-1, 0, 0};
             default -> null;
         };
-        int facing = mountOffset != null
-                && net.zaminmc.torch.server.block.SupportConsult.leverButtonMountHolds(
+        if (mountOffset == null
+                || !net.zaminmc.torch.server.block.SupportConsult.leverButtonMountHolds(
                         world.getBlock(target.offset(
                                 mountOffset[0], mountOffset[1], mountOffset[2])),
-                        face == 1)
-                ? face : 0;
-        world.setBlock(target, net.zaminmc.torch.server.redstone.RedstoneBlocks.buttonOf(facing, false, wooden));
+                        face == 1)) {
+            return; // the item gate refuses (no DOWN fallback — dead code
+                    // in the reference's item path)
+        }
+        world.setBlock(target, net.zaminmc.torch.server.redstone.RedstoneBlocks.buttonOf(
+                face, false, wooden));
         consumePlaced(session, creativeHeld);
     }
 
