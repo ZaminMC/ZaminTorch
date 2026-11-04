@@ -55,7 +55,17 @@ public class MobNavigation {
     }
 
     public Path findPath(double x, double y, double z) {
-        return this.pathFinder.findPath(this.world, this.mob, x, y, z, this.followRange);
+        // The vanilla double overload's BlockPos form (PathNavigation
+        // lines 44-46: the floors) + the PathFinder's OWN +0.5 centering
+        // (PathFinder line 33 — the BlockPos overload adds half a cell to
+        // every axis BEFORE the evaluator's width/2 shift, so a 0.6-wide
+        // body's −0.3 never moves the target off the picked cell — the
+        // flee family's raw findPath calls carry INTEGER coordinates, and
+        // the uncentered form landed the target node one cell southwest:
+        // Wave PE-15's own find, isOnTarget never passed).
+        return this.pathFinder.findPath(this.world, this.mob,
+                Math.floor(x) + 0.5, Math.floor(y) + 0.5, Math.floor(z) + 0.5,
+                this.followRange);
     }
 
     public Path findPath(MobView target) {

@@ -73,17 +73,45 @@ class MobEntityTest {
     }
 
     @Test
-    void hurtTriggersPanicAndItExpires() {
-        MobEntity cow = spawn(MobType.COW, new Position(0.5, 4.0, 0.5), 3, worldAt(null));
-        cow.hurt(3.0f);
-        assertEquals(7.0f, cow.health(), 0.0001, "damage applied");
-        assertTrue(cow.hurtFlashing(), "the hurt flash is up");
-        assertEquals(MobEntity.Mode.PANIC, cow.mode(), "passive mobs panic");
-        for (int i = 0; i < MobEntity.PANIC_TICKS + 2; i++) {
-            cow.tick();
+    void theEnvironmentalHurtNeverPanicsAndTheWoundArmsTheWindow() {
+        // PE-15 (EscapeDangerGoal 1:1): the plain environmental hurt — no
+        // attacker, no fire — never panics (canStart's gate:
+        // getAttacker() == null && !isOnFire() answers false).
+        MobEntity fallen = spawn(MobType.COW, new Position(0.5, 4.0, 0.5), 3, worldAt(null));
+        fallen.hurt(3.0f);
+        assertEquals(7.0f, fallen.health(), 0.0001, "damage applied");
+        assertTrue(fallen.hurtFlashing(), "the hurt flash is up");
+        assertFalse(fallen.goalPanicCanUse(),
+                "the environmental hurt never arms the panic (the attacker gate)");
+
+        // The attacker-carrying wound arms the window (setAttacker at the
+        // wound's own site): the panic's canStart passes, TargetFinder's
+        // 5/4 pick lands, and the body walks its picked path.
+        MobEntity wounded = spawn(MobType.COW, new Position(0.5, 4.0, 0.5), 3, worldAt(null));
+        MobEntity wolf = spawn(MobType.WOLF, new Position(2.5, 4.0, 0.5), 4, worldAt(null));
+        wounded.armEscapeDanger(wolf);
+        assertTrue(wounded.goalPanicCanUse(), "the wound's window arms the panic");
+        wounded.goalTickPanic();
+        assertEquals(MobEntity.Mode.PANIC, wounded.mode(), "the panicked body's posture");
+        assertTrue(wounded.goalHasPathHeading(),
+                "the panic walks a navigation path (TargetFinder's picked cell)");
+
+        // The window expires (setAttacker's own 100-tick clear): after the
+        // wound's window and the last in-flight path both spend, the gate
+        // refuses — the body falls back to its normal goals.
+        for (int i = 0; i < 220; i++) {
+            wounded.tick(); // the panic's own clock + the re-arm walk
         }
-        assertFalse(cow.hurtFlashing(), "the flash window ended");
-        assertTrue(cow.mode() != MobEntity.Mode.PANIC, "panic expired back to normal goals");
+        assertFalse(wounded.goalPanicCanUse(),
+                "the 100-tick attacker window expired (the panic retired)");
+        assertFalse(wounded.hurtFlashing(), "the flash window ended long before");
+
+        // The fire arm (isOnFire): a burning body panics with no wound at
+        // all — canStart's second gate.
+        MobEntity burning = spawn(MobType.COW, new Position(0.5, 4.0, 0.5), 5, worldAt(null));
+        burning.setFireTicks(200);
+        assertTrue(burning.goalPanicCanUse(),
+                "the burning body panics (the fire arm, no wound needed)");
     }
 
     @Test

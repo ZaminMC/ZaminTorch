@@ -25960,9 +25960,69 @@ public final class EngineServer implements Server, EngineBridge {
         }
 
         /**
-         * The awareness goals' player view (TemptGoal's own read): the
-         * nearest live player's position, rotation, and held item.
+         * Wave PE-15 — FleeEntityGoal.canStart's mob census (lines 63-71):
+         * every live mob of the kind whose OWN box intersects the given
+         * box (the grown scare box the caller computed), in the engine's
+         * own spawn order — the reference's world-list iteration order,
+         * list.get(0)'s law. The caller layers the visibility consult.
+         * Reads the ACTIVE dimension only (the per-world gather).
          */
+        @Override
+        public java.util.List<net.zaminmc.torch.server.entity.MobEntity> mobsOfKindInBox(
+                net.zaminmc.torch.server.entity.MobType kind,
+                double minX, double minY, double minZ,
+                double maxX, double maxY, double maxZ) {
+            java.util.List<net.zaminmc.torch.server.entity.MobEntity> found =
+                    new java.util.ArrayList<>();
+            for (net.zaminmc.torch.server.entity.MobEntity mob : mobManager.all()) {
+                if (mob.dead() || mob.type() != kind
+                        || mob.dimension() != activeDimension) {
+                    continue;
+                }
+                // The candidate's OWN box against the gather box, STRICT
+                // both sides (Box.intersects' own law — exactly touching
+                // never intersects).
+                Position p = mob.position();
+                double half = mob.type().width / 2.0;
+                if (p.x() + half > minX && p.x() - half < maxX
+                        && p.y() + mob.type().height > minY && p.y() < maxY
+                        && p.z() + half > minZ && p.z() - half < maxZ) {
+                    found.add(mob);
+                }
+            }
+            return found;
+        }
+
+        /**
+         * The same grown-box census over the live playing players (the
+         * ocelot's own flee family): the player's 0.6x1.8 box against the
+         * gather box, the spectator state excluded (NOT_SPECTATOR), the
+         * join order the gather's own order. Reads the ACTIVE dimension.
+         */
+        @Override
+        public java.util.List<net.zaminmc.torch.server.entity.MobEntity.PlayerView> playersInBox(
+                double minX, double minY, double minZ,
+                double maxX, double maxY, double maxZ) {
+            java.util.List<net.zaminmc.torch.server.entity.MobEntity.PlayerView> found =
+                    new java.util.ArrayList<>();
+            for (PlayerSession player : players.all()) {
+                if (player.state() != PlayerState.PLAYING || player.dead()
+                        || player.dimension() != activeDimension) {
+                    continue;
+                }
+                if (player.gamemode() == GameMode.SPECTATOR) {
+                    continue; // EntityFilter.NOT_SPECTATOR
+                }
+                Position p = player.position();
+                if (p.x() + 0.3 > minX && p.x() - 0.3 < maxX
+                        && p.y() + 1.8 > minY && p.y() < maxY
+                        && p.z() + 0.3 > minZ && p.z() - 0.3 < maxZ) {
+                    found.add(playerView(player));
+                }
+            }
+            return found;
+        }
+
         @Override
         public net.zaminmc.torch.server.entity.MobEntity.PlayerView nearestPlayerView(
                 double x, double y, double z, double range) {

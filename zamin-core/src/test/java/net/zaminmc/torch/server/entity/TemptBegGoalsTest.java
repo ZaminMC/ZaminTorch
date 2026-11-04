@@ -71,6 +71,20 @@ class TemptBegGoalsTest {
             }
             return player;
         }
+
+        @Override
+        public java.util.List<MobEntity.PlayerView> playersInBox(
+                double minX, double minY, double minZ,
+                double maxX, double maxY, double maxZ) {
+            // The player's 0.6x1.8 box against the gather box, STRICT.
+            Position p = player.position;
+            if (p.x() + 0.3 > minX && p.x() - 0.3 < maxX
+                    && p.y() + 1.8 > minY && p.y() < maxY
+                    && p.z() + 0.3 > minZ && p.z() - 0.3 < maxZ) {
+                return java.util.List.of(player);
+            }
+            return java.util.List.of();
+        }
     }
 
     private static MobEntity ocelotIn(ScriptedWorld world, long seed) {
@@ -158,20 +172,28 @@ class TemptBegGoalsTest {
         MobEntity cat = ocelotIn(world, 33L);
         world.player.position = new Position(8.0, 8.0, 0.5); // 7.5 blocks out
 
-        assertTrue(cat.goalFleePlayerCanUse(), "any player within 16 scares the wild cat");
-        cat.goalFleePlayerTick();
+        // PE-15: the canUse runs FleeEntityGoal.canStart whole — the
+        // grown-box census, the visibility ray, the away-half-plane pick,
+        // the farther-check, and the path pair; true means the claim armed.
+        assertTrue(cat.goalFleePlayerCanUse(), "the visible player in the grown box scares the wild cat");
+        cat.goalTickFlee();
         assertFalse(cat.postureSprinting(), "the far band walks at 0.8, no sprint");
         assertEquals(MobEntity.Mode.PANIC, cat.mode());
 
-        // The heading runs away from the player.
-        double away = Math.toDegrees(Math.atan2(-(0.5 - 8.0), 0.5 - 0.5));
-        double expectedYaw = Math.toDegrees(Math.atan2(-(cat.position().x() - 8.0), cat.position().z() - 0.5));
-        assertEquals(expectedYaw, cat.yaw(), 1e-6, "the flee heads directly away");
-        assertTrue(Math.abs(away - expectedYaw) < 1e-9 || Double.isNaN(away));
+        // The heading walks the AWAY PATH: the picked cell sits in the west
+        // half-plane the filter keeps (every candidate that moves back
+        // toward the east player is rejected) — the first leg walks west.
+        assertTrue(cat.goalHasPathHeading(), "the flee arms a navigation path");
+        assertTrue(Math.sin(Math.toRadians(cat.goalPathYaw())) >= -1e-6,
+                "the away half-plane's first leg never walks east (yaw "
+                        + cat.goalPathYaw() + ")");
 
-        // The close band: within 7 blocks the cat sprints (1.33 → 0x10).
+        // The close band: within 7 blocks the cat sprints (1.33 → 0x10). A
+        // spent short path re-arms through canUse (the selector's own shape).
         world.player.position = new Position(3.0, 8.0, 0.5);
-        cat.goalFleePlayerTick();
+        if (cat.goalFleePlayerCanUse()) {
+            cat.goalTickFlee();
+        }
         assertTrue(cat.postureSprinting(), "the 7-block close band sets the sprint bit");
         assertTrue(cat.postureFlags() == 0x10);
 
@@ -238,34 +260,37 @@ class TemptBegGoalsTest {
         // (the reference's own order: the village walk 5 over the plain
         // wander 9); the TF-1 pair joins before both (the reference's own
         // order: the follow 5 over the perch 6 over the wander 7/10).
-        assertEquals(14, snapshot.size(),
-                "float, avoid_sunlight, panic, break_door, breed, beg, tempt,"
-                        + " escape_sunlight, flee_player, follow_owner, sit_on_block,"
-                        + " rabbit_raid_farm, village_return, stroll");
+        assertEquals(15, snapshot.size(),
+                "float, avoid_sunlight, panic, break_door, flee_zombie, breed,"
+                        + " beg, tempt, escape_sunlight, flee_player, follow_owner,"
+                        + " sit_on_block, rabbit_raid_farm, village_return, stroll");
         assertEquals("avoid_sunlight", snapshot.get(1).goalId());
         assertEquals(0, snapshot.get(1).priority());
         assertFalse(snapshot.get(1).exclusive(), "the sun-shade flag is additive");
         assertEquals("break_door", snapshot.get(3).goalId());
         assertEquals(1, snapshot.get(3).priority());
         assertTrue(snapshot.get(3).exclusive());
-        assertEquals("beg", snapshot.get(5).goalId());
-        assertFalse(snapshot.get(5).exclusive(), "the beg is LOOK-only, additive");
-        assertEquals("tempt", snapshot.get(6).goalId());
-        assertTrue(snapshot.get(6).exclusive());
-        assertEquals("escape_sunlight", snapshot.get(7).goalId());
+        assertEquals("flee_zombie", snapshot.get(4).goalId());
+        assertEquals(1, snapshot.get(4).priority());
+        assertTrue(snapshot.get(4).exclusive());
+        assertEquals("beg", snapshot.get(6).goalId());
+        assertFalse(snapshot.get(6).exclusive(), "the beg is LOOK-only, additive");
+        assertEquals("tempt", snapshot.get(7).goalId());
         assertTrue(snapshot.get(7).exclusive());
-        assertEquals("flee_player", snapshot.get(8).goalId());
+        assertEquals("escape_sunlight", snapshot.get(8).goalId());
         assertTrue(snapshot.get(8).exclusive());
-        assertEquals("follow_owner", snapshot.get(9).goalId());
+        assertEquals("flee_player", snapshot.get(9).goalId());
         assertTrue(snapshot.get(9).exclusive());
-        assertEquals("sit_on_block", snapshot.get(10).goalId());
+        assertEquals("follow_owner", snapshot.get(10).goalId());
         assertTrue(snapshot.get(10).exclusive());
-        assertEquals("rabbit_raid_farm", snapshot.get(11).goalId());
+        assertEquals("sit_on_block", snapshot.get(11).goalId());
         assertTrue(snapshot.get(11).exclusive());
-        assertEquals("village_return", snapshot.get(12).goalId());
+        assertEquals("rabbit_raid_farm", snapshot.get(12).goalId());
         assertTrue(snapshot.get(12).exclusive());
-        assertEquals("stroll", snapshot.get(13).goalId());
-        assertEquals(4, snapshot.get(12).priority());
+        assertEquals("village_return", snapshot.get(13).goalId());
+        assertTrue(snapshot.get(13).exclusive());
+        assertEquals("stroll", snapshot.get(14).goalId());
+        assertEquals(4, snapshot.get(13).priority());
     }
 
     @Test

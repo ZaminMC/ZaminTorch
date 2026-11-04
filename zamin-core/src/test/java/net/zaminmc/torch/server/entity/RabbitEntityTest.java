@@ -85,6 +85,26 @@ class RabbitEntityTest {
         }
 
         @Override
+        public List<MobEntity> mobsOfKindInBox(MobType kind,
+                double minX, double minY, double minZ,
+                double maxX, double maxY, double maxZ) {
+            List<MobEntity> found = new ArrayList<>();
+            for (MobEntity mob : mobs) {
+                if (mob.dead() || mob.type() != kind) {
+                    continue;
+                }
+                Position p = mob.position();
+                double half = mob.type().width / 2.0;
+                if (p.x() + half > minX && p.x() - half < maxX
+                        && p.y() + mob.type().height > minY && p.y() < maxY
+                        && p.z() + half > minZ && p.z() - half < maxZ) {
+                    found.add(mob);
+                }
+            }
+            return found;
+        }
+
+        @Override
         public MobEntity nearestMobOfKind(double x, double y, double z, double range, MobType kind) {
             MobEntity best = null;
             double bestDistance = range * range;

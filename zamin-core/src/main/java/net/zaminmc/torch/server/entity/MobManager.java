@@ -3486,6 +3486,15 @@ public final class MobManager {
             mob.armWitherSweep();
         }
         mob.hurt(amount);
+        // Wave PE-15 — setAttacker at the wound's own site (LivingEntity
+        // .takeDamage lines 671-676): a wound whose source carries a
+        // LIVING attacker (a mob's body or the player's hand) arms the
+        // victim's EscapeDanger window — the panicked cow is a WOUNDED
+        // cow, never a fallen one. The environmental family (the walk
+        // below, the fire/fall/cactus arms) never stamps.
+        if (attacker != null || attackingPlayer != null) {
+            mob.armEscapeDanger(attacker);
+        }
         if (!skipKnockback) {
             mob.knockbackFrom(attackerYaw);
         }

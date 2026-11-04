@@ -48,7 +48,8 @@ public final class MobEntity implements LivingEntity {
     public static final int HURT_FLASH_TICKS = 10;
     /** The 1.8 death animation: the body lies for 20 ticks, then loot + removal. */
     public static final int DEATH_TICKS = 20;
-    /** Panic run length after being hurt (historical EntityAIPanic window). */
+    /** EscapeDangerGoal's attacker window (setAttacker's own 100-tick
+     * clear, LivingEntity lines 265-269 — the PE-15 panic's gate). */
     public static final int PANIC_TICKS = 100;
     /** Idle look-around length before the wander roll re-fires. */
     public static final int IDLE_TICKS = 60;
@@ -133,8 +134,6 @@ public final class MobEntity implements LivingEntity {
     public static final int SHEEP_REGROW_SPREAD_TICKS = 6000;
     /** Sidestep detour length in ticks (the wall-slide steering window). */
     public static final int DETOUR_TICKS = 20;
-    /** Panic speed multiplier over the kind's walk speed. */
-    public static final double PANIC_SPEED_MULTIPLIER = 1.8;
     /** Position epsilon so ground queries see the block *below* the feet. */
     private static final double GROUND_EPSILON = 1.0E-7;
 
@@ -496,6 +495,35 @@ public final class MobEntity implements LivingEntity {
         }
 
         /**
+         * Wave PE-15 — FleeEntityGoal.canStart's own census (lines 63-71,
+         * {@code world.getEntitiesOfType(targetType, getShape().grown(range,
+         * 3.0, range), ...)}): every live mob of the kind whose OWN box
+         * intersects the given box, in the gather's own iteration order
+         * (the engine's spawn order — the reference's world-list order),
+         * never the nearest-first shape. The default answers empty so
+         * stub worlds carry no mob-flee mind. Tick-lane only.
+         */
+        default java.util.List<MobEntity> mobsOfKindInBox(MobType kind,
+                double minX, double minY, double minZ,
+                double maxX, double maxY, double maxZ) {
+            return java.util.List.of();
+        }
+
+        /**
+         * The same grown-box census over the live playing players (the
+         * ocelot's own flee family — {@code FleeEntityGoal<PlayerEntity>});
+         * the player's 0.6x1.8 box intersects the given box, the
+         * spectator state excluded (EntityFilter.NOT_SPECTATOR). The
+         * default answers empty so stub worlds carry no player-flee
+         * mind. Tick-lane only.
+         */
+        default java.util.List<PlayerView> playersInBox(
+                double minX, double minY, double minZ,
+                double maxX, double maxY, double maxZ) {
+            return java.util.List.of();
+        }
+
+        /**
          * Whether the position's biome runs hot (the reference's
          * temperature > 1.0 — the snow golem's melt arm). The default
          * answers false so stub worlds stay temperate.
@@ -749,7 +777,6 @@ public final class MobEntity implements LivingEntity {
     private int repathCooldown;
     private float pathYaw;
     private boolean pathYawValid;
-    private int panicTicks;
     private int hurtFlash;
     private int attackCooldown;
     /**
@@ -1990,11 +2017,13 @@ public final class MobEntity implements LivingEntity {
             dead = true;
             return;
         }
-        if (!type.hostile && mode != Mode.PANIC) {
-            panicTicks = PANIC_TICKS;
-            mode = Mode.PANIC;
-            modeTicks = 0;
-        }
+        // Wave PE-15: the hurt itself no longer arms the panic — the
+        // reference's EscapeDangerGoal.canStart gates on the ATTACKER
+        // window (setAttacker at the wound's own site, the manager's
+        // landed walk stamps it) or the fire arm, and only the
+        // registered census (the chicken, the sheep, the pig, the
+        // horse, the cow) ever panics. A plain environmental hurt (the
+        // fall, the cactus, the drown) never panics in vanilla.
     }
 
     /**
@@ -2812,13 +2841,6 @@ public final class MobEntity implements LivingEntity {
      * damages it instead of the nearest player.
      */
     private MobEntity mobAttackTarget;
-    /**
-     * The skeleton's pending wolf scare (Slice 16b — computed before the
-     * goal walk so the stroll yields through goalHasTarget): the nearest
-     * live wolf within the 6-block flee range, or null.
-     */
-    private MobEntity pendingScareWolf;
-
     /**
      * The tamed body's attack damage (the reference's {@code setTamed}
      * recompute: 4.0 tamed over the 2.0 wild kind default — the per-instance
@@ -8777,10 +8799,6 @@ public final class MobEntity implements LivingEntity {
         // walk — the stroll's yielding gate (goalHasTarget) reads the live
         // target, so the scan and the dead-target clear must land first.
         MobEntity mobTarget = tickMobTargeting();
-        pendingScareWolf = type == MobType.SKELETON
-                ? world.nearestMobOfKind(position.x(), position.y(), position.z(),
-                        SKELETON_WOLF_FLEE_RANGE, MobType.WOLF)
-                : null;
 
         Position target = world.nearestPlayer(position.x(), position.y(), position.z(),
                 type.hostile ? followRange() : 8.0);
@@ -8903,13 +8921,6 @@ public final class MobEntity implements LivingEntity {
         // and panic claim the body first, the stroll cycle only when no hunt
         // is on. What remains below is the combat mind.
         if (goals.tick(this, night)) {
-            return;
-        }
-
-        // The skeleton's flee-from-wolves (goal priority 3 over the attack
-        // family's 4): a wolf within 6 blocks owns the movement whatever
-        // else the skeleton was doing (Slice 16b).
-        if (tickSkeletonWolfFlee()) {
             return;
         }
 
@@ -9129,8 +9140,152 @@ public final class MobEntity implements LivingEntity {
         onGround = false;
     }
 
-    boolean goalPanicking() {
-        return panicTicks > 0;
+    // --------------- the hurt panic (Wave PE-15, EscapeDangerGoal 1:1)
+
+    /** EscapeDangerGoal's band (every registration at goal 1). */
+    /** The panic census + the per-kind speed parameter (the ctor
+     * registrations' own numbers): the chicken 1.4 (ChickenEntity line
+     * 38), the sheep and the pig 1.25 (SheepEntity line 56, PigEntity
+     * line 35), the horse family 1.2 (HorseBaseEntity line 107), the
+     * cow and the mooshroom 2.0 (CowEntity line 28 — the mooshroom
+     * rides the cow's own ctor). Every other kind never registers the
+     * goal: a hurt wolf turns to fight, a hurt villager or rabbit or
+     * squid or bat walks on — vanilla's own census, 0.0 answers "no
+     * panic goal registered". */
+    static double escapeDangerSpeed(MobType kind) {
+        return switch (kind) {
+            case CHICKEN -> 1.4;
+            case SHEEP, PIG -> 1.25;
+            case COW, MOOSHROOM -> 2.0;
+            case HORSE -> 1.2;
+            default -> 0.0;
+        };
+    }
+
+    /** The last attacker-carrying wound's tick (setAttacker's own clock:
+     * the window the reference clears at 100 ticks, LivingEntity lines
+     * 265-269). Integer.MIN_VALUE = never wounded by a live attacker. */
+    private int escapeDangerArmedTick = Integer.MIN_VALUE;
+    /** The wound's living mob attacker (the death-clear's own read),
+     * or null when the wound came from a player or none stands. */
+    private MobEntity escapeDangerMobAttacker;
+    /** Whether the last attacker-carrying wound came from a player (no
+     * body to watch — the window alone bounds it). */
+    private boolean escapeDangerPlayerAttacker;
+    /** The picked TargetFinder cell (canStart's own store, lines 20-33). */
+    private Position escapeDangerTarget;
+
+    /**
+     * The wound's own stamp (LivingEntity.takeDamage lines 671-676 —
+     * setAttacker at the damage site): a wound whose source carries a
+     * LIVING attacker arms the panic window. The environmental family
+     * (the fall, the cactus, the drown, the starve) never stamps —
+     * vanilla's panicked cow is a WOUNDED cow, never a fallen one.
+     * Owner-lane call (the hurt walk's landed site).
+     */
+    void armEscapeDanger(MobEntity attacker) {
+        this.escapeDangerArmedTick = age;
+        this.escapeDangerMobAttacker = attacker;
+        this.escapeDangerPlayerAttacker = attacker == null;
+    }
+
+    /**
+     * EscapeDangerGoal.canStart's gate (lines 20-24):
+     * {@code getAttacker() == null && !isOnFire() → false} — the panic
+     * needs the attacker window LIVE (100 ticks from the last
+     * attacker-carrying wound, the attacker's own death clearing it
+     * early, LivingEntity lines 265-269) or the body ON FIRE (the fire
+     * arm panics between burn ticks — a burning cow never stands).
+     */
+    private boolean escapeDangerGate() {
+        if (burning()) {
+            return true; // isOnFire(): the fire arm
+        }
+        if (escapeDangerMobAttacker == null && !escapeDangerPlayerAttacker) {
+            return false; // never wounded by a live attacker
+        }
+        if (escapeDangerMobAttacker != null && escapeDangerMobAttacker.dead()) {
+            return false; // the attacker's death clears the window
+        }
+        return age - escapeDangerArmedTick <= 100;
+    }
+
+    /**
+     * The PANIC goal's canUse: the reference's canStart WHOLE — the
+     * census (the kind carries the goal), the gate (the attacker window
+     * or the fire), then TargetFinder's pick ({@code getTarget(mob, 5,
+     * 4)} — ten candidates in the ±5/±4/±5 band, the highest favor
+     * wins, the store the goal's start() reads); null answers false
+     * (this pass — the next selector pass rolls again). A LIVE claim
+     * continues on the navigation alone (shouldContinue's !isDone).
+     */
+    boolean goalPanicCanUse() {
+        if (escapeDangerSpeed(type) == 0.0) {
+            return false; // the census: this kind never registered the goal
+        }
+        if (escapeDangerTarget != null) {
+            if (navigation.isDone()) {
+                escapeDangerTarget = null; // the claim's end (walk done or stop())
+            } else {
+                return true; // shouldContinue: the live panic path owns the band
+            }
+        }
+        if (!escapeDangerGate()) {
+            return false;
+        }
+        Position pick = targetFinderPick(5, 4);
+        if (pick == null) {
+            return false; // canStart's null: no candidate this pass
+        }
+        escapeDangerTarget = pick;
+        return true;
+    }
+
+    /**
+     * The PANIC goal's tick: start() runs the navigation's moveTo at the
+     * picked cell (the per-kind speed parameter over the walk base),
+     * then the feet follow the stored path — the walk's own heading,
+     * never a random bearing. The path's completion ends the claim
+     * (shouldContinue's !isDone); a live window re-arms the whole walk
+     * on the next pass, vanilla's own restart loop.
+     */
+    void goalTickPanic() {
+        if (escapeDangerTarget == null) {
+            return; // the defensive clear (canUse always arms first)
+        }
+        if (navigation.isDone()) {
+            // start(): moveTo(target, speed) — the route found once, the
+            // stored path walked to its end.
+            navigation.moveTo(escapeDangerTarget.x(), escapeDangerTarget.y(),
+                    escapeDangerTarget.z(), escapeDangerSpeed(type));
+            if (navigation.isDone()) {
+                escapeDangerTarget = null; // no route: the goal yields
+                return;
+            }
+            mode = Mode.PANIC;
+            modeTicks = 0;
+        }
+        goalWalkSpeed = escapeDangerSpeed(type); // the per-kind parameter
+        navigation.tick();
+        if (navigation.hasTarget) {
+            yaw = angleTo(navigation.currentTargetX - position.x(),
+                    navigation.currentTargetZ - position.z());
+            headYaw = yaw;
+            pathYaw = yaw;
+            pathYawValid = true;
+        } else {
+            pathYawValid = false;
+        }
+        if (navigation.isDone()) {
+            escapeDangerTarget = null; // the claim's end
+            pathYawValid = false;
+        }
+    }
+
+    /** The panic's picked TargetFinder cell (the acceptance pin's read —
+     * the ±5/±4 band law). */
+    Position panicTargetForTest() {
+        return escapeDangerTarget;
     }
 
     /**
@@ -9144,18 +9299,6 @@ public final class MobEntity implements LivingEntity {
         yaw = (float) (Math.toDegrees(Math.atan2(-dx, dz)));
         headYaw = yaw;
         tickPathFollowing(mate.position());
-    }
-
-    void goalTickPanic() {
-        panicTicks--;
-        if (mode != Mode.PANIC) {
-            mode = Mode.PANIC;
-            modeTicks = 0;
-        }
-        if (modeTicks == 1) {
-            yaw = randomDirection();
-            headYaw = yaw;
-        }
     }
 
     // ------------------------------------- the awareness goals (Slice 16a)
@@ -9172,14 +9315,6 @@ public final class MobEntity implements LivingEntity {
     private static final double TEMPT_STOP_DISTANCE_SQUARED = 6.25;
     /** The goal speed over the ocelot's 0.3 base: the creep at 0.6. */
     private static final double TEMPT_WALK_MULTIPLIER = 0.6 / 0.3;
-    /** FleeEntityGoal's reach: players within 16 blocks scare the wild cat. */
-    private static final double FLEE_PLAYER_RANGE = 16.0;
-    /** The flee's close band: the scary player within 7 blocks sprints. */
-    private static final double FLEE_CLOSE_SQUARED = 49.0;
-    /** The flee's far speed over the base (0.8 on the 0.3 ocelot). */
-    private static final double FLEE_FAR_MULTIPLIER = 0.8 / 0.3;
-    /** The flee's close speed over the base (1.33 on the 0.3 — the sprint). */
-    private static final double FLEE_CLOSE_MULTIPLIER = 1.33 / 0.3;
     /** WolfBegGoal's reach: the bone-holder's gaze window. */
     private static final double BEG_RANGE = 8.0;
     /** WolfBegGoal's timer: {@code 40 + nextInt(40)} ticks of begging. */
@@ -9364,69 +9499,327 @@ public final class MobEntity implements LivingEntity {
         tickPathFollowing(view.position());
     }
 
+    // ------------------------ the flee family (Wave PE-15, FleeEntityGoal 1:1)
+
+    /** FleeEntityGoal's reach: the ctor registrations' scare ranges —
+     * the ocelot/rabbit pair 16.0F, the villager 8.0F, the skeleton and
+     * the creeper 6.0F (the reference's own numbers, lines 66/281/309/51/35). */
+    private static final double FLEE_PLAYER_RANGE = 16.0;
+    /** The villager's own scare range (VillagerEntity line 309: 8.0F). */
+    private static final double FLEE_ZOMBIE_RANGE = 8.0;
+    /** The skeleton's and the creeper's scare range (6.0F both). */
+    private static final double FLEE_WOLF_CAT_RANGE = 6.0;
+    /** The flee's close band (FleeEntityGoal.tick line 105: 49 squared). */
+    private static final double FLEE_CLOSE_SQUARED = 49.0;
+    /** The ocelot's far speed over the base (0.8 on the 0.3 ocelot). */
+    private static final double FLEE_FAR_MULTIPLIER = 0.8 / 0.3;
+    /** The ocelot's close speed over the base (1.33 on the 0.3 — the sprint). */
+    private static final double FLEE_CLOSE_MULTIPLIER = 1.33 / 0.3;
+    /** The rabbit's speed pair (1.33/1.33 on the 0.3 base — both bands). */
+    private static final double FLEE_RABBIT_MULTIPLIER = 1.33 / 0.3;
+    /** The villager's pair (0.6/0.6 on the 0.5 base — the stroll's own). */
+    private static final double FLEE_VILLAGER_MULTIPLIER = 0.6 / 0.5;
+    /** The skeleton's far speed (1.0 on the 0.25 base). */
+    private static final double SKELETON_WOLF_FLEE_FAR = 1.0 / 0.25;
+    /** The skeleton's close speed (1.2 on the 0.25 base). */
+    private static final double SKELETON_WOLF_FLEE_CLOSE = 1.2 / 0.25;
+    /** The creeper's far speed (1.0 on the 0.25 base). */
+    private static final double CREEPER_CAT_FLEE_FAR = 1.0 / 0.25;
+    /** The creeper's close speed (1.2 on the 0.25 base). */
+    private static final double CREEPER_CAT_FLEE_CLOSE = 1.2 / 0.25;
+
+    /** The live flee claim's mob threat (the tick's 49-band read), or null. */
+    private MobEntity fleeThreatMob;
+    /** The live flee claim's player threat (the ocelot's census), or null. */
+    private PlayerView fleeThreatPlayer;
+    /** The claim's far speed (the ctor's speedWhenFar over the base). */
+    private double fleeSpeedFar;
+    /** The claim's close speed (the ctor's speedWhenClose). */
+    private double fleeSpeedClose;
+
+    /** FleeEntityGoal.shouldContinue (line 100): the navigation owns the
+     * flee's life — the stored path runs to its end whatever the threat
+     * does (it may leave or die mid-flight; the walk continues). */
+    private boolean fleePathLive() {
+        return (fleeThreatMob != null || fleeThreatPlayer != null)
+                && !navigation.isDone();
+    }
+
+    /** The live threat's position (the 49-band's read), or null when the
+     * claim is spent (the player view reads its session live). */
+    private Position fleeThreatPosition() {
+        if (fleeThreatMob != null && !fleeThreatMob.dead()) {
+            return fleeThreatMob.position();
+        }
+        if (fleeThreatMob != null) {
+            return null; // the threat died mid-flight
+        }
+        return fleeThreatPlayer == null ? null : fleeThreatPlayer.position();
+    }
+
+    /** The grown scare box (getShape().grown(range, 3.0, range)): the
+     * body's OWN shape grown — [x ± width/2 + range] × [y − 3, y +
+     * height + 3] × [z ± width/2 + range], the feet-anchored asymmetric
+     * y band the standard gather reads. */
+    private double[] fleeGrownBox(double range) {
+        double half = type.width / 2.0;
+        return new double[]{
+                position.x() - half - range, position.y() - 3.0, position.z() - half - range,
+                position.x() + half + range, position.y() + type.height + 3.0,
+                position.z() + half + range};
+    }
+
     /**
-     * FleeEntityGoal's canStart (the untamed ocelot, players only): the
-     * 16-block scare range — any live player inside it. The tamed cat
-     * never flees (onTamedChanged removes the goal).
+     * FleeEntityGoal.canStart's shared walk (lines 63-88) once the census
+     * has its first threat: TargetFinder's away-pick over the 16/7 band
+     * with the half-plane filter (startOffset = mob − threat — every
+     * candidate that moves BACK TOWARD the threat is rejected), the
+     * farther-check (line 84: the picked cell must sit farther from the
+     * threat than the fleeing body does), and the path pair (line 86:
+     * findPath + isOnTarget — the route must actually reach the picked
+     * cell). The claim's fields arm only when the whole walk passes.
+     *
+     * @return whether the flee armed (canStart's true)
+     */
+    private boolean armFleeFrom(Position threatPos, double speedFar, double speedClose,
+                                MobEntity threatMob, PlayerView threatPlayer) {
+        Position away = targetFinderPickAway(16, 7,
+                position.x() - threatPos.x(), position.z() - threatPos.z());
+        if (away == null) {
+            return false; // ten candidates, none in the away half-plane
+        }
+        // The farther-check: threat.squaredDistanceTo(picked) <
+        // threat.squaredDistanceTo(mob) refuses the pick.
+        double tx = threatPos.x() - away.x();
+        double ty = threatPos.y() - away.y();
+        double tz = threatPos.z() - away.z();
+        double threatToPick = tx * tx + ty * ty + tz * tz;
+        double mx = threatPos.x() - position.x();
+        double my = threatPos.y() - position.y();
+        double mz = threatPos.z() - position.z();
+        double threatToMob = mx * mx + my * my + mz * mz;
+        if (threatToPick < threatToMob) {
+            return false;
+        }
+        net.zaminmc.torch.server.entity.ai.pathing.Path path =
+                navigation.findPath(away.x(), away.y(), away.z());
+        if (path == null || !path.isOnTarget(away.x(), away.z())) {
+            return false; // no route, or a route that falls short
+        }
+        navigation.moveAlong(path, speedFar); // start(): moveAlong(path, speedWhenFar)
+        fleeThreatMob = threatMob;
+        fleeThreatPlayer = threatPlayer;
+        fleeSpeedFar = speedFar;
+        fleeSpeedClose = speedClose;
+        return true;
+    }
+
+    /** The mob census's first threat: the gather's own first body that is
+     * alive AND visible (the entityFilter, lines 37-41: isAlive + the
+     * canSee eye-to-eye ray) — list.get(0)'s own law, never the nearest. */
+    private MobEntity firstVisibleMobInBox(MobType kind, double range) {
+        double[] box = fleeGrownBox(range);
+        for (MobEntity candidate : world.mobsOfKindInBox(kind,
+                box[0], box[1], box[2], box[3], box[4], box[5])) {
+            if (candidate.dead()) {
+                continue;
+            }
+            if (!world.clearLine(eyePosition(), candidate.eyePosition())) {
+                continue; // the visibility filter
+            }
+            return candidate;
+        }
+        return null;
+    }
+
+    /** The player census's first threat (the ocelot's own): the same
+     * gather over the live playing players, the spectator state excluded
+     * (NOT_SPECTATOR), the eye-to-eye visibility consult. */
+    private PlayerView firstVisiblePlayerInBox(double range) {
+        double[] box = fleeGrownBox(range);
+        for (PlayerView candidate : world.playersInBox(
+                box[0], box[1], box[2], box[3], box[4], box[5])) {
+            if (candidate.spectator()) {
+                continue; // EntityFilter.NOT_SPECTATOR
+            }
+            Position eye = candidate.position();
+            if (!world.clearLine(eyePosition(),
+                    new Position(eye.x(), eye.y() + 1.62, eye.z()))) {
+                continue; // canSee: the eye-to-eye ray (the player's 1.62 eye)
+            }
+            return candidate;
+        }
+        return null;
+    }
+
+    /**
+     * FleeEntityGoal's canStart/shouldContinue pair for the ocelot
+     * (OcelotEntity line 281: {@code FleeEntityGoal<>(this,
+     * PlayerEntity.class, 16.0F, 0.8, 1.33)}): a live claim continues on
+     * the navigation alone; a fresh one runs the whole walk. The tamed
+     * cat never flees (onTamedChanged removes the goal).
      */
     boolean goalFleePlayerCanUse() {
-        return type == MobType.OCELOT && !wolfTamed() && world.nearestPlayerView(
-                position.x(), position.y(), position.z(), FLEE_PLAYER_RANGE) != null;
+        if (type != MobType.OCELOT || wolfTamed()) {
+            return false;
+        }
+        if (fleePathLive()) {
+            return true; // shouldContinue: the stored path owns the band
+        }
+        PlayerView threat = firstVisiblePlayerInBox(FLEE_PLAYER_RANGE);
+        return threat != null && armFleeFrom(threat.position(),
+                FLEE_FAR_MULTIPLIER, FLEE_CLOSE_MULTIPLIER, null, threat);
     }
 
     /**
      * The rabbit's own flee (line 66: {@code FleeEntityGoal<>(this,
-     * WolfEntity.class, 16.0F, 1.33, 1.33)}): any live wolf within 16
-     * blocks sends the body running — BOTH speed bands 1.33 (the
-     * reference's own pair). The killer bunny's setVariant(99) removes
-     * this goal (the reference's removeGoal at line 322).
+     * WolfEntity.class, 16.0F, 1.33, 1.33)}): the wolf census over the
+     * grown box, BOTH speed bands 1.33. The killer bunny's setVariant(99)
+     * removes this goal (the reference's removeGoal at line 322).
      */
     boolean goalFleeWolfCanUse() {
-        return type == MobType.RABBIT && !rabbitKiller() && world.nearestMobOfKind(
-                position.x(), position.y(), position.z(), FLEE_PLAYER_RANGE,
-                MobType.WOLF) != null;
-    }
-
-    /** The rabbit's flee tick: directly away from the wolf at 1.33 both bands. */
-    void goalFleeWolfTick() {
-        MobEntity wolf = world.nearestMobOfKind(
-                position.x(), position.y(), position.z(), FLEE_PLAYER_RANGE,
-                MobType.WOLF);
-        if (wolf == null) {
-            return;
+        if (type != MobType.RABBIT || rabbitKiller()) {
+            return false;
         }
-        double dx = position.x() - wolf.position().x();
-        double dz = position.z() - wolf.position().z();
-        goalWalkSpeed = 1.33 / 0.3; // both bands share the 1.33 pair
-        mode = Mode.PANIC;
-        modeTicks = 0;
-        yaw = angleTo(dx, dz); // directly away from the wolf
-        headYaw = yaw;
+        if (fleePathLive()) {
+            return true;
+        }
+        MobEntity threat = firstVisibleMobInBox(MobType.WOLF, FLEE_PLAYER_RANGE);
+        return threat != null && armFleeFrom(threat.position(),
+                FLEE_RABBIT_MULTIPLIER, FLEE_RABBIT_MULTIPLIER, threat, null);
     }
 
     /**
-     * FleeEntityGoal's tick: away from the scary player — the far walk at
-     * 0.8 over the base, the 7-block close band sprinting at 1.33 with the
-     * shared-flags sprint bit (the ocelot's mobAiTick own postures).
+     * The villager's zombie flee (VillagerEntity line 309:
+     * {@code FleeEntityGoal<>(this, ZombieEntity.class, 8.0F, 0.6, 0.6)},
+     * goal band 1 — above every other walk the villager carries): the
+     * ZombieEntity.class census is the INSTANCEOF family — the plain
+     * zombie, the villager-skinned zombie, and the pigman (its own
+     * subclass in the reference) all scare the villager.
      */
-    void goalFleePlayerTick() {
-        PlayerView view = world.nearestPlayerView(
-                position.x(), position.y(), position.z(), FLEE_PLAYER_RANGE);
-        if (view == null) {
+    boolean goalFleeZombieCanUse() {
+        if (type != MobType.VILLAGER) {
+            return false;
+        }
+        if (fleePathLive()) {
+            return true;
+        }
+        MobEntity threat = firstVisibleZombieInBox();
+        return threat != null && armFleeFrom(threat.position(),
+                FLEE_VILLAGER_MULTIPLIER, FLEE_VILLAGER_MULTIPLIER, threat, null);
+    }
+
+    /** The zombie-family census (the instanceof shape over the two
+     * kinds the engine registers). */
+    private MobEntity firstVisibleZombieInBox() {
+        MobEntity threat = firstVisibleMobInBox(MobType.ZOMBIE, FLEE_ZOMBIE_RANGE);
+        if (threat == null) {
+            threat = firstVisibleMobInBox(MobType.ZOMBIE_PIGMAN, FLEE_ZOMBIE_RANGE);
+        }
+        return threat;
+    }
+
+    /**
+     * The skeleton's wolf flee (SkeletonEntity line 51:
+     * {@code FleeEntityGoal<>(this, WolfEntity.class, 6.0F, 1.0, 1.2)},
+     * goal band 3 — the movement claim above the attack family's 4).
+     */
+    boolean goalFleeWolfSkeletonCanUse() {
+        if (type != MobType.SKELETON) {
+            return false;
+        }
+        if (fleePathLive()) {
+            return true;
+        }
+        MobEntity threat = firstVisibleMobInBox(MobType.WOLF, FLEE_WOLF_CAT_RANGE);
+        return threat != null && armFleeFrom(threat.position(),
+                SKELETON_WOLF_FLEE_FAR, SKELETON_WOLF_FLEE_CLOSE, threat, null);
+    }
+
+    /**
+     * The creeper's cat flee (CreeperEntity line 35:
+     * {@code FleeEntityGoal<>(this, OcelotEntity.class, 6.0F, 1.0, 1.2)},
+     * goal band 3 — BELOW the ignite's own band 2, the reference's mutex
+     * order): a swell claim (the attack target within the 3-block prime
+     * band, or a live fuse) owns the movement first — the family's famous
+     * cat-scares-creeper walk only claims a body that is not igniting.
+     */
+    boolean goalFleeCatCanUse() {
+        if (type != MobType.CREEPER) {
+            return false;
+        }
+        if (fleePathLive()) {
+            return true; // shouldContinue: a running flee holds its claim
+        }
+        if (mode == Mode.FUSE) {
+            return false; // the live swell outranks the flee (band 2 over 3)
+        }
+        // CreeperIgniteGoal.canStart's own claim (line 27: the attack
+        // target within the prime band) holds the movement mutex first,
+        // the reference's own band-2-over-3 order — the engine's combat
+        // mind reads the same pair (the 1.8 horizontal + 2.0 vertical
+        // prime band), so the flee yields exactly where the swell claims.
+        PlayerView prime = world.nearestPlayerView(
+                position.x(), position.y(), position.z(), CREEPER_PRIME_RANGE);
+        if (prime != null) {
+            double dxp = prime.position().x() - position.x();
+            double dyp = prime.position().y() - position.y();
+            double dzp = prime.position().z() - position.z();
+            if (Math.sqrt(dxp * dxp + dzp * dzp) <= CREEPER_PRIME_RANGE
+                    && Math.abs(dyp) <= CREEPER_PRIME_VERTICAL_RANGE) {
+                Position eye = prime.position(); // the ignite's target must be seen
+                if (world.clearLine(eyePosition(),
+                        new Position(eye.x(), eye.y() + 1.62, eye.z()))) {
+                    return false; // the swell claims the body first
+                }
+            }
+        }
+        MobEntity threat = firstVisibleMobInBox(MobType.OCELOT, FLEE_WOLF_CAT_RANGE);
+        return threat != null && armFleeFrom(threat.position(),
+                CREEPER_CAT_FLEE_FAR, CREEPER_CAT_FLEE_CLOSE, threat, null);
+    }
+
+    /**
+     * FleeEntityGoal.tick (lines 108-113): the 49-squared band's speed
+     * switch over the LIVE threat (the far pair when the threat is 7+
+     * blocks out, the close pair inside), the feet on the stored path —
+     * the heading the navigation's own waypoint reports, never the
+     * direct away-bearing. stop()'s own clear (line 96: the threat
+     * fields reset) rides the path's completion below.
+     */
+    void goalTickFlee() {
+        if (navigation.isDone()) {
+            fleeThreatMob = null; // stop(): the claim's end
+            fleeThreatPlayer = null;
+            pathYawValid = false;
             return;
         }
-        double dx = position.x() - view.position().x();
-        double dy = position.y() - view.position().y();
-        double dz = position.z() - view.position().z();
+        Position threatPos = fleeThreatPosition();
+        double dx = position.x() - (threatPos == null ? position.x() : threatPos.x());
+        double dy = position.y() - (threatPos == null ? position.y() : threatPos.y());
+        double dz = position.z() - (threatPos == null ? position.z() : threatPos.z());
         boolean close = dx * dx + dy * dy + dz * dz < FLEE_CLOSE_SQUARED;
-        goalWalkSpeed = close ? FLEE_CLOSE_MULTIPLIER : FLEE_FAR_MULTIPLIER;
-        if (close) {
-            postureSprinting = true; // the 1.33 sprint bit
+        goalWalkSpeed = close ? fleeSpeedClose : fleeSpeedFar;
+        if (close && type == MobType.OCELOT) {
+            postureSprinting = true; // the ocelot's 1.33 sprint bit (mobAiTick)
         }
         mode = Mode.PANIC; // the fleeing body: the panic walk, no grazing
         modeTicks = 0;
-        yaw = angleTo(dx, dz); // directly away from the player
-        headYaw = yaw;
+        navigation.tick();
+        if (navigation.hasTarget) {
+            yaw = angleTo(navigation.currentTargetX - position.x(),
+                    navigation.currentTargetZ - position.z());
+            headYaw = yaw; // the eyes stay on the walk
+            pathYaw = yaw;
+            pathYawValid = true;
+        } else {
+            pathYawValid = false;
+        }
+        if (navigation.isDone()) {
+            fleeThreatMob = null; // stop(): the threat clears
+            fleeThreatPlayer = null;
+            pathYawValid = false;
+        }
     }
 
     /**
@@ -9523,12 +9916,6 @@ public final class MobEntity implements LivingEntity {
     private static final double MOB_TARGET_FOLLOW_RANGE = 32.0;
     /** ActiveTargetGoal's canStart cadence gate: a 1-in-10 scan. */
     private static final int HUNT_SCAN_CHANCE = 10;
-    /** FleeEntityGoal's wolf scare for the skeleton: 6 blocks at 1.0/1.2. */
-    private static final double SKELETON_WOLF_FLEE_RANGE = 6.0;
-    /** The skeleton's flee speeds over its 0.25 base: the 1.0 far walk. */
-    private static final double SKELETON_WOLF_FLEE_FAR = 1.0 / 0.25;
-    /** The close sprint: the reference's 1.2. */
-    private static final double SKELETON_WOLF_FLEE_CLOSE = 1.2 / 0.25;
     /** The melee reach against a mob target (the same band as the player). */
     private static final double MOB_MELEE_ATTACK_RANGE = 2.0;
 
@@ -9741,40 +10128,15 @@ public final class MobEntity implements LivingEntity {
         }
     }
 
-    /**
-     * The skeleton's flee-from-wolves (FleeEntityGoal(WolfEntity.class,
-     * 6.0F, 1.0, 1.2) at goal priority 3 — above the ranged attack's own
-     * 4): a wolf within 6 blocks owns the skeleton's movement whatever
-     * else it was doing. The scare itself is computed before the goal walk
-     * (the stroll yields through goalHasTarget's read of the pending
-     * scare).
-     */
-    private boolean tickSkeletonWolfFlee() {
-        MobEntity wolf = pendingScareWolf;
-        if (type != MobType.SKELETON || wolf == null) {
-            return false;
-        }
-        double dx = position.x() - wolf.position().x();
-        double dy = position.y() - wolf.position().y();
-        double dz = position.z() - wolf.position().z();
-        boolean close = dx * dx + dy * dy + dz * dz < FLEE_CLOSE_SQUARED;
-        goalWalkSpeed = close ? SKELETON_WOLF_FLEE_CLOSE : SKELETON_WOLF_FLEE_FAR;
-        mode = Mode.PANIC;
-        modeTicks = 0;
-        yaw = angleTo(dx, dz); // directly away from the wolf
-        headYaw = yaw;
-        clearPath();
-        return true;
-    }
-
     /** Whether a hunt target is live this tick (the stroll goal yields):
      *  the player hunt, a live mob-vs-mob target (16b — the single
-     *  attackTarget state), or the skeleton's pending wolf-flee (a wolf
-     *  never skeleton-flees, so the wolf's angry-clear never sees the
-     *  flee arm). */
+     *  attackTarget state), or a live flee claim (the flee family's own
+     *  band-3 movement claim — the reference's mutex: the stroll never
+     *  runs beside a fleeing body; PE-15 retired the skeleton's pending
+     *  pre-scan for the goal's own live state). */
     boolean goalHasTarget(boolean night) {
         return (targetHuntable && visibleTarget != null) || mobAttackTarget != null
-                || pendingScareWolf != null;
+                || fleePathLive();
     }
 
     // ------------------- the skeleton's sunlight escape (Slice TF-7b)
@@ -10562,6 +10924,53 @@ public final class MobEntity implements LivingEntity {
      * @return whether a candidate won (the stroll's canStart null gate).
      */
     private boolean pickStrollTarget() {
+        Position pick = targetFinderPick(STROLL_RANGE, STROLL_VERTICAL);
+        if (pick == null) {
+            return false; // canStart's null: the goal waits for the next roll
+        }
+        strollTarget = pick;
+        return true;
+    }
+
+    /**
+     * Wave PE-15 — the shared TargetFinder walk (TargetFinder.getTarget
+     * lines 26-88) the stroll, the panic and the flee's away-form all
+     * ride: ten random candidates in the ±horizontal/±vertical band
+     * around the body's FLOOR cell, the HIGHEST favor wins (the flat
+     * {@code -99999.0F} seed, the strict {@code >} — an earlier
+     * candidate wins ties), the village arms for a cache-set body (the
+     * villager's own — the nudge toward the center and the in-band
+     * isValidGoalTarget gate). The plain form answers the stroll's
+     * 10/7 pair and EscapeDangerGoal's 5/4 (lines 26-28 — the
+     * startOffset-null arm).
+     *
+     * @return the winning cell, or null when no candidate passed
+     */
+    private Position targetFinderPick(int horizontalRange, int verticalRange) {
+        double[] pick = targetFinderWalk(horizontalRange, verticalRange, false, 0.0, 0.0);
+        return pick == null ? null : new Position(pick[0], pick[1], pick[2]);
+    }
+
+    /**
+     * The away form (TargetFinder.getTargetAwayFromEntity lines 18-21 +
+     * the half-plane filter at line 49): startOffset = mob − threat —
+     * every candidate whose displacement DOTS NEGATIVE against the
+     * offset (moving back TOWARD the threat) is rejected; the survivors
+     * are the away half-plane. FleeEntityGoal's canStart reads the
+     * FIXED 16/7 band (line 77), whatever the ctor's scare range.
+     *
+     * @return the winning cell in the away half-plane, or null
+     */
+    private Position targetFinderPickAway(int horizontalRange, int verticalRange,
+                                          double startOffsetX, double startOffsetZ) {
+        double[] pick = targetFinderWalk(horizontalRange, verticalRange, true,
+                startOffsetX, startOffsetZ);
+        return pick == null ? null : new Position(pick[0], pick[1], pick[2]);
+    }
+
+    /** The walk's own core (both entry forms share every arm). */
+    private double[] targetFinderWalk(int horizontalRange, int verticalRange,
+                                      boolean halfPlane, double offsetX, double offsetZ) {
         int mobCellX = (int) Math.floor(position.x());
         int mobCellY = (int) Math.floor(position.y());
         int mobCellZ = (int) Math.floor(position.z());
@@ -10572,7 +10981,7 @@ public final class MobEntity implements LivingEntity {
             // (+4.0) against the radius + the horizontal range.
             double d0 = cellSquaredDistance(mobCellX, mobCellY, mobCellZ,
                     villageCenterX, villageCenterY, villageCenterZ) + 4.0;
-            double d1 = villageRadius + STROLL_RANGE;
+            double d1 = villageRadius + horizontalRange;
             inBand = d0 < d1 * d1;
         }
         float best = -99999.0f;
@@ -10581,22 +10990,27 @@ public final class MobEntity implements LivingEntity {
         int bestY = 0;
         int bestZ = 0;
         for (int attempt = 0; attempt < 10; attempt++) {
-            int l = random.nextInt(2 * STROLL_RANGE + 1) - STROLL_RANGE;
-            int k1 = random.nextInt(2 * STROLL_VERTICAL + 1) - STROLL_VERTICAL;
-            int i1 = random.nextInt(2 * STROLL_RANGE + 1) - STROLL_RANGE;
+            int l = random.nextInt(2 * horizontalRange + 1) - horizontalRange;
+            int k1 = random.nextInt(2 * verticalRange + 1) - verticalRange;
+            int i1 = random.nextInt(2 * horizontalRange + 1) - horizontalRange;
+            // The half-plane filter (line 49): the away form rejects every
+            // candidate that moves back toward the threat.
+            if (halfPlane && l * offsetX + i1 * offsetZ < 0.0) {
+                continue;
+            }
             // The village nudge (lines 55-67): the cache-set body's
             // candidates pull toward the village center by up to half
             // the horizontal range.
-            if (inVillage && STROLL_RANGE > 1) {
+            if (inVillage && horizontalRange > 1) {
                 if (mobCellX > villageCenterX) {
-                    l -= random.nextInt(STROLL_RANGE / 2);
+                    l -= random.nextInt(horizontalRange / 2);
                 } else {
-                    l += random.nextInt(STROLL_RANGE / 2);
+                    l += random.nextInt(horizontalRange / 2);
                 }
                 if (mobCellZ > villageCenterZ) {
-                    i1 -= random.nextInt(STROLL_RANGE / 2);
+                    i1 -= random.nextInt(horizontalRange / 2);
                 } else {
-                    i1 += random.nextInt(STROLL_RANGE / 2);
+                    i1 += random.nextInt(horizontalRange / 2);
                 }
             }
             int candidateX = mobCellX + l;
@@ -10618,11 +11032,7 @@ public final class MobEntity implements LivingEntity {
                 }
             }
         }
-        if (!found) {
-            return false; // canStart's null: the goal waits for the next roll
-        }
-        strollTarget = new Position(bestX, bestY, bestZ);
-        return true;
+        return found ? new double[]{bestX, bestY, bestZ} : null;
     }
 
     /** The stroll's own interval (WanderAroundGoal's ctor parameter): 120
@@ -11581,7 +11991,12 @@ public final class MobEntity implements LivingEntity {
         if (mode == Mode.WANDER) {
             walk = walkSpeed();
         } else if (mode == Mode.PANIC) {
-            walk = walkSpeed() * PANIC_SPEED_MULTIPLIER;
+            // PE-15: the panic's speed is the per-kind EscapeDangerGoal
+            // parameter, carried by the goal's own goalWalkSpeed write
+            // every tick (the flat 1.8 band retired); the mode branch
+            // stands only as the fallback for a PANIC mode set without a
+            // live goal claim.
+            walk = walkSpeed();
         } else if (mode == Mode.CHASE) {
             walk = walkSpeed() * (type.traits.ranged() ? 1.0 : 1.1);
         }
@@ -11935,10 +12350,6 @@ public final class MobEntity implements LivingEntity {
                 modeTicks = fuse;
             }
         }
-    }
-
-    private float randomDirection() {
-        return random.nextFloat() * 360.0f;
     }
 
     /** The 1.8 yaw of a facing vector (yaw grows clockwise; -Z is south 0). */

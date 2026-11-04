@@ -38,6 +38,26 @@ class MobTargetFamilyTest {
         }
 
         @Override
+        public List<MobEntity> mobsOfKindInBox(MobType kind,
+                double minX, double minY, double minZ,
+                double maxX, double maxY, double maxZ) {
+            List<MobEntity> found = new ArrayList<>();
+            for (MobEntity mob : mobs) {
+                if (mob.dead() || mob.type() != kind) {
+                    continue;
+                }
+                Position p = mob.position();
+                double half = mob.type().width / 2.0;
+                if (p.x() + half > minX && p.x() - half < maxX
+                        && p.y() + mob.type().height > minY && p.y() < maxY
+                        && p.z() + half > minZ && p.z() - half < maxZ) {
+                    found.add(mob);
+                }
+            }
+            return found;
+        }
+
+        @Override
         public MobEntity nearestMobOfKind(double x, double y, double z, double range, MobType kind) {
             MobEntity best = null;
             double bestDistance = range * range;
@@ -125,18 +145,17 @@ class MobTargetFamilyTest {
         MobEntity skeleton = spawn(world, 820, MobType.SKELETON, new Position(0.5, 8.0, 0.5), 47L);
         MobEntity wolf = spawn(world, 821, MobType.WOLF, new Position(4.5, 8.0, 0.5), 48L);
 
-        // The flee runs through the mind's own gate (the pending scare is
-        // the mind's pre-computed wolf).
+        // PE-15: the flee runs FleeEntityGoal.canStart whole (the grown-box
+        // census, the away-half-plane pick, the path pair) — the goal claims
+        // on the mind's pass, the feet walk the picked cell's PATH.
         skeleton.tick(true); // the mind + body pass: the flee claims the walk
         assertEquals(MobEntity.Mode.PANIC, skeleton.mode(), "a wolf within 6 blocks owns the movement");
-        // The heading runs away from the wolf: the wolf sits at +x, so the
-        // walk's -sin(yaw) must drive the body -x — yaw near +90.
-        double expectedYaw = Math.toDegrees(Math.atan2(
-                -(skeleton.position().x() - wolf.position().x()),
-                skeleton.position().z() - wolf.position().z()));
-        assertEquals(expectedYaw, skeleton.yaw(), 1e-6, "the flee heads directly away");
-        assertTrue(Math.sin(Math.toRadians(skeleton.yaw())) > 0.9,
-                "the walk integrates -sin(yaw): the body moves -x, away from the wolf");
+        // The heading walks the away PATH: the wolf sits at +x, so the
+        // away half-plane keeps every candidate at -x — the walk's
+        // -sin(yaw) drives the body -x (yaw in the west band, sin >= 0).
+        assertTrue(Math.sin(Math.toRadians(skeleton.yaw())) >= -1e-6,
+                "the away half-plane's leg never walks toward the wolf (yaw "
+                        + skeleton.yaw() + ")");
 
         // Out of the 6-block range the flee stops claiming.
         world.mobs.remove(wolf);

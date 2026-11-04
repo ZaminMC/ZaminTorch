@@ -60,13 +60,15 @@ final class MobGoals {
         }
     };
 
-    /** Priority 1, exclusive: the hurt panic outranks everything but floating. */
+    /** Priority 1, exclusive: the hurt panic outranks everything but floating.
+     * (Wave PE-15 — EscapeDangerGoal 1:1: the census, the attacker/fire
+     * gate, and TargetFinder's 5/4 pick all ride the canUse walk.) */
     static final MobGoal PANIC = new MobGoal() {
         @Override public String goalId() { return "panic"; }
         @Override public int priority() { return 1; }
         @Override public boolean exclusive() { return true; }
         @Override public boolean canUse(MobEntity mob, boolean night) {
-            return mob.goalPanicking();
+            return mob.goalPanicCanUse();
         }
         @Override public void tick(MobEntity mob, boolean night) {
             mob.goalTickPanic();
@@ -218,19 +220,49 @@ final class MobGoals {
         }
     };
 
+    /**
+     * Priority 1, exclusive (the band's third seat — Wave PE-15): the
+     * villager's zombie flee (VillagerEntity line 309,
+     * FleeEntityGoal(ZombieEntity.class, 8.0F, 0.6, 0.6) — the
+     * reference's own band 1, above every walk the villager carries):
+     * the grown-box zombie census, the away-half-plane pick, the path
+     * pair, and the 49-squared speed band inside the shared tick.
+     */
+    static final MobGoal VILLAGER_FLEE = new MobGoal() {
+        @Override public String goalId() { return "flee_zombie"; }
+        @Override public int priority() { return 1; }
+        @Override public boolean exclusive() { return true; }
+        @Override public boolean canUse(MobEntity mob, boolean night) {
+            return mob.goalFleeZombieCanUse();
+        }
+        @Override public void tick(MobEntity mob, boolean night) {
+            mob.goalTickFlee();
+        }
+    };
+
+    /**
+     * Priority 3, exclusive: the flee family (FleeEntityGoal 1:1 — Wave
+     * PE-15 rebuilt the whole band): the ocelot's player-flee (the
+     * reference's band 4, 16.0F/0.8/1.33 — the tamed cat never flees),
+     * the rabbit's wolf-flee (band 4, 16.0F/1.33/1.33 — the killer
+     * bunny never flees), the skeleton's wolf-flee (band 3,
+     * 6.0F/1.0/1.2 — Slice 16b's intercept migrated onto the goal), and
+     * the creeper's ocelot-flee (band 3, 6.0F/1.0/1.2 — the famous
+     * cat-scares-creeper, yielding to the ignite's own band-2 claim).
+     * Every site rides the same grown-box census, the away-half-plane
+     * pick, the farther-check, and the path pair; the shared tick
+     * carries the 49-squared speed band.
+     */
     static final MobGoal FLEE_PLAYER = new MobGoal() {
         @Override public String goalId() { return "flee_player"; }
         @Override public int priority() { return 3; }
         @Override public boolean exclusive() { return true; }
         @Override public boolean canUse(MobEntity mob, boolean night) {
-            return mob.goalFleePlayerCanUse() || mob.goalFleeWolfCanUse();
+            return mob.goalFleePlayerCanUse() || mob.goalFleeWolfCanUse()
+                    || mob.goalFleeWolfSkeletonCanUse() || mob.goalFleeCatCanUse();
         }
         @Override public void tick(MobEntity mob, boolean night) {
-            if (mob.type() == MobType.RABBIT) {
-                mob.goalFleeWolfTick();
-            } else {
-                mob.goalFleePlayerTick();
-            }
+            mob.goalTickFlee();
         }
     };
 
@@ -350,7 +382,8 @@ final class MobGoals {
      * (kind-gated, never contending with the tameable band).
      */
     static GoalSelector standard() {
-        return new GoalSelector(List.of(FLOAT, AVOID_SUNLIGHT, PANIC, BREAK_DOOR, BREED,
+        return new GoalSelector(List.of(FLOAT, AVOID_SUNLIGHT, PANIC, BREAK_DOOR,
+                VILLAGER_FLEE, BREED,
                 BEG, TEMPT, ESCAPE_SUNLIGHT, FLEE_PLAYER, FOLLOW_OWNER, SIT_ON_BLOCK,
                 RABBIT_RAID_FARM, VILLAGE_RETURN, RANDOM_STROLL));
     }
