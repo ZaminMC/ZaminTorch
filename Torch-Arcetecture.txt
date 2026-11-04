@@ -8298,15 +8298,75 @@ teleport). LANES: the armorstand + dispenser-armor families 31/0,
 the projectile package 55/0, the entity families 621/0, the
 adjacent pearl/xp lanes 33/0.
 
-NEXT WORK (re-pinned, in order): the remaining Phase E boundary
-arms (the projectile family's grown-0.3 ray consult — the engine's
-point-sampling approximation vs the reference's getShape().grown
-(0.3) ray-clip, the razor-thin hull-adjacent band the PE-18 bounce
-exposed; the mob/player/vehicle consults ride the same convention,
-the exact slab-method port the fishing hook already carries as the
-pattern); the Section X version-fidelity gate (§X.13, the FL4
-ledger's own row); the CI census watches (the environmental class,
-unchanged).
+WAVE PE-19 LANDED (2026-11-04): THE PROJECTILE FAMILY'S GROWN-0.3
+RAY CONSULT — the entity scan's EXACT segment form (the Phase E
+boundary arms' head, the last re-pin's own row): the reference's
+ONE getEntities walk (ArrowEntity.tick lines 187-229, the same
+convention ThrownEntity lines 147-180 and the fireball base's
+lines 104-139 ride) is now the ENGINE'S flight resolution whole —
+the BLOCK RAY over the whole step first (the reference's
+world.rayTrace; the stick walk's own reconstruction, VT-014's
+cell-and-box walk now the trigger too: a thin wall the step
+crosses whole never tunnels), the ENTITY RAY CLIPPED at the block
+face (the reference's vec3d1 = hitresult.facePos — a body behind
+a wall is never struck, however near the column), the ONE entity
+scan over the clipped ray (every hasCollision body's OWN box
+grown 0.3 — getShape().grown(0.3F) — the Box.clip slab method
+ported 1:1 as ProjectileManager.clipSegment with the reference's
+intermediateWith parallel guard, the [0,1] parameter band, the
+INCLUSIVE other-axis bounds, and the origin-inside EXIT-face law
+whole), the CLOSEST intercept by squared distance winning across
+EVERY family (d1 < d0 || d0 == 0.0, the first-found edge
+included) — the cross-family closest retiring the pre-fix fixed
+family order. THE CENSUS (the fishing hook's PE-9/PE-13 walk, the
+same hasCollision answers): the mobs (the DRAGON EXCLUDED — its
+own box never collides, EnderDragonEntity.hasCollision line 597
+false; the pre-fix mobAt point consult wounded the dragon's 16x8
+box DIRECTLY, the part walk dead code under it — the wave's own
+find), the players (the shooter's own refusal window, the
+family's own 5/25 law), the armor stands (the non-marker bodies,
+the normal 0.5x1.975 and small 0.25x0.9875 hulls), the vehicles
+(the cart and boat hulls), the ender crystals (the End's own, the
+2x2 hull), and the dragon parts (each tick-shrunk part hull, the
+/4+1 wound walk carried whole through the body-form sink). THE
+ADJACENT RETIRES: the crystal and dragon sinks moved to the BODY
+form (the grown hull's intercept lying OUTSIDE the ungrown box
+the old point consult read — the pop consult would have missed
+the graze whole); the pearl's owner pass-through consumes the
+tick's collision work WITHOUT a removal (the reference's early
+return ahead of any block arm); the shooter's own window now the
+reference's exact >= form; the TNT ignite cell the HIT BLOCK's
+own cell (the reference's hitresult.getPos()); the bottle's burst
+on ANY struck body including the vehicles (the cart hull the
+pre-fix bottle arm never consulted). THE STANDING TAILS (the next
+census wave's own rows): the primed TNT, the decorations (the
+item frames and the paintings), and the other projectiles — the
+hasCollision bodies whose hit arms (the arrow's bounce off a
+primed TNT, the frame pop) the engine does not route yet. SEATS:
+ProjectileRayScanParityDiscoveryTest 4/0 — RED 4/4 on the
+pre-fix engine (the mob-side graze: the grown band's wound the
+point samples never saw; the stand-side graze: the PE-18 bounce's
+own razor-thin band one-shotting from OUTSIDE the ungrown hull;
+the cross-family closest: the stand's grown hull winning over the
+farther cow — the pre-fix fixed order wounded the COW; the
+thin-wall clip: the full-speed arrow sticking IN the wall, the
+cow behind it unharmed — the pre-fix endpoint sample wounded the
+cow); RayScanRoutingLawTest 8/0 (the clip math's own law: the
+entry face, the INCLUSIVE graze boundary, the origin-inside
+EXIT-face law, the parallel-outside reject, the closest-face
+compare; the crystal and dragon-part routing through the body
+forms; the pearl's owner pass-through). LANES: the projectile
+package 71/0, the armorstand + stand/fishing seats 18/0, the
+crystal/dragon/TNT seats 20/0, the entity families 629/0, the
+full build green.
+
+NEXT WORK (re-pinned, in order): the entity scan's census tail
+(the primed TNT, the item frames and the paintings, the other
+projectiles — the hasCollision bodies riding the SAME grown-0.3
+clip, their per-family hit arms: the arrow's bounce off a
+refused body, the frame's pop, the bobber's own deflect); the
+Section X version-fidelity gate (§X.13, the FL4 ledger's own
+row); the CI census watches (the environmental class, unchanged).
 
 VT-033'S ADJACENT TAILS LANDED (2026-11-02, commit d96f4a2a — #146's
 review-note ledger retired): the WITHER FALL's kill row and the BEACON

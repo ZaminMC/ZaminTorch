@@ -2590,6 +2590,10 @@ public final class EngineServer implements Server, EngineBridge {
                         PROJECTILE_ID_BASE);
                 this.projectileManager = projectiles;
                 projectiles.setEventBus(eventBus); // §27.7: the public projectile-spawn gate
+                // Wave PE-19 — the entity scan's exact segment form: the
+                // engine's flight resolution rides the reference's ONE
+                // getEntities walk (the resolver below carries the census).
+                projectiles.setBodyScan(new ProjectileHitResolver());
                 // The burning arrow's TNT arm (the per-block entity
                 // collision): the arm reads the fields lazily — the TNT
                 // system is constructed later in the boot, and the pass
@@ -2986,36 +2990,29 @@ public final class EngineServer implements Server, EngineBridge {
                 // The ender crystal's pop (Slice 62 — any projectile that
                 // crosses a crystal's box wounds it: EnderCrystalEntity
                 // .takeDamage has no source gate, the arrow's pop is the
-                // canonical one).
-                projectiles.setCrystalSink((x, y, z) -> enderCrystals != null
-                        && enderCrystals.damageAt(x, y, z));
+                // canonical one). Wave PE-19 — the BODY form: the entity
+                // scan supplies the struck crystal whole (the grown hull's
+                // intercept lying outside the ungrown box the old point
+                // consult read).
+                projectiles.setCrystalSink(crystal -> enderCrystals != null
+                        && enderCrystals.damage(crystal));
                 // The dragon part's wound (Slice 63 — EnderDragonPart
                 // .takeDamage → the part walk): the hull's holder takes the
                 // projectile's damage through the gates (the non-head /4+1,
                 // the player-or-explosive source — mob shooters' arrows
-                // glance off, the reference's own law).
-                projectiles.setDragonSink((x, y, z, damage, explosive, shooterId) -> {
+                // glance off, the reference's own law). Wave PE-19 — the
+                // BODY form: the scan supplies the struck dragon + part.
+                projectiles.setDragonSink((dragon, part, at, damage, explosive, shooterId) -> {
                     PlayerSession shooter = playerByEngineId(shooterId);
-                    for (MobEntity dragon : mobManager.all()) {
-                        if (dragon.type() != net.zaminmc.torch.server.entity.MobType.ENDER_DRAGON
-                                || dragon.dead() || dragon.dimension() != 1) {
-                            continue;
-                        }
-                        var part = dragon.dragonPartAt(x, y, z);
-                        if (part == null) {
-                            continue;
-                        }
-                        float wound = dragon.dragonDamagePart(part, damage,
-                                shooter != null, explosive);
-                        if (wound > 0.0f) {
-                            mobManager.hurt(dragon, wound,
-                                    Math.toDegrees(Math.atan2(-(x - dragon.position().x()),
-                                            z - dragon.position().z())),
-                                    net.zaminmc.torch.event.DamageCause.PROJECTILE);
-                        }
-                        return true; // the part ate the projectile either way
+                    float wound = dragon.dragonDamagePart(part, damage,
+                            shooter != null, explosive);
+                    if (wound > 0.0f) {
+                        mobManager.hurt(dragon, wound,
+                                Math.toDegrees(Math.atan2(-(at.x() - dragon.position().x()),
+                                        at.z() - dragon.position().z())),
+                                net.zaminmc.torch.event.DamageCause.PROJECTILE);
                     }
-                    return false;
+                    return true; // the part ate the projectile either way
                 });
                 // The bottle o' enchanting's burst (Slice 65 —
                 // ExperienceBottleEntity.onCollision lines 28-43): the
@@ -21652,7 +21649,8 @@ public final class EngineServer implements Server, EngineBridge {
                 session.dimension());
     }
 
-    private final class ProjectileHitResolver implements ProjectileManager.HitResolver {
+    private final class ProjectileHitResolver
+            implements ProjectileManager.HitResolver, ProjectileManager.BodyScan {
         @Override
         public MobEntity mobAt(Position point, int dimension) {
             // Wave TF-9 — the reference's same-world entity scan: only the
@@ -21730,6 +21728,175 @@ public final class EngineServer implements Server, EngineBridge {
                 }
             }
             return null;
+        }
+
+        /**
+         * THE ENTITY SCAN'S EXACT SEGMENT FORM (Wave PE-19 — the
+         * reference's ONE {@code getEntities} walk, ArrowEntity.tick
+         * lines 198-216 / ThrownEntity lines 159-176 / ProjectileEntity
+         * lines 114-131): every {@code hasCollision} body's OWN box
+         * grown 0.3, the (block-clipped) segment tested against it with
+         * the reference's {@code Box.clip} (the manager's own 1:1 port),
+         * the CLOSEST intercept by squared distance winning ({@code d1 <
+         * d0 || d0 == 0.0} — the first-found edge included 1:1). The
+         * census (the fishing hook's PE-9/PE-13 walk — the same
+         * hasCollision answers): the mobs (the DRAGON EXCLUDED — its
+         * own box never collides, EnderDragonEntity.hasCollision line
+         * 597's false, the PARTS alone carrying it), the players (the
+         * shooter's own refusal window, the family's own 5/25 law), the
+         * armor stands (the non-marker bodies), the vehicles, the ender
+         * crystals (the End's own bodies), and the dragon parts. The
+         * standing tails (the next census wave's own rows): the primed
+         * TNT, the decorations (the item frames and the paintings), and
+         * the other projectiles — the hasCollision bodies the engine's
+         * hit arms do not route yet.
+         */
+        @Override
+        public ProjectileManager.StruckBody scanAlong(Position from, Position to,
+                int throwerId, int airTicks, int immunityTicks, int dimension) {
+            ProjectileManager.StruckBody best = null;
+            double bestD2 = 0.0;
+            // The mobs — LivingEntity's own census (lines 1594-1595).
+            for (MobEntity mob : mobManager.all()) {
+                if (mob.dead() || mob.dimension() != dimension) {
+                    continue; // !removed / another world's body
+                }
+                if (mob.type() == net.zaminmc.torch.server.entity.MobType.ENDER_DRAGON) {
+                    continue; // the parts alone carry the dragon's collision
+                }
+                if (mob.entityId() == throwerId && airTicks < immunityTicks) {
+                    continue; // the shooter's own refusal window
+                }
+                double half = mob.type().width / 2.0;
+                ProjectileManager.SegmentClip clip = ProjectileManager.clipSegment(from, to,
+                        mob.position().x() - half - 0.3,
+                        mob.position().y() - 0.3,
+                        mob.position().z() - half - 0.3,
+                        mob.position().x() + half + 0.3,
+                        mob.position().y() + mob.type().height + 0.3,
+                        mob.position().z() + half + 0.3);
+                if (clip != null && (bestD2 == 0.0 || clip.squaredDistance() < bestD2)) {
+                    best = ProjectileManager.StruckBody.mob(mob, clip.at());
+                    bestD2 = clip.squaredDistance();
+                }
+            }
+            // The players (the shooter's own refusal window — the
+            // reference's entity1 != livingentity || ticksInAir >= 5).
+            for (PlayerSession player : players.all()) {
+                if (player.state() != PlayerState.PLAYING || player.dead()) {
+                    continue; // !removed
+                }
+                if (player.dimension() != dimension) {
+                    continue; // another world's body
+                }
+                if (player.engineEntityId() == throwerId && airTicks < immunityTicks) {
+                    continue; // the shooter's own refusal window
+                }
+                Position p = player.position();
+                ProjectileManager.SegmentClip clip = ProjectileManager.clipSegment(from, to,
+                        p.x() - 0.6, p.y() - 0.3, p.z() - 0.6,
+                        p.x() + 0.6, p.y() + 1.8 + 0.3, p.z() + 0.6);
+                if (clip != null && (bestD2 == 0.0 || clip.squaredDistance() < bestD2)) {
+                    best = ProjectileManager.StruckBody.player(player, clip.at());
+                    bestD2 = clip.squaredDistance();
+                }
+            }
+            // The armor stands (ArmorStandEntity.hasCollision line 727 —
+            // the non-marker body; the normal form's 0.5x1.975 hull, the
+            // small form's 0.25x0.9875, grown 0.3).
+            if (armorStands != null) {
+                for (net.zaminmc.torch.server.armorstand.ArmorStand stand
+                        : armorStands.allStands()) {
+                    if (stand.dimension() != dimension || stand.marker()) {
+                        continue; // another world's stand / the marker never collides
+                    }
+                    double half = (stand.small() ? 0.125 : 0.25) + 0.3;
+                    double top = stand.y() + (stand.small() ? 0.9875 : 1.975) + 0.3;
+                    ProjectileManager.SegmentClip clip = ProjectileManager.clipSegment(from, to,
+                            stand.x() - half, stand.y() - 0.3, stand.z() - half,
+                            stand.x() + half, top, stand.z() + half);
+                    if (clip != null
+                            && (bestD2 == 0.0 || clip.squaredDistance() < bestD2)) {
+                        best = ProjectileManager.StruckBody.stand(stand, clip.at());
+                        bestD2 = clip.squaredDistance();
+                    }
+                }
+            }
+            // The vehicles (MinecartEntity line 177 + BoatEntity line 125 —
+            // each cart's own 0.98x0.7 hull, the boat's 1.5x0.4, grown 0.3).
+            net.zaminmc.torch.server.entity.vehicle.VehicleManager vehicles = vehicleManager;
+            if (vehicles != null) {
+                for (net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle
+                        : vehicles.all()) {
+                    if (vehicle.dead() || vehicle.dimension() != dimension) {
+                        continue; // !removed / another world's body
+                    }
+                    boolean boat = vehicle.kind()
+                            == net.zaminmc.torch.server.entity.vehicle.VehicleEntity.Kind.BOAT;
+                    double halfWidth = boat
+                            ? net.zaminmc.torch.server.entity.vehicle.BoatEntity.HULL_WIDTH / 2.0
+                            : net.zaminmc.torch.server.entity.vehicle.MinecartEntity.CART_WIDTH / 2.0;
+                    double halfHeight = boat
+                            ? net.zaminmc.torch.server.entity.vehicle.BoatEntity.HALF_HEIGHT
+                            : net.zaminmc.torch.server.entity.vehicle.MinecartEntity.HALF_HEIGHT;
+                    ProjectileManager.SegmentClip clip = ProjectileManager.clipSegment(from, to,
+                            vehicle.position().x() - halfWidth - 0.3,
+                            vehicle.position().y() - halfHeight - 0.3,
+                            vehicle.position().z() - halfWidth - 0.3,
+                            vehicle.position().x() + halfWidth + 0.3,
+                            vehicle.position().y() + halfHeight + 0.3,
+                            vehicle.position().z() + halfWidth + 0.3);
+                    if (clip != null
+                            && (bestD2 == 0.0 || clip.squaredDistance() < bestD2)) {
+                        best = ProjectileManager.StruckBody.vehicle(vehicle, clip.at());
+                        bestD2 = clip.squaredDistance();
+                    }
+                }
+            }
+            // The ender crystals (EnderCrystalEntity.hasCollision line 62 —
+            // the 2x2 hull, grown 0.3; the crystals live in the End).
+            if (enderCrystals != null && dimension == 1) {
+                for (net.zaminmc.torch.server.endcrystal.EnderCrystal crystal
+                        : enderCrystals.all()) {
+                    ProjectileManager.SegmentClip clip = ProjectileManager.clipSegment(from, to,
+                            crystal.x() - 1.0 - 0.3, crystal.y() - 0.3,
+                            crystal.z() - 1.0 - 0.3,
+                            crystal.x() + 1.0 + 0.3, crystal.y() + 2.0 + 0.3,
+                            crystal.z() + 1.0 + 0.3);
+                    if (clip != null
+                            && (bestD2 == 0.0 || clip.squaredDistance() < bestD2)) {
+                        best = ProjectileManager.StruckBody.crystal(crystal, clip.at());
+                        bestD2 = clip.squaredDistance();
+                    }
+                }
+            }
+            // The dragon parts (EnderDragonPart.hasCollision line 31 — the
+            // parts alone carry the dragon's collision; the dragon's own
+            // box answers false, line 597): each part's own tick-shrunk
+            // width x height hull, grown 0.3.
+            for (MobEntity dragon : mobManager.all()) {
+                if (dragon.type() != net.zaminmc.torch.server.entity.MobType.ENDER_DRAGON
+                        || dragon.dead() || dragon.dimension() != dimension) {
+                    continue;
+                }
+                MobEntity.DragonPart[] parts = dragon.dragonParts();
+                if (parts == null) {
+                    continue; // a dragon-form body the spawn never armed
+                }
+                for (MobEntity.DragonPart part : parts) {
+                    double half = part.width / 2.0 + 0.3;
+                    ProjectileManager.SegmentClip clip = ProjectileManager.clipSegment(from, to,
+                            part.x() - half, part.y() - 0.3, part.z() - half,
+                            part.x() + half, part.y() + part.height + 0.3,
+                            part.z() + half);
+                    if (clip != null
+                            && (bestD2 == 0.0 || clip.squaredDistance() < bestD2)) {
+                        best = ProjectileManager.StruckBody.dragonPart(dragon, part, clip.at());
+                        bestD2 = clip.squaredDistance();
+                    }
+                }
+            }
+            return best;
         }
     }
 

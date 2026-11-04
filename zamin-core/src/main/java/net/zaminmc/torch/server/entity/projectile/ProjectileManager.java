@@ -138,6 +138,105 @@ public final class ProjectileManager {
     }
 
     /**
+     * The entity scan's answer (Wave PE-19): the ONE struck body the
+     * reference's {@code getEntities} walk found — exactly one family
+     * arm non-null, the family routing the hit — together with the
+     * intercept position (the grown hull's crossed face, the point the
+     * family's own arms read).
+     */
+    public record StruckBody(
+            /** The struck mob (the dragon EXCLUDED — its parts carry its
+             *  collision, EnderDragonEntity.hasCollision line 597 false). */
+            MobEntity mob,
+            /** The struck player. */
+            PlayerSession player,
+            /** The struck vehicle (the minecart and boat hulls). */
+            net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle,
+            /** The struck armor stand (the non-marker body). */
+            net.zaminmc.torch.server.armorstand.ArmorStand stand,
+            /** The struck ender crystal (the End's own bodies). */
+            net.zaminmc.torch.server.endcrystal.EnderCrystal crystal,
+            /** The struck dragon (the parts' holder — the part arm below). */
+            MobEntity dragon,
+            /** The struck dragon part (EnderDragonPart.hasCollision line 31). */
+            MobEntity.DragonPart dragonPart,
+            /** The grown hull's crossed face (the clip's intercept). */
+            Position at) {
+
+        /** Whether any body answered the scan. */
+        public boolean struck() {
+            return mob != null || player != null || vehicle != null
+                    || stand != null || crystal != null || dragon != null;
+        }
+
+        /** The mob arm's factory. */
+        public static StruckBody mob(MobEntity mob, Position at) {
+            return new StruckBody(mob, null, null, null, null, null, null, at);
+        }
+
+        /** The player arm's factory. */
+        public static StruckBody player(PlayerSession player, Position at) {
+            return new StruckBody(null, player, null, null, null, null, null, at);
+        }
+
+        /** The vehicle arm's factory. */
+        public static StruckBody vehicle(
+                net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle, Position at) {
+            return new StruckBody(null, null, vehicle, null, null, null, null, at);
+        }
+
+        /** The stand arm's factory. */
+        public static StruckBody stand(
+                net.zaminmc.torch.server.armorstand.ArmorStand stand, Position at) {
+            return new StruckBody(null, null, null, stand, null, null, null, at);
+        }
+
+        /** The crystal arm's factory. */
+        public static StruckBody crystal(
+                net.zaminmc.torch.server.endcrystal.EnderCrystal crystal, Position at) {
+            return new StruckBody(null, null, null, null, crystal, null, null, at);
+        }
+
+        /** The dragon-part arm's factory. */
+        public static StruckBody dragonPart(MobEntity dragon,
+                MobEntity.DragonPart part, Position at) {
+            return new StruckBody(null, null, null, null, null, dragon, part, at);
+        }
+    }
+
+    /**
+     * THE ENTITY SCAN SURFACE (Wave PE-19 — the reference's ONE walk,
+     * the exact segment form): the flight segment clipped against every
+     * {@code hasCollision} body's OWN box grown 0.3 (the reference's
+     * {@code getShape().grown(0.3F)} + {@code Box.clip}, ArrowEntity
+     * lines 198-216 / ThrownEntity lines 159-176 / ProjectileEntity
+     * lines 114-131 — the same convention the fishing hook's PE-9
+     * consult carries), the CLOSEST intercept by squared distance
+     * winning ({@code d1 < d0 || d0 == 0.0}). Wired by the engine; the
+     * stub rigs leave it unset and keep the coarse point-sample path.
+     */
+    public interface BodyScan {
+        /**
+         * The struck body along the segment [{@code from}, {@code to}]
+         * (already clipped at the block ray's face by the caller — the
+         * reference clips the entity ray at the rayTrace hit), or null.
+         *
+         * @param throwerId     the launching body's engine id (the
+         *                      shooter's own gate)
+         * @param airTicks      the flight's air clock (the reference's
+         *                      {@code inAirTicks} at the scan)
+         * @param immunityTicks the shooter's own refusal window (the
+         *                      thrown family's 5, the fireball base's
+         *                      25 — the family's own law the caller
+         *                      resolves)
+         * @param dimension     the projectile's own dimension (the
+         *                      reference's same-world gather)
+         */
+        StruckBody scanAlong(Position from, Position to, int throwerId,
+                             int airTicks, int immunityTicks, int dimension);
+    }
+
+    /**
      * The fireball's landing arm (SmallFireballEntity.onHit lines 34-49):
      * place the fire block at the first air cell the fireball crossed before
      * the solid one. Wired by the engine; runs on the tick thread.
@@ -349,39 +448,45 @@ public final class ProjectileManager {
     }
 
     /**
-     * The ender-crystal consult (Slice 62 — EnderCrystalEntity.takeDamage
+     * The ender-crystal pop arm (Slice 62 — EnderCrystalEntity.takeDamage
      * lines 67-83: ANY damage source pops the crystal — the arrow's pop is
-     * the canonical one). Wired by the engine; runs on the tick thread.
+     * the canonical one; Wave PE-19 — the BODY form: the entity scan
+     * supplies the struck crystal whole, the grown hull's intercept
+     * lying OUTSIDE the ungrown box the old point consult read). Wired
+     * by the engine; runs on the tick thread.
      */
     public interface CrystalSink {
         /**
-         * The crystal whose 2x2x2 box holds the point takes its wound
-         * (the removal + the 6.0F blast ride the system's own death walk).
+         * The struck crystal takes its wound (the removal + the 6.0F
+         * blast ride the system's own death walk).
          *
          * @return true when a crystal popped (the projectile dies with it).
          */
-        boolean hitCrystal(double x, double y, double z);
+        boolean hitCrystal(net.zaminmc.torch.server.endcrystal.EnderCrystal crystal);
     }
 
     /**
-     * The dragon-part consult (Slice 63 — EnderDragonPart.takeDamage →
-     * the dragon's own part walk): the projectile's crossing of a part
-     * hull wounds the BODY through the part gates (the non-head /4+1, the
-     * head-front reset, the player-or-explosive source).
+     * The dragon-part wound arm (Slice 63 — EnderDragonPart.takeDamage
+     * → the dragon's own part walk; Wave PE-19 — the BODY form: the scan
+     * supplies the struck dragon + part whole): the projectile's
+     * crossing of a part hull wounds the BODY through the part gates
+     * (the non-head /4+1, the head-front reset, the player-or-explosive
+     * source).
      */
     public interface DragonSink {
         /**
-         * The part whose hull holds the point takes the projectile's hit.
+         * The struck part takes the projectile's hit.
          *
-         * @param damage   the projectile's computed damage (the speed-scaled
-         *                 arrow, the per-kind flats)
+         * @param at        the grown hull's crossed face (the intercept)
+         * @param damage    the projectile's computed damage (the speed-scaled
+         *                  arrow, the per-kind flats)
          * @param explosive whether the source is explosive (the fireball
-         *                 family — the damage gate's other arm)
+         *                  family — the damage gate's other arm)
          * @param shooterId the thrower's engine id (the player-source gate)
          * @return true when a part took the hit (the projectile dies).
          */
-        boolean hitDragonPart(double x, double y, double z, float damage,
-                              boolean explosive, int shooterId);
+        boolean hitDragonPart(MobEntity dragon, MobEntity.DragonPart part,
+                              Position at, float damage, boolean explosive, int shooterId);
     }
 
     /**
@@ -426,11 +531,17 @@ public final class ProjectileManager {
      * lines 96-113); optional until wired. */
     private TntIgniteSink tntIgniteSink = (pos, dimension) -> false;
     /** The ender crystal's pop arm (Slice 62); optional until wired. */
-    private CrystalSink crystalSink = (x, y, z) -> false;
+    private CrystalSink crystalSink = crystal -> false;
     /** The dragon part's wound arm (Slice 63); optional until wired. */
-    private DragonSink dragonSink = (x, y, z, damage, explosive, shooterId) -> false;
+    private DragonSink dragonSink =
+            (dragon, part, at, damage, explosive, shooterId) -> false;
     /** The bottle o' enchanting's burst arm (Slice 65); optional until wired. */
     private XpBottleSink xpBottleSink = (x, y, z, throwerId, dimension) -> { };
+    /**
+     * The entity scan's exact segment form (Wave PE-19); null until the
+     * engine wires it — the stub rigs keep the coarse point-sample path.
+     */
+    private BodyScan bodyScan;
 
     /** Wires the fireball's fire-placement arm. */
     public void setFireSink(FireSink sink) {
@@ -479,6 +590,16 @@ public final class ProjectileManager {
     /** Wires the bottle o' enchanting's burst arm (Slice 65). */
     public void setXpBottleSink(XpBottleSink sink) {
         this.xpBottleSink = Objects.requireNonNull(sink, "sink");
+    }
+
+    /**
+     * Wires the entity scan's exact segment form (Wave PE-19): the
+     * engine's flight resolution flips to the reference's ONE walk —
+     * the block-ray clip + the grown-0.3 hull clip + the
+     * closest-intercept-wins — the stub rigs stay on the point samples.
+     */
+    public void setBodyScan(BodyScan scan) {
+        this.bodyScan = Objects.requireNonNull(scan, "scan");
     }
 
     public ProjectileManager(SolidQuery solid, HitResolver hits, CombatSink combat,
@@ -960,13 +1081,10 @@ public final class ProjectileManager {
             // never in the overworld's same-coordinate terrain.
             solid.setActiveDimension(projectile.dimension());
             // One historical step per tick (drag 0.99, gravity 0.05/0.03),
-            // then collisions sampled at the midpoint AND the endpoint — in
-            // flight order (midpoint first): a full-draw arrow crosses ~3
-            // blocks, and the midpoint halves the worst-case tunneling window
-            // without doubling the physics. The burning clock steps with the
-            // pass (the reference's onFireTimer decay). The fireball family
-            // rides its own constants: drag 0.95, no gravity, the per-tick
-            // acceleration (the reference's ProjectileEntity.tick).
+            // then the collision resolution. The burning clock steps with
+            // the pass (the reference's onFireTimer decay). The fireball
+            // family rides its own constants: drag 0.95, no gravity, the
+            // per-tick acceleration (the reference's ProjectileEntity.tick).
             projectile.tickFire();
             double drag = dragOf(projectile);
             Position before = projectile.position();
@@ -976,13 +1094,32 @@ public final class ProjectileManager {
                 continue;
             }
             Position after = projectile.position();
-            Position midpoint = new Position(
-                    (before.x() + after.x()) / 2.0,
-                    (before.y() + after.y()) / 2.0,
-                    (before.z() + after.z()) / 2.0);
-            if (resolveCollisions(projectile, before, midpoint)
-                    || resolveCollisions(projectile, before, after)) {
-                continue;
+            if (bodyScan != null) {
+                // Wave PE-19 — the ENGINE'S law, the reference's exact
+                // segment form (ArrowEntity.tick lines 187-229, the same
+                // convention every projectile family rides): the block ray
+                // over the WHOLE step (the reference's rayTrace — no
+                // midpoint/endpoint sampling, a thin wall the step crosses
+                // whole never tunnels), the entity ray CLIPPED at the block
+                // face, the ONE grown-0.3 entity scan with the closest
+                // intercept winning, the entity arm resolving ahead of the
+                // block arm.
+                if (resolveFlight(projectile, before, after)) {
+                    continue;
+                }
+            } else {
+                // The stub rigs' coarse path: collisions sampled at the
+                // midpoint AND the endpoint — in flight order (midpoint
+                // first), the engine's pre-PE-19 approximation kept whole
+                // for the test scaffolding.
+                Position midpoint = new Position(
+                        (before.x() + after.x()) / 2.0,
+                        (before.y() + after.y()) / 2.0,
+                        (before.z() + after.z()) / 2.0);
+                if (resolveCollisions(projectile, before, midpoint)
+                        || resolveCollisions(projectile, before, after)) {
+                    continue;
+                }
             }
             for (Listener listener : listeners) {
                 listener.onProjectileMoved(projectile);
@@ -1213,49 +1350,133 @@ public final class ProjectileManager {
     }
 
     /**
-     * Collisions at one sample point: entity hits first (the faster
-     * resolution), then blocks. Returns true when the projectile is resolved
-     * (removed or landed). The {@code from} position is the pre-tick origin —
-     * the fireball's fire placement walks back to the last air cell.
+     * THE RIG PATH (the stub scaffolding's coarse form — the engine
+     * rides {@link #resolveFlight}'s exact segment law since Wave
+     * PE-19): collisions at one sample point, entity hits first (the
+     * faster resolution), then blocks. Returns true when the projectile
+     * is resolved (removed or landed). The {@code from} position is the
+     * pre-tick origin — the fireball's fire placement walks back to the
+     * last air cell.
      */
     private boolean resolveCollisions(ProjectileEntity projectile, Position from, Position point) {
+        StruckBody struck = pointStruck(projectile, point);
+        if (struck != null) {
+            return resolveStruckBody(projectile, from, struck);
+        }
+        if (solid.solidAt(point.x(), point.y(), point.z())) {
+            return resolveBlockHit(projectile, from, point, stickSite(from, point));
+        }
+        return false;
+    }
+
+    /**
+     * Wave PE-19 — THE ENGINE'S FLIGHT RESOLUTION (the reference's exact
+     * segment form, ArrowEntity.tick lines 187-229 — the same convention
+     * ThrownEntity lines 147-180 and the fireball base's lines 104-139
+     * ride): the BLOCK RAY over the whole step first (the reference's
+     * {@code world.rayTrace} — the first collision-box face along the
+     * segment, the stick walk's own reconstruction at the engine's
+     * granularity), the ENTITY RAY CLIPPED at that face (the reference's
+     * {@code vec3d1 = hitresult.facePos} — a body behind a wall is never
+     * struck, however near the column), the ONE entity scan over the
+     * clipped ray (every {@code hasCollision} body's OWN box grown 0.3,
+     * the {@code Box.clip} slab method, the CLOSEST intercept by squared
+     * distance winning), the entity arm resolving ahead of the block arm
+     * ({@code if (entity != null) hitresult = new HitResult(entity)}),
+     * and the block arm last (the stick / the shatter / the detonation
+     * at the face, the endpoint residue the spawned-inside-block edge).
+     *
+     * <p>Returns true when the tick's collision work is consumed — the
+     * struck-body pass-through included (the pearl's owner: the reference
+     * consumes the hit without a removal).</p>
+     */
+    private boolean resolveFlight(ProjectileEntity projectile, Position from, Position to) {
+        // 1. THE BLOCK RAY (the reference's rayTrace, lines 191 + 109-111:
+        //    the entity ray's clip end).
+        StickSite site = stickSite(from, to);
+        Position rayEnd = site != null ? site.face() : to;
+        // 2. THE ENTITY SCAN over the clipped ray (the reference's ONE
+        //    getEntities walk, lines 198-216).
+        StruckBody struck = bodyScan.scanAlong(from, rayEnd,
+                projectile.throwerId(), projectile.age(),
+                throwerImmunityTicksOf(projectile), projectile.dimension());
+        if (struck != null && struck.struck()) {
+            return resolveStruckBody(projectile, from, struck);
+        }
+        // 3. THE BLOCK ARM — the ray's own site (the exact rayTrace hit),
+        //    or the endpoint residue (the spawned-inside-block edge the
+        //    walk's box-containment form answers).
+        if (site != null || solid.solidAt(to.x(), to.y(), to.z())) {
+            return resolveBlockHit(projectile, from, rayEnd, site);
+        }
+        return false;
+    }
+
+    /**
+     * The rig path's struck body: the ordered point consults (the mob,
+     * the player, the vehicle, the stand — the pre-PE-19 precedence)
+     * with the reference's own gates (the dead refused, the shooter's
+     * own window). Null when no body holds the sample point.
+     */
+    private StruckBody pointStruck(ProjectileEntity projectile, Position point) {
+        int window = throwerImmunityTicksOf(projectile);
+        MobEntity mob = hits.mobAt(point, projectile.dimension());
+        if (mob != null && !mob.dead()
+                && !(mob.entityId() == projectile.throwerId()
+                     && projectile.age() <= window)) {
+            return StruckBody.mob(mob, point);
+        }
+        PlayerSession player = hits.playerAt(point, projectile.dimension());
+        if (player != null && !player.dead()
+                && !(player.engineEntityId() == projectile.throwerId()
+                     && projectile.age() <= window)) {
+            return StruckBody.player(player, point);
+        }
+        net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle =
+                hits.vehicleAt(point, projectile.dimension());
+        if (vehicle != null && !vehicle.dead()) {
+            // No thrower immunity — the reference's scan exempts the
+            // THROWER alone, never the vehicle it rides.
+            return StruckBody.vehicle(vehicle, point);
+        }
+        net.zaminmc.torch.server.armorstand.ArmorStand stand =
+                hits.standAt(point, projectile.dimension());
+        if (stand != null) {
+            return StruckBody.stand(stand, point);
+        }
+        return null;
+    }
+
+    /**
+     * THE ENTITY ARM'S ROUTING (Wave PE-19 — one struck body, one law,
+     * both consult forms feeding it): the bottle's any-body burst, then
+     * the family arms — the mob, the player (the pearl's owner the
+     * pass-through), the vehicle, the armor stand (the PE-18 one-shot
+     * law), the ender crystal, the dragon part. The struck body's
+     * {@code at} (the grown hull's crossed face, or the rig's sample
+     * point) rides every position-reading arm.
+     */
+    private boolean resolveStruckBody(ProjectileEntity projectile, Position from,
+            StruckBody struck) {
         // --- the bottle o' enchanting (Slice 65) ------------------------------
         // ExperienceBottleEntity.onCollision: the burst IS the whole hit law
         // — no damage, no knockback, no crystal pop, no dragon wound (the
         // reference's onCollision never calls takeDamage). The burst lands
-        // on ANY collision: a body, a block. The thrower-immunity window
-        // still applies (the reference's ThrownEntity collision scan).
+        // on ANY struck body (the shooter's own window already refused at
+        // the consult — the reference's ThrownEntity collision scan).
         if (projectile.kind() == ProjectileEntity.Kind.EXPERIENCE_BOTTLE) {
-            MobEntity burstMob = hits.mobAt(point, projectile.dimension());
-            PlayerSession burstPlayer = hits.playerAt(point, projectile.dimension());
-            // Wave PE-18 — the stand census rides the burst consult too:
-            // ExperienceBottleEntity.onCollision's entity arm bursts on
-            // ANY struck body, the stand's hull included.
-            boolean burstOnStand = hits.standAt(point, projectile.dimension()) != null;
-            boolean burstOnMob = burstMob != null && !burstMob.dead()
-                    && !(burstMob.entityId() == projectile.throwerId()
-                         && projectile.age() <= THROWER_IMMUNITY_TICKS);
-            boolean burstOnPlayer = burstPlayer != null && !burstPlayer.dead()
-                    && !(burstPlayer.engineEntityId() == projectile.throwerId()
-                         && projectile.age() <= THROWER_IMMUNITY_TICKS);
-            if (burstOnMob || burstOnPlayer || burstOnStand
-                    || solid.solid(point.x(), point.y(), point.z())) {
-                xpBottleSink.burst(point.x(), point.y(), point.z(),
-                        projectile.throwerId(), projectile.dimension());
-                remove(projectile, "hit");
-                return true;
-            }
-            return false;
+            xpBottleSink.burst(struck.at().x(), struck.at().y(), struck.at().z(),
+                    projectile.throwerId(), projectile.dimension());
+            remove(projectile, "hit");
+            return true;
         }
-        // --- entity hit -------------------------------------------------------
-        MobEntity mob = hits.mobAt(point, projectile.dimension());
-        if (mob != null && !mob.dead()
-                && !(mob.entityId() == projectile.throwerId()
-                     && projectile.age() <= throwerImmunityTicksOf(projectile))) {
+        // --- mob hit -----------------------------------------------------------
+        if (struck.mob() != null) {
+            MobEntity mob = struck.mob();
             if (projectile.kind() == ProjectileEntity.Kind.POTION) {
                 // The splash on the struck body (PotionEntity.onCollision's
                 // result.entity arm — the direct hit answers proximity 1.0).
-                potionSink.splash(point.x(), point.y(), point.z(),
+                potionSink.splash(struck.at().x(), struck.at().y(), struck.at().z(),
                         projectile.potionDamage(), mob, projectile.throwerId(),
                         projectile.dimension());
             } else {
@@ -1280,17 +1501,21 @@ public final class ProjectileManager {
             remove(projectile, "hit");
             return true;
         }
-        PlayerSession player = hits.playerAt(point, projectile.dimension());
-        if (player != null && !player.dead()
-                && !(player.engineEntityId() == projectile.throwerId()
-                     && projectile.age() <= throwerImmunityTicksOf(projectile))) {
+        // --- player hit --------------------------------------------------------
+        if (struck.player() != null) {
+            PlayerSession player = struck.player();
             if (projectile.kind() == ProjectileEntity.Kind.ENDER_PEARL
                     && player.engineEntityId() == projectile.throwerId()) {
                 // EnderPearlEntity.onCollision lines 33-35: the owner is a
                 // pass-through — the pearl keeps flying (the reference's
-                // own early return; the pearl-boost trick's rule).
-            } else if (projectile.kind() == ProjectileEntity.Kind.POTION) {
-                potionSink.splash(point.x(), point.y(), point.z(),
+                // own early return; the pearl-boost trick's rule). The hit
+                // consumes the tick's collision work whole (the reference
+                // returned before any block arm — the pass-through never
+                // consults the wall the owner stands against).
+                return true;
+            }
+            if (projectile.kind() == ProjectileEntity.Kind.POTION) {
+                potionSink.splash(struck.at().x(), struck.at().y(), struck.at().z(),
                         projectile.potionDamage(), player, projectile.throwerId(),
                         projectile.dimension());
             } else {
@@ -1307,25 +1532,20 @@ public final class ProjectileManager {
                     pearlSink.teleportThrower(projectile.throwerId(), from);
                 }
             }
-            if (projectile.kind() != ProjectileEntity.Kind.ENDER_PEARL
-                    || player.engineEntityId() != projectile.throwerId()) {
-                remove(projectile, "hit");
-                return true;
-            }
+            remove(projectile, "hit");
+            return true;
         }
         // --- vehicle hit (Slice 77) --------------------------------------------
         // The reference's entity scan includes the minecarts: the arrow's
-        // onEntityHit lands on the cart's hull (the box containment). No
-        // thrower immunity — the reference's scan exempts the THROWER
-        // alone, never the vehicle it rides.
-        net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle =
-                hits.vehicleAt(point, projectile.dimension());
-        if (vehicle != null && !vehicle.dead()) {
+        // onEntityHit lands on the cart's hull. No thrower immunity — the
+        // reference's scan exempts the THROWER alone, never the vehicle it
+        // rides.
+        if (struck.vehicle() != null) {
             // VT-018's entity-hit arm — the same law at the vehicle site
             // (the reference's entity scan includes the minecarts; the
             // sink's landed verdict the gate — the detonated TNT cart
             // counts as landed, the reference's takeDamage true).
-            if (hitVehicle(projectile, vehicle)) {
+            if (hitVehicle(projectile, struck.vehicle())) {
                 playEntityHitBowhit(projectile, from);
             }
             remove(projectile, "hit");
@@ -1347,9 +1567,8 @@ public final class ProjectileManager {
         // walks refuse every effect's source), the small fireball dies
         // WITHOUT its fire or its ignite (both ride the true verdict), and
         // the ghast fireball and the wither skull detonate at the hull.
-        net.zaminmc.torch.server.armorstand.ArmorStand stand =
-                hits.standAt(point, projectile.dimension());
-        if (stand != null) {
+        if (struck.stand() != null) {
+            net.zaminmc.torch.server.armorstand.ArmorStand stand = struck.stand();
             if (projectile.kind() == ProjectileEntity.Kind.POTION) {
                 // The splash on the struck body (onCollision's direct-hit
                 // arm): the stand's proximity 1.0 grant is inert (the
@@ -1357,7 +1576,7 @@ public final class ProjectileManager {
                 // own wound walks refuse every effect's source the same
                 // way) — the block-arm form with no direct body is the
                 // observable equivalent.
-                potionSink.splash(point.x(), point.y(), point.z(),
+                potionSink.splash(struck.at().x(), struck.at().y(), struck.at().z(),
                         projectile.potionDamage(), null, projectile.throwerId(),
                         projectile.dimension());
             } else if (projectile.kind() == ProjectileEntity.Kind.ARROW) {
@@ -1372,8 +1591,9 @@ public final class ProjectileManager {
                 // gate): the arrow BOUNCES — ArrowEntity.onHit lines
                 // 279-285's else arm (the per-axis *-0.1, the clock
                 // reset) — the flight continues. The true return ends the
-                // sample pair (the reference's one onHit per tick; the
-                // next tick's integration flies the bounced arrow away).
+                // tick's collision work (the reference's one onHit per
+                // tick; the next tick's integration flies the bounced
+                // arrow away).
                 projectile.bounceOff();
                 return true;
             } else if (projectile.kind() == ProjectileEntity.Kind.ENDER_PEARL) {
@@ -1383,13 +1603,13 @@ public final class ProjectileManager {
             } else if (projectile.kind() == ProjectileEntity.Kind.WITHER_SKULL) {
                 // WitherSkullEntity.onHit line 83: the detonation at the
                 // struck body — the wound refused, the blast rides whole.
-                skullExplosionSink.explode(point, 1.0f, projectile.charged(),
+                skullExplosionSink.explode(struck.at(), 1.0f, projectile.charged(),
                         projectile.dimension());
             } else if (projectile.kind() == ProjectileEntity.Kind.LARGE_FIREBALL) {
                 // FireballEntity.onHit: the explosion at the struck body —
                 // the direct 6.0 refused by the stand's source-name gate,
                 // the detonation unconditional.
-                explosionSink.explode(point, 1.0f, projectile.dimension());
+                explosionSink.explode(struck.at(), 1.0f, projectile.dimension());
             } else if (projectile.kind() == ProjectileEntity.Kind.EGG
                     && rollEggHatch()) {
                 // EggEntity.onCollision's chick roll rides ANY collision —
@@ -1408,199 +1628,238 @@ public final class ProjectileManager {
         }
         // --- crystal hit (Slice 62) -------------------------------------------
         // EnderCrystalEntity.takeDamage lines 67-83: any damage source pops
-        // the crystal — the arrow's pop is the canonical one. The consult
-        // rides BEFORE the block arm: the pillar-top crystal's feet cell
-        // holds FIRE (non-solid), but the box spans two blocks of height
-        // and the block arm must never shadow the body.
-        if (crystalSink.hitCrystal(point.x(), point.y(), point.z())) {
-            // VT-018's entity-hit arm — the same law at the crystal site
-            // (the pop IS a landed hit: EnderCrystalEntity.takeDamage
-            // returns true on the detonation).
-            playEntityHitBowhit(projectile, from);
-            remove(projectile, "hit");
-            return true;
+        // the crystal — the arrow's pop is the canonical one. The scan
+        // supplies the struck body whole (the grown hull's intercept lying
+        // OUTSIDE the ungrown box the old point consult read — the pop
+        // consult would have missed it).
+        if (struck.crystal() != null) {
+            if (crystalSink.hitCrystal(struck.crystal())) {
+                // VT-018's entity-hit arm — the same law at the crystal site
+                // (the pop IS a landed hit: EnderCrystalEntity.takeDamage
+                // returns true on the detonation).
+                playEntityHitBowhit(projectile, from);
+                remove(projectile, "hit");
+                return true;
+            }
+            // The already-popped edge (the crystal gone between the scan
+            // and the wound): the hit consumed nothing — the block arm
+            // consults.
+            return false;
         }
         // --- dragon part hit (Slice 63) ----------------------------------------
         // EnderDragonPart.takeDamage → the part walk: the projectile's
         // damage with the per-kind flats (the same numbers hitMob carries)
         // and the source gates (the fireball family is explosive, the
-        // thrower's id the player gate).
-        if (dragonSink.hitDragonPart(point.x(), point.y(), point.z(),
-                projectileDamageForPart(projectile),
-                projectile.kind() == ProjectileEntity.Kind.LARGE_FIREBALL
-                        || projectile.kind() == ProjectileEntity.Kind.WITHER_SKULL,
-                projectile.throwerId())) {
-            // VT-018's entity-hit arm — the same law at the dragon-part
-            // site (the part walk's boolean the takeDamage verdict).
-            playEntityHitBowhit(projectile, from);
+        // thrower's id the player gate). The scan supplies the struck
+        // dragon + part whole (the reference's own hasCollision census:
+        // the dragon's body box never collides — line 597's false — the
+        // parts alone carry it, line 31's true).
+        if (struck.dragonPart() != null) {
+            if (dragonSink.hitDragonPart(struck.dragon(), struck.dragonPart(),
+                    struck.at(), projectileDamageForPart(projectile),
+                    projectile.kind() == ProjectileEntity.Kind.LARGE_FIREBALL
+                            || projectile.kind() == ProjectileEntity.Kind.WITHER_SKULL,
+                    projectile.throwerId())) {
+                // VT-018's entity-hit arm — the same law at the dragon-part
+                // site (the part walk's boolean the takeDamage verdict).
+                playEntityHitBowhit(projectile, from);
+                remove(projectile, "hit");
+                return true;
+            }
+            return false;
+        }
+        return false;
+    }
+
+    /**
+     * THE BLOCK ARM (Wave PE-19 — shared by both consult forms): the hit
+     * at a block. The callers gate the trigger (the rig path: the sample
+     * point solid; the engine's segment path: the ray's own site, or the
+     * endpoint residue) and pass the hit position — the arrow's stick
+     * ceremony (the site's own face + tracked cell, the endpoint residue
+     * the spawned-inside-block edge), the burning arrow's TNT consult
+     * at the HIT BLOCK's own cell (the reference's {@code hitresult
+     * .getPos()}, lines 307-309), the pearl's teleport, the fireball
+     * family's detonations, the potion's block splash, and the shard
+     * family's shatter.
+     */
+    private boolean resolveBlockHit(ProjectileEntity projectile, Position from,
+            Position hitAt, StickSite site) {
+        if (projectile.kind() == ProjectileEntity.Kind.EXPERIENCE_BOTTLE) {
+            // The bottle's burst on the block arm (the same law — the
+            // reference's onCollision bursts on ANY collision, a body or
+            // a block; the wound never lands, the remove unconditional).
+            xpBottleSink.burst(hitAt.x(), hitAt.y(), hitAt.z(),
+                    projectile.throwerId(), projectile.dimension());
             remove(projectile, "hit");
             return true;
         }
-        // --- block hit --------------------------------------------------------
-        if (solid.solidAt(point.x(), point.y(), point.z())) {
-            if (projectile.kind() == ProjectileEntity.Kind.ARROW) {
-                // VT-030 — the stick comes FIRST, the hit-block consult
-                // LAST (the reference's own order, ArrowEntity.tick's
-                // block arm lines 288-309): the tracked cell is stamped
-                // (289-295), the velocity := face−pos (296-298), the 0.05
-                // backoff (300-302), random.bowhit (303), inGround = true
-                // (304) — and ONLY THEN, still inside the same stick arm,
-                // {@code block.onEntityCollision(...)} (307-309). The old
-                // arm's "the arrow KEEPS ITS FLIGHT through the opened
-                // cell" misread the reference: true, the consult never
-                // removes the arrow — but it sticks it first (line 304
-                // precedes the consult at 308), and the opened cell is
-                // what UN-STICKS it a tick later (the tracked-cell
-                // consult, ArrowEntity lines 172-186). The pre-fix arm
-                // ignited and returned false, so landInGround never ran:
-                // the arrow flew through the opened cell at full flight
-                // speed — never stuck, never rested.
-                // VT-014 — the stick placement (the reference's rayTrace,
-                // ArrowEntity.tick line 191 + the stick arm's composition):
-                // the rest lands EXACTLY 0.05 OUTSIDE the hit face, on the
-                // approach side, in the cell the arrow flew through — never
-                // at the post-step endpoint buried inside the hit block, and
-                // never hanging in the air past a thin wall. The walk below
-                // reconstructs the reference's ray at the engine's
-                // granularity: the cells the segment crosses, each cell's
-                // collision boxes, the FIRST box entry the hit face. The
-                // stuck velocity KEEPS the face-relative vector (lines
-                // 296-298 — the un-stick arm's random*0.2 damping its only
-                // consumer), and the tracked cell stamps the box's OWN cell
-                // (the reference's hitresult cell, lines 289-295).
-                StickSite site = stickSite(from, point);
-                int stickCellX;
-                int stickCellY;
-                int stickCellZ;
-                double faceVectorX;
-                double faceVectorY;
-                double faceVectorZ;
-                if (site != null) {
-                    projectile.teleport(site.rest());
-                    stickCellX = site.cellX();
-                    stickCellY = site.cellY();
-                    stickCellZ = site.cellZ();
-                    faceVectorX = site.faceVectorX();
-                    faceVectorY = site.faceVectorY();
-                    faceVectorZ = site.faceVectorZ();
-                } else {
-                    // The endpoint residue (the engine's own edge: the
-                    // origin inside every box of the sample's cell — the
-                    // spawned-inside-block shape, where the reference's own
-                    // box-containment stick at lines 160-166 stands, or a
-                    // degenerate zero-step): the rest stays at the walk's
-                    // endpoint, the dead velocity zeroed.
-                    stickCellX = (int) Math.floor(point.x());
-                    stickCellY = (int) Math.floor(point.y());
-                    stickCellZ = (int) Math.floor(point.z());
-                    faceVectorX = 0;
-                    faceVectorY = 0;
-                    faceVectorZ = 0;
-                }
-                // VT-015 — the tracked cell's stamp rides the same
-                // ceremony (the reference's lines 289-295: the cell whose
-                // block the stick arm stamps is the cell the stick clock
-                // reads every tick until its block changes).
-                String stickBlockId = stickCellConsult != null
-                        ? stickCellConsult.blockIdAt(
-                                new net.zaminmc.torch.block.BlockPosition(
-                                        stickCellX, stickCellY, stickCellZ),
-                                projectile.dimension())
-                        : null;
-                projectile.landInGround(stickCellX, stickCellY, stickCellZ, stickBlockId,
-                        faceVectorX, faceVectorY, faceVectorZ);
-                // VT-018 — the stick's bowhit (ArrowEntity line 303):
-                // the reference plays random.bowhit at the rest — the
-                // volume 1.0, the pitch the reference's own random draw
-                // (1.2 / (nextFloat()*0.2 + 0.9), the band [~1.09,
-                // ~1.33]) — in the arrow's OWN world (the reference's
-                // playSound on the entity's world). The entity-hit arm
-                // plays the same name at line 276 (the same pitch law,
-                // a fresh draw) — the entity arm rides the landed
-                // verdict through playEntityHitBowhit below.
-                fx.sound(projectile.position(), "random.bowhit", 1.0f,
-                        (float) (1.2 / (random.nextFloat() * 0.2 + 0.9)),
-                        projectile.dimension());
-                for (Listener listener : listeners) {
-                    listener.onProjectileLanded(projectile);
-                }
-                // VT-030 — the burning arrow's TNT consult, AFTER the
-                // stick (the reference's lines 307-309 order:
-                // TntBlock.onEntityCollision lines 91-104 — the isOnFire
-                // gate is the TNT block's own, the ignite removes the
-                // block). The walk ends here stuck either way; the
-                // opened cell's un-stick is the tracked-cell consult's
-                // own law (VT-015, PR #120 — the arrow hops out beside
-                // the primed TNT a tick later, never carrying its flight
-                // through the cell).
-                if (projectile.burning()) {
-                    tntIgniteSink.ignite(
+        if (projectile.kind() == ProjectileEntity.Kind.ARROW) {
+            // VT-030 — the stick comes FIRST, the hit-block consult
+            // LAST (the reference's own order, ArrowEntity.tick's
+            // block arm lines 288-309): the tracked cell is stamped
+            // (289-295), the velocity := face−pos (296-298), the 0.05
+            // backoff (300-302), random.bowhit (303), inGround = true
+            // (304) — and ONLY THEN, still inside the same stick arm,
+            // {@code block.onEntityCollision(...)} (307-309). The old
+            // arm's "the arrow KEEPS ITS FLIGHT through the opened
+            // cell" misread the reference: true, the consult never
+            // removes the arrow — but it sticks it first (line 304
+            // precedes the consult at 308), and the opened cell is
+            // what UN-STICKS it a tick later (the tracked-cell
+            // consult, ArrowEntity lines 172-186). The pre-fix arm
+            // ignited and returned false, so landInGround never ran:
+            // the arrow flew through the opened cell at full flight
+            // speed — never stuck, never rested.
+            // VT-014 — the stick placement (the reference's rayTrace,
+            // ArrowEntity.tick line 191 + the stick arm's composition):
+            // the rest lands EXACTLY 0.05 OUTSIDE the hit face, on the
+            // approach side, in the cell the arrow flew through — never
+            // at the post-step endpoint buried inside the hit block, and
+            // never hanging in the air past a thin wall. The walk below
+            // reconstructs the reference's ray at the engine's
+            // granularity: the cells the segment crosses, each cell's
+            // collision boxes, the FIRST box entry the hit face. The
+            // stuck velocity KEEPS the face-relative vector (lines
+            // 296-298 — the un-stick arm's random*0.2 damping its only
+            // consumer), and the tracked cell stamps the box's OWN cell
+            // (the reference's hitresult cell, lines 289-295).
+            int stickCellX;
+            int stickCellY;
+            int stickCellZ;
+            double faceVectorX;
+            double faceVectorY;
+            double faceVectorZ;
+            if (site != null) {
+                projectile.teleport(site.rest());
+                stickCellX = site.cellX();
+                stickCellY = site.cellY();
+                stickCellZ = site.cellZ();
+                faceVectorX = site.faceVectorX();
+                faceVectorY = site.faceVectorY();
+                faceVectorZ = site.faceVectorZ();
+            } else {
+                // The endpoint residue (the engine's own edge: the
+                // origin inside every box of the sample's cell — the
+                // spawned-inside-block shape, where the reference's own
+                // box-containment stick at lines 160-166 stands, or a
+                // degenerate zero-step): the rest stays at the walk's
+                // endpoint, the dead velocity zeroed.
+                stickCellX = (int) Math.floor(hitAt.x());
+                stickCellY = (int) Math.floor(hitAt.y());
+                stickCellZ = (int) Math.floor(hitAt.z());
+                faceVectorX = 0;
+                faceVectorY = 0;
+                faceVectorZ = 0;
+            }
+            // VT-015 — the tracked cell's stamp rides the same
+            // ceremony (the reference's lines 289-295: the cell whose
+            // block the stick arm stamps is the cell the stick clock
+            // reads every tick until its block changes).
+            String stickBlockId = stickCellConsult != null
+                    ? stickCellConsult.blockIdAt(
                             new net.zaminmc.torch.block.BlockPosition(
-                                    (int) Math.floor(point.x()),
-                                    (int) Math.floor(point.y()),
-                                    (int) Math.floor(point.z())),
-                            projectile.dimension());
-                }
-                return true;
+                                    stickCellX, stickCellY, stickCellZ),
+                            projectile.dimension())
+                    : null;
+            projectile.landInGround(stickCellX, stickCellY, stickCellZ, stickBlockId,
+                    faceVectorX, faceVectorY, faceVectorZ);
+            // VT-018 — the stick's bowhit (ArrowEntity line 303):
+            // the reference plays random.bowhit at the rest — the
+            // volume 1.0, the pitch the reference's own random draw
+            // (1.2 / (nextFloat()*0.2 + 0.9), the band [~1.09,
+            // ~1.33]) — in the arrow's OWN world (the reference's
+            // playSound on the entity's world). The entity-hit arm
+            // plays the same name at line 276 (the same pitch law,
+            // a fresh draw) — the entity arm rides the landed
+            // verdict through playEntityHitBowhit below.
+            fx.sound(projectile.position(), "random.bowhit", 1.0f,
+                    (float) (1.2 / (random.nextFloat() * 0.2 + 0.9)),
+                    projectile.dimension());
+            for (Listener listener : listeners) {
+                listener.onProjectileLanded(projectile);
             }
-            if (projectile.kind() == ProjectileEntity.Kind.ENDER_PEARL) {
-                // EnderPearlEntity.onCollision (Slice 17c): the thrower
-                // teleports to the landing point — the last crossed air
-                // cell (the reference's own position carry, the fireball's
-                // fire-placement stand-in shape). The 5% endermite roll,
-                // the fall-distance reset and the 5.0 fall toll ride the
-                // engine's sink.
-                pearlSink.teleportThrower(projectile.throwerId(), from);
-                remove(projectile, "hit");
-                return true;
-            }
-            if (projectile.kind() == ProjectileEntity.Kind.SMALL_FIREBALL) {
-                // The fireball's landing arm (SmallFireballEntity.onHit
-                // lines 34-49): the fire lands at the air cell the fireball
-                // crossed before the solid one — the engine's stand-in for the
-                // reference's hit.face offset (the previous sample's cell).
-                fireSink.tryPlaceFire((int) Math.floor(from.x()),
-                        (int) Math.floor(from.y()), (int) Math.floor(from.z()),
+            // VT-030 — the burning arrow's TNT consult, AFTER the
+            // stick (the reference's lines 307-309 order:
+            // TntBlock.onEntityCollision lines 91-104 — the isOnFire
+            // gate is the TNT block's own, the ignite removes the
+            // block). The walk ends here stuck either way; the
+            // opened cell's un-stick is the tracked-cell consult's
+            // own law (VT-015, PR #120 — the arrow hops out beside
+            // the primed TNT a tick later, never carrying its flight
+            // through the cell). PE-19: the cell is the HIT BLOCK's
+            // own cell (the reference's {@code hitresult.getPos()})
+            // — the site's tracked cell, the residue's endpoint
+            // floor.
+            if (projectile.burning()) {
+                tntIgniteSink.ignite(
+                        new net.zaminmc.torch.block.BlockPosition(
+                                site != null ? site.cellX()
+                                        : (int) Math.floor(hitAt.x()),
+                                site != null ? site.cellY()
+                                        : (int) Math.floor(hitAt.y()),
+                                site != null ? site.cellZ()
+                                        : (int) Math.floor(hitAt.z())),
                         projectile.dimension());
-                remove(projectile, "hit");
-                return true;
             }
-            if (projectile.kind() == ProjectileEntity.Kind.WITHER_SKULL) {
-                // WitherSkullEntity.onHit line 83: the skull detonates where
-                // it lands — the power-1 explosion (no fire, the skull's own
-                // onHit carries no flame arm) and the body leaves. The
-                // charged flag rides the blast's SOURCE model (the blue
-                // skull's 0.8 cap, WitherSkullEntity.getBlastResistance
-                // lines 43-51): the skull's own arm, not the fireball's.
-                skullExplosionSink.explode(point, 1.0f, projectile.charged(),
-                        projectile.dimension());
-                remove(projectile, "hit");
-                return true;
-            }
-            if (projectile.kind() == ProjectileEntity.Kind.LARGE_FIREBALL) {
-                // FireballEntity.onHit: the explosion where the fireball
-                // lands — the fire rides the blast's own createFire arm
-                // (the mobGriefing flag, the sink's own consult; the old
-                // single-site fire stand-in here was the pre-fire-arm
-                // engine's substitute, retired by the arm's landing).
-                explosionSink.explode(point, 1.0f, projectile.dimension());
-                remove(projectile, "hit");
-                return true;
-            }
-            if (projectile.kind() == ProjectileEntity.Kind.POTION) {
-                // The block splash (onCollision's null-entity arm: the box
-                // scan around the impact point alone).
-                potionSink.splash(point.x(), point.y(), point.z(),
-                        projectile.potionDamage(), null, projectile.throwerId(),
-                        projectile.dimension());
-                remove(projectile, "hit");
-                return true;
-            }
-            shatter(projectile);
-            remove(projectile, "shattered");
             return true;
         }
-        return false;
+        if (projectile.kind() == ProjectileEntity.Kind.ENDER_PEARL) {
+            // EnderPearlEntity.onCollision (Slice 17c): the thrower
+            // teleports to the landing point — the last crossed air
+            // cell (the reference's own position carry, the fireball's
+            // fire-placement stand-in shape). The 5% endermite roll,
+            // the fall-distance reset and the 5.0 fall toll ride the
+            // engine's sink.
+            pearlSink.teleportThrower(projectile.throwerId(), from);
+            remove(projectile, "hit");
+            return true;
+        }
+        if (projectile.kind() == ProjectileEntity.Kind.SMALL_FIREBALL) {
+            // The fireball's landing arm (SmallFireballEntity.onHit
+            // lines 34-49): the fire lands at the air cell the fireball
+            // crossed before the solid one — the engine's stand-in for the
+            // reference's hit.face offset (the previous sample's cell).
+            fireSink.tryPlaceFire((int) Math.floor(from.x()),
+                    (int) Math.floor(from.y()), (int) Math.floor(from.z()),
+                    projectile.dimension());
+            remove(projectile, "hit");
+            return true;
+        }
+        if (projectile.kind() == ProjectileEntity.Kind.WITHER_SKULL) {
+            // WitherSkullEntity.onHit line 83: the skull detonates where
+            // it lands — the power-1 explosion (no fire, the skull's own
+            // onHit carries no flame arm) and the body leaves. The
+            // charged flag rides the blast's SOURCE model (the blue
+            // skull's 0.8 cap, WitherSkullEntity.getBlastResistance
+            // lines 43-51): the skull's own arm, not the fireball's.
+            skullExplosionSink.explode(hitAt, 1.0f, projectile.charged(),
+                    projectile.dimension());
+            remove(projectile, "hit");
+            return true;
+        }
+        if (projectile.kind() == ProjectileEntity.Kind.LARGE_FIREBALL) {
+            // FireballEntity.onHit: the explosion where the fireball
+            // lands — the fire rides the blast's own createFire arm
+            // (the mobGriefing flag, the sink's own consult; the old
+            // single-site fire stand-in here was the pre-fire-arm
+            // engine's substitute, retired by the arm's landing).
+            explosionSink.explode(hitAt, 1.0f, projectile.dimension());
+            remove(projectile, "hit");
+            return true;
+        }
+        if (projectile.kind() == ProjectileEntity.Kind.POTION) {
+            // The block splash (onCollision's null-entity arm: the box
+            // scan around the impact point alone).
+            potionSink.splash(hitAt.x(), hitAt.y(), hitAt.z(),
+                    projectile.potionDamage(), null, projectile.throwerId(),
+                    projectile.dimension());
+            remove(projectile, "hit");
+            return true;
+        }
+        shatter(projectile);
+        remove(projectile, "shattered");
+        return true;
     }
 
     /**
@@ -1882,6 +2141,115 @@ public final class ProjectileManager {
      */
     private record StickSite(Position rest, double faceVectorX, double faceVectorY,
             double faceVectorZ, int cellX, int cellY, int cellZ) {
+
+        /**
+         * The hit FACE's own position (Wave PE-19 — the reference's
+         * {@code hitresult.facePos}, ArrowEntity line 195's clip end):
+         * the rest advanced back along the approach by the stick's own
+         * 0.05 backoff — the exact face the walk crossed.
+         */
+        Position face() {
+            double length = Math.sqrt(faceVectorX * faceVectorX
+                    + faceVectorY * faceVectorY + faceVectorZ * faceVectorZ);
+            if (length < 1.0E-9) {
+                return rest;
+            }
+            return new Position(rest.x() + faceVectorX / length * 0.05,
+                    rest.y() + faceVectorY / length * 0.05,
+                    rest.z() + faceVectorZ / length * 0.05);
+        }
+    }
+
+    /**
+     * The entity scan's own clip answer (Wave PE-19 — the reference's
+     * {@code Box.clip} return, the crossed face's position, with the
+     * scan's own d2 metric — {@code vec3d.squaredDistanceTo(hitresult1
+     * .facePos)} — riding along).
+     */
+    public record SegmentClip(double squaredDistance, Position at) {
+    }
+
+    /**
+     * THE ENTITY SCAN'S OWN CLIP (Wave PE-19 — the reference's
+     * {@code Box.clip}, Box.java lines 204-280, ported 1:1 with
+     * Vec3d.intermediateWithX/Y/Z lines 94-154): the segment's crossing
+     * of the box's six face planes — a plane's crossing counting only
+     * when the segment actually spans it (the parallel guard {@code d*d
+     * < 1.0E-7}, the parameter inside [0, 1]) and the crossing point
+     * lies inside the box's other two axes (INCLUSIVE bounds) — the
+     * crossing closest to the segment's origin winning. Null when no
+     * face crossing qualifies: the segment passes the box whole, runs
+     * parallel beside it, or ends short of it.
+     *
+     * <p>NOTE the origin-inside law (the reference's own): a segment
+     * STARTING inside the box crosses the EXIT face — the body IS a hit
+     * candidate (the grown hull's inner band), unlike the block walk's
+     * own entry test (the origin-inside box is never a block hit).</p>
+     */
+    public static SegmentClip clipSegment(Position from, Position to,
+            double minX, double minY, double minZ, double maxX, double maxY, double maxZ) {
+        double dx = to.x() - from.x();
+        double dy = to.y() - from.y();
+        double dz = to.z() - from.z();
+        double bestD2 = -1.0;
+        double bestX = 0.0;
+        double bestY = 0.0;
+        double bestZ = 0.0;
+        // The six face planes in the reference's own order: X-min (the
+        // WEST face), X-max (EAST), Y-min (DOWN), Y-max (UP), Z-min
+        // (NORTH), Z-max (SOUTH).
+        for (int plane = 0; plane < 6; plane++) {
+            // The reference's intermediateWith<axis>: the crossing of
+            // the plane, valid only when the segment spans the axis.
+            double d;
+            double origin;
+            double planeValue;
+            switch (plane) {
+                case 0 -> { d = dx; origin = from.x(); planeValue = minX; }
+                case 1 -> { d = dx; origin = from.x(); planeValue = maxX; }
+                case 2 -> { d = dy; origin = from.y(); planeValue = minY; }
+                case 3 -> { d = dy; origin = from.y(); planeValue = maxY; }
+                case 4 -> { d = dz; origin = from.z(); planeValue = minZ; }
+                default -> { d = dz; origin = from.z(); planeValue = maxZ; }
+            }
+            if (d * d < 1.0E-7) {
+                continue; // the segment runs parallel to the plane
+            }
+            double t = (planeValue - origin) / d;
+            if (t < 0.0 || t > 1.0) {
+                continue; // the crossing lies outside the segment
+            }
+            double cx = from.x() + dx * t;
+            double cy = from.y() + dy * t;
+            double cz = from.z() + dz * t;
+            // The reference's containsYZ/XZ/XY (inclusive bounds on the
+            // plane's other two axes).
+            boolean inside;
+            switch (plane) {
+                case 0, 1 -> inside = cy >= minY && cy <= maxY
+                        && cz >= minZ && cz <= maxZ;
+                case 2, 3 -> inside = cx >= minX && cx <= maxX
+                        && cz >= minZ && cz <= maxZ;
+                default -> inside = cx >= minX && cx <= maxX
+                        && cy >= minY && cy <= maxY;
+            }
+            if (!inside) {
+                continue; // the crossing misses the face
+            }
+            double d2 = (cx - from.x()) * (cx - from.x())
+                    + (cy - from.y()) * (cy - from.y())
+                    + (cz - from.z()) * (cz - from.z());
+            if (bestD2 < 0.0 || d2 < bestD2) {
+                bestD2 = d2;
+                bestX = cx;
+                bestY = cy;
+                bestZ = cz;
+            }
+        }
+        if (bestD2 < 0.0) {
+            return null;
+        }
+        return new SegmentClip(bestD2, new Position(bestX, bestY, bestZ));
     }
 
     /**
