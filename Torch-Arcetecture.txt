@@ -8063,6 +8063,124 @@ carry); the command cart's own run path over a powered activator
 rail (the success count's own source); the CI census watches (the
 environmental class, unchanged).
 
+WAVES PE-11/PE-14 LANDED (2026-11-03, commit cc9f8383): THE
+FOLLOW-OWNER TELEPORT CONSULT (FollowOwnerGoal.tick lines 96-111):
+the 5x5 ring's FLOOR read through World.hasSolidTop's five arms
+(the support-consult law, never the collision question — a FENCE
+floor never holds: the pre-fix engine sampled the cell's center
+point for solidity and the fence's 1.5-tall box held the pet) and
+the two body cells through canTeleportTo's AIR-or-not-cube law
+(lines 81-85: block == AIR || !block.isCube() — a FENCE cell IS
+teleportable, the reference's own quirk: the pet blinks into the
+partial shape and the physics resolves — the pre-fix consult
+refused every solid-material cell, so the pet never landed where
+vanilla lands it); the new WorldQuery blockTypeAt consult (the
+live query mapping the active dimension's cell). THE ACTIVATOR
+RAIL'S FAMILY GATE (MinecartEntity.tick lines 269-271:
+onActivatorRail fires ONLY over an ACTIVATOR rail's cell, never a
+golden one however powered): the command cart's run, the TNT
+cart's prime, and the hopper cart's disable all moved off the
+golden-inclusive railPowerAt>0 onto the new activatorRailPoweredAt
+(family == activator_rail AND isPowered) — a powered GOLDEN rail
+FIRED THE COMMAND, PRIMED THE TNT, and SILENCED THE HOPPER in the
+engine, never in vanilla; the three rail consults in the
+VehicleWorldQuery unified on activeVehicleWorld (the TF-11
+convention). SEATS: FollowOwnerTeleport 3/0 (RED 2/3 pre-fix, the
+control green by design), CommandCartActivatorRail 3/0 (RED 1/3
+pre-fix, the golden arm). THE SEAT DISCIPLINE'S OWN FINDS: the
+placed-POWERED rail state decays on the first neighbor update (no
+feed goes dark — the rig places unpowered rails and feeds them the
+standing torch the vanilla way); the success count is the LAST
+run's own (CommandExecutor.run resets it per run).
+
+WAVE PE-13 LANDED (2026-11-03, commit be5bc492): THE FISHING
+HOOK'S CENSUS TAIL — the reference's remaining hasCollision arms
+the bobber consult never carried: the PRIMED TNT (the live body's
+own 0.98x0.98 hull grown 0.3), the ENDER CRYSTALS (the 2x2 hull,
+the End-dimension gate riding the consult), and the DECORATIONS
+whole (the ITEM FRAMES at their 12x12-pixel hanging box and the
+PAINTINGS at their motive's own span, DecorationSystem.hangingBox
+made public for the census); the hookedAlive arms, the
+hookedAnchor arms (the same minY + height*0.8 law), and the
+pullToward arms (the TNT's velocity verb through TntSystem
+.addVelocity — the fuse rides the pull whole; the crystal, the
+frame and the painting NEVER MOVE — the reference's velocity
+writes are DEAD on them, their ticks never integrating velocity).
+The pre-fix census never carried the four families: a bobber
+passing straight through a primed TNT, a crystal, a frame or a
+painting hooked NOTHING AT ALL. SEATS: HookCensusTail 5/0 (RED
+4/5 pre-fix, the far control green by design). LANES: the fishing
++ decoration + endcrystal + tnt families 33/0.
+
+WAVE PE-15 LANDED (2026-11-04, commit b4420ce4): THE PANIC/FLEE
+TARGET SELECTION — the mob AI walks' last boundary arms over the
+reference's two goal families. ESCAPEDANGERGOAL 1:1 (the hurt
+panic): the CENSUS (only the chicken 1.4, the sheep and the pig
+1.25, the horse family 1.2, the cow and the mooshroom 2.0
+register the goal — a hurt wolf turns to fight, a hurt villager,
+rabbit, squid or bat walks on — the pre-fix engine panicked EVERY
+non-hostile kind at a flat 1.8x); the GATE (canStart lines 20-24:
+getAttacker() == null && !isOnFire() answers false — the plain
+environmental hurt NEVER panics, the attacker-carrying wound arms
+setAttacker's own 100-tick window stamped at the hurt walk's
+landed site, the attacker's death clearing it, the burning body
+panicking alone between burn ticks); the TARGET (TargetFinder
+.getTarget(mob, 5, 4) — the shared walk the stroll's 10/7 and the
+away form's half-plane filter also ride, the pick stored at
+canUse, the feet walking the picked cell's PATH at the per-kind
+speed — the flat 1.8 random-bearing band retired whole).
+FLEEENTITYGOAL 1:1 (all five registrations): the grown-box census
+(getShape().grown(range, 3.0, range), the candidate's OWN box
+STRICT, the feet-anchored asymmetric y band), the FIRST body in
+the gather's own order (list.get(0), never the nearest), the
+eye-to-eye visibility consult, the away-half-plane pick
+(getTargetAwayFromEntity's fixed 16/7 band — every candidate that
+moves back toward the threat rejected), the farther-check, the
+findPath+isOnTarget pair, and the 49-squared speed band's live
+switch — the ocelot from players (16/0.8/1.33), the rabbit from
+wolves (16/1.33/1.33), THE VILLAGER FROM ZOMBIES (8/0.6/0.6 — the
+family ABSENT whole pre-fix, now the band-1 goal above every
+villager walk, the instanceof zombie census carrying the pigman),
+the skeleton from wolves (6/1.0/1.2 — the old pre-mind intercept
+migrated onto the goal), and THE CREEPER FROM OCELOTS (6/1.0/1.2
+— the famous cat-scares-creeper, ABSENT whole pre-fix, yielding
+to the ignite's own band-2 claim exactly where the combat mind's
+prime band reads; the reverse order is the mechanic itself — a
+creeper ALREADY fleeing never stops to fuse, the running claim's
+shouldContinue holds exactly as the reference's mutex owns it).
+THE WAVE'S OWN ENGINE FIND, THE NAVIGATION'S FINDPATH CENTERING:
+the vanilla PathFinder.findPath's BlockPos overload adds +0.5 to
+every axis BEFORE the evaluator's width/2 shift (PathFinder line
+33 — the target cell's CENTER, a 0.6-wide body's -0.3 never
+moving the target off the picked cell); the engine's raw
+findPath(double,double,double) passed the coordinates UNCENTERED
+— every integer-coordinate target landed its node one cell
+southwest and Path.isOnTarget never passed; with the centering,
+the fallback's closest node under an unreachable air target
+carries the target's own x/z column and isOnTarget's x/z-only
+compare passes exactly as vanilla's own law (the moveTo form was
+already centered — its idempotence unchanged). SEATS:
+PanicFleeParityDiscoveryTest 12/0 (the census, the environmental
+gate, the fire arm, the band-celled path, the registration table
++ the median-window speed rate, the grazing box law, the far
+control, the first-in-list half-plane — the rabbit flees the
+FIRST wolf even into the closer one, vanilla's own quirk — the
+villager, the creeper, the ignite's band order) — RED 7/7 on the
+pre-fix engine (the stash discrimination); the migration seats
+updated to the new laws (TemptBegGoals's flee seat over the armed
+claim, MobTargetFamily's skeleton seat over the path walk, the
+selector's fifteen-goal pin, MobEntityTest's gate/window/fire
+law). LANES: the entity families 609/0, the goal/bridge lanes
+green (the one thorns batch miss the loaded-runner environmental
+class, green solo).
+
+NEXT WORK (re-pinned, in order): the Phase E ledger's own tail
+(the standing boundary arms the waves have not yet walked — the
+fishing hook's remaining gather sites if any, the mob target
+walks' own-box forms over the hunt scans); the CI census watches
+(the environmental class, unchanged); the owner's Section X
+version-fidelity gate named in the FL4 ledger's own row.
+
 VT-033'S ADJACENT TAILS LANDED (2026-11-02, commit d96f4a2a — #146's
 review-note ledger retired): the WITHER FALL's kill row and the BEACON
 full-power row walk the ACTING world's players (the un-dimensioned
