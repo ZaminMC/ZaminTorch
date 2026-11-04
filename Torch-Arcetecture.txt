@@ -8205,6 +8205,109 @@ TrackIronGolemTargetGoal's box gather); the CI census watches
 (the environmental class, unchanged); the owner's Section X
 version-fidelity gate named in the FL4 ledger's own row.
 
+WAVE PE-17 LANDED (2026-11-04, commit ee0bc42f): THE PLAYER HUNT'S
+OWN BOX FORM + THE GOLEM CENSUS + THE FEUD TAIL — the mob AI walks'
+player-facing scans retired whole onto the reference's own-box law.
+(1) THE PLAYER HUNT (ActiveTargetGoal.canStart lines 86-96 over the
+players + the targetFilter's own folds lines 54-70 + TrackTargetGoal
+.isTarget's checkVisibility arm lines 85-120): the gather box is the
+seeker's OWN shape grown by the kind's follow range horizontally and
+4 vertically (the feet-anchored asymmetric y band), each candidate
+player's OWN 0.6x1.8 box intersecting STRICT both sides, the spectator
+and creative-INVULNERABLE refused, the checkVisibility arm PER
+CANDIDATE (the eye-to-eye ray — a walled player filtered out of the
+gather, never a blanket stop: a visible player further on still owns
+the hunt), the posture folds shrinking the band PER CANDIDATE
+(isSneaking x0.8 line 58, isInvisible x0.7 x armorEquippedRatio
+lines 59-69 — the occupied armor slots over the four floored at 0.1,
+a naked invisible player's band 35 x 0.07 = 2.45) with the CENTER
+distanceTo rejection against the SHRUNK band line 70, the NEAREST by
+the comparator; the huntsPlayers family (every hostile kind + the
+killer rabbit) reads the new consult, the passive kinds keep the
+plain 8-block glance. (2) THE PER-KIND BAND REPAIR (the wave's own
+find): the gather grows by the PER-KIND FOLLOW RANGE attribute,
+never the flat 32 — MobEntity.initAttributes line 90 sets the base
+16.0 for every mob (EntityAttributes line 15's 32.0 is the
+ATTRIBUTE'S construction default, retired by the mob's own
+registration; the per-kind overrides: ZombieEntity 84's 35 with the
+pigman's inheritance, BlazeEntity 44's 48, EndermanEntity 74's 64,
+GhastEntity 81's 100) — the wolf, ocelot, spider, skeleton and
+rabbit hunt through their own 16 (a sheep 25 from a wolf is beyond
+vanilla's gather whole), the zombie's villager hunt reaches 35.
+(3) THE GOLEM CENSUS BOX FORM: the iron golem's scan reads its OWN
+1.4x2.9 shape grown 32 (the feet-anchored y band [y-4, y+6.9], each
+candidate's OWN box STRICT, the creeper excluded, NO visibility
+consult — TrackIronGolemTargetGoal's super(golem, false, true), the
+village defender charges through walls); the snow golem's
+registration whole (SnowGolemEntity line 33: ActiveTargetGoal
+(MobEntity.class, 10, true, false, Monster.FILTER)) — the gather
+grows by the attribute's 16 base NEVER the volley's 10 (the scan and
+the shot are separate laws), the 1-in-10 cadence gate on the fresh
+consult, the checkVisibility TRUE ray consult, the VOLLEY'S OWN BAND
+stays the ProjectileAttackGoal's 10. (4) THE FEUD TAIL: the zombie's
+golem feud (ZombieEntity line 78, checkVisibility true) landing
+AFTER the villager arm (line 77 — the same priority 2 in registration
+order, the villager first, a village body wins over a nearer golem);
+the slime family's feud (SlimeEntity line 42, no cadence gate, the
+magma cube riding the inheritance); the enderman's endermite feud
+(EndermanEntity line 61 — chance 10, checkVisibility true, the
+isPlayerSpawned predicate, the engine's endermites all
+pearl-spawned). SEATS: HuntScanBoundsParityDiscoveryTest 14/0 —
+RED 11/14 on the pre-fix engine, the three controls GREEN by design
+(the far villager, the creeper exclusion, the villager-first order).
+LANES: the entity families 621/0, the combat/goal lanes 29/0.
+
+WAVE PE-18 LANDED (2026-11-04): THE PROJECTILE SCAN'S STAND CENSUS —
+the compat ledger's "ARROW ONE-SHOT" row (the armor-stand family's
+projectile tail): the reference's entity scan walks EVERY hasCollision
+body and ArmorStandEntity.hasCollision (line 727) answers true for
+the non-marker stand — so the projectile family's entity-hit
+resolution now consults the stand's hull (the standAt consult over
+the engine's point-sampling convention, the normal 0.5x1.975 / small
+0.25x0.9875 hulls, the marker's hitbox-less quirk never colliding),
+and the stand's own takeDamage (lines 368-433) routes the hit:
+THE ONE-SHOT — the "arrow" source name alone lands (the window
+consult's !flag arm with flag true for arrows): the arrow CONSUMED
+inside the wound walk (source.getSource().remove() line 408), the
+stand broken in a single hit (onBrokenByPlayer's stand item at the
+FEET cell + onBroken's every worn piece at the HEAD cell, the
+breaking particles ahead of both, the bowhit NEVER playing — the
+false verdict), the invisible gate refusing AHEAD of the arrow arm
+(line 376) with the caller's bounce (ArrowEntity.onHit lines
+279-285: the per-axis *-0.1, the yaw flip, the clock reset — the
+bounced arrow RECAPTURED by the hull's grown box every tick, the
+oscillation decaying in place, gravity sinking it through the band,
+the floor catching it at the hull: the seat's own find, the first
+draft's "flies back south" expectation retired); every other kind
+resolving at the stand per its own onCollision law with the wound
+refused — the snowball and egg shatter AT the hull (the egg's chick
+roll riding), the pearl TELEPORTS ITS THROWER (the wave's adjacent
+find: EnderPearlEntity.onCollision lines 45-70 falls through to the
+teleport whatever it struck — the pre-fix engine consumed the pearl
+at ANY body with NO teleport, the mob and player arms both carried),
+the potion splashes (the stand's own effect grant inert — the
+reference's wound walks refuse every effect's source), the small
+fireball dies WITHOUT its fire or its ignite (both ride the true
+verdict), the ghast fireball and wither skull detonate at the hull,
+the XP bottle bursting on the stand's hull whole (onCollision's
+ANY-struck-body arm). SEATS: ArrowStandOneShotParityDiscoveryTest
+4/0 — RED 4/4 on the pre-fix engine (the one-shot await starving
+with the arrow through the stand whole; the shard at the back wall;
+the bounce through to the wall; the pearl consumed with no
+teleport). LANES: the armorstand + dispenser-armor families 31/0,
+the projectile package 55/0, the entity families 621/0, the
+adjacent pearl/xp lanes 33/0.
+
+NEXT WORK (re-pinned, in order): the remaining Phase E boundary
+arms (the projectile family's grown-0.3 ray consult — the engine's
+point-sampling approximation vs the reference's getShape().grown
+(0.3) ray-clip, the razor-thin hull-adjacent band the PE-18 bounce
+exposed; the mob/player/vehicle consults ride the same convention,
+the exact slab-method port the fishing hook already carries as the
+pattern); the Section X version-fidelity gate (§X.13, the FL4
+ledger's own row); the CI census watches (the environmental class,
+unchanged).
+
 VT-033'S ADJACENT TAILS LANDED (2026-11-02, commit d96f4a2a — #146's
 review-note ledger retired): the WITHER FALL's kill row and the BEACON
 full-power row walk the ACTING world's players (the un-dimensioned
