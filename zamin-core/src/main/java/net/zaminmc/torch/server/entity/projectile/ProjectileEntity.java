@@ -525,6 +525,23 @@ public final class ProjectileEntity implements net.zaminmc.torch.entity.Projecti
     }
 
     /**
+     * The refused-verdict bounce (ArrowEntity.onHit lines 279-285 — Wave
+     * PE-18's stand census): the wound refused, the arrow PINGS OFF — the
+     * per-axis {@code velocity *= -0.1F}, the clock reset ({@code
+     * inAirTicks = 0}), the yaw flip following from the velocity's own
+     * derivation (the wire's yaw walk reads the flight's direction every
+     * tick, the reference's own atan2 law — the entity carries no yaw
+     * field to flip). Package-private: the manager's refused stand arm is
+     * the caller.
+     */
+    void bounceOff() {
+        this.vx *= -0.1;
+        this.vy *= -0.1;
+        this.vz *= -0.1;
+        this.age = 0; // the reference's inAirTicks reset
+    }
+
+    /**
      * One physics step. Returns the position integrated through (for block
      * collision sampling the manager segments the path between).
      */

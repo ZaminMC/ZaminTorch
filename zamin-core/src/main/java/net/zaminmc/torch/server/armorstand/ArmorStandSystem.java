@@ -491,6 +491,50 @@ public final class ArmorStandSystem {
     // ------------------------------------------------------------------
 
     /**
+     * The arrow's one-shot break (Wave PE-18 — takeDamage's arrow branch,
+     * lines 405-433): the "arrow" source name reaches the break arm
+     * DIRECTLY — {@code flag} true short-circuits the five-tick window's
+     * stamp arm, the else branch breaking the stand whole — while the
+     * arrow itself is consumed inside the wound walk ({@code
+     * source.getSource().remove()} line 408, the caller's own remove the
+     * same observable). The drops: {@code onBrokenByPlayer}'s stand item
+     * at the feet cell + {@code onBroken}'s every worn piece at the head
+     * cell, the breaking particles ahead of both.
+     *
+     * <p>The INVISIBLE stand refuses ahead of the arrow arm (line 376's
+     * gate — the same gate the marker rides): the wound never lands, the
+     * caller's bounce arm the arrow's own law (ArrowEntity.onHit lines
+     * 279-285 — the per-axis *-0.1 ping-off).</p>
+     *
+     * @return true when the stand broke (the arrow consumed); false when
+     *         the invisible gate refused (the arrow bounces off).
+     */
+    public synchronized boolean arrowHit(ArmorStand stand) {
+        Objects.requireNonNull(stand, "stand");
+        if (stand.marker() || stand.invisible()) {
+            // The reference's takeDamage gate (lines 376-380): the marker
+            // and the invisible bodies take no damage — the consult's own
+            // marker gate makes the marker arm unreachable here (the belt
+            // to the census's braces).
+            return false;
+        }
+        // The break (the melee ladder's own walk — the particles, then
+        // the stand item at the feet cell, then the equipment at the head
+        // cell, onBrokenByPlayer's own order).
+        surface.standBreakingBurst(breakingBurstAt(stand), stand.dimension());
+        remove(stand);
+        // THE DROP ANCHOR'S OWN CELL (Wave PE-5's seat find — the flake
+        // root-caused): the reference drops at `new BlockPos(this)` —
+        // the entity position FLOORED to its cell, NEVER the raw entity
+        // position.
+        surface.dropItem(new Position(Math.floor(stand.x()), Math.floor(stand.y()),
+                Math.floor(stand.z())), stand.dimension(),
+                ItemStack.of(BuiltinItems.ARMOR_STAND, 1));
+        dropEquipment(stand);
+        return true;
+    }
+
+    /**
      * The player's melee hit (takeDamage's player arm, lines 412-429):
      * the creative hand removes the stand outright (no drops); the first
      * hit inside the five-tick window's gap only stamps the clock (the

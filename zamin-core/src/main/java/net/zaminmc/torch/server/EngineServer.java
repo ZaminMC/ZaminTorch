@@ -21684,6 +21684,32 @@ public final class EngineServer implements Server, EngineBridge {
         }
 
         @Override
+        public net.zaminmc.torch.server.armorstand.ArmorStand standAt(Position point, int dimension) {
+            // Wave PE-18 — the entity scan's stand census: {@code
+            // ArmorStandEntity.hasCollision} line 727 answers true for the
+            // non-marker body, so the projectile's getEntities walk carries
+            // the stands. The hull: the reference's own updateSize rows —
+            // the normal form's 0.5x1.975, the small form's 0.25x0.9875.
+            if (armorStands == null) {
+                return null;
+            }
+            for (net.zaminmc.torch.server.armorstand.ArmorStand stand : armorStands.allStands()) {
+                if (stand.dimension() != dimension || stand.marker()) {
+                    continue; // the marker's hitbox-less quirk never collides
+                }
+                double half = stand.small() ? 0.125 : 0.25;
+                double height = stand.small() ? 0.9875 : 1.975;
+                double dx = Math.abs(point.x() - stand.x());
+                double dz = Math.abs(point.z() - stand.z());
+                double dy = point.y() - stand.y();
+                if (dx <= half && dz <= half && dy >= -0.1 && dy <= height) {
+                    return stand;
+                }
+            }
+            return null;
+        }
+
+        @Override
         public PlayerSession playerAt(Position point, int dimension) {
             for (PlayerSession player : players.all()) {
                 if (player.state() != PlayerState.PLAYING || player.dead()) {
@@ -23515,6 +23541,20 @@ public final class EngineServer implements Server, EngineBridge {
                         vehicle.velocityZ() + vz / length * 0.3);
             }
             return landed;
+        }
+
+        @Override
+        public boolean standHit(ProjectileEntity projectile,
+                net.zaminmc.torch.server.armorstand.ArmorStand stand) {
+            // Wave PE-18 — ArmorStandEntity.takeDamage's arrow branch
+            // (lines 405-433): the one-shot break through the stand
+            // system's own walk (the breaking particles, the stand item at
+            // the feet cell, every worn piece at the head cell); the
+            // verdict FALSE whole — the bowhit never plays (the reference's
+            // takeDamage boolean), the arrow's consumption the walk's own
+            // remove. The invisible gate refuses inside (line 376 — the
+            // caller's bounce arm).
+            return armorStands != null && armorStands.arrowHit(stand);
         }
     }
 

@@ -122,6 +122,19 @@ public final class ProjectileManager {
         default net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicleAt(Position point, int dimension) {
             return null;
         }
+
+        /**
+         * The armor stand whose OWN hull contains the point in the
+         * projectile's own dimension (Wave PE-18 — the entity scan's
+         * stand census: {@code ArmorStandEntity.hasCollision} line 727's
+         * non-marker body rides {@code getEntities}' walk; the normal
+         * form's 0.5x1.975 hull, the small form's 0.25x0.9875 — the
+         * reference's own updateSize rows), or null. Default null so
+         * stub resolvers keep their semantics.
+         */
+        default net.zaminmc.torch.server.armorstand.ArmorStand standAt(Position point, int dimension) {
+            return null;
+        }
     }
 
     /**
@@ -259,6 +272,26 @@ public final class ProjectileManager {
         default boolean vehicleHit(ProjectileEntity projectile,
                 net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle,
                 float damage, double kbYaw) {
+            return false;
+        }
+
+        /**
+         * An armor stand took a projectile hit (Wave PE-18 — {@code
+         * ArmorStandEntity.takeDamage} lines 368-433): the ARROW source
+         * alone lands — the ONE-SHOT BREAK ({@code source.getSource()
+         * .remove()} line 408 consumes the arrow inside the wound walk,
+         * and the window consult's {@code !flag} arm breaks the stand
+         * whole: {@code onBrokenByPlayer}'s stand item at the feet cell +
+         * every worn piece at the head cell + the breaking particles) —
+         * while the INVISIBLE stand refuses ahead of the arrow arm (line
+         * 376's gate: the wound never lands, the caller's bounce arm the
+         * arrow's own law). @return the landed verdict — the reference's
+         * takeDamage boolean (FALSE for the stand: the bowhit never
+         * plays, the arrow's own else-arm bounce dead on the removed
+         * body).
+         */
+        default boolean standHit(ProjectileEntity projectile,
+                net.zaminmc.torch.server.armorstand.ArmorStand stand) {
             return false;
         }
 
@@ -1195,13 +1228,18 @@ public final class ProjectileManager {
         if (projectile.kind() == ProjectileEntity.Kind.EXPERIENCE_BOTTLE) {
             MobEntity burstMob = hits.mobAt(point, projectile.dimension());
             PlayerSession burstPlayer = hits.playerAt(point, projectile.dimension());
+            // Wave PE-18 — the stand census rides the burst consult too:
+            // ExperienceBottleEntity.onCollision's entity arm bursts on
+            // ANY struck body, the stand's hull included.
+            boolean burstOnStand = hits.standAt(point, projectile.dimension()) != null;
             boolean burstOnMob = burstMob != null && !burstMob.dead()
                     && !(burstMob.entityId() == projectile.throwerId()
                          && projectile.age() <= THROWER_IMMUNITY_TICKS);
             boolean burstOnPlayer = burstPlayer != null && !burstPlayer.dead()
                     && !(burstPlayer.engineEntityId() == projectile.throwerId()
                          && projectile.age() <= THROWER_IMMUNITY_TICKS);
-            if (burstOnMob || burstOnPlayer || solid.solid(point.x(), point.y(), point.z())) {
+            if (burstOnMob || burstOnPlayer || burstOnStand
+                    || solid.solid(point.x(), point.y(), point.z())) {
                 xpBottleSink.burst(point.x(), point.y(), point.z(),
                         projectile.throwerId(), projectile.dimension());
                 remove(projectile, "hit");
@@ -1230,6 +1268,15 @@ public final class ProjectileManager {
                     playEntityHitBowhit(projectile, from);
                 }
             }
+            // Wave PE-18's adjacent find — EnderPearlEntity.onCollision
+            // lines 45-70: the pearl's hit on ANY body teleports the
+            // thrower (the block arm's own law — the reference's
+            // onCollision falls through to the teleport whatever it
+            // struck, the owner alone the pass-through; the pre-fix
+            // engine consumed the pearl at the body with no teleport).
+            if (projectile.kind() == ProjectileEntity.Kind.ENDER_PEARL) {
+                pearlSink.teleportThrower(projectile.throwerId(), from);
+            }
             remove(projectile, "hit");
             return true;
         }
@@ -1253,6 +1300,12 @@ public final class ProjectileManager {
                 if (hitPlayer(projectile, player)) {
                     playEntityHitBowhit(projectile, from);
                 }
+                // Wave PE-18's adjacent find — the pearl's entity-hit
+                // teleport (the non-thrower site; the owner's pass-through
+                // branch above never reaches here).
+                if (projectile.kind() == ProjectileEntity.Kind.ENDER_PEARL) {
+                    pearlSink.teleportThrower(projectile.throwerId(), from);
+                }
             }
             if (projectile.kind() != ProjectileEntity.Kind.ENDER_PEARL
                     || player.engineEntityId() != projectile.throwerId()) {
@@ -1275,6 +1328,81 @@ public final class ProjectileManager {
             if (hitVehicle(projectile, vehicle)) {
                 playEntityHitBowhit(projectile, from);
             }
+            remove(projectile, "hit");
+            return true;
+        }
+        // --- armor stand hit (Wave PE-18) ---------------------------------------
+        // The reference's entity scan walks EVERY hasCollision body — the
+        // armor stand among them (ArmorStandEntity.hasCollision line 727:
+        // the non-marker body). The stand's takeDamage law (lines 368-433)
+        // refuses every source but the arrow and the player hand — and the
+        // arrow's own branch is the compat ledger's "ARROW ONE-SHOT": the
+        // arrow consumed whole (line 408) and the stand broken in a single
+        // hit (the window consult's !flag arm — the drops whole, the
+        // bowhit never playing: the false verdict). Every other kind
+        // resolves at the stand per its own onHit law with the wound
+        // refused: the snowball and the egg shatter (the egg's chick roll
+        // riding), the pearl teleports its thrower, the potion splashes
+        // (the stand's own effect grant inert — the reference's own wound
+        // walks refuse every effect's source), the small fireball dies
+        // WITHOUT its fire or its ignite (both ride the true verdict), and
+        // the ghast fireball and the wither skull detonate at the hull.
+        net.zaminmc.torch.server.armorstand.ArmorStand stand =
+                hits.standAt(point, projectile.dimension());
+        if (stand != null) {
+            if (projectile.kind() == ProjectileEntity.Kind.POTION) {
+                // The splash on the struck body (onCollision's direct-hit
+                // arm): the stand's proximity 1.0 grant is inert (the
+                // engine's stand carries no effect surface; the reference's
+                // own wound walks refuse every effect's source the same
+                // way) — the block-arm form with no direct body is the
+                // observable equivalent.
+                potionSink.splash(point.x(), point.y(), point.z(),
+                        projectile.potionDamage(), null, projectile.throwerId(),
+                        projectile.dimension());
+            } else if (projectile.kind() == ProjectileEntity.Kind.ARROW) {
+                if (combat.standHit(projectile, stand)) {
+                    // THE ONE-SHOT — the same remove the reference performs
+                    // inside the wound walk (line 408's source.remove()):
+                    // the arrow is gone, the stand broken with its drops.
+                    remove(projectile, "hit");
+                    return true;
+                }
+                // The invisible stand's refusal (takeDamage line 376's
+                // gate): the arrow BOUNCES — ArrowEntity.onHit lines
+                // 279-285's else arm (the per-axis *-0.1, the clock
+                // reset) — the flight continues. The true return ends the
+                // sample pair (the reference's one onHit per tick; the
+                // next tick's integration flies the bounced arrow away).
+                projectile.bounceOff();
+                return true;
+            } else if (projectile.kind() == ProjectileEntity.Kind.ENDER_PEARL) {
+                // The pearl's teleport at the stand (onCollision lines
+                // 45-70 — the same law the mob and player arms carry).
+                pearlSink.teleportThrower(projectile.throwerId(), from);
+            } else if (projectile.kind() == ProjectileEntity.Kind.WITHER_SKULL) {
+                // WitherSkullEntity.onHit line 83: the detonation at the
+                // struck body — the wound refused, the blast rides whole.
+                skullExplosionSink.explode(point, 1.0f, projectile.charged(),
+                        projectile.dimension());
+            } else if (projectile.kind() == ProjectileEntity.Kind.LARGE_FIREBALL) {
+                // FireballEntity.onHit: the explosion at the struck body —
+                // the direct 6.0 refused by the stand's source-name gate,
+                // the detonation unconditional.
+                explosionSink.explode(point, 1.0f, projectile.dimension());
+            } else if (projectile.kind() == ProjectileEntity.Kind.EGG
+                    && rollEggHatch()) {
+                // EggEntity.onCollision's chick roll rides ANY collision —
+                // the stand's hull included.
+                combat.chickenHatch(new Position(stand.x(), stand.y(), stand.z()),
+                        projectile.dimension());
+            }
+            // The SMALL_FIREBALL dies INERT here (SmallFireballEntity.onHit
+            // lines 28-50: the entity arm's fire placement and its ignite
+            // BOTH ride the true verdict — the refused stand means no fire
+            // block, no burn); the shard family shatters with the wound
+            // refused (SnowballEntity.onCollision's takeDamage never
+            // lands, the remove unconditional).
             remove(projectile, "hit");
             return true;
         }
