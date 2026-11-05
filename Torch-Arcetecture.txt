@@ -8514,13 +8514,42 @@ LANES: the projectile package and the touched families 114/0, the
 splash/potion/fire lanes 20/0, the full PE-20 census seats still
 green — the known environmental class unchanged.
 
-NEXT WORK (re-pinned, in order): the Section X version-fidelity gate
-(§X.13, the FL4 ledger's own row); the fire family's scheduled-tick
-timing audit (the PE-21 seats' rig notes: the engine's mid-air fire
-dies within ticks where the reference's FireBlock.tick schedule runs
-~30-40 — the fire family's own row, the verifier's census input);
-the CI census watches (the environmental class, unchanged — the
-verifier's non-1:1 documentation the standing input for every lane).
+THE SECTION X VERSION-FIDELITY GATE ROW VERIFIED CLOSED (2026-11-05,
+the PE-21 session's close — the pin retired, not re-carried): every
+implementable row the §X.13 assessment named is LANDED and verified
+present on the tree — Gap 1 (the overworld-bound RedstoneSystem) at
+Wave FL4-F10 (the nether/End systems wired as their own worlds'
+change listeners, the redstoneFor router), Gap 2 (the position-keyed
+container/block-entity stores) at Wave FL4-GAP2 whole (Slices A/B/C +
+Slice D — the chestsFor/leadsFor routing, the decoration and piston
+families' per-dimension form, every consult site traced to its
+dimension source), and the two named B-GAPS carry their explicit
+DO-NOT-BUILD triggers unchanged (the ItemStack component seam arrives
+with the first later-version item property that is not a 1.8.8 NBT
+slice; the dimension registry with the first non-vanilla-dimension
+requirement — the §X.8 artificial-abstraction law stands). The X.13
+gate's own discipline (every implementation classified A-E before it
+lands) remains the standing law of every wave; the ROW leaves the
+next-work pin.
+
+THE FIRE TIMING ROW CLOSED AS A NON-ISSUE (2026-11-05, the same
+close — the PE-21 rig note's own correction, §34.7's honesty): the
+observed "mid-air fire dies within ticks" IS the reference's own law,
+not an engine divergence — FireBlock.onAdded lines 318-326 remove an
+unsupported flame AT PLACEMENT (no solid top below and no flammable
+neighbor → removeBlock, the same tick), and the 30-39 schedule arms
+only SUPPORTED flames. The engine's FireBlocks.PlacementListener
+carries the law 1:1 (the portal attempt, the support gate, the
+per-world queue's FL4-F2 schedule) — verified present, no row to
+implement. The PE-21 seats' commit-listener observation form stands
+(the placement is the observable, however brief the flame).
+
+NEXT WORK (re-pinned, in order): the CI census watches (the
+environmental class — SleepAcceptance/PistonEntityPush on clean
+develop, the rotating loaded-runner one-offs, each green isolated);
+the verifier's non-1:1 documentation and PRs the standing input for
+every lane (none open at this session's close); the vanilla-grade
+census's own next family pick when the verifier's rows land.
 
 VT-033'S ADJACENT TAILS LANDED (2026-11-02, commit d96f4a2a — #146's
 review-note ledger retired): the WITHER FALL's kill row and the BEACON
