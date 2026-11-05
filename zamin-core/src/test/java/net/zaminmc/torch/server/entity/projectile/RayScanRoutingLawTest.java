@@ -201,7 +201,7 @@ class RayScanRoutingLawTest {
         manager.setCrystalSink(popped::add);
         // The rigged scan: the crystal's grown hull struck at its
         // z-min face (a graze the ungrown box never contained).
-        manager.setBodyScan((from, to, throwerId, airTicks, immunityTicks, dimension)
+        manager.setBodyScan((from, to, selfId, throwerId, airTicks, immunityTicks, dimension)
                 -> ProjectileManager.StruckBody.crystal(crystal, new Position(100.5, 64.0, 99.2)));
         ProjectileEntity arrow = manager.launch(ProjectileEntity.Kind.ARROW, -1,
                 new Position(100.5, 64.5, 90.5), 0.0, 0.0, 2.0, 1);
@@ -235,7 +235,7 @@ class RayScanRoutingLawTest {
                     + ":" + damage + ":" + explosive + ":" + shooterId);
             return true;
         });
-        manager.setBodyScan((from, to, throwerId, airTicks, immunityTicks, dimension)
+        manager.setBodyScan((from, to, selfId, throwerId, airTicks, immunityTicks, dimension)
                 -> ProjectileManager.StruckBody.dragonPart(dragon, head,
                         new Position(100.5, 63.0, 97.0)));
         // A WITHER SKULL (the explosive arm true) thrown by engine id 9.
@@ -272,7 +272,7 @@ class RayScanRoutingLawTest {
         List<Position> teleports = new ArrayList<>();
         manager.setPearlSink((throwerId, at) -> teleports.add(at));
         // The rigged scan answers the OWNER every tick.
-        manager.setBodyScan((from, to, throwerId, airTicks, immunityTicks, dimension)
+        manager.setBodyScan((from, to, selfId, throwerId, airTicks, immunityTicks, dimension)
                 -> ProjectileManager.StruckBody.player(owner, from));
         ProjectileEntity pearl = manager.launch(ProjectileEntity.Kind.ENDER_PEARL, 42,
                 new Position(10.5, 64.0, 10.5), 0.0, -30.0, 1.5, 0);

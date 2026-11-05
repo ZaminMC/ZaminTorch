@@ -3033,6 +3033,47 @@ public final class EngineServer implements Server, EngineBridge {
                                 dimension);
                     }
                 });
+                // Wave PE-20 — the decoration wound arm (the census tail's
+                // frames and paintings): the per-dimension family's own
+                // attack walks (the frame's item-eject ladder, the
+                // painting's break drop), the thrower's creative hand
+                // resolved the reference's own way (dropItemOrItemFrame's
+                // {@code source.getAttacker()} consult — a non-player
+                // attacker answers survival).
+                projectiles.setDecorationSink(new ProjectileManager.DecorationSink() {
+                    @Override
+                    public boolean hitFrame(
+                            net.zaminmc.torch.server.decoration.ItemFrame frame,
+                            int attackerId) {
+                        net.zaminmc.torch.server.decoration.DecorationSystem system =
+                                decorationsFor(frame.dimension());
+                        if (system == null || system.frameById(frame.entityId()) == null) {
+                            return false; // the frame already gone (the double-hit edge)
+                        }
+                        PlayerSession attacker = sessionByEngineId(attackerId);
+                        return system.attackFrame(frame,
+                                attacker != null && attacker.gamemode()
+                                        == net.zaminmc.torch.GameMode.CREATIVE,
+                                false); // every projectile source is non-explosive
+                    }
+
+                    @Override
+                    public boolean hitPainting(
+                            net.zaminmc.torch.server.decoration.Painting painting,
+                            int attackerId) {
+                        net.zaminmc.torch.server.decoration.DecorationSystem system =
+                                decorationsFor(painting.dimension());
+                        if (system == null
+                                || system.paintingById(painting.entityId()) == null) {
+                            return false; // the painting already gone
+                        }
+                        PlayerSession attacker = sessionByEngineId(attackerId);
+                        system.attackPainting(painting,
+                                attacker != null && attacker.gamemode()
+                                        == net.zaminmc.torch.GameMode.CREATIVE);
+                        return true; // DecorationEntity.takeDamage's own TRUE
+                    }
+                });
                 mobs.setPotionSystem(potionSystem); // the witch's drink arm (12i)
                 // Slice 92 — the loot-pickup scan's own world: the item
                 // entities for the grown-box walk, the mobGriefing gate.
@@ -3682,6 +3723,146 @@ public final class EngineServer implements Server, EngineBridge {
                                             }
                                         }
                                         return best;
+                                    }
+
+                                    /**
+                                     * THE HOOK VERDICT (Wave PE-20 — the
+                                     * bobber's own DEFLECT law, the
+                                     * reference's {@code takeDamage(
+                                     * DamageSource.thrown(this, thrower),
+                                     * 0.0F)} walk): the consult IS the
+                                     * wound — the per-family arms fire
+                                     * their own side effects inside it
+                                     * (the frame's item-eject, the
+                                     * painting's break, the crystal's
+                                     * pop) and answer the reference's
+                                     * own verdict. The refused bodies
+                                     * DEFLECT — the stand (the
+                                     * source-name gate refuses "thrown"
+                                     * whole, ArmorStandEntity lines
+                                     * 394-395), the primed TNT, the
+                                     * falling blocks and the other
+                                     * projectiles (the BASE Entity's
+                                     * false, Entity.java lines 741-748),
+                                     * and the creative player (the
+                                     * invulnerability gate) — no hook
+                                     * and no stick, the flight simply
+                                     * continuing through the cell.
+                                     */
+                                    @Override public boolean acceptsHook(Object body,
+                                            int throwerId) {
+                                        if (body instanceof MobEntity mob) {
+                                            // The living bruise lands (the
+                                            // 0.0F walk's TRUE; the i-frame
+                                            // edge derived away — the engine's
+                                            // mob carries no hurt clock).
+                                            return !mob.dead();
+                                        }
+                                        if (body instanceof PlayerSession player) {
+                                            // The creative invulnerability
+                                            // gate (PlayerEntity's own
+                                            // isInvulnerable): the 0.0F
+                                            // thrown wound never lands on
+                                            // the creative hand.
+                                            return player.state() == PlayerState.PLAYING
+                                                    && !player.dead()
+                                                    && player.gamemode()
+                                                            != net.zaminmc.torch.GameMode.CREATIVE;
+                                        }
+                                        if (body instanceof net.zaminmc.torch.server
+                                                .armorstand.ArmorStand) {
+                                            // ArmorStandEntity.takeDamage lines
+                                            // 394-395: "thrown" is neither
+                                            // "arrow" nor "player" — the
+                                            // wound refused whole, the
+                                            // bobber DEFLECTS off the stand.
+                                            return false;
+                                        }
+                                        if (body instanceof net.zaminmc.torch.server.entity
+                                                .vehicle.VehicleEntity vehicle) {
+                                            // The cart/boat hull takes the
+                                            // bruise (MinecartEntity lines
+                                            // 179-204 / BoatEntity lines
+                                            // 127-157: TRUE, the swing timer
+                                            // the visual stand-in).
+                                            return !vehicle.dead();
+                                        }
+                                        if (body instanceof net.zaminmc.torch.server
+                                                .endcrystal.EnderCrystal crystal) {
+                                            // EnderCrystalEntity.takeDamage
+                                            // lines 67-83: TRUE — and the
+                                            // wound walk POPS the crystal
+                                            // (any source detonates it: the
+                                            // hook detonates the End's
+                                            // pillars, the reference's own
+                                            // fishing trip).
+                                            return enderCrystals != null
+                                                    && enderCrystals.damage(crystal);
+                                        }
+                                        if (body instanceof net.zaminmc.torch.server.tnt
+                                                .TntSystem.PrimedTnt) {
+                                            // The base Entity's false — the
+                                            // bobber deflects off the live
+                                            // fuse, the PE-13 row repaired.
+                                            return false;
+                                        }
+                                        if (body instanceof net.zaminmc.torch.server.entity
+                                                .FallingBlockEntity) {
+                                            // The base Entity's false again.
+                                            return false;
+                                        }
+                                        if (body instanceof net.zaminmc.torch.server.entity
+                                                .projectile.ProjectileEntity) {
+                                            // The base Entity's false — the
+                                            // bobber deflects off the struck
+                                            // arrow, never hooking it.
+                                            return false;
+                                        }
+                                        if (body instanceof net.zaminmc.torch.server
+                                                .decoration.ItemFrame frame) {
+                                            // ItemFrameEntity.takeDamage lines
+                                            // 41-58: TRUE — the item-eject
+                                            // ladder firing inside (the
+                                            // loaded frame pops its item and
+                                            // stays, the bare frame breaks
+                                            // with its drop; the angler's own
+                                            // hand the creative gate).
+                                            net.zaminmc.torch.server.decoration
+                                                    .DecorationSystem system =
+                                                    decorationsFor(frame.dimension());
+                                            if (system == null
+                                                    || system.frameById(
+                                                            frame.entityId()) == null) {
+                                                return false;
+                                            }
+                                            PlayerSession angler =
+                                                    sessionByEngineId(throwerId);
+                                            return system.attackFrame(frame,
+                                                    angler != null && angler.gamemode()
+                                                            == net.zaminmc.torch.GameMode.CREATIVE,
+                                                    false);
+                                        }
+                                        if (body instanceof net.zaminmc.torch.server
+                                                .decoration.Painting painting) {
+                                            // DecorationEntity.takeDamage lines
+                                            // 129-141: TRUE — the break drop
+                                            // firing inside.
+                                            net.zaminmc.torch.server.decoration
+                                                    .DecorationSystem system =
+                                                    decorationsFor(painting.dimension());
+                                            if (system == null
+                                                    || system.paintingById(
+                                                            painting.entityId()) == null) {
+                                                return false;
+                                            }
+                                            PlayerSession angler =
+                                                    sessionByEngineId(throwerId);
+                                            system.attackPainting(painting,
+                                                    angler != null && angler.gamemode()
+                                                            == net.zaminmc.torch.GameMode.CREATIVE);
+                                            return true; // the reference's TRUE
+                                        }
+                                        return false;
                                     }
 
                                     @Override public boolean hookedAlive(Object hooked) {
@@ -21745,15 +21926,18 @@ public final class EngineServer implements Server, EngineBridge {
          * 597's false, the PARTS alone carrying it), the players (the
          * shooter's own refusal window, the family's own 5/25 law), the
          * armor stands (the non-marker bodies), the vehicles, the ender
-         * crystals (the End's own bodies), and the dragon parts. The
-         * standing tails (the next census wave's own rows): the primed
-         * TNT, the decorations (the item frames and the paintings), and
-         * the other projectiles — the hasCollision bodies the engine's
-         * hit arms do not route yet.
+         * crystals (the End's own bodies), and the dragon parts. Wave
+         * PE-20 — THE CENSUS TAIL LANDED: the primed TNT, the falling
+         * blocks, the decorations (the item frames and the paintings),
+         * and the other projectiles (the hasCollision-true kinds, the
+         * scanning body itself excluded — the reference's
+         * {@code getEntities(this, ...)} first-argument law) ride the
+         * same walk, their per-family hit arms routed in the manager's
+         * resolution.
          */
         @Override
         public ProjectileManager.StruckBody scanAlong(Position from, Position to,
-                int throwerId, int airTicks, int immunityTicks, int dimension) {
+                int selfId, int throwerId, int airTicks, int immunityTicks, int dimension) {
             ProjectileManager.StruckBody best = null;
             double bestD2 = 0.0;
             // The mobs — LivingEntity's own census (lines 1594-1595).
@@ -21894,6 +22078,133 @@ public final class EngineServer implements Server, EngineBridge {
                         best = ProjectileManager.StruckBody.dragonPart(dragon, part, clip.at());
                         bestD2 = clip.squaredDistance();
                     }
+                }
+            }
+            // THE CENSUS TAIL (Wave PE-20 — the reference's remaining
+            // hasCollision arms, the PE-19 ledger's standing rows): the
+            // PRIMED TNT (PrimedTntEntity line 42's !removed — the live
+            // body's own 0.98x0.98 hull, setSize lines 15-16), the
+            // FALLING BLOCKS (FallingBlockEntity line 62's !removed —
+            // the same 0.98x0.98 hull, setSize line 42), the
+            // DECORATIONS whole (DecorationEntity line 123's true — the
+            // ITEM FRAMES at their 12x12-pixel hanging box and the
+            // PAINTINGS at their motive's own span, updateShape's own
+            // form), and the OTHER PROJECTILES (ProjectileEntity line
+            // 238's true — the arrow's 0.5 box, the thrown family's
+            // 0.25, the large fireball's 1.0; SmallFireballEntity line
+            // 57 and WitherSkullEntity line 89 answer FALSE, never
+            // candidates — and the scanning projectile itself excluded,
+            // the reference's getEntities(this, ...) first-argument law).
+            if (tntSystem != null) {
+                for (net.zaminmc.torch.server.tnt.TntSystem.PrimedTnt tnt
+                        : tntSystem.allPrimed()) {
+                    if (tnt.dimension() != dimension) {
+                        continue; // another world's body
+                    }
+                    ProjectileManager.SegmentClip clip = ProjectileManager.clipSegment(from, to,
+                            tnt.x() - 0.49 - 0.3, tnt.y() - 0.3, tnt.z() - 0.49 - 0.3,
+                            tnt.x() + 0.49 + 0.3, tnt.y() + 0.98 + 0.3,
+                            tnt.z() + 0.49 + 0.3);
+                    if (clip != null
+                            && (bestD2 == 0.0 || clip.squaredDistance() < bestD2)) {
+                        best = ProjectileManager.StruckBody.tnt(tnt, clip.at());
+                        bestD2 = clip.squaredDistance();
+                    }
+                }
+            }
+            FallingBlockEntityManager falling = fallingEntities;
+            if (falling != null) {
+                for (net.zaminmc.torch.server.entity.FallingBlockEntity block
+                        : falling.all()) {
+                    if (block.dimension() != dimension) {
+                        continue; // another world's body
+                    }
+                    Position at = block.position();
+                    ProjectileManager.SegmentClip clip = ProjectileManager.clipSegment(from, to,
+                            at.x() - 0.49 - 0.3, at.y() - 0.3, at.z() - 0.49 - 0.3,
+                            at.x() + 0.49 + 0.3, at.y() + 0.98 + 0.3,
+                            at.z() + 0.49 + 0.3);
+                    if (clip != null
+                            && (bestD2 == 0.0 || clip.squaredDistance() < bestD2)) {
+                        best = ProjectileManager.StruckBody.fallingBlock(block, clip.at());
+                        bestD2 = clip.squaredDistance();
+                    }
+                }
+            }
+            for (net.zaminmc.torch.server.decoration.DecorationSystem system
+                    : decorationSystems()) {
+                for (net.zaminmc.torch.server.decoration.ItemFrame frame
+                        : system.allFrames()) {
+                    if (frame.dimension() != dimension) {
+                        continue; // another world's frame
+                    }
+                    double[] box = net.zaminmc.torch.server.decoration.DecorationSystem
+                            .hangingBox(frame.pos(), frame.facing(), 12, 12);
+                    ProjectileManager.SegmentClip clip = ProjectileManager.clipSegment(from, to,
+                            box[0] - 0.3, box[1] - 0.3, box[2] - 0.3,
+                            box[3] + 0.3, box[4] + 0.3, box[5] + 0.3);
+                    if (clip != null
+                            && (bestD2 == 0.0 || clip.squaredDistance() < bestD2)) {
+                        best = ProjectileManager.StruckBody.frame(frame, clip.at());
+                        bestD2 = clip.squaredDistance();
+                    }
+                }
+                for (net.zaminmc.torch.server.decoration.Painting painting
+                        : system.allPaintings()) {
+                    if (painting.dimension() != dimension) {
+                        continue; // another world's painting
+                    }
+                    double[] box = net.zaminmc.torch.server.decoration.DecorationSystem
+                            .hangingBox(painting.pos(), painting.facing(),
+                                    painting.motive().width, painting.motive().height);
+                    ProjectileManager.SegmentClip clip = ProjectileManager.clipSegment(from, to,
+                            box[0] - 0.3, box[1] - 0.3, box[2] - 0.3,
+                            box[3] + 0.3, box[4] + 0.3, box[5] + 0.3);
+                    if (clip != null
+                            && (bestD2 == 0.0 || clip.squaredDistance() < bestD2)) {
+                        best = ProjectileManager.StruckBody.painting(painting, clip.at());
+                        bestD2 = clip.squaredDistance();
+                    }
+                }
+            }
+            for (net.zaminmc.torch.server.entity.projectile.ProjectileEntity other
+                    : projectileManager.all()) {
+                if (other.entityId() == selfId) {
+                    continue; // the reference's getEntities(this, ...) exclusion
+                }
+                if (other.dimension() != dimension) {
+                    continue; // another world's body
+                }
+                // The hasCollision-true kinds alone ride the census: the
+                // small fireball and the wither skull answer FALSE (their
+                // own lines 57/89) — never struck, however near.
+                double half;
+                double height;
+                switch (other.kind()) {
+                    case ARROW -> {
+                        half = 0.25 + 0.3;      // setSize(0.5F, 0.5F), line 46
+                        height = 0.5 + 0.3;
+                    }
+                    case LARGE_FIREBALL -> {
+                        half = 0.5 + 0.3;       // setSize(1.0F, 1.0F), line 34
+                        height = 1.0 + 0.3;
+                    }
+                    case SNOWBALL, EGG, POTION, ENDER_PEARL, EXPERIENCE_BOTTLE -> {
+                        half = 0.125 + 0.3;     // setSize(0.25F, 0.25F), line 36
+                        height = 0.25 + 0.3;
+                    }
+                    default -> {
+                        continue; // SMALL_FIREBALL / WITHER_SKULL: never candidates
+                    }
+                }
+                Position at = other.position();
+                ProjectileManager.SegmentClip clip = ProjectileManager.clipSegment(from, to,
+                        at.x() - half, at.y() - 0.3, at.z() - half,
+                        at.x() + half, at.y() + height, at.z() + half);
+                if (clip != null
+                        && (bestD2 == 0.0 || clip.squaredDistance() < bestD2)) {
+                    best = ProjectileManager.StruckBody.projectile(other, clip.at());
+                    bestD2 = clip.squaredDistance();
                 }
             }
             return best;

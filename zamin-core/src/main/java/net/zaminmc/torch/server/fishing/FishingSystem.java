@@ -133,6 +133,24 @@ public final class FishingSystem {
         Object hookAlong(Position from, Position to, int throwerId, int airTicks,
                          int dimension);
 
+        /**
+         * THE HOOK VERDICT (Wave PE-20 — the bobber's own DEFLECT law,
+         * FishingBobberEntity.tick lines 269-271: {@code if (hitresult
+         * .entity.takeDamage(DamageSource.thrown(this, this.thrower),
+         * 0.0F)) hookedEntity = hitresult.entity}). The consult IS the
+         * wound walk — the frame's item-eject, the painting's break and
+         * the crystal's pop all fire inside it (the reference's own
+         * form), and only a TRUE verdict hooks. The refused bodies
+         * DEFLECT: no hook and no stick either (the entity arm replaced
+         * the block hit whole — the reference's {@code if (entity !=
+         * null) hitresult = new HitResult(entity)}), the flight simply
+         * continuing through the body's cell. Default TRUE so the stub
+         * rigs keep their hook-everything semantics.
+         */
+        default boolean acceptsHook(Object body, int throwerId) {
+            return true;
+        }
+
         /** Whether the hooked body still lives (the follow's own gate). */
         boolean hookedAlive(Object hooked);
 
@@ -731,12 +749,20 @@ public final class FishingSystem {
                     bobber.z + bobber.vz);
             Position blockHit = world.blockHit(from, to);
             // The entity clip (lines 259-292): the first collidable body
-            // (the 0.0F damage hook).
+            // (the 0.0F damage hook). Wave PE-20 — THE DEFLECT LAW: the
+            // entity arm preempts the block arm whole (the reference's
+            // hitresult replacement — a found body kills the stick
+            // whatever its verdict), and only the body's own takeDamage
+            // verdict hooks: a refused body (the stand's source-name
+            // gate, the base-Entity families) deflects — no hook, no
+            // stick, the flight continuing through the cell.
             Object hooked = hooks.hookAlong(from,
                     blockHit != null ? blockHit : to, bobber.throwerId, bobber.inAirTicks,
                     bobber.dimension());
             if (hooked != null) {
-                bobber.hooked = hooked;
+                if (hooks.acceptsHook(hooked, bobber.throwerId)) {
+                    bobber.hooked = hooked;
+                }
             } else if (blockHit != null) {
                 bobber.inGround = true;
             }

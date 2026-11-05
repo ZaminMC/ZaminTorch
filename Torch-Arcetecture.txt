@@ -8360,13 +8360,113 @@ package 71/0, the armorstand + stand/fishing seats 18/0, the
 crystal/dragon/TNT seats 20/0, the entity families 629/0, the
 full build green.
 
-NEXT WORK (re-pinned, in order): the entity scan's census tail
-(the primed TNT, the item frames and the paintings, the other
-projectiles — the hasCollision bodies riding the SAME grown-0.3
-clip, their per-family hit arms: the arrow's bounce off a
-refused body, the frame's pop, the bobber's own deflect); the
-Section X version-fidelity gate (§X.13, the FL4 ledger's own
-row); the CI census watches (the environmental class, unchanged).
+WAVE PE-20 LANDED (2026-11-05): THE ENTITY SCAN'S CENSUS TAIL — the
+PE-19 ledger's standing rows retired whole (the last re-pin's own
+first row): the reference's remaining hasCollision bodies now ride
+the SAME grown-0.3 clip and the engine routes their per-family hit
+arms. THE CENSUS (ArrowEntity.tick lines 198-216's walk, every
+hasCollision answer): the PRIMED TNT (PrimedTntEntity line 42's
+!removed — the live body's own 0.98x0.98 hull, setSize lines 15-16),
+the FALLING BLOCKS (FallingBlockEntity line 62's !removed — the same
+0.98x0.98 hull, setSize line 42, the startFall position the box-
+bottom convention), the DECORATIONS whole (DecorationEntity line
+123's true — the ITEM FRAMES at their 12x12-pixel hanging box and
+the PAINTINGS at their motive's own span, updateShape's own form
+through the engine's hangingBox), and the OTHER PROJECTILES
+(ProjectileEntity line 238's true — the arrow's 0.5 box, the thrown
+family's 0.25, the large fireball's 1.0; SmallFireballEntity line 57
+and WitherSkullEntity line 89 answer FALSE, never candidates — and
+the scanning body itself EXCLUDED, the reference's getEntities(this,
+...) first-argument law now the scanAlong selfId row). THE
+REFUSED-BODY LAW (the base Entity's takeDamage, Entity.java lines
+741-748 — isInvulnerable consulted, markDamaged alone, FALSE
+answered; the TNT, the falling blocks and the struck projectiles
+none of them override it): the ARROW BOUNCES (ArrowEntity.onHit
+lines 279-285's else arm — the per-axis *-0.1, the air clock reset;
+the bowhit NEVER plays, the arrow never consumed), the POTION
+splashes with no direct body (PotionEntity.onCollision calls no
+takeDamage at all), the PEARL still TELEPORTS ITS THROWER
+(EnderPearlEntity.onCollision lines 45-70's fall-through whatever it
+struck), the large fireball and the wither skull DETONATE at the
+intercept (their blasts unconditional — only the 6.0/8.0 wounds ride
+the verdict), the small fireball dies INERT (its fire and ignite
+both ride the TRUE verdict), the egg's chick roll rides. THE
+DECORATION ARMS: ItemFrameEntity.takeDamage lines 41-58 — every
+projectile source is NON-EXPLOSIVE (only DamageSource.explosion
+carries the flag, DamageSource.java lines 72-73), so the loaded
+frame EJECTS its display and STAYS (the frame's own attackFrame
+walk, the thrower's creative hand the reference's source.getAttacker
+consult) while the bare frame breaks with its drop — TRUE answered,
+the arrow's bowhit + remove riding (ArrowEntity lines 276-278); the
+POTION ALONE NEVER CONSULTS THE WOUND — a splash through a loaded
+frame leaves the display whole; the painting breaks whole
+(DecorationEntity.takeDamage lines 129-141 + PaintingEntity.onAttack
+lines 87-98, the drop gated on the creative hand). THE BOBBER'S OWN
+DEFLECT (the last re-pin's third row — the reference's hook verdict,
+FishingBobberEntity.tick lines 269-271: takeDamage(thrown, 0.0F) IS
+the gate, the consult the wound walk itself): the stands REFUSE
+(ArmorStandEntity lines 394-395's source-name gate — "thrown" is
+neither "arrow" nor "player"), the primed TNT, the falling blocks
+and the other projectiles REFUSE (the base Entity's false), the
+creative player refuses (the invulnerability gate) — the deflected
+bobber hooks NOTHING AND STICKS NOWHERE (the entity arm replaced the
+block hit whole), the flight simply continuing through the cell;
+the frames, the paintings and the crystals hook WITH their wound
+side effects inside (the item-eject, the break drop, the crystal's
+pop — EnderCrystalEntity lines 67-83, any source detonates: the
+hook detonates the End's pillars). THE ADJACENT PARITY REPAIRS (the
+egg's hatch, the wave's own finds in the arms it touched): the
+chicks hatch at the EGG'S OWN PRE-MOVE ORIGIN (EggEntity
+.onCollision's this.x/y/z — ThrownEntity.tick calls onCollision
+BEFORE the position integration, lines 193-199; the pre-fix engine
+hatched at the struck body's position), the BLOCK ARM hatches too
+(onCollision fires on ANY collision — the pre-fix engine hatched
+only on bodies, never on the ground), and the 1-in-32 FOUR-CHICK
+roll rides (EggEntity lines 36-38). THE ADJACENT FINDS LEDGERED
+(the next wave's own rows): the potion's splash CENTER (the
+reference centers the box at the potion's pre-move origin; the
+engine splashes at the intercept — a cross-arm repair), the
+shard-burst FX on the entity arms (the reference's 8-particle
+bursts ride ANY collision; the engine's entity arms play no FX —
+and the block arm's poof+glass stand-in itself overstates: the
+snowball plays no sound in the reference), and the small fireball's
+fire CELL (the reference places fire at hit.getPos().offset
+(hit.face); the engine's from-cell stand-in drops a fast fireball's
+fire up to several cells short of the wall). SEATS:
+ProjectileCensusTailParityDiscoveryTest 9/0 — RED 9/9 on the
+pre-fix engine (the TNT bounce, the falling-block bounce, the stuck-
+arrow bounce — the second arrow never reaching the wall, the loaded
+frame's eject, the bare frame's break, the painting's break, the
+potion's never-pop, the pearl's refused-body teleport, the block
+arm's chick hatch); the PE-9 stand seat and the PE-13 TNT seat
+REPAIRED to the deflect law (both asserted non-vanilla hooks — the
+waves' own misreads of the verdict); the PE-13 crystal, frame and
+painting seats now carry their wound side effects (the pop, the
+eject, the break) and hold green; NetherBlastRoutingAcceptanceTest's
+ghast seat RIG-REPAIRED (the engine verified 1:1, the seat's own
+defect): its three CO-LOCATED fireballs now fire from laterally
+separated columns — the census made the fireball family's own
+hasCollision row load-bearing, and a same-spot burst with divergent
+0.4-sigma tilts exits its own grown hulls within four ticks (the
+reference's Box.clip EXIT-face law) and detonates itself mid-air in
+vanilla too, the power-1 blast never reaching the platform the seat
+means to tear. LANES: the projectile package
+85/0 whole, the fishing lanes 22/0, the stand one-shot seats 4/0,
+the PE-19 ray-scan seats 4/0, the nether-blast seat 4/4 across
+repeated runs — the full module green but the known environmental
+class (SleepAcceptance, PistonEntityPush — both verified failing on
+clean develop too; BedPairFacingResolution, HungerExhaustion's pearl
+seat and PistonBreakDrop — full-suite one-offs, each green isolated
+across repeated solo runs, the loaded-runner class the census doc
+already owns).
+
+NEXT WORK (re-pinned, in order): the projectile family's adjacent
+parity rows (the wave's own ledgered finds: the potion's splash
+center at the pre-move origin, the shard-burst FX on the entity
+arms, the small fireball's face-offset fire cell); the Section X
+version-fidelity gate (§X.13, the FL4 ledger's own row); the CI
+census watches (the environmental class, unchanged — the verifier's
+non-1:1 documentation the standing input for every lane).
 
 VT-033'S ADJACENT TAILS LANDED (2026-11-02, commit d96f4a2a — #146's
 review-note ledger retired): the WITHER FALL's kill row and the BEACON

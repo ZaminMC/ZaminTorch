@@ -142,7 +142,14 @@ public final class ProjectileManager {
      * reference's {@code getEntities} walk found — exactly one family
      * arm non-null, the family routing the hit — together with the
      * intercept position (the grown hull's crossed face, the point the
-     * family's own arms read).
+     * family's own arms read). Wave PE-20 — THE CENSUS TAIL: the primed
+     * TNT (PrimedTntEntity.hasCollision line 42), the falling blocks
+     * (FallingBlockEntity.hasCollision line 62), the decorations
+     * (DecorationEntity.hasCollision line 123 — the item frames and the
+     * paintings), and the OTHER PROJECTILES (ProjectileEntity
+     * .hasCollision line 238 — SmallFireballEntity line 57 and
+     * WitherSkullEntity line 89 answer false, never candidates) ride
+     * the same record.
      */
     public record StruckBody(
             /** The struck mob (the dragon EXCLUDED — its parts carry its
@@ -160,47 +167,103 @@ public final class ProjectileManager {
             MobEntity dragon,
             /** The struck dragon part (EnderDragonPart.hasCollision line 31). */
             MobEntity.DragonPart dragonPart,
+            /** The struck primed TNT (PrimedTntEntity.hasCollision line
+             *  42's {@code !removed} — the live body's own 0.98x0.98
+             *  hull, setSize lines 15-16). */
+            net.zaminmc.torch.server.tnt.TntSystem.PrimedTnt tnt,
+            /** The struck falling block (FallingBlockEntity.hasCollision
+             *  line 62's {@code !removed} — the 0.98x0.98 hull). */
+            net.zaminmc.torch.server.entity.FallingBlockEntity fallingBlock,
+            /** The struck item frame (the 12x12-pixel hanging box). */
+            net.zaminmc.torch.server.decoration.ItemFrame frame,
+            /** The struck painting (the motive's own hanging span). */
+            net.zaminmc.torch.server.decoration.Painting painting,
+            /** The struck projectile (the arrow, the thrown family, the
+             *  large fireball — the hasCollision-true kinds alone). */
+            ProjectileEntity projectile,
             /** The grown hull's crossed face (the clip's intercept). */
             Position at) {
 
         /** Whether any body answered the scan. */
         public boolean struck() {
             return mob != null || player != null || vehicle != null
-                    || stand != null || crystal != null || dragon != null;
+                    || stand != null || crystal != null || dragon != null
+                    || tnt != null || fallingBlock != null || frame != null
+                    || painting != null || projectile != null;
         }
 
         /** The mob arm's factory. */
         public static StruckBody mob(MobEntity mob, Position at) {
-            return new StruckBody(mob, null, null, null, null, null, null, at);
+            return new StruckBody(mob, null, null, null, null, null, null,
+                    null, null, null, null, null, at);
         }
 
         /** The player arm's factory. */
         public static StruckBody player(PlayerSession player, Position at) {
-            return new StruckBody(null, player, null, null, null, null, null, at);
+            return new StruckBody(null, player, null, null, null, null, null,
+                    null, null, null, null, null, at);
         }
 
         /** The vehicle arm's factory. */
         public static StruckBody vehicle(
                 net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle, Position at) {
-            return new StruckBody(null, null, vehicle, null, null, null, null, at);
+            return new StruckBody(null, null, vehicle, null, null, null, null,
+                    null, null, null, null, null, at);
         }
 
         /** The stand arm's factory. */
         public static StruckBody stand(
                 net.zaminmc.torch.server.armorstand.ArmorStand stand, Position at) {
-            return new StruckBody(null, null, null, stand, null, null, null, at);
+            return new StruckBody(null, null, null, stand, null, null, null,
+                    null, null, null, null, null, at);
         }
 
         /** The crystal arm's factory. */
         public static StruckBody crystal(
                 net.zaminmc.torch.server.endcrystal.EnderCrystal crystal, Position at) {
-            return new StruckBody(null, null, null, null, crystal, null, null, at);
+            return new StruckBody(null, null, null, null, crystal, null, null,
+                    null, null, null, null, null, at);
         }
 
         /** The dragon-part arm's factory. */
         public static StruckBody dragonPart(MobEntity dragon,
                 MobEntity.DragonPart part, Position at) {
-            return new StruckBody(null, null, null, null, null, dragon, part, at);
+            return new StruckBody(null, null, null, null, null, dragon, part,
+                    null, null, null, null, null, at);
+        }
+
+        /** The primed-TNT arm's factory (Wave PE-20). */
+        public static StruckBody tnt(
+                net.zaminmc.torch.server.tnt.TntSystem.PrimedTnt tnt, Position at) {
+            return new StruckBody(null, null, null, null, null, null, null,
+                    tnt, null, null, null, null, at);
+        }
+
+        /** The falling-block arm's factory (Wave PE-20). */
+        public static StruckBody fallingBlock(
+                net.zaminmc.torch.server.entity.FallingBlockEntity block, Position at) {
+            return new StruckBody(null, null, null, null, null, null, null,
+                    null, block, null, null, null, at);
+        }
+
+        /** The item-frame arm's factory (Wave PE-20). */
+        public static StruckBody frame(
+                net.zaminmc.torch.server.decoration.ItemFrame frame, Position at) {
+            return new StruckBody(null, null, null, null, null, null, null,
+                    null, null, frame, null, null, at);
+        }
+
+        /** The painting arm's factory (Wave PE-20). */
+        public static StruckBody painting(
+                net.zaminmc.torch.server.decoration.Painting painting, Position at) {
+            return new StruckBody(null, null, null, null, null, null, null,
+                    null, null, null, painting, null, at);
+        }
+
+        /** The projectile arm's factory (Wave PE-20). */
+        public static StruckBody projectile(ProjectileEntity projectile, Position at) {
+            return new StruckBody(null, null, null, null, null, null, null,
+                    null, null, null, null, projectile, at);
         }
     }
 
@@ -221,6 +284,12 @@ public final class ProjectileManager {
          * (already clipped at the block ray's face by the caller — the
          * reference clips the entity ray at the rayTrace hit), or null.
          *
+         * @param selfId       the scanning projectile's OWN engine id
+         *                      (the reference's {@code getEntities(this,
+         *                      ...)} first-argument exclusion — a
+         *                      projectile never strikes itself; Wave
+         *                      PE-20's projectile census made the row
+         *                      load-bearing)
          * @param throwerId     the launching body's engine id (the
          *                      shooter's own gate)
          * @param airTicks      the flight's air clock (the reference's
@@ -232,8 +301,9 @@ public final class ProjectileManager {
          * @param dimension     the projectile's own dimension (the
          *                      reference's same-world gather)
          */
-        StruckBody scanAlong(Position from, Position to, int throwerId,
-                             int airTicks, int immunityTicks, int dimension);
+        StruckBody scanAlong(Position from, Position to, int selfId,
+                             int throwerId, int airTicks, int immunityTicks,
+                             int dimension);
     }
 
     /**
@@ -508,6 +578,41 @@ public final class ProjectileManager {
         void burst(double x, double y, double z, int throwerId, int dimension);
     }
 
+    /**
+     * The decoration wound arm (Wave PE-20 — the entity scan's census
+     * tail): ItemFrameEntity.takeDamage lines 41-58 (the non-explosive
+     * source's ITEM-EJECT ladder — the loaded frame ejects its display
+     * and stays, the bare frame breaks with the frame item's drop) and
+     * DecorationEntity.takeDamage lines 129-141 + PaintingEntity
+     * .onAttack lines 87-98 (the painting's break drop). Every projectile
+     * source is NON-EXPLOSIVE (only DamageSource.explosion carries the
+     * flag, DamageSource.java lines 72-73 — the arrow/thrown/fireball
+     * sources never do), so the frame's eject arm is the one the scan
+     * rides. Wired by the engine; runs on the tick thread.
+     */
+    public interface DecorationSink {
+        /**
+         * The frame's own takeDamage walk.
+         *
+         * @param attackerId the source's attacker — the thrower's engine
+         *                   id (the reference's {@code source
+         *                   .getAttacker()}: the creative hand's gate,
+         *                   {@code dropItemOrItemFrame}'s own consult)
+         * @return the landed verdict (TRUE — the reference's both arms)
+         */
+        boolean hitFrame(net.zaminmc.torch.server.decoration.ItemFrame frame,
+                         int attackerId);
+
+        /**
+         * The painting's own takeDamage walk: the body leaves the wall,
+         * the painting item drops (the creative attacker spares it).
+         *
+         * @return the landed verdict (TRUE — the reference's arm)
+         */
+        boolean hitPainting(net.zaminmc.torch.server.decoration.Painting painting,
+                            int attackerId);
+    }
+
     private final SolidQuery solid;
     private final HitResolver hits;
     private final CombatSink combat;
@@ -537,6 +642,23 @@ public final class ProjectileManager {
             (dragon, part, at, damage, explosive, shooterId) -> false;
     /** The bottle o' enchanting's burst arm (Slice 65); optional until wired. */
     private XpBottleSink xpBottleSink = (x, y, z, throwerId, dimension) -> { };
+
+    /** The decoration wound arm (Wave PE-20 — the census tail's frames
+     *  and paintings). Default: the wound refused (the stub rigs never
+     *  supply the families). */
+    private DecorationSink decorationSink = new DecorationSink() {
+        @Override
+        public boolean hitFrame(net.zaminmc.torch.server.decoration.ItemFrame frame,
+                int attackerId) {
+            return false;
+        }
+
+        @Override
+        public boolean hitPainting(
+                net.zaminmc.torch.server.decoration.Painting painting, int attackerId) {
+            return false;
+        }
+    };
     /**
      * The entity scan's exact segment form (Wave PE-19); null until the
      * engine wires it — the stub rigs keep the coarse point-sample path.
@@ -590,6 +712,12 @@ public final class ProjectileManager {
     /** Wires the bottle o' enchanting's burst arm (Slice 65). */
     public void setXpBottleSink(XpBottleSink sink) {
         this.xpBottleSink = Objects.requireNonNull(sink, "sink");
+    }
+
+    /** Wires the decoration wound arm (Wave PE-20 — the frames' eject
+     *  ladder and the paintings' break drop). */
+    public void setDecorationSink(DecorationSink sink) {
+        this.decorationSink = Objects.requireNonNull(sink, "sink");
     }
 
     /**
@@ -1398,7 +1526,7 @@ public final class ProjectileManager {
         // 2. THE ENTITY SCAN over the clipped ray (the reference's ONE
         //    getEntities walk, lines 198-216).
         StruckBody struck = bodyScan.scanAlong(from, rayEnd,
-                projectile.throwerId(), projectile.age(),
+                projectile.entityId(), projectile.throwerId(), projectile.age(),
                 throwerImmunityTicksOf(projectile), projectile.dimension());
         if (struck != null && struck.struck()) {
             return resolveStruckBody(projectile, from, struck);
@@ -1485,7 +1613,7 @@ public final class ProjectileManager {
                 // takeDamage boolean, the position the tick's own origin
                 // (the reference plays before the flight integration;
                 // the entity-hit arm never moves the arrow).
-                if (hitMob(projectile, mob)) {
+                if (hitMob(projectile, mob, from)) {
                     playEntityHitBowhit(projectile, from);
                 }
             }
@@ -1522,7 +1650,7 @@ public final class ProjectileManager {
                 // VT-018's entity-hit arm — the same law at the player
                 // site (line 276's hitresult.entity covers the players;
                 // the sink's landed verdict the gate).
-                if (hitPlayer(projectile, player)) {
+                if (hitPlayer(projectile, player, from)) {
                     playEntityHitBowhit(projectile, from);
                 }
                 // Wave PE-18's adjacent find — the pearl's entity-hit
@@ -1610,12 +1738,11 @@ public final class ProjectileManager {
                 // the direct 6.0 refused by the stand's source-name gate,
                 // the detonation unconditional.
                 explosionSink.explode(struck.at(), 1.0f, projectile.dimension());
-            } else if (projectile.kind() == ProjectileEntity.Kind.EGG
-                    && rollEggHatch()) {
+            } else if (projectile.kind() == ProjectileEntity.Kind.EGG) {
                 // EggEntity.onCollision's chick roll rides ANY collision —
-                // the stand's hull included.
-                combat.chickenHatch(new Position(stand.x(), stand.y(), stand.z()),
-                        projectile.dimension());
+                // the stand's hull included (the walk's own 1-in-8 gate +
+                // the 1-in-32 four-chick roll, at the egg's own origin).
+                hatchEggChicks(projectile, from);
             }
             // The SMALL_FIREBALL dies INERT here (SmallFireballEntity.onHit
             // lines 28-50: the entity arm's fire placement and its ignite
@@ -1625,6 +1752,114 @@ public final class ProjectileManager {
             // lands, the remove unconditional).
             remove(projectile, "hit");
             return true;
+        }
+        // --- primed TNT hit (Wave PE-20) ---------------------------------------
+        // PrimedTntEntity.hasCollision line 42's !removed — the live body
+        // rides the SAME grown-0.3 scan. The wound: the BASE Entity's own
+        // takeDamage (Entity.java lines 741-748) — isInvulnerable
+        // consulted, markDamaged alone, FALSE answered whole (the class
+        // overrides nothing). The per-family arms ride the refused
+        // verdict, the REFUSED-BODY law the falling blocks and the other
+        // projectiles carry too.
+        if (struck.tnt() != null) {
+            return resolveRefusedBody(projectile, from, struck.at());
+        }
+        // --- falling block hit (Wave PE-20) ------------------------------------
+        // FallingBlockEntity.hasCollision line 62's !removed — the same
+        // refused-body law as the TNT (the base Entity's false: the
+        // striking arrow BOUNCES off the falling anvil, the shard
+        // shatters, the pearl still teleports its thrower).
+        if (struck.fallingBlock() != null) {
+            return resolveRefusedBody(projectile, from, struck.at());
+        }
+        // --- item frame hit (Wave PE-20) ---------------------------------------
+        // DecorationEntity.hasCollision line 123's true — the frame rides
+        // the scan at its 12x12-pixel hanging box grown 0.3.
+        // ItemFrameEntity.takeDamage lines 41-58: the NON-EXPLOSIVE source
+        // (every projectile source is — only DamageSource.explosion
+        // carries the flag) with a display item EJECTS the item (the
+        // frame stays on the wall), the bare frame breaks (the super
+        // arm — the frame item drops at the hanging position). TRUE
+        // answered whole: the arrow's bowhit plays and the arrow dies
+        // (ArrowEntity lines 276-278), the shard shatters on top of the
+        // pop. THE POTION ALONE NEVER CONSULTS THE WOUND
+        // (PotionEntity.onCollision calls no takeDamage) — the frame
+        // KEEPS its item through a splash.
+        if (struck.frame() != null) {
+            net.zaminmc.torch.server.decoration.ItemFrame frame = struck.frame();
+            if (projectile.kind() == ProjectileEntity.Kind.POTION) {
+                // The splash on the struck body's intercept (onCollision's
+                // direct-hit arm reads the entity flag alone — the frame
+                // is no LivingEntity, the proximity walk's own member).
+                potionSink.splash(struck.at().x(), struck.at().y(), struck.at().z(),
+                        projectile.potionDamage(), null, projectile.throwerId(),
+                        projectile.dimension());
+            } else if (projectile.kind() == ProjectileEntity.Kind.ARROW) {
+                if (decorationSink.hitFrame(frame, projectile.throwerId())) {
+                    // The landed verdict — the arrow's bowhit + remove
+                    // (ArrowEntity lines 276-278: takeDamage true).
+                    playEntityHitBowhit(projectile, from);
+                }
+            } else {
+                // The shard family's bruise, the pearl's teleport, the
+                // fireballs' detonations, the skull's blast — each
+                // consults the frame's TRUE wound first (the eject/break
+                // ladder fires), then its own law.
+                decorationSink.hitFrame(frame, projectile.throwerId());
+                if (projectile.kind() == ProjectileEntity.Kind.ENDER_PEARL) {
+                    pearlSink.teleportThrower(projectile.throwerId(), from);
+                } else if (projectile.kind() == ProjectileEntity.Kind.WITHER_SKULL) {
+                    skullExplosionSink.explode(struck.at(), 1.0f,
+                            projectile.charged(), projectile.dimension());
+                } else if (projectile.kind() == ProjectileEntity.Kind.LARGE_FIREBALL) {
+                    explosionSink.explode(struck.at(), 1.0f, projectile.dimension());
+                }
+                hatchEggChicks(projectile, from);
+            }
+            remove(projectile, "hit");
+            return true;
+        }
+        // --- painting hit (Wave PE-20) -----------------------------------------
+        // The painting's break (DecorationEntity.takeDamage lines 129-141
+        // + PaintingEntity.onAttack lines 87-98): the body leaves the
+        // wall whole, the painting item drops (the creative attacker
+        // spares it). TRUE answered — the same per-family law as the
+        // frame (the potion's splash never consults the wound, the
+        // arrow's bowhit rides the TRUE verdict).
+        if (struck.painting() != null) {
+            net.zaminmc.torch.server.decoration.Painting painting = struck.painting();
+            if (projectile.kind() == ProjectileEntity.Kind.POTION) {
+                potionSink.splash(struck.at().x(), struck.at().y(), struck.at().z(),
+                        projectile.potionDamage(), null, projectile.throwerId(),
+                        projectile.dimension());
+            } else if (projectile.kind() == ProjectileEntity.Kind.ARROW) {
+                if (decorationSink.hitPainting(painting, projectile.throwerId())) {
+                    playEntityHitBowhit(projectile, from);
+                }
+            } else {
+                decorationSink.hitPainting(painting, projectile.throwerId());
+                if (projectile.kind() == ProjectileEntity.Kind.ENDER_PEARL) {
+                    pearlSink.teleportThrower(projectile.throwerId(), from);
+                } else if (projectile.kind() == ProjectileEntity.Kind.WITHER_SKULL) {
+                    skullExplosionSink.explode(struck.at(), 1.0f,
+                            projectile.charged(), projectile.dimension());
+                } else if (projectile.kind() == ProjectileEntity.Kind.LARGE_FIREBALL) {
+                    explosionSink.explode(struck.at(), 1.0f, projectile.dimension());
+                }
+                hatchEggChicks(projectile, from);
+            }
+            remove(projectile, "hit");
+            return true;
+        }
+        // --- other projectile hit (Wave PE-20) ---------------------------------
+        // ProjectileEntity.hasCollision line 238's true — the arrow, the
+        // thrown family and the LARGE fireball ride the scan as bodies
+        // (SmallFireballEntity line 57 and WitherSkullEntity line 89
+        // answer false, never candidates). The wound: the base Entity's
+        // FALSE again — the REFUSED-BODY law (the striking arrow BOUNCES
+        // off the struck arrow; neither body is consumed by the wound).
+        if (struck.projectile() != null) {
+            return resolveRefusedBody(projectile, from, struck.at());
         }
         // --- crystal hit (Slice 62) -------------------------------------------
         // EnderCrystalEntity.takeDamage lines 67-83: any damage source pops
@@ -1669,6 +1904,95 @@ public final class ProjectileManager {
             return false;
         }
         return false;
+    }
+
+    /**
+     * THE REFUSED-BODY LAW (Wave PE-20 — the entity scan's census tail):
+     * the primed TNT, the falling blocks and the OTHER PROJECTILES all
+     * answer the wound with the BASE Entity's takeDamage (Entity.java
+     * lines 741-748 — isInvulnerable consulted, markDamaged alone, FALSE
+     * returned whole; none of the three families overrides it). The
+     * per-family arms ride the refused verdict 1:1:
+     * <ul>
+     *   <li>the ARROW BOUNCES (ArrowEntity lines 279-285 — the per-axis
+     *       *-0.1, the air clock reset; the bowhit NEVER plays — the
+     *       true-branch sound, line 276 — and the arrow is NOT removed);
+     *   <li>the POTION splashes with no direct body (PotionEntity
+     *       .onCollision calls no takeDamage at all — the wound never
+     *       consults, the remove unconditional);
+     *   <li>the PEARL still TELEPORTS ITS THROWER (EnderPearlEntity
+     *       .onCollision lines 45-70 — the fall-through whatever it
+     *       struck, the owner alone the pass-through);
+     *   <li>the LARGE fireball and the wither skull DETONATE at the
+     *       intercept (their onHit blasts are unconditional — only the
+     *       6.0/8.0 wounds ride the verdict);
+     *   <li>the SMALL fireball dies INERT (its fire placement and its
+     *       ignite BOTH ride the true verdict — SmallFireballEntity
+     *       lines 34-49);
+     *   <li>the EGG's chick roll rides ANY collision (its own onCollision
+     *       law) and the shard family shatters.
+     * </ul>
+     *
+     * @return true always — the tick's collision work is consumed (the
+     *         bounce included; the reference's one hit per tick)
+     */
+    private boolean resolveRefusedBody(ProjectileEntity projectile, Position from,
+            Position at) {
+        if (projectile.kind() == ProjectileEntity.Kind.POTION) {
+            // The splash on the refused body (no direct hit — the base
+            // Entity is no LivingEntity, the proximity walk's own law).
+            potionSink.splash(at.x(), at.y(), at.z(), projectile.potionDamage(),
+                    null, projectile.throwerId(), projectile.dimension());
+        } else if (projectile.kind() == ProjectileEntity.Kind.ARROW) {
+            // THE BOUNCE (ArrowEntity.onHit lines 279-285): the per-axis
+            // *-0.1, the air clock reset — the flight continues. The true
+            // return ends the tick's collision work (the reference's one
+            // onHit per tick; the next tick's integration flies the
+            // bounced arrow away).
+            projectile.bounceOff();
+            return true;
+        } else {
+            if (projectile.kind() == ProjectileEntity.Kind.ENDER_PEARL) {
+                // The teleport (onCollision lines 45-70 — the fall-through
+                // whatever it struck).
+                pearlSink.teleportThrower(projectile.throwerId(), from);
+            } else if (projectile.kind() == ProjectileEntity.Kind.WITHER_SKULL) {
+                // WitherSkullEntity.onHit line 83: the detonation at the
+                // struck body — the wound refused, the blast rides whole.
+                skullExplosionSink.explode(at, 1.0f, projectile.charged(),
+                        projectile.dimension());
+            } else if (projectile.kind() == ProjectileEntity.Kind.LARGE_FIREBALL) {
+                // FireballEntity.onHit: the explosion at the struck body —
+                // the direct 6.0 refused by the base Entity's false, the
+                // detonation unconditional.
+                explosionSink.explode(at, 1.0f, projectile.dimension());
+            }
+            // The SMALL_FIREBALL dies INERT (no fire, no ignite — both
+            // ride the true verdict); the EGG's roll rides; the shards
+            // shatter — the remove below the whole tail's own law.
+            hatchEggChicks(projectile, from);
+        }
+        remove(projectile, "hit");
+        return true;
+    }
+
+    /**
+     * THE EGG'S CHICK WALK (Wave PE-20's parity repair — EggEntity
+     * .onCollision lines 33-45): the 1-in-8 hatch gate, then the
+     * 1-in-32 FOUR-CHICK roll, the chicks spawning at the EGG'S OWN
+     * pre-move origin — the reference's {@code this.x/y/z} inside
+     * onCollision, which ThrownEntity.tick calls BEFORE the position
+     * integration (lines 193-199): the hatch never rides the struck
+     * body's position, whatever it struck.
+     */
+    private void hatchEggChicks(ProjectileEntity projectile, Position from) {
+        if (projectile.kind() != ProjectileEntity.Kind.EGG || !rollEggHatch()) {
+            return;
+        }
+        int chicks = random.nextInt(32) == 0 ? 4 : 1;
+        for (int i = 0; i < chicks; i++) {
+            combat.chickenHatch(from, projectile.dimension());
+        }
     }
 
     /**
@@ -1857,6 +2181,15 @@ public final class ProjectileManager {
             remove(projectile, "hit");
             return true;
         }
+        // Wave PE-20's parity repair — the EGG's chick roll rides the
+        // BLOCK arm too (EggEntity.onCollision fires on ANY collision:
+        // the entity consult null on a block hit, the roll unconditional
+        // under it — the pre-fix engine hatched only on bodies, never on
+        // the ground). The hatch lands at the egg's own pre-move origin
+        // (the reference's this.x/y/z inside onCollision — the thrown
+        // tick integrates AFTER the hit), the 1-in-32 four-chick roll
+        // riding.
+        hatchEggChicks(projectile, from);
         shatter(projectile);
         remove(projectile, "shattered");
         return true;
@@ -2288,7 +2621,7 @@ public final class ProjectileManager {
      * @return the landed verdict — VT-018's entity-hit bowhit gate (the
      * reference's takeDamage boolean, line 248).
      */
-    private boolean hitMob(ProjectileEntity projectile, MobEntity mob) {
+    private boolean hitMob(ProjectileEntity projectile, MobEntity mob, Position from) {
         if (projectile.burning()) {
             combat.mobIgniteFromProjectile(mob);
         }
@@ -2354,8 +2687,12 @@ public final class ProjectileManager {
             }
             explosionSink.explode(mob.position(), 1.0f, projectile.dimension());
         }
-        if (projectile.kind() == ProjectileEntity.Kind.EGG && rollEggHatch()) {
-            combat.chickenHatch(mob.position(), projectile.dimension());
+        if (projectile.kind() == ProjectileEntity.Kind.EGG) {
+            // Wave PE-20's parity repair — the hatch at the EGG'S OWN
+            // pre-move origin (EggEntity.onCollision's {@code this.x/y/z},
+            // the thrown tick's own order — never the struck body's
+            // position), the 1-in-32 four-chick roll riding.
+            hatchEggChicks(projectile, from);
         }
         return landed;
     }
@@ -2367,7 +2704,8 @@ public final class ProjectileManager {
      * sink's evolved playerHit verdict, the reference's takeDamage
      * boolean).
      */
-    private boolean hitPlayer(ProjectileEntity projectile, PlayerSession player) {
+    private boolean hitPlayer(ProjectileEntity projectile, PlayerSession player,
+            Position from) {
         if (projectile.burning()) {
             combat.playerIgniteFromProjectile(player);
         }
@@ -2405,8 +2743,10 @@ public final class ProjectileManager {
             // explosion, at the impact).
             explosionSink.explode(player.position(), 1.0f, projectile.dimension());
         }
-        if (projectile.kind() == ProjectileEntity.Kind.EGG && rollEggHatch()) {
-            combat.chickenHatch(player.position(), projectile.dimension());
+        if (projectile.kind() == ProjectileEntity.Kind.EGG) {
+            // The same repaired hatch law at the player site (the egg's
+            // own origin, the four-chick roll riding).
+            hatchEggChicks(projectile, from);
         }
         return landed;
     }

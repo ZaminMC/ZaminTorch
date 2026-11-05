@@ -11,6 +11,7 @@ import net.zaminmc.torch.server.entity.MobEntity;
 import net.zaminmc.torch.server.entity.MobType;
 import net.zaminmc.torch.server.item.BuiltinItems;
 import net.zaminmc.torch.server.net.ClientLink;
+import net.zaminmc.torch.testing.EngineAwaits;
 import net.zaminmc.torch.server.net.EngineBridge;
 import net.zaminmc.torch.server.player.PlayerSession;
 import org.junit.jupiter.api.AfterEach;
@@ -216,18 +217,27 @@ class FishingHookBoundsParityDiscoveryTest {
     }
 
     // ------------------------------------------------------------------
-    // Seat 3 — THE ARMOR STAND'S CENSUS (LivingEntity's own member)
+    // Seat 3 — THE ARMOR STAND'S CENSUS (LivingEntity's own member,
+    // the DEFLECT verdict — Wave PE-20's repair of this seat's own form)
     // ------------------------------------------------------------------
 
     /**
      * The reference's hasCollision census includes the armor stand
      * (ArmorStandEntity lines 727-728 over LivingEntity 1594-1595): a
-     * bobber flying through a stand's cell hooks it — the stand's own
-     * 0.5x1.975 hull grown 0.3. Pre-fix RED: the stand was absent from
-     * the engine's census whole — the bobber flew through and grounded.
+     * bobber flying through a stand's cell FINDS it — the stand's own
+     * 0.5x1.975 hull grown 0.3 (the pre-PE-9 engine's census never
+     * carried the family whole) — but the HOOK VERDICT refuses it
+     * (Wave PE-20 — the reference's own law, FishingBobberEntity.tick
+     * lines 269-271: {@code takeDamage(DamageSource.thrown(...), 0.0F)}
+     * on ArmorStandEntity's source-name gate, lines 394-395 — "thrown"
+     * is neither "arrow" nor "player", FALSE answered whole): the
+     * bobber DEFLECTS — no hook, no stick, the flight continuing
+     * through the stand's cell. This seat's own first form asserted
+     * the hook — the PE-9 wave's misread of the verdict, repaired
+     * here.
      */
     @Test
-    void theFlightHooksTheArmorStand() throws Exception {
+    void theFlightDeflectsOffTheArmorStand() throws Exception {
         int x = 50, z = 10;
         PlayerSession angler = rigAngler(x, z);
         int cellX = (int) Math.floor(flightX(x));
@@ -244,9 +254,18 @@ class FishingHookBoundsParityDiscoveryTest {
         }, "the stand placed on the flight line");
 
         server.useItem(angler); // the cast
-        await(() -> hooked(angler),
-                "the flight hooks the armor stand (the LivingEntity census's "
-                        + "own member — the pre-fix engine never hooked a stand)");
+        EngineAwaits.awaitTicks(server.world(), 60, "the deflect window");
+        assertFalse(hooked(angler),
+                "the bobber DEFLECTS off the armor stand (the source-name gate's"
+                        + " FALSE verdict — the PE-9 form's own repair)");
+        await(() -> {
+            for (var stand : server.armorStands().allStands()) {
+                if ((int) Math.floor(stand.z()) == z + 4) {
+                    return true;
+                }
+            }
+            return false;
+        }, "the stand still stands (the refusal's own side-effect-free law)");
     }
 
     // ------------------------------------------------------------------

@@ -138,18 +138,27 @@ class HookCensusTailParityDiscoveryTest {
     }
 
     // ------------------------------------------------------------------
-    // Seat 1 — THE PRIMED TNT: the !removed census arm
+    // Seat 1 — THE PRIMED TNT: the !removed census arm, the DEFLECT
+    // verdict (Wave PE-20's repair of this seat's own first form)
     // ------------------------------------------------------------------
 
     /**
      * A primed TNT body standing in the flight lane at z+8 — its own
      * 0.98x0.98 hull grown 0.3 spans y [39.7, 41.28], and the flight's
-     * descent passes y&asymp;40.9 through the lane: the bobber hooks it
-     * (the fuse keeps burning — the hook never detonates anything).
-     * Pre-fix RED: the census never carried the family.
+     * descent passes y&asymp;40.9 through the lane: the bobber's scan
+     * FINDS the body (the {@code !removed} census arm — the pre-PE-13
+     * engine never carried the family), but the hook verdict REFUSES it
+     * (Wave PE-20 — the reference's own law, FishingBobberEntity.tick
+     * lines 269-271: {@code takeDamage(DamageSource.thrown(...), 0.0F)}
+     * on the BASE Entity's walk answers FALSE, Entity.java lines
+     * 741-748 — PrimedTntEntity overrides nothing): the bobber
+     * DEFLECTS — no hook, and no stick either (the entity arm replaced
+     * the block hit whole), the flight simply continuing through the
+     * fuse's cell. This seat's own first form asserted the hook — the
+     * PE-13 wave's misread of the verdict, repaired here.
      */
     @Test
-    void theFlightHooksThePrimedTnt() throws Exception {
+    void theFlightDeflectsOffThePrimedTnt() throws Exception {
         int x = 10, z = 10;
         PlayerSession angler = rigAnglerBesideWall(x, z);
         double lineX = x + 0.35 - 0.16;
@@ -160,8 +169,10 @@ class HookCensusTailParityDiscoveryTest {
                 "the TNT primed in the lane");
 
         server.useItem(angler); // the cast
-        EngineAwaits.awaitCondition(server.world(), () -> hooked(angler),
-                100, "the flight hooks the primed TNT (the !removed arm)");
+        EngineAwaits.awaitTicks(server.world(), 60, "the deflect window");
+        assertFalse(hooked(angler),
+                "the bobber DEFLECTS off the primed TNT (the base Entity's FALSE"
+                        + " verdict — no hook, the PE-13 form's own repair)");
     }
 
     // ------------------------------------------------------------------

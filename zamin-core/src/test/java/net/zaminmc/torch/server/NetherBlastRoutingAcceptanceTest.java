@@ -126,6 +126,21 @@ class NetherBlastRoutingAcceptanceTest {
      * platform's edge, and the discrimination wants ANY platform cell
      * torn — which the pre-fix engine can never produce (the overworld
      * service's world never writes a nether cell).
+     *
+     * <p>Wave PE-20's RIG REPAIR: the three shots now fire from
+     * LATERALLY SEPARATED columns (three cells apart — beyond the grown
+     * hulls' mutual reach with the whole 0.4-sigma tilt drift to
+     * spare). The census tail made the fireball family's own
+     * hasCollision row load-bearing (ProjectileEntity line 238 — the
+     * fireball is a struck body now): three CO-LOCATED shots with
+     * divergent 0.4-sigma tilts exit each other's grown hulls within
+     * four ticks (the reference's own Box.clip EXIT-face law, Box.java
+     * lines 204-280 — a segment from inside the box crossing the
+     * bottom face counts) and detonate each other MID-AIR, three
+     * blocks above the platform, the power-1 blast never reaching the
+     * dirt — exactly what vanilla does to a same-spot burst. The seat's
+     * own intent (the nether torn, the overworld marker surviving) is
+     * untouched: the separated shots each ride the original wire.</p>
      */
     @Test
     void theNetherGhastFireballBlastTearsTheNetherNotTheOverworld() throws Exception {
@@ -134,11 +149,15 @@ class NetherBlastRoutingAcceptanceTest {
                 new java.util.concurrent.atomic.AtomicReference<>();
         server.addExplosionListener(blast::set);
         // The shots from five cells above the platform, straight down
-        // (the fireball's own acceleration walk carries them in).
+        // (the fireball's own acceleration walk carries them in), each
+        // from its own column three cells from the next — the fireball
+        // family's own census arm never lets co-located shots share a
+        // hull (Wave PE-20's rig repair; the engine's law stands).
         server.ticker().submit(() -> {
             for (int shot = 0; shot < 3; shot++) {
                 server.projectiles().launchGhastFireball(
-                        -1, new Position(64.5, 105.5, 64.5), 0.0, -1.0, 0.0, -1);
+                        -1, new Position(64.5 + 3.0 * (shot - 1), 105.5, 64.5),
+                        0.0, -1.0, 0.0, -1);
             }
         });
 
