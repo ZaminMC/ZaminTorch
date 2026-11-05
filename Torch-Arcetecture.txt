@@ -8544,12 +8544,131 @@ per-world queue's FL4-F2 schedule) — verified present, no row to
 implement. The PE-21 seats' commit-listener observation form stands
 (the placement is the observable, however brief the flame).
 
-NEXT WORK (re-pinned, in order): the CI census watches (the
-environmental class — SleepAcceptance/PistonEntityPush on clean
-develop, the rotating loaded-runner one-offs, each green isolated);
-the verifier's non-1:1 documentation and PRs the standing input for
-every lane (none open at this session's close); the vanilla-grade
-census's own next family pick when the verifier's rows land.
+WAVE PE-22 LANDED (2026-11-05, commit c9118a11): THE IDLE-LIFE
+FAMILY — the vanilla-grade census's own family pick (the verifier's
+rows not yet open at the session's start, the census free to pick),
+the goal bodies the reference's animals and villagers carry that the
+engine's mind never owned — five goals whole, each read from the
+reference's own source 1:1 and each riding the engine's established
+forms (the stateless goal over the body's own fields, the pending
+intent the manager drains, the WorldQuery consult the live query
+implements over the own-box law).
+
+(1) THE SHEEP'S GRAZE (EatGrassGoal whole, SheepEntity's band 5):
+the baby's 1-in-50 dice over the adult's 1-in-1000 (line 44 — the
+exact baby divide), the feet cell a TALLGRASS of the GRASS type or
+the cell below a GRASS block (lines 49-53 — the IS_TALLGRASS
+predicate's own TYPE row: the FERN never feeds the graze, the
+engine's minecraft:fern its own wire id), the 40-tick window with
+the ENTITY STATUS 10 at the start (doEntityEvent line 56 — the
+client's head-down eat render, the manager's onMobStatusEvent drain
+the rabbit's jump already rides) and the navigation stopped, and
+the write at exactly TIMER-4 (tick lines 66-92 — the 36th goal tick
+after the arm): the tall grass breaks DROP-LESS (breakBlock(pos,
+false)), the grass block pays the 2001 block-dust burst + the DIRT
+write, both world writes under the MOBGRIEFING gate while the FEED
+itself stays UNGATED (onEatingGrass runs whatever the rule answers —
+SheepEntity lines 248-253: the coat returns setSheared(false), the
+baby grows 60 units = 1200 age-ticks closer to adulthood).
+
+(2) THE BABY'S PARENT WALK (FollowParentGoal whole — the four
+registrants alone: CowEntity line 31's 1.25, SheepEntity 59's 1.1,
+PigEntity 40's 1.1, ChickenEntity 41's 1.1; the rabbit, the horse,
+the llama, the tameable pair, and the villager never carry it): the
+gather over the child's OWN shape grown 8 horizontal / 4 VERTICAL
+(lines 24-41 — the parent walk's own tighter y census [y-4, y+h+4],
+NEVER the breed scan's 8/8), each candidate's OWN box intersecting
+STRICT both sides (the getEntitiesOfType own-box law, the Phase E
+boundary arms' own convention), the nearest ADULT by the reference's
+!(d1 > d0) tie form, the START REFUSAL under squared-9 (line 42 — a
+parent inside 3 blocks never arms the walk), the window the squared
+9..256 band (shouldContinue lines 47-59: the baby still a baby, the
+parent alive), and the 10-TICK RE-PATH cadence (tick lines 69-74,
+the delay clock).
+
+(3) THE GOLEM'S VILLAGER GLANCE (IronGolemLookGoal whole, the
+golem's band 5, LOOK-and-JUMP controls — the engine's additive
+LOOK-only band beside the beg, the same shape WolfBegGoal rides):
+the sunny gate, the 1-in-8000 dice, the nearest VILLAGER inside the
+golem's OWN shape grown 6/2 (the getNearestEntity walk — the
+nearestVillagerInBox consult, the own-box law again), the 400-tick
+window holding the head (the 30/30 grip), and the golem's own
+OFFER CLOCK (IronGolemEntity.lookingAtVillagerTicksLeft —
+setLookingAtVillager's 400/0 verbs, the body tick decrementing it
+whole, mobTick lines 109-110) that the child's walk reads.
+
+(4) THE VILLAGER CHILD'S GOLEM WALK (FollowGolemGoal whole,
+VillagerEntity's band 7): the child-and-sunny gates, the golems
+whose offer clock stands inside the child's OWN shape grown 6/2
+(the firstGolemLookingAtVillagerInBox consult — the reference's own
+list-order break over the offering golems), the nextInt(320)
+TRIGGER the clock must hit EXACTLY (start line 38 — the walk begins
+mid-window, never at the arm), the flat-0.5 walk from the trigger,
+the golem's own navigation stopped at the arm (start line 43), and
+the SQUARED-4 ARRIVAL RELEASING THE GOLEM'S OFFER (tick lines 58-63
+— the child's own stop, setLookingAtVillager(false) on the GOLEM's
+body).
+
+(5) THE VILLAGER'S DOOR OPEN WALK (LongDoorInteractGoal over the
+shared AbstractDoorInteractGoal base, VillagerEntity's band 4 with
+shouldCloseDoor true): the clip-site capture at BOTH wall-clip
+sites (the named adaptation the zombie break established — the
+engine's swept-clip detour would clear the path before the selector
+ever sees the door; the path-node walk [0, currentIndex+2) with the
+(node.x, node.y+1, node.z) door cell inside the squared-2.25 XZ
+band, the fallback the cell above the body's own feet), the OPEN
+WRITE on the LOWER half's OPEN bit ALONE (DoorBlock.updateOpenState
+lines 143-153 — the captured cell resolves to its lower half, the
+upper's hinge/powered state untouched, the 1003/1006 events, and
+the reference's own get(OPEN) != open no-op gate), the 20-TICK
+CLOSE WINDOW (LongDoorInteractGoal lines 15-22), and the
+PASS-THROUGH'S DOT-PRODUCT STOP (the abstract's lines 71-82 — the
+entry offset dotted against the live offset going negative the
+moment the body crosses the door's center plane, ending the window
+early).
+
+SEATS: IdleLifeGoalsParityDiscoveryTest 8/0 (the DIRT write at
+timer-4 with the timer-5 no-write control; the tall-grass
+drop-less break; the mobGriefing gate over the world writes ALONE
+with the coat's ungated return; the parent census's own-box law —
+the straddling parent at 8.2 east whose own box grazes the grown
+face IS the find, the far-10 never; the squared-9 start refusal;
+the kinds gate keeping the rabbit baby out and the baby gate
+keeping the adult cow out; the golem offer window with the trigger
+walk and the squared-4 arrival release; the door's lower-half open
+write with the upper untouched and the 20-tick close; the
+pass-through's early close); TemptBegGoalsTest's roster seat
+repaired to the twenty-goal catalog (the idle-life family's own
+bands: the glance additive at 3 beside the beg, the door open
+FIRST in the walk band, the parent walk mid-band, the golem walk
+LATE under the village return, the graze LAST before the stroll).
+LANES: the entity package 637/0, the block + interaction packages
+whole.
+
+THE ENGINE-SELECTOR ADAPTATION RECORDED (the wave's own honesty
+row): the engine's selector keeps its documented no-stop()-callback
+shape — a goal that loses the body to a higher band (a hurt sheep's
+panic mid-graze) FREEZES its window instead of resetting it (the
+reference's canUse mutex walk would call stop() and clear the
+timer), the zombie break clock's own established class. The
+observable difference is bounded (the interrupted graze resumes
+where it froze rather than re-rolling the dice) and the adaptation
+stays the selector's documented law until a wave retires it whole.
+
+NEXT WORK (re-pinned, in order): the idle-life family's OWN
+standing tails (the reference's remaining unowned goals — the
+LookAtEntity/LookAround head-yaw family over the wire's Entity
+Head Look packet, the StayIndoors/RestrictOpenDoor village-door
+pair, the villager's FARM walk (VillagerFarmGoal over GoToBlockGoal
+— the harvest/replant pair needs the villager's 8-slot inventory
+first, hasPlantableItems/hasRoomForHarvest), FormCaravanGoal for
+the llama, FollowGolemGoal's flower-offer client render riding the
+offer clock); the CI census watches (the environmental class —
+SleepAcceptance/PistonEntityPush on clean develop, the rotating
+loaded-runner one-offs, each green isolated); the verifier's
+non-1:1 documentation and PRs the standing input for every lane
+(none open at this session's close); the vanilla-grade census's
+next family pick when the verifier's rows land.
 
 VT-033'S ADJACENT TAILS LANDED (2026-11-02, commit d96f4a2a — #146's
 review-note ledger retired): the WITHER FALL's kill row and the BEACON
