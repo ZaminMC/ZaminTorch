@@ -308,14 +308,21 @@ public final class ProjectileManager {
 
     /**
      * The fireball's landing arm (SmallFireballEntity.onHit lines 34-49):
-     * place the fire block at the first air cell the fireball crossed before
-     * the solid one. Wired by the engine; runs on the tick thread.
+     * place the fire block at the struck face's own adjacent cell. Wired
+     * by the engine; runs on the tick thread.
      */
     public interface FireSink {
-        /** Places fire at the cell when it holds air — in the projectile's
+        /**
+         * Places fire at the cell when it holds air — in the projectile's
          * own dimension (Wave TF-9 — the reference's world.setBlockState
-         * inside the fireball's own world). */
-        void tryPlaceFire(int x, int y, int z, int dimension);
+         * inside the fireball's own world). Wave PE-21 — the thrower's
+         * id rides for the reference's own gate (lines 40-44): a MOB
+         * shooter's fire rides the mobGriefing rule (the blaze's charge
+         * never burning where the rule refuses), every other shooter
+         * (the dispenser, the player's hand) placing unconditioned —
+         * the reference's {@code flag1} initializer true.
+         */
+        void tryPlaceFire(int x, int y, int z, int throwerId, int dimension);
     }
 
     /**
@@ -622,7 +629,7 @@ public final class ProjectileManager {
     private final List<Listener> listeners = new ArrayList<>();
     private int nextEntityId;
     /** The fireball's landing arm; optional until the engine wires it. */
-    private FireSink fireSink = (x, y, z, dimension) -> { };
+    private FireSink fireSink = (x, y, z, throwerId, dimension) -> { };
     /** The potion's splash arm; optional until the engine wires it. */
     private PotionSink potionSink = (x, y, z, damage, directHit, throwerId, dimension) -> { };
     /** The ghast fireball's explosion arm; optional until the engine wires it. */
@@ -1593,7 +1600,12 @@ public final class ProjectileManager {
         // on ANY struck body (the shooter's own window already refused at
         // the consult — the reference's ThrownEntity collision scan).
         if (projectile.kind() == ProjectileEntity.Kind.EXPERIENCE_BOTTLE) {
-            xpBottleSink.burst(struck.at().x(), struck.at().y(), struck.at().z(),
+            // Wave PE-21 — the burst lands at the bottle's OWN pre-move
+            // origin (ExperienceBottleEntity.onCollision's {@code this
+            // .x/y/z} — the 2002 event at {@code new BlockPos(this)}, the
+            // orbs at the same spot; ThrownEntity.tick integrates AFTER
+            // the hit).
+            xpBottleSink.burst(from.x(), from.y(), from.z(),
                     projectile.throwerId(), projectile.dimension());
             remove(projectile, "hit");
             return true;
@@ -1604,7 +1616,11 @@ public final class ProjectileManager {
             if (projectile.kind() == ProjectileEntity.Kind.POTION) {
                 // The splash on the struck body (PotionEntity.onCollision's
                 // result.entity arm — the direct hit answers proximity 1.0).
-                potionSink.splash(struck.at().x(), struck.at().y(), struck.at().z(),
+                // Wave PE-21 — the splash CENTER is the potion's own
+                // pre-move origin (the reference's {@code this.getShape()
+                // .grown(4, 2, 4)} at this.x/y/z — onCollision runs before
+                // the thrown tick's integration).
+                potionSink.splash(from.x(), from.y(), from.z(),
                         projectile.potionDamage(), mob, projectile.throwerId(),
                         projectile.dimension());
             } else {
@@ -1626,6 +1642,7 @@ public final class ProjectileManager {
             if (projectile.kind() == ProjectileEntity.Kind.ENDER_PEARL) {
                 pearlSink.teleportThrower(projectile.throwerId(), from);
             }
+            shardBurst(projectile, from);
             remove(projectile, "hit");
             return true;
         }
@@ -1643,7 +1660,9 @@ public final class ProjectileManager {
                 return true;
             }
             if (projectile.kind() == ProjectileEntity.Kind.POTION) {
-                potionSink.splash(struck.at().x(), struck.at().y(), struck.at().z(),
+                // Wave PE-21 — the splash center at the pre-move origin
+                // (the same repair the mob arm carries).
+                potionSink.splash(from.x(), from.y(), from.z(),
                         projectile.potionDamage(), player, projectile.throwerId(),
                         projectile.dimension());
             } else {
@@ -1660,6 +1679,7 @@ public final class ProjectileManager {
                     pearlSink.teleportThrower(projectile.throwerId(), from);
                 }
             }
+            shardBurst(projectile, from);
             remove(projectile, "hit");
             return true;
         }
@@ -1669,13 +1689,24 @@ public final class ProjectileManager {
         // reference's scan exempts the THROWER alone, never the vehicle it
         // rides.
         if (struck.vehicle() != null) {
-            // VT-018's entity-hit arm — the same law at the vehicle site
-            // (the reference's entity scan includes the minecarts; the
-            // sink's landed verdict the gate — the detonated TNT cart
-            // counts as landed, the reference's takeDamage true).
-            if (hitVehicle(projectile, struck.vehicle())) {
+            if (projectile.kind() == ProjectileEntity.Kind.POTION) {
+                // Wave PE-21's adjacent find — the splash rides ANY
+                // collision (PotionEntity.onCollision's proximity walk
+                // fires whatever it struck; the cart is no living body —
+                // the direct-grant null, the AROUND bodies the walkers).
+                // The pre-fix engine consumed the potion at the cart with
+                // NO splash — a crowded lane's bystanders never felt it.
+                potionSink.splash(from.x(), from.y(), from.z(),
+                        projectile.potionDamage(), null, projectile.throwerId(),
+                        projectile.dimension());
+            } else if (hitVehicle(projectile, struck.vehicle())) {
+                // VT-018's entity-hit arm — the same law at the vehicle site
+                // (the reference's entity scan includes the minecarts; the
+                // sink's landed verdict the gate — the detonated TNT cart
+                // counts as landed, the reference's takeDamage true).
                 playEntityHitBowhit(projectile, from);
             }
+            shardBurst(projectile, from);
             remove(projectile, "hit");
             return true;
         }
@@ -1703,8 +1734,9 @@ public final class ProjectileManager {
                 // engine's stand carries no effect surface; the reference's
                 // own wound walks refuse every effect's source the same
                 // way) — the block-arm form with no direct body is the
-                // observable equivalent.
-                potionSink.splash(struck.at().x(), struck.at().y(), struck.at().z(),
+                // observable equivalent. Wave PE-21 — the center at the
+                // pre-move origin.
+                potionSink.splash(from.x(), from.y(), from.z(),
                         projectile.potionDamage(), null, projectile.throwerId(),
                         projectile.dimension());
             } else if (projectile.kind() == ProjectileEntity.Kind.ARROW) {
@@ -1750,6 +1782,7 @@ public final class ProjectileManager {
             // block, no burn); the shard family shatters with the wound
             // refused (SnowballEntity.onCollision's takeDamage never
             // lands, the remove unconditional).
+            shardBurst(projectile, from);
             remove(projectile, "hit");
             return true;
         }
@@ -1788,10 +1821,11 @@ public final class ProjectileManager {
         if (struck.frame() != null) {
             net.zaminmc.torch.server.decoration.ItemFrame frame = struck.frame();
             if (projectile.kind() == ProjectileEntity.Kind.POTION) {
-                // The splash on the struck body's intercept (onCollision's
-                // direct-hit arm reads the entity flag alone — the frame
-                // is no LivingEntity, the proximity walk's own member).
-                potionSink.splash(struck.at().x(), struck.at().y(), struck.at().z(),
+                // The splash (onCollision's direct-hit arm reads the entity
+                // flag alone — the frame is no LivingEntity, the proximity
+                // walk's own member). Wave PE-21 — the center at the
+                // pre-move origin.
+                potionSink.splash(from.x(), from.y(), from.z(),
                         projectile.potionDamage(), null, projectile.throwerId(),
                         projectile.dimension());
             } else if (projectile.kind() == ProjectileEntity.Kind.ARROW) {
@@ -1816,6 +1850,7 @@ public final class ProjectileManager {
                 }
                 hatchEggChicks(projectile, from);
             }
+            shardBurst(projectile, from);
             remove(projectile, "hit");
             return true;
         }
@@ -1829,7 +1864,7 @@ public final class ProjectileManager {
         if (struck.painting() != null) {
             net.zaminmc.torch.server.decoration.Painting painting = struck.painting();
             if (projectile.kind() == ProjectileEntity.Kind.POTION) {
-                potionSink.splash(struck.at().x(), struck.at().y(), struck.at().z(),
+                potionSink.splash(from.x(), from.y(), from.z(),
                         projectile.potionDamage(), null, projectile.throwerId(),
                         projectile.dimension());
             } else if (projectile.kind() == ProjectileEntity.Kind.ARROW) {
@@ -1848,6 +1883,7 @@ public final class ProjectileManager {
                 }
                 hatchEggChicks(projectile, from);
             }
+            shardBurst(projectile, from);
             remove(projectile, "hit");
             return true;
         }
@@ -1941,7 +1977,8 @@ public final class ProjectileManager {
         if (projectile.kind() == ProjectileEntity.Kind.POTION) {
             // The splash on the refused body (no direct hit — the base
             // Entity is no LivingEntity, the proximity walk's own law).
-            potionSink.splash(at.x(), at.y(), at.z(), projectile.potionDamage(),
+            // Wave PE-21 — the center at the pre-move origin.
+            potionSink.splash(from.x(), from.y(), from.z(), projectile.potionDamage(),
                     null, projectile.throwerId(), projectile.dimension());
         } else if (projectile.kind() == ProjectileEntity.Kind.ARROW) {
             // THE BOUNCE (ArrowEntity.onHit lines 279-285): the per-axis
@@ -1972,6 +2009,7 @@ public final class ProjectileManager {
             // shatter — the remove below the whole tail's own law.
             hatchEggChicks(projectile, from);
         }
+        shardBurst(projectile, from);
         remove(projectile, "hit");
         return true;
     }
@@ -2013,7 +2051,10 @@ public final class ProjectileManager {
             // The bottle's burst on the block arm (the same law — the
             // reference's onCollision bursts on ANY collision, a body or
             // a block; the wound never lands, the remove unconditional).
-            xpBottleSink.burst(hitAt.x(), hitAt.y(), hitAt.z(),
+            // Wave PE-21 — the center at the bottle's OWN pre-move origin
+            // (the reference's {@code this.x/y/z} — the 2002 event at
+            // {@code new BlockPos(this)}, the orbs at the same spot).
+            xpBottleSink.burst(from.x(), from.y(), from.z(),
                     projectile.throwerId(), projectile.dimension());
             remove(projectile, "hit");
             return true;
@@ -2141,12 +2182,24 @@ public final class ProjectileManager {
         }
         if (projectile.kind() == ProjectileEntity.Kind.SMALL_FIREBALL) {
             // The fireball's landing arm (SmallFireballEntity.onHit
-            // lines 34-49): the fire lands at the air cell the fireball
-            // crossed before the solid one — the engine's stand-in for the
-            // reference's hit.face offset (the previous sample's cell).
-            fireSink.tryPlaceFire((int) Math.floor(from.x()),
-                    (int) Math.floor(from.y()), (int) Math.floor(from.z()),
-                    projectile.dimension());
+            // lines 34-49) — Wave PE-21's parity repair: the fire lands
+            // at the reference's OWN cell, {@code hit.getPos().offset
+            // (hit.face)} — the struck face's adjacent air cell, however
+            // far back the tick began (the pre-fix engine's from-cell
+            // stand-in dropped a fast fireball's fire up to several
+            // cells short of the wall). The residue path (the
+            // origin-inside-block edge, the walk's null site) keeps the
+            // from-cell fallback. The mobGriefing gate rides the
+            // thrower (lines 40-44: a MOB shooter's fire gated, every
+            // other arm unconditional).
+            fireSink.tryPlaceFire(
+                    site != null ? site.adjacentCellX()
+                            : (int) Math.floor(from.x()),
+                    site != null ? site.adjacentCellY()
+                            : (int) Math.floor(from.y()),
+                    site != null ? site.adjacentCellZ()
+                            : (int) Math.floor(from.z()),
+                    projectile.throwerId(), projectile.dimension());
             remove(projectile, "hit");
             return true;
         }
@@ -2174,8 +2227,11 @@ public final class ProjectileManager {
         }
         if (projectile.kind() == ProjectileEntity.Kind.POTION) {
             // The block splash (onCollision's null-entity arm: the box
-            // scan around the impact point alone).
-            potionSink.splash(hitAt.x(), hitAt.y(), hitAt.z(),
+            // scan around the impact alone). Wave PE-21 — the center at
+            // the potion's own pre-move origin (the reference's
+            // {@code this.getShape().grown(4, 2, 4)} at this.x/y/z —
+            // onCollision runs before the thrown tick's integration).
+            potionSink.splash(from.x(), from.y(), from.z(),
                     projectile.potionDamage(), null, projectile.throwerId(),
                     projectile.dimension());
             remove(projectile, "hit");
@@ -2190,7 +2246,7 @@ public final class ProjectileManager {
         // tick integrates AFTER the hit), the 1-in-32 four-chick roll
         // riding.
         hatchEggChicks(projectile, from);
-        shatter(projectile);
+        shardBurst(projectile, from);
         remove(projectile, "shattered");
         return true;
     }
@@ -2372,15 +2428,17 @@ public final class ProjectileManager {
             return null; // the cell holds no collision boxes (air)
         }
         double bestT = Double.POSITIVE_INFINITY;
+        net.zaminmc.torch.server.block.CollisionShapes.Box bestBox = null;
         for (net.zaminmc.torch.server.block.CollisionShapes.Box box : boxes) {
             Double entry = segmentEntry(from, stepX, stepY, stepZ,
                     cellX + box.minX(), cellY + box.minY(), cellZ + box.minZ(),
                     cellX + box.maxX(), cellY + box.maxY(), cellZ + box.maxZ());
             if (entry != null && entry < bestT) {
                 bestT = entry;
+                bestBox = box;
             }
         }
-        if (bestT == Double.POSITIVE_INFINITY) {
+        if (bestT == Double.POSITIVE_INFINITY || bestBox == null) {
             return null; // the segment never enters the cell's boxes
         }
         double faceX = from.x() + stepX * bestT;
@@ -2394,11 +2452,40 @@ public final class ProjectileManager {
         if (length < 1.0E-9) {
             return null; // the degenerate zero-step residue
         }
+        // THE STRUCK FACE'S OWN CELL OFFSET (Wave PE-21 — the small
+        // fireball's fire cell, SmallFireballEntity.onHit lines 34-49:
+        // {@code hit.getPos().offset(hit.face)}): the entry point sits
+        // EXACTLY on the best box's entry face — the one axis whose band
+        // the face point closes — and the fire lands one cell OUT along
+        // that face's outward normal, the air cell the fireball crossed
+        // before the solid one (a partial shape answers its OWN face: a
+        // slab's top face puts the fire in the cell ABOVE the slab's
+        // cell, never inside it). The x/y/z tie-break is the corner
+        // edge's own order.
+        net.zaminmc.torch.server.block.CollisionShapes.Box struckBox = bestBox;
+        int faceOffsetX = 0;
+        int faceOffsetY = 0;
+        int faceOffsetZ = 0;
+        double eps = 1.0E-7;
+        if (Math.abs(faceX - (cellX + struckBox.minX())) <= eps) {
+            faceOffsetX = -1;
+        } else if (Math.abs(faceX - (cellX + struckBox.maxX())) <= eps) {
+            faceOffsetX = 1;
+        } else if (Math.abs(faceY - (cellY + struckBox.minY())) <= eps) {
+            faceOffsetY = -1;
+        } else if (Math.abs(faceY - (cellY + struckBox.maxY())) <= eps) {
+            faceOffsetY = 1;
+        } else if (Math.abs(faceZ - (cellZ + struckBox.minZ())) <= eps) {
+            faceOffsetZ = -1;
+        } else if (Math.abs(faceZ - (cellZ + struckBox.maxZ())) <= eps) {
+            faceOffsetZ = 1;
+        }
         return new StickSite(
                 new Position(faceX - remainX / length * 0.05,
                         faceY - remainY / length * 0.05,
                         faceZ - remainZ / length * 0.05),
-                remainX, remainY, remainZ, cellX, cellY, cellZ);
+                remainX, remainY, remainZ, cellX, cellY, cellZ,
+                faceOffsetX, faceOffsetY, faceOffsetZ);
     }
 
     /**
@@ -2473,7 +2560,8 @@ public final class ProjectileManager {
      * the tracked cell the stick clock reads).
      */
     private record StickSite(Position rest, double faceVectorX, double faceVectorY,
-            double faceVectorZ, int cellX, int cellY, int cellZ) {
+            double faceVectorZ, int cellX, int cellY, int cellZ,
+            int faceOffsetX, int faceOffsetY, int faceOffsetZ) {
 
         /**
          * The hit FACE's own position (Wave PE-19 — the reference's
@@ -2490,6 +2578,25 @@ public final class ProjectileManager {
             return new Position(rest.x() + faceVectorX / length * 0.05,
                     rest.y() + faceVectorY / length * 0.05,
                     rest.z() + faceVectorZ / length * 0.05);
+        }
+
+        /**
+         * The struck face's ADJACENT CELL (Wave PE-21 — the reference's
+         * {@code hit.getPos().offset(hit.face)}, the small fireball's
+         * fire cell): the hit cell one step OUT along the struck face's
+         * outward normal — the air cell the projectile crossed before
+         * the solid one, however far back its tick began.
+         */
+        int adjacentCellX() {
+            return cellX + faceOffsetX;
+        }
+
+        int adjacentCellY() {
+            return cellY + faceOffsetY;
+        }
+
+        int adjacentCellZ() {
+            return cellZ + faceOffsetZ;
         }
     }
 
@@ -2816,11 +2923,27 @@ public final class ProjectileManager {
         return damage;
     }
 
-    /** The shard break feedback (the splat puff + the glassy click). */
-    private void shatter(ProjectileEntity projectile) {
-        fx.poof(projectile.position(), projectile.dimension());
-        fx.sound(projectile.position(), "random.glass", 0.5f,
-                0.7f + random.nextFloat() * 0.3f, projectile.dimension());
+    /**
+     * THE SHARD FAMILY'S BURST (Wave PE-21 — the reference's own form,
+     * SnowballEntity.onCollision lines 51-54 / EggEntity lines 55-66): the
+     * 8-particle burst at the COLLISION ORIGIN — the reference's
+     * {@code this.x/y/z} inside onCollision, the thrown tick integrating
+     * AFTER the hit — on EVERY collision arm (the block and the body
+     * alike; the pre-fix engine played it on the block arm alone). The
+     * snowball rides the white puff (the engine's own snowball-splat
+     * stand-in); the egg rides the item-shatter crumbs (ITEM_CRACK's own
+     * carry, the egg's item id). NO sound for either — the reference's
+     * shards play nothing (the engine's glass stand-in retired with this
+     * wave).
+     */
+    private void shardBurst(ProjectileEntity projectile, Position from) {
+        if (projectile.kind() == ProjectileEntity.Kind.EGG) {
+            fx.itemShatter(from, net.zaminmc.torch.item.ItemStack.of(
+                    net.zaminmc.torch.server.item.BuiltinItems.EGG, 1),
+                    projectile.dimension());
+        } else if (projectile.kind() == ProjectileEntity.Kind.SNOWBALL) {
+            fx.poof(from, projectile.dimension());
+        }
     }
 
     /**

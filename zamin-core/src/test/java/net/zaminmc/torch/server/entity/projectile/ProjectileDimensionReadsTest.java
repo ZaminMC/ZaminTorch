@@ -139,7 +139,7 @@ class ProjectileDimensionReadsTest {
         List<Integer> boomDimensions = new ArrayList<>();
         ProjectileManager manager = new ProjectileManager(solid, new NoHits(),
                 new RecordingCombat(), new FxManager(), new Random(23), 1);
-        manager.setFireSink((x, y, z, dimension) -> fireDimensions.add(dimension));
+        manager.setFireSink((x, y, z, throwerId, dimension) -> fireDimensions.add(dimension));
         manager.setExplosionSink((at, power, dimension) -> boomDimensions.add(dimension));
 
         // A small fireball and a ghast fireball shot straight DOWN from

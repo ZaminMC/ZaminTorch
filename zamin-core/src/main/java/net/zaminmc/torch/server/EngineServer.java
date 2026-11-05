@@ -2629,12 +2629,22 @@ public final class EngineServer implements Server, EngineBridge {
                         (pos, dimension) -> worldForSafe(dimension).getBlock(pos)
                                 .identifier().toString());
                 projectiles.addListener(new ProjectileEventDispatch());
-                // The fireball's landing arm (SmallFireballEntity.onHit): the
-                // fire block at the air cell the fireball crossed before the
-                // solid one.
-                projectiles.setFireSink((x, y, z, dimension) -> {
+                // The fireball's landing arm (SmallFireballEntity.onHit):
+                // the fire block at the struck face's own adjacent cell —
+                // the reference's hit.getPos().offset(hit.face).
+                projectiles.setFireSink((x, y, z, throwerId, dimension) -> {
                     // Wave TF-9 — the fire lands in the fireball's OWN
                     // world (SmallFireballEntity.onHit's world.setBlockState).
+                    // Wave PE-21 — the reference's own gate (onHit lines
+                    // 40-44): a MOB shooter's fire rides the mobGriefing
+                    // rule (the blaze's charge never burning where the
+                    // rule refuses); every other arm — the dispenser's
+                    // charge, the player's hand — places unconditioned
+                    // (the reference's flag1 initializer true).
+                    if (throwerId > 0 && mobManager.byId(throwerId) != null
+                            && !gameRules.getBoolean("mobGriefing")) {
+                        return; // the mob's fire refused
+                    }
                     EngineWorld fireWorld = worldForSafe(dimension);
                     BlockPosition at = new BlockPosition(x, y, z);
                     if (at.y() >= BlockPosition.MIN_Y && at.y() <= BlockPosition.MAX_Y

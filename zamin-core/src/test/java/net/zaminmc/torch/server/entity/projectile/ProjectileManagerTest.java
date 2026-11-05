@@ -332,7 +332,11 @@ class ProjectileManagerTest {
         boolean glass = fx.stream().anyMatch(e ->
                 e instanceof FxManager.Sound s && s.name().equals("random.glass"));
         assertTrue(poof, "the shatter puff rode the FX bus");
-        assertTrue(glass, "the shatter sound rode the FX bus");
+        // Wave PE-21 — the reference's own silence (SnowballEntity
+        // .onCollision lines 51-54: the 8-particle burst alone, no sound
+        // anywhere in the walk — the engine's glass stand-in retired).
+        assertFalse(glass, "the snowball's shatter plays NO sound (the reference's"
+                + " own law — the glass stand-in was the engine's invention)");
     }
 
     @Test

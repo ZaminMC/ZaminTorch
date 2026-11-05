@@ -8460,13 +8460,67 @@ seat and PistonBreakDrop — full-suite one-offs, each green isolated
 across repeated solo runs, the loaded-runner class the census doc
 already owns).
 
-NEXT WORK (re-pinned, in order): the projectile family's adjacent
-parity rows (the wave's own ledgered finds: the potion's splash
-center at the pre-move origin, the shard-burst FX on the entity
-arms, the small fireball's face-offset fire cell); the Section X
-version-fidelity gate (§X.13, the FL4 ledger's own row); the CI
-census watches (the environmental class, unchanged — the verifier's
-non-1:1 documentation the standing input for every lane).
+WAVE PE-21 LANDED (2026-11-05, the same session's second wave): THE
+PROJECTILE FAMILY'S LANDING-SITE REPAIRS — the PE-20 ledger's adjacent
+finds, each verified against the reference's own tick order
+(ThrownEntity.tick calls onCollision BEFORE the position integration,
+lines 193-199 — every {@code this.x/y/z} inside the collision walks is
+the PRE-MOVE origin): (1) THE SMALL FIREBALL'S FIRE CELL
+(SmallFireballEntity.onHit lines 34-49 — {@code hit.getPos().offset
+(hit.face)}): the struck face's OWN adjacent cell, computed from the
+stick walk's best box (the entry point sits exactly on the entry
+face; the one axis whose band it closes answers the offset — a
+partial shape answering its OWN face, a slab's top face putting the
+fire in the cell ABOVE the slab's cell), however far back the tick
+began — the pre-fix engine's from-cell stand-in dropped a fast
+fireball's fire up to several cells short of the wall; the residue
+path (the origin-inside-block edge) keeps the from-cell fallback; the
+MOBGRIEFING GATE rides with it (lines 40-44 — the thrower's id on the
+sink: a MOB shooter's fire gated, the dispenser's shooter-less charge
+and the player's hand placing unconditioned, the reference's flag1
+initializer true); (2) THE POTION'S SPLASH CENTER (PotionEntity
+.onCollision lines 72-106): the effect box {@code this.getShape()
+.grown(4, 2, 4)} at the potion's OWN pre-move position and the closing
+2002 event at the origin's cell — every arm repaired (the block, the
+mob, the player, the vehicle, the stand, the frame, the painting, the
+refused bodies), the XP bottle's burst and orbs riding the same
+origin; the ADJACENT FIND repaired with it: the potion's splash on a
+VEHICLE was absent whole (the pre-fix engine consumed the potion at
+the cart with no splash — a crowded lane's bystanders never felt it;
+PotionEntity.onCollision's proximity walk fires whatever it struck);
+(3) THE SHARD FAMILY'S BURST (SnowballEntity.onCollision lines 51-54
+/ EggEntity lines 55-66): the 8-particle burst at the collision
+ORIGIN on EVERY arm (the pre-fix engine played it on the block arm
+alone — a body hit was FX-silent), the snowball riding the white
+puff, the egg riding the ITEM_CRACK crumbs with its own item id, and
+NO sound for either (the reference's shards play nothing — the
+engine's random.glass stand-in retired whole). SEATS:
+ProjectileLandingSiteParityDiscoveryTest 5/0 — RED 5/5 on the
+pre-fix engine (the fire cell: the adjacent row 17, never the
+from-cell 16 nor inside the wall; the mobGriefing gate: the blaze's
+charge refused under the no-grief rule while the dispenser's places;
+the splash center: the 2002 event at the pre-move origin, never the
+struck face; the shard burst on the entity arm: the poof at the hit,
+no glass anywhere; the egg's crumbs: the ITEM_CRACK event with the
+egg's own id); ProjectileManagerTest's shard FX seat repaired to the
+reference's silence (it asserted the engine's own glass invention);
+SplashBoundsParityDiscoveryTest's cow pit RIG-REPAIRED one block
+shallower (the honest pre-move center moved the splash box a
+fraction up the wall, and the deeper pit's feet distance had ridden
+the instant-damage rounding's razor edge — the shallower floor keeps
+the head-reach shape with the wound's own margin whole; the seat's
+premise — the box gather reading the body's OWN hull — untouched).
+LANES: the projectile package and the touched families 114/0, the
+splash/potion/fire lanes 20/0, the full PE-20 census seats still
+green — the known environmental class unchanged.
+
+NEXT WORK (re-pinned, in order): the Section X version-fidelity gate
+(§X.13, the FL4 ledger's own row); the fire family's scheduled-tick
+timing audit (the PE-21 seats' rig notes: the engine's mid-air fire
+dies within ticks where the reference's FireBlock.tick schedule runs
+~30-40 — the fire family's own row, the verifier's census input);
+the CI census watches (the environmental class, unchanged — the
+verifier's non-1:1 documentation the standing input for every lane).
 
 VT-033'S ADJACENT TAILS LANDED (2026-11-02, commit d96f4a2a — #146's
 review-note ledger retired): the WITHER FALL's kill row and the BEACON

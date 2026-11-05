@@ -135,28 +135,34 @@ class SplashBoundsParityDiscoveryTest {
         EngineAwaits.awaitCondition(server.world(), () -> BuiltinBlocks.STONE.equals(
                         server.world().getBlock(new BlockPosition(x - 1, fy + 2, z))),
                 40, "the west pit's roof placed");
-        // The west pit itself: the floor removed down to fy-4, the pit
-        // floor at fy-4 — the zombie's feet at fy-3, the head at fy-1.2.
+        // The west pit itself: the floor removed down to fy-3, the pit
+        // floor at fy-3 — the cow's feet at fy-2, the head at fy-0.6.
+        // (Wave PE-21's rig repair: the potion's splash center is now
+        // the reference's OWN pre-move origin — roughly the last tick's
+        // step above the floor's face — and the deeper pit's feet
+        // distance rode the instant-damage rounding's razor edge: the
+        // shallower floor keeps the head-reach shape with the wound's
+        // own margin whole.)
         server.ticker().submit(() -> {
             for (int dx = -2; dx <= -1; dx++) {
                 for (int dz = -1; dz <= 1; dz++) {
-                    for (int y = fy - 1; y >= fy - 4; y--) {
+                    for (int y = fy - 1; y >= fy - 3; y--) {
                         server.world().setBlock(new BlockPosition(x + dx, y, z + dz),
                                 server.world().airType());
                     }
-                    server.world().setBlock(new BlockPosition(x + dx, fy - 4, z + dz),
+                    server.world().setBlock(new BlockPosition(x + dx, fy - 3, z + dz),
                             BuiltinBlocks.STONE);
                 }
             }
         });
         EngineAwaits.awaitCondition(server.world(), () -> BuiltinBlocks.STONE.equals(
-                        server.world().getBlock(new BlockPosition(x - 1, fy - 4, z))),
+                        server.world().getBlock(new BlockPosition(x - 1, fy - 3, z))),
                 40, "the west pit carved");
         AtomicReference<MobEntity> body = new AtomicReference<>();
         server.ticker().submit(() -> {
             MobEntity spawned = server.mobs().spawnAt(
                     net.zaminmc.torch.server.entity.MobType.COW,
-                    new Position(x - 1.5, fy - 3, z + 0.5), 0);
+                    new Position(x - 1.5, fy - 2, z + 0.5), 0);
             body.set(spawned);
         });
         await(() -> body.get() != null, "the cow spawned in the pit");
