@@ -260,10 +260,18 @@ class TemptBegGoalsTest {
         // (the reference's own order: the village walk 5 over the plain
         // wander 9); the TF-1 pair joins before both (the reference's own
         // order: the follow 5 over the perch 6 over the wander 7/10).
-        assertEquals(15, snapshot.size(),
+        // Wave PE-22's idle-life family joins beside them: the golem's
+        // glance (additive, LOOK-only beside the beg), the villager's
+        // door open FIRST in the walk band (the reference's 4 under the
+        // village walk's 5), the baby's parent walk, the child's golem
+        // walk LATE (the reference's 7 over the wander's 9), and the
+        // graze LAST before the stroll (the sheep ladder's 5-over-6).
+        assertEquals(20, snapshot.size(),
                 "float, avoid_sunlight, panic, break_door, flee_zombie, breed,"
-                        + " beg, tempt, escape_sunlight, flee_player, follow_owner,"
-                        + " sit_on_block, rabbit_raid_farm, village_return, stroll");
+                        + " beg, golem_look, tempt, escape_sunlight, flee_player,"
+                        + " open_door, follow_owner, sit_on_block, follow_parent,"
+                        + " rabbit_raid_farm, village_return, follow_golem, eat_grass,"
+                        + " stroll");
         assertEquals("avoid_sunlight", snapshot.get(1).goalId());
         assertEquals(0, snapshot.get(1).priority());
         assertFalse(snapshot.get(1).exclusive(), "the sun-shade flag is additive");
@@ -275,22 +283,32 @@ class TemptBegGoalsTest {
         assertTrue(snapshot.get(4).exclusive());
         assertEquals("beg", snapshot.get(6).goalId());
         assertFalse(snapshot.get(6).exclusive(), "the beg is LOOK-only, additive");
-        assertEquals("tempt", snapshot.get(7).goalId());
-        assertTrue(snapshot.get(7).exclusive());
-        assertEquals("escape_sunlight", snapshot.get(8).goalId());
+        assertEquals("golem_look", snapshot.get(7).goalId());
+        assertFalse(snapshot.get(7).exclusive(), "the glance is LOOK-only, additive");
+        assertEquals("tempt", snapshot.get(8).goalId());
         assertTrue(snapshot.get(8).exclusive());
-        assertEquals("flee_player", snapshot.get(9).goalId());
+        assertEquals("escape_sunlight", snapshot.get(9).goalId());
         assertTrue(snapshot.get(9).exclusive());
-        assertEquals("follow_owner", snapshot.get(10).goalId());
+        assertEquals("flee_player", snapshot.get(10).goalId());
         assertTrue(snapshot.get(10).exclusive());
-        assertEquals("sit_on_block", snapshot.get(11).goalId());
+        assertEquals("open_door", snapshot.get(11).goalId());
         assertTrue(snapshot.get(11).exclusive());
-        assertEquals("rabbit_raid_farm", snapshot.get(12).goalId());
+        assertEquals("follow_owner", snapshot.get(12).goalId());
         assertTrue(snapshot.get(12).exclusive());
-        assertEquals("village_return", snapshot.get(13).goalId());
+        assertEquals("sit_on_block", snapshot.get(13).goalId());
         assertTrue(snapshot.get(13).exclusive());
-        assertEquals("stroll", snapshot.get(14).goalId());
-        assertEquals(4, snapshot.get(13).priority());
+        assertEquals("follow_parent", snapshot.get(14).goalId());
+        assertTrue(snapshot.get(14).exclusive());
+        assertEquals("rabbit_raid_farm", snapshot.get(15).goalId());
+        assertTrue(snapshot.get(15).exclusive());
+        assertEquals("village_return", snapshot.get(16).goalId());
+        assertTrue(snapshot.get(16).exclusive());
+        assertEquals("follow_golem", snapshot.get(17).goalId());
+        assertTrue(snapshot.get(17).exclusive());
+        assertEquals("eat_grass", snapshot.get(18).goalId());
+        assertTrue(snapshot.get(18).exclusive());
+        assertEquals("stroll", snapshot.get(19).goalId());
+        assertEquals(4, snapshot.get(18).priority());
     }
 
     @Test

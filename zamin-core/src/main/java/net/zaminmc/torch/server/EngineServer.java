@@ -25457,6 +25457,124 @@ public final class EngineServer implements Server, EngineBridge {
         }
 
         /**
+         * The sheep's graze on a tall-grass cell (Wave PE-22 —
+         * EatGrassGoal.tick lines 75-79): the body's own feet cell
+         * breaks drop-less ({@code breakBlock(pos, false)} — the air
+         * write through the engine's own setBlock, the neighbor bus the
+         * write itself carries, nothing dropping).
+         */
+        @Override
+        public void onSheepGrazeTallGrass(net.zaminmc.torch.server.entity.MobEntity sheep) {
+            for (MobManager.Listener listener : mobListeners) {
+                listener.onSheepGrazeTallGrass(sheep);
+            }
+            BlockPosition at = new BlockPosition(
+                    (int) Math.floor(sheep.position().x()),
+                    (int) Math.floor(sheep.position().y()),
+                    (int) Math.floor(sheep.position().z()));
+            var type = world.getBlock(at);
+            if (!type.identifier().value().equals("tall_grass")) {
+                return; // the cell moved under the window — the write stands down
+            }
+            world.setBlock(at, world.airType());
+        }
+
+        /**
+         * The sheep's graze on a grass block (Wave PE-22 —
+         * EatGrassGoal.tick lines 83-89): the 2001 block-dust event
+         * carrying the GRASS block (the client plays its own dig sound
+         * from the packet — the engine's blockShatter + named-sound
+         * stand-in, the dig-feedback family's own decomposition) and
+         * the DIRT write at the cell below the body's feet.
+         */
+        @Override
+        public void onSheepGrazeGrassBlock(net.zaminmc.torch.server.entity.MobEntity sheep) {
+            for (MobManager.Listener listener : mobListeners) {
+                listener.onSheepGrazeGrassBlock(sheep);
+            }
+            BlockPosition at = new BlockPosition(
+                    (int) Math.floor(sheep.position().x()),
+                    (int) Math.floor(sheep.position().y()) - 1,
+                    (int) Math.floor(sheep.position().z()));
+            var type = world.getBlock(at);
+            if (!type.identifier().value().equals("grass_block")) {
+                return; // the cell moved under the window — the write stands down
+            }
+            Position center = new Position(at.x() + 0.5, at.y() + 0.5, at.z() + 0.5);
+            fxManager.blockShatter(center, type, sheep.dimension());
+            fxManager.sound(center,
+                    BlockSoundMap.digSound(type.identifier()).orElse("dig.grass"),
+                    1.0f, 0.75f + fxRandom.nextFloat() * 0.2f, sheep.dimension());
+            world.setBlock(at, blockRegistry.require(
+                    net.zaminmc.torch.util.Identifier.parse("minecraft:dirt")));
+        }
+
+        /**
+         * The villager's door swung open (Wave PE-22 —
+         * LongDoorInteractGoal.start over DoorBlock.updateOpenState,
+         * lines 143-153): the LOWER half's OPEN bit written (the upper
+         * untouched — the reference's single-cell write; the engine's
+         * flattened door model carries the open bit on the lower's own
+         * state, exactly the metadata nibble the client renders) and
+         * the 1003 event at the door cell.
+         */
+        @Override
+        public void onVillagerDoorOpen(net.zaminmc.torch.server.entity.MobEntity villager) {
+            for (MobManager.Listener listener : mobListeners) {
+                listener.onVillagerDoorOpen(villager);
+            }
+            swingVillagerDoor(villager, true);
+        }
+
+        /**
+         * The villager's door swung shut (Wave PE-22 — the same
+         * updateOpenState at the window's end): the LOWER half's OPEN
+         * bit cleared and the 1006 event at the door cell.
+         */
+        @Override
+        public void onVillagerDoorClose(net.zaminmc.torch.server.entity.MobEntity villager) {
+            for (MobManager.Listener listener : mobListeners) {
+                listener.onVillagerDoorClose(villager);
+            }
+            swingVillagerDoor(villager, false);
+        }
+
+        /**
+         * The villager's door swing ({@code DoorBlock.updateOpenState}
+         * lines 143-153 1:1): the door cell resolves to its LOWER half
+         * (the captured cell may be either), a state whose OPEN bit
+         * already answers the swing is left alone (the reference's own
+         * {@code get(OPEN) != open} gate — the 1003/1006 event never
+         * fires on a no-op), and the write lands on the lower alone.
+         */
+        private void swingVillagerDoor(net.zaminmc.torch.server.entity.MobEntity villager,
+                                       boolean open) {
+            int capturedX = villager.villagerDoorX();
+            int capturedY = villager.villagerDoorY();
+            int capturedZ = villager.villagerDoorZ();
+            BlockType at = world.getBlock(new BlockPosition(capturedX, capturedY, capturedZ));
+            String family = WoodDoorFamily.familyOf(at);
+            if (family == null) {
+                return; // the door left under the window — the swing stands down
+            }
+            // updateOpenState's own resolution: the captured cell's
+            // HALF — the LOWER stays, the UPPER redirects down one.
+            BlockPosition lower = WoodDoorFamily.isUpper(at)
+                    ? new BlockPosition(capturedX, capturedY - 1, capturedZ)
+                    : new BlockPosition(capturedX, capturedY, capturedZ);
+            BlockType lowerType = world.getBlock(lower);
+            String lowerFamily = WoodDoorFamily.familyOf(lowerType);
+            if (lowerFamily == null || !lowerFamily.equals(family)
+                    || WoodDoorFamily.isOpen(lowerType) == open) {
+                return; // not the door's lower half, or the swing is a no-op
+            }
+            world.setBlock(lower, WoodDoorFamily.flipLower(lowerType));
+            fxManager.sound(new Position(lower.x() + 0.5, lower.y() + 0.5, lower.z() + 0.5),
+                    open ? "random.door_open" : "random.door_close", 0.8f, 1.0f,
+                    villager.dimension());
+        }
+
+        /**
          * The zombie's door-break crack stage (VIII9 — the 0x28 fan rides
          * the public listener list; the protocol bridge sends it over the
          * MOB's own breaker id).
@@ -26426,6 +26544,117 @@ public final class EngineServer implements Server, EngineBridge {
                 }
             }
             return best;
+        }
+
+        /**
+         * Wave PE-22 — the baby's parent census ({@code
+         * FollowParentGoal.canStart}'s gather, lines 24-41): every live
+         * ADULT of the child's own kind in the active dimension whose
+         * OWN box intersects the grown box STRICT both sides, the
+         * nearest by the reference's {@code !(d1 > d0)} tie form over
+         * the child's position.
+         */
+        @Override
+        public MobEntity nearestAdultOfKindInBox(double minX, double minY, double minZ,
+                                                 double maxX, double maxY, double maxZ,
+                                                 net.zaminmc.torch.server.entity.MobType kind,
+                                                 double sx, double sy, double sz) {
+            MobEntity best = null;
+            double bestDistance = Double.MAX_VALUE;
+            for (MobEntity mob : mobManager.all()) {
+                if (mob.dead() || mob.type() != kind
+                        || mob.dimension() != activeDimension
+                        || mob.isBaby()) {
+                    continue; // the reference's breedingAge >= 0 row
+                }
+                Position p = mob.position();
+                // The candidate's OWN type box against the grown box,
+                // STRICT both sides (Box.intersects' own law).
+                double half = mob.type().width / 2.0;
+                if (p.x() + half <= minX || p.x() - half >= maxX
+                        || p.y() + mob.type().height <= minY || p.y() >= maxY
+                        || p.z() + half <= minZ || p.z() - half >= maxZ) {
+                    continue; // no intersection — never a candidate
+                }
+                double dx = p.x() - sx;
+                double dy = p.y() - sy;
+                double dz = p.z() - sz;
+                double distance = dx * dx + dy * dy + dz * dz;
+                if (!(distance > bestDistance)) {
+                    bestDistance = distance;
+                    best = mob; // the reference's tie form — the later tied body wins
+                }
+            }
+            return best;
+        }
+
+        /**
+         * Wave PE-22 — the golem's villager glance census ({@code
+         * IronGolemLookGoal.canStart}'s {@code getNearestEntity} walk,
+         * World lines 2217-2236): the nearest live villager of the
+         * active dimension whose OWN box intersects the grown box
+         * STRICT both sides, by {@code squaredDistanceTo} the seeker's
+         * position with the reference's own {@code !(d1 > d0)} form.
+         */
+        @Override
+        public MobEntity nearestVillagerInBox(double minX, double minY, double minZ,
+                                              double maxX, double maxY, double maxZ,
+                                              double sx, double sy, double sz) {
+            MobEntity best = null;
+            double bestDistance = Double.MAX_VALUE;
+            for (MobEntity mob : mobManager.all()) {
+                if (mob.dead()
+                        || mob.type() != net.zaminmc.torch.server.entity.MobType.VILLAGER
+                        || mob.dimension() != activeDimension) {
+                    continue;
+                }
+                Position p = mob.position();
+                double half = mob.type().width / 2.0;
+                if (p.x() + half <= minX || p.x() - half >= maxX
+                        || p.y() + mob.type().height <= minY || p.y() >= maxY
+                        || p.z() + half <= minZ || p.z() - half >= maxZ) {
+                    continue; // no intersection — never a candidate
+                }
+                double dx = p.x() - sx;
+                double dy = p.y() - sy;
+                double dz = p.z() - sz;
+                double distance = dx * dx + dy * dy + dz * dz;
+                if (!(distance > bestDistance)) {
+                    bestDistance = distance;
+                    best = mob;
+                }
+            }
+            return best;
+        }
+
+        /**
+         * Wave PE-22 — the child's golem census ({@code
+         * FollowGolemGoal.canStart}'s gather + the looking-at-villager
+         * pick, lines 34-40): the FIRST live iron golem of the active
+         * dimension whose OWN box intersects the grown box STRICT both
+         * sides and whose offer clock stands above zero — the
+         * reference's own list-order break.
+         */
+        @Override
+        public MobEntity firstGolemLookingAtVillagerInBox(double minX, double minY, double minZ,
+                                                          double maxX, double maxY, double maxZ) {
+            for (MobEntity mob : mobManager.all()) {
+                if (mob.dead()
+                        || mob.type() != net.zaminmc.torch.server.entity.MobType.IRON_GOLEM
+                        || mob.dimension() != activeDimension
+                        || mob.golemLookingAtVillagerTicks() <= 0) {
+                    continue;
+                }
+                Position p = mob.position();
+                double half = mob.type().width / 2.0;
+                if (p.x() + half <= minX || p.x() - half >= maxX
+                        || p.y() + mob.type().height <= minY || p.y() >= maxY
+                        || p.z() + half <= minZ || p.z() - half >= maxZ) {
+                    continue; // no intersection — never a candidate
+                }
+                return mob; // the reference's break — the first looking golem wins
+            }
+            return null;
         }
 
         /**

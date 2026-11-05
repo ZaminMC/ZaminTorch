@@ -532,6 +532,45 @@ public final class MobManager {
         }
 
         /**
+         * The sheep's graze on a tall-grass cell (Wave PE-22 —
+         * EatGrassGoal.tick lines 75-79): the cell's drop-less break
+         * ({@code world.breakBlock(pos, false)} — the air write with the
+         * neighbor updates, nothing dropping), the body's own feet cell.
+         */
+        default void onSheepGrazeTallGrass(MobEntity sheep) {
+        }
+
+        /**
+         * The sheep's graze on a grass block (Wave PE-22 —
+         * EatGrassGoal.tick lines 83-89): the 2001 block-dust event
+         * carrying the GRASS block's id (the client's own dig sound from
+         * the packet — the engine's blockShatter stand-in) and the DIRT
+         * write beside it ({@code setBlockState(pos, DIRT, 2)}).
+         */
+        default void onSheepGrazeGrassBlock(MobEntity sheep) {
+        }
+
+        /**
+         * The villager's door swung open (Wave PE-22 —
+         * LongDoorInteractGoal.start over DoorBlock.updateOpenState,
+         * lines 143-153): the LOWER half's OPEN bit written (the upper
+         * untouched — the reference's own single-cell write) and the
+         * 1003 event at the door cell.
+         */
+        default void onVillagerDoorOpen(MobEntity villager) {
+        }
+
+        /**
+         * The villager's door swung shut (Wave PE-22 —
+         * LongDoorInteractGoal.stop over the same updateOpenState): the
+         * LOWER half's OPEN bit cleared and the 1006 event at the door
+         * cell — the 20-tick window's end or the pass-through,
+         * whichever first.
+         */
+        default void onVillagerDoorClose(MobEntity villager) {
+        }
+
+        /**
          * A world event fired at a position (Slice 25a — the reference's
          * {@code world.doEvent(null, id, pos, 0)}: the zombie villager's
          * infect 1016 and un-infect 1017 events, the sounds the client
@@ -2383,6 +2422,44 @@ public final class MobManager {
             if (mob.consumeRabbitFarmEat()) {
                 for (Listener listener : listeners) {
                     listener.onRabbitFarmEat(mob);
+                }
+            }
+            // The sheep's graze family (Wave PE-22 — EatGrassGoal): the
+            // start's Entity Status 10 (the client's head-down eat window,
+            // doEntityEvent line 56), then the timer-4 world writes — the
+            // tall grass's drop-less break (breakBlock(pos, false), lines
+            // 75-79) and the grass block's 2001 burst + DIRT write (lines
+            // 83-89), both under the mobGriefing gate the body already
+            // consulted.
+            if (mob.consumeSheepEatStatus()) {
+                for (Listener listener : listeners) {
+                    listener.onMobStatusEvent(mob, 10);
+                }
+            }
+            if (mob.consumeSheepGrazeTallGrass()) {
+                for (Listener listener : listeners) {
+                    listener.onSheepGrazeTallGrass(mob);
+                }
+            }
+            if (mob.consumeSheepGrazeGrassBlock()) {
+                for (Listener listener : listeners) {
+                    listener.onSheepGrazeGrassBlock(mob);
+                }
+            }
+            // The villager's door window (Wave PE-22 — LongDoorInteractGoal
+            // over the shared door base): the open write at the capture
+            // (start's updateOpenState(true), the 1003 event) and the close
+            // write at the window's end (stop's updateOpenState(false), the
+            // 1006 event — the 20-tick clock or the pass-through, whichever
+            // first).
+            if (mob.consumeVillagerDoorOpen()) {
+                for (Listener listener : listeners) {
+                    listener.onVillagerDoorOpen(mob);
+                }
+            }
+            if (mob.consumeVillagerDoorClose()) {
+                for (Listener listener : listeners) {
+                    listener.onVillagerDoorClose(mob);
                 }
             }
             MobEntity.StagedSound landSound = mob.consumeSlimeLandSound();

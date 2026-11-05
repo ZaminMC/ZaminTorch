@@ -414,6 +414,61 @@ public final class MobEntity implements LivingEntity {
             return nearestHostileMob(x, y, z, range);
         }
 
+        /**
+         * Wave PE-22 — THE BABY'S PARENT CENSUS ({@code
+         * FollowParentGoal.canStart} lines 17-45 over {@code
+         * world.getEntitiesOfType(animal.getClass(), child.getShape()
+         * .grown(8.0, 4.0, 8.0))}): every live ADULT of the child's own
+         * kind in the ACTIVE dimension whose OWN box intersects the given
+         * grown box STRICT both sides ({@code Box.intersects} over the
+         * chunk gather's own census — the candidate's shape, never its
+         * center), the NEAREST by the comparator's {@code
+         * squaredDistanceTo} the child's position ({@code !(d1 > d0)} —
+         * the reference's own tie form, the later tied body wins). The
+         * default answers null so stub worlds never find a parent (the
+         * goal's own empty-gather answer).
+         */
+        default MobEntity nearestAdultOfKindInBox(double minX, double minY, double minZ,
+                                                  double maxX, double maxY, double maxZ,
+                                                  MobType kind, double sx, double sy, double sz) {
+            return null;
+        }
+
+        /**
+         * Wave PE-22 — THE GOLEM'S VILLAGER GLANCE CENSUS ({@code
+         * IronGolemLookGoal.canStart} lines 22-33 over {@code
+         * world.getNearestEntity(VillagerEntity.class, golem.getShape()
+         * .grown(6.0, 2.0, 6.0), golem)}): the nearest live VILLAGER of
+         * the ACTIVE dimension whose OWN box intersects the given grown
+         * box STRICT both sides, by the comparator's {@code
+         * squaredDistanceTo} the seeker's position — the {@code
+         * getNearestEntity} law over its own gather's {@code NOT_SPECTATOR}
+         * filter (a villager never rides it). The default answers null so
+         * stub worlds never host the glance.
+         */
+        default MobEntity nearestVillagerInBox(double minX, double minY, double minZ,
+                                               double maxX, double maxY, double maxZ,
+                                               double sx, double sy, double sz) {
+            return null;
+        }
+
+        /**
+         * Wave PE-22 — THE CHILD'S GOLEM CENSUS ({@code
+         * FollowGolemGoal.canStart} lines 22-44 over {@code
+         * world.getEntitiesOfType(IronGolemEntity.class, villager
+         * .getShape().grown(6.0, 2.0, 6.0))} + the looking-at-villager
+         * pick, lines 34-40): the FIRST live iron golem of the ACTIVE
+         * dimension whose OWN box intersects the given grown box STRICT
+         * both sides and whose {@code lookingAtVillagerTicks} stands
+         * above zero — the reference's own list-order break (the engine's
+         * mob-list order the stand-in). The default answers null so stub
+         * worlds never find the golem.
+         */
+        default MobEntity firstGolemLookingAtVillagerInBox(double minX, double minY, double minZ,
+                                                           double maxX, double maxY, double maxZ) {
+            return null;
+        }
+
         /** @return whether the block containing this point is lava. */
         default boolean inLava(double x, double y, double z) {
             return false;
@@ -2221,6 +2276,13 @@ public final class MobEntity implements LivingEntity {
             // tick — the 300-tick re-entry immunity halved to ~150. The
             // reference has exactly ONE decrement call site (baseTick's
             // own tail, once per ticked body).
+        }
+        // The golem's own offer clock (IronGolemEntity.mobTick lines
+        // 109-110 — Wave PE-22): the glance's 400-tick window pays its
+        // decrement wherever the child's FollowGolemGoal reads it, the
+        // reference's own plain tick under every mind the golem runs.
+        if (type == MobType.IRON_GOLEM && golemLookingAtVillagerTicks > 0) {
+            golemLookingAtVillagerTicks--;
         }
         if (sheared && regrowTimer > 0) {
             regrowTimer--;
@@ -8434,6 +8496,94 @@ public final class MobEntity implements LivingEntity {
      */
     private boolean pounceAirborne;
 
+    // --------------------------------- the idle-life family (Wave PE-22)
+
+    /**
+     * The graze's clock ({@code EatGrassGoal.timer}): armed at 40, ticks
+     * down every selector pass, the world write at exactly 4. Zero is
+     * the goal's stopped state (stop() line 62).
+     */
+    private int eatGrassTimer;
+
+    /**
+     * The graze's start event ({@code EatGrassGoal.start} line 55's
+     * {@code world.doEntityEvent(mob, (byte)10)}): the Entity Status 10
+     * the client's sheep renders the head-down eat window from. The
+     * manager drains it.
+     */
+    private boolean pendingSheepEatStatus;
+
+    /**
+     * The graze's tall-grass write ({@code EatGrassGoal.tick} lines
+     * 75-79: the cell's {@code breakBlock(pos, false)} under the
+     * mobGriefing gate). The manager drains the intent.
+     */
+    private boolean pendingSheepGrazeTallGrass;
+
+    /**
+     * The graze's grass-block write ({@code EatGrassGoal.tick} lines
+     * 83-89: the 2001 block-dust event + the DIRT write, both under the
+     * mobGriefing gate). The manager drains the intent.
+     */
+    private boolean pendingSheepGrazeGrassBlock;
+
+    /**
+     * The parent walk's own window ({@code FollowParentGoal
+     * .parentAnimalEntity}, null between walks) over the delay clock
+     * ({@code delay}, the 10-tick re-path cadence).
+     */
+    private MobEntity followParentMob;
+    private int followParentDelay;
+
+    /**
+     * The golem's glance at a villager ({@code IronGolemLookGoal}'s
+     * live window): the villager the golem holds, the 400-tick countdown
+     * ({@code lookCountdown}, the golem's own lookingAtVillagerTicksLeft
+     * field separate — the reference's mobTick decrements it lines
+     * 109-110).
+     */
+    private MobEntity golemLookVillager;
+    private int golemLookCountdown;
+
+    /**
+     * The golem's own offer-window clock ({@code
+     * IronGolemEntity.lookingAtVillagerTicksLeft}: 400 while the golem
+     * holds a villager in its glance, zero otherwise — the child's
+     * FollowGolemGoal reads it, the golem's own body tick decrements it).
+     */
+    private int golemLookingAtVillagerTicks;
+
+    /**
+     * The villager child's golem-follow window ({@code FollowGolemGoal}):
+     * the golem it walks to, the {@code golemLookingTicks} trigger
+     * (start's {@code nextInt(320)} — the counter value the golem's own
+     * clock must hit before the walk starts), and the following flag
+     * (the {@code isFollowingGolem} arm, the &lt;4 arrival stop).
+     */
+    private MobEntity followGolemMob;
+    private int golemLookingTicks;
+    private boolean followingGolem;
+
+    /**
+     * The villager's door window ({@code LongDoorInteractGoal} over
+     * {@code AbstractDoorInteractGoal}): the door cell captured at the
+     * clip site, the entry offset pair (start's {@code offsetX/Z}, the
+     * pass-through dot product's first term), the 20-tick close clock
+     * ({@code ticksLeft}), and the pass-through stop flag. The pending
+     * pair carries the open/close writes to the manager (the lower
+     * half's OPEN bit — {@code DoorBlock.updateOpenState}).
+     */
+    private int villagerDoorX;
+    private int villagerDoorY;
+    private int villagerDoorZ;
+    private float villagerDoorOffsetX;
+    private float villagerDoorOffsetZ;
+    private int villagerDoorTicksLeft;
+    private boolean villagerDoorPassedThrough;
+    private boolean villagerDoorArmed;
+    private boolean pendingVillagerDoorOpen;
+    private boolean pendingVillagerDoorClose;
+
     /** The BlockPos squared distance (the reference's cell-to-cell reads). */
     private static long cellSquaredDistance(long ax, long ay, long az,
                                             long bx, long by, long bz) {
@@ -9264,6 +9414,16 @@ public final class MobEntity implements LivingEntity {
     private void clearPath() {
         navigation.stop();
         pathYawValid = false;
+    }
+
+    /**
+     * The reference's {@code getNavigation().stop()} called on ANOTHER
+     * body's navigation (FollowGolemGoal.start line 43 — the villager
+     * child's goal stops the GOLEM's own walk): the plain stop, no
+     * heading side effects on the caller.
+     */
+    public void stopNavigation() {
+        navigation.stop();
     }
 
     /** @return the path heading override the feet walk (or NaN when none). */
@@ -10578,6 +10738,555 @@ public final class MobEntity implements LivingEntity {
         }
     }
 
+    // --------------------------------- the idle-life family (Wave PE-22)
+
+    /**
+     * The graze's kind gate — the sheep alone registers the goal
+     * (SheepEntity line 60, band 5 between the parent walk's 4 and the
+     * plain wander's 6).
+     */
+    private static final MobType[] PARENT_FOLLOW_KINDS = {
+            MobType.COW, MobType.SHEEP, MobType.PIG, MobType.CHICKEN};
+
+    /** The graze window's own length ({@code EatGrassGoal.start}: 40). */
+    private static final int EAT_GRASS_WINDOW = 40;
+
+    /** The graze's world-write tick ({@code EatGrassGoal.tick}: timer 4). */
+    private static final int EAT_GRASS_WRITE_TICK = 4;
+
+    /**
+     * EatGrassGoal.canStart (lines 42-53 1:1): the baby's own 1-in-50
+     * dice, the adult's 1-in-1000 (line 44 — the exact baby divide), the
+     * body's own feet cell a TALLGRASS of the GRASS type or the cell
+     * below a GRASS block (lines 49-53 — the IS_TALLGRASS predicate's
+     * own TYPE row: the fern never feeds the graze). A live window
+     * (timer above zero) stays claimed — shouldContinue's own law (line
+     * 60); the arming plays start() whole (lines 54-58): timer 40, the
+     * Entity Status 10, the navigation stopped.
+     */
+    boolean goalEatGrassCanUse() {
+        if (eatGrassTimer > 0) {
+            return true; // shouldContinue: the window runs whatever the dice
+        }
+        if (type != MobType.SHEEP) {
+            return false;
+        }
+        if (random.nextInt(isBaby() ? 50 : 1000) != 0) {
+            return false;
+        }
+        int bx = (int) Math.floor(position.x());
+        int by = (int) Math.floor(position.y());
+        int bz = (int) Math.floor(position.z());
+        net.zaminmc.torch.util.Identifier feet = world.blockIdAt(bx, by, bz);
+        if (feet != null && feet.toString().equals("minecraft:tall_grass")) {
+            armEatGrass();
+            return true;
+        }
+        net.zaminmc.torch.util.Identifier below = world.blockIdAt(bx, by - 1, bz);
+        if (below != null && below.toString().equals("minecraft:grass_block")) {
+            armEatGrass();
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * The graze's start() (lines 54-58): the window, the event, the stop.
+     * Package-visible — the discovery seat's drive verb (the zombie
+     * door-break's own arming precedent: the window laws are pinned
+     * without waiting on the dice).
+     */
+    void armEatGrass() {
+        eatGrassTimer = EAT_GRASS_WINDOW;
+        pendingSheepEatStatus = true;
+        clearPath(); // getNavigation().stop()
+    }
+
+    /**
+     * EatGrassGoal.tick (lines 66-92 1:1): the clock counts down (floored
+     * at zero), and at exactly 4 the graze lands — the feet cell RE-READ
+     * (the world may have moved under the window): a TALLGRASS cell
+     * breaks with no drops and feeds the body, else a GRASS block below
+     * pays the 2001 block-dust event + the DIRT write and feeds the body;
+     * both world writes ride the mobGriefing gate, the feed itself does
+     * NOT (onEatingGrass runs whatever the rule answers — the coat
+     * returns on a griefing-refused server too, the reference's own
+     * arm order).
+     */
+    void goalEatGrassTick() {
+        eatGrassTimer = Math.max(0, eatGrassTimer - 1);
+        if (eatGrassTimer != EAT_GRASS_WRITE_TICK) {
+            return;
+        }
+        int bx = (int) Math.floor(position.x());
+        int by = (int) Math.floor(position.y());
+        int bz = (int) Math.floor(position.z());
+        net.zaminmc.torch.util.Identifier feet = world.blockIdAt(bx, by, bz);
+        if (feet != null && feet.toString().equals("minecraft:tall_grass")) {
+            if (world.mobGriefing()) {
+                pendingSheepGrazeTallGrass = true; // breakBlock(pos, false)
+            }
+            onEatingGrass();
+        } else {
+            net.zaminmc.torch.util.Identifier below = world.blockIdAt(bx, by - 1, bz);
+            if (below != null && below.toString().equals("minecraft:grass_block")) {
+                if (world.mobGriefing()) {
+                    pendingSheepGrazeGrassBlock = true; // doEvent 2001 + DIRT
+                }
+                onEatingGrass();
+            }
+        }
+    }
+
+    /**
+     * SheepEntity.onEatingGrass (lines 248-253 1:1): the coat returns
+     * whole (setSheared(false) — the graze's own regrow path, the timer
+     * form untouched) and a baby grows 60 units closer to adulthood
+     * ({@code growUp(60)} — the reference's own age*20 arithmetic, the
+     * engine's units form).
+     */
+    private void onEatingGrass() {
+        setSheared(false);
+        if (isBaby()) {
+            growUp(60);
+        }
+    }
+
+    /** @return and clears the graze's start event (the Entity Status 10). */
+    public boolean consumeSheepEatStatus() {
+        boolean value = pendingSheepEatStatus;
+        pendingSheepEatStatus = false;
+        return value;
+    }
+
+    /** @return and clears the tall-grass graze intent (the drop-less break). */
+    public boolean consumeSheepGrazeTallGrass() {
+        boolean value = pendingSheepGrazeTallGrass;
+        pendingSheepGrazeTallGrass = false;
+        return value;
+    }
+
+    /** @return and clears the grass-block graze intent (2001 + the DIRT write). */
+    public boolean consumeSheepGrazeGrassBlock() {
+        boolean value = pendingSheepGrazeGrassBlock;
+        pendingSheepGrazeGrassBlock = false;
+        return value;
+    }
+
+    /**
+     * FollowParentGoal.canStart (lines 17-45 1:1): a BABY of the four
+     * parent-following kinds (the cow/sheep/chicken's band 4, the pig's
+     * 5 — the kinds whose registration carries the goal), the gather
+     * over the child's OWN shape grown 8 horizontal and 4 vertical
+     * (the feet-anchored asymmetric y band — NOT the breed scan's 8:
+     * the parent walk's own tighter vertical census), the nearest ADULT
+     * by the reference's own tie form, and the start refusal under 3
+     * blocks squared-9 (line 42 — a parent inside the band never arms
+     * the walk). shouldContinue (lines 47-59) rides the same canUse
+     * pass: the baby still a baby, the parent alive, the window 9..256
+     * (the 3-block floor and the 16-block ceiling).
+     */
+    boolean goalFollowParentCanUse() {
+        boolean kindFollows = false;
+        for (MobType kind : PARENT_FOLLOW_KINDS) {
+            if (type == kind) {
+                kindFollows = true;
+                break;
+            }
+        }
+        if (!kindFollows || !isBaby()) {
+            return false;
+        }
+        if (followParentMob != null) {
+            // shouldContinue: the live window's own gates.
+            if (breedingAge >= 0 || followParentMob.dead()) {
+                followParentMob = null; // stop(): the parent state clears
+                return false;
+            }
+            double d0 = squaredDistanceTo(followParentMob);
+            if (d0 < 9.0 || d0 > 256.0) {
+                followParentMob = null;
+                return false;
+            }
+            return true;
+        }
+        MobEntity parent = scanForParent();
+        if (parent == null) {
+            return false;
+        }
+        double d0 = squaredDistanceTo(parent);
+        if (d0 < 9.0) {
+            return false; // the reference's own start refusal — no state kept
+        }
+        followParentMob = parent;
+        followParentDelay = 0; // start(): the re-path clock resets
+        return true;
+    }
+
+    /**
+     * The parent census ({@code FollowParentGoal.canStart}'s gather over
+     * {@code world.getEntitiesOfType(getClass(), grown(8, 4, 8))} + the
+     * nearest-adult walk, lines 24-41): the child's OWN box grown 8
+     * horizontal / 4 vertical, each candidate's OWN box intersecting
+     * STRICT both sides, the nearest ADULT of the child's own kind by
+     * {@code squaredDistanceTo} with the reference's {@code !(d1 > d0)}
+     * tie form.
+     */
+    private MobEntity scanForParent() {
+        double halfWidth = type.width / 2.0;
+        return world.nearestAdultOfKindInBox(
+                position.x() - halfWidth - 8.0, position.y() - 4.0,
+                position.z() - halfWidth - 8.0,
+                position.x() + halfWidth + 8.0, position.y() + type.height + 4.0,
+                position.z() + halfWidth + 8.0,
+                type, position.x(), position.y(), position.z());
+    }
+
+    /**
+     * FollowParentGoal.tick (lines 69-74 1:1): the delay clock counts
+     * down, and at zero — every 10 ticks — the navigation re-paths to
+     * the parent at the goal's own speed parameter (the cow's 1.25, the
+     * sheep/pig/chicken's 1.1 — the registrations' own numbers over the
+     * movement attribute).
+     */
+    void goalFollowParentTick() {
+        MobEntity parent = followParentMob;
+        if (parent == null) {
+            return;
+        }
+        if (--followParentDelay <= 0) {
+            followParentDelay = 10;
+            goalWalkSpeed = type == MobType.COW ? 1.25 : 1.1;
+            mode = Mode.WANDER;
+            modeTicks = 0;
+            navigation.moveTo(parent.position().x(), parent.position().y(),
+                    parent.position().z(), (float) goalWalkSpeed);
+        }
+    }
+
+    /**
+     * IronGolemLookGoal.canStart (lines 18-33 1:1): the sunny gate, the
+     * 1-in-8000 dice, and the nearest VILLAGER inside the golem's OWN
+     * shape grown 6 horizontal / 2 vertical — the glance's own census.
+     * A live window stays claimed until the countdown ends (the canUse
+     * pass folds shouldContinue, line 37's {@code lookCountdown > 0}).
+     */
+    boolean goalGolemLookCanUse() {
+        if (type != MobType.IRON_GOLEM) {
+            return false;
+        }
+        if (golemLookVillager != null) {
+            if (golemLookCountdown <= 0 || golemLookVillager.dead()) {
+                // stop(): the golem's offer window closes.
+                golemLookVillager = null;
+                setLookingAtVillager(false);
+                return false;
+            }
+            return true;
+        }
+        if (!world.isSunny() || random.nextInt(8000) != 0) {
+            return false;
+        }
+        double halfWidth = type.width / 2.0;
+        MobEntity villager = world.nearestVillagerInBox(
+                position.x() - halfWidth - 6.0, position.y() - 2.0,
+                position.z() - halfWidth - 6.0,
+                position.x() + halfWidth + 6.0, position.y() + type.height + 2.0,
+                position.z() + halfWidth + 6.0,
+                position.x(), position.y(), position.z());
+        if (villager == null) {
+            return false;
+        }
+        // start(): the 400-tick window, the golem's own offer clock armed.
+        golemLookVillager = villager;
+        golemLookCountdown = 400;
+        setLookingAtVillager(true);
+        return true;
+    }
+
+    /**
+     * IronGolemLookGoal.tick (lines 45-50 1:1): the golem's head holds
+     * the villager (the look control's 30/30 grip) and the countdown
+     * pays its tick.
+     */
+    void goalGolemLookTick() {
+        MobEntity villager = golemLookVillager;
+        if (villager == null) {
+            return;
+        }
+        headYaw = angleTo(villager.position().x() - position.x(),
+                villager.position().z() - position.z());
+        golemLookCountdown--;
+    }
+
+    /**
+     * IronGolemEntity.setLookingAtVillager (lines 186-188 1:1): the
+     * golem's own offer clock — 400 armed, zero disarmed. The golem's
+     * body tick decrements it (mobTick lines 109-110) wherever the
+     * glance goal reads it.
+     */
+    public void setLookingAtVillager(boolean lookingAtVillager) {
+        golemLookingAtVillagerTicks = lookingAtVillager ? 400 : 0;
+    }
+
+    /** @return the golem's offer clock ({@code getLookingAtVillagerTicks}). */
+    public int golemLookingAtVillagerTicks() {
+        return golemLookingAtVillagerTicks;
+    }
+
+    /**
+     * FollowGolemGoal.canStart (lines 21-44 1:1): a villager CHILD under
+     * the sunny sky, the golems inside the child's OWN shape grown 6
+     * horizontal / 2 vertical, and the one whose offer clock stands —
+     * the glance's own reader. shouldContinue (lines 46-48) rides the
+     * same pass: the golem still offering.
+     */
+    boolean goalFollowGolemCanUse() {
+        if (type != MobType.VILLAGER || !isBaby()) {
+            return false;
+        }
+        if (followGolemMob != null) {
+            if (followGolemMob.dead() || followGolemMob.golemLookingAtVillagerTicks() <= 0) {
+                // stop(): the child's navigation stops, the golem clears.
+                followGolemMob = null;
+                followingGolem = false;
+                clearPath();
+                return false;
+            }
+            return true;
+        }
+        if (!world.isSunny()) {
+            return false;
+        }
+        double halfWidth = type.width / 2.0;
+        MobEntity golem = world.firstGolemLookingAtVillagerInBox(
+                position.x() - halfWidth - 6.0, position.y() - 2.0,
+                position.z() - halfWidth - 6.0,
+                position.x() + halfWidth + 6.0, position.y() + type.height + 2.0,
+                position.z() + halfWidth + 6.0);
+        if (golem == null) {
+            return false;
+        }
+        // start(): the trigger counter (0..319), the following flag clear,
+        // the golem's own navigation stopped.
+        followGolemMob = golem;
+        golemLookingTicks = random.nextInt(320);
+        followingGolem = false;
+        golem.stopNavigation();
+        return true;
+    }
+
+    /**
+     * FollowGolemGoal.tick (lines 50-65 1:1): the child holds the golem
+     * in its look (30/30), walks to it at the flat 0.5 from the moment
+     * the golem's offer clock hits the armed trigger exactly, and stops
+     * — the golem's offer released — inside the 2-block squared-4 band.
+     */
+    void goalFollowGolemTick() {
+        MobEntity golem = followGolemMob;
+        if (golem == null) {
+            return;
+        }
+        headYaw = angleTo(golem.position().x() - position.x(),
+                golem.position().z() - position.z());
+        if (golem.golemLookingAtVillagerTicks() == golemLookingTicks) {
+            followingGolem = true;
+            goalWalkSpeed = 0.5;
+            mode = Mode.WANDER;
+            modeTicks = 0;
+            navigation.moveTo(golem.position().x(), golem.position().y(),
+                    golem.position().z(), 0.5f);
+        }
+        if (followingGolem) {
+            double dx = golem.position().x() - position.x();
+            double dy = golem.position().y() - position.y();
+            double dz = golem.position().z() - position.z();
+            if (dx * dx + dy * dy + dz * dz < 4.0) {
+                golem.setLookingAtVillager(false);
+                clearPath();
+            }
+        }
+    }
+
+    /**
+     * LongDoorInteractGoal over AbstractDoorInteractGoal — the villager's
+     * own OPEN walk. canStart (AbstractDoorInteractGoal lines 28-53) runs
+     * at the body's clip site (the engine's named adaptation — the
+     * swept-clip detour would clear the path before the selector ever
+     * sees the door; {@link #armVillagerDoor()} plays the reference's
+     * reads at the moment they are true): the pressed body, the live
+     * path's node walk with the door cell inside the squared-2.25 XZ
+     * band, the fallback cell above the feet. This canUse is the sticky
+     * window — shouldContinue (LongDoorInteractGoal lines 15-17): the
+     * close timer above zero and the body not yet through. The window's
+     * end plays stop() (lines 24-29): the door swings shut.
+     */
+    boolean goalVillagerDoorCanUse() {
+        if (type != MobType.VILLAGER || !villagerDoorArmed) {
+            return false;
+        }
+        boolean windowOpen = villagerDoorTicksLeft > 0 && !villagerDoorPassedThrough;
+        if (!windowOpen) {
+            // stop(): the villager's door closes behind it.
+            pendingVillagerDoorClose = true;
+            villagerDoorArmed = false;
+        }
+        return windowOpen;
+    }
+
+    /**
+     * LongDoorInteractGoal.tick (lines 19-22 over the abstract's own
+     * lines 71-82 1:1): the close timer pays its tick, then the
+     * pass-through check — the entry offset dotted against the live
+     * offset goes negative the moment the body crosses the door's
+     * center plane (the {@code f2 < 0.0} law), ending the window.
+     */
+    void goalVillagerDoorTick() {
+        villagerDoorTicksLeft--;
+        float f = (float) (villagerDoorX + 0.5F - position.x());
+        float f1 = (float) (villagerDoorZ + 0.5F - position.z());
+        float f2 = villagerDoorOffsetX * f + villagerDoorOffsetZ * f1;
+        if (f2 < 0.0F) {
+            villagerDoorPassedThrough = true;
+        }
+    }
+
+    /**
+     * The villager's door-open capture (AbstractDoorInteractGoal
+     * .canStart at the clip site — the zombie break's own named
+     * adaptation, the reference's shared base): the LIVE path's nodes
+     * [0, currentIndex + 2) with the {@code (node.x, node.y + 1,
+     * node.z)} door cell inside the squared-2.25 XZ band, the fallback
+     * the cell above the body's own feet. A wooden CLOSED door half
+     * arms the walk: the iron family never opens (getDoorBlock's
+     * material gate), the OPEN bit clears it. On the capture, start()
+     * plays whole (LongDoorInteractGoal lines 18-22): the 20-tick
+     * window, the open write, the entry offset pair.
+     *
+     * @return whether the villager's door walk owns the body this tick
+     */
+    boolean armVillagerDoor() {
+        if (type != MobType.VILLAGER || villagerDoorArmed) {
+            return false;
+        }
+        var path = navigation.getPath();
+        int[] doorCell = null;
+        if (path != null && !path.isDone()) {
+            int nodes = Math.min(path.getCurrentIndex() + 2, path.length());
+            for (int i = 0; i < nodes; i++) {
+                var node = path.getNode(i);
+                int doorX = node.x;
+                int doorY = node.y + 1; // the reference's doorPosition: node.y + 1
+                int doorZ = node.z;
+                double dx = doorX - position.x();
+                double dz = doorZ - position.z();
+                if (dx * dx + dz * dz <= 2.25
+                        && zombieBreakableDoorAt(doorX, doorY, doorZ)) {
+                    doorCell = new int[] {doorX, doorY, doorZ};
+                    break;
+                }
+            }
+        }
+        if (doorCell == null) {
+            // The reference's fallback (lines 47-49): the cell above the
+            // body's own feet — a body standing inside a door cell.
+            int fx = (int) Math.floor(position.x());
+            int fy = (int) Math.floor(position.y());
+            int fz = (int) Math.floor(position.z());
+            if (zombieBreakableDoorAt(fx, fy + 1, fz)) {
+                doorCell = new int[] {fx, fy + 1, fz};
+            }
+        }
+        if (doorCell == null) {
+            return false;
+        }
+        return armVillagerDoorAt(doorCell[0], doorCell[1], doorCell[2]);
+    }
+
+    /**
+     * The capture's start verb (LongDoorInteractGoal.start over the
+     * abstract's own capture, lines 18-22): the window, the entry offset
+     * pair, the open write. Package-visible — the discovery seat's drive
+     * verb (the zombie door arming precedent; the write-form laws are
+     * pinned without rigging the walk's clip).
+     */
+    boolean armVillagerDoorAt(int doorX, int doorY, int doorZ) {
+        if (type != MobType.VILLAGER || villagerDoorArmed) {
+            return false;
+        }
+        villagerDoorX = doorX;
+        villagerDoorY = doorY;
+        villagerDoorZ = doorZ;
+        villagerDoorTicksLeft = 20;
+        villagerDoorPassedThrough = false;
+        villagerDoorArmed = true;
+        // start(): the entry offsets from the capture position.
+        villagerDoorOffsetX = (float) (villagerDoorX + 0.5F - position.x());
+        villagerDoorOffsetZ = (float) (villagerDoorZ + 0.5F - position.z());
+        pendingVillagerDoorOpen = true;
+        return true;
+    }
+
+    /** @return and clears the villager's door-open intent (updateOpenState true). */
+    public boolean consumeVillagerDoorOpen() {
+        boolean value = pendingVillagerDoorOpen;
+        pendingVillagerDoorOpen = false;
+        return value;
+    }
+
+    /** @return and clears the villager's door-close intent (updateOpenState false). */
+    public boolean consumeVillagerDoorClose() {
+        boolean value = pendingVillagerDoorClose;
+        pendingVillagerDoorClose = false;
+        return value;
+    }
+
+    /** The villager's captured door cell (the manager's write site reads). */
+    public int villagerDoorX() {
+        return villagerDoorX;
+    }
+
+    /** The villager's captured door cell (the manager's write site reads). */
+    public int villagerDoorY() {
+        return villagerDoorY;
+    }
+
+    /** The villager's captured door cell (the manager's write site reads). */
+    public int villagerDoorZ() {
+        return villagerDoorZ;
+    }
+
+    /**
+     * The parent walk's live target (the discovery seat's read — the
+     * strollTargetForTest precedent): the claimed parent, null when the
+     * walk stands down.
+     */
+    MobEntity followParentTargetForTest() {
+        return followParentMob;
+    }
+
+    /**
+     * The golem follow's walking flag (the discovery seat's read): true
+     * from the trigger tick — the golem's clock hit the armed number —
+     * until the arrival release.
+     */
+    boolean followingGolemForTest() {
+        return followingGolem;
+    }
+
+    /**
+     * The golem follow's live target (the discovery seat's read): the
+     * claimed golem, null when the walk stands down.
+     */
+    MobEntity followGolemTargetForTest() {
+        return followGolemMob;
+    }
+
+    /** The graze's clock (the discovery seat's timing read). */
+    int eatGrassTimerForTest() {
+        return eatGrassTimer;
+    }
+
     // ------------------------------------- the tameable family (Slice TF-1)
 
     /** FollowOwnerGoal's min distance: the start band's own edge (10 blocks). */
@@ -10622,6 +11331,18 @@ public final class MobEntity implements LivingEntity {
         double dx = view.position().x() - position.x();
         double dy = view.position().y() - position.y();
         double dz = view.position().z() - position.z();
+        return dx * dx + dy * dy + dz * dz;
+    }
+
+    /**
+     * The reference's {@code squaredDistanceTo(Entity)} (Entity line
+     * 675): the vanilla 3D squared form between the body anchors — the
+     * parent walk and the golem family's own reads.
+     */
+    private double squaredDistanceTo(MobEntity other) {
+        double dx = other.position().x() - position.x();
+        double dy = other.position().y() - position.y();
+        double dz = other.position().z() - position.z();
         return dx * dx + dy * dy + dz * dz;
     }
 
@@ -12394,8 +13115,11 @@ public final class MobEntity implements LivingEntity {
                 // selector ever sees the door; the named adaptation).
                 // A door-armed zombie claims the door INSTEAD of the wall
                 // slide — the path stays live, the BREAK_DOOR goal takes
-                // the body from here.
-                if (!armZombieDoorBreak()) {
+                // the body from here. Wave PE-22: the villager's OWN
+                // door-open walk rides the same shared base — a pressed
+                // villager captures the door the same way, the OPEN_DOOR
+                // goal holding the body from here.
+                if (!armZombieDoorBreak() && !armVillagerDoor()) {
                     // Blocked mid-walk: slide along the wall (a 45-90° turn
                     // for a handful of ticks) before the mind re-chooses —
                     // the same detour the legacy walk arms, keyed on the
@@ -12471,8 +13195,9 @@ public final class MobEntity implements LivingEntity {
             if (walk > 0 && detourTicks == 0 && onGround) {
                 // VIII9 — the zombie's door-break intercept at the legacy
                 // walk's own clip (the same named adaptation as the solver
-                // site above).
-                if (!armZombieDoorBreak()) {
+                // site above; the villager's door-open walk rides the same
+                // shared base — Wave PE-22).
+                if (!armZombieDoorBreak() && !armVillagerDoor()) {
                     // Blocked mid-walk: slide along the wall (a 45-90° turn for
                     // a handful of ticks) before the mind re-chooses. A hunting
                     // body drops its stale route so the next mind tick repaths

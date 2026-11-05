@@ -329,6 +329,118 @@ final class MobGoals {
     };
 
     /**
+     * Priority 3, additive (LOOK control only — IronGolemLookGoal's own
+     * shape, Wave PE-22, the reference's golem band 5 over the village
+     * walk's 4 and the plain wander's 6): the golem's glance at a
+     * villager. A sunny 1-in-8000 roll arms the 400-tick window — the
+     * head holds the nearest villager inside the golem's OWN shape
+     * grown 6/2, and the golem's own offer clock
+     * (lookingAtVillagerTicksLeft) stands above zero for the village
+     * children's FollowGolemGoal to read.
+     */
+    static final MobGoal GOLEM_LOOK = new MobGoal() {
+        @Override public String goalId() { return "golem_look"; }
+        @Override public int priority() { return 3; }
+        @Override public boolean exclusive() { return false; }
+        @Override public boolean canUse(MobEntity mob, boolean night) {
+            return mob.goalGolemLookCanUse();
+        }
+        @Override public void tick(MobEntity mob, boolean night) {
+            mob.goalGolemLookTick();
+        }
+    };
+
+    /**
+     * Priority 4, exclusive, FIRST in the band (the reference villager's
+     * own door band 4 under the village walk's 5 — Wave PE-22): the
+     * villager's door OPEN walk (LongDoorInteractGoal over the shared
+     * AbstractDoorInteractGoal base, shouldCloseDoor true). A pressed
+     * body with a live path through a closed wooden door captures it at
+     * the clip site, the door swings open, and the 20-tick window closes
+     * it again — unless the body walks through first (the entry-offset
+     * dot product's sign flip).
+     */
+    static final MobGoal OPEN_DOOR = new MobGoal() {
+        @Override public String goalId() { return "open_door"; }
+        @Override public int priority() { return 4; }
+        @Override public boolean exclusive() { return true; }
+        @Override public boolean canUse(MobEntity mob, boolean night) {
+            return mob.goalVillagerDoorCanUse();
+        }
+        @Override public void tick(MobEntity mob, boolean night) {
+            mob.goalVillagerDoorTick();
+        }
+    };
+
+    /**
+     * Priority 4, exclusive (the reference's own band — the cow/sheep/
+     * chicken's 4 and the pig's 5, under the breed's 2 and the tempt's
+     * 3, over the plain wander's 6/9 — Wave PE-22): the baby's parent
+     * walk (FollowParentGoal 1:1). A baby of the four kinds scans for
+     * the nearest adult inside its OWN shape grown 8/4, refuses the
+     * start under 3 blocks, and walks to the parent — the re-path every
+     * 10 ticks, the window the 3..16-block band, the walk's speed the
+     * registration's own (the cow's 1.25, the others' 1.1).
+     */
+    static final MobGoal FOLLOW_PARENT = new MobGoal() {
+        @Override public String goalId() { return "follow_parent"; }
+        @Override public int priority() { return 4; }
+        @Override public boolean exclusive() { return true; }
+        @Override public boolean canUse(MobEntity mob, boolean night) {
+            return mob.goalFollowParentCanUse();
+        }
+        @Override public void tick(MobEntity mob, boolean night) {
+            mob.goalFollowParentTick();
+        }
+    };
+
+    /**
+     * Priority 4, exclusive, LATE in the band (the reference's own
+     * order — the golem follow 7 under the mating 6 and the village
+     * walk's 5, over the plain wander's 9 — Wave PE-22): the villager
+     * child's golem walk (FollowGolemGoal 1:1). A child under the sunny
+     * sky reads the golems whose offer clock stands, waits for the
+     * golem's clock to hit its own armed trigger exactly, walks to it
+     * at the flat 0.5, and releases the golem's offer inside the
+     * 2-block band.
+     */
+    static final MobGoal FOLLOW_GOLEM = new MobGoal() {
+        @Override public String goalId() { return "follow_golem"; }
+        @Override public int priority() { return 4; }
+        @Override public boolean exclusive() { return true; }
+        @Override public boolean canUse(MobEntity mob, boolean night) {
+            return mob.goalFollowGolemCanUse();
+        }
+        @Override public void tick(MobEntity mob, boolean night) {
+            mob.goalFollowGolemTick();
+        }
+    };
+
+    /**
+     * Priority 4, exclusive, LAST before the stroll (the reference's
+     * own order — the graze 5 over the plain wander 6, under the parent
+     * walk's 4 — Wave PE-22): the sheep's graze (EatGrassGoal 1:1). The
+     * baby's 1-in-50 dice (the adult's 1-in-1000) over a tall-grass
+     * feet cell or a grass block below, the 40-tick head-down window
+     * (the Entity Status 10 the client renders), and the write at
+     * timer-4: the tall grass breaks drop-less or the grass block pays
+     * the 2001 burst + the DIRT write, both under the mobGriefing gate
+     * — the coat returns either way (onEatingGrass), and a baby grows
+     * 60 units closer to adulthood.
+     */
+    static final MobGoal EAT_GRASS = new MobGoal() {
+        @Override public String goalId() { return "eat_grass"; }
+        @Override public int priority() { return 4; }
+        @Override public boolean exclusive() { return true; }
+        @Override public boolean canUse(MobEntity mob, boolean night) {
+            return mob.goalEatGrassCanUse();
+        }
+        @Override public void tick(MobEntity mob, boolean night) {
+            mob.goalEatGrassTick();
+        }
+    };
+
+    /**
      * Priority 4, exclusive: the idle/wander cycle, with the historical
      * LookAtPlayer glance folded into the idle band.
      */
@@ -364,27 +476,34 @@ final class MobGoals {
 
     /**
      * The selector the mob runs: float + panic + the zombie's door break
-     * + breed + the awareness band (beg, tempt, flee — the wolf and the
-     * ocelot's own, all kind-gated) + the tameable band (the owner-follow
-     * first, then the cat's perch) + the rabbit's garden raid + the
-     * villager's village return + stroll, in priority order. The band-1
-     * order matters: the panic claims a hurt body first, the door break
-     * a pressed one (the reference's own 1-band; a hurt zombie runs, it
-     * does not stop to break). The band-3 order matters: the beg is
-     * additive so it runs first every tick, then the tempt outranks the
-     * flee (the reference's own 3-over-4), so a fish-holder holds a
-     * tempted cat even with players around. The band-4 order matters the
-     * same way: the owner-follow outranks the perch and the plain stroll
-     * (the reference's 5-over-6/7/10), and the perch outranks the stroll
-     * (the reference's 6-over-10) — a tamed cat walks to its owner
-     * before it perches, and perches before it wanders. The rabbit's
-     * raid farm and the villager's village return keep their places
-     * (kind-gated, never contending with the tameable band).
+     * + breed + the awareness band (beg, the golem's glance, tempt,
+     * flee — the wolf, the ocelot, and the golem's own, all kind-gated)
+     * + the walk band (the villager's door open, the tameable pair, the
+     * baby's parent walk, the rabbit's garden raid, the villager's
+     * village return, the child's golem walk, the sheep's graze) +
+     * stroll, in priority order. The band-1 order matters: the panic
+     * claims a hurt body first, the door break a pressed one (the
+     * reference's own 1-band; a hurt zombie runs, it does not stop to
+     * break). The band-3 order matters: the beg and the glance are
+     * additive so they run first every tick, then the tempt outranks
+     * the flee (the reference's own 3-over-4), so a fish-holder holds a
+     * tempted cat even with players around. The band-4 order matters
+     * the same way: the villager's door open first (the reference's 4
+     * under the village walk's 5), the owner-follow outranks the perch
+     * and the plain stroll (the reference's 5-over-6/7/10), the perch
+     * outranks the stroll (the reference's 6-over-10), the child's
+     * golem walk rides LATE (the reference's 7 over the wander's 9,
+     * under the village walk's 5), and the graze rides LAST before the
+     * stroll (the reference's 5-over-6 on the sheep's own ladder) — a
+     * tamed cat walks to its owner before it perches, and perches
+     * before it wanders.
      */
     static GoalSelector standard() {
         return new GoalSelector(List.of(FLOAT, AVOID_SUNLIGHT, PANIC, BREAK_DOOR,
                 VILLAGER_FLEE, BREED,
-                BEG, TEMPT, ESCAPE_SUNLIGHT, FLEE_PLAYER, FOLLOW_OWNER, SIT_ON_BLOCK,
-                RABBIT_RAID_FARM, VILLAGE_RETURN, RANDOM_STROLL));
+                BEG, GOLEM_LOOK, TEMPT, ESCAPE_SUNLIGHT, FLEE_PLAYER,
+                OPEN_DOOR, FOLLOW_OWNER, SIT_ON_BLOCK, FOLLOW_PARENT,
+                RABBIT_RAID_FARM, VILLAGE_RETURN, FOLLOW_GOLEM, EAT_GRASS,
+                RANDOM_STROLL));
     }
 }
