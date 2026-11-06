@@ -3300,6 +3300,13 @@ public final class MobManager {
         if (victim.sameTeamAs(attacker)) {
             return; // isTarget's same-team refusal
         }
+        // Wave PE-34 — isTarget's TAMEABLE OWNER GATES (TrackTargetGoal
+        // lines 108-110): a tamed body never avenges on a SAME-OWNER
+        // tameable — the owner's stray hit between their own pets never
+        // starts a fight.
+        if (tameableSameOwner(victim, attacker)) {
+            return;
+        }
         boolean revengeArmed = victim.type().hostile || victim.type() == MobType.WOLF
                 // The killer bunny's own RevengeGoal (setVariant line 324:
                 // targetSelector 1, hurt → the attacker).
@@ -3315,6 +3322,18 @@ public final class MobManager {
         if (!callOthers) {
             return;
         }
+        // The call-others gather (RevengeGoal.start lines 30-36): the
+        // victim's OWN 1x1 box grown (followRange, 10, followRange) —
+        // for the wolf's 16 that is ±8 horizontal and ±5 vertical, the
+        // box-intersect census the engine's flat 32 sphere RETIRED for
+        // (Wave PE-34: the pre-fix arm reached twice vanilla's band).
+        double fr = victim.followRange();
+        double minX = victim.position().x() - fr / 2.0;
+        double maxX = victim.position().x() + 1.0 + fr / 2.0;
+        double minY = victim.position().y() - 5.0;
+        double maxY = victim.position().y() + 1.0 + 5.0;
+        double minZ = victim.position().z() - fr / 2.0;
+        double maxZ = victim.position().z() + 1.0 + fr / 2.0;
         String attackerTeam = attacker.teamName();
         for (MobEntity kin : mobs) {
             if (kin == victim || kin.type() != victim.type() || kin.dead()) {
@@ -3326,13 +3345,32 @@ public final class MobManager {
             if (attackerTeam != null && attackerTeam.equals(kin.teamName())) {
                 continue; // RevengeGoal.start line 39: kin on the attacker's team never join
             }
-            double dx = kin.position().x() - victim.position().x();
-            double dy = kin.position().y() - victim.position().y();
-            double dz = kin.position().z() - victim.position().z();
-            if (dx * dx + dy * dy + dz * dz <= 32.0 * 32.0) {
+            Position p = kin.position();
+            double half = kin.type().width / 2.0;
+            if (p.x() + half > minX && p.x() - half < maxX
+                    && p.y() + kin.type().height > minY && p.y() < maxY
+                    && p.z() + half > minZ && p.z() - half < maxZ) {
                 kin.setMobAttackTarget(attacker);
             }
         }
+    }
+
+    /**
+     * isTarget's same-owner tameable refusal (Wave PE-34 —
+     * TrackTargetGoal lines 108-110): both bodies tameable, both owned,
+     * the SAME owner — the target never answers.
+     */
+    private static boolean tameableSameOwner(MobEntity body, MobEntity target) {
+        if (!tameable(body) || !tameable(target)) {
+            return false;
+        }
+        String owner = body.ownerName();
+        return owner != null && !owner.isEmpty() && owner.equals(target.ownerName());
+    }
+
+    /** The tameable kinds (the reference's Tameable implementors). */
+    private static boolean tameable(MobEntity mob) {
+        return mob.type() == MobType.WOLF || mob.type() == MobType.OCELOT;
     }
 
     /**
@@ -3519,6 +3557,15 @@ public final class MobManager {
                 owned = ownerName.equals(wolf.ownerName());
             }
             if (!owned) {
+                continue;
+            }
+            // Wave PE-34 — isTarget's gates on the join target
+            // (AttackWithOwnerGoal/OwnerHurtGoal route through canTarget
+            // like every TrackTargetGoal): the same-team refusal (lines
+            // 102-106) and the SAME-OWNER TAMEABLE refusal (lines
+            // 108-110) — the owner's stray hit between their own pets
+            // never drags the pack in.
+            if (wolf.sameTeamAs(target) || tameableSameOwner(wolf, target)) {
                 continue;
             }
             wolf.setMobAttackTarget(target);
@@ -3748,14 +3795,70 @@ public final class MobManager {
             if (attacker != null) {
                 applyRevenge(mob, attacker);
             } else if (attackingPlayer != null
-                    && attackingPlayer.state() == PlayerState.PLAYING
-                    && mob.type() == MobType.IRON_GOLEM
-                    && !mob.golemPlayerCreated()
-                    && !sameTeamAsPlayer(mob, attackingPlayer)) {
-                mob.setForcedHuntPlayer(attackingPlayer.engineEntityId());
+                    && attackingPlayer.state() == PlayerState.PLAYING) {
+                if (mob.type() == MobType.IRON_GOLEM && !mob.golemPlayerCreated()
+                        && !sameTeamAsPlayer(mob, attackingPlayer)) {
+                    mob.setForcedHuntPlayer(attackingPlayer.engineEntityId());
+                } else if (mob.type() == MobType.WOLF
+                        && !sameTeamAsPlayer(mob, attackingPlayer)
+                        // Wave PE-34 — isTarget's OWNER refusal (lines
+                        // 113-115): a tamed wolf never avenges on its own
+                        // owner; the WILD body and the tamed one on a
+                        // STRANGER both do (RevengeGoal(this, true), the
+                        // provoked-pack law the pre-fix engine never
+                        // carried — a hit wild wolf just stood there).
+                        && !attackingPlayer.name().equals(mob.ownerName())) {
+                    mob.setForcedHuntPlayer(attackingPlayer.engineEntityId());
+                    if (!mob.wolfTamed()) {
+                        mob.setWolfAngry(true); // setAttackTarget's posture
+                    }
+                    wolvesCallOthersOnPlayer(mob, attackingPlayer);
+                }
             }
         }
         return true;
+    }
+
+    /**
+     * THE WOLF'S CALL-OTHERS ON THE PLAYER ATTACKER (Wave PE-34 —
+     * RevengeGoal.start lines 29-53 over {@code RevengeGoal(this,
+     * true)}, WolfEntity line 69): the victim's own 1x1 box grown
+     * (followRange, 10, followRange) gathers the same-kind bodies —
+     * each with NO standing target, never on the attacker's team — and
+     * sets the player target on every one (the reference's own
+     * no-owner-gate quirk kept verbatim: a tamed wolf standing in the
+     * band is dragged into the pack revenge with no canTarget consult
+     * of its own).
+     */
+    private void wolvesCallOthersOnPlayer(MobEntity victim, PlayerSession attacker) {
+        double fr = victim.followRange();
+        double minX = victim.position().x() - fr / 2.0;
+        double maxX = victim.position().x() + 1.0 + fr / 2.0;
+        double minY = victim.position().y() - 5.0;
+        double maxY = victim.position().y() + 1.0 + 5.0;
+        double minZ = victim.position().z() - fr / 2.0;
+        double maxZ = victim.position().z() + 1.0 + fr / 2.0;
+        for (MobEntity kin : mobs) {
+            if (kin == victim || kin.type() != MobType.WOLF || kin.dead()) {
+                continue;
+            }
+            if (kin.mobAttackTarget() != null || kin.forcedHuntPlayerId() >= 0) {
+                continue; // the reference's own gate: only the targetless join
+            }
+            if (sameTeamAsPlayer(kin, attacker)) {
+                continue; // RevengeGoal.start line 39's !isInSameTeam
+            }
+            Position p = kin.position();
+            double half = kin.type().width / 2.0;
+            if (p.x() + half > minX && p.x() - half < maxX
+                    && p.y() + kin.type().height > minY && p.y() < maxY
+                    && p.z() + half > minZ && p.z() - half < maxZ) {
+                kin.setForcedHuntPlayer(attacker.engineEntityId());
+                if (!kin.wolfTamed()) {
+                    kin.setWolfAngry(true); // setAttackTarget's posture
+                }
+            }
+        }
     }
 
     /**
