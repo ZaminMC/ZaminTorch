@@ -9144,6 +9144,63 @@ widened names, the protocol mob/horse lanes 6/0 green whole
 (the hurt-status order change verified over MobIntegrationTest's
 own reads).
 
+WAVE PE-33 + PE-34 LANDED (2026-11-07, the same session's second
+batch — the pin's wire seat + the census's next family pick, each
+law read from the reference's own source 1:1):
+
+PE-33 — THE HORSE-FEED INTERACT'S ACCEPTANCE SEAT (the pin's wire
+seat): HorseFeedSoundAcceptanceTest over the real 1.8.8 wire —
+the eating voice at volume 1.0 with the two-draw pitch jitter
+1.0 + (r - r) * 0.2 (the u8 band round([0.8, 1.2] * 63) = [50,
+76], the readNamedSoundFull reader the wave adds to TestClient18)
+through the interactMob feed arm (the wheat's temper aid on the
+untamed body, the wander-tolerant feed loop closing the live
+cell), and THE SILENCE GATE (!isSilent(), playEatingAnimation
+line 349): a silent body never plays the voice while the feed
+itself still lands (the temper grows past the first feeding) —
+every sound the gate's window carries is someone else's (the
+wander's step/ambient voices interleave the read, none of them
+"eating"). The seat PINS the landed law (the consults themselves
+are PE-28's).
+
+PE-34 — THE WOLF'S PLAYER REVENGE + THE TAMEABLE OWNER GATES (the
+census's next family pick — RevengeGoal(this, true), WolfEntity
+line 69, over TrackTargetGoal.isTarget lines 108-115): (1) THE
+PROVOKED PACK — a hit wild wolf turns on its player attacker
+through the forced hunt (the pre-fix engine carried NO player
+revenge for wolves at all — the classic provoked-pack law was
+absent; a hit wild wolf just stood there), the wild body going
+ANGRY (setAttackTarget's posture, WolfEntity lines 88-94), the
+TAMED body avenging on a STRANGER (the tame gate is the owner
+refusal alone) and THE CALL-OTHERS on the player target
+(RevengeGoal.start lines 29-53: the victim's own 1x1 box grown
+(followRange, 10, followRange) gathers the same-kind bodies —
+each with NO standing target, never on the attacker's team, the
+reference's own no-owner-gate quirk kept verbatim: a tamed wolf
+standing in the band is dragged into the pack revenge with no
+canTarget consult of its own); (2) THE OWNER REFUSAL (isTarget
+lines 113-115): the tamed wolf never avenges on its own owner
+(the name consult); (3) THE SAME-OWNER REFUSAL (lines 108-110)
+on the revenge walk AND the owner-join arms (the owner's stray
+hit between their own pets never starts a fight —
+AttackWithOwnerGoal/OwnerHurtGoal route through canTarget like
+every TrackTargetGoal, the ownerWolvesJoinFight gates landing
+the same-team and same-owner refusals); (4) THE CALL-OTHERS BOX
+REPAIR on the MOB arm too (RevengeGoal.start lines 30-36's own
+gather — the 1x1 box grown (followRange, 10, followRange): for
+the wolf's 16 that is ±8 horizontal and ±5 vertical, the
+box-intersect census the engine's flat 32-sphere arm RETIRED for
+— the pre-fix call-others reached twice vanilla's band). SEATS:
+WolfRevengeOwnerGatesParityDiscoveryTest 4/0 NEW — RED 4/4 on
+the pre-fix engine (the provoked pack's absence; the owner
+refusal; the same-owner revenge fight; the owner-join arm's
+same-owner drag-in — the seat's own first cut was VACUOUS on the
+join arm, the taming's sitting start vacating the loop's sitting
+gate; the owner's verb stands the pet and the seat bites). LANES:
+the wolf/target-family lanes green whole (MobTargetFamily +
+CombatTargetTails + TameableFollow + WolfEntity + the collar
+seats 26/0 + 21/0), the discovery class 4/0.
+
 VT-033'S ADJACENT TAILS LANDED (2026-11-02, commit d96f4a2a — #146's
 review-note ledger retired): the WITHER FALL's kill row and the BEACON
 full-power row walk the ACTING world's players (the un-dimensioned
