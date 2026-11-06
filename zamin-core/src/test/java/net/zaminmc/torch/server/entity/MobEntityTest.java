@@ -233,11 +233,16 @@ class MobEntityTest {
         MobEntity pig = spawn(MobType.PIG,
                 new Position(0.5, MobEntity.VOID_KILL_Y - 1.0, 0.5), 13, airWorld());
         int ticks = 0;
-        while (!pig.dead() && ticks < 100) {
+        while (!pig.dead() && ticks < 200) {
             pig.tick();
             ticks++;
         }
         assertTrue(pig.dead(), "the out-of-world damage killed the body");
-        assertTrue(ticks <= 6, "four damage per tick ends a 10-HP body within a few ticks");
+        // The hurt frame's own cadence (Wave HF — the reference's every-tick
+        // takeDamage(OUT_OF_WORLD, 4.0) against the i-frame): one 4.0 wound
+        // per window, the FIRST immediate — a 10-HP body dies in three
+        // windows, never the retired every-tick machine-gun.
+        assertTrue(ticks <= 31 && ticks >= 20,
+                "one 4.0 wound per window ends a 10-HP body in three windows");
     }
 }

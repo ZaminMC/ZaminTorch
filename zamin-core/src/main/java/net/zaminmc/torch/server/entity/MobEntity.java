@@ -46,6 +46,15 @@ public final class MobEntity implements LivingEntity {
     public static final double GRAVITY_PER_TICK = 0.04;
     /** The 1.8 EntityLiving hurt animation window (red flash client-side). */
     public static final int HURT_FLASH_TICKS = 10;
+    /**
+     * The hurt frame's ceiling (LivingEntity line 81's
+     * {@code invulnerableTicks = 20}): every FRESH wound arms the clock to
+     * this and the window's FIRST HALF (line 656's
+     * {@code invulnerableTimer > invulnerableTicks / 2.0F}) refuses or
+     * trims every hit that follows — the engine's own mobs lack the
+     * ServerPlayerEntity carve-out, the whole family drains in the tick.
+     */
+    public static final int HURT_FRAME_TICKS = 20;
     /** The 1.8 death animation: the body lies for 20 ticks, then loot + removal. */
     public static final int DEATH_TICKS = 20;
     /** EscapeDangerGoal's attacker window (setAttacker's own 100-tick
@@ -172,19 +181,19 @@ public final class MobEntity implements LivingEntity {
     /**
      * The lava wound (takeLavaDamage line 359's flat {@code 4.0F} with
      * the LAVA source — isFire for the resistance consult): one wound
-     * per hurt-i-frame window (the reference's invulnerableTicks/2 = 10).
+     * per hurt-frame window — the reference's own every-tick
+     * takeDamage call against the i-frame (the retired
+     * LAVA_WOUND_CADENCE_TICKS stand-in carried the same ten-tick
+     * cadence but held the FIRST wound a window deep).
      */
     public static final float LAVA_DAMAGE_PER_WOUND = 4.0f;
-    /** The lava wound's cadence (the hurt-i-frame window, 10 ticks). */
-    public static final int LAVA_WOUND_CADENCE_TICKS = 10;
     /**
      * The in-wall wound (the reference's takeDamage(IN_WALL, 1.0F) —
      * DamageSource.setBypassesArmor, "suffocated in a wall") at the
-     * hurt-i-frame cadence (the same 10-tick window the lava arm rides).
+     * hurt-frame cadence (the same ten-tick window the lava arm rides,
+     * the first wound immediate).
      */
     public static final float IN_WALL_DAMAGE_PER_WOUND = 1.0f;
-    /** The in-wall wound's cadence (the hurt-i-frame window, 10 ticks). */
-    public static final int SUFFOCATION_CADENCE_TICKS = 10;
 
     /**
      * Minimal world query the mob needs (tick-thread context only). The
@@ -944,6 +953,19 @@ public final class MobEntity implements LivingEntity {
         default boolean spectator() {
             return false;
         }
+
+        /**
+         * Whether a LIVING body wounded this player inside the reference's
+         * attacker window (LivingEntity's {@code getAttacker()} — the
+         * setAttacker stamp at takeDamage lines 671-676, cleared at the
+         * damager's death or the 100-tick window, tick lines 264-270).
+         * SitGoal.canStart's release band reads it: an owner hit within 12
+         * blocks stands the seated pet up. The default answers false so
+         * stub worlds keep their unwounded semantics.
+         */
+        default boolean hurtByMobRecently() {
+            return false;
+        }
     }
 
     /** What the mob is doing (the vanilla-style goal set of this slice). */
@@ -1023,6 +1045,20 @@ public final class MobEntity implements LivingEntity {
     private float pathYaw;
     private boolean pathYawValid;
     private int hurtFlash;
+    /**
+     * The reference's {@code invulnerableTimer} (LivingEntity line 80,
+     * Entity line 110): the hurt-frame clock — armed to
+     * {@link #HURT_FRAME_TICKS} at every FRESH wound (line 666), drained
+     * one per tick in the head-of-tick walk (lines 246-247's mob arm).
+     */
+    private int hurtFrameTimer;
+    /**
+     * The reference's {@code lastDamageTaken} (LivingEntity line 105):
+     * the standing wound the frame compares every in-window hit against
+     * (line 657 — at or under it, refused whole; over it, the difference
+     * alone wounds, line 661).
+     */
+    private float lastDamageTaken;
     private int attackCooldown;
     /**
      * The reference's {@code ambientSoundDelay} (MobEntity line 46): the
@@ -1080,12 +1116,9 @@ public final class MobEntity implements LivingEntity {
     // undead), deals the historical 1 damage per second while burning.
     private int fireTicks;
     private int fireDamageTimer;
-    // The cactus's contact clock (the historical 1 damage per second).
-    private int cactusDamageTimer;
-    // The lava wound's cadence clock (Slice 93/D2 — the reference's
-    // hurt-i-frame window: one 4.0 wound per 10 submerged ticks).
-    private int lavaDamageTimer;
-    private int suffocationTimer;
+    // The lava/cactus/in-wall contact wounds carry NO cadence clocks of
+    // their own — the hurt frame (consultHurtFrame) IS the cadence, the
+    // reference's own every-tick takeDamage consults.
 
     // The goal layer (the community PathfinderGoal architecture).
     private final GoalSelector goals = MobGoals.standard();
@@ -2339,7 +2372,61 @@ public final class MobEntity implements LivingEntity {
 
     /** Applies damage; clamps at zero and starts the death timer at zero health. */
     public void hurt(float amount) {
-        hurt(amount, false);
+        hurt(amount, false, true);
+    }
+
+    /**
+     * THE HURT-FRAME CONSULT (LivingEntity.takeDamage lines 652-669 — the
+     * mob i-frame family every wound site reads): inside the window's
+     * first half a hit at or under the frame's standing damage is REFUSED
+     * whole (lines 657-659 — no health, no flash, no knockback, the walk
+     * answers false); a stronger one pays only its EXCESS (lines 660-662 —
+     * the difference lands without the flash or the re-arm, {@code flag =
+     * false}); a fresh hit ARMS the frame (lines 665-666 — the clock to
+     * the ceiling, the standing damage written) and pays in full.
+     *
+     * @return {@code -1} when the frame refuses the hit whole; {@code 0}
+     *         when the fresh arm should pay {@code amount} in full; else
+     *         the EXCESS the caller wounds alone.
+     */
+    float consultHurtFrame(float amount) {
+        if (hurtFrameTimer > HURT_FRAME_TICKS / 2) {
+            if (amount <= lastDamageTaken) {
+                return -1.0f;
+            }
+            float excess = amount - lastDamageTaken;
+            lastDamageTaken = amount;
+            return excess;
+        }
+        lastDamageTaken = amount;
+        hurtFrameTimer = HURT_FRAME_TICKS;
+        return 0.0f;
+    }
+
+    /** @return the frame's standing damage (the test read). */
+    public float lastDamageTaken() {
+        return lastDamageTaken;
+    }
+
+    /**
+     * The contact arms' wound entry (the reference's every-tick
+     * takeDamage calls — Entity.tick's lava arm, baseTick's in-wall, the
+     * cactus walk): the hurt frame alone decides whether the tick's
+     * wound lands — the FIRST wound IMMEDIATE, the cadence the frame's
+     * own window (one wound per ten ticks at the same damage, exactly
+     * vanilla's law; a recent STRONGER hit holds the smaller contact
+     * wound off for the window's first half). The custom cadence timers
+     * the arms once carried (lava/in-wall/cactus) are retired — the
+     * frame IS the cadence, and the first wound no longer waits a
+     * window deep.
+     */
+    public void hurtThroughFrame(float amount, boolean bypassesArmor) {
+        float verdict = consultHurtFrame(amount);
+        if (verdict == 0.0f) {
+            hurt(amount, bypassesArmor, true);
+        } else if (verdict > 0.0f) {
+            hurt(verdict, bypassesArmor, false);
+        }
     }
 
     /**
@@ -2353,6 +2440,17 @@ public final class MobEntity implements LivingEntity {
      * the envelope).
      */
     public void hurt(float amount, boolean bypassesArmor) {
+        hurt(amount, bypassesArmor, true);
+    }
+
+    /**
+     * The wound walk's excess-arm form (LivingEntity.takeDamage line 661's
+     * {@code applyDamage(source, amount - lastDamageTaken)} over {@code
+     * flag = false}): the difference alone lands — the hurt FLASH never
+     * writes ({@code damagedTimer} is the FRESH arm's own line 668; the
+     * reference's excess kill dies without ever flashing).
+     */
+    void hurt(float amount, boolean bypassesArmor, boolean flash) {
         if (amount <= 0 || dead) {
             return;
         }
@@ -2364,12 +2462,16 @@ public final class MobEntity implements LivingEntity {
         if (isInLove()) {
             resetLove();
         }
-        // The hurt flash rides takeDamage's own walk (damagedTimer = 10,
-        // LivingEntity.takeDamage) — it fires even for a fully absorbed
-        // hit; the absorption below gates the HEALTH term alone. The age
-        // stamp rides the same walk (setAttacker's lastAttackedTime =
-        // ticks — the reference's own HurtByTimestamp clock).
-        hurtFlash = HURT_FLASH_TICKS;
+        // The hurt flash rides takeDamage's own FRESH arm (damagedTimer =
+        // 10, LivingEntity.takeDamage line 668) — it fires even for a
+        // fully absorbed hit; the absorption below gates the HEALTH term
+        // alone. The age stamp rides the attacker block (lines 671-686 —
+        // BOTH arms stamp it, flag or no flag: setAttacker's
+        // lastAttackedTime = ticks, the reference's own HurtByTimestamp
+        // clock).
+        if (flash) {
+            hurtFlash = HURT_FLASH_TICKS;
+        }
         hurtByTimestamp = age;
         // applyDamage (LivingEntity lines 913-921): the absorption eats
         // first — a fully absorbed hit lands no health change (the
@@ -2463,6 +2565,14 @@ public final class MobEntity implements LivingEntity {
         if (hurtFlash > 0) {
             hurtFlash--;
         }
+        // The hurt frame's drain (LivingEntity.tick lines 246-247's mob
+        // arm — the ServerPlayerEntity carve-out is the player walk's own
+        // law, the engine's session drains its window beside this): the
+        // clock counts down from every fresh wound's arm, and only the
+        // FIRST half of the window refuses or trims the hits that follow.
+        if (hurtFrameTimer > 0) {
+            hurtFrameTimer--;
+        }
         if (attackCooldown > 0) {
             attackCooldown--;
         }
@@ -2492,7 +2602,11 @@ public final class MobEntity implements LivingEntity {
                 fireDamageTimer = 0;
                 // ON_FIRE bypasses armor (DamageSource line 16's own
                 // setBypassesArmor) — the burn clock never consults pieces.
-                hurt(FIRE_DAMAGE_PER_SECOND, true);
+                // The wound rides the hurt frame (the reference's %20 fire
+                // tick calls the shared takeDamage: a recent STRONGER hit
+                // holds the 1.0 burn off for the window's first half —
+                // the cross-source law the flat timer never carried).
+                hurtThroughFrame(FIRE_DAMAGE_PER_SECOND, true);
             }
         }
         // The breath clock (Slice 92 — LivingEntity.baseTick lines
@@ -2518,8 +2632,11 @@ public final class MobEntity implements LivingEntity {
                 air--;
                 if (air == -20) {
                     air = 0;
-                    // DROWN bypasses armor (DamageSource line 19).
-                    hurt(2.0f, true); // DROWN — the reference's own 2.0F
+                    // DROWN bypasses armor (DamageSource line 19); the
+                    // wound rides the hurt frame like every reference
+                    // takeDamage call (a recent stronger hit holds the
+                    // 2.0 off for the window's first half).
+                    hurtThroughFrame(2.0f, true); // DROWN — the reference's own 2.0F
                 }
             } else {
                 air = 300;
@@ -2675,14 +2792,11 @@ public final class MobEntity implements LivingEntity {
      */
     private void tickEndermanEnvironment(boolean night) {
         if (world.inFluid(position.x(), position.y() + 0.2, position.z())) {
-            if (--waterDamageTimer <= 0) {
-                waterDamageTimer = HURT_WINDOW_TICKS;
-                // DROWN bypasses armor — the enderman's water rage never
-                // consults pieces.
-                hurt(1.0f, true);
-            }
-        } else {
-            waterDamageTimer = 1; // re-arms: the first wet tick hurts fast
+            // DROWN bypasses armor — the enderman's water rage never
+            // consults pieces. The wound rides the hurt frame (the
+            // reference's every-tick takeDamage call — the frame's window
+            // IS the cadence, the retired waterDamageTimer's own law).
+            hurtThroughFrame(1.0f, true);
         }
         // The anger decay (mobAiTick lines 152-154): a body angry without
         // a player's hand behind it calms on the 1-in-100 roll.
@@ -2702,9 +2816,6 @@ public final class MobEntity implements LivingEntity {
             }
         }
     }
-
-    /** The enderman's water clock (re-armed per wet tick). */
-    private int waterDamageTimer = 1;
 
     /** The enderman's far-target window (the ChasePlayerGoal's counter). */
     private int farFromTargetTicks;
@@ -3302,6 +3413,47 @@ public final class MobEntity implements LivingEntity {
     /** Toggles the sitting posture (the owner's empty-hand verb, SitGoal). */
     public void toggleWolfSitting() {
         wolfFlags ^= WOLF_FLAG_SITTING;
+    }
+
+    /**
+     * THE SIT GOAL'S CLAIM (SitGoal.canStart 1:1 — lines 16-31 over the
+     * registration at WolfEntity line 58 / OcelotEntity line 44, band 2,
+     * {@code setControls(5)}: the goal holds MOVE and JUMP, so while it
+     * claims, the pounce (band 3), the melee chase (band 4), the follow
+     * (band 5), the breed (band 6) and the stroll (band 7) can never run —
+     * a seated pet NEVER WALKS, whatever target stands). The gates in the
+     * reference's own order: the TAME gate, the water refusal, the ground
+     * gate, then the owner band — the ownerless body holds UNCONDITIONALLY
+     * (the reference's {@code livingentity == null} arm never consults the
+     * verb: a pet whose owner left the world parks whole), and a present
+     * owner releases the claim only when hit inside the 12-block band
+     * ({@code !(squaredDistanceTo < 144) || livingentity.getAttacker() ==
+     * null} — the classic stand-and-defend window) or the verb itself
+     * stands.
+     */
+    boolean sitGoalHolds() {
+        if (!isTameableKind() || !wolfTamed() || goalInFluid() || !onGround) {
+            return false;
+        }
+        PlayerView owner = world.ownerPlayerView(ownerName, ownerUuid);
+        if (owner == null) {
+            return true; // the ownerless pet parks — the reference's own arm
+        }
+        return (squaredDistanceToView(owner) >= 144.0
+                        || !owner.hurtByMobRecently())
+                && wolfSitting();
+    }
+
+    /**
+     * The empty-hand verb's stand-down (interactMob lines 327-332 — the
+     * reference's own body beside the toggle): the path drops, the attack
+     * target clears (both engine seats of the single field), so the verb
+     * that seats a FIGHTING pet stands it down whole.
+     */
+    public void standDownByVerb() {
+        clearPath();
+        setMobAttackTarget(null);
+        forcedHuntPlayerId = -1;
     }
 
     /** @return the collar color's dye metadata (index 20). */
@@ -4478,11 +4630,14 @@ public final class MobEntity implements LivingEntity {
      */
     private void tickSnowGolemEnvironment() {
         if (world.inFluid(position.x(), position.y() + 0.2, position.z())) {
-            // DROWN 1.0 — bypasses armor.
-            hurt(GOLEM_MELT_DAMAGE, true); // isInWaterOrRain → DROWN 1.0F
+            // DROWN 1.0 — bypasses armor; the wound rides the hurt frame
+            // (the reference's every-tick takeDamage — one melt per window,
+            // never the pre-frame every-tick melt that drowned the body
+            // ten times too fast).
+            hurtThroughFrame(GOLEM_MELT_DAMAGE, true); // isInWaterOrRain → DROWN 1.0F
         } else if (world.biomeHotAt(position.x(), position.y(), position.z())) {
-            // ON_FIRE 1.0 — bypasses armor.
-            hurt(GOLEM_MELT_DAMAGE, true); // temperature > 1.0 → ON_FIRE 1.0F
+            // ON_FIRE 1.0 — bypasses armor; the same frame cadence.
+            hurtThroughFrame(GOLEM_MELT_DAMAGE, true); // temperature > 1.0 → ON_FIRE 1.0F
         }
     }
 
@@ -4533,8 +4688,10 @@ public final class MobEntity implements LivingEntity {
                 && !world.inLava(position.x(), position.y() + 0.2, position.z()))
                 || world.isRainingAt(position.x(), position.y(), position.z())
                 || world.isRainingAt(position.x(), position.y() + type.height, position.z())) {
-            // DROWN bypasses armor — the rain never consults pieces.
-            hurt(1.0f, true);
+            // DROWN bypasses armor — the rain never consults pieces. The
+            // wound rides the hurt frame (the reference's every-tick
+            // takeDamage call against the i-frame — one drown per window).
+            hurtThroughFrame(1.0f, true);
         }
 
         // mobAiTick lines 115-119: the eye-offset re-roll every 100 ticks.
@@ -10819,6 +10976,19 @@ public final class MobEntity implements LivingEntity {
         // updated before the goal walk above; the scan ran there so the
         // stroll's yielding gate could see it.)
         if (mobTarget != null) {
+            // THE SIT HOLD (SitGoal's MOVE claim, band 2 over the melee's
+            // band 4): a seated pet never walks its standing target — the
+            // write stands (the targetSelector carries no posture gate),
+            // the body parks. The return skips the stroll layer too: the
+            // hold claims MOVE, the stroll (band 7) can never start under
+            // it — a seated wolf with a live target SITS, exactly the
+            // vanilla law the pre-fix engine's chase broke.
+            if (sitGoalHolds()) {
+                mode = Mode.IDLE;
+                modeTicks = 0;
+                clearPath();
+                return;
+            }
             // The ranged-on-mob arm (the reference's ProjectileAttackGoal
             // attacks ANY attackTarget — its canStart reads the target's
             // KIND not at all, ProjectileAttackGoal lines 40-48; the
@@ -10841,6 +11011,50 @@ public final class MobEntity implements LivingEntity {
                 tickMobTargetChase(mobTarget);
             }
             return;
+        }
+
+        // THE TAMEABLE'S FORCED PLAYER HUNT (the revenge/avenging write —
+        // MeleeAttackGoal band 4 over the reference's single attackTarget
+        // field, WolfEntity line 60 / OcelotEntity line 47): the provoked
+        // wolf and the avenging cat chase their player target through the
+        // same melee walk the mob-target arm runs — the pounce (band 3),
+        // the path, the reach band — gated by the SIT HOLD like every
+        // MOVE-holding goal below band 2. The pre-fix engine landed the
+        // WRITE alone (PE-34's seats pinned the target, never the walk):
+        // a hit wild wolf stood still and its anger posture cleared on the
+        // very next tick — the anger consult never saw the forced hunt,
+        // and no body ever moved.
+        if (forcedHuntPlayerId >= 0 && isTameableKind()) {
+            Position forced = forcedHuntPosition();
+            if (forced != null) {
+                if (sitGoalHolds()) {
+                    // The seated pet holds its seated target (the write
+                    // stands; the walk parks — the reference's own law).
+                    mode = Mode.IDLE;
+                    modeTicks = 0;
+                    clearPath();
+                    return;
+                }
+                mode = Mode.CHASE;
+                modeTicks = 0;
+                double dx = forced.x() - position.x();
+                double dy = forced.y() - position.y();
+                double dz = forced.z() - position.z();
+                yaw = angleTo(dx, dz);
+                headYaw = yaw;
+                if (tickPounceAtTarget(forced)) {
+                    return; // the leap holds the walk for the flight
+                }
+                tickPathFollowing(forced);
+                double horizontal = Math.sqrt(dx * dx + dz * dz);
+                if (horizontal <= MELEE_ATTACK_RANGE
+                        && Math.abs(dy) <= MELEE_ATTACK_VERTICAL_RANGE
+                        && attackCooldown == 0) {
+                    attackCooldown = MELEE_ATTACK_COOLDOWN;
+                    pendingMeleeAttack = true; // the swing rides the manager's arm
+                }
+                return;
+            }
         }
 
         // The slime family's own goal family (Slice 12k): the
@@ -12127,6 +12341,12 @@ public final class MobEntity implements LivingEntity {
      *  pre-scan for the goal's own live state). */
     boolean goalHasTarget(boolean night) {
         return (targetHuntable && visibleTarget != null) || mobAttackTarget != null
+                // The tameable's forced player hunt (the revenge/avenging
+                // write — PE-34's write, this wave's chase body): a live
+                // forced hunt IS a standing target — the anger posture
+                // (WolfEntity.mobTick lines 178-180's own clear consult)
+                // and the look-around mutex both read it.
+                || forcedHuntPlayerId >= 0
                 || fleePathLive();
     }
 
@@ -14776,8 +14996,13 @@ public final class MobEntity implements LivingEntity {
                 // is heading out), then the interval roll (120 the
                 // family's own; the silverfish's InfestStoneGoal carries
                 // 10), then TargetFinder's pick — ten candidates, the
-                // best favor wins; no passer, no walk.
-                if (goals.hasBuiltIn("stroll")
+                // best favor wins; no passer, no walk. THE SIT HOLD rides
+                // the whole gate (SitGoal's MOVE claim at band 2 — the
+                // stroll at band 7 can never start under it: a seated pet
+                // stays where it was seated, and a pet whose owner left
+                // the world parks whole, the reference's ownerless arm).
+                if (!sitGoalHolds()
+                        && goals.hasBuiltIn("stroll")
                         && farFromPlayerTicks() < 100
                         && random.nextInt(strollInterval()) == 0
                         && pickStrollTarget()) {
@@ -15448,7 +15673,11 @@ public final class MobEntity implements LivingEntity {
         // out-of-world damage lands every tick until death; the body keeps
         // falling because no block below the world is solid.
         if (position.y() < VOID_KILL_Y) {
-            hurt(VOID_DAMAGE_PER_TICK);
+            // The void rides the same frame the reference's every-tick
+            // OUT_OF_WORLD call consults (takeDamage's shared walk — the
+            // 4.0-at-or-under hits refuse inside the window's first half;
+            // the reference's creative pierce is the player walk's law).
+            hurtThroughFrame(VOID_DAMAGE_PER_TICK, true);
         }
         // THE EVERY-BODY CONTACT BLOCK (hoisted above the flight families'
         // early returns — the reference carries NO family skip: Entity.tick
@@ -15486,31 +15715,33 @@ public final class MobEntity implements LivingEntity {
         // split: the halving in the tick, the water zero in the move).
         if (inLava && !fireImmune()) {
             ignite(LAVA_BURN_TICKS);
-            if (++lavaDamageTimer >= LAVA_WOUND_CADENCE_TICKS
-                    && effectAmplifierPlusOne(
-                            net.zaminmc.torch.server.potion.StatusEffects.FIRE_RESISTANCE) == 0) {
-                lavaDamageTimer = 0;
-                hurt(LAVA_DAMAGE_PER_WOUND);
+            // The wound rides the hurt frame (the reference's every-tick
+            // takeDamage(LAVA, 4.0) — the frame's own window IS the
+            // cadence: the first wound lands the tick the body enters,
+            // then one per ten ticks; the retired timer held the first
+            // wound a window deep, the documented divergence this wave
+            // closes).
+            if (effectAmplifierPlusOne(
+                    net.zaminmc.torch.server.potion.StatusEffects.FIRE_RESISTANCE) == 0) {
+                hurtThroughFrame(LAVA_DAMAGE_PER_WOUND, false);
             }
         }
         // The in-wall suffocation (LivingEntity.baseTick lines 195-197:
-        // isInWall() -> takeDamage(IN_WALL, 1.0) — the bypasses-armor source
-        // at the hurt-i-frame cadence, the reference's invulnerableTicks/2
-        // = 10 window; the engine's own timer convention the lava arm rides,
-        // the first wound one window deep). The dead body and the noClip
-        // families exempt; the wall consult is the eight-point eye survey.
+        // isInWall() -> takeDamage(IN_WALL, 1.0) — the bypasses-armor
+        // source riding the hurt frame: the first wound the tick the wall
+        // closes, then one per ten ticks, a recent stronger hit holding
+        // the 1.0 off for the window's first half — vanilla's own law,
+        // the retired timer's first-wound-a-window-deep divergence
+        // closed). The dead body and the noClip families exempt; the wall
+        // consult is the eight-point eye survey.
         if (!dead && !noClipBody() && isInWall()) {
-            if (++suffocationTimer >= SUFFOCATION_CADENCE_TICKS) {
-                suffocationTimer = 0;
-                hurt(IN_WALL_DAMAGE_PER_WOUND);
-            }
-        } else {
-            suffocationTimer = 0;
+            hurtThroughFrame(IN_WALL_DAMAGE_PER_WOUND, true);
         }
-        // Cactus contact pricks at the hurt-i-frame rhythm (10 ticks).
-        if (!dead && world.touchingCactus(position.x(), position.y(), position.z())
-                && ++cactusDamageTimer % 10 == 0) {
-            hurt(1.0f);
+        // Cactus contact pricks through the hurt frame (the reference's
+        // every-tick takeDamage(CACTUS, 1.0) — the first prick immediate,
+        // then the frame's own ten-tick cadence).
+        if (!dead && world.touchingCactus(position.x(), position.y(), position.z())) {
+            hurtThroughFrame(1.0f, false);
         }
         // The douse is the WATER consult alone (checkWaterCollisions'
         // own family — Slice 93/D2's split of the shared fluid model: a
@@ -16054,7 +16285,11 @@ public final class MobEntity implements LivingEntity {
                 net.zaminmc.torch.server.potion.StatusEffects.JUMP_BOOST);
         int wound = (int) Math.ceil((distance - 3.0f - boost) * damageMultiplier);
         if (wound > 0) {
-            hurt(wound);
+            // FALL bypasses armor (the source family's own setter); the
+            // wound rides the hurt frame like every reference takeDamage
+            // call — a recent stronger hit holds the landing off for the
+            // window's first half, the excess alone paying beyond it.
+            hurtThroughFrame(wound, true);
             if (type == MobType.CREEPER && mode == Mode.FUSE) {
                 // The creeper's fuse arm (CreeperEntity lines 56-62): the
                 // fall primes the LIVE swell — the counter jumps by

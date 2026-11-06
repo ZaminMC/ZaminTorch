@@ -49,6 +49,10 @@ class EnchantmentEffectAcceptanceTest {
         grant(hunter, ItemStack.of(BuiltinItems.DIAMOND_SWORD));
         server.attackEntity(hunter, pig.entityId());
         await(() -> pig.health() == 3.0f, "the plain blade lands exactly 7");
+        // The hurt frame (Wave HF — the reference's shared i-frame): the
+        // identical 7.0 inside the first wound's window refuses whole —
+        // the vanilla spacing between the two swings.
+        EngineAwaits.awaitTicks(server.world(), 12, "the wound's window drains");
         server.attackEntity(hunter, pig.entityId());
         await(() -> pig.dead(), "the plain blade needs the second hit");
 

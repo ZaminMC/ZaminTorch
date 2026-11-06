@@ -181,12 +181,19 @@ class GolemEntityTest {
         }
         assertTrue(volleyed, "the 20-tick volley fired inside the range");
 
-        // The melts (mobTick lines 43-55): the water contact, the hot biome.
+        // The melts (mobTick lines 43-55 over the shared hurt frame): the
+        // water contact, the hot biome — one wound per window each (the
+        // frame a same-tick pair would refuse; the drain between the two
+        // carries the vanilla spacing).
         world.hostile = null;
         world.water = true;
         snowGolem.tick(true);
         assertEquals(3.0f, snowGolem.health(), 1e-6f, "the water melt costs 1");
         world.water = false;
+        for (int i = 0; i < 11; i++) {
+            snowGolem.tick(true); // the water wound's window drains
+        }
+        assertEquals(3.0f, snowGolem.health(), 1e-6f, "no melt out of the pair");
         world.hot = true;
         snowGolem.tick(true);
         assertEquals(2.0f, snowGolem.health(), 1e-6f, "the hot-biome melt costs 1");

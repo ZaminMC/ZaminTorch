@@ -166,11 +166,18 @@ class BlazeEntityTest {
         MobEntity blaze = blazeIn(world, 84L);
 
         assertEquals(20.0f, blaze.health(), 1e-6f);
-        for (int tick = 0; tick < 5; tick++) {
+        // The hurt frame's law (Wave HF — the reference's every-tick
+        // takeDamage(DROWN, 1.0) against the i-frame): the first wound
+        // immediate, then one per window — five wet ticks pay exactly one.
+        blaze.tick(true);
+        assertEquals(19.0f, blaze.health(), 1e-6f,
+                "the first wet tick's DROWN 1.0 lands immediately");
+        for (int tick = 0; tick < 4; tick++) {
             blaze.tick(true);
         }
-        assertEquals(15.0f, blaze.health(), 1e-6f,
-                "mobAiTick's DROWN 1.0 per wet tick (lines 110-112)");
+        assertEquals(19.0f, blaze.health(), 1e-6f,
+                "the frame holds the redundant 1.0s for the window's first half"
+                        + " (mobAiTick lines 110-112 over the shared i-frame)");
     }
 
     @Test

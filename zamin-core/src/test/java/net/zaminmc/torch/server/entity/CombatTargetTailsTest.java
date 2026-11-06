@@ -409,7 +409,11 @@ class CombatTargetTailsTest {
         village.setForcedHuntPlayer(-1); // the prior scene's write clears
         world.teams.put(village.getUuid().toString(), "red");
         world.teams.put("Attacker", "red"); // the player's NAME key (line 1634)
-        assertTrue(manager.hurt(village, 5.0f, 0.0,
+        // The hurt frame (Wave HF): the first scene's 5.0 stands in the
+        // window — the team-gate probe out-damages it (the excess arm a
+        // stronger second hit pays in vanilla, the revenge write riding
+        // the landed verdict).
+        assertTrue(manager.hurt(village, 7.0f, 0.0,
                 net.zaminmc.torch.event.DamageCause.MELEE, false, false, null, attacker));
         assertNull(village.forcedHuntPosition(), "isTarget's same-team refusal");
     }

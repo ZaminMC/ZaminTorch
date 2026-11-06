@@ -2422,7 +2422,14 @@ public final class MobManager {
                 if (mobTarget != null && !mobTarget.dead()) {
                     hurtByMob(mob, mobTarget, mob.attackDamage());
                 } else {
-                    PlayerSession target = nearestPlayingPlayer(players, mob);
+                    // The forced hunt's own player first (the reference's
+                    // single attackTarget feeding the melee goal — the
+                    // provoked wolf swings at ITS attacker, never the
+                    // nearest player standing by).
+                    PlayerSession target = playerOfEngineId(players, mob.forcedHuntPlayerId());
+                    if (target == null || target.state() != net.zaminmc.torch.entity.PlayerState.PLAYING) {
+                        target = nearestPlayingPlayer(players, mob);
+                    }
                     if (target != null && target.health() > 0 && !target.dead()) {
                         for (Listener listener : listeners) {
                             // The kind's own attack damage (the reference's ATTACK_DAMAGE
@@ -3530,10 +3537,13 @@ public final class MobManager {
 
     /**
      * The owner arms (Slice 16b — AttackWithOwnerGoal + OwnerHurtGoal):
-     * every STANDING tamed wolf the player owns joins the fight on the
-     * target — the mob their owner just attacked, or the mob that just
-     * attacked their owner. A sitting wolf never joins (SitGoal's own
-     * claim on the movement).
+     * every tamed wolf the player owns joins the fight on the target —
+     * the mob their owner just attacked, or the mob that just attacked
+     * their owner. The write carries NO posture gate (the reference's
+     * targetSelector consults the tame/owner/team laws alone — a SEATED
+     * pet acquires the target too); the seated body then parks under the
+     * SIT HOLD until the owner's own wound releases it (SitGoal.canStart's
+     * 12-block band) — the classic stand-and-defend window.
      */
     public void ownerWolvesJoinFight(String ownerName, String ownerUuid,
             MobEntity target) {
@@ -3548,9 +3558,6 @@ public final class MobManager {
         for (MobEntity wolf : mobs) {
             if (wolf.type() != MobType.WOLF || !wolf.wolfTamed() || wolf.dead()) {
                 continue;
-            }
-            if (wolf.wolfSitting()) {
-                continue; // the sitting pet stays seated
             }
             boolean owned = byUuid && ownerUuid.equals(wolf.ownerUuid());
             if (!owned && byName) {
@@ -3732,7 +3739,26 @@ public final class MobManager {
             }
             mob.armWitherSweep();
         }
-        mob.hurt(amount);
+        // THE HURT FRAME (LivingEntity.takeDamage lines 652-669 — the mob
+        // i-frame family): inside the window's first half a hit at or under
+        // the frame's standing damage is refused WHOLE (lines 657-659 — no
+        // health, no flash, no knockback, the walk answers false); a
+        // stronger one pays only its EXCESS (lines 660-662 — the difference
+        // lands without the flash, the knockback, or the hurt voice,
+        // {@code flag = false}); the fresh hit arms the frame and pays in
+        // full (lines 665-666). The attacker bookkeeping below runs on BOTH
+        // paying arms — the reference's setAttacker block (lines 671-686)
+        // sits outside the flag gate.
+        float frameVerdict = mob.consultHurtFrame(amount);
+        if (frameVerdict < 0.0f) {
+            return false; // the redundant hit inside the window's first half
+        }
+        boolean excessArm = frameVerdict > 0.0f;
+        if (excessArm) {
+            mob.hurt(frameVerdict, false, false);
+        } else {
+            mob.hurt(amount);
+        }
         // Wave PE-15 — setAttacker at the wound's own site (LivingEntity
         // .takeDamage lines 671-676): a wound whose source carries a
         // LIVING attacker (a mob's body or the player's hand) arms the
@@ -3742,11 +3768,17 @@ public final class MobManager {
         if (attacker != null || attackingPlayer != null) {
             mob.armEscapeDanger(attacker);
         }
-        if (!skipKnockback) {
+        if (!excessArm && !skipKnockback) {
+            // The knockback rides the flag gate alone (lines 689-706): the
+            // excess arm's difference wounds without moving the body.
             mob.knockbackFrom(attackerYaw);
         }
-        for (Listener listener : listeners) {
-            listener.onMobHurt(mob);
+        if (!excessArm) {
+            // doEntityEvent((byte)2) — the hurt status and the voice ride
+            // the same flag gate (line 691); the excess arm never flashes.
+            for (Listener listener : listeners) {
+                listener.onMobHurt(mob);
+            }
         }
         if (mob.health() <= 0) {
             if (mob.type() == MobType.ENDER_DRAGON) {
@@ -4026,9 +4058,25 @@ public final class MobManager {
         if (mob.type() == MobType.ENDERMAN && random.nextInt(10) != 0) {
             mob.teleportRandomly();
         }
-        mob.hurt(amount);
-        for (Listener listener : listeners) {
-            listener.onMobHurt(mob);
+        // The hurt frame (the shared takeDamage consult — lines 652-669):
+        // the magic family rides the same window the melee does; the
+        // refused tick pays nothing, the excess pays its difference alone
+        // with no flash (the walk's knockbackless shape already carries
+        // the flag law's movement half).
+        float frameVerdict = mob.consultHurtFrame(amount);
+        if (frameVerdict < 0.0f) {
+            return false;
+        }
+        boolean excessArm = frameVerdict > 0.0f;
+        if (excessArm) {
+            mob.hurt(frameVerdict, false, false);
+        } else {
+            mob.hurt(amount);
+        }
+        if (!excessArm) {
+            for (Listener listener : listeners) {
+                listener.onMobHurt(mob);
+            }
         }
         if (mob.health() <= 0) {
             for (Listener listener : listeners) {

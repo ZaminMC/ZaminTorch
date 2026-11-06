@@ -1273,7 +1273,12 @@ public final class EngineServer implements Server, EngineBridge {
                             if (at.x() + halfWidth > minX && at.x() - halfWidth < maxX
                                     && at.y() + mob.type().height > minY && at.y() < maxY
                                     && at.z() + halfWidth > minZ && at.z() - halfWidth < maxZ) {
-                                mob.hurt(wound);
+                                // The ANVIL wound rides the hurt frame (the
+                                // reference's shared takeDamage walk — a
+                                // recent stronger hit trims the crush to its
+                                // excess alone, an at-or-under crush refused
+                                // whole for the window's first half).
+                                mob.hurtThroughFrame(wound, false);
                             }
                         }
                         for (PlayerSession body : players.all()) {
@@ -7642,6 +7647,10 @@ public final class EngineServer implements Server, EngineBridge {
                 continue;
             }
             session.tickHurtInvulnerability();
+            // The attacker window's decay (LivingEntity.tick lines 264-270 —
+            // the setAttacker stamp clears at the damager's death or the
+            // 100-tick window; the sit release's own read).
+            session.tickHurtByLiving();
             session.tickGrace();
             session.stats().tickTimeSinceDeath();
             // The biome census (VIII6 — ServerPlayerEntity.tick lines
@@ -8227,7 +8236,6 @@ public final class EngineServer implements Server, EngineBridge {
         boolean fireResistant = potionSystem.hasEffect(session,
                 net.zaminmc.torch.server.potion.StatusEffects.FIRE_RESISTANCE);
         if (fireResistant) {
-            session.resetLavaTimer();
             return; // the engine's fire-family convention: no arm, no wound
         }
         Position feet = session.position();
@@ -8237,12 +8245,15 @@ public final class EngineServer implements Server, EngineBridge {
             return;
         }
         session.ignite(MobEntity.LAVA_BURN_TICKS);
-        if (session.advanceLavaTimer() % MobEntity.LAVA_WOUND_CADENCE_TICKS == 0) {
-            damageOnTick(session,
-                    applyEnchantProtection(session, MobEntity.LAVA_DAMAGE_PER_WOUND,
-                            DamageKind.LAVA),
-                    "tried to swim in lava", DamageKind.LAVA);
-        }
+        // The wound rides the session's own hurt window (the reference's
+        // every-tick takeDamage(LAVA, 4.0) against the i-frame — the
+        // damageOnTick consult refuses the redundant ticks whole and pays
+        // only a stronger hit's excess; the retired % 10 lavaTimer gate
+        // duplicated the cadence the window itself carries).
+        damageOnTick(session,
+                applyEnchantProtection(session, MobEntity.LAVA_DAMAGE_PER_WOUND,
+                        DamageKind.LAVA),
+                "tried to swim in lava", DamageKind.LAVA);
     }
 
     /**
@@ -18787,11 +18798,15 @@ public final class EngineServer implements Server, EngineBridge {
                     return;
                 }
             }
-            // The owner's empty-hand verb (lines 327-332): the sit toggle —
-            // a held breeding food feeds through the fall-through below
-            // instead (the reference's own isBreedingItem gate).
+            // The owner's empty-hand verb (lines 327-332): the sit toggle
+            // with the reference's own stand-down body — the path drops
+            // and the attack target clears (the verb that seats a
+            // FIGHTING pet stands it down whole) — a held breeding food
+            // feeds through the fall-through below instead (the
+            // reference's own isBreedingItem gate).
             if (mob.isOwner(player)
                     && !isBreedingItem(mob.type(), heldId)) {
+                mob.standDownByVerb();
                 mob.toggleWolfSitting();
                 publishWolfState(mob);
                 return;
@@ -18837,10 +18852,13 @@ public final class EngineServer implements Server, EngineBridge {
         String heldId = held.type() == null ? "" : held.type().identifier().toString();
 
         if (mob.wolfTamed()) {
-            // The owner's empty-hand verb: the sit toggle (a held breeding
-            // fish feeds through the fall-through instead).
+            // The owner's empty-hand verb: the sit toggle with the
+            // stand-down body (the path drops, the target clears — the
+            // reference's own verb; a held breeding fish feeds through
+            // the fall-through instead).
             if (mob.isOwner(player)
                     && !isBreedingItem(mob.type(), heldId)) {
+                mob.standDownByVerb();
                 mob.toggleWolfSitting();
                 publishWolfState(mob);
                 return;
@@ -24501,6 +24519,13 @@ public final class EngineServer implements Server, EngineBridge {
             for (MobManager.Listener listener : mobListeners) {
                 listener.onMobAttackedPlayer(mob, target, damage);
             }
+            // The attacker window's stamp (LivingEntity.setAttacker at
+            // takeDamage lines 671-676 — the LIVING source's write): every
+            // landed mob melee arms the victim's 100-tick window, the
+            // tameable family's sit-release read (SitGoal.canStart's
+            // owner band — an owner hit within 12 blocks stands the
+            // seated pet up to defend).
+            target.markHurtByLiving();
             // Slice 18b — the cave spider's venomous bite
             // (CaveSpiderEntity.tryDamage lines 25-45): a landed hit
             // poisons by the difficulty — NORMAL the 7-second curse, HARD
@@ -27495,6 +27520,12 @@ public final class EngineServer implements Server, EngineBridge {
 
                 @Override public boolean spectator() {
                     return spectator;
+                }
+
+                @Override public boolean hurtByMobRecently() {
+                    // The sit release's read (SitGoal.canStart's owner
+                    // band over the setAttacker window).
+                    return session.hurtByLivingRecently();
                 }
             };
         }

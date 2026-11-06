@@ -148,7 +148,11 @@ class WolfRevengeOwnerGatesParityDiscoveryTest {
                         + " its own owner");
         assertFalse(pet.wolfAngry(), "no anger on the owner's hit");
 
-        assertTrue(manager.hurt(pet, 2.0f, 0.0,
+        // The hurt frame (Wave HF — the reference's shared i-frame): the
+        // owner's 2.0 stands in the window, so the stranger's probe
+        // out-damages it (the excess arm a stronger hit pays in vanilla —
+        // the same-damage hit would i-frame away and never avenge).
+        assertTrue(manager.hurt(pet, 4.0f, 0.0,
                 net.zaminmc.torch.event.DamageCause.MELEE, false, false,
                 null, stranger));
         assertNotNull(pet.forcedHuntPosition(),

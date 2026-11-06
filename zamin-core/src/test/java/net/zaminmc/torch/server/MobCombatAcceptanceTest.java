@@ -54,6 +54,11 @@ class MobCombatAcceptanceTest {
         server.attackEntity(hunter, pig.entityId());
         await(() -> pig.health() < MobType.PIG.maxHealth, "the first hit landed");
         standNextTo(server, hunter, pig); // the hurt pop knocked it back a bit
+        // The hurt frame (Wave HF — LivingEntity.takeDamage lines 652-669):
+        // the identical 7.0 inside the first wound's window refuses whole
+        // — the vanilla spacing between sword swings (the classic 1.8
+        // click-through-i-frames law; a rapid second click wounds nothing).
+        EngineAwaits.awaitTicks(server.world(), 12, "the wound's window drains");
         server.attackEntity(hunter, pig.entityId());
         await(() -> pig.dead(), "the second hit killed (7 x 2 >= 10)");
 

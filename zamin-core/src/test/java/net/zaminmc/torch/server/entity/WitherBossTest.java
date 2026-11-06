@@ -158,6 +158,12 @@ class WitherBossTest {
         MobEntity wither = manager.spawnAt(MobType.WITHER, new Position(0.5, 4.0, 0.5));
         // The window closed: the plain wounds land.
         assertTrue(manager.hurt(wither, 5.0f, 0.0, net.zaminmc.torch.event.DamageCause.MELEE));
+        // The hurt frame (Wave HF — the reference's shared i-frame): drain
+        // the first wound's window before the next phase, exactly the
+        // vanilla spacing a live fight would carry.
+        for (int i = 0; i < 11; i++) {
+            wither.tick(false);
+        }
         // The drown never lands (line 413).
         assertFalse(manager.hurt(wither, 1.0f, 0.0,
                 net.zaminmc.torch.event.DamageCause.DROWN), "the drown never lands");
@@ -168,6 +174,11 @@ class WitherBossTest {
         wither.heal(300.0f);
         manager.hurt(wither, 200.0f, 0.0, net.zaminmc.torch.event.DamageCause.MELEE);
         assertTrue(wither.health() <= 150.0f, "the body sits below half");
+        // The 200 wound's frame drains before the projectile pair (the
+        // excess-arm window a same-tick fireball would ride in vanilla).
+        for (int i = 0; i < 11; i++) {
+            wither.tick(false);
+        }
         float beforeArrow = wither.health();
         assertFalse(manager.hurt(wither, 5.0f, 0.0,
                         net.zaminmc.torch.event.DamageCause.PROJECTILE, false, true, null),
@@ -176,6 +187,10 @@ class WitherBossTest {
         assertTrue(manager.hurt(wither, 5.0f, 0.0,
                         net.zaminmc.torch.event.DamageCause.PROJECTILE, false, false, null),
                 "the fireball family still lands");
+        // The fireball's own window drains before the melee pair.
+        for (int i = 0; i < 11; i++) {
+            wither.tick(false);
+        }
         // The UNDEAD melee family: a zombie's claw never wounds (lines
         // 428-434); the players are exempt by the reference's own gate.
         MobEntity zombie = manager.spawnAt(MobType.ZOMBIE, new Position(2.5, 4.0, 0.5));

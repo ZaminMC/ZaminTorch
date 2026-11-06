@@ -116,20 +116,22 @@ class InWallSuffocationTest {
         BandWorld wall = new BandWorld(8.0, 9, 0, 0);
         MobEntity zombie = zombie(wall, 17L);
         float health = zombie.health();
-        // The reference's i-frame shape: one 1.0 wound per window (the
-        // engine's timer convention the lava arm rides — the first wound
-        // one window deep).
+        // The hurt frame's own law (Wave HF — the reference's every-tick
+        // takeDamage(IN_WALL, 1.0) against the i-frame): the FIRST wound
+        // lands the tick the wall closes (the retired timer held it a
+        // window deep), then one wound per window's width.
+        zombie.tick(false);
+        assertEquals(health - 1.0f, zombie.health(), 1e-6f,
+                "the first wound lands the very tick the wall closes");
         for (int i = 0; i < 9; i++) {
             zombie.tick(false);
-            assertEquals(health, zombie.health(), 1e-6f, "no wound inside the first window");
+            assertEquals(health - 1.0f, zombie.health(), 1e-6f,
+                    "the frame refuses the redundant 1.0s inside the window's"
+                            + " first half");
         }
         zombie.tick(false);
-        assertEquals(health - 1.0f, zombie.health(), 1e-6f, "the first wound lands");
-        for (int i = 0; i < 9; i++) {
-            zombie.tick(false);
-        }
-        zombie.tick(false);
-        assertEquals(health - 2.0f, zombie.health(), 1e-6f, "the second wound lands");
+        assertEquals(health - 2.0f, zombie.health(), 1e-6f,
+                "the second wound lands at the window's own cadence");
     }
 
     @Test
@@ -150,15 +152,19 @@ class InWallSuffocationTest {
         }
         SwitchWorld sw = new SwitchWorld();
         MobEntity zombie = zombie(sw, 19L);
+        // The hurt frame's law: the first wound lands immediately, the
+        // window then holds the rest for its first half — the wall gone,
+        // no further wound ever consults.
         for (int i = 0; i < 7; i++) {
-            zombie.tick(false); // the window half-spent
+            zombie.tick(false);
         }
         sw.on = false;
         for (int i = 0; i < 30; i++) {
             zombie.tick(false);
         }
-        assertEquals(MobType.ZOMBIE.maxHealth, zombie.health(), 1e-6f,
-                "the clock reset — no wound ever landed");
+        assertEquals(MobType.ZOMBIE.maxHealth - 1.0f, zombie.health(), 1e-6f,
+                "exactly the first window's immediate wound — the wall gone," 
+                        + " the frame never consults again");
     }
 
     @Test

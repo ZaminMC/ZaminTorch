@@ -524,19 +524,6 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
     // halving seam.
     // ---------------------------------------------------------------
 
-    /** The lava wound's cadence counter (the reference's i-frame window). */
-    private int lavaTimer;
-
-    /** @return the incremented lava wound cadence counter. */
-    public int advanceLavaTimer() {
-        return ++lavaTimer;
-    }
-
-    /** Resets the lava wound cadence counter (out of the lava, resistant). */
-    public void resetLavaTimer() {
-        lavaTimer = 0;
-    }
-
     /**
      * The lava's fall-store halving (Entity.tick line 339's
      * {@code fallDistance *= 0.5F} — every tick the body stands in the
@@ -1569,6 +1556,33 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
     public void resetHurtInvulnerability() {
         hurtInvulnerabilityTicks = 0;
         lastHurtDamage = 0.0f;
+    }
+
+    /**
+     * The attacker window's stamp (LivingEntity.setAttacker at
+     * takeDamage lines 671-676 — the LIVING source's own write) and its
+     * clear law (tick lines 264-270: the damager's death or the 100-tick
+     * window). The tameable family's sit release reads it (SitGoal
+     * .canStart's {@code livingentity.getAttacker() != null} — an owner
+     * hit within 12 blocks stands the seated pet up).
+     */
+    private int hurtByLivingTicks;
+
+    /** Stamps the window at a landed LIVING-source wound. Tick-thread context. */
+    public void markHurtByLiving() {
+        hurtByLivingTicks = 100;
+    }
+
+    /** @return whether a living body wounded this player inside the window. */
+    public boolean hurtByLivingRecently() {
+        return hurtByLivingTicks > 0;
+    }
+
+    /** Per-tick decay of the attacker window. Tick-thread context. */
+    public void tickHurtByLiving() {
+        if (hurtByLivingTicks > 0) {
+            hurtByLivingTicks--;
+        }
     }
 
     /** Direct body write for engine commands (eat, regen, respawn, restore). */
