@@ -9201,6 +9201,115 @@ the wolf/target-family lanes green whole (MobTargetFamily +
 CombatTargetTails + TameableFollow + WolfEntity + the collar
 seats 26/0 + 21/0), the discovery class 4/0.
 
+WAVES HF + TS LANDED (2026-11-07, the same session's third batch —
+the re-pin's two reachable rows whole, each law read from the
+reference's own source 1:1):
+
+HF — THE MOB HURT-FRAME FAMILY (LivingEntity.takeDamage lines
+652-669 + tick 246-247, the i-frame walk the engine carried NO
+state for at all — the PE-32 scoping's own row): the frame state
+on the body (invulnerableTimer, the 20 ceiling
+HURT_FRAME_TICKS; lastDamageTaken) with THE CONSULT AT EVERY
+WOUND SITE (consultHurtFrame): inside the window's FIRST HALF
+(timer > ceiling/2) a hit at or under the standing damage is
+REFUSED WHOLE (lines 657-659 — no health, no flash, no
+knockback, the walk answers false); a stronger one pays only its
+EXCESS (lines 660-662 — the difference lands through the
+flashless applyDamage form, {@code flag = false}: no knockback,
+no hurt voice, no doEntityEvent(2), the frame NOT re-armed; the
+attacker bookkeeping still runs — the reference's setAttacker
+block sits OUTSIDE the flag gate); the fresh hit arms the frame
+and pays in full (lines 665-666, damagedTimer = 10). THE CONTACT
+ARMS ALL RIDE THE FRAME (the reference's every-tick takeDamage
+calls): the lava, the in-wall, the cactus, the drown, the fire
+%20, the void, the enderman's water rage, the blaze's rain, the
+snow golem's melts, the fall, the anvil crush, the magic walk,
+and the player's own lava (the session's damageOnTick consult —
+the retired % 10 lavaTimer gate duplicated the window). THE
+RETIRED STAND-INS: lavaDamageTimer, suffocationTimer,
+cactusDamageTimer, waterDamageTimer, the player's lavaTimer —
+each a cadence clock standing in for the window the frame now
+IS; the FIRST wound lands the tick the contact opens (the
+documented window-deep divergence closed), then one per window.
+THE LATENT REPAIRS the fold exposed: IN_WALL and FALL now BYPASS
+ARMOR (the sources' own setBypassesArmor setters — the old
+1-arg calls consulted pieces); the snow golem's melts one per
+window (the every-tick melt drowned the body ten times too
+fast); the CROSS-SOURCE LAW whole (a recent stronger hit holds
+the smaller contact wound off for the window's first half).
+THE HONEST TAIL: an excess-arm KILL plays the death voice in
+the engine (the onMobDied listener fires it; the reference's
+{@code if (flag && s != null)} keeps the excess kill silent) —
+a corner (a kill BY the excess inside the window) left to the
+wire family's own row. SEATS: HurtFrameParityDiscoveryTest 5/0
+NEW — RED 5/5 on the pre-fix engine (the machine-gun law: two
+identical hits both paid; the 5-then-8 paid 13; the lava's first
+wound a window deep; the flash on every hit; no cross-source
+law); the re-pinned lanes — InWallSuffocation's immediate first
+wound + the leave-reset seat's exactly-one window, the void's
+three-window death (never the every-tick gun), the blaze's
+one-drown-per-window, the snow golem's spaced melts, the
+sword/sharpness seats' 12-tick swing spacing (the classic 1.8
+click-through-i-frames law — a rapid second click wounds
+nothing), the wither seat's window drains between the gates,
+the revenge seats' stronger second probes (the same-damage
+second hit never avenges — vanilla's own law).
+
+TS — THE TAMEABLE SIT/CHASE FAMILY (SitGoal.canStart 1:1, lines
+16-31 over the registration at WolfEntity line 58 / OcelotEntity
+line 44, band 2, setControls(5) — the MOVE+JUMP claim): THE SIT
+HOLD consult on the body (sitGoalHolds — tamed, not in fluid,
+on the ground, then the owner band: the OWNERLESS body holds
+UNCONDITIONALLY (the reference's {@code livingentity == null}
+arm never consults the verb — a pet whose owner left the world
+parks whole), and a present owner releases only when wounded
+inside the 12-block band ({@code !(squaredDistanceTo < 144) ||
+livingentity.getAttacker() == null} — the owner's attacker
+window, PlayerSession's 100-tick hurtByLiving stamp armed at
+every landed mob melee through onMobAttackedPlayer, the
+setAttacker clear law) or the verb itself stands). THE CHASE
+PARK: the mob-target arm and the stroll's start gate consult
+the hold — a seated pet NEVER WALKS its standing target (the
+pre-fix engine chased whole) and NEVER STROLLS AWAY (the
+pre-fix engine strolled the seated pet off — the seated pet's
+own classic law, both broken). THE PROVOKED WOLF'S CHASE BODY
+(the pre-fix engine landed PE-34's WRITE with NO chase at all:
+a hit wild wolf stood still and its anger cleared on the very
+next tick — the anger consult never saw the forced hunt): the
+tameable's forced player hunt now drives the same melee walk
+the mob-target arm runs (the pounce at band 3, the path, the
+reach band), goalHasTarget reads the forced hunt (the anger
+posture STANDS while the hunt stands — WolfEntity.mobTick lines
+178-180's own clear consult), and the manager's melee arm
+resolves the FORCED player first (playerOfEngineId — never the
+nearest stander; the provoked wolf swings at ITS attacker). THE
+JOIN WALK'S SITTING SKIP RETIRED (the reference's targetSelector
+carries NO posture gate — a seated pet acquires the owner's
+attacker as its target and holds it SEATED until the release
+band stands it into the fight; the pre-fix skip meant the
+release had nothing to release). THE EMPTY-HAND VERB'S
+STAND-DOWN (interactMob lines 327-332's own body beside the
+toggle): the path drops and BOTH target seats clear
+(standDownByVerb — setAttackTarget(null)'s single field over
+the engine's split mob-target/forced-hunt pair), so the verb
+that seats a FIGHTING pet stands it down whole. THE HONEST
+TAIL: the engine's single sit flag carries the VERB (the
+reference's enabledWithOwner) — the POSTURE the goal's
+start/stop writes (the ownerless arm's visual sit, the release
+band's stand-and-resit) folds to the verb in the engine's
+wire shape; the movement law (the park, the release, the
+chase) is whole. SEATS: TameableSitChaseParityDiscoveryTest
+5/0 NEW — RED 5/5 on the pre-fix engine (the seated chase; the
+provoked no-chase + the evaporating anger; the seated stroll;
+the missing release; the verb's half stand-down). LANES: the
+entity package whole (700/1 — the PanicFlee wounded-cow
+environmental flake, failing on clean develop too, the
+documented watch), the nbt/village/interaction lanes green,
+the projectile package green, the combat/enchantment/egg
+acceptance lanes green whole, the protocol module compiles
+(the bukkit module's spigot-api snapshot unresolvable in this
+sandbox — an environment limit, no API surface touched).
+
 VT-033'S ADJACENT TAILS LANDED (2026-11-02, commit d96f4a2a — #146's
 review-note ledger retired): the WITHER FALL's kill row and the BEACON
 full-power row walk the ACTING world's players (the un-dimensioned
