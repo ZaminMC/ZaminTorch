@@ -1428,7 +1428,7 @@ public final class MobManager {
             if (!ambient.isEmpty()) {
                 for (Listener listener : listeners) {
                     listener.onMobSoundAt(spawned, ambient,
-                            spawned.ambientSoundVolume(), spawned.ambientSoundPitch());
+                            spawned.soundVolume(), spawned.soundPitch());
                 }
             }
         }
@@ -1926,8 +1926,13 @@ public final class MobManager {
             // VIII10 — the golem's village defense (IronGolemEntity
             // .mobAiTick lines 66-79 + TrackIronGolemTargetGoal): the
             // target consult runs BEFORE the mind's own walk so the
-            // defense target owns the hunt.
+            // defense target owns the hunt. The WINDOW validation
+            // (shouldContinue's gates, Wave PE-31) runs first — a
+            // refused standing write clears before the consult may
+            // re-acquire (the goal selector's own order: the running
+            // goal's shouldContinue, then the idle goal's canStart).
             if (mob.type() == MobType.IRON_GOLEM) {
+                validateGolemTargetWindow(mob, players);
                 tickGolemVillageDefense(mob, players);
             }
 
@@ -2530,7 +2535,7 @@ public final class MobManager {
                 dismountMob(mob, true); // the thrown exit (the seat's own verb)
                 for (Listener listener : listeners) {
                     listener.onMobSoundAt(mob, mob.horseAngrySound(),
-                            mob.ambientSoundVolume(), mob.ambientSoundPitch());
+                            mob.soundVolume(), mob.soundPitch());
                     listener.onHorseFlagsChanged(mob); // the angry bit went up
                     listener.onMobStatusEvent(mob, 6); // doEntityEvent(6) — the smoke
                 }
@@ -3996,7 +4001,17 @@ public final class MobManager {
      * golem never turns on its kin through the wound registry, the mob
      * arm and BOTH player arms carrying it), and the 1-in-20
      * bad-reputation player fallback when the attacker stands refused or
-     * none stands (canTarget's own fail-through, lines 28-34). The
+     * none stands (canTarget's own fail-through, lines 28-34). Wave
+     * PE-31 landed the canTarget DEPTH the reference carries on the
+     * defense goal's own arms ({@code super(golem, false, TRUE)} —
+     * TrackTargetGoal.canTarget lines 123-147): the isTarget gates
+     * (the null/dead/self refusals, canAttack's ghast refusal and its
+     * player-created player gate, the invulnerable player refusal),
+     * THE VILLAGE BAND (isValidGoalTarget at the target's own cell —
+     * the truncated {@code (int)(radius * 0.6F)} band), and THE PATH
+     * CONSULT (checkCanNavigate's shared-cache quirk — the goal's own
+     * 10 + nextInt(5) window, one verdict standing for every consult
+     * it serves, the start() reset on the successful write). The
      * reference caches the village at the 70-120 cadence and the goal
      * reads it every tick; the engine resolves the nearest village live
      * (the same village the cadence would cache — the named adaptation,
@@ -4020,6 +4035,10 @@ public final class MobManager {
         if (village == null) {
             return; // resetVillageRadius: the stroll stays the engine's own
         }
+        // The cached radius's own form (IronGolemEntity line 74:
+        // setVillagePosAndRadius carries the TRUNCATED int
+        // {@code (int)(radius * 0.6F)} — the band consult's own read).
+        int band = (int) (village.radius() * 0.6F);
         int attackerId = villages.defenseAttackerId(village, x, y, z);
         if (attackerId >= 0) {
             MobEntity attackerMob = byId(attackerId);
@@ -4030,47 +4049,147 @@ public final class MobManager {
                 // itself carries no creeper skip, the refusal is the goal's).
                 return;
             }
+            // canTarget(attacker, false) — the goal's own depth, the
+            // reference's own order (TrackTargetGoal lines 123-147): the
+            // isTarget gates first (the self/dead refusals, canAttack's
+            // ghast refusal, the team refusal, the invulnerable player),
+            // then the village band, then the path consult.
             if (attackerMob != null) {
-                if (!golem.sameTeamAs(attackerMob)) {
+                boolean valid = attackerMob != golem
+                        && !attackerMob.dead()
+                        // canAttack (IronGolemEntity line 135): the ghast
+                        // refused beside the creeper (the pre-fix engine
+                        // hunted a ghast attacker whole).
+                        && attackerMob.type() != MobType.GHAST
+                        && !golem.sameTeamAs(attackerMob)
+                        // isValidGoalTarget (PathFinderMobEntity line 46):
+                        // the attacker's own cell inside the band.
+                        && MobEntity.inVillageBand(band, village, attackerMob.position())
+                        // checkCanNavigate (TrackTargetGoal lines 132-144):
+                        // the shared-cache path consult.
+                        && golem.golemDefenseCanNavigate(attackerMob.position());
+                if (valid) {
                     golem.setMobAttackTarget(attackerMob);
+                    golem.resetGolemDefenseNavigate(); // start()'s reset
                     return;
                 }
-                // canTarget's same-team refusal — the fallback rolls below
-                // exactly as the reference's fail-through arm (lines 28-34).
-            } else if (mayHuntPlayers) {
-                String playerName = playerNameOfEngineId(players, attackerId);
-                if (playerName == null || !golem.sameTeamAsPlayer(playerName)) {
-                    golem.setForcedHuntPlayer(attackerId); // a player attacker
-                }
-                return;
+                // canTarget's failure — the fallback rolls below exactly
+                // as the reference's fail-through arm (lines 28-34).
             } else {
-                // The player-created refusal: canTarget's gate — the
-                // fallback's own canTarget would refuse the player too.
-                return;
+                PlayerSession attackerPlayer = playerOfEngineId(players, attackerId);
+                boolean valid = canTargetDefensePlayer(golem, attackerPlayer,
+                        mayHuntPlayers, band, village);
+                if (valid) {
+                    golem.setForcedHuntPlayer(attackerId); // a player attacker
+                    golem.resetGolemDefenseNavigate(); // start()'s reset
+                    return;
+                }
+                // canTarget's failure — the fallback rolls below (the
+                // player-created refusal, the invulnerable refusal, the
+                // team refusal, the band, the path: every arm pays the
+                // same dice the reference's fail-through carries).
             }
         }
-        // The 1-in-20 fallback (lines 30-33): the village's enemy player,
-        // its own team consult the isTarget law carries.
-        if (mayHuntPlayers && random.nextInt(20) == 0) {
+        // The 1-in-20 fallback (lines 30-33): the dice unconditional
+        // (every golem pays the roll — the player consult's own canTarget
+        // carries the player-created gate), then the village's enemy
+        // player under the same canTarget depth.
+        if (random.nextInt(20) == 0) {
             String name = villages.defensePlayerName(village, x, y, z);
-            if (name != null && !golem.sameTeamAsPlayer(name)) {
-                int playerId = villages.engineIdOfPlayer(name);
-                if (playerId >= 0) {
-                    golem.setForcedHuntPlayer(playerId);
+            if (name != null) {
+                PlayerSession fallback = playerOfEngineId(players,
+                        villages.engineIdOfPlayer(name));
+                if (canTargetDefensePlayer(golem, fallback, mayHuntPlayers, band, village)) {
+                    golem.setForcedHuntPlayer(fallback.engineEntityId());
+                    golem.resetGolemDefenseNavigate(); // start()'s reset
                 }
             }
         }
     }
 
-    /** The player's NAME for an engine id (the defense consult's player
-     *  arm — the team consult reads the name-keyed registry). */
-    private static String playerNameOfEngineId(Iterable<PlayerSession> players, int engineId) {
+    /**
+     * The defense consult's PLAYER canTarget (Wave PE-31 — the same
+     * TrackTargetGoal.canTarget depth on both player arms): the session
+     * must resolve and be playing (isTarget's {@code isAlive} — a
+     * logged-out row never hunts), canAttack's player-created gate,
+     * the invulnerable refusal (isTarget lines 116-118 — the engine's
+     * creative/spectator pair the abilities consult names), the
+     * same-team refusal, the village band at the player's cell, and
+     * the path consult.
+     */
+    private boolean canTargetDefensePlayer(MobEntity golem, PlayerSession player,
+                                           boolean mayHuntPlayers, int band,
+                                           net.zaminmc.torch.server.village.Village village) {
+        if (player == null || player.state() != PlayerState.PLAYING || !mayHuntPlayers) {
+            return false;
+        }
+        if (player.gamemode() == net.zaminmc.torch.GameMode.CREATIVE
+                || player.gamemode() == net.zaminmc.torch.GameMode.SPECTATOR) {
+            return false; // the invulnerable refusal
+        }
+        if (golem.sameTeamAsPlayer(player.name())) {
+            return false;
+        }
+        if (!MobEntity.inVillageBand(band, village, player.position())) {
+            return false;
+        }
+        return golem.golemDefenseCanNavigate(player.position());
+    }
+
+    /** The session for an engine id (the defense consult's player arms). */
+    private static PlayerSession playerOfEngineId(Iterable<PlayerSession> players, int engineId) {
+        if (engineId < 0) {
+            return null;
+        }
         for (PlayerSession player : players) {
             if (player.engineEntityId() == engineId) {
-                return player.name();
+                return player;
             }
         }
         return null;
+    }
+
+    /**
+     * THE GOLEM'S TARGET WINDOW (Wave PE-31 — TrackTargetGoal
+     * .shouldContinue lines 36-66, the shared law of the defense goal
+     * (band 1) and the revenge goal (band 2), both carrying
+     * {@code checkVisibility} false): a standing write holds while the
+     * target LIVES, never joins the golem's team, and stays inside the
+     * FOLLOW RANGE band — and a player target must resolve, be playing,
+     * and not be invulnerable. Whatever refuses clears the write
+     * ({@code stop()}'s own {@code setAttackTarget(null)}); the consult
+     * may re-acquire the same tick on its own gates.
+     */
+    private void validateGolemTargetWindow(MobEntity golem, Iterable<PlayerSession> players) {
+        MobEntity mobTarget = golem.mobAttackTarget();
+        if (mobTarget != null) {
+            double followRange = golem.followRange();
+            if (mobTarget.dead() || golem.sameTeamAs(mobTarget)
+                    || golem.squaredDistanceTo(mobTarget) > followRange * followRange) {
+                golem.setMobAttackTarget(null); // stop()'s clear
+            }
+        }
+        int forcedId = golem.forcedHuntPlayerId();
+        if (forcedId >= 0) {
+            PlayerSession player = playerOfEngineId(players, forcedId);
+            boolean holds = player != null
+                    && player.state() == PlayerState.PLAYING
+                    && player.gamemode() != net.zaminmc.torch.GameMode.CREATIVE
+                    && player.gamemode() != net.zaminmc.torch.GameMode.SPECTATOR
+                    && !golem.sameTeamAsPlayer(player.name());
+            if (holds) {
+                Position p = player.position();
+                Position at = golem.position();
+                double dx = p.x() - at.x();
+                double dy = p.y() - at.y();
+                double dz = p.z() - at.z();
+                double followRange = golem.followRange();
+                holds = dx * dx + dy * dy + dz * dz <= followRange * followRange;
+            }
+            if (!holds) {
+                golem.setForcedHuntPlayer(-1); // stop()'s clear
+            }
+        }
     }
 
     /**

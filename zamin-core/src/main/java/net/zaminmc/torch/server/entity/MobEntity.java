@@ -81,7 +81,7 @@ public final class MobEntity implements LivingEntity {
         }
     }
 
-    private double followRange() {
+    double followRange() {
         double override = followRangeOverride();
         return Double.isNaN(override) ? AGGRO_RANGE : override;
     }
@@ -4114,6 +4114,15 @@ public final class MobEntity implements LivingEntity {
      * open). */
     private int golemCensusNavigateFlag;
     private int golemCensusNavigateCooldown;
+    /** THE DEFENSE GOAL'S OWN PATH-CONSULT PAIR (Wave PE-31 — the same
+     * per-goal cache the census carries, on the DEFENSE goal's own arms:
+     * TrackIronGolemTargetGoal's {@code super(golem, false, TRUE)} rides
+     * {@code checkCanNavigate}, so the defense consult's {@code canTarget}
+     * pays the same shared-cache quirk — one verdict per 10 + nextInt(5)
+     * window, whatever target the window serves, and {@code start()}
+     * resets both). */
+    private int golemDefenseNavigateFlag;
+    private int golemDefenseNavigateCooldown;
 
     /**
      * THE IRON GOLEM'S TARGET FAMILY (Wave PE-29 — IronGolemEntity's own
@@ -4245,6 +4254,12 @@ public final class MobEntity implements LivingEntity {
         net.zaminmc.torch.server.village.Village village = world.nearestVillageAt(
                 (int) Math.floor(position.x()), (int) Math.floor(position.y()),
                 (int) Math.floor(position.z()), 32);
+        // The cached radius's own form (Wave PE-31's repair —
+        // setVillagePosAndRadius line 74: {@code (int)(radius * 0.6F)},
+        // the TRUNCATED int the band consult reads; the pre-fix engine's
+        // plain double 0.6 hunted the razor-thin ring the int band
+        // refuses — a 32-radius village's band is 19, never 19.2).
+        int band = village != null ? (int) (village.radius() * 0.6F) : -1;
         MobEntity best = null;
         double bestDistance = Double.MAX_VALUE;
         for (MobEntity candidate : candidates) {
@@ -4259,15 +4274,8 @@ public final class MobEntity implements LivingEntity {
                     || sameTeamAs(candidate)) {
                 continue;
             }
-            if (village != null) {
-                double band = village.radius() * 0.6;
-                Position p = candidate.position();
-                double vx = p.x() - village.centerX();
-                double vy = p.y() - village.centerY();
-                double vz = p.z() - village.centerZ();
-                if (vx * vx + vy * vy + vz * vz >= band * band) {
-                    continue; // outside the golem's own village band
-                }
+            if (village != null && !inVillageBand(band, village, candidate.position())) {
+                continue; // outside the golem's own village band
             }
             if (!golemCensusCanNavigate(candidate)) {
                 continue; // the path consult (checkCanNavigate TRUE)
@@ -4279,6 +4287,31 @@ public final class MobEntity implements LivingEntity {
             }
         }
         return best;
+    }
+
+    /**
+     * THE VILLAGE BAND'S OWN FORM (Wave PE-31 — {@code PathFinderMob
+     * Entity.isValidGoalTarget} lines 46-48 over the golem's cached
+     * pair, IronGolemEntity lines 69-79): the CACHED radius is the
+     * truncated int {@code (int)(village.getRadius() * 0.6F)}, and the
+     * consult reads the TARGET'S OWN CELL ({@code new BlockPos(target
+     * Entity)} — the floored position) against the village center's
+     * cell, the squared distance STRICT under the band's square. The
+     * pre-fix engine read the body's exact position against the plain
+     * double 0.6 — the razor-thin ring between the two forms (a body
+     * whose cell sits at exactly the truncated band's edge) wrongly
+     * hunted.
+     */
+    static boolean inVillageBand(int band,
+                                 net.zaminmc.torch.server.village.Village village,
+                                 Position target) {
+        if (band < 0) {
+            return true; // the -1 reset: every target valid
+        }
+        int dx = (int) Math.floor(target.x()) - village.centerX();
+        int dy = (int) Math.floor(target.y()) - village.centerY();
+        int dz = (int) Math.floor(target.z()) - village.centerZ();
+        return dx * dx + dy * dy + dz * dz < band * band;
     }
 
     /**
@@ -4324,6 +4357,50 @@ public final class MobEntity implements LivingEntity {
     boolean censusInvisible() {
         return effectAmplifierPlusOne(
                 net.zaminmc.torch.server.potion.StatusEffects.INVISIBILITY) > 0;
+    }
+
+    /**
+     * THE DEFENSE GOAL'S OWN PATH CONSULT (Wave PE-31 — the same
+     * {@code TrackTargetGoal.canNavigateToTarget} lines 158-176, over
+     * the DEFENSE goal's own {@code canTarget} arm:
+     * {@code TrackIronGolemTargetGoal}'s {@code super(golem, false,
+     * true)} carries {@code checkCanNavigate} TRUE): a route to the
+     * target whose END NODE sits within squared-2.25 of the target's
+     * own cell, under the goal's own shared cache — the verdict
+     * computed for the first target a 10 + nextInt(5) window serves
+     * stands for every consult the same window covers (the vanilla
+     * quirk kept verbatim), and a successful write resets both
+     * ({@code start()}'s own clear).
+     */
+    boolean golemDefenseCanNavigate(Position target) {
+        if (--golemDefenseNavigateCooldown <= 0) {
+            golemDefenseNavigateFlag = 0;
+        }
+        if (golemDefenseNavigateFlag == 0) {
+            golemDefenseNavigateCooldown = 10 + random.nextInt(5);
+            net.zaminmc.torch.server.entity.ai.pathing.Path path =
+                    navigation.findPath(target.x(), target.y(), target.z());
+            boolean reachable = false;
+            if (path != null) {
+                net.zaminmc.torch.server.entity.ai.pathing.PathNode end =
+                        path.getTarget();
+                if (end != null) {
+                    int i = end.x - (int) Math.floor(target.x());
+                    int j = end.z - (int) Math.floor(target.z());
+                    reachable = i * i + j * j <= 2.25;
+                }
+            }
+            golemDefenseNavigateFlag = reachable ? 1 : 2;
+        }
+        return golemDefenseNavigateFlag != 2;
+    }
+
+    /** The defense write's {@code start()} reset (TrackTargetGoal.start
+     *  lines 74-78: both cache fields zeroed when the goal's window
+     *  opens). */
+    void resetGolemDefenseNavigate() {
+        golemDefenseNavigateFlag = 0;
+        golemDefenseNavigateCooldown = 0;
     }
 
     /** The golem's own melee cadence (MeleeAttackGoal's 20-tick cycle). */
@@ -7249,7 +7326,7 @@ public final class MobEntity implements LivingEntity {
         if (name.isEmpty()) {
             return null; // playAmbientSound: a null voice never plays
         }
-        return new AmbientSound(name, ambientSoundVolume(), ambientSoundPitch());
+        return new AmbientSound(name, soundVolume(), soundPitch());
     }
 
     /**
@@ -7272,15 +7349,18 @@ public final class MobEntity implements LivingEntity {
     }
 
     /**
-     * The play volume — the reference's {@code getSoundVolume} overrides:
-     * the base 1.0 (LivingEntity lines 1056-1058), the ghast's 10.0 (line
-     * 120), the dragon's 5.0 (line 617), the horse's 0.8 (line 572), the
-     * cow's 0.4 (line 65 — the mooshroom inherits it), the ocelot/wolf 0.4
-     * (OcelotEntity line 134, WolfEntity line 159), the squid's 0.4 (line
-     * 64), the bat's 0.1 (line 29), the slime's {@code 0.4 * size} (line
-     * 262 — the size-1 body 0.4).
+     * The play volume — the reference's {@code getSoundVolume} (the
+     * SHARED consult every playSound site reads, LivingEntity lines
+     * 1056-1058): the base 1.0, the ghast's 10.0 (line 120), the
+     * dragon's 5.0 (line 617), the horse's 0.8 (line 572), the cow's
+     * 0.4 (line 65 — the mooshroom inherits it), the ocelot/wolf 0.4
+     * (OcelotEntity line 134, WolfEntity line 159), the squid's 0.4
+     * (line 64), the bat's 0.1 (line 29), the slime's {@code 0.4 *
+     * size} (line 262 — the size-1 body 0.4). Wave PE-32 widened the
+     * consult's name to the reference's own — the hurt/death wire
+     * rides the same table.
      */
-    public float ambientSoundVolume() {
+    public float soundVolume() {
         return switch (type) {
             case GHAST -> 10.0f;
             case ENDER_DRAGON -> 5.0f;
@@ -7293,13 +7373,18 @@ public final class MobEntity implements LivingEntity {
     }
 
     /**
-     * The play pitch — the reference's {@code getSoundPitch} (LivingEntity
-     * lines 1060-1064): the two-draw jitter {@code (r - r) * 0.2} around
-     * 1.5 for a baby, around 1.0 for a grown body.
+     * The play pitch — the reference's {@code getSoundPitch} (the
+     * SHARED consult every playSound site reads, LivingEntity lines
+     * 1060-1064): the two-draw jitter {@code (r - r) * 0.2} around 1.5
+     * for a baby, around 1.0 for a grown body — and the BAT's own
+     * {@code super.getSoundPitch() * 0.95F} multiplier (BatEntity line
+     * 33, Wave PE-32's repair — the pre-fix consult carried no bat
+     * case, the bat's every voice playing at the plain band).
      */
-    public float ambientSoundPitch() {
+    public float soundPitch() {
         float jitter = random.nextFloat() - random.nextFloat();
-        return isBaby() ? jitter * 0.2f + 1.5f : jitter * 0.2f + 1.0f;
+        float pitch = isBaby() ? jitter * 0.2f + 1.5f : jitter * 0.2f + 1.0f;
+        return type == MobType.BAT ? pitch * 0.95f : pitch;
     }
 
     /**
@@ -8874,6 +8959,14 @@ public final class MobEntity implements LivingEntity {
     /** Sets the forced player hunt (the reinforcement callee's target). */
     public void setForcedHuntPlayer(int engineId) {
         this.forcedHuntPlayerId = engineId;
+    }
+
+    /**
+     * @return the forced hunt's engine id (-1 when none stands) — the
+     * window validation's own read (shouldContinue's player gates).
+     */
+    public int forcedHuntPlayerId() {
+        return forcedHuntPlayerId;
     }
 
     /**
@@ -13943,7 +14036,7 @@ public final class MobEntity implements LivingEntity {
      * 675): the vanilla 3D squared form between the body anchors — the
      * parent walk and the golem family's own reads.
      */
-    private double squaredDistanceTo(MobEntity other) {
+    double squaredDistanceTo(MobEntity other) {
         double dx = other.position().x() - position.x();
         double dy = other.position().y() - position.y();
         double dz = other.position().z() - position.z();

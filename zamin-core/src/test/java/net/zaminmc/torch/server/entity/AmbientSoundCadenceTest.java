@@ -120,19 +120,19 @@ class AmbientSoundCadenceTest {
         // the horse's 0.8, the cow family's 0.4 (the mooshroom inherits),
         // the squid's, the ocelot/wolf pair's, the bat's 0.1, the slime's
         // 0.4 * size, the base 1.0 for the rest.
-        assertEquals(10.0f, spawn(MobType.GHAST, 5L).ambientSoundVolume(), 1e-6f);
-        assertEquals(5.0f, spawn(MobType.ENDER_DRAGON, 5L).ambientSoundVolume(), 1e-6f);
-        assertEquals(0.8f, spawn(MobType.HORSE, 5L).ambientSoundVolume(), 1e-6f);
-        assertEquals(0.4f, spawn(MobType.COW, 5L).ambientSoundVolume(), 1e-6f);
-        assertEquals(0.4f, spawn(MobType.MOOSHROOM, 5L).ambientSoundVolume(), 1e-6f);
-        assertEquals(0.4f, spawn(MobType.OCELOT, 5L).ambientSoundVolume(), 1e-6f);
-        assertEquals(0.4f, spawn(MobType.WOLF, 5L).ambientSoundVolume(), 1e-6f);
-        assertEquals(0.4f, spawn(MobType.SQUID, 5L).ambientSoundVolume(), 1e-6f);
-        assertEquals(0.1f, spawn(MobType.BAT, 5L).ambientSoundVolume(), 1e-6f);
-        assertEquals(0.4f, spawn(MobType.SLIME, 5L).ambientSoundVolume(), 1e-6f,
+        assertEquals(10.0f, spawn(MobType.GHAST, 5L).soundVolume(), 1e-6f);
+        assertEquals(5.0f, spawn(MobType.ENDER_DRAGON, 5L).soundVolume(), 1e-6f);
+        assertEquals(0.8f, spawn(MobType.HORSE, 5L).soundVolume(), 1e-6f);
+        assertEquals(0.4f, spawn(MobType.COW, 5L).soundVolume(), 1e-6f);
+        assertEquals(0.4f, spawn(MobType.MOOSHROOM, 5L).soundVolume(), 1e-6f);
+        assertEquals(0.4f, spawn(MobType.OCELOT, 5L).soundVolume(), 1e-6f);
+        assertEquals(0.4f, spawn(MobType.WOLF, 5L).soundVolume(), 1e-6f);
+        assertEquals(0.4f, spawn(MobType.SQUID, 5L).soundVolume(), 1e-6f);
+        assertEquals(0.1f, spawn(MobType.BAT, 5L).soundVolume(), 1e-6f);
+        assertEquals(0.4f, spawn(MobType.SLIME, 5L).soundVolume(), 1e-6f,
                 "the size-1 slime's 0.4 * 1");
-        assertEquals(1.0f, spawn(MobType.ZOMBIE, 5L).ambientSoundVolume(), 1e-6f);
-        assertEquals(1.0f, spawn(MobType.VILLAGER, 5L).ambientSoundVolume(), 1e-6f);
+        assertEquals(1.0f, spawn(MobType.ZOMBIE, 5L).soundVolume(), 1e-6f);
+        assertEquals(1.0f, spawn(MobType.VILLAGER, 5L).soundVolume(), 1e-6f);
     }
 
     @Test
@@ -144,7 +144,7 @@ class AmbientSoundCadenceTest {
         MobEntity adult = spawn(MobType.COW, 77L);
         double adultSum = 0.0;
         for (int i = 0; i < 2_000; i++) {
-            float p = adult.ambientSoundPitch();
+            float p = adult.soundPitch();
             assertTrue(p >= 0.8f && p <= 1.2f, "the adult band [0.8, 1.2], got " + p);
             adultSum += p;
         }
@@ -154,7 +154,7 @@ class AmbientSoundCadenceTest {
         assertTrue(baby.isBaby(), "the fixture is a baby");
         double babySum = 0.0;
         for (int i = 0; i < 2_000; i++) {
-            float p = baby.ambientSoundPitch();
+            float p = baby.soundPitch();
             assertTrue(p >= 1.3f && p <= 1.7f, "the baby band [1.3, 1.7], got " + p);
             babySum += p;
         }

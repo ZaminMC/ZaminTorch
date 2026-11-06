@@ -494,6 +494,19 @@ public final class V18ProtocolServer implements ProtocolAdapter {
 
             @Override
             public void onMobHurt(net.zaminmc.torch.server.entity.MobEntity mob) {
+                // Wave PE-32 — the hurt pair in the reference's own order
+                // (LivingEntity.takeDamage: doEntityEvent((byte)2) at line
+                // 691 FIRST, the sound consult at lines 718-723 after): the
+                // STATUS always sends (the animation arm), and the sound
+                // consult happens ONCE per event (the pre-fix wire
+                // consulted per connection — a second watcher re-rolled
+                // the horse's eating flash and its 1-in-3 anger dice), in
+                // the reference's own argument order (the NAME first —
+                // the consult's own side effects — then the volume, then
+                // the pitch's two draws), and ONLY when the body SURVIVES
+                // — the killing blow plays the death sound alone (the
+                // reference's else arm, lines 711-717): the pair never
+                // crosses.
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
                     // Wave TF-12 — the reference's per-world entity map: the
                     // hurt pair never crosses the body's own dimension.
@@ -501,19 +514,47 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                         continue;
                     }
                     connection.sendMobStatus(mob, net.zaminmc.torch.protocol.v1_8.Protocol18.ENTITY_STATUS_HURT);
-                    connection.sendMobSound(mob.hurtSound(), mob.position(), 1.0f, 1.0f);
+                }
+                if (mob.health() > 0.0f) {
+                    String sound = mob.hurtSound();
+                    if (sound != null) {
+                        float volume = mob.soundVolume();
+                        float pitch = mob.soundPitch();
+                        for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                            if (connection.dimensionOfSession() != mob.dimension()) {
+                                continue;
+                            }
+                            connection.sendMobSound(sound, mob.position(), volume, pitch);
+                        }
+                    }
                 }
             }
 
             @Override
             public void onMobDied(net.zaminmc.torch.server.entity.MobEntity mob) {
+                // Wave PE-32 — the death sound consult (takeDamage lines
+                // 711-717): the reference's own order (the NAME — the
+                // consult's own side effects, the horse's flash — then
+                // the volume, then the pitch's two draws), consulted ONCE
+                // per event at the getSoundVolume/getSoundPitch table the
+                // pre-fix wire's flat 1.0/1.0 retired.
+                String sound = mob.deathSound();
+                if (sound != null) {
+                    float volume = mob.soundVolume();
+                    float pitch = mob.soundPitch();
+                    for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                        // Wave TF-12 — the per-world entity map's own gate.
+                        if (connection.dimensionOfSession() != mob.dimension()) {
+                            continue;
+                        }
+                        connection.sendMobSound(sound, mob.position(), volume, pitch);
+                    }
+                }
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
-                    // Wave TF-12 — the per-world entity map's own gate.
                     if (connection.dimensionOfSession() != mob.dimension()) {
                         continue;
                     }
                     connection.sendMobStatus(mob, net.zaminmc.torch.protocol.v1_8.Protocol18.ENTITY_STATUS_DEAD);
-                    connection.sendMobSound(mob.deathSound(), mob.position(), 1.0f, 1.0f);
                 }
             }
 

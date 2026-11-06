@@ -1377,6 +1377,25 @@ final class TestClient18 implements AutoCloseable {
         return new String[]{name, String.valueOf(x), String.valueOf(y), String.valueOf(z)};
     }
 
+    /**
+     * Reads a Named Sound Effect packet with the volume/pitch tail
+     * (Wave PE-32's reader — the u8 pitch field is the engine's own
+     * {@code Math.round(pitch * 63.0f)} encoding), returning
+     * {name, volume, pitchByte}.
+     */
+    String[] readNamedSoundFull(long timeoutMs) throws IOException {
+        byte[] payload = readPacketOfType(Protocol18.S2C_NAMED_SOUND_EFFECT, timeoutMs);
+        ByteBuf buffer = Unpooled.wrappedBuffer(payload);
+        ByteBufOps.readVarInt(buffer); // packet id
+        String name = ByteBufOps.readString(buffer, 256);
+        buffer.readInt(); // x*8
+        buffer.readInt(); // y*8
+        buffer.readInt(); // z*8
+        float volume = buffer.readFloat();
+        int pitchByte = buffer.readByte() & 0xFF;
+        return new String[]{name, String.valueOf(volume), String.valueOf(pitchByte)};
+    }
+
     /** Sends the Entity Action posture gesture (0 start-sneak, 2 start-sprint...). */
     void sendEntityAction(int action) throws IOException {
         ByteBuf body = Unpooled.buffer(12);

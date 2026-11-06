@@ -342,11 +342,14 @@ class CombatTargetTailsTest {
         MobManager manager = new MobManager(world, new Random(91L), new NoLoot(), 970_000, (x, z) -> 8);
         manager.setVillageSystem(system);
         MobEntity golem = manager.spawnAt(MobType.IRON_GOLEM, new Position(0.5, 8.0, 0.5));
-        // The zombie stands FAR (outside the census's 16-band box, so the
-        // band-3 census never muddies the defense read); the creeper is
-        // the NEAREST attacker. The spawns register with the seat's own
+        // The zombie stands INSIDE the village's cached band (Wave PE-31's
+        // isValidGoalTarget law: the one-door village's 32-radius band is the
+        // int 19, and the zombie's cell 10 blocks east of the center sits
+        // inside it — the pre-PE-31 seat parked it 30 east, outside the band,
+        // a geometry vanilla's defense consult never answers); the creeper
+        // is the NEAREST attacker. The spawns register with the seat's own
         // world list too (the DefenseSurface's reads walk it).
-        MobEntity zombie = manager.spawnAt(MobType.ZOMBIE, new Position(30.5, 8.0, 0.5));
+        MobEntity zombie = manager.spawnAt(MobType.ZOMBIE, new Position(12.5, 8.0, 0.5));
         MobEntity creeper = manager.spawnAt(MobType.CREEPER, new Position(2.5, 8.0, 0.5));
         world.mobs.add(golem);
         world.mobs.add(zombie);
