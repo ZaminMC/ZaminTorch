@@ -9058,6 +9058,92 @@ whole (680/0), the nbt lane green, the protocol + bukkit modules
 compile; the snowball shatter row stays the verifier's own
 pre-existing.
 
+WAVES PE-31 + PE-32 LANDED (2026-11-07, one session — the pin's
+two head rows whole, each law read from the reference's own
+source 1:1):
+
+PE-31 — THE DEFENSE CONSULT'S canTarget DEPTH (the pin's head
+row — TrackTargetGoal.canTarget lines 123-147 over
+TrackIronGolemTargetGoal's own super(golem, false, TRUE)): the
+defense arms now carry the FULL consult the census landed in
+PE-29, in the reference's own order — (1) THE isTarget GATES on
+every arm: the self/dead refusals, canAttack's GHAST refusal
+(IronGolemEntity lines 134-136 over MobEntity line 126 — the
+pre-fix engine hunted a ghast attacker whole) and its
+player-created player gate, the same-team refusal, and the
+INVULNERABLE PLAYER refusal (isTarget lines 116-118 — the
+engine's creative/spectator pair, the named adaptation the
+exhaustion wrapper already carries); (2) THE VILLAGE BAND
+(isValidGoalTarget at the TARGET'S OWN CELL — the reference's
+exact form: the cached radius is the TRUNCATED int
+setVillagePosAndRadius carries, IronGolemEntity line 74's
+(int)(radius * 0.6F); a 32-radius village's band is 19, never
+19.2 — and the consult reads the target's FLOORED CELL against
+the center's cell, the squared distance STRICT under the band's
+square; the shared MobEntity.inVillageBand consult, the census's
+own band read REPAIRED to the same form); (3) THE PATH CONSULT
+(checkCanNavigate TRUE — the goal's OWN shared-cache pair,
+golemDefenseNavigateFlag/Cooldown on the body: the 10 +
+nextInt(5) window, one verdict standing for every consult it
+serves, the start() reset on the successful write); (4) THE
+FALLBACK'S OWN DICE UNCONDITIONAL (canStart lines 30-33 — every
+golem pays the 1-in-20 roll when the attacker stands refused or
+absent; the player consult's canTarget carries the
+player-created gate itself), and the fallback player under the
+SAME full depth; (5) THE WINDOW (shouldContinue lines 36-66, the
+shared law of the defense goal and the revenge goal — both
+checkVisibility false): a standing write clears when the target
+dies, joins the golem's team, or flees beyond the FOLLOW RANGE
+band — and a player write clears on the session's end, the
+creative/spectator switch, the team join, or the flee
+(validateGolemTargetWindow in the manager's wiring, stop()'s own
+clear; the pre-fix engine held every write until the target's
+death alone). SEATS: GolemDefenseCanTargetParityDiscoveryTest 6/0
+NEW — RED 6/6 on the pre-fix engine (the outside-band attacker,
+the razor-thin ring at squared 361 the double band wrongly took,
+the walled-off attacker behind an impassable band, the ghast +
+the creative player, the fleeing/teaming target's held write,
+the creative-switch/fleeing player's held write); the PE-29
+defense seat in CombatTargetTailsTest repaired to the band law
+(its zombie stood 30 east, outside the village's 19-band — a
+geometry vanilla's consult never answers; it stands 12 east
+now). LANES: the entity + village packages whole (694/1 — the
+one failure the PanicFlee wounded-cow seat's own documented
+environmental flake, 12/0 green solo), the golem/village seats
+green whole.
+
+PE-32 — THE HURT/DEATH SOUND WIRE'S CONSULT PAIR (the pin's
+second row — LivingEntity.takeDamage lines 711-723): the wire's
+flat 1.0/1.0 RETIRED — both wound arms now consult the SHARED
+getSoundVolume/getSoundPitch pair (the ambient consults' own
+table, widened to the reference's name: soundVolume/soundPitch):
+the per-kind VOLUME table (the ghast 10.0, the dragon 5.0, the
+horse 0.8, the cow/mooshroom/ocelot/wolf/squid 0.4, the bat 0.1,
+the slime 0.4*size, the base 1.0) and the PITCH two-draw jitter
+(r - r)*0.2 + 1.0 (the baby band 1.5) with the BAT'S OWN *0.95
+multiplier (BatEntity line 33 — the pre-fix consult carried no
+bat case). THE WIRE'S OWN REPAIRS the consult pair exposed: (1)
+THE CONSULT ONCE PER EVENT — the pre-fix wire consulted
+per-CONNECTION (a second watcher re-rolled the horse's eating
+flash and its 1-in-3 anger dice); (2) THE REFERENCE'S OWN
+ARGUMENT ORDER — the NAME first (the consult's own side
+effects), then the volume, then the pitch's two draws; (3) THE
+STATUS-FIRST ORDER (doEntityEvent((byte)2) at line 691 precedes
+the sound consult — the hurt status sends before the sound); (4)
+THE KILLING BLOW'S SPLIT (the else arm, lines 711-717): a lethal
+wound plays the DEATH sound ALONE — the pre-fix wire played the
+hurt voice AND the death voice on every kill; (5) the null-sound
+gate (flag && s != null's shape). SEATS:
+HurtDeathSoundWireAcceptanceTest 3/0 NEW over the real wire
+(readNamedSoundFull, the TestClient18 reader the wave adds) —
+RED 3/3 on the pre-fix wire (the cow's 1.0 against the table's
+0.4; the killing blow's first voice "mob.horse.hit" against the
+death-alone law; the bat's 1.0 against the 0.1 row). LANES: the
+AmbientSoundCadenceTest's volume/pitch seats re-pinned to the
+widened names, the protocol mob/horse lanes 6/0 green whole
+(the hurt-status order change verified over MobIntegrationTest's
+own reads).
+
 VT-033'S ADJACENT TAILS LANDED (2026-11-02, commit d96f4a2a — #146's
 review-note ledger retired): the WITHER FALL's kill row and the BEACON
 full-power row walk the ACTING world's players (the un-dimensioned
