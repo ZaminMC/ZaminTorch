@@ -475,35 +475,184 @@ final class MobGoals {
     };
 
     /**
+     * Priority 3, additive (LOOK control only — LookAtEntityGoal's own
+     * shape, Wave PE-23, {@code setControls(2)}): the universal
+     * look-at. Every strolling kind's own registration — the 2% dice,
+     * the nearest player inside the kind's own range (6 the animal
+     * family and the golems, 8 the monster family and the wolf, 10 the
+     * rabbit and the ocelot), the villager's own MOB target at 8, the
+     * guardian's own-kind pair at 12/0.01 — holds the head on the
+     * target's eyes for a {@code 40 + nextInt(40)} window. The head-yaw
+     * write rides the wire's Entity Head Look packet.
+     */
+    static final MobGoal LOOK_AT = new MobGoal() {
+        @Override public String goalId() { return "look_at"; }
+        @Override public int priority() { return 3; }
+        @Override public boolean exclusive() { return false; }
+        @Override public boolean canUse(MobEntity mob, boolean night) {
+            return mob.goalLookAtEntityCanUse();
+        }
+        @Override public void tick(MobEntity mob, boolean night) {
+            mob.goalLookAtEntityTick();
+        }
+    };
+
+    /**
+     * Priority 4, exclusive, AFTER the stroll (the reference's own
+     * per-kind ladders — the look-around 7/8/11 rides AFTER the plain
+     * wander's 6/7/9/10 on every registrant's list, Wave PE-23): the
+     * idle look-around ({@code LookAroundGoal} 1:1, {@code
+     * setControls(3)} — it holds the MOVE bit too, so a live window
+     * keeps the idle body standing). The same 2% dice, the random
+     * angle's cos/sin pair, the {@code 20 + nextInt(20)} window. Its
+     * place AFTER the stroll in the engine's selector is the reference's
+     * own fill-idle-time law: a walk claim outranks the look-around
+     * (the reference's earlier-band steal), the look-around fills the
+     * gaps between walks. The registrants are the reference's own set —
+     * every look-at kind EXCEPT the villager, the rabbit, the ocelot
+     * and the ghast.
+     */
+    static final MobGoal LOOK_AROUND = new MobGoal() {
+        @Override public String goalId() { return "look_around"; }
+        @Override public int priority() { return 4; }
+        @Override public boolean exclusive() { return true; }
+        @Override public boolean canUse(MobEntity mob, boolean night) {
+            return mob.goalLookAroundCanUse(night);
+        }
+        @Override public void tick(MobEntity mob, boolean night) {
+            mob.goalLookAroundTick();
+        }
+    };
+
+    /**
+     * Priority 2, exclusive, FIRST in the band (the reference's own
+     * villager ladder — StayIndoorsGoal at band 2 above every walk the
+     * villager carries, under the flee's 1 — Wave PE-23): the
+     * night-and-rain shelter walk. The sunless-or-dry-biome-rain gate,
+     * the 1-in-50 dice, the recent-cell refusal, the ticking-door
+     * pick, and the walk to the indoors cell (the far arm's away pick
+     * beyond 16 blocks) at the flat 1.0 speed.
+     */
+    static final MobGoal STAY_INDOORS = new MobGoal() {
+        @Override public String goalId() { return "stay_indoors"; }
+        @Override public int priority() { return 2; }
+        @Override public boolean exclusive() { return true; }
+        @Override public boolean canUse(MobEntity mob, boolean night) {
+            return mob.goalStayIndoorsCanUse();
+        }
+        @Override public void tick(MobEntity mob, boolean night) {
+            mob.goalStayIndoorsTick();
+        }
+    };
+
+    /**
+     * Priority 3, ADDITIVE ({@code RestrictOpenDoorGoal} sets NO
+     * controls — the reference's own ctor, zero mutex bits — it runs
+     * beside every walk the villager carries — Wave PE-23): the
+     * sunless door guard. A villager standing inside its nearest
+     * door's indoors band drops the navigation's door permissions and
+     * grows the door's over-use penalty every tick — the
+     * restrictedTicks the ticking-door pick reads, the villagers' own
+     * door-spread law.
+     */
+    static final MobGoal RESTRICT_DOOR = new MobGoal() {
+        @Override public String goalId() { return "restrict_door"; }
+        @Override public int priority() { return 3; }
+        @Override public boolean exclusive() { return false; }
+        @Override public boolean canUse(MobEntity mob, boolean night) {
+            return mob.goalRestrictDoorCanUse();
+        }
+        @Override public void tick(MobEntity mob, boolean night) {
+            mob.goalRestrictDoorTick();
+        }
+    };
+
+    /**
+     * Priority 4, exclusive (the reference's own band 6 for the
+     * profession-0 adult, the grow-up registration at 8 — under the
+     * village walk's 5 and the mating's 6, over the plain wander's 9
+     * — Wave PE-23): the villager's farm walk (VillagerFarmGoal over
+     * GoToBlockGoal 1:1). The mobGriefing gate, the 200+nextInt(200)
+     * scan cadence, the ±16 spiral for a farmland cell with age-7
+     * wheat (the harvest — broken WITH its drops, the stock grows by
+     * the loot pickup) or an empty above-cell (the replant — the seed
+     * consumed from the 8-slot stock, the crop placed at age 0), the
+     * 0.6 walk with the 40-tick re-path, and the 10-tick cooldown
+     * after a work tick.
+     */
+    static final MobGoal VILLAGER_FARM = new MobGoal() {
+        @Override public String goalId() { return "villager_farm"; }
+        @Override public int priority() { return 4; }
+        @Override public boolean exclusive() { return true; }
+        @Override public boolean canUse(MobEntity mob, boolean night) {
+            return mob.goalVillagerFarmCanUse();
+        }
+        @Override public void tick(MobEntity mob, boolean night) {
+            mob.goalVillagerFarmTick();
+        }
+    };
+
+    /**
+     * Priority 4, exclusive, LATE in the band (the reference's own
+     * band 8 for the villager child, under the golem walk's 7 —
+     * Wave PE-23): the baby's caravan walk (FormCaravanGoal 1:1). The
+     * 1-in-400 dice over the census — the nearest other baby not
+     * already in a caravan inside the grown-6/3/6 box — or the plain
+     * (16, 3) pick alone; the 1000-tick window, the 0.32-speed walk
+     * to the target beyond the squared-4 band, and the alone arm's
+     * drift when the navigation idles.
+     */
+    static final MobGoal FORM_CARAVAN = new MobGoal() {
+        @Override public String goalId() { return "form_caravan"; }
+        @Override public int priority() { return 4; }
+        @Override public boolean exclusive() { return true; }
+        @Override public boolean canUse(MobEntity mob, boolean night) {
+            return mob.goalFormCaravanCanUse();
+        }
+        @Override public void tick(MobEntity mob, boolean night) {
+            mob.goalFormCaravanTick();
+        }
+    };
+
+    /**
      * The selector the mob runs: float + panic + the zombie's door break
-     * + breed + the awareness band (beg, the golem's glance, tempt,
+     * + the villager's shelter walk + breed + the awareness band (beg,
+     * the golem's glance, the universal look-at, the door guard, tempt,
      * flee — the wolf, the ocelot, and the golem's own, all kind-gated)
      * + the walk band (the villager's door open, the tameable pair, the
      * baby's parent walk, the rabbit's garden raid, the villager's
-     * village return, the child's golem walk, the sheep's graze) +
-     * stroll, in priority order. The band-1 order matters: the panic
-     * claims a hurt body first, the door break a pressed one (the
-     * reference's own 1-band; a hurt zombie runs, it does not stop to
-     * break). The band-3 order matters: the beg and the glance are
-     * additive so they run first every tick, then the tempt outranks
-     * the flee (the reference's own 3-over-4), so a fish-holder holds a
-     * tempted cat even with players around. The band-4 order matters
-     * the same way: the villager's door open first (the reference's 4
-     * under the village walk's 5), the owner-follow outranks the perch
-     * and the plain stroll (the reference's 5-over-6/7/10), the perch
-     * outranks the stroll (the reference's 6-over-10), the child's
-     * golem walk rides LATE (the reference's 7 over the wander's 9,
-     * under the village walk's 5), and the graze rides LAST before the
-     * stroll (the reference's 5-over-6 on the sheep's own ladder) — a
-     * tamed cat walks to its owner before it perches, and perches
-     * before it wanders.
+     * village return, the farmer's farm walk, the child's golem walk,
+     * the child's caravan, the sheep's graze) + stroll + the idle
+     * look-around, in priority order. The band-1 order matters: the
+     * panic claims a hurt body first, the door break a pressed one
+     * (the reference's own 1-band; a hurt zombie runs, it does not stop
+     * to break). The band-2 order matters: the shelter walk claims the
+     * sunless villager before the breed (the reference's own 2-over-6).
+     * The band-3 order matters: the beg, the glance and the look-at
+     * are additive so they run first every tick, the door guard rides
+     * additively beside them (the reference's own zero-controls
+     * registration), then the tempt outranks the flee (the reference's
+     * own 3-over-4), so a fish-holder holds a tempted cat even with
+     * players around. The band-4 order matters the same way: the
+     * villager's door open first (the reference's 4 under the village
+     * walk's 5), the owner-follow outranks the perch and the plain
+     * stroll (the reference's 5-over-6/7/10), the perch outranks the
+     * stroll (the reference's 6-over-10), the child's golem walk and
+     * the caravan ride LATE (the reference's 7 and 8 over the wander's
+     * 9, under the village walk's 5), and the graze rides LAST before
+     * the stroll (the reference's 5-over-6 on the sheep's own ladder)
+     * — a tamed cat walks to its owner before it perches, and perches
+     * before it wanders. The look-around rides after the stroll — the
+     * reference's own per-kind ladder (the look 7/8/11 after the
+     * wander's 6/7/9/10): the walks outrank it, it fills the idle gaps.
      */
     static GoalSelector standard() {
         return new GoalSelector(List.of(FLOAT, AVOID_SUNLIGHT, PANIC, BREAK_DOOR,
-                VILLAGER_FLEE, BREED,
-                BEG, GOLEM_LOOK, TEMPT, ESCAPE_SUNLIGHT, FLEE_PLAYER,
+                VILLAGER_FLEE, STAY_INDOORS, BREED,
+                BEG, GOLEM_LOOK, LOOK_AT, RESTRICT_DOOR, TEMPT, ESCAPE_SUNLIGHT, FLEE_PLAYER,
                 OPEN_DOOR, FOLLOW_OWNER, SIT_ON_BLOCK, FOLLOW_PARENT,
-                RABBIT_RAID_FARM, VILLAGE_RETURN, FOLLOW_GOLEM, EAT_GRASS,
-                RANDOM_STROLL));
+                RABBIT_RAID_FARM, VILLAGE_RETURN, VILLAGER_FARM, FOLLOW_GOLEM,
+                FORM_CARAVAN, EAT_GRASS,
+                RANDOM_STROLL, LOOK_AROUND));
     }
 }

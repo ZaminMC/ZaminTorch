@@ -571,6 +571,25 @@ public final class MobManager {
         }
 
         /**
+         * The villager's farm harvest (Wave PE-23 — VillagerFarmGoal
+         * .tick lines 66-67, {@code breakBlock(pos, true)}): the age-7
+         * wheat breaks WITH its drops — the block-dust event and the
+         * DropService drops spawn at the cell (the villager's own
+         * loot pickup gathers them into the 8-slot stock).
+         */
+        default void onVillagerFarmHarvest(MobEntity villager) {
+        }
+
+        /**
+         * The villager's farm plant (Wave PE-23 — VillagerFarmGoal.tick
+         * lines 68-94, {@code setBlockState(pos, crop.defaultState(),
+         * 3)}): the consumed seed's crop lands at age 0 on the empty
+         * farmland cell.
+         */
+        default void onVillagerFarmPlant(MobEntity villager) {
+        }
+
+        /**
          * A world event fired at a position (Slice 25a — the reference's
          * {@code world.doEvent(null, id, pos, 0)}: the zombie villager's
          * infect 1016 and un-infect 1017 events, the sounds the client
@@ -2460,6 +2479,32 @@ public final class MobManager {
             if (mob.consumeVillagerDoorClose()) {
                 for (Listener listener : listeners) {
                     listener.onVillagerDoorClose(mob);
+                }
+            }
+            // The golem's offer-status sync (Wave PE-23 —
+            // IronGolemEntity.setLookingAtVillager line 188's
+            // doEntityEvent(this, (byte)11)): the Entity Status the
+            // reference fires on BOTH arms — the wire's sync nudge for
+            // the client's own flower render (the offer clock read
+            // directly, IronGolemFlowerInHandLayer line 21).
+            if (mob.consumeGolemOfferStatus()) {
+                for (Listener listener : listeners) {
+                    listener.onMobStatusEvent(mob, 11);
+                }
+            }
+            // The villager's farm writes (Wave PE-23 — VillagerFarmGoal
+            // .tick): the harvest breaks the age-7 wheat WITH its drops
+            // (breakBlock(pos, true) — the DropService drops spawn at
+            // the cell, the villager's own loot pickup gathers them),
+            // the plant places the consumed seed's crop at age 0.
+            if (mob.consumeVillagerFarmHarvest()) {
+                for (Listener listener : listeners) {
+                    listener.onVillagerFarmHarvest(mob);
+                }
+            }
+            if (mob.consumeVillagerFarmPlant()) {
+                for (Listener listener : listeners) {
+                    listener.onVillagerFarmPlant(mob);
                 }
             }
             MobEntity.StagedSound landSound = mob.consumeSlimeLandSound();

@@ -724,6 +724,14 @@ public final class EngineServer implements Server, EngineBridge {
 
     /** The FX pitch/jitter source (cosmetic rolls only, never gameplay rules). */
     private final java.util.Random fxRandom = new java.util.Random();
+
+    /**
+     * The mob-caused break drop table (Wave PE-23 — the villager's farm
+     * harvest reads the SAME crop walk the player's dig reads: exactly
+     * one wheat plus the seed bonus rolls, the mature-wheat band).
+     */
+    private final net.zaminmc.torch.server.interaction.DropService farmDrops =
+            new net.zaminmc.torch.server.interaction.DropService(new java.util.Random());
     /** The next engine-global player entity id (the projectile thrower band). */
     private int nextPlayerEntityId = PLAYER_ID_BASE;
 
@@ -25540,6 +25548,76 @@ public final class EngineServer implements Server, EngineBridge {
         }
 
         /**
+         * The villager's farm harvest (Wave PE-23 — VillagerFarmGoal.tick
+         * lines 66-67, {@code breakBlock(blockpos, true)}): the age-7
+         * wheat breaks WITH its drops in the body's OWN world — the
+         * 2001-stand-in burst + the dig-family sound, the DropService
+         * crop walk (exactly one wheat plus the seed bonus — the same
+         * table the player's dig reads), the drops landing as ITEM
+         * entities at the cell (the villager's own loot pickup gathers
+         * them into the 8-slot stock).
+         */
+        @Override
+        public void onVillagerFarmHarvest(net.zaminmc.torch.server.entity.MobEntity villager) {
+            for (MobManager.Listener listener : mobListeners) {
+                listener.onVillagerFarmHarvest(villager);
+            }
+            BlockPosition at = new BlockPosition(villager.villagerFarmHarvestX(),
+                    villager.villagerFarmHarvestY(), villager.villagerFarmHarvestZ());
+            EngineWorld host = worldFor(villager.dimension());
+            BlockType type = host.getBlock(at);
+            if (!type.identifier().value().equals("wheat_stage7")) {
+                return; // the cell moved under the walk — the break stands down
+            }
+            Position center = new Position(at.x() + 0.5, at.y() + 0.5, at.z() + 0.5);
+            // The break's own feedback (the reference's 2001 law — the
+            // client plays the dig sound from the packet's block id; the
+            // engine's blockShatter + named-sound pair the established
+            // stand-in).
+            fxManager.blockShatter(center, type, villager.dimension());
+            fxManager.sound(center,
+                    BlockSoundMap.digSound(type.identifier()).orElse("dig.grass"),
+                    1.0f, 0.75f + fxRandom.nextFloat() * 0.2f, villager.dimension());
+            host.setBlock(at, host.airType());
+            // breakBlock's drop arm: the same crop table the dig reads
+            // (the one wheat + the seed bonus rolls, the DropService's
+            // mature-wheat band).
+            for (net.zaminmc.torch.item.ItemStack drop
+                    : farmDrops.dropsFor(type, null)) {
+                itemEntities.spawnDropAtBlock(center, drop,
+                        net.zaminmc.torch.server.entity.ItemEntity.PICKUP_DELAY_DROP_TICKS,
+                        villager.dimension());
+            }
+        }
+
+        /**
+         * The villager's farm plant (Wave PE-23 — VillagerFarmGoal.tick
+         * lines 68-94, {@code setBlockState(blockpos, crop, 3)}): the
+         * consumed seed's crop lands at age 0 on the empty farmland
+         * cell, in the body's OWN world — the seed already left the
+         * stock when the intent armed (the reference's own consume
+         * order inside the tick).
+         */
+        @Override
+        public void onVillagerFarmPlant(net.zaminmc.torch.server.entity.MobEntity villager) {
+            for (MobManager.Listener listener : mobListeners) {
+                listener.onVillagerFarmPlant(villager);
+            }
+            BlockPosition at = new BlockPosition(villager.villagerFarmPlantX(),
+                    villager.villagerFarmPlantY(), villager.villagerFarmPlantZ());
+            String crop = villager.villagerFarmPlantCrop();
+            if (crop == null) {
+                return;
+            }
+            EngineWorld host = worldFor(villager.dimension());
+            if (!host.getBlock(at).equals(host.airType())) {
+                return; // the cell moved under the walk — the plant stands down
+            }
+            host.setBlock(at, blockRegistry.require(
+                    net.zaminmc.torch.util.Identifier.parse("minecraft:" + crop)));
+        }
+
+        /**
          * The villager's door swing ({@code DoorBlock.updateOpenState}
          * lines 143-153 1:1): the door cell resolves to its LOWER half
          * (the captured cell may be either), a state whose OPEN bit
@@ -26251,6 +26329,61 @@ public final class EngineServer implements Server, EngineBridge {
             return rainAtInWorld(x, y, z);
         }
 
+        /**
+         * Wave PE-23 — the stay-indoors weather gate ({@code
+         * StayIndoorsGoal.canStart} line 24's {@code world.isRaining()}
+         * consult): the GLOBAL overworld rain flag alone, never the
+         * column's precipitation read — the weather system's own
+         * answer. The dimension gate rides the same law as
+         * {@link #isRainingAt}: the roofed dimensions carry no rain.
+         */
+        @Override
+        public boolean isRaining() {
+            if (activeWorld() != world) {
+                return false;
+            }
+            net.zaminmc.torch.server.weather.WeatherSystem weatherNow = weather;
+            return weatherNow != null && weatherNow.raining();
+        }
+
+        /**
+         * Wave PE-23 — the stay-indoors biome read ({@code
+         * StayIndoorsGoal.canStart} line 24's {@code getBiome(blockpos)
+         * .isRainy()}): the biome's own rain gate at the body's column
+         * — the deserts and the frozen family refuse (the same walk
+         * rainAtInWorld reads, the biome valueOf form).
+         */
+        @Override
+        public boolean biomeRainyAt(int x, int z) {
+            String name = world.biomeAt(new BlockPosition(x, 64, z));
+            try {
+                return net.zaminmc.torch.server.world.Biome
+                        .valueOf(name.toUpperCase(java.util.Locale.ROOT)).rainy();
+            } catch (IllegalArgumentException unknown) {
+                return net.zaminmc.torch.server.world.Biome.PLAINS.rainy();
+            }
+        }
+
+        /**
+         * Wave PE-23 — the live village consult ({@code
+         * StayIndoorsGoal.canStart} line 34's {@code
+         * world.getVillages().getNearestVillage(blockpos, 14)} and
+         * {@code RestrictOpenDoorGoal.canStart} line 27's 16): the
+         * nearest village whose center stands inside the range, over
+         * the live village system the manager's own scan consults — the
+         * dimension gate the village system's own per-dimension form
+         * carries (the overworld alone hosts villages).
+         */
+        @Override
+        public net.zaminmc.torch.server.village.Village nearestVillageAt(
+                int x, int y, int z, int range) {
+            net.zaminmc.torch.server.village.VillageSystem villagesNow = villageSystem;
+            if (villagesNow == null) {
+                return null;
+            }
+            return villagesNow.nearestVillage(x, y, z, range);
+        }
+
         @Override
         public boolean inLava(double x, double y, double z) {
             return FluidBlocks.isLava(blockInDimensionBoundsSafe(x, y, z).identifier());
@@ -26655,6 +26788,126 @@ public final class EngineServer implements Server, EngineBridge {
                 return mob; // the reference's break — the first looking golem wins
             }
             return null;
+        }
+
+        /**
+         * Wave PE-23 — the villager's own look census ({@code
+         * LookAtEntityGoal.canStart} line 44's {@code getNearestEntity(
+         * MobEntity.class, grown(range, 3.0, range), mob)}): the
+         * nearest live mob of ANY kind in the active dimension whose
+         * OWN box intersects the grown box STRICT both sides, the
+         * seeker excluded, by the reference's {@code !(d1 > d0)} tie
+         * form over the seeker's position.
+         */
+        @Override
+        public MobEntity nearestLivingMobInBox(double minX, double minY, double minZ,
+                                               double maxX, double maxY, double maxZ,
+                                               int excludeId, double sx, double sy, double sz) {
+            MobEntity best = null;
+            double bestDistance = Double.MAX_VALUE;
+            for (MobEntity mob : mobManager.all()) {
+                if (mob.dead() || mob.entityId() == excludeId
+                        || mob.dimension() != activeDimension) {
+                    continue;
+                }
+                Position p = mob.position();
+                double half = mob.type().width / 2.0;
+                if (p.x() + half <= minX || p.x() - half >= maxX
+                        || p.y() + mob.type().height <= minY || p.y() >= maxY
+                        || p.z() + half <= minZ || p.z() - half >= maxZ) {
+                    continue; // no intersection — never a candidate
+                }
+                double dx = p.x() - sx;
+                double dy = p.y() - sy;
+                double dz = p.z() - sz;
+                double distance = dx * dx + dy * dy + dz * dz;
+                if (!(distance > bestDistance)) {
+                    bestDistance = distance;
+                    best = mob; // the reference's tie form — the later tied body wins
+                }
+            }
+            return best;
+        }
+
+        /**
+         * Wave PE-23 — the guardian's own-kind look census (the SECOND
+         * registration, GuardianEntity line 59): the nearest live mob of
+         * the given kind in the active dimension whose OWN box
+         * intersects the grown box STRICT both sides, the seeker
+         * excluded, by the reference's {@code !(d1 > d0)} tie form.
+         */
+        @Override
+        public MobEntity nearestMobOfKindInBox(double minX, double minY, double minZ,
+                                               double maxX, double maxY, double maxZ,
+                                               net.zaminmc.torch.server.entity.MobType kind,
+                                               int excludeId, double sx, double sy, double sz) {
+            MobEntity best = null;
+            double bestDistance = Double.MAX_VALUE;
+            for (MobEntity mob : mobManager.all()) {
+                if (mob.dead() || mob.type() != kind
+                        || mob.entityId() == excludeId
+                        || mob.dimension() != activeDimension) {
+                    continue;
+                }
+                Position p = mob.position();
+                double half = mob.type().width / 2.0;
+                if (p.x() + half <= minX || p.x() - half >= maxX
+                        || p.y() + mob.type().height <= minY || p.y() >= maxY
+                        || p.z() + half <= minZ || p.z() - half >= maxZ) {
+                    continue; // no intersection — never a candidate
+                }
+                double dx = p.x() - sx;
+                double dy = p.y() - sy;
+                double dz = p.z() - sz;
+                double distance = dx * dx + dy * dy + dz * dz;
+                if (!(distance > bestDistance)) {
+                    bestDistance = distance;
+                    best = mob;
+                }
+            }
+            return best;
+        }
+
+        /**
+         * Wave PE-23 — the caravan census ({@code FormCaravanGoal
+         * .canStart} lines 31-42): the nearest live BABY villager not
+         * already in a caravan, whose OWN box intersects the grown box
+         * STRICT both sides, by the reference's {@code !(d1 > d0)} tie
+         * form over the seeker's position.
+         */
+        @Override
+        public MobEntity nearestBabyVillagerNotInCaravanInBox(double minX, double minY, double minZ,
+                                                              double maxX, double maxY, double maxZ,
+                                                              int excludeId,
+                                                              double sx, double sy, double sz) {
+            MobEntity best = null;
+            double bestDistance = Double.MAX_VALUE;
+            for (MobEntity mob : mobManager.all()) {
+                if (mob.dead()
+                        || mob.type() != net.zaminmc.torch.server.entity.MobType.VILLAGER
+                        || mob.entityId() == excludeId
+                        || mob.dimension() != activeDimension
+                        || !mob.isBaby()
+                        || mob.villagerInCaravan()) {
+                    continue; // the reference's own gates: another baby, not in a caravan
+                }
+                Position p = mob.position();
+                double half = mob.type().width / 2.0;
+                if (p.x() + half <= minX || p.x() - half >= maxX
+                        || p.y() + mob.type().height <= minY || p.y() >= maxY
+                        || p.z() + half <= minZ || p.z() - half >= maxZ) {
+                    continue; // no intersection — never a candidate
+                }
+                double dx = p.x() - sx;
+                double dy = p.y() - sy;
+                double dz = p.z() - sz;
+                double distance = dx * dx + dy * dy + dz * dz;
+                if (!(distance > bestDistance)) {
+                    bestDistance = distance;
+                    best = mob; // the reference's tie form — the later tied body wins
+                }
+            }
+            return best;
         }
 
         /**

@@ -82,6 +82,36 @@ public class MobNavigation {
     }
 
     /**
+     * The door flag pair (GroundPathNavigation's own surface, Wave
+     * PE-23 — RestrictOpenDoorGoal's start/stop pair writes both): the
+     * open permission and the pass-through permission the villager's
+     * navigation carries. The engine's pathfinder reads doors as SOLID
+     * cells (no door blocks are registered — the walk's own named
+     * adaptation), so the pair carries no routing weight here; the
+     * flags stand for the goal's own surface exactly as the reference
+     * writes them, and the goal's OBSERVABLE law rides the door's
+     * restrictedTicks tick.
+     */
+    public void setCanOpenDoors(boolean canOpenDoors) {
+        this.nodeEvaluator.setCanOpenDoors(canOpenDoors);
+    }
+
+    /** @return whether the navigation may open doors (the flag's own read). */
+    public boolean canOpenDoors() {
+        return this.nodeEvaluator.canOpenDoors();
+    }
+
+    /** The pass-through flag's write (the restrict pair's second row). */
+    public void setCanPassThroughDoors(boolean canPassThroughDoors) {
+        this.nodeEvaluator.setCanPassThroughDoors(canPassThroughDoors);
+    }
+
+    /** @return whether the navigation may pass through doors. */
+    public boolean canPassThroughDoors() {
+        return this.nodeEvaluator.canPassThroughDoors();
+    }
+
+    /**
      * The sun-avoidance flag's arm (GroundPathNavigation lines 215-217,
      * 1:1): the AvoidSunlightGoal's start sets it, its stop clears it —
      * the engine's body clears it per mind tick and re-arms it on the

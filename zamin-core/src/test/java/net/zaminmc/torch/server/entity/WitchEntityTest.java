@@ -204,10 +204,12 @@ class WitchEntityTest {
 
     @Test
     void theDrinkWindowSpansTheReferenceTicks() {
-        // The scripted ladder (the reference's own roll order): the water
-        // arm fails, the fire arm fails, the heal arm passes — the chain
+        // The scripted ladder (the reference's own roll order): Wave
+        // PE-23's universal look-at consult draws first (the mind's
+        // LOOK band — the 0.5 refuses the 2% dice), then the water arm
+        // fails, the fire arm fails, the heal arm passes — the chain
         // stops there; every later roll (the aura included) reads 0.5.
-        ScriptedRandom random = new ScriptedRandom(0.5f, 0.5f, 0.0f);
+        ScriptedRandom random = new ScriptedRandom(0.5f, 0.5f, 0.5f, 0.0f);
         MobEntity witch = new MobEntity(200, MobType.WITCH, new Position(0.5, 4.0, 0.5),
                 random, worldAt(null, false));
         witch.hurt(20.0f); // below max: the heal arm qualifies
@@ -232,7 +234,10 @@ class WitchEntityTest {
 
     @Test
     void theDrinkingWitchStandsStill() {
-        ScriptedRandom random = new ScriptedRandom(0.5f, 0.5f, 0.0f);
+        // Wave PE-23's look-at consult draws the first roll (the 0.5
+        // refuses the 2% dice), the two failing arms read the next 0.5
+        // pair, the heal arm's 0.0 arms the drink.
+        ScriptedRandom random = new ScriptedRandom(0.5f, 0.5f, 0.5f, 0.0f);
         MobEntity witch = new MobEntity(201, MobType.WITCH, new Position(0.5, 4.0, 0.5),
                 random, worldAt(null, false));
         witch.hurt(20.0f);
@@ -255,8 +260,10 @@ class WitchEntityTest {
         // 107): a submerged witch already breathing water never re-drinks.
         // The ladder's head seat: the FLOAT goal's 0.8 roll (the SwimGoal
         // tick — the mind's goal layer runs before the body's drink arms)
-        // draws first; the second 0.0 is the water arm's own 0.15 roll.
-        ScriptedRandom random = new ScriptedRandom(0.0f, 0.0f);
+        // draws first, Wave PE-23's universal look-at consult draws the
+        // second (the 0.5 refuses the 2% dice); the third 0.0 is the
+        // water arm's own 0.15 roll.
+        ScriptedRandom random = new ScriptedRandom(0.0f, 0.5f, 0.0f);
         MobBodies bodies = new MobBodies();
         PotionSystem potions = new PotionSystem(bodies);
         MobManager manager = new MobManager(worldAt(null, true), random,

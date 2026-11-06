@@ -151,6 +151,33 @@ public final class Village {
     }
 
     /**
+     * getNearestTickingDoor (lines 188-205, Wave PE-23 — StayIndoorsGoal
+     * line 39's own consult): the door-spread pick — the squared
+     * distance a door stands beyond the 16-block band pays the
+     * {@code * 1000} penalty (a far door never wins), and the doors
+     * INSIDE the band compete by their own {@code restrictedTicks} (the
+     * over-use penalty RestrictOpenDoorGoal's tick grows — a door a
+     * villager already stands at loses to a fresh one).
+     */
+    public VillageDoor nearestTickingDoor(int x, int y, int z) {
+        VillageDoor best = null;
+        int bestDistance = Integer.MAX_VALUE;
+        for (VillageDoor door : doors) {
+            int distance = door.squaredDistanceTo(x, y, z);
+            if (distance > 256) {
+                distance *= 1000;
+            } else {
+                distance = door.restrictedTicks();
+            }
+            if (distance < bestDistance) {
+                best = door;
+                bestDistance = distance;
+            }
+        }
+        return best;
+    }
+
+    /**
      * getDoor (lines 209-223): the row at the cell — the XZ exact match
      * with the Y inside ±1 (either half answers).
      */

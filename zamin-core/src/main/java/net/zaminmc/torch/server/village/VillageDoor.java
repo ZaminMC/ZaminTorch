@@ -130,6 +130,26 @@ public final class VillageDoor {
         restrictedTicks++;
     }
 
+    /**
+     * getIndoorsPos (line 69, Wave PE-23 — StayIndoorsGoal.start line
+     * 54's own consult): the door cell pushed TWICE along the facing —
+     * the shelter target the walk homes to. The Y rides the door's own
+     * (the facing's vertical offset is always zero for doors).
+     */
+    public int indoorsX() {
+        return x + facing.offsetX() * 2;
+    }
+
+    /** @return the indoors cell's Y ({@code getIndoorsPos().getY()}). */
+    public int indoorsY() {
+        return y + facing.offsetY() * 2;
+    }
+
+    /** @return the indoors cell's Z ({@code getIndoorsPos().getZ()}). */
+    public int indoorsZ() {
+        return z + facing.offsetZ() * 2;
+    }
+
     /** getRestrictedTicks (line 61). */
     public int restrictedTicks() {
         return restrictedTicks;

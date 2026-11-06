@@ -60,6 +60,17 @@ class InWallSuffocationTest {
         public Position nearestPlayer(double x, double y, double z, double range) {
             return null;
         }
+
+        /**
+         * Wave PE-23's rig repair: the sun stays DOWN — the zombie
+         * family's daylight ignite consult consumes the shared stream
+         * (the 1-in-25 re-arm roll), and the seat's own intent is the
+         * WALL alone, never the sun's burn window.
+         */
+        @Override
+        public boolean isSunny() {
+            return false;
+        }
     }
 
     private static MobEntity zombie(BandWorld world, long seed) {

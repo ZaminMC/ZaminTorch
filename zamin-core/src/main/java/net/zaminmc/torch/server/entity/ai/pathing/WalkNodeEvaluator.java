@@ -241,6 +241,11 @@ public class WalkNodeEvaluator extends NodeEvaluator {
         this.canOpenDoors = canOpenDoors;
     }
 
+    /** @return the open-permission flag (the restrict pair's own read). */
+    public boolean canOpenDoors() {
+        return this.canOpenDoors;
+    }
+
     public void setCanSwim(boolean canSwim) {
         this.canSwim = canSwim;
     }

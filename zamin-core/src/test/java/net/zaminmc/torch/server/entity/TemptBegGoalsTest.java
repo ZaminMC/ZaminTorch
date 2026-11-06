@@ -266,12 +266,23 @@ class TemptBegGoalsTest {
         // village walk's 5), the baby's parent walk, the child's golem
         // walk LATE (the reference's 7 over the wander's 9), and the
         // graze LAST before the stroll (the sheep ladder's 5-over-6).
-        assertEquals(20, snapshot.size(),
-                "float, avoid_sunlight, panic, break_door, flee_zombie, breed,"
-                        + " beg, golem_look, tempt, escape_sunlight, flee_player,"
-                        + " open_door, follow_owner, sit_on_block, follow_parent,"
-                        + " rabbit_raid_farm, village_return, follow_golem, eat_grass,"
-                        + " stroll");
+        // Wave PE-23's standing tails join: the shelter walk FIRST in
+        // band 2 (the reference's own villager ladder — StayIndoors
+        // band 2 over the mating 6), the door guard ADDITIVE in band 3
+        // (the reference's zero-controls registration), the universal
+        // look-at beside the glance (LOOK-only, additive), the farmer's
+        // farm walk (the reference's band 6) before the golem walk,
+        // the child's caravan (the reference's band 8) between the
+        // golem walk and the graze, and the idle look-around AFTER the
+        // stroll (every registrant's own ladder — the look 7/8/11
+        // after the wander 6/7/9/10).
+        assertEquals(26, snapshot.size(),
+                "float, avoid_sunlight, panic, break_door, flee_zombie, stay_indoors,"
+                        + " breed, beg, golem_look, look_at, restrict_door, tempt,"
+                        + " escape_sunlight, flee_player, open_door, follow_owner,"
+                        + " sit_on_block, follow_parent, rabbit_raid_farm, village_return,"
+                        + " villager_farm, follow_golem, form_caravan, eat_grass,"
+                        + " stroll, look_around");
         assertEquals("avoid_sunlight", snapshot.get(1).goalId());
         assertEquals(0, snapshot.get(1).priority());
         assertFalse(snapshot.get(1).exclusive(), "the sun-shade flag is additive");
@@ -281,34 +292,49 @@ class TemptBegGoalsTest {
         assertEquals("flee_zombie", snapshot.get(4).goalId());
         assertEquals(1, snapshot.get(4).priority());
         assertTrue(snapshot.get(4).exclusive());
-        assertEquals("beg", snapshot.get(6).goalId());
-        assertFalse(snapshot.get(6).exclusive(), "the beg is LOOK-only, additive");
-        assertEquals("golem_look", snapshot.get(7).goalId());
-        assertFalse(snapshot.get(7).exclusive(), "the glance is LOOK-only, additive");
-        assertEquals("tempt", snapshot.get(8).goalId());
-        assertTrue(snapshot.get(8).exclusive());
-        assertEquals("escape_sunlight", snapshot.get(9).goalId());
-        assertTrue(snapshot.get(9).exclusive());
-        assertEquals("flee_player", snapshot.get(10).goalId());
-        assertTrue(snapshot.get(10).exclusive());
-        assertEquals("open_door", snapshot.get(11).goalId());
+        assertEquals("stay_indoors", snapshot.get(5).goalId());
+        assertEquals(2, snapshot.get(5).priority());
+        assertTrue(snapshot.get(5).exclusive(), "the shelter walk holds the MOVE bit");
+        assertEquals("beg", snapshot.get(7).goalId());
+        assertFalse(snapshot.get(7).exclusive(), "the beg is LOOK-only, additive");
+        assertEquals("golem_look", snapshot.get(8).goalId());
+        assertFalse(snapshot.get(8).exclusive(), "the glance is LOOK-only, additive");
+        assertEquals("look_at", snapshot.get(9).goalId());
+        assertFalse(snapshot.get(9).exclusive(), "the universal look-at is LOOK-only, additive");
+        assertEquals("restrict_door", snapshot.get(10).goalId());
+        assertFalse(snapshot.get(10).exclusive(),
+                "the door guard sets no controls — it runs beside every walk");
+        assertEquals("tempt", snapshot.get(11).goalId());
         assertTrue(snapshot.get(11).exclusive());
-        assertEquals("follow_owner", snapshot.get(12).goalId());
+        assertEquals("escape_sunlight", snapshot.get(12).goalId());
         assertTrue(snapshot.get(12).exclusive());
-        assertEquals("sit_on_block", snapshot.get(13).goalId());
+        assertEquals("flee_player", snapshot.get(13).goalId());
         assertTrue(snapshot.get(13).exclusive());
-        assertEquals("follow_parent", snapshot.get(14).goalId());
+        assertEquals("open_door", snapshot.get(14).goalId());
         assertTrue(snapshot.get(14).exclusive());
-        assertEquals("rabbit_raid_farm", snapshot.get(15).goalId());
+        assertEquals("follow_owner", snapshot.get(15).goalId());
         assertTrue(snapshot.get(15).exclusive());
-        assertEquals("village_return", snapshot.get(16).goalId());
+        assertEquals("sit_on_block", snapshot.get(16).goalId());
         assertTrue(snapshot.get(16).exclusive());
-        assertEquals("follow_golem", snapshot.get(17).goalId());
+        assertEquals("follow_parent", snapshot.get(17).goalId());
         assertTrue(snapshot.get(17).exclusive());
-        assertEquals("eat_grass", snapshot.get(18).goalId());
+        assertEquals("rabbit_raid_farm", snapshot.get(18).goalId());
         assertTrue(snapshot.get(18).exclusive());
-        assertEquals("stroll", snapshot.get(19).goalId());
-        assertEquals(4, snapshot.get(18).priority());
+        assertEquals("village_return", snapshot.get(19).goalId());
+        assertTrue(snapshot.get(19).exclusive());
+        assertEquals("villager_farm", snapshot.get(20).goalId());
+        assertTrue(snapshot.get(20).exclusive());
+        assertEquals("follow_golem", snapshot.get(21).goalId());
+        assertTrue(snapshot.get(21).exclusive());
+        assertEquals("form_caravan", snapshot.get(22).goalId());
+        assertTrue(snapshot.get(22).exclusive());
+        assertEquals("eat_grass", snapshot.get(23).goalId());
+        assertTrue(snapshot.get(23).exclusive());
+        assertEquals("stroll", snapshot.get(24).goalId());
+        assertEquals("look_around", snapshot.get(25).goalId());
+        assertTrue(snapshot.get(25).exclusive(),
+                "the look-around holds the MOVE bit too — a live window keeps the idle body standing");
+        assertEquals(4, snapshot.get(23).priority());
     }
 
     @Test

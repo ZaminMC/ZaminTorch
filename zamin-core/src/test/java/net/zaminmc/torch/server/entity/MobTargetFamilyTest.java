@@ -157,12 +157,21 @@ class MobTargetFamilyTest {
                 "the away half-plane's leg never walks toward the wolf (yaw "
                         + skeleton.yaw() + ")");
 
-        // Out of the 6-block range the flee stops claiming.
+        // Out of the 6-block range the flee stops claiming. Wave PE-23's
+        // rig repair: the reference's own shouldContinue law — the armed
+        // path runs to its END even with the threat gone (the stream the
+        // look family's dice shifted made the first pick a longer walk)
+        // — so the seat drives the bounded wait for the walk's end, then
+        // asserts the fresh consult refuses.
         world.mobs.remove(wolf);
-        skeleton.tick(true);
-        assertEquals(MobEntity.Mode.PANIC != skeleton.mode() || Math.abs(
-                Math.sin(Math.toRadians(skeleton.yaw()))) < 0.5, true,
-                "no wolf within range: no flee claim");
+        boolean walkEnded = false;
+        for (int i = 0; i < 200 && !walkEnded; i++) {
+            skeleton.tick(true);
+            walkEnded = skeleton.mode() != MobEntity.Mode.PANIC;
+        }
+        assertTrue(walkEnded, "the flee walk ends once the threat left");
+        assertFalse(skeleton.goalFleeWolfSkeletonCanUse(),
+                "no wolf within range: no fresh flee claim");
     }
 
     @Test

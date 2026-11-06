@@ -453,6 +453,98 @@ public final class MobEntity implements LivingEntity {
         }
 
         /**
+         * Wave PE-23 — THE STAY-INDOORS WEATHER GATE ({@code
+         * StayIndoorsGoal.canStart} line 24's {@code world.isRaining()}
+         * consult — the GLOBAL overworld rain flag alone, never the
+         * column's precipitation read): the weather system's own
+         * raining() answer. The default answers dry so stub worlds
+         * never send a villager indoors.
+         */
+        default boolean isRaining() {
+            return false;
+        }
+
+        /**
+         * Wave PE-23 — THE STAY-INDOORS BIOME READ ({@code
+         * StayIndoorsGoal.canStart} line 24's {@code getBiome(blockpos)
+         * .isRainy()} consult): the biome's own rain gate at the body's
+         * column — the deserts and the frozen family refuse. The
+         * default answers rainy (the plains-class stand-in) so stub
+         * worlds keep the gate's shape.
+         */
+        default boolean biomeRainyAt(int x, int z) {
+            return true;
+        }
+
+        /**
+         * Wave PE-23 — THE LIVE VILLAGE CONSULT ({@code
+         * StayIndoorsGoal.canStart} line 34's {@code
+         * world.getVillages().getNearestVillage(blockpos, 14)} and
+         * {@code RestrictOpenDoorGoal.canStart} line 27's 16): the
+         * nearest village whose center stands inside the range — the
+         * LIVE walk over the village collection, never the body's own
+         * 32-scan cache (the two goals' own consults). The default
+         * answers null so stub worlds never host the door family.
+         */
+        default net.zaminmc.torch.server.village.Village nearestVillageAt(
+                int x, int y, int z, int range) {
+            return null;
+        }
+
+        /**
+         * Wave PE-23 — THE VILLAGER'S OWN LOOK CENSUS ({@code
+         * LookAtEntityGoal.canStart} line 44's {@code
+         * getNearestEntity(MobEntity.class, mob.getShape().grown(range,
+         * 3.0, range), mob)} — the villager's own {@code MobEntity.class}
+         * registration): the nearest live MOB of ANY kind in the ACTIVE
+         * dimension whose OWN box intersects the given grown box STRICT
+         * both sides, the seeker itself excluded, by the comparator's
+         * {@code squaredDistanceTo} the seeker's position with the
+         * {@code !(d1 > d0)} tie form (the later tied body wins). The
+         * default answers null so stub worlds never host the glance.
+         */
+        default MobEntity nearestLivingMobInBox(double minX, double minY, double minZ,
+                                                double maxX, double maxY, double maxZ,
+                                                int excludeId, double sx, double sy, double sz) {
+            return null;
+        }
+
+        /**
+         * Wave PE-23 — THE GUARDIAN'S OWN-KIND LOOK CENSUS (the
+         * guardian's SECOND registration, GuardianEntity line 59:
+         * {@code LookAtEntityGoal(this, GuardianEntity.class, 12.0F,
+         * 0.01F)}): the nearest live mob of the GIVEN KIND in the ACTIVE
+         * dimension whose OWN box intersects the given grown box STRICT
+         * both sides, the seeker itself excluded, by the comparator's
+         * {@code !(d1 > d0)} tie form. The default answers null so stub
+         * worlds never host the glance.
+         */
+        default MobEntity nearestMobOfKindInBox(double minX, double minY, double minZ,
+                                                double maxX, double maxY, double maxZ,
+                                                MobType kind, int excludeId,
+                                                double sx, double sy, double sz) {
+            return null;
+        }
+
+        /**
+         * Wave PE-23 — THE CARAVAN CENSUS ({@code FormCaravanGoal
+         * .canStart} lines 31-42 over {@code world.getEntitiesOfType(
+         * VillagerEntity.class, villager.getShape().grown(6.0, 3.0, 6.0))}
+         * — the baby's own gather): the nearest live BABY villager of
+         * the ACTIVE dimension NOT already in a caravan, whose OWN box
+         * intersects the given grown box STRICT both sides, by the
+         * comparator's {@code squaredDistanceTo} the seeker's position
+         * with the {@code !(d1 > d0)} tie form. The default answers
+         * null so stub worlds never host the caravan.
+         */
+        default MobEntity nearestBabyVillagerNotInCaravanInBox(double minX, double minY, double minZ,
+                                                               double maxX, double maxY, double maxZ,
+                                                               int excludeId,
+                                                               double sx, double sy, double sz) {
+            return null;
+        }
+
+        /**
          * Wave PE-22 — THE CHILD'S GOLEM CENSUS ({@code
          * FollowGolemGoal.canStart} lines 22-44 over {@code
          * world.getEntitiesOfType(IronGolemEntity.class, villager
@@ -1543,6 +1635,12 @@ public final class MobEntity implements LivingEntity {
         // reference's own traderOffers == null gate).
         if (type == MobType.VILLAGER) {
             this.profession = random.nextInt(5);
+            // VillagerEntity's ctor lines 306-307: the villager's own
+            // navigation arms the DOOR pair — the open permission the
+            // restrict goal's stop() restores to (the reference's own
+            // construction law, the GroundPathNavigation surface).
+            this.navigation.setCanOpenDoors(true);
+            this.navigation.setCanPassThroughDoors(true);
         }
         // OcelotEntity's ctor line 42: the cat's own navigation arms the
         // swim paths ({@code setCanSwim(true)} — the jungle cat wades to
@@ -8180,6 +8278,56 @@ public final class MobEntity implements LivingEntity {
         return villagerWilling;
     }
 
+    // --------------------------------- the caravan + the farm walk (Wave PE-23)
+
+    /**
+     * The baby villager's caravan flag ({@code VillagerEntity.inCaravan},
+     * setInCaravan/getInCaravan lines 504-510): armed by the walk's
+     * start() when a target baby answered, cleared at stop().
+     */
+    private boolean villagerInCaravan;
+
+    /**
+     * The caravan walk's own state ({@code FormCaravanGoal}): the target
+     * baby ({@code target} — the census's pick, null for the wander-alone
+     * arm), and the {@code actionCountdown} clock (start's 1000 —
+     * shouldContinue's own law: the window stands while the clock burns).
+     */
+    private MobEntity caravanTarget;
+    private int caravanActionCountdown;
+
+    /**
+     * The villager's farm walk ({@code VillagerFarmGoal} over {@code
+     * GoToBlockGoal}): the scan cooldown ({@code 200 + nextInt(200)}
+     * between scans, 10 after a work tick), the target farmland cell
+     * ({@code target}), the {@code harvestDelay} arm (0 the harvest of
+     * age-7 wheat, 1 the replant of an empty cell — isValidTarget's own
+     * writes), the approach clock pair ({@code activeTicks}/{@code
+     * maxActiveTicks}), and the gate snapshot pair taken at the scan
+     * ({@code hasPlantableItems}/{@code hasRoomForHarvest}).
+     */
+    private int farmCooldown;
+    private int farmX;
+    private int farmY;
+    private int farmZ;
+    private int farmHarvestDelay = -1;
+    private boolean farmHasTarget;
+    private int farmActiveTicks;
+    private int farmMaxActiveTicks;
+    private boolean farmPlantable;
+    private boolean farmRoomForHarvest;
+
+    /** The pending farm writes (the manager's intents). */
+    private boolean pendingFarmHarvest;
+    private boolean pendingFarmPlant;
+
+    /** The golem's offer-event sync ({@code setLookingAtVillager}'s
+     * {@code doEntityEvent(this, (byte)11)}): the pending Entity Status
+     * the manager drains (both arms — the reference fires the event on
+     * the true and the false write alike, the client's own render reads
+     * the offer clock directly). */
+    private boolean pendingGolemOfferStatus;
+
     // ------------------------------------- the villager's mating gates (VIII10)
 
     /**
@@ -8563,6 +8711,39 @@ public final class MobEntity implements LivingEntity {
     private MobEntity followGolemMob;
     private int golemLookingTicks;
     private boolean followingGolem;
+
+    /**
+     * THE HEAD-YAW LOOK FAMILY (Wave PE-23 — LookAtEntityGoal +
+     * LookAroundGoal, the reference's own universal idle pair): the
+     * window's target — the PLAYER the player-arms hold ({@code
+     * targetEntity} for the twenty-two player registrations), the MOB
+     * the mob-arms hold (the villager's own {@code MobEntity.class}
+     * registration at 8, the guardian's second {@code
+     * GuardianEntity.class} registration at 12/0.01), the window's
+     * reach (the registration's own range parameter), and the
+     * {@code lookTime} clock ({@code 40 + nextInt(40)} at start). The
+     * guardian's pair carries BOTH arms — the reference registers the
+     * goal twice (GuardianEntity lines 58-59, the same band 8, the
+     * player consult first), each with its own window.
+     */
+    private PlayerView lookAtTargetPlayer;
+    private MobEntity lookAtTargetMob;
+    private boolean lookAtGuardianArm;
+    private double lookAtRange;
+    private int lookAtTicksLeft;
+
+    /**
+     * The look-around window ({@code LookAroundGoal}'s own state): the
+     * picked angle's cos/sin pair (start's {@code (PI * 2) *
+     * nextDouble()} walk) and the {@code lookTime} clock ({@code 20 +
+     * nextInt(20)}). The clock's SPENT state is the {@link
+     * Integer#MIN_VALUE} marker — the fresh body never carries a live
+     * window (the plain 0 would read live against shouldContinue's
+     * {@code >= 0} band).
+     */
+    private double lookAroundDeltaX;
+    private double lookAroundDeltaZ;
+    private int lookAroundTicksLeft = Integer.MIN_VALUE;
 
     /**
      * The villager's door window ({@code LongDoorInteractGoal} over
@@ -11023,10 +11204,24 @@ public final class MobEntity implements LivingEntity {
      * IronGolemEntity.setLookingAtVillager (lines 186-188 1:1): the
      * golem's own offer clock — 400 armed, zero disarmed. The golem's
      * body tick decrements it (mobTick lines 109-110) wherever the
-     * glance goal reads it.
+     * glance goal reads it. Wave PE-23: the Entity Status 11 the
+     * reference's own body fires on BOTH arms ({@code
+     * doEntityEvent(this, (byte)11)} — the wire's sync nudge; the
+     * client's own flower render reads the offer clock directly,
+     * IronGolemFlowerInHandLayer line 21's {@code
+     * getLookingAtVillagerTicks() != 0}) rides the pending flag the
+     * manager drains.
      */
     public void setLookingAtVillager(boolean lookingAtVillager) {
         golemLookingAtVillagerTicks = lookingAtVillager ? 400 : 0;
+        pendingGolemOfferStatus = true;
+    }
+
+    /** @return and clears the pending offer-status event (the manager's drain). */
+    public boolean consumeGolemOfferStatus() {
+        boolean value = pendingGolemOfferStatus;
+        pendingGolemOfferStatus = false;
+        return value;
     }
 
     /** @return the golem's offer clock ({@code getLookingAtVillagerTicks}). */
@@ -11106,6 +11301,838 @@ public final class MobEntity implements LivingEntity {
                 clearPath();
             }
         }
+    }
+
+    // ------------------------ the head-yaw look family (Wave PE-23)
+
+    /**
+     * The look-at family's own registration table ({@code
+     * LookAtEntityGoal}'s per-kind ctor parameters — the reference's
+     * own twenty-four rows): the range the {@code getNearestPlayer}
+     * consult reads. The cow family (the mooshroom inherits), the
+     * sheep/chicken/pig/horse, and the two golem kinds register 6; the
+     * monster family (the zombie + its pigman, the skeleton + its cave
+     * spider, the creeper, the witch, the enderman pair, the blaze, the
+     * wither, the guardian's PLAYER arm) and the wolf register 8; the
+     * rabbit and the ocelot register 10. The villager alone registers
+     * the MOB target at 8 (its {@code MobEntity.class} row) and NO
+     * look-around; the guardian's second registration targets its own
+     * kind at 12 with the 0.01 dice.
+     */
+    private double lookAtRegistrationRange() {
+        return switch (type) {
+            case COW, MOOSHROOM, SHEEP, CHICKEN, PIG, HORSE,
+                    IRON_GOLEM, SNOW_GOLEM -> 6.0;
+            case RABBIT, OCELOT -> 10.0;
+            default -> 8.0;
+        };
+    }
+
+    /**
+     * LookAtEntityGoal.canStart + shouldContinue (lines 32-48 + 51-53
+     * 1:1): a live window stays claimed while the target stands alive
+     * inside the window's own reach and the clock burns; a fresh one
+     * rolls the 0.02 dice ({@code nextFloat() >= chance} refuses — the
+     * guardian's own-kind arm the 0.01 second registration), then the
+     * consult — the nearest player inside the range for the
+     * player-arms, the nearest MOB inside the body's OWN shape grown
+     * {@code (range, 3.0, range)} for the villager's {@code
+     * MobEntity.class} row, the nearest GUARDIAN for the guardian's
+     * second registration. start() rolls the {@code 40 + nextInt(40)}
+     * window the moment the consult answers.
+     */
+    boolean goalLookAtEntityCanUse() {
+        if (lookAtTicksLeft > 0) {
+            // shouldContinue: the target alive, inside the window's
+            // reach, the clock above zero.
+            if (lookAtTargetPlayer != null && lookAtTargetPlayer.spectator()) {
+                lookAtTicksLeft = 0; // stop(): the target left the world
+            } else if (lookAtTargetMob != null && lookAtTargetMob.dead()) {
+                lookAtTicksLeft = 0; // stop(): the target died
+            } else {
+                Position target = lookAtTargetPlayer != null
+                        ? lookAtTargetPlayer.position() : lookAtTargetMob.position();
+                double dx = target.x() - position.x();
+                double dy = target.y() - position.y();
+                double dz = target.z() - position.z();
+                if (dx * dx + dy * dy + dz * dz > lookAtRange * lookAtRange) {
+                    lookAtTicksLeft = 0; // stop(): the target walked out
+                }
+            }
+            if (lookAtTicksLeft <= 0) {
+                lookAtTargetPlayer = null;
+                lookAtTargetMob = null;
+                return false;
+            }
+            return true;
+        }
+        double range = lookAtRegistrationRange();
+        // The guardian's own pair: the PLAYER arm consults first (the
+        // reference's own registration order, line 58 before line 59),
+        // the GUARDIAN arm second with its own 0.01 dice.
+        if (type == MobType.GUARDIAN) {
+            if (random.nextFloat() < 0.02F) {
+                PlayerView player = world.nearestPlayerView(
+                        position.x(), position.y(), position.z(), 8.0);
+                if (player != null) {
+                    armLookAtPlayer(player, 8.0);
+                    return true;
+                }
+            }
+            if (random.nextFloat() < 0.01F) {
+                double half = type.width / 2.0;
+                MobEntity guardian = world.nearestMobOfKindInBox(
+                        position.x() - half - 12.0, position.y() - 3.0,
+                        position.z() - half - 12.0,
+                        position.x() + half + 12.0, position.y() + type.height + 3.0,
+                        position.z() + half + 12.0,
+                        MobType.GUARDIAN, entityId(),
+                        position.x(), position.y(), position.z());
+                if (guardian != null) {
+                    armLookAtMob(guardian, 12.0, true);
+                    return true;
+                }
+            }
+            return false;
+        }
+        if (random.nextFloat() >= 0.02F) {
+            return false; // the 2% dice (the default chance)
+        }
+        if (type == MobType.VILLAGER) {
+            // The villager's own row: MobEntity.class at 8 — the
+            // nearest MOB in the body's OWN shape grown (8, 3, 8).
+            double half = type.width / 2.0;
+            MobEntity mob = world.nearestLivingMobInBox(
+                    position.x() - half - range, position.y() - 3.0,
+                    position.z() - half - range,
+                    position.x() + half + range, position.y() + type.height + 3.0,
+                    position.z() + half + range,
+                    entityId(), position.x(), position.y(), position.z());
+            if (mob == null) {
+                return false;
+            }
+            armLookAtMob(mob, range, false);
+            return true;
+        }
+        PlayerView player = world.nearestPlayerView(
+                position.x(), position.y(), position.z(), range);
+        if (player == null) {
+            return false;
+        }
+        armLookAtPlayer(player, range);
+        return true;
+    }
+
+    /** start() for the player arms: the window rolls, the target holds. */
+    private void armLookAtPlayer(PlayerView player, double range) {
+        lookAtTargetPlayer = player;
+        lookAtTargetMob = null;
+        lookAtGuardianArm = false;
+        lookAtRange = range;
+        lookAtTicksLeft = 40 + random.nextInt(40);
+    }
+
+    /** start() for the mob arms: the same window over a mob target. */
+    private void armLookAtMob(MobEntity mob, double range, boolean guardianArm) {
+        lookAtTargetPlayer = null;
+        lookAtTargetMob = mob;
+        lookAtGuardianArm = guardianArm;
+        lookAtRange = range;
+        lookAtTicksLeft = 40 + random.nextInt(40);
+    }
+
+    /**
+     * LookAtEntityGoal.tick (lines 66-71 1:1): the head holds the
+     * target's EYES ({@code target.y + getEyeHeight()} — the look
+     * control's own read at the body's grip) and the clock pays its
+     * tick. The last tick (clock to zero) is the window's own stop —
+     * the canUse pass folds shouldContinue, the target fields clear on
+     * the next consult.
+     */
+    void goalLookAtEntityTick() {
+        Position target = lookAtTargetPlayer != null
+                ? lookAtTargetPlayer.position() : lookAtTargetMob.position();
+        headYaw = angleTo(target.x() - position.x(), target.z() - position.z());
+        lookAtTicksLeft--;
+    }
+
+    /**
+     * LookAroundGoal.canStart + shouldContinue (lines 17-23 1:1): the
+     * same 0.02 dice over a fresh start; a live window stays claimed
+     * while its clock stands ({@code lookTime >= 0} — the reference's
+     * own off-by-one: the window dies the tick AFTER the zero read).
+     * The registration is the reference's own per-kind set — every
+     * look-at registrant EXCEPT the villager, the rabbit, the ocelot
+     * (their ctors carry no LookAroundGoal row) and the ghast (its own
+     * whole-body family). The claim itself yields to a live hunt (the
+     * reference's mutex law: a MOVE-holding goal running — the melee
+     * chase, the walk — keeps the look-around from starting; the
+     * engine's stroll carries the same hunt gate).
+     */
+    boolean goalLookAroundCanUse(boolean night) {
+        if (lookAroundTicksLeft != Integer.MIN_VALUE && lookAroundTicksLeft >= 0) {
+            return true; // shouldContinue: lookTime >= 0 — the live window
+        }
+        if (goalHasTarget(night)) {
+            return false; // the mutex law: a MOVE-holding goal runs
+        }
+        switch (type) {
+            case VILLAGER, RABBIT, OCELOT, GHAST, SILVERFISH, SQUID, BAT,
+                    SLIME, MAGMA_CUBE, GIANT, ENDER_DRAGON -> {
+                return false; // the kinds that never register the goal
+            }
+            default -> { /* the family's own registrants */ }
+        }
+        if (random.nextFloat() >= 0.02F) {
+            return false;
+        }
+        double angle = Math.PI * 2.0 * random.nextDouble();
+        lookAroundDeltaX = Math.cos(angle);
+        lookAroundDeltaZ = Math.sin(angle);
+        lookAroundTicksLeft = 20 + random.nextInt(20);
+        return true;
+    }
+
+    /**
+     * LookAroundGoal.tick (lines 35-42 1:1): the clock pays its tick,
+     * then the head holds the picked angle — the body's own eye band
+     * ({@code y + getEyeHeight()}) one unit out along the cos/sin
+     * pair. The reference's own order: the decrement comes FIRST, the
+     * look rides after it whatever the clock reads (the zero-to-minus-
+     * one transition holds the head one last time — the window's own
+     * off-by-one), and the pass below zero is the spent marker the
+     * canUse consult reads (shouldContinue's {@code lookTime >= 0}
+     * band).
+     */
+    void goalLookAroundTick() {
+        lookAroundTicksLeft--;
+        headYaw = angleTo(lookAroundDeltaX, lookAroundDeltaZ);
+        if (lookAroundTicksLeft < 0) {
+            lookAroundTicksLeft = Integer.MIN_VALUE; // stop(): the spent marker
+        }
+    }
+
+    /** @return the look-at window's live clock (the family's test read). */
+    int lookAtTicksLeftForTest() {
+        return lookAtTicksLeft;
+    }
+
+    /** @return the look-around window's live clock (the family's test read). */
+    int lookAroundTicksLeftForTest() {
+        return lookAroundTicksLeft == Integer.MIN_VALUE ? -1 : lookAroundTicksLeft;
+    }
+
+    // ------------------ the caravan + the farm walk (Wave PE-23)
+
+    /**
+     * FormCaravanGoal.canStart + shouldContinue (lines 22-52 + 55-57
+     * 1:1): a live window stays claimed while its {@code
+     * actionCountdown} burns; a fresh one needs the BABY gate ({@code
+     * getBreedingAge() >= 0} refuses — the caravan is the child's own
+     * walk), the 1-in-400 dice, then the CENSUS — the nearest other
+     * BABY villager not already in a caravan inside the body's OWN
+     * shape grown {@code (6.0, 3.0, 6.0)} — and, when the census
+     * answers nobody, the plain TargetFinder pick at {@code (16, 3)}
+     * (the wander-alone arm: the goal runs with a null target, the
+     * child drifts alone). start() arms the 1000-tick window and the
+     * caravan flag (the target arm alone).
+     */
+    boolean goalFormCaravanCanUse() {
+        if (type != MobType.VILLAGER) {
+            return false; // the villager child's own registration (band 8)
+        }
+        if (caravanActionCountdown > 0) {
+            return true; // shouldContinue: the window stands while the clock burns
+        }
+        if (caravanActionCountdown == 0) {
+            // The spent window's stop(): the flag clears, the target too.
+            caravanActionCountdown = -1;
+            villagerInCaravan = false;
+            caravanTarget = null;
+        }
+        if (breedingAge >= 0) {
+            return false; // the baby gate — the caravan is the child's own walk
+        }
+        if (random.nextInt(400) != 0) {
+            return false;
+        }
+        double half = type.width / 2.0;
+        MobEntity target = world.nearestBabyVillagerNotInCaravanInBox(
+                position.x() - half - 6.0, position.y() - 3.0,
+                position.z() - half - 6.0,
+                position.x() + half + 6.0, position.y() + type.height + 3.0,
+                position.z() + half + 6.0,
+                entityId(), position.x(), position.y(), position.z());
+        if (target == null) {
+            // The wander-alone arm: a plain pick must answer or the goal
+            // waits (canStart's null gate, lines 44-49).
+            if (targetFinderPick(16, 3) == null) {
+                return false;
+            }
+        }
+        // start(): the 1000-tick window; the flag arms on the target arm.
+        caravanTarget = target;
+        caravanActionCountdown = 1000;
+        if (target != null) {
+            villagerInCaravan = true;
+        }
+        return true;
+    }
+
+    /**
+     * FormCaravanGoal.tick (lines 75-89 1:1): the countdown pays its
+     * tick, then the target arm — the walk to the target baby at the
+     * registration's 0.32 speed while it stands beyond the squared-4
+     * band — or the alone arm, the plain {@code (16, 3)} pick whenever
+     * the navigation idles.
+     */
+    void goalFormCaravanTick() {
+        caravanActionCountdown--;
+        if (caravanTarget != null) {
+            if (squaredDistanceTo(caravanTarget) > 4.0) {
+                goalWalkSpeed = 0.32;
+                mode = Mode.WANDER;
+                modeTicks = 0;
+                navigation.moveTo(caravanTarget.position().x(), caravanTarget.position().y(),
+                        caravanTarget.position().z(), 0.32);
+            }
+        } else if (navigation.isDone()) {
+            Position pick = targetFinderPick(16, 3);
+            if (pick == null) {
+                return;
+            }
+            goalWalkSpeed = 0.32;
+            mode = Mode.WANDER;
+            modeTicks = 0;
+            navigation.moveTo(pick.x(), pick.y(), pick.z(), 0.32);
+        }
+    }
+
+    /** @return the caravan flag ({@code getInCaravan}). */
+    public boolean villagerInCaravan() {
+        return villagerInCaravan;
+    }
+
+    /** setInCaravan (lines 504-506): the walk's own flag write. */
+    public void setVillagerInCaravan(boolean value) {
+        villagerInCaravan = value;
+    }
+
+    /** @return the caravan window's live clock (the walk's test read). */
+    int caravanCountdownForTest() {
+        return caravanActionCountdown;
+    }
+
+    /**
+     * hasPlantableItems (VillagerEntity lines 872-881 1:1): any stock
+     * slot carries seeds, a potato, or a carrot.
+     */
+    public boolean villagerHasPlantableItems() {
+        for (net.zaminmc.torch.item.ItemStack stack : villagerFood) {
+            if (stack == null || stack.isEmpty()) {
+                continue;
+            }
+            String value = stack.type().identifier().value();
+            if (value.equals("wheat_seeds") || value.equals("potato")
+                    || value.equals("carrot")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * hasRoomForHarvest (lines 846-849 1:1): the farmer's own 5-unit
+     * band, the others' 1 — the {@code !hasFoodPoints} read.
+     */
+    public boolean villagerHasRoomForHarvest() {
+        return profession == 0 ? !villagerHasFoodPoints(5) : !villagerHasFoodPoints(1);
+    }
+
+    /**
+     * VillagerFarmGoal.canStart + shouldContinue over GoToBlockGoal
+     * (lines 26-38 + 41-43, GoToBlockGoal lines 24-33 + 36-39 1:1): a
+     * live window continues while the approach clock stays inside the
+     * band and the target farmland still answers (the super's
+     * isValidTarget consult); a closed window waits out the cooldown,
+     * consults the mobGriefing rule (line 28 — the goal's own FIRST
+     * gate, only at the fresh scan), snapshots the inventory pair, then
+     * runs the SPIRAL — the reference's own ring walk over the ±16 box
+     * at the y-1/y/y-2 bands, a FARMLAND cell answering the target when
+     * its wheat stands age-7 (the harvest arm, delay 0, needs the room)
+     * or its above cell is air (the plant arm, delay 1, needs the
+     * seed). The registration is the farmer's own — the profession-0
+     * ADULT (the reference's registerAgeDependentGoals band 6 + the
+     * grow-up registration; a baby villager never farms).
+     */
+    boolean goalVillagerFarmCanUse() {
+        if (type != MobType.VILLAGER || isBaby() || profession != 0) {
+            return false; // the farmer's own registration (band 6, the grow-up's 8)
+        }
+        if (farmHasTarget) {
+            // shouldContinue: the wrapper's own gate first (the delay
+            // stands >= 0), then the super's band + the live target.
+            if (farmHarvestDelay < 0) {
+                farmHasTarget = false;
+                return false;
+            }
+            if (farmActiveTicks >= -farmMaxActiveTicks && farmActiveTicks <= 1200
+                    && isVillagerFarmTargetAt(farmX, farmY, farmZ)) {
+                return true;
+            }
+            farmHasTarget = false; // stop(): the goal leaves quietly
+            return false;
+        }
+        if (farmCooldown > 0) {
+            farmCooldown--;
+            return false;
+        }
+        // VillagerFarmGoal.canStart's OWN gate order (lines 26-31): the
+        // wrapper consults the mobGriefing rule + snapshots the pair
+        // INSIDE the cooldown-zero arm — the cooldown itself arms only
+        // in the SUPER's walk (a no-grief world re-checks every consult,
+        // the cooldown never armed).
+        if (!world.mobGriefing()) {
+            return false; // the goal's own first gate (canStart line 28)
+        }
+        farmHarvestDelay = -1;
+        farmPlantable = villagerHasPlantableItems();
+        farmRoomForHarvest = villagerHasRoomForHarvest();
+        farmCooldown = 200 + random.nextInt(200); // GoToBlockGoal's own arm
+        int cx = (int) Math.floor(position.x());
+        int cy = (int) Math.floor(position.y());
+        int cz = (int) Math.floor(position.z());
+        int range = 16;
+        // GoToBlockGoal.findNearestBlock's own spiral: k the y band
+        // (0, 1, -1 → y-1, y+0, y-2), l the ring radius, i1/j1 the
+        // ring's own cross walk.
+        for (int k = 0; k <= 1; k = k > 0 ? -k : 1 - k) {
+            for (int l = 0; l < range; l++) {
+                for (int i1 = 0; i1 <= l; i1 = i1 > 0 ? -i1 : 1 - i1) {
+                    for (int j1 = i1 < l && i1 > -l ? l : 0; j1 <= l; j1 = j1 > 0 ? -j1 : 1 - j1) {
+                        int x = cx + i1;
+                        int y = cy + k - 1;
+                        int z = cz + j1;
+                        if (isVillagerFarmTargetAt(x, y, z)) {
+                            farmX = x;
+                            farmY = y;
+                            farmZ = z;
+                            farmHasTarget = true;
+                            // GoToBlockGoal.start (lines 41-45): the
+                            // approach clock zero, the give-up band the
+                            // reference's own double-nextInt roll.
+                            farmActiveTicks = 0;
+                            farmMaxActiveTicks = random.nextInt(random.nextInt(1200) + 1200) + 1200;
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * VillagerFarmGoal.isValidTarget (lines 103-124 1:1): a farmland
+     * cell whose above cell stands age-7 WHEAT (the harvest arm — the
+     * delay 0, the room gate) or AIR (the plant arm — the delay 1, the
+     * seed gate). The isValidGoalTarget consult (findNearestBlock's
+     * own row) rides the engine's established navigation-validity fold
+     * (the rabbit raid's own precedent — the walk consults the
+     * navigation's own reach, not the reference's pathfinder node
+     * surface).
+     */
+    private boolean isVillagerFarmTargetAt(int x, int y, int z) {
+        var below = world.blockIdAt(x, y, z);
+        if (below == null || !below.value().equals("farmland")) {
+            return false;
+        }
+        var above = world.blockIdAt(x, y + 1, z);
+        String aboveValue = above == null ? "air" : above.value();
+        if (aboveValue.equals("wheat_stage7") && farmRoomForHarvest
+                && (farmHarvestDelay == 0 || farmHarvestDelay < 0)) {
+            farmHarvestDelay = 0;
+            return true;
+        }
+        if (aboveValue.equals("air") && farmPlantable
+                && (farmHarvestDelay == 1 || farmHarvestDelay < 0)) {
+            farmHarvestDelay = 1;
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * VillagerFarmGoal.tick over GoToBlockGoal.tick (lines 56-100 1:1):
+     * the super's walk — the head holds the target cell's up-center
+     * (the look control at the cell above), the approach clock counts
+     * the walk with the 40-tick re-path — and at the standing cell
+     * (squared distance to the up-center within 1.0) the WORK: the
+     * harvest arm breaks the age-7 wheat WITH its drops (the intent —
+     * {@code breakBlock(pos, true)}), the plant arm consumes the first
+     * matching seed stack and places the crop at age 0 ({@code
+     * setBlockState(pos, crop.defaultState(), 3)}). Either way the
+     * window closes and the cooldown re-arms at 10.
+     */
+    void goalVillagerFarmTick() {
+        double tx = farmX + 0.5;
+        double ty = farmY + 1.0;
+        double tz = farmZ + 0.5;
+        double dx = tx - position.x();
+        double dy = ty - position.y();
+        double dz = tz - position.z();
+        double squared = dx * dx + dy * dy + dz * dz;
+        if (squared > 1.0) {
+            // The approach (GoToBlockGoal.tick's walk arm).
+            farmActiveTicks++;
+            headYaw = angleTo(dx, dz); // the look control's 10-degree grip
+            mode = Mode.WANDER;
+            modeTicks = 0;
+            goalWalkSpeed = 0.6 / 0.5; // the goal's 0.6 parameter over the villager's 0.5 attribute
+            if (farmActiveTicks % 40 == 0) {
+                tickPathFollowing(new Position(tx, ty, tz));
+            }
+            return;
+        }
+        // The standing cell (hasReachedTarget): the work.
+        farmActiveTicks--;
+        if (farmHarvestDelay == 0) {
+            var above = world.blockIdAt(farmX, farmY + 1, farmZ);
+            if (above != null && above.value().equals("wheat_stage7")) {
+                pendingFarmHarvest = true; // the manager breaks it WITH drops
+            }
+        } else if (farmHarvestDelay == 1) {
+            var above = world.blockIdAt(farmX, farmY + 1, farmZ);
+            if (above == null || above.value().equals("air")) {
+                if (consumePlantableSeed()) {
+                    pendingFarmPlant = true; // the manager places the crop
+                }
+            }
+        }
+        farmHarvestDelay = -1;
+        farmHasTarget = false;
+        farmCooldown = 10;
+    }
+
+    /**
+     * The plant arm's own consumption walk (VillagerFarmGoal.tick lines
+     * 69-94): the FIRST stock slot carrying a plantable item pays one
+     * piece — the crop the item maps to rides the intent.
+     *
+     * @return the crop block id the consumed seed plants (null when no
+     *         stock item answers).
+     */
+    private boolean consumePlantableSeed() {
+        for (int i = 0; i < villagerFood.length; i++) {
+            net.zaminmc.torch.item.ItemStack stack = villagerFood[i];
+            if (stack == null || stack.isEmpty()) {
+                continue;
+            }
+            String value = stack.type().identifier().value();
+            String crop = switch (value) {
+                case "wheat_seeds" -> "wheat_stage0";
+                case "potato" -> "potatoes_stage0";
+                case "carrot" -> "carrots_stage0";
+                default -> null;
+            };
+            if (crop == null) {
+                continue;
+            }
+            int left = stack.count() - 1;
+            villagerFood[i] = left > 0 ? stack.withCount(left) : null;
+            pendingFarmPlantCrop = crop;
+            return true;
+        }
+        return false;
+    }
+
+    /** The plant intent's own crop id (the consumed seed's mapping). */
+    private String pendingFarmPlantCrop;
+
+    /** @return the farm window's live delay arm (the walk's test read). */
+    int farmHarvestDelayForTest() {
+        return farmHarvestDelay;
+    }
+
+    /** @return and clears the pending harvest write (the manager's intent). */
+    public boolean consumeVillagerFarmHarvest() {
+        boolean value = pendingFarmHarvest;
+        pendingFarmHarvest = false;
+        return value;
+    }
+
+    /** @return the pending harvest's crop cell X (target.up()). */
+    public int villagerFarmHarvestX() {
+        return farmX;
+    }
+
+    /** @return the pending harvest's crop cell Y (target.up()). */
+    public int villagerFarmHarvestY() {
+        return farmY + 1;
+    }
+
+    /** @return the pending harvest's crop cell Z (target.up()). */
+    public int villagerFarmHarvestZ() {
+        return farmZ;
+    }
+
+    /** @return and clears the pending plant write (the manager's intent). */
+    public boolean consumeVillagerFarmPlant() {
+        boolean value = pendingFarmPlant;
+        pendingFarmPlant = false;
+        return value;
+    }
+
+    /** @return the plant intent's crop block id (the consumed seed's). */
+    public String villagerFarmPlantCrop() {
+        return pendingFarmPlantCrop;
+    }
+
+    /** @return the plant intent's crop cell X (target.up()). */
+    public int villagerFarmPlantX() {
+        return farmX;
+    }
+
+    /** @return the plant intent's crop cell Y (target.up()). */
+    public int villagerFarmPlantY() {
+        return farmY + 1;
+    }
+
+    /** @return the plant intent's crop cell Z (target.up()). */
+    public int villagerFarmPlantZ() {
+        return farmZ;
+    }
+
+    // ------------------ the village-door pair (Wave PE-23)
+
+    /**
+     * StayIndoorsGoal's own state: the door the walk homes to
+     * ({@code doorInfo} — the ticking-door pick), the memory pair
+     * ({@code x}/{@code y} fields — stop()'s own write, the recent-cell
+     * squared-4 refusal), and the walk's target (start()'s pick, held
+     * for the drive below).
+     */
+    private net.zaminmc.torch.server.village.VillageDoor stayIndoorsDoor;
+    private int stayIndoorsMemoryX = -1;
+    private int stayIndoorsMemoryZ = -1;
+    private Position stayIndoorsTarget;
+    private boolean stayIndoorsActive;
+
+    /**
+     * RestrictOpenDoorGoal's own state: the door the body guards
+     * ({@code frontDoor}), the live flag (start()'s flag-pair write —
+     * the canUse walk below), and the navigation's door-permission pair
+     * the start/stop arms flip.
+     */
+    private net.zaminmc.torch.server.village.VillageDoor restrictDoor;
+    private boolean restrictDoorActive;
+
+    /**
+     * StayIndoorsGoal.canStart + shouldContinue (lines 22-44 + 47-49
+     * 1:1): the WEATHER gate first — {@code (!isSunny() || isRaining()
+     * && !biome.isRainy()) && !dimension.hasNoSky()}: the walk starts
+     * when the sun stands low (night or storm — the ambient-darkness
+     * read) OR the rain flag stands over a dry-read biome (the global
+     * rain the desert refuses to render — the reference's own pair);
+     * the hasNoSky arm is the overworld's own truth for the engine's
+     * villager (the mob world's weather system IS the overworld's — the
+     * roofed dimensions carry no villages to walk to). Then the
+     * 1-in-50 dice, the RECENT-CELL refusal (the memory pair within
+     * squared-4 of the body — a villager that just came out of one door
+     * spreads to another), the nearest village within 14, and the
+     * TICKING-DOOR pick (the over-use-aware consult). shouldContinue:
+     * the navigation owns the walk's life.
+     */
+    boolean goalStayIndoorsCanUse() {
+        if (type != MobType.VILLAGER) {
+            return false; // the villager's own registration (band 2)
+        }
+        if (stayIndoorsActive) {
+            if (navigation.isDone()) {
+                // stop(): the memory writes — the walk's own recent-cell
+                // refusal pair (the INDOORS cell, not the door).
+                stayIndoorsMemoryX = stayIndoorsDoor != null
+                        ? stayIndoorsDoor.indoorsX() : stayIndoorsMemoryX;
+                stayIndoorsMemoryZ = stayIndoorsDoor != null
+                        ? stayIndoorsDoor.indoorsZ() : stayIndoorsMemoryZ;
+                stayIndoorsDoor = null;
+                stayIndoorsActive = false;
+                return false;
+            }
+            return true; // shouldContinue: the armed path walks on
+        }
+        boolean weather = !world.isSunny()
+                || world.isRaining() && !world.biomeRainyAt(
+                        (int) Math.floor(position.x()), (int) Math.floor(position.z()));
+        if (!weather) {
+            return false;
+        }
+        if (random.nextInt(50) != 0) {
+            return false;
+        }
+        int bx = (int) Math.floor(position.x());
+        int by = (int) Math.floor(position.y());
+        int bz = (int) Math.floor(position.z());
+        if (stayIndoorsMemoryX != -1) {
+            double dx = position.x() - stayIndoorsMemoryX;
+            double dz = position.z() - stayIndoorsMemoryZ;
+            if (dx * dx + dz * dz < 4.0) {
+                return false; // the recent-cell refusal (canStart line 30)
+            }
+        }
+        net.zaminmc.torch.server.village.Village village =
+                world.nearestVillageAt(bx, by, bz, 14);
+        if (village == null) {
+            return false;
+        }
+        net.zaminmc.torch.server.village.VillageDoor door =
+                village.nearestTickingDoor(bx, by, bz);
+        if (door == null) {
+            return false;
+        }
+        // start(): the memory pair clears, the walk arms — the FAR arm
+        // (the body beyond squared-256 of the indoors cell — the
+        // reference's own {@code getSquaredDistanceTo} read at the
+        // INTEGER coords, never the +0.5 center) picks a spot on the
+        // far side of the shelter (TargetFinder's away form at 14/3
+        // over the indoors center); the NEAR arm walks straight to the
+        // indoors cell's center at the goal's 1.0 speed.
+        stayIndoorsDoor = door;
+        stayIndoorsMemoryX = -1;
+        stayIndoorsMemoryZ = -1;
+        double dx = door.indoorsX() - position.x();
+        double dy = door.indoorsY() - position.y();
+        double dz = door.indoorsZ() - position.z();
+        double squaredToIndoors = dx * dx + dy * dy + dz * dz;
+        Position target;
+        if (squaredToIndoors > 256.0) {
+            // The reference's away-from-POSITION form ({@code
+            // getTargetAwayFromPosition}: {@code startOffset = start −
+            // mob}, TargetFinder lines 18-20 — the OPPOSITE sign of the
+            // flee's away-from-ENTITY form): the candidates must move
+            // TOWARD the indoors center's half-plane, so a far villager
+            // homes (and may pass) the shelter.
+            Position away = targetFinderPickAway(14, 3,
+                    (door.indoorsX() + 0.5) - position.x(),
+                    (door.indoorsZ() + 0.5) - position.z());
+            if (away == null) {
+                stayIndoorsDoor = null;
+                return false; // no candidate in the away half-plane — the goal waits
+            }
+            target = away;
+        } else {
+            target = new Position(door.indoorsX() + 0.5, door.indoorsY(),
+                    door.indoorsZ() + 0.5);
+        }
+        stayIndoorsTarget = target;
+        stayIndoorsActive = true;
+        mode = Mode.WANDER;
+        modeTicks = 0;
+        return true;
+    }
+
+    /**
+     * StayIndoorsGoal's start()/tick() pair over the navigation: the
+     * walk runs at the goal's flat 1.0 speed — the far arm's away pick
+     * or the near arm's indoors center, whichever the canUse armed.
+     * The goal itself owns no tick body (the reference's empty
+     * override); the navigation drives the feet.
+     */
+    void goalStayIndoorsTick() {
+        goalWalkSpeed = 1.0;
+        mode = Mode.WANDER;
+        tickPathFollowing(stayIndoorsTarget);
+        if (navigation.isDone()) {
+            // The walk's life ends: stop()'s memory writes ride the
+            // canUse pass (the same law, one place).
+            stayIndoorsMemoryX = stayIndoorsDoor != null
+                    ? stayIndoorsDoor.indoorsX() : stayIndoorsMemoryX;
+            stayIndoorsMemoryZ = stayIndoorsDoor != null
+                    ? stayIndoorsDoor.indoorsZ() : stayIndoorsMemoryZ;
+            stayIndoorsDoor = null;
+            stayIndoorsActive = false;
+        }
+    }
+
+    /** @return whether the stay-indoors walk owns the body (the test read). */
+    boolean stayIndoorsWalking() {
+        return stayIndoorsActive;
+    }
+
+    /**
+     * RestrictOpenDoorGoal.canStart + shouldContinue (lines 21-39 1:1):
+     * the sunless gate, the nearest village within 16, its NEAREST
+     * door, and the door's own indoors cell within squared-2.25 of the
+     * body. The live window continues while the sun stays down, the
+     * door stays inside the village, and the body stays on the door's
+     * INSIDE half-plane ({@code isIndoors} — the reference's own
+     * Y-quirk read); the window's end plays stop() (the flag pair
+     * restores, the door clears).
+     */
+    boolean goalRestrictDoorCanUse() {
+        if (type != MobType.VILLAGER) {
+            return false; // the villager's own registration (band 3)
+        }
+        if (restrictDoorActive) {
+            if (world.isSunny() || restrictDoor.isOutsideVillage()
+                    || !restrictDoor.isIndoors(
+                            (int) Math.floor(position.x()), (int) Math.floor(position.z()))) {
+                // stop(): the navigation's door permissions restore.
+                navigation.setCanOpenDoors(true);
+                navigation.setCanPassThroughDoors(true);
+                restrictDoor = null;
+                restrictDoorActive = false;
+                return false;
+            }
+            return true;
+        }
+        if (world.isSunny()) {
+            return false;
+        }
+        int bx = (int) Math.floor(position.x());
+        int by = (int) Math.floor(position.y());
+        int bz = (int) Math.floor(position.z());
+        net.zaminmc.torch.server.village.Village village =
+                world.nearestVillageAt(bx, by, bz, 16);
+        if (village == null) {
+            return false;
+        }
+        net.zaminmc.torch.server.village.VillageDoor door = village.nearestDoor(bx, by, bz);
+        if (door == null || door.squaredDistanceToIndoors(bx, by, bz) >= 2.25) {
+            return false; // the squared-2.25 band (canStart line 33)
+        }
+        // start(): the navigation's door permissions drop.
+        restrictDoor = door;
+        restrictDoorActive = true;
+        navigation.setCanOpenDoors(false);
+        navigation.setCanPassThroughDoors(false);
+        return true;
+    }
+
+    /**
+     * RestrictOpenDoorGoal.tick (lines 55-57 1:1): the door's over-use
+     * penalty pays its tick — the restrictedTicks the ticking-door pick
+     * reads, the villagers' own door-spread law.
+     */
+    void goalRestrictDoorTick() {
+        if (restrictDoor != null) {
+            restrictDoor.restrictOpening();
+        }
+    }
+
+    /** @return the restrict window's door (the test read). */
+    net.zaminmc.torch.server.village.VillageDoor restrictDoorForTest() {
+        return restrictDoor;
+    }
+
+    /** @return the navigation's open-door permission (the test read). */
+    boolean navigationCanOpenDoors() {
+        return navigation.canOpenDoors();
+    }
+
+    /** @return the navigation's pass-through permission (the test read). */
+    boolean navigationCanPassThroughDoors() {
+        return navigation.canPassThroughDoors();
     }
 
     /**
@@ -12063,12 +13090,12 @@ public final class MobEntity implements LivingEntity {
         }
         switch (mode) {
             case IDLE -> {
-                // The historical LookAtPlayer: an idle mob glances at a
-                // nearby player now and then — unless the beg owns the look
-                // (WolfBegGoal claims the LOOK control for its whole window).
-                if (!wolfBegging && target != null && modeTicks % 30 == 0 && random.nextInt(3) == 0) {
-                    headYaw = angleTo(target.x() - position.x(), target.z() - position.z());
-                }
+                // The historical glance RETIRED (Wave PE-23): the idle
+                // look-at-player once folded here (a modeTicks % 30 roll)
+                // — the reference's own LookAtEntityGoal/LookAroundGoal
+                // family now owns the idle head whole (the LOOK_AT and
+                // LOOK_AROUND goals, the 2% dice + the 40/20-tick
+                // windows), and the beg keeps its LOOK claim above them.
                 // The reference stroll's start gate (WanderAroundGoal
                 // .canStart lines 19-42, Slice TF-6): the goal itself must
                 // be LIVE first (the §27.3 removal's behavioral consult —
