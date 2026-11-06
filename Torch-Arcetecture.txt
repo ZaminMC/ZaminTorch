@@ -8993,6 +8993,71 @@ attacker of ANY kind). LANES: the entity package whole (670/0),
 the village/nbt/leash/acceptance lanes green, the bukkit +
 protocol modules compile.
 
+WAVE PE-30 LANDED (2026-11-06, commit 4f6dc872 — the record
+appended by the NEXT session: the wave's own session closed at the
+code commit, its architecture row owed; the honesty rule pays it
+here): THE HORSE'S RIDING-WINDOW TAILS (the pin's steer family
+whole, each law read from HorseBaseEntity's own source 1:1): (1)
+THE SADDLE-JUMP CHARGE (setJumpStrength lines 1322-1338, wired
+from the reference's PlayerMovementActionC2SPacket RIDING_JUMP
+arm — the third varint the protocol forwards,
+ServerPlayNetworkHandler line 691's own cast-gated consult): the
+SADDLE head-gate, the negative clamp (strength < 0 to 0, NO
+rear), the REAR-JUMP ARM (this.jumping = true + updateAnger —
+flag 64 up, the 20-tick decay clock armed, the graze stands down),
+and the BAND 0.4F + 0.4F*strength/90 with the 90-cap at 1.0 — the
+engine's flat 0.48 impulse stand-in + the steer packet's boolean
+jump RETIRED for horses (the pig keeps the boolean hop); (2) THE
+SPEND (moveRelative lines 1046-1063): the impulse =
+customJumpStrength() * the band (the JUMP ATTRIBUTE consult — the
+Attributes-row override, the spawn roll 0.4+3x nextDouble()*0.2
+against the LIVE subtype with the donkey/mule 0.5 flat, the 0.7
+registered base fallback), the JUMP_BOOST (amp+1)*0.1 add, the
+±0.4 forward lunge scaled by the charge, the 'mob.horse.jump'
+sound at 0.4F/1.0F on the LUNGE arm alone, the charge's clear at
+the spend, and the grounded tail's pair (the standing charge's
+clear + the in-air flag's land — a mid-air re-arm dies at the
+landing); (3) THE REVERSE DRAG (forwards <= 0 pays the 0.25 scale
+AND resets the gallop ladder) and THE ANGRY REFUSAL (lines
+1041-1044: a rearing grounded horse with no charge and no
+rear-jump flag refuses the reins whole — both inputs zero, the
+press's own carve-out steering through); (4) THE FRICTION
+CONSULT'S PRE-MOVE GROUND READ (the reference's travel computes
+the factor BEFORE the move: a jump tick's lunge drags at the
+GROUND band it stood on, wasGroundedBefore carrying the read); (5)
+THE STEP-SOUND LADDER (playStepSound lines 528-548, the ridden
+body's step walk): the first FIVE crossings the wood sound, every
+third past five the gallop (+ the plain horse's 1-in-10 breathe
+at volume*0.6 as the crossing's SECOND sound), the silent rungs
+staging nothing, the donkey/mule riding the plain pair, the
+unridden wood-or-soft pair, and the snow-layer override reading
+the SNOW family; (6) THE WALK-ANIMATION PAIR (lines 1075-1086 —
+f2 = sqrt(dx^2+dz^2)*4 clamped 1.0, the 0.4 blend, the progress
+accumulate); (7) THE NEIGHBOR ARM (OPEN_HORSE_INVENTORY, the
+entity-action walk's ordinal 6): the E-key seat consult opens the
+mount's window; (8) THE SPAWN ROLL'S THIRD DICE (initialize lines
+1298-1303): the jump attribute's own roll landed after health and
+speed in the reference's own order, the horse.jumpStrength
+Attributes NBT row honored (read + write, the 0.0-2.0 ranged
+clamp); (9) THE HEALTH-TAIL REPAIR the stream shift exposed
+(initialize line 1306's setHealth(getMaxHealth()) — the spawn
+sets the CURRENT health to the rolled ceiling) and THE BREED
+GATE'S LIVE-CEILING READ (canBreed line 968: getHealth() >=
+getMaxHealth() over the rolled attribute). SEATS:
+HorseSteerParityDiscoveryTest 9/0 NEW (the band + gates + the
+rear decay; the spend's impulse/lunge/sound/clears; the mid-air
+re-arm's death; the angry refusal + the carve-out; the reverse
+drag's 4:1; the ladder's staged stream + the scripted breathe
+pair + the reverse reset + the donkey's refusal + the unridden
+pair + the snow override; the walk pair); HorseMountTest's jump
+seat rewritten to the charge law; HorseSpawnAttributeRollTest's
+jump-roll seat NEW + the current-health seat re-pinned to the
+tail re-fill; HorseBondParityDiscoveryTest's once-only sound pin
+retired to the verdict's own drain. LANES: the entity package
+whole (680/0), the nbt lane green, the protocol + bukkit modules
+compile; the snowball shatter row stays the verifier's own
+pre-existing.
+
 VT-033'S ADJACENT TAILS LANDED (2026-11-02, commit d96f4a2a — #146's
 review-note ledger retired): the WITHER FALL's kill row and the BEACON
 full-power row walk the ACTING world's players (the un-dimensioned
