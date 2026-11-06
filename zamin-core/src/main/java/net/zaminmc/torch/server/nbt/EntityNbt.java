@@ -409,13 +409,17 @@ public final class EntityNbt {
                 }
                 mob.setTamedFlag(NbtOps.getBoolean(nbt, "Tame"));
                 // The breeding rows (HorseBaseEntity.readCustomNbt lines
-                // 1133-1137): the graze flash re-arms when the row says
-                // so; ChestedHorse parses to nowhere (the engine's
-                // no-donkey/mule envelope — no chested kinds exist);
-                // the bred pair lands on the markers (the breeding-gate
-                // consults are the engine's no-horse-breeding envelope).
+                // 1133-1137); ChestedHorse parses to nowhere (the
+                // engine's no-donkey/mule envelope — no chested kinds
+                // exist); the bred pair lands on the markers (the
+                // breeding-gate consults are the engine's
+                // no-horse-breeding envelope).
+                // The graze window re-arms when the row says so (Wave
+                // PE-28 — readCustomNbt line 1134's setEatingHay(true):
+                // the LONG flag-32 graze with its own 50-tick window,
+                // never the brief eating flash the old read armed).
                 if (NbtOps.getBoolean(nbt, "EatingHaystack")) {
-                    mob.flashEating();
+                    mob.setEatingHay(true);
                 }
                 mob.setHorseBred(NbtOps.getBoolean(nbt, "Bred"));
                 mob.setHorseHasReproduced(NbtOps.getBoolean(nbt, "HasReproduced"));

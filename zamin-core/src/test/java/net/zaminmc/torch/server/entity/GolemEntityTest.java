@@ -45,6 +45,23 @@ class GolemEntityTest {
         }
 
         @Override
+        public java.util.List<MobEntity> hostileMobsInBox(
+                double minX, double minY, double minZ,
+                double maxX, double maxY, double maxZ) {
+            java.util.List<MobEntity> found = new java.util.ArrayList<>();
+            if (hostile != null && !hostile.dead()) {
+                Position p = hostile.position();
+                double half = hostile.type().width / 2.0;
+                if (p.x() + half > minX && p.x() - half < maxX
+                        && p.y() + hostile.type().height > minY && p.y() < maxY
+                        && p.z() + half > minZ && p.z() - half < maxZ) {
+                    found.add(hostile);
+                }
+            }
+            return found;
+        }
+
+        @Override
         public MobEntity nearestHostileMob(double x, double y, double z, double range) {
             if (hostile == null || hostile.dead()) {
                 return null;
@@ -99,30 +116,47 @@ class GolemEntityTest {
     }
 
     @Test
-    void theIronGolemNeverHuntsOnSightButChasesTheDefenseTarget() {
+    void theIronGolemsCensusHuntsMonstersOnSightAndTheDefenseTargetOutranksIt() {
         ScriptedWorld world = new ScriptedWorld();
         MobEntity golem = golemIn(world, MobType.IRON_GOLEM, 3L);
         // No hostile: the plain stroll (no chase mode held).
         golem.tick(true);
         assertEquals(MobEntity.Mode.IDLE, golem.mode());
 
-        // A zombie well inside the old 32-block census band: the 1.8.8
-        // golem NEVER hunts on sight (TrackIronGolemTargetGoal alone owns
-        // the target — the village's defense consult, IronGolemEntity line
-        // 54; the on-sight census the engine formerly carried is the 1.14
-        // village-siege law, retired Wave PE-27).
+        // THE MONSTER CENSUS (Wave PE-29 — the band-3 ActiveTargetGoal,
+        // IronGolemEntity line 56: MobEntity.class, chance 10, no sight
+        // check, the path consult): a zombie inside the follow-range box
+        // IS hunted on sight — the 1-in-10 consult dice rolls every idle
+        // tick until it lands.
         MobEntity zombie = new MobEntity(999, MobType.ZOMBIE,
                 new Position(6.0, 8.0, 0.5), new Random(4L), world);
         world.hostile = zombie;
-        for (int i = 0; i < 20; i++) {
+        boolean hunted = false;
+        for (int i = 0; i < 100 && !hunted; i++) {
             golem.tick(true);
+            hunted = golem.golemTarget() == zombie;
         }
-        assertNull(golem.golemTarget(), "no census runs — the zombie is never hunted on sight");
-        assertEquals(MobEntity.Mode.IDLE, golem.mode(), "the stroll cycle holds");
+        assertTrue(hunted, "the census's 1-in-10 dice lands the zombie inside the band");
+        assertEquals(MobEntity.Mode.CHASE, golem.mode(),
+                "the census target's chase owns the walk (beyond the melee band)");
+
+        // The creeper is NEVER a census candidate (the override's own
+        // predicate, IronGolemEntity lines 256-258): the same geometry
+        // with a fresh golem and a creeper never hunts.
+        MobEntity freshGolem = golemIn(world, MobType.IRON_GOLEM, 6L);
+        world.hostile = new MobEntity(999, MobType.CREEPER,
+                new Position(6.0, 8.0, 0.5), new Random(5L), world);
+        for (int i = 0; i < 100; i++) {
+            freshGolem.tick(true);
+            assertNull(freshGolem.golemTarget(),
+                    "the creeper never rides the census (the exclusion)");
+        }
+        assertEquals(MobEntity.Mode.IDLE, freshGolem.mode(), "the stroll cycle holds");
 
         // The defense arm's write (the manager's defense consult — the
-        // zombie that hurt a villager): the mob target owns the walk, the
-        // chase the census-starved mind never ran.
+        // zombie that hurt a villager): the mob target outranks the
+        // census — whichever stands, the chase owns the walk.
+        world.hostile = zombie;
         golem.setMobAttackTarget(zombie);
         golem.tick(true);
         assertEquals(MobEntity.Mode.CHASE, golem.mode(),

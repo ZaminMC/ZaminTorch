@@ -446,6 +446,13 @@ public final class LeadSystem {
         mob.navigateToward(holder.x(), holder.y(), holder.z());
         if (distance > PULL_RANGE) {
             // The pull (f > 6.0): v += d * |d| * 0.4 per component.
+            // Wave PE-28 — updateForLeashLength (HorseBaseEntity lines
+            // 230-234): a leash pulled past 6.0 stands the horse's hay
+            // graze down (the same band the pull itself reads).
+            if (mob.type() == net.zaminmc.torch.server.entity.MobType.HORSE
+                    && mob.eating()) {
+                mob.setEatingHay(false);
+            }
             double ux = dx / distance;
             double uy = dy / distance;
             double uz = dz / distance;

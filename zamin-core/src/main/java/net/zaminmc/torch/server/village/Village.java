@@ -324,16 +324,16 @@ public final class Village {
     /**
      * The golem's defense consult (TrackIronGolemTargetGoal.canStart
      * lines 19-39 over the manager's wiring): the nearest live attacker
-     * (the creeper excluded — line 26's own gate) answers its ENGINE id,
-     * -1 when none stands.
+     * of ANY kind answers its ENGINE id — the reference's own
+     * {@code getNearestAttacker} (Village lines 247-261) carries no
+     * creeper skip; the refusal is the GOAL's own gate (Wave PE-29: the
+     * creeper-nearest consult refuses whole), never the walk's. -1 when
+     * none stands.
      */
     public int defenseAttackerId(VillageSystem.Surface surface, int x, int y, int z) {
         int bestId = -1;
         double bestDistance = Double.MAX_VALUE;
         for (Attacker attacker : attackers) {
-            if (attacker.mobName != null && attacker.mobName.equalsIgnoreCase("creeper")) {
-                continue; // the creeper never turns the village's golem
-            }
             if (!surface.entityAlive(attacker.engineId)) {
                 continue;
             }

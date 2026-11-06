@@ -18981,9 +18981,16 @@ public final class EngineServer implements Server, EngineBridge {
                 flag = true;
             }
             if (flag) {
-                mob.flashEating();
-                fxManager.sound(mob.position(), "eating", 1.0f, 1.0f,
-                        mob.dimension());
+                // playEatingAnimation (Wave PE-28 — HorseBaseEntity lines
+                // 346-352): setEating's flag-128 flash + the "eating"
+                // sound at 1.0 volume with the two-draw pitch jitter
+                // (1.0 + (r - r) * 0.2), gated on the body's own
+                // silence flag (the reference's !isSilent()).
+                float eatPitch = mob.playEatingAnimation();
+                if (!mob.isSilent()) {
+                    fxManager.sound(mob.position(), "eating", 1.0f, eatPitch,
+                            mob.dimension());
+                }
                 if (player.gamemode() != GameMode.CREATIVE) {
                     inventory.consumeHeld(1);
                     publishInventoryChanged(player);
@@ -26918,6 +26925,44 @@ public final class EngineServer implements Server, EngineBridge {
         }
 
         /**
+         * Wave PE-28 — the horse's bred-kin census (the mobTick
+         * child-walk's gather, findNearestEntity lines 429-444 over the
+         * BREED_FILTER — a live BRED horse, the plain nearest form).
+         */
+        @Override
+        public MobEntity nearestBredHorseInBox(double minX, double minY, double minZ,
+                                               double maxX, double maxY, double maxZ,
+                                               int excludeId,
+                                               double sx, double sy, double sz) {
+            MobEntity best = null;
+            double bestDistance = Double.MAX_VALUE;
+            for (MobEntity mob : mobManager.all()) {
+                if (mob.dead() || mob.type() != net.zaminmc.torch.server.entity.MobType.HORSE
+                        || !mob.horseBred()
+                        || mob.entityId() == excludeId
+                        || mob.dimension() != activeDimension) {
+                    continue;
+                }
+                Position p = mob.position();
+                double half = mob.type().width / 2.0;
+                if (p.x() + half <= minX || p.x() - half >= maxX
+                        || p.y() + mob.type().height <= minY || p.y() >= maxY
+                        || p.z() + half <= minZ || p.z() - half >= maxZ) {
+                    continue; // no intersection — never a candidate
+                }
+                double dx = p.x() - sx;
+                double dy = p.y() - sy;
+                double dz = p.z() - sz;
+                double distance = dx * dx + dy * dy + dz * dz;
+                if (distance < bestDistance) {
+                    bestDistance = distance;
+                    best = mob;
+                }
+            }
+            return best;
+        }
+
+        /**
          * Wave PE-23 — the caravan census ({@code FormCaravanGoal
          * .canStart} lines 31-42): the nearest live BABY villager not
          * already in a caravan, whose OWN box intersects the grown box
@@ -27222,6 +27267,32 @@ public final class EngineServer implements Server, EngineBridge {
                 // The candidate's OWN box against the gather box, STRICT
                 // both sides (Box.intersects' own law — exactly touching
                 // never intersects).
+                Position p = mob.position();
+                double half = mob.type().width / 2.0;
+                if (p.x() + half > minX && p.x() - half < maxX
+                        && p.y() + mob.type().height > minY && p.y() < maxY
+                        && p.z() + half > minZ && p.z() - half < maxZ) {
+                    found.add(mob);
+                }
+            }
+            return found;
+        }
+
+        /**
+         * Wave PE-29 — the golem's monster-census gather (the band-3
+         * ActiveTargetGoal's own box walk over the hostile set).
+         */
+        @Override
+        public java.util.List<net.zaminmc.torch.server.entity.MobEntity> hostileMobsInBox(
+                double minX, double minY, double minZ,
+                double maxX, double maxY, double maxZ) {
+            java.util.List<net.zaminmc.torch.server.entity.MobEntity> found =
+                    new java.util.ArrayList<>();
+            for (net.zaminmc.torch.server.entity.MobEntity mob : mobManager.all()) {
+                if (mob.dead() || !mob.type().hostile
+                        || mob.dimension() != activeDimension) {
+                    continue;
+                }
                 Position p = mob.position();
                 double half = mob.type().width / 2.0;
                 if (p.x() + half > minX && p.x() - half < maxX

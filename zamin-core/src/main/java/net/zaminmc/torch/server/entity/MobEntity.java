@@ -492,6 +492,25 @@ public final class MobEntity implements LivingEntity {
         }
 
         /**
+         * Wave PE-29 — THE GOLEM'S MONSTER CENSUS GATHER ({@code
+         * ActiveTargetGoal.canStart} line 87's {@code getEntitiesOfType(
+         * MobEntity.class, getShape().grown(range, 4.0, range), ...)}
+         * — the iron golem's band-3 registration, IronGolemEntity line
+         * 56): every live HOSTILE mob of the ACTIVE dimension whose OWN
+         * box intersects the given grown box STRICT both sides, in the
+         * gather's own iteration order (the engine's spawn order — the
+         * reference's world-list order; the census's per-candidate
+         * filter and sort ride on top, the path consult's shared flag
+         * included). The default answers empty so stub worlds never
+         * host the census.
+         */
+        default java.util.List<MobEntity> hostileMobsInBox(
+                double minX, double minY, double minZ,
+                double maxX, double maxY, double maxZ) {
+            return java.util.List.of();
+        }
+
+        /**
          * Wave PE-23 — THE VILLAGER'S OWN LOOK CENSUS ({@code
          * LookAtEntityGoal.canStart} line 44's {@code
          * getNearestEntity(MobEntity.class, mob.getShape().grown(range,
@@ -522,6 +541,24 @@ public final class MobEntity implements LivingEntity {
         default MobEntity nearestMobOfKindInBox(double minX, double minY, double minZ,
                                                 double maxX, double maxY, double maxZ,
                                                 MobType kind, int excludeId,
+                                                double sx, double sy, double sz) {
+            return null;
+        }
+
+        /**
+         * Wave PE-28 — THE HORSE'S BRED-KIN CENSUS ({@code findNearest
+         * Entity} lines 429-444 over the {@code BREED_FILTER} predicate,
+         * lines 43-48 — {@code instanceof HorseBaseEntity && isBred()},
+         * the mobTick child-walk's own gather): the nearest live BRED
+         * horse of the ACTIVE dimension whose OWN box intersects the
+         * given box STRICT both sides, the seeker itself excluded, by
+         * the plain {@code d1 < d0} nearest form (the reference's own
+         * compare, lines 438-441). The default answers null so stub
+         * worlds never host the walk.
+         */
+        default MobEntity nearestBredHorseInBox(double minX, double minY, double minZ,
+                                                double maxX, double maxY, double maxZ,
+                                                int excludeId,
                                                 double sx, double sy, double sz) {
             return null;
         }
@@ -1104,6 +1141,38 @@ public final class MobEntity implements LivingEntity {
     public static final double HORSE_BOND_SPEED = 1.2;
     /** The angry window's length (HorseBaseEntity.tick line 894: ++angryTicks > 20). */
     public static final int HORSE_ANGRY_TICKS = 20;
+    /** The eating flash's window (HorseBaseEntity.tick line 889:
+     * {@code eatingTicks > 0 && ++eatingTicks > 30} — the flag-128
+     * graze window every sound consult opens, an UP-count from 1). */
+    public static final int HORSE_EATING_WINDOW_TICKS = 30;
+    /** The eating-hay window's length (HorseBaseEntity.mobTick line 867:
+     * {@code isEatingHay() && ++eatingGrassTicks > 50} — the flag-32
+     * spontaneous graze's own close). */
+    public static final int HORSE_HAY_WINDOW_TICKS = 50;
+    /** The spontaneous graze's dice (mobTick line 863: nextInt(300)). */
+    public static final int HORSE_GRAZE_DICE = 300;
+    /** The slow regen's dice (mobTick line 858: nextInt(900) with
+     * deathTicks == 0 — a healthy horse heals a half-heart). */
+    public static final int HORSE_REGEN_DICE = 900;
+    /** The slow regen's heal (mobTick line 859: heal(1.0F)). */
+    public static final float HORSE_REGEN_HEAL = 1.0f;
+    /** The hurt consult's anger dice (getHurtSound line 481: nextInt(3)). */
+    public static final int HORSE_HURT_ANGER_DICE = 3;
+    /** The ambient consult's anger dice (getAmbientSound line 502:
+     * nextInt(10), gated on the horse's own ai-dead consult). */
+    public static final int HORSE_AMBIENT_ANGER_DICE = 10;
+    /** The mouth counter's dice (mobTick line 846: nextInt(200)) and its
+     * 8-tick window (tick line 899: ++type > 8) — the reference's own
+     * {@code type} field: NOTHING server-side ever reads it and it never
+     * rides the wire, a vestigial counter the roll + window land for the
+     * mobTick stream's own parity, verbatim. */
+    public static final int HORSE_MOUTH_DICE = 200;
+    public static final int HORSE_MOUTH_WINDOW_TICKS = 8;
+    /** The bred child's family-walk band (mobTick lines 872-878): the
+     * nearest BRED horse within the 16-expanded own box, the walk armed
+     * beyond squared-4. */
+    public static final double HORSE_KIN_WALK_RANGE = 16.0;
+    public static final double HORSE_KIN_WALK_MIN_BAND = 4.0;
     /** Degrees per tick a mount turns at full sideways input (the 1.8 A/D steering). */
     public static final float RIDDEN_TURN_RATE = 3.5f;
     /** Controlled horse forward speed in blocks/tick (the canter). */
@@ -1160,7 +1229,22 @@ public final class MobEntity implements LivingEntity {
      * own rows read it; empty when no player sits). */
     private String riderName = "";
     private String riderUuid = "";
+    /** THE EATING-WINDOW FLAG PAIR (Wave PE-28 — HorseBaseEntity's two
+     * graze clocks, lines 78-79): {@code eatingTicks} is the FLAG-128
+     * flash's clock (setEating's {@code = 1}, the tick's own
+     * {@code ++eatingTicks > 30} decay — the window every sound consult
+     * opens); {@code eatingGrassTicks} is the FLAG-32 hay window's clock
+     * (the spontaneous graze's own {@code ++eatingGrassTicks > 50}
+     * close — the clock only ever resets at the window's own end, an
+     * early clear by anger/leash/mount leaves the count standing, the
+     * reference's own shape). */
     private int eatingTicks;
+    private int eatingGrassTicks;
+    /** The vestigial mouth counter (the reference's {@code type} field,
+     * lines 82 + 835-837 + 899-901: the 1-in-200 mobTick roll, the
+     * 8-tick up-count — nothing server-side reads it, the counter lands
+     * for the stream's own parity). */
+    private int horseMouthTicks;
 
     // The breeding state (the vanilla AnimalEntity age/love) and the donkey
     // chest: breedingAge < 0 grows up one tick at a time to 0 (the baby),
@@ -2403,20 +2487,27 @@ public final class MobEntity implements LivingEntity {
         if (type == MobType.IRON_GOLEM && golemLookingAtVillagerTicks > 0) {
             golemLookingAtVillagerTicks--;
         }
-        // The horse's own clock pair (HorseBaseEntity.tick lines 889-897
-        // — Wave PE-25): the eating window's end and the ANGRY window's
-        // end (updateAnger's angryTicks counting to 20, then setAngry
-        // (false) — flag 64 down; the reference runs both under every
-        // mind the horse carries, the ridden seat included — the eating
-        // decay formerly lived in the rider branch alone, an unridden
-        // fed horse pinned the flag forever).
+        // The horse's own clock family (HorseBaseEntity.tick lines
+        // 889-901 — Waves PE-25 + PE-28): the EATING FLASH's window (flag
+        // 128 — setEating's clock counts UP from its 1 past 30, then the
+        // flag comes down), the ANGRY window's end (updateAnger's
+        // angryTicks counting to 20, then setAngry(false) — flag 64
+        // down), and the vestigial MOUTH counter's 8-tick window (the
+        // reference's `type` field — no server-side reader, the counter
+        // runs verbatim for the stream's own parity). The reference runs
+        // all three under every mind the horse carries, the ridden seat
+        // included.
         if (type == MobType.HORSE) {
-            if (eatingTicks > 0 && --eatingTicks == 0) {
-                horseFlags &= ~HORSE_FLAG_EATING;
+            if (eatingTicks > 0 && ++eatingTicks > HORSE_EATING_WINDOW_TICKS) {
+                eatingTicks = 0;
+                horseFlags &= ~HORSE_FLAG_MOUTH_OPEN; // setHorseFlag(128, false)
             }
             if (horseAngryTicks > 0 && ++horseAngryTicks > HORSE_ANGRY_TICKS) {
                 horseAngryTicks = 0;
                 horseFlags &= ~HORSE_FLAG_REARING; // setAngry(false): flag 64 down
+            }
+            if (horseMouthTicks > 0 && ++horseMouthTicks > HORSE_MOUTH_WINDOW_TICKS) {
+                horseMouthTicks = 0;
             }
         }
         if (sheared && regrowTimer > 0) {
@@ -2449,18 +2540,34 @@ public final class MobEntity implements LivingEntity {
             return fixedPoint() != before || beforeYaw != yaw || beforeHeadYaw != headYaw;
         }
 
-        // A ridden body parks its mind: the rider owns the reins (the
-        // reference's moveRelative rider arm — the SADDLED body answers
-        // the rider's input, the AI's own move output replaced). THE
-        // UNTAMED HORSE'S CARVE-OUT (Wave PE-25 — HorseBondWithPlayer
-        // Goal's window): the reference's serverTickAi carries NO rider
-        // gate (MobEntity line 441 runs under isLocallyControlled alone)
-        // and moveRelative's rider arm requires isSaddled() — an
-        // unsaddled body's AI still owns the movement, so an UNTAMED
-        // horse's mind KEEPS RUNNING while the rider sits (the riding
-        // window IS a goal window: the bond goal's canStart reads the
-        // rider, its dice ride every tick of the seat).
-        if (hasRider() && !(type == MobType.HORSE && !tamed())) {
+        // THE HORSE'S OWN mobTick FAMILY (Wave PE-28 — HorseBaseEntity
+        // .mobTick lines 845-880): the reference runs mobTick OUTSIDE the
+        // ai section — an ai-dead body (the grazing horse the isDead
+        // override parks) still counts its own graze window down, the
+        // regen and the family walk riding the same tail. The call sits
+        // BEFORE the park consult for exactly that law (the pre-fix
+        // placement at the tick's own tail left a grazing horse's window
+        // pinned forever — the same placement-bug class PE-25 retired
+        // for the eating clock).
+        if (type == MobType.HORSE) {
+            tickHorseGraze();
+        }
+
+        // A ridden body parks its mind — THE HORSE'S OWN ai-dead LAW
+        // (Wave PE-28, the reference's isDead() override, HorseBaseEntity
+        // line 811: {@code rider != null && isSaddled() || isEatingHay()
+        // || isAngry()}): the ridden SADDLED seat, the flag-32 graze,
+        // and the flag-64 rear each answer "dead" to the ai gate
+        // (LivingEntity line 1434 — the movement inputs zero, the
+        // serverTickAi skipped), so the mind PARKS under all three;
+        // an UNSADDLED ridden horse keeps its mind (moveRelative's
+        // rider arm requires isSaddled() — the seat without the
+        // saddle is a goal window: the bond goal's canStart reads the
+        // rider, its dice ride every tick of the seat — the PE-25
+        // carve-out, now the SADDLE consult the reference itself
+        // carries, never the tame bit).
+        if (hasRider() && !(type == MobType.HORSE && !saddled())
+                || type == MobType.HORSE && (eating() || rearing())) {
             if (jumpCooldown > 0) {
                 jumpCooldown--;
             }
@@ -3481,6 +3588,16 @@ public final class MobEntity implements LivingEntity {
 
     /** @return the body's hurt sound (the slime family's is size-dependent). */
     public String hurtSound() {
+        if (type == MobType.HORSE) {
+            // THE HORSE'S OWN CONSULT SIDE EFFECTS (Wave PE-28 —
+            // getHurtSound lines 479-483): the eating flash FIRST
+            // (setEating, line 480), then the 1-in-3 anger roll
+            // (line 481's nextInt(3) — updateAnger), then the table read.
+            flashEating();
+            if (random.nextInt(HORSE_HURT_ANGER_DICE) == 0) {
+                armHorseAnger();
+            }
+        }
         if (type == MobType.GUARDIAN) {
             return guardianSoundKind() + "hit";
         }
@@ -3489,6 +3606,11 @@ public final class MobEntity implements LivingEntity {
 
     /** @return the body's death sound (the slime family's is size-dependent). */
     public String deathSound() {
+        if (type == MobType.HORSE) {
+            // getDeathSound (lines 453-454): the consult opens with the
+            // eating flash before the type table.
+            flashEating();
+        }
         if (type == MobType.GUARDIAN) {
             return guardianSoundKind() + "death";
         }
@@ -3924,52 +4046,95 @@ public final class MobEntity implements LivingEntity {
     private boolean pendingGolemSwing;
     /** Set when the snow golem's volley fires; the manager resolves the target. */
     private boolean pendingSnowGolemShot;
+    /** THE CENSUS'S SHARED PATH-CONSULT PAIR (Wave PE-29 — TrackTargetGoal
+     * lines 32-34 + 158-176, the reference's own per-GOAL cache): the
+     * navigate verdict computed for the FIRST candidate of a consult
+     * window stands for every candidate the same window serves (the
+     * {@code checkCanNavigateCooldown} 10 + nextInt(5) roll, the
+     * {@code canNavigateFlag} 1/2 verdict — the vanilla quirk kept
+     * verbatim), and {@code start()} resets both (the goal's own window
+     * open). */
+    private int golemCensusNavigateFlag;
+    private int golemCensusNavigateCooldown;
 
     /**
-     * The iron golem's mind (the goal ladder 1-8 + the target selector's
-     * TrackIronGolemTargetGoal): the nearest hostile mob within 32 owns
-     * the walk and the melee — the body never hunts players (the
-     * canAttack gate) — else the stroll cycle holds. The hostile scan
-     * carries the golem's own target law (IronGolemEntity lines 54-57
-     * over 247-283): the creeper excluded — the override's own predicate,
-     * lines 256-258, and the canAttack line 137's {@code type !=
-     * CreeperEntity.class} — and the same-team refusal every target goal
-     * reads.
+     * THE IRON GOLEM'S TARGET FAMILY (Wave PE-29 — IronGolemEntity's own
+     * THREE target registrations, lines 54-56, each law read from its
+     * own source 1:1):
      *
-     * <p>WAVE PE-17 — THE CENSUS'S OWN BOX FORM: the scan reads the
-     * ActiveTargetGoal gather's shape over the engine's established
-     * 32-block census band — the golem's OWN 1.4x2.9 shape grown 32
-     * horizontally and 4 vertically (the feet-anchored asymmetric y band
-     * [y - 4, y + 6.9]), each candidate's OWN box intersecting STRICT
-     * both sides: a straddling zombie whose own box grazes the grown
-     * face IS vanilla's find (the pre-fix center scan refused it whole),
-     * a ledge zombie beyond the y band never — and NO visibility consult
-     * (TrackIronGolemTargetGoal's super(golem, false, true) —
-     * checkVisibility FALSE, the village defender charges through
-     * walls).</p>
+     * <p>(1) BAND 1, THE VILLAGE DEFENSE ({@code TrackIronGolemTarget
+     * Goal}): the manager's wiring (the wound hook's attacker registry,
+     * the creeper-nearest refusal, the team gate, the 1-in-20
+     * bad-reputation player fallback) sets the MOB target or the FORCED
+     * player hunt — the highest band, it owns the body whenever it
+     * stands.
+     *
+     * <p>(2) BAND 2, THE REVENGE ({@code RevengeGoal(this, false)}, line
+     * 55): whoever wounds the golem becomes its target — the manager's
+     * {@code applyRevenge} carries it (no call-others, the same-team
+     * refusal) into the shared mob-target write.
+     *
+     * <p>(3) BAND 3, THE MONSTER CENSUS ({@code IronGolemEntity
+     * .ActiveTargetGoal<>(this, MobEntity.class, 10, false, true,
+     * Monster.VISIBLE_MONSTER_FILTER)}, line 56 — REINSTATED by this
+     * wave; the PE-27 retirement misread the reference): the 1-in-10
+     * consult dice, the gather over the golem's OWN shape grown the
+     * FOLLOW RANGE (16) horizontally and 4 vertically, every candidate's
+     * own box intersecting STRICT both sides — the VISIBLE_MONSTER
+     * filter (a hostile kind, not invisible), the creeper exclusion (the
+     * override's own predicate, lines 256-258), the ghast refusal
+     * ({@code canAttack}'s {@code != GhastEntity.class}, MobEntity line
+     * 126), the same-team refusal (isTarget lines 102-106), the village
+     * band (isValidGoalTarget — the cached radius * 0.6 of the village
+     * within 32, the engine's live consult), and the PATH consult
+     * (checkCanNavigate TRUE — findPath's end node within squared-2.25
+     * of the target's own cell, the shared flag the reference's own
+     * per-goal cache carries) — NO visibility consult
+     * (checkVisibility FALSE, the village defender charges through
+     * walls), the nearest survivor by the comparator's squared distance,
+     * the window held until the target dies or the follow-range band or
+     * the team consult refuses it (shouldContinue's own gates).</p>
      */
     private void tickIronGolemMind(boolean night) {
-        // Wave PE-27 — THE GOLEM'S TARGET LAW (TrackIronGolemTargetGoal
-        // 1:1, the 1.8.8 golem's ONLY target registration, IronGolemEntity
-        // line 54): the village's defense consult ALONE owns the target —
-        // the manager's wiring (the wound hook's attacker registry, the
-        // defense consult with the creeper exclusion, the 1-in-20
-        // bad-reputation fallback) sets the MOB target or the FORCED
-        // player hunt, and this mind chases whichever stands. The 32-block
-        // hostile census the engine formerly carried is the 1.14
-        // village-siege law — RETIRED (the 1.8.8 golem never hunts on
-        // sight; it turns only on the village's own wounded).
         Position forced = forcedHuntPosition();
         Position chaseTarget;
         if (forced != null) {
+            // Band 1's player arm (the forced hunt): the highest claim.
             chaseTarget = forced;
         } else if (mobAttackTarget != null && !mobAttackTarget.dead()) {
-            // The defense arm's mob target (the zombie that hurt a
-            // villager): the chase the engine's old census-starved mind
-            // never ran — setMobAttackTarget's write now owns the walk.
+            // Bands 1's mob arm + 2 (the defense write and the revenge
+            // write share the field — whichever stood last, the reference's
+            // own setAttackTarget overwrite shape).
             chaseTarget = mobAttackTarget.position();
         } else {
-            return; // the stroll cycle (the goal layer's default)
+            // Band 3 — THE MONSTER CENSUS (ActiveTargetGoal over
+            // MobEntity.class at chance 10): only when no defense or
+            // revenge target stands (the reference's own band order).
+            if (golemTarget != null && golemTarget.dead()) {
+                golemTarget = null;
+            }
+            if (golemTarget == null) {
+                golemTarget = golemCensusScan();
+                if (golemTarget != null) {
+                    // start(): the shared navigate cache resets with the
+                    // goal's own window (TrackTargetGoal.start line 71).
+                    golemCensusNavigateFlag = 0;
+                    golemCensusNavigateCooldown = 0;
+                }
+            }
+            if (golemTarget == null) {
+                return; // the stroll cycle (the goal layer's default)
+            }
+            // shouldContinue's own gates (lines 44-66): the target's
+            // death (read above), the same-team refusal (lines 51-55 —
+            // a target that joined the golem's team stands the hunt
+            // down), and the follow-range band (lines 57-59).
+            if (sameTeamAs(golemTarget)
+                    || squaredDistanceTo(golemTarget) > followRange() * followRange()) {
+                golemTarget = null;
+                return;
+            }
+            chaseTarget = golemTarget.position();
         }
         double dx = chaseTarget.x() - position.x();
         double dy = chaseTarget.y() - position.y();
@@ -3991,6 +4156,116 @@ public final class MobEntity implements LivingEntity {
                 pendingGolemSwing = true;
             }
         }
+    }
+
+    /**
+     * THE CENSUS'S OWN SCAN ({@code ActiveTargetGoal.canStart} lines
+     * 78-94 over the golem's subclass filter, IronGolemEntity lines
+     * 247-283): the 1-in-10 dice FIRST (the consult's own cadence — a
+     * census denied by the dice consumes exactly one stream read), then
+     * the gather over the grown box, every candidate's own box
+     * intersecting STRICT both sides, the filter set applied
+     * per-candidate in the gather's own order (the path consult's
+     * shared flag included — the first candidate's verdict stands for
+     * the window), the nearest survivor by the comparator's squared
+     * distance (the sort's {@code list.get(0)}).
+     */
+    private MobEntity golemCensusScan() {
+        if (random.nextInt(10) != 0) {
+            return null; // the chance gate (line 80)
+        }
+        double range = followRange(); // the attribute's 16 base
+        double half = type.width / 2.0;
+        java.util.List<MobEntity> candidates = world.hostileMobsInBox(
+                position.x() - half - range, position.y() - 4.0,
+                position.z() - half - range,
+                position.x() + half + range, position.y() + type.height + 4.0,
+                position.z() + half + range);
+        // The village band (isValidGoalTarget — the golem's own cached
+        // radius*0.6 consult over the engine's live village read; a
+        // village-less golem carries the -1 reset, every target valid).
+        net.zaminmc.torch.server.village.Village village = world.nearestVillageAt(
+                (int) Math.floor(position.x()), (int) Math.floor(position.y()),
+                (int) Math.floor(position.z()), 32);
+        MobEntity best = null;
+        double bestDistance = Double.MAX_VALUE;
+        for (MobEntity candidate : candidates) {
+            // The filter set (the override's predicate + isTarget's own
+            // gates): the creeper and the ghast refused, an invisible
+            // body refused, the golem's own team refused, the village
+            // band and the path consult over the rest.
+            if (candidate == this || candidate.dead()
+                    || candidate.type() == MobType.CREEPER
+                    || candidate.type() == MobType.GHAST
+                    || candidate.censusInvisible()
+                    || sameTeamAs(candidate)) {
+                continue;
+            }
+            if (village != null) {
+                double band = village.radius() * 0.6;
+                Position p = candidate.position();
+                double vx = p.x() - village.centerX();
+                double vy = p.y() - village.centerY();
+                double vz = p.z() - village.centerZ();
+                if (vx * vx + vy * vy + vz * vz >= band * band) {
+                    continue; // outside the golem's own village band
+                }
+            }
+            if (!golemCensusCanNavigate(candidate)) {
+                continue; // the path consult (checkCanNavigate TRUE)
+            }
+            double distance = squaredDistanceTo(candidate);
+            if (distance < bestDistance) {
+                bestDistance = distance;
+                best = candidate;
+            }
+        }
+        return best;
+    }
+
+    /**
+     * THE CENSUS'S PATH CONSULT ({@code TrackTargetGoal.canNavigateTo
+     * Target} lines 158-176 over the {@code canTarget} arm lines
+     * 145-156): a route to the candidate whose END NODE sits within
+     * squared-2.25 of the candidate's own cell — with the reference's
+     * own shared cache (the cooldown's 10 + nextInt(5) roll, the verdict
+     * standing for every candidate the window serves — the vanilla
+     * quirk kept verbatim: only the FIRST candidate of a window ever
+     * computes a path).
+     */
+    private boolean golemCensusCanNavigate(MobEntity candidate) {
+        if (--golemCensusNavigateCooldown <= 0) {
+            golemCensusNavigateFlag = 0;
+        }
+        if (golemCensusNavigateFlag == 0) {
+            golemCensusNavigateCooldown = 10 + random.nextInt(5);
+            net.zaminmc.torch.server.entity.ai.pathing.Path path =
+                    navigation.findPath(candidate.position().x(),
+                            candidate.position().y(), candidate.position().z());
+            boolean reachable = false;
+            if (path != null) {
+                net.zaminmc.torch.server.entity.ai.pathing.PathNode end =
+                        path.getTarget();
+                if (end != null) {
+                    int i = end.x - (int) Math.floor(candidate.position().x());
+                    int j = end.z - (int) Math.floor(candidate.position().z());
+                    reachable = i * i + j * j <= 2.25;
+                }
+            }
+            golemCensusNavigateFlag = reachable ? 1 : 2;
+        }
+        return golemCensusNavigateFlag != 2;
+    }
+
+    /**
+     * The census's invisibility consult (the VISIBLE_MONSTER filter's
+     * {@code !entity.isInvisible()} — the Monster interface's own
+     * predicate, lines 13-18): an invisibility effect stands the body
+     * out of the census.
+     */
+    boolean censusInvisible() {
+        return effectAmplifierPlusOne(
+                net.zaminmc.torch.server.potion.StatusEffects.INVISIBILITY) > 0;
     }
 
     /** The golem's own melee cadence (MeleeAttackGoal's 20-tick cycle). */
@@ -6875,6 +7150,19 @@ public final class MobEntity implements LivingEntity {
         if (dead || random.nextInt(1000) >= ambientSoundDelay++) {
             return null;
         }
+        if (type == MobType.HORSE) {
+            // THE HORSE'S OWN CONSULT SIDE EFFECTS (Wave PE-28 —
+            // getAmbientSound lines 500-504): the eating flash, then the
+            // 1-in-10 anger roll GATED ON THE ai-dead consult (line 502's
+            // {@code !isDead()} — the horse's own override: the ridden
+            // saddled seat, the graze, and the rear all refuse the roll),
+            // both BEFORE the name consult and the pitch's two draws (the
+            // reference's own stream order).
+            flashEating();
+            if (random.nextInt(HORSE_AMBIENT_ANGER_DICE) == 0 && !horseAiDead()) {
+                armHorseAnger();
+            }
+        }
         ambientSoundDelay = -ambientSoundInterval();
         String name = effectiveIdleSound();
         if (name.isEmpty()) {
@@ -7230,9 +7518,9 @@ public final class MobEntity implements LivingEntity {
             // THE BUCK (lines 63-66): the dismount, the angry flag, the
             // sound, the smoke — the first three the manager's drain, the
             // flag and its decay clock the body's own updateAnger (lines
-            // 988-993).
-            horseFlags |= HORSE_FLAG_REARING; // setAngry(true): flag 64 up
-            horseAngryTicks = 1; // updateAnger's clock (the 20-tick decay)
+            // 988-993, Wave PE-28: the anger ALSO stands the graze down —
+            // setAngry(true)'s own law, line 982).
+            armHorseAnger();
             pendingHorseBondBuck = true;
             horseBondTarget = null; // the seat empties: the window closes
             pathYawValid = false;
@@ -7302,8 +7590,14 @@ public final class MobEntity implements LivingEntity {
      * lines 997-1004): the donkey/mule band carries the donkey's angry
      * cry, the plain horse its own; the reference's zombie/skeleton-horse
      * null arm is not reachable in the engine's kind set (no subtype 3/4).
+     * THE CONSULT PAYS ITS SIDE EFFECTS (Wave PE-28): getAngreType opens
+     * with {@code setEating()} (line 517 — the flag-128 graze flash; the
+     * {@code updateAnger()} that follows it re-arms the window the buck
+     * dice already armed — the idempotent re-write the reference itself
+     * carries), so the consult alone owns the flash.
      */
     public String horseAngrySound() {
+        flashEating(); // setEating (line 517): the consult's own flash
         return horseSubtype == HORSE_SUBTYPE_DONKEY || horseSubtype == HORSE_SUBTYPE_MULE
                 ? "mob.horse.donkey.angry" : "mob.horse.angry";
     }
@@ -7319,17 +7613,92 @@ public final class MobEntity implements LivingEntity {
         }
     }
 
-    /** Feeding raises the temper and flashes the eating flag (the graze). */
+    /** Feeding raises the temper (HorseBaseEntity.addTemper lines
+     * 311-314, the clamp to [0, max]) — and NOTHING else: the eating
+     * flash the old stand-in carried belongs to playEatingAnimation
+     * (the interact's own call, lines 346-352), never to the temper
+     * write itself. */
     public void feedTemper(int amount) {
-        temper = Math.min(100, temper + amount);
-        eatingTicks = 20;
-        horseFlags |= HORSE_FLAG_EATING;
+        temper = Math.min(HORSE_MAX_TEMPER, temper + amount);
     }
 
-    /** The horse's eating graze without a temper change ({@code setEating}). */
+    /**
+     * THE EATING FLASH ({@code setEating}, HorseBaseEntity lines 956-960,
+     * Wave PE-28): the flag-128 graze window every sound consult opens
+     * — the clock set to 1 (the tick's own {@code ++eatingTicks > 30}
+     * up-count), the flag up. This is NOT the eating-hay graze (flag 32,
+     * {@link #setEatingHay}) — the reference's two windows are distinct:
+     * the flash is the brief head-down chew the sounds open, the hay
+     * window is the long graze the spontaneous dice arms.
+     */
     public void flashEating() {
-        eatingTicks = 20;
-        horseFlags |= HORSE_FLAG_EATING;
+        eatingTicks = 1;
+        horseFlags |= HORSE_FLAG_MOUTH_OPEN; // setHorseFlag(128, true)
+    }
+
+    /**
+     * THE EATING-HAY WINDOW ({@code setEatingHay} → {@code setUsingItem}
+     * → flag 32, lines 976-980): the long graze — armed by the
+     * spontaneous dice (mobTick), stood down by the window's own
+     * 50-tick close, the mount, the anger, and the leash pull. The
+     * window's clock ({@code eatingGrassTicks}) is NOT reset here — the
+     * reference resets it only at the window's own end arm (line 868),
+     * so an early clear leaves the count standing exactly as the
+     * reference's does.
+     */
+    public void setEatingHay(boolean eatingHay) {
+        if (eatingHay) {
+            horseFlags |= HORSE_FLAG_EATING;
+        } else {
+            horseFlags &= ~HORSE_FLAG_EATING;
+        }
+    }
+
+    /**
+     * THE HORSE'S ai-dead CONSULT (the {@code isDead()} override, line
+     * 811 — the same law the mind park reads): the ridden SADDLED seat,
+     * the eating-hay graze, and the angry rear. The reference's own
+     * ambient consult gates its anger roll on it (getAmbientSound line
+     * 502's {@code !isDead()}).
+     */
+    boolean horseAiDead() {
+        return hasRider() && saddled() || eating() || rearing();
+    }
+
+    /**
+     * THE ANGER ARM ({@code updateAnger}, lines 988-993, over
+     * {@code setAngry(true)}'s own law line 982): the clock to 1 (the
+     * 20-tick decay's own start), flag 64 up — and the eating-hay graze
+     * DOWN (an angry horse never chews).
+     */
+    void armHorseAnger() {
+        setEatingHay(false); // setAngry(true): the graze stands down
+        horseFlags |= HORSE_FLAG_REARING;
+        horseAngryTicks = 1;
+    }
+
+    /**
+     * THE MOUNT'S ANGER CLEAR ({@code putPlayerOnBack} line 799's
+     * {@code setAngry(false)}): flag 64 down alone — the anger-down arm
+     * carries no eating-hay side effect (that law is the anger-UP arm's
+     * own, line 982) and no clock reset (the 20-tick decay runs its own
+     * course harmlessly, the reference's own shape).
+     */
+    public void setHorseAngerDownAtMount() {
+        horseFlags &= ~HORSE_FLAG_REARING;
+    }
+
+    /**
+     * THE EATING ANIMATION ({@code playEatingAnimation}, lines 346-352):
+     * the flash (setEating) then the "eating" sound at 1.0 volume with
+     * the two-draw pitch jitter — {@code 1.0F + (r - r) * 0.2F} — the
+     * consult returns the pitch, the caller pays the sound (gated on
+     * the body's own silence flag, the reference's {@code !isSilent()}).
+     */
+    public float playEatingAnimation() {
+        flashEating(); // setEating (line 348)
+        float jitter = random.nextFloat() - random.nextFloat();
+        return 1.0f + jitter * 0.2f;
     }
 
     // ------------------------------------------------ breeding + donkey chest
@@ -9717,6 +10086,93 @@ public final class MobEntity implements LivingEntity {
         ignite(FIRE_TICKS); // setOnFireFor(8) — the reference's own clock
     }
 
+    /**
+     * THE HORSE'S OWN mobTick FAMILY (Wave PE-28 — HorseBaseEntity
+     * .mobTick lines 845-880, every law read from its own source 1:1,
+     * the reference's own roll order kept verbatim):
+     *
+     * <p>(1) THE VESTIGIAL MOUTH ROLL ({@code nextInt(200) == 0 →
+     * setType()}, line 846 + lines 835-837): the reference's own
+     * {@code type} field set to 1 — nothing server-side ever READS it
+     * and it never rides the wire (the tick's own 8-tick window counts
+     * it back down); the roll + counter land for the mobTick stream's
+     * own parity, verbatim.
+     *
+     * <p>(2) THE SLOW REGEN ({@code nextInt(900) == 0 &&
+     * deathTicks == 0 → heal(1.0F)}, lines 858-860): an un-dying horse
+     * heals a half-heart roughly every 45 seconds.
+     *
+     * <p>(3) THE SPONTANEOUS GRAZE ({@code !isEatingHay() &&
+     * rider == null && nextInt(300) == 0 && grassBelow}, lines 862-865):
+     * an unridden, not-yet-grazing horse standing over a GRASS block
+     * starts the hay window (flag 32 up — the 50-tick graze the mind
+     * parks under).
+     *
+     * <p>(4) THE HAY WINDOW'S CLOSE ({@code isEatingHay() &&
+     * ++eatingGrassTicks > 50}, lines 867-869): the clock resets at the
+     * window's own end alone — an early clear (anger, mount, leash)
+     * leaves the count standing, the reference's own shape.
+     *
+     * <p>(5) THE BRED CHILD'S FAMILY WALK (lines 872-878): a BRED foal
+     * not yet old enough, not grazing, walks to the nearest BRED horse
+     * (the BREED_FILTER gather over the own shape expanded 16, the
+     * walk armed past squared-4) — the {@code findPath} arm the
+     * reference's own navigation ticks; the engine's mind drives the
+     * same walk through its own path follower at the horse's own
+     * stroll band (0.7, the reference's own WanderAroundGoal ctor
+     * speed — the named adaptation, the walk observable identical).
+     * The BRED flag only ever comes from a foreign save's read (the
+     * reference's own breeding path never sets it — {@code setBred}
+     * has no caller but the NBT read), so the walk rides the loaded
+     * save exactly as the reference's does.</p>
+     */
+    private void tickHorseGraze() {
+        // (1) The vestigial mouth roll — FIRST, the reference's own order.
+        if (random.nextInt(HORSE_MOUTH_DICE) == 0) {
+            horseMouthTicks = 1; // setType(): the 8-tick counter
+        }
+        // (2) The slow regen.
+        if (random.nextInt(HORSE_REGEN_DICE) == 0 && deathTicks == 0) {
+            heal(HORSE_REGEN_HEAL);
+        }
+        // (3) The spontaneous graze: the feet cell below must be a GRASS
+        // block (line 864 — the plain grass, never the tall grass the
+        // sheep's graze reads).
+        if (!eating() && !hasRider() && random.nextInt(HORSE_GRAZE_DICE) == 0) {
+            int bx = (int) Math.floor(position.x());
+            int by = (int) Math.floor(position.y());
+            int bz = (int) Math.floor(position.z());
+            net.zaminmc.torch.util.Identifier below = world.blockIdAt(bx, by - 1, bz);
+            if (below != null && below.toString().equals("minecraft:grass_block")) {
+                setEatingHay(true);
+            }
+        }
+        // (4) The hay window's close.
+        if (eating() && ++eatingGrassTicks > HORSE_HAY_WINDOW_TICKS) {
+            eatingGrassTicks = 0;
+            setEatingHay(false);
+        }
+        // (5) The bred child's family walk.
+        if (horseBred && breedingAge < 0 && !eating()) {
+            double stretch = HORSE_KIN_WALK_RANGE;
+            MobEntity kin = world.nearestBredHorseInBox(
+                    position.x() - type.width / 2.0 - stretch,
+                    position.y() - stretch,
+                    position.z() - type.width / 2.0 - stretch,
+                    position.x() + type.width / 2.0 + stretch,
+                    position.y() + type.height + stretch,
+                    position.z() + type.width / 2.0 + stretch,
+                    entityId(), position.x(), position.y(), position.z());
+            if (kin != null && squaredDistanceTo(kin) > HORSE_KIN_WALK_MIN_BAND) {
+                // findPath(kin): the walk armed toward the kin — the
+                // engine's own path follower drives it (the stroll band).
+                goalWalkSpeed = 0.7;
+                mode = Mode.WANDER;
+                tickPathFollowing(kin.position());
+            }
+        }
+    }
+
     /** A worn piece the daylight wear exhausted (the drain's staged pair). */
     public record EquipmentBreak(ItemStack stack, float pitch) {
     }
@@ -10995,6 +11451,18 @@ public final class MobEntity implements LivingEntity {
     }
 
     /**
+     * The same-team refusal's PLAYER form (Wave PE-29 — the defense
+     * consult's player arms over the same isTarget law): the engine's
+     * teams key a player by NAME, a mob by its uuid string — the
+     * equality consult is the same.
+     */
+    boolean sameTeamAsPlayer(String playerName) {
+        String own = teamName();
+        return own != null && playerName != null
+                && own.equals(world.teamNameOf(playerName));
+    }
+
+    /**
      * The day-neutral kinds' darkness gate (the reference's spider law —
      * {@code SpiderEntity.TargetGoal.canStart} lines 222-226 over the attack
      * goal's own continue, {@code SpiderAttackGoal.shouldContinue} lines
@@ -11474,7 +11942,11 @@ public final class MobEntity implements LivingEntity {
      * plain wander's 6).
      */
     private static final MobType[] PARENT_FOLLOW_KINDS = {
-            MobType.COW, MobType.SHEEP, MobType.PIG, MobType.CHICKEN};
+            MobType.COW, MobType.SHEEP, MobType.PIG, MobType.CHICKEN,
+            // Wave PE-28 — the horse's own registration (HorseBaseEntity
+            // line 111: FollowParentGoal at band 4, speed 1.0): a horse
+            // foal walks to the nearest adult of its own kind.
+            MobType.HORSE};
 
     /** The graze window's own length ({@code EatGrassGoal.start}: 40). */
     private static final int EAT_GRASS_WINDOW = 40;
@@ -11684,7 +12156,12 @@ public final class MobEntity implements LivingEntity {
         }
         if (--followParentDelay <= 0) {
             followParentDelay = 10;
-            goalWalkSpeed = type == MobType.COW ? 1.25 : 1.1;
+            // The per-kind ctor speeds (Wave PE-28: the horse's own 1.0 —
+            // HorseBaseEntity line 111, the same band as the villager
+            // child's golem walk; the cow's 1.25 and the 1.1 band are the
+            // reference's own rows).
+            goalWalkSpeed = type == MobType.COW ? 1.25
+                    : type == MobType.HORSE ? 1.0 : 1.1;
             mode = Mode.WANDER;
             modeTicks = 0;
             navigation.moveTo(parent.position().x(), parent.position().y(),

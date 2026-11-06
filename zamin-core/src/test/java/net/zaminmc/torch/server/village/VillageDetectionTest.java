@@ -346,9 +346,13 @@ class VillageDetectionTest {
     /**
      * The reputation table (Village lines 340-354): the −30..10 clamp,
      * the −15 bad band, and the golem's defense consult over the
-     * attacker census — the nearest live attacker answers (the creeper
-     * excluded), the dead rows never do, and the bad-reputation player
-     * fallback answers the village's enemy.
+     * attacker census — the nearest live attacker of ANY kind answers
+     * (Wave PE-29: the reference's own {@code getNearestAttacker},
+     * Village lines 247-261, carries no creeper skip; the refusal is
+     * the GOAL's own gate, TrackIronGolemTargetGoal line 25-27 — the
+     * consult refuses whole when the nearest attacker is a creeper,
+     * pinned in the manager's lane), the dead rows never answer, and
+     * the bad-reputation player fallback answers the village's enemy.
      */
     @Test
     void theReputationTableAndTheGolemDefenseConsult() {
@@ -372,12 +376,20 @@ class VillageDetectionTest {
         assertEquals(500, system.defenseAttackerId(village, 0, 4, 0),
                 "the nearest live attacker answers");
 
-        // The creeper exclusion (TrackIronGolemTargetGoal line 26).
+        // The walk carries no creeper skip (getNearestAttacker's own
+        // shape, Wave PE-29): the NEARER creeper answers — the refusal
+        // is the goal's own gate, never the walk's.
         village.addOrUpdateAttacker(501, false, "CREEPER");
         surface.alive.put(501, true);
         surface.positions.put(501, new double[] {1, 4, 1});
+        assertEquals(501, system.defenseAttackerId(village, 0, 4, 0),
+                "the walk answers the nearest attacker of ANY kind (the"
+                        + " creeper included — the refusal is the goal's own gate)");
+        // The goal's own gate reads the BODY: with only the zombie left
+        // standing (the creeper row dead), the walk answers the zombie.
+        surface.alive.put(501, false);
         assertEquals(500, system.defenseAttackerId(village, 0, 4, 0),
-                "the creeper never turns the village's golem");
+                "the dead creeper row never answers");
 
         // The dead row never answers (the clean-up's own read).
         surface.alive.put(500, false);

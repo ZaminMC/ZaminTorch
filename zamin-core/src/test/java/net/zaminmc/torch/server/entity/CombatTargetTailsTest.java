@@ -160,6 +160,26 @@ class CombatTargetTailsTest {
         }
 
         @Override
+        public List<MobEntity> hostileMobsInBox(
+                double minX, double minY, double minZ,
+                double maxX, double maxY, double maxZ) {
+            List<MobEntity> found = new ArrayList<>();
+            for (MobEntity mob : mobs) {
+                if (mob.dead() || !mob.type().hostile) {
+                    continue;
+                }
+                Position p = mob.position();
+                double half = mob.type().width / 2.0;
+                if (p.x() + half > minX && p.x() - half < maxX
+                        && p.y() + mob.type().height > minY && p.y() < maxY
+                        && p.z() + half > minZ && p.z() - half < maxZ) {
+                    found.add(mob);
+                }
+            }
+            return found;
+        }
+
+        @Override
         public MobEntity nearestHostileMob(double x, double y, double z, double range,
                                            MobType excludeKind, String excludeTeam) {
             MobEntity best = null;
@@ -223,31 +243,28 @@ class CombatTargetTailsTest {
     // ------------------------------------------------------------------
 
     @Test
-    void theGolemTurnsOnlyOnTheVillageDefenseNeverOnSight() {
+    void theGolemsCensusSkipsTheCreeperAndHuntsTheZombieBehindIt() {
         TargetWorld world = new TargetWorld();
         MobEntity golem = spawn(world, 900, MobType.IRON_GOLEM, new Position(0.5, 8.0, 0.5), 71L);
-        // The creeper is the NEARER hostile; the zombie stands behind it —
-        // neither is hunted: the 1.8.8 golem carries NO on-sight census
-        // (TrackIronGolemTargetGoal alone, IronGolemEntity line 54 — the
-        // village's defense consult; the 32-block census the engine
-        // formerly carried is the 1.14 law, retired Wave PE-27).
+        // The creeper is the NEARER hostile; the zombie stands behind it.
+        // THE MONSTER CENSUS (Wave PE-29 — the band-3 ActiveTargetGoal,
+        // IronGolemEntity line 56): the creeper is refused by the goal's
+        // own override predicate (lines 256-258), so the ZOMBIE behind it
+        // is the gather's nearest survivor — the golem hunts it on sight
+        // (the 1-in-10 consult dice rolls until it lands).
         MobEntity creeper = spawn(world, 901, MobType.CREEPER, new Position(3.5, 8.0, 0.5), 72L);
         MobEntity zombie = spawn(world, 902, MobType.ZOMBIE, new Position(6.5, 8.0, 0.5), 73L);
 
-        golem.tick(true);
-        assertNull(golem.golemTarget(),
-                "no census runs — neither the creeper nor the zombie behind it is hunted");
-        assertEquals(MobEntity.Mode.IDLE, golem.mode(), "the stroll cycle holds");
-
-        // The defense arm's write (the manager's defense consult — the
-        // creeper exclusion and the attacker registry live in the village):
-        // the mob target's chase owns the walk (the census-starved mind
-        // never ran it).
-        golem.setMobAttackTarget(zombie);
-        golem.tick(true);
+        boolean hunted = false;
+        for (int i = 0; i < 100 && !hunted; i++) {
+            golem.tick(true);
+            hunted = golem.golemTarget() == zombie;
+        }
+        assertTrue(hunted, "the census's dice lands the zombie behind the creeper");
+        assertTrue(golem.golemTarget() != creeper,
+                "the creeper never rides the golem's target row (the exclusion)");
         assertEquals(MobEntity.Mode.CHASE, golem.mode(),
-                "the defense target's chase owns the walk");
-        golem.setMobAttackTarget(null);
+                "the census target's chase owns the walk");
     }
 
     @Test
@@ -264,6 +281,99 @@ class CombatTargetTailsTest {
         assertTrue(manager.hurtByMob(zombie, golem, 5.0f));
         assertSame(zombie, golem.mobAttackTarget(),
                 "RevengeGoal(this, false) — targetSelector 2, line 55: the golem avenges on its attacker");
+    }
+
+    /**
+     * THE DEFENSE CONSULT'S OWN GATES (Wave PE-29 —
+     * TrackIronGolemTargetGoal.canStart lines 25-27 + isTarget lines
+     * 102-106, through the manager's wiring): the NEAREST attacker a
+     * creeper refuses the consult WHOLE (no target that tick, no
+     * fallback roll — the refusal is the goal's own gate, never the
+     * village walk's); the same-team refusal gates the mob arm (a teamed
+     * golem never turns on its kin through the wound registry).
+     */
+    @Test
+    void theDefenseConsultRefusesTheCreeperWholeAndCarriesTheTeamGate() {
+        TargetWorld world = new TargetWorld();
+        class DefenseSurface implements net.zaminmc.torch.server.village.VillageSystem.Surface {
+            @Override public boolean isWoodenDoor(int x, int y, int z) { return false; }
+            @Override public net.zaminmc.torch.block.Direction doorFacing(int x, int y, int z) {
+                return net.zaminmc.torch.block.Direction.SOUTH;
+            }
+            @Override public boolean hasSkyAccess(int x, int y, int z) { return true; }
+            @Override public int countVillagersIn(double minX, double minY, double minZ,
+                    double maxX, double maxY, double maxZ) { return 0; }
+            @Override public int countGolemsIn(double minX, double minY, double minZ,
+                    double maxX, double maxY, double maxZ) { return 0; }
+            @Override public void spawnGolem(Position at) { }
+            @Override public boolean solidAt(int x, int y, int z) { return y < 8; }
+            @Override public boolean entityAlive(int engineId) {
+                for (MobEntity mob : world.mobs) {
+                    if (mob.entityId() == engineId) {
+                        return !mob.dead();
+                    }
+                }
+                return false;
+            }
+            @Override public double[] entityPosition(int engineId) {
+                for (MobEntity mob : world.mobs) {
+                    if (mob.entityId() == engineId) {
+                        Position p = mob.position();
+                        return new double[] {p.x(), p.y(), p.z()};
+                    }
+                }
+                return null;
+            }
+            @Override public double[] playerPosition(String name) { return null; }
+            @Override public int engineIdOfPlayer(String name) { return -1; }
+        }
+        net.zaminmc.torch.server.village.VillageSystem system =
+                new net.zaminmc.torch.server.village.VillageSystem(
+                        new DefenseSurface(), new Random(90L));
+        net.zaminmc.torch.server.village.Village village =
+                new net.zaminmc.torch.server.village.Village();
+        village.addDoor(new net.zaminmc.torch.server.village.VillageDoor(
+                2, 8, 2, net.zaminmc.torch.block.Direction.SOUTH, 0));
+        system.villages().add(village);
+
+        class NoLoot implements MobManager.LootSink {
+            @Override public void spawnLootDrop(Position position, net.zaminmc.torch.item.ItemStack stack, int dimension) { }
+        }
+        MobManager manager = new MobManager(world, new Random(91L), new NoLoot(), 970_000, (x, z) -> 8);
+        manager.setVillageSystem(system);
+        MobEntity golem = manager.spawnAt(MobType.IRON_GOLEM, new Position(0.5, 8.0, 0.5));
+        // The zombie stands FAR (outside the census's 16-band box, so the
+        // band-3 census never muddies the defense read); the creeper is
+        // the NEAREST attacker. The spawns register with the seat's own
+        // world list too (the DefenseSurface's reads walk it).
+        MobEntity zombie = manager.spawnAt(MobType.ZOMBIE, new Position(30.5, 8.0, 0.5));
+        MobEntity creeper = manager.spawnAt(MobType.CREEPER, new Position(2.5, 8.0, 0.5));
+        world.mobs.add(golem);
+        world.mobs.add(zombie);
+        world.mobs.add(creeper);
+        village.addOrUpdateAttacker(creeper.entityId(), false, "CREEPER");
+        village.addOrUpdateAttacker(zombie.entityId(), false, "ZOMBIE");
+
+        manager.tick(List.of(), 6000L);
+        assertNull(golem.mobAttackTarget(),
+                "the creeper-nearest consult refuses whole (line 26 — no"
+                        + " target, no fallback roll that tick)");
+        assertNull(golem.forcedHuntPosition(), "no player arm ran either");
+
+        // The creeper gone (its row dead): the zombie attacker answers.
+        creeper.hurt(1000.0f, true);
+        manager.tick(List.of(), 6050L);
+        assertSame(zombie, golem.mobAttackTarget(),
+                "the dead creeper row never answers — the zombie attacker does");
+
+        // THE TEAM GATE (isTarget lines 102-106): a teamed golem never
+        // turns on its kin through the wound registry.
+        golem.setMobAttackTarget(null);
+        world.teams.put(golem.getUuid().toString(), "red");
+        world.teams.put(zombie.getUuid().toString(), "red");
+        manager.tick(List.of(), 6100L);
+        assertNull(golem.mobAttackTarget(),
+                "the same-team refusal gates the defense consult's mob arm");
     }
 
     @Test

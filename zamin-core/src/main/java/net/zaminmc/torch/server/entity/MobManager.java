@@ -1618,6 +1618,13 @@ public final class MobManager {
         if (!mob.isMountable() || mob.hasRider() || mob.dead()) {
             return false;
         }
+        // putPlayerOnBack's own clears (Wave PE-28 — lines 798-799): the
+        // hay graze and the anger BOTH stand down at the seat (an angry
+        // horse mounts calm — the riding window never opens mid-rear).
+        if (mob.type() == MobType.HORSE) {
+            mob.setEatingHay(false);
+            mob.setHorseAngerDownAtMount();
+        }
         mob.setRider(riderEngineId);
         mob.setRiderIdentity(ownerName, ownerUuid);
         for (Listener listener : listeners) {
@@ -1917,7 +1924,7 @@ public final class MobManager {
             // target consult runs BEFORE the mind's own walk so the
             // defense target owns the hunt.
             if (mob.type() == MobType.IRON_GOLEM) {
-                tickGolemVillageDefense(mob);
+                tickGolemVillageDefense(mob, players);
             }
 
             boolean wasPriming = mob.fuseActive();
@@ -3960,16 +3967,20 @@ public final class MobManager {
      * The golem's village-defense consult (VIII10 — IronGolemEntity
      * .mobAiTick lines 66-79's own village read over
      * TrackIronGolemTargetGoal.canStart lines 19-39): the nearest village
-     * within 32, its attacker census first (the creeper excluded — the
-     * goal's own gate), the nearest live attacker becoming the golem's
-     * own target — the mob arm through the mob target, the player arm
-     * through the forced hunt — and the 1-in-20 bad-reputation player
-     * fallback when no attacker stands. The reference caches the village
-     * at the 70-120 cadence and the goal reads it every tick; the engine
-     * resolves the nearest village live (the same village the cadence
-     * would cache — the named adaptation, observably identical).
+     * within 32, its attacker census first — THE GOAL'S OWN GATES (Wave
+     * PE-29, each read from its source): the nearest attacker a CREEPER
+     * refuses the consult whole (line 25-27 — no fallback roll that
+     * tick), the same-team refusal (isTarget lines 102-106 — a teamed
+     * golem never turns on its kin through the wound registry, the mob
+     * arm and BOTH player arms carrying it), and the 1-in-20
+     * bad-reputation player fallback when the attacker stands refused or
+     * none stands (canTarget's own fail-through, lines 28-34). The
+     * reference caches the village at the 70-120 cadence and the goal
+     * reads it every tick; the engine resolves the nearest village live
+     * (the same village the cadence would cache — the named adaptation,
+     * observably identical).
      */
-    private void tickGolemVillageDefense(MobEntity golem) {
+    private void tickGolemVillageDefense(MobEntity golem, Iterable<PlayerSession> players) {
         net.zaminmc.torch.server.village.VillageSystem villages = villageSystem;
         if (villages == null) {
             return;
@@ -3990,23 +4001,54 @@ public final class MobManager {
         int attackerId = villages.defenseAttackerId(village, x, y, z);
         if (attackerId >= 0) {
             MobEntity attackerMob = byId(attackerId);
-            if (attackerMob != null) {
-                golem.setMobAttackTarget(attackerMob);
-            } else if (mayHuntPlayers) {
-                golem.setForcedHuntPlayer(attackerId); // a player attacker
+            if (attackerMob != null && attackerMob.type() == MobType.CREEPER) {
+                // The goal's own gate (canStart lines 25-27): the NEAREST
+                // attacker a creeper — the consult refuses whole (no
+                // fallback roll this tick; the reference's getNearestAttacker
+                // itself carries no creeper skip, the refusal is the goal's).
+                return;
             }
-            return;
+            if (attackerMob != null) {
+                if (!golem.sameTeamAs(attackerMob)) {
+                    golem.setMobAttackTarget(attackerMob);
+                    return;
+                }
+                // canTarget's same-team refusal — the fallback rolls below
+                // exactly as the reference's fail-through arm (lines 28-34).
+            } else if (mayHuntPlayers) {
+                String playerName = playerNameOfEngineId(players, attackerId);
+                if (playerName == null || !golem.sameTeamAsPlayer(playerName)) {
+                    golem.setForcedHuntPlayer(attackerId); // a player attacker
+                }
+                return;
+            } else {
+                // The player-created refusal: canTarget's gate — the
+                // fallback's own canTarget would refuse the player too.
+                return;
+            }
         }
-        // The 1-in-20 fallback (lines 30-33): the village's enemy player.
+        // The 1-in-20 fallback (lines 30-33): the village's enemy player,
+        // its own team consult the isTarget law carries.
         if (mayHuntPlayers && random.nextInt(20) == 0) {
             String name = villages.defensePlayerName(village, x, y, z);
-            if (name != null) {
+            if (name != null && !golem.sameTeamAsPlayer(name)) {
                 int playerId = villages.engineIdOfPlayer(name);
                 if (playerId >= 0) {
                     golem.setForcedHuntPlayer(playerId);
                 }
             }
         }
+    }
+
+    /** The player's NAME for an engine id (the defense consult's player
+     *  arm — the team consult reads the name-keyed registry). */
+    private static String playerNameOfEngineId(Iterable<PlayerSession> players, int engineId) {
+        for (PlayerSession player : players) {
+            if (player.engineEntityId() == engineId) {
+                return player.name();
+            }
+        }
+        return null;
     }
 
     /**

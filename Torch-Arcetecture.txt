@@ -8758,27 +8758,38 @@ the write), the same class the blaze's band-5 row already carried;
 the golem's NIGHT walk (band 3) is the live one and it landed here
 over the LIVE village consult, never the cache.
 
-NEXT WORK (re-pinned, in order): the verifier's non-1:1
-documentation and PRs the standing input for every lane (none open
-at this session's close — the two PRE-EXISTING failures on clean
-develop this session root-caused and left for the verifier's rows:
-RangedCombatAcceptanceTest's snowball shatter never rides the FX
-bus, DonkeyChestIntegrationTest's open-window packet 45 times out —
-both reproduced on stashed clean HEAD); the horse's EATING-WINDOW
-flag family (the reference's flag-32 eatingHay vs flag-128 graze
-window — setEating's eatingTicks=1 + flag 128 at every sound
-consult, the ++eatingTicks > 30 decay, the engine carries only flag
-32 with a down-count — the census row this wave's angry-decay work
-found beside it); the defense consult's TEAM gate (TrackTargetGoal
-.isTarget's same-team refusal — the village's defenseAttackerId has
-no team consult, a teamed golem could turn on its kin through the
-wound registry); the golem's own-wound revenge row (the engine's
-hurtByMob gives the golem a revenge arm the 1.8.8 reference carries
-only for wolves/zombies — CombatTargetTailsTest's seat documents
-it); the CI census watches (the environmental class — the
-BedPairFacingResolutionParityTest flake watched, it passed isolated
-both probes this session); the vanilla-grade census's next family
-pick when the verifier's rows land.
+NEXT WORK (re-pinned after PE-28 + PE-29, in order): the verifier's
+non-1:1 documentation and PRs the standing input for every lane
+(none open at this session's close — the two PRE-EXISTING failures
+on clean develop still the verifier's rows: RangedCombatAcceptance
+Test's snowball shatter never rides the FX bus, DonkeyChest
+IntegrationTest's open-window packet 45 times out); the horse's
+RIDING-WINDOW family's own standing tails (the steer model's
+jumpStrength consult — setJumpStrength's strength>=0 rear-jump arm
++ the 0.4F+0.4F*str/90 band, HorseBaseEntity lines 1310-1327, over
+the engine's steer shape; the gallop/breathe/wood step-sound
+family — playStepSound lines 529-548's soundTicks ladder; the
+walkAnimation pair the client renders); the defense consult's
+canTarget DEPTH (the village-band + path consults the reference's
+TrackTargetGoal.canTarget carries on the DEFENSE goal's own arms —
+PE-29 landed them on the census whole, the defense arms still read
+only the team gate); the golem's pushAway arm (IronGolemEntity
+lines 88-92 — a pushed Monster, not creeper, nextInt(20) → the
+target; NOT-REACHABLE until the engine carries a mob-mob collision
+push walk — the whole push family the verifier's census row); the
+hurt/death sound wire's flat volume/pitch (the engine's
+onMobHurt/onMobDied play 1.0/1.0 flat — the reference's
+getSoundVolume/getSoundPitch consults carry the per-kind volume
+table and the two-draw jitter; the consult site itself lives at the
+wire layer, the horse's side effects PE-28 landed inside the
+consult methods); the horse-feed interact's ACCEPTANCE seat (the
+fx sound's pitch + the silent gate over the real session — the
+unit consults landed, the wire seat still absent); the CI census
+watches (the environmental class — BedPairFacingResolution flaked
+once, PanicFlee's wounded-cow seat flaked once this session then
+6/6 green incl. a clean-develop probe — watch both); the
+vanilla-grade census's next family pick when the verifier's rows
+land.
 
 WAVES PE-25 + PE-26 + PE-27 LANDED (2026-11-06, commits d88822d9 +
 58ee9735 + the golem repair — three waves, each law read from the
@@ -8882,6 +8893,105 @@ the village/vehicle/nbt/goal-api/mount-seats/anvil/ai lanes green,
 the bukkit module compiles, the protocol module carries only its
 pre-existing DonkeyChest row (root-caused on clean HEAD, left for
 the verifier).
+
+WAVES PE-28 + PE-29 LANDED (2026-11-06, one session — the horse's
+two graze windows + the golem's target family completed, each law
+read from the reference's own source 1:1):
+
+PE-28 — THE HORSE'S EATING-WINDOW FLAG FAMILY (HorseBaseEntity's
+TWO graze windows, the PE-25 census row): (1) FLAG 32, THE
+EATING-HAY WINDOW — the spontaneous graze (mobTick lines 862-865:
+nextInt(300), no rider, a GRASS block below), the 50-tick close
+(lines 867-869 — the clock only ever resets at the window's own
+end, an early clear leaves the count standing), the NBT
+EatingHaystack row reading setEatingHay(true) (line 1134 — the
+LONG window, never the old 20-tick flash), and the three clears —
+the anger (setAngry(true) line 982), the mount (putPlayerOnBack
+lines 798-799: the graze AND the anger both down), and the leash
+pull (updateForLeashLength lines 230-234 — the LeadSystem's pull
+arm carries it). (2) FLAG 128, THE EATING FLASH — setEating (lines
+956-960: the clock to 1, the flag up) at EVERY sound consult
+(getHurtSound line 480 + its 1-in-3 anger roll line 481,
+getAmbientSound line 501 + its 1-in-10 anger roll GATED ON THE
+ai-dead consult line 502, getDeathSound line 454, getAngreType
+line 517 — the angry-sound consult, playEatingAnimation line 348
++ its two-draw pitch 1.0+(r-r)*0.2 with the !isSilent() gate),
+and the 30-tick UP-count decay (tick line 889 — the engine's old
+20-tick down-count retired whole). (3) THE ai-dead PARK LAW (the
+isDead override, line 811): [rider && SADDLED] || eatingHay ||
+angry — the mind parks under all three, and the ridden carve-out
+is now the SADDLE consult the reference itself carries (an
+unsaddled ridden horse — TAMED or wild — keeps its mind; the
+PE-25 tame-bit carve-out repaired). (4) THE OWN mobTick FAMILY
+(lines 845-880, the reference's roll order verbatim — the
+vestigial mouth roll nextInt(200) with its 8-tick counter, the
+slow regen nextInt(900) heal(1.0F), the graze, the close, and the
+BRED child's family walk lines 872-878: the nearest BRED horse
+over the 16-expanded own box past squared-4, the BREED_FILTER
+census landed as nearestBredHorseInBox) — the whole family runs
+BEFORE the park consult (the reference's mobTick sits OUTSIDE the
+ai section: a grazing horse still counts its own window down —
+the placement bug the first cut reintroduced, caught by the
+discovery seat, retired again). (5) THE SOUND-CONSULT SIDE
+EFFECTS land inside the consult methods themselves (hurtSound /
+deathSound / ambientSoundDue / horseAngrySound / playEating
+Animation), the ambient's added draws sitting before the pitch's
+two (the reference's own stream order); feedTemper retired to the
+temper write ALONE (playEatingAnimation owns the flash at the
+interact). (6) THE HORSE'S OWN FollowParentGoal REGISTRATION
+(HorseBaseEntity line 111, band 4 at speed 1.0 — PARENT_FOLLOW
+_KINDS + the per-kind speed row). SEATS: HorseGrazeParity
+DiscoveryTest 10/0 (the 50-tick window verbatim, the flash's
+30-tick up-count at every consult, the ambient's ai-dead-gated
+anger roll, the eating animation's pitch band, the mount/anger
+clears, the slow regen, the saddle park consult, the foal's
+parent walk, the bred child's kin walk); the NBT read seat reads
+the LONG window; the leash pull arm carries the clear.
+
+PE-29 — THE GOLEM'S TARGET FAMILY COMPLETED (IronGolemEntity's
+THREE target registrations, lines 54-56): (1) BAND 3, THE
+MONSTER CENSUS REINSTATED — the PE-27 retirement MISREAD the
+reference (the decompile's own line 56 registers the golem's
+ActiveTargetGoal over MobEntity.class at chance 10, no sight
+check, the path consult): the 1-in-10 consult dice, the gather
+over the golem's OWN shape grown the FOLLOW RANGE (16)
+horizontally and 4 vertically (hostileMobsInBox — the new list
+consult), the filter set per-candidate (the creeper excluded —
+the override's own predicate lines 256-258; the ghast refused —
+canAttack line 126; the invisible refused — the VISIBLE_MONSTER
+filter; the same-team refused — isTarget lines 102-106; the
+village band — isValidGoalTarget over the live village read,
+radius*0.6 of the village within 32), the PATH CONSULT with the
+reference's own shared-cache quirk (checkCanNavigate lines
+158-176 — findPath's end node within squared-2.25 of the target's
+cell, the first candidate's verdict standing for the whole
+10+nextInt(5) window), the nearest survivor by squared distance,
+the window held under shouldContinue's own gates (the team
+refusal, the follow-range band). (2) THE DEFENSE CONSULT'S OWN
+GATES (the pin's team row): the same-team refusal on the MOB arm
+and BOTH player arms (sameTeamAsPlayer — the player's NAME-keyed
+team consult), and the creeper refusal moved back to the
+consult's own gate (canStart lines 25-27 — the NEAREST attacker a
+creeper refuses the consult WHOLE, no fallback roll that tick;
+the village walk's creeper skip retired — getNearestAttacker
+itself carries none, Village lines 247-261) with the canTarget
+fail-through to the 1-in-20 fallback preserved (lines 28-34).
+(3) THE REVENGE ROW VERIFIED CORRECT (the pin's claim was
+backwards — the reference's line 55 registers RevengeGoal(this,
+false) for the golem itself, and the engine's applyRevenge already
+carried it with no call-others + the team gate: the row closed as
+a non-repair with the reference line cited). SEATS REWRITTEN to
+the census law: GolemEntityTest's hunt seat (the census hunts the
+zombie on sight, the creeper never), CombatTargetTailsTest's
+creeper seat (the zombie behind the refused creeper hunted) + the
+NEW defense-consult seat (the creeper-whole refusal + the team
+gate through the manager's own wiring over a VillageSystem rig),
+HuntScanBounds seats 8+9 (the 16-band box law — inside hunted,
+outside never; the creeper exclusion as the census filter's own),
+VillageDetectionTest's defense seat (the walk answers the nearest
+attacker of ANY kind). LANES: the entity package whole (670/0),
+the village/nbt/leash/acceptance lanes green, the bukkit +
+protocol modules compile.
 
 VT-033'S ADJACENT TAILS LANDED (2026-11-02, commit d96f4a2a — #146's
 review-note ledger retired): the WITHER FALL's kill row and the BEACON

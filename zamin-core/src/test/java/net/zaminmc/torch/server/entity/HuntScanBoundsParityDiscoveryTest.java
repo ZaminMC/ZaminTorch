@@ -479,63 +479,88 @@ class HuntScanBoundsParityDiscoveryTest {
     }
 
     // ------------------------------------------------------------------
-    // Seat 8 — THE IRON GOLEM'S TARGET LAW (rewritten Wave PE-27)
+    // Seat 8 — THE IRON GOLEM'S CENSUS BOX (rewritten Wave PE-29)
     // ------------------------------------------------------------------
 
     /**
-     * The 1.8.8 iron golem NEVER hunts on sight (TrackIronGolemTarget
-     * Goal alone owns the target, IronGolemEntity line 54 — the village's
-     * defense consult): a zombie straddling the old census's very face
-     * is never locked; the 32-block hostile census the engine formerly
-     * carried is the 1.14 village-siege law, retired.
+     * THE MONSTER CENSUS'S OWN BOX (the band-3 ActiveTargetGoal's gather,
+     * IronGolemEntity line 56 — REINSTATED Wave PE-29; the PE-27
+     * retirement misread the reference): the golem's OWN shape grown the
+     * FOLLOW RANGE (the attribute's 16 base) horizontally and 4
+     * vertically — a zombie 12 east is INSIDE the box and hunted on the
+     * census's 1-in-10 dice; a zombie 20 east is OUTSIDE the box and
+     * never a candidate (the old engine's 32-band census was the wrong
+     * number, never the right law's absence).
      */
     @Test
-    void theStraddlingZombieNeverLocksTheIronGolem() throws Exception {
+    void theIronGolemsCensusBoxIsTheFollowRangeBand() throws Exception {
         buildPlatform();
-        MobEntity golem = spawnPinned(MobType.IRON_GOLEM, HUNTER_X, HUNTER_Z);
-        MobEntity straddler = spawnStatic(MobType.ZOMBIE, HUNTER_X + 32.5,
+        // A LIVE golem at PLATFORM level (the path consult — the census's
+        // own checkCanNavigate arm — needs a walkable route to the
+        // candidate; the pin pillar's 4-block drop would refuse it).
+        AtomicReference<MobEntity> spawned = new AtomicReference<>();
+        server.ticker().submit(() ->
+                spawned.set(server.mobs().spawnAt(MobType.IRON_GOLEM,
+                        new Position(HUNTER_X + 0.5, 40.0, HUNTER_Z + 0.5), 0)));
+        EngineAwaits.awaitCondition(server.world(),
+                () -> spawned.get() != null, 100, "the golem spawned");
+        MobEntity golem = spawned.get();
+        MobEntity inside = spawnStatic(MobType.ZOMBIE, HUNTER_X + 12.5,
                 HUNTER_Z + 0.5, true);
-        // The exact straddle: the center at 53.0 (the cell's west edge).
-        server.ticker().submit(() -> straddler.teleport(
-                new Position(HUNTER_X + 32.5 + 0.5, 40.0, HUNTER_Z + 0.5)));
-        EngineAwaits.awaitTicks(server.world(), 2, "the straddle placement");
 
-        EngineAwaits.awaitTicks(server.world(), 20, "the never-hunt window");
-        assertNull(golem.golemTarget(),
-                "no census runs — the straddling zombie is never locked (the"
-                        + " 1.8.8 golem turns only on the village's defense consult)");
+        EngineAwaits.awaitCondition(server.world(),
+                () -> golem.golemTarget() == inside, 300,
+                "the census (the 16-band gather, the 1-in-10 cadence) finds"
+                        + " the zombie inside the follow-range box");
+        assertSame(inside, golem.golemTarget(),
+                "the census's own box is the attribute's 16, never the old 32");
+
+        // The far zombie (21 west of a fresh golem at the platform's east
+        // end, outside its 16-band box) never enters the gather.
+        AtomicReference<MobEntity> fresh = new AtomicReference<>();
+        server.ticker().submit(() ->
+                fresh.set(server.mobs().spawnAt(MobType.IRON_GOLEM,
+                        new Position(HUNTER_X + 40.5, 40.0, HUNTER_Z + 0.5), 0)));
+        EngineAwaits.awaitCondition(server.world(),
+                () -> fresh.get() != null, 100, "the fresh golem spawned");
+        MobEntity freshGolem = fresh.get();
+        MobEntity far = spawnStatic(MobType.ZOMBIE, HUNTER_X + 19.5,
+                HUNTER_Z + 0.5, true);
+        EngineAwaits.awaitTicks(server.world(), 60, "the outside-the-box window");
+        assertNull(freshGolem.golemTarget(),
+                "the zombie outside the follow-range box is never a candidate");
     }
 
     // ------------------------------------------------------------------
-    // Seat 9 — THE CREEPER EXCLUSION (rewritten Wave PE-27: the defense
-    // consult's own exclusion, never a census)
+    // Seat 9 — THE CREEPER EXCLUSION (rewritten Wave PE-29: the census
+    // filter's own exclusion)
     // ------------------------------------------------------------------
 
     /**
-     * A creeper 6 east and a zombie 10 east of the iron golem: NEITHER
-     * is hunted — no census runs at all (the 1.8.8 golem turns only on
-     * the village's defense consult). The creeper exclusion itself now
-     * lives in the village's defense consult (the attacker registry's
-     * own gate); the seat pins the never-on-sight law beside it.
+     * A creeper 6 east and a zombie 10 east of the iron golem: the
+     * census's override predicate refuses the creeper WHOLE
+     * (IronGolemEntity lines 256-258), so the gather's nearest SURVIVOR
+     * is the zombie behind it — the golem hunts the zombie, the creeper
+     * never rides the target row.
      */
     @Test
     void theCreeperNeverLocksTheIronGolem() throws Exception {
         buildPlatform();
-        MobEntity golem = spawnPinned(MobType.IRON_GOLEM, HUNTER_X, HUNTER_Z);
+        AtomicReference<MobEntity> spawned = new AtomicReference<>();
+        server.ticker().submit(() ->
+                spawned.set(server.mobs().spawnAt(MobType.IRON_GOLEM,
+                        new Position(HUNTER_X + 0.5, 40.0, HUNTER_Z + 0.5), 0)));
+        EngineAwaits.awaitCondition(server.world(),
+                () -> spawned.get() != null, 100, "the golem spawned");
+        MobEntity golem = spawned.get();
         MobEntity creeper = spawnStatic(MobType.CREEPER, HUNTER_X + 6.5,
                 HUNTER_Z + 0.5, false);
         MobEntity zombie = spawnStatic(MobType.ZOMBIE, HUNTER_X + 10.5,
                 HUNTER_Z + 0.5, true);
 
-        EngineAwaits.awaitTicks(server.world(), 20, "the never-hunt window");
-        assertNull(golem.golemTarget(),
-                "no census runs — neither the creeper nor the zombie behind it"
-                        + " is hunted (the defense consult alone owns the target)");
-        // The defense arm's write: the mob target's chase owns the walk.
-        server.ticker().submit(() -> golem.setMobAttackTarget(zombie));
         EngineAwaits.awaitCondition(server.world(),
-                () -> golem.mode() == MobEntity.Mode.CHASE, 100,
-                "the defense target's chase owns the walk");
+                () -> golem.golemTarget() == zombie, 300,
+                "the census's dice lands the zombie behind the refused creeper");
         assertTrue(golem.golemTarget() != creeper,
                 "the creeper never rides the golem's target row");
     }
